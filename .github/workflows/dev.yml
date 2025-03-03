@@ -12,6 +12,9 @@ jobs:
   build:
     name: Build and Test
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./web-app
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
@@ -31,13 +34,7 @@ jobs:
         run: npm run prisma:generate
 
       - name: Run Tests
-        run: npm run test
-
-      - name: Run Build
-        run: npm run build
-
-      - name: Run Open API Generator
-        run: npm run generate:api
+        run: npm run test:ci
 
       - name: Run ESLint for issues
         id: lint_fix_remaining
@@ -47,3 +44,9 @@ jobs:
       - name: Check Lint Results File
         run: |
           if [ -s lint-results.txt ]; then echo "Lint issues found. Please fix them." && exit 1; fi
+
+      - name: Run Open API Generator
+        run: npm run generate:api
+
+      - name: Run Build
+        run: npm run build
