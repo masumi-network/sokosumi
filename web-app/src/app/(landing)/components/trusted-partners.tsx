@@ -1,0 +1,79 @@
+import Image from "next/image"
+
+interface BrandLogosProps {
+  title?: string
+  logos?: {
+    name: string
+    url: string
+    image: string
+  }[]
+}
+
+export default function BrandLogos({
+  title = "Endorsed by Leading Brands:",
+  logos = [
+    {
+      name: "Delonghi",
+      url: "#",
+      image: "/brands/Delonghi.svg",
+    },
+    {
+      name: "BMW",
+      url: "#",
+      image: "/brands/BMW.svg",
+    },
+    {
+      name: "Bosch",
+      url: "#",
+      image: "/brands/Bosch.svg",
+    },
+    {
+      name: "Lufthansa",
+      url: "#",
+      image: "/brands/Lufthansa.svg",
+    },
+    {
+      name: "Microsoft",
+      url: "#",
+      image: "/brands/Microsoft.svg",
+    },
+    {
+      name: "Penny",
+      url: "#",
+      image: "/brands/Penny.svg",
+    }
+  ],
+}: BrandLogosProps) {
+    
+  return (
+    <div className="relative p-6 sm:p-8">
+      <div className="mt-2">
+        {title && <h3 className="text-sm font-light">{title}</h3>}
+      </div>
+
+      <div className="flex flex-nowrap justify-center items-center gap-12 overflow-x-auto">
+        {logos.map((logo, index) => (
+          <a
+            key={index}
+            href={logo.url}
+            className="transition-all duration-300 hover:opacity-80 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+            aria-label={logo.name}
+          >
+            <Image
+              src={logo.image || "/placeholder.svg"}
+              alt={`${logo.name} logo`}
+              width={0}
+              height={0}
+              className="w-auto object-contain"
+              style={{ 
+                width: "auto", 
+                height: "auto"
+              }}
+            />
+          </a>
+        ))}
+      </div>
+    </div>
+  )
+}
+

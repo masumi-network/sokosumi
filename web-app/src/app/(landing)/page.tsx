@@ -1,6 +1,7 @@
 import { AuthButtons } from "@/app/(landing)/components/auth-buttons";
 import TextInputWithSubmit from "@/app/(landing)/components/input-with-button";
 import { MainNav } from "@/app/(landing)/components/main-nav";
+import TrustedPartners from "@/app/(landing)/components/trusted-partners";
 import SokosumiLogo from "@/app/components/sokosumi-logo";
 
 export default function LandingPage() {
@@ -10,6 +11,7 @@ export default function LandingPage() {
         <TopNavigation />
         <MainContent />
         <TextInputWithSubmit />
+        <TrustedPartners />
       </div>
     </>
   );
