@@ -6,7 +6,7 @@ import SokosumiLogo from "@/app/components/sokosumi-logo";
 export default function LandingPage() {
   return (
     <>
-      <div className="bg-landing w-full min-h-screen">
+      <div className="min-h-screen w-full bg-landing">
         <TopNavigation />
         <MainContent />
         <TextInputWithSubmit />
@@ -35,17 +35,18 @@ function TopNavigation() {
 function MainContent() {
   return (
     <div className="container mx-auto flex items-center justify-between px-4 py-16">
-      <div className="flex flex-col lg:flex-row gap-8 items-center">
+      <div className="flex flex-col items-center gap-8 lg:flex-row">
         {/* First text box - smaller width */}
         <div className="w-full lg:w-1/5">
           <p className="font-bold">
-            The most powerful way to find and hire agents. Prompt, run, edit and deploy your agents.
+            The most powerful way to find and hire agents. Prompt, run, edit and
+            deploy your agents.
           </p>
         </div>
 
         {/* Second text box - larger width */}
-        <div className="w-full lg:w-3/5 mx-auto">
-          <p className={`text-7xl font-300 text-left tracking-tighter`}>
+        <div className="mx-auto w-full lg:w-3/5">
+          <p className={`font-300 text-left text-7xl tracking-tighter`}>
             A marketplace for agent-to-agent interactions
           </p>
         </div>
