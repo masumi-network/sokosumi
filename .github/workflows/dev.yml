@@ -10,93 +10,37 @@ permissions:
 
 jobs:
   build:
+    name: Build and Test
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./web-app
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: "18"
-
-      - name: Install Backend Dependencies
-        run: cd web-app && npm install
-
-      - name: Generate Prisma Client
-        run: cd web-app && npm run prisma:generate
-
-      - name: Run Jest
-        run: cd web-app && npm run test:ci
-
-      - name: Run Build
-        run: cd web-app && npm run build
-
-  lint:
-    name: Auto-Fix Lint Issues and Push to PR and Comment
-    runs-on: ubuntu-latest
-    needs: build
-
-    steps:
-      # Step 1: Checkout code
-      - name: Checkout Code
         uses: actions/checkout@v3
         with:
-          ref: ${{ github.head_ref }}
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
 
-      # Step 2: Set up Node.js environment
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: "18"
+          node-version: "20"
 
-      # Step 3: Install dependencies
-      - name: Install Dependencies
-        run: cd web-app && npm install
+      - name: Install Backend Dependencies
+        run: npm install
 
-      # Step 4: Run Linter
       - name: Generate Prisma Client
-        run: cd web-app && npm run prisma:generate
+        run: npm run prisma:generate
 
-      - name: Run Format
-        run: cd web-app && npm run format
+      - name: Run Tests
+        run: npm run test:ci
 
-      # Step 4: Run ESLint with Auto-Fix
-      - name: Run ESLint with Auto-Fix
-        id: lint_fix
-        run: |
-          cd web-app && npm run lint
+      - name: Run ESLint
+        run: npm run lint || (echo "Lint issues found. Please fix them." && exit 1)
 
-      # Step 6: Commit and Push Fixes (if any)
-      - name: Commit and Push Fixes
-        if: ${{ github.event_name == 'pull_request' }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add .
-          if git diff --cached --quiet; then
-            echo "No changes to push.";
-          else
-            git commit -m "chore(lint): auto-fix lint issues and generated swagger json"
-            git push origin ${{ github.head_ref }}
-          fi
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run Open API Generator
+        run: npm run generate:api
 
-      - name: Run ESLint remaining issues
-        id: lint_fix_remaining
-        run: |
-          cd web-app && npx eslint --fix --config eslint.config.mjs --format=stylish > lint-results.txt || true
-
-      - name: Check Lint Results File
-        run: |
-          if [ ! -s lint-results.txt ]; then echo "No lint issues found." > lint-results.txt; fi
-
-      - name: Comment Remaining Lint Issues
-        if: ${{ github.event_name == 'pull_request' }}
-        uses: marocchino/sticky-pull-request-comment@52423e01640425a022ef5fd42c6fb5f633a02728
-        with:
-          header: Linter Report
-          path: lint-results.txt
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Run Build
+        run: npm run build

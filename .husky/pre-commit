@@ -74,6 +74,7 @@ if ! command -v npm >/dev/null 2>&1; then
     exit 3
 fi
 
+
 # Run ESLint only on staged files
 echo "${BLUE}🔍 Running Next.js lint...${NC}"
 if command -v git-rev-parse >/dev/null 2>&1 && [ -d .git ]; then

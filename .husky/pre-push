@@ -72,9 +72,16 @@ if cd 'web-app' && ! npm run test:ci; then
 fi
 
 # TypeScript build check
-echo "${BLUE}🔍 Running TypeScript compilation check...${NC}"
+echo "${BLUE}🔍 Generating OpenAPI types...${NC}"
+if cd 'web-app' && ! npm run generate:api; then
+    echo "${RED}❌ OpenAPI types generation failed. Please fix type errors and try again.${NC}"
+    exit 5
+fi
+
+# Nextjs build check
+echo "${BLUE}🔍 Running Next.js build...${NC}"
 if cd 'web-app' && ! npm run build; then
-    echo "${RED}❌ TypeScript compilation failed. Please fix type errors and try again.${NC}"
+    echo "${RED}❌ Next.js build failed. Please fix type errors and try again.${NC}"
     exit 5
 fi
 
