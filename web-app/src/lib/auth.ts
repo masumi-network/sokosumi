@@ -1,27 +1,81 @@
-import { betterAuth } from 'better-auth';
-import { prismaAdapter } from 'better-auth/adapters/prisma';
-import { PrismaClient } from '@prisma/client';
-import { admin, organization, twoFactor, multiSession } from "better-auth/plugins"
-import { passkey } from "better-auth/plugins/passkey"
-import { emailHarmony } from 'better-auth-harmony';
+import { PrismaClient } from "@prisma/client";
+import { betterAuth } from "better-auth";
+import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
+import {
+  admin,
+  multiSession,
+  organization,
+  twoFactor,
+} from "better-auth/plugins";
+import { passkey } from "better-auth/plugins/passkey";
+
+import { resend } from "./email/resend";
+import { reactResetPasswordEmail } from "./email/reset-password";
 
 const prisma = new PrismaClient();
+
+const fromEmail = process.env.BETTER_AUTH_EMAIL || "no-reply@masumi.network";
+
 export const auth = betterAuth({
-    database: prismaAdapter(prisma, {
-        provider: 'postgresql',
-    }),
-    emailAndPassword: { enabled: true },
-    rateLimit: {
-        storage: "database",
+  database: prismaAdapter(prisma, {
+    provider: "postgresql",
+  }),
+  emailVerification: {
+    async sendVerificationEmail({ user, url }) {
+      const res = await resend.emails.send({
+        from: fromEmail,
+        to: user.email,
+        subject: "Verify your email address",
+        html: `<a href="${url}">Verify your email address</a>`,
+      });
+      console.log(res, user.email);
     },
-    plugins: [
-        organization(),
-        admin(),
-        twoFactor(),
-        passkey(),
-        multiSession(),
-        emailHarmony(),
-        nextCookies()
-    ]
+    // sendOnSignUp: true,
+  },
+  emailAndPassword: {
+    enabled: true,
+    // requireEmailVerification: true,
+    async sendResetPassword({ user, url }) {
+      await resend.emails.send({
+        from: fromEmail,
+        to: user.email,
+        subject: "Reset your password",
+        react: reactResetPasswordEmail({
+          username: user.email,
+          resetLink: url,
+        }),
+      });
+    },
+  },
+  rateLimit: {
+    storage: "database",
+  },
+  socialProviders: {
+    google: {
+      clientId:
+        process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "<google-client-id>",
+      clientSecret:
+        process.env.GOOGLE_CLIENT_SECRET || "<google-client-secret>",
+    },
+  },
+  plugins: [
+    organization(),
+    twoFactor({
+      otpOptions: {
+        async sendOTP({ user, otp }) {
+          await resend.emails.send({
+            from: fromEmail,
+            to: user.email,
+            subject: "Your OTP",
+            html: `Your OTP is ${otp}`,
+          });
+        },
+      },
+    }),
+    passkey(),
+    admin(),
+    multiSession(),
+    nextCookies(),
+  ],
 });

@@ -1,15 +1,15 @@
 {
-    "name": "sokosumi",
-    "private": true,
-    "type": "module",
-    "workspaces": [],
-    "scripts": {
-        "prepare": "husky"
-    },
-    "devDependencies": {
-        "husky": "^9.1.7",
-        "lint-staged": "^15.4.3",
-        "@commitlint/cli": "^19.7.1",
-        "@commitlint/config-conventional": "^19.7.1"
-    }
+  "name": "sokosumi",
+  "private": true,
+  "type": "module",
+  "workspaces": [],
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^19.7.1",
+    "@commitlint/config-conventional": "^19.7.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.4.3"
+  }
 }
