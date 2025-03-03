@@ -12,9 +12,13 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
-    "format": "prettier --log-level silent --write src/**/*.ts"
+    "format": "prettier --log-level silent --write src/**/*.ts",
+    "generate:payment": "openapi-ts -f openapi-ts.payment.config.ts",
+    "generate:registry": "openapi-ts -f openapi-ts.registry.config.ts",
+    "generate:api": "npm run generate:registry && npm run generate:payment"
   },
   "dependencies": {
+    "@hey-api/client-fetch": "^0.8.2",
     "@prisma/extension-accelerate": "^1.2.2",
     "better-auth": "^1.1.21",
     "better-auth-harmony": "^1.2.3",
@@ -25,6 +29,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
+    "@hey-api/openapi-ts": "^0.64.8",
     "@testing-library/jest-dom": "6.1.5",
     "@testing-library/react": "16.2.0",
     "@types/jest": "29.5.11",
