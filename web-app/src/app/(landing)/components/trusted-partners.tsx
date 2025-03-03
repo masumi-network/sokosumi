@@ -14,32 +14,32 @@ export default function TrustedPartners({
   logos = [
     {
       name: "Delonghi",
-      url: "#",
+      url: "https://www.delonghi.com",
       image: "/brands/Delonghi.svg",
     },
     {
       name: "BMW",
-      url: "#",
+      url: "https://www.bmw.com",
       image: "/brands/BMW.svg",
     },
     {
       name: "Bosch",
-      url: "#",
+      url: "https://www.bosch.com",
       image: "/brands/Bosch.svg",
     },
     {
       name: "Lufthansa",
-      url: "#",
+      url: "https://www.lufthansa.com",
       image: "/brands/Lufthansa.svg",
     },
     {
       name: "Microsoft",
-      url: "#",
+      url: "https://www.microsoft.com",
       image: "/brands/Microsoft.svg",
     },
     {
       name: "Penny",
-      url: "#",
+      url: "https://www.penny.de",
       image: "/brands/Penny.svg",
     }
   ],
@@ -52,9 +52,9 @@ export default function TrustedPartners({
       </div>
 
       <div className="flex flex-nowrap justify-center items-center gap-12 overflow-x-auto">
-        {logos.map((logo, index) => (
+        {logos.map((logo) => (
           <a
-            key={index}
+            key={logo.name}
             href={logo.url}
             className="transition-all duration-300 hover:opacity-80 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
             aria-label={logo.name}
