@@ -14,49 +14,42 @@ datasource db {
 }
 
 model User {
-  id       String @id @default(uuid())
-  email    String @unique
-  password String
-
-  name          String
-  emailVerified Boolean
-  image         String?
-  createdAt     DateTime
-  updatedAt     DateTime
-  sessions      Session[]
-  accounts      Account[]
-
-  members     Member[]
-  invitations Invitation[]
-
+  id               String    @id @default(uuid())
+  name             String
+  email            String
+  emailVerified    Boolean
+  image            String?
+  createdAt        DateTime
+  updatedAt        DateTime
+  twoFactorEnabled Boolean?
   role             String?
   banned           Boolean?
   banReason        String?
   banExpires       DateTime?
-  twoFactorEnabled Boolean?
-  twofactors       TwoFactor[]
-  passkeys         Passkey[]
 
-  normalizedEmail String?
+  sessions    Session[]
+  accounts    Account[]
+  members     Member[]
+  invitations Invitation[]
+  twofactors  TwoFactor[]
+  passkeys    Passkey[]
 
-  @@unique([normalizedEmail])
-  @@map("users")
+  @@unique([email])
+  @@map("user")
 }
 
 model Session {
-  id        String   @id
-  expiresAt DateTime
-  token     String
-  createdAt DateTime
-  updatedAt DateTime
-  ipAddress String?
-  userAgent String?
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-
+  id                   String   @id
+  expiresAt            DateTime
+  token                String
+  createdAt            DateTime
+  updatedAt            DateTime
+  ipAddress            String?
+  userAgent            String?
+  userId               String
+  user                 User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   activeOrganizationId String?
-
-  impersonatedBy String?
+  impersonatedBy       String?
 
   @@unique([token])
   @@map("session")
@@ -113,6 +106,7 @@ model Member {
   userId         String
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   role           String
+  teamId         String?
   createdAt      DateTime
 
   @@map("member")
@@ -124,6 +118,7 @@ model Invitation {
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   email          String
   role           String?
+  teamId         String?
   status         String
   expiresAt      DateTime
   inviterId      String
