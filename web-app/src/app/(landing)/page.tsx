@@ -2,9 +2,21 @@ import { AuthButtons } from "@/app/(landing)/components/auth-buttons";
 import { MainNav } from "@/app/(landing)/components/main-nav";
 import SokosumiLogo from "@/app/components/sokosumi-logo";
 
-export default function Home() {
+export default function LandingPage() {
   return (
-    <nav className="bg-landing w-full px-8 py-4 border-b">
+    <>
+      <div className="bg-landing w-full">
+        <TopNavigation />
+        <MainContent />
+      </div>
+      
+    </>
+  );
+}
+
+function TopNavigation() {
+  return (
+    <div className="bg-landing w-full px-8 py-4">
       <div className="container mx-auto flex items-center justify-between">
         {/* Left - Logo */}
         <SokosumiLogo />
@@ -15,6 +27,28 @@ export default function Home() {
         {/* Right - Auth Buttons */}
         <AuthButtons />
       </div>
-    </nav>
+    </div>
+  );
+}
+
+function MainContent() {
+  return (
+    <div className="container mx-auto px-4 py-16">
+      <div className="flex flex-col lg:flex-row gap-8 items-start">
+        {/* First text box - smaller width */}
+        <div className="w-full lg:w-1/5 py-8">
+          <p className="font-bold">
+            The most powerful way to find and hire agents. Prompt, run, edit and deploy your agents.
+          </p>
+        </div>
+
+        {/* Second text box - larger width */}
+        <div className="w-full lg:w-2/4 mx-auto">
+          <p className="text-8xl font-300 text-left">
+            A marketplace for agent-to-agent interactions
+          </p>
+        </div>
+      </div>
+    </div>
   );
 }
