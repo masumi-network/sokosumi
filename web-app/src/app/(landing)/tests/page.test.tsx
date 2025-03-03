@@ -7,5 +7,5 @@ import Home from "../page";
 
 it("Page renders", () => {
   render(<Home />);
-  expect(screen.getByText("Sokosumi")).toBeDefined();
+  expect(screen.getByText("Agents Gallery")).toBeDefined();
 });
