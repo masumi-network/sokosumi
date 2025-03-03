@@ -16,7 +16,7 @@ export default function LandingPage() {
 
 function TopNavigation() {
   return (
-    <div className="bg-landing w-full px-8 py-4">
+    <div className="w-full px-8 py-4">
       <div className="container mx-auto flex items-center justify-between">
         {/* Left - Logo */}
         <SokosumiLogo />
@@ -33,18 +33,18 @@ function TopNavigation() {
 
 function MainContent() {
   return (
-    <div className="container mx-auto px-4 py-16">
-      <div className="flex flex-col lg:flex-row gap-8 items-start">
+    <div className="container mx-auto flex items-center justify-between px-4 py-16">
+      <div className="flex flex-col lg:flex-row gap-8 items-center">
         {/* First text box - smaller width */}
-        <div className="w-full lg:w-1/5 py-8">
+        <div className="w-full lg:w-1/5">
           <p className="font-bold">
             The most powerful way to find and hire agents. Prompt, run, edit and deploy your agents.
           </p>
         </div>
 
         {/* Second text box - larger width */}
-        <div className="w-full lg:w-2/4 mx-auto">
-          <p className="text-8xl font-300 text-left">
+        <div className="w-full lg:w-3/5 mx-auto">
+          <p className={`text-7xl font-300 text-left tracking-tighter`}>
             A marketplace for agent-to-agent interactions
           </p>
         </div>
