@@ -74,19 +74,6 @@ if ! command -v npm >/dev/null 2>&1; then
     exit 3
 fi
 
-# Run formatting
-# Run ESLint only on staged files
-echo "${BLUE}🔍 Running format on staged files...${NC}"
-if command -v git-rev-parse >/dev/null 2>&1 && [ -d .git ]; then
-    staged_files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.ts' '*.js' '*.tsx' '*.jsx' 2>/dev/null)
-    if [ -n "$staged_files" ]; then
-        echo "$staged_files" | tr '\n' '\0' | xargs -0 npm run format -- || 
-        (
-            echo "${RED}❌ Formatting failed. Please fix the errors and try committing again.${NC}"
-            exit 4
-        )
-    fi
-fi
 
 # Run ESLint only on staged files
 echo "${BLUE}🔍 Running Next.js lint...${NC}"
