@@ -16,14 +16,14 @@ export default function TextInputWithSubmit() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="bg-white w-full max-w-md mx-auto rounded-md">
+    <form onSubmit={handleSubmit} className="w-full max-w-md mx-auto rounded-md p-4">
       <div className="relative">
         <Input
           type="text"
           placeholder="Ask us about any agent service..."
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
-          className="pr-12" // Add padding to the right to make room for the button
+          className="pr-12 bg-white" // Add padding to the right to make room for the button
         />
         <Button
           type="submit"
