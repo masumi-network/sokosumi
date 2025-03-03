@@ -1,3 +1,6 @@
+import { FlatCompat } from "@eslint/eslintrc";
+import { dirname } from "path";
+import { fileURLToPath } from "url";
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { FlatCompat } from '@eslint/eslintrc';
@@ -10,6 +13,15 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
+  ...compat.config({
+    extends: ["next/core-web-vitals", "next/typescript", "prettier"],
+    plugins: ["simple-import-sort"],
+    ignorePatterns: ["src/components/ui/*"],
+    rules: {
+      "simple-import-sort/imports": "error",
+      "simple-import-sort/exports": "error",
+    },
+  }),
     ...compat.extends('next/core-web-vitals', 'next/typescript'),
     {
         ignores: [
