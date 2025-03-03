@@ -1,15 +1,16 @@
 import { AuthButtons } from "@/app/(landing)/components/auth-buttons";
+import TextInputWithSubmit from "@/app/(landing)/components/input-with-button";
 import { MainNav } from "@/app/(landing)/components/main-nav";
 import SokosumiLogo from "@/app/components/sokosumi-logo";
 
 export default function LandingPage() {
   return (
     <>
-      <div className="bg-landing w-full">
+      <div className="bg-landing w-full min-h-screen">
         <TopNavigation />
         <MainContent />
+        <TextInputWithSubmit />
       </div>
-      
     </>
   );
 }
