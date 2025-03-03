@@ -78,7 +78,7 @@ if cd 'web-app' && ! npm run generate:api; then
     exit 5
 fi
 
-# TypeScript build check
+# Nextjs build check
 echo "${BLUE}🔍 Running Next.js build...${NC}"
 if cd 'web-app' && ! npm run build; then
     echo "${RED}❌ Next.js build failed. Please fix type errors and try again.${NC}"
