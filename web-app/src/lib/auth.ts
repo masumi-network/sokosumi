@@ -15,7 +15,7 @@ import { reactResetPasswordEmail } from "./email/reset-password";
 
 const prisma = new PrismaClient();
 
-const from = process.env.BETTER_AUTH_EMAIL || "sokosumi@nmkr.io";
+const fromEmail = process.env.BETTER_AUTH_EMAIL || "no-reply@masumi.network";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -24,7 +24,7 @@ export const auth = betterAuth({
   emailVerification: {
     async sendVerificationEmail({ user, url }) {
       const res = await resend.emails.send({
-        from,
+        from: fromEmail,
         to: user.email,
         subject: "Verify your email address",
         html: `<a href="${url}">Verify your email address</a>`,
@@ -38,7 +38,7 @@ export const auth = betterAuth({
     // requireEmailVerification: true,
     async sendResetPassword({ user, url }) {
       await resend.emails.send({
-        from,
+        from: fromEmail,
         to: user.email,
         subject: "Reset your password",
         react: reactResetPasswordEmail({
@@ -65,7 +65,7 @@ export const auth = betterAuth({
       otpOptions: {
         async sendOTP({ user, otp }) {
           await resend.emails.send({
-            from,
+            from: fromEmail,
             to: user.email,
             subject: "Your OTP",
             html: `Your OTP is ${otp}`,
