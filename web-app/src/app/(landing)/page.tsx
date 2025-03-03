@@ -20,7 +20,7 @@ export default function LandingPage() {
 function TopNavigation() {
   return (
     <div className="w-full px-8 py-4">
-      <div className="container mx-auto flex items-center justify-between">
+      <div className="container mx-auto flex items-center gap-6 justify-between">
         {/* Left - Logo */}
         <SokosumiLogo />
 
