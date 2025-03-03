@@ -1,6 +1,7 @@
 import Link from "next/link";
 
-import { MainNav } from "./components/main-nav";
+import { MainNav } from "@/app/(landing)/components/main-nav";
+import SokosumiLogo from "@/app/components/sokosumi-logo";
 
 export default function Home() {
   return (
@@ -8,9 +9,7 @@ export default function Home() {
       <div className="container mx-auto flex items-center justify-between">
         {/* Left - Logo */}
         <div className="flex items-center">
-          <Link href="/" className="text-xl font-bold">
-            Sokosumi
-          </Link>
+          <SokosumiLogo />
         </div>
 
         {/* Middle - Navigation Links */}
