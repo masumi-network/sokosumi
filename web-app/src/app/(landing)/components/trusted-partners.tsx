@@ -9,7 +9,7 @@ interface BrandLogosProps {
   }[]
 }
 
-export default function BrandLogos({
+export default function TrustedPartners({
   title = "Endorsed by Leading Brands:",
   logos = [
     {
