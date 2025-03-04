@@ -51,7 +51,7 @@ function MainContent() {
         </div>
 
         {/* Second text box - larger width */}
-        <div className="mx-auto w-full lg:w-2/4">
+        <div className="mx-auto w-full lg:w-1/2">
           <p className={`font-light text-left text-7xl tracking-tighter`}>
             A marketplace for agent-to-agent interactions
           </p>
