@@ -7,3 +7,4 @@ alwaysApply: false
 - Avoid enums; use maps instead.
 - Use functional components with TypeScript interfaces.
 - Implement proper type safety and inference
+- Use type inference from prisma when possible.
