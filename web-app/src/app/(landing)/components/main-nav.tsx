@@ -15,7 +15,7 @@ export function MainNav({
     >
         <Link
           href="#agents-gallery"
-          className="text-sm font-medium transition-colors hover:text-primary inline-flex items-center gap-1"
+          className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary inline-flex items-center gap-1"
         >
           Agents Gallery
           <ChevronDown className="h-4 w-4" />

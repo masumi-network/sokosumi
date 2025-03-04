@@ -22,14 +22,29 @@ export default function LandingPage() {
           <h2 className="text-2xl font-bold">Agent Gallery</h2>
         </div>
       </div>
+      <div id="number-talks">
+        <div className="container mx-auto px-4 space-y-16 py-16 lg:py-24">
+          <h2 className="text-2xl font-bold">Number of Talks</h2>
+        </div>
+      </div>
       <div id="how-it-works">
         <div className="container mx-auto px-4 space-y-16 py-16 lg:py-24">
           <h2 className="text-2xl font-bold">How it works</h2>
         </div>
       </div>
+      <div id="what-our-users-say">
+        <div className="container mx-auto px-4 space-y-16 py-16 lg:py-24">
+          <h2 className="text-2xl font-bold">What our users say</h2>
+        </div>
+      </div>
       <div id="contribute">
         <div className="container mx-auto px-4 space-y-16 py-16 lg:py-24">
           <h2 className="text-2xl font-bold">Contribute</h2>
+        </div>
+      </div>
+      <div id="footer">
+        <div className="container mx-auto px-4 space-y-16 py-16 lg:py-24">
+          <h2 className="text-2xl font-bold">Footer</h2>
         </div>
       </div>
     </>
