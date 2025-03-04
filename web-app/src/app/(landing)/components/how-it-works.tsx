@@ -3,8 +3,7 @@ import { Button } from "@/components/ui/button"
 export default function HowItWorks() {
   return (
     <div className="container mx-auto">
-      <h2 className="text-6xl font-400 mb-8 tracking-tighter">How it works</h2>
-
+      <h2 className="text-6xl font-normal mb-8 tracking-tighter">How it works</h2>
       {/* Responsive grid - horizontal on md+ screens, vertical on smaller screens */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10 text-left">
         {/* Box 1 */}
