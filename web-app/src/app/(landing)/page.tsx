@@ -7,14 +7,29 @@ import SokosumiLogo from "@/app/components/sokosumi-logo";
 export default function LandingPage() {
   return (
     <>
-      <div className="min-h-screen w-full bg-landing">
+      <div className="w-full bg-landing">
         <TopNavigation />
-        <div className="container mx-auto px-4 space-y-16 py-16 lg:py-24">
+        <div className="container mx-auto px-4 space-y-16 pt-16 lg:pt-24">
           <MainContent />
           <TextInputWithSubmit />
           <div className="mt-auto">
             <TrustedPartners />
           </div>
+        </div>
+      </div>
+      <div id="agent-gallery">
+        <div className="container mx-auto px-4 space-y-16 py-16 lg:py-24">
+          <h2 className="text-2xl font-bold">Agent Gallery</h2>
+        </div>
+      </div>
+      <div id="how-it-works">
+        <div className="container mx-auto px-4 space-y-16 py-16 lg:py-24">
+          <h2 className="text-2xl font-bold">How it works</h2>
+        </div>
+      </div>
+      <div id="contribute">
+        <div className="container mx-auto px-4 space-y-16 py-16 lg:py-24">
+          <h2 className="text-2xl font-bold">Contribute</h2>
         </div>
       </div>
     </>
