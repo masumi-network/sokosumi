@@ -1,4 +1,5 @@
 import { AuthButtons } from "@/app/(landing)/components/auth-buttons";
+import Footer from "@/app/(landing)/components/footer";
 import TextInputWithSubmit from "@/app/(landing)/components/input-with-button";
 import { MainNav } from "@/app/(landing)/components/main-nav";
 import TrustedPartners from "@/app/(landing)/components/trusted-partners";
@@ -43,9 +44,7 @@ export default function LandingPage() {
         </div>
       </div>
       <div id="footer">
-        <div className="container mx-auto px-4 space-y-16 py-16 lg:py-24">
-          <h2 className="text-2xl font-bold">Footer</h2>
-        </div>
+        <Footer />
       </div>
     </>
   );
