@@ -1,0 +1,8 @@
+---
+description: Syntax and Formatting
+globs: 
+alwaysApply: true
+---
+- Use the "function" keyword for pure functions.
+- Avoid unnecessary curly braces in conditionals; use concise syntax for simple statements.
+- Use declarative JSX.
