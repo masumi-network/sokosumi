@@ -28,7 +28,7 @@ export default function TextInputWithSubmit() {
         <Button
           type="submit"
           size="icon"
-          className="absolute right-1 top-1 bottom-1 h-auto rounded-md bg-[#6401FF] hover:bg-[#5001CC] text-white"
+          className="absolute right-1 top-1 bottom-1 h-auto rounded-md bg-[#6401FF] hover:bg-[#6401FF]/90 text-white"
           aria-label="Submit"
         >
           <ArrowRight className="h-4 w-4" />
