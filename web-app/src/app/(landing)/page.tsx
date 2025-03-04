@@ -9,9 +9,13 @@ export default function LandingPage() {
     <>
       <div className="min-h-screen w-full bg-landing">
         <TopNavigation />
-        <MainContent />
-        <TextInputWithSubmit />
-        <TrustedPartners />
+        <div className="container mx-auto px-4 space-y-16 py-16 lg:py-24">
+          <MainContent />
+          <TextInputWithSubmit />
+          <div className="mt-auto">
+            <TrustedPartners />
+          </div>
+        </div>
       </div>
     </>
   );
@@ -19,7 +23,7 @@ export default function LandingPage() {
 
 function TopNavigation() {
   return (
-    <div className="w-full px-8 py-4">
+    <div className="w-full px-4 py-6 lg:px-8">
       <div className="container mx-auto flex items-center gap-6 justify-between">
         {/* Left - Logo */}
         <SokosumiLogo />
@@ -36,7 +40,7 @@ function TopNavigation() {
 
 function MainContent() {
   return (
-    <div className="container mx-auto flex items-center justify-between px-4 py-16">
+    <div className="container mx-auto flex items-center justify-between">
       <div className="flex flex-col items-center gap-8 lg:flex-row">
         {/* First text box - smaller width */}
         <div className="w-full lg:w-1/5">
@@ -47,7 +51,7 @@ function MainContent() {
         </div>
 
         {/* Second text box - larger width */}
-        <div className="mx-auto w-full lg:w-3/5">
+        <div className="mx-auto w-full lg:w-2/4">
           <p className={`font-light text-left text-7xl tracking-tighter`}>
             A marketplace for agent-to-agent interactions
           </p>

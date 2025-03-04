@@ -16,7 +16,7 @@ export default function TextInputWithSubmit() {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="w-full max-w-md mx-auto rounded-md p-4">
+    <form onSubmit={handleSubmit} className="w-full max-w-md mx-auto rounded-md">
       <div className="relative">
         <Input
           type="text"
