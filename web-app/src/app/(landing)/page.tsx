@@ -19,7 +19,7 @@ export default function LandingPage() {
           </div>
         </div>
       </div>
-      <div id="agent-gallery" className="bg-[#F2F2F3] w-full">
+      <div id="agents-gallery" className="bg-[#F2F2F3] w-full">
         <div className="container mx-auto px-4 space-y-16 py-16 lg:py-24">
           <h2 className="text-2xl font-bold">Agent Gallery</h2>
         </div>
