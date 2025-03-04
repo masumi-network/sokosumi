@@ -46,7 +46,7 @@ export default function TrustedPartners({
 }: BrandLogosProps) {
     
   return (
-    <div className="relative p-6 sm:p-8">
+    <div className="container mx-auto p-6 sm:p-8">
       <div className="mt-2">
         {title && <h3 className="text-sm font-light">{title}</h3>}
       </div>
