@@ -40,12 +40,12 @@ export default function SocialButton({
 
 export function XButton() {
     return (
-        <SocialButton iconPath="/socials/x.svg" title="Platform X" onClick={() => window.open("https://x.com/sokosumi", "_blank")} />      
+        <SocialButton iconPath="/socials/x.svg" title="Platform X" onClick={() => window.open("https://x.com/sokosumi", "_blank", "noopener,noreferrer")} />      
     )
 }
 
 export function DiscordButton() {
     return (
-        <SocialButton iconPath="/socials/discord.svg" title="Discord" onClick={() => window.open("https://discord.gg/sokosumi", "_blank")} />
+        <SocialButton iconPath="/socials/discord.svg" title="Discord" onClick={() => window.open("https://discord.gg/sokosumi", "_blank", "noopener,noreferrer")} />
     )
 }
