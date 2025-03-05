@@ -1,5 +1,7 @@
 import Image from "next/image";
 
+import { HorizontalScrollList } from "./horizontal-scroll-list";
+
 interface BrandLogosProps {
   title?: string;
   logos?: {
@@ -10,7 +12,7 @@ interface BrandLogosProps {
 }
 
 export default function TrustedPartners({
-  title = "Endorsed by Leading Brands:",
+  title = "Trusted by Brands",
   logos = [
     {
       name: "Delonghi",
@@ -46,32 +48,29 @@ export default function TrustedPartners({
 }: BrandLogosProps) {
   return (
     <div className="container mx-auto">
-      <div className="mt-2">
-        {title && <h3 className="text-sm font-light">{title}</h3>}
+      <div className="mt-2 space-y-4">
+        {title && <h3 className="text-3xl font-bold">{title}</h3>}
       </div>
 
-      <div className="flex flex-nowrap items-center justify-center gap-12 overflow-x-auto">
+      <HorizontalScrollList>
         {logos.map((logo) => (
           <a
             key={logo.name}
             href={logo.url}
-            className="transition-all duration-300 hover:scale-105 hover:opacity-80 focus:outline-none"
+            className="flex h-32 items-center justify-center px-8 transition-all duration-300 hover:scale-105 hover:opacity-80 focus:outline-none"
             aria-label={logo.name}
           >
             <Image
               src={logo.image || "/placeholder.svg"}
               alt={`${logo.name} logo`}
               width={0}
-              height={0}
-              className="w-auto object-contain"
-              style={{
-                width: "auto",
-                height: "auto",
-              }}
+              height={32}
+              className="h-auto w-auto object-contain"
+              priority
             />
           </a>
         ))}
-      </div>
+      </HorizontalScrollList>
     </div>
   );
 }
