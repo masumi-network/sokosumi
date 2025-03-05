@@ -1,0 +1,7 @@
+---
+description: UI and Styling
+globs: 
+alwaysApply: true
+---
+- Use Shadcn UI, Radix, and Tailwind for components and styling.
+- Implement responsive design with Tailwind CSS.
