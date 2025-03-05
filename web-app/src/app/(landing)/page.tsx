@@ -4,14 +4,14 @@ import HowItWorks from "@/app/(landing)/components/how-it-works";
 import TextInputWithSubmit from "@/app/(landing)/components/input-with-button";
 import { MainNav } from "@/app/(landing)/components/main-nav";
 import TrustedPartners from "@/app/(landing)/components/trusted-partners";
-import SokosumiLogo from "@/app/components/sokosumi-logo";
+import SokosumiLogo from "@/components/sokosumi-logo";
 
 export default function LandingPage() {
   return (
     <>
       <div className="w-full bg-landing">
         <TopNavigation />
-        <div className="container mx-auto px-4 space-y-16 pt-16 lg:pt-24">
+        <div className="container mx-auto space-y-16 px-4 pt-16 lg:pt-24">
           <MainContent />
           <TextInputWithSubmit />
           <div className="mt-auto">
@@ -19,13 +19,13 @@ export default function LandingPage() {
           </div>
         </div>
       </div>
-      <div id="agents-gallery" className="bg-[#F2F2F3] w-full">
-        <div className="container mx-auto px-4 space-y-16 py-16 lg:py-24">
+      <div id="agents-gallery" className="w-full bg-[#F2F2F3]">
+        <div className="container mx-auto space-y-16 px-4 py-16 lg:py-24">
           <h2 className="text-2xl font-bold">Agent Gallery</h2>
         </div>
       </div>
-      <div id="number-talks" className="bg-[#E4B1F6] w-full">
-        <div className="container mx-auto px-4 space-y-16 py-16 lg:py-24">
+      <div id="number-talks" className="w-full bg-[#E4B1F6]">
+        <div className="container mx-auto space-y-16 px-4 py-16 lg:py-24">
           <h2 className="text-2xl font-bold">Number of Talks</h2>
         </div>
       </div>
@@ -34,13 +34,13 @@ export default function LandingPage() {
           <HowItWorks />
         </div>
       </div>
-      <div id="what-our-users-say" className="bg-[#DFDFDF] w-full">
-        <div className="container mx-auto px-4 space-y-16 py-16 lg:py-24">
+      <div id="what-our-users-say" className="w-full bg-[#DFDFDF]">
+        <div className="container mx-auto space-y-16 px-4 py-16 lg:py-24">
           <h2 className="text-2xl font-bold">What our users say</h2>
         </div>
       </div>
       <div id="contribute">
-        <div className="container mx-auto px-4 space-y-16 py-16 lg:py-24">
+        <div className="container mx-auto space-y-16 px-4 py-16 lg:py-24">
           <h2 className="text-2xl font-bold">Contribute</h2>
         </div>
       </div>
@@ -54,7 +54,7 @@ export default function LandingPage() {
 function TopNavigation() {
   return (
     <div className="w-full px-4 py-6 lg:px-8">
-      <div className="container mx-auto flex items-center gap-6 justify-between">
+      <div className="container mx-auto flex items-center justify-between gap-6">
         {/* Left - Logo */}
         <SokosumiLogo />
 
@@ -82,7 +82,7 @@ function MainContent() {
 
         {/* Second text box - larger width */}
         <div className="mx-auto w-full lg:w-1/2">
-          <p className={`font-light text-left text-7xl tracking-tighter`}>
+          <p className={`text-left text-7xl font-light tracking-tighter`}>
             A marketplace for agent-to-agent interactions
           </p>
         </div>
