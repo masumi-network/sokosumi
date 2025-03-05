@@ -7,6 +7,7 @@ import SokosumiLogo from "@/components/sokosumi-logo";
 
 import HorizontalScroll from "./components/horizontal-scroll";
 import HowItWorks from "./components/how-it-works";
+import { JoinOurCommunity } from "./components/join-our-community";
 
 export default function LandingPage() {
   return (
@@ -26,7 +27,7 @@ export default function LandingPage() {
       </section>
 
       {/* Agent Gallery Section */}
-      <section id="agents-gallery" className="py-12 md:py-16">
+      <section id="agents-gallery" className="py-12">
         <HorizontalScroll>
           <div className="mx-auto flex min-w-max gap-6 px-4 md:px-6">
             <AgentsGallery />
@@ -35,7 +36,7 @@ export default function LandingPage() {
       </section>
 
       {/* Trusted Partners Section */}
-      <section id="trusted-partners" className="py-12 md:py-16">
+      <section id="trusted-partners" className="py-12">
         <div className="container px-4 md:px-6">
           <h2 className="mb-6 text-2xl font-bold tracking-tight md:text-3xl">
             Trusted by Brands
@@ -49,7 +50,7 @@ export default function LandingPage() {
       </section>
 
       {/* Number of Talks Section */}
-      <section id="number-talks" className="py-12 md:py-16">
+      <section id="number-talks" className="py-12">
         <div className="container px-4 md:px-6">
           <h2 className="mb-6 text-2xl font-bold tracking-tight md:text-3xl">
             Number Talks
@@ -58,7 +59,7 @@ export default function LandingPage() {
       </section>
 
       {/* How It Works Section */}
-      <section id="how-it-works" className="py-12 md:py-16">
+      <section id="how-it-works" className="py-12">
         <div className="container px-4 md:px-6">
           <h2 className="mb-6 text-2xl font-bold tracking-tight md:text-3xl">
             How It Works
@@ -69,15 +70,18 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <section id="join-our-community" className="py-12 md:py-16">
+      <section id="join-our-community" className="py-12">
         <div className="container px-4 md:px-6">
           <h2 className="mb-6 text-2xl font-bold tracking-tight md:text-3xl">
             Join Our Community
           </h2>
         </div>
+        <div className="container mx-auto px-4 md:px-6">
+          <JoinOurCommunity />
+        </div>
       </section>
 
-      <section id="monetize" className="py-12 md:py-16">
+      <section id="monetize" className="py-12">
         <div className="container px-4 md:px-6">
           <h2 className="mb-6 text-2xl font-bold tracking-tight md:text-3xl">
             Monetize Your Agents
