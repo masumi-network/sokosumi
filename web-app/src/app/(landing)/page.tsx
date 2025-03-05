@@ -1,6 +1,5 @@
 import { AuthButtons } from "@/app/(landing)/components/auth-buttons";
 import Footer from "@/app/(landing)/components/footer";
-import { HorizontalScrollList } from "@/app/(landing)/components/horizontal-scroll-list";
 import { MainNav } from "@/app/(landing)/components/main-nav";
 import TrustedPartners from "@/app/(landing)/components/trusted-partners";
 import AgentCard from "@/components/agent-card";
@@ -28,7 +27,11 @@ export default function LandingPage() {
 
       {/* Agent Gallery Section */}
       <section id="agents-gallery" className="py-12 md:py-16">
-        <AgentsGallery />
+        <HorizontalScroll>
+          <div className="mx-auto flex min-w-max gap-6 px-4 md:px-6">
+            <AgentsGallery />
+          </div>
+        </HorizontalScroll>
       </section>
 
       {/* Trusted Partners Section */}
@@ -49,7 +52,7 @@ export default function LandingPage() {
       <section id="number-talks" className="py-12 md:py-16">
         <div className="container px-4 md:px-6">
           <h2 className="mb-6 text-2xl font-bold tracking-tight md:text-3xl">
-            Number of Talks
+            Number Talks
           </h2>
         </div>
       </section>
@@ -66,31 +69,22 @@ export default function LandingPage() {
         </div>
       </section>
 
-      <div id="agents-gallery" className="w-full bg-[#F2F2F3]">
-        <div className="container mx-auto space-y-16 px-4 py-16 lg:py-24">
-          <h2 className="text-2xl font-bold">Agent Gallery</h2>
+      <section id="join-our-community" className="py-12 md:py-16">
+        <div className="container px-4 md:px-6">
+          <h2 className="mb-6 text-2xl font-bold tracking-tight md:text-3xl">
+            Join Our Community
+          </h2>
         </div>
-      </div>
-      <div id="number-talks" className="w-full bg-[#E4B1F6]">
-        <div className="container mx-auto space-y-16 px-4 py-16 lg:py-24">
-          <h2 className="text-2xl font-bold">Number of Talks</h2>
+      </section>
+
+      <section id="monetize" className="py-12 md:py-16">
+        <div className="container px-4 md:px-6">
+          <h2 className="mb-6 text-2xl font-bold tracking-tight md:text-3xl">
+            Monetize Your Agents
+          </h2>
         </div>
-      </div>
-      <div id="how-it-works">
-        <div className="container mx-auto px-4 py-16">
-          <HowItWorks />
-        </div>
-      </div>
-      <div id="what-our-users-say" className="w-full bg-[#DFDFDF]">
-        <div className="container mx-auto space-y-16 px-4 py-16 lg:py-24">
-          <h2 className="text-2xl font-bold">What our users say</h2>
-        </div>
-      </div>
-      <div id="contribute">
-        <div className="container mx-auto space-y-16 px-4 py-16 lg:py-24">
-          <h2 className="text-2xl font-bold">Contribute</h2>
-        </div>
-      </div>
+      </section>
+
       <div id="footer">
         <Footer />
       </div>
@@ -218,13 +212,11 @@ function AgentsGallery() {
     },
   ];
   return (
-    <div className="w-full">
-      <HorizontalScrollList>
-        {agents.map((agent) => (
-          <AgentCard key={agent.id} {...agent} />
-        ))}
-      </HorizontalScrollList>
-    </div>
+    <>
+      {agents.map((agent) => (
+        <AgentCard key={agent.id} {...agent} />
+      ))}
+    </>
   );
 }
 
