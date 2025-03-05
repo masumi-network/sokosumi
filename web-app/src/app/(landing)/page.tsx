@@ -6,19 +6,47 @@ import TrustedPartners from "@/app/(landing)/components/trusted-partners";
 import AgentCard from "@/components/agent-card";
 import SokosumiLogo from "@/components/sokosumi-logo";
 
+import HorizontalScroll from "./components/horizontal-scroll";
 import HowItWorks from "./components/how-it-works";
 
 export default function LandingPage() {
   return (
     <>
-      <div className="w-full">
+      <div>
+        {/* Top Navigation */}
         <TopNavigation />
-        <div className="mx-auto space-y-16 px-4 pt-16 lg:pt-24">
-          <MainContent />
-          <AgentsGallery />
-          <TrustedPartners />
-        </div>
+
+        {/* Hero Section */}
+        <section className="py-20, relative overflow-hidden">
+          <div className="container px-4 md:px-6">
+            <div className="flex flex-col items-center space-y-4 text-center">
+              <div className="space-y-2">
+                <MainContent />
+              </div>
+            </div>
+          </div>
+        </section>
       </div>
+
+      {/* Agent Gallery Section */}
+      <section id="agents-gallery" className="py-12 md:py-16">
+        <AgentsGallery />
+      </section>
+
+      {/* Trusted Partners Section */}
+      <section id="trusted-partners" className="bg-muted/50 py-12 md:py-16">
+        <div className="container px-4 md:px-6">
+          <h2 className="mb-6 text-2xl font-bold tracking-tight md:text-3xl">
+            Trusted by Brands
+          </h2>
+        </div>
+        <HorizontalScroll>
+          <div className="flex min-w-max gap-6 px-4 md:px-6">
+            <TrustedPartners />
+          </div>
+        </HorizontalScroll>
+      </section>
+
       <div id="agents-gallery" className="w-full bg-[#F2F2F3]">
         <div className="container mx-auto space-y-16 px-4 py-16 lg:py-24">
           <h2 className="text-2xl font-bold">Agent Gallery</h2>

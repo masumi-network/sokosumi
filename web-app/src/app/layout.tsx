@@ -35,9 +35,7 @@ export default function RootLayout({
           "min-h-svh bg-background antialiased",
         )}
       >
-        <div className="relative flex min-h-svh flex-col bg-background">
-          {children}
-        </div>
+        <div className="min-h-screen bg-background">{children}</div>
         <Toaster />
       </body>
     </html>
