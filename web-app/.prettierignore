@@ -1,10 +1,9 @@
-node_modules
-dist
-build
-coverage
+**/dist/**
+**/build/**
+**/coverage/**
 
 # Ignore generated code
-src/lib/api/generated
+src/lib/api/generated/**
 
 # Ignore UI components
-src/components/ui
+src/components/ui/**
