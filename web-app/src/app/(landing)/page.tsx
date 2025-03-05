@@ -1,10 +1,13 @@
 import { AuthButtons } from "@/app/(landing)/components/auth-buttons";
 import Footer from "@/app/(landing)/components/footer";
-import HowItWorks from "@/app/(landing)/components/how-it-works";
+import { HorizontalScrollList } from "@/app/(landing)/components/horizontal-scroll-list";
 import TextInputWithSubmit from "@/app/(landing)/components/input-with-button";
 import { MainNav } from "@/app/(landing)/components/main-nav";
 import TrustedPartners from "@/app/(landing)/components/trusted-partners";
+import AgentCard from "@/components/agent-card";
 import SokosumiLogo from "@/components/sokosumi-logo";
+
+import HowItWorks from "./components/how-it-works";
 
 export default function LandingPage() {
   return (
@@ -13,6 +16,7 @@ export default function LandingPage() {
         <TopNavigation />
         <div className="container mx-auto space-y-16 px-4 pt-16 lg:pt-24">
           <MainContent />
+          <AgentsGallery />
           <TextInputWithSubmit />
           <div className="mt-auto">
             <TrustedPartners />
@@ -64,6 +68,119 @@ function TopNavigation() {
         {/* Right - Auth Buttons */}
         <AuthButtons />
       </div>
+    </div>
+  );
+}
+
+function AgentsGallery() {
+  const agents = [
+    {
+      id: 1,
+      image: "/agent-card-placeholder.png",
+      rating: 4,
+      title: "Agent Smith",
+      description:
+        "Professional real estate agent with over 10 years of experience in the market.",
+      buttonText: "Run Analysis",
+      pricingTitle: "Free Trial",
+      pricingCaption: "Normal Price: 10-30 credits/run",
+    },
+    {
+      id: 2,
+      image: "/agent-card-placeholder.png",
+      rating: 4,
+      title: "Agent Smith",
+      description:
+        "Professional real estate agent with over 10 years of experience in the market.",
+      buttonText: "Run Analysis",
+      pricingTitle: "Free Trial",
+      pricingCaption: "Normal Price: 10-30 credits/run",
+    },
+    {
+      id: 3,
+      image: "/agent-card-placeholder.png",
+      rating: 4,
+      title: "Agent Smith",
+      description:
+        "Professional real estate agent with over 10 years of experience in the market.",
+      buttonText: "Run Analysis",
+      pricingTitle: "Free Trial",
+      pricingCaption: "Normal Price: 10-30 credits/run",
+    },
+    {
+      id: 4,
+      image: "/agent-card-placeholder.png",
+      rating: 4,
+      title: "Agent Smith",
+      description:
+        "Professional real estate agent with over 10 years of experience in the market.",
+      buttonText: "Run Analysis",
+      pricingTitle: "Free Trial",
+      pricingCaption: "Normal Price: 10-30 credits/run",
+    },
+    {
+      id: 5,
+      image: "/agent-card-placeholder.png",
+      rating: 4,
+      title: "Agent Smith",
+      description:
+        "Professional real estate agent with over 10 years of experience in the market.",
+      buttonText: "Run Analysis",
+      pricingTitle: "Free Trial",
+      pricingCaption: "Normal Price: 10-30 credits/run",
+    },
+    {
+      id: 6,
+      image: "/agent-card-placeholder.png",
+      rating: 4,
+      title: "Agent Smith",
+      description:
+        "Professional real estate agent with over 10 years of experience in the market.",
+      buttonText: "Run Analysis",
+      pricingTitle: "Free Trial",
+      pricingCaption: "Normal Price: 10-30 credits/run",
+    },
+    {
+      id: 7,
+      image: "/agent-card-placeholder.png",
+      rating: 4,
+      title: "Agent Smith",
+      description:
+        "Professional real estate agent with over 10 years of experience in the market.",
+      buttonText: "Run Analysis",
+      pricingTitle: "Free Trial",
+      pricingCaption: "Normal Price: 10-30 credits/run",
+    },
+    {
+      id: 8,
+      image: "/agent-card-placeholder.png",
+      rating: 4,
+      title: "Agent Smith",
+      description:
+        "Professional real estate agent with over 10 years of experience in the market.",
+      buttonText: "Run Analysis",
+      pricingTitle: "Free Trial",
+      pricingCaption: "Normal Price: 10-30 credits/run",
+    },
+    {
+      id: 9,
+      image: "/agent-card-placeholder.png",
+      rating: 4,
+      title: "Agent Smith",
+      description:
+        "Professional real estate agent with over 10 years of experience in the market.",
+      buttonText: "Run Analysis",
+      pricingTitle: "Free Trial",
+      pricingCaption: "Normal Price: 10-30 credits/run",
+    },
+  ];
+  return (
+    <div className="w-full">
+      <HorizontalScrollList>
+        {agents.map((agent) => (
+          <AgentCard key={agent.id} {...agent} />
+        ))}
+      </HorizontalScrollList>
     </div>
   );
 }
