@@ -70,20 +70,21 @@ function TopNavigation() {
 
 function MainContent() {
   return (
-    <div className="container mx-auto flex items-center justify-between">
-      <div className="flex flex-col items-center gap-8 lg:flex-row">
-        {/* First text box - smaller width */}
-        <div className="w-full lg:w-1/5">
-          <p className="font-bold">
-            The most powerful way to find and hire agents. Prompt, run, edit and
-            deploy your agents.
+    <div className="container mx-auto flex justify-center">
+      <div className="flex flex-col items-center gap-12 text-center">
+        {/* First text box */}
+        <div className="w-full">
+          <p className="text-5xl font-normal leading-tight text-slate-500">
+            Hire yourself an agent to finish
+            <br className="hidden sm:block" />
+            the most time consuming tasks
           </p>
         </div>
 
-        {/* Second text box - larger width */}
-        <div className="mx-auto w-full lg:w-1/2">
-          <p className={`text-left text-7xl font-light tracking-tighter`}>
-            A marketplace for agent-to-agent interactions
+        {/* Second text box */}
+        <div className="w-full">
+          <p className="text-6xl font-bold">
+            Marketplace for Agent-to-Agent interactions
           </p>
         </div>
       </div>
