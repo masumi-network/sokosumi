@@ -9,7 +9,7 @@ import SokosumiLogo from "@/components/sokosumi-logo";
 export default function LandingPage() {
   return (
     <>
-      <div className="w-full bg-landing">
+      <div className="w-full">
         <TopNavigation />
         <div className="container mx-auto space-y-16 px-4 pt-16 lg:pt-24">
           <MainContent />
