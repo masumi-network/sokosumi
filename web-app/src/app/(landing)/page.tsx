@@ -13,12 +13,10 @@ export default function LandingPage() {
     <>
       <div className="w-full">
         <TopNavigation />
-        <div className="container mx-auto space-y-16 px-4 pt-16 lg:pt-24">
+        <div className="mx-auto space-y-16 px-4 pt-16 lg:pt-24">
           <MainContent />
           <AgentsGallery />
-          <div className="mt-auto">
-            <TrustedPartners />
-          </div>
+          <TrustedPartners />
         </div>
       </div>
       <div id="agents-gallery" className="w-full bg-[#F2F2F3]">

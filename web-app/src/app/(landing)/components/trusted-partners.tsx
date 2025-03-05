@@ -57,7 +57,7 @@ export default function TrustedPartners({
           <a
             key={logo.name}
             href={logo.url}
-            className="flex h-32 items-center justify-center px-8 transition-all duration-300 hover:scale-105 hover:opacity-80 focus:outline-none"
+            className="flex h-32 items-center justify-center px-6 transition-all duration-300 hover:scale-105 hover:opacity-80 focus:outline-none"
             aria-label={logo.name}
           >
             <Image
