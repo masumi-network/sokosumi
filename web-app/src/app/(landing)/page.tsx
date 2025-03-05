@@ -12,21 +12,19 @@ import HowItWorks from "./components/how-it-works";
 export default function LandingPage() {
   return (
     <>
-      <div>
-        {/* Top Navigation */}
-        <TopNavigation />
+      {/* Top Navigation */}
+      <TopNavigation />
 
-        {/* Hero Section */}
-        <section className="py-20, relative overflow-hidden">
-          <div className="container px-4 md:px-6">
-            <div className="flex flex-col items-center space-y-4 text-center">
-              <div className="space-y-2">
-                <MainContent />
-              </div>
+      {/* Hero Section */}
+      <section className="py-20, relative overflow-hidden">
+        <div className="container px-4 md:px-6">
+          <div className="flex flex-col items-center space-y-4 text-center">
+            <div className="space-y-2">
+              <MainContent />
             </div>
           </div>
-        </section>
-      </div>
+        </div>
+      </section>
 
       {/* Agent Gallery Section */}
       <section id="agents-gallery" className="py-12 md:py-16">
@@ -41,7 +39,7 @@ export default function LandingPage() {
           </h2>
         </div>
         <HorizontalScroll>
-          <div className="flex min-w-max gap-6 px-4 md:px-6">
+          <div className="mx-auto flex min-w-max gap-6 px-4 md:px-6">
             <TrustedPartners />
           </div>
         </HorizontalScroll>
