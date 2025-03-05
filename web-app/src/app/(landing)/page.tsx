@@ -1,7 +1,6 @@
 import { AuthButtons } from "@/app/(landing)/components/auth-buttons";
 import Footer from "@/app/(landing)/components/footer";
 import { HorizontalScrollList } from "@/app/(landing)/components/horizontal-scroll-list";
-import TextInputWithSubmit from "@/app/(landing)/components/input-with-button";
 import { MainNav } from "@/app/(landing)/components/main-nav";
 import TrustedPartners from "@/app/(landing)/components/trusted-partners";
 import AgentCard from "@/components/agent-card";
@@ -17,7 +16,6 @@ export default function LandingPage() {
         <div className="container mx-auto space-y-16 px-4 pt-16 lg:pt-24">
           <MainContent />
           <AgentsGallery />
-          <TextInputWithSubmit />
           <div className="mt-auto">
             <TrustedPartners />
           </div>
