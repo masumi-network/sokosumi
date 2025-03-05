@@ -31,7 +31,14 @@ export function MainNav({
           href="#contribute"
           className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
         >
-          Contribute
+          Community
+          <ChevronDown className="h-4 w-4" />
+        </Link>
+        <Link
+          href="#monetize"
+          className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
+        >
+          Monetize
           <ChevronDown className="h-4 w-4" />
         </Link>
       </nav>
