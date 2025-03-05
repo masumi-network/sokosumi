@@ -53,10 +53,23 @@ export const auth = betterAuth({
   },
   socialProviders: {
     google: {
-      clientId:
-        process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || "<google-client-id>",
+      clientId: process.env.GOOGLE_CLIENT_ID || "<google-client-id>",
       clientSecret:
         process.env.GOOGLE_CLIENT_SECRET || "<google-client-secret>",
+    },
+    microsoft: {
+      clientId: process.env.MICROSOFT_CLIENT_ID || "<microsoft-client-id>",
+      clientSecret:
+        process.env.MICROSOFT_CLIENT_SECRET || "<microsoft-client-secret>",
+    },
+    apple: {
+      clientId: process.env.APPLE_CLIENT_ID || "<apple-client-id>",
+      clientSecret: process.env.APPLE_CLIENT_SECRET || "<apple-client-secret>",
+    },
+    linkedin: {
+      clientId: process.env.LINKEDIN_CLIENT_ID || "<linkedin-client-id>",
+      clientSecret:
+        process.env.LINKEDIN_CLIENT_SECRET || "<linkedin-client-secret>",
     },
   },
   plugins: [
