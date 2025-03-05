@@ -1,6 +1,8 @@
 import { ArrowRight, ArrowUpRight } from "lucide-react";
 import Link from "next/link";
 
+import { SokosumiLogo } from "@/components/masumi-logos";
+
 import { DiscordButton, XButton } from "./social-button";
 
 export default function Footer() {
@@ -10,8 +12,8 @@ export default function Footer() {
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
           {/* First column - top: Social Media */}
           <div>
-            <h3 className="text-lg font-medium text-muted-foreground">
-              Join our community
+            <h3 className="text-lg font-medium text-muted-foreground text-white">
+              <SokosumiLogo variant="white" />
             </h3>
             <div className="mt-4 flex space-x-4">
               <XButton />

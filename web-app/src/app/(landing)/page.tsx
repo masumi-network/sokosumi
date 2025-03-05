@@ -3,7 +3,7 @@ import Footer from "@/app/(landing)/components/footer";
 import { MainNav } from "@/app/(landing)/components/main-nav";
 import TrustedPartners from "@/app/(landing)/components/trusted-partners";
 import AgentCard from "@/components/agent-card";
-import SokosumiLogo from "@/components/sokosumi-logo";
+import { SokosumiLogo } from "@/components/masumi-logos";
 
 import HorizontalScroll from "./components/horizontal-scroll";
 import HowItWorks from "./components/how-it-works";
