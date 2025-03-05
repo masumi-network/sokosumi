@@ -22,7 +22,6 @@ export default function Footer() {
                   className="flex items-center gap-1 text-sm text-muted-foreground hover:text-white"
                 >
                   Privacy Policy
-                  <ArrowUpRight className="h-4 w-4" />
                 </Link>
               </li>
               <li>
@@ -31,7 +30,6 @@ export default function Footer() {
                   className="flex items-center gap-1 text-sm text-muted-foreground hover:text-white"
                 >
                   Terms & Conditions
-                  <ArrowUpRight className="h-4 w-4" />
                 </Link>
               </li>
               <li>
