@@ -21,7 +21,7 @@ export default function SocialButton({
   return (
     <Button
       className={cn(
-        "flex items-center gap-2 bg-[#4F4F58] hover:bg-[#4F4F58]/90",
+        "flex items-center gap-2 border-black bg-white text-black hover:bg-gray-100",
         className,
       )}
       onClick={onClick}
