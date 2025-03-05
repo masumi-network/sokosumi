@@ -3,18 +3,18 @@ import Link from "next/link";
 export function AuthButtons() {
   return (
     <div className="flex items-center gap-4">
-      <Link 
+      <Link
         href="/signin"
-        className="px-4 py-2 text-sm hover:text-gray-600 transition-colors"
+        className="px-4 py-2 text-sm transition-colors hover:text-gray-600"
       >
         Sign In
       </Link>
-      <Link 
+      <Link
         href="/signup"
-        className="px-4 py-2 text-sm bg-black text-white rounded-md hover:bg-gray-800 transition-colors"
+        className="rounded-md bg-black px-4 py-2 text-sm text-white transition-colors hover:bg-gray-800"
       >
         Sign Up
       </Link>
     </div>
   );
-} 
+}

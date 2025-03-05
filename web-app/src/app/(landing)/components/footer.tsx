@@ -1,17 +1,19 @@
-import { ArrowRight, ArrowUpRight } from "lucide-react"
-import Link from "next/link"
+import { ArrowRight, ArrowUpRight } from "lucide-react";
+import Link from "next/link";
 
-import { DiscordButton,XButton } from "./social-button"
+import { DiscordButton, XButton } from "./social-button";
 
 export default function Footer() {
   return (
     <footer className="bg-black text-white">
-      <div className="container px-4 py-12 mx-auto">
+      <div className="container mx-auto px-4 py-12">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
           {/* First column - top: Social Media */}
           <div>
-            <h3 className="text-lg font-medium text-muted-foreground">Join our community</h3>
-            <div className="flex mt-4 space-x-4">
+            <h3 className="text-lg font-medium text-muted-foreground">
+              Join our community
+            </h3>
+            <div className="mt-4 flex space-x-4">
               <XButton />
               <DiscordButton />
             </div>
@@ -22,26 +24,38 @@ export default function Footer() {
             <nav>
               <ul className="space-y-2">
                 <li>
-                  <Link href="#" className="text-xl hover:text-muted-foreground flex items-center gap-1">
-                    <ArrowRight className="w-4 h-4" />
+                  <Link
+                    href="#"
+                    className="flex items-center gap-1 text-xl hover:text-muted-foreground"
+                  >
+                    <ArrowRight className="h-4 w-4" />
                     <span>Home</span>
                   </Link>
                 </li>
                 <li>
-                  <Link href="#agents-gallery" className="text-xl hover:text-muted-foreground flex items-center gap-1">
-                    <ArrowRight className="w-4 h-4" />
+                  <Link
+                    href="#agents-gallery"
+                    className="flex items-center gap-1 text-xl hover:text-muted-foreground"
+                  >
+                    <ArrowRight className="h-4 w-4" />
                     <span>Gallery</span>
                   </Link>
                 </li>
                 <li>
-                  <Link href="#how-it-works" className="text-xl hover:text-muted-foreground flex items-center gap-1">
-                    <ArrowRight className="w-4 h-4" />
+                  <Link
+                    href="#how-it-works"
+                    className="flex items-center gap-1 text-xl hover:text-muted-foreground"
+                  >
+                    <ArrowRight className="h-4 w-4" />
                     <span>How it Works</span>
                   </Link>
                 </li>
                 <li>
-                  <Link href="#contribute" className="text-xl hover:text-muted-foreground flex items-center gap-1">
-                    <ArrowRight className="w-4 h-4" />
+                  <Link
+                    href="#contribute"
+                    className="flex items-center gap-1 text-xl hover:text-muted-foreground"
+                  >
+                    <ArrowRight className="h-4 w-4" />
                     <span>Contribute</span>
                   </Link>
                 </li>
@@ -60,18 +74,28 @@ export default function Footer() {
           <div>
             <ul className="flex flex-wrap space-x-4">
               <li>
-                <Link href="#" className="text-sm text-muted-foreground hover:text-white flex items-center gap-1">
+                <Link
+                  href="#"
+                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-white"
+                >
                   Imprint
                 </Link>
               </li>
               <li>
-                <Link href="#" className="text-sm text-muted-foreground hover:text-white flex items-center gap-1">
+                <Link
+                  href="#"
+                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-white"
+                >
                   Contact
                 </Link>
               </li>
               <li>
-                <Link href="#" className="text-sm text-muted-foreground hover:text-white flex items-center gap-1">
-                  Privacy Policy<ArrowUpRight className="w-4 h-4" />
+                <Link
+                  href="#"
+                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-white"
+                >
+                  Privacy Policy
+                  <ArrowUpRight className="h-4 w-4" />
                 </Link>
               </li>
             </ul>
@@ -79,7 +103,5 @@ export default function Footer() {
         </div>
       </div>
     </footer>
-  )
+  );
 }
-
-

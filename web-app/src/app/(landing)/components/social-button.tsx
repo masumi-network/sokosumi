@@ -1,15 +1,15 @@
-'use client'
+"use client";
 
-import Image from "next/image"
+import Image from "next/image";
 
-import { Button } from "@/components/ui/button"
-import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface SocialButtonProps {
-  iconPath: string
-  title: string
-  onClick?: () => void
-  className?: string
+  iconPath: string;
+  title: string;
+  onClick?: () => void;
+  className?: string;
 }
 
 export default function SocialButton({
@@ -21,8 +21,8 @@ export default function SocialButton({
   return (
     <Button
       className={cn(
-        "bg-[#4F4F58] hover:bg-[#4F4F58]/90 flex items-center gap-2",
-        className
+        "flex items-center gap-2 bg-[#4F4F58] hover:bg-[#4F4F58]/90",
+        className,
       )}
       onClick={onClick}
     >
@@ -35,17 +35,33 @@ export default function SocialButton({
       />
       <span>{title}</span>
     </Button>
-  )
+  );
 }
 
 export function XButton() {
-    return (
-        <SocialButton iconPath="/socials/x.svg" title="Platform X" onClick={() => window.open("https://x.com/sokosumi", "_blank", "noopener,noreferrer")} />      
-    )
+  return (
+    <SocialButton
+      iconPath="/socials/x.svg"
+      title="Platform X"
+      onClick={() =>
+        window.open("https://x.com/sokosumi", "_blank", "noopener,noreferrer")
+      }
+    />
+  );
 }
 
 export function DiscordButton() {
-    return (
-        <SocialButton iconPath="/socials/discord.svg" title="Discord" onClick={() => window.open("https://discord.gg/sokosumi", "_blank", "noopener,noreferrer")} />
-    )
+  return (
+    <SocialButton
+      iconPath="/socials/discord.svg"
+      title="Discord"
+      onClick={() =>
+        window.open(
+          "https://discord.gg/sokosumi",
+          "_blank",
+          "noopener,noreferrer",
+        )
+      }
+    />
+  );
 }

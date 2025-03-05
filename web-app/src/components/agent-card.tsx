@@ -1,17 +1,17 @@
-import { Star } from "lucide-react"
-import Image from "next/image"
+import { Star } from "lucide-react";
+import Image from "next/image";
 
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardFooter } from "@/components/ui/card"
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 
 interface AgentCardProps {
-  image: string
-  rating: number
-  title: string
-  description: string
-  buttonText: string
-  pricingTitle: string
-  pricingCaption: string
+  image: string;
+  rating: number;
+  title: string;
+  description: string;
+  buttonText: string;
+  pricingTitle: string;
+  pricingCaption: string;
 }
 
 export default function AgentCard({
@@ -23,27 +23,37 @@ export default function AgentCard({
   pricingTitle = "Free Trial",
   pricingCaption = "Normal Price: 10-30 credits/run",
 }: AgentCardProps) {
-  const normalizedRating = Math.max(0, Math.min(5, Math.floor(rating)))
+  const normalizedRating = Math.max(0, Math.min(5, Math.floor(rating)));
 
   return (
     <Card className="w-full max-w-sm overflow-hidden">
-      <div className="relative w-full h-48">
-        <Image src={image || "/placeholder.svg"} alt={`${title} profile image`} fill className="object-cover" />
+      <div className="relative h-48 w-full">
+        <Image
+          src={image || "/placeholder.svg"}
+          alt={`${title} profile image`}
+          fill
+          className="object-cover"
+        />
       </div>
 
       <CardContent className="p-6">
-        <div className="flex mb-2" aria-label={`Rating: ${normalizedRating} out of 5 stars`}>
+        <div
+          className="mb-2 flex"
+          aria-label={`Rating: ${normalizedRating} out of 5 stars`}
+        >
           {Array.from({ length: 5 }).map((_, i) => (
             <Star
               key={i}
-              className={`w-5 h-5 ${i < normalizedRating ? "fill-primary text-primary" : "text-muted-foreground"}`}
+              className={`h-5 w-5 ${i < normalizedRating ? "fill-primary text-primary" : "text-muted-foreground"}`}
               aria-hidden="true"
             />
           ))}
         </div>
 
-        <h3 className="text-xl font-bold mb-2">{title}</h3>
-        <p className="text-muted-foreground mb-4 line-clamp-5 overflow-hidden text-ellipsis">{description}</p>
+        <h3 className="mb-2 text-xl font-bold">{title}</h3>
+        <p className="mb-4 line-clamp-5 overflow-hidden text-ellipsis text-muted-foreground">
+          {description}
+        </p>
       </CardContent>
 
       <CardFooter className="flex items-center p-6 pt-0">
@@ -57,6 +67,5 @@ export default function AgentCard({
         </div>
       </CardFooter>
     </Card>
-  )
+  );
 }
-

@@ -1,12 +1,12 @@
-import Image from "next/image"
+import Image from "next/image";
 
 interface BrandLogosProps {
-  title?: string
+  title?: string;
   logos?: {
-    name: string
-    url: string
-    image: string
-  }[]
+    name: string;
+    url: string;
+    image: string;
+  }[];
 }
 
 export default function TrustedPartners({
@@ -41,22 +41,21 @@ export default function TrustedPartners({
       name: "Penny",
       url: "https://www.penny.de",
       image: "/brands/Penny.svg",
-    }
+    },
   ],
 }: BrandLogosProps) {
-    
   return (
     <div className="container mx-auto">
       <div className="mt-2">
         {title && <h3 className="text-sm font-light">{title}</h3>}
       </div>
 
-      <div className="flex flex-nowrap justify-center items-center gap-12 overflow-x-auto">
+      <div className="flex flex-nowrap items-center justify-center gap-12 overflow-x-auto">
         {logos.map((logo) => (
           <a
             key={logo.name}
             href={logo.url}
-            className="transition-all duration-300 hover:opacity-80 hover:scale-105 focus:outline-none"
+            className="transition-all duration-300 hover:scale-105 hover:opacity-80 focus:outline-none"
             aria-label={logo.name}
           >
             <Image
@@ -65,15 +64,14 @@ export default function TrustedPartners({
               width={0}
               height={0}
               className="w-auto object-contain"
-              style={{ 
-                width: "auto", 
-                height: "auto"
+              style={{
+                width: "auto",
+                height: "auto",
               }}
             />
           </a>
         ))}
       </div>
     </div>
-  )
+  );
 }
-

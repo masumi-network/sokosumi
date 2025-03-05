@@ -6,29 +6,26 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const compat = new FlatCompat({
-    baseDirectory: __dirname,
+  baseDirectory: __dirname,
 });
 
 const eslintConfig = [
   ...compat.config({
     extends: ["next/core-web-vitals", "next/typescript", "prettier"],
-    plugins: ["simple-import-sort"],
-    ignorePatterns: ["src/components/ui/*"],
+    plugins: ["simple-import-sort", "prettier"],
+    ignorePatterns: [
+      "**/dist/**",
+      "**/build/**",
+      "**/coverage/**",
+      "src/components/ui/**",
+      "src/lib/api/generated/**",
+    ],
     rules: {
       "simple-import-sort/imports": "error",
       "simple-import-sort/exports": "error",
+      "prettier/prettier": "error",
     },
   }),
-    ...compat.extends('next/core-web-vitals', 'next/typescript'),
-    {
-        ignores: [
-            '**/node_modules/**',
-            '**/dist/**',
-            '**/build/**',
-            '**/coverage/**',
-            '**/src/lib/api/generated/**' // Ignore generated API clients
-        ],
-    },
 ];
 
 export default eslintConfig;
