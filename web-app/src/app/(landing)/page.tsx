@@ -32,7 +32,7 @@ export default function LandingPage() {
       </section>
 
       {/* Trusted Partners Section */}
-      <section id="trusted-partners" className="bg-muted/50 py-12 md:py-16">
+      <section id="trusted-partners" className="py-12 md:py-16">
         <div className="container px-4 md:px-6">
           <h2 className="mb-6 text-2xl font-bold tracking-tight md:text-3xl">
             Trusted by Brands
@@ -43,6 +43,27 @@ export default function LandingPage() {
             <TrustedPartners />
           </div>
         </HorizontalScroll>
+      </section>
+
+      {/* Number of Talks Section */}
+      <section id="number-talks" className="py-12 md:py-16">
+        <div className="container px-4 md:px-6">
+          <h2 className="mb-6 text-2xl font-bold tracking-tight md:text-3xl">
+            Number of Talks
+          </h2>
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section id="how-it-works" className="py-12 md:py-16">
+        <div className="container px-4 md:px-6">
+          <h2 className="mb-6 text-2xl font-bold tracking-tight md:text-3xl">
+            How It Works
+          </h2>
+        </div>
+        <div className="container mx-auto px-4">
+          <HowItWorks />
+        </div>
       </section>
 
       <div id="agents-gallery" className="w-full bg-[#F2F2F3]">

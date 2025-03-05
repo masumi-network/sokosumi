@@ -2,10 +2,7 @@ import { Button } from "@/components/ui/button";
 
 export default function HowItWorks() {
   return (
-    <div className="container mx-auto">
-      <h2 className="mb-8 text-6xl font-normal tracking-tighter">
-        How it works
-      </h2>
+    <>
       {/* Responsive grid - horizontal on md+ screens, vertical on smaller screens */}
       <div className="mb-10 grid grid-cols-1 gap-6 text-left md:grid-cols-3">
         {/* Box 1 */}
@@ -58,11 +55,11 @@ export default function HowItWorks() {
       <div className="flex justify-start">
         <Button
           size="lg"
-          className="bg-[#6401FF] px-8 text-white hover:bg-[#6401FF]/90"
+          className="bg-black px-8 text-white hover:bg-black/90"
         >
           Explore Gallery
         </Button>
       </div>
-    </div>
+    </>
   );
 }
