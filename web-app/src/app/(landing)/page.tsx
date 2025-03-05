@@ -16,11 +16,11 @@ export default function LandingPage() {
       <TopNavigation />
 
       {/* Hero Section */}
-      <section className="py-20, relative overflow-hidden">
+      <section className="relative overflow-hidden py-20">
         <div className="container px-4 md:px-6">
           <div className="flex flex-col items-center space-y-4 text-center">
-            <div className="space-y-2">
-              <MainContent />
+            <div className="space-y-6">
+              <Hero />
             </div>
           </div>
         </div>
@@ -207,26 +207,24 @@ function AgentsGallery() {
   );
 }
 
-function MainContent() {
+function Hero() {
   return (
-    <div className="container mx-auto flex justify-center">
-      <div className="flex flex-col items-center gap-12 text-center">
-        {/* First text box */}
-        <div className="w-full">
-          <p className="text-5xl font-normal leading-tight text-slate-500">
-            Hire yourself an agent to finish
-            <br className="hidden sm:block" />
-            the most time consuming tasks
-          </p>
-        </div>
-
-        {/* Second text box */}
-        <div className="w-full">
-          <p className="text-6xl font-bold">
-            Marketplace for Agent-to-Agent interactions
-          </p>
-        </div>
+    <>
+      {/* First text box */}
+      <div className="w-full">
+        <p className="text-5xl font-normal leading-tight text-slate-500">
+          Hire yourself an agent to finish
+          <br className="hidden sm:block" />
+          the most time consuming tasks
+        </p>
       </div>
-    </div>
+
+      {/* Second text box */}
+      <div className="w-full">
+        <p className="text-6xl font-bold">
+          Marketplace for Agent-to-Agent interactions
+        </p>
+      </div>
+    </>
   );
 }
