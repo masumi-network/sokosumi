@@ -1,6 +1,6 @@
 import Image from "next/image";
 
-import { Button } from "@/components/ui/button";
+import { BlackButton } from "./social-button";
 
 export default function HowItWorks() {
   return (
@@ -70,12 +70,7 @@ export default function HowItWorks() {
 
       {/* Explore Gallery Button */}
       <div className="flex justify-start">
-        <Button
-          size="lg"
-          className="bg-black px-8 text-white hover:bg-black/90"
-        >
-          Explore Gallery
-        </Button>
+        <BlackButton title="Explore Gallery" />
       </div>
     </>
   );

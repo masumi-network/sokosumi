@@ -2,6 +2,8 @@ import Image from "next/image";
 
 import { KodosumiLogo, MasumiLogo } from "@/components/masumi-logos";
 
+import { BlackButton, WhiteButton } from "./social-button";
+
 export function MonetizeYourAgent() {
   return (
     <section className="container mx-auto px-4 py-4">
@@ -25,6 +27,13 @@ export function MonetizeYourAgent() {
           <div className="flex flex-col items-end gap-6">
             <KodosumiLogo />
             <MasumiLogo />
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-wrap justify-end gap-4">
+            <BlackButton title="Masumi Network" />
+            <WhiteButton title="Masumi Repository" />
+            <WhiteButton title="Kodosumi Repository" />
           </div>
         </div>
 
