@@ -222,7 +222,7 @@ function AgentsGallery() {
   return (
     <>
       <HorizontalScroll>
-        <div className="mx-auto flex min-w-max gap-6 px-4 md:px-6">
+        <div className="mx-auto flex min-w-max gap-6 px-6">
           {agents.map((agent) => (
             <AgentCard key={agent.id} {...agent} />
           ))}
@@ -241,7 +241,7 @@ function NumberTalks() {
         </h2>
       </div>
       <HorizontalScroll>
-        <div className="mx-auto flex min-w-max gap-6 px-4 md:px-6">
+        <div className="mx-auto flex min-w-max gap-6 px-6">
           <IconTitleDescription
             icon={Loader}
             title="2 hours"
