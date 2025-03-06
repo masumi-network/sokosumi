@@ -3,37 +3,32 @@
 import Image from "next/image";
 
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 interface SocialButtonProps {
   iconPath: string;
-  title: string;
+  children: React.ReactNode;
   onClick?: () => void;
   className?: string;
 }
 
 export default function SocialButton({
   iconPath,
-  title,
+  children,
   onClick,
-  className,
 }: SocialButtonProps) {
   return (
     <Button
-      className={cn(
-        "flex items-center gap-2 border-black bg-white text-black hover:bg-gray-100",
-        className,
-      )}
+      className="flex items-center gap-2 border-black bg-white text-black hover:bg-gray-100"
       onClick={onClick}
     >
       <Image
         src={iconPath}
-        alt={`${title} icon`}
+        alt={`${children} icon`}
         width={20}
         height={20}
         className="h-4 w-4"
       />
-      <span>{title}</span>
+      <span>{children}</span>
     </Button>
   );
 }
@@ -42,11 +37,12 @@ export function XButton() {
   return (
     <SocialButton
       iconPath="/socials/x.svg"
-      title="Platform X"
       onClick={() =>
         window.open("https://x.com/sokosumi", "_blank", "noopener,noreferrer")
       }
-    />
+    >
+      Platform X
+    </SocialButton>
   );
 }
 
@@ -54,7 +50,6 @@ export function DiscordButton() {
   return (
     <SocialButton
       iconPath="/socials/discord.svg"
-      title="Discord"
       onClick={() =>
         window.open(
           "https://discord.gg/sokosumi",
@@ -62,16 +57,25 @@ export function DiscordButton() {
           "noopener,noreferrer",
         )
       }
-    />
+    >
+      Discord
+    </SocialButton>
   );
 }
 
-export function GitHubButton({ title, url }: { title: string; url: string }) {
+export function GitHubButton({
+  children,
+  url,
+}: {
+  children: React.ReactNode;
+  url: string;
+}) {
   return (
     <SocialButton
       iconPath="/socials/github.svg"
-      title={title}
       onClick={() => window.open(url, "_blank", "noopener,noreferrer")}
-    />
+    >
+      {children}
+    </SocialButton>
   );
 }

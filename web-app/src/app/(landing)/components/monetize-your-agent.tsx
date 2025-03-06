@@ -33,14 +33,12 @@ export function MonetizeYourAgent() {
           {/* Action Buttons */}
           <div className="flex flex-wrap justify-end gap-4">
             <Button>Masumi Network</Button>
-            <GitHubButton
-              title="Masumi Repository"
-              url="https://github.com/masumi-network/"
-            />
-            <GitHubButton
-              title="Kodosumi Repository"
-              url="https://github.com/masumi-network/kodosumi"
-            />
+            <GitHubButton url="https://github.com/masumi-network/">
+              Masumi Repository
+            </GitHubButton>
+            <GitHubButton url="https://github.com/masumi-network/kodosumi">
+              Kodosumi Repository
+            </GitHubButton>
           </div>
         </div>
 
