@@ -18,6 +18,12 @@ export default {
     },
     extend: {
       colors: {
+        landing: {
+          footer: {
+            background: "#1A202C",
+            foreground: "#FFFFFF",
+          },
+        },
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         card: {

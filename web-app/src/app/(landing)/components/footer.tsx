@@ -3,7 +3,7 @@ import Link from "next/link";
 import { SokosumiLogo } from "@/components/masumi-logos";
 export default function Footer() {
   return (
-    <footer className="bg-[#1A202C] text-white">
+    <footer className="bg-landing-footer-background text-landing-footer-foreground">
       <div className="container mx-auto px-4 py-12">
         {/* Top section with logo */}
         <div className="mb-8">
