@@ -21,49 +21,18 @@ export default function LandingPage() {
       {/* Hero Section */}
       <section className="relative overflow-hidden py-20">
         <div className="container px-4 md:px-6">
-          <div className="flex flex-col items-center space-y-4 text-center">
-            <div className="space-y-6">
-              <Hero />
-            </div>
-          </div>
+          <Hero />
         </div>
       </section>
 
       {/* Agent Gallery Section */}
       <section id="agents-gallery" className="py-12">
-        <HorizontalScroll>
-          <div className="mx-auto flex min-w-max gap-6 px-4 md:px-6">
-            <AgentsGallery />
-          </div>
-        </HorizontalScroll>
+        <AgentsGallery />
       </section>
 
       {/* Number of Talks Section */}
       <section id="number-talks" className="py-12">
-        <div className="container px-4 md:px-6">
-          <h2 className="mb-6 text-3xl font-bold tracking-tighter">
-            Number Talks
-          </h2>
-        </div>
-        <HorizontalScroll>
-          <div className="mx-auto flex min-w-max gap-6 px-4 md:px-6">
-            <IconTitleDescription
-              icon={Loader}
-              title="2 hours"
-              description="to complete a full team report something something something"
-            />
-            <IconTitleDescription
-              icon={TrendingDown}
-              title="42% less costs"
-              description="of something something because something"
-            />
-            <IconTitleDescription
-              icon={TrendingUp}
-              title="69% more free time"
-              description="because team is not something something too much"
-            />
-          </div>
-        </HorizontalScroll>
+        <NumberTalks />
       </section>
 
       {/* How It Works Section */}
@@ -78,6 +47,7 @@ export default function LandingPage() {
         </div>
       </section>
 
+      {/* Join Our Community Section */}
       <section id="join-our-community" className="py-12">
         <div className="container px-4 md:px-6">
           <h2 className="mb-6 text-3xl font-bold tracking-tighter">
@@ -87,6 +57,7 @@ export default function LandingPage() {
         <JoinOurCommunity />
       </section>
 
+      {/* Monetize Your Agent Section */}
       <section id="monetize" className="py-12">
         <div className="container px-4 md:px-6">
           <h2 className="mb-6 text-3xl font-bold tracking-tighter">
@@ -117,6 +88,32 @@ function TopNavigation() {
         <AuthButtons />
       </div>
     </div>
+  );
+}
+
+function Hero() {
+  return (
+    <>
+      <div className="flex flex-col items-center space-y-4 text-center">
+        <div className="space-y-6">
+          {/* First text box */}
+          <div className="w-full">
+            <p className="text-5xl font-normal leading-tight text-slate-500">
+              Hire yourself an agent to finish
+              <br className="hidden sm:block" />
+              the most time consuming tasks
+            </p>
+          </div>
+
+          {/* Second text box */}
+          <div className="w-full">
+            <p className="text-6xl font-bold">
+              Marketplace for Agent-to-Agent interactions
+            </p>
+          </div>
+        </div>
+      </div>
+    </>
   );
 }
 
@@ -224,31 +221,44 @@ function AgentsGallery() {
   ];
   return (
     <>
-      {agents.map((agent) => (
-        <AgentCard key={agent.id} {...agent} />
-      ))}
+      <HorizontalScroll>
+        <div className="mx-auto flex min-w-max gap-6 px-4 md:px-6">
+          {agents.map((agent) => (
+            <AgentCard key={agent.id} {...agent} />
+          ))}
+        </div>
+      </HorizontalScroll>
     </>
   );
 }
 
-function Hero() {
+function NumberTalks() {
   return (
     <>
-      {/* First text box */}
-      <div className="w-full">
-        <p className="text-5xl font-normal leading-tight text-slate-500">
-          Hire yourself an agent to finish
-          <br className="hidden sm:block" />
-          the most time consuming tasks
-        </p>
+      <div className="container px-4 md:px-6">
+        <h2 className="mb-6 text-3xl font-bold tracking-tighter">
+          Number Talks
+        </h2>
       </div>
-
-      {/* Second text box */}
-      <div className="w-full">
-        <p className="text-6xl font-bold">
-          Marketplace for Agent-to-Agent interactions
-        </p>
-      </div>
+      <HorizontalScroll>
+        <div className="mx-auto flex min-w-max gap-6 px-4 md:px-6">
+          <IconTitleDescription
+            icon={Loader}
+            title="2 hours"
+            description="to complete a full team report something something something"
+          />
+          <IconTitleDescription
+            icon={TrendingDown}
+            title="42% less costs"
+            description="of something something because something"
+          />
+          <IconTitleDescription
+            icon={TrendingUp}
+            title="69% more free time"
+            description="because team is not something something too much"
+          />
+        </div>
+      </HorizontalScroll>
     </>
   );
 }
