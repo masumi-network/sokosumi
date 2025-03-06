@@ -12,13 +12,13 @@ const recentlyUsedAgents = Array.from(
   (_, index) => `Random Agent #${index + 1}`,
 );
 
-interface LeftPanelContentProps {
+interface AgentsListProps {
   className?: string;
 }
 
-export function LeftPanelContent({ className = "" }: LeftPanelContentProps) {
+export default function AgentsList({ className = "h-full" }: AgentsListProps) {
   return (
-    <ScrollArea className={cn("h-full w-full bg-muted p-4", className)}>
+    <ScrollArea className={cn("w-full bg-muted p-4", className)}>
       <div className="mt-4 flex items-center gap-2 text-sm font-bold text-muted-foreground">
         You Pinned Agents
         <Pin />
@@ -55,13 +55,5 @@ export function LeftPanelContent({ className = "" }: LeftPanelContentProps) {
         )}
       </div>
     </ScrollArea>
-  );
-}
-
-export default function MainLeftPanel() {
-  return (
-    <div className="hidden h-full w-64 md:block">
-      <LeftPanelContent />
-    </div>
   );
 }

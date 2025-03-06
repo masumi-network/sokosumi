@@ -1,5 +1,5 @@
+import { MobileLeftPanel } from "./left-panel";
 import MainNav from "./main-nav";
-import MobileLeftPanel from "./mobile-left-panel";
 import MobileNav from "./mobile-nav";
 import UserAvatar from "./user-avatar";
 

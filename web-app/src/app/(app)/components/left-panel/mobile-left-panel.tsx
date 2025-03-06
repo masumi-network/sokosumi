@@ -13,7 +13,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-import { LeftPanelContent } from "./main-left-panel";
+import AgentsList from "./components/agents-list";
 
 export default function MobileLeftPanel() {
   const [open, setOpen] = React.useState(false);
@@ -32,7 +32,7 @@ export default function MobileLeftPanel() {
           <SheetTitle></SheetTitle>
           <SheetDescription></SheetDescription>
         </SheetHeader>
-        <LeftPanelContent className="mt-2 bg-background" />
+        <AgentsList className="mt-2 bg-background" />
       </SheetContent>
     </Sheet>
   );

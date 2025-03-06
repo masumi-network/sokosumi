@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 
 import AppHeader from "./components/app-header";
-import MainLeftPanel from "./components/main-left-panel";
+import { MainLeftPanel } from "./components/left-panel";
 
 interface AppLayoutProps {
   children: React.ReactNode;
