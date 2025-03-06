@@ -1,7 +1,6 @@
-import { UserAvatar } from "@/components/user-avatar";
-
 import { MainNav } from "./main-nav";
 import { MobileNav } from "./mobile-nav";
+import { UserAvatar } from "./user-avatar";
 
 export function AppHeader() {
   return (

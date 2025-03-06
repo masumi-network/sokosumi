@@ -7,3 +7,5 @@ src/lib/api/generated/**
 
 # Ignore UI components
 src/components/ui/**
+
+tailwind.config.ts
