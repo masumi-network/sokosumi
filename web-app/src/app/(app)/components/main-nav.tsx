@@ -13,7 +13,7 @@ const navItems = [
   { href: "/settings", label: "Settings" },
 ];
 
-export function MainNav() {
+export default function MainNav() {
   const pathname = usePathname();
 
   return (

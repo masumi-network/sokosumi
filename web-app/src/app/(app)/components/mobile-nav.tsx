@@ -46,7 +46,7 @@ const navItems = [
   },
 ];
 
-export function MobileNav() {
+export default function MobileNav() {
   const [open, setOpen] = React.useState(false);
   const pathname = usePathname();
 

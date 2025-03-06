@@ -23,7 +23,7 @@ import {
 } from "@/components/ui/tooltip";
 import { signOut } from "@/lib/auth.client";
 
-export function UserAvatar() {
+export default function UserAvatar() {
   const router = useRouter();
 
   const onSignOut = async () => {

@@ -1,6 +1,6 @@
 import { Metadata } from "next";
 
-import { AppHeader } from "./components/app-header";
+import AppHeader from "./components/app-header";
 
 interface AppLayoutProps {
   children: React.ReactNode;
