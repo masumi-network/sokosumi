@@ -1,8 +1,11 @@
+import { Loader, TrendingDown, TrendingUp } from "lucide-react";
+
 import { AuthButtons } from "@/app/(landing)/components/auth-buttons";
 import Footer from "@/app/(landing)/components/footer";
 import { MainNav } from "@/app/(landing)/components/main-nav";
 import TrustedPartners from "@/app/(landing)/components/trusted-partners";
 import AgentCard from "@/components/agent-card";
+import IconTitleDescription from "@/components/icon-title-description";
 import { SokosumiLogo } from "@/components/masumi-logos";
 
 import HorizontalScroll from "./components/horizontal-scroll";
@@ -56,6 +59,25 @@ export default function LandingPage() {
             Number Talks
           </h2>
         </div>
+        <HorizontalScroll>
+          <div className="mx-auto flex min-w-max gap-6 px-4 md:px-6">
+            <IconTitleDescription
+              icon={Loader}
+              title="2 hours"
+              description="to complete a full team report something something something"
+            />
+            <IconTitleDescription
+              icon={TrendingDown}
+              title="42% less costs"
+              description="of something something because something"
+            />
+            <IconTitleDescription
+              icon={TrendingUp}
+              title="69% more free time"
+              description="because team is not something something too much"
+            />
+          </div>
+        </HorizontalScroll>
       </section>
 
       {/* How It Works Section */}
