@@ -1,4 +1,5 @@
 import { Loader, TrendingDown, TrendingUp } from "lucide-react";
+import { useTranslations } from "next-intl";
 
 import { AuthButtons } from "@/app/(landing)/components/auth-buttons";
 import Footer from "@/app/(landing)/components/footer";
@@ -94,6 +95,7 @@ function TopNavigation() {
 }
 
 function Hero() {
+  const t = useTranslations("Landing.Hero");
   return (
     <>
       <div className="flex flex-col items-center space-y-4 text-center">
@@ -101,17 +103,13 @@ function Hero() {
           {/* First text box */}
           <div className="w-full">
             <p className="text-5xl font-normal leading-tight text-slate-500">
-              Hire yourself an agent to finish
-              <br className="hidden sm:block" />
-              the most time consuming tasks
+              {t("caption")}
             </p>
           </div>
 
           {/* Second text box */}
           <div className="w-full">
-            <p className="text-6xl font-bold">
-              Marketplace for Agent-to-Agent interactions
-            </p>
+            <p className="text-6xl font-bold">{t("title")}</p>
           </div>
         </div>
       </div>
