@@ -32,10 +32,10 @@ export default function RootLayout({
         className={cn(
           geistSans.variable,
           geistMono.variable,
-          "min-h-svh bg-background antialiased",
+          "h-svh bg-background antialiased",
         )}
       >
-        <div className="relative flex min-h-svh flex-col bg-background">
+        <div className="relative flex h-svh flex-col overflow-hidden bg-background">
           {children}
         </div>
         <Toaster />

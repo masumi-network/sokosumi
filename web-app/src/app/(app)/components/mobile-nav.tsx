@@ -14,13 +14,13 @@ import * as React from "react";
 import SokosumiLogo from "@/components/sokosumi-logo";
 import { Button } from "@/components/ui/button";
 import {
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+  Drawer,
+  DrawerContent,
+  DrawerDescription,
+  DrawerHeader,
+  DrawerTitle,
+  DrawerTrigger,
+} from "@/components/ui/drawer";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -51,30 +51,32 @@ export default function MobileNav() {
   const pathname = usePathname();
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <div className="flex-1 md:hidden">
+    <Drawer
+      open={open}
+      onOpenChange={setOpen}
+      autoFocus={open}
+      direction="bottom"
+    >
+      <DrawerTrigger asChild>
+        <div className="mr-2 md:hidden">
           <Button variant="outline" size="icon">
             <Menu />
           </Button>
         </div>
-      </SheetTrigger>
-      <SheetContent
-        className="min-h-svh w-full max-w-sm rounded-none"
-        side="left"
-      >
-        <SheetHeader>
-          <SheetTitle className="flex justify-center">
+      </DrawerTrigger>
+      <DrawerContent className="max-h-[60svh] w-full p-4">
+        <DrawerHeader>
+          <DrawerTitle className="flex justify-center">
             <SokosumiLogo />
-          </SheetTitle>
-          <SheetDescription></SheetDescription>
-        </SheetHeader>
-        <ul className="mt-6 flex flex-col gap-y-3 overflow-y-auto">
+          </DrawerTitle>
+          <DrawerDescription></DrawerDescription>
+        </DrawerHeader>
+        <ul className="mt-4 flex flex-col gap-y-2 overflow-y-auto">
           {navItems.map((nav) => {
             const isActive = pathname.startsWith(nav.href);
             if (!nav.href) return;
             return (
-              <li className="w-full p-3" key={nav.href}>
+              <li className="w-full p-2" key={nav.href}>
                 <Link
                   href={nav.href}
                   className={cn(
@@ -92,7 +94,7 @@ export default function MobileNav() {
             );
           })}
         </ul>
-      </SheetContent>
-    </Sheet>
+      </DrawerContent>
+    </Drawer>
   );
 }
