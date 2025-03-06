@@ -28,7 +28,7 @@ export function MainNav({
           <ChevronDown className="h-4 w-4" />
         </Link>
         <Link
-          href="#contribute"
+          href="#join-our-community"
           className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
         >
           Community
