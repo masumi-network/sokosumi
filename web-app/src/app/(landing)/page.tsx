@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl";
+
 import { AuthButtons } from "@/app/(landing)/components/auth-buttons";
 import Footer from "@/app/(landing)/components/footer";
 import HowItWorks from "@/app/(landing)/components/how-it-works";
@@ -69,21 +71,19 @@ function TopNavigation() {
 }
 
 function MainContent() {
+  const t = useTranslations("Landing.Hero");
   return (
     <div className="container mx-auto flex items-center justify-between">
       <div className="flex flex-col items-center gap-8 lg:flex-row">
         {/* First text box - smaller width */}
         <div className="w-full lg:w-1/5">
-          <p className="font-bold">
-            The most powerful way to find and hire agents. Prompt, run, edit and
-            deploy your agents.
-          </p>
+          <p className="font-bold">{t("caption")}</p>
         </div>
 
         {/* Second text box - larger width */}
         <div className="mx-auto w-full lg:w-1/2">
           <p className={`text-left text-7xl font-light tracking-tighter`}>
-            A marketplace for agent-to-agent interactions
+            {t("title")}
           </p>
         </div>
       </div>
