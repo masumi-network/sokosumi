@@ -1,6 +1,6 @@
 import Image from "next/image";
 
-import { DiscordButton, XButton } from "./social-button";
+import { KodosumiLogo, MasumiLogo } from "@/components/masumi-logos";
 
 export function MonetizeYourAgent() {
   return (
@@ -8,16 +8,23 @@ export function MonetizeYourAgent() {
       <div className="flex flex-col items-center gap-8 md:flex-row">
         {/* Content Section */}
         <div className="w-full space-y-6 md:w-1/2">
+          <h2 className="text-3xl font-bold tracking-tight">
+            Deploy your Agents
+          </h2>
           <p className="text-lg text-muted-foreground">
-            Connect with like-minded individuals, share experiences, and be part
-            of our growing community. Follow us on social media to stay updated
-            with the latest news and events.
+            Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum
+            vehicula ex eu nisi dictum, a facilisis mauris tincidunt. Nulla
+            facilisi. Cras vel justo vel libero lacinia ultricies. Suspendisse
+            potenti. Donec nec odio vel mi vulputate malesuada. Aenean
+            tincidunt, nibh ut interdum luctus, sapien tortor laoreet nisi, eget
+            malesuada odio odio non purus. Sed ut perspiciatis unde omnis iste
+            natus error sit voluptatem.
           </p>
 
-          {/* Social Links */}
-          <div className="flex gap-4">
-            <XButton />
-            <DiscordButton />
+          {/* Masumi Logos */}
+          <div className="flex flex-col items-end gap-6">
+            <KodosumiLogo />
+            <MasumiLogo />
           </div>
         </div>
 
