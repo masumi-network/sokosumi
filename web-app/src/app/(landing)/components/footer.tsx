@@ -18,7 +18,7 @@ export default function Footer() {
               <li>
                 <Link
                   href="#"
-                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-landing-footer-foreground"
+                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-white"
                 >
                   Privacy Policy
                 </Link>
@@ -26,7 +26,7 @@ export default function Footer() {
               <li>
                 <Link
                   href="#"
-                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-landing-footer-foreground"
+                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-white"
                 >
                   Terms & Conditions
                 </Link>
@@ -34,7 +34,7 @@ export default function Footer() {
               <li>
                 <Link
                   href="#"
-                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-landing-footer-foreground"
+                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-white"
                 >
                   Cookie Policy
                 </Link>
@@ -42,7 +42,7 @@ export default function Footer() {
               <li>
                 <Link
                   href="#"
-                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-landing-footer-foreground"
+                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-white"
                 >
                   Contact
                 </Link>
