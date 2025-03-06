@@ -10,7 +10,7 @@ export function MonetizeYourAgent() {
       <div className="flex flex-col items-center gap-8 md:flex-row">
         {/* Content Section */}
         <div className="w-full space-y-6 md:w-1/2">
-          <h2 className="text-3xl font-bold tracking-tight">
+          <h2 className="text-5xl font-bold tracking-tighter">
             Deploy your Agents
           </h2>
           <p className="text-lg text-muted-foreground">

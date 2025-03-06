@@ -41,7 +41,7 @@ export default function LandingPage() {
       {/* Number of Talks Section */}
       <section id="number-talks" className="py-12">
         <div className="container px-4 md:px-6">
-          <h2 className="mb-6 text-2xl font-bold tracking-tight md:text-3xl">
+          <h2 className="mb-6 text-3xl font-bold tracking-tighter">
             Number Talks
           </h2>
         </div>
@@ -69,7 +69,7 @@ export default function LandingPage() {
       {/* How It Works Section */}
       <section id="how-it-works" className="py-12">
         <div className="container px-4 md:px-6">
-          <h2 className="mb-6 text-2xl font-bold tracking-tight md:text-3xl">
+          <h2 className="mb-6 text-3xl font-bold tracking-tighter">
             How It Works
           </h2>
         </div>
@@ -80,7 +80,7 @@ export default function LandingPage() {
 
       <section id="join-our-community" className="py-12">
         <div className="container px-4 md:px-6">
-          <h2 className="mb-6 text-2xl font-bold tracking-tight md:text-3xl">
+          <h2 className="mb-6 text-3xl font-bold tracking-tighter">
             Join Our Community
           </h2>
         </div>
@@ -91,7 +91,7 @@ export default function LandingPage() {
 
       <section id="monetize" className="py-12">
         <div className="container px-4 md:px-6">
-          <h2 className="mb-6 text-2xl font-bold tracking-tight md:text-3xl">
+          <h2 className="mb-6 text-3xl font-bold tracking-tighter">
             Monetize Your Agents
           </h2>
         </div>
