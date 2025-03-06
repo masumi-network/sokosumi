@@ -11,6 +11,7 @@ import { SokosumiLogo } from "@/components/masumi-logos";
 import HorizontalScroll from "./components/horizontal-scroll";
 import HowItWorks from "./components/how-it-works";
 import { JoinOurCommunity } from "./components/join-our-community";
+import { MonetizeYourAgent } from "./components/monetize-your-agent";
 
 export default function LandingPage() {
   return (
@@ -108,6 +109,9 @@ export default function LandingPage() {
           <h2 className="mb-6 text-2xl font-bold tracking-tight md:text-3xl">
             Monetize Your Agents
           </h2>
+        </div>
+        <div className="container mx-auto px-4 md:px-6">
+          <MonetizeYourAgent />
         </div>
       </section>
 

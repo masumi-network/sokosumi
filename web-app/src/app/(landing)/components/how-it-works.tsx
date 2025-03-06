@@ -18,7 +18,7 @@ export default function HowItWorks() {
             </p>
             <div className="relative h-48 w-full overflow-hidden rounded-lg">
               <Image
-                src="/placeholder.png"
+                src="/placeholder.svg"
                 alt="Select & Test illustration"
                 fill
                 className="object-cover"
@@ -38,7 +38,7 @@ export default function HowItWorks() {
             </p>
             <div className="relative h-48 w-full overflow-hidden rounded-lg">
               <Image
-                src="/placeholder.png"
+                src="/placeholder.svg"
                 alt="Run & Monitor illustration"
                 fill
                 className="object-cover"
@@ -58,7 +58,7 @@ export default function HowItWorks() {
             </p>
             <div className="relative h-48 w-full overflow-hidden rounded-lg">
               <Image
-                src="/placeholder.png"
+                src="/placeholder.svg"
                 alt="Get Results illustration"
                 fill
                 className="object-cover"
