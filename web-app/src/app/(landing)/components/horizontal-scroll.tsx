@@ -63,7 +63,7 @@ export default function HorizontalScroll({ children }: HorizontalScrollProps) {
     <div className="group relative">
       <div
         ref={scrollContainerRef}
-        className="scrollbar-hide flex overflow-x-auto px-4 pb-6 [&:not(:has(>*:nth-child(2)))]:justify-center"
+        className="scrollbar-hide flex overflow-x-auto [&:not(:has(>*:nth-child(2)))]:justify-center"
         style={{ scrollbarWidth: "none", msOverflowStyle: "none" }}
       >
         {children}
