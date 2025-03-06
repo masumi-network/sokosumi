@@ -6,21 +6,26 @@ import { Button } from "@/components/ui/button";
 
 interface SocialButtonProps {
   iconPath: string;
+  altText?: string;
   children: React.ReactNode;
   onClick?: () => void;
-  className?: string;
 }
 
 export default function SocialButton({
   iconPath,
   children,
   onClick,
+  altText,
 }: SocialButtonProps) {
+  const alt =
+    altText ??
+    (typeof children === "string" ? `${children} icon` : "social icon");
+
   return (
     <Button variant="outline" onClick={onClick}>
       <Image
         src={iconPath}
-        alt={`${children} icon`}
+        alt={alt}
         width={20}
         height={20}
         className="h-4 w-4"
