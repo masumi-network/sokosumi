@@ -7,7 +7,7 @@ import AgentCard from "@/components/agent-card";
 import IconTitleDescription from "@/components/icon-title-description";
 import { SokosumiLogo } from "@/components/masumi-logos";
 
-import HorizontalScroll from "./components/horizontal-scroll";
+import HorizontalScroll from "../../components/horizontal-scroll";
 import HowItWorks from "./components/how-it-works";
 import { JoinOurCommunity } from "./components/join-our-community";
 import { MonetizeYourAgent } from "./components/monetize-your-agent";
