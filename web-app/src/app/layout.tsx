@@ -48,7 +48,6 @@ export default async function RootLayout({
           </div>
           <Toaster />
         </NextIntlClientProvider>
-        <Toaster />
       </body>
     </html>
   );
