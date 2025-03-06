@@ -42,9 +42,7 @@ export default async function RootLayout({
         )}
       >
         <NextIntlClientProvider messages={messages}>
-          <div className="relative flex h-svh flex-col overflow-hidden bg-background">
-            {children}
-          </div>
+          <div className="min-h-screen bg-background">{children}</div>
           <Toaster />
         </NextIntlClientProvider>
       </body>

@@ -11,7 +11,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as React from "react";
 
-import SokosumiLogo from "@/components/sokosumi-logo";
+import { SokosumiLogo } from "@/components/masumi-logos";
 import { Button } from "@/components/ui/button";
 import {
   Drawer,

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import SokosumiLogo from "@/components/sokosumi-logo";
+import { SokosumiLogo } from "@/components/masumi-logos";
 import { cn } from "@/lib/utils";
 
 const navItems = [
