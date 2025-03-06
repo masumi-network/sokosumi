@@ -58,7 +58,7 @@ export function DiscordButton() {
       iconPath="/socials/discord.svg"
       onClick={() =>
         window.open(
-          "https://discord.gg/sN2yJHss",
+          "https://discord.gg/aj4QfnTS92",
           "_blank",
           "noopener,noreferrer",
         )
