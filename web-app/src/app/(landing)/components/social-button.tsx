@@ -17,10 +17,7 @@ export default function SocialButton({
   onClick,
 }: SocialButtonProps) {
   return (
-    <Button
-      className="flex items-center gap-2 border-black bg-white text-black hover:bg-gray-100"
-      onClick={onClick}
-    >
+    <Button variant="outline" onClick={onClick}>
       <Image
         src={iconPath}
         alt={`${children} icon`}
