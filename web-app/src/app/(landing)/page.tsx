@@ -102,7 +102,7 @@ function Hero() {
         <div className="space-y-6">
           {/* First text box */}
           <div className="w-full">
-            <p className="whitespace-pre-line text-5xl font-normal leading-tight text-slate-500">
+            <p className="text-5xl font-normal leading-tight text-slate-500 md:whitespace-pre-line">
               {t("caption")}
             </p>
           </div>
