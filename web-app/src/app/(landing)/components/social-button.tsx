@@ -40,7 +40,11 @@ export function XButton() {
     <SocialButton
       iconPath="/socials/x.svg"
       onClick={() =>
-        window.open("https://x.com/sokosumi", "_blank", "noopener,noreferrer")
+        window.open(
+          "https://x.com/MasumiNetwork",
+          "_blank",
+          "noopener,noreferrer",
+        )
       }
     >
       Platform X
@@ -54,7 +58,7 @@ export function DiscordButton() {
       iconPath="/socials/discord.svg"
       onClick={() =>
         window.open(
-          "https://discord.gg/sokosumi",
+          "https://discord.gg/sN2yJHss",
           "_blank",
           "noopener,noreferrer",
         )
