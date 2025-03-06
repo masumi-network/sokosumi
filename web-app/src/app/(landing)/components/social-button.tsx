@@ -81,3 +81,15 @@ export function GitHubButton({
     </SocialButton>
   );
 }
+
+export function MasumiButton() {
+  return (
+    <Button
+      onClick={() =>
+        window.open("https://masumi.network", "_blank", "noopener,noreferrer")
+      }
+    >
+      Masumi Network
+    </Button>
+  );
+}
