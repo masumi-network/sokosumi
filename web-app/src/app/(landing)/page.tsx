@@ -3,7 +3,6 @@ import { Loader, TrendingDown, TrendingUp } from "lucide-react";
 import { AuthButtons } from "@/app/(landing)/components/auth-buttons";
 import Footer from "@/app/(landing)/components/footer";
 import { MainNav } from "@/app/(landing)/components/main-nav";
-import TrustedPartners from "@/app/(landing)/components/trusted-partners";
 import AgentCard from "@/components/agent-card";
 import IconTitleDescription from "@/components/icon-title-description";
 import { SokosumiLogo } from "@/components/masumi-logos";
@@ -35,20 +34,6 @@ export default function LandingPage() {
         <HorizontalScroll>
           <div className="mx-auto flex min-w-max gap-6 px-4 md:px-6">
             <AgentsGallery />
-          </div>
-        </HorizontalScroll>
-      </section>
-
-      {/* Trusted Partners Section */}
-      <section id="trusted-partners" className="py-12">
-        <div className="container px-4 md:px-6">
-          <h2 className="mb-6 text-2xl font-bold tracking-tight md:text-3xl">
-            Trusted by Brands
-          </h2>
-        </div>
-        <HorizontalScroll>
-          <div className="mx-auto flex min-w-max gap-6 px-4 md:px-6">
-            <TrustedPartners />
           </div>
         </HorizontalScroll>
       </section>
