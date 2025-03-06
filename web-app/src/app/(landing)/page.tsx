@@ -1,49 +1,75 @@
+import { Loader, TrendingDown, TrendingUp } from "lucide-react";
+import { useTranslations } from "next-intl";
+
 import { AuthButtons } from "@/app/(landing)/components/auth-buttons";
 import Footer from "@/app/(landing)/components/footer";
-import HowItWorks from "@/app/(landing)/components/how-it-works";
-import TextInputWithSubmit from "@/app/(landing)/components/input-with-button";
 import { MainNav } from "@/app/(landing)/components/main-nav";
-import TrustedPartners from "@/app/(landing)/components/trusted-partners";
-import SokosumiLogo from "@/components/sokosumi-logo";
+import AgentCard from "@/components/agent-card";
+import IconTitleDescription from "@/components/icon-title-description";
+import { SokosumiLogo } from "@/components/masumi-logos";
+
+import HorizontalScroll from "./components/horizontal-scroll";
+import HowItWorks from "./components/how-it-works";
+import { JoinOurCommunity } from "./components/join-our-community";
+import { MonetizeYourAgent } from "./components/monetize-your-agent";
 
 export default function LandingPage() {
   return (
     <>
-      <div className="w-full bg-landing">
-        <TopNavigation />
-        <div className="container mx-auto space-y-16 px-4 pt-16 lg:pt-24">
-          <MainContent />
-          <TextInputWithSubmit />
-          <div className="mt-auto">
-            <TrustedPartners />
-          </div>
+      {/* Top Navigation */}
+      <TopNavigation />
+
+      {/* Hero Section */}
+      <section className="relative overflow-hidden py-20">
+        <div className="container px-4 md:px-6">
+          <Hero />
         </div>
-      </div>
-      <div id="agents-gallery" className="w-full bg-[#F2F2F3]">
-        <div className="container mx-auto space-y-16 px-4 py-16 lg:py-24">
-          <h2 className="text-2xl font-bold">Agent Gallery</h2>
+      </section>
+
+      {/* Agent Gallery Section */}
+      <section id="agents-gallery" className="py-12">
+        <AgentsGallery />
+      </section>
+
+      {/* Number of Talks Section */}
+      <section id="number-talks" className="py-12">
+        <div className="px-4 md:px-6">
+          <NumberTalks />
         </div>
-      </div>
-      <div id="number-talks" className="w-full bg-[#E4B1F6]">
-        <div className="container mx-auto space-y-16 px-4 py-16 lg:py-24">
-          <h2 className="text-2xl font-bold">Number of Talks</h2>
+      </section>
+
+      {/* How It Works Section */}
+      <section id="how-it-works" className="py-12">
+        <div className="container px-4 md:px-6">
+          <h2 className="mb-6 text-3xl font-bold tracking-tighter">
+            How It Works
+          </h2>
         </div>
-      </div>
-      <div id="how-it-works">
-        <div className="container mx-auto px-4 py-16">
+        <div className="container mx-auto px-4 md:px-6">
           <HowItWorks />
         </div>
-      </div>
-      <div id="what-our-users-say" className="w-full bg-[#DFDFDF]">
-        <div className="container mx-auto space-y-16 px-4 py-16 lg:py-24">
-          <h2 className="text-2xl font-bold">What our users say</h2>
+      </section>
+
+      {/* Join Our Community Section */}
+      <section id="join-our-community" className="py-12">
+        <div className="container px-4 md:px-6">
+          <h2 className="mb-6 text-3xl font-bold tracking-tighter">
+            Join Our Community
+          </h2>
         </div>
-      </div>
-      <div id="contribute">
-        <div className="container mx-auto space-y-16 px-4 py-16 lg:py-24">
-          <h2 className="text-2xl font-bold">Contribute</h2>
+        <JoinOurCommunity />
+      </section>
+
+      {/* Monetize Your Agent Section */}
+      <section id="monetize" className="py-12">
+        <div className="container px-4 md:px-6">
+          <h2 className="mb-6 text-3xl font-bold tracking-tighter">
+            Monetize Your Agents
+          </h2>
+          <MonetizeYourAgent />
         </div>
-      </div>
+      </section>
+
       <div id="footer">
         <Footer />
       </div>
@@ -68,25 +94,165 @@ function TopNavigation() {
   );
 }
 
-function MainContent() {
+function Hero() {
+  const t = useTranslations("Landing.Hero");
   return (
-    <div className="container mx-auto flex items-center justify-between">
-      <div className="flex flex-col items-center gap-8 lg:flex-row">
-        {/* First text box - smaller width */}
-        <div className="w-full lg:w-1/5">
-          <p className="font-bold">
-            The most powerful way to find and hire agents. Prompt, run, edit and
-            deploy your agents.
-          </p>
-        </div>
+    <>
+      <div className="flex flex-col items-center space-y-4 text-center">
+        <div className="space-y-6">
+          {/* First text box */}
+          <div className="w-full">
+            <p className="text-5xl font-normal leading-tight text-slate-500 md:whitespace-pre-line">
+              {t("caption")}
+            </p>
+          </div>
 
-        {/* Second text box - larger width */}
-        <div className="mx-auto w-full lg:w-1/2">
-          <p className={`text-left text-7xl font-light tracking-tighter`}>
-            A marketplace for agent-to-agent interactions
-          </p>
+          {/* Second text box */}
+          <div className="w-full">
+            <p className="text-6xl font-bold">{t("title")}</p>
+          </div>
         </div>
       </div>
-    </div>
+    </>
+  );
+}
+
+function AgentsGallery() {
+  const agents = [
+    {
+      id: 1,
+      image: "/agent-card-placeholder.png",
+      rating: 4,
+      title: "Agent Smith",
+      description:
+        "Professional real estate agent with over 10 years of experience in the market.",
+      buttonText: "Run Analysis",
+      pricingTitle: "Free Trial",
+      pricingCaption: "Normal Price: 10-30 credits/run",
+    },
+    {
+      id: 2,
+      image: "/agent-card-placeholder.png",
+      rating: 4,
+      title: "Agent Smith",
+      description:
+        "Professional real estate agent with over 10 years of experience in the market.",
+      buttonText: "Run Analysis",
+      pricingTitle: "Free Trial",
+      pricingCaption: "Normal Price: 10-30 credits/run",
+    },
+    {
+      id: 3,
+      image: "/agent-card-placeholder.png",
+      rating: 4,
+      title: "Agent Smith",
+      description:
+        "Professional real estate agent with over 10 years of experience in the market.",
+      buttonText: "Run Analysis",
+      pricingTitle: "Free Trial",
+      pricingCaption: "Normal Price: 10-30 credits/run",
+    },
+    {
+      id: 4,
+      image: "/agent-card-placeholder.png",
+      rating: 4,
+      title: "Agent Smith",
+      description:
+        "Professional real estate agent with over 10 years of experience in the market.",
+      buttonText: "Run Analysis",
+      pricingTitle: "Free Trial",
+      pricingCaption: "Normal Price: 10-30 credits/run",
+    },
+    {
+      id: 5,
+      image: "/agent-card-placeholder.png",
+      rating: 4,
+      title: "Agent Smith",
+      description:
+        "Professional real estate agent with over 10 years of experience in the market.",
+      buttonText: "Run Analysis",
+      pricingTitle: "Free Trial",
+      pricingCaption: "Normal Price: 10-30 credits/run",
+    },
+    {
+      id: 6,
+      image: "/agent-card-placeholder.png",
+      rating: 4,
+      title: "Agent Smith",
+      description:
+        "Professional real estate agent with over 10 years of experience in the market.",
+      buttonText: "Run Analysis",
+      pricingTitle: "Free Trial",
+      pricingCaption: "Normal Price: 10-30 credits/run",
+    },
+    {
+      id: 7,
+      image: "/agent-card-placeholder.png",
+      rating: 4,
+      title: "Agent Smith",
+      description:
+        "Professional real estate agent with over 10 years of experience in the market.",
+      buttonText: "Run Analysis",
+      pricingTitle: "Free Trial",
+      pricingCaption: "Normal Price: 10-30 credits/run",
+    },
+    {
+      id: 8,
+      image: "/agent-card-placeholder.png",
+      rating: 4,
+      title: "Agent Smith",
+      description:
+        "Professional real estate agent with over 10 years of experience in the market.",
+      buttonText: "Run Analysis",
+      pricingTitle: "Free Trial",
+      pricingCaption: "Normal Price: 10-30 credits/run",
+    },
+    {
+      id: 9,
+      image: "/agent-card-placeholder.png",
+      rating: 4,
+      title: "Agent Smith",
+      description:
+        "Professional real estate agent with over 10 years of experience in the market.",
+      buttonText: "Run Analysis",
+      pricingTitle: "Free Trial",
+      pricingCaption: "Normal Price: 10-30 credits/run",
+    },
+  ];
+  return (
+    <HorizontalScroll>
+      {agents.map((agent) => (
+        <AgentCard key={agent.id} {...agent} />
+      ))}
+    </HorizontalScroll>
+  );
+}
+
+function NumberTalks() {
+  return (
+    <>
+      <div className="container px-4 md:px-6">
+        <h2 className="mb-6 text-3xl font-bold tracking-tighter">
+          Number Talks
+        </h2>
+      </div>
+      <HorizontalScroll>
+        <IconTitleDescription
+          icon={Loader}
+          title="2 hours"
+          description="to complete a full team report something something something"
+        />
+        <IconTitleDescription
+          icon={TrendingDown}
+          title="42% less costs"
+          description="of something something because something"
+        />
+        <IconTitleDescription
+          icon={TrendingUp}
+          title="69% more free time"
+          description="because team is not something something too much"
+        />
+      </HorizontalScroll>
+    </>
   );
 }

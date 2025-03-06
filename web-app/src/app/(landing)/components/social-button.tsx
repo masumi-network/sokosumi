@@ -3,37 +3,34 @@
 import Image from "next/image";
 
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
 interface SocialButtonProps {
   iconPath: string;
-  title: string;
+  altText?: string;
+  children: React.ReactNode;
   onClick?: () => void;
-  className?: string;
 }
 
 export default function SocialButton({
   iconPath,
-  title,
+  children,
   onClick,
-  className,
+  altText,
 }: SocialButtonProps) {
+  const alt =
+    altText ??
+    (typeof children === "string" ? `${children} icon` : "social icon");
+
   return (
-    <Button
-      className={cn(
-        "flex items-center gap-2 bg-[#4F4F58] hover:bg-[#4F4F58]/90",
-        className,
-      )}
-      onClick={onClick}
-    >
+    <Button variant="outline" onClick={onClick}>
       <Image
         src={iconPath}
-        alt={`${title} icon`}
+        alt={alt}
         width={20}
         height={20}
-        className="h-5 w-5"
+        className="h-4 w-4"
       />
-      <span>{title}</span>
+      <span>{children}</span>
     </Button>
   );
 }
@@ -42,11 +39,16 @@ export function XButton() {
   return (
     <SocialButton
       iconPath="/socials/x.svg"
-      title="Platform X"
       onClick={() =>
-        window.open("https://x.com/sokosumi", "_blank", "noopener,noreferrer")
+        window.open(
+          "https://x.com/MasumiNetwork",
+          "_blank",
+          "noopener,noreferrer",
+        )
       }
-    />
+    >
+      Platform X
+    </SocialButton>
   );
 }
 
@@ -54,14 +56,44 @@ export function DiscordButton() {
   return (
     <SocialButton
       iconPath="/socials/discord.svg"
-      title="Discord"
       onClick={() =>
         window.open(
-          "https://discord.gg/sokosumi",
+          "https://discord.gg/aj4QfnTS92",
           "_blank",
           "noopener,noreferrer",
         )
       }
-    />
+    >
+      Discord
+    </SocialButton>
+  );
+}
+
+export function GitHubButton({
+  children,
+  url,
+}: {
+  children: React.ReactNode;
+  url: string;
+}) {
+  return (
+    <SocialButton
+      iconPath="/socials/github.svg"
+      onClick={() => window.open(url, "_blank", "noopener,noreferrer")}
+    >
+      {children}
+    </SocialButton>
+  );
+}
+
+export function MasumiButton() {
+  return (
+    <Button
+      onClick={() =>
+        window.open("https://masumi.network", "_blank", "noopener,noreferrer")
+      }
+    >
+      Masumi Network
+    </Button>
   );
 }
