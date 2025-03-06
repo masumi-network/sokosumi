@@ -75,22 +75,3 @@ export function GitHubButton({ title, url }: { title: string; url: string }) {
     />
   );
 }
-
-export function BlackButton({ title }: { title: string }) {
-  return (
-    <Button size="lg" className="bg-black text-white hover:bg-black/90">
-      {title}
-    </Button>
-  );
-}
-
-export function WhiteButton({ title }: { title: string }) {
-  return (
-    <Button
-      size="lg"
-      className="border-black bg-white text-black hover:bg-gray-100"
-    >
-      {title}
-    </Button>
-  );
-}

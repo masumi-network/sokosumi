@@ -1,6 +1,6 @@
 import Image from "next/image";
 
-import { BlackButton } from "./social-button";
+import { Button } from "@/components/ui/button";
 
 export default function HowItWorks() {
   return (
@@ -70,7 +70,7 @@ export default function HowItWorks() {
 
       {/* Explore Gallery Button */}
       <div className="flex justify-start">
-        <BlackButton title="Explore Gallery" />
+        <Button>Explore Gallery</Button>
       </div>
     </>
   );
