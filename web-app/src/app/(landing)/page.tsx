@@ -7,7 +7,7 @@ import AgentCard from "@/components/agent-card";
 import IconTitleDescription from "@/components/icon-title-description";
 import { SokosumiLogo } from "@/components/masumi-logos";
 
-import HorizontalScroll from "../../components/horizontal-scroll";
+import HorizontalScroll from "./components/horizontal-scroll";
 import HowItWorks from "./components/how-it-works";
 import { JoinOurCommunity } from "./components/join-our-community";
 import { MonetizeYourAgent } from "./components/monetize-your-agent";
@@ -32,7 +32,9 @@ export default function LandingPage() {
 
       {/* Number of Talks Section */}
       <section id="number-talks" className="py-12">
-        <NumberTalks />
+        <div className="px-4 md:px-6">
+          <NumberTalks />
+        </div>
       </section>
 
       {/* How It Works Section */}
@@ -220,15 +222,11 @@ function AgentsGallery() {
     },
   ];
   return (
-    <>
-      <HorizontalScroll>
-        <div className="mx-auto flex min-w-max gap-6 px-6">
-          {agents.map((agent) => (
-            <AgentCard key={agent.id} {...agent} />
-          ))}
-        </div>
-      </HorizontalScroll>
-    </>
+    <HorizontalScroll>
+      {agents.map((agent) => (
+        <AgentCard key={agent.id} {...agent} />
+      ))}
+    </HorizontalScroll>
   );
 }
 
@@ -241,23 +239,21 @@ function NumberTalks() {
         </h2>
       </div>
       <HorizontalScroll>
-        <div className="mx-auto flex min-w-max gap-6 px-6">
-          <IconTitleDescription
-            icon={Loader}
-            title="2 hours"
-            description="to complete a full team report something something something"
-          />
-          <IconTitleDescription
-            icon={TrendingDown}
-            title="42% less costs"
-            description="of something something because something"
-          />
-          <IconTitleDescription
-            icon={TrendingUp}
-            title="69% more free time"
-            description="because team is not something something too much"
-          />
-        </div>
+        <IconTitleDescription
+          icon={Loader}
+          title="2 hours"
+          description="to complete a full team report something something something"
+        />
+        <IconTitleDescription
+          icon={TrendingDown}
+          title="42% less costs"
+          description="of something something because something"
+        />
+        <IconTitleDescription
+          icon={TrendingUp}
+          title="69% more free time"
+          description="because team is not something something too much"
+        />
       </HorizontalScroll>
     </>
   );
