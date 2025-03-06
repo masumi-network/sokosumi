@@ -10,7 +10,7 @@ interface AgentAddButtonProps {
 
 export default function AgentAddButton({ className }: AgentAddButtonProps) {
   return (
-    <div className={cn("flex items-center gap-2 p-3", className)}>
+    <div className={cn("flex items-center gap-2 bg-muted p-3", className)}>
       <SokosumiIcon />
       <div className="flex flex-1 flex-col">
         <h2 className="text-base font-bold text-muted-foreground">

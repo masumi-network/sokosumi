@@ -18,7 +18,7 @@ interface AgentsListProps {
 
 export default function AgentsList({ className = "h-full" }: AgentsListProps) {
   return (
-    <ScrollArea className={cn("w-full bg-muted p-4", className)}>
+    <ScrollArea className={cn("w-full bg-muted p-3", className)}>
       <div className="mt-4 flex items-center gap-2 text-sm font-bold text-muted-foreground">
         You Pinned Agents
         <Pin />

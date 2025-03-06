@@ -13,6 +13,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
+import AgentAddButton from "./components/agent-add-button";
 import AgentsList from "./components/agents-list";
 
 export default function MobileLeftPanel() {
@@ -32,7 +33,10 @@ export default function MobileLeftPanel() {
           <SheetTitle></SheetTitle>
           <SheetDescription></SheetDescription>
         </SheetHeader>
-        <AgentsList className="mt-2 bg-background" />
+        <div className="flex h-full flex-col">
+          <AgentsList className="mt-2 bg-background" />
+          <AgentAddButton className="bg-background" />
+        </div>
       </SheetContent>
     </Sheet>
   );
