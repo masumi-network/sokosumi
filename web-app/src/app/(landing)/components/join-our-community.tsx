@@ -4,7 +4,7 @@ import { DiscordButton, XButton } from "./social-button";
 
 export function JoinOurCommunity() {
   return (
-    <section className="container mx-auto px-4 py-4">
+    <section className="container py-4">
       <div className="flex flex-col items-center gap-8 md:flex-row">
         {/* Image Section */}
         <div className="w-full md:w-1/2">

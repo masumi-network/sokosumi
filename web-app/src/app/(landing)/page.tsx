@@ -84,9 +84,7 @@ export default function LandingPage() {
             Join Our Community
           </h2>
         </div>
-        <div className="container mx-auto px-4 md:px-6">
-          <JoinOurCommunity />
-        </div>
+        <JoinOurCommunity />
       </section>
 
       <section id="monetize" className="py-12">
@@ -94,8 +92,6 @@ export default function LandingPage() {
           <h2 className="mb-6 text-3xl font-bold tracking-tighter">
             Monetize Your Agents
           </h2>
-        </div>
-        <div className="container mx-auto px-4 md:px-6">
           <MonetizeYourAgent />
         </div>
       </section>
