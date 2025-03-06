@@ -11,14 +11,14 @@ export default function Footer() {
         </div>
 
         {/* Bottom section with copyright and links */}
-        <div className="flex flex-col items-center justify-between gap-4 border-t border-white/10 pt-8 md:flex-row">
+        <div className="flex flex-col items-center justify-between gap-4 border-t border-landing-footer-foreground/10 pt-8 md:flex-row">
           <p className="text-sm">&copy; {new Date().getFullYear()} Masumi</p>
           <nav>
             <ul className="flex flex-wrap justify-center gap-6">
               <li>
                 <Link
                   href="#"
-                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-white"
+                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-landing-footer-foreground"
                 >
                   Privacy Policy
                 </Link>
@@ -26,7 +26,7 @@ export default function Footer() {
               <li>
                 <Link
                   href="#"
-                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-white"
+                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-landing-footer-foreground"
                 >
                   Terms & Conditions
                 </Link>
@@ -34,7 +34,7 @@ export default function Footer() {
               <li>
                 <Link
                   href="#"
-                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-white"
+                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-landing-footer-foreground"
                 >
                   Cookie Policy
                 </Link>
@@ -42,7 +42,7 @@ export default function Footer() {
               <li>
                 <Link
                   href="#"
-                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-white"
+                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-landing-footer-foreground"
                 >
                   Contact
                 </Link>
