@@ -31,7 +31,7 @@ export default function SocialButton({
         alt={`${title} icon`}
         width={20}
         height={20}
-        className="h-5 w-5"
+        className="h-4 w-4"
       />
       <span>{title}</span>
     </Button>
@@ -62,6 +62,16 @@ export function DiscordButton() {
           "noopener,noreferrer",
         )
       }
+    />
+  );
+}
+
+export function GitHubButton({ title, url }: { title: string; url: string }) {
+  return (
+    <SocialButton
+      iconPath="/socials/github.svg"
+      title={title}
+      onClick={() => window.open(url, "_blank", "noopener,noreferrer")}
     />
   );
 }

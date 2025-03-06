@@ -2,7 +2,7 @@ import Image from "next/image";
 
 import { KodosumiLogo, MasumiLogo } from "@/components/masumi-logos";
 
-import { BlackButton, WhiteButton } from "./social-button";
+import { BlackButton, GitHubButton } from "./social-button";
 
 export function MonetizeYourAgent() {
   return (
@@ -32,8 +32,14 @@ export function MonetizeYourAgent() {
           {/* Action Buttons */}
           <div className="flex flex-wrap justify-end gap-4">
             <BlackButton title="Masumi Network" />
-            <WhiteButton title="Masumi Repository" />
-            <WhiteButton title="Kodosumi Repository" />
+            <GitHubButton
+              title="Masumi Repository"
+              url="https://github.com/masumi-network/"
+            />
+            <GitHubButton
+              title="Kodosumi Repository"
+              url="https://github.com/masumi-network/kodosumi"
+            />
           </div>
         </div>
 
