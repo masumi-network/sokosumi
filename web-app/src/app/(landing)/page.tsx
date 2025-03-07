@@ -1,12 +1,8 @@
 import { Loader, TrendingDown, TrendingUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import { AuthButtons } from "@/app/(landing)/components/auth-buttons";
-import Footer from "@/app/(landing)/components/footer";
-import { MainNav } from "@/app/(landing)/components/main-nav";
 import AgentCard from "@/components/agent-card";
 import IconTitleDescription from "@/components/icon-title-description";
-import { SokosumiLogo } from "@/components/masumi-logos";
 
 import HorizontalScroll from "./components/horizontal-scroll";
 import HowItWorks from "./components/how-it-works";
@@ -16,9 +12,6 @@ import { MonetizeYourAgent } from "./components/monetize-your-agent";
 export default function LandingPage() {
   return (
     <>
-      {/* Top Navigation */}
-      <TopNavigation />
-
       {/* Hero Section */}
       <section className="relative overflow-hidden py-20">
         <div className="container px-4 md:px-6">
@@ -69,28 +62,7 @@ export default function LandingPage() {
           <MonetizeYourAgent />
         </div>
       </section>
-
-      <div id="footer">
-        <Footer />
-      </div>
     </>
-  );
-}
-
-function TopNavigation() {
-  return (
-    <div className="w-full px-4 py-6 lg:px-8">
-      <div className="container mx-auto flex items-center justify-between gap-6">
-        {/* Left - Logo */}
-        <SokosumiLogo />
-
-        {/* Middle - Navigation Links */}
-        <MainNav />
-
-        {/* Right - Auth Buttons */}
-        <AuthButtons />
-      </div>
-    </div>
   );
 }
 
