@@ -17,17 +17,8 @@ export default function GalleryPage() {
         {/* Featured Agent Section */}
         <FeaturedAgent
           sectionTitle="an absolute must-have"
-          agentTitle="AI Market Analysis Expert"
-          description="Advanced AI agent specialized in market analysis and trend prediction. Provides detailed insights and forecasts for various market sectors."
-          imageUrl="/placeholder.svg"
-          imageAlt="AI Market Analysis Expert"
+          agent={dummyAgents[0]}
           buttonText="Hire this banger"
-          tags={[
-            "Market Analysis",
-            "Trend Prediction",
-            "AI Expert",
-            "Data Insights",
-          ]}
         />
 
         {/* Agent Cards Grid */}

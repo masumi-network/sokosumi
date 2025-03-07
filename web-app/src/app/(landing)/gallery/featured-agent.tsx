@@ -4,27 +4,20 @@ import Image from "next/image";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Agent } from "@/data/agents";
 
 interface FeaturedAgentProps {
   sectionTitle: string;
-  agentTitle: string;
-  description: string;
-  imageUrl: string;
-  imageAlt: string;
+  agent: Agent;
   buttonText: string;
   onButtonClick?: () => void;
-  tags?: string[];
 }
 
 export function FeaturedAgent({
   sectionTitle,
-  agentTitle,
-  description,
-  imageUrl,
-  imageAlt,
+  agent,
   buttonText,
   onButtonClick,
-  tags = [],
 }: FeaturedAgentProps) {
   return (
     <div className="flex flex-col items-center gap-8 md:flex-row">
@@ -32,10 +25,10 @@ export function FeaturedAgent({
       <div className="w-full space-y-6 md:w-1/3">
         <h2 className="text-2xl font-bold">{sectionTitle}</h2>
         <div className="space-y-4">
-          <h3 className="text-4xl font-bold tracking-tight">{agentTitle}</h3>
-          {tags.length > 0 && (
+          <h3 className="text-4xl font-bold tracking-tight">{agent.title}</h3>
+          {agent.tags.length > 0 && (
             <div className="flex flex-wrap gap-2">
-              {tags.map((tag, index) => (
+              {agent.tags.map((tag, index) => (
                 <Badge key={index} variant="secondary">
                   {tag}
                 </Badge>
@@ -43,7 +36,7 @@ export function FeaturedAgent({
             </div>
           )}
         </div>
-        <p className="text-lg text-muted-foreground">{description}</p>
+        <p className="text-lg text-muted-foreground">{agent.description}</p>
         <Button size="lg" onClick={onButtonClick} className="w-full md:w-auto">
           {buttonText}
         </Button>
@@ -52,8 +45,8 @@ export function FeaturedAgent({
       {/* Image Section - 2/3 width */}
       <div className="relative aspect-[16/9] w-full md:w-2/3">
         <Image
-          src={imageUrl}
-          alt={imageAlt}
+          src={agent.image}
+          alt={`${agent.title} image`}
           fill
           className="rounded-lg object-cover"
           priority

@@ -58,7 +58,7 @@ export default function AgentCard({ agent }: { agent: Agent }) {
       <div className="relative h-48 w-full">
         <Image
           src={image || "/placeholder.svg"}
-          alt={`${title} profile image`}
+          alt={`${title} image`}
           fill
           className="object-cover"
         />
