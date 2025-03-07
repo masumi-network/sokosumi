@@ -26,7 +26,7 @@ export default function AgentCard({
   const normalizedRating = Math.max(0, Math.min(5, Math.floor(rating)));
 
   return (
-    <Card className="w-full max-w-sm overflow-hidden">
+    <Card className="flex h-full w-full max-w-sm flex-col overflow-hidden">
       <div className="relative h-48 w-full">
         <Image
           src={image || "/placeholder.svg"}
@@ -36,7 +36,7 @@ export default function AgentCard({
         />
       </div>
 
-      <CardContent className="p-6">
+      <CardContent className="flex-1 p-6">
         <div
           className="mb-2 flex"
           aria-label={`Rating: ${normalizedRating} out of 5 stars`}
@@ -51,12 +51,12 @@ export default function AgentCard({
         </div>
 
         <h3 className="mb-2 text-xl font-bold">{title}</h3>
-        <p className="mb-4 line-clamp-5 overflow-hidden text-ellipsis text-muted-foreground">
+        <p className="line-clamp-3 overflow-hidden text-ellipsis text-muted-foreground">
           {description}
         </p>
       </CardContent>
 
-      <CardFooter className="flex items-center p-6 pt-0">
+      <CardFooter className="mt-auto p-6">
         <div className="flex items-center gap-4">
           <Button>{buttonText}</Button>
 
