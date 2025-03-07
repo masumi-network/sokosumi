@@ -20,9 +20,9 @@ export default function Navigation({
         <Link
           href="/gallery"
           className={cn(
-            "inline-flex items-center gap-1 text-sm font-medium transition-colors",
+            "inline-flex items-center gap-1 rounded-md px-4 py-2.5 text-sm font-medium transition-colors",
             pathname === "/gallery"
-              ? "text-primary"
+              ? "bg-[#F1F5F9] text-primary"
               : "text-muted-foreground hover:text-primary",
           )}
         >
@@ -32,9 +32,9 @@ export default function Navigation({
         <Link
           href="/#how-it-works"
           className={cn(
-            "inline-flex items-center gap-1 text-sm font-medium transition-colors",
+            "inline-flex items-center gap-1 rounded-md px-4 py-2.5 text-sm font-medium transition-colors",
             pathname === "/#how-it-works"
-              ? "text-primary"
+              ? "bg-[#F1F5F9] text-primary"
               : "text-muted-foreground hover:text-primary",
           )}
         >
@@ -44,9 +44,9 @@ export default function Navigation({
         <Link
           href="/#join-our-community"
           className={cn(
-            "inline-flex items-center gap-1 text-sm font-medium transition-colors",
+            "inline-flex items-center gap-1 rounded-md px-4 py-2.5 text-sm font-medium transition-colors",
             pathname === "/#join-our-community"
-              ? "text-primary"
+              ? "bg-[#F1F5F9] text-primary"
               : "text-muted-foreground hover:text-primary",
           )}
         >
@@ -56,9 +56,9 @@ export default function Navigation({
         <Link
           href="/#monetize"
           className={cn(
-            "inline-flex items-center gap-1 text-sm font-medium transition-colors",
+            "inline-flex items-center gap-1 rounded-md px-4 py-2.5 text-sm font-medium transition-colors",
             pathname === "/#monetize"
-              ? "text-primary"
+              ? "bg-[#F1F5F9] text-primary"
               : "text-muted-foreground hover:text-primary",
           )}
         >
