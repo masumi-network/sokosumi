@@ -9,9 +9,20 @@ export default {
     "./src/app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
   theme: {
+    container: {
+      center: true,
+      screens: {
+        "2xl": "1400px",
+      },
+    },
     extend: {
       colors: {
-        landing: "#E4B1F6",
+        landing: {
+          footer: {
+            background: "#1A202C",
+            foreground: "#FFFFFF",
+          },
+        },
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",
         card: {

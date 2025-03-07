@@ -5,3 +5,4 @@ alwaysApply: true
 ---
 - Use Shadcn UI, Radix, and Tailwind for components and styling.
 - Implement responsive design with Tailwind CSS.
+- Use `next-intl` for Internationalization for Next.js
