@@ -33,6 +33,9 @@ export default function MainNav() {
             </Link>
           );
         })}
+        <div className="mx-2 text-xs font-bold text-muted-foreground">
+          Credits balance: 6901
+        </div>
       </nav>
     </div>
   );

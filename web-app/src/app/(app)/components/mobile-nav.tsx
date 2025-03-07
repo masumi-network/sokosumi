@@ -66,6 +66,9 @@ export default function MobileNav() {
             );
           })}
         </ul>
+        <div className="mx-2 my-4 text-sm font-bold text-muted-foreground">
+          Credits balance: 6901
+        </div>
       </SheetContent>
     </Sheet>
   );
