@@ -165,8 +165,8 @@ const dummyAgents = [
 export default function GalleryPage() {
   return (
     <div className="container mx-auto px-4 py-8">
-      {/* Featured Agent Section */}
-      <div className="mb-12">
+      <div className="space-y-12">
+        {/* Featured Agent Section */}
         <FeaturedAgent
           sectionTitle="an absolute must-have"
           agentTitle="AI Market Analysis Expert"
@@ -175,22 +175,22 @@ export default function GalleryPage() {
           imageAlt="AI Market Analysis Expert"
           buttonText="Hire this banger"
         />
-      </div>
 
-      {/* Agent Cards Grid */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {dummyAgents.map((agent, index) => (
-          <AgentCard
-            key={index}
-            title={agent.title}
-            description={agent.description}
-            rating={agent.rating}
-            image={agent.image}
-            buttonText={agent.buttonText}
-            pricingTitle={agent.pricingTitle}
-            pricingCaption={agent.pricingCaption}
-          />
-        ))}
+        {/* Agent Cards Grid */}
+        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {dummyAgents.map((agent, index) => (
+            <AgentCard
+              key={index}
+              title={agent.title}
+              description={agent.description}
+              rating={agent.rating}
+              image={agent.image}
+              buttonText={agent.buttonText}
+              pricingTitle={agent.pricingTitle}
+              pricingCaption={agent.pricingCaption}
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
