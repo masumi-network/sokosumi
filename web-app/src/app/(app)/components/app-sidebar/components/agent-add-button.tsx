@@ -2,15 +2,10 @@ import { Plus } from "lucide-react";
 
 import { SokosumiIcon } from "@/components/masumi-icons";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 
-interface AgentAddButtonProps {
-  className?: string;
-}
-
-export default function AgentAddButton({ className }: AgentAddButtonProps) {
+export default function AgentAddButton() {
   return (
-    <div className={cn("flex items-center gap-2 bg-muted p-3", className)}>
+    <div className="flex items-center gap-2 p-3">
       <SokosumiIcon />
       <div className="flex flex-1 flex-col">
         <h2 className="text-base font-bold text-muted-foreground">

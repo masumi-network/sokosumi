@@ -1,68 +1,33 @@
-"use client";
-
-import { Calendar, Home, Inbox, Search, Settings } from "lucide-react";
-
+import { SokosumiLogo } from "@/components/masumi-logos";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Sidebar,
   SidebarContent,
-  SidebarGroup,
-  SidebarGroupContent,
-  SidebarGroupLabel,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
+  SidebarFooter,
+  SidebarHeader,
 } from "@/components/ui/sidebar";
 
-const items = [
-  {
-    title: "Home",
-    url: "#",
-    icon: Home,
-  },
-  {
-    title: "Inbox",
-    url: "#",
-    icon: Inbox,
-  },
-  {
-    title: "Calendar",
-    url: "#",
-    icon: Calendar,
-  },
-  {
-    title: "Search",
-    url: "#",
-    icon: Search,
-  },
-  {
-    title: "Settings",
-    url: "#",
-    icon: Settings,
-  },
-];
+import AgentAddButton from "./components/agent-add-button";
+import AgentsList from "./components/agents-list";
+import CustomTrigger from "./components/custom-trigger";
 
 export default function AppSidebar() {
   return (
     <Sidebar>
+      <SidebarHeader>
+        <div className="flex items-center gap-2 p-2">
+          <CustomTrigger />
+          <SokosumiLogo />
+        </div>
+      </SidebarHeader>
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Application</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {items.map((item) => (
-                <SidebarMenuItem key={item.title}>
-                  <SidebarMenuButton asChild>
-                    <a href={item.url}>
-                      <item.icon />
-                      <span>{item.title}</span>
-                    </a>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        <ScrollArea>
+          <AgentsList />
+        </ScrollArea>
       </SidebarContent>
+      <SidebarFooter>
+        <AgentAddButton />
+      </SidebarFooter>
     </Sidebar>
   );
 }

@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-import { SokosumiLogo } from "@/components/masumi-logos";
 import { cn } from "@/lib/utils";
 
 const navItems = [
@@ -18,7 +17,6 @@ export default function MainNav() {
 
   return (
     <div className="mr-4 hidden w-full md:flex">
-      <SokosumiLogo />
       <nav className="flex flex-1 items-center justify-end gap-4 text-sm xl:gap-6">
         {navItems.map((nav) => {
           const isActive = pathname.startsWith(nav.href);

@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { cookies } from "next/headers";
 
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 
 import AppHeader from "./components/app-header";
 import AppSidebar from "./components/app-sidebar";
@@ -25,7 +25,6 @@ export default async function AppLayout({ children }: AppLayoutProps) {
       <div className="flex h-svh flex-1 flex-col">
         <AppHeader />
         <main className="flex h-[calc(100svh-64px)] flex-1 flex-col md:flex-row">
-          <SidebarTrigger />
           <div className="flex flex-1 flex-col">{children}</div>
         </main>
       </div>

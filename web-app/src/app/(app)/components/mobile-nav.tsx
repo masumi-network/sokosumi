@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  Briefcase,
-  CreditCard,
-  LayoutGrid,
-  Menu,
-  Settings,
-} from "lucide-react";
+import { ArrowLeftFromLine } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as React from "react";
@@ -14,36 +8,20 @@ import * as React from "react";
 import { SokosumiLogo } from "@/components/masumi-logos";
 import { Button } from "@/components/ui/button";
 import {
-  Drawer,
-  DrawerContent,
-  DrawerDescription,
-  DrawerHeader,
-  DrawerTitle,
-  DrawerTrigger,
-} from "@/components/ui/drawer";
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 
 const navItems = [
-  {
-    href: "/dashboard",
-    label: "Home",
-    icon: <LayoutGrid className="text-muted-foreground" />,
-  },
-  {
-    href: "/jobs",
-    label: "Jobs",
-    icon: <Briefcase className="text-muted-foreground" />,
-  },
-  {
-    href: "/billing",
-    label: "Billing",
-    icon: <CreditCard className="text-muted-foreground" />,
-  },
-  {
-    href: "/settings",
-    label: "Settings",
-    icon: <Settings className="text-muted-foreground" />,
-  },
+  { href: "/dashboard", label: "Home" },
+  { href: "/jobs", label: "Jobs" },
+  { href: "/billing", label: "Billing" },
+  { href: "/settings", label: "Settings" },
 ];
 
 export default function MobileNav() {
@@ -51,26 +29,21 @@ export default function MobileNav() {
   const pathname = usePathname();
 
   return (
-    <Drawer
-      open={open}
-      onOpenChange={setOpen}
-      autoFocus={open}
-      direction="bottom"
-    >
-      <DrawerTrigger asChild>
-        <div className="mr-2 md:hidden">
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <div className="ml-2 mr-2 flex flex-1 justify-end md:hidden">
           <Button variant="outline" size="icon">
-            <Menu />
+            <ArrowLeftFromLine />
           </Button>
         </div>
-      </DrawerTrigger>
-      <DrawerContent className="max-h-[60svh] w-full p-4">
-        <DrawerHeader>
-          <DrawerTitle className="flex justify-center">
+      </SheetTrigger>
+      <SheetContent className="h-svh max-w-sm p-4" side="right">
+        <SheetHeader>
+          <SheetTitle className="flex justify-center">
             <SokosumiLogo />
-          </DrawerTitle>
-          <DrawerDescription></DrawerDescription>
-        </DrawerHeader>
+          </SheetTitle>
+          <SheetDescription></SheetDescription>
+        </SheetHeader>
         <ul className="mt-4 flex flex-col gap-y-2 overflow-y-auto">
           {navItems.map((nav) => {
             const isActive = pathname.startsWith(nav.href);
@@ -87,14 +60,13 @@ export default function MobileNav() {
                     },
                   )}
                 >
-                  {nav.icon}
                   {nav.label}
                 </Link>
               </li>
             );
           })}
         </ul>
-      </DrawerContent>
-    </Drawer>
+      </SheetContent>
+    </Sheet>
   );
 }
