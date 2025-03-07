@@ -51,7 +51,7 @@ export default function AgentCard({
         </div>
 
         <h3 className="mb-2 text-xl font-bold">{title}</h3>
-        <p className="line-clamp-3 overflow-hidden text-ellipsis text-muted-foreground">
+        <p className="line-clamp-3 min-h-[4.5rem] overflow-hidden text-ellipsis whitespace-normal text-muted-foreground">
           {description}
         </p>
       </CardContent>
