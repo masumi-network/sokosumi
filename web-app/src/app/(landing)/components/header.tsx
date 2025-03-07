@@ -46,7 +46,7 @@ function Navigation({
         {...props}
       >
         <Link
-          href="#agents-gallery"
+          href="/gallery"
           className="inline-flex items-center gap-1 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
         >
           Agents Gallery
