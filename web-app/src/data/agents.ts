@@ -6,6 +6,7 @@ export interface Agent {
   buttonText: string;
   pricingTitle: string;
   pricingCaption: string;
+  tags?: string[];
 }
 
 export const dummyAgents: Agent[] = [
@@ -18,6 +19,7 @@ export const dummyAgents: Agent[] = [
     buttonText: "Run Analysis",
     pricingTitle: "Free Trial",
     pricingCaption: "Normal Price: 15-25 credits/run",
+    tags: ["Analytics", "Finance", "Trends", "Forecasting"],
   },
   {
     title: "Content Creation Pro",
@@ -28,6 +30,7 @@ export const dummyAgents: Agent[] = [
     buttonText: "Create Content",
     pricingTitle: "Free Trial",
     pricingCaption: "Normal Price: 10-20 credits/run",
+    tags: ["Writing", "Marketing", "Social Media", "Blogging"],
   },
   {
     title: "Data Visualization Expert",
@@ -38,6 +41,7 @@ export const dummyAgents: Agent[] = [
     buttonText: "Visualize Data",
     pricingTitle: "Free Trial",
     pricingCaption: "Normal Price: 12-22 credits/run",
+    tags: ["Data", "Visualization", "Reports", "Analytics"],
   },
   {
     title: "Code Review Assistant",
@@ -48,6 +52,7 @@ export const dummyAgents: Agent[] = [
     buttonText: "Review Code",
     pricingTitle: "Free Trial",
     pricingCaption: "Normal Price: 15-30 credits/run",
+    tags: ["Development", "Code Quality", "Bug Detection", "Best Practices"],
   },
   {
     title: "SEO Optimization Pro",
@@ -58,6 +63,7 @@ export const dummyAgents: Agent[] = [
     buttonText: "Optimize SEO",
     pricingTitle: "Free Trial",
     pricingCaption: "Normal Price: 10-25 credits/run",
+    tags: ["SEO", "Marketing", "Content", "Analytics"],
   },
   {
     title: "Social Media Manager",
@@ -68,6 +74,7 @@ export const dummyAgents: Agent[] = [
     buttonText: "Manage Social",
     pricingTitle: "Free Trial",
     pricingCaption: "Normal Price: 15-35 credits/run",
+    tags: ["Social Media", "Marketing", "Analytics", "Engagement"],
   },
   {
     title: "Customer Support AI",
@@ -78,6 +85,7 @@ export const dummyAgents: Agent[] = [
     buttonText: "Start Support",
     pricingTitle: "Free Trial",
     pricingCaption: "Normal Price: 20-40 credits/run",
+    tags: ["Customer Service", "NLP", "24/7", "Support"],
   },
   {
     title: "Financial Advisor",
@@ -88,6 +96,7 @@ export const dummyAgents: Agent[] = [
     buttonText: "Get Advice",
     pricingTitle: "Free Trial",
     pricingCaption: "Normal Price: 25-45 credits/run",
+    tags: ["Finance", "Investment", "Portfolio", "Planning"],
   },
   {
     title: "Translation Expert",
@@ -98,6 +107,7 @@ export const dummyAgents: Agent[] = [
     buttonText: "Translate",
     pricingTitle: "Free Trial",
     pricingCaption: "Normal Price: 10-20 credits/run",
+    tags: ["Translation", "Languages", "Localization", "Cultural"],
   },
   {
     title: "Research Assistant",
@@ -108,6 +118,7 @@ export const dummyAgents: Agent[] = [
     buttonText: "Start Research",
     pricingTitle: "Free Trial",
     pricingCaption: "Normal Price: 15-30 credits/run",
+    tags: ["Research", "Analysis", "Data", "Synthesis"],
   },
   {
     title: "UI/UX Designer",
@@ -118,6 +129,7 @@ export const dummyAgents: Agent[] = [
     buttonText: "Design UI",
     pricingTitle: "Free Trial",
     pricingCaption: "Normal Price: 20-40 credits/run",
+    tags: ["Design", "UI", "UX", "Interface"],
   },
   {
     title: "Legal Document Analyzer",
@@ -128,6 +140,7 @@ export const dummyAgents: Agent[] = [
     buttonText: "Analyze Docs",
     pricingTitle: "Free Trial",
     pricingCaption: "Normal Price: 25-50 credits/run",
+    tags: ["Legal", "Documents", "Contracts", "Compliance"],
   },
   {
     title: "Video Content Creator",
@@ -138,6 +151,7 @@ export const dummyAgents: Agent[] = [
     buttonText: "Create Video",
     pricingTitle: "Free Trial",
     pricingCaption: "Normal Price: 30-60 credits/run",
+    tags: ["Video", "Content", "Storytelling", "Production"],
   },
   {
     title: "HR Assistant",
@@ -148,6 +162,7 @@ export const dummyAgents: Agent[] = [
     buttonText: "HR Help",
     pricingTitle: "Free Trial",
     pricingCaption: "Normal Price: 15-35 credits/run",
+    tags: ["HR", "Recruitment", "Onboarding", "Documentation"],
   },
   {
     title: "Project Manager",
@@ -158,5 +173,6 @@ export const dummyAgents: Agent[] = [
     buttonText: "Manage Project",
     pricingTitle: "Free Trial",
     pricingCaption: "Normal Price: 20-40 credits/run",
+    tags: ["Project Management", "Planning", "Resources", "Timeline"],
   },
 ];

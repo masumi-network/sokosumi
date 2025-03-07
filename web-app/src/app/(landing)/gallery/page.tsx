@@ -22,6 +22,12 @@ export default function GalleryPage() {
           imageUrl="/placeholder.svg"
           imageAlt="AI Market Analysis Expert"
           buttonText="Hire this banger"
+          tags={[
+            "Market Analysis",
+            "Trend Prediction",
+            "AI Expert",
+            "Data Insights",
+          ]}
         />
 
         {/* Agent Cards Grid */}
@@ -36,6 +42,7 @@ export default function GalleryPage() {
               buttonText={agent.buttonText}
               pricingTitle={agent.pricingTitle}
               pricingCaption={agent.pricingCaption}
+              tags={agent.tags}
             />
           ))}
         </div>
