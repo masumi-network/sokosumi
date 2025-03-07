@@ -47,8 +47,11 @@ export default function UserAvatar() {
                 className="relative h-8 w-8 rounded-full"
               >
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src="#" alt="Avatar" />
-                  <AvatarFallback className="bg-transparent">JD</AvatarFallback>
+                  <AvatarImage
+                    src="https://github.com/shadcn.png"
+                    alt="shadcn"
+                  />
+                  <AvatarFallback>CN</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
@@ -69,13 +72,21 @@ export default function UserAvatar() {
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem className="hover:cursor-pointer" asChild>
-            <Link href="/dashboard" className="flex items-center gap-2">
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-2"
+              prefetch={false}
+            >
               <LayoutGrid className="text-muted-foreground" />
               Dashboard
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem className="hover:cursor-pointer" asChild>
-            <Link href="/account" className="flex items-center gap-2">
+            <Link
+              href="/account"
+              className="flex items-center gap-2"
+              prefetch={false}
+            >
               <User className="text-muted-foreground" />
               Account
             </Link>

@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 export default function AppLayout({ children }: AppLayoutProps) {
   return (
-    <div data-wrapper="" className="flex h-svh flex-1 flex-col">
+    <div className="flex h-svh flex-1 flex-col">
       <AppHeader />
       <main className="flex h-[calc(100svh-64px)] flex-1 flex-col md:flex-row">
         <MainLeftPanel />
