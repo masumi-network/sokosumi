@@ -5,9 +5,9 @@ import AgentCard from "@/components/agent-card";
 import IconTitleDescription from "@/components/icon-title-description";
 
 import HorizontalScroll from "./components/horizontal-scroll";
-import HowItWorks from "./components/how-it-works";
-import { JoinOurCommunity } from "./components/join-our-community";
-import { MonetizeYourAgent } from "./components/monetize-your-agent";
+import HowItWorks from "./how-it-works";
+import { JoinOurCommunity } from "./join-our-community";
+import { MonetizeYourAgent } from "./monetize-your-agent";
 
 export default function LandingPage() {
   return (

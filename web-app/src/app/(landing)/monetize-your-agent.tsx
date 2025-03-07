@@ -2,7 +2,7 @@ import Image from "next/image";
 
 import { KodosumiLogo, MasumiLogo } from "@/components/masumi-logos";
 
-import { GitHubButton, MasumiButton } from "./social-button";
+import { GitHubButton, MasumiButton } from "./components/social-button";
 
 export function MonetizeYourAgent() {
   return (
