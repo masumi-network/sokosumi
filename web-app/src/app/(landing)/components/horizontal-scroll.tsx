@@ -11,7 +11,7 @@ interface HorizontalScrollProps {
 export default function HorizontalScroll({ children }: HorizontalScrollProps) {
   return (
     <ScrollArea className="w-full whitespace-nowrap">
-      <div className="flex w-full justify-center gap-6 px-6 [&:not(:has(>*:nth-child(2)))]:justify-center">
+      <div className="flex h-full w-full justify-center gap-6 px-6 [&:not(:has(>*:nth-child(2)))]:justify-center">
         {children}
       </div>
       <ScrollBar orientation="horizontal" className="hidden" />
