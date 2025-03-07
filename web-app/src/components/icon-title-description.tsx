@@ -14,12 +14,12 @@ export default function IconTitleDescription({
   return (
     <div className="flex flex-col gap-3">
       <div className="flex items-center gap-4">
-        <div className="flex-shrink-0">
-          <Icon className="h-10 w-10 text-primary" />
+        <div className="shrink-0">
+          <Icon className="text-primary h-10 w-10" />
         </div>
         <h2 className="text-6xl font-normal tracking-tight">{title}</h2>
       </div>
-      <p className="line-clamp-2 pl-14 text-muted-foreground">{description}</p>
+      <p className="text-muted-foreground line-clamp-2 pl-14">{description}</p>
     </div>
   );
 }

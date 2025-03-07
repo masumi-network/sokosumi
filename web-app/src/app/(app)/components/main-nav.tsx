@@ -30,7 +30,7 @@ export function MainNav() {
             <Link
               key={nav.label}
               href={nav.href}
-              className={cn("transition-colors hover:text-foreground/80", {
+              className={cn("hover:text-foreground/80 transition-colors", {
                 "text-foreground underline": isActive,
                 "text-foreground/50": !isActive,
               })}

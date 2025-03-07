@@ -45,7 +45,7 @@ export default function AgentCard({ agent }: { agent: Agent }) {
         </div>
 
         <h3 className="mb-2 shrink-0 text-xl font-bold">{title}</h3>
-        <p className="mb-3 line-clamp-3 min-h-[4.5rem] overflow-hidden text-ellipsis whitespace-normal text-muted-foreground">
+        <p className="text-muted-foreground mb-3 line-clamp-3 min-h-[4.5rem] overflow-hidden text-ellipsis whitespace-normal">
           {description}
         </p>
         <div className="flex min-h-[1.5rem] shrink-0 flex-nowrap overflow-hidden">
@@ -64,7 +64,7 @@ export default function AgentCard({ agent }: { agent: Agent }) {
 
           <div>
             <h4 className="font-medium">{pricingTitle}</h4>
-            <p className="text-xs text-muted-foreground">{pricingCaption}</p>
+            <p className="text-muted-foreground text-xs">{pricingCaption}</p>
           </div>
         </div>
       </CardFooter>
