@@ -26,17 +26,17 @@ export function FeaturedAgent({
         <h2 className="text-2xl font-bold">{sectionTitle}</h2>
         <div className="space-y-4">
           <h3 className="text-4xl font-bold tracking-tight">{agent.title}</h3>
-          {agent.tags.length > 0 && (
-            <div className="flex flex-wrap gap-2">
-              {agent.tags.map((tag, index) => (
-                <Badge key={index} variant="secondary">
-                  {tag}
-                </Badge>
-              ))}
-            </div>
-          )}
         </div>
         <p className="text-lg text-muted-foreground">{agent.description}</p>
+        {agent.tags.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {agent.tags.map((tag, index) => (
+              <Badge key={index} variant="secondary">
+                {tag}
+              </Badge>
+            ))}
+          </div>
+        )}
         <Button size="lg" onClick={onButtonClick} className="w-full md:w-auto">
           {buttonText}
         </Button>

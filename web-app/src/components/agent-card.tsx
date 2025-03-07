@@ -45,18 +45,17 @@ export default function AgentCard({ agent }: { agent: Agent }) {
         </div>
 
         <h3 className="mb-2 text-xl font-bold">{title}</h3>
-        {tags.length > 0 && (
-          <div className="mb-3 flex flex-nowrap overflow-hidden">
-            {tags.slice(0, 3).map((tag, index) => (
+        <p className="mb-3 line-clamp-3 min-h-[4.5rem] overflow-hidden text-ellipsis whitespace-normal text-muted-foreground">
+          {description}
+        </p>
+        <div className="flex flex-nowrap overflow-hidden">
+          {tags.length > 0 &&
+            tags.slice(0, 3).map((tag, index) => (
               <Badge key={index} variant="secondary" className="mr-2 shrink-0">
                 {tag}
               </Badge>
             ))}
-          </div>
-        )}
-        <p className="line-clamp-3 min-h-[4.5rem] overflow-hidden text-ellipsis whitespace-normal text-muted-foreground">
-          {description}
-        </p>
+        </div>
       </CardContent>
 
       <CardFooter className="mt-auto p-6">

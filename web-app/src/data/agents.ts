@@ -30,7 +30,7 @@ export const dummyAgents: Agent[] = [
     buttonText: "Create Content",
     pricingTitle: "Free Trial",
     pricingCaption: "Normal Price: 10-20 credits/run",
-    tags: ["Writing", "Marketing", "Social Media", "Blogging"],
+    tags: [],
   },
   {
     title: "Data Visualization Expert",
