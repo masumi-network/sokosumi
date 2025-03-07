@@ -94,7 +94,7 @@ function AgentsGallery() {
   return (
     <HorizontalScroll>
       {dummyAgents.map((agent, index) => (
-        <AgentCard key={index} {...agent} />
+        <AgentCard key={index} agent={agent} />
       ))}
     </HorizontalScroll>
   );

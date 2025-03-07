@@ -7,28 +7,19 @@ import { useEffect, useRef, useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { Agent } from "@/data/agents";
 
-interface AgentCardProps {
-  image: string;
-  rating: number;
-  title: string;
-  description: string;
-  buttonText: string;
-  pricingTitle: string;
-  pricingCaption: string;
-  tags?: string[];
-}
-
-export default function AgentCard({
-  image = "/placeholder.svg?height=200&width=400",
-  rating = 4,
-  title = "Agent Smith",
-  description = "Professional real estate agent with over 10 years of experience in the market.",
-  buttonText = "Run Analysis",
-  pricingTitle = "Free Trial",
-  pricingCaption = "Normal Price: 10-30 credits/run",
-  tags = [],
-}: AgentCardProps) {
+export default function AgentCard({ agent }: { agent: Agent }) {
+  const {
+    title,
+    description,
+    rating,
+    image,
+    buttonText,
+    pricingTitle,
+    pricingCaption,
+    tags,
+  } = agent;
   const normalizedRating = Math.max(0, Math.min(5, Math.floor(rating)));
   const containerRef = useRef<HTMLDivElement>(null);
   const [visibleTags, setVisibleTags] = useState<string[]>([]);

@@ -33,17 +33,7 @@ export default function GalleryPage() {
         {/* Agent Cards Grid */}
         <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {dummyAgents.map((agent, index) => (
-            <AgentCard
-              key={index}
-              title={agent.title}
-              description={agent.description}
-              rating={agent.rating}
-              image={agent.image}
-              buttonText={agent.buttonText}
-              pricingTitle={agent.pricingTitle}
-              pricingCaption={agent.pricingCaption}
-              tags={agent.tags}
-            />
+            <AgentCard key={index} agent={agent} />
           ))}
         </div>
       </div>

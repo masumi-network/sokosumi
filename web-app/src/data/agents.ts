@@ -6,7 +6,7 @@ export interface Agent {
   buttonText: string;
   pricingTitle: string;
   pricingCaption: string;
-  tags?: string[];
+  tags: string[];
 }
 
 export const dummyAgents: Agent[] = [
