@@ -22,7 +22,7 @@ export default function Navigation({
           className={cn(
             "inline-flex items-center gap-1 rounded-md px-4 py-2.5 text-sm font-medium transition-colors",
             pathname === "/gallery"
-              ? "bg-[#F1F5F9] text-primary"
+              ? "bg-landing-navigation-active text-primary"
               : "text-muted-foreground hover:text-primary",
           )}
         >
@@ -34,7 +34,7 @@ export default function Navigation({
           className={cn(
             "inline-flex items-center gap-1 rounded-md px-4 py-2.5 text-sm font-medium transition-colors",
             pathname === "/#how-it-works"
-              ? "bg-[#F1F5F9] text-primary"
+              ? "bg-landing-navigation-active text-primary"
               : "text-muted-foreground hover:text-primary",
           )}
         >
@@ -46,7 +46,7 @@ export default function Navigation({
           className={cn(
             "inline-flex items-center gap-1 rounded-md px-4 py-2.5 text-sm font-medium transition-colors",
             pathname === "/#join-our-community"
-              ? "bg-[#F1F5F9] text-primary"
+              ? "bg-landing-navigation-active text-primary"
               : "text-muted-foreground hover:text-primary",
           )}
         >
@@ -58,7 +58,7 @@ export default function Navigation({
           className={cn(
             "inline-flex items-center gap-1 rounded-md px-4 py-2.5 text-sm font-medium transition-colors",
             pathname === "/#monetize"
-              ? "bg-[#F1F5F9] text-primary"
+              ? "bg-landing-navigation-active text-primary"
               : "text-muted-foreground hover:text-primary",
           )}
         >
