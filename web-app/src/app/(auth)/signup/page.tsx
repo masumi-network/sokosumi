@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -22,6 +21,7 @@ import { Input } from "@/components/ui/input";
 import { signUp } from "@/lib/auth.client";
 import { FormData } from "@/lib/form";
 
+import SocialButtons from "../components/social-buttons";
 import { signUpFormSchema, SignUpFormSchemaType } from "./schema";
 
 const formData: FormData<SignUpFormSchemaType> = [
@@ -38,25 +38,6 @@ const formData: FormData<SignUpFormSchemaType> = [
     label: "Confirm Password",
     placeholder: "Confirm Password",
     type: "password",
-  },
-];
-
-const socialProviders = [
-  {
-    name: "Google",
-    iconPath: "/socials/google.svg",
-  },
-  {
-    name: "Microsoft",
-    iconPath: "/socials/microsoft.svg",
-  },
-  {
-    name: "Apple",
-    iconPath: "/socials/apple.svg",
-  },
-  {
-    name: "LinkedIn",
-    iconPath: "/socials/linkedin.svg",
   },
 ];
 
@@ -101,17 +82,7 @@ export default function SignUp() {
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-4">
-        {socialProviders.map(({ name, iconPath }) => (
-          <Button
-            key={name}
-            className="flex flex-1 items-center justify-center gap-2 font-bold"
-            variant="outline"
-          >
-            <Image src={iconPath} alt={name} width={18} height={18} /> {name}
-          </Button>
-        ))}
-      </div>
+      <SocialButtons variant="signup" />
 
       <div className="flex items-center justify-between gap-2">
         <hr className="h-0 flex-1 border-0 border-t border-gray-200" />
