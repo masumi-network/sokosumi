@@ -1,9 +1,6 @@
-"use client";
-
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-
 import { cn } from "@/lib/utils";
+
+import NavLink from "./nav-link";
 
 const navItems = [
   { href: "/dashboard", label: "Home" },
@@ -17,25 +14,11 @@ interface NavMenuProps {
 }
 
 export default function NavMenu({ className = "" }: NavMenuProps) {
-  const pathname = usePathname();
-
   return (
     <ul className={cn("flex", className)}>
-      {navItems.map((nav) => {
-        const isActive = pathname.startsWith(nav.href);
-        return (
-          <Link
-            key={nav.label}
-            href={nav.href}
-            className={cn("transition hover:text-foreground/80", {
-              "text-foreground underline": isActive,
-              "text-foreground/50": !isActive,
-            })}
-          >
-            {nav.label}
-          </Link>
-        );
-      })}
+      {navItems.map((nav) => (
+        <NavLink key={nav.label} href={nav.href} label={nav.label} />
+      ))}
       <div className="font-bold text-muted-foreground">
         Credits balance: 6901
       </div>
