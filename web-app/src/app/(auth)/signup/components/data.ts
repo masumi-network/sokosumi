@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { FormData } from "@/lib/form";
+
 const signUpFormSchema = z
   .object({
     username: z
@@ -29,5 +31,22 @@ const signUpFormSchema = z
 
 type SignUpFormSchemaType = z.infer<typeof signUpFormSchema>;
 
-export { signUpFormSchema };
+const signUpFormData: FormData<SignUpFormSchemaType> = [
+  { name: "email", label: "Email", placeholder: "me@example.com" },
+  { name: "username", label: "User Name", placeholder: "Jhon Doe" },
+  {
+    name: "password",
+    label: "Password",
+    placeholder: "Password",
+    type: "password",
+  },
+  {
+    name: "confirmPassword",
+    label: "Confirm Password",
+    placeholder: "Confirm Password",
+    type: "password",
+  },
+];
+
+export { signUpFormData, signUpFormSchema };
 export type { SignUpFormSchemaType };
