@@ -1,42 +1,9 @@
-"use client";
-
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-
-import { cn } from "@/lib/utils";
-
-const navItems = [
-  { href: "/dashboard", label: "Home" },
-  { href: "/jobs", label: "Jobs" },
-  { href: "/billing", label: "Billing" },
-  { href: "/settings", label: "Settings" },
-];
+import NavMenu from "./nav-menu";
 
 export default function MainNav() {
-  const pathname = usePathname();
-
   return (
-    <div className="mr-4 hidden w-full md:flex">
-      <nav className="flex flex-1 items-center justify-end gap-4 text-sm xl:gap-6">
-        {navItems.map((nav) => {
-          const isActive = pathname.startsWith(nav.href);
-          return (
-            <Link
-              key={nav.label}
-              href={nav.href}
-              className={cn("text-sm transition hover:text-foreground/80", {
-                "text-foreground underline": isActive,
-                "text-foreground/50": !isActive,
-              })}
-            >
-              {nav.label}
-            </Link>
-          );
-        })}
-        <div className="mx-2 text-xs font-bold text-muted-foreground">
-          Credits balance: 6901
-        </div>
-      </nav>
-    </div>
+    <nav className="mx-4 hidden flex-1 md:block">
+      <NavMenu className="flex-row justify-end gap-4 text-sm lg:gap-6" />
+    </nav>
   );
 }
