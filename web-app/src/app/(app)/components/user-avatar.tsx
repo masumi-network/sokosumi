@@ -29,7 +29,7 @@ export default function UserAvatar() {
   const onSignOut = async () => {
     await signOut({
       fetchOptions: {
-        onSuccess: () => {
+        onResponse: () => {
           router.push("/signin"); // redirect to login page
         },
       },
@@ -72,21 +72,13 @@ export default function UserAvatar() {
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem className="hover:cursor-pointer" asChild>
-            <Link
-              href="/dashboard"
-              className="flex items-center gap-2"
-              prefetch={false}
-            >
+            <Link href="/dashboard" className="flex items-center gap-2">
               <LayoutGrid className="text-muted-foreground" />
               Dashboard
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem className="hover:cursor-pointer" asChild>
-            <Link
-              href="/account"
-              className="flex items-center gap-2"
-              prefetch={false}
-            >
+            <Link href="/account" className="flex items-center gap-2">
               <User className="text-muted-foreground" />
               Account
             </Link>

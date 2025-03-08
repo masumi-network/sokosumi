@@ -23,7 +23,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     <SidebarProvider defaultOpen={defaultOpen}>
       <AppSidebar />
       <div className="flex h-svh flex-1 flex-col">
-        <AppHeader />
+        <AppHeader className="h-[64px]" />
         <main className="flex h-[calc(100svh-64px)] flex-1 flex-col md:flex-row">
           <div className="flex flex-1 flex-col">{children}</div>
         </main>

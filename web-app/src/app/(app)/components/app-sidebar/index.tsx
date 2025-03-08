@@ -1,5 +1,4 @@
 import { SokosumiLogo } from "@/components/masumi-logos";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Sidebar,
   SidebarContent,
@@ -21,9 +20,7 @@ export default function AppSidebar() {
         </div>
       </SidebarHeader>
       <SidebarContent>
-        <ScrollArea>
-          <AgentsList />
-        </ScrollArea>
+        <AgentsList />
       </SidebarContent>
       <SidebarFooter>
         <AgentAddButton />
