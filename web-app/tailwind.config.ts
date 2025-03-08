@@ -18,6 +18,9 @@ export default {
     extend: {
       colors: {
         landing: {
+          navigation: {
+            active: "#F1F5F9",
+          },
           footer: {
             background: "#1A202C",
             foreground: "#FFFFFF",
