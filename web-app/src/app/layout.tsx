@@ -42,7 +42,7 @@ export default async function RootLayout({
         )}
       >
         <NextIntlClientProvider messages={messages}>
-          <div className="min-h-screen bg-background">{children}</div>
+          <div className="bg-background">{children}</div>
           <Toaster />
         </NextIntlClientProvider>
       </body>

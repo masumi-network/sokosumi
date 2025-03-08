@@ -1,6 +1,6 @@
 import Image from "next/image";
 
-import { DiscordButton, XButton } from "./social-button";
+import { DiscordButton, XButton } from "./components/social-button";
 
 export function JoinOurCommunity() {
   return (

@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 
 import { Button } from "@/components/ui/button";
 
@@ -70,7 +71,9 @@ export default function HowItWorks() {
 
       {/* Explore Gallery Button */}
       <div className="flex justify-start">
-        <Button>Explore Gallery</Button>
+        <Link href="/gallery">
+          <Button>Explore Gallery</Button>
+        </Link>
       </div>
     </>
   );
