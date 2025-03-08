@@ -5,6 +5,35 @@ import { usePathname } from "next/navigation";
 
 import { cn } from "@/lib/utils";
 
+type NavigationLink = {
+  href: string;
+  label: string;
+  showChevron?: boolean;
+};
+
+const navigationLinks: NavigationLink[] = [
+  {
+    href: "/gallery",
+    label: "Agents Gallery",
+    showChevron: true,
+  },
+  {
+    href: "/#how-it-works",
+    label: "How it works",
+    showChevron: true,
+  },
+  {
+    href: "/#join-our-community",
+    label: "Community",
+    showChevron: true,
+  },
+  {
+    href: "/#monetize",
+    label: "Monetize",
+    showChevron: true,
+  },
+];
+
 export default function Navigation({
   className,
   ...props
@@ -17,54 +46,21 @@ export default function Navigation({
         className={cn("flex items-center space-x-4 lg:space-x-6", className)}
         {...props}
       >
-        <Link
-          href="/gallery"
-          className={cn(
-            "inline-flex items-center gap-1 rounded-md px-4 py-2.5 text-sm font-medium transition-colors",
-            pathname === "/gallery"
-              ? "bg-landing-navigation-active text-primary"
-              : "text-muted-foreground hover:text-primary",
-          )}
-        >
-          Agents Gallery
-          <ChevronDown className="h-4 w-4" />
-        </Link>
-        <Link
-          href="/#how-it-works"
-          className={cn(
-            "inline-flex items-center gap-1 rounded-md px-4 py-2.5 text-sm font-medium transition-colors",
-            pathname === "/#how-it-works"
-              ? "bg-landing-navigation-active text-primary"
-              : "text-muted-foreground hover:text-primary",
-          )}
-        >
-          How it works
-          <ChevronDown className="h-4 w-4" />
-        </Link>
-        <Link
-          href="/#join-our-community"
-          className={cn(
-            "inline-flex items-center gap-1 rounded-md px-4 py-2.5 text-sm font-medium transition-colors",
-            pathname === "/#join-our-community"
-              ? "bg-landing-navigation-active text-primary"
-              : "text-muted-foreground hover:text-primary",
-          )}
-        >
-          Community
-          <ChevronDown className="h-4 w-4" />
-        </Link>
-        <Link
-          href="/#monetize"
-          className={cn(
-            "inline-flex items-center gap-1 rounded-md px-4 py-2.5 text-sm font-medium transition-colors",
-            pathname === "/#monetize"
-              ? "bg-landing-navigation-active text-primary"
-              : "text-muted-foreground hover:text-primary",
-          )}
-        >
-          Monetize
-          <ChevronDown className="h-4 w-4" />
-        </Link>
+        {navigationLinks.map((link) => (
+          <Link
+            key={link.href}
+            href={link.href}
+            className={cn(
+              "inline-flex items-center gap-1 rounded-md px-4 py-2.5 text-sm font-medium transition-colors",
+              pathname === link.href
+                ? "bg-landing-navigation-active text-primary"
+                : "text-muted-foreground hover:text-primary",
+            )}
+          >
+            {link.label}
+            {link.showChevron && <ChevronDown className="h-4 w-4" />}
+          </Link>
+        ))}
       </nav>
     </div>
   );
