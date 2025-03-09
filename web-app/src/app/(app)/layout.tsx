@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
 import Header from "./components/header";
-import AppSidebar from "./components/sidebar";
+import Sidebar from "./components/sidebar";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -21,7 +21,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <SidebarProvider defaultOpen={defaultOpen}>
-      <AppSidebar />
+      <Sidebar />
       <div className="flex h-svh flex-1 flex-col">
         <Header className="h-[64px]" />
         <main className="flex h-[calc(100svh-64px)] flex-1 flex-col md:flex-row">

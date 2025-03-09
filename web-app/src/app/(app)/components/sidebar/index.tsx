@@ -1,6 +1,6 @@
 import { SokosumiLogo } from "@/components/masumi-logos";
 import {
-  Sidebar,
+  Sidebar as ShadcnSidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
@@ -10,9 +10,9 @@ import AgentAddButton from "./components/agent-add-button";
 import AgentsList from "./components/agents-list";
 import CustomTrigger from "./components/custom-trigger";
 
-export default function AppSidebar() {
+export default function Sidebar() {
   return (
-    <Sidebar>
+    <ShadcnSidebar>
       <SidebarHeader>
         <div className="flex items-center gap-2 p-2">
           <CustomTrigger />
@@ -25,6 +25,6 @@ export default function AppSidebar() {
       <SidebarFooter>
         <AgentAddButton />
       </SidebarFooter>
-    </Sidebar>
+    </ShadcnSidebar>
   );
 }
