@@ -13,7 +13,7 @@ export function MonetizeYourAgent() {
           <h2 className="text-5xl font-bold tracking-tighter">
             Deploy your Agents
           </h2>
-          <p className="text-lg text-muted-foreground">
+          <p className="text-muted-foreground text-lg">
             Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum
             vehicula ex eu nisi dictum, a facilisis mauris tincidunt. Nulla
             facilisi. Cras vel justo vel libero lacinia ultricies. Suspendisse

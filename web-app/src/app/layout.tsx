@@ -39,7 +39,7 @@ export default async function RootLayout({
         className={cn(
           geistSans.variable,
           geistMono.variable,
-          "h-svh bg-background antialiased",
+          "bg-background min-h-svh antialiased",
         )}
       >
         <NextIntlClientProvider messages={messages}>

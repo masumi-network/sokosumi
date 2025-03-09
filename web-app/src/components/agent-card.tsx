@@ -20,7 +20,7 @@ export default function AgentCard({ agent }: { agent: Agent }) {
   const normalizedRating = Math.max(0, Math.min(5, Math.floor(rating)));
 
   return (
-    <Card className="flex h-full w-full max-w-sm flex-col overflow-hidden">
+    <Card className="flex h-full w-full max-w-sm flex-col overflow-hidden py-0">
       <div className="relative h-48 w-full shrink-0">
         <Image
           src={image || "/placeholder.svg"}
@@ -30,7 +30,7 @@ export default function AgentCard({ agent }: { agent: Agent }) {
         />
       </div>
 
-      <CardContent className="flex flex-1 flex-col p-6">
+      <CardContent className="flex flex-1 flex-col px-6 pt-4 pb-3">
         <div
           className="mb-2 flex shrink-0"
           aria-label={`Rating: ${normalizedRating} out of 5 stars`}
@@ -45,7 +45,7 @@ export default function AgentCard({ agent }: { agent: Agent }) {
         </div>
 
         <h3 className="mb-2 shrink-0 text-xl font-bold">{title}</h3>
-        <p className="mb-3 line-clamp-3 min-h-[4.5rem] overflow-hidden text-ellipsis whitespace-normal text-muted-foreground">
+        <p className="text-muted-foreground mb-3 line-clamp-3 min-h-[4.5rem] overflow-hidden text-ellipsis whitespace-normal">
           {description}
         </p>
         <div className="flex min-h-[1.5rem] shrink-0 flex-nowrap overflow-hidden">
@@ -58,13 +58,13 @@ export default function AgentCard({ agent }: { agent: Agent }) {
         </div>
       </CardContent>
 
-      <CardFooter className="mt-auto shrink-0 p-6">
+      <CardFooter className="mt-auto shrink-0 px-6 pt-2 pb-4">
         <div className="flex items-center gap-4">
           <Button>{buttonText}</Button>
 
           <div>
             <h4 className="font-medium">{pricingTitle}</h4>
-            <p className="text-xs text-muted-foreground">{pricingCaption}</p>
+            <p className="text-muted-foreground text-xs">{pricingCaption}</p>
           </div>
         </div>
       </CardFooter>

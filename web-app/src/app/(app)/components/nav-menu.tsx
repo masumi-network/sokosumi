@@ -19,7 +19,7 @@ export default function NavMenu({ className = "" }: NavMenuProps) {
       {navItems.map((nav) => (
         <NavLink key={nav.label} href={nav.href} label={nav.label} />
       ))}
-      <div className="font-bold text-muted-foreground">
+      <div className="text-muted-foreground font-bold">
         Credits balance: 6901
       </div>
     </ul>

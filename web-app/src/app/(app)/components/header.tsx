@@ -13,7 +13,7 @@ export default function Header({ className = "h-[64px]" }: HeaderProps) {
   return (
     <header
       className={cn(
-        "border-grid sticky top-0 z-50 flex w-full items-center border-b bg-background/95 px-4 py-3",
+        "border-grid bg-background/95 sticky top-0 z-50 flex w-full items-center border-b px-4 py-3",
         className,
       )}
     >

@@ -8,10 +8,10 @@ export default function AgentAddButton() {
     <div className="flex items-center gap-2 p-2">
       <SokosumiIcon />
       <div className="flex flex-1 flex-col">
-        <h2 className="text-base font-bold text-muted-foreground">
+        <h2 className="text-muted-foreground text-base font-bold">
           Agents Gallery
         </h2>
-        <p className="text-xs text-muted-foreground">browse agents</p>
+        <p className="text-muted-foreground text-xs">browse agents</p>
       </div>
       <Button variant="outline" size="icon">
         <Plus />
