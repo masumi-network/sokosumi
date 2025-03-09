@@ -5,11 +5,11 @@ import MainNav from "./main-nav";
 import MobileNav from "./mobile-nav";
 import UserAvatar from "./user-avatar";
 
-interface AppHeaderProps {
+interface HeaderProps {
   className?: string;
 }
 
-export default function AppHeader({ className = "h-[64px]" }: AppHeaderProps) {
+export default function Header({ className = "h-[64px]" }: HeaderProps) {
   return (
     <header
       className={cn(
