@@ -1,8 +1,8 @@
 import { cn } from "@/lib/utils";
 
-import CustomTrigger from "./app-sidebar/components/custom-trigger";
 import MainNav from "./main-nav";
 import MobileNav from "./mobile-nav";
+import CustomTrigger from "./sidebar/components/custom-trigger";
 import UserAvatar from "./user-avatar";
 
 interface HeaderProps {

@@ -3,8 +3,8 @@ import { cookies } from "next/headers";
 
 import { SidebarProvider } from "@/components/ui/sidebar";
 
-import AppSidebar from "./components/app-sidebar";
 import Header from "./components/header";
+import AppSidebar from "./components/sidebar";
 
 interface AppLayoutProps {
   children: React.ReactNode;
