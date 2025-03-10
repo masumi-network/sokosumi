@@ -2,9 +2,9 @@
 
 import Image from "next/image";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Agent } from "@/data/agents";
+import { Badge } from "@/shadcn/badge";
+import { Button } from "@/shadcn/button";
 
 interface FeaturedAgentProps {
   sectionTitle: string;

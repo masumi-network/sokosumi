@@ -7,7 +7,8 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
+import { signIn } from "@/lib/auth.client";
+import { Button } from "@/shadcn/button";
 import {
   Form,
   FormControl,
@@ -16,9 +17,8 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
-import { signIn } from "@/lib/auth.client";
+} from "@/shadcn/form";
+import { Input } from "@/shadcn/input";
 
 import { signInFormData, signInFormSchema, SignInFormSchemaType } from "./data";
 

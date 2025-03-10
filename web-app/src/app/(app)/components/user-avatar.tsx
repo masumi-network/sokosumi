@@ -4,8 +4,9 @@ import { LayoutGrid, LogOut, User } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { signOut } from "@/lib/auth.client";
+import { Avatar, AvatarFallback, AvatarImage } from "@/shadcn/avatar";
+import { Button } from "@/shadcn/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -14,14 +15,13 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/shadcn/dropdown-menu";
 import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
-import { signOut } from "@/lib/auth.client";
+} from "@/shadcn/tooltip";
 
 export default function UserAvatar() {
   const router = useRouter();
@@ -56,7 +56,7 @@ export default function UserAvatar() {
               </Button>
             </DropdownMenuTrigger>
           </TooltipTrigger>
-          <TooltipContent side="bottom">Jhon Doe</TooltipContent>
+          <TooltipContent side="bottom">John Doe</TooltipContent>
         </Tooltip>
       </TooltipProvider>
 

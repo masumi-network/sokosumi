@@ -2,7 +2,7 @@ import { X } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shadcn/button";
 
 export const metadata: Metadata = {
   title: "Sokosumi - Sign In / Sign Up",

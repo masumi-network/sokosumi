@@ -1,6 +1,13 @@
 {
   "cSpell.words": ["masumi", "sokosumi", "kodosumi"],
   "cSpell.language": "en, lorem",
+  "cSpell.ignorePaths": [
+    "node_modules",
+    ".git",
+    "package.json",
+    "package-lock.json",
+    ".vscode/**"
+  ],
   "editor.formatOnSave": true,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "[prisma]": {

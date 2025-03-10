@@ -1,7 +1,7 @@
 import { Plus } from "lucide-react";
 
 import { SokosumiIcon } from "@/components/masumi-icons";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shadcn/button";
 
 export default function AgentAddButton() {
   return (

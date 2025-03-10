@@ -1,7 +1,7 @@
 import { ArrowLeftFromLine } from "lucide-react";
 
 import { SokosumiLogo } from "@/components/masumi-logos";
-import { Button } from "@/components/ui/button";
+import { Button } from "@/shadcn/button";
 import {
   Sheet,
   SheetContent,
@@ -9,7 +9,7 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@/components/ui/sheet";
+} from "@/shadcn/sheet";
 
 import NavMenu from "./nav-menu";
 

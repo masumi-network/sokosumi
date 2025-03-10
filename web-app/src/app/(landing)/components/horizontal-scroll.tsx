@@ -2,7 +2,7 @@
 
 import type React from "react";
 
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { ScrollArea, ScrollBar } from "@/shadcn/scroll-area";
 
 interface HorizontalScrollProps {
   children: React.ReactNode;
