@@ -1,8 +1,8 @@
 import { cn } from "@/lib/utils";
 
-import MainNav from "./main-nav";
-import MobileNav from "./mobile-nav";
+import SheetNavigation from "./sheet-navigation";
 import CustomTrigger from "./sidebar/components/custom-trigger";
+import StickyNavigation from "./sticky-navigation";
 import UserAvatar from "./user-avatar";
 
 interface HeaderProps {
@@ -18,8 +18,8 @@ export default function Header({ className = "h-[64px]" }: HeaderProps) {
       )}
     >
       <CustomTrigger when="invisible" />
-      <MainNav />
-      <MobileNav />
+      <StickyNavigation />
+      <SheetNavigation />
       <UserAvatar />
     </header>
   );

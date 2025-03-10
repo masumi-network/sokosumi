@@ -13,7 +13,7 @@ import {
 
 import NavMenu from "./nav-menu";
 
-export default function MobileNav() {
+export default function SheetNavigation() {
   return (
     <Sheet>
       <SheetTrigger asChild>
