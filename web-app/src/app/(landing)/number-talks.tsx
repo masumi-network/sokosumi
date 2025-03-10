@@ -5,12 +5,6 @@ import IconTitleDescription from "@/components/icon-title-description";
 
 import HorizontalScroll from "./components/horizontal-scroll";
 
-interface NumberTalk {
-  title: string;
-  icon: string;
-  description: string;
-}
-
 // Map icon names to actual Lucide components
 const getIconByName = (name: string): LucideIcon => {
   const iconMap: Record<string, LucideIcon> = {
@@ -23,16 +17,17 @@ const getIconByName = (name: string): LucideIcon => {
 };
 
 export default function NumberTalks() {
-  const t = useTranslations("Landing.NumberTalks");
+  const t = useTranslations("Landing.NumberTalks.numbers");
+  const keys = ["Duration", "Cost", "Time"] as const;
   return (
     <>
       <HorizontalScroll>
-        {(t.raw("numbers") as NumberTalk[]).map((number) => (
+        {keys.map((key) => (
           <IconTitleDescription
-            key={number.title}
-            icon={getIconByName(number.icon)}
-            title={number.title}
-            description={number.description}
+            key={key}
+            icon={getIconByName(t(`${key}.icon`))}
+            title={t(`${key}.title`)}
+            description={t(`${key}.description`)}
           />
         ))}
       </HorizontalScroll>
