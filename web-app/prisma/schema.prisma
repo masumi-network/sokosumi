@@ -223,8 +223,8 @@ model Agent {
   onChainDescription  String?
   overrideDescription String?
 
-  onChainApiUrl  String
-  overrideApiUrl String?
+  onChainApiBaseUrl  String
+  overrideApiBaseUrl String?
 
   onChainExampleOutput  String?
   overrideExampleOutput String?
@@ -241,8 +241,11 @@ model Agent {
   onChainAuthorName  String
   overrideAuthorName String?
 
-  onChainAuthorContact  String?
-  overrideAuthorContact String?
+  onChainAuthorContactEmail  String?
+  overrideAuthorContactEmail String?
+
+  onChainAuthorContactOther  String?
+  overrideAuthorContactOther String?
 
   onChainAuthorOrganization  String?
   overrideAuthorOrganization String?
