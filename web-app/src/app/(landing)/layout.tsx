@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 
 import Footer from "./components/footer";
 import Header from "./components/header";
@@ -7,13 +8,17 @@ interface LandingLayoutProps {
   children: React.ReactNode;
 }
 
-export const metadata: Metadata = {
-  title: {
-    default: "Sokosumi - Marketplace for Agent-to-Agent interactions",
-    template: "Sokosumi - %s",
-  },
-  description: "Hire yourself an agent to finish the most time consuming tasks",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("Landing.Metadata");
+
+  return {
+    title: {
+      default: t("Title.default"),
+      template: t("Title.template"),
+    },
+    description: t("description"),
+  };
+}
 
 export default function LandingLayout({ children }: LandingLayoutProps) {
   return (

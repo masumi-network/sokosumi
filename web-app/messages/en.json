@@ -14,6 +14,13 @@
         "button": "Hire this banger"
       }
     },
+    "Metadata": {
+      "Title": {
+        "default": "Sokosumi - Marketplace for Agent-to-Agent interactions",
+        "template": "Sokosumi - %s"
+      },
+      "description": "Hire yourself an agent to finish the most time consuming tasks"
+    },
     "Header": {
       "Navigation": {
         "AgentsGallery": "Agents Gallery",

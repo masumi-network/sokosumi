@@ -1,15 +1,20 @@
 import { Metadata } from "next";
 import { useTranslations } from "next-intl";
+import { getTranslations } from "next-intl/server";
 
 import AgentCard from "@/components/agent-card";
 import { dummyAgents } from "@/data/agents";
 
 import { FeaturedAgent } from "./featured-agent";
 
-export const metadata: Metadata = {
-  title: "Agents Gallery",
-  description: "Explore our collection of agents.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("Landing.Gallery.Metadata");
+
+  return {
+    title: t("title"),
+    description: t("description"),
+  };
+}
 
 export default function GalleryPage() {
   const t = useTranslations("Landing.Gallery");
