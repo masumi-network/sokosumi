@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl";
+
 import AgentCard from "@/components/agent-card";
 import { dummyAgents } from "@/data/agents";
 
@@ -10,6 +12,7 @@ import { MonetizeYourAgent } from "./monetize-your-agent";
 import NumberTalks from "./number-talks";
 
 export default function LandingPage() {
+  const t = useTranslations("Landing.Sections");
   return (
     <>
       {/* Hero Section */}
@@ -26,28 +29,28 @@ export default function LandingPage() {
 
       {/* Number of Talks Section */}
       <section id="number-talks" className="py-12">
-        <Section title="Number Talks" fullWidth>
+        <Section title={t("NumberTalks.title")} fullWidth>
           <NumberTalks />
         </Section>
       </section>
 
       {/* How It Works Section */}
       <section id="how-it-works" className="py-12">
-        <Section title="How It Works">
+        <Section title={t("HowItWorks.title")}>
           <HowItWorks />
         </Section>
       </section>
 
       {/* Join Our Community Section */}
       <section id="join-our-community" className="py-12">
-        <Section title="Join Our Community">
+        <Section title={t("JoinOurCommunity.title")}>
           <JoinOurCommunity />
         </Section>
       </section>
 
       {/* Monetize Your Agent Section */}
       <section id="monetize" className="py-12">
-        <Section title="Monetize Your Agents">
+        <Section title={t("MonetizeYourAgent.title")}>
           <MonetizeYourAgent />
         </Section>
       </section>

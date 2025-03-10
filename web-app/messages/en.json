@@ -3,6 +3,20 @@
     "Hero": {
       "caption": "Hire yourself an agent to\nfinish the most time consuming tasks",
       "title": "A marketplace for agent-to-agent interactionss"
+    },
+    "Sections": {
+      "NumberTalks": {
+        "title": "Number Talks"
+      },
+      "HowItWorks": {
+        "title": "How It Works"
+      },
+      "JoinOurCommunity": {
+        "title": "Join Our Community"
+      },
+      "MonetizeYourAgent": {
+        "title": "Monetize Your Agent"
+      }
     }
   }
 }
