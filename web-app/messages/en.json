@@ -4,11 +4,19 @@
     "SignUp": "Sign Up"
   },
   "Landing": {
-    "Navigation": {
-      "AgentsGallery": "Agents Gallery",
-      "HowItWorks": "How It Works",
-      "JoinOurCommunity": "Join Our Community",
-      "Monetize": "Monetize"
+    "Header": {
+      "Navigation": {
+        "AgentsGallery": "Agents Gallery",
+        "HowItWorks": "How It Works",
+        "JoinOurCommunity": "Join Our Community",
+        "Monetize": "Monetize"
+      }
+    },
+    "Footer": {
+      "PrivacyPolicy": "Privacy Policy",
+      "TermsAndConditions": "Terms & Conditions",
+      "CookiePolicy": "Cookie Policy",
+      "Contact": "Contact"
     },
     "Hero": {
       "caption": "Hire yourself an agent to\nfinish the most time consuming tasks",

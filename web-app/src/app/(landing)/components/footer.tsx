@@ -1,8 +1,10 @@
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import { SokosumiLogo } from "@/components/masumi-logos";
 
 export default function Footer() {
+  const t = useTranslations("Landing.Footer");
   return (
     <footer
       id="footer"
@@ -24,7 +26,7 @@ export default function Footer() {
                   href="#"
                   className="text-muted-foreground hover:text-landing-footer-foreground flex items-center gap-1 text-sm"
                 >
-                  Privacy Policy
+                  {t("PrivacyPolicy")}
                 </Link>
               </li>
               <li>
@@ -32,7 +34,7 @@ export default function Footer() {
                   href="#"
                   className="text-muted-foreground hover:text-landing-footer-foreground flex items-center gap-1 text-sm"
                 >
-                  Terms & Conditions
+                  {t("TermsAndConditions")}
                 </Link>
               </li>
               <li>
@@ -40,7 +42,7 @@ export default function Footer() {
                   href="#"
                   className="text-muted-foreground hover:text-landing-footer-foreground flex items-center gap-1 text-sm"
                 >
-                  Cookie Policy
+                  {t("CookiePolicy")}
                 </Link>
               </li>
               <li>
@@ -48,7 +50,7 @@ export default function Footer() {
                   href="#"
                   className="text-muted-foreground hover:text-landing-footer-foreground flex items-center gap-1 text-sm"
                 >
-                  Contact
+                  {t("Contact")}
                 </Link>
               </li>
             </ul>

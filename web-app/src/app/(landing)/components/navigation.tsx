@@ -40,7 +40,7 @@ export default function Navigation({
   ...props
 }: React.HTMLAttributes<HTMLElement>) {
   const pathname = usePathname();
-  const t = useTranslations("Landing.Navigation");
+  const t = useTranslations("Landing.Header.Navigation");
 
   return (
     <div className="flex items-center gap-8">
