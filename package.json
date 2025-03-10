@@ -2,6 +2,7 @@
   "name": "sokosumi",
   "private": true,
   "type": "module",
+  "packageManager": "npm@11.2.0",
   "workspaces": [],
   "scripts": {
     "prepare": "husky"

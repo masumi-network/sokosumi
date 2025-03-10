@@ -1,6 +1,11 @@
 {
   "name": "sokosumi-web",
   "version": "0.1.0",
+  "packageManager": "npm@11.2.0",
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=11.2.0"
+  },
   "private": true,
   "scripts": {
     "dev": "next dev",
