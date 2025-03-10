@@ -24,7 +24,7 @@
     },
     "NumberTalks": {
       "title": "Number Talks",
-      "numbers": {
+      "Numbers": {
         "Duration": {
           "title": "2 hours",
           "description": "to complete a full team report something something something",
@@ -45,20 +45,20 @@
     "HowItWorks": {
       "title": "How It Works",
       "button": "Explore Gallery",
-      "steps": [
-        {
+      "Steps": {
+        "SelectAndTest": {
           "title": "Select & Test",
           "description": "Select your preferred payment method and test the smart contract functionality, including how disputes are resolved. This ensures a smooth transaction experience."
         },
-        {
+        "RunAndMonitor": {
           "title": "Run & Monitor",
           "description": "Select your preferred payment method and dive into the innovative features of smart contracts, such as how disputes are managed. This ensures a smooth transaction journey."
         },
-        {
+        "GetResults": {
           "title": "Get Results",
           "description": "Select your preferred payment method and dive into the innovative features of smart contracts, such as how disputes are managed. This ensures a smooth transaction journey."
         }
-      ]
+      }
     },
     "JoinOurCommunity": {
       "title": "Join Our Community",
