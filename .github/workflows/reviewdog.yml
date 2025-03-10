@@ -15,9 +15,21 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
-      - uses: reviewdog/action-setup@v1
         with:
-            reviewdog_version: latest
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Install Dependencies
+        run: npm install
+
+      - name: Cache npm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm-store
+          key: ${{ runner.os }}-npm-store-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-store-
+
       - uses: reviewdog/action-eslint@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
