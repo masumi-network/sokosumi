@@ -30,9 +30,9 @@ web-app/
 
 ## Prerequisites
 
-- Node.js (v18 or higher)
-- npm or yarn
-- Docker (optional, for containerization)
+- [Node.js](https://nodejs.org/en) (v20 or higher)
+- [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
+- [Docker](https://www.docker.com) (optional, for containerization)
 
 ## Getting Started
 
@@ -67,19 +67,13 @@ web-app/
 - `npm run test` - Run tests
 - `npm run lint` - Run ESLint
 
-### Git Workflow
+## Testing
 
-This project uses conventional commits for standardized commit messages. Each commit message should follow the pattern:
+Run tests using Jest:
 
+```bash
+npm run test
 ```
-type(scope): description
-
-[optional body]
-
-[optional footer]
-```
-
-Types: `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`
 
 ## Docker
 
@@ -90,10 +84,4 @@ docker build -t sokosumi .
 docker run -p 3000:3000 sokosumi
 ```
 
-## Testing
 
-Run tests using Jest:
-
-```bash
-npm run test
-```
