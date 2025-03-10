@@ -1,5 +1,7 @@
 import { Agent, AgentFixedPricing, AgentPricing, AgentRating, ExampleOutput, PricingType, Status, UnitValue } from "@prisma/client";
 
+import { ipfsUrlResolver } from "@/lib/ipfs";
+
 export class UnifiedAgent {
     readonly ranking: bigint;
     readonly showOnFrontPage: boolean;
@@ -75,7 +77,25 @@ export class UnifiedAgent {
         this.name = agent.overrideName ?? agent.onChainName;
         this.description = agent.overrideDescription ?? agent.onChainDescription;
         this.apiBaseUrl = agent.overrideApiBaseUrl ?? agent.onChainApiBaseUrl;
-        this.ExampleOutput = agent.ExampleOutputOverride.length > 0 ? agent.ExampleOutputOverride : agent.ExampleOutput.length > 0 ? agent.ExampleOutput : [];
+        this.ExampleOutput = agent.ExampleOutputOverride.length > 0 ? agent.ExampleOutputOverride.map((example) => {
+            return {
+                id: example.id,
+                createdAt: example.createdAt,
+                updatedAt: example.updatedAt,
+                name: example.name,
+                mimeType: example.mimeType,
+                url: ipfsUrlResolver(example.url),
+            }
+        }) : agent.ExampleOutput.length > 0 ? agent.ExampleOutput.map((example) => {
+            return {
+                id: example.id,
+                createdAt: example.createdAt,
+                updatedAt: example.updatedAt,
+                name: example.name,
+                mimeType: example.mimeType,
+                url: ipfsUrlResolver(example.url),
+            }
+        }) : [];
         this.Capability = {
             name: agent.overrideCapabilityName ?? agent.onChainCapabilityName,
             version: agent.overrideCapabilityVersion ?? agent.onChainCapabilityVersion,
@@ -98,7 +118,7 @@ export class UnifiedAgent {
             other: agent.overrideLegalOther ?? agent.onChainLegalOther,
         };
         this.tags = agent.overrideTags.length > 0 ? agent.overrideTags : agent.onChainTags;
-        this.image = agent.overrideImage ?? agent.onChainImage;
+        this.image = ipfsUrlResolver(agent.overrideImage ?? agent.onChainImage);
         this.metadataVersion = agent.overrideMetadataVersion ?? agent.onChainMetadataVersion;
         this.status = agent.status;
         this.id = agent.id;
