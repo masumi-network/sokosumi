@@ -1,4 +1,4 @@
-name: reviewdog
+name: ReviewDog
 on: 
   pull_request:
     branches:
@@ -27,7 +27,7 @@ jobs:
       - uses: reviewdog/action-eslint@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          reporter: github-pr-review # Change reporter.
+          reporter: github-pr-review
           eslint_flags: "src/"
           level: error
           workdir: ./web-app
