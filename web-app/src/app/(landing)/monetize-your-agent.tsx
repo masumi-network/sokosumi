@@ -6,7 +6,7 @@ import { KodosumiLogo, MasumiLogo } from "@/components/masumi-logos";
 import { GitHubButton, MasumiButton } from "./components/social-button";
 
 export function MonetizeYourAgent() {
-  const t = useTranslations("Landing.Sections.MonetizeYourAgent");
+  const t = useTranslations("Landing.MonetizeYourAgent");
   return (
     <div className="container py-4">
       <div className="flex flex-col items-center gap-8 md:flex-row">

@@ -23,7 +23,7 @@ const getIconByName = (name: string): LucideIcon => {
 };
 
 export default function NumberTalks() {
-  const t = useTranslations("Landing.Sections.NumberTalks");
+  const t = useTranslations("Landing.NumberTalks");
   return (
     <>
       <HorizontalScroll>

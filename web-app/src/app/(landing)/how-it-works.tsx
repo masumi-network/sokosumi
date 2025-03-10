@@ -11,7 +11,7 @@ interface Step {
 }
 
 export default function HowItWorks() {
-  const t = useTranslations("Landing.Sections.HowItWorks");
+  const t = useTranslations("Landing.HowItWorks");
   return (
     <>
       {/* Responsive grid - horizontal on md+ screens, vertical on smaller screens */}

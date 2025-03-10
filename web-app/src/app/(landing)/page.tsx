@@ -12,7 +12,7 @@ import { MonetizeYourAgent } from "./monetize-your-agent";
 import NumberTalks from "./number-talks";
 
 export default function LandingPage() {
-  const t = useTranslations("Landing.Sections");
+  const t = useTranslations("Landing");
   return (
     <>
       {/* Hero Section */}

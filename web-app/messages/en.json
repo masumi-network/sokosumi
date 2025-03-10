@@ -22,55 +22,53 @@
       "caption": "Hire yourself an agent to\nfinish the most time consuming tasks",
       "title": "A marketplace for agent-to-agent interactionss"
     },
-    "Sections": {
-      "NumberTalks": {
-        "title": "Number Talks",
-        "numbers": [
-          {
-            "title": "2 hours",
-            "description": "to complete a full team report something something something",
-            "icon": "Loader"
-          },
-          {
-            "title": "42% less costs",
-            "description": "of something something because something",
-            "icon": "TrendingDown"
-          },
-          {
-            "title": "69% more free time",
-            "description": "because team is not something something too much",
-            "icon": "TrendingUp"
-          }
-        ]
-      },
-      "HowItWorks": {
-        "title": "How It Works",
-        "button": "Explore Gallery",
-        "steps": [
-          {
-            "title": "Select & Test",
-            "description": "Select your preferred payment method and test the smart contract functionality, including how disputes are resolved. This ensures a smooth transaction experience."
-          },
-          {
-            "title": "Run & Monitor",
-            "description": "Select your preferred payment method and dive into the innovative features of smart contracts, such as how disputes are managed. This ensures a smooth transaction journey."
-          },
-          {
-            "title": "Get Results",
-            "description": "Select your preferred payment method and dive into the innovative features of smart contracts, such as how disputes are managed. This ensures a smooth transaction journey."
-          }
-        ]
-      },
-      "JoinOurCommunity": {
-        "title": "Join Our Community",
-        "subtitle": "We are online",
-        "description": "Connect with like-minded individuals, share experiences, and be part of our growing community. Follow us on social media to stay updated with the latest news and events."
-      },
-      "MonetizeYourAgent": {
-        "title": "Monetize Your Agent",
-        "subtitle": "Deploy your Agents",
-        "description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum vehicula ex eu nisi dictum, a facilisis mauris tincidunt. Nulla facilisi. Cras vel justo vel libero lacinia ultricies. Suspendisse potenti. Donec nec odio vel mi vulputate malesuada. Aenean tincidunt, nibh ut interdum luctus, sapien tortor laoreet nisi, eget malesuada odio odio non purus. Sed ut perspiciatis unde omnis iste natus error sit voluptatem."
-      }
+    "NumberTalks": {
+      "title": "Number Talks",
+      "numbers": [
+        {
+          "title": "2 hours",
+          "description": "to complete a full team report something something something",
+          "icon": "Loader"
+        },
+        {
+          "title": "42% less costs",
+          "description": "of something something because something",
+          "icon": "TrendingDown"
+        },
+        {
+          "title": "69% more free time",
+          "description": "because team is not something something too much",
+          "icon": "TrendingUp"
+        }
+      ]
+    },
+    "HowItWorks": {
+      "title": "How It Works",
+      "button": "Explore Gallery",
+      "steps": [
+        {
+          "title": "Select & Test",
+          "description": "Select your preferred payment method and test the smart contract functionality, including how disputes are resolved. This ensures a smooth transaction experience."
+        },
+        {
+          "title": "Run & Monitor",
+          "description": "Select your preferred payment method and dive into the innovative features of smart contracts, such as how disputes are managed. This ensures a smooth transaction journey."
+        },
+        {
+          "title": "Get Results",
+          "description": "Select your preferred payment method and dive into the innovative features of smart contracts, such as how disputes are managed. This ensures a smooth transaction journey."
+        }
+      ]
+    },
+    "JoinOurCommunity": {
+      "title": "Join Our Community",
+      "subtitle": "We are online",
+      "description": "Connect with like-minded individuals, share experiences, and be part of our growing community. Follow us on social media to stay updated with the latest news and events."
+    },
+    "MonetizeYourAgent": {
+      "title": "Monetize Your Agent",
+      "subtitle": "Deploy your Agents",
+      "description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum vehicula ex eu nisi dictum, a facilisis mauris tincidunt. Nulla facilisi. Cras vel justo vel libero lacinia ultricies. Suspendisse potenti. Donec nec odio vel mi vulputate malesuada. Aenean tincidunt, nibh ut interdum luctus, sapien tortor laoreet nisi, eget malesuada odio odio non purus. Sed ut perspiciatis unde omnis iste natus error sit voluptatem."
     }
   }
 }
