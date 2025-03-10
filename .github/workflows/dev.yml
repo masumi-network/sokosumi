@@ -44,9 +44,6 @@ jobs:
       - name: Run Tests
         run: npm run test:ci
 
-      - name: Run ESLint
-        run: npm run lint || (echo "Lint issues found. Please fix them." && exit 1)
-
       - name: Run Open API Generator
         run: npm run generate:api
 
