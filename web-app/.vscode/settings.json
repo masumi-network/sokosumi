@@ -13,5 +13,9 @@
   "prettier.tabWidth": 2,
   "prettier.semi": true,
   "prettier.singleQuote": false,
-  "prettier.trailingComma": "all"
+  "prettier.trailingComma": "all",
+  "i18n-ally.localesPaths": [
+    "messages",
+    "src/i18n"
+  ]
 }
