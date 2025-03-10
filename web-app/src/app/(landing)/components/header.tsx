@@ -1,7 +1,5 @@
-import Link from "next/link";
-
+import { SignInButton, SignUpButton } from "@/app/(auth)/buttons";
 import { SokosumiLogo } from "@/components/masumi-logos";
-import { Button } from "@/components/ui/button";
 
 import Navigation from "./navigation";
 
@@ -22,15 +20,11 @@ export default function Header() {
   );
 }
 
-export function AuthButtons() {
+function AuthButtons() {
   return (
     <div className="flex items-center gap-4">
-      <Link href="/signin">
-        <Button variant="outline">Sign In</Button>
-      </Link>
-      <Link href="/signup">
-        <Button>Sign Up</Button>
-      </Link>
+      <SignInButton />
+      <SignUpButton />
     </div>
   );
 }
