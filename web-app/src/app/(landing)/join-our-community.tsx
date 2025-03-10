@@ -1,8 +1,10 @@
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 
 import { DiscordButton, XButton } from "./components/social-button";
 
 export function JoinOurCommunity() {
+  const t = useTranslations("Landing.Sections.JoinOurCommunity");
   return (
     <div className="container py-4">
       <div className="flex flex-col items-center gap-8 md:flex-row">
@@ -21,12 +23,10 @@ export function JoinOurCommunity() {
 
         {/* Content Section */}
         <div className="w-full space-y-6 md:w-1/2">
-          <h2 className="text-5xl font-bold tracking-tighter">We are online</h2>
-          <p className="text-muted-foreground text-lg">
-            Connect with like-minded individuals, share experiences, and be part
-            of our growing community. Follow us on social media to stay updated
-            with the latest news and events.
-          </p>
+          <h2 className="text-5xl font-bold tracking-tighter">
+            {t("subtitle")}
+          </h2>
+          <p className="text-muted-foreground text-lg">{t("description")}</p>
 
           {/* Social Links */}
           <div className="flex gap-4">
