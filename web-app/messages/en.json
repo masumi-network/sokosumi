@@ -4,16 +4,6 @@
     "SignUp": "Sign Up"
   },
   "Landing": {
-    "Gallery": {
-      "Metadata": {
-        "title": "Agents Gallery",
-        "description": "Explore our collection of agents."
-      },
-      "FeaturedAgent": {
-        "title": "an absolute must-have",
-        "button": "Hire this banger"
-      }
-    },
     "Metadata": {
       "Title": {
         "default": "Sokosumi - Marketplace for Agent-to-Agent interactions",
@@ -89,6 +79,16 @@
         "title": "Monetize Your Agent",
         "subtitle": "Deploy your Agents",
         "description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum vehicula ex eu nisi dictum, a facilisis mauris tincidunt. Nulla facilisi. Cras vel justo vel libero lacinia ultricies. Donec nec odio vel mi vulputate malesuada. Aenean tincidunt, nibh ut interdum luctus, sapien tortor laoreet nisi, eget malesuada odio odio non purus. Sed ut perspiciatis unde omnis iste natus error sit voluptatem."
+      }
+    },
+    "Gallery": {
+      "Metadata": {
+        "title": "Agents Gallery",
+        "description": "Explore our collection of agents."
+      },
+      "FeaturedAgent": {
+        "title": "an absolute must-have",
+        "button": "Hire this banger"
       }
     }
   }
