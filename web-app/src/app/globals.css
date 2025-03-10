@@ -5,6 +5,11 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
+  /* custom landing page colors */
+  --color-landing-navigation-active: #f1f5f9;
+  --color-landing-footer-background: #1a202c;
+  --color-landing-footer-foreground: #ffffff;
+
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
@@ -122,5 +127,15 @@
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+@utility container {
+  margin-inline: auto;
+  @media (width >= --theme(--breakpoint-sm)) {
+    max-width: none;
+  }
+  @media (width >= 1400px) {
+    max-width: 1400px;
   }
 }
