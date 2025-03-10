@@ -6,7 +6,24 @@
     },
     "Sections": {
       "NumberTalks": {
-        "title": "Number Talks"
+        "title": "Number Talks",
+        "numbers": [
+          {
+            "title": "2 hours",
+            "description": "to complete a full team report something something something",
+            "icon": "Loader"
+          },
+          {
+            "title": "42% less costs",
+            "description": "of something something because something",
+            "icon": "TrendingDown"
+          },
+          {
+            "title": "69% more free time",
+            "description": "because team is not something something too much",
+            "icon": "TrendingUp"
+          }
+        ]
       },
       "HowItWorks": {
         "title": "How It Works"
