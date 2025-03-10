@@ -31,8 +31,11 @@ model User {
   accounts    Account[]
   members     Member[]
   invitations Invitation[]
-  twofactors  TwoFactor[]
+  twofactors  TwoFactor[] // cspell: disable-line
   passkeys    Passkey[]
+
+  // Auth unrelated fields
+  UserAgentRating UserAgentRating[]
 
   @@unique([email])
   @@map("user")
@@ -160,4 +163,159 @@ model RateLimit {
   lastRequest BigInt?
 
   @@map("rateLimit")
+}
+
+model UnitValue {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  unit      String
+  amount    BigInt
+
+  AgentFixedPricing   AgentFixedPricing? @relation(fields: [agentFixedPricingId], references: [id])
+  agentFixedPricingId String?
+  paymentRequestId    String?
+  purchaseRequestId   String?
+}
+
+model AgentPricing {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  pricingType         PricingType
+  FixedPricing        AgentFixedPricing? @relation(fields: [agentFixedPricingId], references: [id])
+  agentFixedPricingId String?            @unique
+  Agent               Agent?
+}
+
+enum PricingType {
+  Fixed
+}
+
+model AgentFixedPricing {
+  id           String        @id @default(cuid())
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  AgentPricing AgentPricing?
+  Amounts      UnitValue[]
+}
+
+model ExampleOutput {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  name      String
+  mimeType  String
+  url       String
+
+  Agent           Agent?  @relation("ExampleOutputAgent", fields: [agentId], references: [id])
+  agentId         String?
+  AgentOverride   Agent?  @relation("ExampleOutputAgentOverride", fields: [agentIdOverride], references: [id])
+  agentIdOverride String?
+}
+
+model UserAgentRating {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  stars       Int
+  title       String?
+  description String?
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agentId     String
+  agent       Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+}
+
+model AgentRating {
+  id           String   @id @default(cuid())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  totalStars   BigInt
+  totalRatings BigInt
+  Agent        Agent?
+}
+
+model Agent {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  Rating   AgentRating? @relation(fields: [ratingId], references: [id])
+  ratingId String?      @unique
+
+  onChainName  String
+  overrideName String?
+
+  onChainDescription  String?
+  overrideDescription String?
+
+  onChainApiBaseUrl  String
+  overrideApiBaseUrl String?
+
+  onChainExampleOutput  String?
+  overrideExampleOutput String?
+
+  onChainCapabilityName  String
+  overrideCapabilityName String?
+
+  onChainCapabilityVersion  String
+  overrideCapabilityVersion String?
+
+  onChainRequestsPerHour  String?
+  overrideRequestsPerHour String?
+
+  onChainAuthorName  String
+  overrideAuthorName String?
+
+  onChainAuthorContactEmail  String?
+  overrideAuthorContactEmail String?
+
+  onChainAuthorContactOther  String?
+  overrideAuthorContactOther String?
+
+  onChainAuthorOrganization  String?
+  overrideAuthorOrganization String?
+
+  onChainLegalPrivacyPolicy  String?
+  overrideLegalPrivacyPolicy String?
+
+  onChainLegalTerms  String?
+  overrideLegalTerms String?
+
+  onChainLegalOther  String?
+  overrideLegalOther String?
+
+  onChainTags  String[]
+  overrideTags String[]
+
+  onChainImage  String
+  overrideImage String?
+
+  onChainMetadataVersion  Int
+  overrideMetadataVersion Int?
+
+  Pricing        AgentPricing @relation(fields: [agentPricingId], references: [id])
+  agentPricingId String       @unique
+
+  agentIdentifier String @unique
+  status          Status
+
+  showOnFrontPage Boolean
+
+  ranking BigInt
+
+  // input is dynamic from the agent and not cached for now
+
+  ExampleOutput         ExampleOutput[]   @relation("ExampleOutputAgent")
+  ExampleOutputOverride ExampleOutput[]   @relation("ExampleOutputAgentOverride")
+  UserAgentRating       UserAgentRating[]
+}
+
+enum Status {
+  Online
+  Offline
+  Deregistered
+  Invalid
 }

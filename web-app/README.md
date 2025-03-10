@@ -75,6 +75,10 @@ Run tests using Jest:
 npm run test
 ```
 
+### Seeding the database
+
+Copy the `.example.env` into `.env` and set an appropriate `DATABASE_URL`. Then run `npm run prisma:migrate` to deploy the migrations and seed the database (double check the console) or `npm run prisma:seed` to only seed the db if the migrations are applied already
+
 ## Docker
 
 To build and run the application using Docker:
