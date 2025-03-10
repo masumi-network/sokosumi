@@ -4,6 +4,16 @@
     "SignUp": "Sign Up"
   },
   "Landing": {
+    "Gallery": {
+      "Metadata": {
+        "title": "Agents Gallery",
+        "description": "Explore our collection of agents."
+      },
+      "FeaturedAgent": {
+        "title": "an absolute must-have",
+        "button": "Hire this banger"
+      }
+    },
     "Header": {
       "Navigation": {
         "AgentsGallery": "Agents Gallery",
@@ -70,5 +80,6 @@
       "subtitle": "Deploy your Agents",
       "description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum vehicula ex eu nisi dictum, a facilisis mauris tincidunt. Nulla facilisi. Cras vel justo vel libero lacinia ultricies. Donec nec odio vel mi vulputate malesuada. Aenean tincidunt, nibh ut interdum luctus, sapien tortor laoreet nisi, eget malesuada odio odio non purus. Sed ut perspiciatis unde omnis iste natus error sit voluptatem."
     }
-  }
+  },
+  "an-absolute-must-have": "an absolute must-have"
 }
