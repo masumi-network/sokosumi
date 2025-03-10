@@ -26,7 +26,7 @@ export default function LandingPage() {
 
       {/* Number of Talks Section */}
       <section id="number-talks" className="py-12">
-        <Section title="Number Talks">
+        <Section title="Number Talks" fullWidth>
           <NumberTalks />
         </Section>
       </section>
@@ -34,27 +34,21 @@ export default function LandingPage() {
       {/* How It Works Section */}
       <section id="how-it-works" className="py-12">
         <Section title="How It Works">
-          <div className="container mx-auto px-4 md:px-6">
-            <HowItWorks />
-          </div>
+          <HowItWorks />
         </Section>
       </section>
 
       {/* Join Our Community Section */}
       <section id="join-our-community" className="py-12">
         <Section title="Join Our Community">
-          <div className="container mx-auto px-4 md:px-6">
-            <JoinOurCommunity />
-          </div>
+          <JoinOurCommunity />
         </Section>
       </section>
 
       {/* Monetize Your Agent Section */}
       <section id="monetize" className="py-12">
         <Section title="Monetize Your Agents">
-          <div className="container mx-auto px-4 md:px-6">
-            <MonetizeYourAgent />
-          </div>
+          <MonetizeYourAgent />
         </Section>
       </section>
     </>
