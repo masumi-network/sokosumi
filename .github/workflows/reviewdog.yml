@@ -15,6 +15,9 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v4
+      - uses: reviewdog/action-setup@v1
+        with:
+            reviewdog_version: latest
       - uses: reviewdog/action-eslint@v1
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
