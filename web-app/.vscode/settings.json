@@ -1,7 +1,10 @@
 {
-  "cSpell.words": ["twofactors"],
+  "cSpell.words": ["masumi", "sokosumi", "kodosumi"],
   "editor.formatOnSave": true,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "[prisma]": {
+    "editor.defaultFormatter": "Prisma.prisma"
+  },
   "editor.wordWrap": "on",
   "editor.tabSize": 2,
   "editor.codeActionsOnSave": {
@@ -13,9 +16,5 @@
   "prettier.tabWidth": 2,
   "prettier.semi": true,
   "prettier.singleQuote": false,
-  "prettier.trailingComma": "all",
-  "i18n-ally.localesPaths": [
-    "messages",
-    "src/i18n"
-  ]
+  "prettier.trailingComma": "all"
 }
