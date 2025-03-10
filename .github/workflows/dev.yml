@@ -17,18 +17,26 @@ jobs:
         working-directory: ./web-app
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@vv
         with:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Set up Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: "20"
 
-      - name: Install Backend Dependencies
+      - name: Install Dependencies
         run: npm install
+
+      - name: Cache npm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.npm-store
+          key: ${{ runner.os }}-npm-store-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-npm-store-
 
       - name: Generate Prisma Client
         run: npm run prisma:generate
