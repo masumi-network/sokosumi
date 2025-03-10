@@ -15,22 +15,22 @@ type NavigationLink = {
 const navigationLinks: NavigationLink[] = [
   {
     href: "/gallery",
-    labelKey: "AgentsGallery",
+    labelKey: "agents",
     showChevron: true,
   },
   {
     href: "/#how-it-works",
-    labelKey: "HowItWorks",
+    labelKey: "howItWorks",
     showChevron: true,
   },
   {
     href: "/#join-our-community",
-    labelKey: "JoinOurCommunity",
+    labelKey: "community",
     showChevron: true,
   },
   {
     href: "/#monetize",
-    labelKey: "Monetize",
+    labelKey: "monetize",
     showChevron: true,
   },
 ];

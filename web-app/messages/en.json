@@ -13,10 +13,10 @@
     },
     "Header": {
       "Navigation": {
-        "AgentsGallery": "Agents Gallery",
-        "HowItWorks": "How It Works",
-        "JoinOurCommunity": "Join Our Community",
-        "Monetize": "Monetize"
+        "agents": "Agents Gallery",
+        "howItWorks": "How It Works",
+        "community": "Join Our Community",
+        "monetize": "Monetize"
       }
     },
     "Footer": {
