@@ -6,7 +6,7 @@ import { GitHubButton, MasumiButton } from "./components/social-button";
 
 export function MonetizeYourAgent() {
   return (
-    <section className="container py-4">
+    <div className="container py-4">
       <div className="flex flex-col items-center gap-8 md:flex-row">
         {/* Content Section */}
         <div className="w-full space-y-6 md:w-1/2">
@@ -54,6 +54,6 @@ export function MonetizeYourAgent() {
           </div>
         </div>
       </div>
-    </section>
+    </div>
   );
 }
