@@ -31,10 +31,10 @@ model User {
   accounts    Account[]
   members     Member[]
   invitations Invitation[]
-  twofactors  TwoFactor[]
+  twofactors  TwoFactor[] // cspell: disable-line
   passkeys    Passkey[]
 
-  //Auth unrelated fields
+  // Auth unrelated fields
   UserAgentRating UserAgentRating[]
 
   @@unique([email])
@@ -306,7 +306,7 @@ model Agent {
 
   ranking BigInt
 
-  //input is dynamic from the agent and not cached for now
+  // input is dynamic from the agent and not cached for now
 
   ExampleOutput         ExampleOutput[]   @relation("ExampleOutputAgent")
   ExampleOutputOverride ExampleOutput[]   @relation("ExampleOutputAgentOverride")
