@@ -49,7 +49,9 @@
         "description": "Connect with like-minded individuals, share experiences, and be part of our growing community. Follow us on social media to stay updated with the latest news and events."
       },
       "MonetizeYourAgent": {
-        "title": "Monetize Your Agent"
+        "title": "Monetize Your Agent",
+        "subtitle": "Deploy your Agents",
+        "description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum vehicula ex eu nisi dictum, a facilisis mauris tincidunt. Nulla facilisi. Cras vel justo vel libero lacinia ultricies. Suspendisse potenti. Donec nec odio vel mi vulputate malesuada. Aenean tincidunt, nibh ut interdum luctus, sapien tortor laoreet nisi, eget malesuada odio odio non purus. Sed ut perspiciatis unde omnis iste natus error sit voluptatem."
       }
     }
   }
