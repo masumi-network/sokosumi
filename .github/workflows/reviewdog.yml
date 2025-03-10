@@ -4,17 +4,10 @@ on:
     branches:
       - dev
 
-permissions:
-  contents: read
-  pull-requests: write
-
 jobs:
   eslint:
     name: ESLint
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./web-app
     permissions:
       contents: read
       pull-requests: write
