@@ -22,7 +22,7 @@ export function JoinOurCommunity() {
         {/* Content Section */}
         <div className="w-full space-y-6 md:w-1/2">
           <h2 className="text-5xl font-bold tracking-tighter">We are online</h2>
-          <p className="text-lg text-muted-foreground">
+          <p className="text-muted-foreground text-lg">
             Connect with like-minded individuals, share experiences, and be part
             of our growing community. Follow us on social media to stay updated
             with the latest news and events.

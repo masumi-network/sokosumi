@@ -33,7 +33,7 @@ export function MobileNav() {
         <div className="flex-1 md:hidden">
           <Button
             variant="ghost"
-            className="-ml-2 mr-2 h-8 w-8 px-0 text-base hover:bg-transparent focus-visible:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
+            className="mr-2 -ml-2 h-8 w-8 px-0 text-base hover:bg-transparent focus-visible:bg-transparent focus-visible:ring-0 focus-visible:ring-offset-0"
           >
             <Menu />
             <span className="sr-only">Toggle Menu</span>

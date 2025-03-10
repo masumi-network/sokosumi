@@ -15,14 +15,14 @@ export default function Footer() {
         </div>
 
         {/* Bottom section with copyright and links */}
-        <div className="flex flex-col items-center justify-between gap-4 border-t border-landing-footer-foreground/10 pt-8 md:flex-row">
+        <div className="border-landing-footer-foreground/10 flex flex-col items-center justify-between gap-4 border-t pt-8 md:flex-row">
           <p className="text-sm">&copy; {new Date().getFullYear()} Masumi</p>
           <nav>
             <ul className="flex flex-wrap justify-center gap-6">
               <li>
                 <Link
                   href="#"
-                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-landing-footer-foreground"
+                  className="text-muted-foreground hover:text-landing-footer-foreground flex items-center gap-1 text-sm"
                 >
                   Privacy Policy
                 </Link>
@@ -30,7 +30,7 @@ export default function Footer() {
               <li>
                 <Link
                   href="#"
-                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-landing-footer-foreground"
+                  className="text-muted-foreground hover:text-landing-footer-foreground flex items-center gap-1 text-sm"
                 >
                   Terms & Conditions
                 </Link>
@@ -38,7 +38,7 @@ export default function Footer() {
               <li>
                 <Link
                   href="#"
-                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-landing-footer-foreground"
+                  className="text-muted-foreground hover:text-landing-footer-foreground flex items-center gap-1 text-sm"
                 >
                   Cookie Policy
                 </Link>
@@ -46,7 +46,7 @@ export default function Footer() {
               <li>
                 <Link
                   href="#"
-                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-landing-footer-foreground"
+                  className="text-muted-foreground hover:text-landing-footer-foreground flex items-center gap-1 text-sm"
                 >
                   Contact
                 </Link>

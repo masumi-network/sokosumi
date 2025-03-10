@@ -27,7 +27,7 @@ export function FeaturedAgent({
         <div className="space-y-4">
           <h3 className="text-4xl font-bold tracking-tight">{agent.title}</h3>
         </div>
-        <p className="text-lg text-muted-foreground">{agent.description}</p>
+        <p className="text-muted-foreground text-lg">{agent.description}</p>
         {agent.tags.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {agent.tags.map((tag, index) => (
@@ -43,7 +43,7 @@ export function FeaturedAgent({
       </div>
 
       {/* Image Section - 2/3 width */}
-      <div className="relative aspect-[16/9] w-full md:w-2/3">
+      <div className="relative aspect-16/9 w-full md:w-2/3">
         <Image
           src={agent.image}
           alt={`${agent.title} image`}
