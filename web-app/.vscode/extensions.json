@@ -1,8 +1,10 @@
 {
   "recommendations": [
-    "inlang.vs-code-extension",
     "bradlc.vscode-tailwindcss",
     "esbenp.prettier-vscode",
-    "dbaeumer.vscode-eslint"
+    "dbaeumer.vscode-eslint",
+    "streetsidesoftware.code-spell-checker",
+    "prisma.prisma",
+    "lokalise.i18n-ally"
   ]
 }

@@ -1,6 +1,10 @@
 {
+  "cSpell.words": ["masumi", "sokosumi", "kodosumi"],
   "editor.formatOnSave": true,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "[prisma]": {
+    "editor.defaultFormatter": "Prisma.prisma"
+  },
   "editor.wordWrap": "on",
   "editor.tabSize": 2,
   "editor.codeActionsOnSave": {
@@ -8,5 +12,7 @@
   },
   "files.associations": {
     "*.css": "tailwindcss"
-  }
+  },
+  "i18n-ally.localesPaths": ["messages", "src/i18n"], // E.g. "./messages"
+  "i18n-ally.keystyle": "nested"
 }
