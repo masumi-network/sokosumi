@@ -30,10 +30,12 @@
       }
     },
     "Footer": {
-      "PrivacyPolicy": "Privacy Policy",
-      "TermsAndConditions": "Terms & Conditions",
-      "CookiePolicy": "Cookie Policy",
-      "Contact": "Contact"
+      "Navigation": {
+        "PrivacyPolicy": "Privacy Policy",
+        "TermsAndConditions": "Terms & Conditions",
+        "CookiePolicy": "Cookie Policy",
+        "Contact": "Contact"
+      }
     },
     "Page": {
       "Hero": {
