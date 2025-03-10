@@ -3,7 +3,7 @@ import { useTranslations } from "next-intl";
 
 import IconTitleDescription from "@/components/icon-title-description";
 
-import HorizontalScroll from "./components/horizontal-scroll";
+import HorizontalScroll from "../components/horizontal-scroll";
 
 // Map icon names to actual Lucide components
 const getIconByName = (name: string): LucideIcon => {

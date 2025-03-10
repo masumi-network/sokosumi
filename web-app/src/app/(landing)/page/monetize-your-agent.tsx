@@ -3,7 +3,7 @@ import { useTranslations } from "next-intl";
 
 import { KodosumiLogo, MasumiLogo } from "@/components/masumi-logos";
 
-import { GitHubButton, MasumiButton } from "./components/social-button";
+import { GitHubButton, MasumiButton } from "../components/social-button";
 
 export function MonetizeYourAgent() {
   const t = useTranslations("Landing.MonetizeYourAgent");

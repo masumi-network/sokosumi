@@ -5,11 +5,11 @@ import { dummyAgents } from "@/data/agents";
 
 import HorizontalScroll from "./components/horizontal-scroll";
 import Section from "./components/section";
-import Hero from "./hero";
-import HowItWorks from "./how-it-works";
-import { JoinOurCommunity } from "./join-our-community";
-import { MonetizeYourAgent } from "./monetize-your-agent";
-import NumberTalks from "./number-talks";
+import Hero from "./page/hero";
+import HowItWorks from "./page/how-it-works";
+import { JoinOurCommunity } from "./page/join-our-community";
+import { MonetizeYourAgent } from "./page/monetize-your-agent";
+import NumberTalks from "./page/number-talks";
 
 export default function LandingPage() {
   const t = useTranslations("Landing");
