@@ -1,0 +1,9 @@
+**/dist/**
+**/build/**
+**/coverage/**
+
+# Ignore generated code
+src/lib/api/generated/**
+
+# Ignore UI components
+src/components/ui/**

@@ -12,7 +12,7 @@ sokosumi/
 └── package.json       # Root package configuration
 ```
 
-Please take a look into the folders for more information
+Please take a look into the individual folders for more information
 
 ## Getting Started
 

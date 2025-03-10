@@ -41,7 +41,7 @@ export const ResetPasswordEmail = ({
               account. If you didn&apos;t make this request, you can safely
               ignore this email.
             </Text>
-            <Section className="mb-[32px] mt-[32px] text-center">
+            <Section className="mt-[32px] mb-[32px] text-center">
               <Button
                 className="rounded bg-[#000000] px-5 py-3 text-center text-[12px] font-semibold text-white no-underline"
                 href={resetLink}
