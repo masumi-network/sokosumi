@@ -1,13 +1,4 @@
 {
-  "cSpell.words": ["masumi", "sokosumi", "kodosumi"],
-  "cSpell.language": "en, lorem",
-  "cSpell.ignorePaths": [
-    "node_modules",
-    ".git",
-    "package.json",
-    "package-lock.json",
-    ".vscode/**"
-  ],
   "editor.formatOnSave": true,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "[prisma]": {
@@ -21,10 +12,6 @@
   "files.associations": {
     "*.css": "tailwindcss"
   },
-  "prettier.tabWidth": 2,
-  "prettier.semi": true,
-  "prettier.singleQuote": false,
-  "prettier.trailingComma": "all",
   "i18n-ally.localesPaths": ["messages", "src/i18n"],
   "i18n-ally.keystyle": "nested"
 }
