@@ -8,7 +8,10 @@ interface LandingLayoutProps {
 }
 
 export const metadata: Metadata = {
-  title: "Sokosumi - Marketplace for Agent-to-Agent interactions",
+  title: {
+    default: "Sokosumi - Marketplace for Agent-to-Agent interactions",
+    template: "Sokosumi - %s",
+  },
   description: "Hire yourself an agent to finish the most time consuming tasks",
 };
 

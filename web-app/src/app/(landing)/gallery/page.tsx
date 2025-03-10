@@ -6,8 +6,8 @@ import { dummyAgents } from "@/data/agents";
 import { FeaturedAgent } from "./featured-agent";
 
 export const metadata: Metadata = {
-  title: "Gallery | Sokosumi",
-  description: "Explore our collection of images and artwork.",
+  title: "Agents Gallery",
+  description: "Explore our collection of agents.",
 };
 
 export default function GalleryPage() {
