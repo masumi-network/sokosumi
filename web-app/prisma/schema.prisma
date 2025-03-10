@@ -31,7 +31,7 @@ model User {
   accounts    Account[]
   members     Member[]
   invitations Invitation[]
-  twofactors  TwoFactor[] // cspell: disable-line
+  twofactors  TwoFactor[]
   passkeys    Passkey[]
 
   // Auth unrelated fields
