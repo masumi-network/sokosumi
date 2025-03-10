@@ -2,34 +2,35 @@
 import { ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import { cn } from "@/lib/utils";
 
 type NavigationLink = {
   href: string;
-  label: string;
+  labelKey: string;
   showChevron?: boolean;
 };
 
 const navigationLinks: NavigationLink[] = [
   {
     href: "/gallery",
-    label: "Agents Gallery",
+    labelKey: "AgentsGallery",
     showChevron: true,
   },
   {
     href: "/#how-it-works",
-    label: "How it works",
+    labelKey: "HowItWorks",
     showChevron: true,
   },
   {
     href: "/#join-our-community",
-    label: "Community",
+    labelKey: "JoinOurCommunity",
     showChevron: true,
   },
   {
     href: "/#monetize",
-    label: "Monetize",
+    labelKey: "Monetize",
     showChevron: true,
   },
 ];
@@ -39,6 +40,7 @@ export default function Navigation({
   ...props
 }: React.HTMLAttributes<HTMLElement>) {
   const pathname = usePathname();
+  const t = useTranslations("Landing.Navigation");
 
   return (
     <div className="flex items-center gap-8">
@@ -57,7 +59,7 @@ export default function Navigation({
                 : "text-muted-foreground hover:text-primary",
             )}
           >
-            {link.label}
+            {t(link.labelKey)}
             {link.showChevron && <ChevronDown className="h-4 w-4" />}
           </Link>
         ))}

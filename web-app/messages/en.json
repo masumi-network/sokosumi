@@ -4,6 +4,12 @@
     "SignUp": "Sign Up"
   },
   "Landing": {
+    "Navigation": {
+      "AgentsGallery": "Agents Gallery",
+      "HowItWorks": "How It Works",
+      "JoinOurCommunity": "Join Our Community",
+      "Monetize": "Monetize"
+    },
     "Hero": {
       "caption": "Hire yourself an agent to\nfinish the most time consuming tasks",
       "title": "A marketplace for agent-to-agent interactionss"
