@@ -36,7 +36,7 @@ export default function SignInForm() {
 
   const onSubmit = async (values: SignInFormSchemaType) => {
     const { email, password } = values;
-    const result = await signIn.email({
+    await signIn.email({
       email,
       password,
       fetchOptions: {
@@ -55,7 +55,6 @@ export default function SignInForm() {
         },
       },
     });
-    console.log(result);
   };
 
   return (

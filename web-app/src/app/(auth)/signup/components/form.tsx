@@ -38,7 +38,7 @@ export default function SignUpForm() {
 
   const onSubmit = async (values: SignUpFormSchemaType) => {
     const { username, email, password } = values;
-    const result = await signUp.email({
+    await signUp.email({
       name: username,
       email,
       password,
@@ -58,7 +58,6 @@ export default function SignUpForm() {
         },
       },
     });
-    console.log(result);
   };
 
   return (
