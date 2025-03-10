@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { DiscordButton, XButton } from "../components/social-button";
 
 export function JoinOurCommunity() {
-  const t = useTranslations("Landing.JoinOurCommunity");
+  const t = useTranslations("Landing.Page.JoinOurCommunity");
   return (
     <div className="container py-4">
       <div className="flex flex-col items-center gap-8 md:flex-row">

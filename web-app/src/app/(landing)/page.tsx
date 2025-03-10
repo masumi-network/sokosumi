@@ -29,28 +29,28 @@ export default function LandingPage() {
 
       {/* Number of Talks Section */}
       <section id="number-talks" className="py-12">
-        <Section title={t("NumberTalks.title")} fullWidth>
+        <Section title={t("Page.NumberTalks.title")} fullWidth>
           <NumberTalks />
         </Section>
       </section>
 
       {/* How It Works Section */}
       <section id="how-it-works" className="py-12">
-        <Section title={t("HowItWorks.title")}>
+        <Section title={t("Page.HowItWorks.title")}>
           <HowItWorks />
         </Section>
       </section>
 
       {/* Join Our Community Section */}
       <section id="join-our-community" className="py-12">
-        <Section title={t("JoinOurCommunity.title")}>
+        <Section title={t("Page.JoinOurCommunity.title")}>
           <JoinOurCommunity />
         </Section>
       </section>
 
       {/* Monetize Your Agent Section */}
       <section id="monetize" className="py-12">
-        <Section title={t("MonetizeYourAgent.title")}>
+        <Section title={t("Page.MonetizeYourAgent.title")}>
           <MonetizeYourAgent />
         </Section>
       </section>

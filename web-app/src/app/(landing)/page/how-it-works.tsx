@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 
 export default function HowItWorks() {
-  const t = useTranslations("Landing.HowItWorks");
+  const t = useTranslations("Landing.Page.HowItWorks");
   const keys = ["SelectAndTest", "RunAndMonitor", "GetResults"] as const;
   return (
     <>

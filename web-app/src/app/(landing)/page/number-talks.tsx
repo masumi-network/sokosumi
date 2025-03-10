@@ -17,7 +17,7 @@ const getIconByName = (name: string): LucideIcon => {
 };
 
 export default function NumberTalks() {
-  const t = useTranslations("Landing.NumberTalks.Numbers");
+  const t = useTranslations("Landing.Page.NumberTalks.Numbers");
   const keys = ["Duration", "Cost", "Time"] as const;
   return (
     <>
