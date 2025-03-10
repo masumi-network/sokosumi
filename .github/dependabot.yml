@@ -8,11 +8,8 @@ updates:
       time: "06:00"
       timezone: "Europe/Berlin"
     open-pull-requests-limit: 10
-    labels:
-      - "dependencies"
-      - "npm"
     commit-message:
-      prefix: "npm"
+      prefix: "packages (root)"
       include: "scope"
 
   # Enable version updates for npm in the web-app directory
@@ -23,10 +20,6 @@ updates:
       time: "06:00"
       timezone: "Europe/Berlin"
     open-pull-requests-limit: 10
-    labels:
-      - "dependencies"
-      - "npm"
-      - "web-app"
     commit-message:
-      prefix: "npm"
+      prefix: "packages (web-app)"
       include: "scope" 
