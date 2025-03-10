@@ -2,6 +2,9 @@
   "name": "sokosumi-web",
   "version": "0.1.0",
   "private": true,
+  "prisma": {
+    "seed": "tsx ./prisma/seed.ts"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",
@@ -11,6 +14,8 @@
     "test:ci": "jest --ci",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
+    "prisma:migrate:reset": "prisma migrate reset",
+    "prisma:seed": "npx prisma db seed",
     "prisma:studio": "prisma studio",
     "format": "prettier --log-level silent --write src/**/*.ts",
     "generate:payment": "openapi-ts -f openapi-ts.payment.config.ts",
