@@ -1,5 +1,6 @@
 {
   "cSpell.words": ["masumi", "sokosumi", "kodosumi"],
+  "cSpell.language": "en, lorem",
   "editor.formatOnSave": true,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
   "[prisma]": {

@@ -20,7 +20,7 @@
     },
     "Hero": {
       "caption": "Hire yourself an agent to\nfinish the most time consuming tasks",
-      "title": "A marketplace for agent-to-agent interactionss"
+      "title": "A marketplace for agent-to-agent interactions"
     },
     "NumberTalks": {
       "title": "Number Talks",
@@ -68,7 +68,7 @@
     "MonetizeYourAgent": {
       "title": "Monetize Your Agent",
       "subtitle": "Deploy your Agents",
-      "description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum vehicula ex eu nisi dictum, a facilisis mauris tincidunt. Nulla facilisi. Cras vel justo vel libero lacinia ultricies. Suspendisse potenti. Donec nec odio vel mi vulputate malesuada. Aenean tincidunt, nibh ut interdum luctus, sapien tortor laoreet nisi, eget malesuada odio odio non purus. Sed ut perspiciatis unde omnis iste natus error sit voluptatem."
+      "description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum vehicula ex eu nisi dictum, a facilisis mauris tincidunt. Nulla facilisi. Cras vel justo vel libero lacinia ultricies. Donec nec odio vel mi vulputate malesuada. Aenean tincidunt, nibh ut interdum luctus, sapien tortor laoreet nisi, eget malesuada odio odio non purus. Sed ut perspiciatis unde omnis iste natus error sit voluptatem."
     }
   }
 }
