@@ -161,3 +161,129 @@ model RateLimit {
 
   @@map("rateLimit")
 }
+
+model UnitValue {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  unit      String
+  amount    BigInt
+
+  AgentFixedPricing   AgentFixedPricing? @relation(fields: [agentFixedPricingId], references: [id])
+  agentFixedPricingId String?
+  paymentRequestId    String?
+  purchaseRequestId   String?
+}
+
+model AgentPricing {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  pricingType         PricingType
+  FixedPricing        AgentFixedPricing? @relation(fields: [agentFixedPricingId], references: [id])
+  agentFixedPricingId String?            @unique
+  Agent               Agent?
+}
+
+enum PricingType {
+  Fixed
+}
+
+model AgentFixedPricing {
+  id           String        @id @default(cuid())
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  AgentPricing AgentPricing?
+  Amounts      UnitValue[]
+}
+
+model ExampleOutput {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  name      String
+  mimeType  String
+  url       String
+
+  Agent           Agent?  @relation("ExampleOutputAgent", fields: [agentId], references: [id])
+  agentId         String?
+  AgentOverride   Agent?  @relation("ExampleOutputAgentOverride", fields: [agentIdOverride], references: [id])
+  agentIdOverride String?
+}
+
+model Agent {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  onChainName  String
+  overrideName String?
+
+  onChainDescription  String?
+  overrideDescription String?
+
+  onChainApiUrl  String
+  overrideApiUrl String?
+
+  onChainExampleOutput  String?
+  overrideExampleOutput String?
+
+  onChainCapabilityName  String
+  overrideCapabilityName String?
+
+  onChainCapabilityVersion  String
+  overrideCapabilityVersion String?
+
+  onChainRequestsPerHour  String?
+  overrideRequestsPerHour String?
+
+  onChainAuthorName  String
+  overrideAuthorName String?
+
+  onChainAuthorContact  String?
+  overrideAuthorContact String?
+
+  onChainAuthorOrganization  String?
+  overrideAuthorOrganization String?
+
+  onChainLegalPrivacyPolicy  String?
+  overrideLegalPrivacyPolicy String?
+
+  onChainLegalTerms  String?
+  overrideLegalTerms String?
+
+  onChainLegalOther  String?
+  overrideLegalOther String?
+
+  onChainTags  String[]
+  overrideTags String[]
+
+  onChainImage  String
+  overrideImage String?
+
+  onChainMetadataVersion  Int
+  overrideMetadataVersion Int?
+
+  Pricing        AgentPricing @relation(fields: [agentPricingId], references: [id])
+  agentPricingId String       @unique
+
+  agentIdentifier String @unique
+  status          Status
+
+  showOnFrontPage Boolean
+
+  ranking BigInt
+
+  //input is dynamic from the agent and not cached for now
+
+  ExampleOutput         ExampleOutput[] @relation("ExampleOutputAgent")
+  ExampleOutputOverride ExampleOutput[] @relation("ExampleOutputAgentOverride")
+}
+
+enum Status {
+  Online
+  Offline
+  Deregistered
+  Invalid
+}
