@@ -1,4 +1,4 @@
-import { Agent, AgentFixedPricing, AgentPricing, ExampleOutput, PricingType, Status, UnitValue } from "@prisma/client";
+import { Agent, AgentFixedPricing, AgentPricing, AgentRating, ExampleOutput, PricingType, Status, UnitValue } from "@prisma/client";
 
 export class UnifiedAgent {
     readonly ranking: bigint;
@@ -56,6 +56,11 @@ export class UnifiedAgent {
     readonly image: string;
     readonly metadataVersion: number;
     readonly status: Status;
+    readonly Rating: {
+        averageStars: bigint;
+        totalStars: bigint;
+        totalRatings: bigint;
+    }
 
     constructor(agent: Agent & {
         ExampleOutput: ExampleOutput[],
@@ -64,7 +69,8 @@ export class UnifiedAgent {
             FixedPricing: AgentFixedPricing & {
                 Amounts: UnitValue[]
             }
-        }
+        },
+        Rating: AgentRating
     }) {
         this.name = agent.overrideName ?? agent.onChainName;
         this.description = agent.overrideDescription ?? agent.onChainDescription;
@@ -73,6 +79,11 @@ export class UnifiedAgent {
         this.Capability = {
             name: agent.overrideCapabilityName ?? agent.onChainCapabilityName,
             version: agent.overrideCapabilityVersion ?? agent.onChainCapabilityVersion,
+        };
+        this.Rating = {
+            averageStars: agent.Rating.totalStars / agent.Rating.totalRatings,
+            totalStars: agent.Rating.totalStars,
+            totalRatings: agent.Rating.totalRatings,
         };
         this.requestsPerHour = agent.overrideRequestsPerHour ?? agent.onChainRequestsPerHour;
         this.Author = {
@@ -117,7 +128,8 @@ export class UnifiedAgent {
             FixedPricing: AgentFixedPricing & {
                 Amounts: UnitValue[]
             }
-        }
+        },
+        Rating: AgentRating
     }): UnifiedAgent {
         return new UnifiedAgent(agent);
     }
