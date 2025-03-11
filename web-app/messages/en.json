@@ -99,6 +99,7 @@
       "Agent": {
         "hire": "Hire",
         "share": "Share",
+        "byAuthor": "by {author}",
         "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}",
         "fromDeveloper": "From the developer:"
       }

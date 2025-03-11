@@ -25,12 +25,15 @@ export default function AgentSummary({
           alt={title}
           fill
           className="rounded-md object-cover"
+          priority
         />
       </div>
       <div className="flex flex-1 flex-col px-6 py-2">
         <div>
           <h2 className="text-2xl font-bold">{title}</h2>
-          <p className="text-muted-foreground line-clamp-1">by {author}</p>
+          <p className="text-muted-foreground line-clamp-1">
+            {t("byAuthor", { author })}
+          </p>
           <p className="pt-1 text-sm font-medium">{t("pricing", { price })}</p>
         </div>
         <div className="mt-auto flex flex-col gap-3">

@@ -65,6 +65,7 @@ export default async function Page({
               className="h-64 w-auto flex-shrink-0 rounded-lg object-cover"
               width={256}
               height={256}
+              priority
             />
           ))}
         </div>
