@@ -3,14 +3,6 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
 import BadgeCloud from "@/components/badge-cloud";
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
 import { dummyAgents } from "@/data/agents";
 
 import AgentSummary from "./components/agent-summary";
@@ -25,26 +17,8 @@ export default async function Page({
 
   const t = await getTranslations("Landing.Gallery.Agent");
 
-  const generateBreadcrumb = (agentTitle: string) => (
-    <Breadcrumb>
-      <BreadcrumbList>
-        <BreadcrumbItem>
-          <BreadcrumbLink href="/gallery">Gallery</BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbSeparator />
-        <BreadcrumbItem>
-          <BreadcrumbPage>{agentTitle}</BreadcrumbPage>
-        </BreadcrumbItem>
-      </BreadcrumbList>
-    </Breadcrumb>
-  );
-
   return (
     <div className="container mx-auto px-4 pb-8">
-      <div className="flex items-center gap-4 py-4">
-        {generateBreadcrumb(dummyAgent.title)}
-      </div>
-
       {/* Agent Summary */}
       <div className="space-y-4">
         <AgentSummary {...dummyAgent} />
@@ -68,13 +42,13 @@ export default async function Page({
         </div>
         {/* Developer Information */}
         <div className="text-muted-foreground flex gap-6 text-sm">
-          {dummyAgent.legal && <p>{t("fromDeveloper")}</p>}
+          {dummyAgent.legal && <p>{t("Legal.fromDeveloper")}</p>}
           {dummyAgent.legal?.privacyPolicy && (
             <Link
               href={dummyAgent.legal.privacyPolicy}
               className="hover:text-foreground underline underline-offset-4 transition-colors"
             >
-              Privacy Policy
+              {t("Legal.privacyPolicy")}
             </Link>
           )}
           {dummyAgent.legal?.terms && (
@@ -82,7 +56,7 @@ export default async function Page({
               href={dummyAgent.legal.terms}
               className="hover:text-foreground underline underline-offset-4 transition-colors"
             >
-              Terms of Use
+              {t("Legal.terms")}
             </Link>
           )}
           {dummyAgent.legal?.other && (
@@ -90,7 +64,7 @@ export default async function Page({
               href={dummyAgent.legal.other}
               className="hover:text-foreground underline underline-offset-4 transition-colors"
             >
-              Other
+              {t("Legal.other")}
             </Link>
           )}
         </div>

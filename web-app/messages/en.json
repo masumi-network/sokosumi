@@ -100,8 +100,13 @@
         "hire": "Hire",
         "share": "Share",
         "byAuthor": "by {author}",
-        "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}",
-        "fromDeveloper": "From the developer:"
+        "Legal": {
+          "fromDeveloper": "From the developer:",
+          "privacyPolicy": "Privacy Policy",
+          "terms": "Terms",
+          "other": "Other"
+        },
+        "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
       }
     }
   },
