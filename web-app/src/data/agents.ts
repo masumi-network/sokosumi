@@ -7,6 +7,7 @@ export interface Agent {
   image: string;
   price: number;
   tags: string[];
+  examples?: number;
 }
 
 export const dummyAgents: Agent[] = [
@@ -20,6 +21,7 @@ export const dummyAgents: Agent[] = [
     image: "/placeholder.svg",
     price: 20,
     tags: ["Analytics", "Finance", "Trends", "Forecasting"],
+    examples: 4,
   },
   {
     id: "2",
@@ -42,6 +44,7 @@ export const dummyAgents: Agent[] = [
     image: "/placeholder.svg",
     price: 12,
     tags: ["Data", "Visualization", "Reports", "Analytics"],
+    examples: 3,
   },
   {
     id: "4",
@@ -53,6 +56,7 @@ export const dummyAgents: Agent[] = [
     image: "/placeholder.svg",
     price: 15,
     tags: ["Development", "Code Quality", "Bug Detection", "Best Practices"],
+    examples: 1,
   },
   {
     id: "5",
@@ -64,6 +68,7 @@ export const dummyAgents: Agent[] = [
     image: "/placeholder.svg",
     price: 10,
     tags: ["SEO", "Marketing", "Content", "Analytics"],
+    examples: 6,
   },
   {
     id: "6",
@@ -75,6 +80,7 @@ export const dummyAgents: Agent[] = [
     image: "/placeholder.svg",
     price: 15,
     tags: ["Social Media", "Marketing", "Analytics", "Engagement"],
+    examples: 3,
   },
   {
     id: "7",
@@ -86,6 +92,7 @@ export const dummyAgents: Agent[] = [
     image: "/placeholder.svg",
     price: 20,
     tags: ["Customer Service", "NLP", "24/7", "Support"],
+    examples: 2,
   },
   {
     id: "8",
@@ -97,6 +104,7 @@ export const dummyAgents: Agent[] = [
     image: "/placeholder.svg",
     price: 25,
     tags: ["Finance", "Investment", "Portfolio", "Planning"],
+    examples: 1,
   },
   {
     id: "9",
@@ -108,6 +116,7 @@ export const dummyAgents: Agent[] = [
     image: "/placeholder.svg",
     price: 10,
     tags: ["Translation", "Languages", "Localization", "Cultural"],
+    examples: 1,
   },
   {
     id: "10",
