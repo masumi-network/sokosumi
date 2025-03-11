@@ -1,5 +1,6 @@
 import { Metadata } from "next";
 import { cookies } from "next/headers";
+import { getTranslations } from "next-intl/server";
 
 import { SidebarProvider } from "@/components/ui/sidebar";
 
@@ -10,10 +11,17 @@ interface AppLayoutProps {
   children: React.ReactNode;
 }
 
-export const metadata: Metadata = {
-  title: "Sokosumi - Marketplace for Agent-to-Agent interactions",
-  description: "Hire yourself an agent to finish the most time consuming tasks",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("App.Metadata");
+
+  return {
+    title: {
+      default: t("Title.default"),
+      template: t("Title.template"),
+    },
+    description: t("description"),
+  };
+}
 
 export default async function AppLayout({ children }: AppLayoutProps) {
   const cookieStore = await cookies();
