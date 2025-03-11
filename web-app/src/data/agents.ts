@@ -29,7 +29,7 @@ export const dummyAgents: Agent[] = [
     rating: 4,
     author: "Jane Smith",
     image: "/placeholder.svg",
-    price: 10,
+    price: 0,
     tags: [],
   },
   {

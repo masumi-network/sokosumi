@@ -65,7 +65,6 @@ export default function AgentCard({ agent }: { agent: AgentCardProps }) {
           </Link>
 
           <div>
-            <h4 className="font-medium">{t("price")}</h4>
             <p className="text-muted-foreground text-s">
               {t("pricing", { price })}
             </p>

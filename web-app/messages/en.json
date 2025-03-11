@@ -1,8 +1,7 @@
 {
   "Components": {
     "AgentCard": {
-      "button": "Hire",
-      "price": "Price",
+      "button": "Show details",
       "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
     }
   },
@@ -95,7 +94,12 @@
       },
       "FeaturedAgent": {
         "title": "an absolute must-have",
-        "button": "Hire this banger"
+        "button": "Show details"
+      },
+      "Agent": {
+        "Hire": "Hire",
+        "Share": "Share",
+        "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
       }
     }
   }

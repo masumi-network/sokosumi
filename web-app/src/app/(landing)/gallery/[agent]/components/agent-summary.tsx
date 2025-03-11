@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 
@@ -15,6 +16,7 @@ export default function AgentSummary({
   image,
   price,
 }: AgentSummaryProps) {
+  const t = useTranslations("Landing.Gallery.Agent");
   return (
     <div className="flex h-48 w-full overflow-hidden">
       <div className="relative h-full w-48">
@@ -29,15 +31,15 @@ export default function AgentSummary({
         <div>
           <h2 className="text-2xl font-bold">{title}</h2>
           <p className="text-muted-foreground line-clamp-1">by {author}</p>
-          <p className="pt-1 text-sm font-medium">{price} credits</p>
+          <p className="pt-1 text-sm font-medium">{t("pricing", { price })}</p>
         </div>
         <div className="mt-auto flex flex-col gap-3">
           <div className="flex items-center gap-3">
             <Button variant="default" size="lg">
-              Hire
+              {t("Hire")}
             </Button>
             <Button variant="outline" size="lg">
-              Share
+              {t("Share")}
             </Button>
           </div>
         </div>
