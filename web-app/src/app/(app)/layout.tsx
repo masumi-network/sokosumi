@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { cookies } from "next/headers";
 
-import { SidebarProvider } from "@/shadcn/sidebar";
+import { SidebarProvider } from "@/components/ui/sidebar";
 
 import Header from "./components/header";
 import Sidebar from "./components/sidebar";
