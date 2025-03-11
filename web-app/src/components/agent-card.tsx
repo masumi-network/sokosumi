@@ -2,9 +2,10 @@ import { Star } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
+
+import BadgeCloud from "./badge-cloud";
 
 interface AgentCardProps {
   title: string;
@@ -51,12 +52,7 @@ export default function AgentCard({ agent }: { agent: AgentCardProps }) {
           {description}
         </p>
         <div className="flex min-h-[1.5rem] shrink-0 flex-nowrap overflow-hidden">
-          {tags.length > 0 &&
-            tags.slice(0, 3).map((tag, index) => (
-              <Badge key={index} variant="secondary" className="mr-2 shrink-0">
-                {tag}
-              </Badge>
-            ))}
+          <BadgeCloud tags={tags} />
         </div>
       </CardContent>
 

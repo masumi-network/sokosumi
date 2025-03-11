@@ -4,14 +4,14 @@ import { Button } from "@/components/ui/button";
 
 interface AgentSummaryProps {
   title: string;
-  description: string;
+  author: string;
   image: string;
   price: number;
 }
 
 export default function AgentSummary({
   title,
-  description,
+  author,
   image,
   price,
 }: AgentSummaryProps) {
@@ -28,7 +28,7 @@ export default function AgentSummary({
       <div className="flex flex-1 flex-col justify-between p-6">
         <div className="space-y-2">
           <h2 className="text-2xl font-bold">{title}</h2>
-          <p className="text-muted-foreground line-clamp-1">{description}</p>
+          <p className="text-muted-foreground line-clamp-1">by {author}</p>
         </div>
         <div className="flex items-end justify-between">
           <div className="flex items-end gap-3">

@@ -1,5 +1,6 @@
-import { Building2, ChevronLeft, Timer } from "lucide-react";
+import { ChevronLeft } from "lucide-react";
 
+import BadgeCloud from "@/components/badge-cloud";
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -12,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { dummyAgents } from "@/data/agents";
 
 import AgentSummary from "./components/agent-summary";
-import Box from "./components/box";
 
 export default async function Page({
   params,
@@ -46,9 +46,9 @@ export default async function Page({
 
       <div className="space-y-4">
         <AgentSummary {...dummyAgent} />
-        <div className="flex flex-row gap-3">
-          <Box icon={Building2} text={dummyAgent.author} />
-          <Box icon={Timer} text="30-45 minutes" />
+        <BadgeCloud tags={dummyAgent.tags} />
+        <div className="text-muted-foreground">
+          <p>{dummyAgent.description}</p>
         </div>
       </div>
     </div>

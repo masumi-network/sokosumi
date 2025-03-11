@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 
-import { Badge } from "@/components/ui/badge";
+import BadgeCloud from "@/components/badge-cloud";
 import { Button } from "@/components/ui/button";
 
 interface FeaturedAgentProps {
@@ -23,15 +23,7 @@ export function FeaturedAgent({ agent }: { agent: FeaturedAgentProps }) {
           <h3 className="text-4xl font-bold tracking-tight">{title}</h3>
         </div>
         <p className="text-muted-foreground text-lg">{description}</p>
-        {tags.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {tags.map((tag, index) => (
-              <Badge key={index} variant="secondary">
-                {tag}
-              </Badge>
-            ))}
-          </div>
-        )}
+        <BadgeCloud tags={tags} />
         <Button size="lg" className="w-full md:w-auto">
           {t("button")}
         </Button>
