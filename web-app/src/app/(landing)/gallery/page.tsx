@@ -18,7 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default function GalleryPage() {
   const agent = dummyAgents[0];
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 pt-4 pb-8">
       <div className="space-y-12">
         {/* Featured Agent Section */}
         <FeaturedAgent agent={agent} />

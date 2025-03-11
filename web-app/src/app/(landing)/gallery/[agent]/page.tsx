@@ -28,7 +28,7 @@ export default async function Page({
   const t = await getTranslations("Landing.Gallery.Agent");
 
   return (
-    <div className="container mx-auto">
+    <div className="container mx-auto px-4 pb-8">
       <div className="flex items-center gap-4 py-4">
         <Button size="icon" className="h-8 w-8" asChild>
           <BreadcrumbLink href="/gallery">
