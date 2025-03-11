@@ -8,9 +8,11 @@ updates:
       time: "06:00"
       timezone: "Europe/Berlin"
     open-pull-requests-limit: 10
-    commit-message:
-      prefix: "packages (root)"
-      include: "scope"
+    target-branch: "dev"
+    reviewers:
+      - "mrgrauel"
+      - "schaier-io"
+      - "golddydev"
 
   # Enable version updates for npm in the web-app directory
   - package-ecosystem: "npm"
@@ -20,6 +22,10 @@ updates:
       time: "06:00"
       timezone: "Europe/Berlin"
     open-pull-requests-limit: 10
+    target-branch: "dev"
+    reviewers:
+      - "mrgrauel"
+      - "schaier-io"
+      - "golddydev"
     commit-message:
-      prefix: "packages (web-app)"
-      include: "scope" 
+      prefix: "web-app"
