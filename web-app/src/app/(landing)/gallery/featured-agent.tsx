@@ -1,10 +1,12 @@
 import Image from "next/image";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import BadgeCloud from "@/components/badge-cloud";
 import { Button } from "@/components/ui/button";
 
 interface FeaturedAgentProps {
+  id: string;
   title: string;
   description: string;
   tags: string[];
@@ -24,9 +26,11 @@ export function FeaturedAgent({ agent }: { agent: FeaturedAgentProps }) {
         </div>
         <p className="text-muted-foreground text-lg">{description}</p>
         <BadgeCloud tags={tags} />
-        <Button size="lg" className="w-full md:w-auto">
-          {t("button")}
-        </Button>
+        <Link href={`/gallery/${agent.id}`}>
+          <Button size="lg" className="w-full md:w-auto">
+            {t("button")}
+          </Button>
+        </Link>
       </div>
 
       {/* Image Section - 2/3 width */}

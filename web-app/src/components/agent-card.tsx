@@ -1,5 +1,6 @@
 import { Star } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import BadgeCloud from "./badge-cloud";
 
 interface AgentCardProps {
+  id: string;
   title: string;
   description: string;
   rating: number;
@@ -58,7 +60,9 @@ export default function AgentCard({ agent }: { agent: AgentCardProps }) {
 
       <CardFooter className="mt-auto shrink-0 px-6 pt-2 pb-4">
         <div className="flex items-center gap-4">
-          <Button>{t("button")}</Button>
+          <Link href={`/gallery/${agent.id}`}>
+            <Button>{t("button")}</Button>
+          </Link>
 
           <div>
             <h4 className="font-medium">{t("price")}</h4>
