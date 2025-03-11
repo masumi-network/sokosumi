@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 
 type NavigationLink = {
   href: string;
-  labelKey: string;
+  labelKey: keyof IntlMessages["Landing"]["Header"]["Navigation"];
   showChevron?: boolean;
 };
 
