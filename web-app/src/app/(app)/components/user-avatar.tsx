@@ -56,7 +56,7 @@ export default function UserAvatar() {
               </Button>
             </DropdownMenuTrigger>
           </TooltipTrigger>
-          <TooltipContent side="bottom">Jhon Doe</TooltipContent>
+          <TooltipContent side="bottom">John Doe</TooltipContent>
         </Tooltip>
       </TooltipProvider>
 
