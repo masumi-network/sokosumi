@@ -11,18 +11,11 @@ interface FeaturedAgentProps {
   description: string;
   tags: string[];
   image: string;
-  onButtonClick?: () => void;
 }
 
-export function FeaturedAgent({
-  title,
-  description,
-  tags,
-  image,
-  onButtonClick,
-}: FeaturedAgentProps) {
+export function FeaturedAgent({ agent }: { agent: FeaturedAgentProps }) {
   const t = useTranslations("Landing.Gallery.FeaturedAgent");
-
+  const { title, description, tags, image } = agent;
   return (
     <div className="flex flex-col items-center gap-8 md:flex-row">
       {/* Text Content Section - 1/3 width */}
@@ -41,7 +34,7 @@ export function FeaturedAgent({
             ))}
           </div>
         )}
-        <Button size="lg" onClick={onButtonClick} className="w-full md:w-auto">
+        <Button size="lg" className="w-full md:w-auto">
           {t("button")}
         </Button>
       </div>

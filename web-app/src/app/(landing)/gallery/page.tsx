@@ -21,12 +21,7 @@ export default function GalleryPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="space-y-12">
         {/* Featured Agent Section */}
-        <FeaturedAgent
-          title={agent.title}
-          description={agent.description}
-          tags={agent.tags}
-          image={agent.image}
-        />
+        <FeaturedAgent agent={agent} />
 
         {/* Agent Cards Grid */}
         <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
