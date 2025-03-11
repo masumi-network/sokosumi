@@ -1,10 +1,10 @@
 import { Star } from "lucide-react";
 import Image from "next/image";
 
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Agent } from "@/data/agents";
-import { Badge } from "@/shadcn/badge";
-import { Button } from "@/shadcn/button";
-import { Card, CardContent, CardFooter } from "@/shadcn/card";
 
 export default function AgentCard({ agent }: { agent: Agent }) {
   const {

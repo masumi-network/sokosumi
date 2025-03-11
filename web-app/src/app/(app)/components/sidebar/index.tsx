@@ -4,7 +4,7 @@ import {
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
-} from "@/shadcn/sidebar";
+} from "@/components/ui/sidebar";
 
 import AgentAddButton from "./components/agent-add-button";
 import AgentsList from "./components/agents-list";

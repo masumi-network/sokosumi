@@ -2,9 +2,9 @@
 
 import { ArrowLeftFromLine, ArrowRightFromLine } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
+import { useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { Button } from "@/shadcn/button";
-import { useSidebar } from "@/shadcn/sidebar";
 
 /**
  * Props for the CustomTrigger component.

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
-import { Button } from "@/shadcn/button";
+import { Button } from "@/components/ui/button";
 
 export function SignInButton() {
   const t = useTranslations("Authentication");
