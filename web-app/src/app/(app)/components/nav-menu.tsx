@@ -1,12 +1,17 @@
+import { useTranslations } from "next-intl";
+
 import { cn } from "@/lib/utils";
 
 import NavLink from "./nav-link";
 
-const navItems = [
-  { href: "/dashboard", label: "Home" },
-  { href: "/jobs", label: "Jobs" },
-  { href: "/billing", label: "Billing" },
-  { href: "/settings", label: "Settings" },
+const navItems: Array<{
+  href: string;
+  labelKey: keyof IntlMessages["App"]["Header"]["NavMenu"];
+}> = [
+  { href: "/dashboard", labelKey: "home" },
+  { href: "/jobs", labelKey: "jobs" },
+  { href: "/billing", labelKey: "billing" },
+  { href: "/settings", labelKey: "settings" },
 ];
 
 interface NavMenuProps {
@@ -14,13 +19,15 @@ interface NavMenuProps {
 }
 
 export default function NavMenu({ className = "" }: NavMenuProps) {
+  const t = useTranslations("App.Header.NavMenu");
+
   return (
     <ul className={cn("flex", className)}>
       {navItems.map((nav) => (
-        <NavLink key={nav.label} href={nav.href} label={nav.label} />
+        <NavLink key={nav.labelKey} href={nav.href} label={t(nav.labelKey)} />
       ))}
       <div className="text-muted-foreground font-bold">
-        Credits balance: 6901
+        {t("creditsBalance", { balance: "6901" })}
       </div>
     </ul>
   );

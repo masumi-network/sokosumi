@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl";
+
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
   SidebarGroup,
@@ -8,16 +10,19 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 
-const agentsGroups = [
+const agentsGroups: Array<{
+  labelKey: keyof IntlMessages["App"]["Sidebar"]["Content"]["AgentsList"];
+  agents: string[];
+}> = [
   {
-    label: "Pinned Agents",
+    labelKey: "pinned",
     agents: Array.from(
       { length: 10 },
       (_, index) => `Pinned Agent #${index + 1}`,
     ),
   },
   {
-    label: "Recently Used Agents",
+    labelKey: "recentlyUsed",
     agents: Array.from(
       { length: 10 },
       (_, index) => `Recently Used Agent #${index + 1}`,
@@ -26,12 +31,14 @@ const agentsGroups = [
 ];
 
 export default function AgentsList() {
+  const t = useTranslations("App.Sidebar.Content.AgentsList");
+
   return (
     <ScrollArea className="h-full">
       {agentsGroups.map((group) => (
-        <SidebarGroup key={group.label}>
+        <SidebarGroup key={group.labelKey}>
           <SidebarGroupLabel className="text-base">
-            {group.label}
+            {t(group.labelKey)}
           </SidebarGroupLabel>
           <SidebarGroupContent className="mt-2">
             <SidebarMenu>
