@@ -3,31 +3,31 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 
 interface AgentSummaryProps {
-  name: string;
+  title: string;
   description: string;
-  imageUrl: string;
+  image: string;
   price: number;
 }
 
 export default function AgentSummary({
-  name,
+  title,
   description,
-  imageUrl,
+  image,
   price,
 }: AgentSummaryProps) {
   return (
     <div className="flex h-48 w-full overflow-hidden">
       <div className="relative h-full w-48">
         <Image
-          src={imageUrl}
-          alt={name}
+          src={image}
+          alt={title}
           fill
           className="rounded-md object-cover"
         />
       </div>
       <div className="flex flex-1 flex-col justify-between p-6">
         <div className="space-y-2">
-          <h2 className="text-2xl font-bold">{name}</h2>
+          <h2 className="text-2xl font-bold">{title}</h2>
           <p className="text-muted-foreground line-clamp-1">{description}</p>
         </div>
         <div className="flex items-end justify-between">

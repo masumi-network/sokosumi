@@ -9,6 +9,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
+import { dummyAgents } from "@/data/agents";
 
 import AgentSummary from "./components/agent-summary";
 import Box from "./components/box";
@@ -20,14 +21,16 @@ export default async function Page({
 }) {
   const { agent } = await params;
 
+  const dummyAgent = dummyAgents.find((a) => a.id === agent)!;
+
   // This is temporary mock data - replace with actual data fetching
-  const agentData = {
-    name: "Competitor Analysis",
-    description:
-      "An advanced AI agent specialized in creative problem-solving and efficient task execution.",
-    imageUrl: "/placeholder.svg", // Replace with actual image path
-    price: 50,
-  };
+  // const agentData = {
+  //   name: "Competitor Analysis",
+  //   description:
+  //     "An advanced AI agent specialized in creative problem-solving and efficient task execution.",
+  //   imageUrl: "/placeholder.svg", // Replace with actual image path
+  //   price: 50,
+  // };
 
   return (
     <div className="container mx-auto">
@@ -44,16 +47,16 @@ export default async function Page({
             </BreadcrumbItem>
             <BreadcrumbSeparator />
             <BreadcrumbItem>
-              <BreadcrumbPage>{agent}</BreadcrumbPage>
+              <BreadcrumbPage>{dummyAgent.title}</BreadcrumbPage>
             </BreadcrumbItem>
           </BreadcrumbList>
         </Breadcrumb>
       </div>
 
       <div className="space-y-4">
-        <AgentSummary {...agentData} />
+        <AgentSummary {...dummyAgent} />
         <div className="flex flex-row gap-3">
-          <Box icon={Building2} text="by Serviceplan" />
+          <Box icon={Building2} text={dummyAgent.author} />
           <Box icon={Timer} text="30-45 minutes" />
         </div>
       </div>
