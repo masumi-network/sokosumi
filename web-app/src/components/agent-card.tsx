@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 
-interface Agent {
+interface AgentCardProps {
   title: string;
   description: string;
   rating: number;
@@ -15,7 +15,7 @@ interface Agent {
   tags: string[];
 }
 
-export default function AgentCard({ agent }: { agent: Agent }) {
+export default function AgentCard({ agent }: { agent: AgentCardProps }) {
   const { title, description, rating, image, price, tags } = agent;
   const normalizedRating = Math.max(0, Math.min(5, Math.floor(rating)));
 
