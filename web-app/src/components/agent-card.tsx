@@ -22,7 +22,7 @@ export default function AgentCard({ agent }: { agent: AgentCardProps }) {
   const t = useTranslations("Components.AgentCard");
 
   return (
-    <Card className="flex h-full w-full max-w-sm flex-col overflow-hidden py-0">
+    <Card className="flex h-full w-full max-w-md min-w-96 flex-col overflow-hidden py-0">
       <div className="relative h-48 w-full shrink-0">
         <Image
           src={image || "/placeholder.svg"}
