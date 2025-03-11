@@ -1,15 +1,23 @@
-import {
-  Agent,
-  AgentFixedPricing,
-  AgentPricing,
-  AgentRating,
-  ExampleOutput,
-  PricingType,
-  Status,
-  UnitValue,
-} from "@prisma/client";
+import { PricingType, Prisma, Status } from "@prisma/client";
 
 import { ipfsUrlResolver } from "@/lib/ipfs";
+
+type AgentWithRelations = Prisma.AgentGetPayload<{
+  include: {
+    ExampleOutput: true;
+    ExampleOutputOverride: true;
+    Pricing: {
+      include: {
+        FixedPricing: {
+          include: {
+            Amounts: true;
+          };
+        };
+      };
+    };
+    Rating: true;
+  };
+}>;
 
 export class UnifiedAgent {
   readonly ranking: bigint;
@@ -73,18 +81,10 @@ export class UnifiedAgent {
     totalRatings: bigint;
   };
 
-  constructor(
-    agent: Agent & {
-      ExampleOutput: ExampleOutput[];
-      ExampleOutputOverride: ExampleOutput[];
-      Pricing: AgentPricing & {
-        FixedPricing: AgentFixedPricing & {
-          Amounts: UnitValue[];
-        };
-      };
-      Rating: AgentRating;
-    },
-  ) {
+  constructor(agent: AgentWithRelations) {
+    if (!agent.Rating || !agent.Pricing.FixedPricing) {
+      throw new Error("Agent must have Rating and FixedPricing");
+    }
     this.name = agent.overrideName ?? agent.onChainName;
     this.description = agent.overrideDescription ?? agent.onChainDescription;
     this.apiBaseUrl = agent.overrideApiBaseUrl ?? agent.onChainApiBaseUrl;
@@ -165,18 +165,7 @@ export class UnifiedAgent {
     this.showOnFrontPage = agent.showOnFrontPage;
   }
 
-  static create(
-    agent: Agent & {
-      ExampleOutput: ExampleOutput[];
-      ExampleOutputOverride: ExampleOutput[];
-      Pricing: AgentPricing & {
-        FixedPricing: AgentFixedPricing & {
-          Amounts: UnitValue[];
-        };
-      };
-      Rating: AgentRating;
-    },
-  ): UnifiedAgent {
+  static create(agent: AgentWithRelations): UnifiedAgent {
     return new UnifiedAgent(agent);
   }
 }
