@@ -36,10 +36,10 @@ export default function AgentSummary({
         <div className="mt-auto flex flex-col gap-3">
           <div className="flex items-center gap-3">
             <Button variant="default" size="lg">
-              {t("Hire")}
+              {t("hire")}
             </Button>
             <Button variant="outline" size="lg">
-              {t("Share")}
+              {t("share")}
             </Button>
           </div>
         </div>

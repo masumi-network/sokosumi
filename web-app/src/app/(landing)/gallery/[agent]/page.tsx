@@ -1,6 +1,7 @@
 import { ChevronLeft } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 import BadgeCloud from "@/components/badge-cloud";
 import {
@@ -22,8 +23,9 @@ export default async function Page({
   params: Promise<{ agent: string }>;
 }) {
   const { agent } = await params;
-
   const dummyAgent = dummyAgents.find((a) => a.id === agent)!;
+
+  const t = await getTranslations("Landing.Gallery.Agent");
 
   return (
     <div className="container mx-auto">
@@ -46,6 +48,7 @@ export default async function Page({
         </Breadcrumb>
       </div>
 
+      {/* Agent Summary */}
       <div className="space-y-4">
         <AgentSummary {...dummyAgent} />
         <BadgeCloud tags={dummyAgent.tags} />
@@ -65,27 +68,33 @@ export default async function Page({
             />
           ))}
         </div>
-        <div className="text-muted-foreground"></div>
+        {/* Developer Information */}
         <div className="text-muted-foreground flex gap-6 text-sm">
-          <p>From the Agent&apos;s developer:</p>
-          <Link
-            href="#"
-            className="hover:text-foreground underline underline-offset-4 transition-colors"
-          >
-            Privacy Policy
-          </Link>
-          <Link
-            href="#"
-            className="hover:text-foreground underline underline-offset-4 transition-colors"
-          >
-            Terms of Use
-          </Link>
-          <Link
-            href="#"
-            className="hover:text-foreground underline underline-offset-4 transition-colors"
-          >
-            Customer Support
-          </Link>
+          {dummyAgent.legal && <p>{t("fromDeveloper")}</p>}
+          {dummyAgent.legal?.privacyPolicy && (
+            <Link
+              href={dummyAgent.legal.privacyPolicy}
+              className="hover:text-foreground underline underline-offset-4 transition-colors"
+            >
+              Privacy Policy
+            </Link>
+          )}
+          {dummyAgent.legal?.terms && (
+            <Link
+              href={dummyAgent.legal.terms}
+              className="hover:text-foreground underline underline-offset-4 transition-colors"
+            >
+              Terms of Use
+            </Link>
+          )}
+          {dummyAgent.legal?.other && (
+            <Link
+              href={dummyAgent.legal.other}
+              className="hover:text-foreground underline underline-offset-4 transition-colors"
+            >
+              Other
+            </Link>
+          )}
         </div>
       </div>
     </div>

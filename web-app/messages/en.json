@@ -97,9 +97,10 @@
         "button": "Show details"
       },
       "Agent": {
-        "Hire": "Hire",
-        "Share": "Share",
-        "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
+        "hire": "Hire",
+        "share": "Share",
+        "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}",
+        "fromDeveloper": "From the developer:"
       }
     }
   }

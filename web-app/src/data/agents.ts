@@ -8,6 +8,11 @@ export interface Agent {
   price: number;
   tags: string[];
   examples?: number;
+  legal?: {
+    privacyPolicy?: string;
+    terms?: string;
+    other?: string;
+  };
 }
 
 export const dummyAgents: Agent[] = [
@@ -22,6 +27,11 @@ export const dummyAgents: Agent[] = [
     price: 20,
     tags: ["Analytics", "Finance", "Trends", "Forecasting"],
     examples: 4,
+    legal: {
+      privacyPolicy: "https://example.com/privacy",
+      terms: "https://example.com/terms",
+      other: "https://example.com/other",
+    },
   },
   {
     id: "2",
@@ -33,6 +43,10 @@ export const dummyAgents: Agent[] = [
     image: "/placeholder.svg",
     price: 0,
     tags: [],
+    legal: {
+      privacyPolicy: "https://example.com/privacy",
+      terms: "https://example.com/terms",
+    },
   },
   {
     id: "3",
@@ -57,6 +71,11 @@ export const dummyAgents: Agent[] = [
     price: 15,
     tags: ["Development", "Code Quality", "Bug Detection", "Best Practices"],
     examples: 1,
+    legal: {
+      privacyPolicy: "https://example.com/privacy",
+      terms: "https://example.com/terms",
+      other: "https://example.com/other",
+    },
   },
   {
     id: "5",
@@ -69,6 +88,11 @@ export const dummyAgents: Agent[] = [
     price: 10,
     tags: ["SEO", "Marketing", "Content", "Analytics"],
     examples: 6,
+    legal: {
+      privacyPolicy: "https://example.com/privacy",
+      terms: "https://example.com/terms",
+      other: "https://example.com/other",
+    },
   },
   {
     id: "6",
@@ -81,6 +105,10 @@ export const dummyAgents: Agent[] = [
     price: 15,
     tags: ["Social Media", "Marketing", "Analytics", "Engagement"],
     examples: 3,
+    legal: {
+      terms: "https://example.com/terms",
+      other: "https://example.com/other",
+    },
   },
   {
     id: "7",
