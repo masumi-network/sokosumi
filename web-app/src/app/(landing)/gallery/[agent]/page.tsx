@@ -23,15 +23,6 @@ export default async function Page({
 
   const dummyAgent = dummyAgents.find((a) => a.id === agent)!;
 
-  // This is temporary mock data - replace with actual data fetching
-  // const agentData = {
-  //   name: "Competitor Analysis",
-  //   description:
-  //     "An advanced AI agent specialized in creative problem-solving and efficient task execution.",
-  //   imageUrl: "/placeholder.svg", // Replace with actual image path
-  //   price: 50,
-  // };
-
   return (
     <div className="container mx-auto">
       <div className="flex items-center gap-4 py-4">
