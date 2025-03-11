@@ -1,5 +1,4 @@
-import { ChevronLeft } from "lucide-react";
-import Image from "next/image";
+import { Building2, ChevronLeft, Timer } from "lucide-react";
 
 import {
   Breadcrumb,
@@ -11,52 +10,8 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 
-interface AgentSummaryProps {
-  name: string;
-  description: string;
-  imageUrl: string;
-  price: number;
-}
-
-function AgentSummary({
-  name,
-  description,
-  imageUrl,
-  price,
-}: AgentSummaryProps) {
-  return (
-    <div className="flex h-48 w-full overflow-hidden">
-      <div className="relative h-full w-48">
-        <Image
-          src={imageUrl}
-          alt={name}
-          fill
-          className="rounded-md object-cover"
-        />
-      </div>
-      <div className="flex flex-1 flex-col justify-between p-6">
-        <div className="space-y-2">
-          <h2 className="text-2xl font-bold">{name}</h2>
-          <p className="text-muted-foreground line-clamp-1">{description}</p>
-        </div>
-        <div className="flex items-end justify-between">
-          <div className="flex items-end gap-3">
-            <Button variant="default" size="lg">
-              Hire
-            </Button>
-            <Button variant="outline" size="lg">
-              Share
-            </Button>
-            <div>
-              <p className="text-lg font-semibold">{price} credits</p>
-              <p className="text-muted-foreground text-sm">amount may vary</p>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
+import AgentSummary from "./components/agent-summary";
+import Box from "./components/box";
 
 export default async function Page({
   params,
@@ -95,8 +50,12 @@ export default async function Page({
         </Breadcrumb>
       </div>
 
-      <div className="space-y-6">
+      <div className="space-y-4">
         <AgentSummary {...agentData} />
+        <div className="flex flex-row gap-3">
+          <Box icon={Building2} text="by Serviceplan" />
+          <Box icon={Timer} text="30-45 minutes" />
+        </div>
       </div>
     </div>
   );
