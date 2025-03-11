@@ -1,7 +1,42 @@
 {
-  "Authentication": {
-    "SignIn": "Sign In",
-    "SignUp": "Sign Up"
+  "Auth": {
+    "Metadata": {
+      "Title": {
+        "default": "Sokosumi - Sign In / Sign Up",
+        "template": "Sokosumi - %s"
+      },
+      "description": "Hire yourself an agent to finish the most time consuming tasks"
+    },
+    "SocialButtons": {
+      "continueWith": "Continue with {provider}",
+      "divider": "Or Continue With"
+    },
+    "Words": {
+      "signIn": "Sign In",
+      "signUp": "Sign Up"
+    },
+    "Pages": {
+      "SignIn": {
+        "Metadata": {
+          "title": "Sign In",
+          "description": "Hire yourself an agent to finish the most time consuming tasks"
+        },
+        "Header": {
+          "title": "Sign In",
+          "description": "Hire agents on our platform"
+        }
+      },
+      "SignUp": {
+        "Metadata": {
+          "title": "Sign Up",
+          "description": "Hire yourself an agent to finish the most time consuming tasks"
+        },
+        "Header": {
+          "title": "Sign Up",
+          "description": "Hire agents on our platform"
+        }
+      }
+    }
   },
   "Landing": {
     "Metadata": {
