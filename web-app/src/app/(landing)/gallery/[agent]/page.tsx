@@ -2,10 +2,9 @@ import Image from "next/image";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
-import BadgeCloud from "@/components/badge-cloud";
 import { dummyAgents } from "@/data/agents";
 
-import AgentSummary from "./components/agent-summary";
+import AgentSummary from "./components/agent-details";
 
 export default async function Page({
   params,
@@ -22,11 +21,6 @@ export default async function Page({
       {/* Agent Summary */}
       <div className="space-y-4">
         <AgentSummary {...dummyAgent} />
-        <BadgeCloud tags={dummyAgent.tags} />
-
-        <div className="text-muted-foreground">
-          <p>{dummyAgent.description}</p>
-        </div>
         <div className="flex gap-4 overflow-x-auto pb-4">
           {Array.from({ length: dummyAgent.examples ?? 0 }).map((_, i) => (
             <Image
