@@ -25,23 +25,20 @@ export default function AgentSummary({
           className="rounded-md object-cover"
         />
       </div>
-      <div className="flex flex-1 flex-col justify-between p-6">
-        <div className="space-y-2">
+      <div className="flex flex-1 flex-col px-6 py-2">
+        <div>
           <h2 className="text-2xl font-bold">{title}</h2>
           <p className="text-muted-foreground line-clamp-1">by {author}</p>
+          <p className="pt-1 text-sm font-medium">{price} credits</p>
         </div>
-        <div className="flex items-end justify-between">
-          <div className="flex items-end gap-3">
+        <div className="mt-auto flex flex-col gap-3">
+          <div className="flex items-center gap-3">
             <Button variant="default" size="lg">
               Hire
             </Button>
             <Button variant="outline" size="lg">
               Share
             </Button>
-            <div>
-              <p className="text-lg font-semibold">{price} credits</p>
-              <p className="text-muted-foreground text-sm">amount may vary</p>
-            </div>
           </div>
         </div>
       </div>
