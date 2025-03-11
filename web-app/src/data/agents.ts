@@ -3,9 +3,7 @@ export interface Agent {
   description: string;
   rating: number;
   image: string;
-  buttonText: string;
-  pricingTitle: string;
-  pricingCaption: string;
+  price: number;
   tags: string[];
 }
 
@@ -16,9 +14,7 @@ export const dummyAgents: Agent[] = [
       "Advanced AI agent specialized in market analysis and trend prediction. Provides detailed insights and forecasts for various market sectors.",
     rating: 5,
     image: "/placeholder.svg",
-    buttonText: "Run Analysis",
-    pricingTitle: "Free Trial",
-    pricingCaption: "Normal Price: 15-25 credits/run",
+    price: 20,
     tags: ["Analytics", "Finance", "Trends", "Forecasting"],
   },
   {
@@ -27,9 +23,7 @@ export const dummyAgents: Agent[] = [
       "Creative AI agent that generates high-quality content for blogs, social media, and marketing materials. Specializes in engaging storytelling.",
     rating: 4,
     image: "/placeholder.svg",
-    buttonText: "Create Content",
-    pricingTitle: "Free Trial",
-    pricingCaption: "Normal Price: 10-20 credits/run",
+    price: 10,
     tags: [],
   },
   {
@@ -38,9 +32,7 @@ export const dummyAgents: Agent[] = [
       "Transforms complex data into beautiful, interactive visualizations. Perfect for business reports and presentations.",
     rating: 4,
     image: "/placeholder.svg",
-    buttonText: "Visualize Data",
-    pricingTitle: "Free Trial",
-    pricingCaption: "Normal Price: 12-22 credits/run",
+    price: 12,
     tags: ["Data", "Visualization", "Reports", "Analytics"],
   },
   {
@@ -49,9 +41,7 @@ export const dummyAgents: Agent[] = [
       "AI-powered code review expert that helps identify bugs, suggests improvements, and ensures code quality.",
     rating: 5,
     image: "/placeholder.svg",
-    buttonText: "Review Code",
-    pricingTitle: "Free Trial",
-    pricingCaption: "Normal Price: 15-30 credits/run",
+    price: 15,
     tags: ["Development", "Code Quality", "Bug Detection", "Best Practices"],
   },
   {
@@ -60,9 +50,7 @@ export const dummyAgents: Agent[] = [
       "Specialized in optimizing content for search engines. Provides actionable recommendations for better rankings.",
     rating: 3,
     image: "/placeholder.svg",
-    buttonText: "Optimize SEO",
-    pricingTitle: "Free Trial",
-    pricingCaption: "Normal Price: 10-25 credits/run",
+    price: 10,
     tags: ["SEO", "Marketing", "Content", "Analytics"],
   },
   {
@@ -71,9 +59,7 @@ export const dummyAgents: Agent[] = [
       "Manages social media presence with AI-powered content scheduling, engagement analysis, and trend tracking.",
     rating: 3,
     image: "/placeholder.svg",
-    buttonText: "Manage Social",
-    pricingTitle: "Free Trial",
-    pricingCaption: "Normal Price: 15-35 credits/run",
+    price: 15,
     tags: ["Social Media", "Marketing", "Analytics", "Engagement"],
   },
   {
@@ -82,9 +68,7 @@ export const dummyAgents: Agent[] = [
       "Handles customer inquiries with natural language processing. Provides 24/7 support with human-like responses.",
     rating: 4,
     image: "/placeholder.svg",
-    buttonText: "Start Support",
-    pricingTitle: "Free Trial",
-    pricingCaption: "Normal Price: 20-40 credits/run",
+    price: 20,
     tags: ["Customer Service", "NLP", "24/7", "Support"],
   },
   {
@@ -93,9 +77,7 @@ export const dummyAgents: Agent[] = [
       "AI-powered financial advisor that provides personalized investment recommendations and portfolio analysis.",
     rating: 3,
     image: "/placeholder.svg",
-    buttonText: "Get Advice",
-    pricingTitle: "Free Trial",
-    pricingCaption: "Normal Price: 25-45 credits/run",
+    price: 25,
     tags: ["Finance", "Investment", "Portfolio", "Planning"],
   },
   {
@@ -104,9 +86,7 @@ export const dummyAgents: Agent[] = [
       "Professional translator supporting multiple languages with context-aware translations and cultural adaptation.",
     rating: 2,
     image: "/placeholder.svg",
-    buttonText: "Translate",
-    pricingTitle: "Free Trial",
-    pricingCaption: "Normal Price: 10-20 credits/run",
+    price: 10,
     tags: ["Translation", "Languages", "Localization", "Cultural"],
   },
   {
@@ -115,9 +95,7 @@ export const dummyAgents: Agent[] = [
       "Comprehensive research assistant that gathers, analyzes, and synthesizes information from various sources.",
     rating: 4,
     image: "/placeholder.svg",
-    buttonText: "Start Research",
-    pricingTitle: "Free Trial",
-    pricingCaption: "Normal Price: 15-30 credits/run",
+    price: 15,
     tags: ["Research", "Analysis", "Data", "Synthesis"],
   },
   {
@@ -126,9 +104,7 @@ export const dummyAgents: Agent[] = [
       "AI-powered design assistant that creates user-friendly interfaces and provides design recommendations.",
     rating: 1,
     image: "/placeholder.svg",
-    buttonText: "Design UI",
-    pricingTitle: "Free Trial",
-    pricingCaption: "Normal Price: 20-40 credits/run",
+    price: 20,
     tags: ["Design", "UI", "UX", "Interface"],
   },
   {
@@ -137,9 +113,7 @@ export const dummyAgents: Agent[] = [
       "Specialized in analyzing legal documents, contracts, and agreements. Identifies potential issues and risks.",
     rating: 5,
     image: "/placeholder.svg",
-    buttonText: "Analyze Docs",
-    pricingTitle: "Free Trial",
-    pricingCaption: "Normal Price: 25-50 credits/run",
+    price: 25,
     tags: ["Legal", "Documents", "Contracts", "Compliance"],
   },
   {
@@ -148,9 +122,7 @@ export const dummyAgents: Agent[] = [
       "Creates engaging video content, including scripts, storyboards, and editing recommendations.",
     rating: 4,
     image: "/placeholder.svg",
-    buttonText: "Create Video",
-    pricingTitle: "Free Trial",
-    pricingCaption: "Normal Price: 30-60 credits/run",
+    price: 30,
     tags: ["Video", "Content", "Storytelling", "Production"],
   },
   {
@@ -159,9 +131,7 @@ export const dummyAgents: Agent[] = [
       "Helps with recruitment, employee onboarding, and HR documentation. Streamlines HR processes.",
     rating: 3,
     image: "/placeholder.svg",
-    buttonText: "HR Help",
-    pricingTitle: "Free Trial",
-    pricingCaption: "Normal Price: 15-35 credits/run",
+    price: 15,
     tags: ["HR", "Recruitment", "Onboarding", "Documentation"],
   },
   {
@@ -170,9 +140,7 @@ export const dummyAgents: Agent[] = [
       "AI project manager that helps with task tracking, resource allocation, and project timeline optimization.",
     rating: 4,
     image: "/placeholder.svg",
-    buttonText: "Manage Project",
-    pricingTitle: "Free Trial",
-    pricingCaption: "Normal Price: 20-40 credits/run",
+    price: 20,
     tags: ["Project Management", "Planning", "Resources", "Timeline"],
   },
 ];

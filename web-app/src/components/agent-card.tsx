@@ -1,23 +1,25 @@
 import { Star } from "lucide-react";
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Agent } from "@/data/agents";
+
+interface Agent {
+  title: string;
+  description: string;
+  rating: number;
+  image: string;
+  price: number;
+  tags: string[];
+}
 
 export default function AgentCard({ agent }: { agent: Agent }) {
-  const {
-    title,
-    description,
-    rating,
-    image,
-    buttonText,
-    pricingTitle,
-    pricingCaption,
-    tags,
-  } = agent;
+  const { title, description, rating, image, price, tags } = agent;
   const normalizedRating = Math.max(0, Math.min(5, Math.floor(rating)));
+
+  const t = useTranslations("Components.AgentCard");
 
   return (
     <Card className="flex h-full w-full max-w-sm flex-col overflow-hidden py-0">
@@ -60,11 +62,13 @@ export default function AgentCard({ agent }: { agent: Agent }) {
 
       <CardFooter className="mt-auto shrink-0 px-6 pt-2 pb-4">
         <div className="flex items-center gap-4">
-          <Button>{buttonText}</Button>
+          <Button>{t("button")}</Button>
 
           <div>
-            <h4 className="font-medium">{pricingTitle}</h4>
-            <p className="text-muted-foreground text-xs">{pricingCaption}</p>
+            <h4 className="font-medium">{t("price")}</h4>
+            <p className="text-muted-foreground text-s">
+              {t("pricing", { price })}
+            </p>
           </div>
         </div>
       </CardFooter>
