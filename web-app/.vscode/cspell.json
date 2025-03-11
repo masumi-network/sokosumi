@@ -1,0 +1,14 @@
+{
+  "version": "0.2",
+  "language": "en",
+  "words": ["masumi", "sokosumi", "kodosumi"],
+  "ignorePaths": [
+    "node_modules",
+    ".git",
+    "package.json",
+    "package-lock.json",
+    "prisma/seed.ts",
+    "**/*.prisma",
+    ".vscode/**"
+  ]
+}
