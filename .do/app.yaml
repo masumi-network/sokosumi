@@ -1,6 +1,4 @@
 name: sokosumi
-project_id:
-region: fra
 services:
   - name: sokosumi-web-app
     # envs:
