@@ -11,13 +11,6 @@ envs:
   value: ${BETTER_AUTH_SECRET}
 features:
 - buildpack-stack=ubuntu-22
-ingress:
-  rules:
-  - component:
-      name: sokosumi-web-app
-    match:
-      path:
-        prefix: /
 services:
   envs:
   - key: DATABASE_URL
