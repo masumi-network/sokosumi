@@ -6,6 +6,7 @@ on:
 
 jobs:
   closed:
+    name: Delete
     runs-on: ubuntu-latest
     steps:
       - name: delete preview app
