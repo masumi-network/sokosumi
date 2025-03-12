@@ -242,8 +242,8 @@ model Agent {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  Rating   AgentRating? @relation(fields: [ratingId], references: [id])
-  ratingId String?      @unique
+  Rating   AgentRating @relation(fields: [ratingId], references: [id])
+  ratingId String      @unique
 
   onChainName  String
   overrideName String?

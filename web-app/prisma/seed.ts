@@ -206,7 +206,12 @@ async function main() {
         onChainAuthorName: "Demo Author",
         onChainTags: agent.tags,
         onChainMetadataVersion: 1,
-
+        Rating: {
+          create: {
+            totalStars: 0,
+            totalRatings: 0,
+          },
+        },
         // No overrides initially
         overrideName: null,
         overrideDescription: null,
