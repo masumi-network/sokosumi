@@ -15,4 +15,4 @@ jobs:
         with:
           from_pr_preview: "true"
           ignore_not_found: "true"
-          token: ${{ secrets.DO_ACCESS_TOKEN }}
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}

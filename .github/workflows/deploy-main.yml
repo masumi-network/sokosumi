@@ -22,4 +22,4 @@ jobs:
         with:
           app_name: ${{ vars.DIGITALOCEAN_APP_NAME }}
           project_id: ${{ secrets.DIGITALOCEAN_PROJECT_ID }}
-          token: ${{ secrets.DO_ACCESS_TOKEN }}
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
