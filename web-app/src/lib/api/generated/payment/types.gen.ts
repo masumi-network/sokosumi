@@ -122,13 +122,9 @@ export type PostWalletResponse = PostWalletResponses[keyof PostWalletResponses];
 export type DeleteApiKeyData = {
     body?: {
         /**
-         * The id of the API key to delete. Provide either id or apiKey
+         * The id of the API key to be (soft) deleted.
          */
-        id?: string;
-        /**
-         * The API key to delete. Provide either id or apiKey
-         */
-        token?: string;
+        id: string;
     };
     path?: never;
     query?: never;
@@ -158,6 +154,11 @@ export type DeleteApiKeyResponses = {
         data: {
             id: string;
             token: string;
+            permission: 'Read' | 'ReadAndPay' | 'Admin';
+            usageLimited: boolean;
+            networkLimit: Array<'Preprod' | 'Mainnet'>;
+            status: 'Active' | 'Revoked';
+            deletedAt: string | null;
         };
         status: string;
     };
@@ -176,7 +177,7 @@ export type GetApiKeyData = {
         /**
          * Used to paginate through the API keys
          */
-        cursorApiKey?: string;
+        cursorToken?: string;
     };
     url: '/api-key/';
 };
@@ -203,7 +204,8 @@ export type GetApiKeyResponses = {
     200: {
         status: string;
         data: {
-            apiKeys: Array<{
+            ApiKeys: Array<{
+                id: string;
                 token: string;
                 permission: 'Read' | 'ReadAndPay' | 'Admin';
                 usageLimited: boolean;
@@ -225,15 +227,15 @@ export type PatchApiKeyData = {
         /**
          * The id of the API key to update. Provide either id or apiKey
          */
-        id?: string;
+        id: string;
         /**
-         * The API key to update. Provide either id or apiKey
+         * To change the api key token
          */
         token?: string;
         /**
-         * The remaining credits allowed to be used by the API key. Only relevant if usageLimited is true.
+         * The amount of credits to add or remove from the API key. Only relevant if usageLimited is true.
          */
-        UsageCredits?: Array<{
+        UsageCreditsToAddOrRemove?: Array<{
             unit: string;
             amount: string;
         }>;
@@ -396,7 +398,7 @@ export type GetPaymentResponses = {
     200: {
         status: string;
         data: {
-            payments: Array<{
+            Payments: Array<{
                 id: string;
                 createdAt: string;
                 updatedAt: string;
@@ -427,7 +429,7 @@ export type GetPaymentResponses = {
                     updatedAt: string;
                     txHash: string | null;
                 }> | null;
-                Amounts: Array<{
+                RequestedFunds: Array<{
                     id: string;
                     createdAt: string;
                     updatedAt: string;
@@ -470,7 +472,7 @@ export type PostPaymentData = {
         /**
          * The amounts of the payment
          */
-        amounts: Array<{
+        RequestedFunds: Array<{
             amount: string;
             unit: string;
         }>;
@@ -545,7 +547,7 @@ export type PostPaymentResponses = {
                 errorType: 'NetworkError' | 'Unknown';
                 errorNote: string | null;
             };
-            Amounts: Array<{
+            RequestedFunds: Array<{
                 id: string;
                 createdAt: string;
                 updatedAt: string;
@@ -636,7 +638,7 @@ export type PostPaymentSubmitResultResponses = {
                 errorType: 'NetworkError' | 'Unknown';
                 errorNote: string | null;
             };
-            Amounts: Array<{
+            RequestedFunds: Array<{
                 id: string;
                 createdAt: string;
                 updatedAt: string;
@@ -723,7 +725,7 @@ export type PostPaymentAuthorizeRefundResponses = {
                 errorType: 'NetworkError' | 'Unknown';
                 errorNote: string | null;
             };
-            Amounts: Array<{
+            RequestedFunds: Array<{
                 id: string;
                 createdAt: string;
                 updatedAt: string;
@@ -803,7 +805,7 @@ export type GetPurchaseResponses = {
     200: {
         status: string;
         data: {
-            purchases: Array<{
+            Purchases: Array<{
                 id: string;
                 createdAt: string;
                 updatedAt: string;
@@ -836,7 +838,7 @@ export type GetPurchaseResponses = {
                     txHash: string;
                     status: 'Pending' | 'Confirmed' | 'FailedViaTimeout';
                 }>;
-                Amounts: Array<{
+                PaidFunds: Array<{
                     id: string;
                     createdAt: string;
                     updatedAt: string;
@@ -889,9 +891,9 @@ export type PostPurchaseData = {
          */
         smartContractAddress?: string;
         /**
-         * The amounts of the purchase
+         * The amounts to be paid for the purchase
          */
-        amounts: Array<{
+        Amounts: Array<{
             amount: string;
             unit: string;
         }>;
@@ -969,7 +971,7 @@ export type PostPurchaseResponses = {
                 txHash: string;
                 status: 'Pending' | 'Confirmed' | 'FailedViaTimeout';
             } | null;
-            Amounts: Array<{
+            PaidFunds: Array<{
                 id: string;
                 createdAt: string;
                 updatedAt: string;
@@ -1063,7 +1065,7 @@ export type PostPurchaseRequestRefundResponses = {
                 txHash: string;
                 status: 'Pending' | 'Confirmed' | 'FailedViaTimeout';
             } | null;
-            Amounts: Array<{
+            PaidFunds: Array<{
                 id: string;
                 createdAt: string;
                 updatedAt: string;
@@ -1157,7 +1159,7 @@ export type PostPurchaseCancelRefundRequestResponses = {
                 txHash: string;
                 status: 'Pending' | 'Confirmed' | 'FailedViaTimeout';
             } | null;
-            Amounts: Array<{
+            PaidFunds: Array<{
                 id: string;
                 createdAt: string;
                 updatedAt: string;
@@ -1214,35 +1216,43 @@ export type GetRegistryWalletResponses = {
     200: {
         status: string;
         data: {
-            assets: Array<{
+            Assets: Array<{
                 policyId: string;
                 assetName: string;
                 agentIdentifier: string;
-                metadata: {
+                Metadata: {
                     name: string;
                     description?: string | null;
-                    apiUrl: string;
-                    exampleOutput?: string | null;
-                    tags: Array<string>;
-                    requestsPerHour?: string | null;
-                    capability: {
+                    apiBaseUrl: string;
+                    ExampleOutputs: Array<{
                         name: string;
-                        version: string;
-                    };
-                    author: {
+                        mimeType: string;
+                        url: string;
+                    }>;
+                    Tags: Array<string>;
+                    requestsPerHour?: number | null;
+                    Capability?: {
+                        name?: string | null;
+                        version?: string | null;
+                    } | null;
+                    Author: {
                         name: string;
-                        contact?: string | null;
+                        contactEmail?: string | null;
+                        contactOther?: string | null;
                         organization?: string | null;
                     };
-                    legal?: {
+                    Legal?: {
                         privacyPolicy?: string | null;
                         terms?: string | null;
                         other?: string | null;
                     } | null;
-                    pricing: Array<{
-                        quantity: number;
-                        unit: string;
-                    }>;
+                    AgentPricing: {
+                        pricingType: 'Fixed';
+                        Pricing: Array<{
+                            amount: string;
+                            unit: string;
+                        }>;
+                    };
                     image: string;
                     metadataVersion: number;
                 };
@@ -1282,24 +1292,42 @@ export type DeleteRegistryResponses = {
         data: {
             id: string;
             name: string;
-            apiUrl: string;
-            capabilityName: string;
-            capabilityVersion: string;
+            apiBaseUrl: string;
+            Capability: {
+                name: string | null;
+                version: string | null;
+            };
+            Author: {
+                name: string;
+                contactEmail: string | null;
+                contactOther: string | null;
+                organization: string | null;
+            };
+            Legal: {
+                privacyPolicy: string | null;
+                terms: string | null;
+                other: string | null;
+            };
             description: string | null;
-            requestsPerHour: string | null;
-            privacyPolicy: string | null;
-            terms: string | null;
-            other: string | null;
-            tags: Array<string>;
+            requestsPerHour: number | null;
+            Tags: Array<string>;
             SmartContractWallet: {
                 walletVkey: string;
                 walletAddress: string;
             };
             state: 'RegistrationRequested' | 'RegistrationInitiated' | 'RegistrationConfirmed' | 'RegistrationFailed' | 'DeregistrationRequested' | 'DeregistrationInitiated' | 'DeregistrationConfirmed' | 'DeregistrationFailed';
-            Pricing: Array<{
-                unit: string;
-                quantity: string;
+            ExampleOutputs: Array<{
+                name: string;
+                url: string;
+                mimeType: string;
             }>;
+            AgentPricing: {
+                pricingType: 'Fixed';
+                Pricing: Array<{
+                    unit: string;
+                    amount: string;
+                }>;
+            };
         };
     };
 };
@@ -1333,30 +1361,45 @@ export type GetRegistryResponses = {
     200: {
         status: string;
         data: {
-            assets: Array<{
+            Assets: Array<{
                 id: string;
                 name: string;
                 description: string | null;
-                apiUrl: string;
-                capabilityName: string;
-                capabilityVersion: string;
-                requestsPerHour: string | null;
-                authorName: string;
-                authorContact: string | null;
-                authorOrganization: string | null;
-                privacyPolicy: string | null;
-                terms: string | null;
-                other: string | null;
+                apiBaseUrl: string;
+                Capability: {
+                    name: string | null;
+                    version: string | null;
+                };
+                requestsPerHour: number | null;
+                Author: {
+                    name: string;
+                    contactEmail: string | null;
+                    contactOther: string | null;
+                    organization: string | null;
+                };
+                Legal: {
+                    privacyPolicy: string | null;
+                    terms: string | null;
+                    other: string | null;
+                };
                 state: 'RegistrationRequested' | 'RegistrationInitiated' | 'RegistrationConfirmed' | 'RegistrationFailed' | 'DeregistrationRequested' | 'DeregistrationInitiated' | 'DeregistrationConfirmed' | 'DeregistrationFailed';
-                tags: Array<string>;
+                Tags: Array<string>;
                 createdAt: string;
                 updatedAt: string;
                 lastCheckedAt: string | null;
-                agentIdentifier: string | null;
-                Pricing: Array<{
-                    unit: string;
-                    quantity: string;
+                ExampleOutputs: Array<{
+                    name: string;
+                    url: string;
+                    mimeType: string;
                 }>;
+                agentIdentifier: string | null;
+                AgentPricing: {
+                    pricingType: 'Fixed';
+                    Pricing: Array<{
+                        amount: string;
+                        unit: string;
+                    }>;
+                };
                 SmartContractWallet: {
                     walletVkey: string;
                     walletAddress: string;
@@ -1386,14 +1429,15 @@ export type PostRegistryData = {
          * The payment key of a specific wallet used for the registration
          */
         sellingWalletVkey: string;
-        /**
-         * Link to a example output of the agent
-         */
-        exampleOutput?: string;
+        ExampleOutputs: Array<{
+            name: string;
+            url: string;
+            mimeType: string;
+        }>;
         /**
          * Tags used in the registry metadata
          */
-        tags: Array<string>;
+        Tags: Array<string>;
         /**
          * Name of the agent
          */
@@ -1401,7 +1445,7 @@ export type PostRegistryData = {
         /**
          * Base URL of the agent, to request interactions
          */
-        apiUrl: string;
+        apiBaseUrl: string;
         /**
          * Description of the agent
          */
@@ -1409,25 +1453,28 @@ export type PostRegistryData = {
         /**
          * Provide information about the used AI model and version
          */
-        capability: {
+        Capability: {
             name: string;
             version: string;
         };
         /**
          * The request the agent can handle per hour
          */
-        requestsPerHour: string;
-        /**
-         * Price for a default interaction
-         */
-        pricing: Array<{
-            unit: string;
-            quantity: string;
-        }>;
+        requestsPerHour: number | null;
+        AgentPricing: {
+            pricingType: 'Fixed';
+            /**
+             * Price for a default interaction
+             */
+            Pricing: Array<{
+                unit: string;
+                amount: string;
+            }>;
+        };
         /**
          * Legal information about the agent
          */
-        legal?: {
+        Legal?: {
             privacyPolicy?: string;
             terms?: string;
             other?: string;
@@ -1435,9 +1482,10 @@ export type PostRegistryData = {
         /**
          * Author information about the agent
          */
-        author: {
+        Author: {
             name: string;
-            contact?: string;
+            contactEmail?: string;
+            contactOther?: string;
             organization?: string;
         };
     };
@@ -1455,24 +1503,42 @@ export type PostRegistryResponses = {
         data: {
             id: string;
             name: string;
-            apiUrl: string;
-            capabilityName: string;
-            capabilityVersion: string;
+            apiBaseUrl: string;
+            Capability: {
+                name: string | null;
+                version: string | null;
+            };
+            Legal: {
+                privacyPolicy: string | null;
+                terms: string | null;
+                other: string | null;
+            };
+            Author: {
+                name: string;
+                contactEmail: string | null;
+                contactOther: string | null;
+                organization: string | null;
+            };
             description: string | null;
-            requestsPerHour: string | null;
-            privacyPolicy: string | null;
-            terms: string | null;
-            other: string | null;
-            tags: Array<string>;
+            requestsPerHour: number | null;
+            Tags: Array<string>;
             state: 'RegistrationRequested' | 'RegistrationInitiated' | 'RegistrationConfirmed' | 'RegistrationFailed' | 'DeregistrationRequested' | 'DeregistrationInitiated' | 'DeregistrationConfirmed' | 'DeregistrationFailed';
             SmartContractWallet: {
                 walletVkey: string;
                 walletAddress: string;
             };
-            Pricing: Array<{
-                unit: string;
-                quantity: string;
+            ExampleOutputs: Array<{
+                name: string;
+                url: string;
+                mimeType: string;
             }>;
+            AgentPricing: {
+                pricingType: 'Fixed';
+                Pricing: Array<{
+                    unit: string;
+                    amount: string;
+                }>;
+            };
         };
     };
 };
@@ -1528,7 +1594,7 @@ export type GetPaymentSourceResponses = {
     200: {
         status: string;
         data: {
-            paymentSources: Array<{
+            PaymentSources: Array<{
                 id: string;
                 createdAt: string;
                 updatedAt: string;
@@ -1817,7 +1883,7 @@ export type GetPaymentSourceExtendedResponses = {
     200: {
         status: string;
         data: {
-            paymentSources: Array<{
+            ExtendedPaymentSources: Array<{
                 id: string;
                 createdAt: string;
                 updatedAt: string;
@@ -1892,17 +1958,17 @@ export type GetUtxosResponses = {
     200: {
         status: string;
         data: {
-            utxos: Array<{
+            Utxos: Array<{
                 txHash: string;
                 address: string;
-                amount: Array<{
+                Amounts: Array<{
                     unit: string;
                     quantity: number | null;
                 }>;
-                data_hash?: string;
-                inline_datum?: string;
-                reference_script_hash?: string;
-                output_index: number | null;
+                dataHash: string | null;
+                inlineDatum: string | null;
+                referenceScriptHash: string | null;
+                outputIndex: number | null;
                 block: string;
             }>;
         };
@@ -1932,7 +1998,7 @@ export type GetRpcApiKeysResponses = {
      * Blockfrost keys
      */
     200: {
-        rpcProviderKeys: Array<{
+        RpcProviderKeys: Array<{
             id: string;
             rpcProviderApiKey: string;
             rpcProvider: 'Blockfrost';
