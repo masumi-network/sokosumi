@@ -24,11 +24,11 @@ import { signIn } from "@/lib/auth.client";
 import { signInFormData, signInFormSchema, SignInFormSchemaType } from "./data";
 
 export default function SignInForm() {
-  const t = useTranslations("Auth.Pages.SignIn.Form.Fields");
+  const t = useTranslations("Auth.Pages.SignIn.Form");
   const router = useRouter();
 
   const form = useForm<SignInFormSchemaType>({
-    resolver: zodResolver(signInFormSchema),
+    resolver: zodResolver(signInFormSchema(t)),
     defaultValues: {
       email: "",
       password: "",

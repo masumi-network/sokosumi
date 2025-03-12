@@ -2,12 +2,10 @@ import { z } from "zod";
 
 import { FormData } from "@/lib/form";
 
-const signInFormSchema = (
-  t: IntlTranslation<"Auth.Pages.SignIn.Form.Errors">,
-) =>
+const signInFormSchema = (t: IntlTranslation<"Auth.Pages.SignIn.Form">) =>
   z.object({
     email: z.string().email({
-      message: t("Email.invalid"),
+      message: t("Errors.Email.invalid"),
     }),
     password: z.string(),
   });
@@ -16,17 +14,17 @@ type SignInFormSchemaType = z.infer<ReturnType<typeof signInFormSchema>>;
 
 const signInFormData: FormData<
   SignInFormSchemaType,
-  IntlMessages["Auth"]["Pages"]["SignIn"]["Form"]["Fields"]
+  IntlMessages["Auth"]["Pages"]["SignIn"]["Form"]
 > = [
   {
     name: "email",
-    labelKey: "Email.label",
-    placeholderKey: "Email.placeholder",
+    labelKey: "Fields.Email.label",
+    placeholderKey: "Fields.Email.placeholder",
   },
   {
     name: "password",
-    labelKey: "Password.label",
-    placeholderKey: "Password.placeholder",
+    labelKey: "Fields.Password.label",
+    placeholderKey: "Fields.Password.placeholder",
     type: "password",
   },
 ];
