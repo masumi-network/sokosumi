@@ -8,7 +8,7 @@ jobs:
   delete-preview:
     name: Delete
     runs-on: ubuntu-latest
-    environment: production
+    environment: development
     steps:
       - name: delete preview app
         uses: digitalocean/app_action/delete@v2
