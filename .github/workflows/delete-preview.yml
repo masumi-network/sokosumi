@@ -2,7 +2,7 @@ name: Delete Preview
 
 on:
   pull_request:
-    types: [ closed ]
+    types: [closed]
 
 jobs:
   delete-preview:
