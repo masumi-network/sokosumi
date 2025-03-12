@@ -8,10 +8,12 @@ jobs:
   delete-preview:
     name: Delete
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - name: delete preview app
         uses: digitalocean/app_action/delete@v2
         with:
+          app_name: ${{ vars.DIGITALOCEAN_APP_NAME }}
           from_pr_preview: "true"
           ignore_not_found: "true"
           token: ${{ secrets.DO_ACCESS_TOKEN }}

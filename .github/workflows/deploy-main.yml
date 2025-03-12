@@ -11,10 +11,14 @@ jobs:
   deploy-main:
     name: Deploy
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Deploy the app
         uses: digitalocean/app_action/deploy@v2
+        env:
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
         with:
+          app_spec_location: ${{ vars.DIGITALOCEAN_APP_SPEC_LOCATION }}
           token: ${{ secrets.DO_ACCESS_TOKEN }}
