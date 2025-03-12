@@ -1,7 +1,95 @@
 {
-  "Authentication": {
-    "SignIn": "Sign In",
-    "SignUp": "Sign Up"
+  "Auth": {
+    "Metadata": {
+      "Title": {
+        "default": "Sokosumi - Sign In / Sign Up",
+        "template": "Sokosumi - %s"
+      },
+      "description": "Hire yourself an agent to finish the most time consuming tasks"
+    },
+    "SocialButtons": {
+      "continueWith": "Continue with {provider}",
+      "divider": "Or Continue With"
+    },
+    "Words": {
+      "signIn": "Sign In",
+      "signUp": "Sign Up"
+    },
+    "Pages": {
+      "SignIn": {
+        "Metadata": {
+          "title": "Sign In",
+          "description": "Hire yourself an agent to finish the most time consuming tasks"
+        },
+        "Header": {
+          "title": "Sign In",
+          "description": "Hire agents on our platform"
+        },
+        "Form": {
+          "Fields": {
+            "Email": {
+              "label": "Email",
+              "placeholder": "me@example.com"
+            },
+            "Password": {
+              "label": "Password",
+              "placeholder": "Password"
+            }
+          },
+          "Errors": {
+            "Email": {
+              "invalid": "Please enter a valid email address."
+            }
+          }
+        }
+      },
+      "SignUp": {
+        "Metadata": {
+          "title": "Sign Up",
+          "description": "Hire yourself an agent to finish the most time consuming tasks"
+        },
+        "Header": {
+          "title": "Sign Up",
+          "description": "Hire agents on our platform"
+        },
+        "Form": {
+          "Fields": {
+            "Email": {
+              "label": "Email",
+              "placeholder": "me@example.com"
+            },
+            "Username": {
+              "label": "User Name",
+              "placeholder": "Jhon Doe"
+            },
+            "Password": {
+              "label": "Password",
+              "placeholder": "Password"
+            },
+            "ConfirmPassword": {
+              "label": "Confirm Password",
+              "placeholder": "Confirm Password"
+            }
+          },
+          "Errors": {
+            "Email": {
+              "invalid": "Please enter a valid email address."
+            },
+            "Username": {
+              "min": "User Name must be at least 2 characters.",
+              "max": "User Name must be maximum 50 characters."
+            },
+            "Password": {
+              "min": "Password must be at least 8 characters.",
+              "regex": "Password must contain at least one uppercase letter, one lowercase letter, and one number."
+            },
+            "ConfirmPassword": {
+              "match": "Password doesn't match"
+            }
+          }
+        }
+      }
+    }
   },
   "Landing": {
     "Metadata": {
