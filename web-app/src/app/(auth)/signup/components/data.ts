@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-import { FormData } from "@/lib/form";
+import { FormData, FormIntlTranslation } from "@/lib/form";
 
-const signUpFormSchema = (t: IntlTranslation<"Auth.Pages.SignUp.Form">) =>
+const signUpFormSchema = (t: FormIntlTranslation<"Auth.Pages.SignUp.Form">) =>
   z
     .object({
       username: z

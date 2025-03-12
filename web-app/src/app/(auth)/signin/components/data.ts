@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-import { FormData } from "@/lib/form";
+import { FormData, FormIntlTranslation } from "@/lib/form";
 
-const signInFormSchema = (t: IntlTranslation<"Auth.Pages.SignIn.Form">) =>
+const signInFormSchema = (t: FormIntlTranslation<"Auth.Pages.SignIn.Form">) =>
   z.object({
     email: z.string().email({
       message: t("Errors.Email.invalid"),
