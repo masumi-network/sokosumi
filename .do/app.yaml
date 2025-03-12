@@ -1,4 +1,3 @@
-name: sokosumi
 region: fra
 alerts:
 - rule: DEPLOYMENT_FAILED
@@ -10,16 +9,25 @@ envs:
 - key: BETTER_AUTH_SECRET
   scope: RUN_AND_BUILD_TIME
   value: ${BETTER_AUTH_SECRET}
+features:
+- buildpack-stack=ubuntu-22
+ingress:
+  rules:
+  - component:
+      name: sokosumi-web-app
+    match:
+      path:
+        prefix: /
 services:
-  - name: sokosumi-web-app
-    envs:
-    - key: DATABASE_URL
-      scope: RUN_TIME
-      value: ${db.DATABASE_URL}
-    github:
-      branch: main
-      repo: masumi-network/sokosumi
-    http_port: 3000
-    instance_count: 1
-    instance_size_slug: apps-s-1vcpu-1gb
-    source_dir: web-app
+  envs:
+  - key: DATABASE_URL
+    scope: RUN_TIME
+    value: ${db.DATABASE_URL}
+  github:
+    branch: main
+    repo: masumi-network/sokosumi
+  http_port: 3000
+  instance_count: 1
+  instance_size_slug: apps-s-1vcpu-1gb
+  name: sokosumi-web-app
+  source_dir: web-app

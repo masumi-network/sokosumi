@@ -20,5 +20,5 @@ jobs:
         env:
           BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
         with:
-          app_spec_location: ${{ vars.DIGITALOCEAN_APP_SPEC_LOCATION }}
+          app_name: ${{ vars.DIGITALOCEAN_APP_NAME }}
           token: ${{ secrets.DO_ACCESS_TOKEN }}
