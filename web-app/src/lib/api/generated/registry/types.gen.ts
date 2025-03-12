@@ -64,14 +64,18 @@ export type GetPaymentInformationResponses = {
                 sellerVKey: string | null;
             }>;
             Capability: {
-                name: string;
-                version: string;
-                description: string | null;
+                name: string | null;
+                version: string | null;
+            } | null;
+            AgentPricing: {
+                pricingType: 'Fixed';
+                FixedPricing: {
+                    Amounts: Array<{
+                        amount: string;
+                        unit: string;
+                    }>;
+                };
             };
-            Prices: Array<{
-                quantity: number;
-                unit: string;
-            }>;
             name: string;
             description: string | null;
             status: 'Online' | 'Offline' | 'Deregistered' | 'Invalid';
@@ -79,10 +83,11 @@ export type GetPaymentInformationResponses = {
             lastUptimeCheck: string;
             uptimeCount: number;
             uptimeCheckCount: number;
-            apiUrl: string;
+            apiBaseUrl: string;
             authorName: string | null;
             authorOrganization: string | null;
-            authorContact: string | null;
+            authorContactEmail: string | null;
+            authorContactOther: string | null;
             image: string | null;
             privacyPolicy: string | null;
             termsAndCondition: string | null;
@@ -90,6 +95,11 @@ export type GetPaymentInformationResponses = {
             requestsPerHour: number | null;
             tags: Array<string> | null;
             agentIdentifier: string;
+            ExampleOutput: Array<{
+                name: string;
+                mimeType: string;
+                url: string;
+            }>;
         };
         status: string;
     };
@@ -150,10 +160,9 @@ export type PostRegistryEntryResponses = {
                     url: string | null;
                 };
                 Capability: {
-                    name: string;
-                    version: string;
-                    description: string | null;
-                };
+                    name: string | null;
+                    version: string | null;
+                } | null;
                 name: string;
                 description: string | null;
                 status: 'Online' | 'Offline' | 'Deregistered' | 'Invalid';
@@ -161,10 +170,11 @@ export type PostRegistryEntryResponses = {
                 lastUptimeCheck: string;
                 uptimeCount: number;
                 uptimeCheckCount: number;
-                apiUrl: string;
+                apiBaseUrl: string;
                 authorName: string | null;
                 authorOrganization: string | null;
-                authorContact: string | null;
+                authorContactEmail: string | null;
+                authorContactOther: string | null;
                 image: string | null;
                 privacyPolicy: string | null;
                 termsAndCondition: string | null;
@@ -172,9 +182,19 @@ export type PostRegistryEntryResponses = {
                 requestsPerHour: number | null;
                 tags: Array<string> | null;
                 agentIdentifier: string;
-                Prices: Array<{
-                    quantity: number;
-                    unit: string;
+                AgentPricing: {
+                    pricingType: 'Fixed';
+                    FixedPricing: {
+                        Amounts: Array<{
+                            amount: string;
+                            unit: string;
+                        }>;
+                    };
+                };
+                ExampleOutput: Array<{
+                    name: string;
+                    mimeType: string;
+                    url: string;
                 }>;
             }>;
         };
