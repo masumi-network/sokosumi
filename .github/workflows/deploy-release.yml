@@ -1,9 +1,8 @@
-name: Tag Deployment
+name: Release Deployment
 
 on:
-  push:
-    tags:
-      - '*'
+  release:
+    types: [released]
     
 permissions:
   contents: read
