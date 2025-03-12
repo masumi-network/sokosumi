@@ -2,13 +2,13 @@ name: Main Deployment
 
 on:
   push:
-    branches: [main]
+    branches: [digital-ocean-workflows]
     
 permissions:
   contents: read
 
 jobs:
-  deploy-app:
+  deploy-main:
     name: Deploy
     runs-on: ubuntu-latest
     steps:

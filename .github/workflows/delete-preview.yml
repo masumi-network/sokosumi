@@ -5,7 +5,7 @@ on:
     types: [ closed ]
 
 jobs:
-  closed:
+  delete-preview:
     name: Delete
     runs-on: ubuntu-latest
     steps:
