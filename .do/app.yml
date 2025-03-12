@@ -1,0 +1,17 @@
+name: sokosumi
+project_id:
+region: fra
+services:
+  - name: sokosumi-web-app
+    # envs:
+    # - key: DATABASE_URL
+    #   scope: RUN_TIME
+    #   value: ${db.DATABASE_URL}
+    #   type: SECRET
+    github:
+      branch: main
+      repo: masumi-network/sokosumi
+    # http_port: 3000
+    # instance_count: 1
+    # instance_size_slug: apps-s-1vcpu-1gb
+    source_dir: web-app
