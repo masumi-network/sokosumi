@@ -1,13 +1,21 @@
 import { X } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
 
-export const metadata: Metadata = {
-  title: "Sokosumi - Sign In / Sign Up",
-  description: "Sokosumi - Sign In / Sign Up",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("Auth.Metadata");
+
+  return {
+    title: {
+      default: t("Title.default"),
+      template: t("Title.template"),
+    },
+    description: t("description"),
+  };
+}
 
 export default function AuthLayout({
   children,
