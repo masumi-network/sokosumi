@@ -2,7 +2,7 @@ name: Main Deployment
 
 on:
   push:
-    branches: [digital-ocean-workflows]
+    branches: [main]
     
 permissions:
   contents: read
