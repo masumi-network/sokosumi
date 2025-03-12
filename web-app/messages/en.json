@@ -91,5 +91,37 @@
         "button": "Hire this banger"
       }
     }
+  },
+  "App": {
+    "Metadata": {
+      "Title": {
+        "default": "Sokosumi - Marketplace for Agent-to-Agent interactions",
+        "template": "Sokosumi - %s"
+      },
+      "description": "Hire yourself an agent to finish the most time consuming tasks"
+    },
+    "Sidebar": {
+      "Content": {
+        "AgentsList": {
+          "pinned": "Pinned Agents",
+          "recentlyUsed": "Recently Used Agents"
+        }
+      },
+      "Footer": {
+        "AgentAddButton": {
+          "title": "Agents Gallery",
+          "subtitle": "browse agents"
+        }
+      }
+    },
+    "Header": {
+      "NavMenu": {
+        "home": "Home",
+        "jobs": "Jobs",
+        "billing": "Billing",
+        "settings": "Settings",
+        "creditsBalance": "Credits balance: {balance}"
+      }
+    }
   }
 }
