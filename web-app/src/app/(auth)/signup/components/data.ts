@@ -31,19 +31,30 @@ const signUpFormSchema = z
 
 type SignUpFormSchemaType = z.infer<typeof signUpFormSchema>;
 
-const signUpFormData: FormData<SignUpFormSchemaType> = [
-  { name: "email", label: "Email", placeholder: "me@example.com" },
-  { name: "username", label: "User Name", placeholder: "Jhon Doe" },
+const signUpFormData: FormData<
+  SignUpFormSchemaType,
+  IntlMessages["Auth"]["Pages"]["SignUp"]["Form"]["Fields"]
+> = [
+  {
+    name: "email",
+    labelKey: "Email.label",
+    placeholderKey: "Email.placeholder",
+  },
+  {
+    name: "username",
+    labelKey: "Username.label",
+    placeholderKey: "Username.placeholder",
+  },
   {
     name: "password",
-    label: "Password",
-    placeholder: "Password",
+    labelKey: "Password.label",
+    placeholderKey: "Password.placeholder",
     type: "password",
   },
   {
     name: "confirmPassword",
-    label: "Confirm Password",
-    placeholder: "Confirm Password",
+    labelKey: "ConfirmPassword.label",
+    placeholderKey: "ConfirmPassword.placeholder",
     type: "password",
   },
 ];

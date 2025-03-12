@@ -11,12 +11,19 @@ const signInFormSchema = z.object({
 
 type SignInFormSchemaType = z.infer<typeof signInFormSchema>;
 
-const signInFormData: FormData<SignInFormSchemaType> = [
-  { name: "email", label: "Email", placeholder: "me@example.com" },
+const signInFormData: FormData<
+  SignInFormSchemaType,
+  IntlMessages["Auth"]["Pages"]["SignIn"]["Form"]["Fields"]
+> = [
+  {
+    name: "email",
+    labelKey: "Email.label",
+    placeholderKey: "Email.placeholder",
+  },
   {
     name: "password",
-    label: "Password",
-    placeholder: "Password",
+    labelKey: "Password.label",
+    placeholderKey: "Password.placeholder",
     type: "password",
   },
 ];

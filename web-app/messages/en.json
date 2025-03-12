@@ -24,6 +24,18 @@
         "Header": {
           "title": "Sign In",
           "description": "Hire agents on our platform"
+        },
+        "Form": {
+          "Fields": {
+            "Email": {
+              "label": "Email",
+              "placeholder": "me@example.com"
+            },
+            "Password": {
+              "label": "Password",
+              "placeholder": "Password"
+            }
+          }
         }
       },
       "SignUp": {
@@ -34,6 +46,26 @@
         "Header": {
           "title": "Sign Up",
           "description": "Hire agents on our platform"
+        },
+        "Form": {
+          "Fields": {
+            "Email": {
+              "label": "Email",
+              "placeholder": "me@example.com"
+            },
+            "Username": {
+              "label": "User Name",
+              "placeholder": "Jhon Doe"
+            },
+            "Password": {
+              "label": "Password",
+              "placeholder": "Password"
+            },
+            "ConfirmPassword": {
+              "label": "Confirm Password",
+              "placeholder": "Confirm Password"
+            }
+          }
         }
       }
     }
