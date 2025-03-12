@@ -1,22 +1,21 @@
 name: sokosumi
 region: fra
-databases:
-- engine: PG
-  name: db
 alerts:
 - rule: DEPLOYMENT_FAILED
 - rule: DOMAIN_FAILED
+databases:
+- engine: PG
+  name: db
+envs:
+- key: BETTER_AUTH_SECRET
+  scope: RUN_AND_BUILD_TIME
+  value: ${BETTER_AUTH_SECRET}
 services:
   - name: sokosumi-web-app
     envs:
     - key: DATABASE_URL
       scope: RUN_TIME
       value: ${db.DATABASE_URL}
-      type: SECRET
-    - key: BETTER_AUTH_SECRET
-      scope: RUN_AND_BUILD_TIME
-      value: ${BETTER_AUTH_SECRET}
-      type: SECRET
     github:
       branch: main
       repo: masumi-network/sokosumi
