@@ -1,15 +1,29 @@
-import { AbstractIntlMessages, MessageKeys, NestedKeyOf } from "next-intl";
+import {
+  MessageKeys,
+  NamespaceKeys,
+  NestedKeyOf,
+  NestedValueOf,
+} from "next-intl";
 import { z, ZodSchema } from "zod";
 
 type FormData<
   T extends z.infer<ZodSchema>,
-  Messages extends AbstractIntlMessages,
+  Path extends NamespaceKeys<IntlMessages, NestedKeyOf<IntlMessages>>,
 > = Array<{
   name: keyof T;
   type?: React.HTMLInputTypeAttribute;
-  labelKey?: MessageKeys<Messages, NestedKeyOf<Messages>>;
-  placeholderKey?: MessageKeys<Messages, NestedKeyOf<Messages>>;
-  descriptionKey?: MessageKeys<Messages, NestedKeyOf<Messages>>;
+  labelKey?: MessageKeys<
+    NestedValueOf<IntlMessages, Path>,
+    NestedKeyOf<NestedValueOf<IntlMessages, Path>>
+  >;
+  placeholderKey?: MessageKeys<
+    NestedValueOf<IntlMessages, Path>,
+    NestedKeyOf<NestedValueOf<IntlMessages, Path>>
+  >;
+  descriptionKey?: MessageKeys<
+    NestedValueOf<IntlMessages, Path>,
+    NestedKeyOf<NestedValueOf<IntlMessages, Path>>
+  >;
 }>;
 
 export type { FormData };

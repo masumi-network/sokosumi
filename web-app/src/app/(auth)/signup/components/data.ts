@@ -31,33 +31,31 @@ const signUpFormSchema = (t: IntlTranslation<"Auth.Pages.SignUp.Form">) =>
 
 type SignUpFormSchemaType = z.infer<ReturnType<typeof signUpFormSchema>>;
 
-const signUpFormData: FormData<
-  SignUpFormSchemaType,
-  IntlMessages["Auth"]["Pages"]["SignUp"]["Form"]
-> = [
-  {
-    name: "email",
-    labelKey: "Fields.Email.label",
-    placeholderKey: "Fields.Email.placeholder",
-  },
-  {
-    name: "username",
-    labelKey: "Fields.Username.label",
-    placeholderKey: "Fields.Username.placeholder",
-  },
-  {
-    name: "password",
-    labelKey: "Fields.Password.label",
-    placeholderKey: "Fields.Password.placeholder",
-    type: "password",
-  },
-  {
-    name: "confirmPassword",
-    labelKey: "Fields.ConfirmPassword.label",
-    placeholderKey: "Fields.ConfirmPassword.placeholder",
-    type: "password",
-  },
-];
+const signUpFormData: FormData<SignUpFormSchemaType, "Auth.Pages.SignUp.Form"> =
+  [
+    {
+      name: "email",
+      labelKey: "Fields.Email.label",
+      placeholderKey: "Fields.Email.placeholder",
+    },
+    {
+      name: "username",
+      labelKey: "Fields.Username.label",
+      placeholderKey: "Fields.Username.placeholder",
+    },
+    {
+      name: "password",
+      labelKey: "Fields.Password.label",
+      placeholderKey: "Fields.Password.placeholder",
+      type: "password",
+    },
+    {
+      name: "confirmPassword",
+      labelKey: "Fields.ConfirmPassword.label",
+      placeholderKey: "Fields.ConfirmPassword.placeholder",
+      type: "password",
+    },
+  ];
 
 export { signUpFormData, signUpFormSchema };
 export type { SignUpFormSchemaType };
