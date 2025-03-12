@@ -64,38 +64,37 @@ export default function SignUpForm() {
 
   return (
     <Form {...form}>
-      <form
-        onSubmit={form.handleSubmit(onSubmit)}
-        className="flex flex-col gap-6"
-      >
-        {signUpFormData.map(
-          ({ name, labelKey, placeholderKey, type, descriptionKey }) => (
-            <FormField
-              key={name}
-              control={form.control}
-              name={name}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{labelKey && t(labelKey)}</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder={placeholderKey && t(placeholderKey)}
-                      type={type || "text"}
-                      {...field}
-                    />
-                  </FormControl>
-                  {descriptionKey && (
-                    <FormDescription>{t(descriptionKey)}</FormDescription>
-                  )}
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          ),
-        )}
-        <Button type="submit" disabled={loading}>
-          {loading && <Loader2 className="animate-spin" />} Continue
-        </Button>
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        <fieldset disabled={loading} className="flex flex-col gap-6">
+          {signUpFormData.map(
+            ({ name, labelKey, placeholderKey, type, descriptionKey }) => (
+              <FormField
+                key={name}
+                control={form.control}
+                name={name}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{labelKey && t(labelKey)}</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder={placeholderKey && t(placeholderKey)}
+                        type={type || "text"}
+                        {...field}
+                      />
+                    </FormControl>
+                    {descriptionKey && (
+                      <FormDescription>{t(descriptionKey)}</FormDescription>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ),
+          )}
+          <Button type="submit" disabled={loading}>
+            {loading && <Loader2 className="animate-spin" />} Continue
+          </Button>
+        </fieldset>
       </form>
     </Form>
   );
