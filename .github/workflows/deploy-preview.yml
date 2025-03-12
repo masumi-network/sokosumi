@@ -48,7 +48,8 @@ jobs:
                 });
               }
             }
-      - uses: actions/github-script@v7
+      - name: Create success deployment comment
+        uses: actions/github-script@v7
         env:
           BUILD_LOGS: ${{ steps.deploy.outputs.build_logs }}
           DEPLOY_LOGS: ${{ steps.deploy.outputs.deploy_logs }}
@@ -61,7 +62,8 @@ jobs:
               repo: context.repo.repo,
               body: `The app was successfully deployed at ${{ fromJson(steps.deploy.outputs.app).live_url }}.`
             })
-      - uses: actions/github-script@v7
+      - name: Create failed deployment comment
+        uses: actions/github-script@v7
         if: failure()
         with:
           script: |
