@@ -2,59 +2,59 @@ import { z } from "zod";
 
 import { FormData } from "@/lib/form";
 
-const signUpFormSchema = z
-  .object({
-    username: z
-      .string()
-      .min(2, {
-        message: "User Name must be at least 2 characters.",
-      })
-      .max(50, { message: "User Name must be maximum 50 characters." }),
-    email: z.string().email({
-      message: "Please enter a valid email address.",
-    }),
-    password: z
-      .string()
-      .min(8, {
-        message: "Password must be at least 8 characters.",
-      })
-      .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, {
-        message:
-          "Password must contain at least one uppercase letter, one lowercase letter, and one number.",
+const signUpFormSchema = (t: IntlTranslation<"Auth.Pages.SignUp.Form">) =>
+  z
+    .object({
+      username: z
+        .string()
+        .min(2, {
+          message: t("Errors.Username.min"),
+        })
+        .max(50, { message: t("Errors.Username.max") }),
+      email: z.string().email({
+        message: t("Errors.Email.invalid"),
       }),
-    confirmPassword: z.string(),
-  })
-  .refine(({ password, confirmPassword }) => password === confirmPassword, {
-    message: "Password doesn't match",
-    path: ["confirmPassword"],
-  });
+      password: z
+        .string()
+        .min(8, {
+          message: t("Errors.Password.min"),
+        })
+        .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, {
+          message: t("Errors.Password.regex"),
+        }),
+      confirmPassword: z.string(),
+    })
+    .refine(({ password, confirmPassword }) => password === confirmPassword, {
+      message: t("Errors.ConfirmPassword.match"),
+      path: ["confirmPassword"],
+    });
 
-type SignUpFormSchemaType = z.infer<typeof signUpFormSchema>;
+type SignUpFormSchemaType = z.infer<ReturnType<typeof signUpFormSchema>>;
 
 const signUpFormData: FormData<
   SignUpFormSchemaType,
-  IntlMessages["Auth"]["Pages"]["SignUp"]["Form"]["Fields"]
+  IntlMessages["Auth"]["Pages"]["SignUp"]["Form"]
 > = [
   {
     name: "email",
-    labelKey: "Email.label",
-    placeholderKey: "Email.placeholder",
+    labelKey: "Fields.Email.label",
+    placeholderKey: "Fields.Email.placeholder",
   },
   {
     name: "username",
-    labelKey: "Username.label",
-    placeholderKey: "Username.placeholder",
+    labelKey: "Fields.Username.label",
+    placeholderKey: "Fields.Username.placeholder",
   },
   {
     name: "password",
-    labelKey: "Password.label",
-    placeholderKey: "Password.placeholder",
+    labelKey: "Fields.Password.label",
+    placeholderKey: "Fields.Password.placeholder",
     type: "password",
   },
   {
     name: "confirmPassword",
-    labelKey: "ConfirmPassword.label",
-    placeholderKey: "ConfirmPassword.placeholder",
+    labelKey: "Fields.ConfirmPassword.label",
+    placeholderKey: "Fields.ConfirmPassword.placeholder",
     type: "password",
   },
 ];

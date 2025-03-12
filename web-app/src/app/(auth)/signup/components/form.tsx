@@ -24,11 +24,11 @@ import { signUp } from "@/lib/auth.client";
 import { signUpFormData, signUpFormSchema, SignUpFormSchemaType } from "./data";
 
 export default function SignUpForm() {
-  const t = useTranslations("Auth.Pages.SignUp.Form.Fields");
+  const t = useTranslations("Auth.Pages.SignUp.Form");
   const router = useRouter();
 
   const form = useForm<SignUpFormSchemaType>({
-    resolver: zodResolver(signUpFormSchema),
+    resolver: zodResolver(signUpFormSchema(t)),
     defaultValues: {
       email: "",
       username: "",
