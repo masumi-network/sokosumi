@@ -9,6 +9,7 @@ permissions:
 
 jobs:
   deploy-app:
+    name: Deploy
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository

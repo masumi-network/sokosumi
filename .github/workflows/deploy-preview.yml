@@ -9,8 +9,8 @@ permissions:
   pull-requests: write
 
 jobs:
-  test:
-    name: preview
+  deploy-preview:
+    name: Deploy
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
