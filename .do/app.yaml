@@ -21,6 +21,6 @@ services:
     repo: masumi-network/sokosumi
   http_port: 3000
   instance_count: 1
-  instance_size_slug: apps-s-1vcpu-1gb
+  instance_size_slug: ${INSTANCE_SIZE_SLUG}
   name: sokosumi-web-app
   source_dir: web-app
