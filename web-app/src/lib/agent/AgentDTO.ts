@@ -51,6 +51,12 @@ export interface ExampleOutput {
   mimeType: string;
 }
 
+export interface Legal {
+  privacyPolicy: string | null;
+  terms: string | null;
+  other: string | null;
+}
+
 export class AgentDTO {
   readonly ranking: bigint;
   readonly showOnFrontPage: boolean;
@@ -74,11 +80,7 @@ export class AgentDTO {
     contactOther: string | null;
     organization: string | null;
   };
-  readonly Legal: {
-    privacyPolicy: string | null;
-    terms: string | null;
-    other: string | null;
-  };
+  readonly Legal: Legal | null;
   readonly tags: string[];
   readonly image: string;
   readonly metadataVersion: number;
@@ -144,12 +146,19 @@ export class AgentDTO {
       organization:
         agent.overrideAuthorOrganization ?? agent.onChainAuthorOrganization,
     };
-    this.Legal = {
-      privacyPolicy:
-        agent.overrideLegalPrivacyPolicy ?? agent.onChainLegalPrivacyPolicy,
-      terms: agent.overrideLegalTerms ?? agent.onChainLegalTerms,
-      other: agent.overrideLegalOther ?? agent.onChainLegalOther,
-    };
+    const privacyPolicy =
+      agent.overrideLegalPrivacyPolicy ?? agent.onChainLegalPrivacyPolicy;
+    const terms = agent.overrideLegalTerms ?? agent.onChainLegalTerms;
+    const other = agent.overrideLegalOther ?? agent.onChainLegalOther;
+
+    this.Legal =
+      privacyPolicy || terms || other
+        ? {
+            privacyPolicy,
+            terms,
+            other,
+          }
+        : null;
     this.tags =
       agent.overrideTags.length > 0 ? agent.overrideTags : agent.onChainTags;
     this.image = ipfsUrlResolver(agent.overrideImage ?? agent.onChainImage);
