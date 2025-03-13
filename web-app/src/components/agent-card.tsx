@@ -1,26 +1,31 @@
 import { Star } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
+import { useTranslations } from "next-intl";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { Agent } from "@/data/agents";
 
-export default function AgentCard({ agent }: { agent: Agent }) {
-  const {
-    title,
-    description,
-    rating,
-    image,
-    buttonText,
-    pricingTitle,
-    pricingCaption,
-    tags,
-  } = agent;
+import BadgeCloud from "./badge-cloud";
+
+interface AgentCardProps {
+  id: string;
+  title: string;
+  description: string;
+  rating: number;
+  image: string;
+  price: number;
+  tags: string[];
+}
+
+export default function AgentCard({ agent }: { agent: AgentCardProps }) {
+  const { title, description, rating, image, price, tags } = agent;
   const normalizedRating = Math.max(0, Math.min(5, Math.floor(rating)));
 
+  const t = useTranslations("Components.AgentCard");
+
   return (
-    <Card className="flex h-full w-full max-w-sm flex-col overflow-hidden py-0">
+    <Card className="flex h-full w-full max-w-md min-w-96 flex-col overflow-hidden py-0">
       <div className="relative h-48 w-full shrink-0">
         <Image
           src={image || "/placeholder.svg"}
@@ -49,22 +54,20 @@ export default function AgentCard({ agent }: { agent: Agent }) {
           {description}
         </p>
         <div className="flex min-h-[1.5rem] shrink-0 flex-nowrap overflow-hidden">
-          {tags.length > 0 &&
-            tags.slice(0, 3).map((tag, index) => (
-              <Badge key={index} variant="secondary" className="mr-2 shrink-0">
-                {tag}
-              </Badge>
-            ))}
+          <BadgeCloud tags={tags} />
         </div>
       </CardContent>
 
       <CardFooter className="mt-auto shrink-0 px-6 pt-2 pb-4">
         <div className="flex items-center gap-4">
-          <Button>{buttonText}</Button>
+          <Link href={`/gallery/${agent.id}`}>
+            <Button>{t("button")}</Button>
+          </Link>
 
           <div>
-            <h4 className="font-medium">{pricingTitle}</h4>
-            <p className="text-muted-foreground text-xs">{pricingCaption}</p>
+            <p className="text-muted-foreground text-s">
+              {t("pricing", { price })}
+            </p>
           </div>
         </div>
       </CardFooter>

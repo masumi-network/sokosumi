@@ -206,7 +206,13 @@ async function main() {
         onChainAuthorName: "Demo Author",
         onChainTags: agent.tags,
         onChainMetadataVersion: 1,
-
+        Rating: {
+          create: {
+            totalStars: BigInt(0),
+            totalRatings: BigInt(0),
+          },
+        },
+        
         // No overrides initially
         overrideName: null,
         overrideDescription: null,
@@ -218,7 +224,11 @@ async function main() {
         overrideTags: [],
         overrideMetadataVersion: null,
 
-        agentPricingId: pricing.id,
+        Pricing: {
+          connect: {
+            id: pricing.id
+          }
+        },
         agentIdentifier: `demo-${index}-${agent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
         status: "Online",
         showOnFrontPage: true,

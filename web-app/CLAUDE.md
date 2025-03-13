@@ -22,3 +22,6 @@
 - Use descriptive variable names with auxiliary verbs (isLoading, hasError)
 - Structure files: exports, subcomponents, helpers, types
 - Error handling: use try/catch with descriptive error messages
+
+## Git Style
+- use [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/) for commits and pull request titles
