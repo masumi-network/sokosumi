@@ -9,6 +9,7 @@ import { getAgentById } from "@/lib/db/services/agent.service";
 import Details from "./components/agent-details";
 
 export const dynamic = "force-dynamic";
+export const revalidate = 60;
 
 export default async function Page({
   params,
