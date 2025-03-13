@@ -1,12 +1,15 @@
+import { connection } from "next/server";
 import { Suspense } from "react";
 
 import AgentCard, { AgentCardSkeleton } from "@/components/agent-card";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
+import { getAllAgents } from "@/lib/db/services/agent.service";
 
 import HorizontalScroll from "../components/horizontal-scroll";
 
 async function AgentsList() {
-  const agents: AgentDTO[] = await [];
+  await connection();
+  const agents: AgentDTO[] = await getAllAgents();
   return (
     <HorizontalScroll itemClassName="h-[32rem] w-[24rem]">
       {agents.map((agent) => (
