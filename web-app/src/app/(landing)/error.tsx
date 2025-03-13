@@ -20,7 +20,7 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  const t = useTranslations("Error");
+  const t = useTranslations("Landing.Error");
 
   useEffect(() => {
     // Log the error to an error reporting service
