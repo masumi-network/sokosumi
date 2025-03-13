@@ -11,7 +11,7 @@ const agentInclude = {
   UserAgentRating: true,
 } as const;
 
-export async function getAllAgents() {
+export async function getAllAgents(): Promise<AgentDTO[]> {
   const agents = await prisma.agent.findMany({
     include: agentInclude,
   });
@@ -23,7 +23,7 @@ export async function getAllAgents() {
   return agents.map((agent) => new AgentDTO(agent));
 }
 
-export async function getAgentById(id: string) {
+export async function getAgentById(id: string): Promise<AgentDTO> {
   const agent = await prisma.agent.findUnique({
     where: { id },
     include: agentInclude,
