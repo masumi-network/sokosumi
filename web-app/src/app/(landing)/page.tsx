@@ -89,9 +89,9 @@ async function AgentsGallery() {
           id={agent.id}
           name={agent.name}
           description={agent.description ?? ""}
-          averageStars={Number(agent.Rating.averageStars)}
+          averageStars={agent.Rating.averageStars}
           image={agent.image}
-          price={Number(agent.Pricing.FixedPricing.Amounts[0].amount)}
+          price={agent.Pricing.credits}
           tags={agent.tags}
         />
       ))}

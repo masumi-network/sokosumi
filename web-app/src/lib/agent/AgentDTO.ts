@@ -19,42 +19,50 @@ type AgentWithRelations = Prisma.AgentGetPayload<{
   };
 }>;
 
+export interface Pricing {
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
+  credits: number;
+  pricingType: PricingType;
+  FixedPricing: FixedPricing;
+}
+
+export interface FixedPricing {
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
+  Amounts: Amount[];
+}
+
+export interface Amount {
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
+  unit: string;
+  amount: bigint;
+}
+
+export interface ExampleOutput {
+  id: string;
+  createdAt: Date;
+  updatedAt: Date;
+  name: string;
+  mimeType: string;
+}
+
 export class AgentDTO {
   readonly ranking: bigint;
   readonly showOnFrontPage: boolean;
   readonly agentIdentifier: string;
-  readonly Pricing: {
-    id: string;
-    createdAt: Date;
-    updatedAt: Date;
-    pricingType: PricingType;
-    FixedPricing: {
-      id: string;
-      createdAt: Date;
-      updatedAt: Date;
-      Amounts: {
-        id: string;
-        createdAt: Date;
-        updatedAt: Date;
-        unit: string;
-        amount: bigint;
-      }[];
-    };
-  };
+  readonly Pricing: Pricing;
   readonly id: string;
   readonly name: string;
   readonly description: string | null;
   readonly apiBaseUrl: string;
   readonly createdAt: Date;
   readonly updatedAt: Date;
-  readonly ExampleOutput: {
-    id: string;
-    createdAt: Date;
-    updatedAt: Date;
-    name: string;
-    mimeType: string;
-    url: string;
-  }[];
+  readonly ExampleOutput: ExampleOutput[];
   readonly Capability: {
     name: string;
     version: string;
@@ -157,6 +165,7 @@ export class AgentDTO {
       createdAt: agent.Pricing.createdAt,
       updatedAt: agent.Pricing.updatedAt,
       pricingType: agent.Pricing.pricingType,
+      credits: this.calculateCredits(agent.Pricing.FixedPricing),
       FixedPricing: {
         id: agent.Pricing.FixedPricing.id,
         createdAt: agent.Pricing.FixedPricing.createdAt,
@@ -170,5 +179,9 @@ export class AgentDTO {
 
   static create(agent: AgentWithRelations): AgentDTO {
     return new AgentDTO(agent);
+  }
+
+  private calculateCredits(fixedPricing: FixedPricing): number {
+    return Number(fixedPricing.Amounts[0].amount);
   }
 }
