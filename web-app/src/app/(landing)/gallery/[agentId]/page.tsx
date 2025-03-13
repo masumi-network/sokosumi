@@ -4,7 +4,7 @@ import { getTranslations } from "next-intl/server";
 
 import { getAgentById } from "@/lib/db/services/agent.service";
 
-import AgentSummary from "./components/agent-details";
+import Details from "./components/agent-details";
 
 export default async function Page({
   params,
@@ -20,7 +20,7 @@ export default async function Page({
     <div className="container mx-auto px-4 pb-8">
       {/* Agent Summary */}
       <div className="space-y-4">
-        <AgentSummary
+        <Details
           name={agent.name}
           description={agent.description ?? ""}
           author={agent.Author.name}
