@@ -23,7 +23,7 @@ export default function Header() {
 function AuthButtons() {
   return (
     <div className="flex items-center gap-4">
-      <SignInButton />
+      <SignInButton variant="outline" />
       <SignUpButton />
     </div>
   );
