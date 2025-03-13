@@ -1,31 +1,15 @@
 import { Suspense } from "react";
 
 import AgentCard, { AgentCardSkeleton } from "@/components/agent-card";
-import { AgentDTO } from "@/lib/db/dto/AgentDTO";
-import { prisma } from "@/lib/db/prisma";
+import { getAllAgents } from "@/lib/db/services/agent.service";
 
 import HorizontalScroll from "../components/horizontal-scroll";
 
 async function AgentsList() {
-  const agents = await prisma.agent.findMany({
-    include: {
-      Pricing: {
-        include: { FixedPricing: { include: { Amounts: true } } },
-      },
-      ExampleOutput: true,
-      ExampleOutputOverride: true,
-      Rating: true,
-      UserAgentRating: true,
-    },
-  });
-  if (!agents) {
-    throw new Error("Agent not found");
-  }
-
-  const agentsDTO = agents.map((agent) => new AgentDTO(agent));
+  const agents = await getAllAgents();
   return (
     <HorizontalScroll itemClassName="h-[32rem] w-[24rem]">
-      {agentsDTO.map((agent) => (
+      {agents.map((agent) => (
         <AgentCard
           key={agent.id}
           id={agent.id}

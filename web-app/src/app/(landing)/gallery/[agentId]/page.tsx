@@ -2,35 +2,17 @@ import Image from "next/image";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
-import { AgentDTO } from "@/lib/db/dto/AgentDTO";
-import { prisma } from "@/lib/db/prisma";
+import { getAgentById } from "@/lib/db/services/agent.service";
 
 import AgentSummary from "./components/agent-details";
 
 export default async function Page({
   params,
 }: {
-  params: Promise<{ agent: string }>;
+  params: Promise<{ agentId: string }>;
 }) {
-  const { agent } = await params;
-  const _agent = await prisma.agent.findUnique({
-    where: {
-      id: agent,
-    },
-    include: {
-      Pricing: {
-        include: { FixedPricing: { include: { Amounts: true } } },
-      },
-      ExampleOutput: true,
-      ExampleOutputOverride: true,
-      Rating: true,
-      UserAgentRating: true,
-    },
-  });
-  if (!_agent) {
-    throw new Error("Agent not found");
-  }
-  const agentDTO = new AgentDTO(_agent);
+  const { agentId } = await params;
+  const agent = await getAgentById(agentId);
 
   const t = await getTranslations("Landing.Gallery.Agent");
 
@@ -39,15 +21,15 @@ export default async function Page({
       {/* Agent Summary */}
       <div className="space-y-4">
         <AgentSummary
-          name={agentDTO.name}
-          description={agentDTO.description ?? ""}
-          author={agentDTO.Author.name}
-          image={agentDTO.image}
-          credits={agentDTO.Pricing.credits}
-          tags={agentDTO.tags}
+          name={agent.name}
+          description={agent.description ?? ""}
+          author={agent.Author.name}
+          image={agent.image}
+          credits={agent.Pricing.credits}
+          tags={agent.tags}
         />
         <div className="flex gap-4 overflow-x-auto pb-4">
-          {agentDTO.ExampleOutput.map((_, index) => (
+          {agent.ExampleOutput.map((_, index) => (
             <Image
               key={index}
               src="/placeholder.svg"
@@ -61,26 +43,26 @@ export default async function Page({
         </div>
         {/* Developer Information */}
         <div className="text-muted-foreground flex gap-6 text-sm">
-          {agentDTO.Legal && <p>{t("Legal.fromDeveloper")}</p>}
-          {agentDTO.Legal?.privacyPolicy && (
+          {agent.Legal && <p>{t("Legal.fromDeveloper")}</p>}
+          {agent.Legal?.privacyPolicy && (
             <Link
-              href={agentDTO.Legal.privacyPolicy}
+              href={agent.Legal.privacyPolicy}
               className="hover:text-foreground underline underline-offset-4 transition-colors"
             >
               {t("Legal.privacyPolicy")}
             </Link>
           )}
-          {agentDTO.Legal?.terms && (
+          {agent.Legal?.terms && (
             <Link
-              href={agentDTO.Legal.terms}
+              href={agent.Legal.terms}
               className="hover:text-foreground underline underline-offset-4 transition-colors"
             >
               {t("Legal.terms")}
             </Link>
           )}
-          {agentDTO.Legal?.other && (
+          {agent.Legal?.other && (
             <Link
-              href={agentDTO.Legal.other}
+              href={agent.Legal.other}
               className="hover:text-foreground underline underline-offset-4 transition-colors"
             >
               {t("Legal.other")}

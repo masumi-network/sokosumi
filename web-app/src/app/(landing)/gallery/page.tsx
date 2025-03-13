@@ -2,8 +2,7 @@ import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import AgentCard from "@/components/agent-card";
-import { AgentDTO } from "@/lib/db/dto/AgentDTO";
-import { prisma } from "@/lib/db/prisma";
+import { getAllAgents } from "@/lib/db/services/agent.service";
 
 import { FeaturedAgent } from "./featured-agent";
 
@@ -17,22 +16,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function GalleryPage() {
-  const agents = await prisma.agent.findMany({
-    include: {
-      Pricing: {
-        include: { FixedPricing: { include: { Amounts: true } } },
-      },
-      ExampleOutput: true,
-      ExampleOutputOverride: true,
-      Rating: true,
-      UserAgentRating: true,
-    },
-  });
-  if (!agents) {
-    throw new Error("Agent not found");
-  }
+  const agentsDTO = await getAllAgents();
 
-  const agentsDTO = agents.map((agent) => new AgentDTO(agent));
   return (
     <div className="container mx-auto px-4 pt-4 pb-8">
       <div className="space-y-12">
