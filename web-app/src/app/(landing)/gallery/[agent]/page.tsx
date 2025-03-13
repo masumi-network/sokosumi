@@ -7,11 +7,17 @@ import { AgentDTO } from "@/lib/agent/AgentDTO";
 
 import AgentSummary from "./components/agent-details";
 
+// Debug delay function
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export default async function Page({
   params,
 }: {
   params: Promise<{ agent: string }>;
 }) {
+  // Add 5 second delay for debugging
+  await delay(5000);
+
   const { agent } = await params;
   const prisma = new PrismaClient();
   const _agent = await prisma.agent.findUnique({
