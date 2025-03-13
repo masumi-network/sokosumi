@@ -78,12 +78,10 @@ async function AgentsGallery() {
     throw new Error("Agent not found");
   }
 
-  const unifiedAgents = agents.map((agent) => new AgentDTO(agent));
-  console.log("unifiedAgents");
-  console.log(unifiedAgents);
+  const agentsDTO = agents.map((agent) => new AgentDTO(agent));
   return (
     <HorizontalScroll>
-      {unifiedAgents.map((agent, _) => (
+      {agentsDTO.map((agent) => (
         <AgentCard
           key={agent.id}
           id={agent.id}

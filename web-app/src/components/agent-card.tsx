@@ -40,7 +40,7 @@ export default function AgentCard({
         />
       </div>
 
-      <CardContent className="flex flex-1 flex-col px-6 pt-4 pb-3">
+      <CardContent className="flex flex-1 flex-col px-6 pb-3">
         <div
           className="mb-2 flex shrink-0"
           aria-label={`Rating: ${normalizedRating} out of 5 stars`}
