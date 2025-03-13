@@ -2,8 +2,8 @@ import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import AgentCard from "@/components/agent-card";
-import { AgentDTO } from "@/lib/agent/AgentDTO";
-import { prisma } from "@/lib/prisma";
+import { AgentDTO } from "@/lib/db/dto/AgentDTO";
+import { prisma } from "@/lib/db/prisma";
 
 import { FeaturedAgent } from "./featured-agent";
 

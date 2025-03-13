@@ -9,9 +9,9 @@ import {
 } from "better-auth/plugins";
 import { passkey } from "better-auth/plugins/passkey";
 
+import { prisma } from "./db/prisma";
 import { resend } from "./email/resend";
 import { reactResetPasswordEmail } from "./email/reset-password";
-import { prisma } from "./prisma";
 
 const fromEmail = process.env.BETTER_AUTH_EMAIL || "no-reply@masumi.network";
 

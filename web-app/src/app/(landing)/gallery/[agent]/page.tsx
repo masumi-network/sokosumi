@@ -2,8 +2,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
-import { AgentDTO } from "@/lib/agent/AgentDTO";
-import { prisma } from "@/lib/prisma";
+import { AgentDTO } from "@/lib/db/dto/AgentDTO";
+import { prisma } from "@/lib/db/prisma";
 
 import AgentSummary from "./components/agent-details";
 

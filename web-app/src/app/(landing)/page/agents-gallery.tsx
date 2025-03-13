@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 
 import AgentCard, { AgentCardSkeleton } from "@/components/agent-card";
-import { AgentDTO } from "@/lib/agent/AgentDTO";
-import { prisma } from "@/lib/prisma";
+import { AgentDTO } from "@/lib/db/dto/AgentDTO";
+import { prisma } from "@/lib/db/prisma";
 
 import HorizontalScroll from "../components/horizontal-scroll";
 
