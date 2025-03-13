@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 
 import BadgeCloud from "@/components/badge-cloud";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface FeaturedAgentProps {
   id: string;
@@ -11,6 +12,32 @@ interface FeaturedAgentProps {
   description: string;
   image: string;
   tags: string[];
+}
+
+export function FeaturedAgentSkeleton() {
+  return (
+    <div className="flex flex-col items-center gap-8 md:flex-row">
+      {/* Text Content Section - 1/3 width */}
+      <div className="w-full space-y-6 md:w-1/3">
+        <Skeleton className="h-8 w-32" />
+        <div className="space-y-4">
+          <Skeleton className="h-12 w-48" />
+        </div>
+        <Skeleton className="h-20 w-full" />
+        <div className="flex flex-wrap gap-2">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-6 w-16" />
+          ))}
+        </div>
+        <Skeleton className="h-11 w-full md:w-32" />
+      </div>
+
+      {/* Image Section - 2/3 width */}
+      <div className="relative aspect-16/9 w-full overflow-hidden rounded-lg md:w-2/3">
+        <Skeleton className="h-full w-full" />
+      </div>
+    </div>
+  );
 }
 
 export function FeaturedAgent({

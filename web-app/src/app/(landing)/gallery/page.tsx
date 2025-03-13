@@ -16,8 +16,15 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
+async function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export default async function GalleryPage() {
   const prisma = new PrismaClient();
+  // Add 5 second delay for debugging
+  await delay(5000);
+
   const agents = await prisma.agent.findMany({
     include: {
       Pricing: {
