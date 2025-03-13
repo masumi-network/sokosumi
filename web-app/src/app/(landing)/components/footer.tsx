@@ -3,8 +3,8 @@ import { useTranslations } from "next-intl";
 
 import { SokosumiLogo } from "@/components/masumi-logos";
 
-export default function MainFooter() {
-  const t = useTranslations("Components.MainFooter.Navigation");
+export default function Footer() {
+  const t = useTranslations("Landing.Footer.Navigation");
   return (
     <footer
       id="footer"

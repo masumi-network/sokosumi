@@ -3,20 +3,6 @@
     "AgentCard": {
       "button": "Show details",
       "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
-    },
-    "MainNavigation": {
-      "agents": "Agents Gallery",
-      "howItWorks": "How It Works",
-      "community": "Join Our Community",
-      "monetize": "Monetize"
-    },
-    "MainFooter": {
-      "Navigation": {
-        "PrivacyPolicy": "Privacy Policy",
-        "TermsAndConditions": "Terms & Conditions",
-        "CookiePolicy": "Cookie Policy",
-        "Contact": "Contact"
-      }
     }
   },
   "Auth": {
@@ -118,6 +104,22 @@
         "template": "Sokosumi - %s"
       },
       "description": "Hire yourself an agent to finish the most time consuming tasks"
+    },
+    "Header": {
+      "Navigation": {
+        "agents": "Agents Gallery",
+        "howItWorks": "How It Works",
+        "community": "Join Our Community",
+        "monetize": "Monetize"
+      }
+    },
+    "Footer": {
+      "Navigation": {
+        "PrivacyPolicy": "Privacy Policy",
+        "TermsAndConditions": "Terms & Conditions",
+        "CookiePolicy": "Cookie Policy",
+        "Contact": "Contact"
+      }
     },
     "Page": {
       "Hero": {

@@ -1,6 +1,7 @@
-import AuthButton from "@/app/(auth)/components/auth-button";
-import MainNavigation from "@/components/main-navigation";
 import { SokosumiLogo } from "@/components/masumi-logos";
+
+import AuthButton from "./auth-button";
+import Navigation from "./navigation";
 
 export default function Header() {
   return (
@@ -10,7 +11,7 @@ export default function Header() {
         <SokosumiLogo />
 
         {/* Middle - Navigation Links */}
-        <MainNavigation />
+        <Navigation />
 
         {/* Right - Auth Buttons */}
         <AuthButtons />

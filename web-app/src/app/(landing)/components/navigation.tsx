@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 
 type NavigationLink = {
   href: string;
-  labelKey: keyof IntlMessages["Components"]["MainNavigation"];
+  labelKey: keyof IntlMessages["Landing"]["Header"]["Navigation"];
   showChevron?: boolean;
 };
 
@@ -36,12 +36,12 @@ const navigationLinks: NavigationLink[] = [
   },
 ];
 
-export default function MainNavigation({
+export default function Navigation({
   className,
   ...props
 }: React.HTMLAttributes<HTMLElement>) {
   const pathname = usePathname();
-  const t = useTranslations("Components.MainNavigation");
+  const t = useTranslations("Landing.Header.Navigation");
 
   return (
     <nav
