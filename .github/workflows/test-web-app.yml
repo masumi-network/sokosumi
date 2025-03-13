@@ -10,6 +10,7 @@ permissions:
 
 env:
   DATABASE_URL: "postgresql://user:password@localhost:5432/sokosumi"
+  BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
 
 jobs:
   build:
