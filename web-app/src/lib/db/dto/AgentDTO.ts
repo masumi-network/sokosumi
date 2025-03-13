@@ -40,7 +40,7 @@ export interface Amount {
   createdAt: Date;
   updatedAt: Date;
   unit: string;
-  amount: bigint;
+  amount: number;
 }
 
 export interface ExampleOutput {
@@ -64,7 +64,7 @@ export interface Rating {
 }
 
 export class AgentDTO {
-  readonly ranking: bigint;
+  readonly ranking: number;
   readonly showOnFrontPage: boolean;
   readonly agentIdentifier: string;
   readonly Pricing: Pricing;
@@ -182,15 +182,20 @@ export class AgentDTO {
       createdAt: agent.Pricing.createdAt,
       updatedAt: agent.Pricing.updatedAt,
       pricingType: agent.Pricing.pricingType,
-      credits: this.calculateCredits(agent.Pricing.FixedPricing),
+      credits: this.calculateCredits(
+        Number(agent.Pricing.FixedPricing.Amounts[0].amount),
+      ),
       FixedPricing: {
         id: agent.Pricing.FixedPricing.id,
         createdAt: agent.Pricing.FixedPricing.createdAt,
         updatedAt: agent.Pricing.FixedPricing.updatedAt,
-        Amounts: agent.Pricing.FixedPricing.Amounts,
+        Amounts: agent.Pricing.FixedPricing.Amounts.map((amount) => ({
+          ...amount,
+          amount: Number(amount.amount),
+        })),
       },
     };
-    this.ranking = agent.ranking;
+    this.ranking = Number(agent.ranking);
     this.showOnFrontPage = agent.showOnFrontPage;
   }
 
@@ -198,7 +203,7 @@ export class AgentDTO {
     return new AgentDTO(agent);
   }
 
-  private calculateCredits(fixedPricing: FixedPricing): number {
-    return Number(fixedPricing.Amounts[0].amount);
+  private calculateCredits(amount: number): number {
+    return amount;
   }
 }

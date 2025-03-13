@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import AgentCard from "@/components/agent-card";
-import { getAllAgents } from "@/lib/db/services/agent.service";
+import { getCachedAgents } from "@/lib/db/services/agent.service";
 
 import { FeaturedAgent } from "./featured-agent";
 
@@ -15,11 +15,8 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export const dynamic = "force-dynamic";
-export const revalidate = 60;
-
 export default async function GalleryPage() {
-  const agentsDTO = await getAllAgents();
+  const agentsDTO = await getCachedAgents();
 
   return (
     <div className="container mx-auto px-4 pt-4 pb-8">

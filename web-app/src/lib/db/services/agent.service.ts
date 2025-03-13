@@ -1,3 +1,5 @@
+import { unstable_cache } from "next/cache";
+
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 import prisma from "@/lib/db/prisma";
 
@@ -11,7 +13,18 @@ const agentInclude = {
   UserAgentRating: true,
 } as const;
 
-export async function getAllAgents(): Promise<AgentDTO[]> {
+export const getCachedAgents = unstable_cache(
+  async (): Promise<AgentDTO[]> => {
+    return await getAgents();
+  },
+  ["agents"],
+  {
+    revalidate: 3600,
+    tags: ["agents"],
+  },
+);
+
+export async function getAgents(): Promise<AgentDTO[]> {
   const agents = await prisma.agent.findMany({
     include: agentInclude,
   });

@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
-import { getAgentById, getAllAgents } from "@/lib/db/services/agent.service";
+import { getAgentById, getAgents } from "@/lib/db/services/agent.service";
 
 import Details from "./components/agent-details";
 
@@ -18,7 +18,7 @@ export const revalidate = 3600;
 export const dynamicParams = true; // or false, to 404 on unknown paths
 
 export async function generateStaticParams() {
-  const agents: AgentDTO[] = await getAllAgents();
+  const agents = await getAgents();
   return agents.map((agent) => ({
     agentId: String(agent.id),
   }));
