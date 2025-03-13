@@ -49,7 +49,7 @@ export default function NavigationMenu({
           href={nav.href}
           label={t(nav.labelKey)}
           showChevron={nav.showChevron}
-          className="inline-flex items-center gap-1 px-4 py-2.5 text-sm font-medium transition-colors"
+          className="inline-flex items-center gap-1 p-2 text-sm font-medium transition-colors"
           activeClassName="bg-landing-navigation-active text-primary"
           inActiveClassName="text-muted-foreground hover:text-primary"
         />

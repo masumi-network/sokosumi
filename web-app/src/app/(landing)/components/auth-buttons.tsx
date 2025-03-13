@@ -4,7 +4,13 @@ import { usePathname } from "next/navigation";
 
 import { SignInButton, SignUpButton } from "@/app/(landing)/(auth)/buttons";
 
-export default function AuthButton() {
+interface AuthButtonsProps {
+  containerClassName?: string;
+}
+
+export default function AuthButtons({
+  containerClassName = "flex items-center gap-4",
+}: AuthButtonsProps) {
   const pathname = usePathname();
 
   if (pathname.startsWith("/signin")) return <SignUpButton />;
@@ -12,7 +18,7 @@ export default function AuthButton() {
   if (pathname.startsWith("/signup")) return <SignInButton />;
 
   return (
-    <div className="flex items-center gap-4">
+    <div className={containerClassName}>
       <SignInButton variant="outline" />
       <SignUpButton />
     </div>

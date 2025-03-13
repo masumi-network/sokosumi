@@ -1,17 +1,9 @@
-import { cn } from "@/lib/utils";
-
 import NavigationMenu from "./navigation-menu";
 
-export default function Navigation({
-  className,
-  ...props
-}: React.HTMLAttributes<HTMLElement>) {
+export default function Navigation() {
   return (
-    <nav
-      className={cn("flex items-center gap-x-4 lg:gap-x-6", className)}
-      {...props}
-    >
-      <NavigationMenu className="flex-row items-center gap-x-4 lg:gap-x-6" />
+    <nav className="mx-4 hidden flex-1 lg:block">
+      <NavigationMenu className="flex-row items-center justify-around gap-x-4" />
     </nav>
   );
 }
