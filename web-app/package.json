@@ -47,7 +47,7 @@
     "clsx": "^2.1.1",
     "lucide-react": "^0.479.0",
     "next": "^15.2.2",
-    "next-intl": "^3.26.5",
+    "next-intl": "^4.0.1",
     "next-themes": "^0.4.6",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
@@ -64,7 +64,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.0",
     "@hey-api/openapi-ts": "^0.64.11",
-    "@swc/core": "^1.11.8",
+    "@swc/core": "^1.11.9",
     "@swc/helpers": "^0.5.15",
     "@tailwindcss/postcss": "^4.0.13",
     "@testing-library/jest-dom": "6.6.3",

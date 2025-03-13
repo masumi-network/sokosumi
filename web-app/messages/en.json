@@ -1,4 +1,10 @@
 {
+  "Components": {
+    "AgentCard": {
+      "button": "Show details",
+      "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
+    }
+  },
   "Auth": {
     "Metadata": {
       "Title": {
@@ -176,7 +182,19 @@
       },
       "FeaturedAgent": {
         "title": "an absolute must-have",
-        "button": "Hire this banger"
+        "button": "Show details"
+      },
+      "Agent": {
+        "hire": "Hire",
+        "share": "Share",
+        "byAuthor": "by {author}",
+        "Legal": {
+          "fromDeveloper": "From the developer:",
+          "privacyPolicy": "Privacy Policy",
+          "terms": "Terms",
+          "other": "Other"
+        },
+        "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
       }
     }
   },

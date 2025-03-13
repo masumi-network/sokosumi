@@ -1,5 +1,4 @@
 import { Metadata } from "next";
-import { useTranslations } from "next-intl";
 import { getTranslations } from "next-intl/server";
 
 import AgentCard from "@/components/agent-card";
@@ -17,16 +16,12 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default function GalleryPage() {
-  const t = useTranslations("Landing.Gallery");
+  const agent = dummyAgents[0];
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 pt-4 pb-8">
       <div className="space-y-12">
         {/* Featured Agent Section */}
-        <FeaturedAgent
-          sectionTitle={t("FeaturedAgent.title")}
-          agent={dummyAgents[0]}
-          buttonText={t("FeaturedAgent.button")}
-        />
+        <FeaturedAgent agent={agent} />
 
         {/* Agent Cards Grid */}
         <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">

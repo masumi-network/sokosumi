@@ -1,6 +1,6 @@
 {
   "version": "0.2",
-  "language": "en",
+  "language": "en, lorem",
   "words": ["masumi", "sokosumi", "kodosumi"],
   "ignorePaths": [
     "node_modules",

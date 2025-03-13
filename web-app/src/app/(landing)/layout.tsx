@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
+import BreadcrumbNav from "./components/breadcrumb-nav";
 import Footer from "./components/footer";
 import Header from "./components/header";
 
@@ -24,6 +25,7 @@ export default function LandingLayout({ children }: LandingLayoutProps) {
   return (
     <div className="flex min-h-screen flex-col">
       <Header />
+      <BreadcrumbNav />
       <main className="flex-1">{children}</main>
       <Footer />
     </div>
