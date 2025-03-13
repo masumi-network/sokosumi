@@ -26,8 +26,8 @@ export default function AuthLayout({
   return (
     <div className="flex flex-1 flex-col">
       <Header />
-      <div className="container grid flex-1 grid-cols-1 justify-items-center gap-8 px-8 py-24 xl:grid-cols-2 xl:justify-items-start">
-        <div className="hidden xl:block">
+      <div className="container grid flex-1 grid-cols-1 justify-items-center gap-6 px-6 py-12 md:py-24 lg:grid-cols-2 lg:justify-items-start">
+        <div className="hidden lg:block">
           <Heroes />
         </div>
         <div className="w-full max-w-xl rounded-lg border border-gray-200 p-3">
