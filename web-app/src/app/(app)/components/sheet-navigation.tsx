@@ -11,7 +11,7 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
-import NavMenu from "./nav-menu";
+import NavigationMenu from "./navigation-menu";
 
 export default function SheetNavigation() {
   return (
@@ -31,7 +31,7 @@ export default function SheetNavigation() {
           <SheetDescription />
         </SheetHeader>
         <nav className="mt-4">
-          <NavMenu className="flex-col gap-4 text-base" />
+          <NavigationMenu className="flex-col gap-4 text-base" />
         </nav>
       </SheetContent>
     </Sheet>

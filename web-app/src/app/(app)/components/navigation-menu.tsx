@@ -1,30 +1,37 @@
 import { useTranslations } from "next-intl";
 
+import NavigationLink from "@/components/navigation-link";
 import { cn } from "@/lib/utils";
 
-import NavLink from "./nav-link";
-
-const navItems: Array<{
+type NavigationLinkData = {
   href: string;
   labelKey: keyof IntlMessages["App"]["Header"]["NavMenu"];
-}> = [
+};
+
+const navItems: NavigationLinkData[] = [
   { href: "/dashboard", labelKey: "home" },
   { href: "/jobs", labelKey: "jobs" },
   { href: "/billing", labelKey: "billing" },
   { href: "/settings", labelKey: "settings" },
 ];
 
-interface NavMenuProps {
+interface NavigationMenuProps {
   className?: string;
 }
 
-export default function NavMenu({ className = "" }: NavMenuProps) {
+export default function NavigationMenu({
+  className = "",
+}: NavigationMenuProps) {
   const t = useTranslations("App.Header.NavMenu");
 
   return (
     <ul className={cn("flex", className)}>
       {navItems.map((nav) => (
-        <NavLink key={nav.labelKey} href={nav.href} label={t(nav.labelKey)} />
+        <NavigationLink
+          key={nav.labelKey}
+          href={nav.href}
+          label={t(nav.labelKey)}
+        />
       ))}
       <div className="text-muted-foreground font-bold">
         {t("creditsBalance", { balance: "6901" })}

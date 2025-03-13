@@ -18,7 +18,7 @@ interface NavigationLinkProps {
 export default function NavigationLink({
   href,
   label,
-  className = "",
+  className = "hover:text-foreground/80 transition-colors",
   activeClassName = "text-foreground underline",
   inActiveClassName = "text-foreground/50",
   showChevron,
