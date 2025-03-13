@@ -187,6 +187,7 @@
         "title": "Agents Gallery",
         "description": "Explore our collection of agents."
       },
+      "noAgentsAvailable": "No agents available",
       "FeaturedAgent": {
         "title": "an absolute must-have",
         "button": "Show details"

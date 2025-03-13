@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { useTranslations } from "next-intl";
 import { getTranslations } from "next-intl/server";
 
 import AgentCard from "@/components/agent-card";
@@ -17,10 +18,14 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 function EmptyGallery() {
+  const t = useTranslations("Landing.Gallery");
+
   return (
     <div className="container mx-auto px-4 pt-4 pb-8">
       <div className="flex h-[50vh] items-center justify-center">
-        <p className="text-muted-foreground text-lg">No agents available</p>
+        <p className="text-muted-foreground text-lg">
+          {t("noAgentsAvailable")}
+        </p>
       </div>
     </div>
   );
