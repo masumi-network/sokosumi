@@ -8,6 +8,9 @@ permissions:
   contents: write
   pull-requests: write
 
+env:
+  DATABASE_URL: "postgresql://user:password@localhost:5432/sokosumi"
+
 jobs:
   build:
     name: Build and Test
@@ -55,7 +58,8 @@ jobs:
       - name: Run Tests
         run: npm run test:ci
 
+      - name: Run Prisma Migrate
+        run: npm run prisma:migrate
+
       - name: Run Build
-        env:
-          DATABASE_URL: "postgresql://user:password@localhost:5432/sokosumi"
         run: npm run build
