@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
+import MainFooter from "@/components/main-footer";
+
 import Header from "./components/header";
 import Heroes from "./components/heroes";
 
@@ -24,14 +26,15 @@ export default function AuthLayout({
   return (
     <div className="flex flex-1 flex-col">
       <Header />
-      <div className="container grid flex-1 grid-cols-1 gap-8 p-8 lg:grid-cols-2">
-        <div className="hidden items-start justify-start lg:flex">
+      <div className="container grid flex-1 grid-cols-1 justify-items-center gap-8 px-8 py-24 xl:grid-cols-2 xl:justify-items-start">
+        <div className="hidden xl:block">
           <Heroes />
         </div>
-        <div className="flex max-w-3xl items-start justify-start rounded-lg border border-gray-200 p-3">
-          <div className="flex w-full flex-col">{children}</div>
+        <div className="w-full max-w-xl rounded-lg border border-gray-200 p-3">
+          <div className="flex flex-col">{children}</div>
         </div>
       </div>
+      <MainFooter />
     </div>
   );
 }
