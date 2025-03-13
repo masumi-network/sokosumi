@@ -1,10 +1,14 @@
 import Image from "next/image";
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
+import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 import { getAgentById } from "@/lib/db/services/agent.service";
 
 import Details from "./components/agent-details";
+
+export const dynamic = "force-dynamic";
 
 export default async function Page({
   params,
@@ -12,7 +16,12 @@ export default async function Page({
   params: Promise<{ agentId: string }>;
 }) {
   const { agentId } = await params;
-  const agent = await getAgentById(agentId);
+  let agent: AgentDTO;
+  try {
+    agent = await getAgentById(agentId);
+  } catch {
+    notFound();
+  }
 
   const t = await getTranslations("Landing.Gallery.Agent");
 

@@ -1,5 +1,5 @@
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
-import { prisma } from "@/lib/db/prisma";
+import prisma from "@/lib/db/prisma";
 
 const agentInclude = {
   Pricing: {
