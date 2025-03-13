@@ -24,14 +24,16 @@ export default function AuthLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="flex min-h-svh flex-1 flex-col">
       <Header />
       <div className="container grid flex-1 grid-cols-1 justify-items-center gap-6 px-6 py-12 md:py-24 lg:grid-cols-2 lg:justify-items-start">
         <div className="hidden lg:block">
           <Heroes />
         </div>
-        <div className="w-full max-w-xl rounded-lg border border-gray-200 p-3">
-          <div className="flex flex-col">{children}</div>
+        <div className="w-full max-w-xl">
+          <div className="flex flex-col rounded-lg border border-gray-200 p-3">
+            {children}
+          </div>
         </div>
       </div>
       <MainFooter />
