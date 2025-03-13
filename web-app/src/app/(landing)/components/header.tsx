@@ -1,4 +1,4 @@
-import { SignInButton, SignUpButton } from "@/app/(auth)/buttons";
+import AuthButton from "@/app/(auth)/components/auth-button";
 import MainNavigation from "@/components/main-navigation";
 import { SokosumiLogo } from "@/components/masumi-logos";
 
@@ -22,8 +22,7 @@ export default function Header() {
 function AuthButtons() {
   return (
     <div className="flex items-center gap-4">
-      <SignInButton variant="outline" />
-      <SignUpButton />
+      <AuthButton />
     </div>
   );
 }
