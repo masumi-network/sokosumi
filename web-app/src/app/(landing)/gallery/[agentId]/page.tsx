@@ -4,12 +4,25 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
-import { getAgentById } from "@/lib/db/services/agent.service";
+import { getAgentById, getAllAgents } from "@/lib/db/services/agent.service";
 
 import Details from "./components/agent-details";
 
-export const dynamic = "force-dynamic";
-export const revalidate = 60;
+// Next.js will invalidate the cache when a
+// request comes in, at most once every 1 hour (3600 seconds).
+export const revalidate = 3600;
+
+// We'll prerender only the params from `generateStaticParams` at build time.
+// If a request comes in for a path that hasn't been generated,
+// Next.js will server-render the page on-demand.
+export const dynamicParams = true; // or false, to 404 on unknown paths
+
+export async function generateStaticParams() {
+  const agents: AgentDTO[] = await getAllAgents();
+  return agents.map((agent) => ({
+    agentId: String(agent.id),
+  }));
+}
 
 export default async function Page({
   params,
