@@ -14,16 +14,8 @@ export default function Header() {
         <Navigation />
 
         {/* Right - Auth Buttons */}
-        <AuthButtons />
+        <AuthButton />
       </div>
-    </div>
-  );
-}
-
-function AuthButtons() {
-  return (
-    <div className="flex items-center gap-4">
-      <AuthButton />
     </div>
   );
 }

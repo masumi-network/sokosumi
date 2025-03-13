@@ -12,7 +12,7 @@ export default function AuthButton() {
   if (pathname.startsWith("/signup")) return <SignInButton />;
 
   return (
-    <div className="flex gap-4">
+    <div className="flex items-center gap-4">
       <SignInButton variant="outline" />
       <SignUpButton />
     </div>
