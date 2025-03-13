@@ -4,7 +4,6 @@ globs: *.tsx, *.ts
 alwaysApply: false
 ---
 - Use 'nuqs' for URL search parameter state management.
-- Optimize Web Vitals (LCP, CLS, FID).
 - Limit 'use client':
 - Favor server components and Next.js SSR.
 - Use only for Web API access in small components.
