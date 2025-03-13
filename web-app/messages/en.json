@@ -236,5 +236,11 @@
         "creditsBalance": "Credits balance: {balance}"
       }
     }
+  },
+  "NotFound": {
+    "title": "404",
+    "description": "Oops! The page you're looking for doesn't exist.",
+    "message": "The page you're trying to access might have been removed, had its name changed, or is temporarily unavailable.",
+    "returnHome": "Return Home"
   }
 }
