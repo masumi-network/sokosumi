@@ -1,17 +1,19 @@
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 import { prisma } from "@/lib/db/prisma";
 
+const agentInclude = {
+  Pricing: {
+    include: { FixedPricing: { include: { Amounts: true } } },
+  },
+  ExampleOutput: true,
+  ExampleOutputOverride: true,
+  Rating: true,
+  UserAgentRating: true,
+} as const;
+
 export async function getAllAgents() {
   const agents = await prisma.agent.findMany({
-    include: {
-      Pricing: {
-        include: { FixedPricing: { include: { Amounts: true } } },
-      },
-      ExampleOutput: true,
-      ExampleOutputOverride: true,
-      Rating: true,
-      UserAgentRating: true,
-    },
+    include: agentInclude,
   });
 
   if (!agents) {
@@ -24,15 +26,7 @@ export async function getAllAgents() {
 export async function getAgentById(id: string) {
   const agent = await prisma.agent.findUnique({
     where: { id },
-    include: {
-      Pricing: {
-        include: { FixedPricing: { include: { Amounts: true } } },
-      },
-      ExampleOutput: true,
-      ExampleOutputOverride: true,
-      Rating: true,
-      UserAgentRating: true,
-    },
+    include: agentInclude,
   });
 
   if (!agent) {
