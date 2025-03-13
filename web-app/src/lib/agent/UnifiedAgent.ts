@@ -118,7 +118,10 @@ export class UnifiedAgent {
         agent.overrideCapabilityVersion ?? agent.onChainCapabilityVersion,
     };
     this.Rating = {
-      averageStars: agent.Rating.totalStars / agent.Rating.totalRatings,
+      averageStars:
+        agent.Rating.totalRatings === BigInt(0)
+          ? BigInt(0)
+          : agent.Rating.totalStars / agent.Rating.totalRatings,
       totalStars: agent.Rating.totalStars,
       totalRatings: agent.Rating.totalRatings,
     };
