@@ -19,7 +19,7 @@ type AgentWithRelations = Prisma.AgentGetPayload<{
   };
 }>;
 
-export class UnifiedAgent {
+export class AgentDTO {
   readonly ranking: bigint;
   readonly showOnFrontPage: boolean;
   readonly agentIdentifier: string;
@@ -168,7 +168,7 @@ export class UnifiedAgent {
     this.showOnFrontPage = agent.showOnFrontPage;
   }
 
-  static create(agent: AgentWithRelations): UnifiedAgent {
-    return new UnifiedAgent(agent);
+  static create(agent: AgentWithRelations): AgentDTO {
+    return new AgentDTO(agent);
   }
 }

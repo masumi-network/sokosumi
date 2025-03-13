@@ -2,7 +2,7 @@ import { PrismaClient } from "@prisma/client";
 import { useTranslations } from "next-intl";
 
 import AgentCard from "@/components/agent-card";
-import { UnifiedAgent } from "@/lib/agent/UnifiedAgent";
+import { AgentDTO } from "@/lib/agent/AgentDTO";
 
 import HorizontalScroll from "./components/horizontal-scroll";
 import Section from "./components/section";
@@ -78,7 +78,7 @@ async function AgentsGallery() {
     throw new Error("Agent not found");
   }
 
-  const unifiedAgents = agents.map((agent) => new UnifiedAgent(agent));
+  const unifiedAgents = agents.map((agent) => new AgentDTO(agent));
   console.log("unifiedAgents");
   console.log(unifiedAgents);
   return (
