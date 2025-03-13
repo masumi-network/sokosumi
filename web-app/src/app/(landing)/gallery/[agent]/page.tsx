@@ -1,9 +1,9 @@
-import { PrismaClient } from "@prisma/client";
 import Image from "next/image";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
 import { AgentDTO } from "@/lib/agent/AgentDTO";
+import { prisma } from "@/lib/prisma";
 
 import AgentSummary from "./components/agent-details";
 
@@ -13,7 +13,6 @@ export default async function Page({
   params: Promise<{ agent: string }>;
 }) {
   const { agent } = await params;
-  const prisma = new PrismaClient();
   const _agent = await prisma.agent.findUnique({
     where: {
       id: agent,

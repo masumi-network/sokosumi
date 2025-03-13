@@ -1,14 +1,12 @@
-import { PrismaClient } from "@prisma/client";
 import { Suspense } from "react";
 
 import AgentCard, { AgentCardSkeleton } from "@/components/agent-card";
 import { AgentDTO } from "@/lib/agent/AgentDTO";
+import { prisma } from "@/lib/prisma";
 
 import HorizontalScroll from "../components/horizontal-scroll";
 
 async function AgentsList() {
-  const prisma = new PrismaClient();
-
   const agents = await prisma.agent.findMany({
     include: {
       Pricing: {

@@ -1,4 +1,3 @@
-import { PrismaClient } from "@prisma/client";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
@@ -12,8 +11,7 @@ import { passkey } from "better-auth/plugins/passkey";
 
 import { resend } from "./email/resend";
 import { reactResetPasswordEmail } from "./email/reset-password";
-
-const prisma = new PrismaClient();
+import { prisma } from "./prisma";
 
 const fromEmail = process.env.BETTER_AUTH_EMAIL || "no-reply@masumi.network";
 

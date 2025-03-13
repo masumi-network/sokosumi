@@ -1,9 +1,9 @@
-import { PrismaClient } from "@prisma/client";
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import AgentCard from "@/components/agent-card";
 import { AgentDTO } from "@/lib/agent/AgentDTO";
+import { prisma } from "@/lib/prisma";
 
 import { FeaturedAgent } from "./featured-agent";
 
@@ -17,7 +17,6 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function GalleryPage() {
-  const prisma = new PrismaClient();
   const agents = await prisma.agent.findMany({
     include: {
       Pricing: {
