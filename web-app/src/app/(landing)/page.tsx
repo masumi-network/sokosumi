@@ -1,7 +1,8 @@
 import { PrismaClient } from "@prisma/client";
 import { useTranslations } from "next-intl";
+import { Suspense } from "react";
 
-import AgentCard from "@/components/agent-card";
+import AgentCard, { AgentCardSkeleton } from "@/components/agent-card";
 import { AgentDTO } from "@/lib/agent/AgentDTO";
 
 import HorizontalScroll from "./components/horizontal-scroll";
@@ -59,8 +60,15 @@ export default function LandingPage() {
   );
 }
 
-async function AgentsGallery() {
+async function delay(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function AgentsList() {
   const prisma = new PrismaClient();
+  // Add 5 second delay for debugging
+  await delay(5000);
+
   const agents = await prisma.agent.findMany({
     include: {
       Pricing: {
@@ -92,5 +100,23 @@ async function AgentsGallery() {
         />
       ))}
     </HorizontalScroll>
+  );
+}
+
+function AgentsGallerySkeleton() {
+  return (
+    <HorizontalScroll itemClassName="h-[32rem] w-[24rem]">
+      {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
+        <AgentCardSkeleton key={i} />
+      ))}
+    </HorizontalScroll>
+  );
+}
+
+function AgentsGallery() {
+  return (
+    <Suspense fallback={<AgentsGallerySkeleton />}>
+      <AgentsList />
+    </Suspense>
   );
 }

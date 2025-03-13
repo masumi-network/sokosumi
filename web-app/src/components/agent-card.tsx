@@ -18,6 +18,43 @@ interface AgentCardProps {
   tags: string[];
 }
 
+export function AgentCardSkeleton() {
+  return (
+    <Card className="flex h-full w-full max-w-md min-w-96 flex-col overflow-hidden py-0">
+      <div className="bg-muted relative h-48 w-full shrink-0 animate-pulse" />
+
+      <CardContent className="flex flex-1 flex-col px-6 pb-3">
+        <div className="mb-2 flex shrink-0 gap-1">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div
+              key={i}
+              className="bg-muted h-5 w-5 animate-pulse rounded-full"
+            />
+          ))}
+        </div>
+
+        <div className="bg-muted mb-2 h-7 w-3/4 shrink-0 animate-pulse rounded" />
+        <div className="bg-muted mb-3 h-16 w-full shrink-0 animate-pulse rounded" />
+        <div className="flex min-h-[1.5rem] shrink-0 flex-nowrap gap-2">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div
+              key={i}
+              className="bg-muted h-6 w-20 animate-pulse rounded-full"
+            />
+          ))}
+        </div>
+      </CardContent>
+
+      <CardFooter className="mt-auto shrink-0 px-6 pt-2 pb-4">
+        <div className="flex items-center gap-4">
+          <div className="bg-muted h-10 w-24 animate-pulse rounded" />
+          <div className="bg-muted h-4 w-24 animate-pulse rounded" />
+        </div>
+      </CardFooter>
+    </Card>
+  );
+}
+
 export default function AgentCard({
   id,
   name,
