@@ -12,7 +12,7 @@ interface AgentCardProps {
   id: string;
   name: string;
   description: string;
-  averageStars: number;
+  averageStars: number | null;
   image: string;
   price: number;
   tags: string[];
@@ -65,7 +65,6 @@ export default function AgentCard({
   tags,
 }: AgentCardProps) {
   const t = useTranslations("Components.AgentCard");
-  const normalizedRating = Math.max(0, Math.min(5, averageStars));
   return (
     <Card className="flex h-full w-full max-w-md min-w-96 flex-col overflow-hidden py-0">
       <div className="relative h-48 w-full shrink-0">
@@ -78,18 +77,20 @@ export default function AgentCard({
       </div>
 
       <CardContent className="flex flex-1 flex-col px-6 pb-3">
-        <div
-          className="mb-2 flex shrink-0"
-          aria-label={`Rating: ${normalizedRating} out of 5 stars`}
-        >
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Star
-              key={i}
-              className={`h-5 w-5 ${i < normalizedRating ? "fill-primary text-primary" : "text-muted-foreground"}`}
-              aria-hidden="true"
-            />
-          ))}
-        </div>
+        {averageStars !== null && (
+          <div
+            className="mb-2 flex shrink-0"
+            aria-label={`Rating: ${averageStars} out of 5 stars`}
+          >
+            {Array.from({ length: 5 }).map((_, i) => (
+              <Star
+                key={i}
+                className={`h-5 w-5 ${i < averageStars ? "fill-primary text-primary" : "text-muted-foreground"}`}
+                aria-hidden="true"
+              />
+            ))}
+          </div>
+        )}
 
         <h3 className="mb-2 shrink-0 text-xl font-bold">{name}</h3>
         <p className="text-muted-foreground mb-3 line-clamp-3 min-h-[4.5rem] overflow-hidden text-ellipsis whitespace-normal">

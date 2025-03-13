@@ -57,6 +57,12 @@ export interface Legal {
   other: string | null;
 }
 
+export interface Rating {
+  totalStars: number;
+  totalRatings: number;
+  averageStars: number | null;
+}
+
 export class AgentDTO {
   readonly ranking: bigint;
   readonly showOnFrontPage: boolean;
@@ -85,11 +91,7 @@ export class AgentDTO {
   readonly image: string;
   readonly metadataVersion: number;
   readonly status: Status;
-  readonly Rating: {
-    totalStars: number;
-    totalRatings: number;
-    averageStars: number;
-  };
+  readonly Rating: Rating;
 
   constructor(agent: AgentWithRelations) {
     if (!agent.Rating || !agent.Pricing.FixedPricing) {
@@ -132,8 +134,14 @@ export class AgentDTO {
       totalRatings: Number(agent.Rating.totalRatings),
       averageStars:
         Number(agent.Rating.totalRatings) === Number(0)
-          ? Number(0)
-          : Number(agent.Rating.totalStars / agent.Rating.totalRatings),
+          ? null
+          : Math.min(
+              5,
+              Math.round(
+                Number(agent.Rating.totalStars) /
+                  Number(agent.Rating.totalRatings),
+              ),
+            ),
     };
     this.requestsPerHour =
       agent.overrideRequestsPerHour ?? agent.onChainRequestsPerHour;
