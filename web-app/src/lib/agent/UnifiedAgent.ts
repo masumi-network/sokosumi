@@ -76,9 +76,9 @@ export class UnifiedAgent {
   readonly metadataVersion: number;
   readonly status: Status;
   readonly Rating: {
-    averageStars: bigint;
-    totalStars: bigint;
-    totalRatings: bigint;
+    totalStars: number;
+    totalRatings: number;
+    averageStars: number;
   };
 
   constructor(agent: AgentWithRelations) {
@@ -118,12 +118,12 @@ export class UnifiedAgent {
         agent.overrideCapabilityVersion ?? agent.onChainCapabilityVersion,
     };
     this.Rating = {
+      totalStars: Number(agent.Rating.totalStars),
+      totalRatings: Number(agent.Rating.totalRatings),
       averageStars:
-        agent.Rating.totalRatings === BigInt(0)
-          ? BigInt(0)
-          : agent.Rating.totalStars / agent.Rating.totalRatings,
-      totalStars: agent.Rating.totalStars,
-      totalRatings: agent.Rating.totalRatings,
+        Number(agent.Rating.totalRatings) === Number(0)
+          ? Number(0)
+          : Number(agent.Rating.totalStars / agent.Rating.totalRatings),
     };
     this.requestsPerHour =
       agent.overrideRequestsPerHour ?? agent.onChainRequestsPerHour;

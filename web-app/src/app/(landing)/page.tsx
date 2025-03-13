@@ -1,7 +1,8 @@
+import { PrismaClient } from "@prisma/client";
 import { useTranslations } from "next-intl";
 
 import AgentCard from "@/components/agent-card";
-import { dummyAgents } from "@/data/agents";
+import { UnifiedAgent } from "@/lib/agent/UnifiedAgent";
 
 import HorizontalScroll from "./components/horizontal-scroll";
 import Section from "./components/section";
@@ -58,11 +59,41 @@ export default function LandingPage() {
   );
 }
 
-function AgentsGallery() {
+async function AgentsGallery() {
+  const prisma = new PrismaClient();
+  const agents = await prisma.agent.findMany({
+    include: {
+      Pricing: {
+        include: { FixedPricing: { include: { Amounts: true } } },
+      },
+      ExampleOutput: true,
+      ExampleOutputOverride: true,
+      Rating: true,
+      UserAgentRating: true,
+    },
+  });
+  console.log("agents");
+  console.log(agents);
+  if (!agents) {
+    throw new Error("Agent not found");
+  }
+
+  const unifiedAgents = agents.map((agent) => new UnifiedAgent(agent));
+  console.log("unifiedAgents");
+  console.log(unifiedAgents);
   return (
     <HorizontalScroll>
-      {dummyAgents.map((agent, index) => (
-        <AgentCard key={index} agent={agent} />
+      {unifiedAgents.map((agent, _) => (
+        <AgentCard
+          key={agent.id}
+          id={agent.id}
+          name={agent.name}
+          description={agent.description ?? ""}
+          averageStars={Number(agent.Rating.averageStars)}
+          image={agent.image}
+          price={Number(agent.Pricing.FixedPricing.Amounts[0].amount)}
+          tags={agent.tags}
+        />
       ))}
     </HorizontalScroll>
   );

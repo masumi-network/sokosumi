@@ -212,7 +212,7 @@ async function main() {
             totalRatings: BigInt(0),
           },
         },
-        
+
         // No overrides initially
         overrideName: null,
         overrideDescription: null,
@@ -226,8 +226,8 @@ async function main() {
 
         Pricing: {
           connect: {
-            id: pricing.id
-          }
+            id: pricing.id,
+          },
         },
         agentIdentifier: `demo-${index}-${agent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
         status: "Online",
