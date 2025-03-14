@@ -15,8 +15,8 @@ services:
   environment_slug: node-js
   envs:
   - key: DATABASE_URL
-    scope: RUN_TIME
-    value: ${db.DATABASE_URL}
+    scope: RUN_AND_BUILD_TIME
+    value: ${DATABASE_URL}
   github:
     branch: main
     repo: masumi-network/sokosumi
