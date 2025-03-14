@@ -169,9 +169,22 @@ async function main() {
   let index = 0;
   for (const agent of dummyAgents) {
     console.log(
-      `Seeding agent ${agent.title} (${index + 1}/${dummyAgents.length})`,
+      `Processing agent ${agent.title} (${index + 1}/${dummyAgents.length})`,
     );
-    index++;
+
+    // Check if agent already exists
+    const existingAgent = await prisma.agent.findFirst({
+      where: {
+        agentIdentifier: `demo-${index + 1}-${agent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+      },
+    });
+
+    if (existingAgent) {
+      console.log(`Agent ${agent.title} already exists, skipping...`);
+      index++;
+      continue;
+    }
+
     const pricing = await prisma.agentPricing.create({
       data: {
         pricingType: PricingType.Fixed,
@@ -228,16 +241,19 @@ async function main() {
             id: pricing.id,
           },
         },
-        agentIdentifier: `demo-${index}-${agent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+        agentIdentifier: `demo-${index + 1}-${agent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
         status: "Online",
         showOnFrontPage: true,
-        ranking: BigInt(index),
+        ranking: BigInt(index + 1),
 
         ExampleOutput: {
           create: exampleOutputs,
         },
       },
     });
+
+    console.log(`Created agent ${agent.title}`);
+    index++;
   }
 }
 
