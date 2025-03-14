@@ -1,0 +1,26 @@
+region: fra
+alerts:
+- rule: DEPLOYMENT_FAILED
+- rule: DOMAIN_FAILED
+databases:
+- engine: PG
+  name: db
+envs:
+- key: BETTER_AUTH_SECRET
+  scope: RUN_AND_BUILD_TIME
+  value: ${BETTER_AUTH_SECRET}
+features:
+- buildpack-stack=ubuntu-22
+services:
+  envs:
+  - key: DATABASE_URL
+    scope: RUN_TIME
+    value: ${db.DATABASE_URL}
+  github:
+    branch: main
+    repo: masumi-network/sokosumi
+  http_port: 3000
+  instance_count: 1
+  instance_size_slug: ${INSTANCE_SIZE_SLUG}
+  name: sokosumi-web-app
+  source_dir: web-app

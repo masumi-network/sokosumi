@@ -12,6 +12,8 @@ updates:
       - "mrgrauel"
       - "schaier-io"
       - "golddydev"
+    commit-message:
+      prefix: "build(deps)"
 
   # Enable version updates for npm in the web-app directory
   - package-ecosystem: "npm"
@@ -26,4 +28,4 @@ updates:
       - "schaier-io"
       - "golddydev"
     commit-message:
-      prefix: "web-app"
+      prefix: "build(deps)"

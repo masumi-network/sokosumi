@@ -1,0 +1,26 @@
+name: Release Deployment
+
+on:
+  release:
+    types: [released]
+    
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Deploy the app
+        uses: digitalocean/app_action/deploy@v2
+        env:
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          INSTANCE_SIZE_SLUG: ${{ vars.DIGITALOCEAN_INSTANCE_SIZE_SLUG }}
+        with:
+          app_name: ${{ vars.DIGITALOCEAN_APP_NAME }}
+          project_id: ${{ secrets.DIGITALOCEAN_PROJECT_ID }}
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
