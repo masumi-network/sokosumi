@@ -1,8 +1,4 @@
 region: fra
-databases:
-- engine: PG
-  name: db
-  version: 16
 alerts:
 - rule: DEPLOYMENT_FAILED
 - rule: DOMAIN_FAILED
@@ -10,7 +6,6 @@ features:
 - buildpack-stack=ubuntu-22
 services:
   environment_slug: node-js
-  build_command: "npm run build"
   envs:
   - key: BETTER_AUTH_SECRET
     scope: RUN_AND_BUILD_TIME
@@ -19,7 +14,7 @@ services:
     scope: RUN_AND_BUILD_TIME
     value: ${DATABASE_URL}
   github:
-    branch: digitalocean-deployment
+    branch: main
     repo: masumi-network/sokosumi
   http_port: 3000
   instance_count: 1

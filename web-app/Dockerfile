@@ -1,7 +1,5 @@
 FROM node:lts-alpine AS base
 
-RUN echo "SEED_DATABASE: $SEED_DATABASE"
-
 # Define build arguments
 ARG DATABASE_URL
 ARG BETTER_AUTH_SECRET
