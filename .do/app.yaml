@@ -1,4 +1,8 @@
 region: fra
+databases:
+- engine: PG
+  name: db
+  version: 16
 alerts:
 - rule: DEPLOYMENT_FAILED
 - rule: DOMAIN_FAILED
