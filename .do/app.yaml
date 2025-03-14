@@ -14,6 +14,7 @@ features:
 - buildpack-stack=ubuntu-22
 services:
   environment_slug: node-js
+  build_command: "docker build -t sokosumi . --build-arg SEED_DATABASE=true"
   envs:
   - key: BETTER_AUTH_SECRET
     scope: RUN_AND_BUILD_TIME

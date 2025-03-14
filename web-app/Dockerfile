@@ -1,5 +1,7 @@
 FROM node:lts-alpine AS base
 
+RUN echo "SEED_DATABASE: $SEED_DATABASE"
+
 # Define build arguments
 ARG DATABASE_URL
 ARG BETTER_AUTH_SECRET
@@ -31,7 +33,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npx prisma migrate deploy
 
 ARG SEED_DATABASE
-RUN echo "SEED_DATABASE: $SEED_DATABASE"
+
 RUN if [ "$SEED_DATABASE" = "true" ]; then echo "Database seeding enabled"; npx prisma db seed; fi
 
 
