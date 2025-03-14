@@ -12,7 +12,7 @@ services:
   environment_slug: node-js
   envs:
   - key: DATABASE_URL
-    scope: RUN_TIME
+    scope: RUN_AND_BUILD_TIME
     value: ${db.DATABASE_URL}
   - key: BETTER_AUTH_SECRET
     scope: RUN_AND_BUILD_TIME
