@@ -23,6 +23,9 @@ COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
+RUN echo "DATABASE_URL is set to: $DATABASE_URL"
+RUN echo "BETTER_AUTH_SECRET is set to: $BETTER_AUTH_SECRET"
+
 RUN npx prisma migrate dev
 
 RUN \
