@@ -1,4 +1,4 @@
-FROM node:22-alpine AS base
+FROM node:lts-alpine AS base
 # Install dependencies only when needed
 FROM base AS deps
 # Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
@@ -26,7 +26,6 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN echo "DATABASE_URL is set to: $DATABASE_URL"
 RUN echo "BETTER_AUTH_SECRET is set to: $BETTER_AUTH_SECRET"
 RUN echo "TEST_ENV is set to: $TEST_ENV"
-RUN npx prisma migrate dev
 
 RUN \
   if [ -f yarn.lock ]; then yarn run build; \
