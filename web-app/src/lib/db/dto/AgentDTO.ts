@@ -20,47 +20,47 @@ type AgentWithRelations = Prisma.AgentGetPayload<{
 }>;
 
 export interface Pricing {
-  id: string;
-  createdAt: Date;
-  updatedAt: Date;
-  credits: number;
-  pricingType: PricingType;
-  FixedPricing: FixedPricing;
+  readonly id: string;
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+  readonly credits: number;
+  readonly pricingType: PricingType;
+  readonly FixedPricing: FixedPricing;
 }
 
 export interface FixedPricing {
-  id: string;
-  createdAt: Date;
-  updatedAt: Date;
-  Amounts: Amount[];
+  readonly id: string;
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+  readonly Amounts: Amount[];
 }
 
 export interface Amount {
-  id: string;
-  createdAt: Date;
-  updatedAt: Date;
-  unit: string;
-  amount: number;
+  readonly id: string;
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+  readonly unit: string;
+  readonly amount: number;
 }
 
 export interface ExampleOutput {
-  id: string;
-  createdAt: Date;
-  updatedAt: Date;
-  name: string;
-  mimeType: string;
+  readonly id: string;
+  readonly createdAt: Date;
+  readonly updatedAt: Date;
+  readonly name: string;
+  readonly mimeType: string;
 }
 
 export interface Legal {
-  privacyPolicy: string | null;
-  terms: string | null;
-  other: string | null;
+  readonly privacyPolicy: string | null;
+  readonly terms: string | null;
+  readonly other: string | null;
 }
 
 export interface Rating {
-  totalStars: number;
-  totalRatings: number;
-  averageStars: number | null;
+  readonly totalStars: number;
+  readonly totalRatings: number;
+  readonly averageStars: number | null;
 }
 
 export class AgentDTO {
