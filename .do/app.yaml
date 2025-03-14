@@ -14,7 +14,7 @@ features:
 services:
   envs:
   - key: DATABASE_URL
-    scope: RUN_TIME
+    scope: RUN_AND_BUILD_TIME
     value: ${db.DATABASE_URL}
   github:
     branch: main
