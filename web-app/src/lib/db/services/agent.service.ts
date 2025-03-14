@@ -1,6 +1,6 @@
 import { unstable_cache } from "next/cache";
 
-import { AgentDTO } from "@/lib/db/dto/AgentDTO";
+import { AgentDTO, createAgentDTO } from "@/lib/db/dto/AgentDTO";
 import prisma from "@/lib/db/prisma";
 
 const agentInclude = {
@@ -33,7 +33,7 @@ export async function getAgents(): Promise<AgentDTO[]> {
     throw new Error("No agents found");
   }
 
-  return agents.map((agent) => new AgentDTO(agent));
+  return agents.map((agent) => createAgentDTO(agent));
 }
 
 export async function getAgentById(id: string): Promise<AgentDTO> {
@@ -46,5 +46,5 @@ export async function getAgentById(id: string): Promise<AgentDTO> {
     throw new Error(`Agent with ID ${id} not found`);
   }
 
-  return new AgentDTO(agent);
+  return createAgentDTO(agent);
 }

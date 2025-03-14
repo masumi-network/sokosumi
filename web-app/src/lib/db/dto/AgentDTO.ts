@@ -63,7 +63,19 @@ export interface Rating {
   readonly averageStars: number | null;
 }
 
-export class AgentDTO {
+export interface Capability {
+  readonly name: string;
+  readonly version: string;
+}
+
+export interface Author {
+  readonly name: string;
+  readonly contactEmail: string | null;
+  readonly contactOther: string | null;
+  readonly organization: string | null;
+}
+
+export interface AgentDTO {
   readonly ranking: number;
   readonly showOnFrontPage: boolean;
   readonly agentIdentifier: string;
@@ -75,65 +87,58 @@ export class AgentDTO {
   readonly createdAt: Date;
   readonly updatedAt: Date;
   readonly ExampleOutput: ExampleOutput[];
-  readonly Capability: {
-    name: string;
-    version: string;
-  };
+  readonly Capability: Capability;
   readonly requestsPerHour: string | null;
-  readonly Author: {
-    name: string;
-    contactEmail: string | null;
-    contactOther: string | null;
-    organization: string | null;
-  };
+  readonly Author: Author;
   readonly Legal: Legal | null;
   readonly tags: string[];
   readonly image: string;
   readonly metadataVersion: number;
   readonly status: Status;
   readonly Rating: Rating;
+}
 
-  constructor(agent: AgentWithRelations) {
-    if (!agent.Rating || !agent.Pricing.FixedPricing) {
-      throw new Error("Agent must have Rating and FixedPricing");
-    }
-    this.name = agent.overrideName ?? agent.onChainName;
-    this.description = agent.overrideDescription ?? agent.onChainDescription;
-    this.apiBaseUrl = agent.overrideApiBaseUrl ?? agent.onChainApiBaseUrl;
-    this.ExampleOutput =
+function calculateCredits(amount: number): number {
+  return amount;
+}
+
+export function createAgentDTO(agent: AgentWithRelations): AgentDTO {
+  if (!agent.Rating || !agent.Pricing.FixedPricing) {
+    throw new Error("Agent must have Rating and FixedPricing");
+  }
+
+  return {
+    name: agent.overrideName ?? agent.onChainName,
+    description: agent.overrideDescription ?? agent.onChainDescription,
+    apiBaseUrl: agent.overrideApiBaseUrl ?? agent.onChainApiBaseUrl,
+    ExampleOutput:
       agent.ExampleOutputOverride.length > 0
-        ? agent.ExampleOutputOverride.map((example) => {
-            return {
-              id: example.id,
-              createdAt: example.createdAt,
-              updatedAt: example.updatedAt,
-              name: example.name,
-              mimeType: example.mimeType,
-              url: ipfsUrlResolver(example.url),
-            };
-          })
-        : agent.ExampleOutput.length > 0
-          ? agent.ExampleOutput.map((example) => {
-              return {
-                id: example.id,
-                createdAt: example.createdAt,
-                updatedAt: example.updatedAt,
-                name: example.name,
-                mimeType: example.mimeType,
-                url: ipfsUrlResolver(example.url),
-              };
-            })
-          : [];
-    this.Capability = {
+        ? agent.ExampleOutputOverride.map((example) => ({
+            id: example.id,
+            createdAt: example.createdAt,
+            updatedAt: example.updatedAt,
+            name: example.name,
+            mimeType: example.mimeType,
+            url: ipfsUrlResolver(example.url),
+          }))
+        : agent.ExampleOutput.map((example) => ({
+            id: example.id,
+            createdAt: example.createdAt,
+            updatedAt: example.updatedAt,
+            name: example.name,
+            mimeType: example.mimeType,
+            url: ipfsUrlResolver(example.url),
+          })),
+    Capability: {
       name: agent.overrideCapabilityName ?? agent.onChainCapabilityName,
       version:
         agent.overrideCapabilityVersion ?? agent.onChainCapabilityVersion,
-    };
-    this.Rating = {
+    },
+    Rating: {
       totalStars: Number(agent.Rating.totalStars),
       totalRatings: Number(agent.Rating.totalRatings),
       averageStars:
-        Number(agent.Rating.totalRatings) === Number(0)
+        Number(agent.Rating.totalRatings) === 0
           ? null
           : Math.min(
               5,
@@ -142,10 +147,10 @@ export class AgentDTO {
                   Number(agent.Rating.totalRatings),
               ),
             ),
-    };
-    this.requestsPerHour =
-      agent.overrideRequestsPerHour ?? agent.onChainRequestsPerHour;
-    this.Author = {
+    },
+    requestsPerHour:
+      agent.overrideRequestsPerHour ?? agent.onChainRequestsPerHour,
+    Author: {
       name: agent.overrideAuthorName ?? agent.onChainAuthorName,
       contactEmail:
         agent.overrideAuthorContactEmail ?? agent.onChainAuthorContactEmail,
@@ -153,36 +158,32 @@ export class AgentDTO {
         agent.overrideAuthorContactOther ?? agent.onChainAuthorContactOther,
       organization:
         agent.overrideAuthorOrganization ?? agent.onChainAuthorOrganization,
-    };
-    const privacyPolicy =
-      agent.overrideLegalPrivacyPolicy ?? agent.onChainLegalPrivacyPolicy;
-    const terms = agent.overrideLegalTerms ?? agent.onChainLegalTerms;
-    const other = agent.overrideLegalOther ?? agent.onChainLegalOther;
-
-    this.Legal =
-      privacyPolicy || terms || other
-        ? {
-            privacyPolicy,
-            terms,
-            other,
-          }
+    },
+    Legal: (() => {
+      const privacyPolicy =
+        agent.overrideLegalPrivacyPolicy ?? agent.onChainLegalPrivacyPolicy;
+      const terms = agent.overrideLegalTerms ?? agent.onChainLegalTerms;
+      const other = agent.overrideLegalOther ?? agent.onChainLegalOther;
+      return privacyPolicy || terms || other
+        ? { privacyPolicy, terms, other }
         : null;
-    this.tags =
-      agent.overrideTags.length > 0 ? agent.overrideTags : agent.onChainTags;
-    this.image = ipfsUrlResolver(agent.overrideImage ?? agent.onChainImage);
-    this.metadataVersion =
-      agent.overrideMetadataVersion ?? agent.onChainMetadataVersion;
-    this.status = agent.status;
-    this.id = agent.id;
-    this.createdAt = agent.createdAt;
-    this.updatedAt = agent.updatedAt;
-    this.agentIdentifier = agent.agentIdentifier;
-    this.Pricing = {
+    })(),
+    tags:
+      agent.overrideTags.length > 0 ? agent.overrideTags : agent.onChainTags,
+    image: ipfsUrlResolver(agent.overrideImage ?? agent.onChainImage),
+    metadataVersion:
+      agent.overrideMetadataVersion ?? agent.onChainMetadataVersion,
+    status: agent.status,
+    id: agent.id,
+    createdAt: agent.createdAt,
+    updatedAt: agent.updatedAt,
+    agentIdentifier: agent.agentIdentifier,
+    Pricing: {
       id: agent.agentPricingId,
       createdAt: agent.Pricing.createdAt,
       updatedAt: agent.Pricing.updatedAt,
       pricingType: agent.Pricing.pricingType,
-      credits: this.calculateCredits(
+      credits: calculateCredits(
         Number(agent.Pricing.FixedPricing.Amounts[0].amount),
       ),
       FixedPricing: {
@@ -194,16 +195,8 @@ export class AgentDTO {
           amount: Number(amount.amount),
         })),
       },
-    };
-    this.ranking = Number(agent.ranking);
-    this.showOnFrontPage = agent.showOnFrontPage;
-  }
-
-  static create(agent: AgentWithRelations): AgentDTO {
-    return new AgentDTO(agent);
-  }
-
-  private calculateCredits(amount: number): number {
-    return amount;
-  }
+    },
+    ranking: Number(agent.ranking),
+    showOnFrontPage: agent.showOnFrontPage,
+  };
 }
