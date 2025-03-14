@@ -14,6 +14,9 @@ services:
   - key: DATABASE_URL
     scope: RUN_AND_BUILD_TIME
     value: ${DATABASE_URL}
+  - key: TEST_ENV
+    scope: RUN_AND_BUILD_TIME
+    value: test
   github:
     branch: digitalocean-deployment
     repo: masumi-network/sokosumi
