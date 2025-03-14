@@ -34,7 +34,6 @@ ARG SEED_DATABASE
 
 RUN if [ "$SEED_DATABASE" = "true" ]; then echo "Database seeding enabled"; npx prisma db seed; fi
 
-
 RUN \
   if [ -f yarn.lock ]; then yarn run build; \
   elif [ -f package-lock.json ]; then npm run build; \
