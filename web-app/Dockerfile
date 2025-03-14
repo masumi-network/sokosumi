@@ -28,11 +28,7 @@ COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1
 
 # Run Prisma migrations
-RUN npm run prisma:migrate
-
-# Run Prisma seed
-RUN npm run prisma:seed
-
+RUN npx prisma migrate deploy
 
 RUN \
   if [ -f yarn.lock ]; then yarn run build; \
