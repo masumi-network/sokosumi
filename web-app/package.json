@@ -63,7 +63,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.0",
-    "@hey-api/openapi-ts": "^0.64.11",
+    "@hey-api/openapi-ts": "^0.64.12",
     "@swc/core": "^1.11.9",
     "@swc/helpers": "^0.5.15",
     "@tailwindcss/postcss": "^4.0.14",
