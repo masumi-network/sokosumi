@@ -1,4 +1,8 @@
 region: fra
+databases:
+- engine: PG
+  name: db
+  version: 16
 alerts:
 - rule: DEPLOYMENT_FAILED
 - rule: DOMAIN_FAILED
@@ -9,7 +13,10 @@ services:
   envs:
   - key: BETTER_AUTH_SECRET
     scope: RUN_AND_BUILD_TIME
-    value: ${BETTER_AUTH_SECRET}    
+    value: ${BETTER_AUTH_SECRET} 
+  - key: DATABASE_URL
+    scope: RUN_AND_BUILD_TIME
+    value: ${db.DATABASE_URL}    
   github:
     branch: digitalocean-deployment
     repo: masumi-network/sokosumi
