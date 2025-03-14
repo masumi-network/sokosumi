@@ -31,6 +31,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 RUN npx prisma migrate deploy
 
 ARG SEED_DATABASE
+RUN echo "SEED_DATABASE: $SEED_DATABASE"
 RUN if [ "$SEED_DATABASE" = "true" ]; then echo "Database seeding enabled"; npx prisma db seed; fi
 
 
