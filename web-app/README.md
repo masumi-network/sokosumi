@@ -34,6 +34,11 @@ web-app/
 - [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
 - [Docker](https://www.docker.com) (optional, for containerization)
 
+## URLs
+
+- **Development**: [https://sokosumi-dev-xptei.ondigitalocean.app/](https://sokosumi-dev-xptei.ondigitalocean.app/)
+- **Production**: [https://sokosumi-llb2d.ondigitalocean.app/](https://sokosumi-llb2d.ondigitalocean.app/)
+
 ## Getting Started
 
 1. Install dependencies:
