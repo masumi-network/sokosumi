@@ -14,6 +14,11 @@ RUN \
   else echo "Lockfile not found." && exit 1; \
   fi
 
+# Run Prisma migrations
+RUN npm run prisma:migrate
+
+# Run Prisma seed
+RUN npm run prisma:seed
 
 # Rebuild the source code only when needed
 FROM base AS builder
