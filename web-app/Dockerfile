@@ -30,6 +30,9 @@ ENV NEXT_TELEMETRY_DISABLED=1
 # Run Prisma migrations
 RUN npx prisma migrate deploy
 
+ARG SEED_DATABASE
+RUN if [ "$SEED_DATABASE" = "true" ]; then npx prisma db seed; fi
+
 RUN \
   if [ -f yarn.lock ]; then yarn run build; \
   elif [ -f package-lock.json ]; then npm run build; \

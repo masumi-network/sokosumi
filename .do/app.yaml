@@ -17,6 +17,9 @@ services:
   - key: DATABASE_URL
     scope: RUN_AND_BUILD_TIME
     value: ${db.DATABASE_URL}    
+  - key: SEED_DATABASE
+    scope: BUILD_TIME
+    value: ${SEED_DATABASE}
   github:
     branch: digitalocean-deployment
     repo: masumi-network/sokosumi
