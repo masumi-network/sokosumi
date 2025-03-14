@@ -2,21 +2,17 @@ region: fra
 alerts:
 - rule: DEPLOYMENT_FAILED
 - rule: DOMAIN_FAILED
-envs:
-  - key: BETTER_AUTH_SECRET
-    scope: RUN_AND_BUILD_TIME
-    value: ${BETTER_AUTH_SECRET}
 features:
 - buildpack-stack=ubuntu-22
 services:
   environment_slug: node-js
   envs:
   - key: DATABASE_URL
+    scope: RUN_TIME
+    value: ${db.DATABASE_URL}
+  - key: BETTER_AUTH_SECRET
     scope: RUN_AND_BUILD_TIME
-    value: ${DATABASE_URL}
-  - key: TEST_ENV
-    scope: RUN_AND_BUILD_TIME
-    value: test
+    value: ${BETTER_AUTH_SECRET}    
   github:
     branch: digitalocean-deployment
     repo: masumi-network/sokosumi
