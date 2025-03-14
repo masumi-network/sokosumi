@@ -27,10 +27,6 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ARG DATABASE_URL
 ARG BETTER_AUTH_SECRET
 
-# Set environment variables
-ENV DATABASE_URL=$DATABASE_URL
-ENV SECRET_KEY=$SECRET_KEY
-
 RUN \
   if [ -f yarn.lock ]; then yarn run build; \
   elif [ -f package-lock.json ]; then npm run build; \
