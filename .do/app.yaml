@@ -9,13 +9,12 @@ envs:
 - key: BETTER_AUTH_SECRET
   scope: RUN_AND_BUILD_TIME
   value: ${BETTER_AUTH_SECRET}
+- key: DATABASE_URL
+  scope: RUN_AND_BUILD_TIME
+  value: ${db.DATABASE_URL}
 features:
 - buildpack-stack=ubuntu-22
 services:
-  envs:
-  - key: DATABASE_URL
-    scope: RUN_AND_BUILD_TIME
-    value: ${db.DATABASE_URL}
   github:
     branch: main
     repo: masumi-network/sokosumi
