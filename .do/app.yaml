@@ -16,9 +16,6 @@ services:
   - key: DATABASE_URL
     scope: RUN_TIME
     value: ${db.DATABASE_URL}
-  - key: NODE_MODULES_CACHE
-    scope: BUILD_TIME
-    value: false
   github:
     branch: main
     repo: masumi-network/sokosumi
