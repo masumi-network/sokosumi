@@ -22,7 +22,9 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV DATABASE_URL=postgresql://postgres:postgres@localhost:5432/postgres
+RUN echo "NEXT_TELEMETRY_DISABLED is set to: $NEXT_TELEMETRY_DISABLED"
+RUN echo "DATABASE_URL is set to: $DATABASE_URL"
+RUN echo "BETTER_AUTH_SECRET is set to: $BETTER_AUTH_SECRET"
 
 RUN \
   if [ -f yarn.lock ]; then yarn run build; \
