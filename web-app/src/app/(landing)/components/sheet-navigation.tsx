@@ -1,4 +1,4 @@
-import { ArrowLeftFromLine } from "lucide-react";
+import { Menu } from "lucide-react";
 
 import { SokosumiLogo } from "@/components/masumi-logos";
 import { Button } from "@/components/ui/button";
@@ -11,17 +11,16 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 
+import AuthButtons from "./auth-buttons";
 import NavigationMenu from "./navigation-menu";
 
 export default function SheetNavigation() {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <div className="mx-2 flex flex-1 justify-end md:hidden">
-          <Button variant="outline" size="icon">
-            <ArrowLeftFromLine />
-          </Button>
-        </div>
+        <Button variant="outline" size="icon" className="flex lg:hidden">
+          <Menu />
+        </Button>
       </SheetTrigger>
       <SheetContent className="h-svh w-full max-w-sm p-4" side="right">
         <SheetHeader>
@@ -31,7 +30,8 @@ export default function SheetNavigation() {
           <SheetDescription />
         </SheetHeader>
         <nav className="mt-4">
-          <NavigationMenu className="flex-col gap-4 text-base" />
+          <AuthButtons containerClassName="flex items-center justify-around" />
+          <NavigationMenu className="mt-8 flex-col gap-4 text-base" />
         </nav>
       </SheetContent>
     </Sheet>

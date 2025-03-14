@@ -52,7 +52,7 @@ export default function SocialButtons({ variant }: SocialButtonsProps) {
           <socialButton.button
             onClick={() => handleClick(socialButton.key)}
             key={socialButton.key}
-            className="flex items-center justify-center !rounded-lg !px-3 !py-2 !text-base"
+            className="flex items-center justify-center !rounded-lg !px-3 !py-2 !text-sm"
             align="center"
             text={t("continueWith", { provider: socialButton.key })}
           />
