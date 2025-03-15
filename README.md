@@ -28,18 +28,6 @@ Please take a look into the individual folders for more information
    cd web-app
    ```
 
-## Contributing
-
-Please ensure to also install the husky tooling with
-
-```bash
-npm install
-```
-
-1. Create a new branch for your feature
-2. Make your changes
-3. Submit a pull request to `dev`
-
 ## Git Workflow
 
 We follow the [GitHub Flow](https://docs.github.com/en/get-started/using-github/github-flow) workflow, which is a lightweight, branch-based workflow. The main steps are:
