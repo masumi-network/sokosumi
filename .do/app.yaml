@@ -1,6 +1,7 @@
 region: fra
-features:
-- buildpack-stack=ubuntu-22
+databases:
+- engine: PG
+  name: db
 services:
   environment_slug: node-js
   github:
