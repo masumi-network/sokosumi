@@ -20,9 +20,6 @@ jobs:
       - name: Deploy the app
         id: deploy
         uses: digitalocean/app_action/deploy@v2
-        env:
-          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
-          INSTANCE_SIZE_SLUG: ${{ vars.DIGITALOCEAN_INSTANCE_SIZE_SLUG }}
         with:
           app_name: ${{ vars.DIGITALOCEAN_APP_NAME }}
           project_id: ${{ secrets.DIGITALOCEAN_PROJECT_ID }}
