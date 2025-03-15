@@ -1,7 +1,4 @@
 region: fra
-databases:
-- engine: PG
-  name: db
 services:
   environment_slug: node-js
   github:
