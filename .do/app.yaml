@@ -2,7 +2,7 @@ region: fra
 services:
   environment_slug: node-js
   github:
-    branch: digitalocean-deployment
+    branch: main
     repo: masumi-network/sokosumi
   name: sokosumi-web-app
   source_dir: web-app

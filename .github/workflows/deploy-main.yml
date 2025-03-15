@@ -2,7 +2,7 @@ name: Main Deployment
 
 on:
   push:
-    branches: [digitalocean-deployment]
+    branches: [main]
     
 permissions:
   contents: read
