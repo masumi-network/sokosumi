@@ -8,6 +8,7 @@ import {
   twoFactor,
 } from "better-auth/plugins";
 import { passkey } from "better-auth/plugins/passkey";
+import { getTranslations } from "next-intl/server";
 
 import prisma from "./db/prisma";
 import { resend } from "./email/resend";
@@ -23,10 +24,12 @@ const sendVerificationEmail = async ({
   user: User;
   url: string;
 }) => {
+  const t = await getTranslations("Auth.Email.Verification");
+
   await resend.emails.send({
     from: fromEmail,
     to: user.email,
-    subject: "Verify your email address",
+    subject: t("subject"),
     react: reactVerificationEmail({
       username: user.email,
       verificationLink: url,
@@ -41,10 +44,12 @@ const sendResetPassword = async ({
   user: User;
   url: string;
 }) => {
+  const t = await getTranslations("Auth.Email.ResetPassword");
+
   await resend.emails.send({
     from: fromEmail,
     to: user.email,
-    subject: "Reset your password",
+    subject: t("subject"),
     react: reactResetPasswordEmail({
       username: user.email,
       resetLink: url,
