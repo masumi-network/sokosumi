@@ -109,6 +109,8 @@
           "description": "Enter your email address and we'll send you a link to reset your password"
         },
         "Form": {
+          "success": "We've sent you an email to reset your password",
+          "reset_password": "Reset Password",
           "Fields": {
             "Email": {
               "label": "Email",

@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 
-import { authClient } from "@/lib/auth.client";
+import { auth } from "@/lib/auth";
 
 const passwordSchema = z
   .string()
@@ -27,9 +27,11 @@ export async function resetPassword(formData: FormData) {
   const { password, token } = validatedFields.data;
 
   try {
-    await authClient.resetPassword({
-      newPassword: password,
-      token,
+    await auth.api.resetPassword({
+      body: {
+        newPassword: password,
+        token,
+      },
     });
     return { success: true };
   } catch {

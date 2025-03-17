@@ -1,4 +1,4 @@
-import { betterAuth, User } from "better-auth";
+import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
 import {
@@ -17,58 +17,43 @@ import { reactVerificationEmail } from "./email/verification";
 
 const fromEmail = process.env.NOREPLY_EMAIL || "no-reply@resend.dev";
 
-const sendVerificationEmail = async ({
-  user,
-  url,
-}: {
-  user: User;
-  url: string;
-}) => {
-  const t = await getTranslations("Auth.Email.Verification");
-
-  await resend.emails.send({
-    from: fromEmail,
-    to: user.email,
-    subject: t("subject"),
-    react: reactVerificationEmail({
-      username: user.email,
-      verificationLink: url,
-    }),
-  });
-};
-
-const sendResetPassword = async ({
-  user,
-  url,
-}: {
-  user: User;
-  url: string;
-}) => {
-  const t = await getTranslations("Auth.Email.ResetPassword");
-
-  await resend.emails.send({
-    from: fromEmail,
-    to: user.email,
-    subject: t("subject"),
-    react: reactResetPasswordEmail({
-      username: user.email,
-      resetLink: url,
-    }),
-  });
-};
-
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
   emailVerification: {
-    sendVerificationEmail,
+    sendVerificationEmail: async ({ user, url }) => {
+      const t = await getTranslations("Auth.Email.Verification");
+
+      await resend.emails.send({
+        from: fromEmail,
+        to: user.email,
+        subject: t("subject"),
+        react: reactVerificationEmail({
+          username: user.email,
+          verificationLink: url,
+        }),
+      });
+    },
     sendOnSignUp: true,
   },
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
-    sendResetPassword,
+    sendResetPassword: async ({ user, url }) => {
+      console.log("sendResetPassword", user, url);
+      const t = await getTranslations("Auth.Email.ResetPassword");
+
+      await resend.emails.send({
+        from: fromEmail,
+        to: user.email,
+        subject: t("subject"),
+        react: reactResetPasswordEmail({
+          username: user.email,
+          resetLink: url,
+        }),
+      });
+    },
   },
   rateLimit: {
     storage: "database",

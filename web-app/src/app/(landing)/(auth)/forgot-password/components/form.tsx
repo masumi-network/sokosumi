@@ -12,15 +12,14 @@ import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { authClient } from "@/lib/auth.client";
 
+import { forgotPassword } from "../actions";
 import {
   forgotPasswordFormData,
   forgotPasswordFormSchema,
@@ -30,6 +29,7 @@ import {
 export default function ForgotPasswordForm() {
   const t = useTranslations("Auth.Pages.ForgotPassword.Form");
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
 
   const form = useForm<ForgotPasswordFormSchemaType>({
     resolver: zodResolver(forgotPasswordFormSchema(t)),
@@ -37,37 +37,32 @@ export default function ForgotPasswordForm() {
       email: "",
     },
   });
-  const [loading, setLoading] = useState(false);
 
-  const onSubmit = async (values: ForgotPasswordFormSchemaType) => {
-    const { email } = values;
-    await authClient.forgetPassword({
-      email,
-      redirectTo: "/reset-password",
-      fetchOptions: {
-        onRequest: () => {
-          setLoading(true);
-        },
-        onResponse: () => {
-          setLoading(false);
-        },
-        onError: (ctx) => {
-          toast.error(ctx.error.message || "Failed");
-        },
-        onSuccess: () => {
-          toast.success("Password reset email sent");
-          router.push("/");
-        },
-      },
-    });
-  };
+  async function onSubmit(values: ForgotPasswordFormSchemaType) {
+    setLoading(true);
+
+    const formData = new FormData();
+    formData.append("email", values.email);
+
+    const result = await forgotPassword(formData);
+
+    setLoading(false);
+
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+
+    toast.success(t("success"));
+    router.push("/signin");
+  }
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <fieldset disabled={loading} className="flex flex-col gap-6">
           {forgotPasswordFormData.map(
-            ({ name, labelKey, placeholderKey, type, descriptionKey }) => (
+            ({ name, labelKey, placeholderKey, type }) => (
               <FormField
                 key={name}
                 control={form.control}
@@ -82,9 +77,6 @@ export default function ForgotPasswordForm() {
                         {...field}
                       />
                     </FormControl>
-                    {descriptionKey && (
-                      <FormDescription>{t(descriptionKey)}</FormDescription>
-                    )}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -93,7 +85,7 @@ export default function ForgotPasswordForm() {
           )}
           <Button type="submit" disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Reset Password
+            {t("reset_password")}
           </Button>
         </fieldset>
       </form>
