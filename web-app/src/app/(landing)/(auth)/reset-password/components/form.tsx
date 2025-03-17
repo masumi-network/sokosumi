@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -12,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -22,28 +21,36 @@ import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth.client";
 
 import {
-  forgotPasswordFormData,
-  forgotPasswordFormSchema,
-  type ForgotPasswordFormSchemaType,
+  resetPasswordFormData,
+  resetPasswordFormSchema,
+  type ResetPasswordFormSchemaType,
 } from "./data";
 
-export default function ForgotPasswordForm() {
-  const t = useTranslations("Auth.Pages.ForgotPassword.Form");
+export default function ResetPasswordForm() {
+  const t = useTranslations("Auth.Pages.ResetPassword.Form");
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const token = searchParams.get("token");
 
-  const form = useForm<ForgotPasswordFormSchemaType>({
-    resolver: zodResolver(forgotPasswordFormSchema(t)),
+  const form = useForm<ResetPasswordFormSchemaType>({
+    resolver: zodResolver(resetPasswordFormSchema(t)),
     defaultValues: {
-      email: "",
+      password: "",
+      confirmPassword: "",
     },
   });
   const [loading, setLoading] = useState(false);
 
-  const onSubmit = async (values: ForgotPasswordFormSchemaType) => {
-    const { email } = values;
-    await authClient.forgetPassword({
-      email,
-      redirectTo: "/reset-password",
+  const onSubmit = async (values: ResetPasswordFormSchemaType) => {
+    if (!token) {
+      toast.error("Invalid or missing reset token");
+      return;
+    }
+
+    const { password } = values;
+    await authClient.resetPassword({
+      newPassword: password,
+      token,
       fetchOptions: {
         onRequest: () => {
           setLoading(true);
@@ -52,10 +59,10 @@ export default function ForgotPasswordForm() {
           setLoading(false);
         },
         onError: (ctx) => {
-          toast.error(ctx.error.message || "Failed");
+          toast.error(ctx.error.message || "Failed to reset password");
         },
         onSuccess: () => {
-          toast.success("Password reset email sent");
+          toast.success("Password reset successfully");
           router.push("/signin");
         },
       },
@@ -66,8 +73,8 @@ export default function ForgotPasswordForm() {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <fieldset disabled={loading} className="flex flex-col gap-6">
-          {forgotPasswordFormData.map(
-            ({ name, labelKey, placeholderKey, type, descriptionKey }) => (
+          {resetPasswordFormData.map(
+            ({ name, labelKey, placeholderKey, type }) => (
               <FormField
                 key={name}
                 control={form.control}
@@ -82,9 +89,6 @@ export default function ForgotPasswordForm() {
                         {...field}
                       />
                     </FormControl>
-                    {descriptionKey && (
-                      <FormDescription>{t(descriptionKey)}</FormDescription>
-                    )}
                     <FormMessage />
                   </FormItem>
                 )}
@@ -93,7 +97,7 @@ export default function ForgotPasswordForm() {
           )}
           <Button type="submit" disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Reset Password
+            {t("reset_password")}
           </Button>
         </fieldset>
       </form>
