@@ -147,7 +147,7 @@
     "Email": {
       "ResetPassword": {
         "subject": "Reset your Sokosumi password",
-        "title": "Reset your <strong>Sokosumi</strong> password",
+        "title": "Reset your Sokosumi password",
         "greeting": "Hello {username}",
         "message": "We received a request to reset your password for your Sokosumi account. If you didn't make this request, you can safely ignore this email.",
         "button": "Reset Password",
@@ -156,7 +156,7 @@
       },
       "Verification": {
         "subject": "Verify your email address",
-        "title": "Verify your <strong>Sokosumi</strong> email",
+        "title": "Verify your Sokosumi email",
         "greeting": "Hello {username}",
         "message": "Thank you for signing up! Please verify your email address by clicking the button below. This helps us ensure the security of your account.",
         "button": "Verify Email",

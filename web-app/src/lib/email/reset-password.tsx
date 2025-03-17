@@ -32,10 +32,9 @@ export const ResetPasswordEmail = async ({
       <Tailwind>
         <Body className="mx-auto my-auto bg-white px-2 font-sans">
           <Container className="mx-auto my-[40px] max-w-[465px] rounded border border-solid border-[#eaeaea] p-[20px]">
-            <Heading
-              className="mx-0 my-[30px] p-0 text-center text-[24px] font-normal text-black"
-              dangerouslySetInnerHTML={{ __html: t("title") }}
-            />
+            <Heading className="mx-0 my-[30px] p-0 text-center text-[24px] font-normal text-black">
+              {t("title")}
+            </Heading>
             <Text className="text-[14px] leading-[24px] text-black">
               {t("greeting", { username })}
             </Text>
