@@ -15,13 +15,13 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 interface ResetPasswordPageProps {
-  searchParams: { token?: Promise<string> };
+  searchParams: Promise<{ token?: string }>;
 }
 
 export default async function ResetPasswordPage({
   searchParams,
 }: ResetPasswordPageProps) {
-  const token = await searchParams.token;
+  const { token } = await searchParams;
 
   if (!token) {
     redirect("/signin");
