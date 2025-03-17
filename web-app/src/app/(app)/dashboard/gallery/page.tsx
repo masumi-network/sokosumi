@@ -6,10 +6,10 @@ import Agents from "@/components/agents";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 import { getCachedAgents } from "@/lib/db/services/agent.service";
 
-import { FeaturedAgent } from "./featured-agent";
+import FilterSection from "./components/filter-section";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("Landing.Gallery.Metadata");
+  const t = await getTranslations("App.Gallery.Metadata");
 
   return {
     title: t("title"),
@@ -18,7 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 function EmptyGallery() {
-  const t = useTranslations("Landing.Gallery");
+  const t = useTranslations("App.Gallery");
 
   return (
     <div className="container mx-auto px-4 pt-4 pb-8">
@@ -39,11 +39,9 @@ export default async function GalleryPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 pt-4 pb-8">
+    <div className="w-full p-8 xl:px-16">
       <div className="space-y-12">
-        {/* Featured Agent Section */}
-        <FeaturedAgent agent={agents[0]} />
-
+        <FilterSection />
         {/* Agent Cards Grid */}
         <Agents agents={agents} />
       </div>

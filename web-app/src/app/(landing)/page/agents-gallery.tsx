@@ -10,16 +10,7 @@ async function AgentsList() {
   return (
     <HorizontalScroll itemClassName="h-[32rem] w-[24rem]">
       {agents.map((agent) => (
-        <AgentCard
-          key={agent.id}
-          id={agent.id}
-          name={agent.name}
-          description={agent.description ?? ""}
-          averageStars={agent.Rating.averageStars}
-          image={agent.image}
-          price={agent.Pricing.credits}
-          tags={agent.tags}
-        />
+        <AgentCard key={agent.id} agent={agent} />
       ))}
     </HorizontalScroll>
   );

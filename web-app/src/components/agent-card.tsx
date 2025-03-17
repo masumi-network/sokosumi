@@ -5,22 +5,18 @@ import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { AgentDTO } from "@/lib/db/dto/AgentDTO";
+import { cn } from "@/lib/utils";
 
 import BadgeCloud from "./badge-cloud";
 
-interface AgentCardProps {
-  id: string;
-  name: string;
-  description: string;
-  averageStars: number | null;
-  image: string;
-  price: number;
-  tags: string[];
+interface AgentCardSkeletonProps {
+  className?: string;
 }
 
-export function AgentCardSkeleton() {
+export function AgentCardSkeleton({ className = "" }: AgentCardSkeletonProps) {
   return (
-    <Card className="flex h-full w-full max-w-md min-w-96 flex-col overflow-hidden py-0">
+    <Card className={cn("flex w-96 flex-col overflow-hidden py-0", className)}>
       <div className="bg-muted relative h-48 w-full shrink-0 animate-pulse" />
 
       <CardContent className="flex flex-1 flex-col px-6 pb-3">
@@ -55,18 +51,25 @@ export function AgentCardSkeleton() {
   );
 }
 
-export default function AgentCard({
-  id,
-  name,
-  description,
-  averageStars,
-  image,
-  price,
-  tags,
-}: AgentCardProps) {
+interface AgentCardProps {
+  agent: AgentDTO;
+  className?: string;
+}
+
+export default function AgentCard({ agent, className = "" }: AgentCardProps) {
   const t = useTranslations("Components.AgentCard");
+  const {
+    id,
+    name,
+    description = "",
+    Rating: { averageStars },
+    image,
+    Pricing: { credits: price },
+    tags,
+  } = agent;
+
   return (
-    <Card className="flex h-full w-full max-w-md min-w-96 flex-col overflow-hidden py-0">
+    <Card className={cn("flex w-96 flex-col overflow-hidden py-0", className)}>
       <div className="relative h-48 w-full shrink-0">
         <Image
           src={image || "/placeholder.svg"}
