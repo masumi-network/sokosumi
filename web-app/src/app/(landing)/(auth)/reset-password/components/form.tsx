@@ -18,8 +18,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { authClient } from "@/lib/auth.client";
 
+import { resetPassword } from "../actions";
 import {
   resetPasswordFormData,
   resetPasswordFormSchema,
@@ -27,12 +27,13 @@ import {
 } from "./data";
 
 interface ResetPasswordFormProps {
-  token?: string;
+  token: string;
 }
 
 export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
   const t = useTranslations("Auth.Pages.ResetPassword.Form");
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
 
   const form = useForm<ResetPasswordFormSchemaType>({
     resolver: zodResolver(resetPasswordFormSchema(t)),
@@ -41,35 +42,26 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
       confirmPassword: "",
     },
   });
-  const [loading, setLoading] = useState(false);
 
-  const onSubmit = async (values: ResetPasswordFormSchemaType) => {
-    if (!token) {
-      toast.error("Invalid or missing reset token");
+  async function onSubmit(values: ResetPasswordFormSchemaType) {
+    setLoading(true);
+
+    const formData = new FormData();
+    formData.append("password", values.password);
+    formData.append("token", token);
+
+    const result = await resetPassword(formData);
+
+    setLoading(false);
+
+    if (result.error) {
+      toast.error(result.error);
       return;
     }
 
-    const { password } = values;
-    await authClient.resetPassword({
-      newPassword: password,
-      token,
-      fetchOptions: {
-        onRequest: () => {
-          setLoading(true);
-        },
-        onResponse: () => {
-          setLoading(false);
-        },
-        onError: (ctx) => {
-          toast.error(ctx.error.message || "Failed to reset password");
-        },
-        onSuccess: () => {
-          toast.success("Password reset successfully");
-          router.push("/signin");
-        },
-      },
-    });
-  };
+    toast.success(t("success"));
+    router.push("/signin");
+  }
 
   return (
     <Form {...form}>

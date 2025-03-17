@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import ResetPasswordForm from "./components/form";
@@ -13,14 +14,18 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-interface PageProps {
-  searchParams: Promise<{
-    token?: string;
-  }>;
+interface ResetPasswordPageProps {
+  searchParams: { token?: string };
 }
 
-export default async function ResetPasswordPage({ searchParams }: PageProps) {
-  const { token } = await searchParams;
+export default async function ResetPasswordPage({
+  searchParams,
+}: ResetPasswordPageProps) {
+  const token = searchParams.token;
+
+  if (!token) {
+    redirect("/signin");
+  }
 
   return (
     <div className="flex flex-1 flex-col">
