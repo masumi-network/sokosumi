@@ -4,13 +4,12 @@ import { z } from "zod";
 
 import { auth } from "@/lib/auth";
 
+import { passwordSchema } from "../data";
+
 const signupSchema = z.object({
   email: z.string().email(),
   username: z.string().min(2).max(50),
-  password: z
-    .string()
-    .min(8)
-    .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/),
+  password: passwordSchema,
 });
 
 export async function signup(formData: FormData) {

@@ -4,10 +4,7 @@ import { z } from "zod";
 
 import { auth } from "@/lib/auth";
 
-const passwordSchema = z
-  .string()
-  .min(8)
-  .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/);
+import { passwordSchema } from "../data";
 
 const resetPasswordSchema = z.object({
   password: passwordSchema,
