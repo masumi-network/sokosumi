@@ -55,7 +55,7 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
     setLoading(false);
 
     if (result.error) {
-      toast.error(result.error);
+      toast.error(t("error"));
       return;
     }
 
@@ -91,7 +91,7 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
           )}
           <Button type="submit" disabled={loading}>
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {t("reset_password")}
+            {t("submit")}
           </Button>
         </fieldset>
       </form>

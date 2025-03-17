@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { FormIntlTranslation } from "@/lib/form";
+import { FormData, FormIntlTranslation } from "@/lib/form";
 
 export const resetPasswordFormSchema = (
   t: FormIntlTranslation<"Auth.Pages.ResetPassword.Form">,
@@ -9,14 +9,14 @@ export const resetPasswordFormSchema = (
     .object({
       password: z
         .string()
-        .min(8, t("password_min_length"))
+        .min(8, t("Errors.Password.min"))
         .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, {
-          message: t("password_regex"),
+          message: t("Errors.Password.regex"),
         }),
       confirmPassword: z.string(),
     })
     .refine((data) => data.password === data.confirmPassword, {
-      message: t("passwords_must_match"),
+      message: t("Errors.ConfirmPassword.match"),
       path: ["confirmPassword"],
     });
 
@@ -24,17 +24,20 @@ export type ResetPasswordFormSchemaType = z.infer<
   ReturnType<typeof resetPasswordFormSchema>
 >;
 
-export const resetPasswordFormData = [
+export const resetPasswordFormData: FormData<
+  ResetPasswordFormSchemaType,
+  "Auth.Pages.ResetPassword.Form"
+> = [
   {
-    name: "password" as const,
-    labelKey: "password",
-    placeholderKey: "enter_new_password",
+    name: "password",
+    labelKey: "Fields.Password.label",
+    placeholderKey: "Fields.Password.placeholder",
     type: "password",
   },
   {
-    name: "confirmPassword" as const,
-    labelKey: "confirm_password",
-    placeholderKey: "confirm_new_password",
+    name: "confirmPassword",
+    labelKey: "Fields.ConfirmPassword.label",
+    placeholderKey: "Fields.ConfirmPassword.placeholder",
     type: "password",
   },
-] as const;
+];

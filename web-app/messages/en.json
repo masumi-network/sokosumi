@@ -138,15 +138,28 @@
         "title": "Reset Password",
         "description": "Enter your new password below",
         "Form": {
-          "password": "New Password",
-          "confirm_password": "Confirm Password",
-          "enter_new_password": "Enter your new password",
-          "confirm_new_password": "Confirm your new password",
-          "reset_password": "Reset Password",
-          "password_min_length": "Password must be at least 8 characters",
-          "password_regex": "Password must contain at least one uppercase letter, one lowercase letter, and one number.",
-          "passwords_must_match": "Passwords must match",
-          "success": "Password reset successfully"
+          "submit": "Reset Password",
+          "success": "Password reset successfully",
+          "error": "Password reset failed",
+          "Fields": {
+            "Password": {
+              "label": "New Password",
+              "placeholder": "New Password"
+            },
+            "ConfirmPassword": {
+              "label": "Confirm Password",
+              "placeholder": "Confirm Password"
+            }
+          },
+          "Errors": {
+            "Password": {
+              "min": "Password must be at least 8 characters",
+              "regex": "Password must contain at least one uppercase letter, one lowercase letter, and one number."
+            },
+            "ConfirmPassword": {
+              "match": "Passwords must match"
+            }
+          }
         }
       }
     },
