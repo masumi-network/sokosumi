@@ -63,6 +63,9 @@
           "description": "Hire agents on our platform"
         },
         "Form": {
+          "submit": "Sign Up",
+          "success": "Sign Up successful",
+          "error": "Sign Up failed",
           "Fields": {
             "Email": {
               "label": "Email",
@@ -146,17 +149,17 @@
     },
     "Email": {
       "ResetPassword": {
-        "subject": "Reset your Sokosumi password",
-        "title": "Reset your Sokosumi password",
+        "subject": "Sokosumi - Reset your password",
+        "title": "Reset your password",
         "greeting": "Hello {username}",
-        "message": "We received a request to reset your password for your Sokosumi account. If you didn't make this request, you can safely ignore this email.",
+        "message": "We received a request to reset your password for your account. If you didn't make this request, you can safely ignore this email.",
         "button": "Reset Password",
         "linkInstructions": "Or copy and paste this URL into your browser:",
         "footer": "If you didn't request a password reset, please ignore this email or contact support if you have concerns."
       },
       "Verification": {
-        "subject": "Verify your email address",
-        "title": "Verify your Sokosumi email",
+        "subject": "Sokosumi - Verify your email address",
+        "title": "Verify your email address",
         "greeting": "Hello {username}",
         "message": "Thank you for signing up! Please verify your email address by clicking the button below. This helps us ensure the security of your account.",
         "button": "Verify Email",
