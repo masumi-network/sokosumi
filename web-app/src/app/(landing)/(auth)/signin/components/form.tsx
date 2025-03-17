@@ -20,13 +20,14 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { signIn } from "@/lib/auth.client";
 
+import { signin } from "../actions";
 import { signInFormData, signInFormSchema, SignInFormSchemaType } from "./data";
 
 export default function SignInForm() {
   const t = useTranslations("Auth.Pages.SignIn.Form");
   const router = useRouter();
+  const [loading, setLoading] = useState(false);
 
   const form = useForm<SignInFormSchemaType>({
     resolver: zodResolver(signInFormSchema(t)),
@@ -35,33 +36,25 @@ export default function SignInForm() {
       password: "",
     },
   });
-  const [loading, setLoading] = useState(false);
 
   const onSubmit = async (values: SignInFormSchemaType) => {
-    const { email, password } = values;
-    await signIn.email({
-      email,
-      password,
-      fetchOptions: {
-        onRequest: () => {
-          setLoading(true);
-        },
-        onResponse: () => {
-          setLoading(false);
-        },
-        onError: (ctx) => {
-          if (ctx.error.status === 403) {
-            toast.error("Please verify your email address");
-          } else {
-            toast.error(ctx.error.message || "Failed");
-          }
-        },
-        onSuccess: () => {
-          toast.success("Success");
-          router.push("/dashboard");
-        },
-      },
-    });
+    setLoading(true);
+
+    const formData = new FormData();
+    formData.append("email", values.email);
+    formData.append("password", values.password);
+
+    const result = await signin(formData);
+
+    setLoading(false);
+
+    if (result.error) {
+      toast.error(result.error);
+      return;
+    }
+
+    toast.success(t("success"));
+    router.push("/dashboard");
   };
 
   return (
@@ -95,7 +88,8 @@ export default function SignInForm() {
           )}
           <div className="flex items-center justify-between">
             <Button type="submit" disabled={loading}>
-              {loading && <Loader2 className="animate-spin" />} Continue
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("submit")}
             </Button>
             <div className="text-sm">
               <span className="text-muted-foreground">

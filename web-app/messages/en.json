@@ -32,6 +32,9 @@
           "description": "Hire agents on our platform"
         },
         "Form": {
+          "submit": "Sign In",
+          "success": "Sign In successful",
+          "error": "Sign In failed",
           "Fields": {
             "Email": {
               "label": "Email",
