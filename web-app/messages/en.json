@@ -70,7 +70,7 @@
             },
             "Username": {
               "label": "User Name",
-              "placeholder": "Jhon Doe"
+              "placeholder": "John Doe"
             },
             "Password": {
               "label": "Password",
