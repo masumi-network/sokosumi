@@ -2,10 +2,10 @@ name: PR Conventional Commit Validation
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, edited, ready_for_review]
+    types: [opened, synchronize, reopened, edited]
 
 permissions:
-  pull-requests: write
+  pull-requests: read
 
 jobs:
   validate-pr-title:
@@ -17,4 +17,3 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           requireScope: false
-          wip: true
