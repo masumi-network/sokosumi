@@ -3,8 +3,7 @@
 import { X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
-import { useDebounceCallback } from "usehooks-ts";
+import { useCallback, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,14 +22,17 @@ export default function FilterSection() {
     searchParams.get("tags")?.split(",") ?? [],
   );
 
-  const handleSearch = useDebounceCallback((query: string, tags: string[]) => {
-    const params = new URLSearchParams(searchParams);
-    if (query) params.set("query", query);
-    else params.delete("query");
-    if (tags.length > 0) params.set("tags", tags.join(","));
-    else params.delete("tags");
-    replace(`${pathname}?${params.toString()}`);
-  }, 500);
+  const handleSearch = useCallback(
+    (query: string, tags: string[]) => {
+      const params = new URLSearchParams(searchParams);
+      if (query) params.set("query", query);
+      else params.delete("query");
+      if (tags.length > 0) params.set("tags", tags.join(","));
+      else params.delete("tags");
+      replace(`${pathname}?${params.toString()}`);
+    },
+    [pathname, searchParams, replace],
+  );
 
   const handleReset = () => {
     setQuery("");
@@ -39,7 +41,10 @@ export default function FilterSection() {
   };
 
   useEffect(() => {
-    handleSearch(query, selectedTags);
+    const timerId = setTimeout(() => {
+      handleSearch(query, selectedTags);
+    }, 500);
+    return () => clearTimeout(timerId);
   }, [query, selectedTags, handleSearch]);
 
   return (
