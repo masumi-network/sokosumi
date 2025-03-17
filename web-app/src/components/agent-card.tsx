@@ -16,7 +16,12 @@ interface AgentCardSkeletonProps {
 
 export function AgentCardSkeleton({ className = "" }: AgentCardSkeletonProps) {
   return (
-    <Card className={cn("flex w-96 flex-col overflow-hidden py-0", className)}>
+    <Card
+      className={cn(
+        "flex w-72 flex-col overflow-hidden py-0 sm:w-96",
+        className,
+      )}
+    >
       <div className="bg-muted relative h-48 w-full shrink-0 animate-pulse" />
 
       <CardContent className="flex flex-1 flex-col px-6 pb-3">
@@ -69,7 +74,12 @@ export default function AgentCard({ agent, className = "" }: AgentCardProps) {
   } = agent;
 
   return (
-    <Card className={cn("flex w-96 flex-col overflow-hidden py-0", className)}>
+    <Card
+      className={cn(
+        "flex w-72 flex-col overflow-hidden py-0 sm:w-96",
+        className,
+      )}
+    >
       <div className="relative h-48 w-full shrink-0">
         <Image
           src={image || "/placeholder.svg"}

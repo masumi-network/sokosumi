@@ -37,7 +37,12 @@ interface AgentsSkeletonProps {
 
 export function AgentsSkeleton({ className }: AgentsSkeletonProps) {
   return (
-    <div className={cn("flex w-full flex-wrap justify-start gap-6", className)}>
+    <div
+      className={cn(
+        "flex w-full flex-wrap justify-center gap-6 lg:justify-start",
+        className,
+      )}
+    >
       {Array.from({ length: 6 }).map((_, i) => (
         <AgentCardSkeleton key={i} />
       ))}
@@ -57,7 +62,12 @@ export default function Agents({
   agentCardClassName = "",
 }: AgentsProps) {
   return (
-    <div className={cn("flex w-full flex-wrap justify-start gap-6", className)}>
+    <div
+      className={cn(
+        "flex w-full flex-wrap justify-center gap-6 lg:justify-start",
+        className,
+      )}
+    >
       {agents.map((agent) => (
         <AgentCard
           key={agent.id}

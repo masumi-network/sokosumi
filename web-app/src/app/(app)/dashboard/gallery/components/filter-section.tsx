@@ -51,14 +51,16 @@ export default function FilterSection() {
     <div className="flex flex-col gap-4">
       <h1 className="text-3xl font-bold">{t("header")}</h1>
 
-      <div className="flex flex-col gap-4 lg:flex-row">
-        <Input
-          className="h-12 max-w-64 min-w-36"
-          placeholder={t("searchPlaceholder")}
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-        <Tags tags={selectedTags} onChange={setSelectedTags} />
+      <div className="flex flex-col gap-4 sm:flex-row">
+        <div className="flex gap-4">
+          <Input
+            className="h-12 max-w-64 min-w-36"
+            placeholder={t("searchPlaceholder")}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          <Tags tags={selectedTags} onChange={setSelectedTags} />
+        </div>
         <Button
           variant="ghost"
           onClick={handleReset}
