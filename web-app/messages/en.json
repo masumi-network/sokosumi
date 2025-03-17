@@ -140,6 +140,17 @@
           "passwords_must_match": "Passwords must match"
         }
       }
+    },
+    "Email": {
+      "ResetPassword": {
+        "subject": "Reset your Sokosumi password",
+        "title": "Reset your <strong>Sokosumi</strong> password",
+        "greeting": "Hello {username}",
+        "message": "We received a request to reset your password for your Sokosumi account. If you didn't make this request, you can safely ignore this email.",
+        "button": "Reset Password",
+        "linkInstructions": "Or copy and paste this URL into your browser:",
+        "footer": "If you didn't request a password reset, please ignore this email or contact support if you have concerns."
+      }
     }
   },
   "Landing": {
