@@ -150,6 +150,15 @@
         "button": "Reset Password",
         "linkInstructions": "Or copy and paste this URL into your browser:",
         "footer": "If you didn't request a password reset, please ignore this email or contact support if you have concerns."
+      },
+      "Verification": {
+        "subject": "Verify your email address",
+        "title": "Verify your <strong>Sokosumi</strong> email",
+        "greeting": "Hello {username}",
+        "message": "Thank you for signing up! Please verify your email address by clicking the button below. This helps us ensure the security of your account.",
+        "button": "Verify Email",
+        "linkInstructions": "Or copy and paste this URL into your browser:",
+        "footer": "If you didn't create an account, you can safely ignore this email."
       }
     }
   },
