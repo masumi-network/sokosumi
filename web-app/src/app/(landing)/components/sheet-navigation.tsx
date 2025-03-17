@@ -18,7 +18,7 @@ export default function SheetNavigation() {
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <Button variant="outline" size="icon" className="flex lg:hidden">
+        <Button variant="outline" size="icon">
           <Menu />
         </Button>
       </SheetTrigger>
