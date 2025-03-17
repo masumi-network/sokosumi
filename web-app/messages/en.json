@@ -46,6 +46,10 @@
             "Email": {
               "invalid": "Please enter a valid email address."
             }
+          },
+          "ForgotPassword": {
+            "text": "Forgot your password?",
+            "link": "Reset it here"
           }
         }
       },
@@ -91,6 +95,29 @@
             },
             "ConfirmPassword": {
               "match": "Password doesn't match"
+            }
+          }
+        }
+      },
+      "ForgotPassword": {
+        "Metadata": {
+          "title": "Reset Password",
+          "description": "Reset your password to regain access to your account"
+        },
+        "Header": {
+          "title": "Reset Password",
+          "description": "Enter your email address and we'll send you a link to reset your password"
+        },
+        "Form": {
+          "Fields": {
+            "Email": {
+              "label": "Email",
+              "placeholder": "me@example.com"
+            }
+          },
+          "Errors": {
+            "Email": {
+              "invalid": "Please enter a valid email address."
             }
           }
         }

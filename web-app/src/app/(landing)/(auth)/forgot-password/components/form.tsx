@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -20,28 +19,30 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { signIn } from "@/lib/auth.client";
+import { authClient } from "@/lib/auth.client";
 
-import { signInFormData, signInFormSchema, SignInFormSchemaType } from "./data";
+import {
+  forgotPasswordFormData,
+  forgotPasswordFormSchema,
+  type ForgotPasswordFormSchemaType,
+} from "./data";
 
-export default function SignInForm() {
-  const t = useTranslations("Auth.Pages.SignIn.Form");
+export default function ForgotPasswordForm() {
+  const t = useTranslations("Auth.Pages.ForgotPassword.Form");
   const router = useRouter();
 
-  const form = useForm<SignInFormSchemaType>({
-    resolver: zodResolver(signInFormSchema(t)),
+  const form = useForm<ForgotPasswordFormSchemaType>({
+    resolver: zodResolver(forgotPasswordFormSchema(t)),
     defaultValues: {
       email: "",
-      password: "",
     },
   });
   const [loading, setLoading] = useState(false);
 
-  const onSubmit = async (values: SignInFormSchemaType) => {
-    const { email, password } = values;
-    await signIn.email({
+  const onSubmit = async (values: ForgotPasswordFormSchemaType) => {
+    const { email } = values;
+    await authClient.forgetPassword({
       email,
-      password,
       fetchOptions: {
         onRequest: () => {
           setLoading(true);
@@ -50,15 +51,11 @@ export default function SignInForm() {
           setLoading(false);
         },
         onError: (ctx) => {
-          if (ctx.error.status === 403) {
-            toast.error("Please verify your email address");
-          } else {
-            toast.error(ctx.error.message || "Failed");
-          }
+          toast.error(ctx.error.message || "Failed");
         },
         onSuccess: () => {
-          toast.success("Success");
-          router.push("/dashboard");
+          toast.success("Password reset email sent");
+          router.push("/signin");
         },
       },
     });
@@ -68,7 +65,7 @@ export default function SignInForm() {
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <fieldset disabled={loading} className="flex flex-col gap-6">
-          {signInFormData.map(
+          {forgotPasswordFormData.map(
             ({ name, labelKey, placeholderKey, type, descriptionKey }) => (
               <FormField
                 key={name}
@@ -93,22 +90,10 @@ export default function SignInForm() {
               />
             ),
           )}
-          <div className="flex items-center justify-between">
-            <Button type="submit" disabled={loading}>
-              {loading && <Loader2 className="animate-spin" />} Continue
-            </Button>
-            <div className="text-sm">
-              <span className="text-muted-foreground">
-                {t("ForgotPassword.text")}{" "}
-              </span>
-              <Link
-                href="/forgot-password"
-                className="text-primary font-medium hover:underline"
-              >
-                {t("ForgotPassword.link")}
-              </Link>
-            </div>
-          </div>
+          <Button type="submit" disabled={loading}>
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            Reset Password
+          </Button>
         </fieldset>
       </form>
     </Form>
