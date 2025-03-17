@@ -8,9 +8,13 @@ import HorizontalScroll from "../components/horizontal-scroll";
 async function AgentsList() {
   const agents = await getCachedAgents();
   return (
-    <HorizontalScroll itemClassName="h-[32rem] w-[24rem]">
+    <HorizontalScroll>
       {agents.map((agent) => (
-        <AgentCard key={agent.id} agent={agent} />
+        <AgentCard
+          key={agent.id}
+          agent={agent}
+          className="h-[32rem] w-[24rem]"
+        />
       ))}
     </HorizontalScroll>
   );
@@ -18,9 +22,9 @@ async function AgentsList() {
 
 function AgentsGallerySkeleton() {
   return (
-    <HorizontalScroll itemClassName="h-[32rem] w-[24rem]">
+    <HorizontalScroll>
       {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => (
-        <AgentCardSkeleton key={i} />
+        <AgentCardSkeleton key={i} className="h-[32rem] w-[24rem]" />
       ))}
     </HorizontalScroll>
   );

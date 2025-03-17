@@ -5,13 +5,11 @@ import { cn } from "@/lib/utils";
 
 interface HorizontalScrollProps {
   children: React.ReactNode;
-  itemClassName?: string;
   containerClassName?: string;
 }
 
 export default function HorizontalScroll({
   children,
-  itemClassName,
   containerClassName,
 }: HorizontalScrollProps) {
   return (
@@ -22,11 +20,7 @@ export default function HorizontalScroll({
           containerClassName,
         )}
       >
-        <div className="flex gap-6">
-          {React.Children.map(children, (child) => (
-            <div className={cn("flex-shrink-0", itemClassName)}>{child}</div>
-          ))}
-        </div>
+        <div className="flex gap-6">{children}</div>
       </div>
       <ScrollBar orientation="horizontal" className="hidden" />
     </ScrollArea>
