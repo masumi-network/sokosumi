@@ -1,6 +1,6 @@
 import { AgentsSkeleton } from "@/components/agents";
 
-import { FeaturedAgentSkeleton } from "./featured-agent";
+import { FeaturedAgentSkeleton } from "./components/featured-agent";
 
 export default function GalleryLoading() {
   return (

@@ -5,7 +5,7 @@ import Agents, { EmptyGallery } from "@/components/agents";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 import { getCachedAgents } from "@/lib/db/services/agent.service";
 
-import { FeaturedAgent } from "./featured-agent";
+import { FeaturedAgent } from "./components/featured-agent";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Landing.Gallery.Metadata");
