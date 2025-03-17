@@ -25,7 +25,7 @@ interface TagsProps {
 export default function Tags({ tags, onChange }: TagsProps) {
   const t = useTranslations("App.Gallery.FilterSection");
 
-  const onSelectTag = (tag: string, checked: boolean) => {
+  const handleSelectTag = (tag: string, checked: boolean) => {
     if (checked) {
       onChange([...tags, tag]);
     } else {
@@ -57,7 +57,7 @@ export default function Tags({ tags, onChange }: TagsProps) {
               key={tag}
               className="hover:bg-foreground hover:text-white"
               checked={tags.includes(tag)}
-              onCheckedChange={(checked) => onSelectTag(tag, checked)}
+              onCheckedChange={(checked) => handleSelectTag(tag, checked)}
             >
               {tag}
             </DropdownMenuCheckboxItem>

@@ -1,8 +1,10 @@
 "use client";
 
 import { X } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useDebounceCallback } from "usehooks-ts";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,7 +14,33 @@ import Tags from "./tags";
 export default function FilterSection() {
   const t = useTranslations("App.Gallery.FilterSection");
 
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const { replace } = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const [query, setQuery] = useState<string>(searchParams.get("query") ?? "");
+  const [selectedTags, setSelectedTags] = useState<string[]>(
+    searchParams.get("tags")?.split(",") ?? [],
+  );
+
+  const handleSearch = useDebounceCallback((query: string, tags: string[]) => {
+    const params = new URLSearchParams(searchParams);
+    if (query) params.set("query", query);
+    else params.delete("query");
+    if (tags.length > 0) params.set("tags", tags.join(","));
+    else params.delete("tags");
+    replace(`${pathname}?${params.toString()}`);
+  }, 500);
+
+  const handleReset = () => {
+    setQuery("");
+    setSelectedTags([]);
+    replace(pathname);
+  };
+
+  useEffect(() => {
+    handleSearch(query, selectedTags);
+  }, [query, selectedTags, handleSearch]);
 
   return (
     <div className="flex flex-col gap-4">
@@ -22,13 +50,13 @@ export default function FilterSection() {
         <Input
           className="h-12 max-w-64 min-w-36"
           placeholder={t("searchPlaceholder")}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
         />
         <Tags tags={selectedTags} onChange={setSelectedTags} />
         <Button
           variant="ghost"
-          onClick={() => {
-            setSelectedTags([]);
-          }}
+          onClick={handleReset}
           className="h-12 gap-2 text-lg"
         >
           {t("reset")}

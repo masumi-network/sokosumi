@@ -3,6 +3,10 @@
     "AgentCard": {
       "button": "Show details",
       "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
+    },
+    "Agents": {
+      "noAgentsAvailable": "No agents available",
+      "agentsNotFound": "Agents not found"
     }
   },
   "Auth": {
@@ -187,7 +191,6 @@
         "title": "Agents Gallery",
         "description": "Explore our collection of agents."
       },
-      "noAgentsAvailable": "No agents available",
       "FeaturedAgent": {
         "title": "an absolute must-have",
         "button": "Show details"
@@ -248,20 +251,6 @@
         "reset": "Reset",
         "tags": "Tags",
         "selectTags": "Select Tags"
-      },
-      "noAgentsAvailable": "No agents available",
-      "agentsNotFound": "Agents not found",
-      "Agent": {
-        "hire": "Hire",
-        "share": "Share",
-        "byAuthor": "by {author}",
-        "Legal": {
-          "fromDeveloper": "From the developer:",
-          "privacyPolicy": "Privacy Policy",
-          "terms": "Terms",
-          "other": "Other"
-        },
-        "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
       }
     }
   },

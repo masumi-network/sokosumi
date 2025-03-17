@@ -1,7 +1,35 @@
+import { useTranslations } from "next-intl";
+
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 import { cn } from "@/lib/utils";
 
 import AgentCard, { AgentCardSkeleton } from "./agent-card";
+
+export function EmptyGallery() {
+  const t = useTranslations("Components.Agents");
+
+  return (
+    <div className="container mx-auto px-4 pt-4 pb-8">
+      <div className="flex h-[50vh] items-center justify-center">
+        <p className="text-muted-foreground text-lg">
+          {t("noAgentsAvailable")}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export function AgentsNotFound() {
+  const t = useTranslations("Components.Agents");
+
+  return (
+    <div className="container mx-auto px-4 pt-4 pb-8">
+      <div className="flex h-[50vh] items-center justify-center">
+        <p className="text-muted-foreground text-lg">{t("agentsNotFound")}</p>
+      </div>
+    </div>
+  );
+}
 
 interface AgentsSkeletonProps {
   className?: string;
@@ -10,10 +38,7 @@ interface AgentsSkeletonProps {
 export function AgentsSkeleton({ className }: AgentsSkeletonProps) {
   return (
     <div
-      className={cn(
-        "flex w-full flex-wrap justify-center gap-6 px-4 lg:px-8 xl:px-16",
-        className,
-      )}
+      className={cn("flex w-full flex-wrap justify-center gap-6", className)}
     >
       {Array.from({ length: 6 }).map((_, i) => (
         <AgentCardSkeleton key={i} />
