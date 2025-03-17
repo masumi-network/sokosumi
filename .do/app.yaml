@@ -8,6 +8,8 @@ services:
       value: ${BETTER_AUTH_SECRET}
     - name: BETTER_AUTH_URL
       value: ${BETTER_AUTH_URL}
+    - name: NOREPLY_EMAIL
+      value: ${NOREPLY_EMAIL}
   github:
     branch: main
     repo: masumi-network/sokosumi
