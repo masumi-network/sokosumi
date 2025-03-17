@@ -14,13 +14,13 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 interface PageProps {
-  searchParams: {
+  searchParams: Promise<{
     token?: string;
-  };
+  }>;
 }
 
 export default async function ResetPasswordPage({ searchParams }: PageProps) {
-  const { token } = searchParams;
+  const { token } = await searchParams;
 
   return (
     <div className="flex flex-1 flex-col">
