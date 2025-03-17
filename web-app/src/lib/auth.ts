@@ -12,6 +12,7 @@ import { passkey } from "better-auth/plugins/passkey";
 import prisma from "./db/prisma";
 import { resend } from "./email/resend";
 import { reactResetPasswordEmail } from "./email/reset-password";
+import { reactVerificationEmail } from "./email/verification";
 
 const fromEmail = process.env.NOREPLY_EMAIL || "no-reply@resend.dev";
 
@@ -20,21 +21,23 @@ export const auth = betterAuth({
     provider: "postgresql",
   }),
   emailVerification: {
-    async sendVerificationEmail({ user, url }) {
-      const res = await resend.emails.send({
+    sendVerificationEmail: async ({ user, url }) => {
+      await resend.emails.send({
         from: fromEmail,
         to: user.email,
         subject: "Verify your email address",
-        html: `<a href="${url}">Verify your email address</a>`,
+        react: reactVerificationEmail({
+          username: user.email,
+          verificationLink: url,
+        }),
       });
-      console.log(res, user.email);
     },
     sendOnSignUp: true,
   },
   emailAndPassword: {
     enabled: true,
     requireEmailVerification: true,
-    async sendResetPassword({ user, url }) {
+    sendResetPassword: async ({ user, url }) => {
       await resend.emails.send({
         from: fromEmail,
         to: user.email,
