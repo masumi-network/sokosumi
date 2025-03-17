@@ -13,7 +13,7 @@ import prisma from "./db/prisma";
 import { resend } from "./email/resend";
 import { reactResetPasswordEmail } from "./email/reset-password";
 
-const fromEmail = process.env.BETTER_AUTH_EMAIL || "no-reply@masumi.network";
+const fromEmail = process.env.NOREPLY_EMAIL || "no-reply@resend.dev";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -29,11 +29,11 @@ export const auth = betterAuth({
       });
       console.log(res, user.email);
     },
-    // sendOnSignUp: true,
+    sendOnSignUp: true,
   },
   emailAndPassword: {
     enabled: true,
-    // requireEmailVerification: true,
+    requireEmailVerification: true,
     async sendResetPassword({ user, url }) {
       await resend.emails.send({
         from: fromEmail,
