@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -26,11 +26,13 @@ import {
   type ResetPasswordFormSchemaType,
 } from "./data";
 
-export default function ResetPasswordForm() {
+interface ResetPasswordFormProps {
+  token?: string;
+}
+
+export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
   const t = useTranslations("Auth.Pages.ResetPassword.Form");
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const token = searchParams.get("token");
 
   const form = useForm<ResetPasswordFormSchemaType>({
     resolver: zodResolver(resetPasswordFormSchema(t)),
