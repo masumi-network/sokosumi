@@ -6,6 +6,8 @@ services:
       value: ${RESEND_API_KEY}
     - name: BETTER_AUTH_SECRET
       value: ${BETTER_AUTH_SECRET}
+    - name: BETTER_AUTH_URL
+      value: ${BETTER_AUTH_URL}
   github:
     branch: main
     repo: masumi-network/sokosumi
