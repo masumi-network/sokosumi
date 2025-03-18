@@ -49,7 +49,7 @@ export default function SignInForm() {
     setLoading(false);
 
     if (result.error) {
-      toast.error(result.error);
+      toast.error(t("error"));
       return;
     }
 

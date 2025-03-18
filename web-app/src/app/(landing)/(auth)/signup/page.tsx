@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
+import SocialButtons from "../components/social-buttons";
 import SignUpForm from "./components/form";
 import SignUpHeader from "./components/header";
 
@@ -18,7 +19,7 @@ export default function SignUp() {
     <div className="flex flex-1 flex-col">
       <SignUpHeader />
       <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
-        {/* <SocialButtons variant="signup" /> */}
+        <SocialButtons />
         <SignUpForm />
       </div>
     </div>

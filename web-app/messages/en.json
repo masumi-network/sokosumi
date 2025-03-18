@@ -15,7 +15,9 @@
     },
     "SocialButtons": {
       "continueWith": "Continue with {provider}",
-      "divider": "Or Continue With"
+      "divider": "or continue with",
+      "success": "Sign In successful",
+      "error": "Sign In failed"
     },
     "Words": {
       "signIn": "Sign In",
@@ -116,6 +118,7 @@
         },
         "Form": {
           "success": "We've sent you an email to reset your password",
+          "error": "Failed to reset password",
           "reset_password": "Reset Password",
           "Fields": {
             "Email": {
