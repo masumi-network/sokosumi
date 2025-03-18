@@ -30,7 +30,7 @@ export default async function GalleryPage() {
         <FeaturedAgent agent={agents[0]} />
 
         {/* Agent Cards Grid */}
-        <Agents agents={agents} />
+        <Agents agents={agents} className="lg:justify-center" />
       </div>
     </div>
   );
