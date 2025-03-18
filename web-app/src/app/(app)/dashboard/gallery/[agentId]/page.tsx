@@ -36,7 +36,7 @@ export default async function Page({
   }
 
   return (
-    <div className="container mx-auto space-y-8 p-4 pb-16 xl:p-8">
+    <div className="w-full space-y-8 p-8 xl:px-16">
       <BackToGallery />
       <AgentDetails agent={agent} />
     </div>

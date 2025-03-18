@@ -93,8 +93,8 @@ function AgentDetails({ agent, className }: AgentDetailsProps) {
   return (
     <div className={cn("space-y-4", className)}>
       {/* Agent Summary */}
-      <div className="flex h-48 w-full overflow-hidden">
-        <div className="relative h-full w-48">
+      <div className="flex w-full flex-col gap-y-4 sm:flex-row">
+        <div className="relative mx-auto h-48 w-48">
           <Image
             src={image}
             alt={name}
@@ -103,7 +103,7 @@ function AgentDetails({ agent, className }: AgentDetailsProps) {
             priority
           />
         </div>
-        <div className="flex flex-1 flex-col px-6 py-2">
+        <div className="flex flex-1 flex-col gap-y-2 p-2 sm:px-6">
           <div>
             <h2 className="text-2xl font-bold">{name}</h2>
             <p className="text-muted-foreground line-clamp-1">

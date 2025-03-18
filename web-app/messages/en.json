@@ -297,17 +297,8 @@
         "title": "an absolute must-have",
         "button": "Show details"
       },
-      "Agent": {
-        "hire": "Hire",
-        "share": "Share",
-        "byAuthor": "by {author}",
-        "Legal": {
-          "fromDeveloper": "From the developer:",
-          "privacyPolicy": "Privacy Policy",
-          "terms": "Terms",
-          "other": "Other"
-        },
-        "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
+      "AgentDetail": {
+        "backToGallery": "Agents Gallery"
       }
     }
   },
@@ -353,6 +344,9 @@
         "reset": "Reset",
         "tags": "Tags",
         "selectTags": "Select Tags"
+      },
+      "AgentDetail": {
+        "backToGallery": "Agents Gallery"
       }
     }
   },

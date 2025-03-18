@@ -59,9 +59,14 @@ function AgentCardSkeleton({ className = "" }: AgentCardSkeletonProps) {
 interface AgentCardProps {
   agent: AgentDTO;
   className?: string;
+  agentCardHrefPrefix?: string;
 }
 
-function AgentCard({ agent, className = "" }: AgentCardProps) {
+function AgentCard({
+  agent,
+  className = "",
+  agentCardHrefPrefix = "/gallery",
+}: AgentCardProps) {
   const t = useTranslations("Components.Agents.AgentCard");
   const {
     id,
@@ -116,7 +121,7 @@ function AgentCard({ agent, className = "" }: AgentCardProps) {
 
       <CardFooter className="mt-auto shrink-0 px-6 pt-2 pb-4">
         <div className="flex items-center gap-4">
-          <Link href={`/gallery/${id}`}>
+          <Link href={`${agentCardHrefPrefix}/${id}`}>
             <Button>{t("button")}</Button>
           </Link>
 

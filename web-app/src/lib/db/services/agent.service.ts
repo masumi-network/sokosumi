@@ -29,10 +29,6 @@ export async function getAgents(): Promise<AgentDTO[]> {
     include: agentInclude,
   });
 
-  if (!agents) {
-    throw new Error("No agents found");
-  }
-
   return agents.map((agent) => createAgentDTO(agent));
 }
 
