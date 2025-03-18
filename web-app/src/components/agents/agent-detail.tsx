@@ -101,7 +101,6 @@ function AgentDetails({ agent, className }: AgentDetailsProps) {
             fill
             className="rounded-md object-cover"
             priority
-            placeholder="blur"
           />
         </div>
         <div className="flex flex-1 flex-col gap-y-2 p-2 sm:px-6">

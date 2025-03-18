@@ -1,67 +1,37 @@
-import Image from "next/image";
-import Link from "next/link";
+import Image, { ImageProps } from "next/image";
 
-interface Props {
-  variant?: "black" | "white";
-  href: string;
-  src: string;
-  alt: string;
-  width: number;
-  height: number;
-}
-
-function Logo({ src, alt, width, height, href }: Props) {
-  return (
-    <div className="flex items-center">
-      <Link href={href} className="text-xl font-bold">
-        <Image
-          src={src}
-          alt={alt}
-          width={width}
-          height={height}
-          priority={false}
-        />
-      </Link>
-    </div>
-  );
-}
-
-interface LogoProps {
+interface LogoProps extends Omit<ImageProps, "src" | "alt"> {
   variant?: "black" | "white";
 }
 
-export function SokosumiLogo({ variant = "black" }: LogoProps) {
+function SokosumiLogo({ variant = "black", ...props }: LogoProps) {
   return (
-    <Logo
+    <Image
       src={`/logos/sokosumi-logo-${variant}.svg`}
       alt="Sokosumi Logo"
-      width={200}
-      height={26}
-      href="/"
+      {...props}
     />
   );
 }
 
-export function MasumiLogo({ variant = "black" }: LogoProps) {
+function MasumiLogo({ variant = "black", ...props }: LogoProps) {
   return (
-    <Logo
+    <Image
       src={`/logos/masumi-logo-${variant}.svg`}
       alt="Masumi Logo"
-      width={371}
-      height={57}
-      href="/"
+      {...props}
     />
   );
 }
 
-export function KodosumiLogo({ variant = "black" }: LogoProps) {
+function KodosumiLogo({ variant = "black", ...props }: LogoProps) {
   return (
-    <Logo
+    <Image
       src={`/logos/kodosumi-logo-${variant}.svg`}
       alt="Kodosumi Logo"
-      width={418}
-      height={56}
-      href="/"
+      {...props}
     />
   );
 }
+
+export { KodosumiLogo, MasumiLogo, SokosumiLogo };

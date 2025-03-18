@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { KodosumiLogo, MasumiLogo } from "@/components/masumi-logos";
@@ -19,8 +20,12 @@ export function MonetizeYourAgent() {
 
           {/* Masumi Logos */}
           <div className="flex flex-col items-end gap-6">
-            <KodosumiLogo />
-            <MasumiLogo />
+            <Link href="/">
+              <KodosumiLogo width={418} height={56} />
+            </Link>
+            <Link href="/">
+              <MasumiLogo width={371} height={57} />
+            </Link>
           </div>
 
           {/* Action Buttons */}
@@ -44,7 +49,6 @@ export function MonetizeYourAgent() {
               fill
               className="rounded-lg object-cover"
               priority
-              placeholder="blur"
             />
           </div>
         </div>

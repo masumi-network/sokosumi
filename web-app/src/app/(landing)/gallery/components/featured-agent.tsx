@@ -66,7 +66,6 @@ export function FeaturedAgent({ agent }: FeaturedAgentProps) {
           fill
           className="rounded-lg object-cover"
           priority
-          placeholder="blur"
         />
       </div>
     </div>

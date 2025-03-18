@@ -13,7 +13,9 @@ export default function Footer() {
       <div className="container mx-auto px-4 py-12">
         {/* Top section with logo */}
         <div className="mb-8">
-          <SokosumiLogo variant="white" />
+          <Link href="/">
+            <SokosumiLogo variant="white" width={200} height={26} />
+          </Link>
         </div>
 
         {/* Bottom section with copyright and links */}

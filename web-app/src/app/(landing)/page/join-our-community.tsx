@@ -17,7 +17,6 @@ export function JoinOurCommunity() {
               fill
               className="rounded-lg object-cover"
               priority
-              placeholder="blur"
             />
           </div>
         </div>

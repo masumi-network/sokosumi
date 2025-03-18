@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { SokosumiLogo } from "@/components/masumi-logos";
 
 import AuthButtons from "./auth-buttons";
@@ -9,7 +11,9 @@ export default function Header() {
     <div id="header" className="w-full px-4 py-3 lg:px-8 lg:py-6">
       <div className="container mx-auto flex items-center justify-between gap-6">
         {/* Left - Logo */}
-        <SokosumiLogo />
+        <Link href="/">
+          <SokosumiLogo width={200} height={26} priority />
+        </Link>
 
         {/* Middle - Navigation Links */}
         <Navigation />
