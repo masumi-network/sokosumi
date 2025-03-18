@@ -18,7 +18,7 @@ export default function SignIn() {
     <div className="flex flex-1 flex-col">
       <SignInHeader />
       <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
-        {/* <SocialButtons variant="signin" /> */}
+        {/* <SocialButtons /> */}
         <SignInForm />
       </div>
     </div>

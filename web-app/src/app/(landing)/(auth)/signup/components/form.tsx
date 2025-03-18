@@ -65,7 +65,7 @@ export default function SignUpForm() {
       toast.success(t("success"));
       router.push("/signin");
     } else {
-      toast.error(result.error || t("error"));
+      toast.error(t("error"));
     }
   };
 

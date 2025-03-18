@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { ComponentProps } from "react";
 import {
@@ -8,46 +9,51 @@ import {
   LinkedInLoginButton,
   MicrosoftLoginButton,
 } from "react-social-login-buttons";
+import { toast } from "sonner";
 
+import { signInSocial } from "../actions";
 import Divider from "./divider";
 
-type SocialKey = "Google" | "Microsoft" | "Apple" | "LinkedIn";
+type SocialKey = "google" | "microsoft" | "apple" | "linkedin";
 const socialButtons: Array<{
   key: SocialKey;
   button: React.FC<ComponentProps<typeof GoogleLoginButton>>;
 }> = [
   {
-    key: "Google",
+    key: "google",
     button: GoogleLoginButton,
   },
   {
-    key: "Microsoft",
+    key: "microsoft",
     button: MicrosoftLoginButton,
   },
   {
-    key: "Apple",
+    key: "apple",
     button: AppleLoginButton,
   },
   {
-    key: "LinkedIn",
+    key: "linkedin",
     button: LinkedInLoginButton,
   },
 ];
 
-interface SocialButtonsProps {
-  variant: "signin" | "signup";
-}
-
-export default function SocialButtons({ variant }: SocialButtonsProps) {
+export default function SocialButtons() {
   const t = useTranslations("Auth.SocialButtons");
+  const router = useRouter();
 
-  const handleClick = (key: SocialKey) => {
-    console.log({ variant, key });
+  const handleClick = async (key: SocialKey) => {
+    const result = await signInSocial(key);
+    if (result.success) {
+      toast.success(t("success"));
+      router.push("/dashboard");
+    } else {
+      toast.error(t("error"));
+    }
   };
 
   return (
     <>
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:gap-6">
+      <div className="grid grid-cols-1 gap-4 lg:gap-6">
         {socialButtons.map((socialButton) => (
           <socialButton.button
             onClick={() => handleClick(socialButton.key)}

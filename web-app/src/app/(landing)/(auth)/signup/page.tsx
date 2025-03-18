@@ -18,7 +18,7 @@ export default function SignUp() {
     <div className="flex flex-1 flex-col">
       <SignUpHeader />
       <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
-        {/* <SocialButtons variant="signup" /> */}
+        {/* <SocialButtons /> */}
         <SignUpForm />
       </div>
     </div>

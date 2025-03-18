@@ -41,7 +41,6 @@ export const auth = betterAuth({
     enabled: true,
     requireEmailVerification: true,
     sendResetPassword: async ({ user, url }) => {
-      console.log("sendResetPassword", user, url);
       const t = await getTranslations("Auth.Email.ResetPassword");
 
       await resend.emails.send({
@@ -59,25 +58,22 @@ export const auth = betterAuth({
     storage: "database",
   },
   socialProviders: {
-    // google: {
-    //   clientId: process.env.GOOGLE_CLIENT_ID || "<google-client-id>",
-    //   clientSecret:
-    //     process.env.GOOGLE_CLIENT_SECRET || "<google-client-secret>",
-    // },
-    // microsoft: {
-    //   clientId: process.env.MICROSOFT_CLIENT_ID || "<microsoft-client-id>",
-    //   clientSecret:
-    //     process.env.MICROSOFT_CLIENT_SECRET || "<microsoft-client-secret>",
-    // },
-    // apple: {
-    //   clientId: process.env.APPLE_CLIENT_ID || "<apple-client-id>",
-    //   clientSecret: process.env.APPLE_CLIENT_SECRET || "<apple-client-secret>",
-    // },
-    // linkedin: {
-    //   clientId: process.env.LINKEDIN_CLIENT_ID || "<linkedin-client-id>",
-    //   clientSecret:
-    //     process.env.LINKEDIN_CLIENT_SECRET || "<linkedin-client-secret>",
-    // },
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID || "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+    },
+    microsoft: {
+      clientId: process.env.MICROSOFT_CLIENT_ID || "",
+      clientSecret: process.env.MICROSOFT_CLIENT_SECRET || "",
+    },
+    apple: {
+      clientId: process.env.APPLE_CLIENT_ID || "",
+      clientSecret: process.env.APPLE_CLIENT_SECRET || "",
+    },
+    linkedin: {
+      clientId: process.env.LINKEDIN_CLIENT_ID || "",
+      clientSecret: process.env.LINKEDIN_CLIENT_SECRET || "",
+    },
   },
   plugins: [
     organization(),
