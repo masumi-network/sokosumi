@@ -1,13 +1,8 @@
-import Image from "next/image";
-import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
 
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { AgentDetails } from "@/components/agents";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 import { getAgentById, getAgents } from "@/lib/db/services/agent.service";
-
-import Details from "./components/agent-details";
 
 // Next.js will invalidate the cache when a
 // request comes in, at most once every 1 hour (3600 seconds).
@@ -38,65 +33,9 @@ export default async function Page({
     notFound();
   }
 
-  const t = await getTranslations("Landing.Gallery.Agent");
-
   return (
     <div className="container mx-auto px-4 pb-8">
-      {/* Agent Summary */}
-      <div className="space-y-4">
-        <Details
-          name={agent.name}
-          description={agent.description ?? ""}
-          author={agent.Author.name}
-          image={agent.image}
-          credits={agent.Pricing.credits}
-          tags={agent.tags}
-        />
-        <ScrollArea>
-          <div className="flex gap-4 pb-4">
-            {agent.ExampleOutput.map((_, index) => (
-              <Image
-                key={index}
-                src="/placeholder.svg"
-                alt={`Placeholder ${index + 1}`}
-                className="h-64 w-64 flex-shrink-0 rounded-lg object-cover"
-                priority
-                width={256}
-                height={256}
-              />
-            ))}
-          </div>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
-        {/* Developer Information */}
-        <div className="text-muted-foreground flex gap-6 text-sm">
-          {agent.Legal && <p>{t("Legal.fromDeveloper")}</p>}
-          {agent.Legal?.privacyPolicy && (
-            <Link
-              href={agent.Legal.privacyPolicy}
-              className="hover:text-foreground underline underline-offset-4 transition-colors"
-            >
-              {t("Legal.privacyPolicy")}
-            </Link>
-          )}
-          {agent.Legal?.terms && (
-            <Link
-              href={agent.Legal.terms}
-              className="hover:text-foreground underline underline-offset-4 transition-colors"
-            >
-              {t("Legal.terms")}
-            </Link>
-          )}
-          {agent.Legal?.other && (
-            <Link
-              href={agent.Legal.other}
-              className="hover:text-foreground underline underline-offset-4 transition-colors"
-            >
-              {t("Legal.other")}
-            </Link>
-          )}
-        </div>
-      </div>
+      <AgentDetails agent={agent} />
     </div>
   );
 }
