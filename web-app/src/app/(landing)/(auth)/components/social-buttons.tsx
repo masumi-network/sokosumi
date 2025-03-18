@@ -47,7 +47,7 @@ export default function SocialButtons() {
       toast.success(t("success"));
       router.push("/dashboard");
     } else {
-      toast.error(result.error || t("error"));
+      toast.error(t("error"));
     }
   };
 
