@@ -8,13 +8,13 @@ import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 import { cn } from "@/lib/utils";
 
-import BadgeCloud from "./badge-cloud";
+import { BadgeCloud } from "./badge-cloud";
 
 interface AgentCardSkeletonProps {
   className?: string;
 }
 
-export function AgentCardSkeleton({ className = "" }: AgentCardSkeletonProps) {
+function AgentCardSkeleton({ className = "" }: AgentCardSkeletonProps) {
   return (
     <Card
       className={cn(
@@ -61,7 +61,7 @@ interface AgentCardProps {
   className?: string;
 }
 
-export default function AgentCard({ agent, className = "" }: AgentCardProps) {
+function AgentCard({ agent, className = "" }: AgentCardProps) {
   const t = useTranslations("Components.Agents.AgentCard");
   const {
     id,
@@ -130,3 +130,5 @@ export default function AgentCard({ agent, className = "" }: AgentCardProps) {
     </Card>
   );
 }
+
+export { AgentCard, AgentCardSkeleton };

@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
-import Agents, { EmptyGallery } from "@/components/agents";
+import { Agents, AgentsNotAvailable } from "@/components/agents";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 import { getCachedAgents } from "@/lib/db/services/agent.service";
 
@@ -20,7 +20,7 @@ export default async function GalleryPage() {
   const agents: AgentDTO[] = await getCachedAgents();
 
   if (!agents.length) {
-    return <EmptyGallery />;
+    return <AgentsNotAvailable />;
   }
 
   return (

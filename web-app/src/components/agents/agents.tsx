@@ -3,9 +3,9 @@ import { useTranslations } from "next-intl";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 import { cn } from "@/lib/utils";
 
-import AgentCard, { AgentCardSkeleton } from "./agent-card";
+import { AgentCard, AgentCardSkeleton } from "./agent-card";
 
-export function AgentsNotAvailable() {
+function AgentsNotAvailable(): React.JSX.Element {
   const t = useTranslations("Components.Agents");
 
   return (
@@ -19,7 +19,7 @@ export function AgentsNotAvailable() {
   );
 }
 
-export function AgentsNotFound() {
+function AgentsNotFound() {
   const t = useTranslations("Components.Agents");
 
   return (
@@ -35,7 +35,7 @@ interface AgentsSkeletonProps {
   className?: string;
 }
 
-export function AgentsSkeleton({ className }: AgentsSkeletonProps) {
+function AgentsSkeleton({ className }: AgentsSkeletonProps) {
   return (
     <div
       className={cn(
@@ -56,7 +56,7 @@ interface AgentsProps {
   agentCardClassName?: string;
 }
 
-export default function Agents({
+function Agents({
   agents,
   className = "",
   agentCardClassName = "",
@@ -78,3 +78,5 @@ export default function Agents({
     </div>
   );
 }
+
+export { Agents, AgentsNotAvailable, AgentsNotFound, AgentsSkeleton };

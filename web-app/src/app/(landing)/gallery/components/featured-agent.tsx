@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
-import BadgeCloud from "@/components/badge-cloud";
+import { BadgeCloud } from "@/components/agents";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";

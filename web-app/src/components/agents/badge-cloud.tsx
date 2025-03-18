@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 
-export default function BadgeCloud({ tags }: { tags: string[] }) {
+function BadgeCloud({ tags }: { tags: string[] }) {
   return (
     <>
       {tags.length > 0 && (
@@ -15,3 +15,5 @@ export default function BadgeCloud({ tags }: { tags: string[] }) {
     </>
   );
 }
+
+export { BadgeCloud };
