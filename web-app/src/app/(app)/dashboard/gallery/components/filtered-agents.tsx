@@ -3,7 +3,11 @@
 import { useSearchParams } from "next/navigation";
 import { useMemo } from "react";
 
-import Agents, { AgentsNotFound, EmptyGallery } from "@/components/agents";
+import {
+  Agents,
+  AgentsNotAvailable,
+  AgentsNotFound,
+} from "@/components/agents";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 
 const filterAgent = (agent: AgentDTO, query: string, tags: string[]) => {
@@ -31,7 +35,7 @@ export default function FilteredAgents({ agents }: FilteredAgentsProps) {
   }, [agents, searchParams]);
 
   if (!agents.length) {
-    return <EmptyGallery />;
+    return <AgentsNotAvailable />;
   }
 
   if (!filteredAgents.length) {

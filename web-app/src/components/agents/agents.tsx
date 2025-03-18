@@ -5,14 +5,14 @@ import { cn } from "@/lib/utils";
 
 import AgentCard, { AgentCardSkeleton } from "./agent-card";
 
-export function EmptyGallery() {
+export function AgentsNotAvailable() {
   const t = useTranslations("Components.Agents");
 
   return (
     <div className="container mx-auto px-4 pt-4 pb-8">
       <div className="flex h-[50vh] items-center justify-center">
         <p className="text-muted-foreground text-lg">
-          {t("noAgentsAvailable")}
+          {t("agentsNotAvailable")}
         </p>
       </div>
     </div>

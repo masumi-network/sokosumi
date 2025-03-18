@@ -1,12 +1,12 @@
 {
   "Components": {
-    "AgentCard": {
-      "button": "Show details",
-      "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
-    },
     "Agents": {
-      "noAgentsAvailable": "No agents available",
-      "agentsNotFound": "Agents not found"
+      "agentsNotAvailable": "No agents available",
+      "agentsNotFound": "No Agents found",
+      "AgentCard": {
+        "button": "Show details",
+        "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
+      }
     }
   },
   "Auth": {

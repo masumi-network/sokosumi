@@ -62,7 +62,7 @@ interface AgentCardProps {
 }
 
 export default function AgentCard({ agent, className = "" }: AgentCardProps) {
-  const t = useTranslations("Components.AgentCard");
+  const t = useTranslations("Components.Agents.AgentCard");
   const {
     id,
     name,
