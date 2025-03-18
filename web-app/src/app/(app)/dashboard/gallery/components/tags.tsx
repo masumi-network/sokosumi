@@ -39,7 +39,7 @@ export default function Tags({ tags, onChange }: TagsProps) {
         <DropdownMenuTrigger asChild>
           <Button
             variant="outline"
-            className="h-12 items-center gap-2 border-dashed text-base"
+            className="items-center gap-2 border-dashed text-base"
           >
             {tags.length === 0 ? (
               <CirclePlus className="h-4 w-4" />
