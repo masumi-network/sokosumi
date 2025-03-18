@@ -8,7 +8,7 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar";
 
-import AgentAddButton from "./components/agent-add-button";
+import GalleryButton from "./components/agent-add-button";
 import AgentsList from "./components/agents-list";
 import CustomTrigger from "./components/custom-trigger";
 
@@ -27,7 +27,7 @@ export default function Sidebar() {
         <AgentsList />
       </SidebarContent>
       <SidebarFooter>
-        <AgentAddButton />
+        <GalleryButton />
       </SidebarFooter>
     </ShadcnSidebar>
   );
