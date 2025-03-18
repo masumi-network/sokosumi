@@ -1,7 +1,9 @@
 "use server";
 import { auth } from "@/lib/auth";
 
-export async function signInSocial(provider: "google") {
+export async function signInSocial(
+  provider: "google" | "microsoft" | "apple" | "linkedin",
+) {
   try {
     await auth.api.signInSocial({
       body: {

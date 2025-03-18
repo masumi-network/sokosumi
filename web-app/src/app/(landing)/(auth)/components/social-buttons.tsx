@@ -3,13 +3,18 @@
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { ComponentProps } from "react";
-import { GoogleLoginButton } from "react-social-login-buttons";
+import {
+  AppleLoginButton,
+  GoogleLoginButton,
+  LinkedInLoginButton,
+  MicrosoftLoginButton,
+} from "react-social-login-buttons";
 import { toast } from "sonner";
 
 import { signInSocial } from "../actions";
 import Divider from "./divider";
 
-type SocialKey = "google";
+type SocialKey = "google" | "microsoft" | "apple" | "linkedin";
 const socialButtons: Array<{
   key: SocialKey;
   button: React.FC<ComponentProps<typeof GoogleLoginButton>>;
@@ -17,6 +22,18 @@ const socialButtons: Array<{
   {
     key: "google",
     button: GoogleLoginButton,
+  },
+  {
+    key: "microsoft",
+    button: MicrosoftLoginButton,
+  },
+  {
+    key: "apple",
+    button: AppleLoginButton,
+  },
+  {
+    key: "linkedin",
+    button: LinkedInLoginButton,
   },
 ];
 
