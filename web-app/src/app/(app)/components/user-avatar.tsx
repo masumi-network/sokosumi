@@ -29,7 +29,7 @@ export default function UserAvatar() {
   const router = useRouter();
   const t = useTranslations("Components.UserAvatar");
 
-  const { data: session } = useSession();
+  const { data: session, isPending } = useSession();
   const user = session?.user;
 
   const onSignOut = async () => {
@@ -41,6 +41,20 @@ export default function UserAvatar() {
       },
     });
   };
+
+  if (isPending) {
+    return (
+      <Button
+        variant="outline"
+        className="relative h-8 w-8 rounded-full"
+        disabled
+      >
+        <Avatar className="h-8 w-8">
+          <AvatarFallback className="bg-muted animate-pulse" />
+        </Avatar>
+      </Button>
+    );
+  }
 
   if (!user) {
     return null;
