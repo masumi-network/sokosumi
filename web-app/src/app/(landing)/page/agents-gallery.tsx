@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 
-import AgentCard, { AgentCardSkeleton } from "@/components/agent-card";
+import { AgentCard, AgentCardSkeleton } from "@/components/agents";
 import { getCachedAgents } from "@/lib/db/services/agent.service";
 
 import HorizontalScroll from "../components/horizontal-scroll";

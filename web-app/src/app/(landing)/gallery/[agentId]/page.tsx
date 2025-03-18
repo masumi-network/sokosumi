@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 import { getAgentById, getAgents } from "@/lib/db/services/agent.service";
 
@@ -51,19 +52,22 @@ export default async function Page({
           credits={agent.Pricing.credits}
           tags={agent.tags}
         />
-        <div className="flex gap-4 overflow-x-auto pb-4">
-          {agent.ExampleOutput.map((_, index) => (
-            <Image
-              key={index}
-              src="/placeholder.svg"
-              alt={`Placeholder ${index + 1}`}
-              className="h-64 w-auto flex-shrink-0 rounded-lg object-cover"
-              width={256}
-              height={256}
-              priority
-            />
-          ))}
-        </div>
+        <ScrollArea>
+          <div className="flex gap-4 pb-4">
+            {agent.ExampleOutput.map((_, index) => (
+              <Image
+                key={index}
+                src="/placeholder.svg"
+                alt={`Placeholder ${index + 1}`}
+                className="h-64 w-64 flex-shrink-0 rounded-lg object-cover"
+                priority
+                width={256}
+                height={256}
+              />
+            ))}
+          </div>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
         {/* Developer Information */}
         <div className="text-muted-foreground flex gap-6 text-sm">
           {agent.Legal && <p>{t("Legal.fromDeveloper")}</p>}

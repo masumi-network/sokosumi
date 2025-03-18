@@ -1,7 +1,7 @@
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 
-import BadgeCloud from "@/components/badge-cloud";
+import { BadgeCloud } from "@/components/agents";
 import { Button } from "@/components/ui/button";
 
 interface AgentDetailsProps {
