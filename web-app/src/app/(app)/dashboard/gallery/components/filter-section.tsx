@@ -3,7 +3,7 @@
 import { X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 
 import { Button } from "@/components/ui/button";
@@ -12,45 +12,91 @@ import { KEYBOARD_INPUT_DEBOUNCE_TIME } from "@/constants";
 
 import Tags from "./tags";
 
-export default function FilterSection() {
-  const t = useTranslations("App.Gallery.FilterSection");
+interface FilterState {
+  query: string;
+  tags: string[];
+}
 
+function useGalleryFilter() {
   const { replace } = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const [query, setQuery] = useState<string>(searchParams.get("query") ?? "");
-  const [selectedTags, setSelectedTags] = useState<string[]>(
-    searchParams.get("tags")?.split(",") ?? [],
-  );
+  // Initialize state from URL parameters
+  const [filterState, setFilterState] = useState<FilterState>({
+    query: searchParams.get("query") ?? "",
+    tags: searchParams.get("tags")?.split(",").filter(Boolean) ?? [],
+  });
 
-  const handleSearch = useCallback(
-    (query: string, tags: string[]) => {
+  // Update URL parameters when filter state changes
+  const updateUrlParams = useCallback(
+    (newState: FilterState) => {
       const params = new URLSearchParams(searchParams);
-      if (query) params.set("query", query);
-      else params.delete("query");
-      if (tags.length > 0) params.set("tags", tags.join(","));
-      else params.delete("tags");
+
+      // Update query parameter
+      if (newState.query) {
+        params.set("query", newState.query.trim());
+      } else {
+        params.delete("query");
+      }
+
+      // Update tags parameter
+      if (newState.tags.length > 0) {
+        params.set("tags", newState.tags.join(","));
+      } else {
+        params.delete("tags");
+      }
+
       replace(`${pathname}?${params.toString()}`);
     },
     [pathname, searchParams, replace],
   );
 
-  const debouncedHandleSearch = useDebouncedCallback(
-    handleSearch,
+  const debouncedUpdateUrl = useDebouncedCallback(
+    updateUrlParams,
     KEYBOARD_INPUT_DEBOUNCE_TIME,
   );
 
-  const handleReset = () => {
-    setQuery("");
-    setSelectedTags([]);
-    replace(pathname);
-  };
+  // Update handlers
+  const setQuery = useCallback(
+    (query: string) => {
+      setFilterState((prev) => {
+        const newState = { ...prev, query };
+        debouncedUpdateUrl(newState);
+        return newState;
+      });
+    },
+    [debouncedUpdateUrl],
+  );
 
-  useEffect(() => {
-    debouncedHandleSearch(query, selectedTags);
-    return () => debouncedHandleSearch.cancel();
-  }, [query, selectedTags, debouncedHandleSearch]);
+  const setTags = useCallback(
+    (tags: string[]) => {
+      setFilterState((prev) => {
+        const newState = { ...prev, tags };
+        debouncedUpdateUrl(newState);
+        return newState;
+      });
+    },
+    [debouncedUpdateUrl],
+  );
+
+  const resetFilters = useCallback(() => {
+    setFilterState({ query: "", tags: [] });
+    replace(pathname);
+  }, [pathname, replace]);
+
+  return {
+    query: filterState.query,
+    tags: filterState.tags,
+    setQuery,
+    setTags,
+    resetFilters,
+  };
+}
+
+export default function FilterSection() {
+  const t = useTranslations("App.Gallery.FilterSection");
+  const { query, tags, setQuery, setTags, resetFilters } = useGalleryFilter();
 
   return (
     <div className="flex flex-col gap-4">
@@ -64,9 +110,14 @@ export default function FilterSection() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <Tags tags={selectedTags} onChange={setSelectedTags} />
+          <Tags tags={tags} onChange={setTags} />
         </div>
-        <Button variant="ghost" onClick={handleReset} className="gap-2 text-lg">
+        <Button
+          variant="ghost"
+          onClick={resetFilters}
+          className="gap-2 text-lg"
+          disabled={!query && tags.length === 0}
+        >
           {t("reset")}
           <X />
         </Button>
