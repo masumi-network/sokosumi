@@ -27,8 +27,9 @@ import { getInitials } from "@/lib/extensions/user";
 
 export default function UserAvatar() {
   const router = useRouter();
-  const { data: session } = useSession();
   const t = useTranslations("Components.UserAvatar");
+
+  const { data: session } = useSession();
   const user = session?.user;
 
   const onSignOut = async () => {

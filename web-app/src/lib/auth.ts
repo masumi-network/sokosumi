@@ -18,6 +18,12 @@ import { reactVerificationEmail } from "./email/verification";
 const fromEmail = process.env.NOREPLY_EMAIL || "no-reply@resend.dev";
 
 export const auth = betterAuth({
+  session: {
+    cookieCache: {
+      enabled: true,
+      maxAge: 5 * 60, // 5 minutes
+    },
+  },
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
