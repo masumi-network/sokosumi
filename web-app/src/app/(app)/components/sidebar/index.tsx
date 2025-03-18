@@ -8,9 +8,9 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar";
 
-import GalleryButton from "./components/agent-add-button";
 import AgentsList from "./components/agents-list";
 import CustomTrigger from "./components/custom-trigger";
+import GalleryButton from "./components/gallery-button";
 
 export default function Sidebar() {
   return (
