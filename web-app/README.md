@@ -32,12 +32,11 @@ web-app/
 
 - [Node.js](https://nodejs.org/en) (v20 or higher)
 - [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
-- [Docker](https://www.docker.com) (optional, for containerization)
 
 ## URLs
 
-- **Development**: [https://sokosumi-dev-xptei.ondigitalocean.app/](https://sokosumi-dev-xptei.ondigitalocean.app/)
-- **Production**: [https://sokosumi-llb2d.ondigitalocean.app/](https://sokosumi-llb2d.ondigitalocean.app/)
+- **Development**: [https://dev.sokosumi.com/](https://dev.sokosumi.com/)
+- **Production**: [https://sokosumi.com/](https://sokosumi.com)
 
 ## Getting Started
 
