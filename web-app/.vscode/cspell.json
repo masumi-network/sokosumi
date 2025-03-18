@@ -1,7 +1,7 @@
 {
   "version": "0.2",
   "language": "en, lorem",
-  "words": ["masumi", "sokosumi", "kodosumi", "usehooks"],
+  "words": ["masumi", "sokosumi", "kodosumi"],
   "ignorePaths": [
     "node_modules",
     ".git",
