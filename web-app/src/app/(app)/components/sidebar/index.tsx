@@ -18,7 +18,7 @@ export default function Sidebar() {
       <SidebarHeader>
         <div className="flex items-center gap-2 p-2">
           <CustomTrigger />
-          <Link href="/" className="mx-auto">
+          <Link href="/dashboard" className="mx-auto">
             <SokosumiLogo width={200} height={26} priority />
           </Link>
         </div>
