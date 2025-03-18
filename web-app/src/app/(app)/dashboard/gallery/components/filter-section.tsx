@@ -4,9 +4,11 @@ import { X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
+import { useDebouncedCallback } from "use-debounce";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { KEYBOARD_INPUT_DEBOUNCE_TIME } from "@/constants";
 
 import Tags from "./tags";
 
@@ -34,6 +36,11 @@ export default function FilterSection() {
     [pathname, searchParams, replace],
   );
 
+  const debouncedHandleSearch = useDebouncedCallback(
+    handleSearch,
+    KEYBOARD_INPUT_DEBOUNCE_TIME,
+  );
+
   const handleReset = () => {
     setQuery("");
     setSelectedTags([]);
@@ -41,11 +48,9 @@ export default function FilterSection() {
   };
 
   useEffect(() => {
-    const timerId = setTimeout(() => {
-      handleSearch(query, selectedTags);
-    }, 500);
-    return () => clearTimeout(timerId);
-  }, [query, selectedTags, handleSearch]);
+    debouncedHandleSearch(query, selectedTags);
+    return () => debouncedHandleSearch.cancel();
+  }, [query, selectedTags, debouncedHandleSearch]);
 
   return (
     <div className="flex flex-col gap-4">
