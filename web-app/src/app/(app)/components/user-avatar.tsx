@@ -21,10 +21,12 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { signOut } from "@/lib/auth.client";
+import { signOut, useSession } from "@/lib/auth.client";
 
 export default function UserAvatar() {
   const router = useRouter();
+  const { data: session } = useSession();
+  const user = session?.user;
 
   const onSignOut = async () => {
     await signOut({
@@ -35,6 +37,16 @@ export default function UserAvatar() {
       },
     });
   };
+
+  if (!user) {
+    return null;
+  }
+
+  const initials = user.name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase();
 
   return (
     <DropdownMenu>
@@ -47,25 +59,22 @@ export default function UserAvatar() {
                 className="relative h-8 w-8 rounded-full"
               >
                 <Avatar className="h-8 w-8">
-                  <AvatarImage
-                    src="https://github.com/shadcn.png"
-                    alt="shadcn"
-                  />
-                  <AvatarFallback>CN</AvatarFallback>
+                  <AvatarImage src={user.image || ""} alt={user.name} />
+                  <AvatarFallback>{initials}</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
           </TooltipTrigger>
-          <TooltipContent side="bottom">John Doe</TooltipContent>
+          <TooltipContent side="bottom">{user.name}</TooltipContent>
         </Tooltip>
       </TooltipProvider>
 
       <DropdownMenuContent className="w-56" align="end" forceMount>
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm leading-none font-medium">John Doe</p>
+            <p className="text-sm leading-none font-medium">{user.name}</p>
             <p className="text-muted-foreground text-xs leading-none">
-              johndoe@example.com
+              {user.email}
             </p>
           </div>
         </DropdownMenuLabel>
