@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -13,7 +12,6 @@ import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
@@ -21,48 +19,56 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
-import { signin } from "../actions";
-import { signInFormData, signInFormSchema, SignInFormSchemaType } from "./data";
+import { resetPassword } from "../actions";
+import {
+  resetPasswordFormData,
+  resetPasswordFormSchema,
+  type ResetPasswordFormSchemaType,
+} from "./data";
 
-export default function SignInForm() {
-  const t = useTranslations("Auth.Pages.SignIn.Form");
+interface ResetPasswordFormProps {
+  token: string;
+}
+
+export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
+  const t = useTranslations("Auth.Pages.ResetPassword.Form");
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  const form = useForm<SignInFormSchemaType>({
-    resolver: zodResolver(signInFormSchema(t)),
+  const form = useForm<ResetPasswordFormSchemaType>({
+    resolver: zodResolver(resetPasswordFormSchema(t)),
     defaultValues: {
-      email: "",
       password: "",
+      confirmPassword: "",
     },
   });
 
-  const onSubmit = async (values: SignInFormSchemaType) => {
+  async function onSubmit(values: ResetPasswordFormSchemaType) {
     setLoading(true);
 
     const formData = new FormData();
-    formData.append("email", values.email);
     formData.append("password", values.password);
+    formData.append("token", token);
 
-    const result = await signin(formData);
+    const result = await resetPassword(formData);
 
     setLoading(false);
 
     if (result.error) {
-      toast.error(result.error);
+      toast.error(t("error"));
       return;
     }
 
     toast.success(t("success"));
-    router.push("/dashboard");
-  };
+    router.push("/signin");
+  }
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <fieldset disabled={loading} className="flex flex-col gap-6">
-          {signInFormData.map(
-            ({ name, labelKey, placeholderKey, type, descriptionKey }) => (
+          {resetPasswordFormData.map(
+            ({ name, labelKey, placeholderKey, type }) => (
               <FormField
                 key={name}
                 control={form.control}
@@ -77,32 +83,16 @@ export default function SignInForm() {
                         {...field}
                       />
                     </FormControl>
-                    {descriptionKey && (
-                      <FormDescription>{t(descriptionKey)}</FormDescription>
-                    )}
                     <FormMessage />
                   </FormItem>
                 )}
               />
             ),
           )}
-          <div className="flex items-center justify-between">
-            <Button type="submit" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {t("submit")}
-            </Button>
-            <div className="text-sm">
-              <span className="text-muted-foreground">
-                {t("ForgotPassword.text")}{" "}
-              </span>
-              <Link
-                href="/forgot-password"
-                className="text-primary font-medium hover:underline"
-              >
-                {t("ForgotPassword.link")}
-              </Link>
-            </div>
-          </div>
+          <Button type="submit" disabled={loading}>
+            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {t("submit")}
+          </Button>
         </fieldset>
       </form>
     </Form>

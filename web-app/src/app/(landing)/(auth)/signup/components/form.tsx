@@ -4,9 +4,9 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -19,16 +19,32 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { signUp } from "@/lib/auth.client";
 
-import { signUpFormData, signUpFormSchema, SignUpFormSchemaType } from "./data";
+import { signup } from "../actions";
+import { signUpFormData } from "./data";
+
+const formSchema = z
+  .object({
+    email: z.string().email(),
+    username: z.string().min(2).max(50),
+    password: z
+      .string()
+      .min(8)
+      .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Passwords do not match",
+    path: ["confirmPassword"],
+  });
+
+type FormData = z.infer<typeof formSchema>;
 
 export default function SignUpForm() {
   const t = useTranslations("Auth.Pages.SignUp.Form");
   const router = useRouter();
-
-  const form = useForm<SignUpFormSchemaType>({
-    resolver: zodResolver(signUpFormSchema(t)),
+  const form = useForm<FormData>({
+    resolver: zodResolver(formSchema),
     defaultValues: {
       email: "",
       username: "",
@@ -36,65 +52,60 @@ export default function SignUpForm() {
       confirmPassword: "",
     },
   });
-  const [loading, setLoading] = useState(false);
 
-  const onSubmit = async (values: SignUpFormSchemaType) => {
-    const { username, email, password } = values;
-    await signUp.email({
-      name: username,
-      email,
-      password,
-      fetchOptions: {
-        onRequest: () => {
-          setLoading(true);
-        },
-        onResponse: () => {
-          setLoading(false);
-        },
-        onError: (ctx) => {
-          toast.error(ctx.error.message || "Failed");
-        },
-        onSuccess: () => {
-          toast.success("Success");
-          router.push("/signin");
-        },
-      },
-    });
+  const onSubmit = async (values: FormData) => {
+    const formData = new FormData();
+    formData.append("email", values.email);
+    formData.append("username", values.username);
+    formData.append("password", values.password);
+
+    const result = await signup(formData);
+
+    if (result.success) {
+      toast.success(t("success"));
+      router.push("/signin");
+    } else {
+      toast.error(result.error || t("error"));
+    }
   };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
-        <fieldset disabled={loading} className="flex flex-col gap-6">
-          {signUpFormData.map(
-            ({ name, labelKey, placeholderKey, type, descriptionKey }) => (
-              <FormField
-                key={name}
-                control={form.control}
-                name={name}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{labelKey && t(labelKey)}</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder={placeholderKey && t(placeholderKey)}
-                        type={type || "text"}
-                        {...field}
-                      />
-                    </FormControl>
-                    {descriptionKey && (
-                      <FormDescription>{t(descriptionKey)}</FormDescription>
-                    )}
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            ),
+      <form
+        onSubmit={form.handleSubmit(onSubmit)}
+        className="flex flex-col gap-6"
+      >
+        {signUpFormData.map(
+          ({ name, labelKey, placeholderKey, type, descriptionKey }) => (
+            <FormField
+              key={name}
+              control={form.control}
+              name={name}
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{labelKey && t(labelKey)}</FormLabel>
+                  <FormControl>
+                    <Input
+                      type={type || "text"}
+                      placeholder={placeholderKey && t(placeholderKey)}
+                      {...field}
+                    />
+                  </FormControl>
+                  {descriptionKey && (
+                    <FormDescription>{t(descriptionKey)}</FormDescription>
+                  )}
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          ),
+        )}
+        <Button type="submit" disabled={form.formState.isSubmitting}>
+          {form.formState.isSubmitting && (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
           )}
-          <Button type="submit" disabled={loading}>
-            {loading && <Loader2 className="animate-spin" />} Continue
-          </Button>
-        </fieldset>
+          {t("submit")}
+        </Button>
       </form>
     </Form>
   );

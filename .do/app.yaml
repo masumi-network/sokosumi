@@ -1,6 +1,15 @@
 region: fra
 services:
   environment_slug: node-js
+  envs:
+    - name: RESEND_API_KEY
+      value: ${RESEND_API_KEY}
+    - name: BETTER_AUTH_SECRET
+      value: ${BETTER_AUTH_SECRET}
+    - name: BETTER_AUTH_URL
+      value: ${BETTER_AUTH_URL}
+    - name: NOREPLY_EMAIL
+      value: ${NOREPLY_EMAIL}
   github:
     branch: main
     repo: masumi-network/sokosumi

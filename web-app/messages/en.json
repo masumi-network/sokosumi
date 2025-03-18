@@ -36,6 +36,9 @@
           "description": "Hire agents on our platform"
         },
         "Form": {
+          "submit": "Sign In",
+          "success": "Sign In successful",
+          "error": "Sign In failed",
           "Fields": {
             "Email": {
               "label": "Email",
@@ -50,6 +53,10 @@
             "Email": {
               "invalid": "Please enter a valid email address."
             }
+          },
+          "ForgotPassword": {
+            "text": "Forgot your password?",
+            "link": "Reset it here"
           }
         }
       },
@@ -63,6 +70,9 @@
           "description": "Hire agents on our platform"
         },
         "Form": {
+          "submit": "Sign Up",
+          "success": "Sign Up successful",
+          "error": "Sign Up failed",
           "Fields": {
             "Email": {
               "label": "Email",
@@ -70,7 +80,7 @@
             },
             "Username": {
               "label": "User Name",
-              "placeholder": "Jhon Doe"
+              "placeholder": "John Doe"
             },
             "Password": {
               "label": "Password",
@@ -98,6 +108,83 @@
             }
           }
         }
+      },
+      "ForgotPassword": {
+        "Metadata": {
+          "title": "Reset Password",
+          "description": "Reset your password to regain access to your account"
+        },
+        "Header": {
+          "title": "Reset Password",
+          "description": "Enter your email address and we'll send you a link to reset your password"
+        },
+        "Form": {
+          "success": "We've sent you an email to reset your password",
+          "reset_password": "Reset Password",
+          "Fields": {
+            "Email": {
+              "label": "Email",
+              "placeholder": "me@example.com"
+            }
+          },
+          "Errors": {
+            "Email": {
+              "invalid": "Please enter a valid email address."
+            }
+          }
+        }
+      },
+      "ResetPassword": {
+        "Metadata": {
+          "title": "Reset Password",
+          "description": "Set a new password for your account"
+        },
+        "title": "Reset Password",
+        "description": "Enter your new password below",
+        "Form": {
+          "submit": "Reset Password",
+          "success": "Password reset successfully",
+          "error": "Password reset failed",
+          "Fields": {
+            "Password": {
+              "label": "New Password",
+              "placeholder": "New Password"
+            },
+            "ConfirmPassword": {
+              "label": "Confirm Password",
+              "placeholder": "Confirm Password"
+            }
+          },
+          "Errors": {
+            "Password": {
+              "min": "Password must be at least 8 characters",
+              "regex": "Password must contain at least one uppercase letter, one lowercase letter, and one number."
+            },
+            "ConfirmPassword": {
+              "match": "Passwords must match"
+            }
+          }
+        }
+      }
+    },
+    "Email": {
+      "ResetPassword": {
+        "subject": "Sokosumi - Reset your password",
+        "title": "Reset your password",
+        "greeting": "Hello {username}",
+        "message": "We received a request to reset your password for your account. If you didn't make this request, you can safely ignore this email.",
+        "button": "Reset Password",
+        "linkInstructions": "Or copy and paste this URL into your browser:",
+        "footer": "If you didn't request a password reset, please ignore this email or contact support if you have concerns."
+      },
+      "Verification": {
+        "subject": "Sokosumi - Verify your email address",
+        "title": "Verify your email address",
+        "greeting": "Hello {username}",
+        "message": "Thank you for signing up! Please verify your email address by clicking the button below. This helps us ensure the security of your account.",
+        "button": "Verify Email",
+        "linkInstructions": "Or copy and paste this URL into your browser:",
+        "footer": "If you didn't create an account, you can safely ignore this email."
       }
     }
   },

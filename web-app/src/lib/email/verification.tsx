@@ -14,16 +14,16 @@ import {
 } from "@react-email/components";
 import { getTranslations } from "next-intl/server";
 
-interface BetterAuthResetPasswordEmailProps {
+interface BetterAuthVerificationEmailProps {
   username: string;
-  resetLink: string;
+  verificationLink: string;
 }
 
-export const ResetPasswordEmail = async ({
+export const VerificationEmail = async ({
   username,
-  resetLink,
-}: BetterAuthResetPasswordEmailProps) => {
-  const t = await getTranslations("Auth.Email.ResetPassword");
+  verificationLink,
+}: BetterAuthVerificationEmailProps) => {
+  const t = await getTranslations("Auth.Email.Verification");
 
   return (
     <Html>
@@ -44,15 +44,18 @@ export const ResetPasswordEmail = async ({
             <Section className="mt-[32px] mb-[32px] text-center">
               <Button
                 className="rounded bg-[#000000] px-5 py-3 text-center text-[12px] font-semibold text-white no-underline"
-                href={resetLink}
+                href={verificationLink}
               >
                 {t("button")}
               </Button>
             </Section>
             <Text className="text-[14px] leading-[24px] text-black">
               {t("linkInstructions")}{" "}
-              <Link href={resetLink} className="text-blue-600 no-underline">
-                {resetLink}
+              <Link
+                href={verificationLink}
+                className="text-blue-600 no-underline"
+              >
+                {verificationLink}
               </Link>
             </Text>
             <Hr className="mx-0 my-[26px] w-full border border-solid border-[#eaeaea]" />
@@ -66,8 +69,8 @@ export const ResetPasswordEmail = async ({
   );
 };
 
-export function reactResetPasswordEmail(
-  props: BetterAuthResetPasswordEmailProps,
+export function reactVerificationEmail(
+  props: BetterAuthVerificationEmailProps,
 ) {
-  return <ResetPasswordEmail {...props} />;
+  return <VerificationEmail {...props} />;
 }

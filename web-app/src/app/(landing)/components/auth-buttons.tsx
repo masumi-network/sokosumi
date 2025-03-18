@@ -2,7 +2,10 @@
 
 import { usePathname } from "next/navigation";
 
-import { SignInButton, SignUpButton } from "@/app/(landing)/(auth)/buttons";
+import {
+  SignInButton,
+  SignUpButton,
+} from "@/app/(landing)/(auth)/components/buttons";
 
 interface AuthButtonsProps {
   containerClassName?: string;

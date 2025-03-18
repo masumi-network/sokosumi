@@ -8,37 +8,46 @@ import {
   twoFactor,
 } from "better-auth/plugins";
 import { passkey } from "better-auth/plugins/passkey";
+import { getTranslations } from "next-intl/server";
 
 import prisma from "./db/prisma";
 import { resend } from "./email/resend";
 import { reactResetPasswordEmail } from "./email/reset-password";
+import { reactVerificationEmail } from "./email/verification";
 
-const fromEmail = process.env.BETTER_AUTH_EMAIL || "no-reply@masumi.network";
+const fromEmail = process.env.NOREPLY_EMAIL || "no-reply@resend.dev";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
   emailVerification: {
-    async sendVerificationEmail({ user, url }) {
-      const res = await resend.emails.send({
-        from: fromEmail,
-        to: user.email,
-        subject: "Verify your email address",
-        html: `<a href="${url}">Verify your email address</a>`,
-      });
-      console.log(res, user.email);
-    },
-    // sendOnSignUp: true,
-  },
-  emailAndPassword: {
-    enabled: true,
-    // requireEmailVerification: true,
-    async sendResetPassword({ user, url }) {
+    sendVerificationEmail: async ({ user, url }) => {
+      const t = await getTranslations("Auth.Email.Verification");
+
       await resend.emails.send({
         from: fromEmail,
         to: user.email,
-        subject: "Reset your password",
+        subject: t("subject"),
+        react: reactVerificationEmail({
+          username: user.email,
+          verificationLink: url,
+        }),
+      });
+    },
+    sendOnSignUp: true,
+  },
+  emailAndPassword: {
+    enabled: true,
+    requireEmailVerification: true,
+    sendResetPassword: async ({ user, url }) => {
+      console.log("sendResetPassword", user, url);
+      const t = await getTranslations("Auth.Email.ResetPassword");
+
+      await resend.emails.send({
+        from: fromEmail,
+        to: user.email,
+        subject: t("subject"),
         react: reactResetPasswordEmail({
           username: user.email,
           resetLink: url,

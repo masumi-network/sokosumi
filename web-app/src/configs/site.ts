@@ -1,7 +1,7 @@
 export const siteConfig = {
   name: "Sokosumi",
-  url: "https://sokosumi.io",
-  ogImage: "https://sokosumi.io/og.jpg",
+  url: "https://sokosumi.com",
+  ogImage: "https://sokosumi.com/og.jpg",
   description:
     "A Hire yourself an agent to finish the most time consuming tasks",
   links: {
