@@ -3,6 +3,7 @@
 import { LayoutGrid, LogOut, User } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -22,10 +23,12 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { signOut, useSession } from "@/lib/auth.client";
+import { getInitials } from "@/lib/extensions/user";
 
 export default function UserAvatar() {
   const router = useRouter();
   const { data: session } = useSession();
+  const t = useTranslations("Components.UserAvatar");
   const user = session?.user;
 
   const onSignOut = async () => {
@@ -42,12 +45,6 @@ export default function UserAvatar() {
     return null;
   }
 
-  const initials = user.name
-    .split(" ")
-    .map((n) => n[0])
-    .join("")
-    .toUpperCase();
-
   return (
     <DropdownMenu>
       <TooltipProvider disableHoverableContent>
@@ -60,7 +57,7 @@ export default function UserAvatar() {
               >
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={user.image || ""} alt={user.name} />
-                  <AvatarFallback>{initials}</AvatarFallback>
+                  <AvatarFallback>{getInitials(user)}</AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
@@ -83,13 +80,13 @@ export default function UserAvatar() {
           <DropdownMenuItem className="hover:cursor-pointer" asChild>
             <Link href="/dashboard" className="flex items-center gap-2">
               <LayoutGrid className="text-muted-foreground" />
-              Dashboard
+              {t("dashboard")}
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem className="hover:cursor-pointer" asChild>
             <Link href="/account" className="flex items-center gap-2">
               <User className="text-muted-foreground" />
-              Account
+              {t("account")}
             </Link>
           </DropdownMenuItem>
         </DropdownMenuGroup>
@@ -99,7 +96,7 @@ export default function UserAvatar() {
           onClick={onSignOut}
         >
           <LogOut className="text-muted-foreground" />
-          Sign out
+          {t("signOut")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

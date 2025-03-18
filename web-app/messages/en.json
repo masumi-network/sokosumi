@@ -3,6 +3,11 @@
     "AgentCard": {
       "button": "Show details",
       "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
+    },
+    "UserAvatar": {
+      "dashboard": "Dashboard",
+      "account": "Account",
+      "signOut": "Sign out"
     }
   },
   "Auth": {
