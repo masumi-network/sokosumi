@@ -15,12 +15,14 @@ export default function Header() {
         <Navigation />
 
         {/* Right - Auth Buttons */}
-        <div className="ml-auto hidden sm:block">
+        <div className="ml-auto hidden sm:flex">
           <AuthButtons />
         </div>
 
         {/* Sheet Navigation Trigger */}
-        <SheetNavigation />
+        <div className="flex lg:hidden">
+          <SheetNavigation />
+        </div>
       </div>
     </div>
   );
