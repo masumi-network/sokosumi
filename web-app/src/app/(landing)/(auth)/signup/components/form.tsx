@@ -71,41 +71,43 @@ export default function SignUpForm() {
 
   return (
     <Form {...form}>
-      <form
-        onSubmit={form.handleSubmit(onSubmit)}
-        className="flex flex-col gap-6"
-      >
-        {signUpFormData.map(
-          ({ name, labelKey, placeholderKey, type, descriptionKey }) => (
-            <FormField
-              key={name}
-              control={form.control}
-              name={name}
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{labelKey && t(labelKey)}</FormLabel>
-                  <FormControl>
-                    <Input
-                      type={type || "text"}
-                      placeholder={placeholderKey && t(placeholderKey)}
-                      {...field}
-                    />
-                  </FormControl>
-                  {descriptionKey && (
-                    <FormDescription>{t(descriptionKey)}</FormDescription>
-                  )}
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          ),
-        )}
-        <Button type="submit" disabled={form.formState.isSubmitting}>
-          {form.formState.isSubmitting && (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        <fieldset
+          disabled={form.formState.isSubmitting}
+          className="flex flex-col gap-6"
+        >
+          {signUpFormData.map(
+            ({ name, labelKey, placeholderKey, type, descriptionKey }) => (
+              <FormField
+                key={name}
+                control={form.control}
+                name={name}
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{labelKey && t(labelKey)}</FormLabel>
+                    <FormControl>
+                      <Input
+                        type={type || "text"}
+                        placeholder={placeholderKey && t(placeholderKey)}
+                        {...field}
+                      />
+                    </FormControl>
+                    {descriptionKey && (
+                      <FormDescription>{t(descriptionKey)}</FormDescription>
+                    )}
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            ),
           )}
-          {t("submit")}
-        </Button>
+          <Button type="submit" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            )}
+            {t("submit")}
+          </Button>
+        </fieldset>
       </form>
     </Form>
   );

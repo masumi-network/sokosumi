@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -33,7 +32,6 @@ interface ResetPasswordFormProps {
 export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
   const t = useTranslations("Auth.Pages.ResetPassword.Form");
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
 
   const form = useForm<ResetPasswordFormSchemaType>({
     resolver: zodResolver(resetPasswordFormSchema(t)),
@@ -44,15 +42,11 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
   });
 
   async function onSubmit(values: ResetPasswordFormSchemaType) {
-    setLoading(true);
-
     const formData = new FormData();
     formData.append("password", values.password);
     formData.append("token", token);
 
     const result = await resetPassword(formData);
-
-    setLoading(false);
 
     if (result.error) {
       toast.error(t("error"));
@@ -66,7 +60,10 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}>
-        <fieldset disabled={loading} className="flex flex-col gap-6">
+        <fieldset
+          disabled={form.formState.isSubmitting}
+          className="flex flex-col gap-6"
+        >
           {resetPasswordFormData.map(
             ({ name, labelKey, placeholderKey, type }) => (
               <FormField
@@ -89,8 +86,10 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
               />
             ),
           )}
-          <Button type="submit" disabled={loading}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          <Button type="submit" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            )}
             {t("submit")}
           </Button>
         </fieldset>
