@@ -262,21 +262,6 @@ async function main() {
     console.log(`Created agent ${agent.title}`);
     index++;
   }
-  const agent = await prisma.agent.findFirst({
-    where: {
-      Tags: {
-        some: {
-          name: "Marketing",
-        },
-      },
-    },
-  });
-  await prisma.agent.update({
-    where: { id: agent?.id },
-    data: {
-      Tags: { delete: { name: "Marketing" } },
-    },
-  });
 }
 
 main()
