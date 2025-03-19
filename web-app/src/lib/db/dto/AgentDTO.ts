@@ -1,6 +1,9 @@
-import { PricingType, Prisma, Status, Tag } from "@prisma/client";
+import { PricingType, Prisma } from "@prisma/client";
 
 import { ipfsUrlResolver } from "@/lib/ipfs";
+
+import { createStatusDTO, StatusDTO } from "./StatusDTO";
+import { TagDTO } from "./TagDTO";
 
 type AgentWithRelations = Prisma.AgentGetPayload<{
   include: {
@@ -21,23 +24,23 @@ type AgentWithRelations = Prisma.AgentGetPayload<{
   };
 }>;
 
-export interface Pricing {
+export interface PricingDTO {
   readonly id: string;
   readonly createdAt: Date;
   readonly updatedAt: Date;
   readonly credits: number;
   readonly pricingType: PricingType;
-  readonly FixedPricing: FixedPricing;
+  readonly FixedPricing: FixedPricingDTO;
 }
 
-export interface FixedPricing {
+export interface FixedPricingDTO {
   readonly id: string;
   readonly createdAt: Date;
   readonly updatedAt: Date;
-  readonly Amounts: Amount[];
+  readonly Amounts: AmountDTO[];
 }
 
-export interface Amount {
+export interface AmountDTO {
   readonly id: string;
   readonly createdAt: Date;
   readonly updatedAt: Date;
@@ -45,7 +48,7 @@ export interface Amount {
   readonly amount: number;
 }
 
-export interface ExampleOutput {
+export interface ExampleOutputDTO {
   readonly id: string;
   readonly createdAt: Date;
   readonly updatedAt: Date;
@@ -53,24 +56,24 @@ export interface ExampleOutput {
   readonly mimeType: string;
 }
 
-export interface Legal {
+export interface LegalDTO {
   readonly privacyPolicy: string | null;
   readonly terms: string | null;
   readonly other: string | null;
 }
 
-export interface Rating {
+export interface RatingDTO {
   readonly totalStars: number;
   readonly totalRatings: number;
   readonly averageStars: number | null;
 }
 
-export interface Capability {
+export interface CapabilityDTO {
   readonly name: string;
   readonly version: string;
 }
 
-export interface Author {
+export interface AuthorDTO {
   readonly name: string;
   readonly contactEmail: string | null;
   readonly contactOther: string | null;
@@ -81,23 +84,23 @@ export interface AgentDTO {
   readonly ranking: number;
   readonly showOnFrontPage: boolean;
   readonly agentIdentifier: string;
-  readonly Pricing: Pricing;
+  readonly Pricing: PricingDTO;
   readonly id: string;
   readonly name: string;
   readonly description: string | null;
   readonly apiBaseUrl: string;
   readonly createdAt: Date;
   readonly updatedAt: Date;
-  readonly ExampleOutput: ExampleOutput[];
-  readonly Capability: Capability;
+  readonly ExampleOutput: ExampleOutputDTO[];
+  readonly Capability: CapabilityDTO;
   readonly requestsPerHour: string | null;
-  readonly Author: Author;
-  readonly Legal: Legal | null;
-  readonly tags: Tag[];
+  readonly Author: AuthorDTO;
+  readonly Legal: LegalDTO | null;
+  readonly tags: TagDTO[];
   readonly image: string;
   readonly metadataVersion: number;
-  readonly status: Status;
-  readonly Rating: Rating;
+  readonly status: StatusDTO;
+  readonly Rating: RatingDTO;
 }
 
 function calculateCredits(amount: number): number {
@@ -175,7 +178,7 @@ export function createAgentDTO(agent: AgentWithRelations): AgentDTO {
     image: ipfsUrlResolver(agent.overrideImage ?? agent.onChainImage),
     metadataVersion:
       agent.overrideMetadataVersion ?? agent.onChainMetadataVersion,
-    status: agent.status,
+    status: createStatusDTO(agent.status),
     id: agent.id,
     createdAt: agent.createdAt,
     updatedAt: agent.updatedAt,

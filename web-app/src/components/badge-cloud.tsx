@@ -1,8 +1,8 @@
-import { Tag } from "@prisma/client";
+import { TagDTO } from "@/lib/db/dto/TagDTO";
 
 import { Badge } from "./ui/badge";
 
-export default function BadgeCloud({ tags }: { tags: Tag[] }) {
+export default function BadgeCloud({ tags }: { tags: TagDTO[] }) {
   return (
     <>
       {tags.length > 0 && (

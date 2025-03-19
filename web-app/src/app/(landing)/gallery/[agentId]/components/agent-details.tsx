@@ -1,9 +1,9 @@
-import { Tag } from "@prisma/client";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 
 import BadgeCloud from "@/components/badge-cloud";
 import { Button } from "@/components/ui/button";
+import { TagDTO } from "@/lib/db/dto/TagDTO";
 
 interface AgentDetailsProps {
   name: string;
@@ -11,7 +11,7 @@ interface AgentDetailsProps {
   author: string;
   image: string;
   credits: number;
-  tags: Tag[];
+  tags: TagDTO[];
 }
 
 export default function AgentDetails({
