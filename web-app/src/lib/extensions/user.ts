@@ -1,4 +1,4 @@
-import { User } from "../auth.client";
+import { User } from "../better-auth/auth";
 
 export function getInitials(user: User): string {
   return user.name

@@ -7,7 +7,10 @@
     "UserAvatar": {
       "dashboard": "Dashboard",
       "account": "Account",
-      "signOut": "Sign out"
+      "signOut": "Sign out",
+      "Error": {
+        "signOut": "Failed to sign out"
+      }
     }
   },
   "Auth": {

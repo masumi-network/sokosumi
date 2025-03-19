@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 
-import { auth } from "@/lib/auth";
+import { auth } from "@/lib/better-auth/auth";
 
 import { passwordSchema } from "../data";
 

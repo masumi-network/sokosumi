@@ -4,6 +4,7 @@ import { LayoutGrid, LogOut, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -22,8 +23,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { User } from "@/lib/auth";
-import { signOut } from "@/lib/auth.client";
+import type { User } from "@/lib/better-auth/auth";
+import { signOut } from "@/lib/better-auth/auth.client";
 import { getInitials } from "@/lib/extensions/user";
 
 interface UserAvatarClientProps {
@@ -37,6 +38,9 @@ export default function UserAvatarClient({ user }: UserAvatarClientProps) {
   const onSignOut = async () => {
     await signOut({
       fetchOptions: {
+        onError: () => {
+          toast.error(t("Error.signOut"));
+        },
         onSuccess: () => {
           router.push("/signin");
         },

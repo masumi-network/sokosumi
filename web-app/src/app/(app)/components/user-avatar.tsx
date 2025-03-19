@@ -1,4 +1,4 @@
-import { getSession } from "@/lib/auth";
+import { getSession } from "@/lib/better-auth/auth";
 
 import UserAvatarClient from "./user-avatar.client";
 

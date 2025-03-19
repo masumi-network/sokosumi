@@ -12,10 +12,10 @@ import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
-import prisma from "./db/prisma";
-import { resend } from "./email/resend";
-import { reactResetPasswordEmail } from "./email/reset-password";
-import { reactVerificationEmail } from "./email/verification";
+import prisma from "../db/prisma";
+import { resend } from "../email/resend";
+import { reactResetPasswordEmail } from "../email/reset-password";
+import { reactVerificationEmail } from "../email/verification";
 
 export type Session = typeof auth.$Infer.Session;
 export type User = typeof auth.$Infer.Session.user;
