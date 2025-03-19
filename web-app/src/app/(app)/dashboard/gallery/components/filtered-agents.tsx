@@ -29,7 +29,8 @@ const filterAgents = (agents: AgentDTO[], { query, tags }: FilterState) => {
 
     // Tag matching
     const matchesTags =
-      tags.length === 0 || tags.some((tag) => agent.tags.includes(tag));
+      tags.length === 0 ||
+      tags.some((tag) => agent.tags.some((tagModel) => tagModel.name == tag));
 
     return matchesQuery && matchesTags;
   });

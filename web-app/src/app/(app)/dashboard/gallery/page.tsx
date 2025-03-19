@@ -1,3 +1,4 @@
+import { Tag } from "@prisma/client";
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
@@ -21,12 +22,12 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function GalleryPage() {
   const agents: AgentDTO[] = await getCachedAgents();
-  const agentsTags = await getCachedAgentsTags();
+  const agentsTags: Tag[] = await getCachedAgentsTags();
 
   return (
     <div className="w-full p-8 xl:px-16">
       <div className="space-y-12">
-        <FilterSection agentsTags={agentsTags} />
+        <FilterSection agentsTags={agentsTags.map((tag) => tag.name)} />
         {/* Agent Cards Grid */}
         <FilteredAgents agents={agents} />
       </div>

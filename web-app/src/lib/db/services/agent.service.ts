@@ -1,3 +1,4 @@
+import { Tag } from "@prisma/client";
 import { unstable_cache } from "next/cache";
 
 import { AgentDTO, createAgentDTO } from "@/lib/db/dto/AgentDTO";
@@ -9,6 +10,8 @@ const agentInclude = {
   },
   ExampleOutput: true,
   ExampleOutputOverride: true,
+  OverrideTags: true,
+  OnChainTags: true,
   Rating: true,
   UserAgentRating: true,
 } as const;
@@ -46,7 +49,7 @@ export async function getAgentById(id: string): Promise<AgentDTO> {
 }
 
 export const getCachedAgentsTags = unstable_cache(
-  async (): Promise<string[]> => {
+  async (): Promise<Tag[]> => {
     return await getAgentsTags();
   },
   ["agents-tags"],
@@ -56,17 +59,11 @@ export const getCachedAgentsTags = unstable_cache(
   },
 );
 
-export async function getAgentsTags(): Promise<string[]> {
-  const tagsResult = await prisma.agent.findMany({
-    select: { onChainTags: true, overrideTags: true },
+export async function getAgentsTags(): Promise<Tag[]> {
+  const tags = await prisma.tag.findMany({
+    orderBy: {
+      name: "asc",
+    },
   });
-  const tags = Array.from(
-    new Set(
-      tagsResult
-        .map((result) => [...result.onChainTags, ...result.overrideTags])
-        .flat(),
-    ),
-  );
-  tags.sort();
   return tags;
 }
