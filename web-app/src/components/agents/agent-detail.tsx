@@ -127,7 +127,7 @@ function AgentDetails({ agent, className }: AgentDetailsProps) {
       </div>
 
       {/* Tags */}
-      <BadgeCloud tags={tags} />
+      <BadgeCloud tags={tags.map((tag) => tag.name)} />
       <div className="text-muted-foreground">
         <p>{description}</p>
       </div>
