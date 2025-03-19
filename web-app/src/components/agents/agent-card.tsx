@@ -1,13 +1,12 @@
 import { Star } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 import { cn } from "@/lib/utils";
 
+import AgentCardButton from "./agent-card-button";
 import { BadgeCloud } from "./badge-cloud";
 
 interface AgentCardSkeletonProps {
@@ -59,14 +58,9 @@ function AgentCardSkeleton({ className = "" }: AgentCardSkeletonProps) {
 interface AgentCardProps {
   agent: AgentDTO;
   className?: string;
-  agentCardHrefPrefix?: string;
 }
 
-function AgentCard({
-  agent,
-  className = "",
-  agentCardHrefPrefix = "/gallery",
-}: AgentCardProps) {
+function AgentCard({ agent, className = "" }: AgentCardProps) {
   const t = useTranslations("Components.Agents.AgentCard");
   const {
     id,
@@ -121,9 +115,7 @@ function AgentCard({
 
       <CardFooter className="mt-auto shrink-0 px-6 pt-2 pb-4">
         <div className="flex items-center gap-4">
-          <Link href={`${agentCardHrefPrefix}/${id}`}>
-            <Button>{t("button")}</Button>
-          </Link>
+          <AgentCardButton agentId={id} />
 
           <div>
             <p className="text-muted-foreground text-s">

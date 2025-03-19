@@ -51,14 +51,12 @@ interface AgentsProps {
   agents: AgentDTO[];
   className?: string;
   agentCardClassName?: string;
-  agentCardHrefPrefix?: "/gallery" | "/dashboard/gallery";
 }
 
 function Agents({
   agents,
   className = "",
   agentCardClassName = "",
-  agentCardHrefPrefix = "/gallery",
 }: AgentsProps) {
   return (
     <div
@@ -69,7 +67,6 @@ function Agents({
           key={agent.id}
           agent={agent}
           className={agentCardClassName}
-          agentCardHrefPrefix={agentCardHrefPrefix}
         />
       ))}
     </div>

@@ -59,9 +59,7 @@ function FilteredAgents({ agents }: FilteredAgentsProps) {
     return <AgentsNotFound />;
   }
 
-  return (
-    <Agents agents={filteredAgents} agentCardHrefPrefix="/dashboard/gallery" />
-  );
+  return <Agents agents={filteredAgents} />;
 }
 
 export default FilteredAgents;
