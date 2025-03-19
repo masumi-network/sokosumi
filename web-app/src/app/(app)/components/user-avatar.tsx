@@ -1,9 +1,30 @@
+import { Suspense } from "react";
+
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import { getSession } from "@/lib/better-auth/auth";
 
 import UserAvatarClient from "./user-avatar.client";
 
-export default async function UserAvatar() {
-  const session = await getSession();
+function UserAvatarSkeleton() {
+  return (
+    <Button variant="outline" className="relative h-8 w-8 rounded-full">
+      <Avatar className="h-8 w-8">
+        <AvatarFallback className="text-muted-foreground"></AvatarFallback>
+      </Avatar>
+    </Button>
+  );
+}
 
+export default async function UserAvatar() {
+  return (
+    <Suspense fallback={<UserAvatarSkeleton />}>
+      <UserAvatarInner />
+    </Suspense>
+  );
+}
+
+async function UserAvatarInner() {
+  const session = await getSession();
   return <UserAvatarClient user={session.user} />;
 }
