@@ -25,7 +25,6 @@ import {
 } from "@/components/ui/tooltip";
 import type { User } from "@/lib/better-auth/auth";
 import { signOut } from "@/lib/better-auth/auth.client";
-import { getInitials } from "@/lib/extensions/user";
 
 interface UserAvatarClientProps {
   user: User;
@@ -64,11 +63,12 @@ export default function UserAvatarClient({ user }: UserAvatarClientProps) {
                     src={user.image || ""}
                     alt={user.name || "User avatar"}
                     onError={(e) => {
-                      // Fallback to initials on image load error
                       e.currentTarget.style.display = "none";
                     }}
                   />
-                  <AvatarFallback>{getInitials(user)}</AvatarFallback>
+                  <AvatarFallback>
+                    <UserIcon className="text-muted-foreground" />
+                  </AvatarFallback>
                 </Avatar>
               </Button>
             </DropdownMenuTrigger>
