@@ -57,9 +57,17 @@ export default function UserAvatarClient({ user }: UserAvatarClientProps) {
               <Button
                 variant="outline"
                 className="relative h-8 w-8 rounded-full"
+                aria-label={`User profile for ${user.name || "current user"}`}
               >
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={user.image || ""} alt={user.name || ""} />
+                  <AvatarImage
+                    src={user.image || ""}
+                    alt={user.name || "User avatar"}
+                    onError={(e) => {
+                      // Fallback to initials on image load error
+                      e.currentTarget.style.display = "none";
+                    }}
+                  />
                   <AvatarFallback>{getInitials(user)}</AvatarFallback>
                 </Avatar>
               </Button>

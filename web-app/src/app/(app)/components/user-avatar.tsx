@@ -1,3 +1,4 @@
+import { UserIcon } from "lucide-react";
 import { Suspense } from "react";
 
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
@@ -8,9 +9,16 @@ import UserAvatarClient from "./user-avatar.client";
 
 function UserAvatarSkeleton() {
   return (
-    <Button variant="outline" className="relative h-8 w-8 rounded-full">
+    <Button
+      variant="outline"
+      className="relative h-8 w-8 rounded-full"
+      aria-label="Loading user profile"
+      disabled
+    >
       <Avatar className="h-8 w-8">
-        <AvatarFallback className="text-muted-foreground"></AvatarFallback>
+        <AvatarFallback className="animate-pulse">
+          <UserIcon className="text-muted-foreground" />
+        </AvatarFallback>
       </Avatar>
     </Button>
   );
@@ -25,6 +33,7 @@ export default async function UserAvatar() {
 }
 
 async function UserAvatarInner() {
+  await new Promise((resolve) => setTimeout(resolve, 5000));
   const session = await getSession();
   return <UserAvatarClient user={session.user} />;
 }
