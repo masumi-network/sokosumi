@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -25,6 +24,8 @@ import {
 } from "@/components/ui/tooltip";
 import type { User } from "@/lib/better-auth/auth";
 import { signOut } from "@/lib/better-auth/auth.client";
+
+import UserAvatarContent from "./user-avatar-content";
 
 interface UserAvatarClientProps {
   user: User;
@@ -58,18 +59,10 @@ export default function UserAvatarClient({ user }: UserAvatarClientProps) {
                 className="relative h-8 w-8 rounded-full"
                 aria-label={`User profile for ${user.name || "current user"}`}
               >
-                <Avatar className="h-8 w-8">
-                  <AvatarImage
-                    src={user.image || ""}
-                    alt={user.name || "User avatar"}
-                    onError={(e) => {
-                      e.currentTarget.style.display = "none";
-                    }}
-                  />
-                  <AvatarFallback>
-                    <UserIcon className="text-muted-foreground" />
-                  </AvatarFallback>
-                </Avatar>
+                <UserAvatarContent
+                  imageUrl={user.image || ""}
+                  imageAlt={user.name || "User avatar"}
+                />
               </Button>
             </DropdownMenuTrigger>
           </TooltipTrigger>

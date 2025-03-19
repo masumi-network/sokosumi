@@ -1,11 +1,10 @@
-import { UserIcon } from "lucide-react";
 import { Suspense } from "react";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { getSession } from "@/lib/better-auth/auth";
 
 import UserAvatarClient from "./user-avatar.client";
+import UserAvatarContent from "./user-avatar-content";
 
 function UserAvatarSkeleton() {
   return (
@@ -15,11 +14,7 @@ function UserAvatarSkeleton() {
       aria-label="Loading user profile"
       disabled
     >
-      <Avatar className="h-8 w-8">
-        <AvatarFallback className="animate-pulse">
-          <UserIcon className="text-muted-foreground" />
-        </AvatarFallback>
-      </Avatar>
+      <UserAvatarContent className="animate-pulse" />
     </Button>
   );
 }
