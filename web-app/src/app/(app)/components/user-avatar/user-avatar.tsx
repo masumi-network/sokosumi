@@ -1,25 +1,10 @@
 import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
-import { Button } from "@/components/ui/button";
 import { auth } from "@/lib/better-auth/auth";
 
 import UserAvatarClient from "./user-avatar.client";
-import UserAvatarContent from "./user-avatar-content";
-
-function UserAvatarSkeleton() {
-  return (
-    <Button
-      variant="outline"
-      className="relative h-8 w-8 rounded-full"
-      aria-label="Loading user profile"
-      disabled
-    >
-      <UserAvatarContent className="animate-pulse" />
-    </Button>
-  );
-}
+import UserAvatarSkeleton from "./user-avatar-skeleton";
 
 export default async function UserAvatar() {
   return (
@@ -35,7 +20,7 @@ async function UserAvatarInner() {
   });
 
   if (!session) {
-    redirect("/signin");
+    return <UserAvatarSkeleton noAnimation />;
   }
 
   return <UserAvatarClient user={session.user} />;
