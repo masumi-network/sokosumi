@@ -9,7 +9,7 @@ export default function BackToGallery() {
 
   return (
     <div className="flex items-center gap-4">
-      <Link href="/dashboard/gallery">
+      <Link href="/gallery">
         <Button size="icon" className="h-8 w-8 sm:h-12 sm:w-12">
           <ArrowLeft />
         </Button>
