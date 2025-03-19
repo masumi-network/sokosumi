@@ -5,13 +5,11 @@ on:
       - main
 
 permissions:
-  contents: write
-  pull-requests: write
+  contents: read
+  pull-requests: read
 
 env:
   DATABASE_URL: "postgresql://user:password@localhost:5432/sokosumi"
-  BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
-  RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
 
 jobs:
   build:
@@ -57,6 +55,7 @@ jobs:
 
       - name: Run Prisma Migrate
         run: npm run prisma:migrate
+        
 
       - name: Run Prisma Seed
         run: npm run prisma:seed
@@ -73,3 +72,6 @@ jobs:
 
       - name: Run Build
         run: npm run build
+        env:
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
