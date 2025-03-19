@@ -309,7 +309,7 @@ model Agent {
   ExampleOutputOverride ExampleOutput[]   @relation("ExampleOutputAgentOverride")
   UserAgentRating       UserAgentRating[]
 
-  Tags         Tag[] @relation("AgentTag")
+  OnChainTags  Tag[] @relation("AgentOnChainTag")
   OverrideTags Tag[] @relation("AgentTagOverride")
 }
 
@@ -319,7 +319,7 @@ model Tag {
   updatedAt DateTime @updatedAt
   name      String   @unique
 
-  Agents         Agent[] @relation("AgentTag")
+  Agents         Agent[] @relation("AgentOnChainTag")
   AgentsOverride Agent[] @relation("AgentTagOverride")
 }
 

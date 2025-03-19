@@ -1,4 +1,4 @@
-import { PricingType, Prisma, Status } from "@prisma/client";
+import { PricingType, Prisma, Status, Tag } from "@prisma/client";
 
 import { ipfsUrlResolver } from "@/lib/ipfs";
 
@@ -15,6 +15,8 @@ type AgentWithRelations = Prisma.AgentGetPayload<{
         };
       };
     };
+    OverrideTags: true;
+    OnChainTags: true;
     Rating: true;
   };
 }>;
@@ -91,7 +93,7 @@ export interface AgentDTO {
   readonly requestsPerHour: string | null;
   readonly Author: Author;
   readonly Legal: Legal | null;
-  readonly tags: string[];
+  readonly tags: Tag[];
   readonly image: string;
   readonly metadataVersion: number;
   readonly status: Status;
@@ -169,7 +171,7 @@ export function createAgentDTO(agent: AgentWithRelations): AgentDTO {
         : null;
     })(),
     tags:
-      agent.overrideTags.length > 0 ? agent.overrideTags : agent.onChainTags,
+      agent.OverrideTags.length > 0 ? agent.OverrideTags : agent.OnChainTags,
     image: ipfsUrlResolver(agent.overrideImage ?? agent.onChainImage),
     metadataVersion:
       agent.overrideMetadataVersion ?? agent.onChainMetadataVersion,
