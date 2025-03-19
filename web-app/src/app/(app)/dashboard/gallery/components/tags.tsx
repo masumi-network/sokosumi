@@ -2,7 +2,7 @@
 
 import { CirclePlus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { FixedSizeList, ListChildComponentProps } from "react-window";
 
 import { Badge } from "@/components/ui/badge";
@@ -28,8 +28,14 @@ export default function Tags({
   agentsTags,
 }: TagsProps) {
   const t = useTranslations("App.Gallery.FilterSection");
+
   const [tags, setTags] = useState<string[]>(appliedTags);
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    if (open) setTags(appliedTags);
+  }, [open, appliedTags, setTags]);
+
   const handleCheckTags = (tag: string, checked: boolean) => {
     if (checked) {
       setTags([...tags, tag]);

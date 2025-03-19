@@ -59,10 +59,14 @@ export const getCachedAgentsTags = unstable_cache(
 export async function getAgentsTags(): Promise<string[]> {
   const tagsResult = await prisma.agent.findMany({
     select: { onChainTags: true, overrideTags: true },
-    distinct: ["onChainTags", "overrideTags"],
   });
-  const tags = tagsResult
-    .map((result) => [...result.onChainTags, ...result.overrideTags])
-    .flat();
+  const tags = Array.from(
+    new Set(
+      tagsResult
+        .map((result) => [...result.onChainTags, ...result.overrideTags])
+        .flat(),
+    ),
+  );
+  tags.sort();
   return tags;
 }
