@@ -10,12 +10,9 @@ import {
 } from "@/components/agents";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 
-interface FilterCriteria {
-  query: string;
-  tags: string[];
-}
+import { FilterState } from "./use-gallery-filter";
 
-const filterAgents = (agents: AgentDTO[], { query, tags }: FilterCriteria) => {
+const filterAgents = (agents: AgentDTO[], { query, tags }: FilterState) => {
   if (!query && tags.length === 0) {
     return agents;
   }
@@ -42,11 +39,11 @@ interface FilteredAgentsProps {
   agents: AgentDTO[];
 }
 
-export default function FilteredAgents({ agents }: FilteredAgentsProps) {
+function FilteredAgents({ agents }: FilteredAgentsProps) {
   const searchParams = useSearchParams();
 
   const filteredAgents = useMemo(() => {
-    const criteria: FilterCriteria = {
+    const criteria: FilterState = {
       query: searchParams.get("query") ?? "",
       tags: searchParams.get("tags")?.split(",").filter(Boolean) ?? [],
     };
@@ -66,3 +63,5 @@ export default function FilteredAgents({ agents }: FilteredAgentsProps) {
     <Agents agents={filteredAgents} agentCardHrefPrefix="/dashboard/gallery" />
   );
 }
+
+export default FilteredAgents;
