@@ -28,7 +28,6 @@ export default async function UserAvatar() {
 }
 
 async function UserAvatarInner() {
-  await new Promise((resolve) => setTimeout(resolve, 5000));
   const session = await getSession();
   return <UserAvatarClient user={session.user} />;
 }
