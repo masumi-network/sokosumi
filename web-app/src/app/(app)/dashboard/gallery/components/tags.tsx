@@ -3,6 +3,7 @@
 import { CirclePlus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import React, { useState } from "react";
+import { FixedSizeList, ListChildComponentProps } from "react-window";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface TagsProps {
   appliedTags: string[];
@@ -38,6 +38,22 @@ export default function Tags({
     }
   };
 
+  const Row = ({ index, style }: ListChildComponentProps) => {
+    const tag = agentsTags[index];
+    return (
+      <DropdownMenuCheckboxItem
+        key={tag}
+        onSelect={(e) => e.preventDefault()}
+        style={style}
+        className="hover:bg-foreground hover:text-white"
+        checked={tags.includes(tag)}
+        onCheckedChange={(checked) => handleCheckTags(tag, checked)}
+      >
+        {tag}
+      </DropdownMenuCheckboxItem>
+    );
+  };
+
   return (
     <div className="flex gap-2">
       <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -57,21 +73,14 @@ export default function Tags({
         <DropdownMenuContent className="w-56">
           <DropdownMenuLabel>{t("selectTags")}</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <ScrollArea>
-            <div className="max-h-96">
-              {agentsTags.map((tag) => (
-                <DropdownMenuCheckboxItem
-                  key={tag}
-                  onSelect={(e) => e.preventDefault()}
-                  className="hover:bg-foreground hover:text-white"
-                  checked={tags.includes(tag)}
-                  onCheckedChange={(checked) => handleCheckTags(tag, checked)}
-                >
-                  {tag}
-                </DropdownMenuCheckboxItem>
-              ))}
-            </div>
-          </ScrollArea>
+          <FixedSizeList
+            height={360}
+            itemCount={agentsTags.length}
+            width="100%"
+            itemSize={36}
+          >
+            {Row}
+          </FixedSizeList>
           <DropdownMenuSeparator />
           <Button
             className="w-full"
