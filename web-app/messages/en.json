@@ -343,7 +343,8 @@
         "searchPlaceholder": "Search agents",
         "reset": "Reset",
         "tags": "Tags",
-        "selectTags": "Select Tags"
+        "selectTags": "Select Tags",
+        "applyTags": "Apply"
       },
       "AgentDetail": {
         "backToGallery": "Agents Gallery"

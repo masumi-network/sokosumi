@@ -2,7 +2,10 @@ import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
-import { getCachedAgents } from "@/lib/db/services/agent.service";
+import {
+  getCachedAgents,
+  getCachedAgentsTags,
+} from "@/lib/db/services/agent.service";
 
 import FilterSection from "./components/filter-section";
 import FilteredAgents from "./components/filtered-agents";
@@ -18,11 +21,12 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function GalleryPage() {
   const agents: AgentDTO[] = await getCachedAgents();
+  const agentsTags = await getCachedAgentsTags();
 
   return (
     <div className="w-full p-8 xl:px-16">
       <div className="space-y-12">
-        <FilterSection />
+        <FilterSection agentsTags={agentsTags} />
         {/* Agent Cards Grid */}
         <FilteredAgents agents={agents} />
       </div>

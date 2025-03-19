@@ -1,3 +1,4 @@
+import { getAgentsTags as getAgentsTagsSql } from "@prisma/client/sql";
 import { unstable_cache } from "next/cache";
 
 import { AgentDTO, createAgentDTO } from "@/lib/db/dto/AgentDTO";
@@ -43,4 +44,23 @@ export async function getAgentById(id: string): Promise<AgentDTO> {
   }
 
   return createAgentDTO(agent);
+}
+
+export const getCachedAgentsTags = unstable_cache(
+  async (): Promise<string[]> => {
+    return await getAgentsTags();
+  },
+  ["agents-tags"],
+  {
+    revalidate: 3600,
+    tags: ["agents-tags"],
+  },
+);
+
+export async function getAgentsTags(): Promise<string[]> {
+  const tagsResult = await prisma.$queryRawTyped(getAgentsTagsSql());
+  const tags = tagsResult
+    .map((result) => result.tag)
+    .filter(Boolean) as string[];
+  return tags;
 }

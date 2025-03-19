@@ -9,7 +9,11 @@ import { Input } from "@/components/ui/input";
 import Tags from "./tags";
 import useGalleryFilter from "./use-gallery-filter";
 
-export default function FilterSection() {
+interface FilterSectionProps {
+  agentsTags: string[];
+}
+
+export default function FilterSection({ agentsTags }: FilterSectionProps) {
   const t = useTranslations("App.Gallery.FilterSection");
   const { query, tags, setQuery, setTags, resetFilters } = useGalleryFilter();
 
@@ -25,7 +29,11 @@ export default function FilterSection() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <Tags tags={tags} onChange={setTags} />
+          <Tags
+            appliedTags={tags}
+            onApplyTags={setTags}
+            agentsTags={agentsTags}
+          />
         </div>
         <Button
           variant="ghost"
