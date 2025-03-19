@@ -216,7 +216,12 @@ async function main() {
         onChainCapabilityName: agent.title,
         onChainCapabilityVersion: "1.0.0",
         onChainAuthorName: "Demo Author",
-        onChainTags: agent.tags,
+        OnChainTags: {
+          connectOrCreate: agent.tags.map((tag) => ({
+            where: { name: tag },
+            create: { name: tag },
+          })),
+        },
         onChainMetadataVersion: 1,
         Rating: {
           create: {
@@ -233,7 +238,9 @@ async function main() {
         overrideCapabilityName: null,
         overrideCapabilityVersion: null,
         overrideAuthorName: null,
-        overrideTags: [],
+        OverrideTags: {
+          create: [],
+        },
         overrideMetadataVersion: null,
 
         Pricing: {

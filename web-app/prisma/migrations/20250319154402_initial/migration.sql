@@ -250,8 +250,6 @@ CREATE TABLE "Agent" (
     "overrideLegalTerms" TEXT,
     "onChainLegalOther" TEXT,
     "overrideLegalOther" TEXT,
-    "onChainTags" TEXT[],
-    "overrideTags" TEXT[],
     "onChainImage" TEXT NOT NULL,
     "overrideImage" TEXT,
     "onChainMetadataVersion" INTEGER NOT NULL,
@@ -263,6 +261,32 @@ CREATE TABLE "Agent" (
     "ranking" BIGINT NOT NULL,
 
     CONSTRAINT "Agent_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Tag" (
+    "id" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "name" TEXT NOT NULL,
+
+    CONSTRAINT "Tag_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "_AgentOnChainTag" (
+    "A" TEXT NOT NULL,
+    "B" TEXT NOT NULL,
+
+    CONSTRAINT "_AgentOnChainTag_AB_pkey" PRIMARY KEY ("A","B")
+);
+
+-- CreateTable
+CREATE TABLE "_AgentTagOverride" (
+    "A" TEXT NOT NULL,
+    "B" TEXT NOT NULL,
+
+    CONSTRAINT "_AgentTagOverride_AB_pkey" PRIMARY KEY ("A","B")
 );
 
 -- CreateIndex
@@ -285,6 +309,15 @@ CREATE UNIQUE INDEX "Agent_agentPricingId_key" ON "Agent"("agentPricingId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Agent_agentIdentifier_key" ON "Agent"("agentIdentifier");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Tag_name_key" ON "Tag"("name");
+
+-- CreateIndex
+CREATE INDEX "_AgentOnChainTag_B_index" ON "_AgentOnChainTag"("B");
+
+-- CreateIndex
+CREATE INDEX "_AgentTagOverride_B_index" ON "_AgentTagOverride"("B");
 
 -- AddForeignKey
 ALTER TABLE "session" ADD CONSTRAINT "session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -333,3 +366,15 @@ ALTER TABLE "Agent" ADD CONSTRAINT "Agent_ratingId_fkey" FOREIGN KEY ("ratingId"
 
 -- AddForeignKey
 ALTER TABLE "Agent" ADD CONSTRAINT "Agent_agentPricingId_fkey" FOREIGN KEY ("agentPricingId") REFERENCES "AgentPricing"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_AgentOnChainTag" ADD CONSTRAINT "_AgentOnChainTag_A_fkey" FOREIGN KEY ("A") REFERENCES "Agent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_AgentOnChainTag" ADD CONSTRAINT "_AgentOnChainTag_B_fkey" FOREIGN KEY ("B") REFERENCES "Tag"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_AgentTagOverride" ADD CONSTRAINT "_AgentTagOverride_A_fkey" FOREIGN KEY ("A") REFERENCES "Agent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_AgentTagOverride" ADD CONSTRAINT "_AgentTagOverride_B_fkey" FOREIGN KEY ("B") REFERENCES "Tag"("id") ON DELETE CASCADE ON UPDATE CASCADE;

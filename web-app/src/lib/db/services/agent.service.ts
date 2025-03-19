@@ -9,6 +9,8 @@ const agentInclude = {
   },
   ExampleOutput: true,
   ExampleOutputOverride: true,
+  OverrideTags: true,
+  OnChainTags: true,
   Rating: true,
   UserAgentRating: true,
 } as const;

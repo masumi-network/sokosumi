@@ -287,9 +287,6 @@ model Agent {
   onChainLegalOther  String?
   overrideLegalOther String?
 
-  onChainTags  String[]
-  overrideTags String[]
-
   onChainImage  String
   overrideImage String?
 
@@ -311,6 +308,19 @@ model Agent {
   ExampleOutput         ExampleOutput[]   @relation("ExampleOutputAgent")
   ExampleOutputOverride ExampleOutput[]   @relation("ExampleOutputAgentOverride")
   UserAgentRating       UserAgentRating[]
+
+  OnChainTags  Tag[] @relation("AgentOnChainTag")
+  OverrideTags Tag[] @relation("AgentTagOverride")
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  name      String   @unique
+
+  Agents         Agent[] @relation("AgentOnChainTag")
+  AgentsOverride Agent[] @relation("AgentTagOverride")
 }
 
 enum Status {

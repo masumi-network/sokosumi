@@ -1,3 +1,4 @@
+import { Tag } from "@prisma/client";
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -11,7 +12,7 @@ interface FeaturedAgentProps {
   name: string;
   description: string;
   image: string;
-  tags: string[];
+  tags: Tag[];
 }
 
 export function FeaturedAgentSkeleton() {
