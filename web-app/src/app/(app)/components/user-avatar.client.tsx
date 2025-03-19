@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutGrid, LogOut, User } from "lucide-react";
+import { LayoutGrid, LogOut, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -22,43 +22,27 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { authClient, signOut } from "@/lib/auth.client";
+import type { User } from "@/lib/auth";
+import { signOut } from "@/lib/auth.client";
 import { getInitials } from "@/lib/extensions/user";
 
-function UserAvatarSkeleton() {
-  return (
-    <Button variant="outline" className="relative h-8 w-8 rounded-full">
-      <Avatar className="h-8 w-8">
-        <AvatarFallback className="bg-muted animate-pulse" />
-      </Avatar>
-    </Button>
-  );
+interface UserAvatarClientProps {
+  user: User;
 }
 
-export default function UserAvatar() {
-  const { data: session, isPending } = authClient.useSession();
-
+export default function UserAvatarClient({ user }: UserAvatarClientProps) {
   const router = useRouter();
   const t = useTranslations("Components.UserAvatar");
 
   const onSignOut = async () => {
     await signOut({
       fetchOptions: {
-        onResponse: () => {
-          router.push("/signin"); // redirect to login page
+        onSuccess: () => {
+          router.push("/signin");
         },
       },
     });
   };
-
-  if (isPending) {
-    return <UserAvatarSkeleton />;
-  }
-
-  const user = session?.user;
-  if (!user) {
-    return <UserAvatarSkeleton />;
-  }
 
   return (
     <DropdownMenu>
@@ -100,7 +84,7 @@ export default function UserAvatar() {
           </DropdownMenuItem>
           <DropdownMenuItem className="hover:cursor-pointer" asChild>
             <Link href="/account" className="flex items-center gap-2">
-              <User className="text-muted-foreground" />
+              <UserIcon className="text-muted-foreground" />
               {t("account")}
             </Link>
           </DropdownMenuItem>

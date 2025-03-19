@@ -27,14 +27,6 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   const cookieStore = await cookies();
   const defaultOpen = cookieStore.get("sidebar_state")?.value === "true";
 
-  // const session: Session | null = await auth.api.getSession({
-  //   headers: await headers(),
-  // });
-
-  // if (!session) {
-  //   redirect("/signin");
-  // }
-
   return (
     <SidebarProvider defaultOpen={defaultOpen}>
       <Sidebar />
