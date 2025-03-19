@@ -42,7 +42,7 @@ export default function UserAvatar() {
     });
   };
 
-  if (isPending) {
+  if (isPending || !user) {
     return (
       <Button
         variant="outline"
@@ -54,10 +54,6 @@ export default function UserAvatar() {
         </Avatar>
       </Button>
     );
-  }
-
-  if (!user) {
-    return null;
   }
 
   return (
