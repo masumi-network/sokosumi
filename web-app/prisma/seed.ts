@@ -216,7 +216,12 @@ async function main() {
         onChainCapabilityName: agent.title,
         onChainCapabilityVersion: "1.0.0",
         onChainAuthorName: "Demo Author",
-        onChainTags: agent.tags,
+        Tags: {
+          connectOrCreate: agent.tags.map((tag) => ({
+            where: { name: tag },
+            create: { name: tag },
+          })),
+        },
         onChainMetadataVersion: 1,
         Rating: {
           create: {
@@ -233,7 +238,9 @@ async function main() {
         overrideCapabilityName: null,
         overrideCapabilityVersion: null,
         overrideAuthorName: null,
-        overrideTags: [],
+        OverrideTags: {
+          create: [],
+        },
         overrideMetadataVersion: null,
 
         Pricing: {
@@ -255,6 +262,21 @@ async function main() {
     console.log(`Created agent ${agent.title}`);
     index++;
   }
+  const agent = await prisma.agent.findFirst({
+    where: {
+      Tags: {
+        some: {
+          name: "Marketing",
+        },
+      },
+    },
+  });
+  await prisma.agent.update({
+    where: { id: agent?.id },
+    data: {
+      Tags: { delete: { name: "Marketing" } },
+    },
+  });
 }
 
 main()
