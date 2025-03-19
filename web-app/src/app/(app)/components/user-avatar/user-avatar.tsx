@@ -1,7 +1,9 @@
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
 import { Button } from "@/components/ui/button";
-import { getSession } from "@/lib/better-auth/auth";
+import { auth } from "@/lib/better-auth/auth";
 
 import UserAvatarClient from "./user-avatar.client";
 import UserAvatarContent from "./user-avatar-content";
@@ -28,6 +30,13 @@ export default async function UserAvatar() {
 }
 
 async function UserAvatarInner() {
-  const session = await getSession();
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!session) {
+    redirect("/signin");
+  }
+
   return <UserAvatarClient user={session.user} />;
 }

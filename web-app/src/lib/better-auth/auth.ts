@@ -8,8 +8,6 @@ import {
   twoFactor,
 } from "better-auth/plugins";
 import { passkey } from "better-auth/plugins/passkey";
-import { headers } from "next/headers";
-import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import prisma from "../db/prisma";
@@ -21,18 +19,6 @@ export type Session = typeof auth.$Infer.Session;
 export type User = typeof auth.$Infer.Session.user;
 
 const fromEmail = process.env.NOREPLY_EMAIL || "no-reply@resend.dev";
-
-export async function getSession(): Promise<Session> {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  if (!session) {
-    redirect("/signin");
-  }
-
-  return session;
-}
 
 export const auth = betterAuth({
   session: {
