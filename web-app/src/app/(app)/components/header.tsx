@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 import SheetNavigation from "./sheet-navigation";
 import CustomTrigger from "./sidebar/components/custom-trigger";
 import StickyNavigation from "./sticky-navigation";
-import UserAvatar from "./user-avatar";
+import UserAvatar from "./user-avatar.client";
 
 interface HeaderProps {
   className?: string;

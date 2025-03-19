@@ -22,15 +22,24 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { signOut, useSession } from "@/lib/auth.client";
+import { authClient, signOut } from "@/lib/auth.client";
 import { getInitials } from "@/lib/extensions/user";
 
+function UserAvatarSkeleton() {
+  return (
+    <Button variant="outline" className="relative h-8 w-8 rounded-full">
+      <Avatar className="h-8 w-8">
+        <AvatarFallback className="bg-muted animate-pulse" />
+      </Avatar>
+    </Button>
+  );
+}
+
 export default function UserAvatar() {
+  const { data: session, isPending } = authClient.useSession();
+
   const router = useRouter();
   const t = useTranslations("Components.UserAvatar");
-
-  const { data: session, isPending } = useSession();
-  const user = session?.user;
 
   const onSignOut = async () => {
     await signOut({
@@ -42,18 +51,13 @@ export default function UserAvatar() {
     });
   };
 
-  if (isPending || !user) {
-    return (
-      <Button
-        variant="outline"
-        className="relative h-8 w-8 rounded-full"
-        disabled
-      >
-        <Avatar className="h-8 w-8">
-          <AvatarFallback className="bg-muted animate-pulse" />
-        </Avatar>
-      </Button>
-    );
+  if (isPending) {
+    return <UserAvatarSkeleton />;
+  }
+
+  const user = session?.user;
+  if (!user) {
+    return <UserAvatarSkeleton />;
   }
 
   return (
@@ -67,7 +71,7 @@ export default function UserAvatar() {
                 className="relative h-8 w-8 rounded-full"
               >
                 <Avatar className="h-8 w-8">
-                  <AvatarImage src={user.image || ""} alt={user.name} />
+                  <AvatarImage src={user.image || ""} alt={user.name || ""} />
                   <AvatarFallback>{getInitials(user)}</AvatarFallback>
                 </Avatar>
               </Button>

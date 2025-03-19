@@ -1,8 +1,4 @@
-export interface User {
-  name: string;
-  email: string;
-  image?: string | null;
-}
+import { User } from "../auth.client";
 
 export function getInitials(user: User): string {
   return user.name
