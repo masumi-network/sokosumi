@@ -5,5 +5,5 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export const simulateNetworkDelay = (ms: number) =>
+export const sleep = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
