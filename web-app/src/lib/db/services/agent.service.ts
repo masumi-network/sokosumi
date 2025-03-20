@@ -1,6 +1,7 @@
 import { unstable_cache } from "next/cache";
 
 import prisma from "@/lib/db/prisma";
+import { serializeBigInt } from "@/lib/utils";
 
 import { AgentWithRelations } from "../agent/agent-helper";
 
@@ -36,7 +37,7 @@ export async function getAgents(): Promise<AgentWithRelations[]> {
     throw new Error("No agents found");
   }
 
-  return agents;
+  return serializeBigInt(agents);
 }
 
 export async function getAgentById(id: string): Promise<AgentWithRelations> {
@@ -49,5 +50,5 @@ export async function getAgentById(id: string): Promise<AgentWithRelations> {
     throw new Error(`Agent with ID ${id} not found`);
   }
 
-  return agent;
+  return serializeBigInt(agent);
 }
