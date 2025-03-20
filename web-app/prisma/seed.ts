@@ -241,8 +241,6 @@ async function main() {
         OverrideTags: {
           create: [],
         },
-        overrideMetadataVersion: null,
-
         Pricing: {
           connect: {
             id: pricing.id,

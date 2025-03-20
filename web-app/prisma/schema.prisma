@@ -263,9 +263,6 @@ model Agent {
   onChainCapabilityVersion  String
   overrideCapabilityVersion String?
 
-  onChainRequestsPerHour  String?
-  overrideRequestsPerHour String?
-
   onChainAuthorName  String
   overrideAuthorName String?
 
@@ -290,8 +287,7 @@ model Agent {
   onChainImage  String
   overrideImage String?
 
-  onChainMetadataVersion  Int
-  overrideMetadataVersion Int?
+  onChainMetadataVersion Int @default(1)
 
   Pricing        AgentPricing @relation(fields: [agentPricingId], references: [id])
   agentPricingId String       @unique
