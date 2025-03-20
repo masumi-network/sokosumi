@@ -10,10 +10,10 @@ import AgentCardButton from "./agent-card-button";
 import { BadgeCloud } from "./badge-cloud";
 
 interface AgentCardSkeletonProps {
-  className?: string;
+  className?: string | undefined;
 }
 
-function AgentCardSkeleton({ className = "" }: AgentCardSkeletonProps) {
+function AgentCardSkeleton({ className }: AgentCardSkeletonProps) {
   return (
     <Card
       className={cn(
@@ -57,10 +57,10 @@ function AgentCardSkeleton({ className = "" }: AgentCardSkeletonProps) {
 
 interface AgentCardProps {
   agent: AgentDTO;
-  className?: string;
+  className?: string | undefined;
 }
 
-function AgentCard({ agent, className = "" }: AgentCardProps) {
+function AgentCard({ agent, className }: AgentCardProps) {
   const t = useTranslations("Components.Agents.AgentCard");
   const { id, name, description, image, tags, averageStars, credits } = agent;
 

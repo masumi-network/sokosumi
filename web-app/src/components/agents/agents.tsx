@@ -49,15 +49,11 @@ function AgentsSkeleton({ className }: AgentsSkeletonProps) {
 
 interface AgentsProps {
   agents: AgentDTO[];
-  className?: string;
-  agentCardClassName?: string;
+  className?: string | undefined;
+  agentCardClassName?: string | undefined;
 }
 
-function Agents({
-  agents,
-  className = "",
-  agentCardClassName = "",
-}: AgentsProps) {
+function Agents({ agents, className, agentCardClassName }: AgentsProps) {
   return (
     <div
       className={cn("flex w-full flex-wrap justify-center gap-6", className)}
