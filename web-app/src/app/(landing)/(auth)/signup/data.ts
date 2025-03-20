@@ -10,7 +10,10 @@ const signUpFormSchema = (t: FormIntlTranslation<"Auth.Pages.SignUp.Form">) =>
         .min(2, {
           message: t("Errors.Username.min"),
         })
-        .max(50, { message: t("Errors.Username.max") }),
+        .max(50, { message: t("Errors.Username.max") })
+        .regex(/^\S*$/, {
+          message: t("Errors.Username.regex"),
+        }),
       email: z.string().email({
         message: t("Errors.Email.invalid"),
       }),

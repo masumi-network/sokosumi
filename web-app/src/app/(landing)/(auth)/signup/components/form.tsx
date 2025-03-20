@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -21,30 +20,17 @@ import {
 import { Input } from "@/components/ui/input";
 
 import { signup } from "../actions";
-import { signUpFormData } from "./data";
-
-const formSchema = z
-  .object({
-    email: z.string().email(),
-    username: z.string().min(2).max(50),
-    password: z
-      .string()
-      .min(8)
-      .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/),
-    confirmPassword: z.string(),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
-  });
-
-type FormData = z.infer<typeof formSchema>;
+import {
+  signUpFormData,
+  signUpFormSchema,
+  SignUpFormSchemaType,
+} from "../data";
 
 export default function SignUpForm() {
   const t = useTranslations("Auth.Pages.SignUp.Form");
   const router = useRouter();
-  const form = useForm<FormData>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<SignUpFormSchemaType>({
+    resolver: zodResolver(signUpFormSchema(t)),
     defaultValues: {
       email: "",
       username: "",
@@ -53,14 +39,15 @@ export default function SignUpForm() {
     },
   });
 
-  const onSubmit = async (values: FormData) => {
+  const onSubmit = async (values: SignUpFormSchemaType) => {
     const formData = new FormData();
     formData.append("email", values.email);
     formData.append("username", values.username);
     formData.append("password", values.password);
+    formData.append("confirmPassword", values.confirmPassword);
 
     const result = await signup(formData);
-
+    console.log("result", result);
     if (result.success) {
       toast.success(t("success"));
       router.push("/signin");

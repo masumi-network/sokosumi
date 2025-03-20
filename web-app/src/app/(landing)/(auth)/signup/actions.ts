@@ -1,22 +1,18 @@
 "use server";
 
-import { z } from "zod";
+import { getTranslations } from "next-intl/server";
 
 import { auth } from "@/lib/better-auth/auth";
 
-import { passwordSchema } from "../data";
-
-const signupSchema = z.object({
-  email: z.string().email(),
-  username: z.string().min(2).max(50),
-  password: passwordSchema,
-});
+import { signUpFormSchema } from "./data";
 
 export async function signup(formData: FormData) {
-  const validatedFields = signupSchema.safeParse({
+  const t = await getTranslations("Auth.Pages.SignUp.Form");
+  const validatedFields = signUpFormSchema(t).safeParse({
     email: formData.get("email"),
     username: formData.get("username"),
     password: formData.get("password"),
+    confirmPassword: formData.get("confirmPassword"),
   });
 
   if (!validatedFields.success) {
