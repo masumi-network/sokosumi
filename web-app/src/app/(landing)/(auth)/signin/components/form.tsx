@@ -21,7 +21,11 @@ import {
 import { Input } from "@/components/ui/input";
 
 import { signin } from "../actions";
-import { signInFormData, signInFormSchema, SignInFormSchemaType } from "./data";
+import {
+  signInFormData,
+  signInFormSchema,
+  SignInFormSchemaType,
+} from "../data";
 
 export default function SignInForm() {
   const t = useTranslations("Auth.Pages.SignIn.Form");
@@ -29,10 +33,6 @@ export default function SignInForm() {
 
   const form = useForm<SignInFormSchemaType>({
     resolver: zodResolver(signInFormSchema(t)),
-    defaultValues: {
-      email: "",
-      password: "",
-    },
   });
 
   const onSubmit = async (values: SignInFormSchemaType) => {
@@ -42,13 +42,12 @@ export default function SignInForm() {
 
     const result = await signin(formData);
 
-    if (result.error) {
+    if (result.success) {
+      toast.success(t("success"));
+      router.push("/dashboard");
+    } else {
       toast.error(t("error"));
-      return;
     }
-
-    toast.success(t("success"));
-    router.push("/dashboard");
   };
 
   return (
