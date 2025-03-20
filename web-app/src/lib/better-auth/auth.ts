@@ -10,14 +10,23 @@ import {
 import { passkey } from "better-auth/plugins/passkey";
 import { getTranslations } from "next-intl/server";
 
-import prisma from "./db/prisma";
-import { resend } from "./email/resend";
-import { reactResetPasswordEmail } from "./email/reset-password";
-import { reactVerificationEmail } from "./email/verification";
+import prisma from "../db/prisma";
+import { resend } from "../email/resend";
+import { reactResetPasswordEmail } from "../email/reset-password";
+import { reactVerificationEmail } from "../email/verification";
+
+export type Session = typeof auth.$Infer.Session;
+export type User = typeof auth.$Infer.Session.user;
 
 const fromEmail = process.env.NOREPLY_EMAIL || "no-reply@resend.dev";
 
 export const auth = betterAuth({
+  session: {
+    cookieCache: {
+      enabled: true,
+      maxAge: 5 * 60, // 5 minutes
+    },
+  },
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
