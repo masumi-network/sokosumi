@@ -12,7 +12,11 @@ interface AgentCardButtonProps {
 
 export default function AgentCardButton({ agentId }: AgentCardButtonProps) {
   const t = useTranslations("Components.Agents.AgentCard");
-  const pathname = usePathname();
+  let pathname = usePathname();
+
+  if (pathname === "/") {
+    pathname = "gallery";
+  }
 
   return (
     <Link href={`${pathname}/${agentId}`}>
