@@ -45,7 +45,7 @@ export default async function Page({
       <div className="space-y-4">
         <Details
           name={agent.name}
-          description={agent.description ?? ""}
+          description={agent.description}
           author={agent.author}
           image={agent.image}
           credits={agent.credits}

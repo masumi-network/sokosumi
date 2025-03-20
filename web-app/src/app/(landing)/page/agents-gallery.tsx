@@ -14,7 +14,7 @@ async function AgentsList() {
           key={agent.id}
           id={agent.id}
           name={agent.name}
-          description={agent.description ?? ""}
+          description={agent.description}
           averageStars={agent.averageStars}
           image={agent.image}
           price={agent.credits}

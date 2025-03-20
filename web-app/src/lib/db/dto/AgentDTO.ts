@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { getTranslations } from "next-intl/server";
 
 import { ipfsUrlResolver } from "@/lib/ipfs";
 
@@ -37,7 +38,7 @@ export interface AgentDTO {
   readonly id: string;
   readonly agentIdentifier: string;
   readonly name: string;
-  readonly description: string | null;
+  readonly description: string;
   readonly ExampleOutput: ExampleOutputDTO[];
   readonly author: string;
   readonly Legal: LegalDTO | null;
@@ -51,16 +52,23 @@ function calculateCredits(amount: number): number {
   return amount;
 }
 
-export function createAgentDTO(agent: AgentWithRelations): AgentDTO {
+export async function createAgentDTO(
+  agent: AgentWithRelations,
+): Promise<AgentDTO> {
   if (!agent.Rating || !agent.Pricing.FixedPricing) {
     throw new Error("Agent must have Rating and FixedPricing");
   }
+
+  const t = await getTranslations("Agent");
 
   return {
     id: agent.id,
     agentIdentifier: agent.agentIdentifier,
     name: agent.overrideName ?? agent.onChainName,
-    description: agent.overrideDescription ?? agent.onChainDescription,
+    description:
+      agent.overrideDescription ??
+      agent.onChainDescription ??
+      t("defaultDescription"),
     ExampleOutput:
       agent.ExampleOutputOverride.length > 0
         ? agent.ExampleOutputOverride.map((example) => ({
