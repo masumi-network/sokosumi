@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
  * @property {string} [when="always"] - When the trigger should be visible. (check sidebar is visible or not)
  */
 interface CustomTriggerProps {
-  when?: "visible" | "invisible" | "always" | undefined;
+  when?: "visible" | "invisible" | "always";
 }
 
 export default function CustomTrigger({ when = "always" }: CustomTriggerProps) {
