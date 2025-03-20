@@ -23,7 +23,7 @@ import {
   forgotPasswordFormData,
   forgotPasswordFormSchema,
   type ForgotPasswordFormSchemaType,
-} from "./data";
+} from "../data";
 
 export default function ForgotPasswordForm() {
   const t = useTranslations("Auth.Pages.ForgotPassword.Form");
@@ -31,9 +31,6 @@ export default function ForgotPasswordForm() {
 
   const form = useForm<ForgotPasswordFormSchemaType>({
     resolver: zodResolver(forgotPasswordFormSchema(t)),
-    defaultValues: {
-      email: "",
-    },
   });
 
   async function onSubmit(values: ForgotPasswordFormSchemaType) {

@@ -1,15 +1,14 @@
 "use server";
 
-import { z } from "zod";
+import { getTranslations } from "next-intl/server";
 
 import { auth } from "@/lib/better-auth/auth";
 
-const forgotPasswordSchema = z.object({
-  email: z.string().email(),
-});
+import { forgotPasswordFormSchema } from "./data";
 
 export async function forgotPassword(formData: FormData) {
-  const validatedFields = forgotPasswordSchema.safeParse({
+  const t = await getTranslations("Auth.Pages.ForgotPassword.Form");
+  const validatedFields = forgotPasswordFormSchema(t).safeParse({
     email: formData.get("email"),
   });
 
