@@ -8,17 +8,9 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
+import { FormFields } from "@/app/(landing)/(auth)/components/form-fields";
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { Form } from "@/components/ui/form";
 
 import { signin } from "../actions";
 import {
@@ -53,31 +45,11 @@ export default function SignInForm() {
           disabled={form.formState.isSubmitting}
           className="flex flex-col gap-6"
         >
-          {signInFormData.map(
-            ({ name, labelKey, placeholderKey, type, descriptionKey }) => (
-              <FormField
-                key={name}
-                control={form.control}
-                name={name}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{labelKey && t(labelKey)}</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder={placeholderKey && t(placeholderKey)}
-                        type={type || "text"}
-                        {...field}
-                      />
-                    </FormControl>
-                    {descriptionKey && (
-                      <FormDescription>{t(descriptionKey)}</FormDescription>
-                    )}
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            ),
-          )}
+          <FormFields
+            form={form}
+            formData={signInFormData}
+            namespace="Auth.Pages.SignIn.Form"
+          />
           <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
             <Button
               type="submit"

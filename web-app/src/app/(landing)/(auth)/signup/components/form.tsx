@@ -7,17 +7,9 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
+import { FormFields } from "@/app/(landing)/(auth)/components/form-fields";
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormDescription,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { Form } from "@/components/ui/form";
 
 import { signup } from "../actions";
 import {
@@ -51,31 +43,11 @@ export default function SignUpForm() {
           disabled={form.formState.isSubmitting}
           className="flex flex-col gap-6"
         >
-          {signUpFormData.map(
-            ({ name, labelKey, placeholderKey, type, descriptionKey }) => (
-              <FormField
-                key={name}
-                control={form.control}
-                name={name}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{labelKey && t(labelKey)}</FormLabel>
-                    <FormControl>
-                      <Input
-                        type={type || "text"}
-                        placeholder={placeholderKey && t(placeholderKey)}
-                        {...field}
-                      />
-                    </FormControl>
-                    {descriptionKey && (
-                      <FormDescription>{t(descriptionKey)}</FormDescription>
-                    )}
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            ),
-          )}
+          <FormFields
+            form={form}
+            formData={signUpFormData}
+            namespace="Auth.Pages.SignUp.Form"
+          />
           <Button type="submit" disabled={form.formState.isSubmitting}>
             {form.formState.isSubmitting && (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />

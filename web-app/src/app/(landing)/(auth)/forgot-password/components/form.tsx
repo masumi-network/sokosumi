@@ -7,16 +7,9 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
+import { FormFields } from "@/app/(landing)/(auth)/components/form-fields";
 import { Button } from "@/components/ui/button";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
+import { Form } from "@/components/ui/form";
 
 import { forgotPassword } from "../actions";
 import {
@@ -36,13 +29,12 @@ export default function ForgotPasswordForm() {
   async function onSubmit(values: ForgotPasswordFormSchemaType) {
     const result = await forgotPassword(values);
 
-    if (result.error) {
+    if (result.success) {
+      toast.success(t("success"));
+      router.push("/signin");
+    } else {
       toast.error(t("error"));
-      return;
     }
-
-    toast.success(t("success"));
-    router.push("/signin");
   }
 
   return (
@@ -52,28 +44,11 @@ export default function ForgotPasswordForm() {
           disabled={form.formState.isSubmitting}
           className="flex flex-col gap-6"
         >
-          {forgotPasswordFormData.map(
-            ({ name, labelKey, placeholderKey, type }) => (
-              <FormField
-                key={name}
-                control={form.control}
-                name={name}
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{labelKey && t(labelKey)}</FormLabel>
-                    <FormControl>
-                      <Input
-                        placeholder={placeholderKey && t(placeholderKey)}
-                        type={type || "text"}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            ),
-          )}
+          <FormFields
+            form={form}
+            formData={forgotPasswordFormData}
+            namespace="Auth.Pages.ForgotPassword.Form"
+          />
           <Button type="submit" disabled={form.formState.isSubmitting}>
             {form.formState.isSubmitting && (
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
