@@ -31,7 +31,11 @@ export async function getAgents(): Promise<AgentDTO[]> {
     include: agentInclude,
   });
 
-  return agents.map((agent) => createAgentDTO(agent));
+  if (!agents) {
+    throw new Error("No agents found");
+  }
+
+  return await Promise.all(agents.map(createAgentDTO));
 }
 
 export async function getAgentById(id: string): Promise<AgentDTO> {
@@ -44,5 +48,5 @@ export async function getAgentById(id: string): Promise<AgentDTO> {
     throw new Error(`Agent with ID ${id} not found`);
   }
 
-  return createAgentDTO(agent);
+  return await createAgentDTO(agent);
 }

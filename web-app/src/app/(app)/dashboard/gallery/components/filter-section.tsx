@@ -10,16 +10,16 @@ import Tags from "./tags";
 import useGalleryFilter from "./use-gallery-filter";
 
 interface FilterSectionProps {
-  tagNames: string[];
+  tags: string[];
 }
 
-export default function FilterSection({ tagNames }: FilterSectionProps) {
+export default function FilterSection({ tags }: FilterSectionProps) {
   const t = useTranslations("App.Gallery.FilterSection");
   const {
     query,
-    tags: appliedTagNames,
+    tags: appliedTags,
     setQuery,
-    setTags: setAppliedTagNames,
+    setTags: setAppliedTags,
     resetFilters,
   } = useGalleryFilter();
 
@@ -36,16 +36,16 @@ export default function FilterSection({ tagNames }: FilterSectionProps) {
             onChange={(e) => setQuery(e.target.value)}
           />
           <Tags
-            appliedTagNames={appliedTagNames}
-            onApplyTagNames={setAppliedTagNames}
-            tagNames={tagNames}
+            appliedTags={appliedTags}
+            onApplyTags={setAppliedTags}
+            tags={tags}
           />
         </div>
         <Button
           variant="ghost"
           onClick={resetFilters}
           className="gap-2 text-lg"
-          disabled={!query && appliedTagNames.length === 0}
+          disabled={!query && appliedTags.length === 0}
         >
           {t("reset")}
           <X />

@@ -66,10 +66,10 @@ function AgentCard({ agent, className = "" }: AgentCardProps) {
     id,
     name,
     description = "",
-    Rating: { averageStars },
     image,
-    Pricing: { credits: price },
     tags,
+    averageStars,
+    credits,
   } = agent;
 
   return (
@@ -109,7 +109,7 @@ function AgentCard({ agent, className = "" }: AgentCardProps) {
           {description}
         </p>
         <div className="flex min-h-[1.5rem] shrink-0 flex-nowrap overflow-hidden">
-          <BadgeCloud tagNames={tags.map((tag) => tag.name)} />
+          <BadgeCloud tags={tags} />
         </div>
       </CardContent>
 
@@ -119,7 +119,7 @@ function AgentCard({ agent, className = "" }: AgentCardProps) {
 
           <div>
             <p className="text-muted-foreground text-s">
-              {t("pricing", { price })}
+              {t("pricing", { price: credits })}
             </p>
           </div>
         </div>

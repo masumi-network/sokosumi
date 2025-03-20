@@ -50,7 +50,7 @@ export function FeaturedAgent({ agent }: FeaturedAgentProps) {
           <h3 className="text-4xl font-bold tracking-tight">{name}</h3>
         </div>
         <p className="text-muted-foreground text-lg">{description}</p>
-        <BadgeCloud tagNames={tags.map((tag) => tag.name)} />
+        <BadgeCloud tags={tags} />
         <Link href={`/gallery/${id}`}>
           <Button size="lg" className="w-full md:w-auto">
             {t("button")}

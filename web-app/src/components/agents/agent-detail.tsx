@@ -82,9 +82,9 @@ function AgentDetails({ agent, className }: AgentDetailsProps) {
   const {
     name,
     description,
-    Author: { name: author },
+    author,
     image,
-    Pricing: { credits },
+    credits,
     tags,
     ExampleOutput,
     Legal,
@@ -127,7 +127,7 @@ function AgentDetails({ agent, className }: AgentDetailsProps) {
       </div>
 
       {/* Tags */}
-      <BadgeCloud tagNames={tags.map((tag) => tag.name)} />
+      <BadgeCloud tags={tags} />
       <div className="text-muted-foreground">
         <p>{description}</p>
       </div>

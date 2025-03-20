@@ -1,13 +1,17 @@
 import { Badge } from "@/components/ui/badge";
 
-function BadgeCloud({ tagNames }: { tagNames: string[] }) {
+interface BadgeCloudProps {
+  tags: string[];
+}
+
+function BadgeCloud({ tags }: BadgeCloudProps) {
   return (
     <>
-      {tagNames.length > 0 && (
+      {tags.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {tagNames.map((tagName) => (
-            <Badge key={tagName} variant="secondary">
-              {tagName}
+          {tags.map((tag) => (
+            <Badge key={tag} variant="secondary">
+              {tag}
             </Badge>
           ))}
         </div>

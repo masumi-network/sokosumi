@@ -21,11 +21,12 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function GalleryPage() {
   const agents: AgentDTO[] = await getCachedAgents();
   const tags: Tag[] = await getCachedTags();
+  const tagNames = tags.map((tag) => tag.name);
 
   return (
     <div className="w-full p-8 xl:px-16">
       <div className="space-y-12">
-        <FilterSection tagNames={tags.map((tag) => tag.name)} />
+        <FilterSection tags={tagNames} />
         {/* Agent Cards Grid */}
         <FilteredAgents agents={agents} />
       </div>
