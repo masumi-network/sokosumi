@@ -7,12 +7,7 @@ import { FormData } from "@/lib/form";
 
 import { BaseForm } from "./base-form";
 import { FormFields } from "./form-fields";
-
-type AuthNamespace =
-  | "Auth.Pages.SignIn.Form"
-  | "Auth.Pages.ForgotPassword.Form"
-  | "Auth.Pages.SignUp.Form"
-  | "Auth.Pages.ResetPassword.Form";
+import { AuthNamespace } from "./types";
 
 interface AuthFormProps<T extends FieldValues> {
   form: UseFormReturn<T>;

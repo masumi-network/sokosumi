@@ -13,11 +13,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { FormData } from "@/lib/form";
 
-type AuthNamespace =
-  | "Auth.Pages.SignIn.Form"
-  | "Auth.Pages.ForgotPassword.Form"
-  | "Auth.Pages.SignUp.Form"
-  | "Auth.Pages.ResetPassword.Form";
+import { AuthNamespace } from "./types";
 
 interface FormFieldsProps<T extends FieldValues> {
   form: UseFormReturn<T>;
