@@ -1,4 +1,3 @@
-import { Tag } from "@prisma/client";
 import { Star } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -16,7 +15,7 @@ interface AgentCardProps {
   averageStars: number | null;
   image: string;
   price: number;
-  tags: Tag[];
+  tags: string[];
 }
 
 export function AgentCardSkeleton() {

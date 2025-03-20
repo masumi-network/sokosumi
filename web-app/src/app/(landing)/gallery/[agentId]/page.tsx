@@ -45,18 +45,18 @@ export default async function Page({
       <div className="space-y-4">
         <Details
           name={agent.name}
-          description={agent.description ?? ""}
-          author={agent.Author.name}
+          description={agent.description}
+          author={agent.author}
           image={agent.image}
-          credits={agent.Pricing.credits}
+          credits={agent.credits}
           tags={agent.tags}
         />
         <div className="flex gap-4 overflow-x-auto pb-4">
-          {agent.ExampleOutput.map((_, index) => (
+          {agent.ExampleOutput.map((example) => (
             <Image
-              key={index}
+              key={example.id}
               src="/placeholder.svg"
-              alt={`Placeholder ${index + 1}`}
+              alt={example.name}
               className="h-64 w-auto flex-shrink-0 rounded-lg object-cover"
               width={256}
               height={256}

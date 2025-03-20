@@ -1,4 +1,3 @@
-import { Tag } from "@prisma/client";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 
@@ -11,7 +10,7 @@ interface AgentDetailsProps {
   author: string;
   image: string;
   credits: number;
-  tags: Tag[];
+  tags: string[];
 }
 
 export default function AgentDetails({
