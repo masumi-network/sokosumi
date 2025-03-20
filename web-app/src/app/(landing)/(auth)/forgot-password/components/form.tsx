@@ -6,11 +6,7 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import {
-  BaseForm,
-  FormFields,
-  SubmitButton,
-} from "@/app/(landing)/(auth)/components/form";
+import { AuthForm, SubmitButton } from "@/app/(landing)/(auth)/components/form";
 
 import { forgotPassword } from "../actions";
 import {
@@ -39,13 +35,13 @@ export default function ForgotPasswordForm() {
   }
 
   return (
-    <BaseForm form={form} onSubmit={onSubmit}>
-      <FormFields
-        form={form}
-        formData={forgotPasswordFormData}
-        namespace="Auth.Pages.ForgotPassword.Form"
-      />
+    <AuthForm
+      form={form}
+      formData={forgotPasswordFormData}
+      namespace="Auth.Pages.ForgotPassword.Form"
+      onSubmit={onSubmit}
+    >
       <SubmitButton form={form} label={t("reset_password")} />
-    </BaseForm>
+    </AuthForm>
   );
 }

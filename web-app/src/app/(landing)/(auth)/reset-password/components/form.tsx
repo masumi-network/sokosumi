@@ -6,11 +6,7 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import {
-  BaseForm,
-  FormFields,
-  SubmitButton,
-} from "@/app/(landing)/(auth)/components/form";
+import { AuthForm, SubmitButton } from "@/app/(landing)/(auth)/components/form";
 
 import { resetPassword } from "../actions";
 import {
@@ -46,13 +42,13 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
   }
 
   return (
-    <BaseForm form={form} onSubmit={onSubmit}>
-      <FormFields
-        form={form}
-        formData={resetPasswordFormData}
-        namespace="Auth.Pages.ResetPassword.Form"
-      />
+    <AuthForm
+      form={form}
+      formData={resetPasswordFormData}
+      namespace="Auth.Pages.ResetPassword.Form"
+      onSubmit={onSubmit}
+    >
       <SubmitButton form={form} label={t("submit")} />
-    </BaseForm>
+    </AuthForm>
   );
 }

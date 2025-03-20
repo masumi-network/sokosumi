@@ -1,3 +1,2 @@
-export * from "./base-form";
-export * from "./form-fields";
-export * from "./submit-button";
+export { AuthForm } from "./auth-form";
+export { SubmitButton } from "./submit-button";

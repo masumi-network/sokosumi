@@ -7,11 +7,7 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import {
-  BaseForm,
-  FormFields,
-  SubmitButton,
-} from "@/app/(landing)/(auth)/components/form";
+import { AuthForm, SubmitButton } from "@/app/(landing)/(auth)/components/form";
 
 import { signin } from "../actions";
 import {
@@ -40,12 +36,12 @@ export default function SignInForm() {
   };
 
   return (
-    <BaseForm form={form} onSubmit={onSubmit}>
-      <FormFields
-        form={form}
-        formData={signInFormData}
-        namespace="Auth.Pages.SignIn.Form"
-      />
+    <AuthForm
+      form={form}
+      formData={signInFormData}
+      namespace="Auth.Pages.SignIn.Form"
+      onSubmit={onSubmit}
+    >
       <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
         <SubmitButton
           form={form}
@@ -64,6 +60,6 @@ export default function SignInForm() {
           </Link>
         </div>
       </div>
-    </BaseForm>
+    </AuthForm>
   );
 }
