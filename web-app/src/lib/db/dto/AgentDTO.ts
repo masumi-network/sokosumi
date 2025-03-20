@@ -33,12 +33,6 @@ export interface LegalDTO {
   readonly other: string | null;
 }
 
-export interface RatingDTO {
-  readonly totalStars: number;
-  readonly totalRatings: number;
-  readonly averageStars: number | null;
-}
-
 export interface AuthorDTO {
   readonly name: string;
   readonly contactEmail: string | null;
@@ -56,7 +50,7 @@ export interface AgentDTO {
   readonly Legal: LegalDTO | null;
   readonly tags: string[];
   readonly image: string;
-  readonly Rating: RatingDTO;
+  readonly averageStars: number | null;
   readonly credits: number;
 }
 
@@ -88,20 +82,16 @@ export function createAgentDTO(agent: AgentWithRelations): AgentDTO {
             mimeType: example.mimeType,
             url: ipfsUrlResolver(example.url),
           })),
-    Rating: {
-      totalStars: Number(agent.Rating.totalStars),
-      totalRatings: Number(agent.Rating.totalRatings),
-      averageStars:
-        Number(agent.Rating.totalRatings) === 0
-          ? null
-          : Math.min(
-              5,
-              Math.round(
-                Number(agent.Rating.totalStars) /
-                  Number(agent.Rating.totalRatings),
-              ),
+    averageStars:
+      Number(agent.Rating.totalRatings) === 0
+        ? null
+        : Math.min(
+            5,
+            Math.round(
+              Number(agent.Rating.totalStars) /
+                Number(agent.Rating.totalRatings),
             ),
-    },
+          ),
     Author: {
       name: agent.overrideAuthorName ?? agent.onChainAuthorName,
       contactEmail:
