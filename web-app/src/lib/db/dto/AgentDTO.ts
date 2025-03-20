@@ -33,20 +33,13 @@ export interface LegalDTO {
   readonly other: string | null;
 }
 
-export interface AuthorDTO {
-  readonly name: string;
-  readonly contactEmail: string | null;
-  readonly contactOther: string | null;
-  readonly organization: string | null;
-}
-
 export interface AgentDTO {
   readonly id: string;
   readonly agentIdentifier: string;
   readonly name: string;
   readonly description: string | null;
   readonly ExampleOutput: ExampleOutputDTO[];
-  readonly Author: AuthorDTO;
+  readonly author: string;
   readonly Legal: LegalDTO | null;
   readonly tags: string[];
   readonly image: string;
@@ -92,15 +85,7 @@ export function createAgentDTO(agent: AgentWithRelations): AgentDTO {
                 Number(agent.Rating.totalRatings),
             ),
           ),
-    Author: {
-      name: agent.overrideAuthorName ?? agent.onChainAuthorName,
-      contactEmail:
-        agent.overrideAuthorContactEmail ?? agent.onChainAuthorContactEmail,
-      contactOther:
-        agent.overrideAuthorContactOther ?? agent.onChainAuthorContactOther,
-      organization:
-        agent.overrideAuthorOrganization ?? agent.onChainAuthorOrganization,
-    },
+    author: agent.overrideAuthorName ?? agent.onChainAuthorName,
     Legal: (() => {
       const privacyPolicy =
         agent.overrideLegalPrivacyPolicy ?? agent.onChainLegalPrivacyPolicy;

@@ -46,7 +46,7 @@ export default async function Page({
         <Details
           name={agent.name}
           description={agent.description ?? ""}
-          author={agent.Author.name}
+          author={agent.author}
           image={agent.image}
           credits={agent.credits}
           tags={agent.tags}
