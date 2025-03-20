@@ -1,4 +1,3 @@
-import { Tag } from "@prisma/client";
 import { unstable_cache } from "next/cache";
 
 import { AgentDTO, createAgentDTO } from "@/lib/db/dto/AgentDTO";
@@ -46,24 +45,4 @@ export async function getAgentById(id: string): Promise<AgentDTO> {
   }
 
   return createAgentDTO(agent);
-}
-
-export const getCachedAgentsTags = unstable_cache(
-  async (): Promise<Tag[]> => {
-    return await getAgentsTags();
-  },
-  ["agents-tags"],
-  {
-    revalidate: 3600,
-    tags: ["agents-tags"],
-  },
-);
-
-export async function getAgentsTags(): Promise<Tag[]> {
-  const tags = await prisma.tag.findMany({
-    orderBy: {
-      name: "asc",
-    },
-  });
-  return tags;
 }

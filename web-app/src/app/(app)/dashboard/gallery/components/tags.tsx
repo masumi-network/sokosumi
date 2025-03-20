@@ -17,45 +17,45 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 interface TagsProps {
-  appliedTags: string[];
-  onApplyTags: (tags: string[]) => void;
-  agentsTags: string[];
+  appliedTagNames: string[];
+  onApplyTagNames: (tagNames: string[]) => void;
+  tagNames: string[];
 }
 
 export default function Tags({
-  appliedTags,
-  onApplyTags,
-  agentsTags,
+  appliedTagNames,
+  onApplyTagNames,
+  tagNames: validTagNames,
 }: TagsProps) {
   const t = useTranslations("App.Gallery.FilterSection");
 
-  const [tags, setTags] = useState<string[]>(appliedTags);
+  const [tagNames, setTagNames] = useState<string[]>(appliedTagNames);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    if (open) setTags(appliedTags);
-  }, [open, appliedTags, setTags]);
+    if (open) setTagNames(appliedTagNames);
+  }, [open, appliedTagNames, setTagNames]);
 
-  const handleCheckTags = (tag: string, checked: boolean) => {
+  const handleCheckTag = (tagName: string, checked: boolean) => {
     if (checked) {
-      setTags([...tags, tag]);
+      setTagNames([...tagNames, tagName]);
     } else {
-      setTags(tags.filter((t) => t !== tag));
+      setTagNames(tagNames.filter((t) => t !== tagName));
     }
   };
 
   const Row = ({ index, style }: ListChildComponentProps) => {
-    const tag = agentsTags[index];
+    const tagName = validTagNames[index];
     return (
       <DropdownMenuCheckboxItem
-        key={tag}
+        key={tagName}
         onSelect={(e) => e.preventDefault()}
         style={style}
         className="hover:bg-foreground hover:text-white"
-        checked={tags.includes(tag)}
-        onCheckedChange={(checked) => handleCheckTags(tag, checked)}
+        checked={tagNames.includes(tagName)}
+        onCheckedChange={(checked) => handleCheckTag(tagName, checked)}
       >
-        {tag}
+        {tagName}
       </DropdownMenuCheckboxItem>
     );
   };
@@ -68,10 +68,10 @@ export default function Tags({
             variant="outline"
             className="items-center gap-2 border-dashed text-base"
           >
-            {appliedTags.length === 0 ? (
+            {appliedTagNames.length === 0 ? (
               <CirclePlus className="h-4 w-4" />
             ) : (
-              <Badge>{appliedTags.length}</Badge>
+              <Badge>{appliedTagNames.length}</Badge>
             )}
             {t("tags")}
           </Button>
@@ -81,7 +81,7 @@ export default function Tags({
           <DropdownMenuSeparator />
           <FixedSizeList
             height={360}
-            itemCount={agentsTags.length}
+            itemCount={validTagNames.length}
             width="100%"
             itemSize={36}
           >
@@ -91,7 +91,7 @@ export default function Tags({
           <Button
             className="w-full"
             onClick={() => {
-              onApplyTags(tags);
+              onApplyTagNames(tagNames);
               setOpen(false);
             }}
           >

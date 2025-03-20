@@ -10,12 +10,18 @@ import Tags from "./tags";
 import useGalleryFilter from "./use-gallery-filter";
 
 interface FilterSectionProps {
-  agentsTags: string[];
+  tagNames: string[];
 }
 
-export default function FilterSection({ agentsTags }: FilterSectionProps) {
+export default function FilterSection({ tagNames }: FilterSectionProps) {
   const t = useTranslations("App.Gallery.FilterSection");
-  const { query, tags, setQuery, setTags, resetFilters } = useGalleryFilter();
+  const {
+    query,
+    tags: appliedTagNames,
+    setQuery,
+    setTags: setAppliedTagNames,
+    resetFilters,
+  } = useGalleryFilter();
 
   return (
     <div className="flex flex-col gap-4">
@@ -30,16 +36,16 @@ export default function FilterSection({ agentsTags }: FilterSectionProps) {
             onChange={(e) => setQuery(e.target.value)}
           />
           <Tags
-            appliedTags={tags}
-            onApplyTags={setTags}
-            agentsTags={agentsTags}
+            appliedTagNames={appliedTagNames}
+            onApplyTagNames={setAppliedTagNames}
+            tagNames={tagNames}
           />
         </div>
         <Button
           variant="ghost"
           onClick={resetFilters}
           className="gap-2 text-lg"
-          disabled={!query && tags.length === 0}
+          disabled={!query && appliedTagNames.length === 0}
         >
           {t("reset")}
           <X />

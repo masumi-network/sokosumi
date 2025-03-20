@@ -109,7 +109,7 @@ function AgentCard({ agent, className = "" }: AgentCardProps) {
           {description}
         </p>
         <div className="flex min-h-[1.5rem] shrink-0 flex-nowrap overflow-hidden">
-          <BadgeCloud tags={tags.map((tag) => tag.name)} />
+          <BadgeCloud tagNames={tags.map((tag) => tag.name)} />
         </div>
       </CardContent>
 
