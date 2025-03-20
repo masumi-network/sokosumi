@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { TagDTO } from "@/lib/db/dto/TagDTO";
 
 import BadgeCloud from "./badge-cloud";
 
@@ -16,7 +15,7 @@ interface AgentCardProps {
   averageStars: number | null;
   image: string;
   price: number;
-  tags: TagDTO[];
+  tags: string[];
 }
 
 export function AgentCardSkeleton() {

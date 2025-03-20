@@ -2,8 +2,6 @@ import { Prisma } from "@prisma/client";
 
 import { ipfsUrlResolver } from "@/lib/ipfs";
 
-import { TagDTO } from "./TagDTO";
-
 type AgentWithRelations = Prisma.AgentGetPayload<{
   include: {
     ExampleOutput: true;
@@ -22,12 +20,6 @@ type AgentWithRelations = Prisma.AgentGetPayload<{
     Rating: true;
   };
 }>;
-
-export interface AmountDTO {
-  readonly id: string;
-  readonly unit: string;
-  readonly amount: number;
-}
 
 export interface ExampleOutputDTO {
   readonly id: string;
@@ -62,7 +54,7 @@ export interface AgentDTO {
   readonly ExampleOutput: ExampleOutputDTO[];
   readonly Author: AuthorDTO;
   readonly Legal: LegalDTO | null;
-  readonly tags: TagDTO[];
+  readonly tags: string[];
   readonly image: string;
   readonly Rating: RatingDTO;
   readonly credits: number;
@@ -129,7 +121,9 @@ export function createAgentDTO(agent: AgentWithRelations): AgentDTO {
         : null;
     })(),
     tags:
-      agent.OverrideTags.length > 0 ? agent.OverrideTags : agent.OnChainTags,
+      agent.OverrideTags.length > 0
+        ? agent.OverrideTags.map((tag) => tag.name)
+        : agent.OnChainTags.map((tag) => tag.name),
     image: ipfsUrlResolver(agent.overrideImage ?? agent.onChainImage),
     credits: calculateCredits(
       Number(agent.Pricing.FixedPricing.Amounts[0].amount),

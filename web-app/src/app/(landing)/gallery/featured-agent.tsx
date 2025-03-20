@@ -5,14 +5,13 @@ import { useTranslations } from "next-intl";
 import BadgeCloud from "@/components/badge-cloud";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { TagDTO } from "@/lib/db/dto/TagDTO";
 
 interface FeaturedAgentProps {
   id: string;
   name: string;
   description: string;
   image: string;
-  tags: TagDTO[];
+  tags: string[];
 }
 
 export function FeaturedAgentSkeleton() {
