@@ -27,7 +27,7 @@ export default function SheetNavigation() {
       <SheetContent className="h-svh w-full max-w-sm p-4" side="right">
         <SheetHeader>
           <SheetTitle className="flex justify-center">
-            <Link href="/">
+            <Link href="/dashboard">
               <SokosumiLogo width={200} height={26} />
             </Link>
           </SheetTitle>
