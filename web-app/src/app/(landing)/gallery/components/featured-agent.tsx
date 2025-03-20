@@ -2,17 +2,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
-import BadgeCloud from "@/components/badge-cloud";
+import { BadgeCloud } from "@/components/agents";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-
-interface FeaturedAgentProps {
-  id: string;
-  name: string;
-  description: string;
-  image: string;
-  tags: string[];
-}
+import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 
 export function FeaturedAgentSkeleton() {
   return (
@@ -40,14 +33,14 @@ export function FeaturedAgentSkeleton() {
   );
 }
 
-export function FeaturedAgent({
-  id,
-  name,
-  description,
-  tags,
-  image,
-}: FeaturedAgentProps) {
+interface FeaturedAgentProps {
+  agent: AgentDTO;
+}
+
+export function FeaturedAgent({ agent }: FeaturedAgentProps) {
   const t = useTranslations("Landing.Gallery.FeaturedAgent");
+  const { id, name, description, tags, image } = agent;
+
   return (
     <div className="flex flex-col items-center gap-8 md:flex-row">
       {/* Text Content Section - 1/3 width */}

@@ -1,8 +1,24 @@
 {
   "Components": {
-    "AgentCard": {
-      "button": "Show details",
-      "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
+    "Agents": {
+      "agentsNotAvailable": "No agents available",
+      "agentsNotFound": "No Agents found",
+      "AgentCard": {
+        "button": "Show details",
+        "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
+      },
+      "AgentDetail": {
+        "hire": "Hire",
+        "share": "Share",
+        "byAuthor": "by {author}",
+        "Legal": {
+          "fromDeveloper": "From the developer:",
+          "privacyPolicy": "Privacy Policy",
+          "terms": "Terms",
+          "other": "Other"
+        },
+        "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
+      }
     },
     "UserAvatar": {
       "dashboard": "Dashboard",
@@ -288,22 +304,12 @@
         "title": "Agents Gallery",
         "description": "Explore our collection of agents."
       },
-      "noAgentsAvailable": "No agents available",
       "FeaturedAgent": {
         "title": "an absolute must-have",
         "button": "Show details"
       },
-      "Agent": {
-        "hire": "Hire",
-        "share": "Share",
-        "byAuthor": "by {author}",
-        "Legal": {
-          "fromDeveloper": "From the developer:",
-          "privacyPolicy": "Privacy Policy",
-          "terms": "Terms",
-          "other": "Other"
-        },
-        "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
+      "AgentDetail": {
+        "backToGallery": "Agents Gallery"
       }
     }
   },
@@ -336,6 +342,23 @@
         "billing": "Billing",
         "settings": "Settings",
         "creditsBalance": "Credits balance: {balance}"
+      }
+    },
+    "Gallery": {
+      "Metadata": {
+        "title": "Agents Gallery",
+        "description": "Explore our collection of agents."
+      },
+      "FilterSection": {
+        "header": "Agents Gallery",
+        "searchPlaceholder": "Search agents",
+        "reset": "Reset",
+        "tags": "Tags",
+        "selectTags": "Select Tags",
+        "applyTags": "Apply"
+      },
+      "AgentDetail": {
+        "backToGallery": "Agents Gallery"
       }
     }
   },

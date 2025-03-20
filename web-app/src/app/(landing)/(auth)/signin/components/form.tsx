@@ -5,7 +5,6 @@ import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -27,7 +26,6 @@ import { signInFormData, signInFormSchema, SignInFormSchemaType } from "./data";
 export default function SignInForm() {
   const t = useTranslations("Auth.Pages.SignIn.Form");
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
 
   const form = useForm<SignInFormSchemaType>({
     resolver: zodResolver(signInFormSchema(t)),
@@ -38,15 +36,11 @@ export default function SignInForm() {
   });
 
   const onSubmit = async (values: SignInFormSchemaType) => {
-    setLoading(true);
-
     const formData = new FormData();
     formData.append("email", values.email);
     formData.append("password", values.password);
 
     const result = await signin(formData);
-
-    setLoading(false);
 
     if (result.error) {
       toast.error(t("error"));
@@ -60,7 +54,10 @@ export default function SignInForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}>
-        <fieldset disabled={loading} className="flex flex-col gap-6">
+        <fieldset
+          disabled={form.formState.isSubmitting}
+          className="flex flex-col gap-6"
+        >
           {signInFormData.map(
             ({ name, labelKey, placeholderKey, type, descriptionKey }) => (
               <FormField
@@ -87,8 +84,10 @@ export default function SignInForm() {
             ),
           )}
           <div className="flex items-center justify-between">
-            <Button type="submit" disabled={loading}>
-              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            <Button type="submit" disabled={form.formState.isSubmitting}>
+              {form.formState.isSubmitting && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
               {t("submit")}
             </Button>
             <div className="text-sm">

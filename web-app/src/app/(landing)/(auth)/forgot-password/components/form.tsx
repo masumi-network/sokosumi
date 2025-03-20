@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -29,7 +28,6 @@ import {
 export default function ForgotPasswordForm() {
   const t = useTranslations("Auth.Pages.ForgotPassword.Form");
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
 
   const form = useForm<ForgotPasswordFormSchemaType>({
     resolver: zodResolver(forgotPasswordFormSchema(t)),
@@ -39,14 +37,10 @@ export default function ForgotPasswordForm() {
   });
 
   async function onSubmit(values: ForgotPasswordFormSchemaType) {
-    setLoading(true);
-
     const formData = new FormData();
     formData.append("email", values.email);
 
     const result = await forgotPassword(formData);
-
-    setLoading(false);
 
     if (result.error) {
       toast.error(t("error"));
@@ -60,7 +54,10 @@ export default function ForgotPasswordForm() {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}>
-        <fieldset disabled={loading} className="flex flex-col gap-6">
+        <fieldset
+          disabled={form.formState.isSubmitting}
+          className="flex flex-col gap-6"
+        >
           {forgotPasswordFormData.map(
             ({ name, labelKey, placeholderKey, type }) => (
               <FormField
@@ -83,8 +80,10 @@ export default function ForgotPasswordForm() {
               />
             ),
           )}
-          <Button type="submit" disabled={loading}>
-            {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          <Button type="submit" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting && (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+            )}
             {t("reset_password")}
           </Button>
         </fieldset>

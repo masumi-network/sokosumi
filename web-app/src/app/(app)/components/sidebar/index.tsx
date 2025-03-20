@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { SokosumiLogo } from "@/components/masumi-logos";
 import {
   Sidebar as ShadcnSidebar,
@@ -6,9 +8,9 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar";
 
-import AgentAddButton from "./components/agent-add-button";
 import AgentsList from "./components/agents-list";
 import CustomTrigger from "./components/custom-trigger";
+import GalleryButton from "./components/gallery-button";
 
 export default function Sidebar() {
   return (
@@ -16,14 +18,16 @@ export default function Sidebar() {
       <SidebarHeader>
         <div className="flex items-center gap-2 p-2">
           <CustomTrigger />
-          <SokosumiLogo />
+          <Link href="/dashboard" className="mx-auto">
+            <SokosumiLogo width={200} height={26} priority />
+          </Link>
         </div>
       </SidebarHeader>
       <SidebarContent>
         <AgentsList />
       </SidebarContent>
       <SidebarFooter>
-        <AgentAddButton />
+        <GalleryButton />
       </SidebarFooter>
     </ShadcnSidebar>
   );

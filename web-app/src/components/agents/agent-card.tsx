@@ -1,26 +1,26 @@
 import { Star } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
+import { AgentDTO } from "@/lib/db/dto/AgentDTO";
+import { cn } from "@/lib/utils";
 
-import BadgeCloud from "./badge-cloud";
+import AgentCardButton from "./agent-card-button";
+import { BadgeCloud } from "./badge-cloud";
 
-interface AgentCardProps {
-  id: string;
-  name: string;
-  description: string;
-  averageStars: number | null;
-  image: string;
-  price: number;
-  tags: string[];
+interface AgentCardSkeletonProps {
+  className?: string | undefined;
 }
 
-export function AgentCardSkeleton() {
+function AgentCardSkeleton({ className }: AgentCardSkeletonProps) {
   return (
-    <Card className="flex h-full w-full max-w-md min-w-96 flex-col overflow-hidden py-0">
+    <Card
+      className={cn(
+        "flex w-72 flex-col overflow-hidden py-0 sm:w-96",
+        className,
+      )}
+    >
       <div className="bg-muted relative h-48 w-full shrink-0 animate-pulse" />
 
       <CardContent className="flex flex-1 flex-col px-6 pb-3">
@@ -55,18 +55,22 @@ export function AgentCardSkeleton() {
   );
 }
 
-export default function AgentCard({
-  id,
-  name,
-  description,
-  averageStars,
-  image,
-  price,
-  tags,
-}: AgentCardProps) {
-  const t = useTranslations("Components.AgentCard");
+interface AgentCardProps {
+  agent: AgentDTO;
+  className?: string | undefined;
+}
+
+function AgentCard({ agent, className }: AgentCardProps) {
+  const t = useTranslations("Components.Agents.AgentCard");
+  const { id, name, description, image, tags, averageStars, credits } = agent;
+
   return (
-    <Card className="flex h-full w-full max-w-md min-w-96 flex-col overflow-hidden py-0">
+    <Card
+      className={cn(
+        "flex w-72 flex-col overflow-hidden py-0 sm:w-96",
+        className,
+      )}
+    >
       <div className="relative h-48 w-full shrink-0">
         <Image
           src={image || "/placeholder.svg"}
@@ -103,13 +107,11 @@ export default function AgentCard({
 
       <CardFooter className="mt-auto shrink-0 px-6 pt-2 pb-4">
         <div className="flex items-center gap-4">
-          <Link href={`/gallery/${id}`}>
-            <Button>{t("button")}</Button>
-          </Link>
+          <AgentCardButton agentId={id} />
 
           <div>
             <p className="text-muted-foreground text-s">
-              {t("pricing", { price })}
+              {t("pricing", { price: credits })}
             </p>
           </div>
         </div>
@@ -117,3 +119,5 @@ export default function AgentCard({
     </Card>
   );
 }
+
+export { AgentCard, AgentCardSkeleton };

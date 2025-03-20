@@ -1,7 +1,9 @@
 import Image from "next/image";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { KodosumiLogo, MasumiLogo } from "@/components/masumi-logos";
+import { KODOSUMI_URL, MASUMI_URL } from "@/constants";
 
 import { GitHubButton, MasumiButton } from "../components/social-button";
 
@@ -19,8 +21,12 @@ export function MonetizeYourAgent() {
 
           {/* Masumi Logos */}
           <div className="flex flex-col items-end gap-6">
-            <KodosumiLogo />
-            <MasumiLogo />
+            <Link href={KODOSUMI_URL}>
+              <KodosumiLogo width={418} height={56} />
+            </Link>
+            <Link href={MASUMI_URL}>
+              <MasumiLogo width={371} height={57} />
+            </Link>
           </div>
 
           {/* Action Buttons */}

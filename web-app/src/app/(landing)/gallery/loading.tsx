@@ -1,6 +1,6 @@
-import { AgentCardSkeleton } from "@/components/agent-card";
+import { AgentsSkeleton } from "@/components/agents";
 
-import { FeaturedAgentSkeleton } from "./featured-agent";
+import { FeaturedAgentSkeleton } from "./components/featured-agent";
 
 export default function GalleryLoading() {
   return (
@@ -10,11 +10,7 @@ export default function GalleryLoading() {
         <FeaturedAgentSkeleton />
 
         {/* Agent Cards Grid Skeleton */}
-        <div className="mx-auto grid max-w-7xl grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <AgentCardSkeleton key={i} />
-          ))}
-        </div>
+        <AgentsSkeleton className="mx-auto grid max-w-7xl grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3" />
       </div>
     </div>
   );

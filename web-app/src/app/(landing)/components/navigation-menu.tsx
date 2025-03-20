@@ -33,12 +33,10 @@ const navigationLinks: NavigationLinkData[] = [
 ];
 
 interface NavigationMenuProps {
-  className?: string;
+  className?: string | undefined;
 }
 
-export default function NavigationMenu({
-  className = "",
-}: NavigationMenuProps) {
+export default function NavigationMenu({ className }: NavigationMenuProps) {
   const t = useTranslations("Landing.Header.Navigation");
 
   return (

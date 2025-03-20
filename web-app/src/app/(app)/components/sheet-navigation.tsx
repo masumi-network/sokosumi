@@ -1,4 +1,5 @@
 import { ArrowLeftFromLine } from "lucide-react";
+import Link from "next/link";
 
 import { SokosumiLogo } from "@/components/masumi-logos";
 import { Button } from "@/components/ui/button";
@@ -26,7 +27,9 @@ export default function SheetNavigation() {
       <SheetContent className="h-svh w-full max-w-sm p-4" side="right">
         <SheetHeader>
           <SheetTitle className="flex justify-center">
-            <SokosumiLogo />
+            <Link href="/dashboard">
+              <SokosumiLogo width={200} height={26} />
+            </Link>
           </SheetTitle>
           <SheetDescription />
         </SheetHeader>
