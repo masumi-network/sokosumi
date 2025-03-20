@@ -71,9 +71,7 @@ jobs:
             ${{ runner.os }}-nextjs-${{ hashFiles('web-app/package-lock.json') }}-
 
       - name: Run Build
-        run: |
-          echo "RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}"
-          npm run build
+        run: npm run build
         env:
           BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
