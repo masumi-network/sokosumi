@@ -1,7 +1,8 @@
-import { PricingType, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 
 import { ipfsUrlResolver } from "@/lib/ipfs";
 
+import { createPricingTypeDTO, PricingTypeDTO } from "./PricingTypeDTO";
 import { createStatusDTO, StatusDTO } from "./StatusDTO";
 import { TagDTO } from "./TagDTO";
 
@@ -29,7 +30,7 @@ export interface PricingDTO {
   readonly createdAt: Date;
   readonly updatedAt: Date;
   readonly credits: number;
-  readonly pricingType: PricingType;
+  readonly pricingType: PricingTypeDTO;
   readonly FixedPricing: FixedPricingDTO;
 }
 
@@ -187,7 +188,7 @@ export function createAgentDTO(agent: AgentWithRelations): AgentDTO {
       id: agent.agentPricingId,
       createdAt: agent.Pricing.createdAt,
       updatedAt: agent.Pricing.updatedAt,
-      pricingType: agent.Pricing.pricingType,
+      pricingType: createPricingTypeDTO(agent.Pricing.pricingType),
       credits: calculateCredits(
         Number(agent.Pricing.FixedPricing.Amounts[0].amount),
       ),
