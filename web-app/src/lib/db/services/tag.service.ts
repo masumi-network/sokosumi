@@ -16,6 +16,9 @@ export const getCachedTags = unstable_cache(
 
 export async function getTags(): Promise<Tag[]> {
   const tags = await prisma.tag.findMany({
+    where: {
+      OR: [{ Agents: { some: {} } }, { AgentsOverride: { some: {} } }],
+    },
     orderBy: {
       name: "asc",
     },
