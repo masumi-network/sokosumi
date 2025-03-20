@@ -34,10 +34,7 @@ export default function ForgotPasswordForm() {
   });
 
   async function onSubmit(values: ForgotPasswordFormSchemaType) {
-    const formData = new FormData();
-    formData.append("email", values.email);
-
-    const result = await forgotPassword(formData);
+    const result = await forgotPassword(values);
 
     if (result.error) {
       toast.error(t("error"));

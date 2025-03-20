@@ -36,11 +36,7 @@ export default function SignInForm() {
   });
 
   const onSubmit = async (values: SignInFormSchemaType) => {
-    const formData = new FormData();
-    formData.append("email", values.email);
-    formData.append("password", values.password);
-
-    const result = await signin(formData);
+    const result = await signin(values);
 
     if (result.success) {
       toast.success(t("success"));

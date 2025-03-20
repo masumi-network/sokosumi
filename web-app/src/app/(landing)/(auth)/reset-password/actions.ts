@@ -4,15 +4,11 @@ import { getTranslations } from "next-intl/server";
 
 import { auth } from "@/lib/better-auth/auth";
 
-import { resetPasswordFormSchema } from "./data";
+import { resetPasswordFormSchema, ResetPasswordFormSchemaType } from "./data";
 
-export async function resetPassword(formData: FormData) {
+export async function resetPassword(formData: ResetPasswordFormSchemaType) {
   const t = await getTranslations("Auth.Pages.ResetPassword.Form");
-  const validatedFields = resetPasswordFormSchema(t).safeParse({
-    password: formData.get("password"),
-    confirmPassword: formData.get("confirmPassword"),
-    token: formData.get("token"),
-  });
+  const validatedFields = resetPasswordFormSchema(t).safeParse(formData);
 
   if (!validatedFields.success) {
     return { error: "Invalid form data" };

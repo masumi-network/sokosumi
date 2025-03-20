@@ -4,13 +4,11 @@ import { getTranslations } from "next-intl/server";
 
 import { auth } from "@/lib/better-auth/auth";
 
-import { forgotPasswordFormSchema } from "./data";
+import { forgotPasswordFormSchema, ForgotPasswordFormSchemaType } from "./data";
 
-export async function forgotPassword(formData: FormData) {
+export async function forgotPassword(formData: ForgotPasswordFormSchemaType) {
   const t = await getTranslations("Auth.Pages.ForgotPassword.Form");
-  const validatedFields = forgotPasswordFormSchema(t).safeParse({
-    email: formData.get("email"),
-  });
+  const validatedFields = forgotPasswordFormSchema(t).safeParse(formData);
 
   if (!validatedFields.success) {
     return { error: "Invalid email address" };

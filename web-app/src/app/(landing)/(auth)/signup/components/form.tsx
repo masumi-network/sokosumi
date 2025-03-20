@@ -34,13 +34,7 @@ export default function SignUpForm() {
   });
 
   const onSubmit = async (values: SignUpFormSchemaType) => {
-    const formData = new FormData();
-    formData.append("email", values.email);
-    formData.append("username", values.username);
-    formData.append("password", values.password);
-    formData.append("confirmPassword", values.confirmPassword);
-
-    const result = await signup(formData);
+    const result = await signup(values);
 
     if (result.success) {
       toast.success(t("success"));

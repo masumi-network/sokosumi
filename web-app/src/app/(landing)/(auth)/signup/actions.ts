@@ -4,16 +4,11 @@ import { getTranslations } from "next-intl/server";
 
 import { auth } from "@/lib/better-auth/auth";
 
-import { signUpFormSchema } from "./data";
+import { signUpFormSchema, SignUpFormSchemaType } from "./data";
 
-export async function signup(formData: FormData) {
+export async function signup(formData: SignUpFormSchemaType) {
   const t = await getTranslations("Auth.Pages.SignUp.Form");
-  const validatedFields = signUpFormSchema(t).safeParse({
-    email: formData.get("email"),
-    username: formData.get("username"),
-    password: formData.get("password"),
-    confirmPassword: formData.get("confirmPassword"),
-  });
+  const validatedFields = signUpFormSchema(t).safeParse(formData);
 
   if (!validatedFields.success) {
     return { error: "Invalid form data" };
