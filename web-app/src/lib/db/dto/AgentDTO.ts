@@ -27,8 +27,6 @@ type AgentWithRelations = Prisma.AgentGetPayload<{
 
 export interface PricingDTO {
   readonly id: string;
-  readonly createdAt: Date;
-  readonly updatedAt: Date;
   readonly credits: number;
   readonly pricingType: PricingTypeDTO;
   readonly FixedPricing: FixedPricingDTO;
@@ -36,23 +34,17 @@ export interface PricingDTO {
 
 export interface FixedPricingDTO {
   readonly id: string;
-  readonly createdAt: Date;
-  readonly updatedAt: Date;
   readonly Amounts: AmountDTO[];
 }
 
 export interface AmountDTO {
   readonly id: string;
-  readonly createdAt: Date;
-  readonly updatedAt: Date;
   readonly unit: string;
   readonly amount: number;
 }
 
 export interface ExampleOutputDTO {
   readonly id: string;
-  readonly createdAt: Date;
-  readonly updatedAt: Date;
   readonly name: string;
   readonly mimeType: string;
 }
@@ -82,16 +74,14 @@ export interface AuthorDTO {
 }
 
 export interface AgentDTO {
+  readonly id: string;
   readonly ranking: number;
   readonly showOnFrontPage: boolean;
   readonly agentIdentifier: string;
   readonly Pricing: PricingDTO;
-  readonly id: string;
   readonly name: string;
   readonly description: string | null;
   readonly apiBaseUrl: string;
-  readonly createdAt: Date;
-  readonly updatedAt: Date;
   readonly ExampleOutput: ExampleOutputDTO[];
   readonly Capability: CapabilityDTO;
   readonly requestsPerHour: string | null;
@@ -121,16 +111,12 @@ export function createAgentDTO(agent: AgentWithRelations): AgentDTO {
       agent.ExampleOutputOverride.length > 0
         ? agent.ExampleOutputOverride.map((example) => ({
             id: example.id,
-            createdAt: example.createdAt,
-            updatedAt: example.updatedAt,
             name: example.name,
             mimeType: example.mimeType,
             url: ipfsUrlResolver(example.url),
           }))
         : agent.ExampleOutput.map((example) => ({
             id: example.id,
-            createdAt: example.createdAt,
-            updatedAt: example.updatedAt,
             name: example.name,
             mimeType: example.mimeType,
             url: ipfsUrlResolver(example.url),
@@ -181,21 +167,15 @@ export function createAgentDTO(agent: AgentWithRelations): AgentDTO {
       agent.overrideMetadataVersion ?? agent.onChainMetadataVersion,
     status: createStatusDTO(agent.status),
     id: agent.id,
-    createdAt: agent.createdAt,
-    updatedAt: agent.updatedAt,
     agentIdentifier: agent.agentIdentifier,
     Pricing: {
       id: agent.agentPricingId,
-      createdAt: agent.Pricing.createdAt,
-      updatedAt: agent.Pricing.updatedAt,
       pricingType: createPricingTypeDTO(agent.Pricing.pricingType),
       credits: calculateCredits(
         Number(agent.Pricing.FixedPricing.Amounts[0].amount),
       ),
       FixedPricing: {
         id: agent.Pricing.FixedPricing.id,
-        createdAt: agent.Pricing.FixedPricing.createdAt,
-        updatedAt: agent.Pricing.FixedPricing.updatedAt,
         Amounts: agent.Pricing.FixedPricing.Amounts.map((amount) => ({
           ...amount,
           amount: Number(amount.amount),
