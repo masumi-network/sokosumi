@@ -1,19 +1,16 @@
 "use server";
 
-import { z } from "zod";
+import { getTranslations } from "next-intl/server";
 
 import { auth } from "@/lib/better-auth/auth";
 
-import { passwordSchema } from "../data";
-
-const resetPasswordSchema = z.object({
-  password: passwordSchema,
-  token: z.string(),
-});
+import { resetPasswordFormSchema } from "./data";
 
 export async function resetPassword(formData: FormData) {
-  const validatedFields = resetPasswordSchema.safeParse({
+  const t = await getTranslations("Auth.Pages.ResetPassword.Form");
+  const validatedFields = resetPasswordFormSchema(t).safeParse({
     password: formData.get("password"),
+    confirmPassword: formData.get("confirmPassword"),
     token: formData.get("token"),
   });
 

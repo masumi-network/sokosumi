@@ -23,7 +23,7 @@ import {
   resetPasswordFormData,
   resetPasswordFormSchema,
   type ResetPasswordFormSchemaType,
-} from "./data";
+} from "../data";
 
 interface ResetPasswordFormProps {
   token: string;
@@ -35,26 +35,22 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
 
   const form = useForm<ResetPasswordFormSchemaType>({
     resolver: zodResolver(resetPasswordFormSchema(t)),
-    defaultValues: {
-      password: "",
-      confirmPassword: "",
-    },
   });
 
   async function onSubmit(values: ResetPasswordFormSchemaType) {
     const formData = new FormData();
     formData.append("password", values.password);
+    formData.append("confirmPassword", values.confirmPassword);
     formData.append("token", token);
 
     const result = await resetPassword(formData);
 
-    if (result.error) {
+    if (result.success) {
+      toast.success(t("success"));
+      router.push("/signin");
+    } else {
       toast.error(t("error"));
-      return;
     }
-
-    toast.success(t("success"));
-    router.push("/signin");
   }
 
   return (

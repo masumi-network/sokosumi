@@ -14,6 +14,7 @@ export const resetPasswordFormSchema = (
           message: t("Errors.Password.regex"),
         }),
       confirmPassword: z.string(),
+      token: z.string(),
     })
     .refine((data) => data.password === data.confirmPassword, {
       message: t("Errors.ConfirmPassword.match"),
