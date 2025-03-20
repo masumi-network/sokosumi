@@ -216,6 +216,9 @@
         "howItWorks": "How It Works",
         "community": "Join Our Community",
         "monetize": "Monetize"
+      },
+      "Connection": {
+        "dashboard": "Dashboard"
       }
     },
     "Footer": {
