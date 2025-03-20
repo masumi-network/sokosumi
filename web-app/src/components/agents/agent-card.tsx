@@ -62,15 +62,7 @@ interface AgentCardProps {
 
 function AgentCard({ agent, className = "" }: AgentCardProps) {
   const t = useTranslations("Components.Agents.AgentCard");
-  const {
-    id,
-    name,
-    description = "",
-    image,
-    tags,
-    averageStars,
-    credits,
-  } = agent;
+  const { id, name, description, image, tags, averageStars, credits } = agent;
 
   return (
     <Card
