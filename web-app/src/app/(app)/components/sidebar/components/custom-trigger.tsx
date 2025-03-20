@@ -16,12 +16,12 @@ interface CustomTriggerProps {
   when?: "visible" | "invisible" | "always" | undefined;
 }
 
-export default function CustomTrigger({ when }: CustomTriggerProps) {
+export default function CustomTrigger({ when = "always" }: CustomTriggerProps) {
   const { open, openMobile, isMobile, toggleSidebar } = useSidebar();
   const isVisible = isMobile ? openMobile : open;
 
   const showTrigger =
-    !when || when === "always" || (when === "visible" ? isVisible : !isVisible);
+    when === "always" || (when === "visible" ? isVisible : !isVisible);
 
   return (
     <Button
