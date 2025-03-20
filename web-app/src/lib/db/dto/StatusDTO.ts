@@ -1,11 +1,13 @@
 import { Status } from "@prisma/client";
 
-export enum StatusDTO {
-  Online = "Online",
-  Offline = "Offline",
-  Deregistered = "Deregistered",
-  Invalid = "Invalid",
-}
+export const StatusDTO = {
+  Online: "Online",
+  Offline: "Offline",
+  Deregistered: "Deregistered",
+  Invalid: "Invalid",
+} as const;
+
+export type StatusDTO = (typeof StatusDTO)[keyof typeof StatusDTO];
 
 export function createStatusDTO(status: Status): StatusDTO {
   switch (status) {
