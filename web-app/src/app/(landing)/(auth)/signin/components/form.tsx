@@ -1,16 +1,15 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
+import { BaseForm } from "@/app/(landing)/(auth)/components/base-form";
 import { FormFields } from "@/app/(landing)/(auth)/components/form-fields";
-import { Button } from "@/components/ui/button";
-import { Form } from "@/components/ui/form";
+import { SubmitButton } from "@/app/(landing)/(auth)/components/submit-button";
 
 import { signin } from "../actions";
 import {
@@ -39,42 +38,30 @@ export default function SignInForm() {
   };
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
-        <fieldset
-          disabled={form.formState.isSubmitting}
-          className="flex flex-col gap-6"
-        >
-          <FormFields
-            form={form}
-            formData={signInFormData}
-            namespace="Auth.Pages.SignIn.Form"
-          />
-          <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
-            <Button
-              type="submit"
-              className="w-full sm:w-auto"
-              disabled={form.formState.isSubmitting}
-            >
-              {form.formState.isSubmitting && (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              )}
-              {t("submit")}
-            </Button>
-            <div className="text-sm">
-              <span className="text-muted-foreground">
-                {t("ForgotPassword.text")}{" "}
-              </span>
-              <Link
-                href="/forgot-password"
-                className="text-primary font-medium hover:underline"
-              >
-                {t("ForgotPassword.link")}
-              </Link>
-            </div>
-          </div>
-        </fieldset>
-      </form>
-    </Form>
+    <BaseForm form={form} onSubmit={onSubmit}>
+      <FormFields
+        form={form}
+        formData={signInFormData}
+        namespace="Auth.Pages.SignIn.Form"
+      />
+      <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
+        <SubmitButton
+          form={form}
+          label={t("submit")}
+          className="w-full sm:w-auto"
+        />
+        <div className="text-sm">
+          <span className="text-muted-foreground">
+            {t("ForgotPassword.text")}{" "}
+          </span>
+          <Link
+            href="/forgot-password"
+            className="text-primary font-medium hover:underline"
+          >
+            {t("ForgotPassword.link")}
+          </Link>
+        </div>
+      </div>
+    </BaseForm>
   );
 }

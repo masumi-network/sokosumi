@@ -1,15 +1,14 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
+import { BaseForm } from "@/app/(landing)/(auth)/components/base-form";
 import { FormFields } from "@/app/(landing)/(auth)/components/form-fields";
-import { Button } from "@/components/ui/button";
-import { Form } from "@/components/ui/form";
+import { SubmitButton } from "@/app/(landing)/(auth)/components/submit-button";
 
 import { resetPassword } from "../actions";
 import {
@@ -45,25 +44,13 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
   }
 
   return (
-    <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
-        <fieldset
-          disabled={form.formState.isSubmitting}
-          className="flex flex-col gap-6"
-        >
-          <FormFields
-            form={form}
-            formData={resetPasswordFormData}
-            namespace="Auth.Pages.ResetPassword.Form"
-          />
-          <Button type="submit" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting && (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-            )}
-            {t("submit")}
-          </Button>
-        </fieldset>
-      </form>
-    </Form>
+    <BaseForm form={form} onSubmit={onSubmit}>
+      <FormFields
+        form={form}
+        formData={resetPasswordFormData}
+        namespace="Auth.Pages.ResetPassword.Form"
+      />
+      <SubmitButton form={form} label={t("submit")} />
+    </BaseForm>
   );
 }
