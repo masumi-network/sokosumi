@@ -5,6 +5,7 @@ export enum StatusDTO {
   Offline = "Offline",
   Deregistered = "Deregistered",
   Invalid = "Invalid",
+  Unknown = "Unknown",
 }
 
 export function createStatusDTO(status: Status): StatusDTO {
@@ -18,7 +19,7 @@ export function createStatusDTO(status: Status): StatusDTO {
     case Status.Invalid:
       return StatusDTO.Invalid;
     default:
-      throw new Error(`Invalid status: ${status}`);
+      return StatusDTO.Unknown;
   }
 }
 
