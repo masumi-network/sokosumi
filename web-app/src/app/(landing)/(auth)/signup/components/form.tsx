@@ -6,9 +6,11 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import { BaseForm } from "@/app/(landing)/(auth)/components/base-form";
-import { FormFields } from "@/app/(landing)/(auth)/components/form-fields";
-import { SubmitButton } from "@/app/(landing)/(auth)/components/submit-button";
+import {
+  BaseForm,
+  FormFields,
+  SubmitButton,
+} from "@/app/(landing)/(auth)/components/form";
 
 import { signup } from "../actions";
 import {
