@@ -24,7 +24,7 @@ export default async function GalleryPage() {
   const tagNames = tags.map((tag) => tag.name);
 
   return (
-    <div className="w-full p-8 xl:px-16">
+    <div className="w-full px-4 py-4 sm:px-8 xl:px-16">
       <div className="space-y-12">
         <FilterSection tags={tagNames} />
         {/* Agent Cards Grid */}
