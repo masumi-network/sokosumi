@@ -10,7 +10,7 @@ interface AgentDetailsProps {
   description: string;
   author: string;
   image: string;
-  credits: number;
+  credits: number | null;
   tags: Tag[];
 }
 
@@ -42,7 +42,7 @@ export default function AgentDetails({
               {t("byAuthor", { author })}
             </p>
             <p className="pt-1 text-sm font-medium">
-              {t("pricing", { price: credits })}
+              {t("pricing", { price: credits ?? "-" })}
             </p>
           </div>
           <div className="mt-auto flex flex-col gap-3">

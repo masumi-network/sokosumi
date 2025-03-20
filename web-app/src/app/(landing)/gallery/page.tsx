@@ -3,7 +3,15 @@ import { useTranslations } from "next-intl";
 import { getTranslations } from "next-intl/server";
 
 import AgentCard from "@/components/agent-card";
-import { AgentDTO } from "@/lib/db/dto/AgentDTO";
+import {
+  AgentWithRelations,
+  getAverageRating,
+  getCredits,
+  getDescription,
+  getImageUrl,
+  getName,
+  getTags,
+} from "@/lib/db/agent/agent-helper";
 import { getCachedAgents } from "@/lib/db/services/agent.service";
 
 import { FeaturedAgent } from "./featured-agent";
@@ -32,7 +40,7 @@ function EmptyGallery() {
 }
 
 export default async function GalleryPage() {
-  const agents: AgentDTO[] = await getCachedAgents();
+  const agents: AgentWithRelations[] = await getCachedAgents();
 
   if (!agents.length) {
     return <EmptyGallery />;
@@ -44,10 +52,10 @@ export default async function GalleryPage() {
         {/* Featured Agent Section */}
         <FeaturedAgent
           id={agents[0].id}
-          name={agents[0].name}
-          description={agents[0].description ?? ""}
-          image={agents[0].image}
-          tags={agents[0].tags}
+          name={getName(agents[0])}
+          description={getDescription(agents[0]) ?? ""}
+          image={getImageUrl(agents[0])}
+          tags={getTags(agents[0])}
         />
 
         {/* Agent Cards Grid */}
@@ -56,12 +64,12 @@ export default async function GalleryPage() {
             <AgentCard
               key={agent.id}
               id={agent.id}
-              name={agent.name}
-              description={agent.description ?? ""}
-              averageStars={agent.Rating.averageStars}
-              image={agent.image}
-              price={agent.Pricing.credits}
-              tags={agent.tags}
+              name={getName(agent)}
+              description={getDescription(agent) ?? ""}
+              averageStars={getAverageRating(agent)}
+              image={getImageUrl(agent)}
+              price={getCredits(agent)}
+              tags={getTags(agent)}
             />
           ))}
         </div>

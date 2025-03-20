@@ -1,7 +1,8 @@
 import { unstable_cache } from "next/cache";
 
-import { AgentDTO, createAgentDTO } from "@/lib/db/dto/AgentDTO";
 import prisma from "@/lib/db/prisma";
+
+import { AgentWithRelations } from "../agent/agent-helper";
 
 const agentInclude = {
   Pricing: {
@@ -16,7 +17,7 @@ const agentInclude = {
 } as const;
 
 export const getCachedAgents = unstable_cache(
-  async (): Promise<AgentDTO[]> => {
+  async (): Promise<AgentWithRelations[]> => {
     return await getAgents();
   },
   ["agents"],
@@ -26,7 +27,7 @@ export const getCachedAgents = unstable_cache(
   },
 );
 
-export async function getAgents(): Promise<AgentDTO[]> {
+export async function getAgents(): Promise<AgentWithRelations[]> {
   const agents = await prisma.agent.findMany({
     include: agentInclude,
   });
@@ -35,10 +36,10 @@ export async function getAgents(): Promise<AgentDTO[]> {
     throw new Error("No agents found");
   }
 
-  return agents.map((agent) => createAgentDTO(agent));
+  return agents;
 }
 
-export async function getAgentById(id: string): Promise<AgentDTO> {
+export async function getAgentById(id: string): Promise<AgentWithRelations> {
   const agent = await prisma.agent.findUnique({
     where: { id },
     include: agentInclude,
@@ -48,5 +49,5 @@ export async function getAgentById(id: string): Promise<AgentDTO> {
     throw new Error(`Agent with ID ${id} not found`);
   }
 
-  return createAgentDTO(agent);
+  return agent;
 }

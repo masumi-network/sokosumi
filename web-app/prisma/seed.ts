@@ -222,7 +222,7 @@ async function main() {
             create: { name: tag },
           })),
         },
-        onChainMetadataVersion: 1,
+        metadataVersion: 1,
         Rating: {
           create: {
             totalStars: BigInt(agent.rating ?? 0),
@@ -241,7 +241,6 @@ async function main() {
         OverrideTags: {
           create: [],
         },
-        overrideMetadataVersion: null,
 
         Pricing: {
           connect: {

@@ -15,7 +15,7 @@ interface AgentCardProps {
   description: string;
   averageStars: number | null;
   image: string;
-  price: number;
+  price: number | null;
   tags: Tag[];
 }
 
@@ -110,7 +110,7 @@ export default function AgentCard({
 
           <div>
             <p className="text-muted-foreground text-s">
-              {t("pricing", { price })}
+              {t("pricing", { price: price ?? "-" })}
             </p>
           </div>
         </div>
