@@ -92,6 +92,7 @@ export async function createAgentDTO(
               Number(agent.Rating.totalStars) /
                 Number(agent.Rating.totalRatings),
             ),
+          ),
     author: agent.overrideAuthorName ?? agent.onChainAuthorName,
     Legal: (() => {
       const privacyPolicy =
