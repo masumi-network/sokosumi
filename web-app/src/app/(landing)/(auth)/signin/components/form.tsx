@@ -83,8 +83,12 @@ export default function SignInForm() {
               />
             ),
           )}
-          <div className="flex items-center justify-between">
-            <Button type="submit" disabled={form.formState.isSubmitting}>
+          <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
+            <Button
+              type="submit"
+              className="w-full sm:w-auto"
+              disabled={form.formState.isSubmitting}
+            >
               {form.formState.isSubmitting && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
