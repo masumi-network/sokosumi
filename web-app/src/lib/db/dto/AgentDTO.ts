@@ -2,8 +2,6 @@ import { Prisma } from "@prisma/client";
 
 import { ipfsUrlResolver } from "@/lib/ipfs";
 
-import { createPricingTypeDTO, PricingTypeDTO } from "./PricingTypeDTO";
-import { createStatusDTO, StatusDTO } from "./StatusDTO";
 import { TagDTO } from "./TagDTO";
 
 type AgentWithRelations = Prisma.AgentGetPayload<{
@@ -24,18 +22,6 @@ type AgentWithRelations = Prisma.AgentGetPayload<{
     Rating: true;
   };
 }>;
-
-export interface PricingDTO {
-  readonly id: string;
-  readonly credits: number;
-  readonly pricingType: PricingTypeDTO;
-  readonly FixedPricing: FixedPricingDTO;
-}
-
-export interface FixedPricingDTO {
-  readonly id: string;
-  readonly Amounts: AmountDTO[];
-}
 
 export interface AmountDTO {
   readonly id: string;
@@ -61,11 +47,6 @@ export interface RatingDTO {
   readonly averageStars: number | null;
 }
 
-export interface CapabilityDTO {
-  readonly name: string;
-  readonly version: string;
-}
-
 export interface AuthorDTO {
   readonly name: string;
   readonly contactEmail: string | null;
@@ -75,23 +56,16 @@ export interface AuthorDTO {
 
 export interface AgentDTO {
   readonly id: string;
-  readonly ranking: number;
-  readonly showOnFrontPage: boolean;
   readonly agentIdentifier: string;
-  readonly Pricing: PricingDTO;
   readonly name: string;
   readonly description: string | null;
-  readonly apiBaseUrl: string;
   readonly ExampleOutput: ExampleOutputDTO[];
-  readonly Capability: CapabilityDTO;
-  readonly requestsPerHour: string | null;
   readonly Author: AuthorDTO;
   readonly Legal: LegalDTO | null;
   readonly tags: TagDTO[];
   readonly image: string;
-  readonly metadataVersion: number;
-  readonly status: StatusDTO;
   readonly Rating: RatingDTO;
+  readonly credits: number;
 }
 
 function calculateCredits(amount: number): number {
@@ -104,9 +78,10 @@ export function createAgentDTO(agent: AgentWithRelations): AgentDTO {
   }
 
   return {
+    id: agent.id,
+    agentIdentifier: agent.agentIdentifier,
     name: agent.overrideName ?? agent.onChainName,
     description: agent.overrideDescription ?? agent.onChainDescription,
-    apiBaseUrl: agent.overrideApiBaseUrl ?? agent.onChainApiBaseUrl,
     ExampleOutput:
       agent.ExampleOutputOverride.length > 0
         ? agent.ExampleOutputOverride.map((example) => ({
@@ -121,11 +96,6 @@ export function createAgentDTO(agent: AgentWithRelations): AgentDTO {
             mimeType: example.mimeType,
             url: ipfsUrlResolver(example.url),
           })),
-    Capability: {
-      name: agent.overrideCapabilityName ?? agent.onChainCapabilityName,
-      version:
-        agent.overrideCapabilityVersion ?? agent.onChainCapabilityVersion,
-    },
     Rating: {
       totalStars: Number(agent.Rating.totalStars),
       totalRatings: Number(agent.Rating.totalRatings),
@@ -140,8 +110,6 @@ export function createAgentDTO(agent: AgentWithRelations): AgentDTO {
               ),
             ),
     },
-    requestsPerHour:
-      agent.overrideRequestsPerHour ?? agent.onChainRequestsPerHour,
     Author: {
       name: agent.overrideAuthorName ?? agent.onChainAuthorName,
       contactEmail:
@@ -163,26 +131,8 @@ export function createAgentDTO(agent: AgentWithRelations): AgentDTO {
     tags:
       agent.OverrideTags.length > 0 ? agent.OverrideTags : agent.OnChainTags,
     image: ipfsUrlResolver(agent.overrideImage ?? agent.onChainImage),
-    metadataVersion:
-      agent.overrideMetadataVersion ?? agent.onChainMetadataVersion,
-    status: createStatusDTO(agent.status),
-    id: agent.id,
-    agentIdentifier: agent.agentIdentifier,
-    Pricing: {
-      id: agent.agentPricingId,
-      pricingType: createPricingTypeDTO(agent.Pricing.pricingType),
-      credits: calculateCredits(
-        Number(agent.Pricing.FixedPricing.Amounts[0].amount),
-      ),
-      FixedPricing: {
-        id: agent.Pricing.FixedPricing.id,
-        Amounts: agent.Pricing.FixedPricing.Amounts.map((amount) => ({
-          ...amount,
-          amount: Number(amount.amount),
-        })),
-      },
-    },
-    ranking: Number(agent.ranking),
-    showOnFrontPage: agent.showOnFrontPage,
+    credits: calculateCredits(
+      Number(agent.Pricing.FixedPricing.Amounts[0].amount),
+    ),
   };
 }

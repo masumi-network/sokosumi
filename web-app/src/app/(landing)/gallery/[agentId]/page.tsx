@@ -48,7 +48,7 @@ export default async function Page({
           description={agent.description ?? ""}
           author={agent.Author.name}
           image={agent.image}
-          credits={agent.Pricing.credits}
+          credits={agent.credits}
           tags={agent.tags}
         />
         <div className="flex gap-4 overflow-x-auto pb-4">

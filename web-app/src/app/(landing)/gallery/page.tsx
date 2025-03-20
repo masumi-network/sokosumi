@@ -60,7 +60,7 @@ export default async function GalleryPage() {
               description={agent.description ?? ""}
               averageStars={agent.Rating.averageStars}
               image={agent.image}
-              price={agent.Pricing.credits}
+              price={agent.credits}
               tags={agent.tags}
             />
           ))}
