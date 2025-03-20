@@ -90,7 +90,6 @@ export interface AgentDTO {
   readonly updatedAt: Date;
   readonly ExampleOutput: ExampleOutput[];
   readonly Capability: Capability;
-  readonly requestsPerHour: string | null;
   readonly Author: Author;
   readonly Legal: Legal | null;
   readonly tags: Tag[];
@@ -150,8 +149,6 @@ export function createAgentDTO(agent: AgentWithRelations): AgentDTO {
               ),
             ),
     },
-    requestsPerHour:
-      agent.overrideRequestsPerHour ?? agent.onChainRequestsPerHour,
     Author: {
       name: agent.overrideAuthorName ?? agent.onChainAuthorName,
       contactEmail:
@@ -173,8 +170,7 @@ export function createAgentDTO(agent: AgentWithRelations): AgentDTO {
     tags:
       agent.OverrideTags.length > 0 ? agent.OverrideTags : agent.OnChainTags,
     image: ipfsUrlResolver(agent.overrideImage ?? agent.onChainImage),
-    metadataVersion:
-      agent.overrideMetadataVersion ?? agent.onChainMetadataVersion,
+    metadataVersion: agent.onChainMetadataVersion,
     status: agent.status,
     id: agent.id,
     createdAt: agent.createdAt,
