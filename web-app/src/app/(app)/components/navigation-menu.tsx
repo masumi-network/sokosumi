@@ -29,6 +29,7 @@ export default function NavigationMenu({ className }: NavigationMenuProps) {
           key={nav.labelKey}
           href={nav.href}
           label={t(nav.labelKey)}
+          activeClassName="underline"
         />
       ))}
       <div className="text-muted-foreground font-bold">

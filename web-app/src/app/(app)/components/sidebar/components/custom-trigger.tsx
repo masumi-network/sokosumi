@@ -13,12 +13,15 @@ import { cn } from "@/lib/utils";
  * @property {string} [when="always"] - When the trigger should be visible. (check sidebar is visible or not)
  */
 interface CustomTriggerProps {
-  when?: "visible" | "invisible" | "always";
+  when?: "visible" | "invisible" | "always" | undefined;
 }
 
-export default function CustomTrigger({ when = "always" }: CustomTriggerProps) {
+export default function CustomTrigger({ when }: CustomTriggerProps) {
   const { open, openMobile, isMobile, toggleSidebar } = useSidebar();
   const isVisible = isMobile ? openMobile : open;
+
+  const showTrigger =
+    !when || when === "always" || (when === "visible" ? isVisible : !isVisible);
 
   return (
     <Button
@@ -26,8 +29,7 @@ export default function CustomTrigger({ when = "always" }: CustomTriggerProps) {
       size="icon"
       onClick={toggleSidebar}
       className={cn("hidden", {
-        flex:
-          when === "always" || (when === "visible" ? isVisible : !isVisible),
+        flex: showTrigger,
       })}
     >
       {isVisible ? <ArrowLeftFromLine /> : <ArrowRightFromLine />}

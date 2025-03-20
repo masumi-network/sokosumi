@@ -33,7 +33,7 @@ export default function SheetNavigation() {
           <SheetDescription />
         </SheetHeader>
         <nav className="mt-4">
-          <AuthButtons containerClassName="flex items-center justify-around" />
+          <AuthButtons containerClassName="justify-around" />
           <NavigationMenu className="mt-8 flex-col gap-4 text-base" />
         </nav>
       </SheetContent>

@@ -9,18 +9,18 @@ import { cn } from "@/lib/utils";
 interface NavigationLinkProps {
   href: string;
   label: string;
-  className?: string;
-  activeClassName?: string;
-  inActiveClassName?: string;
-  showChevron?: boolean;
+  className?: string | undefined;
+  activeClassName?: string | undefined;
+  inActiveClassName?: string | undefined;
+  showChevron?: boolean | undefined;
 }
 
 export default function NavigationLink({
   href,
   label,
-  className = "hover:text-foreground/80 transition-colors",
-  activeClassName = "text-foreground underline",
-  inActiveClassName = "text-foreground/50",
+  className,
+  activeClassName,
+  inActiveClassName,
   showChevron,
 }: NavigationLinkProps) {
   const pathname = usePathname();
@@ -29,10 +29,12 @@ export default function NavigationLink({
   return (
     <Link
       href={href}
-      className={cn(className, {
-        [activeClassName]: isActive,
-        [inActiveClassName]: !isActive,
-      })}
+      className={cn(
+        "hover:text-foreground/80 transition-colors",
+        className,
+        isActive && ["text-foreground", activeClassName],
+        !isActive && ["text-foreground/50", inActiveClassName],
+      )}
     >
       {label}
       {showChevron && <ChevronDown className="h-4 w-4" />}
