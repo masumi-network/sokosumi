@@ -39,7 +39,7 @@ interface FeaturedAgentProps {
 
 export function FeaturedAgent({ agent }: FeaturedAgentProps) {
   const t = useTranslations("Landing.Gallery.FeaturedAgent");
-  const { id, name, description = "", tags, image } = agent;
+  const { id, name, description, tags, image } = agent;
 
   return (
     <div className="flex flex-col items-center gap-8 md:flex-row">
