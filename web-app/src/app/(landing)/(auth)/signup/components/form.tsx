@@ -47,7 +47,7 @@ export default function SignUpForm() {
     formData.append("confirmPassword", values.confirmPassword);
 
     const result = await signup(formData);
-    console.log("result", result);
+
     if (result.success) {
       toast.success(t("success"));
       router.push("/signin");
