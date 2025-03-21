@@ -11,7 +11,8 @@ import {
 } from "react-social-login-buttons";
 import { toast } from "sonner";
 
-import { signInSocial } from "../actions";
+import { signInSocial } from "@/app/(auth)/actions";
+
 import Divider from "./divider";
 
 type SocialKey = "google" | "microsoft" | "apple" | "linkedin";
