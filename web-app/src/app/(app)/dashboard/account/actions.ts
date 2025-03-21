@@ -1,5 +1,7 @@
 "use server";
 
+import { headers } from "next/headers";
+
 import { auth } from "@/lib/better-auth/auth";
 
 import {
@@ -27,6 +29,10 @@ export async function updateEmail(formData: EmailFormType) {
         password: currentPassword,
         callbackURL: "/dashboard",
       },
+      query: {
+        disableCookieCache: true,
+      },
+      headers: await headers(),
     });
     return { success: true };
   } catch {
@@ -53,6 +59,7 @@ export async function updatePassword(formData: PasswordFormType) {
         newPassword,
         revokeOtherSessions: true,
       },
+      headers: await headers(),
     });
     return { success: true };
   } catch {
@@ -77,6 +84,7 @@ export async function deleteAccount(formData: DeleteAccountFormType) {
       body: {
         password: currentPassword,
       },
+      headers: await headers(),
     });
     return { success: true };
   } catch {

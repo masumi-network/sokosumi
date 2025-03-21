@@ -98,7 +98,7 @@ export function AccountSettingsForm() {
 
     if (result.success) {
       toast.success(t("Delete.success"));
-      router.push("/signin");
+      router.push("/");
     } else {
       toast.error(result.error || t("Delete.error"));
     }
