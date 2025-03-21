@@ -2,17 +2,17 @@ import { z } from "zod";
 
 import { FormData, FormIntlTranslation } from "@/lib/form";
 
-import { passwordSchema } from "../data";
+import { nameSchema, passwordSchema } from "../data";
 
 const signUpFormSchema = (
   t: FormIntlTranslation<"Auth.Pages.SignUp.Form"> | undefined = undefined,
 ) =>
   z
     .object({
-      name: z
-        .string()
-        .min(2, t?.("Errors.Name.min"))
-        .max(128, t?.("Errors.Name.max")),
+      name: nameSchema({
+        minError: t?.("Errors.Name.min"),
+        maxError: t?.("Errors.Name.max"),
+      }),
       email: z.string().email(t?.("Errors.Email.invalid")),
       password: passwordSchema({
         minError: t?.("Errors.Password.min"),

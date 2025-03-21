@@ -16,3 +16,11 @@ export const passwordSchema = ({
     .min(PASSWORD_MIN_LENGTH, minError)
     .max(PASSWORD_MAX_LENGTH, maxError)
     .regex(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/, regexError);
+
+export const nameSchema = ({
+  minError,
+  maxError,
+}: {
+  minError?: string;
+  maxError?: string;
+}) => z.string().min(2, minError).max(128, maxError);

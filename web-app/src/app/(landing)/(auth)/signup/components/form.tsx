@@ -29,12 +29,11 @@ export default function SignUpForm() {
   });
 
   const onSubmit = async (values: SignUpFormSchemaType) => {
-    const result = await signup(values);
-
-    if (result.success) {
+    try {
+      await signup(values);
       toast.success(t("success"));
       router.push("/signin");
-    } else {
+    } catch {
       toast.error(t("error"));
     }
   };
