@@ -4,11 +4,11 @@ import { auth } from "@/lib/better-auth/auth";
 
 import { signUpFormSchema, SignUpFormSchemaType } from "./data";
 
-export async function signup(formData: SignUpFormSchemaType) {
+export async function signup(formData: SignUpFormSchemaType): Promise<void> {
   const validatedFields = signUpFormSchema.safeParse(formData);
 
   if (!validatedFields.success) {
-    return { error: "Invalid form data" };
+    throw new Error("Invalid form data");
   }
 
   const { email, name, password } = validatedFields.data;

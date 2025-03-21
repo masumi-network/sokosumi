@@ -15,11 +15,11 @@ import {
   PasswordFormType,
 } from "./data";
 
-export async function updateName(formData: NameFormType) {
+export async function updateName(formData: NameFormType): Promise<void> {
   const validatedFields = nameFormSchema.safeParse(formData);
 
   if (!validatedFields.success) {
-    return { error: "Invalid form data" };
+    throw new Error("Invalid form data");
   }
 
   const { name, currentPassword } = validatedFields.data;
@@ -36,11 +36,11 @@ export async function updateName(formData: NameFormType) {
   });
 }
 
-export async function updateEmail(formData: EmailFormType) {
+export async function updateEmail(formData: EmailFormType): Promise<void> {
   const validatedFields = emailFormSchema.safeParse(formData);
 
   if (!validatedFields.success) {
-    return { error: "Invalid form data" };
+    throw new Error("Invalid form data");
   }
 
   const { email, currentPassword } = validatedFields.data;
@@ -58,11 +58,13 @@ export async function updateEmail(formData: EmailFormType) {
   });
 }
 
-export async function updatePassword(formData: PasswordFormType) {
+export async function updatePassword(
+  formData: PasswordFormType,
+): Promise<void> {
   const validatedFields = passwordFormSchema.safeParse(formData);
 
   if (!validatedFields.success) {
-    return { error: "Invalid form data" };
+    throw new Error("Invalid form data");
   }
 
   const { currentPassword, newPassword } = validatedFields.data;
@@ -80,11 +82,13 @@ export async function updatePassword(formData: PasswordFormType) {
   });
 }
 
-export async function deleteAccount(formData: DeleteAccountFormType) {
+export async function deleteAccount(
+  formData: DeleteAccountFormType,
+): Promise<void> {
   const validatedFields = deleteAccountSchema.safeParse(formData);
 
   if (!validatedFields.success) {
-    return { error: "Invalid form data" };
+    throw new Error("Invalid form data");
   }
 
   const { currentPassword } = validatedFields.data;
