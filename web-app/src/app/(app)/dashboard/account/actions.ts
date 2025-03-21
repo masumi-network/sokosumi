@@ -3,6 +3,8 @@
 import { auth } from "@/lib/better-auth/auth";
 
 import {
+  DeleteAccountFormType,
+  deleteAccountSchema,
   emailFormSchema,
   EmailFormType,
   passwordFormSchema,
@@ -57,6 +59,30 @@ export async function updatePassword(formData: PasswordFormType) {
     return {
       error:
         "Failed to update password. Please check your current password and try again.",
+    };
+  }
+}
+
+export async function deleteAccount(formData: DeleteAccountFormType) {
+  const validatedFields = deleteAccountSchema().safeParse(formData);
+
+  if (!validatedFields.success) {
+    return { error: "Invalid form data" };
+  }
+
+  const { currentPassword } = validatedFields.data;
+
+  try {
+    await auth.api.deleteUser({
+      body: {
+        password: currentPassword,
+      },
+    });
+    return { success: true };
+  } catch {
+    return {
+      error:
+        "Failed to delete account. Please check your password and try again.",
     };
   }
 }

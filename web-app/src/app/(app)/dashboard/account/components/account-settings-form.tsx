@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -14,6 +15,15 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
   Form,
   FormControl,
   FormField,
@@ -23,8 +33,10 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
-import { updateEmail, updatePassword } from "../actions";
+import { deleteAccount, updateEmail, updatePassword } from "../actions";
 import {
+  DeleteAccountFormType,
+  deleteAccountSchema,
   emailFormSchema,
   EmailFormType,
   passwordFormSchema,
@@ -33,6 +45,7 @@ import {
 
 export function AccountSettingsForm() {
   const t = useTranslations("Account");
+  const router = useRouter();
 
   const emailForm = useForm<EmailFormType>({
     resolver: zodResolver(emailFormSchema()),
@@ -48,6 +61,13 @@ export function AccountSettingsForm() {
       currentPassword: "",
       newPassword: "",
       confirmNewPassword: "",
+    },
+  });
+
+  const deleteAccountForm = useForm<DeleteAccountFormType>({
+    resolver: zodResolver(deleteAccountSchema()),
+    defaultValues: {
+      currentPassword: "",
     },
   });
 
@@ -70,6 +90,17 @@ export function AccountSettingsForm() {
       passwordForm.reset();
     } else {
       toast.error(result.error || t("Password.error"));
+    }
+  };
+
+  const onDeleteAccountSubmit = async (values: DeleteAccountFormType) => {
+    const result = await deleteAccount(values);
+
+    if (result.success) {
+      toast.success(t("Delete.success"));
+      router.push("/signin");
+    } else {
+      toast.error(result.error || t("Delete.error"));
     }
   };
 
@@ -178,6 +209,61 @@ export function AccountSettingsForm() {
               </Button>
             </form>
           </Form>
+        </CardContent>
+      </Card>
+
+      <Card className="border-destructive">
+        <CardHeader>
+          <CardTitle className="text-destructive">
+            {t("Delete.title")}
+          </CardTitle>
+          <CardDescription>{t("Delete.description")}</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button variant="destructive">{t("Delete.button")}</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{t("Delete.confirmTitle")}</DialogTitle>
+                <DialogDescription>
+                  {t("Delete.confirmDescription")}
+                </DialogDescription>
+              </DialogHeader>
+              <Form {...deleteAccountForm}>
+                <form
+                  onSubmit={deleteAccountForm.handleSubmit(
+                    onDeleteAccountSubmit,
+                  )}
+                  className="space-y-4"
+                >
+                  <FormField
+                    control={deleteAccountForm.control}
+                    name="currentPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>{t("Delete.currentPassword")}</FormLabel>
+                        <FormControl>
+                          <Input type="password" {...field} />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <DialogFooter>
+                    <Button
+                      type="submit"
+                      variant="destructive"
+                      disabled={deleteAccountForm.formState.isSubmitting}
+                    >
+                      {t("Delete.confirm")}
+                    </Button>
+                  </DialogFooter>
+                </form>
+              </Form>
+            </DialogContent>
+          </Dialog>
         </CardContent>
       </Card>
     </div>

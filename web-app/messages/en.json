@@ -377,8 +377,8 @@
     "title": "Account Settings",
     "description": "Manage your account settings and preferences",
     "Email": {
-      "title": "Email Address",
-      "description": "Change your email address. You'll need to verify your new email.",
+      "title": "Change Email",
+      "description": "Update your email address",
       "newEmail": "New Email",
       "currentPassword": "Current Password",
       "submit": "Update Email",
@@ -386,14 +386,25 @@
       "error": "Failed to update email"
     },
     "Password": {
-      "title": "Password",
-      "description": "Change your password. Choose a strong password that you haven't used before.",
+      "title": "Change Password",
+      "description": "Update your password",
       "currentPassword": "Current Password",
       "newPassword": "New Password",
       "confirmPassword": "Confirm New Password",
       "submit": "Update Password",
       "success": "Password updated successfully",
       "error": "Failed to update password"
+    },
+    "Delete": {
+      "title": "Delete Account",
+      "description": "Permanently delete your account and all associated data",
+      "button": "Delete Account",
+      "confirmTitle": "Are you sure?",
+      "confirmDescription": "This action cannot be undone. This will permanently delete your account and remove your data from our servers.",
+      "currentPassword": "Current Password",
+      "confirm": "Yes, delete my account",
+      "success": "Account deleted successfully",
+      "error": "Failed to delete account"
     }
   }
 }

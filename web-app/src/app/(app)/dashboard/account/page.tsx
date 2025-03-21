@@ -9,7 +9,7 @@ export default function Page() {
             Account Settings
           </h1>
           <p className="text-muted-foreground text-sm">
-            Update your email address and password
+            Update your information and preferences
           </p>
         </div>
         <AccountSettingsForm />

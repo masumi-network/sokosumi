@@ -35,5 +35,13 @@ export const passwordFormSchema = () =>
       path: ["confirmNewPassword"],
     });
 
+export const deleteAccountSchema = () =>
+  z.object({
+    currentPassword: z.string().min(1, "Current password is required"),
+  });
+
 export type EmailFormType = z.infer<ReturnType<typeof emailFormSchema>>;
 export type PasswordFormType = z.infer<ReturnType<typeof passwordFormSchema>>;
+export type DeleteAccountFormType = z.infer<
+  ReturnType<typeof deleteAccountSchema>
+>;
