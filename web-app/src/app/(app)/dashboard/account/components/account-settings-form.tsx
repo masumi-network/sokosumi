@@ -11,23 +11,25 @@ export function AccountSettingsForm() {
   const t = useTranslations("Account");
 
   return (
-    <div className="mx-auto max-w-xl min-w-sm space-y-6">
+    <div className="mx-auto max-w-4xl space-y-8">
       <div className="space-y-2">
-        <h1 className="text-2xl font-semibold tracking-tight">{t("title")}</h1>
-        <p className="text-muted-foreground text-sm">{t("description")}</p>
+        <h1 className="text-3xl font-semibold tracking-tight">{t("title")}</h1>
+        <p className="text-muted-foreground text-sm leading-6">
+          {t("description")}
+        </p>
       </div>
-      <div className="space-y-6">
-        <div className="min-w-[280px]">
+
+      <div className="space-y-8">
+        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
           <NameForm />
-        </div>
-        <div className="min-w-[280px]">
           <EmailForm />
-        </div>
-        <div className="min-w-[280px]">
           <PasswordForm />
         </div>
-        <div className="min-w-[280px]">
-          <DeleteAccountForm />
+
+        <div className="border-t pt-8">
+          <div className="mx-auto max-w-sm">
+            <DeleteAccountForm />
+          </div>
         </div>
       </div>
     </div>

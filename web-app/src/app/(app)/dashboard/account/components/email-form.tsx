@@ -10,6 +10,7 @@ import {
   Card,
   CardContent,
   CardDescription,
+  CardFooter,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -48,14 +49,14 @@ export function EmailForm() {
   };
 
   return (
-    <Card>
+    <Card className="flex h-full flex-col">
       <CardHeader>
         <CardTitle>{t("title")}</CardTitle>
         <CardDescription>{t("description")}</CardDescription>
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form className="space-y-4">
             <FormField
               control={form.control}
               name="email"
@@ -82,12 +83,19 @@ export function EmailForm() {
                 </FormItem>
               )}
             />
-            <Button type="submit" disabled={form.formState.isSubmitting}>
-              {t("submit")}
-            </Button>
           </form>
         </Form>
       </CardContent>
+      <CardFooter>
+        <Button
+          type="submit"
+          disabled={form.formState.isSubmitting}
+          onClick={form.handleSubmit(onSubmit)}
+          className="w-full"
+        >
+          {t("submit")}
+        </Button>
+      </CardFooter>
     </Card>
   );
 }
