@@ -14,9 +14,6 @@ type FormIntlNamespaceKeys = EndsWithFormString<
   NamespaceKeys<IntlMessages, NestedKeyOf<IntlMessages>>
 >;
 
-type FormIntlTranslation<Path extends FormIntlNamespaceKeys> =
-  IntlTranslation<Path>;
-
 type MessageKeysIn<Path extends string> = MessageKeys<
   NestedValueOf<IntlMessages, Path>,
   NestedKeyOf<NestedValueOf<IntlMessages, Path>>
@@ -33,4 +30,4 @@ type FormData<
   descriptionKey?: MessageKeysIn<Path>;
 }>;
 
-export type { FormData, FormIntlTranslation };
+export type { FormData };
