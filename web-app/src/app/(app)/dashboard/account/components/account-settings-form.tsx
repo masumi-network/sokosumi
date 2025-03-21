@@ -11,7 +11,7 @@ export function AccountSettingsForm() {
   const t = useTranslations("Account");
 
   return (
-    <div className="mx-auto max-w-4xl space-y-8">
+    <div className="mx-auto max-w-5xl space-y-8">
       <div className="space-y-2">
         <h1 className="text-3xl font-semibold tracking-tight">{t("title")}</h1>
         <p className="text-muted-foreground text-sm leading-6">
@@ -20,10 +20,12 @@ export function AccountSettingsForm() {
       </div>
 
       <div className="space-y-8">
-        <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
           <NameForm />
           <EmailForm />
-          <PasswordForm />
+          <div className="md:col-span-2">
+            <PasswordForm />
+          </div>
         </div>
 
         <div className="border-t pt-8">
