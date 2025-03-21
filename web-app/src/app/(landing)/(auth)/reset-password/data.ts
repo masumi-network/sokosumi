@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { confirmPasswordSchema, passwordSchema } from "@/app/(auth)/data";
+import { confirmPasswordSchema, passwordSchema } from "@/lib/better-auth/data";
 import { FormData } from "@/lib/form";
 
 export const resetPasswordFormSchema = z

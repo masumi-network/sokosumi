@@ -5,7 +5,7 @@ import {
   emailSchema,
   nameSchema,
   passwordSchema,
-} from "@/app/(auth)/data";
+} from "@/lib/better-auth/data";
 
 const currentPasswordSchema = z.string().min(1);
 

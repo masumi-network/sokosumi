@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { emailSchema, passwordSchema } from "@/app/(auth)/data";
+import { emailSchema, passwordSchema } from "@/lib/better-auth/data";
 import { FormData } from "@/lib/form";
 
 const signInFormSchema = z.object({
