@@ -1,8 +1,6 @@
 name: Test (Web App)
 on:
   pull_request:
-    branches:
-      - main
 
 env:
   DATABASE_URL: "postgresql://user:password@localhost:5432/sokosumi"
