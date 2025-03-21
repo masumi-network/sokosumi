@@ -23,24 +23,23 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
-import { updatePassword } from "../actions";
-import { passwordFormSchema, PasswordFormType } from "../data";
+import { updateName } from "../actions";
+import { nameFormSchema, NameFormType } from "../data";
 
-export function PasswordForm() {
-  const t = useTranslations("Account.Password");
+export function NameForm() {
+  const t = useTranslations("Account.Name");
 
-  const form = useForm<PasswordFormType>({
-    resolver: zodResolver(passwordFormSchema()),
+  const form = useForm<NameFormType>({
+    resolver: zodResolver(nameFormSchema()),
     defaultValues: {
+      name: "",
       currentPassword: "",
-      newPassword: "",
-      confirmNewPassword: "",
     },
   });
 
-  const onSubmit = async (values: PasswordFormType) => {
+  const onSubmit = async (values: NameFormType) => {
     try {
-      await updatePassword(values);
+      await updateName(values);
       toast.success(t("success"));
       form.reset();
     } catch {
@@ -59,36 +58,23 @@ export function PasswordForm() {
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
             <FormField
               control={form.control}
+              name="name"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>{t("newName")}</FormLabel>
+                  <FormControl>
+                    <Input placeholder="John Doe" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
               name="currentPassword"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>{t("currentPassword")}</FormLabel>
-                  <FormControl>
-                    <Input type="password" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="newPassword"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("newPassword")}</FormLabel>
-                  <FormControl>
-                    <Input type="password" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="confirmNewPassword"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("confirmPassword")}</FormLabel>
                   <FormControl>
                     <Input type="password" {...field} />
                   </FormControl>

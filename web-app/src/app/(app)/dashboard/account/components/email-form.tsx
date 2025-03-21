@@ -38,13 +38,12 @@ export function EmailForm() {
   });
 
   const onSubmit = async (values: EmailFormType) => {
-    const result = await updateEmail(values);
-
-    if (result.success) {
+    try {
+      await updateEmail(values);
       toast.success(t("success"));
       form.reset();
-    } else {
-      toast.error(result.error || t("error"));
+    } catch {
+      toast.error(t("error"));
     }
   };
 

@@ -376,6 +376,15 @@
   "Account": {
     "title": "Account Settings",
     "description": "Manage your account settings and preferences",
+    "Name": {
+      "title": "Change Name",
+      "description": "Update your display name",
+      "newName": "New Name",
+      "currentPassword": "Current Password",
+      "submit": "Update Name",
+      "success": "Name updated successfully",
+      "error": "Failed to update name"
+    },
     "Email": {
       "title": "Change Email",
       "description": "Update your email address",

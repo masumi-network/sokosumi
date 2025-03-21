@@ -9,9 +9,32 @@ import {
   deleteAccountSchema,
   emailFormSchema,
   EmailFormType,
+  nameFormSchema,
+  NameFormType,
   passwordFormSchema,
   PasswordFormType,
 } from "./data";
+
+export async function updateName(formData: NameFormType) {
+  const validatedFields = nameFormSchema().safeParse(formData);
+
+  if (!validatedFields.success) {
+    return { error: "Invalid form data" };
+  }
+
+  const { name, currentPassword } = validatedFields.data;
+
+  await auth.api.updateUser({
+    body: {
+      name,
+      password: currentPassword,
+    },
+    query: {
+      disableCookieCache: true,
+    },
+    headers: await headers(),
+  });
+}
 
 export async function updateEmail(formData: EmailFormType) {
   const validatedFields = emailFormSchema().safeParse(formData);
@@ -22,25 +45,17 @@ export async function updateEmail(formData: EmailFormType) {
 
   const { email, currentPassword } = validatedFields.data;
 
-  try {
-    await auth.api.changeEmail({
-      body: {
-        newEmail: email,
-        password: currentPassword,
-        callbackURL: "/dashboard",
-      },
-      query: {
-        disableCookieCache: true,
-      },
-      headers: await headers(),
-    });
-    return { success: true };
-  } catch {
-    return {
-      error:
-        "Failed to update email. Please check your password and try again.",
-    };
-  }
+  await auth.api.changeEmail({
+    body: {
+      newEmail: email,
+      password: currentPassword,
+      callbackURL: "/dashboard",
+    },
+    query: {
+      disableCookieCache: true,
+    },
+    headers: await headers(),
+  });
 }
 
 export async function updatePassword(formData: PasswordFormType) {
@@ -52,22 +67,14 @@ export async function updatePassword(formData: PasswordFormType) {
 
   const { currentPassword, newPassword } = validatedFields.data;
 
-  try {
-    await auth.api.changePassword({
-      body: {
-        currentPassword,
-        newPassword,
-        revokeOtherSessions: true,
-      },
-      headers: await headers(),
-    });
-    return { success: true };
-  } catch {
-    return {
-      error:
-        "Failed to update password. Please check your current password and try again.",
-    };
-  }
+  await auth.api.changePassword({
+    body: {
+      currentPassword,
+      newPassword,
+      revokeOtherSessions: true,
+    },
+    headers: await headers(),
+  });
 }
 
 export async function deleteAccount(formData: DeleteAccountFormType) {
@@ -79,18 +86,10 @@ export async function deleteAccount(formData: DeleteAccountFormType) {
 
   const { currentPassword } = validatedFields.data;
 
-  try {
-    await auth.api.deleteUser({
-      body: {
-        password: currentPassword,
-      },
-      headers: await headers(),
-    });
-    return { success: true };
-  } catch {
-    return {
-      error:
-        "Failed to delete account. Please check your password and try again.",
-    };
-  }
+  await auth.api.deleteUser({
+    body: {
+      password: currentPassword,
+    },
+    headers: await headers(),
+  });
 }

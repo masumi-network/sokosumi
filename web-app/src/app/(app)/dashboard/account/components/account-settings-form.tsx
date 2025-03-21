@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 
 import { DeleteAccountForm } from "./delete-account-form";
 import { EmailForm } from "./email-form";
+import { NameForm } from "./name-form";
 import { PasswordForm } from "./password-form";
 
 export function AccountSettingsForm() {
@@ -16,6 +17,9 @@ export function AccountSettingsForm() {
         <p className="text-muted-foreground text-sm">{t("description")}</p>
       </div>
       <div className="space-y-6">
+        <div className="min-w-[280px]">
+          <NameForm />
+        </div>
         <div className="min-w-[280px]">
           <EmailForm />
         </div>

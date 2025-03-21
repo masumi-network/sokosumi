@@ -2,6 +2,15 @@ import { z } from "zod";
 
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/constants";
 
+export const nameFormSchema = () =>
+  z.object({
+    name: z
+      .string()
+      .min(2, "Name must be at least 2 characters")
+      .max(128, "Name must be at most 128 characters"),
+    currentPassword: z.string().min(1, "Current password is required"),
+  });
+
 export const emailFormSchema = () =>
   z.object({
     email: z.string().email({
@@ -40,6 +49,7 @@ export const deleteAccountSchema = () =>
     currentPassword: z.string().min(1, "Current password is required"),
   });
 
+export type NameFormType = z.infer<ReturnType<typeof nameFormSchema>>;
 export type EmailFormType = z.infer<ReturnType<typeof emailFormSchema>>;
 export type PasswordFormType = z.infer<ReturnType<typeof passwordFormSchema>>;
 export type DeleteAccountFormType = z.infer<
