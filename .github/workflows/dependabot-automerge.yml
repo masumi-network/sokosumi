@@ -1,0 +1,20 @@
+name: Dependabot Automerge
+
+on:
+  check_suite:
+    types: [completed]
+
+
+jobs:
+  automerge:
+    name: Automerge
+    runs-on: ubuntu-latest
+
+    permissions:
+      pull-requests: write
+      contents: write
+    
+    steps:
+      - uses: fastify/github-action-merge-dependabot@v3
+        with:
+          target: 'minor'

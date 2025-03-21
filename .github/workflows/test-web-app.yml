@@ -55,7 +55,6 @@ jobs:
 
       - name: Run Prisma Migrate
         run: npm run prisma:migrate
-        
 
       - name: Run Prisma Seed
         run: npm run prisma:seed
