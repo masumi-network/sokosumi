@@ -73,6 +73,9 @@ export async function updatePassword(formData: PasswordFormType) {
       newPassword,
       revokeOtherSessions: true,
     },
+    query: {
+      disableCookieCache: true,
+    },
     headers: await headers(),
   });
 }
@@ -89,6 +92,9 @@ export async function deleteAccount(formData: DeleteAccountFormType) {
   await auth.api.deleteUser({
     body: {
       password: currentPassword,
+    },
+    query: {
+      disableCookieCache: true,
     },
     headers: await headers(),
   });
