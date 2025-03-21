@@ -1,21 +1,14 @@
 import { z } from "zod";
 
-import { FormData, FormIntlTranslation } from "@/lib/form";
+import { FormData } from "@/lib/form";
 
-const forgotPasswordFormSchema = (
-  t:
-    | FormIntlTranslation<"Auth.Pages.ForgotPassword.Form">
-    | undefined = undefined,
-) =>
-  z.object({
-    email: z.string().email({
-      message: t?.("Errors.Email.invalid"),
-    }),
-  });
+import { emailSchema } from "../data";
 
-export type ForgotPasswordFormSchemaType = z.infer<
-  ReturnType<typeof forgotPasswordFormSchema>
->;
+const forgotPasswordFormSchema = z.object({
+  email: emailSchema,
+});
+
+type ForgotPasswordFormSchemaType = z.infer<typeof forgotPasswordFormSchema>;
 
 const forgotPasswordFormData: FormData<
   ForgotPasswordFormSchemaType,
@@ -29,3 +22,4 @@ const forgotPasswordFormData: FormData<
 ];
 
 export { forgotPasswordFormData, forgotPasswordFormSchema };
+export type { ForgotPasswordFormSchemaType };

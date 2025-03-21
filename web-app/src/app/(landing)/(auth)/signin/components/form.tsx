@@ -21,7 +21,16 @@ export default function SignInForm() {
   const router = useRouter();
 
   const form = useForm<SignInFormSchemaType>({
-    resolver: zodResolver(signInFormSchema(t)),
+    resolver: zodResolver(signInFormSchema, {
+      errorMap: (error, ctx) => {
+        const path = error.path.join(".");
+        switch (path) {
+          case "email":
+            return { message: t("Errors.Email.invalid") };
+        }
+        return { message: ctx.defaultError };
+      },
+    }),
     defaultValues: {
       email: "",
       password: "",

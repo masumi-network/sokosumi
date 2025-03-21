@@ -12,7 +12,7 @@ import { forgotPassword } from "../actions";
 import {
   forgotPasswordFormData,
   forgotPasswordFormSchema,
-  type ForgotPasswordFormSchemaType,
+  ForgotPasswordFormSchemaType,
 } from "../data";
 
 interface ForgotPasswordFormProps {
@@ -26,7 +26,16 @@ export default function ForgotPasswordForm({
   const router = useRouter();
 
   const form = useForm<ForgotPasswordFormSchemaType>({
-    resolver: zodResolver(forgotPasswordFormSchema(t)),
+    resolver: zodResolver(forgotPasswordFormSchema, {
+      errorMap: (error, ctx) => {
+        const path = error.path.join(".");
+        switch (path) {
+          case "email":
+            return { message: t("Errors.Email.invalid") };
+        }
+        return { message: ctx.defaultError };
+      },
+    }),
     defaultValues: {
       email: initialEmail || "",
     },
