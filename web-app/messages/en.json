@@ -387,7 +387,17 @@
       "currentPassword": "Current Password",
       "submit": "Update Name",
       "success": "Name updated successfully",
-      "error": "Failed to update name"
+      "error": "Failed to update name",
+      "Errors": {
+        "Name": {
+          "min": "Name must be at least 2 characters.",
+          "max": "Name must be maximum 128 characters.",
+          "invalid": "Name must be a valid string."
+        },
+        "CurrentPassword": {
+          "required": "Current password is required"
+        }
+      }
     },
     "Email": {
       "title": "Change Email",
@@ -396,7 +406,15 @@
       "currentPassword": "Current Password",
       "submit": "Update Email",
       "success": "Email updated successfully",
-      "error": "Failed to update email"
+      "error": "Failed to update email",
+      "Errors": {
+        "Email": {
+          "invalid": "Please enter a valid email address."
+        },
+        "CurrentPassword": {
+          "required": "Current password is required"
+        }
+      }
     },
     "Password": {
       "title": "Change Password",
@@ -406,7 +424,20 @@
       "confirmPassword": "Confirm New Password",
       "submit": "Update Password",
       "success": "Password updated successfully",
-      "error": "Failed to update password"
+      "error": "Failed to update password",
+      "Errors": {
+        "NewPassword": {
+          "min": "Password must be at least 8 characters",
+          "max": "Password must be maximum 128 characters",
+          "regex": "Password must contain at least one uppercase letter, one lowercase letter, and one number."
+        },
+        "ConfirmPassword": {
+          "match": "Passwords must match"
+        },
+        "CurrentPassword": {
+          "required": "Current password is required"
+        }
+      }
     },
     "Delete": {
       "title": "Delete Account",
@@ -417,7 +448,12 @@
       "currentPassword": "Current Password",
       "confirm": "Yes, delete my account",
       "success": "Account deleted successfully",
-      "error": "Failed to delete account"
+      "error": "Failed to delete account",
+      "Errors": {
+        "CurrentPassword": {
+          "required": "Current password is required"
+        }
+      }
     }
   }
 }

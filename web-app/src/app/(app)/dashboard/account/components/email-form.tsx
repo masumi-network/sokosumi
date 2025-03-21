@@ -31,7 +31,20 @@ export function EmailForm() {
   const t = useTranslations("Account.Email");
 
   const form = useForm<EmailFormType>({
-    resolver: zodResolver(emailFormSchema),
+    resolver: zodResolver(emailFormSchema, {
+      errorMap: (error, ctx) => {
+        const path = error.path.join(".");
+        switch (path) {
+          case "email":
+            return { message: t("Errors.Email.invalid") };
+          case "currentPassword":
+            if (error.code === "too_small") {
+              return { message: t("Errors.CurrentPassword.required") };
+            }
+        }
+        return { message: ctx.defaultError };
+      },
+    }),
     defaultValues: {
       email: "",
       currentPassword: "",

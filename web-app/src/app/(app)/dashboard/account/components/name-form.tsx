@@ -31,7 +31,28 @@ export function NameForm() {
   const t = useTranslations("Account.Name");
 
   const form = useForm<NameFormType>({
-    resolver: zodResolver(nameFormSchema),
+    resolver: zodResolver(nameFormSchema, {
+      errorMap: (error, ctx) => {
+        const path = error.path.join(".");
+        switch (path) {
+          case "name":
+            if (error.code === "too_small") {
+              return { message: t("Errors.Name.min") };
+            }
+            if (error.code === "too_big") {
+              return { message: t("Errors.Name.max") };
+            }
+            if (error.code === "invalid_string") {
+              return { message: t("Errors.Name.invalid") };
+            }
+          case "currentPassword":
+            if (error.code === "too_small") {
+              return { message: t("Errors.CurrentPassword.required") };
+            }
+        }
+        return { message: ctx.defaultError };
+      },
+    }),
     defaultValues: {
       name: "",
       currentPassword: "",

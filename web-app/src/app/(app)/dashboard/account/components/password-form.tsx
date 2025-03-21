@@ -31,12 +31,32 @@ export function PasswordForm() {
   const t = useTranslations("Account.Password");
 
   const form = useForm<PasswordFormType>({
-    resolver: zodResolver(passwordFormSchema),
-    defaultValues: {
-      currentPassword: "",
-      newPassword: "",
-      confirmNewPassword: "",
-    },
+    resolver: zodResolver(passwordFormSchema, {
+      errorMap: (error, ctx) => {
+        const path = error.path.join(".");
+        switch (path) {
+          case "newPassword":
+            if (error.code === "too_small") {
+              return { message: t("Errors.NewPassword.min") };
+            }
+            if (error.code === "too_big") {
+              return { message: t("Errors.NewPassword.max") };
+            }
+            if (error.code === "custom") {
+              return { message: t("Errors.NewPassword.regex") };
+            }
+          case "currentPassword":
+            if (error.code === "too_small") {
+              return { message: t("Errors.CurrentPassword.required") };
+            }
+          case "confirmNewPassword":
+            if (error.code === "custom") {
+              return { message: t("Errors.ConfirmPassword.match") };
+            }
+        }
+        return { message: ctx.defaultError };
+      },
+    }),
   });
 
   const onSubmit = async (values: PasswordFormType) => {
