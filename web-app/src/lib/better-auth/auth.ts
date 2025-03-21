@@ -67,6 +67,22 @@ export const auth = betterAuth({
       });
     },
   },
+  user: {
+    changeEmail: {
+      enabled: true,
+      sendChangeEmailVerification: async ({ user, url }) => {
+        await resend.emails.send({
+          from: fromEmail,
+          to: user.email,
+          subject: "Approve email change",
+          text: `Click the link to approve the change: ${url}`,
+        });
+      },
+    },
+    deleteUser: {
+      enabled: true,
+    },
+  },
   rateLimit: {
     storage: "database",
   },

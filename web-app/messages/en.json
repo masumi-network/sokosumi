@@ -372,5 +372,28 @@
   },
   "Agent": {
     "defaultDescription": "The author didn't provide a description for this agent."
+  },
+  "Account": {
+    "title": "Account Settings",
+    "description": "Manage your account settings and preferences",
+    "Email": {
+      "title": "Email Address",
+      "description": "Change your email address. You'll need to verify your new email.",
+      "newEmail": "New Email",
+      "currentPassword": "Current Password",
+      "submit": "Update Email",
+      "success": "Email updated successfully",
+      "error": "Failed to update email"
+    },
+    "Password": {
+      "title": "Password",
+      "description": "Change your password. Choose a strong password that you haven't used before.",
+      "currentPassword": "Current Password",
+      "newPassword": "New Password",
+      "confirmPassword": "Confirm New Password",
+      "submit": "Update Password",
+      "success": "Password updated successfully",
+      "error": "Failed to update password"
+    }
   }
 }
