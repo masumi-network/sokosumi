@@ -68,7 +68,7 @@
     "@hey-api/openapi-ts": "^0.64.13",
     "@swc/core": "^1.11.11",
     "@swc/helpers": "^0.5.15",
-    "@tailwindcss/postcss": "^4.0.14",
+    "@tailwindcss/postcss": "^4.0.15",
     "@testing-library/jest-dom": "6.6.3",
     "@testing-library/react": "16.2.0",
     "@types/jest": "29.5.14",
