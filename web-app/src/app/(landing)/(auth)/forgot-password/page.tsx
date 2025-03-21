@@ -13,12 +13,20 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function ForgotPassword() {
+interface ForgotPasswordPageProps {
+  searchParams: { email?: string };
+}
+
+export default function ForgotPassword({
+  searchParams,
+}: ForgotPasswordPageProps) {
+  const { email } = searchParams;
+
   return (
     <div className="flex flex-1 flex-col">
       <ForgotPasswordHeader />
       <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
-        <ForgotPasswordForm />
+        <ForgotPasswordForm initialEmail={email} />
       </div>
     </div>
   );

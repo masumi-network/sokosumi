@@ -57,7 +57,7 @@ export default function SignInForm() {
             {t("ForgotPassword.text")}{" "}
           </span>
           <Link
-            href="/forgot-password"
+            href={`/forgot-password${form.watch("email") ? `?email=${encodeURIComponent(form.watch("email"))}` : ""}`}
             className="text-primary font-medium hover:underline"
           >
             {t("ForgotPassword.link")}

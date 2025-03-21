@@ -15,14 +15,20 @@ import {
   type ForgotPasswordFormSchemaType,
 } from "../data";
 
-export default function ForgotPasswordForm() {
+interface ForgotPasswordFormProps {
+  initialEmail?: string;
+}
+
+export default function ForgotPasswordForm({
+  initialEmail,
+}: ForgotPasswordFormProps) {
   const t = useTranslations("Auth.Pages.ForgotPassword.Form");
   const router = useRouter();
 
   const form = useForm<ForgotPasswordFormSchemaType>({
     resolver: zodResolver(forgotPasswordFormSchema(t)),
     defaultValues: {
-      email: "",
+      email: initialEmail || "",
     },
   });
 
