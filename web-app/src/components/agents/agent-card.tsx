@@ -73,7 +73,7 @@ function AgentCard({ agent, className }: AgentCardProps) {
     >
       <div className="relative h-48 w-full shrink-0">
         <Image
-          src={image || "/placeholder.svg"}
+          src={image ?? "/placeholder.svg"}
           alt={`${name} image`}
           fill
           className="object-cover"

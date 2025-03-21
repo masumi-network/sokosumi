@@ -19,7 +19,7 @@ export default function UserAvatarContent({
         {imageUrl && (
           <AvatarImage
             src={imageUrl}
-            alt={imageAlt || "User avatar"}
+            alt={imageAlt ?? "User avatar"}
             onError={(e) => {
               e.currentTarget.style.display = "none";
             }}

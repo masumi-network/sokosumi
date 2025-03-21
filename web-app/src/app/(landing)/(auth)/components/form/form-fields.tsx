@@ -41,7 +41,7 @@ export function FormFields<T extends FieldValues>({
               <FormControl>
                 <Input
                   placeholder={placeholderKey && t(placeholderKey)}
-                  type={type || "text"}
+                  type={type ?? "text"}
                   {...field}
                 />
               </FormControl>

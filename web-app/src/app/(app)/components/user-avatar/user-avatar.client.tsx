@@ -57,11 +57,11 @@ export default function UserAvatarClient({ user }: UserAvatarClientProps) {
               <Button
                 variant="outline"
                 className="relative h-8 w-8 rounded-full"
-                aria-label={`User profile for ${user.name || "current user"}`}
+                aria-label={`User profile for ${user.name ?? "current user"}`}
               >
                 <UserAvatarContent
-                  imageUrl={user.image || ""}
-                  imageAlt={user.name || "User avatar"}
+                  imageUrl={user.image ?? ""}
+                  imageAlt={user.name ?? "User avatar"}
                 />
               </Button>
             </DropdownMenuTrigger>
