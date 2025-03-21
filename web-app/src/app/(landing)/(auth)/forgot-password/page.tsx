@@ -14,13 +14,13 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 interface ForgotPasswordPageProps {
-  searchParams: { email?: string };
+  searchParams: Promise<{ email?: string }>;
 }
 
-export default function ForgotPassword({
+export default async function ForgotPassword({
   searchParams,
 }: ForgotPasswordPageProps) {
-  const { email } = searchParams;
+  const { email } = await searchParams;
 
   return (
     <div className="flex flex-1 flex-col">
