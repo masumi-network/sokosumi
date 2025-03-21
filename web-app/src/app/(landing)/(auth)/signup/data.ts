@@ -12,8 +12,7 @@ const signUpFormSchema = (
       name: z
         .string()
         .min(2, t?.("Errors.Name.min"))
-        .max(128, t?.("Errors.Name.max"))
-        .regex(/^\S*$/, t?.("Errors.Name.regex")),
+        .max(128, t?.("Errors.Name.max")),
       email: z.string().email(t?.("Errors.Email.invalid")),
       password: passwordSchema({
         minError: t?.("Errors.Password.min"),

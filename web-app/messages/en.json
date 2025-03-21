@@ -119,8 +119,7 @@
             },
             "Name": {
               "min": "Name must be at least 2 characters.",
-              "max": "Name must be maximum 128 characters.",
-              "regex": "Name must contain only letters, numbers, and underscores."
+              "max": "Name must be maximum 128 characters."
             },
             "Password": {
               "min": "Password must be at least 8 characters.",
