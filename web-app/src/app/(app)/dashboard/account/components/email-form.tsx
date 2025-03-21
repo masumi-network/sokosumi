@@ -31,7 +31,7 @@ export function EmailForm() {
   const t = useTranslations("Account.Email");
 
   const form = useForm<EmailFormType>({
-    resolver: zodResolver(emailFormSchema()),
+    resolver: zodResolver(emailFormSchema),
     defaultValues: {
       email: "",
       currentPassword: "",

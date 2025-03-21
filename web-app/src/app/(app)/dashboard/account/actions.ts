@@ -16,7 +16,7 @@ import {
 } from "./data";
 
 export async function updateName(formData: NameFormType) {
-  const validatedFields = nameFormSchema().safeParse(formData);
+  const validatedFields = nameFormSchema.safeParse(formData);
 
   if (!validatedFields.success) {
     return { error: "Invalid form data" };
@@ -37,7 +37,7 @@ export async function updateName(formData: NameFormType) {
 }
 
 export async function updateEmail(formData: EmailFormType) {
-  const validatedFields = emailFormSchema().safeParse(formData);
+  const validatedFields = emailFormSchema.safeParse(formData);
 
   if (!validatedFields.success) {
     return { error: "Invalid form data" };
@@ -59,7 +59,7 @@ export async function updateEmail(formData: EmailFormType) {
 }
 
 export async function updatePassword(formData: PasswordFormType) {
-  const validatedFields = passwordFormSchema().safeParse(formData);
+  const validatedFields = passwordFormSchema.safeParse(formData);
 
   if (!validatedFields.success) {
     return { error: "Invalid form data" };
@@ -81,7 +81,7 @@ export async function updatePassword(formData: PasswordFormType) {
 }
 
 export async function deleteAccount(formData: DeleteAccountFormType) {
-  const validatedFields = deleteAccountSchema().safeParse(formData);
+  const validatedFields = deleteAccountSchema.safeParse(formData);
 
   if (!validatedFields.success) {
     return { error: "Invalid form data" };

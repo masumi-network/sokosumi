@@ -31,7 +31,7 @@ export function NameForm() {
   const t = useTranslations("Account.Name");
 
   const form = useForm<NameFormType>({
-    resolver: zodResolver(nameFormSchema()),
+    resolver: zodResolver(nameFormSchema),
     defaultValues: {
       name: "",
       currentPassword: "",

@@ -41,7 +41,7 @@ export function DeleteAccountForm() {
   const router = useRouter();
 
   const form = useForm<DeleteAccountFormType>({
-    resolver: zodResolver(deleteAccountSchema()),
+    resolver: zodResolver(deleteAccountSchema),
     defaultValues: {
       currentPassword: "",
     },
