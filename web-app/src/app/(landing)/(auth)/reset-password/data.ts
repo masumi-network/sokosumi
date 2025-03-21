@@ -1,8 +1,7 @@
 import { z } from "zod";
 
+import { confirmPasswordSchema, passwordSchema } from "@/app/(auth)/data";
 import { FormData } from "@/lib/form";
-
-import { confirmPasswordSchema, passwordSchema } from "../data";
 
 export const resetPasswordFormSchema = z
   .object({

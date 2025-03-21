@@ -1,8 +1,7 @@
 import { z } from "zod";
 
+import { emailSchema, passwordSchema } from "@/app/(auth)/data";
 import { FormData } from "@/lib/form";
-
-import { emailSchema, passwordSchema } from "../data";
 
 const signInFormSchema = z.object({
   email: emailSchema,

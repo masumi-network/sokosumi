@@ -1,8 +1,7 @@
 import { z } from "zod";
 
+import { emailSchema } from "@/app/(auth)/data";
 import { FormData } from "@/lib/form";
-
-import { emailSchema } from "../data";
 
 const forgotPasswordFormSchema = z.object({
   email: emailSchema,

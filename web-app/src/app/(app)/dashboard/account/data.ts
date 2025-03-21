@@ -5,7 +5,7 @@ import {
   emailSchema,
   nameSchema,
   passwordSchema,
-} from "@/app/(landing)/(auth)/data";
+} from "@/app/(auth)/data";
 
 const currentPasswordSchema = z.string().min(1);
 
@@ -26,7 +26,6 @@ export const passwordFormSchema = z
     confirmNewPassword: confirmPasswordSchema,
   })
   .refine((data) => data.newPassword === data.confirmNewPassword, {
-    message: "Passwords do not match",
     path: ["confirmNewPassword"],
   });
 

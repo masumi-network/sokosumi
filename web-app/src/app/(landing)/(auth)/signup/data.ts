@@ -1,13 +1,12 @@
 import { z } from "zod";
 
-import { FormData } from "@/lib/form";
-
 import {
   confirmPasswordSchema,
   emailSchema,
   nameSchema,
   passwordSchema,
-} from "../data";
+} from "@/app/(auth)/data";
+import { FormData } from "@/lib/form";
 
 const signUpFormSchema = z
   .object({
