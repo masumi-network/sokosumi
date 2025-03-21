@@ -122,7 +122,8 @@
             },
             "Name": {
               "min": "Name must be at least 2 characters.",
-              "max": "Name must be maximum 128 characters."
+              "max": "Name must be maximum 128 characters.",
+              "invalid": "Name must be a valid string."
             },
             "Password": {
               "min": "Password must be at least 8 characters.",

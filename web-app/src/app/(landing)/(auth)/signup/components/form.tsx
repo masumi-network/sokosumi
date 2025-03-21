@@ -19,7 +19,40 @@ export default function SignUpForm() {
   const t = useTranslations("Auth.Pages.SignUp.Form");
   const router = useRouter();
   const form = useForm<SignUpFormSchemaType>({
-    resolver: zodResolver(signUpFormSchema(t)),
+    resolver: zodResolver(signUpFormSchema, {
+      errorMap: (error, ctx) => {
+        const path = error.path.join(".");
+        switch (path) {
+          case "email":
+            return { message: t("Errors.Email.invalid") };
+          case "name":
+            if (error.code === "too_big") {
+              return { message: t("Errors.Name.max") };
+            }
+            if (error.code === "too_small") {
+              return { message: t("Errors.Name.min") };
+            }
+            if (error.code === "invalid_string") {
+              return { message: t("Errors.Name.invalid") };
+            }
+          case "password":
+            if (error.code === "invalid_string") {
+              return { message: t("Errors.Password.regex") };
+            }
+            if (error.code === "too_small") {
+              return { message: t("Errors.Password.min") };
+            }
+            if (error.code === "too_big") {
+              return { message: t("Errors.Password.max") };
+            }
+          case "confirmPassword":
+            if (error.code === "custom") {
+              return { message: t("Errors.ConfirmPassword.match") };
+            }
+        }
+        return { message: ctx.defaultError };
+      },
+    }),
     defaultValues: {
       email: "",
       name: "",

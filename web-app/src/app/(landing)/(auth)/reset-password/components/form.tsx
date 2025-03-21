@@ -24,7 +24,29 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
   const router = useRouter();
 
   const form = useForm<ResetPasswordFormSchemaType>({
-    resolver: zodResolver(resetPasswordFormSchema(t)),
+    resolver: zodResolver(resetPasswordFormSchema, {
+      errorMap: (error, ctx) => {
+        const path = error.path.join(".");
+        switch (path) {
+          case "password":
+            if (error.code === "too_small") {
+              return { message: t("Errors.Password.min") };
+            }
+            if (error.code === "too_big") {
+              return { message: t("Errors.Password.max") };
+            }
+            if (error.code === "invalid_string") {
+              return { message: t("Errors.Password.regex") };
+            }
+            return { message: ctx.defaultError };
+          case "confirmPassword":
+            if (error.code === "custom") {
+              return { message: t("Errors.ConfirmPassword.match") };
+            }
+        }
+        return { message: ctx.defaultError };
+      },
+    }),
     defaultValues: {
       password: "",
       confirmPassword: "",
