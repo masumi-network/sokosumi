@@ -9,14 +9,15 @@ const signUpFormSchema = (
 ) =>
   z
     .object({
-      username: z
+      name: z
         .string()
-        .min(2, t?.("Errors.Username.min"))
-        .max(50, t?.("Errors.Username.max"))
-        .regex(/^\S*$/, t?.("Errors.Username.regex")),
+        .min(2, t?.("Errors.Name.min"))
+        .max(128, t?.("Errors.Name.max"))
+        .regex(/^\S*$/, t?.("Errors.Name.regex")),
       email: z.string().email(t?.("Errors.Email.invalid")),
       password: passwordSchema({
         minError: t?.("Errors.Password.min"),
+        maxError: t?.("Errors.Password.max"),
         regexError: t?.("Errors.Password.regex"),
       }),
       confirmPassword: z.string(),
@@ -36,9 +37,9 @@ const signUpFormData: FormData<SignUpFormSchemaType, "Auth.Pages.SignUp.Form"> =
       placeholderKey: "Fields.Email.placeholder",
     },
     {
-      name: "username",
-      labelKey: "Fields.Username.label",
-      placeholderKey: "Fields.Username.placeholder",
+      name: "name",
+      labelKey: "Fields.Name.label",
+      placeholderKey: "Fields.Name.placeholder",
     },
     {
       name: "password",

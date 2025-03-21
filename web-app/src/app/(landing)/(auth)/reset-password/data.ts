@@ -13,6 +13,7 @@ export const resetPasswordFormSchema = (
     .object({
       password: passwordSchema({
         minError: t?.("Errors.Password.min"),
+        maxError: t?.("Errors.Password.max"),
         regexError: t?.("Errors.Password.regex"),
       }),
       confirmPassword: z.string(),

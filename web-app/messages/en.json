@@ -100,9 +100,9 @@
               "label": "Email",
               "placeholder": "me@example.com"
             },
-            "Username": {
-              "label": "Username",
-              "placeholder": "JohnDoe"
+            "Name": {
+              "label": "Name",
+              "placeholder": "John Doe"
             },
             "Password": {
               "label": "Password",
@@ -117,13 +117,14 @@
             "Email": {
               "invalid": "Please enter a valid email address."
             },
-            "Username": {
-              "min": "Username must be at least 2 characters.",
-              "max": "Username must be maximum 50 characters.",
-              "regex": "Username must contain only letters, numbers, and underscores."
+            "Name": {
+              "min": "Name must be at least 2 characters.",
+              "max": "Name must be maximum 128 characters.",
+              "regex": "Name must contain only letters, numbers, and underscores."
             },
             "Password": {
               "min": "Password must be at least 8 characters.",
+              "max": "Password must be maximum 128 characters.",
               "regex": "Password must contain at least one uppercase letter, one lowercase letter, and one number."
             },
             "ConfirmPassword": {
@@ -182,6 +183,7 @@
           "Errors": {
             "Password": {
               "min": "Password must be at least 8 characters",
+              "max": "Password must be maximum 128 characters",
               "regex": "Password must contain at least one uppercase letter, one lowercase letter, and one number."
             },
             "ConfirmPassword": {
@@ -195,7 +197,7 @@
       "ResetPassword": {
         "subject": "Sokosumi - Reset your password",
         "title": "Reset your password",
-        "greeting": "Hello {username}",
+        "greeting": "Hello {name}",
         "message": "We received a request to reset your password for your account. If you didn't make this request, you can safely ignore this email.",
         "button": "Reset Password",
         "linkInstructions": "Or copy and paste this URL into your browser:",
@@ -204,7 +206,7 @@
       "Verification": {
         "subject": "Sokosumi - Verify your email address",
         "title": "Verify your email address",
-        "greeting": "Hello {username}",
+        "greeting": "Hello {name}",
         "message": "Thank you for signing up! Please verify your email address by clicking the button below. This helps us ensure the security of your account.",
         "button": "Verify Email",
         "linkInstructions": "Or copy and paste this URL into your browser:",

@@ -22,7 +22,6 @@ export async function signin(formData: SignInFormSchemaType) {
     });
     return { success: true };
   } catch (error) {
-    console.log(error);
     if (error && typeof error === "object" && "statusCode" in error) {
       if (error.statusCode === 403) {
         return { error: "Please verify your email address" };

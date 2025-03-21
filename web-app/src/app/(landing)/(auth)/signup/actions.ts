@@ -11,12 +11,12 @@ export async function signup(formData: SignUpFormSchemaType) {
     return { error: "Invalid form data" };
   }
 
-  const { email, username, password } = validatedFields.data;
+  const { email, name, password } = validatedFields.data;
 
   try {
     await auth.api.signUpEmail({
       body: {
-        name: username,
+        name,
         email,
         password,
       },
