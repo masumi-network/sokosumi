@@ -60,7 +60,6 @@
         "Form": {
           "submit": "Sign In",
           "success": "Sign In successful",
-          "error": "Sign In failed",
           "Fields": {
             "Email": {
               "label": "Email",
@@ -74,6 +73,10 @@
           "Errors": {
             "Email": {
               "invalid": "Please enter a valid email address."
+            },
+            "Submit": {
+              "verifyEmail": "Please verify your email address",
+              "invalid": "Invalid email or password"
             }
           },
           "ForgotPassword": {

@@ -12,15 +12,10 @@ export async function forgotPassword(formData: ForgotPasswordFormSchemaType) {
   }
 
   const { email } = validatedFields.data;
-  try {
-    await auth.api.forgetPassword({
-      body: {
-        email,
-        redirectTo: "/reset-password",
-      },
-    });
-    return { success: true };
-  } catch {
-    return { error: "Failed to send password reset email" };
-  }
+  await auth.api.forgetPassword({
+    body: {
+      email,
+      redirectTo: "/reset-password",
+    },
+  });
 }

@@ -29,13 +29,18 @@ export default function SignInForm() {
   });
 
   const onSubmit = async (values: SignInFormSchemaType) => {
-    const result = await signin(values);
-
-    if (result.success) {
+    try {
+      await signin(values);
       toast.success(t("success"));
       router.push("/dashboard");
-    } else {
-      toast.error(t("error"));
+    } catch (error) {
+      if (error && typeof error === "object" && "statusCode" in error) {
+        if (error.statusCode === 403) {
+          toast.error(t("Errors.Submit.verifyEmail"));
+          return;
+        }
+      }
+      toast.error(t("Errors.Submit.invalid"));
     }
   };
 

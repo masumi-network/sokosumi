@@ -13,16 +13,11 @@ export async function signup(formData: SignUpFormSchemaType) {
 
   const { email, name, password } = validatedFields.data;
 
-  try {
-    await auth.api.signUpEmail({
-      body: {
-        name,
-        email,
-        password,
-      },
-    });
-    return { success: true };
-  } catch {
-    return { error: "Failed to create account" };
-  }
+  await auth.api.signUpEmail({
+    body: {
+      name,
+      email,
+      password,
+    },
+  });
 }

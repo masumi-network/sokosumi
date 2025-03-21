@@ -13,15 +13,10 @@ export async function resetPassword(formData: ResetPasswordFormSchemaType) {
 
   const { password, token } = validatedFields.data;
 
-  try {
-    await auth.api.resetPassword({
-      body: {
-        newPassword: password,
-        token,
-      },
-    });
-    return { success: true };
-  } catch {
-    return { error: "Failed to reset password" };
-  }
+  await auth.api.resetPassword({
+    body: {
+      newPassword: password,
+      token,
+    },
+  });
 }

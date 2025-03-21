@@ -13,20 +13,10 @@ export async function signin(formData: SignInFormSchemaType) {
 
   const { email, password } = validatedFields.data;
 
-  try {
-    await auth.api.signInEmail({
-      body: {
-        email,
-        password,
-      },
-    });
-    return { success: true };
-  } catch (error) {
-    if (error && typeof error === "object" && "statusCode" in error) {
-      if (error.statusCode === 403) {
-        return { error: "Please verify your email address" };
-      }
-    }
-    return { error: "Invalid email or password" };
-  }
+  await auth.api.signInEmail({
+    body: {
+      email,
+      password,
+    },
+  });
 }

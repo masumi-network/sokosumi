@@ -33,12 +33,11 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
   });
 
   async function onSubmit(values: ResetPasswordFormSchemaType) {
-    const result = await resetPassword(values);
-
-    if (result.success) {
+    try {
+      await resetPassword(values);
       toast.success(t("success"));
       router.push("/signin");
-    } else {
+    } catch {
       toast.error(t("error"));
     }
   }
