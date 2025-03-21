@@ -41,7 +41,7 @@ export const auth = betterAuth({
         to: user.email,
         subject: t("subject"),
         react: reactVerificationEmail({
-          username: user.email,
+          name: user.name,
           verificationLink: url,
         }),
       });
@@ -61,7 +61,7 @@ export const auth = betterAuth({
         to: user.email,
         subject: t("subject"),
         react: reactResetPasswordEmail({
-          username: user.email,
+          name: user.name,
           resetLink: url,
         }),
       });

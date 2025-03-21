@@ -15,12 +15,12 @@ import {
 import { getTranslations } from "next-intl/server";
 
 interface BetterAuthVerificationEmailProps {
-  username: string;
+  name: string;
   verificationLink: string;
 }
 
 export const VerificationEmail = async ({
-  username,
+  name,
   verificationLink,
 }: BetterAuthVerificationEmailProps) => {
   const t = await getTranslations("Auth.Email.Verification");
@@ -36,7 +36,7 @@ export const VerificationEmail = async ({
               {t("title")}
             </Heading>
             <Text className="text-[14px] leading-[24px] text-black">
-              {t("greeting", { username })}
+              {t("greeting", { name })}
             </Text>
             <Text className="text-[14px] leading-[24px] text-black">
               {t("message")}

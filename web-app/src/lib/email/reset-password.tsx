@@ -15,12 +15,12 @@ import {
 import { getTranslations } from "next-intl/server";
 
 interface BetterAuthResetPasswordEmailProps {
-  username: string;
+  name: string;
   resetLink: string;
 }
 
 export const ResetPasswordEmail = async ({
-  username,
+  name,
   resetLink,
 }: BetterAuthResetPasswordEmailProps) => {
   const t = await getTranslations("Auth.Email.ResetPassword");
@@ -36,7 +36,7 @@ export const ResetPasswordEmail = async ({
               {t("title")}
             </Heading>
             <Text className="text-[14px] leading-[24px] text-black">
-              {t("greeting", { username })}
+              {t("greeting", { name })}
             </Text>
             <Text className="text-[14px] leading-[24px] text-black">
               {t("message")}
