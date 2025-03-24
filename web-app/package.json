@@ -64,7 +64,7 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@eslint/eslintrc": "^3.3.0",
+    "@eslint/eslintrc": "^3.3.1",
     "@hey-api/openapi-ts": "^0.64.13",
     "@swc/core": "^1.11.11",
     "@swc/helpers": "^0.5.15",
