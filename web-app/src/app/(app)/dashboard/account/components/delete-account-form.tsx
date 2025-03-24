@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -33,6 +32,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { createErrorMap } from "@/lib/form";
 
 import { deleteAccount } from "../actions";
 import { DeleteAccountFormType, deleteAccountSchema } from "../data";
@@ -44,16 +44,7 @@ export function DeleteAccountForm() {
 
   const form = useForm<DeleteAccountFormType>({
     resolver: zodResolver(deleteAccountSchema, {
-      errorMap: (error, ctx) => {
-        const path = error.path.join(".");
-        switch (path) {
-          case "currentPassword":
-            if (error.code === z.ZodIssueCode.too_small) {
-              return { message: tSchema("Password.required") };
-            }
-        }
-        return { message: ctx.defaultError };
-      },
+      errorMap: createErrorMap({ tSchema }),
     }),
     defaultValues: {
       currentPassword: "",

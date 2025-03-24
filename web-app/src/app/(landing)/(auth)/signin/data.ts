@@ -5,7 +5,7 @@ import { FormData } from "@/lib/form";
 
 const signInFormSchema = z.object({
   email: emailSchema,
-  password: currentPasswordSchema,
+  currentPassword: currentPasswordSchema,
 });
 
 type SignInFormSchemaType = z.infer<typeof signInFormSchema>;
@@ -18,7 +18,7 @@ const signInFormData: FormData<SignInFormSchemaType, "Auth.Pages.SignIn.Form"> =
       placeholderKey: "Fields.Email.placeholder",
     },
     {
-      name: "password",
+      name: "currentPassword",
       labelKey: "Fields.Password.label",
       placeholderKey: "Fields.Password.placeholder",
       type: "password",

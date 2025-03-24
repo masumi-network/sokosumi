@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +23,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { createErrorMap } from "@/lib/form";
 
 import { updatePassword } from "../actions";
 import { passwordFormSchema, PasswordFormType } from "../data";
@@ -34,36 +34,7 @@ export function PasswordForm() {
 
   const form = useForm<PasswordFormType>({
     resolver: zodResolver(passwordFormSchema, {
-      errorMap: (error, ctx) => {
-        const path = error.path.join(".");
-        switch (path) {
-          case "newPassword":
-            if (error.code === z.ZodIssueCode.invalid_string) {
-              return { message: tSchema("Password.invalid") };
-            }
-            if (error.code === z.ZodIssueCode.too_small) {
-              return { message: tSchema("Password.min") };
-            }
-            if (error.code === z.ZodIssueCode.too_big) {
-              return { message: tSchema("Password.max") };
-            }
-            if (error.code === z.ZodIssueCode.custom) {
-              const { lowercase, uppercase, number } = error.params ?? {};
-              if (lowercase) return { message: tSchema("Password.lowercase") };
-              if (uppercase) return { message: tSchema("Password.uppercase") };
-              if (number) return { message: tSchema("Password.number") };
-            }
-          case "currentPassword":
-            if (error.code === z.ZodIssueCode.too_small) {
-              return { message: tSchema("Password.required") };
-            }
-          case "confirmNewPassword":
-            if (error.code === z.ZodIssueCode.custom) {
-              return { message: tSchema("ConfirmPassword.match") };
-            }
-        }
-        return { message: ctx.defaultError };
-      },
+      errorMap: createErrorMap({ tSchema }),
     }),
   });
 

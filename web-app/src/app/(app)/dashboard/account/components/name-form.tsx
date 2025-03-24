@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +23,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { createErrorMap } from "@/lib/form";
 
 import { updateName } from "../actions";
 import { nameFormSchema, NameFormType } from "../data";
@@ -33,26 +33,7 @@ export function NameForm() {
   const tSchema = useTranslations("Auth.Schema");
   const form = useForm<NameFormType>({
     resolver: zodResolver(nameFormSchema, {
-      errorMap: (error, ctx) => {
-        const path = error.path.join(".");
-        switch (path) {
-          case "name":
-            if (error.code === z.ZodIssueCode.too_small) {
-              return { message: tSchema("Name.min") };
-            }
-            if (error.code === z.ZodIssueCode.too_big) {
-              return { message: tSchema("Name.max") };
-            }
-            if (error.code === z.ZodIssueCode.invalid_string) {
-              return { message: tSchema("Name.invalid") };
-            }
-          case "currentPassword":
-            if (error.code === z.ZodIssueCode.too_small) {
-              return { message: tSchema("Password.required") };
-            }
-        }
-        return { message: ctx.defaultError };
-      },
+      errorMap: createErrorMap({ tSchema }),
     }),
     defaultValues: {
       name: "",

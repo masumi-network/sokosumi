@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -24,6 +23,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { createErrorMap } from "@/lib/form";
 
 import { updateEmail } from "../actions";
 import { emailFormSchema, EmailFormType } from "../data";
@@ -33,20 +33,7 @@ export function EmailForm() {
   const tSchema = useTranslations("Auth.Schema");
   const form = useForm<EmailFormType>({
     resolver: zodResolver(emailFormSchema, {
-      errorMap: (error, ctx) => {
-        const path = error.path.join(".");
-        switch (path) {
-          case "email":
-            if (error.code === z.ZodIssueCode.invalid_string) {
-              return { message: tSchema("Email.invalid") };
-            }
-          case "currentPassword":
-            if (error.code === z.ZodIssueCode.too_small) {
-              return { message: tSchema("Password.required") };
-            }
-        }
-        return { message: ctx.defaultError };
-      },
+      errorMap: createErrorMap({ tSchema }),
     }),
     defaultValues: {
       email: "",

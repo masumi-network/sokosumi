@@ -11,12 +11,12 @@ export async function signin(formData: SignInFormSchemaType): Promise<void> {
     throw new Error("Invalid form data");
   }
 
-  const { email, password } = validatedFields.data;
+  const { email, currentPassword } = validatedFields.data;
 
   await auth.api.signInEmail({
     body: {
       email,
-      password,
+      password: currentPassword,
     },
   });
 }

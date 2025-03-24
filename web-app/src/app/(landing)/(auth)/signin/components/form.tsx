@@ -6,9 +6,9 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { z } from "zod";
 
 import { AuthForm, SubmitButton } from "@/app/(landing)/(auth)/components/form";
+import { createErrorMap } from "@/lib/form";
 
 import { signin } from "../actions";
 import {
@@ -25,24 +25,11 @@ export default function SignInForm() {
 
   const form = useForm<SignInFormSchemaType>({
     resolver: zodResolver(signInFormSchema, {
-      errorMap: (error, ctx) => {
-        const path = error.path.join(".");
-        switch (path) {
-          case "email":
-            if (error.code === z.ZodIssueCode.invalid_string) {
-              return { message: tSchema("Email.invalid") };
-            }
-          case "password":
-            if (error.code === z.ZodIssueCode.too_small) {
-              return { message: tSchema("Password.required") };
-            }
-        }
-        return { message: ctx.defaultError };
-      },
+      errorMap: createErrorMap({ tSchema }),
     }),
     defaultValues: {
       email: "",
-      password: "",
+      currentPassword: "",
     },
   });
 
