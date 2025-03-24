@@ -6,7 +6,7 @@ import { z } from "zod";
  */
 const envSchema = z.object({
   // Database
-  DATABASE_URL: z.string().url().or(z.literal("")),
+  DATABASE_URL: z.string().url().optional(),
 
   // Authentication
   NOREPLY_EMAIL: z.string().email(),
