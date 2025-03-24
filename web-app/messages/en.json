@@ -112,8 +112,8 @@
               "placeholder": "Password"
             },
             "ConfirmPassword": {
-              "label": "Confirm Password",
-              "placeholder": "Confirm Password"
+              "label": "Confirm password",
+              "placeholder": "Confirm password"
             }
           },
           "Errors": {
@@ -138,17 +138,17 @@
       },
       "ForgotPassword": {
         "Metadata": {
-          "title": "Reset Password",
+          "title": "Reset password",
           "description": "Reset your password to regain access to your account"
         },
         "Header": {
-          "title": "Reset Password",
+          "title": "Reset password",
           "description": "Enter your email address and we'll send you a link to reset your password"
         },
         "Form": {
           "success": "We've sent you an email to reset your password",
           "error": "Failed to reset password",
-          "reset_password": "Reset Password",
+          "reset_password": "Reset password",
           "Fields": {
             "Email": {
               "label": "Email",
@@ -164,23 +164,23 @@
       },
       "ResetPassword": {
         "Metadata": {
-          "title": "Reset Password",
+          "title": "Reset password",
           "description": "Set a new password for your account"
         },
-        "title": "Reset Password",
+        "title": "Reset password",
         "description": "Enter your new password below",
         "Form": {
-          "submit": "Reset Password",
+          "submit": "Reset password",
           "success": "Password reset successfully",
           "error": "Password reset failed",
           "Fields": {
             "Password": {
-              "label": "New Password",
-              "placeholder": "New Password"
+              "label": "New password",
+              "placeholder": "New password"
             },
             "ConfirmPassword": {
-              "label": "Confirm Password",
-              "placeholder": "Confirm Password"
+              "label": "Confirm password",
+              "placeholder": "Confirm password"
             }
           },
           "Errors": {
@@ -202,7 +202,7 @@
         "title": "Reset your password",
         "greeting": "Hello {name}",
         "message": "We received a request to reset your password for your account. If you didn't make this request, you can safely ignore this email.",
-        "button": "Reset Password",
+        "button": "Reset password",
         "linkInstructions": "Or copy and paste this URL into your browser:",
         "footer": "If you didn't request a password reset, please ignore this email or contact support if you have concerns."
       },
@@ -211,7 +211,7 @@
         "title": "Verify your email address",
         "greeting": "Hello {name}",
         "message": "Thank you for signing up! Please verify your email address by clicking the button below. This helps us ensure the security of your account.",
-        "button": "Verify Email",
+        "button": "Verify email",
         "linkInstructions": "Or copy and paste this URL into your browser:",
         "footer": "If you didn't create an account, you can safely ignore this email."
       }
