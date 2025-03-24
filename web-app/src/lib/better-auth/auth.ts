@@ -20,6 +20,7 @@ import {
 } from "@/constants";
 
 import prisma from "../db/prisma";
+import { reactChangeEmailVerificationEmail } from "../email/change-email";
 import { resend } from "../email/resend";
 import { reactResetPasswordEmail } from "../email/reset-password";
 import { reactVerificationEmail } from "../email/verification";
@@ -81,11 +82,16 @@ export const auth = betterAuth({
     changeEmail: {
       enabled: true,
       sendChangeEmailVerification: async ({ user, url }) => {
+        const t = await getTranslations("Auth.Email.ChangeEmail");
+
         await resend.emails.send({
           from: fromEmail,
           to: user.email,
-          subject: "Approve email change",
-          text: `Click the link to approve the change: ${url}`,
+          subject: t("subject"),
+          react: reactChangeEmailVerificationEmail({
+            name: user.name,
+            changeEmailLink: url,
+          }),
         });
       },
     },

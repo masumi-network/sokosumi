@@ -220,6 +220,15 @@
         "button": "Verify email",
         "linkInstructions": "Or copy and paste this URL into your browser:",
         "footer": "If you didn't create an account, you can safely ignore this email."
+      },
+      "ChangeEmail": {
+        "subject": "Verify your email change",
+        "title": "Verify Email Change",
+        "greeting": "Hello {name}",
+        "message": "Please click the button below to verify your email change request.",
+        "button": "Verify Email Change",
+        "linkInstructions": "Or copy and paste this URL into your browser:",
+        "footer": "If you didn't request this email change, you can safely ignore this email."
       }
     }
   },
