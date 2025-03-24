@@ -24,10 +24,10 @@ export const passwordSchema = z
       number: true,
     },
   });
-export const confirmPasswordSchema = z.string();
+export const confirmPasswordSchema = z.string().nonempty();
 
 export const nameSchema = z.string().min(2).max(128);
 
 export const emailSchema = z.string().email();
 
-export const currentPasswordSchema = z.string().min(1);
+export const currentPasswordSchema = z.string().nonempty();

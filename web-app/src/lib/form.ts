@@ -81,6 +81,9 @@ export function createErrorMap({ t }: ErrorMapOptions): z.ZodErrorMap {
         break;
       case "confirmPassword":
       case "confirmNewPassword":
+        if (issue.code === z.ZodIssueCode.too_small) {
+          return { message: t("ConfirmPassword.required") };
+        }
         if (issue.code === z.ZodIssueCode.custom) {
           return { message: t("ConfirmPassword.match") };
         }
