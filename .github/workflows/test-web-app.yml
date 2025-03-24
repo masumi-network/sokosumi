@@ -66,4 +66,4 @@ jobs:
           APPLE_CLIENT_ID: ${{ vars.PUBLIC_DEFAULT_SECRET }}
           APPLE_CLIENT_SECRET: ${{ vars.PUBLIC_DEFAULT_SECRET }}
           NOREPLY_EMAIL: ${{ vars.PUBLIC_DEFAULT_EMAIL }}
-          DATABASE_URL: ${{ vars.PUBLIC_DEFAULT_SECRET }}
+          DATABASE_URL: ${{ vars.PUBLIC_DEFAULT_URL }}
