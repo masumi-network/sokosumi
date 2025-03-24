@@ -24,12 +24,11 @@ export default function ForgotPasswordForm({
   initialEmail,
 }: ForgotPasswordFormProps) {
   const t = useTranslations("Auth.Pages.ForgotPassword.Form");
-  const tSchema = useTranslations("Auth.Schema");
   const router = useRouter();
 
   const form = useForm<ForgotPasswordFormSchemaType>({
     resolver: zodResolver(forgotPasswordFormSchema, {
-      errorMap: createErrorMap({ tSchema }),
+      errorMap: createErrorMap({ t: useTranslations("Auth.Schema") }),
     }),
     defaultValues: {
       email: initialEmail ?? "",

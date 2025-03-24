@@ -19,13 +19,12 @@ import {
 
 export default function SignInForm() {
   const t = useTranslations("Auth.Pages.SignIn.Form");
-  const tSchema = useTranslations("Auth.Schema");
 
   const router = useRouter();
 
   const form = useForm<SignInFormSchemaType>({
     resolver: zodResolver(signInFormSchema, {
-      errorMap: createErrorMap({ tSchema }),
+      errorMap: createErrorMap({ t: useTranslations("Auth.Schema") }),
     }),
     defaultValues: {
       email: "",

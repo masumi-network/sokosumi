@@ -22,12 +22,11 @@ interface ResetPasswordFormProps {
 
 export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
   const t = useTranslations("Auth.Pages.ResetPassword.Form");
-  const tSchema = useTranslations("Auth.Schema");
   const router = useRouter();
 
   const form = useForm<ResetPasswordFormSchemaType>({
     resolver: zodResolver(resetPasswordFormSchema, {
-      errorMap: createErrorMap({ tSchema }),
+      errorMap: createErrorMap({ t: useTranslations("Auth.Schema") }),
     }),
     defaultValues: {
       password: "",

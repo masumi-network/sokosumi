@@ -33,56 +33,56 @@ type FormData<
 export type { FormData };
 
 interface ErrorMapOptions {
-  tSchema: (key: string) => string;
+  t: IntlTranslation<"Auth.Schema">;
 }
 
-export function createErrorMap({ tSchema }: ErrorMapOptions): z.ZodErrorMap {
+export function createErrorMap({ t }: ErrorMapOptions): z.ZodErrorMap {
   return (issue: z.ZodIssueOptionalMessage, ctx: z.ErrorMapCtx) => {
     const path = issue.path.join(".");
     switch (path) {
       case "email":
         if (issue.code === z.ZodIssueCode.invalid_string) {
-          return { message: tSchema("Email.invalid") };
+          return { message: t("Email.invalid") };
         }
         break;
       case "name":
         if (issue.code === z.ZodIssueCode.too_big) {
-          return { message: tSchema("Name.max") };
+          return { message: t("Name.max") };
         }
         if (issue.code === z.ZodIssueCode.too_small) {
-          return { message: tSchema("Name.min") };
+          return { message: t("Name.min") };
         }
         if (issue.code === z.ZodIssueCode.invalid_string) {
-          return { message: tSchema("Name.invalid") };
+          return { message: t("Name.invalid") };
         }
         break;
       case "currentPassword":
         if (issue.code === z.ZodIssueCode.too_small) {
-          return { message: tSchema("Password.required") };
+          return { message: t("Password.required") };
         }
         break;
       case "password":
       case "newPassword":
         if (issue.code === z.ZodIssueCode.invalid_string) {
-          return { message: tSchema("Password.invalid") };
+          return { message: t("Password.invalid") };
         }
         if (issue.code === z.ZodIssueCode.too_small) {
-          return { message: tSchema("Password.min") };
+          return { message: t("Password.min") };
         }
         if (issue.code === z.ZodIssueCode.too_big) {
-          return { message: tSchema("Password.max") };
+          return { message: t("Password.max") };
         }
         if (issue.code === z.ZodIssueCode.custom) {
           const { lowercase, uppercase, number } = issue.params ?? {};
-          if (lowercase) return { message: tSchema("Password.lowercase") };
-          if (uppercase) return { message: tSchema("Password.uppercase") };
-          if (number) return { message: tSchema("Password.number") };
+          if (lowercase) return { message: t("Password.lowercase") };
+          if (uppercase) return { message: t("Password.uppercase") };
+          if (number) return { message: t("Password.number") };
         }
         break;
       case "confirmPassword":
       case "confirmNewPassword":
         if (issue.code === z.ZodIssueCode.custom) {
-          return { message: tSchema("ConfirmPassword.match") };
+          return { message: t("ConfirmPassword.match") };
         }
         break;
     }

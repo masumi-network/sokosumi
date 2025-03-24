@@ -30,10 +30,9 @@ import { emailFormSchema, EmailFormType } from "../data";
 
 export function EmailForm() {
   const t = useTranslations("Account.Email");
-  const tSchema = useTranslations("Auth.Schema");
   const form = useForm<EmailFormType>({
     resolver: zodResolver(emailFormSchema, {
-      errorMap: createErrorMap({ tSchema }),
+      errorMap: createErrorMap({ t: useTranslations("Auth.Schema") }),
     }),
     defaultValues: {
       email: "",

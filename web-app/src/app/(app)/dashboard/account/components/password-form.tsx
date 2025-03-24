@@ -30,11 +30,10 @@ import { passwordFormSchema, PasswordFormType } from "../data";
 
 export function PasswordForm() {
   const t = useTranslations("Account.Password");
-  const tSchema = useTranslations("Auth.Schema");
 
   const form = useForm<PasswordFormType>({
     resolver: zodResolver(passwordFormSchema, {
-      errorMap: createErrorMap({ tSchema }),
+      errorMap: createErrorMap({ t: useTranslations("Auth.Schema") }),
     }),
   });
 
