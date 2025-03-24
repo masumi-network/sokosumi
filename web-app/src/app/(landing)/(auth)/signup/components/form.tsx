@@ -21,6 +21,8 @@ export default function SignUpForm() {
   const form = useForm<SignUpFormSchemaType>({
     resolver: zodResolver(signUpFormSchema, {
       errorMap: (error, ctx) => {
+        console.log("error", error);
+        console.log("ctx", ctx);
         const path = error.path.join(".");
         switch (path) {
           case "email":
@@ -37,13 +39,19 @@ export default function SignUpForm() {
             }
           case "password":
             if (error.code === "invalid_string") {
-              return { message: t("Errors.Password.regex") };
+              return { message: t("Errors.Password.invalid") };
             }
             if (error.code === "too_small") {
               return { message: t("Errors.Password.min") };
             }
             if (error.code === "too_big") {
               return { message: t("Errors.Password.max") };
+            }
+            if (error.code === "custom") {
+              const { lowercase, uppercase, number } = error.params ?? {};
+              if (lowercase) return { message: t("Errors.Password.lowercase") };
+              if (uppercase) return { message: t("Errors.Password.uppercase") };
+              if (number) return { message: t("Errors.Password.number") };
             }
           case "confirmPassword":
             if (error.code === "custom") {

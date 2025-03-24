@@ -126,9 +126,12 @@
               "invalid": "Name must be a valid string."
             },
             "Password": {
+              "invalid": "Password must be a valid string.",
               "min": "Password must be at least 8 characters.",
               "max": "Password must be at most 128 characters.",
-              "regex": "Password must contain at least one uppercase letter, one lowercase letter, and one number."
+              "lowercase": "Password must contain at least one lowercase letter.",
+              "uppercase": "Password must contain at least one uppercase letter.",
+              "number": "Password must contain at least one number."
             },
             "ConfirmPassword": {
               "match": "Password doesn't match"
@@ -185,9 +188,12 @@
           },
           "Errors": {
             "Password": {
+              "invalid": "Password must be a valid string.",
               "min": "Password must be at least 8 characters",
               "max": "Password must be at most 128 characters",
-              "regex": "Password must contain at least one uppercase letter, one lowercase letter, and one number."
+              "lowercase": "Password must contain at least one lowercase letter.",
+              "uppercase": "Password must contain at least one uppercase letter.",
+              "number": "Password must contain at least one number."
             },
             "ConfirmPassword": {
               "match": "Passwords must match"
