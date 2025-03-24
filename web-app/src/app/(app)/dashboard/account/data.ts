@@ -2,12 +2,11 @@ import { z } from "zod";
 
 import {
   confirmPasswordSchema,
+  currentPasswordSchema,
   emailSchema,
   nameSchema,
   passwordSchema,
 } from "@/lib/better-auth/data";
-
-const currentPasswordSchema = z.string().min(1);
 
 export const nameFormSchema = z.object({
   name: nameSchema,

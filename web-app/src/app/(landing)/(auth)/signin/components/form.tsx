@@ -29,6 +29,8 @@ export default function SignInForm() {
         switch (path) {
           case "email":
             return { message: tSchema("Email.invalid") };
+          case "password":
+            return { message: tSchema("Password.required") };
         }
         return { message: ctx.defaultError };
       },
