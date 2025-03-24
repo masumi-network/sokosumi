@@ -47,7 +47,7 @@ function validateEnv() {
   return parsed.data;
 }
 
-export const env = validateEnv();
+export const envServer = validateEnv();
 
 // Type-only export for type checking
 export type Env = z.infer<typeof envSchema>;

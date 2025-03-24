@@ -12,7 +12,7 @@ import { getTranslations } from "next-intl/server";
 
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/constants";
 
-import { env } from "../../../config/env.config";
+import { envServer } from "../../../config/env.config";
 import prisma from "../db/prisma";
 import { resend } from "../email/resend";
 import { reactResetPasswordEmail } from "../email/reset-password";
@@ -21,7 +21,7 @@ import { reactVerificationEmail } from "../email/verification";
 export type Session = typeof auth.$Infer.Session;
 export type User = typeof auth.$Infer.Session.user;
 
-const fromEmail = env.NOREPLY_EMAIL ?? "no-reply@resend.dev";
+const fromEmail = envServer.NOREPLY_EMAIL ?? "no-reply@resend.dev";
 
 export const auth = betterAuth({
   session: {
@@ -73,20 +73,20 @@ export const auth = betterAuth({
   },
   socialProviders: {
     google: {
-      clientId: process.env.GOOGLE_CLIENT_ID ?? "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+      clientId: envServer.GOOGLE_CLIENT_ID ?? "",
+      clientSecret: envServer.GOOGLE_CLIENT_SECRET ?? "",
     },
     microsoft: {
-      clientId: process.env.MICROSOFT_CLIENT_ID ?? "",
-      clientSecret: process.env.MICROSOFT_CLIENT_SECRET ?? "",
+      clientId: envServer.MICROSOFT_CLIENT_ID ?? "",
+      clientSecret: envServer.MICROSOFT_CLIENT_SECRET ?? "",
     },
     apple: {
-      clientId: process.env.APPLE_CLIENT_ID ?? "",
-      clientSecret: process.env.APPLE_CLIENT_SECRET ?? "",
+      clientId: envServer.APPLE_CLIENT_ID ?? "",
+      clientSecret: envServer.APPLE_CLIENT_SECRET ?? "",
     },
     linkedin: {
-      clientId: process.env.LINKEDIN_CLIENT_ID ?? "",
-      clientSecret: process.env.LINKEDIN_CLIENT_SECRET ?? "",
+      clientId: envServer.LINKEDIN_CLIENT_ID ?? "",
+      clientSecret: envServer.LINKEDIN_CLIENT_SECRET ?? "",
     },
   },
   plugins: [
