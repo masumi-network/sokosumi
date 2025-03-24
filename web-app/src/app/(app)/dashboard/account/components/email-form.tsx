@@ -29,17 +29,17 @@ import { emailFormSchema, EmailFormType } from "../data";
 
 export function EmailForm() {
   const t = useTranslations("Account.Email");
-
+  const tSchema = useTranslations("Auth.Schema");
   const form = useForm<EmailFormType>({
     resolver: zodResolver(emailFormSchema, {
       errorMap: (error, ctx) => {
         const path = error.path.join(".");
         switch (path) {
           case "email":
-            return { message: t("Errors.Email.invalid") };
+            return { message: tSchema("Email.invalid") };
           case "currentPassword":
             if (error.code === "too_small") {
-              return { message: t("Errors.CurrentPassword.required") };
+              return { message: tSchema("Password.required") };
             }
         }
         return { message: ctx.defaultError };

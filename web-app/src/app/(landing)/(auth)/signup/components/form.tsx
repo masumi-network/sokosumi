@@ -17,45 +17,45 @@ import {
 
 export default function SignUpForm() {
   const t = useTranslations("Auth.Pages.SignUp.Form");
+  const tSchema = useTranslations("Auth.Schema");
+
   const router = useRouter();
   const form = useForm<SignUpFormSchemaType>({
     resolver: zodResolver(signUpFormSchema, {
       errorMap: (error, ctx) => {
-        console.log("error", error);
-        console.log("ctx", ctx);
         const path = error.path.join(".");
         switch (path) {
           case "email":
-            return { message: t("Errors.Email.invalid") };
+            return { message: tSchema("Email.invalid") };
           case "name":
             if (error.code === "too_big") {
-              return { message: t("Errors.Name.max") };
+              return { message: tSchema("Name.max") };
             }
             if (error.code === "too_small") {
-              return { message: t("Errors.Name.min") };
+              return { message: tSchema("Name.min") };
             }
             if (error.code === "invalid_string") {
-              return { message: t("Errors.Name.invalid") };
+              return { message: tSchema("Name.invalid") };
             }
           case "password":
             if (error.code === "invalid_string") {
-              return { message: t("Errors.Password.invalid") };
+              return { message: tSchema("Password.invalid") };
             }
             if (error.code === "too_small") {
-              return { message: t("Errors.Password.min") };
+              return { message: tSchema("Password.min") };
             }
             if (error.code === "too_big") {
-              return { message: t("Errors.Password.max") };
+              return { message: tSchema("Password.max") };
             }
             if (error.code === "custom") {
               const { lowercase, uppercase, number } = error.params ?? {};
-              if (lowercase) return { message: t("Errors.Password.lowercase") };
-              if (uppercase) return { message: t("Errors.Password.uppercase") };
-              if (number) return { message: t("Errors.Password.number") };
+              if (lowercase) return { message: tSchema("Password.lowercase") };
+              if (uppercase) return { message: tSchema("Password.uppercase") };
+              if (number) return { message: tSchema("Password.number") };
             }
           case "confirmPassword":
             if (error.code === "custom") {
-              return { message: t("Errors.ConfirmPassword.match") };
+              return { message: tSchema("ConfirmPassword.match") };
             }
         }
         return { message: ctx.defaultError };

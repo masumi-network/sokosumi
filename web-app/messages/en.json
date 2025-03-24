@@ -30,6 +30,28 @@
     }
   },
   "Auth": {
+    "Schema": {
+      "Email": {
+        "invalid": "Please enter a valid email address."
+      },
+      "Name": {
+        "min": "Name must be at least 2 characters.",
+        "max": "Name must be at most 128 characters.",
+        "invalid": "Name must be a valid string."
+      },
+      "Password": {
+        "invalid": "Password must be a valid string.",
+        "min": "Password must be at least 8 characters",
+        "max": "Password must be at most 128 characters",
+        "lowercase": "Password must contain at least one lowercase letter.",
+        "uppercase": "Password must contain at least one uppercase letter.",
+        "number": "Password must contain at least one number.",
+        "required": "Current password is required"
+      },
+      "ConfirmPassword": {
+        "match": "Password doesn't match"
+      }
+    },
     "Metadata": {
       "Title": {
         "default": "Sokosumi - Sign In / Sign Up",
@@ -71,164 +93,118 @@
             }
           },
           "Errors": {
-            "Email": {
-              "invalid": "Please enter a valid email address."
-            },
             "Submit": {
               "verifyEmail": "Please verify your email address",
               "invalid": "Invalid email or password"
             }
-          },
-          "ForgotPassword": {
-            "text": "Forgot your password?",
-            "link": "Reset it here"
           }
-        }
-      },
-      "SignUp": {
-        "Metadata": {
-          "title": "Sign Up",
-          "description": "Hire yourself an agent to finish the most time consuming tasks"
         },
-        "Header": {
-          "title": "Sign Up",
-          "description": "Hire agents on our platform"
-        },
-        "Form": {
-          "submit": "Sign Up",
-          "success": "Sign Up successful",
-          "error": "Sign Up failed",
-          "Fields": {
-            "Email": {
-              "label": "Email",
-              "placeholder": "me@example.com"
-            },
-            "Name": {
-              "label": "Name",
-              "placeholder": "John Doe"
-            },
-            "Password": {
-              "label": "Password",
-              "placeholder": "Password"
-            },
-            "ConfirmPassword": {
-              "label": "Confirm password",
-              "placeholder": "Confirm password"
-            }
+        "SignUp": {
+          "Metadata": {
+            "title": "Sign Up",
+            "description": "Hire yourself an agent to finish the most time consuming tasks"
           },
-          "Errors": {
-            "Email": {
-              "invalid": "Please enter a valid email address."
-            },
-            "Name": {
-              "min": "Name must be at least 2 characters.",
-              "max": "Name must be at most 128 characters.",
-              "invalid": "Name must be a valid string."
-            },
-            "Password": {
-              "invalid": "Password must be a valid string.",
-              "min": "Password must be at least 8 characters.",
-              "max": "Password must be at most 128 characters.",
-              "lowercase": "Password must contain at least one lowercase letter.",
-              "uppercase": "Password must contain at least one uppercase letter.",
-              "number": "Password must contain at least one number."
-            },
-            "ConfirmPassword": {
-              "match": "Password doesn't match"
+          "Header": {
+            "title": "Sign Up",
+            "description": "Hire agents on our platform"
+          },
+          "Form": {
+            "submit": "Sign Up",
+            "success": "Sign Up successful",
+            "error": "Sign Up failed",
+            "Fields": {
+              "Email": {
+                "label": "Email",
+                "placeholder": "me@example.com"
+              },
+              "Name": {
+                "label": "Name",
+                "placeholder": "John Doe"
+              },
+              "Password": {
+                "label": "Password",
+                "placeholder": "Password"
+              },
+              "ConfirmPassword": {
+                "label": "Confirm password",
+                "placeholder": "Confirm password"
+              }
             }
           }
-        }
-      },
-      "ForgotPassword": {
-        "Metadata": {
+        },
+        "ForgotPassword": {
+          "Metadata": {
+            "title": "Reset password",
+            "description": "Reset your password to regain access to your account"
+          },
+          "Header": {
+            "title": "Reset password",
+            "description": "Enter your email address and we'll send you a link to reset your password"
+          },
+          "Form": {
+            "success": "We've sent you an email to reset your password",
+            "error": "Failed to reset password",
+            "reset_password": "Reset password",
+            "Fields": {
+              "Email": {
+                "label": "Email",
+                "placeholder": "me@example.com"
+              }
+            }
+          }
+        },
+        "ResetPassword": {
+          "Metadata": {
+            "title": "Reset password",
+            "description": "Set a new password for your account"
+          },
           "title": "Reset password",
-          "description": "Reset your password to regain access to your account"
-        },
-        "Header": {
-          "title": "Reset password",
-          "description": "Enter your email address and we'll send you a link to reset your password"
-        },
-        "Form": {
-          "success": "We've sent you an email to reset your password",
-          "error": "Failed to reset password",
-          "reset_password": "Reset password",
-          "Fields": {
-            "Email": {
-              "label": "Email",
-              "placeholder": "me@example.com"
-            }
-          },
-          "Errors": {
-            "Email": {
-              "invalid": "Please enter a valid email address."
+          "description": "Enter your new password below",
+          "Form": {
+            "submit": "Reset password",
+            "success": "Password reset successfully",
+            "error": "Password reset failed",
+            "Fields": {
+              "Password": {
+                "label": "New password",
+                "placeholder": "New password"
+              },
+              "ConfirmPassword": {
+                "label": "Confirm password",
+                "placeholder": "Confirm password"
+              }
             }
           }
         }
       },
-      "ResetPassword": {
-        "Metadata": {
-          "title": "Reset password",
-          "description": "Set a new password for your account"
+      "Email": {
+        "ResetPassword": {
+          "subject": "Sokosumi - Reset your password",
+          "title": "Reset your password",
+          "greeting": "Hello {name}",
+          "message": "We received a request to reset your password for your account. If you didn't make this request, you can safely ignore this email.",
+          "button": "Reset password",
+          "linkInstructions": "Or copy and paste this URL into your browser:",
+          "footer": "If you didn't request a password reset, please ignore this email or contact support if you have concerns."
         },
-        "title": "Reset password",
-        "description": "Enter your new password below",
-        "Form": {
-          "submit": "Reset password",
-          "success": "Password reset successfully",
-          "error": "Password reset failed",
-          "Fields": {
-            "Password": {
-              "label": "New password",
-              "placeholder": "New password"
-            },
-            "ConfirmPassword": {
-              "label": "Confirm password",
-              "placeholder": "Confirm password"
-            }
-          },
-          "Errors": {
-            "Password": {
-              "invalid": "Password must be a valid string.",
-              "min": "Password must be at least 8 characters",
-              "max": "Password must be at most 128 characters",
-              "lowercase": "Password must contain at least one lowercase letter.",
-              "uppercase": "Password must contain at least one uppercase letter.",
-              "number": "Password must contain at least one number."
-            },
-            "ConfirmPassword": {
-              "match": "Passwords must match"
-            }
-          }
+        "Verification": {
+          "subject": "Sokosumi - Verify your email address",
+          "title": "Verify your email address",
+          "greeting": "Hello {name}",
+          "message": "Thank you for signing up! Please verify your email address by clicking the button below. This helps us ensure the security of your account.",
+          "button": "Verify email",
+          "linkInstructions": "Or copy and paste this URL into your browser:",
+          "footer": "If you didn't create an account, you can safely ignore this email."
+        },
+        "ChangeEmail": {
+          "subject": "Verify your email change",
+          "title": "Verify Email Change",
+          "greeting": "Hello {name}",
+          "message": "Please click the button below to verify your email change request.",
+          "button": "Verify Email Change",
+          "linkInstructions": "Or copy and paste this URL into your browser:",
+          "footer": "If you didn't request this email change, you can safely ignore this email."
         }
-      }
-    },
-    "Email": {
-      "ResetPassword": {
-        "subject": "Sokosumi - Reset your password",
-        "title": "Reset your password",
-        "greeting": "Hello {name}",
-        "message": "We received a request to reset your password for your account. If you didn't make this request, you can safely ignore this email.",
-        "button": "Reset password",
-        "linkInstructions": "Or copy and paste this URL into your browser:",
-        "footer": "If you didn't request a password reset, please ignore this email or contact support if you have concerns."
-      },
-      "Verification": {
-        "subject": "Sokosumi - Verify your email address",
-        "title": "Verify your email address",
-        "greeting": "Hello {name}",
-        "message": "Thank you for signing up! Please verify your email address by clicking the button below. This helps us ensure the security of your account.",
-        "button": "Verify email",
-        "linkInstructions": "Or copy and paste this URL into your browser:",
-        "footer": "If you didn't create an account, you can safely ignore this email."
-      },
-      "ChangeEmail": {
-        "subject": "Verify your email change",
-        "title": "Verify Email Change",
-        "greeting": "Hello {name}",
-        "message": "Please click the button below to verify your email change request.",
-        "button": "Verify Email Change",
-        "linkInstructions": "Or copy and paste this URL into your browser:",
-        "footer": "If you didn't request this email change, you can safely ignore this email."
       }
     }
   },
@@ -402,17 +378,7 @@
       "currentPassword": "Current password",
       "submit": "Update name",
       "success": "Name updated successfully",
-      "error": "Failed to update name",
-      "Errors": {
-        "Name": {
-          "min": "Name must be at least 2 characters.",
-          "max": "Name must be at most 128 characters.",
-          "invalid": "Name must be a valid string."
-        },
-        "CurrentPassword": {
-          "required": "Current password is required"
-        }
-      }
+      "error": "Failed to update name"
     },
     "Email": {
       "title": "Change email",
@@ -421,15 +387,7 @@
       "currentPassword": "Current password",
       "submit": "Update email",
       "success": "Email updated successfully",
-      "error": "Failed to update email",
-      "Errors": {
-        "Email": {
-          "invalid": "Please enter a valid email address."
-        },
-        "CurrentPassword": {
-          "required": "Current password is required"
-        }
-      }
+      "error": "Failed to update email"
     },
     "Password": {
       "title": "Change password",
@@ -439,20 +397,7 @@
       "confirmPassword": "Confirm new password",
       "submit": "Update password",
       "success": "Password updated successfully",
-      "error": "Failed to update password",
-      "Errors": {
-        "NewPassword": {
-          "min": "Password must be at least 8 characters",
-          "max": "Password must be at most 128 characters",
-          "regex": "Password must contain at least one uppercase letter, one lowercase letter, and one number."
-        },
-        "ConfirmPassword": {
-          "match": "Passwords must match"
-        },
-        "CurrentPassword": {
-          "required": "Current password is required"
-        }
-      }
+      "error": "Failed to update password"
     },
     "Delete": {
       "title": "Delete account",
@@ -463,12 +408,7 @@
       "currentPassword": "Current password",
       "confirm": "Yes, delete my account",
       "success": "Account deleted successfully",
-      "error": "Failed to delete account",
-      "Errors": {
-        "CurrentPassword": {
-          "required": "Current password is required"
-        }
-      }
+      "error": "Failed to delete account"
     }
   }
 }

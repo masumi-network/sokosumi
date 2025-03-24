@@ -21,6 +21,7 @@ interface ResetPasswordFormProps {
 
 export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
   const t = useTranslations("Auth.Pages.ResetPassword.Form");
+  const tSchema = useTranslations("Auth.Schema");
   const router = useRouter();
 
   const form = useForm<ResetPasswordFormSchemaType>({
@@ -30,23 +31,23 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
         switch (path) {
           case "password":
             if (error.code === "invalid_string") {
-              return { message: t("Errors.Password.invalid") };
+              return { message: tSchema("Password.invalid") };
             }
             if (error.code === "too_small") {
-              return { message: t("Errors.Password.min") };
+              return { message: tSchema("Password.min") };
             }
             if (error.code === "too_big") {
-              return { message: t("Errors.Password.max") };
+              return { message: tSchema("Password.max") };
             }
             if (error.code === "custom") {
               const { lowercase, uppercase, number } = error.params ?? {};
-              if (lowercase) return { message: t("Errors.Password.lowercase") };
-              if (uppercase) return { message: t("Errors.Password.uppercase") };
-              if (number) return { message: t("Errors.Password.number") };
+              if (lowercase) return { message: tSchema("Password.lowercase") };
+              if (uppercase) return { message: tSchema("Password.uppercase") };
+              if (number) return { message: tSchema("Password.number") };
             }
           case "confirmPassword":
             if (error.code === "custom") {
-              return { message: t("Errors.ConfirmPassword.match") };
+              return { message: tSchema("ConfirmPassword.match") };
             }
         }
         return { message: ctx.defaultError };

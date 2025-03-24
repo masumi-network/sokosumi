@@ -1,5 +1,3 @@
-"use client";
-
 import { useTranslations } from "next-intl";
 
 import { DeleteAccountForm } from "./delete-account-form";
@@ -7,7 +5,7 @@ import { EmailForm } from "./email-form";
 import { NameForm } from "./name-form";
 import { PasswordForm } from "./password-form";
 
-export function AccountSettingsForm() {
+export function AccountSettings() {
   const t = useTranslations("Account");
 
   return (

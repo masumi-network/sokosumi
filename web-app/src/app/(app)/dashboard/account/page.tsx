@@ -1,9 +1,9 @@
-import { AccountSettingsForm } from "./components/account-settings-form";
+import { AccountSettings } from "./components/account-settings";
 
 export default function Page() {
   return (
     <div className="flex items-center justify-center gap-16 p-8">
-      <AccountSettingsForm />
+      <AccountSettings />
     </div>
   );
 }

@@ -38,6 +38,7 @@ import { DeleteAccountFormType, deleteAccountSchema } from "../data";
 
 export function DeleteAccountForm() {
   const t = useTranslations("Account.Delete");
+  const tSchema = useTranslations("Auth.Schema");
   const router = useRouter();
 
   const form = useForm<DeleteAccountFormType>({
@@ -47,7 +48,7 @@ export function DeleteAccountForm() {
         switch (path) {
           case "currentPassword":
             if (error.code === "too_small") {
-              return { message: t("Errors.CurrentPassword.required") };
+              return { message: tSchema("Password.required") };
             }
         }
         return { message: ctx.defaultError };

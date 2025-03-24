@@ -29,6 +29,7 @@ import { passwordFormSchema, PasswordFormType } from "../data";
 
 export function PasswordForm() {
   const t = useTranslations("Account.Password");
+  const tSchema = useTranslations("Auth.Schema");
 
   const form = useForm<PasswordFormType>({
     resolver: zodResolver(passwordFormSchema, {
@@ -36,22 +37,28 @@ export function PasswordForm() {
         const path = error.path.join(".");
         switch (path) {
           case "newPassword":
+            if (error.code === "invalid_string") {
+              return { message: tSchema("Password.invalid") };
+            }
             if (error.code === "too_small") {
-              return { message: t("Errors.NewPassword.min") };
+              return { message: tSchema("Password.min") };
             }
             if (error.code === "too_big") {
-              return { message: t("Errors.NewPassword.max") };
+              return { message: tSchema("Password.max") };
             }
             if (error.code === "custom") {
-              return { message: t("Errors.NewPassword.regex") };
+              const { lowercase, uppercase, number } = error.params ?? {};
+              if (lowercase) return { message: tSchema("Password.lowercase") };
+              if (uppercase) return { message: tSchema("Password.uppercase") };
+              if (number) return { message: tSchema("Password.number") };
             }
           case "currentPassword":
             if (error.code === "too_small") {
-              return { message: t("Errors.CurrentPassword.required") };
+              return { message: tSchema("Password.required") };
             }
           case "confirmNewPassword":
             if (error.code === "custom") {
-              return { message: t("Errors.ConfirmPassword.match") };
+              return { message: tSchema("ConfirmPassword.match") };
             }
         }
         return { message: ctx.defaultError };

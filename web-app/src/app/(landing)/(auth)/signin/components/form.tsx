@@ -18,6 +18,8 @@ import {
 
 export default function SignInForm() {
   const t = useTranslations("Auth.Pages.SignIn.Form");
+  const tSchema = useTranslations("Auth.Schema");
+
   const router = useRouter();
 
   const form = useForm<SignInFormSchemaType>({
@@ -26,7 +28,7 @@ export default function SignInForm() {
         const path = error.path.join(".");
         switch (path) {
           case "email":
-            return { message: t("Errors.Email.invalid") };
+            return { message: tSchema("Email.invalid") };
         }
         return { message: ctx.defaultError };
       },

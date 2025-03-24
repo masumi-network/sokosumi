@@ -29,7 +29,7 @@ import { nameFormSchema, NameFormType } from "../data";
 
 export function NameForm() {
   const t = useTranslations("Account.Name");
-
+  const tSchema = useTranslations("Auth.Schema");
   const form = useForm<NameFormType>({
     resolver: zodResolver(nameFormSchema, {
       errorMap: (error, ctx) => {
@@ -37,17 +37,17 @@ export function NameForm() {
         switch (path) {
           case "name":
             if (error.code === "too_small") {
-              return { message: t("Errors.Name.min") };
+              return { message: tSchema("Name.min") };
             }
             if (error.code === "too_big") {
-              return { message: t("Errors.Name.max") };
+              return { message: tSchema("Name.max") };
             }
             if (error.code === "invalid_string") {
-              return { message: t("Errors.Name.invalid") };
+              return { message: tSchema("Name.invalid") };
             }
           case "currentPassword":
             if (error.code === "too_small") {
-              return { message: t("Errors.CurrentPassword.required") };
+              return { message: tSchema("Password.required") };
             }
         }
         return { message: ctx.defaultError };
