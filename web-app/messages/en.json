@@ -381,17 +381,17 @@
     "title": "Account Settings",
     "description": "Manage your account settings and preferences",
     "Name": {
-      "title": "Change Name",
+      "title": "Change name",
       "description": "Update your display name",
-      "newName": "New Name",
-      "currentPassword": "Current Password",
-      "submit": "Update Name",
+      "newName": "New name",
+      "currentPassword": "Current password",
+      "submit": "Update name",
       "success": "Name updated successfully",
       "error": "Failed to update name",
       "Errors": {
         "Name": {
           "min": "Name must be at least 2 characters.",
-          "max": "Name must be maximum 128 characters.",
+          "max": "Name must be at most 128 characters.",
           "invalid": "Name must be a valid string."
         },
         "CurrentPassword": {
@@ -400,11 +400,11 @@
       }
     },
     "Email": {
-      "title": "Change Email",
+      "title": "Change email",
       "description": "Update your email address",
-      "newEmail": "New Email",
-      "currentPassword": "Current Password",
-      "submit": "Update Email",
+      "newEmail": "New email",
+      "currentPassword": "Current password",
+      "submit": "Update email",
       "success": "Email updated successfully",
       "error": "Failed to update email",
       "Errors": {
@@ -417,18 +417,18 @@
       }
     },
     "Password": {
-      "title": "Change Password",
+      "title": "Change password",
       "description": "Update your password",
-      "currentPassword": "Current Password",
-      "newPassword": "New Password",
-      "confirmPassword": "Confirm New Password",
-      "submit": "Update Password",
+      "currentPassword": "Current password",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm new password",
+      "submit": "Update password",
       "success": "Password updated successfully",
       "error": "Failed to update password",
       "Errors": {
         "NewPassword": {
           "min": "Password must be at least 8 characters",
-          "max": "Password must be maximum 128 characters",
+          "max": "Password must be at most 128 characters",
           "regex": "Password must contain at least one uppercase letter, one lowercase letter, and one number."
         },
         "ConfirmPassword": {
@@ -440,12 +440,12 @@
       }
     },
     "Delete": {
-      "title": "Delete Account",
+      "title": "Delete account",
       "description": "Permanently delete your account and all associated data",
-      "button": "Delete Account",
+      "button": "Delete account",
       "confirmTitle": "Are you sure?",
       "confirmDescription": "This action cannot be undone. This will permanently delete your account and remove your data from our servers.",
-      "currentPassword": "Current Password",
+      "currentPassword": "Current password",
       "confirm": "Yes, delete my account",
       "success": "Account deleted successfully",
       "error": "Failed to delete account",
