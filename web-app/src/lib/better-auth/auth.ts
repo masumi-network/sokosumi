@@ -20,7 +20,7 @@ import { reactVerificationEmail } from "../email/verification";
 export type Session = typeof auth.$Infer.Session;
 export type User = typeof auth.$Infer.Session.user;
 
-const fromEmail = process.env.NOREPLY_EMAIL || "no-reply@resend.dev";
+const fromEmail = process.env.NOREPLY_EMAIL ?? "no-reply@resend.dev";
 
 export const auth = betterAuth({
   session: {
@@ -72,20 +72,20 @@ export const auth = betterAuth({
   },
   socialProviders: {
     google: {
-      clientId: process.env.GOOGLE_CLIENT_ID || "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || "",
+      clientId: process.env.GOOGLE_CLIENT_ID ?? "",
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
     },
     microsoft: {
-      clientId: process.env.MICROSOFT_CLIENT_ID || "",
-      clientSecret: process.env.MICROSOFT_CLIENT_SECRET || "",
+      clientId: process.env.MICROSOFT_CLIENT_ID ?? "",
+      clientSecret: process.env.MICROSOFT_CLIENT_SECRET ?? "",
     },
     apple: {
-      clientId: process.env.APPLE_CLIENT_ID || "",
-      clientSecret: process.env.APPLE_CLIENT_SECRET || "",
+      clientId: process.env.APPLE_CLIENT_ID ?? "",
+      clientSecret: process.env.APPLE_CLIENT_SECRET ?? "",
     },
     linkedin: {
-      clientId: process.env.LINKEDIN_CLIENT_ID || "",
-      clientSecret: process.env.LINKEDIN_CLIENT_SECRET || "",
+      clientId: process.env.LINKEDIN_CLIENT_ID ?? "",
+      clientSecret: process.env.LINKEDIN_CLIENT_SECRET ?? "",
     },
   },
   plugins: [

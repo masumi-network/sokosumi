@@ -1,12 +1,7 @@
 import { FlatCompat } from "@eslint/eslintrc";
-import { dirname } from "path";
-import { fileURLToPath } from "url";
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
 
 const compat = new FlatCompat({
-  baseDirectory: __dirname,
+  baseDirectory: import.meta.dirname,
   recommendedConfig: {
     extends: ["eslint:recommended", "plugin:react/recommended"],
   },
@@ -31,6 +26,7 @@ const eslintConfig = [
       "import/newline-after-import": "error",
       "import/no-duplicates": "error",
       "unused-imports/no-unused-imports": "error",
+      "@typescript-eslint/prefer-nullish-coalescing": "error",
       "@typescript-eslint/no-unused-vars": [
         "warn",
         {
@@ -44,6 +40,8 @@ const eslintConfig = [
     parserOptions: {
       sourceType: "module",
       ecmaVersion: "latest",
+      project: "./tsconfig.json",
+      tsconfigRootDir: import.meta.dirname,
     },
   }),
 ];
