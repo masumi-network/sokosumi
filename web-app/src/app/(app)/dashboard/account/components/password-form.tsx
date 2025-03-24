@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -37,27 +38,27 @@ export function PasswordForm() {
         const path = error.path.join(".");
         switch (path) {
           case "newPassword":
-            if (error.code === "invalid_string") {
+            if (error.code === z.ZodIssueCode.invalid_string) {
               return { message: tSchema("Password.invalid") };
             }
-            if (error.code === "too_small") {
+            if (error.code === z.ZodIssueCode.too_small) {
               return { message: tSchema("Password.min") };
             }
-            if (error.code === "too_big") {
+            if (error.code === z.ZodIssueCode.too_big) {
               return { message: tSchema("Password.max") };
             }
-            if (error.code === "custom") {
+            if (error.code === z.ZodIssueCode.custom) {
               const { lowercase, uppercase, number } = error.params ?? {};
               if (lowercase) return { message: tSchema("Password.lowercase") };
               if (uppercase) return { message: tSchema("Password.uppercase") };
               if (number) return { message: tSchema("Password.number") };
             }
           case "currentPassword":
-            if (error.code === "too_small") {
+            if (error.code === z.ZodIssueCode.too_small) {
               return { message: tSchema("Password.required") };
             }
           case "confirmNewPassword":
-            if (error.code === "custom") {
+            if (error.code === z.ZodIssueCode.custom) {
               return { message: tSchema("ConfirmPassword.match") };
             }
         }

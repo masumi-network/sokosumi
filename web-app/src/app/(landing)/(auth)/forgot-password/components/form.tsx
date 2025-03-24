@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { z } from "zod";
 
 import { AuthForm, SubmitButton } from "@/app/(landing)/(auth)/components/form";
 
@@ -32,7 +33,9 @@ export default function ForgotPasswordForm({
         const path = error.path.join(".");
         switch (path) {
           case "email":
-            return { message: tSchema("Email.invalid") };
+            if (error.code === z.ZodIssueCode.invalid_string) {
+              return { message: tSchema("Email.invalid") };
+            }
         }
         return { message: ctx.defaultError };
       },

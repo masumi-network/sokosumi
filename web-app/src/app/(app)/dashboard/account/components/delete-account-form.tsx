@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -47,7 +48,7 @@ export function DeleteAccountForm() {
         const path = error.path.join(".");
         switch (path) {
           case "currentPassword":
-            if (error.code === "too_small") {
+            if (error.code === z.ZodIssueCode.too_small) {
               return { message: tSchema("Password.required") };
             }
         }

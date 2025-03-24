@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -36,9 +37,11 @@ export function EmailForm() {
         const path = error.path.join(".");
         switch (path) {
           case "email":
-            return { message: tSchema("Email.invalid") };
+            if (error.code === z.ZodIssueCode.invalid_string) {
+              return { message: tSchema("Email.invalid") };
+            }
           case "currentPassword":
-            if (error.code === "too_small") {
+            if (error.code === z.ZodIssueCode.too_small) {
               return { message: tSchema("Password.required") };
             }
         }
