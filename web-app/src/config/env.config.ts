@@ -10,25 +10,25 @@ const envSchema = z.object({
 
   // Authentication
   NOREPLY_EMAIL: z.string().email(),
-  BETTER_AUTH_SECRET: z.string().min(1),
-  RESEND_API_KEY: z.string().min(1),
+  BETTER_AUTH_SECRET: z.string().nonempty(),
+  RESEND_API_KEY: z.string().nonempty(),
 
   // Social Providers
   // Google
-  GOOGLE_CLIENT_ID: z.string().min(1),
-  GOOGLE_CLIENT_SECRET: z.string().min(1),
+  GOOGLE_CLIENT_ID: z.string().nonempty(),
+  GOOGLE_CLIENT_SECRET: z.string().nonempty(),
 
   // Microsoft
-  MICROSOFT_CLIENT_ID: z.string().min(1),
-  MICROSOFT_CLIENT_SECRET: z.string().min(1),
+  MICROSOFT_CLIENT_ID: z.string().nonempty(),
+  MICROSOFT_CLIENT_SECRET: z.string().nonempty(),
 
   // Apple
-  APPLE_CLIENT_ID: z.string().min(1),
-  APPLE_CLIENT_SECRET: z.string().min(1),
+  APPLE_CLIENT_ID: z.string().nonempty(),
+  APPLE_CLIENT_SECRET: z.string().nonempty(),
 
   // LinkedIn
-  LINKEDIN_CLIENT_ID: z.string().min(1),
-  LINKEDIN_CLIENT_SECRET: z.string().min(1),
+  LINKEDIN_CLIENT_ID: z.string().nonempty(),
+  LINKEDIN_CLIENT_SECRET: z.string().nonempty(),
 });
 
 /**
