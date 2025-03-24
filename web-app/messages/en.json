@@ -92,6 +92,10 @@
               "placeholder": "Password"
             }
           },
+          "ForgotPassword": {
+            "text": "Forgot password?",
+            "link": "Reset it here"
+          },
           "Errors": {
             "Submit": {
               "verifyEmail": "Please verify your email address",
