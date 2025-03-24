@@ -94,7 +94,7 @@
             }
           },
           "ForgotPassword": {
-            "text": "Forgot password?",
+            "text": "Forgot your password?",
             "link": "Reset it here"
           },
           "Errors": {
