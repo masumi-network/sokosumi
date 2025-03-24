@@ -122,12 +122,12 @@
             },
             "Name": {
               "min": "Name must be at least 2 characters.",
-              "max": "Name must be maximum 128 characters.",
+              "max": "Name must be at most 128 characters.",
               "invalid": "Name must be a valid string."
             },
             "Password": {
               "min": "Password must be at least 8 characters.",
-              "max": "Password must be maximum 128 characters.",
+              "max": "Password must be at most 128 characters.",
               "regex": "Password must contain at least one uppercase letter, one lowercase letter, and one number."
             },
             "ConfirmPassword": {
@@ -186,7 +186,7 @@
           "Errors": {
             "Password": {
               "min": "Password must be at least 8 characters",
-              "max": "Password must be maximum 128 characters",
+              "max": "Password must be at most 128 characters",
               "regex": "Password must contain at least one uppercase letter, one lowercase letter, and one number."
             },
             "ConfirmPassword": {
