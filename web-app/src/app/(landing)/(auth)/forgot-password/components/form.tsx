@@ -37,7 +37,7 @@ export default function ForgotPasswordForm({
       },
     }),
     defaultValues: {
-      email: initialEmail || "",
+      email: initialEmail ?? "",
     },
   });
 
