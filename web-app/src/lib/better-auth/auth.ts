@@ -10,7 +10,14 @@ import {
 import { passkey } from "better-auth/plugins/passkey";
 import { getTranslations } from "next-intl/server";
 
-import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/constants";
+import {
+  BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE,
+  BETTER_AUTH_SESSION_EXPIRES_IN,
+  BETTER_AUTH_SESSION_FRESH_AGE,
+  BETTER_AUTH_SESSION_UPDATE_AGE,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+} from "@/constants";
 
 import prisma from "../db/prisma";
 import { resend } from "../email/resend";
@@ -24,12 +31,12 @@ const fromEmail = process.env.NOREPLY_EMAIL || "no-reply@resend.dev";
 
 export const auth = betterAuth({
   session: {
-    expiresIn: 60 * 60 * 24 * 7, // 7 days
-    updateAge: 60 * 60 * 24, // 1 day
-    freshAge: 60 * 5, // 5 minutes
+    expiresIn: BETTER_AUTH_SESSION_EXPIRES_IN,
+    updateAge: BETTER_AUTH_SESSION_UPDATE_AGE,
+    freshAge: BETTER_AUTH_SESSION_FRESH_AGE,
     cookieCache: {
       enabled: true,
-      maxAge: 60 * 5, // 5 minutes
+      maxAge: BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE,
     },
   },
   database: prismaAdapter(prisma, {
