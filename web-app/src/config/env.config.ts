@@ -6,7 +6,7 @@ import { z } from "zod";
  */
 const envSchema = z.object({
   // Database
-  DATABASE_URL: z.string().url().optional(),
+  DATABASE_URL: z.string().url(),
 
   // Authentication
   NOREPLY_EMAIL: z.string().email(),
@@ -34,7 +34,7 @@ const envSchema = z.object({
 /**
  * Validate that all environment variables are set and valid
  */
-function validateEnv() {
+export function validateEnv() {
   const parsed = envSchema.safeParse(process.env);
 
   if (!parsed.success) {
@@ -44,19 +44,4 @@ function validateEnv() {
     );
     process.exit(1);
   }
-  if (
-    process.env.ENVIRONMENT != "test" &&
-    parsed.data.DATABASE_URL == undefined
-  ) {
-    throw new Error(
-      "❌ DATABASE_URL is not set in non-test environment. Please set the DATABASE_URL environment variable or the ENVIRONMENT to 'test'. ENVIRONMENT: " +
-        process.env.ENVIRONMENT,
-    );
-  }
-  return parsed.data;
 }
-
-export const envServer = validateEnv();
-
-// Type-only export for type checking
-export type Env = z.infer<typeof envSchema>;
