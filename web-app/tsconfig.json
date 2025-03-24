@@ -5,7 +5,7 @@
     "allowJs": true,
     "skipLibCheck": true,
     "strict": true,
-    //enable it explicitly
+    // Enable it explicitly for the ESLint rule `typescript-eslint/prefer-nullish-coalescing`.
     "strictNullChecks": true,
     "noEmit": true,
     "esModuleInterop": true,
