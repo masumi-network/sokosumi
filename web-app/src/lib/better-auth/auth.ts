@@ -12,6 +12,7 @@ import { getTranslations } from "next-intl/server";
 
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/constants";
 
+import { env } from "../../../config/env.config";
 import prisma from "../db/prisma";
 import { resend } from "../email/resend";
 import { reactResetPasswordEmail } from "../email/reset-password";
@@ -20,7 +21,7 @@ import { reactVerificationEmail } from "../email/verification";
 export type Session = typeof auth.$Infer.Session;
 export type User = typeof auth.$Infer.Session.user;
 
-const fromEmail = process.env.NOREPLY_EMAIL ?? "no-reply@resend.dev";
+const fromEmail = env.NOREPLY_EMAIL ?? "no-reply@resend.dev";
 
 export const auth = betterAuth({
   session: {
