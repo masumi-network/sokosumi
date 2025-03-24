@@ -27,7 +27,9 @@ export default function SignUpForm() {
         const path = error.path.join(".");
         switch (path) {
           case "email":
-            return { message: tSchema("Email.invalid") };
+            if (error.code === z.ZodIssueCode.invalid_string) {
+              return { message: tSchema("Email.invalid") };
+            }
           case "name":
             if (error.code === z.ZodIssueCode.too_big) {
               return { message: tSchema("Name.max") };
