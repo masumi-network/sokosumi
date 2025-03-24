@@ -10,9 +10,9 @@ import {
 import { passkey } from "better-auth/plugins/passkey";
 import { getTranslations } from "next-intl/server";
 
+import { envServer } from "@/config/env.config";
 import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/constants";
 
-import { envServer } from "../../../config/env.config";
 import prisma from "../db/prisma";
 import { resend } from "../email/resend";
 import { reactResetPasswordEmail } from "../email/reset-password";
