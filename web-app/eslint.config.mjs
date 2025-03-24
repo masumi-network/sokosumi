@@ -31,6 +31,7 @@ const eslintConfig = [
       "import/newline-after-import": "error",
       "import/no-duplicates": "error",
       "unused-imports/no-unused-imports": "error",
+      "@typescript-eslint/prefer-nullish-coalescing": "error",
       "@typescript-eslint/no-unused-vars": [
         "warn",
         {
@@ -44,6 +45,8 @@ const eslintConfig = [
     parserOptions: {
       sourceType: "module",
       ecmaVersion: "latest",
+      project: "./tsconfig.json",
+      tsconfigRootDir: __dirname,
     },
   }),
 ];
