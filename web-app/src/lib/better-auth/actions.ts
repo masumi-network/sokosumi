@@ -3,10 +3,15 @@ import { auth } from "@/lib/better-auth/auth";
 
 export async function signInSocial(
   provider: "google" | "microsoft" | "apple" | "linkedin",
-) {
-  await auth.api.signInSocial({
-    body: {
-      provider: provider,
-    },
-  });
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    await auth.api.signInSocial({
+      body: {
+        provider: provider,
+      },
+    });
+    return { success: true };
+  } catch {
+    return { success: false };
+  }
 }
