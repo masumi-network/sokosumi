@@ -35,6 +35,11 @@ export function PasswordForm() {
     resolver: zodResolver(passwordFormSchema, {
       errorMap: createErrorMap({ t: useTranslations("Auth.Schema") }),
     }),
+    defaultValues: {
+      currentPassword: "",
+      newPassword: "",
+      confirmNewPassword: "",
+    },
   });
 
   const onSubmit = async (values: PasswordFormType) => {

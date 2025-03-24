@@ -24,13 +24,12 @@ export async function updateName(
     return { success: false, error: "Invalid form data" };
   }
 
-  const { name, currentPassword } = validatedFields.data;
+  const { name } = validatedFields.data;
 
   try {
     await auth.api.updateUser({
       body: {
         name,
-        password: currentPassword,
       },
       headers: await headers(),
     });
@@ -49,13 +48,12 @@ export async function updateEmail(
     return { success: false, error: "Invalid form data" };
   }
 
-  const { email, currentPassword } = validatedFields.data;
+  const { email } = validatedFields.data;
 
   try {
     await auth.api.changeEmail({
       body: {
         newEmail: email,
-        password: currentPassword,
         callbackURL: "/dashboard",
       },
       headers: await headers(),
@@ -107,9 +105,6 @@ export async function deleteAccount(
     await auth.api.deleteUser({
       body: {
         password: currentPassword,
-      },
-      query: {
-        disableCookieCache: true,
       },
       headers: await headers(),
     });

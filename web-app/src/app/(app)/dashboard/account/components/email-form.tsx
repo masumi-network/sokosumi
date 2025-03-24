@@ -36,7 +36,6 @@ export function EmailForm() {
     }),
     defaultValues: {
       email: "",
-      currentPassword: "",
     },
   });
 
@@ -67,19 +66,6 @@ export function EmailForm() {
                   <FormLabel>{t("newEmail")}</FormLabel>
                   <FormControl>
                     <Input placeholder="mail@sokosumi.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="currentPassword"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("currentPassword")}</FormLabel>
-                  <FormControl>
-                    <Input type="password" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

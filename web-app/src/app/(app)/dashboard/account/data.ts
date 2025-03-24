@@ -10,12 +10,10 @@ import {
 
 export const nameFormSchema = z.object({
   name: nameSchema,
-  currentPassword: currentPasswordSchema,
 });
 
 export const emailFormSchema = z.object({
   email: emailSchema,
-  currentPassword: currentPasswordSchema,
 });
 
 export const passwordFormSchema = z

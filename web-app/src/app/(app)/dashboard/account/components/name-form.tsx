@@ -36,7 +36,6 @@ export function NameForm() {
     }),
     defaultValues: {
       name: "",
-      currentPassword: "",
     },
   });
 
@@ -67,19 +66,6 @@ export function NameForm() {
                   <FormLabel>{t("newName")}</FormLabel>
                   <FormControl>
                     <Input placeholder="John Doe" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="currentPassword"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("currentPassword")}</FormLabel>
-                  <FormControl>
-                    <Input type="password" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
