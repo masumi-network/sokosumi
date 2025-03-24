@@ -44,6 +44,15 @@ function validateEnv() {
     );
     process.exit(1);
   }
+  if (
+    process.env.ENVIRONMENT != "test" &&
+    parsed.data.DATABASE_URL == undefined
+  ) {
+    throw new Error(
+      "❌ DATABASE_URL is not set in non-test environment. Please set the DATABASE_URL environment variable or the ENVIRONMENT to 'test'. ENVIRONMENT: " +
+        process.env.ENVIRONMENT,
+    );
+  }
   return parsed.data;
 }
 
