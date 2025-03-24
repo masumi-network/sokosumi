@@ -33,12 +33,16 @@ export default function SignUpForm() {
   });
 
   const onSubmit = async (values: SignUpFormSchemaType) => {
-    try {
-      await signup(values);
+    const { success, error } = await signup(values);
+    if (success) {
       toast.success(t("success"));
       router.push("/signin");
-    } catch {
-      toast.error(t("error"));
+    } else {
+      if (error === "userExists") {
+        toast.error(t("Errors.Submit.userExists"));
+      } else {
+        toast.error(t("error"));
+      }
     }
   };
 

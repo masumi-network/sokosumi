@@ -51,11 +51,11 @@ export function DeleteAccountForm() {
   });
 
   const onSubmit = async (values: DeleteAccountFormType) => {
-    try {
-      await deleteAccount(values);
+    const { success } = await deleteAccount(values);
+    if (success) {
       toast.success(t("success"));
       router.push("/");
-    } catch {
+    } else {
       toast.error(t("error"));
     }
   };

@@ -38,11 +38,11 @@ export function PasswordForm() {
   });
 
   const onSubmit = async (values: PasswordFormType) => {
-    try {
-      await updatePassword(values);
+    const { success } = await updatePassword(values);
+    if (success) {
       toast.success(t("success"));
       form.reset();
-    } catch {
+    } else {
       toast.error(t("error"));
     }
   };

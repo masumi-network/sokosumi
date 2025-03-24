@@ -6,7 +6,7 @@ import { forgotPasswordFormSchema, ForgotPasswordFormSchemaType } from "./data";
 
 export async function forgotPassword(
   formData: ForgotPasswordFormSchemaType,
-): Promise<void> {
+): Promise<{ success: boolean; error?: string }> {
   const validatedFields = forgotPasswordFormSchema.safeParse(formData);
 
   if (!validatedFields.success) {
@@ -15,10 +15,15 @@ export async function forgotPassword(
 
   const { email } = validatedFields.data;
 
-  await auth.api.forgetPassword({
-    body: {
-      email,
-      redirectTo: "/reset-password",
-    },
-  });
+  try {
+    await auth.api.forgetPassword({
+      body: {
+        email,
+        redirectTo: "/reset-password",
+      },
+    });
+    return { success: true };
+  } catch {
+    return { success: false };
+  }
 }

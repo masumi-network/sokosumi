@@ -41,11 +41,11 @@ export function NameForm() {
   });
 
   const onSubmit = async (values: NameFormType) => {
-    try {
-      await updateName(values);
+    const { success } = await updateName(values);
+    if (success) {
       toast.success(t("success"));
       form.reset();
-    } catch {
+    } else {
       toast.error(t("error"));
     }
   };

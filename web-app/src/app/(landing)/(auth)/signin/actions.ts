@@ -4,7 +4,9 @@ import { auth } from "@/lib/better-auth/auth";
 
 import { signInFormSchema, SignInFormSchemaType } from "./data";
 
-export async function signin(formData: SignInFormSchemaType): Promise<void> {
+export async function signin(
+  formData: SignInFormSchemaType,
+): Promise<{ success: boolean; error?: string }> {
   const validatedFields = signInFormSchema.safeParse(formData);
 
   if (!validatedFields.success) {
@@ -13,10 +15,20 @@ export async function signin(formData: SignInFormSchemaType): Promise<void> {
 
   const { email, currentPassword } = validatedFields.data;
 
-  await auth.api.signInEmail({
-    body: {
-      email,
-      password: currentPassword,
-    },
-  });
+  try {
+    await auth.api.signInEmail({
+      body: {
+        email,
+        password: currentPassword,
+      },
+    });
+    return { success: true };
+  } catch (error) {
+    if (error && typeof error === "object" && "statusCode" in error) {
+      if (error.statusCode === 403) {
+        return { success: false, error: "emailNotVerified" };
+      }
+    }
+    return { success: false };
+  }
 }

@@ -82,6 +82,7 @@
         "Form": {
           "submit": "Sign In",
           "success": "Sign In successful",
+          "error": "Invalid email or password",
           "Fields": {
             "Email": {
               "label": "Email",
@@ -98,8 +99,7 @@
           },
           "Errors": {
             "Submit": {
-              "verifyEmail": "Please verify your email address",
-              "invalid": "Invalid email or password"
+              "verifyEmail": "Please verify your email address"
             }
           }
         }
@@ -133,6 +133,11 @@
             "ConfirmPassword": {
               "label": "Confirm password",
               "placeholder": "Confirm password"
+            }
+          },
+          "Errors": {
+            "Submit": {
+              "userExists": "User already exists"
             }
           }
         }

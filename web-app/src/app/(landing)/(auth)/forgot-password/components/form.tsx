@@ -36,11 +36,11 @@ export default function ForgotPasswordForm({
   });
 
   async function onSubmit(values: ForgotPasswordFormSchemaType) {
-    try {
-      await forgotPassword(values);
+    const { success } = await forgotPassword(values);
+    if (success) {
       toast.success(t("success"));
       router.push("/signin");
-    } catch {
+    } else {
       toast.error(t("error"));
     }
   }

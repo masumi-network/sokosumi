@@ -33,18 +33,18 @@ export default function SignInForm() {
   });
 
   const onSubmit = async (values: SignInFormSchemaType) => {
-    try {
-      await signin(values);
+    const { success, error } = await signin(values);
+    if (success) {
       toast.success(t("success"));
       router.push("/dashboard");
-    } catch (error) {
-      if (error && typeof error === "object" && "statusCode" in error) {
-        if (error.statusCode === 403) {
+    } else {
+      switch (error) {
+        case "emailNotVerified":
           toast.error(t("Errors.Submit.verifyEmail"));
-          return;
-        }
+          break;
+        default:
+          toast.error(t("error"));
       }
-      toast.error(t("Errors.Submit.invalid"));
     }
   };
 

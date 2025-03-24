@@ -4,7 +4,9 @@ import { auth } from "@/lib/better-auth/auth";
 
 import { resetPasswordFormSchema, ResetPasswordFormSchemaType } from "./data";
 
-export async function resetPassword(formData: ResetPasswordFormSchemaType) {
+export async function resetPassword(
+  formData: ResetPasswordFormSchemaType,
+): Promise<{ success: boolean; error?: string }> {
   const validatedFields = resetPasswordFormSchema.safeParse(formData);
 
   if (!validatedFields.success) {
@@ -13,10 +15,15 @@ export async function resetPassword(formData: ResetPasswordFormSchemaType) {
 
   const { password, token } = validatedFields.data;
 
-  await auth.api.resetPassword({
-    body: {
-      newPassword: password,
-      token,
-    },
-  });
+  try {
+    await auth.api.resetPassword({
+      body: {
+        newPassword: password,
+        token,
+      },
+    });
+    return { success: true };
+  } catch {
+    return { success: false };
+  }
 }
