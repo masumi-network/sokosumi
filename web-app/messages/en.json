@@ -102,113 +102,113 @@
               "invalid": "Invalid email or password"
             }
           }
+        }
+      },
+      "SignUp": {
+        "Metadata": {
+          "title": "Sign Up",
+          "description": "Hire yourself an agent to finish the most time consuming tasks"
         },
-        "SignUp": {
-          "Metadata": {
-            "title": "Sign Up",
-            "description": "Hire yourself an agent to finish the most time consuming tasks"
-          },
-          "Header": {
-            "title": "Sign Up",
-            "description": "Hire agents on our platform"
-          },
-          "Form": {
-            "submit": "Sign Up",
-            "success": "Sign Up successful",
-            "error": "Sign Up failed",
-            "Fields": {
-              "Email": {
-                "label": "Email",
-                "placeholder": "me@example.com"
-              },
-              "Name": {
-                "label": "Name",
-                "placeholder": "John Doe"
-              },
-              "Password": {
-                "label": "Password",
-                "placeholder": "Password"
-              },
-              "ConfirmPassword": {
-                "label": "Confirm password",
-                "placeholder": "Confirm password"
-              }
-            }
-          }
+        "Header": {
+          "title": "Sign Up",
+          "description": "Hire agents on our platform"
         },
-        "ForgotPassword": {
-          "Metadata": {
-            "title": "Reset password",
-            "description": "Reset your password to regain access to your account"
-          },
-          "Header": {
-            "title": "Reset password",
-            "description": "Enter your email address and we'll send you a link to reset your password"
-          },
-          "Form": {
-            "success": "We've sent you an email to reset your password",
-            "error": "Failed to reset password",
-            "reset_password": "Reset password",
-            "Fields": {
-              "Email": {
-                "label": "Email",
-                "placeholder": "me@example.com"
-              }
-            }
-          }
-        },
-        "ResetPassword": {
-          "Metadata": {
-            "title": "Reset password",
-            "description": "Set a new password for your account"
-          },
-          "title": "Reset password",
-          "description": "Enter your new password below",
-          "Form": {
-            "submit": "Reset password",
-            "success": "Password reset successfully",
-            "error": "Password reset failed",
-            "Fields": {
-              "Password": {
-                "label": "New password",
-                "placeholder": "New password"
-              },
-              "ConfirmPassword": {
-                "label": "Confirm password",
-                "placeholder": "Confirm password"
-              }
+        "Form": {
+          "submit": "Sign Up",
+          "success": "Sign Up successful",
+          "error": "Sign Up failed",
+          "Fields": {
+            "Email": {
+              "label": "Email",
+              "placeholder": "me@example.com"
+            },
+            "Name": {
+              "label": "Name",
+              "placeholder": "John Doe"
+            },
+            "Password": {
+              "label": "Password",
+              "placeholder": "Password"
+            },
+            "ConfirmPassword": {
+              "label": "Confirm password",
+              "placeholder": "Confirm password"
             }
           }
         }
       },
-      "Email": {
-        "ResetPassword": {
-          "subject": "Sokosumi - Reset your password",
-          "title": "Reset your password",
-          "greeting": "Hello {name}",
-          "message": "We received a request to reset your password for your account. If you didn't make this request, you can safely ignore this email.",
-          "button": "Reset password",
-          "linkInstructions": "Or copy and paste this URL into your browser:",
-          "footer": "If you didn't request a password reset, please ignore this email or contact support if you have concerns."
+      "ForgotPassword": {
+        "Metadata": {
+          "title": "Reset password",
+          "description": "Reset your password to regain access to your account"
         },
-        "Verification": {
-          "subject": "Sokosumi - Verify your email address",
-          "title": "Verify your email address",
-          "greeting": "Hello {name}",
-          "message": "Thank you for signing up! Please verify your email address by clicking the button below. This helps us ensure the security of your account.",
-          "button": "Verify email",
-          "linkInstructions": "Or copy and paste this URL into your browser:",
-          "footer": "If you didn't create an account, you can safely ignore this email."
+        "Header": {
+          "title": "Reset password",
+          "description": "Enter your email address and we'll send you a link to reset your password"
         },
-        "ChangeEmail": {
-          "subject": "Verify your email change",
-          "title": "Verify Email Change",
-          "greeting": "Hello {name}",
-          "message": "Please click the button below to verify your email change request.",
-          "button": "Verify Email Change",
-          "linkInstructions": "Or copy and paste this URL into your browser:",
-          "footer": "If you didn't request this email change, you can safely ignore this email."
+        "Form": {
+          "success": "We've sent you an email to reset your password",
+          "error": "Failed to reset password",
+          "reset_password": "Reset password",
+          "Fields": {
+            "Email": {
+              "label": "Email",
+              "placeholder": "me@example.com"
+            }
+          }
         }
+      },
+      "ResetPassword": {
+        "Metadata": {
+          "title": "Reset password",
+          "description": "Set a new password for your account"
+        },
+        "title": "Reset password",
+        "description": "Enter your new password below",
+        "Form": {
+          "submit": "Reset password",
+          "success": "Password reset successfully",
+          "error": "Password reset failed",
+          "Fields": {
+            "Password": {
+              "label": "New password",
+              "placeholder": "New password"
+            },
+            "ConfirmPassword": {
+              "label": "Confirm password",
+              "placeholder": "Confirm password"
+            }
+          }
+        }
+      }
+    },
+    "Email": {
+      "ResetPassword": {
+        "subject": "Sokosumi - Reset your password",
+        "title": "Reset your password",
+        "greeting": "Hello {name}",
+        "message": "We received a request to reset your password for your account. If you didn't make this request, you can safely ignore this email.",
+        "button": "Reset password",
+        "linkInstructions": "Or copy and paste this URL into your browser:",
+        "footer": "If you didn't request a password reset, please ignore this email or contact support if you have concerns."
+      },
+      "Verification": {
+        "subject": "Sokosumi - Verify your email address",
+        "title": "Verify your email address",
+        "greeting": "Hello {name}",
+        "message": "Thank you for signing up! Please verify your email address by clicking the button below. This helps us ensure the security of your account.",
+        "button": "Verify email",
+        "linkInstructions": "Or copy and paste this URL into your browser:",
+        "footer": "If you didn't create an account, you can safely ignore this email."
+      },
+      "ChangeEmail": {
+        "subject": "Verify your email change",
+        "title": "Verify Email Change",
+        "greeting": "Hello {name}",
+        "message": "Please click the button below to verify your email change request.",
+        "button": "Verify Email Change",
+        "linkInstructions": "Or copy and paste this URL into your browser:",
+        "footer": "If you didn't request this email change, you can safely ignore this email."
       }
     }
   },
