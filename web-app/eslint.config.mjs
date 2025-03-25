@@ -36,6 +36,14 @@ const eslintConfig = [
           destructuredArrayIgnorePattern: "^_",
         },
       ],
+      "no-restricted-properties": [
+        "error",
+        {
+          object: "process",
+          property: "env",
+          message: "Please use our custom envSecret or envConfig object instead of process.env as it is validated on startup and type-safe."
+        }
+      ],
     },
     parserOptions: {
       sourceType: "module",

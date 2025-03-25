@@ -1,14 +1,14 @@
 import { z } from "zod";
 
-import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/constants";
+import { envConfig } from "@/config/env.config";
 
 export const passwordSchema = z
   .string({
     invalid_type_error: "Password must be a string",
     required_error: "Password is required",
   })
-  .min(PASSWORD_MIN_LENGTH)
-  .max(PASSWORD_MAX_LENGTH)
+  .min(envConfig.PASSWORD_MIN_LENGTH)
+  .max(envConfig.PASSWORD_MAX_LENGTH)
   .refine((value) => /^(?=.*[a-z])/.test(value), {
     params: {
       lowercase: true,

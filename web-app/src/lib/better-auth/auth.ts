@@ -10,14 +10,7 @@ import {
 import { passkey } from "better-auth/plugins/passkey";
 import { getTranslations } from "next-intl/server";
 
-import {
-  BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE,
-  BETTER_AUTH_SESSION_EXPIRES_IN,
-  BETTER_AUTH_SESSION_FRESH_AGE,
-  BETTER_AUTH_SESSION_UPDATE_AGE,
-  PASSWORD_MAX_LENGTH,
-  PASSWORD_MIN_LENGTH,
-} from "@/constants";
+import { envConfig, envSecrets } from "@/config/env.config";
 
 import prisma from "../db/prisma";
 import { reactChangeEmailVerificationEmail } from "../email/change-email";
@@ -28,16 +21,16 @@ import { reactVerificationEmail } from "../email/verification";
 export type Session = typeof auth.$Infer.Session;
 export type User = typeof auth.$Infer.Session.user;
 
-const fromEmail = process.env.NOREPLY_EMAIL ?? "no-reply@resend.dev";
+const fromEmail = envConfig.NOREPLY_EMAIL ?? "no-reply@resend.dev";
 
 export const auth = betterAuth({
   session: {
-    expiresIn: BETTER_AUTH_SESSION_EXPIRES_IN,
-    updateAge: BETTER_AUTH_SESSION_UPDATE_AGE,
-    freshAge: BETTER_AUTH_SESSION_FRESH_AGE,
+    expiresIn: envConfig.BETTER_AUTH_SESSION_EXPIRES_IN,
+    updateAge: envConfig.BETTER_AUTH_SESSION_UPDATE_AGE,
+    freshAge: envConfig.BETTER_AUTH_SESSION_FRESH_AGE,
     cookieCache: {
       enabled: true,
-      maxAge: BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE,
+      maxAge: envConfig.BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE,
     },
   },
   database: prismaAdapter(prisma, {
@@ -61,8 +54,8 @@ export const auth = betterAuth({
   },
   emailAndPassword: {
     enabled: true,
-    maxPasswordLength: PASSWORD_MAX_LENGTH,
-    minPasswordLength: PASSWORD_MIN_LENGTH,
+    maxPasswordLength: envConfig.PASSWORD_MAX_LENGTH,
+    minPasswordLength: envConfig.PASSWORD_MIN_LENGTH,
     requireEmailVerification: true,
     sendResetPassword: async ({ user, url }) => {
       const t = await getTranslations("Auth.Email.ResetPassword");
@@ -104,20 +97,20 @@ export const auth = betterAuth({
   },
   socialProviders: {
     google: {
-      clientId: process.env.GOOGLE_CLIENT_ID ?? "",
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+      clientId: envConfig.GOOGLE_CLIENT_ID,
+      clientSecret: envSecrets.GOOGLE_CLIENT_SECRET,
     },
     microsoft: {
-      clientId: process.env.MICROSOFT_CLIENT_ID ?? "",
-      clientSecret: process.env.MICROSOFT_CLIENT_SECRET ?? "",
+      clientId: envConfig.MICROSOFT_CLIENT_ID,
+      clientSecret: envSecrets.MICROSOFT_CLIENT_SECRET,
     },
     apple: {
-      clientId: process.env.APPLE_CLIENT_ID ?? "",
-      clientSecret: process.env.APPLE_CLIENT_SECRET ?? "",
+      clientId: envConfig.APPLE_CLIENT_ID,
+      clientSecret: envSecrets.APPLE_CLIENT_SECRET,
     },
     linkedin: {
-      clientId: process.env.LINKEDIN_CLIENT_ID ?? "",
-      clientSecret: process.env.LINKEDIN_CLIENT_SECRET ?? "",
+      clientId: envConfig.LINKEDIN_CLIENT_ID,
+      clientSecret: envSecrets.LINKEDIN_CLIENT_SECRET,
     },
   },
   plugins: [
