@@ -7,7 +7,7 @@ import { forgotPasswordFormSchema, ForgotPasswordFormSchemaType } from "./data";
 export async function forgotPassword(
   formData: ForgotPasswordFormSchemaType,
 ): Promise<{ success: boolean; error?: string }> {
-  const validatedFields = forgotPasswordFormSchema.safeParse(formData);
+  const validatedFields = forgotPasswordFormSchema().safeParse(formData);
 
   if (!validatedFields.success) {
     throw new Error("Invalid email address");

@@ -23,7 +23,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { createErrorMap } from "@/lib/form";
 
 import { updateName } from "../actions";
 import { nameFormSchema, NameFormType } from "../data";
@@ -31,9 +30,7 @@ import { nameFormSchema, NameFormType } from "../data";
 export function NameForm() {
   const t = useTranslations("Account.Name");
   const form = useForm<NameFormType>({
-    resolver: zodResolver(nameFormSchema, {
-      errorMap: createErrorMap({ t: useTranslations("Auth.Schema") }),
-    }),
+    resolver: zodResolver(nameFormSchema(useTranslations("Auth.Schema"))),
     defaultValues: {
       name: "",
     },

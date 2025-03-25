@@ -32,12 +32,14 @@
   "Auth": {
     "Schema": {
       "Email": {
-        "invalid": "Please enter a valid email address."
+        "invalid": "Please enter a valid email address.",
+        "required": "Email is required"
       },
       "Name": {
         "min": "Name must be at least 2 characters.",
         "max": "Name must be at most 128 characters.",
-        "invalid": "Name must be a valid string."
+        "invalid": "Name must be a valid string.",
+        "required": "Name is required"
       },
       "Password": {
         "invalid": "Password must be a valid string.",
@@ -46,9 +48,18 @@
         "lowercase": "Password must contain at least one lowercase letter.",
         "uppercase": "Password must contain at least one uppercase letter.",
         "number": "Password must contain at least one number.",
+        "required": "Password is required"
+      },
+      "CurrentPassword": {
+        "invalid": "Current password must be a valid string.",
         "required": "Current password is required"
       },
+      "InputPassword": {
+        "invalid": "Password must be a valid string.",
+        "required": "Password is required"
+      },
       "ConfirmPassword": {
+        "invalid": "Confirm password must be a valid string.",
         "match": "Password doesn't match",
         "required": "Confirm password is required"
       }
