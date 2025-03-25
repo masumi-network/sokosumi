@@ -362,6 +362,17 @@
       "AgentDetail": {
         "backToGallery": "Agents Gallery"
       }
+    },
+    "Job": {
+      "Metadata": {
+        "title": "{title}",
+        "description": "{description}"
+      },
+      "Header": {
+        "createNewJob": "Create New Job",
+        "view": "View",
+        "price": "Price per run: {price, plural, =0 {Free} =1 {1 credit} other {# credits}}"
+      }
     }
   },
   "NotFound": {
