@@ -7,13 +7,12 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/app/(landing)/(auth)/components/form";
-
-import { forgotPassword } from "../actions";
+import { forgotPassword } from "@/app/(landing)/(auth)/forgot-password/actions";
 import {
   forgotPasswordFormData,
   forgotPasswordFormSchema,
   ForgotPasswordFormSchemaType,
-} from "../data";
+} from "@/app/(landing)/(auth)/forgot-password/data";
 
 interface ForgotPasswordFormProps {
   initialEmail?: string;

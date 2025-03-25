@@ -1,9 +1,8 @@
 import { Loader, LucideIcon, TrendingDown, TrendingUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import HorizontalScroll from "@/app/(landing)/components/horizontal-scroll";
 import IconTitleDescription from "@/components/icon-title-description";
-
-import HorizontalScroll from "../components/horizontal-scroll";
 
 // Map icon names to actual Lucide components
 const getIconByName = (name: string): LucideIcon => {

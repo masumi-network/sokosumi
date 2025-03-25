@@ -6,6 +6,11 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
+import { deleteAccount } from "@/app/(app)/dashboard/account/actions";
+import {
+  DeleteAccountFormType,
+  deleteAccountSchema,
+} from "@/app/(app)/dashboard/account/data";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -32,9 +37,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-
-import { deleteAccount } from "../actions";
-import { DeleteAccountFormType, deleteAccountSchema } from "../data";
 
 export function DeleteAccountForm() {
   const t = useTranslations("Account.Delete");

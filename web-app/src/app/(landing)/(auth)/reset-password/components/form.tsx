@@ -7,13 +7,12 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/app/(landing)/(auth)/components/form";
-
-import { resetPassword } from "../actions";
+import { resetPassword } from "@/app/(landing)/(auth)/reset-password/actions";
 import {
   resetPasswordFormData,
   resetPasswordFormSchema,
   type ResetPasswordFormSchemaType,
-} from "../data";
+} from "@/app/(landing)/(auth)/reset-password/data";
 
 interface ResetPasswordFormProps {
   token: string;

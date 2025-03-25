@@ -8,13 +8,12 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/app/(landing)/(auth)/components/form";
-
-import { signin } from "../actions";
+import { signin } from "@/app/(landing)/(auth)/signin/actions";
 import {
   signInFormData,
   signInFormSchema,
   SignInFormSchemaType,
-} from "../data";
+} from "@/app/(landing)/(auth)/signin/data";
 
 export default function SignInForm() {
   const t = useTranslations("Auth.Pages.SignIn.Form");

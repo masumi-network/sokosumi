@@ -11,12 +11,11 @@ import { passkey } from "better-auth/plugins/passkey";
 import { getTranslations } from "next-intl/server";
 
 import { envConfig, envSecrets } from "@/config/env.config";
-
-import prisma from "../db/prisma";
-import { reactChangeEmailVerificationEmail } from "../email/change-email";
-import { resend } from "../email/resend";
-import { reactResetPasswordEmail } from "../email/reset-password";
-import { reactVerificationEmail } from "../email/verification";
+import prisma from "@/lib/db/prisma";
+import { reactChangeEmailVerificationEmail } from "@/lib/email/change-email";
+import { resend } from "@/lib/email/resend";
+import { reactResetPasswordEmail } from "@/lib/email/reset-password";
+import { reactVerificationEmail } from "@/lib/email/verification";
 
 export type Session = typeof auth.$Infer.Session;
 export type User = typeof auth.$Infer.Session.user;

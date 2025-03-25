@@ -2,10 +2,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
+import {
+  GitHubButton,
+  MasumiButton,
+} from "@/app/(landing)/components/social-button";
 import { KodosumiLogo, MasumiLogo } from "@/components/masumi-logos";
 import { envConfig } from "@/config/env.config";
-
-import { GitHubButton, MasumiButton } from "../components/social-button";
 
 export function MonetizeYourAgent() {
   const t = useTranslations("Landing.Page.MonetizeYourAgent");
