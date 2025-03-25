@@ -24,21 +24,12 @@ export const passwordSchema = (t?: IntlTranslation<"Auth.Schema">) =>
     .min(PASSWORD_MIN_LENGTH, { message: t?.("Password.min") })
     .max(PASSWORD_MAX_LENGTH, { message: t?.("Password.max") })
     .refine((value) => /^(?=.*[a-z])/.test(value), {
-      params: {
-        lowercase: true,
-      },
       message: t?.("Password.lowercase"),
     })
     .refine((value) => /^(?=.*[A-Z])/.test(value), {
-      params: {
-        uppercase: true,
-      },
       message: t?.("Password.uppercase"),
     })
     .refine((value) => /^(?=.*\d)/.test(value), {
-      params: {
-        number: true,
-      },
       message: t?.("Password.number"),
     });
 
