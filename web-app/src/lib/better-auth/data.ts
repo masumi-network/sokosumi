@@ -2,7 +2,6 @@ import { z } from "zod";
 
 import { envConfig } from "@/config/env.config";
 
-
 export const nameSchema = (t?: IntlTranslation<"Auth.Schema">) =>
   z
     .string({ message: t?.("Name.invalid") })
