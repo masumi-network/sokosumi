@@ -7,7 +7,7 @@ import { signUpFormSchema, SignUpFormSchemaType } from "./data";
 export async function signup(
   formData: SignUpFormSchemaType,
 ): Promise<{ success: boolean; error?: string }> {
-  const validatedFields = signUpFormSchema.safeParse(formData);
+  const validatedFields = signUpFormSchema().safeParse(formData);
 
   if (!validatedFields.success) {
     throw new Error("Invalid form data");

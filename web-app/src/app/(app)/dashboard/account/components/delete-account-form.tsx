@@ -32,7 +32,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { createErrorMap } from "@/lib/form";
 
 import { deleteAccount } from "../actions";
 import { DeleteAccountFormType, deleteAccountSchema } from "../data";
@@ -42,9 +41,7 @@ export function DeleteAccountForm() {
   const router = useRouter();
 
   const form = useForm<DeleteAccountFormType>({
-    resolver: zodResolver(deleteAccountSchema, {
-      errorMap: createErrorMap({ t: useTranslations("Auth.Schema") }),
-    }),
+    resolver: zodResolver(deleteAccountSchema(useTranslations("Auth.Schema"))),
     defaultValues: {
       currentPassword: "",
     },

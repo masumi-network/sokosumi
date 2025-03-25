@@ -3,11 +3,14 @@ import { z } from "zod";
 import { emailSchema } from "@/lib/better-auth/data";
 import { FormData } from "@/lib/form";
 
-const forgotPasswordFormSchema = z.object({
-  email: emailSchema,
-});
+const forgotPasswordFormSchema = (t?: IntlTranslation<"Auth.Schema">) =>
+  z.object({
+    email: emailSchema(t),
+  });
 
-type ForgotPasswordFormSchemaType = z.infer<typeof forgotPasswordFormSchema>;
+type ForgotPasswordFormSchemaType = z.infer<
+  ReturnType<typeof forgotPasswordFormSchema>
+>;
 
 const forgotPasswordFormData: FormData<
   ForgotPasswordFormSchemaType,

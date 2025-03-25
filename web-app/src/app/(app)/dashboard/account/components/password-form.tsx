@@ -23,7 +23,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { createErrorMap } from "@/lib/form";
 
 import { updatePassword } from "../actions";
 import { passwordFormSchema, PasswordFormType } from "../data";
@@ -32,9 +31,7 @@ export function PasswordForm() {
   const t = useTranslations("Account.Password");
 
   const form = useForm<PasswordFormType>({
-    resolver: zodResolver(passwordFormSchema, {
-      errorMap: createErrorMap({ t: useTranslations("Auth.Schema") }),
-    }),
+    resolver: zodResolver(passwordFormSchema(useTranslations("Auth.Schema"))),
     defaultValues: {
       currentPassword: "",
       newPassword: "",

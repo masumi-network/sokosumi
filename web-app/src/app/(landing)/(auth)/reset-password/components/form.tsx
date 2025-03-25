@@ -7,7 +7,6 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/app/(landing)/(auth)/components/form";
-import { createErrorMap } from "@/lib/form";
 
 import { resetPassword } from "../actions";
 import {
@@ -25,9 +24,9 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
   const router = useRouter();
 
   const form = useForm<ResetPasswordFormSchemaType>({
-    resolver: zodResolver(resetPasswordFormSchema, {
-      errorMap: createErrorMap({ t: useTranslations("Auth.Schema") }),
-    }),
+    resolver: zodResolver(
+      resetPasswordFormSchema(useTranslations("Auth.Schema")),
+    ),
     defaultValues: {
       password: "",
       confirmPassword: "",

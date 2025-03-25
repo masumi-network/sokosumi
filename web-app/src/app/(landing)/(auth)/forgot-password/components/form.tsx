@@ -7,7 +7,6 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/app/(landing)/(auth)/components/form";
-import { createErrorMap } from "@/lib/form";
 
 import { forgotPassword } from "../actions";
 import {
@@ -27,9 +26,9 @@ export default function ForgotPasswordForm({
   const router = useRouter();
 
   const form = useForm<ForgotPasswordFormSchemaType>({
-    resolver: zodResolver(forgotPasswordFormSchema, {
-      errorMap: createErrorMap({ t: useTranslations("Auth.Schema") }),
-    }),
+    resolver: zodResolver(
+      forgotPasswordFormSchema(useTranslations("Auth.Schema")),
+    ),
     defaultValues: {
       email: initialEmail ?? "",
     },
