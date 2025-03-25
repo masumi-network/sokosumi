@@ -4,14 +4,17 @@ import { auth } from "@/lib/better-auth/auth";
 
 import { forgotPasswordFormSchema, ForgotPasswordFormSchemaType } from "./data";
 
-export async function forgotPassword(formData: ForgotPasswordFormSchemaType) {
-  const validatedFields = forgotPasswordFormSchema().safeParse(formData);
+export async function forgotPassword(
+  formData: ForgotPasswordFormSchemaType,
+): Promise<{ success: boolean; error?: string }> {
+  const validatedFields = forgotPasswordFormSchema.safeParse(formData);
 
   if (!validatedFields.success) {
-    return { error: "Invalid email address" };
+    throw new Error("Invalid email address");
   }
 
   const { email } = validatedFields.data;
+
   try {
     await auth.api.forgetPassword({
       body: {
@@ -21,6 +24,6 @@ export async function forgotPassword(formData: ForgotPasswordFormSchemaType) {
     });
     return { success: true };
   } catch {
-    return { error: "Failed to send password reset email" };
+    return { success: false };
   }
 }

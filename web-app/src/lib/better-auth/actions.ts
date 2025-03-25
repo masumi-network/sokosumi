@@ -3,7 +3,7 @@ import { auth } from "@/lib/better-auth/auth";
 
 export async function signInSocial(
   provider: "google" | "microsoft" | "apple" | "linkedin",
-) {
+): Promise<{ success: boolean; error?: string }> {
   try {
     await auth.api.signInSocial({
       body: {
@@ -12,6 +12,6 @@ export async function signInSocial(
     });
     return { success: true };
   } catch {
-    return { error: "Failed to create account" };
+    return { success: false };
   }
 }

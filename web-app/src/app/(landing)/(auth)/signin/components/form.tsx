@@ -8,6 +8,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/app/(landing)/(auth)/components/form";
+import { createErrorMap } from "@/lib/form";
 
 import { signin } from "../actions";
 import {
@@ -18,24 +19,32 @@ import {
 
 export default function SignInForm() {
   const t = useTranslations("Auth.Pages.SignIn.Form");
+
   const router = useRouter();
 
   const form = useForm<SignInFormSchemaType>({
-    resolver: zodResolver(signInFormSchema(t)),
+    resolver: zodResolver(signInFormSchema, {
+      errorMap: createErrorMap({ t: useTranslations("Auth.Schema") }),
+    }),
     defaultValues: {
       email: "",
-      password: "",
+      currentPassword: "",
     },
   });
 
   const onSubmit = async (values: SignInFormSchemaType) => {
-    const result = await signin(values);
-
-    if (result.success) {
+    const { success, error } = await signin(values);
+    if (success) {
       toast.success(t("success"));
       router.push("/dashboard");
     } else {
-      toast.error(t("error"));
+      switch (error) {
+        case "emailNotVerified":
+          toast.error(t("Errors.Submit.verifyEmail"));
+          break;
+        default:
+          toast.error(t("error"));
+      }
     }
   };
 

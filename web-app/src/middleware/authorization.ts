@@ -2,13 +2,13 @@ import { getSessionCookie } from "better-auth/cookies";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-export async function authorizationMiddleware(req: NextRequest) {
+export async function authorizationMiddleware(
+  req: NextRequest,
+  restrictedPaths: string[] = ["/dashboard"],
+) {
   const sessionCookie = getSessionCookie(req);
 
-  // Define the path you want to restrict
-  const restrictedPath = "/dashboard";
-
-  if (req.nextUrl.pathname.startsWith(restrictedPath)) {
+  if (restrictedPaths.some((path) => req.nextUrl.pathname.startsWith(path))) {
     // Check if the session cookie is present
     if (!sessionCookie) {
       // Redirect to login page if not authenticated

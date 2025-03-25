@@ -4,11 +4,13 @@ import { auth } from "@/lib/better-auth/auth";
 
 import { signUpFormSchema, SignUpFormSchemaType } from "./data";
 
-export async function signup(formData: SignUpFormSchemaType) {
-  const validatedFields = signUpFormSchema().safeParse(formData);
+export async function signup(
+  formData: SignUpFormSchemaType,
+): Promise<{ success: boolean; error?: string }> {
+  const validatedFields = signUpFormSchema.safeParse(formData);
 
   if (!validatedFields.success) {
-    return { error: "Invalid form data" };
+    throw new Error("Invalid form data");
   }
 
   const { email, name, password } = validatedFields.data;
@@ -22,7 +24,12 @@ export async function signup(formData: SignUpFormSchemaType) {
       },
     });
     return { success: true };
-  } catch {
-    return { error: "Failed to create account" };
+  } catch (error) {
+    if (error && typeof error === "object" && "statusCode" in error) {
+      if (error.statusCode === 422) {
+        return { success: false, error: "userExists" };
+      }
+    }
+    return { success: false };
   }
 }

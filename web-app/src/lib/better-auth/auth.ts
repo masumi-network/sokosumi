@@ -10,9 +10,17 @@ import {
 import { passkey } from "better-auth/plugins/passkey";
 import { getTranslations } from "next-intl/server";
 
-import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/constants";
+import {
+  BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE,
+  BETTER_AUTH_SESSION_EXPIRES_IN,
+  BETTER_AUTH_SESSION_FRESH_AGE,
+  BETTER_AUTH_SESSION_UPDATE_AGE,
+  PASSWORD_MAX_LENGTH,
+  PASSWORD_MIN_LENGTH,
+} from "@/constants";
 
 import prisma from "../db/prisma";
+import { reactChangeEmailVerificationEmail } from "../email/change-email";
 import { resend } from "../email/resend";
 import { reactResetPasswordEmail } from "../email/reset-password";
 import { reactVerificationEmail } from "../email/verification";
@@ -24,9 +32,12 @@ const fromEmail = process.env.NOREPLY_EMAIL ?? "no-reply@resend.dev";
 
 export const auth = betterAuth({
   session: {
+    expiresIn: BETTER_AUTH_SESSION_EXPIRES_IN,
+    updateAge: BETTER_AUTH_SESSION_UPDATE_AGE,
+    freshAge: BETTER_AUTH_SESSION_FRESH_AGE,
     cookieCache: {
       enabled: true,
-      maxAge: 5 * 60, // 5 minutes
+      maxAge: BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE,
     },
   },
   database: prismaAdapter(prisma, {
@@ -65,6 +76,27 @@ export const auth = betterAuth({
           resetLink: url,
         }),
       });
+    },
+  },
+  user: {
+    changeEmail: {
+      enabled: true,
+      sendChangeEmailVerification: async ({ user, url }) => {
+        const t = await getTranslations("Auth.Email.ChangeEmail");
+
+        await resend.emails.send({
+          from: fromEmail,
+          to: user.email,
+          subject: t("subject"),
+          react: reactChangeEmailVerificationEmail({
+            name: user.name,
+            changeEmailLink: url,
+          }),
+        });
+      },
+    },
+    deleteUser: {
+      enabled: true,
     },
   },
   rateLimit: {

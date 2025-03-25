@@ -1,31 +1,20 @@
 import { z } from "zod";
 
-import { FormData, FormIntlTranslation } from "@/lib/form";
+import { confirmPasswordSchema, passwordSchema } from "@/lib/better-auth/data";
+import { FormData } from "@/lib/form";
 
-import { passwordSchema } from "../data";
-
-export const resetPasswordFormSchema = (
-  t:
-    | FormIntlTranslation<"Auth.Pages.ResetPassword.Form">
-    | undefined = undefined,
-) =>
-  z
-    .object({
-      password: passwordSchema({
-        minError: t?.("Errors.Password.min"),
-        maxError: t?.("Errors.Password.max"),
-        regexError: t?.("Errors.Password.regex"),
-      }),
-      confirmPassword: z.string(),
-      token: z.string(),
-    })
-    .refine((data) => data.password === data.confirmPassword, {
-      message: t?.("Errors.ConfirmPassword.match"),
-      path: ["confirmPassword"],
-    });
+export const resetPasswordFormSchema = z
+  .object({
+    password: passwordSchema,
+    confirmPassword: confirmPasswordSchema,
+    token: z.string(),
+  })
+  .refine(({ password, confirmPassword }) => password === confirmPassword, {
+    path: ["confirmPassword"],
+  });
 
 export type ResetPasswordFormSchemaType = z.infer<
-  ReturnType<typeof resetPasswordFormSchema>
+  typeof resetPasswordFormSchema
 >;
 
 export const resetPasswordFormData: FormData<

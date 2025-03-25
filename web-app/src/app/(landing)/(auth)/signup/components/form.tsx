@@ -7,6 +7,7 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/app/(landing)/(auth)/components/form";
+import { createErrorMap } from "@/lib/form";
 
 import { signup } from "../actions";
 import {
@@ -17,9 +18,12 @@ import {
 
 export default function SignUpForm() {
   const t = useTranslations("Auth.Pages.SignUp.Form");
+
   const router = useRouter();
   const form = useForm<SignUpFormSchemaType>({
-    resolver: zodResolver(signUpFormSchema(t)),
+    resolver: zodResolver(signUpFormSchema, {
+      errorMap: createErrorMap({ t: useTranslations("Auth.Schema") }),
+    }),
     defaultValues: {
       email: "",
       name: "",
@@ -29,13 +33,16 @@ export default function SignUpForm() {
   });
 
   const onSubmit = async (values: SignUpFormSchemaType) => {
-    const result = await signup(values);
-
-    if (result.success) {
+    const { success, error } = await signup(values);
+    if (success) {
       toast.success(t("success"));
       router.push("/signin");
     } else {
-      toast.error(t("error"));
+      if (error === "userExists") {
+        toast.error(t("Errors.Submit.userExists"));
+      } else {
+        toast.error(t("error"));
+      }
     }
   };
 
