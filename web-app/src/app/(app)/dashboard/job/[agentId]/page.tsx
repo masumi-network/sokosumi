@@ -8,6 +8,7 @@ import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 import { getAgentById, getAgents } from "@/lib/db/services/agent.service";
 
 import Header from "./components/header";
+import { JobTable } from "./components/job-table";
 
 // request comes in, at most once every 1 hour (3600 seconds).
 export const revalidate = 3600;
@@ -68,6 +69,9 @@ export default async function JobPage({
   return (
     <div className="flex flex-1 flex-col p-4 xl:p-8">
       <Header agent={agent} />
+      <div className="mt-6 flex flex-col gap-4 xl:flex-row">
+        <JobTable />
+      </div>
     </div>
   );
 }
