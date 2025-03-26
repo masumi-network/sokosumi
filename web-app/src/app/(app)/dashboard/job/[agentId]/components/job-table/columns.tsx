@@ -14,6 +14,7 @@ const columnHelper = createColumnHelper<Job>();
 export const columns: ColumnDef<Job>[] = [
   columnHelper.display({
     id: "select",
+    maxSize: 50,
     header: ({ table }) => (
       <div className="w-8 p-2">
         <Checkbox
@@ -39,12 +40,13 @@ export const columns: ColumnDef<Job>[] = [
     enableSorting: false,
     enableHiding: false,
   }),
+
   columnHelper.accessor("startedTime", {
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Started" />
     ),
     cell: ({ row }) => (
-      <div className="p-2">
+      <div className="py-2">
         {dayjs(row.original.startedTime).format("YYYY-MM-DD")}
       </div>
     ),
@@ -55,28 +57,18 @@ export const columns: ColumnDef<Job>[] = [
     },
     enableHiding: false,
   }) as ColumnDef<Job>,
-  columnHelper.accessor("status", {
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Status" />
-    ),
-    cell: ({ row }) => (
-      <div className="p-2">
-        <JobStatusBadge status={row.original.status} />
-      </div>
-    ),
-    sortingFn: (rowA, rowB) => {
-      const a = rowA.original.status;
-      const b = rowB.original.status;
-      return a.localeCompare(b);
-    },
-    enableHiding: false,
-  }) as ColumnDef<Job>,
+
   columnHelper.display({
     id: "job",
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Job" />
     ),
-    cell: ({ row }) => <div className="p-2">{row.original.input}</div>,
+    cell: ({ row }) => (
+      <div className="flex items-center gap-2 py-2">
+        <JobStatusBadge status={row.original.status} />
+        <div className="max-w-40 truncate">{row.original.input}</div>
+      </div>
+    ),
     enableSorting: false,
     enableHiding: false,
   }),
