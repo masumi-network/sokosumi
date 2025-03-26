@@ -7,7 +7,7 @@ import {
   MasumiButton,
 } from "@/app/(landing)/components/social-button";
 import { KodosumiLogo, MasumiLogo } from "@/components/masumi-logos";
-import { envConfig } from "@/config/env.config";
+import { getEnvPublicConfig } from "@/config/env.config";
 
 export function MonetizeYourAgent() {
   const t = useTranslations("Landing.Page.MonetizeYourAgent");
@@ -23,10 +23,10 @@ export function MonetizeYourAgent() {
 
           {/* Masumi Logos */}
           <div className="flex flex-col items-end gap-6">
-            <Link href={envConfig.KODOSUMI_URL}>
+            <Link href={getEnvPublicConfig().NEXT_PUBLIC_KODOSUMI_URL}>
               <KodosumiLogo width={418} height={56} />
             </Link>
-            <Link href={envConfig.MASUMI_URL}>
+            <Link href={getEnvPublicConfig().NEXT_PUBLIC_MASUMI_URL}>
               <MasumiLogo width={371} height={57} />
             </Link>
           </div>

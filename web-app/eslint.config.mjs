@@ -48,7 +48,7 @@ const eslintConfig = [
           object: "process",
           property: "env",
           message:
-            "Please use our custom envSecret or envConfig object instead of process.env as it is validated on startup and type-safe.",
+            "Please use our custom getEnvSecrets or getEnvConfig functions instead of process.env as it is validated on startup and type-safe.",
         },
       ],
       "no-relative-import-paths/no-relative-import-paths": [

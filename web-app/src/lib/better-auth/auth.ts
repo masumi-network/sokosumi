@@ -10,7 +10,7 @@ import {
 import { passkey } from "better-auth/plugins/passkey";
 import { getTranslations } from "next-intl/server";
 
-import { envConfig, envSecrets } from "@/config/env.config";
+import { getEnvPublicConfig, getEnvSecrets } from "@/config/env.config";
 import prisma from "@/lib/db/prisma";
 import { reactChangeEmailVerificationEmail } from "@/lib/email/change-email";
 import { resend } from "@/lib/email/resend";
@@ -20,16 +20,19 @@ import { reactVerificationEmail } from "@/lib/email/verification";
 export type Session = typeof auth.$Infer.Session;
 export type User = typeof auth.$Infer.Session.user;
 
-const fromEmail = envConfig.NOREPLY_EMAIL ?? "no-reply@resend.dev";
+const fromEmail =
+  getEnvPublicConfig().NEXT_PUBLIC_NOREPLY_EMAIL ?? "no-reply@resend.dev";
 
 export const auth = betterAuth({
   session: {
-    expiresIn: envConfig.BETTER_AUTH_SESSION_EXPIRES_IN,
-    updateAge: envConfig.BETTER_AUTH_SESSION_UPDATE_AGE,
-    freshAge: envConfig.BETTER_AUTH_SESSION_FRESH_AGE,
+    expiresIn: getEnvPublicConfig().NEXT_PUBLIC_BETTER_AUTH_SESSION_EXPIRES_IN,
+    updateAge: getEnvPublicConfig().NEXT_PUBLIC_BETTER_AUTH_SESSION_UPDATE_AGE,
+    freshAge: getEnvPublicConfig().NEXT_PUBLIC_BETTER_AUTH_SESSION_FRESH_AGE,
     cookieCache: {
       enabled: true,
-      maxAge: envConfig.BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE,
+      maxAge:
+        getEnvPublicConfig()
+          .NEXT_PUBLIC_BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE,
     },
   },
   database: prismaAdapter(prisma, {
@@ -53,8 +56,8 @@ export const auth = betterAuth({
   },
   emailAndPassword: {
     enabled: true,
-    maxPasswordLength: envConfig.PASSWORD_MAX_LENGTH,
-    minPasswordLength: envConfig.PASSWORD_MIN_LENGTH,
+    maxPasswordLength: getEnvPublicConfig().NEXT_PUBLIC_PASSWORD_MAX_LENGTH,
+    minPasswordLength: getEnvPublicConfig().NEXT_PUBLIC_PASSWORD_MIN_LENGTH,
     requireEmailVerification: true,
     sendResetPassword: async ({ user, url }) => {
       const t = await getTranslations("Auth.Email.ResetPassword");
@@ -96,20 +99,20 @@ export const auth = betterAuth({
   },
   socialProviders: {
     google: {
-      clientId: envConfig.GOOGLE_CLIENT_ID,
-      clientSecret: envSecrets.GOOGLE_CLIENT_SECRET,
+      clientId: getEnvPublicConfig().NEXT_PUBLIC_GOOGLE_CLIENT_ID,
+      clientSecret: getEnvSecrets().GOOGLE_CLIENT_SECRET,
     },
     microsoft: {
-      clientId: envConfig.MICROSOFT_CLIENT_ID,
-      clientSecret: envSecrets.MICROSOFT_CLIENT_SECRET,
+      clientId: getEnvPublicConfig().NEXT_PUBLIC_MICROSOFT_CLIENT_ID,
+      clientSecret: getEnvSecrets().MICROSOFT_CLIENT_SECRET,
     },
     apple: {
-      clientId: envConfig.APPLE_CLIENT_ID,
-      clientSecret: envSecrets.APPLE_CLIENT_SECRET,
+      clientId: getEnvPublicConfig().NEXT_PUBLIC_APPLE_CLIENT_ID,
+      clientSecret: getEnvSecrets().APPLE_CLIENT_SECRET,
     },
     linkedin: {
-      clientId: envConfig.LINKEDIN_CLIENT_ID,
-      clientSecret: envSecrets.LINKEDIN_CLIENT_SECRET,
+      clientId: getEnvPublicConfig().NEXT_PUBLIC_LINKEDIN_CLIENT_ID,
+      clientSecret: getEnvSecrets().LINKEDIN_CLIENT_SECRET,
     },
   },
   plugins: [
