@@ -1,3 +1,4 @@
+import { logger } from "better-auth";
 import { z } from "zod";
 
 /**
@@ -17,11 +18,17 @@ const envSchemaSecrets = z.object({
   MICROSOFT_CLIENT_SECRET: z.string().nonempty(),
   APPLE_CLIENT_SECRET: z.string().nonempty(),
   LINKEDIN_CLIENT_SECRET: z.string().nonempty(),
+
+  // Registry Service
+  REGISTRY_SERVICE_API_KEY: z.string().nonempty(),
+  // Payment Service
+  PAYMENT_SERVICE_API_KEY: z.string().nonempty(),
 });
 
 const envSchemaConfig = z.object({
   KEYBOARD_INPUT_DEBOUNCE_TIME: z.number().min(0).default(300),
-
+  REGISTRY_SERVICE_API_URL: z.string().url(),
+  PAYMENT_SERVICE_API_URL: z.string().url(),
   MASUMI_URL: z.string().url().default("https://masumi.network"),
   KODOSUMI_URL: z.string().url().default("https://kodosumi.com"),
   SOKOSUMI_URL: z.string().url().default("https://sokosumi.com"),
@@ -57,6 +64,13 @@ const envSchemaConfig = z.object({
   // Google
   GOOGLE_CLIENT_ID: z.string().nonempty(),
   NOREPLY_EMAIL: z.string().email(),
+
+  LOCK_TIMEOUT: z
+    .number()
+    .min(5000)
+    .default(1000 * 60 * 5), // 5 minutes
+
+  INSTANCE_ID: z.string().nonempty().default(crypto.randomUUID()),
 });
 
 /**
@@ -84,6 +98,9 @@ export function validateEnv() {
     );
     process.exit(1);
   }
+  logger.info("Config loaded for instance", {
+    INSTANCE_ID: envConfig.INSTANCE_ID,
+  });
 }
 
 // eslint-disable-next-line no-restricted-properties

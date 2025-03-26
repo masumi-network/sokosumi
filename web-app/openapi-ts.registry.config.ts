@@ -7,7 +7,7 @@ const config = {
   baseUrl: "https://registry.masumi.network/api/v1",
   plugins: [
     ...defaultPlugins,
-    "@hey-api/client-fetch",
+    "@hey-api/client-next",
     "@hey-api/schemas",
     {
       dates: true,
