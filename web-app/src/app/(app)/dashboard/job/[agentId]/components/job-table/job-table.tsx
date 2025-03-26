@@ -7,9 +7,8 @@ export default function JobTable() {
   return (
     <DataTable
       columns={columns}
-      data={dummyJobData}
-      className="w-full xl:w-min"
-      tableBodyClassName="max-h-[480px]"
+      data={dummyJobData.slice(0, 18)}
+      containerClassName="w-[calc(100vw-64px)] lg:w-[max(400px,36%)] rounded-md border overflow-y-auto"
     />
   );
 }

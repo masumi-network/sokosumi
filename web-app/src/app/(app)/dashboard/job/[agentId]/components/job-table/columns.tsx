@@ -14,7 +14,7 @@ const columnHelper = createColumnHelper<Job>();
 export const columns: ColumnDef<Job>[] = [
   columnHelper.display({
     id: "select",
-    maxSize: 50,
+    size: 40,
     header: ({ table }) => (
       <div className="w-8 p-2">
         <Checkbox
@@ -42,6 +42,7 @@ export const columns: ColumnDef<Job>[] = [
   }),
 
   columnHelper.accessor("startedTime", {
+    minSize: 120,
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Started" />
     ),
@@ -60,13 +61,14 @@ export const columns: ColumnDef<Job>[] = [
 
   columnHelper.display({
     id: "job",
+    minSize: 240,
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Job" />
     ),
     cell: ({ row }) => (
       <div className="flex items-center gap-2 py-2">
         <JobStatusBadge status={row.original.status} />
-        <div className="max-w-40 truncate">{row.original.input}</div>
+        <div className="w-full truncate">{row.original.input}</div>
       </div>
     ),
     enableSorting: false,

@@ -13,9 +13,19 @@ export default function RightPanel() {
     [searchParams],
   );
 
-  if (isCreating) return <CreatingSection />;
+  if (isCreating)
+    return (
+      <div className="flex h-full w-full flex-1 flex-col">
+        <CreatingSection />
+      </div>
+    );
 
-  if (jobId) return <JobDetailSection jobId={jobId} />;
+  if (jobId)
+    return (
+      <div className="flex h-full w-full flex-1 flex-col">
+        <JobDetailSection jobId={jobId} />
+      </div>
+    );
 
   return null;
 }
