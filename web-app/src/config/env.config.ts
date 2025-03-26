@@ -11,13 +11,25 @@ const envSchemaSecrets = z.object({
 
   // Authentication
   BETTER_AUTH_SECRET: z.string().nonempty(),
+
+  // Resend
   RESEND_API_KEY: z.string().nonempty(),
+  RESEND_FROM_EMAIL: z.string().email(),
 
   // Social Providers
+  GOOGLE_CLIENT_ID: z.string().nonempty(),
   GOOGLE_CLIENT_SECRET: z.string().nonempty(),
+
+  MICROSOFT_CLIENT_ID: z.string().nonempty(),
   MICROSOFT_CLIENT_SECRET: z.string().nonempty(),
+
+  APPLE_CLIENT_ID: z.string().nonempty(),
   APPLE_CLIENT_SECRET: z.string().nonempty(),
+
+  LINKEDIN_CLIENT_ID: z.string().nonempty(),
   LINKEDIN_CLIENT_SECRET: z.string().nonempty(),
+
+  // BetterAuth Settings
   BETTER_AUTH_SESSION_EXPIRES_IN: z
     .number()
     .min(1)
@@ -34,21 +46,6 @@ const envSchemaSecrets = z.object({
     .number()
     .min(0)
     .default(60 * 5), // 5 minutes
-
-  // LinkedIn
-  LINKEDIN_CLIENT_ID: z.string().nonempty(),
-
-  // Apple
-  APPLE_CLIENT_ID: z.string().nonempty(),
-
-  // Microsoft
-  MICROSOFT_CLIENT_ID: z.string().nonempty(),
-
-  // Google
-  GOOGLE_CLIENT_ID: z.string().nonempty(),
-
-  // No-reply email
-  NOREPLY_EMAIL: z.string().email(),
 });
 
 const envSchemaConfig = z.object({

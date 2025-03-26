@@ -20,7 +20,7 @@ import { reactVerificationEmail } from "@/lib/email/verification";
 export type Session = typeof auth.$Infer.Session;
 export type User = typeof auth.$Infer.Session.user;
 
-const fromEmail = getEnvSecrets().NOREPLY_EMAIL;
+const fromEmail = getEnvSecrets().RESEND_FROM_EMAIL;
 
 export const auth = betterAuth({
   session: {
