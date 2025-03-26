@@ -68,7 +68,7 @@ export default async function JobPage({
   }
 
   return (
-    <div className="flex flex-1 flex-col p-4 xl:p-8">
+    <div className="flex flex-1 flex-col p-4 lg:p-6 xl:p-8">
       <Header agent={agent} />
       <div className="mt-6 flex flex-col gap-4 xl:flex-row">
         <JobTable />

@@ -4,5 +4,12 @@ import { columns } from "./columns";
 import { dummyJobData } from "./data";
 
 export default function JobTable() {
-  return <DataTable columns={columns} data={dummyJobData} className="w-min" />;
+  return (
+    <DataTable
+      columns={columns}
+      data={dummyJobData}
+      className="w-full xl:w-min"
+      tableBodyClassName="max-h-[480px]"
+    />
+  );
 }
