@@ -12,3 +12,4 @@ export const jobSchema = z.object({
 });
 
 export type Job = z.infer<typeof jobSchema>;
+export type JobStatus = Job["status"];

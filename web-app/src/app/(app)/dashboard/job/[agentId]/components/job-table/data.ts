@@ -22,7 +22,7 @@ export const dummyJobData: Job[] = [
   },
   {
     id: "c3d4e5f6a7b8c9012345a678",
-    status: "Failed",
+    status: "Cancelled",
     startedTime: "2025-03-23T18:20:00Z",
     finishedTime: "2025-03-23T18:35:10Z",
     cost: 90,
@@ -70,7 +70,7 @@ export const dummyJobData: Job[] = [
   },
   {
     id: "b8c9d0e1f2a3b4567890c123",
-    status: "Pending",
+    status: "Cancelled",
     startedTime: "2025-03-25T20:15:00Z",
     cost: 140,
     txId: "0xb0987654321cbaedf678901234567890abcdef7",
@@ -106,7 +106,7 @@ export const dummyJobData: Job[] = [
   },
   {
     id: "f2g3h4i5j6k7l8m9n0o12345",
-    status: "Completed",
+    status: "Cancelled",
     startedTime: "2025-03-24T16:20:00Z",
     finishedTime: "2025-03-24T17:45:12Z",
     cost: 160,

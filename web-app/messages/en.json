@@ -27,6 +27,25 @@
       "Error": {
         "signOut": "Failed to sign out"
       }
+    },
+    "DataTable": {
+      "Data": {
+        "noResults": "No results."
+      },
+      "ColumnHeader": {
+        "ascending": "Asc",
+        "descending": "Desc",
+        "hide": "Hide"
+      },
+      "Pagination": {
+        "rowsSelected": "{selected} of {total, plural, =1 {# row} other {# rows}} selected",
+        "rowsPerPage": "Rows per page",
+        "page": "Page {page} of {totalPages}",
+        "firstPage": "Go to first page",
+        "previousPage": "Go to previous page",
+        "nextPage": "Go to next page",
+        "lastPage": "Go to last page"
+      }
     }
   },
   "Auth": {

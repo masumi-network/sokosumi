@@ -1,15 +1,18 @@
 "use client";
 
-import { ColumnDef } from "@tanstack/react-table";
+import { ColumnDef, createColumnHelper } from "@tanstack/react-table";
 import dayjs from "dayjs";
 
 import { DataTableColumnHeader } from "@/components/data-table";
 import { Checkbox } from "@/components/ui/checkbox";
 
+import JobStatusBadge from "./job-status-badge";
 import { Job } from "./schema";
 
-export const columns: ColumnDef<Job, string>[] = [
-  {
+const columnHelper = createColumnHelper<Job>();
+
+export const columns: ColumnDef<Job>[] = [
+  columnHelper.display({
     id: "select",
     header: ({ table }) => (
       <div className="w-8 p-2">
@@ -35,43 +38,46 @@ export const columns: ColumnDef<Job, string>[] = [
     ),
     enableSorting: false,
     enableHiding: false,
-  },
-  {
-    accessorKey: "startedTime",
+  }),
+  columnHelper.accessor("startedTime", {
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title="Started" />
     ),
     cell: ({ row }) => (
       <div className="p-2">
-        {dayjs(row.getValue("startedTime")).format("YYYY-MM-DD")}
+        {dayjs(row.original.startedTime).format("YYYY-MM-DD")}
       </div>
     ),
     sortingFn: (rowA, rowB) => {
-      const a = rowA.getValue<string>("startedTime");
-      const b = rowB.getValue<string>("startedTime");
+      const a = rowA.original.startedTime;
+      const b = rowB.original.startedTime;
       return dayjs(a).diff(dayjs(b));
     },
-  },
-  {
-    accessorKey: "finishedTime",
+    enableHiding: false,
+  }) as ColumnDef<Job>,
+  columnHelper.accessor("status", {
     header: ({ column }) => (
-      <DataTableColumnHeader column={column} title="Finished" />
+      <DataTableColumnHeader column={column} title="Status" />
     ),
-    cell: ({ row }) => {
-      const finishedTime = row.getValue<string>("finishedTime");
-      if (!finishedTime) {
-        return <div className="p-2">N/A</div>;
-      }
-      return (
-        <div className="p-2">{dayjs(finishedTime).format("YYYY-MM-DD")}</div>
-      );
-    },
+    cell: ({ row }) => (
+      <div className="p-2">
+        <JobStatusBadge status={row.original.status} />
+      </div>
+    ),
     sortingFn: (rowA, rowB) => {
-      const a = rowA.getValue<string | undefined>("finishedTime");
-      const b = rowB.getValue<string | undefined>("finishedTime");
-      if (!a) return 0;
-      if (!b) return 1;
-      return dayjs(a).diff(dayjs(b));
+      const a = rowA.original.status;
+      const b = rowB.original.status;
+      return a.localeCompare(b);
     },
-  },
+    enableHiding: false,
+  }) as ColumnDef<Job>,
+  columnHelper.display({
+    id: "job",
+    header: ({ column }) => (
+      <DataTableColumnHeader column={column} title="Job" />
+    ),
+    cell: ({ row }) => <div className="p-2">{row.original.input}</div>,
+    enableSorting: false,
+    enableHiding: false,
+  }),
 ];

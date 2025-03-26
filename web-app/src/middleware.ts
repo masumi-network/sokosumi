@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { authorizationMiddleware } from "./middleware/authorization";
+// import { authorizationMiddleware } from "./middleware/authorization";
 
 export async function middleware(req: NextRequest) {
   // Apply authorization middleware
-  const authResponse = await authorizationMiddleware(req);
-  if (authResponse) return authResponse;
+  // const authResponse = await authorizationMiddleware(req);
+  // if (authResponse) return authResponse;
 
   // If all middlewares pass, proceed with the request
   return NextResponse.next();
