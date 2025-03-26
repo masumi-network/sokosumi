@@ -3,5 +3,5 @@ interface JobDetailSectionProps {
 }
 
 export default function JobDetailSection({ jobId }: JobDetailSectionProps) {
-  return <div>JobDetailSection</div>;
+  return <div>{jobId}</div>;
 }
