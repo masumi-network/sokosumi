@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { envConfig } from "@/config/env.config";
+import { getEnvPublicConfig } from "@/config/env.config";
 
 export const nameSchema = (t?: IntlTranslation<"Auth.Schema">) =>
   z
@@ -21,8 +21,12 @@ export const passwordSchema = (t?: IntlTranslation<"Auth.Schema">) =>
   z
     .string({ message: t?.("Password.invalid") })
     .nonempty({ message: t?.("Password.required") })
-    .min(envConfig.PASSWORD_MIN_LENGTH, { message: t?.("Password.min") })
-    .max(envConfig.PASSWORD_MAX_LENGTH, { message: t?.("Password.max") })
+    .min(getEnvPublicConfig().NEXT_PUBLIC_PASSWORD_MIN_LENGTH, {
+      message: t?.("Password.min"),
+    })
+    .max(getEnvPublicConfig().NEXT_PUBLIC_PASSWORD_MAX_LENGTH, {
+      message: t?.("Password.max"),
+    })
     .refine((value) => /^(?=.*[a-z])/.test(value), {
       message: t?.("Password.lowercase"),
     })

@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-properties */
 import { z } from "zod";
 
 /**
@@ -10,25 +11,25 @@ const envSchemaSecrets = z.object({
 
   // Authentication
   BETTER_AUTH_SECRET: z.string().nonempty(),
+
+  // Resend
   RESEND_API_KEY: z.string().nonempty(),
+  RESEND_FROM_EMAIL: z.string().email(),
 
   // Social Providers
+  GOOGLE_CLIENT_ID: z.string().nonempty(),
   GOOGLE_CLIENT_SECRET: z.string().nonempty(),
+
+  MICROSOFT_CLIENT_ID: z.string().nonempty(),
   MICROSOFT_CLIENT_SECRET: z.string().nonempty(),
+
+  APPLE_CLIENT_ID: z.string().nonempty(),
   APPLE_CLIENT_SECRET: z.string().nonempty(),
+
+  LINKEDIN_CLIENT_ID: z.string().nonempty(),
   LINKEDIN_CLIENT_SECRET: z.string().nonempty(),
-});
 
-const envSchemaConfig = z.object({
-  KEYBOARD_INPUT_DEBOUNCE_TIME: z.number().min(0).default(300),
-
-  MASUMI_URL: z.string().url().default("https://masumi.network"),
-  KODOSUMI_URL: z.string().url().default("https://kodosumi.com"),
-  SOKOSUMI_URL: z.string().url().default("https://sokosumi.com"),
-
-  PASSWORD_MIN_LENGTH: z.number().min(8).max(20).default(8),
-  PASSWORD_MAX_LENGTH: z.number().min(10).max(256).default(256),
-
+  // BetterAuth Settings
   BETTER_AUTH_SESSION_EXPIRES_IN: z
     .number()
     .min(1)
@@ -45,29 +46,50 @@ const envSchemaConfig = z.object({
     .number()
     .min(0)
     .default(60 * 5), // 5 minutes
-
-  // LinkedIn
-  LINKEDIN_CLIENT_ID: z.string().nonempty(),
-
-  // Apple
-  APPLE_CLIENT_ID: z.string().nonempty(),
-
-  // Microsoft
-  MICROSOFT_CLIENT_ID: z.string().nonempty(),
-  // Google
-  GOOGLE_CLIENT_ID: z.string().nonempty(),
-  NOREPLY_EMAIL: z.string().email(),
 });
 
-/**
- * Validate that all environment variables are set and valid
- */
+const envSchemaConfig = z.object({
+  NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME: z.number().min(0).default(300),
 
-export function validateEnv() {
-  // eslint-disable-next-line no-restricted-properties
+  NEXT_PUBLIC_PASSWORD_MIN_LENGTH: z.number().min(8).max(20).default(8),
+  NEXT_PUBLIC_PASSWORD_MAX_LENGTH: z.number().min(10).max(256).default(256),
+
+  NEXT_PUBLIC_MASUMI_URL: z.string().url().default("https://masumi.network"),
+  NEXT_PUBLIC_KODOSUMI_URL: z.string().url().default("https://kodosumi.com"),
+  NEXT_PUBLIC_SOKOSUMI_URL: z.string().url().default("https://sokosumi.com"),
+});
+
+let envSecrets: z.infer<typeof envSchemaSecrets>;
+
+let envPublicConfig: z.infer<typeof envSchemaConfig>;
+
+function validateEnv() {
+  const parsedConfig = envSchemaConfig.safeParse({
+    NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME:
+      process.env.NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME,
+    NEXT_PUBLIC_PASSWORD_MIN_LENGTH:
+      process.env.NEXT_PUBLIC_PASSWORD_MIN_LENGTH,
+    NEXT_PUBLIC_PASSWORD_MAX_LENGTH:
+      process.env.NEXT_PUBLIC_PASSWORD_MAX_LENGTH,
+    NEXT_PUBLIC_MASUMI_URL: process.env.NEXT_PUBLIC_MASUMI_URL,
+    NEXT_PUBLIC_KODOSUMI_URL: process.env.NEXT_PUBLIC_KODOSUMI_URL,
+    NEXT_PUBLIC_SOKOSUMI_URL: process.env.NEXT_PUBLIC_SOKOSUMI_URL,
+  });
+  if (!parsedConfig.success) {
+    console.error(
+      "❌ Invalid environment variables:",
+      JSON.stringify(parsedConfig.error.format(), null, 2),
+    );
+    process.exit(1);
+  }
+  envPublicConfig = parsedConfig.data;
+
+  if (typeof window !== "undefined") {
+    //Early return in the client
+    return;
+  }
+
   const parsedSecrets = envSchemaSecrets.safeParse(process.env);
-  // eslint-disable-next-line no-restricted-properties
-  const parsedConfig = envSchemaConfig.safeParse(process.env);
 
   if (!parsedSecrets.success) {
     console.error(
@@ -76,18 +98,22 @@ export function validateEnv() {
     );
     process.exit(1);
   }
-
-  if (!parsedConfig.success) {
-    console.error(
-      "❌ Invalid environment variables:",
-      JSON.stringify(parsedConfig.error.format(), null, 2),
-    );
-    process.exit(1);
-  }
+  envSecrets = parsedSecrets.data;
 }
 
-// eslint-disable-next-line no-restricted-properties
-export const envSecrets = envSchemaSecrets.parse(process.env);
+export function getEnvSecrets() {
+  if (!envSecrets) {
+    if (typeof window !== "undefined") {
+      console.log("Calling secret from client");
+    }
+    validateEnv();
+  }
+  return envSecrets;
+}
 
-// eslint-disable-next-line no-restricted-properties
-export const envConfig = envSchemaConfig.parse(process.env);
+export function getEnvPublicConfig() {
+  if (!envPublicConfig) {
+    validateEnv();
+  }
+  return envPublicConfig;
+}

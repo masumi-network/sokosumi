@@ -4,12 +4,28 @@ services:
   envs:
     - name: RESEND_API_KEY
       value: ${RESEND_API_KEY}
+    - name: RESEND_FROM_EMAIL
+      value: ${RESEND_FROM_EMAIL}
     - name: BETTER_AUTH_SECRET
       value: ${BETTER_AUTH_SECRET}
     - name: BETTER_AUTH_URL
       value: ${BETTER_AUTH_URL}
-    - name: NOREPLY_EMAIL
-      value: ${NOREPLY_EMAIL}
+    - name: GOOGLE_CLIENT_ID
+      value: ${GOOGLE_CLIENT_ID}
+    - name: GOOGLE_CLIENT_SECRET
+      value: ${GOOGLE_CLIENT_SECRET}
+    - name: MICROSOFT_CLIENT_ID
+      value: ${MICROSOFT_CLIENT_ID}
+    - name: MICROSOFT_CLIENT_SECRET
+      value: ${MICROSOFT_CLIENT_SECRET}
+    - name: LINKEDIN_CLIENT_ID
+      value: ${LINKEDIN_CLIENT_ID}
+    - name: LINKEDIN_CLIENT_SECRET
+      value: ${LINKEDIN_CLIENT_SECRET}
+    - name: APPLE_CLIENT_ID
+      value: ${APPLE_CLIENT_ID}
+    - name: APPLE_CLIENT_SECRET
+      value: ${APPLE_CLIENT_SECRET}
   github:
     branch: main
     repo: masumi-network/sokosumi

@@ -6,6 +6,7 @@ env:
   DATABASE_URL: "postgresql://user:password@localhost:5432/sokosumi"
   BETTER_AUTH_SECRET: ${{ vars.PUBLIC_DEFAULT_SECRET }}
   RESEND_API_KEY: ${{ vars.PUBLIC_DEFAULT_SECRET }}
+  RESEND_FROM_EMAIL: ${{ vars.PUBLIC_DEFAULT_EMAIL }}
   GOOGLE_CLIENT_ID: ${{ vars.PUBLIC_DEFAULT_SECRET }}
   GOOGLE_CLIENT_SECRET: ${{ vars.PUBLIC_DEFAULT_SECRET }}
   MICROSOFT_CLIENT_ID: ${{ vars.PUBLIC_DEFAULT_SECRET }}
@@ -14,7 +15,6 @@ env:
   LINKEDIN_CLIENT_SECRET: ${{ vars.PUBLIC_DEFAULT_SECRET }}
   APPLE_CLIENT_ID: ${{ vars.PUBLIC_DEFAULT_SECRET }}
   APPLE_CLIENT_SECRET: ${{ vars.PUBLIC_DEFAULT_SECRET }}
-  NOREPLY_EMAIL: ${{ vars.PUBLIC_DEFAULT_EMAIL }}
 
 jobs:
   build:
@@ -65,4 +65,3 @@ jobs:
 
       - name: Run Build
         run: npm run build
-          
