@@ -228,8 +228,6 @@ CREATE TABLE "Agent" (
     "overrideDescription" TEXT,
     "onChainApiBaseUrl" TEXT NOT NULL,
     "overrideApiBaseUrl" TEXT,
-    "onChainExampleOutput" TEXT,
-    "overrideExampleOutput" TEXT,
     "onChainCapabilityName" TEXT NOT NULL,
     "overrideCapabilityName" TEXT,
     "onChainCapabilityVersion" TEXT NOT NULL,
@@ -258,6 +256,19 @@ CREATE TABLE "Agent" (
     "ranking" BIGINT NOT NULL,
 
     CONSTRAINT "Agent_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Lock" (
+    "id" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "key" TEXT NOT NULL,
+    "isLocked" BOOLEAN NOT NULL,
+    "lockedAt" TIMESTAMP(3),
+    "lockedBy" TEXT,
+
+    CONSTRAINT "Lock_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -306,6 +317,9 @@ CREATE UNIQUE INDEX "Agent_agentPricingId_key" ON "Agent"("agentPricingId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Agent_agentIdentifier_key" ON "Agent"("agentIdentifier");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Lock_key_key" ON "Lock"("key");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Tag_name_key" ON "Tag"("name");

@@ -1,6 +1,7 @@
+import { createClient } from "@hey-api/client-next";
 import { after, NextResponse } from "next/server";
 
-import { envConfig } from "@/config/env.config";
+import { getEnvSecrets } from "@/config/env.config";
 import { postRegistryEntry } from "@/lib/api/generated/registry";
 import prisma from "@/lib/db/prisma";
 
@@ -10,13 +11,16 @@ async function timeLimitedExecution<T>(
   fn: () => Promise<T>,
   timeout: number,
 ): Promise<T> {
-  const result = await Promise.all([
+  const result = await Promise.race([
     fn(),
     new Promise((_, reject) =>
       setTimeout(() => reject(new Error("Timeout")), timeout),
     ),
   ]);
-  return result[0];
+  if (result instanceof Error) {
+    throw result;
+  }
+  return result as T;
 }
 
 export async function POST() {
@@ -34,7 +38,7 @@ export async function POST() {
       return await tx.lock.create({
         data: {
           key: LOCK_KEY,
-          lockedBy: envConfig.INSTANCE_ID,
+          lockedBy: getEnvSecrets().INSTANCE_ID,
           lockedAt: new Date(),
           isLocked: true,
         },
@@ -44,7 +48,7 @@ export async function POST() {
     if (lock.isLocked) {
       if (
         lock.lockedAt &&
-        lock.lockedAt < new Date(Date.now() - envConfig.LOCK_TIMEOUT)
+        lock.lockedAt < new Date(Date.now() - getEnvSecrets().LOCK_TIMEOUT)
       ) {
         //TODO: better logging
         console.warn(
@@ -58,7 +62,7 @@ export async function POST() {
         return await tx.lock.update({
           where: { id: lock.id },
           data: {
-            lockedBy: envConfig.INSTANCE_ID,
+            lockedBy: getEnvSecrets().INSTANCE_ID,
             lockedAt: new Date(),
             isLocked: true,
           },
@@ -69,7 +73,7 @@ export async function POST() {
     return await tx.lock.update({
       where: { id: lock.id },
       data: {
-        lockedBy: envConfig.INSTANCE_ID,
+        lockedBy: getEnvSecrets().INSTANCE_ID,
         lockedAt: new Date(),
         isLocked: true,
       },
@@ -85,10 +89,10 @@ export async function POST() {
   after(async () => {
     try {
       const timingStart = Date.now();
-      const entries = await timeLimitedExecution(
+      await timeLimitedExecution(
         syncAllEntries,
         //give some buffer to unlock the lock before the timeout
-        envConfig.LOCK_TIMEOUT - 1000,
+        getEnvSecrets().LOCK_TIMEOUT - 1000,
       );
 
       const timingEnd = Date.now();
@@ -115,14 +119,24 @@ export async function POST() {
 
 async function syncAllEntries() {
   let lastIdentifier: string | undefined = undefined;
-  const limit = 100;
+  const limit = 20;
   const runningDbUpdates: Promise<void>[] = [];
+  const registryClient = createClient({
+    baseUrl: getEnvSecrets().REGISTRY_API_URL,
+  });
+  registryClient.setConfig({
+    headers: { token: getEnvSecrets().REGISTRY_API_KEY },
+  });
   while (true) {
     const response = await postRegistryEntry({
+      client: registryClient,
       body: {
         network: "Preprod",
         limit,
         cursorId: lastIdentifier,
+        filter: {
+          status: ["Online", "Offline", "Deregistered", "Invalid"],
+        },
       },
     });
     if (
@@ -140,12 +154,6 @@ async function syncAllEntries() {
     runningDbUpdates.push(
       ...entries.map(async (entry) => {
         const updateDbEntry = async () => {
-          const agent = await prisma.agent.findUnique({
-            where: { agentIdentifier: entry.agentIdentifier },
-          });
-          if (!agent) {
-            return;
-          }
           await prisma.agent.upsert({
             where: { agentIdentifier: entry.agentIdentifier },
             create: {
@@ -204,11 +212,12 @@ async function syncAllEntries() {
     if (entries.length < limit) {
       break;
     }
-    await Promise.all(runningDbUpdates);
+
     const lastElement =
       response.data.data.entries[response.data.data.entries.length - 1];
 
     //TODO: figure out why the automatic type inference breaks here if not explicitly casted
     lastIdentifier = lastElement.id as string;
   }
+  await Promise.all(runningDbUpdates);
 }

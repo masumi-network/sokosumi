@@ -46,6 +46,16 @@ const envSchemaSecrets = z.object({
     .number()
     .min(0)
     .default(60 * 5), // 5 minutes
+  LOCK_TIMEOUT: z
+    .number()
+    .min(3 * 60 * 1000)
+    .default(10 * 60 * 1000), // 10 minutes
+  INSTANCE_ID: z.string().min(1).default(crypto.randomUUID()),
+  REGISTRY_API_URL: z
+    .string()
+    .url()
+    .default("https://registry.masumi.network/api/v1"),
+  REGISTRY_API_KEY: z.string().min(1),
 });
 
 const envSchemaConfig = z.object({
