@@ -1,33 +1,49 @@
 import { z } from "zod";
 
-import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH } from "@/constants";
+import { envConfig } from "@/config/env.config";
 
-export const passwordSchema = z
-  .string({
-    invalid_type_error: "Password must be a string",
-    required_error: "Password is required",
-  })
-  .min(PASSWORD_MIN_LENGTH)
-  .max(PASSWORD_MAX_LENGTH)
-  .refine((value) => /^(?=.*[a-z])/.test(value), {
-    params: {
-      lowercase: true,
-    },
-  })
-  .refine((value) => /^(?=.*[A-Z])/.test(value), {
-    params: {
-      uppercase: true,
-    },
-  })
-  .refine((value) => /^(?=.*\d)/.test(value), {
-    params: {
-      number: true,
-    },
-  });
-export const confirmPasswordSchema = z.string().nonempty();
+export const nameSchema = (t?: IntlTranslation<"Auth.Schema">) =>
+  z
+    .string({ message: t?.("Name.invalid") })
+    .nonempty({ message: t?.("Name.required") })
+    .min(2, { message: t?.("Name.min") })
+    .max(128, {
+      message: t?.("Name.max"),
+    });
 
-export const nameSchema = z.string().min(2).max(128);
+export const emailSchema = (t?: IntlTranslation<"Auth.Schema">) =>
+  z
+    .string({ message: t?.("Email.invalid") })
+    .nonempty({ message: t?.("Email.required") })
+    .email({ message: t?.("Email.invalid") });
 
-export const emailSchema = z.string().email();
+export const passwordSchema = (t?: IntlTranslation<"Auth.Schema">) =>
+  z
+    .string({ message: t?.("Password.invalid") })
+    .nonempty({ message: t?.("Password.required") })
+    .min(envConfig.PASSWORD_MIN_LENGTH, { message: t?.("Password.min") })
+    .max(envConfig.PASSWORD_MAX_LENGTH, { message: t?.("Password.max") })
+    .refine((value) => /^(?=.*[a-z])/.test(value), {
+      message: t?.("Password.lowercase"),
+    })
+    .refine((value) => /^(?=.*[A-Z])/.test(value), {
+      message: t?.("Password.uppercase"),
+    })
+    .refine((value) => /^(?=.*\d)/.test(value), {
+      message: t?.("Password.number"),
+    });
 
-export const currentPasswordSchema = z.string().nonempty();
+export const confirmPasswordSchema = (t?: IntlTranslation<"Auth.Schema">) =>
+  z
+    .string({ message: t?.("ConfirmPassword.invalid") })
+    .nonempty({ message: t?.("ConfirmPassword.required") });
+
+export const currentPasswordSchema = (t?: IntlTranslation<"Auth.Schema">) =>
+  z
+    .string({ message: t?.("CurrentPassword.invalid") })
+    .nonempty({ message: t?.("CurrentPassword.required") });
+
+export const inputPasswordSchema = (t?: IntlTranslation<"Auth.Schema">) =>
+  z
+    .string({ message: t?.("InputPassword.invalid") })
+    .nonempty({ message: t?.("InputPassword.required") });

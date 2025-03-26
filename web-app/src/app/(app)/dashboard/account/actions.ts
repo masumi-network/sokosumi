@@ -18,7 +18,7 @@ import {
 export async function updateName(
   formData: NameFormType,
 ): Promise<{ success: boolean; error?: string }> {
-  const validatedFields = nameFormSchema.safeParse(formData);
+  const validatedFields = nameFormSchema().safeParse(formData);
 
   if (!validatedFields.success) {
     return { success: false, error: "Invalid form data" };
@@ -42,7 +42,7 @@ export async function updateName(
 export async function updateEmail(
   formData: EmailFormType,
 ): Promise<{ success: boolean; error?: string }> {
-  const validatedFields = emailFormSchema.safeParse(formData);
+  const validatedFields = emailFormSchema().safeParse(formData);
 
   if (!validatedFields.success) {
     return { success: false, error: "Invalid form data" };
@@ -67,7 +67,7 @@ export async function updateEmail(
 export async function updatePassword(
   formData: PasswordFormType,
 ): Promise<{ success: boolean; error?: string }> {
-  const validatedFields = passwordFormSchema.safeParse(formData);
+  const validatedFields = passwordFormSchema().safeParse(formData);
 
   if (!validatedFields.success) {
     return { success: false, error: "Invalid form data" };
@@ -93,7 +93,7 @@ export async function updatePassword(
 export async function deleteAccount(
   formData: DeleteAccountFormType,
 ): Promise<{ success: boolean; error?: string }> {
-  const validatedFields = deleteAccountSchema.safeParse(formData);
+  const validatedFields = deleteAccountSchema().safeParse(formData);
 
   if (!validatedFields.success) {
     return { success: false, error: "Invalid form data" };

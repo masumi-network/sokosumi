@@ -7,23 +7,19 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/app/(landing)/(auth)/components/form";
-import { createErrorMap } from "@/lib/form";
-
-import { signup } from "../actions";
+import { signup } from "@/app/(landing)/(auth)/signup/actions";
 import {
   signUpFormData,
   signUpFormSchema,
   SignUpFormSchemaType,
-} from "../data";
+} from "@/app/(landing)/(auth)/signup/data";
 
 export default function SignUpForm() {
   const t = useTranslations("Auth.Pages.SignUp.Form");
 
   const router = useRouter();
   const form = useForm<SignUpFormSchemaType>({
-    resolver: zodResolver(signUpFormSchema, {
-      errorMap: createErrorMap({ t: useTranslations("Auth.Schema") }),
-    }),
+    resolver: zodResolver(signUpFormSchema(useTranslations("Auth.Schema"))),
     defaultValues: {
       email: "",
       name: "",

@@ -1,7 +1,7 @@
 import { Tag } from "@prisma/client";
 import { unstable_cache } from "next/cache";
 
-import prisma from "../prisma";
+import prisma from "@/lib/db/prisma";
 
 export const getCachedTags = unstable_cache(
   async (): Promise<Tag[]> => {

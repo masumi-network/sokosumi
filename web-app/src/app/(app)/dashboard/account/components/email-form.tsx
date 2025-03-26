@@ -5,6 +5,11 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
+import { updateEmail } from "@/app/(app)/dashboard/account/actions";
+import {
+  emailFormSchema,
+  EmailFormType,
+} from "@/app/(app)/dashboard/account/data";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -23,17 +28,11 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { createErrorMap } from "@/lib/form";
-
-import { updateEmail } from "../actions";
-import { emailFormSchema, EmailFormType } from "../data";
 
 export function EmailForm() {
   const t = useTranslations("Account.Email");
   const form = useForm<EmailFormType>({
-    resolver: zodResolver(emailFormSchema, {
-      errorMap: createErrorMap({ t: useTranslations("Auth.Schema") }),
-    }),
+    resolver: zodResolver(emailFormSchema(useTranslations("Auth.Schema"))),
     defaultValues: {
       email: "",
     },

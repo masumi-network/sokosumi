@@ -92,7 +92,6 @@ export type GetPaymentInformationResponses = {
             privacyPolicy: string | null;
             termsAndCondition: string | null;
             otherLegal: string | null;
-            requestsPerHour: number | null;
             tags: Array<string> | null;
             agentIdentifier: string;
             ExampleOutput: Array<{
@@ -179,7 +178,6 @@ export type PostRegistryEntryResponses = {
                 privacyPolicy: string | null;
                 termsAndCondition: string | null;
                 otherLegal: string | null;
-                requestsPerHour: number | null;
                 tags: Array<string> | null;
                 agentIdentifier: string;
                 AgentPricing: {

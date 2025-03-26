@@ -1,14 +1,15 @@
 import { z } from "zod";
 
-import { currentPasswordSchema, emailSchema } from "@/lib/better-auth/data";
+import { emailSchema, inputPasswordSchema } from "@/lib/better-auth/data";
 import { FormData } from "@/lib/form";
 
-const signInFormSchema = z.object({
-  email: emailSchema,
-  currentPassword: currentPasswordSchema,
-});
+const signInFormSchema = (t?: IntlTranslation<"Auth.Schema">) =>
+  z.object({
+    email: emailSchema(t),
+    currentPassword: inputPasswordSchema(t),
+  });
 
-type SignInFormSchemaType = z.infer<typeof signInFormSchema>;
+type SignInFormSchemaType = z.infer<ReturnType<typeof signInFormSchema>>;
 
 const signInFormData: FormData<SignInFormSchemaType, "Auth.Pages.SignIn.Form"> =
   [

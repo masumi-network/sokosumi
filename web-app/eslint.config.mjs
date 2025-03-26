@@ -10,7 +10,13 @@ const compat = new FlatCompat({
 const eslintConfig = [
   ...compat.config({
     extends: ["next/core-web-vitals", "next/typescript", "prettier"],
-    plugins: ["simple-import-sort", "import", "prettier", "unused-imports"],
+    plugins: [
+      "simple-import-sort",
+      "import",
+      "prettier",
+      "unused-imports",
+      "no-relative-import-paths",
+    ],
     ignorePatterns: [
       "**/dist/**",
       "**/build/**",
@@ -35,6 +41,19 @@ const eslintConfig = [
           caughtErrorsIgnorePattern: "^_",
           destructuredArrayIgnorePattern: "^_",
         },
+      ],
+      "no-restricted-properties": [
+        "error",
+        {
+          object: "process",
+          property: "env",
+          message:
+            "Please use our custom envSecret or envConfig object instead of process.env as it is validated on startup and type-safe.",
+        },
+      ],
+      "no-relative-import-paths/no-relative-import-paths": [
+        "error",
+        { allowSameFolder: true },
       ],
     },
     parserOptions: {

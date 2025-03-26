@@ -7,7 +7,7 @@ import { resetPasswordFormSchema, ResetPasswordFormSchemaType } from "./data";
 export async function resetPassword(
   formData: ResetPasswordFormSchemaType,
 ): Promise<{ success: boolean; error?: string }> {
-  const validatedFields = resetPasswordFormSchema.safeParse(formData);
+  const validatedFields = resetPasswordFormSchema().safeParse(formData);
 
   if (!validatedFields.success) {
     throw new Error("Invalid form data");

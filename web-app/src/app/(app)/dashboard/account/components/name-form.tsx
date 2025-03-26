@@ -5,6 +5,11 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
+import { updateName } from "@/app/(app)/dashboard/account/actions";
+import {
+  nameFormSchema,
+  NameFormType,
+} from "@/app/(app)/dashboard/account/data";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -23,17 +28,11 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { createErrorMap } from "@/lib/form";
-
-import { updateName } from "../actions";
-import { nameFormSchema, NameFormType } from "../data";
 
 export function NameForm() {
   const t = useTranslations("Account.Name");
   const form = useForm<NameFormType>({
-    resolver: zodResolver(nameFormSchema, {
-      errorMap: createErrorMap({ t: useTranslations("Auth.Schema") }),
-    }),
+    resolver: zodResolver(nameFormSchema(useTranslations("Auth.Schema"))),
     defaultValues: {
       name: "",
     },

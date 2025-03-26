@@ -2,10 +2,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
+import {
+  GitHubButton,
+  MasumiButton,
+} from "@/app/(landing)/components/social-button";
 import { KodosumiLogo, MasumiLogo } from "@/components/masumi-logos";
-import { KODOSUMI_URL, MASUMI_URL } from "@/constants";
-
-import { GitHubButton, MasumiButton } from "../components/social-button";
+import { envConfig } from "@/config/env.config";
 
 export function MonetizeYourAgent() {
   const t = useTranslations("Landing.Page.MonetizeYourAgent");
@@ -21,10 +23,10 @@ export function MonetizeYourAgent() {
 
           {/* Masumi Logos */}
           <div className="flex flex-col items-end gap-6">
-            <Link href={KODOSUMI_URL}>
+            <Link href={envConfig.KODOSUMI_URL}>
               <KodosumiLogo width={418} height={56} />
             </Link>
-            <Link href={MASUMI_URL}>
+            <Link href={envConfig.MASUMI_URL}>
               <MasumiLogo width={371} height={57} />
             </Link>
           </div>

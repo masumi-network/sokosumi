@@ -5,6 +5,11 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
+import { updatePassword } from "@/app/(app)/dashboard/account/actions";
+import {
+  passwordFormSchema,
+  PasswordFormType,
+} from "@/app/(app)/dashboard/account/data";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -23,18 +28,12 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { createErrorMap } from "@/lib/form";
-
-import { updatePassword } from "../actions";
-import { passwordFormSchema, PasswordFormType } from "../data";
 
 export function PasswordForm() {
   const t = useTranslations("Account.Password");
 
   const form = useForm<PasswordFormType>({
-    resolver: zodResolver(passwordFormSchema, {
-      errorMap: createErrorMap({ t: useTranslations("Auth.Schema") }),
-    }),
+    resolver: zodResolver(passwordFormSchema(useTranslations("Auth.Schema"))),
     defaultValues: {
       currentPassword: "",
       newPassword: "",

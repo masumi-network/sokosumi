@@ -2,7 +2,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 
-import { KEYBOARD_INPUT_DEBOUNCE_TIME } from "@/constants";
+import { envConfig } from "@/config/env.config";
 
 export interface FilterState {
   query: string;
@@ -46,7 +46,7 @@ export default function useGalleryFilter() {
 
   const debouncedUpdateUrl = useDebouncedCallback(
     updateUrlParams,
-    KEYBOARD_INPUT_DEBOUNCE_TIME,
+    envConfig.KEYBOARD_INPUT_DEBOUNCE_TIME,
   );
 
   // Update handlers

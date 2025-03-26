@@ -8,18 +8,20 @@ import {
 } from "@/lib/better-auth/data";
 import { FormData } from "@/lib/form";
 
-const signUpFormSchema = z
-  .object({
-    name: nameSchema,
-    email: emailSchema,
-    password: passwordSchema,
-    confirmPassword: confirmPasswordSchema,
-  })
-  .refine(({ password, confirmPassword }) => password === confirmPassword, {
-    path: ["confirmPassword"],
-  });
+const signUpFormSchema = (t?: IntlTranslation<"Auth.Schema">) =>
+  z
+    .object({
+      name: nameSchema(t),
+      email: emailSchema(t),
+      password: passwordSchema(t),
+      confirmPassword: confirmPasswordSchema(t),
+    })
+    .refine(({ password, confirmPassword }) => password === confirmPassword, {
+      path: ["confirmPassword"],
+      message: t?.("ConfirmPassword.match"),
+    });
 
-type SignUpFormSchemaType = z.infer<typeof signUpFormSchema>;
+type SignUpFormSchemaType = z.infer<ReturnType<typeof signUpFormSchema>>;
 
 const signUpFormData: FormData<SignUpFormSchemaType, "Auth.Pages.SignUp.Form"> =
   [
