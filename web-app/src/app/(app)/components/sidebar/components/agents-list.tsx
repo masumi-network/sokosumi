@@ -60,12 +60,17 @@ async function AgentsListContent() {
   );
   const agentLists = [agentList];
 
+  const agentListTypeTranslations: Record<AgentListType, string> = {
+    [AgentListType.FAVORITE]: t("pinned"),
+    [AgentListType.RECENTLY_USED]: t("recentlyUsed"),
+  };
+
   return (
     <ScrollArea className="h-full">
       {agentLists.map((list) => (
         <SidebarGroup key={list.id}>
           <SidebarGroupLabel className="text-base">
-            {list.type}
+            {agentListTypeTranslations[list.type]}
           </SidebarGroupLabel>
           <SidebarGroupContent className="mt-2">
             <SidebarMenu>
