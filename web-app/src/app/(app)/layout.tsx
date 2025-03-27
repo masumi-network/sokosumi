@@ -33,9 +33,11 @@ export default async function AppLayout({ children }: AppLayoutProps) {
       <Sidebar />
       <div className="flex h-svh flex-1 flex-col">
         <Header className="h-[64px]" />
-        <main className="flex h-[calc(100svh-64px)] flex-1 flex-col">
+        <main className="flex min-h-[calc(100svh-64px)] flex-1 flex-col">
           <BreadcrumbNavigation className="px-4 py-4 sm:px-8" />
-          <div className="flex flex-1 flex-col">{children}</div>
+          <div className="flex flex-1 flex-col lg:overflow-hidden">
+            {children}
+          </div>
         </main>
       </div>
     </SidebarProvider>

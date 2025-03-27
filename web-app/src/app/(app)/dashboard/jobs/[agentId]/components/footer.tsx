@@ -12,31 +12,25 @@ export default function Footer({ agent }: FooterProps) {
   const { Legal } = agent;
 
   return (
-    <div className="flex items-center gap-2">
-      {Legal?.terms && (
-        <Link
-          href={Legal.terms}
-          className="hover:text-foreground underline underline-offset-4 transition-colors"
-        >
-          {t("termsAndConditions")}
-        </Link>
-      )}
-      {Legal?.privacyPolicy && (
-        <Link
-          href={Legal.privacyPolicy}
-          className="hover:text-foreground underline underline-offset-4 transition-colors"
-        >
-          {t("privacyPolicy")}
-        </Link>
-      )}
-      {Legal?.other && (
-        <Link
-          href={Legal.other}
-          className="hover:text-foreground underline underline-offset-4 transition-colors"
-        >
-          {t("customerSupport")}
-        </Link>
-      )}
+    <div className="flex items-center gap-2 py-2">
+      <Link
+        href={Legal?.terms ?? "/"}
+        className="hover:text-foreground underline underline-offset-4 transition-colors"
+      >
+        {t("termsAndConditions")}
+      </Link>
+      <Link
+        href={Legal?.privacyPolicy ?? "/"}
+        className="hover:text-foreground underline underline-offset-4 transition-colors"
+      >
+        {t("privacyPolicy")}
+      </Link>
+      <Link
+        href={Legal?.other ?? "/"}
+        className="hover:text-foreground underline underline-offset-4 transition-colors"
+      >
+        {t("customerSupport")}
+      </Link>
     </div>
   );
 }

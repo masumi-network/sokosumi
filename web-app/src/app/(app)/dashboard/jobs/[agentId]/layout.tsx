@@ -86,9 +86,9 @@ async function JobInnerLayout({
   }
 
   return (
-    <div className="flex flex-1 flex-col p-4 lg:p-6 xl:p-8">
+    <div className="flex h-full flex-1 flex-col p-4 lg:p-6 xl:p-8">
       <Header agent={agent} />
-      <div className="mt-6 flex flex-1 flex-col justify-center gap-4 lg:flex-row">
+      <div className="mt-6 flex flex-1 flex-col justify-center gap-4 lg:flex-row lg:overflow-hidden">
         <JobTable />
         {children}
       </div>

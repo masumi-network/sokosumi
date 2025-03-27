@@ -19,9 +19,7 @@ export default function JobTable() {
         (a, b) =>
           new Date(b.startedTime).getTime() - new Date(a.startedTime).getTime(),
       )}
-      containerClassName={cn(
-        "w-[calc(100vw-64px)] lg:w-[max(360px,36%)] rounded-md border h-[360px] lg:h-[560px]",
-      )}
+      containerClassName={cn("w-full lg:w-[max(400px,36%)] rounded-md border")}
     />
   );
 }
