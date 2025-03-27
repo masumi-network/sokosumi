@@ -233,9 +233,14 @@
     "Error": {
       "title": "Something went wrong",
       "description": "We encountered an unexpected error. Our team has been notified and we're working to resolve it.",
-      "errorId": "Error ID",
+      "errorId": "Error ID: {errorId}",
       "tryAgain": "Try Again",
       "goHome": "Go to Homepage"
+    },
+    "Social": {
+      "platformX": "Platform X",
+      "discord": "Discord",
+      "masumi": "Masumi Network"
     },
     "Metadata": {
       "Title": {
@@ -261,7 +266,8 @@
         "TermsAndConditions": "Terms & Conditions",
         "CookiePolicy": "Cookie Policy",
         "Contact": "Contact"
-      }
+      },
+      "copyright": "© {year} Masumi"
     },
     "Page": {
       "Hero": {
@@ -314,7 +320,9 @@
       "MonetizeYourAgent": {
         "title": "Monetize Your Agent",
         "subtitle": "Deploy your Agents",
-        "description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum vehicula ex eu nisi dictum, a facilisis mauris tincidunt. Nulla facilisi. Cras vel justo vel libero lacinia ultricies. Donec nec odio vel mi vulputate malesuada. Aenean tincidunt, nibh ut interdum luctus, sapien tortor laoreet nisi, eget malesuada odio odio non purus. Sed ut perspiciatis unde omnis iste natus error sit voluptatem."
+        "description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum vehicula ex eu nisi dictum, a facilisis mauris tincidunt. Nulla facilisi. Cras vel justo vel libero lacinia ultricies. Donec nec odio vel mi vulputate malesuada. Aenean tincidunt, nibh ut interdum luctus, sapien tortor laoreet nisi, eget malesuada odio odio non purus. Sed ut perspiciatis unde omnis iste natus error sit voluptatem.",
+        "githubPayment": "Masumi Payment",
+        "githubRegistry": "Masumi Registry"
       }
     },
     "Gallery": {
@@ -431,5 +439,11 @@
       "success": "Account deleted successfully",
       "error": "Failed to delete account"
     }
+  },
+  "Dashboard": {
+    "title": "Hello Dashboard"
+  },
+  "Navigation": {
+    "gallery": "Gallery"
   }
 }

@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { SokosumiLogo } from "@/components/masumi-logos";
 
 export default function Footer() {
-  const t = useTranslations("Landing.Footer.Navigation");
+  const t = useTranslations("Landing.Footer");
   return (
     <footer
       id="footer"
@@ -20,7 +20,9 @@ export default function Footer() {
 
         {/* Bottom section with copyright and links */}
         <div className="border-landing-footer-foreground/10 flex flex-col items-center justify-between gap-4 border-t pt-8 md:flex-row">
-          <p className="text-sm">&copy; {new Date().getFullYear()} Masumi</p>
+          <p className="text-sm">
+            {t("copyright", { year: new Date().getFullYear() })}
+          </p>
           <nav>
             <ul className="flex flex-wrap justify-center gap-6">
               <li>
@@ -28,7 +30,7 @@ export default function Footer() {
                   href="#"
                   className="text-muted-foreground hover:text-landing-footer-foreground flex items-center gap-1 text-sm"
                 >
-                  {t("PrivacyPolicy")}
+                  {t("Navigation.PrivacyPolicy")}
                 </Link>
               </li>
               <li>
@@ -36,7 +38,7 @@ export default function Footer() {
                   href="#"
                   className="text-muted-foreground hover:text-landing-footer-foreground flex items-center gap-1 text-sm"
                 >
-                  {t("TermsAndConditions")}
+                  {t("Navigation.TermsAndConditions")}
                 </Link>
               </li>
               <li>
@@ -44,7 +46,7 @@ export default function Footer() {
                   href="#"
                   className="text-muted-foreground hover:text-landing-footer-foreground flex items-center gap-1 text-sm"
                 >
-                  {t("CookiePolicy")}
+                  {t("Navigation.CookiePolicy")}
                 </Link>
               </li>
               <li>
@@ -52,7 +54,7 @@ export default function Footer() {
                   href="#"
                   className="text-muted-foreground hover:text-landing-footer-foreground flex items-center gap-1 text-sm"
                 >
-                  {t("Contact")}
+                  {t("Navigation.Contact")}
                 </Link>
               </li>
             </ul>
