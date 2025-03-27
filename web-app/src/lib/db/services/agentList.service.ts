@@ -1,4 +1,4 @@
-import { AgentListType, Prisma } from "@prisma/client";
+import { AgentList, AgentListType, Prisma } from "@prisma/client";
 
 import prisma from "@/lib/db/prisma";
 
@@ -72,25 +72,23 @@ export async function getOrCreateAgentListByType(
 export async function addAgentToList(
   agentId: string,
   listId: string,
-): Promise<AgentListWithAgent> {
+): Promise<AgentList> {
   return await prisma.agentList.update({
     where: { id: listId },
     data: {
       agent: { connect: { id: agentId } },
     },
-    include: agentListInclude,
   });
 }
 
 export async function removeAgentFromList(
   agentId: string,
   listId: string,
-): Promise<AgentListWithAgent> {
+): Promise<AgentList> {
   return await prisma.agentList.update({
     where: { id: listId },
     data: {
       agent: { disconnect: { id: agentId } },
     },
-    include: agentListInclude,
   });
 }
