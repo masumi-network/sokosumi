@@ -1,4 +1,5 @@
-import { useTranslations } from "next-intl";
+import { headers } from "next/headers";
+import { getTranslations } from "next-intl/server";
 
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
@@ -9,43 +10,40 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { auth } from "@/lib/better-auth/auth";
+import { getAgentLists } from "@/lib/db/services/agentList.service";
 
-const agentsGroups: Array<{
-  labelKey: keyof IntlMessages["App"]["Sidebar"]["Content"]["AgentsList"];
-  agents: string[];
-}> = [
-  {
-    labelKey: "pinned",
-    agents: Array.from(
-      { length: 10 },
-      (_, index) => `Pinned Agent #${index + 1}`,
-    ),
-  },
-  {
-    labelKey: "recentlyUsed",
-    agents: Array.from(
-      { length: 10 },
-      (_, index) => `Recently Used Agent #${index + 1}`,
-    ),
-  },
-];
+export default async function AgentsList() {
+  const t = await getTranslations("App.Sidebar.Content.AgentsList");
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
 
-export default function AgentsList() {
-  const t = useTranslations("App.Sidebar.Content.AgentsList");
+  const userId = session?.user.id;
+  console.log(userId);
+  if (!userId) {
+    return null;
+  }
+
+  const agentLists = await getAgentLists(userId);
+  console.log(agentLists);
+  if (!agentLists) {
+    return null;
+  }
 
   return (
     <ScrollArea className="h-full">
-      {agentsGroups.map((group) => (
-        <SidebarGroup key={group.labelKey}>
+      {agentLists.map((list) => (
+        <SidebarGroup key={list.id}>
           <SidebarGroupLabel className="text-base">
-            {t(group.labelKey)}
+            {t(list.listType)}
           </SidebarGroupLabel>
           <SidebarGroupContent className="mt-2">
             <SidebarMenu>
-              {group.agents.map((agent) => (
-                <SidebarMenuItem key={agent}>
+              {list.agent.map((agent) => (
+                <SidebarMenuItem key={agent.id}>
                   <SidebarMenuButton asChild>
-                    <span className="whitespace-nowrap">{agent}</span>
+                    <span className="whitespace-nowrap">{agent.name}</span>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
