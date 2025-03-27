@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 
-import { getAgents } from "@/lib/db/services/agent.service";
+import { getCachedAgents } from "@/lib/db/services/agent.service";
 
 import BreadcrumbNavigationClient from "./breadcrumb-navigation.client";
 import BreadcrumbNavigationSkeleton from "./breadcrumb-navigation.skeleton";
@@ -14,7 +14,7 @@ export default async function BreadcrumbNavigation() {
 }
 
 async function BreadcrumbNavigationInner() {
-  const agents = await getAgents();
+  const agents = await getCachedAgents();
 
   if (agents.length === 0) {
     return null;
