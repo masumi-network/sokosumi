@@ -247,7 +247,7 @@ async function main() {
           },
         },
         onChainIdentifier: `demo-${index + 1}-${agent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
-        status: AgentStatus.Online,
+        status: AgentStatus.ONLINE,
         showOnFrontPage: true,
         ranking: BigInt(index + 1),
 

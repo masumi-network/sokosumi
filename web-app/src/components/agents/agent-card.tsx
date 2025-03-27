@@ -1,6 +1,5 @@
 "use client";
 
-import { AgentList } from "@prisma/client";
 import { Bookmark, Star } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
@@ -9,6 +8,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
+import { AgentListWithAgent } from "@/lib/db/services/agentList.service";
 import { cn } from "@/lib/utils";
 
 import AgentCardButton from "./agent-card-button";
@@ -65,7 +65,7 @@ function AgentCardSkeleton({ className }: AgentCardSkeletonProps) {
 
 interface AgentCardProps {
   agent: AgentDTO;
-  agentList?: AgentList | undefined;
+  agentList?: AgentListWithAgent | undefined;
   className?: string | undefined;
 }
 

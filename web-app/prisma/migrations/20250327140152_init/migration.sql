@@ -2,10 +2,10 @@
 CREATE TYPE "PricingType" AS ENUM ('Fixed');
 
 -- CreateEnum
-CREATE TYPE "AgentStatus" AS ENUM ('Online', 'Offline', 'Deregistered', 'Invalid');
+CREATE TYPE "AgentStatus" AS ENUM ('ONLINE', 'OFFLINE', 'DEREGISTERED', 'INVALID');
 
 -- CreateEnum
-CREATE TYPE "AgentListTypeEnum" AS ENUM ('Favorite', 'RecentlyUsed');
+CREATE TYPE "AgentListType" AS ENUM ('FAVORITE', 'RECENTLY_USED');
 
 -- CreateTable
 CREATE TABLE "user" (
@@ -254,7 +254,7 @@ CREATE TABLE "Agent" (
     "overrideImage" TEXT,
     "metadataVersion" INTEGER NOT NULL DEFAULT 1,
     "pricingId" TEXT NOT NULL,
-    "status" "AgentStatus" NOT NULL,
+    "status" "AgentStatus" NOT NULL DEFAULT 'ONLINE',
     "showOnFrontPage" BOOLEAN NOT NULL,
     "ranking" BIGINT NOT NULL,
 
@@ -275,7 +275,7 @@ CREATE TABLE "Tag" (
 CREATE TABLE "AgentList" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
-    "listType" "AgentListTypeEnum" NOT NULL,
+    "listType" "AgentListType" NOT NULL,
 
     CONSTRAINT "AgentList_pkey" PRIMARY KEY ("id")
 );

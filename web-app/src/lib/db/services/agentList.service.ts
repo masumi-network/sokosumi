@@ -1,4 +1,4 @@
-import { AgentList, AgentListTypeEnum, Prisma } from "@prisma/client";
+import { AgentList, AgentListType, Prisma } from "@prisma/client";
 
 import prisma from "@/lib/db/prisma";
 
@@ -30,7 +30,7 @@ export async function getAgentLists(
 
 export async function getAgentListByType(
   userId: string,
-  listType: AgentListTypeEnum,
+  listType: AgentListType,
 ): Promise<AgentListWithAgent | null> {
   const agentList = await prisma.agentList.findFirst({
     where: {
@@ -45,7 +45,7 @@ export async function getAgentListByType(
 
 export async function createAgentList(
   userId: string,
-  listType: AgentListTypeEnum,
+  listType: AgentListType,
 ): Promise<AgentList> {
   return await prisma.agentList.create({
     data: {

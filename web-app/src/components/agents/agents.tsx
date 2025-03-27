@@ -1,7 +1,7 @@
-import { AgentList } from "@prisma/client";
 import { useTranslations } from "next-intl";
 
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
+import { AgentListWithAgent } from "@/lib/db/services/agentList.service";
 import { cn } from "@/lib/utils";
 
 import { AgentCard, AgentCardSkeleton } from "./agent-card";
@@ -50,7 +50,7 @@ function AgentsSkeleton({ className }: AgentsSkeletonProps) {
 
 interface AgentsProps {
   agents: AgentDTO[];
-  agentList?: AgentList | undefined;
+  agentList?: AgentListWithAgent | undefined;
   className?: string | undefined;
   agentCardClassName?: string | undefined;
 }
