@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { toggleAgentInList } from "@/lib/actions/agent-list.actions";
+import { toggleAgentInList } from "@/lib/actions/agent.actions";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 import { AgentListWithAgent } from "@/lib/db/services/agentList.service";
 import { cn } from "@/lib/utils";

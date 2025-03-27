@@ -58,7 +58,6 @@ async function AgentsListContent() {
     userId,
     AgentListType.FAVORITE,
   );
-  console.log(agentList);
   const agentLists = [agentList];
 
   return (
