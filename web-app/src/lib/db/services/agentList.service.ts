@@ -68,3 +68,16 @@ export async function getOrCreateAgentListByType(
 
   return await createAgentList(userId, listType);
 }
+
+export async function addAgentToList(
+  agentId: string,
+  listId: string,
+): Promise<AgentListWithAgent> {
+  return await prisma.agentList.update({
+    where: { id: listId },
+    data: {
+      agent: { connect: { id: agentId } },
+    },
+    include: agentListInclude,
+  });
+}
