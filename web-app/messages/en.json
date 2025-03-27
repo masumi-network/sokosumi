@@ -353,10 +353,6 @@
     "Sidebar": {
       "Content": {
         "AgentsList": {
-          "Error": {
-            "sessionExpired": "Your session has expired. Please sign in again.",
-            "tryAgain": "Try again"
-          },
           "pinned": "Pinned Agents",
           "recentlyUsed": "Recently Used Agents"
         }
