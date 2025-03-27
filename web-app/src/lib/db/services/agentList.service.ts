@@ -92,3 +92,41 @@ export async function removeAgentFromList(
     },
   });
 }
+
+export async function getOrCreateAgentListsByTypes(
+  userId: string,
+  types: AgentListType[],
+): Promise<AgentListWithAgent[]> {
+  // Get all existing lists for the user that match the requested types
+  const existingLists = await prisma.agentList.findMany({
+    where: {
+      userId,
+      type: {
+        in: types,
+      },
+    },
+    include: agentListInclude,
+  });
+
+  // Find which types are missing
+  const existingTypes = new Set(existingLists.map((list) => list.type));
+  const missingTypes = types.filter((type) => !existingTypes.has(type));
+
+  // Create missing lists
+  const newLists = await Promise.all(
+    missingTypes.map((type) =>
+      prisma.agentList.create({
+        data: {
+          userId,
+          type,
+        },
+        include: agentListInclude,
+      }),
+    ),
+  );
+
+  // Combine existing and new lists, sorted by type
+  return [...existingLists, ...newLists].sort((a, b) =>
+    a.type.localeCompare(b.type),
+  );
+}

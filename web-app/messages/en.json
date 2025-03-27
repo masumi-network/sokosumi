@@ -353,8 +353,11 @@
     "Sidebar": {
       "Content": {
         "AgentsList": {
-          "pinned": "Pinned Agents",
-          "recentlyUsed": "Recently Used Agents"
+          "pinnedTitle": "Your Pinned Agents",
+          "recentlyUsedTitle": "Recently Used Agents",
+          "noAgents": "No {type} agents yet",
+          "pinnedType": "pinned",
+          "recentlyUsedType": "recent"
         }
       },
       "Footer": {

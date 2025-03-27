@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { auth } from "@/lib/better-auth/auth";
-import { getOrCreateAgentListByType } from "@/lib/db/services/agentList.service";
+import { getOrCreateAgentListsByTypes } from "@/lib/db/services/agentList.service";
 
 function AgentsListSkeleton() {
   return (
@@ -54,15 +54,19 @@ async function AgentsListContent() {
     redirect("/signin");
   }
 
-  const agentList = await getOrCreateAgentListByType(
-    userId,
+  const agentLists = await getOrCreateAgentListsByTypes(userId, [
     AgentListType.FAVORITE,
-  );
-  const agentLists = [agentList];
+    AgentListType.RECENTLY_USED,
+  ]);
+
+  const agentListTitleTranslations: Record<AgentListType, string> = {
+    [AgentListType.FAVORITE]: t("pinnedTitle"),
+    [AgentListType.RECENTLY_USED]: t("recentlyUsedTitle"),
+  };
 
   const agentListTypeTranslations: Record<AgentListType, string> = {
-    [AgentListType.FAVORITE]: t("pinned"),
-    [AgentListType.RECENTLY_USED]: t("recentlyUsed"),
+    [AgentListType.FAVORITE]: t("pinnedType"),
+    [AgentListType.RECENTLY_USED]: t("recentlyUsedType"),
   };
 
   return (
@@ -70,18 +74,24 @@ async function AgentsListContent() {
       {agentLists.map((list) => (
         <SidebarGroup key={list.id}>
           <SidebarGroupLabel className="text-base">
-            {agentListTypeTranslations[list.type]}
+            {agentListTitleTranslations[list.type]}
           </SidebarGroupLabel>
           <SidebarGroupContent className="mt-2">
-            <SidebarMenu>
-              {list.agents.map((agent) => (
-                <SidebarMenuItem key={agent.id}>
-                  <SidebarMenuButton asChild>
-                    <span className="whitespace-nowrap">{agent.name}</span>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
+            {list.agents.length > 0 ? (
+              <SidebarMenu>
+                {list.agents.map((agent) => (
+                  <SidebarMenuItem key={agent.id}>
+                    <SidebarMenuButton asChild>
+                      <span className="whitespace-nowrap">{agent.name}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            ) : (
+              <p className="text-muted-foreground px-3 text-sm">
+                {t("noAgents", { type: agentListTypeTranslations[list.type] })}
+              </p>
+            )}
           </SidebarGroupContent>
         </SidebarGroup>
       ))}
