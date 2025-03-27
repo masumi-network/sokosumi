@@ -10,10 +10,10 @@ type NavigationLinkData = {
 };
 
 const navItems: NavigationLinkData[] = [
-  { href: AppRoute.Dashboard, labelKey: "home" },
-  { href: "/jobs", labelKey: "jobs" },
-  { href: "/billing", labelKey: "billing" },
-  { href: "/settings", labelKey: "settings" },
+  { href: AppRoute.Home, labelKey: "home" },
+  { href: AppRoute.Jobs, labelKey: "jobs" },
+  { href: AppRoute.Billing, labelKey: "billing" },
+  { href: AppRoute.Settings, labelKey: "settings" },
 ];
 
 interface NavigationMenuProps {

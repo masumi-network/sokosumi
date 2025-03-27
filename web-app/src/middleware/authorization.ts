@@ -6,7 +6,7 @@ import { AppRoute, LandingRoute } from "@/types/routes";
 
 export async function authorizationMiddleware(
   req: NextRequest,
-  restrictedPaths: string[] = [AppRoute.Dashboard],
+  restrictedPaths: string[] = [AppRoute.Home],
 ) {
   const sessionCookie = getSessionCookie(req);
 

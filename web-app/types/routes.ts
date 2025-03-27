@@ -6,24 +6,13 @@ export enum LandingRoute {
   ForgotPassword = "/forgot-password",
   ResetPassword = "/reset-password",
   Agents = "/gallery",
-  Agent = "/gallery/:id",
 }
 
 export enum AppRoute {
-  Dashboard = "/dashboard",
+  Home = "/dashboard",
   Account = "/dashboard/account",
   Agents = "/dashboard/gallery",
-  Agent = "/dashboard/gallery/:id",
-}
-
-export function getPath(
-  route: AppRoute | LandingRoute,
-  params?: { id?: string },
-): string {
-  let path: string = route;
-
-  if (params?.id) {
-    path = path.replace(":id", params.id);
-  }
-  return path;
+  Billing = "/dashboard/billing",
+  Jobs = "/dashboard/jobs",
+  Settings = "/dashboard/settings",
 }

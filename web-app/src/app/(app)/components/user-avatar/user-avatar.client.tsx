@@ -83,7 +83,7 @@ export default function UserAvatarClient({ user }: UserAvatarClientProps) {
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem className="hover:cursor-pointer" asChild>
-            <Link href={AppRoute.Dashboard} className="flex items-center gap-2">
+            <Link href={AppRoute.Home} className="flex items-center gap-2">
               <LayoutGrid className="text-muted-foreground" />
               {t("dashboard")}
             </Link>

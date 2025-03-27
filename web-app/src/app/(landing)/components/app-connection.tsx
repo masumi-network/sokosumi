@@ -37,7 +37,7 @@ async function AppConnectionContent() {
   }
 
   return (
-    <Link href={AppRoute.Dashboard} target="_self">
+    <Link href={AppRoute.Home} target="_self">
       <Button>
         <UserRoundIcon className="size-4" />
         {t("dashboard")}

@@ -47,7 +47,7 @@ export default function SocialButtons() {
     const { success } = await signInSocial(key);
     if (success) {
       toast.success(t("success"));
-      router.push(AppRoute.Dashboard);
+      router.push(AppRoute.Home);
     } else {
       toast.error(t("error"));
     }

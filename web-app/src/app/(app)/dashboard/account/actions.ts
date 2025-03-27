@@ -55,7 +55,7 @@ export async function updateEmail(
     await auth.api.changeEmail({
       body: {
         newEmail: email,
-        callbackURL: AppRoute.Dashboard,
+        callbackURL: AppRoute.Home,
       },
       headers: await headers(),
     });

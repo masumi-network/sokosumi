@@ -33,7 +33,7 @@ export default function SignInForm() {
     const { success, error } = await signin(values);
     if (success) {
       toast.success(t("success"));
-      router.push(AppRoute.Dashboard);
+      router.push(AppRoute.Home);
     } else {
       switch (error) {
         case "emailNotVerified":
