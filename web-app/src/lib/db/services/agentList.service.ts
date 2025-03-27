@@ -81,3 +81,16 @@ export async function addAgentToList(
     include: agentListInclude,
   });
 }
+
+export async function removeAgentFromList(
+  agentId: string,
+  listId: string,
+): Promise<AgentListWithAgent> {
+  return await prisma.agentList.update({
+    where: { id: listId },
+    data: {
+      agent: { disconnect: { id: agentId } },
+    },
+    include: agentListInclude,
+  });
+}

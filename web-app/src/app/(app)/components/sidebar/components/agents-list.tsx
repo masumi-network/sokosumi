@@ -1,3 +1,4 @@
+import { AgentListType } from "@prisma/client";
 import { headers } from "next/headers";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
@@ -13,7 +14,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { auth } from "@/lib/better-auth/auth";
-import { getAgentLists } from "@/lib/db/services/agentList.service";
+import { getOrCreateAgentListByType } from "@/lib/db/services/agentList.service";
 
 function AgentsListSkeleton() {
   return (
@@ -53,18 +54,19 @@ async function AgentsListContent() {
     return null;
   }
 
-  const agentLists = await getAgentLists(userId);
-  console.log(agentLists);
-  if (!agentLists) {
-    return null;
-  }
+  const agentList = await getOrCreateAgentListByType(
+    userId,
+    AgentListType.FAVORITE,
+  );
+  console.log(agentList);
+  const agentLists = [agentList];
 
   return (
     <ScrollArea className="h-full">
       {agentLists.map((list) => (
         <SidebarGroup key={list.id}>
           <SidebarGroupLabel className="text-base">
-            {t(list.listType)}
+            {list.listType}
           </SidebarGroupLabel>
           <SidebarGroupContent className="mt-2">
             <SidebarMenu>
