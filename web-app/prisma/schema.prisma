@@ -36,6 +36,7 @@ model User {
 
   // Auth unrelated fields
   UserAgentRating UserAgentRating[]
+  agentLists      AgentList[]
 
   @@unique([email])
   @@map("user")
@@ -304,6 +305,7 @@ model Agent {
   ExampleOutput         ExampleOutput[]   @relation("ExampleOutputAgent")
   ExampleOutputOverride ExampleOutput[]   @relation("ExampleOutputAgentOverride")
   UserAgentRating       UserAgentRating[]
+  agentLists            AgentList[]
 
   OnChainTags  Tag[] @relation("AgentOnChainTag")
   OverrideTags Tag[] @relation("AgentTagOverride")
@@ -324,4 +326,17 @@ enum Status {
   Offline
   Deregistered
   Invalid
+}
+
+model AgentList {
+  id       String            @id @default(cuid())
+  user     User              @relation(fields: [userId], references: [id])
+  userId   String
+  listType AgentListTypeEnum
+  agent    Agent[]
+}
+
+enum AgentListTypeEnum {
+  Favorite
+  RecentlyUsed
 }
