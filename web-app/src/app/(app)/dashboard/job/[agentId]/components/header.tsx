@@ -1,5 +1,4 @@
 import { Bookmark, Plus } from "lucide-react";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -21,7 +20,6 @@ export function HeaderSkeleton() {
         <Plus />
         {t("createNewJob")}
       </Button>
-      <Button variant="outline">{t("view")}</Button>
       <Skeleton className="h-10 w-30" />
     </div>
   );
@@ -39,9 +37,6 @@ export default function Header({ agent }: HeaderProps) {
         <Plus />
         {t("createNewJob")}
       </Button>
-      <Link href={`/dashboard/gallery/${agent.id}`}>
-        <Button variant="outline">{t("view")}</Button>
-      </Link>
       <div className="text-base">{t("price", { price: credits })}</div>
     </div>
   );
