@@ -49,7 +49,6 @@ async function AgentsListContent() {
   });
 
   const userId = session?.user.id;
-  console.log(userId);
   if (!userId) {
     return null;
   }

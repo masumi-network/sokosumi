@@ -17,7 +17,7 @@ export async function getAgentLists(
     where: { userId },
     include: agentListInclude,
     orderBy: {
-      listType: "asc",
+      type: "asc",
     },
   });
 
@@ -30,12 +30,12 @@ export async function getAgentLists(
 
 export async function getAgentListByType(
   userId: string,
-  listType: AgentListType,
+  type: AgentListType,
 ): Promise<AgentListWithAgent | null> {
   const agentList = await prisma.agentList.findFirst({
     where: {
       userId,
-      listType,
+      type,
     },
     include: agentListInclude,
   });
@@ -45,12 +45,12 @@ export async function getAgentListByType(
 
 export async function createAgentList(
   userId: string,
-  listType: AgentListType,
+  type: AgentListType,
 ): Promise<AgentListWithAgent> {
   return await prisma.agentList.create({
     data: {
       userId,
-      listType,
+      type,
     },
     include: agentListInclude,
   });
@@ -58,15 +58,15 @@ export async function createAgentList(
 
 export async function getOrCreateAgentListByType(
   userId: string,
-  listType: AgentListType,
+  type: AgentListType,
 ): Promise<AgentListWithAgent> {
-  const existingList = await getAgentListByType(userId, listType);
+  const existingList = await getAgentListByType(userId, type);
 
   if (existingList) {
     return existingList;
   }
 
-  return await createAgentList(userId, listType);
+  return await createAgentList(userId, type);
 }
 
 export async function addAgentToList(
