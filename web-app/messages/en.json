@@ -6,9 +6,9 @@
       "AgentCard": {
         "button": "Show details",
         "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}",
-        "addedToBookmarks": "Agent added to bookmarks",
-        "removedFromBookmarks": "Agent removed from bookmarks",
-        "bookmarkError": "Failed to update bookmarks"
+        "addedToBookmarks": "Agent added to pinned agents",
+        "removedFromBookmarks": "Agent removed from pinned agents",
+        "bookmarkError": "Failed to update pinned agents"
       },
       "AgentDetail": {
         "hire": "Hire",

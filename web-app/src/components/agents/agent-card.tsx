@@ -1,18 +1,13 @@
-"use client";
-
-import { Bookmark, Star } from "lucide-react";
+import { Star } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
-import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { toggleAgentInList } from "@/lib/actions/agent.actions";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 import { AgentListWithAgent } from "@/lib/db/services/agentList.service";
 import { cn } from "@/lib/utils";
 
+import { AgentBookmarkButton } from "./agent-bookmark-button";
 import AgentCardButton from "./agent-card-button";
 import { BadgeCloud } from "./badge-cloud";
 
@@ -74,34 +69,6 @@ interface AgentCardProps {
 function AgentCard({ agent, agentList, className }: AgentCardProps) {
   const t = useTranslations("Components.Agents.AgentCard");
   const { id, name, description, image, tags, averageStars, credits } = agent;
-  const [isBookmarked, setIsBookmarked] = useState<boolean>(
-    !!agentList?.agent.some((agent) => agent.id === id),
-  );
-  const [isLoading, setIsLoading] = useState(false);
-
-  const handleBookmarkToggle = async () => {
-    if (!agentList) return;
-
-    setIsLoading(true);
-    try {
-      const result = await toggleAgentInList(id, agentList.id, isBookmarked);
-
-      if (result.success) {
-        setIsBookmarked(!isBookmarked);
-        if (isBookmarked) {
-          toast.success(t("removedFromBookmarks"));
-        } else {
-          toast.success(t("addedToBookmarks"));
-        }
-      } else {
-        toast.error(t("bookmarkError"));
-      }
-    } catch {
-      toast.error(t("bookmarkError"));
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   return (
     <Card
@@ -156,18 +123,7 @@ function AgentCard({ agent, agentList, className }: AgentCardProps) {
             </div>
           </div>
           {agentList && (
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-9 w-9"
-              onClick={handleBookmarkToggle}
-              disabled={isLoading}
-            >
-              <Bookmark
-                fill={isBookmarked ? "currentColor" : "none"}
-                className={cn("h-9 w-9", isLoading && "animate-pulse")}
-              />
-            </Button>
+            <AgentBookmarkButton agentId={id} agentList={agentList} />
           )}
         </div>
       </CardFooter>
