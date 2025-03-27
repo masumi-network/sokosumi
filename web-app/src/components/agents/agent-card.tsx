@@ -1,5 +1,6 @@
 "use client";
 
+import { AgentList } from "@prisma/client";
 import { Bookmark, Star } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
@@ -64,10 +65,11 @@ function AgentCardSkeleton({ className }: AgentCardSkeletonProps) {
 
 interface AgentCardProps {
   agent: AgentDTO;
+  agentList?: AgentList | undefined;
   className?: string | undefined;
 }
 
-function AgentCard({ agent, className }: AgentCardProps) {
+function AgentCard({ agent, agentList, className }: AgentCardProps) {
   const t = useTranslations("Components.Agents.AgentCard");
   const { id, name, description, image, tags, averageStars, credits } = agent;
   const [isBookmarked, setIsBookmarked] = useState(false);
@@ -124,18 +126,22 @@ function AgentCard({ agent, className }: AgentCardProps) {
               </p>
             </div>
           </div>
-
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-9 w-9"
-            onClick={() => setIsBookmarked(!isBookmarked)}
-          >
-            <Bookmark
-              fill={isBookmarked ? "currentColor" : "none"}
+          {agentList && (
+            <Button
+              variant="ghost"
+              size="icon"
               className="h-9 w-9"
-            />
-          </Button>
+              onClick={() => {
+                console.log("bookmark clicked", id);
+                setIsBookmarked(!isBookmarked);
+              }}
+            >
+              <Bookmark
+                fill={isBookmarked ? "currentColor" : "none"}
+                className="h-9 w-9"
+              />
+            </Button>
+          )}
         </div>
       </CardFooter>
     </Card>
