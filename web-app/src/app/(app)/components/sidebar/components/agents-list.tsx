@@ -1,5 +1,6 @@
 import { AgentListType } from "@prisma/client";
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
@@ -50,7 +51,7 @@ async function AgentsListContent() {
 
   const userId = session?.user.id;
   if (!userId) {
-    return null;
+    redirect("/signin");
   }
 
   const agentList = await getOrCreateAgentListByType(
