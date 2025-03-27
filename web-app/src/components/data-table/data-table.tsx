@@ -17,7 +17,7 @@ import {
 import { useTranslations } from "next-intl";
 import * as React from "react";
 
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Table,
   TableBody,
@@ -84,81 +84,85 @@ export default function DataTable<TData, TValue>({
   const rowModel = table.getRowModel();
 
   return (
-    <div className={cn("space-y-4", containerClassName)}>
-      <div className={cn(tableClassName)}>
-        <ScrollArea>
-          <div
-            className={cn(
-              "bg-background sticky top-0 z-10",
-              tableHeaderClassName,
-            )}
-          >
+    <div
+      className={cn(
+        "flex flex-col space-y-4 overflow-hidden",
+        containerClassName,
+      )}
+    >
+      <div
+        className={cn("flex flex-1 flex-col overflow-hidden", tableClassName)}
+      >
+        <div
+          className={cn(
+            "bg-background sticky top-0 z-10",
+            tableHeaderClassName,
+          )}
+        >
+          <Table className="table-fixed">
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead
+                      key={header.id}
+                      colSpan={header.colSpan}
+                      style={{
+                        width: header.getSize(),
+                      }}
+                    >
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext(),
+                          )}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+          </Table>
+        </div>
+        <div className={cn("flex-1 overflow-hidden", tableBodyClassName)}>
+          <ScrollArea className="h-full">
             <Table className="table-fixed">
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <TableHead
-                        key={header.id}
-                        colSpan={header.colSpan}
-                        style={{
-                          width: header.getSize(),
-                        }}
-                      >
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext(),
-                            )}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
-            </Table>
-          </div>
-          <ScrollArea>
-            <div className={cn(tableBodyClassName)}>
-              <Table className="table-fixed">
-                <TableBody>
-                  {rowModel.rows?.length ? (
-                    rowModel.rows.map((row) => (
-                      <TableRow
-                        key={row.id}
-                        data-state={row.getIsSelected() && "selected"}
-                      >
-                        {row.getVisibleCells().map((cell) => (
-                          <TableCell
-                            key={cell.id}
-                            style={{
-                              width: cell.column.getSize(),
-                            }}
-                          >
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext(),
-                            )}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    ))
-                  ) : (
-                    <TableRow>
-                      <TableCell
-                        colSpan={columns.length}
-                        className="h-24 text-center"
-                      >
-                        {t("noResults")}
-                      </TableCell>
+              <TableBody>
+                {rowModel.rows?.length ? (
+                  rowModel.rows.map((row) => (
+                    <TableRow
+                      key={row.id}
+                      data-state={row.getIsSelected() && "selected"}
+                    >
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell
+                          key={cell.id}
+                          style={{
+                            width: cell.column.getSize(),
+                          }}
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext(),
+                          )}
+                        </TableCell>
+                      ))}
                     </TableRow>
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={columns.length}
+                      className="h-24 text-center"
+                    >
+                      {t("noResults")}
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
           </ScrollArea>
-          <ScrollBar orientation="horizontal" />
-        </ScrollArea>
+        </div>
       </div>
       {showPagination && <DataTablePagination table={table} />}
     </div>

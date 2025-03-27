@@ -9,6 +9,7 @@ import { Suspense } from "react";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 import { getAgentById, getAgents } from "@/lib/db/services/agent.service";
 
+import Footer from "./components/footer";
 import Header, { HeaderSkeleton } from "./components/header";
 import { JobTable } from "./components/job-table";
 
@@ -87,10 +88,11 @@ async function JobInnerLayout({
   return (
     <div className="flex flex-1 flex-col p-4 lg:p-6 xl:p-8">
       <Header agent={agent} />
-      <div className="mt-6 flex flex-1 flex-col items-center justify-center gap-4 lg:flex-row">
+      <div className="mt-6 flex flex-1 flex-col justify-center gap-4 lg:flex-row">
         <JobTable />
         {children}
       </div>
+      <Footer agent={agent} />
     </div>
   );
 }

@@ -15,11 +15,10 @@ export default function JobTable() {
   return (
     <DataTable
       columns={columns(t, dateFormatter)}
-      data={dummyJobData.slice(0, 18)}
+      data={dummyJobData}
       containerClassName={cn(
-        "w-[calc(100vw-64px)] lg:w-[max(360px,36%)] rounded-md border",
+        "w-[calc(100vw-64px)] lg:w-[max(360px,36%)] rounded-md border h-[360px] lg:h-[560px]",
       )}
-      tableBodyClassName="h-[500px]"
     />
   );
 }

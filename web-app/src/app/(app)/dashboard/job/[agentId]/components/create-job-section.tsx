@@ -4,7 +4,7 @@ export default function CreateJobSection() {
   const t = useTranslations("App.Job.CreateJob");
 
   return (
-    <div className="flex flex-1 flex-col gap-2">
+    <div className="flex h-full flex-1 flex-col gap-2">
       <h1 className="text-xl font-bold">{t("title")}</h1>
       <div className="flex-1 rounded-md border p-2"></div>
     </div>
