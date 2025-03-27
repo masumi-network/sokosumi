@@ -328,11 +328,11 @@ enum AgentStatus {
 }
 
 model AgentList {
-  id       String        @id @default(cuid())
-  user     User          @relation(fields: [userId], references: [id])
-  userId   String
-  listType AgentListType
-  agent    Agent[]
+  id     String        @id @default(cuid())
+  user   User          @relation(fields: [userId], references: [id])
+  userId String
+  type   AgentListType
+  agent  Agent[]
 }
 
 enum AgentListType {

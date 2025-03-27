@@ -65,7 +65,7 @@ async function AgentsListContent() {
       {agentLists.map((list) => (
         <SidebarGroup key={list.id}>
           <SidebarGroupLabel className="text-base">
-            {list.listType}
+            {list.type}
           </SidebarGroupLabel>
           <SidebarGroupContent className="mt-2">
             <SidebarMenu>

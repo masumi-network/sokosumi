@@ -275,7 +275,7 @@ CREATE TABLE "Tag" (
 CREATE TABLE "AgentList" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
-    "listType" "AgentListType" NOT NULL,
+    "type" "AgentListType" NOT NULL,
 
     CONSTRAINT "AgentList_pkey" PRIMARY KEY ("id")
 );
