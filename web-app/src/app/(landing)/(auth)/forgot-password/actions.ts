@@ -1,6 +1,7 @@
 "use server";
 
 import { auth } from "@/lib/better-auth/auth";
+import { LandingRoute } from "@/types/routes";
 
 import { forgotPasswordFormSchema, ForgotPasswordFormSchemaType } from "./data";
 
@@ -19,7 +20,7 @@ export async function forgotPassword(
     await auth.api.forgetPassword({
       body: {
         email,
-        redirectTo: "/reset-password",
+        redirectTo: LandingRoute.ResetPassword,
       },
     });
     return { success: true };

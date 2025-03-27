@@ -12,6 +12,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
+import { AppRoute, LandingRoute } from "@/types/routes";
 
 const parsePathname = (
   pathname: string,
@@ -20,9 +21,11 @@ const parsePathname = (
   if (!match) {
     return;
   }
+  console.log(pathname);
+  console.log(match[1]);
   return [
     match[2],
-    match[1] === "dashboard/" ? "/dashboard/gallery" : "/gallery",
+    match[1] === "dashboard/" ? AppRoute.Agents : LandingRoute.Agents,
   ];
 };
 

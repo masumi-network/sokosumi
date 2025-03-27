@@ -6,6 +6,7 @@ import { Suspense } from "react";
 
 import { Button } from "@/components/ui/button";
 import { auth } from "@/lib/better-auth/auth";
+import { AppRoute } from "@/types/routes";
 
 import AuthButtons from "./auth-buttons";
 
@@ -36,7 +37,7 @@ async function AppConnectionContent() {
   }
 
   return (
-    <Link href="/dashboard" target="_self">
+    <Link href={AppRoute.Dashboard} target="_self">
       <Button>
         <UserRoundIcon className="size-4" />
         {t("dashboard")}

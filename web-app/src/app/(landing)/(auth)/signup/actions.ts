@@ -1,6 +1,7 @@
 "use server";
 
 import { auth } from "@/lib/better-auth/auth";
+import { LandingRoute } from "@/types/routes";
 
 import { signUpFormSchema, SignUpFormSchemaType } from "./data";
 
@@ -21,6 +22,7 @@ export async function signup(
         name,
         email,
         password,
+        callbackURL: LandingRoute.SignIn,
       },
     });
     return { success: true };

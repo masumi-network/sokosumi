@@ -2,6 +2,7 @@ import { useTranslations } from "next-intl";
 
 import NavigationLink from "@/components/navigation-link";
 import { cn } from "@/lib/utils";
+import { LandingRoute } from "@/types/routes";
 
 type NavigationLinkData = {
   href: string;
@@ -11,7 +12,7 @@ type NavigationLinkData = {
 
 const navigationLinks: NavigationLinkData[] = [
   {
-    href: "/gallery",
+    href: LandingRoute.Agents,
     labelKey: "agents",
     showChevron: true,
   },
@@ -43,9 +44,9 @@ export default function NavigationMenu({ className }: NavigationMenuProps) {
     <ul className={cn("flex", className)}>
       {navigationLinks.map((nav) => (
         <NavigationLink
-          key={nav.labelKey}
+          key={nav.labelKey as string}
           href={nav.href}
-          label={t(nav.labelKey)}
+          label={t(nav.labelKey as string)}
           showChevron={nav.showChevron}
           className="inline-flex items-center gap-1 p-2 text-sm font-medium transition-colors"
           activeClassName="bg-landing-navigation-active text-primary"

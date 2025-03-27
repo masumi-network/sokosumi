@@ -13,6 +13,7 @@ import {
   forgotPasswordFormSchema,
   ForgotPasswordFormSchemaType,
 } from "@/app/(landing)/(auth)/forgot-password/data";
+import { LandingRoute } from "@/types/routes";
 
 interface ForgotPasswordFormProps {
   initialEmail?: string;
@@ -37,7 +38,7 @@ export default function ForgotPasswordForm({
     const { success } = await forgotPassword(values);
     if (success) {
       toast.success(t("success"));
-      router.push("/signin");
+      router.push(LandingRoute.SignIn);
     } else {
       toast.error(t("error"));
     }

@@ -36,9 +36,9 @@ export default function AgentsList() {
   return (
     <ScrollArea className="h-full">
       {agentsGroups.map((group) => (
-        <SidebarGroup key={group.labelKey}>
+        <SidebarGroup key={group.labelKey as string}>
           <SidebarGroupLabel className="text-base">
-            {t(group.labelKey)}
+            {t(group.labelKey as string)}
           </SidebarGroupLabel>
           <SidebarGroupContent className="mt-2">
             <SidebarMenu>
