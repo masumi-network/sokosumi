@@ -3,7 +3,7 @@ import { AgentList, AgentListType, Prisma } from "@prisma/client";
 import prisma from "@/lib/db/prisma";
 
 const agentListInclude = {
-  agent: true,
+  agents: true,
 } as const;
 
 export type AgentListWithAgent = Prisma.AgentListGetPayload<{
@@ -76,7 +76,7 @@ export async function addAgentToList(
   return await prisma.agentList.update({
     where: { id: listId },
     data: {
-      agent: { connect: { id: agentId } },
+      agents: { connect: { id: agentId } },
     },
   });
 }
@@ -88,7 +88,7 @@ export async function removeAgentFromList(
   return await prisma.agentList.update({
     where: { id: listId },
     data: {
-      agent: { disconnect: { id: agentId } },
+      agents: { disconnect: { id: agentId } },
     },
   });
 }

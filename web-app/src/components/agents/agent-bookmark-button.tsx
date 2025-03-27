@@ -21,7 +21,7 @@ export function AgentBookmarkButton({
 }: AgentBookmarkButtonProps) {
   const t = useTranslations("Components.Agents.AgentCard");
   const [isBookmarked, setIsBookmarked] = useState<boolean>(
-    !!agentList?.agent.some((agent) => agent.id === agentId),
+    !!agentList?.agents.some((agent) => agent.id === agentId),
   );
   const [isLoading, setIsLoading] = useState(false);
 

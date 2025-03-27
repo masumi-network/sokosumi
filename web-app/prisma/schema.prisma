@@ -332,7 +332,7 @@ model AgentList {
   user   User          @relation(fields: [userId], references: [id])
   userId String
   type   AgentListType
-  agent  Agent[]
+  agents Agent[]
 }
 
 enum AgentListType {

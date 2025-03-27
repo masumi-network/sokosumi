@@ -74,7 +74,7 @@ async function AgentsListContent() {
           </SidebarGroupLabel>
           <SidebarGroupContent className="mt-2">
             <SidebarMenu>
-              {list.agent.map((agent) => (
+              {list.agents.map((agent) => (
                 <SidebarMenuItem key={agent.id}>
                   <SidebarMenuButton asChild>
                     <span className="whitespace-nowrap">{agent.name}</span>

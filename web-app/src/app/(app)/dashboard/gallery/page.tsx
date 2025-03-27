@@ -5,7 +5,7 @@ import { getTranslations } from "next-intl/server";
 
 import { auth } from "@/lib/better-auth/auth";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
-import { getCachedAgents } from "@/lib/db/services/agent.service";
+import { getAgents } from "@/lib/db/services/agent.service";
 import { getOrCreateAgentListByType } from "@/lib/db/services/agentList.service";
 import { getCachedTags } from "@/lib/db/services/tag.service";
 
@@ -22,7 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function GalleryPage() {
-  const agents: AgentDTO[] = await getCachedAgents();
+  const agents: AgentDTO[] = await getAgents();
   const tags: Tag[] = await getCachedTags();
   const tagNames = tags.map((tag) => tag.name);
 

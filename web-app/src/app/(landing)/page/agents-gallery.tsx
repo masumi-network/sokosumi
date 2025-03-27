@@ -2,10 +2,10 @@ import { Suspense } from "react";
 
 import HorizontalScroll from "@/app/(landing)/components/horizontal-scroll";
 import { AgentCard, AgentCardSkeleton } from "@/components/agents";
-import { getCachedAgents } from "@/lib/db/services/agent.service";
+import { getAgents } from "@/lib/db/services/agent.service";
 
 async function AgentsList() {
-  const agents = await getCachedAgents();
+  const agents = await getAgents();
   return (
     <HorizontalScroll>
       {agents.map((agent) => (
