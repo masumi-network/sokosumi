@@ -1,7 +1,6 @@
 "use client";
 
 import { ColumnDef, createColumnHelper } from "@tanstack/react-table";
-import dayjs from "dayjs";
 
 import { DataTableColumnHeader } from "@/components/data-table";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11,7 +10,9 @@ import { Job } from "./schema";
 
 const columnHelper = createColumnHelper<Job>();
 
-export const columns: ColumnDef<Job>[] = [
+export const columns: (dateFormatter: IntlDateFormatter) => ColumnDef<Job>[] = (
+  dateFormatter,
+) => [
   columnHelper.display({
     id: "select",
     size: 40,
@@ -48,13 +49,17 @@ export const columns: ColumnDef<Job>[] = [
     ),
     cell: ({ row }) => (
       <div className="py-2">
-        {dayjs(row.original.startedTime).format("YYYY-MM-DD")}
+        {dateFormatter.dateTime(new Date(row.original.startedTime), {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        })}
       </div>
     ),
     sortingFn: (rowA, rowB) => {
       const a = rowA.original.startedTime;
       const b = rowB.original.startedTime;
-      return dayjs(a).diff(dayjs(b));
+      return new Date(a).getTime() - new Date(b).getTime();
     },
     enableHiding: false,
   }) as ColumnDef<Job>,

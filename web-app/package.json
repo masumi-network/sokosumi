@@ -49,7 +49,6 @@
     "better-auth-harmony": "^1.2.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "dayjs": "^1.11.13",
     "lucide-react": "^0.484.0",
     "next": "^15.2.4",
     "next-intl": "^4.0.2",

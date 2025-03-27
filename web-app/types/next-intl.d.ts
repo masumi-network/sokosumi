@@ -2,9 +2,11 @@ import {
   AbstractIntlMessages,
   NamespaceKeys,
   NestedKeyOf,
+  useFormatter,
   useTranslations,
 } from "next-intl";
 
+// eslint-disable-next-line no-relative-import-paths/no-relative-import-paths
 import en from "../messages/en.json";
 
 type Messages = typeof en;
@@ -16,4 +18,6 @@ declare global {
   type IntlTranslation<NestedKey extends IntlNestedKey> = ReturnType<
     typeof useTranslations<NestedKey>
   >;
+
+  type IntlDateFormatter = ReturnType<typeof useFormatter>;
 }
