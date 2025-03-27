@@ -1,7 +1,11 @@
-import { Star } from "lucide-react";
+"use client";
+
+import { Bookmark, Star } from "lucide-react";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 import { cn } from "@/lib/utils";
@@ -46,9 +50,12 @@ function AgentCardSkeleton({ className }: AgentCardSkeletonProps) {
       </CardContent>
 
       <CardFooter className="mt-auto shrink-0 px-6 pt-2 pb-4">
-        <div className="flex items-center gap-4">
-          <div className="bg-muted h-10 w-24 animate-pulse rounded" />
-          <div className="bg-muted h-4 w-24 animate-pulse rounded" />
+        <div className="flex w-full items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="bg-muted h-10 w-24 animate-pulse rounded" />
+            <div className="bg-muted h-4 w-24 animate-pulse rounded" />
+          </div>
+          <div className="bg-muted h-9 w-9 animate-pulse rounded" />
         </div>
       </CardFooter>
     </Card>
@@ -63,6 +70,7 @@ interface AgentCardProps {
 function AgentCard({ agent, className }: AgentCardProps) {
   const t = useTranslations("Components.Agents.AgentCard");
   const { id, name, description, image, tags, averageStars, credits } = agent;
+  const [isBookmarked, setIsBookmarked] = useState(false);
 
   return (
     <Card
@@ -106,14 +114,28 @@ function AgentCard({ agent, className }: AgentCardProps) {
       </CardContent>
 
       <CardFooter className="mt-auto shrink-0 px-6 pt-2 pb-4">
-        <div className="flex items-center gap-4">
-          <AgentCardButton agentId={id} />
+        <div className="flex w-full items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <AgentCardButton agentId={id} />
 
-          <div>
-            <p className="text-muted-foreground text-s">
-              {t("pricing", { price: credits })}
-            </p>
+            <div>
+              <p className="text-muted-foreground text-s">
+                {t("pricing", { price: credits })}
+              </p>
+            </div>
           </div>
+
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-9 w-9"
+            onClick={() => setIsBookmarked(!isBookmarked)}
+          >
+            <Bookmark
+              fill={isBookmarked ? "currentColor" : "none"}
+              className="h-9 w-9"
+            />
+          </Button>
         </div>
       </CardFooter>
     </Card>
