@@ -6,7 +6,7 @@ import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/better-auth/auth";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 import { getCachedAgents } from "@/lib/db/services/agent.service";
-import { getAgentListByType } from "@/lib/db/services/agentList.service";
+import { getOrCreateAgentListByType } from "@/lib/db/services/agentList.service";
 import { getCachedTags } from "@/lib/db/services/tag.service";
 
 import FilterSection from "./components/filter-section";
@@ -35,7 +35,11 @@ export default async function GalleryPage() {
     return null;
   }
 
-  const agentList = await getAgentListByType(userId, AgentListType.FAVORITE);
+  const agentList = await getOrCreateAgentListByType(
+    userId,
+    AgentListType.FAVORITE,
+  );
+  console.log("agentList", agentList);
 
   return (
     <div className="w-full px-4 py-4 sm:px-8 xl:px-16">

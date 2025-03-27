@@ -1,4 +1,4 @@
-import { AgentList, AgentListType, Prisma } from "@prisma/client";
+import { AgentListType, Prisma } from "@prisma/client";
 
 import prisma from "@/lib/db/prisma";
 
@@ -46,7 +46,7 @@ export async function getAgentListByType(
 export async function createAgentList(
   userId: string,
   listType: AgentListType,
-): Promise<AgentList> {
+): Promise<AgentListWithAgent> {
   return await prisma.agentList.create({
     data: {
       userId,
@@ -54,4 +54,17 @@ export async function createAgentList(
     },
     include: agentListInclude,
   });
+}
+
+export async function getOrCreateAgentListByType(
+  userId: string,
+  listType: AgentListType,
+): Promise<AgentListWithAgent> {
+  const existingList = await getAgentListByType(userId, listType);
+
+  if (existingList) {
+    return existingList;
+  }
+
+  return await createAgentList(userId, listType);
 }
