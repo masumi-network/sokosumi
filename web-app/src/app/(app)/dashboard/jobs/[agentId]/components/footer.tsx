@@ -12,7 +12,7 @@ export default function Footer({ agent }: FooterProps) {
   const { Legal } = agent;
 
   return (
-    <div className="flex items-center gap-2 py-2">
+    <div className="mt-4 flex items-center gap-2">
       <Link
         href={Legal?.terms ?? "/"}
         className="hover:text-foreground underline underline-offset-4 transition-colors"
