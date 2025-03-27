@@ -28,7 +28,7 @@ export default function DataTableColumnHeader<TData, TValue>({
   const t = useTranslations("Components.DataTable.ColumnHeader");
 
   if (!column.getCanSort()) {
-    return <div className={cn(className)}>{title}</div>;
+    return <div className={cn("p-2", className)}>{title}</div>;
   }
 
   return (
@@ -38,7 +38,7 @@ export default function DataTableColumnHeader<TData, TValue>({
           <Button
             variant="ghost"
             size="sm"
-            className="data-[state=open]:bg-accent -ml-3 h-8"
+            className="data-[state=open]:bg-accent h-8 p-2"
           >
             <span>{title}</span>
             {column.getIsSorted() === "desc" ? (
@@ -52,18 +52,18 @@ export default function DataTableColumnHeader<TData, TValue>({
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
           <DropdownMenuItem onClick={() => column.toggleSorting(false)}>
-            <ArrowUp className="text-muted-foreground/70 h-3.5 w-3.5" />
+            <ArrowUp className="text-muted-foreground/70 h-4 w-4" />
             {t("ascending")}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => column.toggleSorting(true)}>
-            <ArrowDown className="text-muted-foreground/70 h-3.5 w-3.5" />
+            <ArrowDown className="text-muted-foreground/70 h-4 w-4" />
             {t("descending")}
           </DropdownMenuItem>
           {column.getCanHide() && (
             <>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={() => column.toggleVisibility(false)}>
-                <EyeOff className="text-muted-foreground/70 h-3.5 w-3.5" />
+                <EyeOff className="text-muted-foreground/70 h-4 w-4" />
                 {t("hide")}
               </DropdownMenuItem>
             </>

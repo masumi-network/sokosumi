@@ -1,6 +1,6 @@
 import { useTranslations } from "next-intl";
 
-export default function CreatingSection() {
+export default function CreateJobSection() {
   const t = useTranslations("App.Job.CreateJob");
 
   return (

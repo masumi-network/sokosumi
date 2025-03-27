@@ -418,6 +418,18 @@
       },
       "CreateJob": {
         "title": "Welcome Screen"
+      },
+      "JobTable": {
+        "Header": {
+          "started": "Started",
+          "job": "Job"
+        },
+        "JobStatusBadge": {
+          "completed": "Completed",
+          "failed": "Failed",
+          "pending": "Pending",
+          "cancelled": "Cancelled"
+        }
       }
     }
   },

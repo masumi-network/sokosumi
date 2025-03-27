@@ -29,6 +29,7 @@ export function HeaderSkeleton() {
 
 export default function Header({ agent }: HeaderProps) {
   const t = useTranslations("App.Job.Header");
+  const { credits } = agent;
 
   return (
     <div className="flex flex-wrap items-center gap-4 lg:gap-6 xl:gap-8">
@@ -41,7 +42,7 @@ export default function Header({ agent }: HeaderProps) {
       <Link href={`/dashboard/gallery/${agent.id}`}>
         <Button variant="outline">{t("view")}</Button>
       </Link>
-      <div className="text-base">{t("price", { price: 1 })}</div>
+      <div className="text-base">{t("price", { price: credits })}</div>
     </div>
   );
 }

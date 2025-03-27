@@ -82,8 +82,8 @@ export default function DataTable<TData, TValue>({
   return (
     <div className={cn("space-y-4", containerClassName)}>
       <div className={cn(tableClassName)}>
-        <ScrollArea>
-          <div className="sticky top-0 z-10">
+        <ScrollArea className="h-full overflow-x-auto overflow-y-hidden">
+          <div className="bg-background sticky top-0 z-10">
             <Table className="table-fixed">
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (

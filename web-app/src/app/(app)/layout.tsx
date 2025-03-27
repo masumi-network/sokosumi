@@ -37,7 +37,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
           <div className="px-4 py-4 sm:px-8">
             <BreadcrumbNavigation />
           </div>
-          <div className="flex flex-1 flex-col">{children}</div>
+          <div className="flex flex-1 flex-col overflow-hidden">{children}</div>
         </main>
       </div>
     </SidebarProvider>
