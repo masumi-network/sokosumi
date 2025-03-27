@@ -72,7 +72,9 @@ interface AgentCardProps {
 function AgentCard({ agent, agentList, className }: AgentCardProps) {
   const t = useTranslations("Components.Agents.AgentCard");
   const { id, name, description, image, tags, averageStars, credits } = agent;
-  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [isBookmarked, setIsBookmarked] = useState(
+    agentList?.agent.some((agent) => agent.id === id),
+  );
 
   return (
     <Card
