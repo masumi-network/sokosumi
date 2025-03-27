@@ -4,15 +4,15 @@ import { AgentDTO, createAgentDTO } from "@/lib/db/dto/AgentDTO";
 import prisma from "@/lib/db/prisma";
 
 const agentInclude = {
-  Pricing: {
-    include: { FixedPricing: { include: { Amounts: true } } },
+  pricing: {
+    include: { fixedPricing: { include: { amounts: true } } },
   },
-  ExampleOutput: true,
-  ExampleOutputOverride: true,
-  OverrideTags: true,
-  OnChainTags: true,
-  Rating: true,
-  UserAgentRating: true,
+  exampleOutput: true,
+  overrideExampleOutput: true,
+  tags: true,
+  overrideTags: true,
+  rating: true,
+  userAgentRating: true,
 } as const;
 
 export const getCachedAgents = unstable_cache(
