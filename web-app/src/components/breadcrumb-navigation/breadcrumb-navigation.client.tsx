@@ -12,22 +12,6 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
-import { AppRoute, LandingRoute } from "@/types/routes";
-
-const parsePathname = (
-  pathname: string,
-): [agentId: string, galleryPath: string] | undefined => {
-  const match = pathname.match(/^\/(dashboard\/)?gallery\/([^\/]+)$/);
-  if (!match) {
-    return;
-  }
-  console.log(pathname);
-  console.log(match[1]);
-  return [
-    match[2],
-    match[1] === "dashboard/" ? AppRoute.Agents : LandingRoute.Agents,
-  ];
-};
 
 interface BreadcrumbNavigationClientProps {
   agents: AgentDTO[];
@@ -39,14 +23,14 @@ export default function BreadcrumbNavigationClient({
   const pathname = usePathname();
   const t = useTranslations("Navigation");
 
-  const parsed = parsePathname(pathname);
+  const pathnames = pathname.split("/").filter(Boolean);
 
-  if (!parsed) {
-    return null;
-  }
+  // Get the path without the last component
+  const pathWithoutLast = "/" + pathnames.slice(0, -1).join("/");
+  // Get the last path component
+  const lastPathComponent = pathnames.pop();
 
-  const [agentId, galleryPath] = parsed;
-  const agent = agents.find((a) => a.id === agentId);
+  const agent = agents.find((a) => a.id === lastPathComponent);
 
   if (!agent) {
     return null;
@@ -56,7 +40,7 @@ export default function BreadcrumbNavigationClient({
     <Breadcrumb>
       <BreadcrumbList>
         <BreadcrumbItem>
-          <BreadcrumbLink href={galleryPath}>{t("gallery")}</BreadcrumbLink>
+          <BreadcrumbLink href={pathWithoutLast}>{t("gallery")}</BreadcrumbLink>
         </BreadcrumbItem>
         <BreadcrumbSeparator />
         <BreadcrumbItem>
