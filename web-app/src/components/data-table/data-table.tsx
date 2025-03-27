@@ -35,6 +35,8 @@ interface DataTableProps<TData, TValue> {
   data: TData[];
   containerClassName?: string | undefined;
   tableClassName?: string | undefined;
+  tableHeaderClassName?: string | undefined;
+  tableBodyClassName?: string | undefined;
   showPagination?: boolean | undefined;
 }
 
@@ -43,6 +45,8 @@ export default function DataTable<TData, TValue>({
   data,
   containerClassName,
   tableClassName,
+  tableHeaderClassName,
+  tableBodyClassName,
   showPagination,
 }: DataTableProps<TData, TValue>) {
   const t = useTranslations("Components.DataTable.Data");
@@ -82,8 +86,13 @@ export default function DataTable<TData, TValue>({
   return (
     <div className={cn("space-y-4", containerClassName)}>
       <div className={cn(tableClassName)}>
-        <ScrollArea className="h-full overflow-x-auto overflow-y-hidden">
-          <div className="bg-background sticky top-0 z-10">
+        <ScrollArea>
+          <div
+            className={cn(
+              "bg-background sticky top-0 z-10",
+              tableHeaderClassName,
+            )}
+          >
             <Table className="table-fixed">
               <TableHeader>
                 {table.getHeaderGroups().map((headerGroup) => (
@@ -110,7 +119,7 @@ export default function DataTable<TData, TValue>({
             </Table>
           </div>
           <ScrollArea>
-            <div className="">
+            <div className={cn(tableBodyClassName)}>
               <Table className="table-fixed">
                 <TableBody>
                   {rowModel.rows?.length ? (

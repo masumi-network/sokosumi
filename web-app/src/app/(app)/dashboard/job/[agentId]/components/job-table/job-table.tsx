@@ -17,9 +17,9 @@ export default function JobTable() {
       columns={columns(t, dateFormatter)}
       data={dummyJobData.slice(0, 18)}
       containerClassName={cn(
-        "w-[calc(100vw-64px)] lg:w-[max(360px,36%)] rounded-md border overflow-hidden h-full",
+        "w-[calc(100vw-64px)] lg:w-[max(360px,36%)] rounded-md border",
       )}
-      tableClassName={cn("overflow-hidden h-full")}
+      tableBodyClassName="h-[500px]"
     />
   );
 }
