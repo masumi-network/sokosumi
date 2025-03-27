@@ -257,9 +257,6 @@ model Agent {
   apiBaseUrl         String
   overrideApiBaseUrl String?
 
-  // exampleOutput  String?
-  // overrideExampleOutput String?
-
   capabilityName         String
   overrideCapabilityName String?
 
