@@ -35,10 +35,10 @@ export function MonetizeYourAgent() {
           <div className="flex flex-wrap items-center justify-end gap-4">
             <MasumiButton />
             <GitHubButton url="https://github.com/masumi-network/masumi-payment-service">
-              Masumi Payment
+              {t("githubPayment")}
             </GitHubButton>
             <GitHubButton url="https://github.com/masumi-network/masumi-registry-service">
-              Masumi Registry
+              {t("githubRegistry")}
             </GitHubButton>
           </div>
         </div>

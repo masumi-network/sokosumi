@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 
@@ -36,6 +37,7 @@ export default function SocialButton({
 }
 
 export function XButton() {
+  const t = useTranslations("Landing.Social");
   return (
     <SocialButton
       iconPath="/socials/x.svg"
@@ -47,12 +49,13 @@ export function XButton() {
         )
       }
     >
-      Platform X
+      {t("platformX")}
     </SocialButton>
   );
 }
 
 export function DiscordButton() {
+  const t = useTranslations("Landing.Social");
   return (
     <SocialButton
       iconPath="/socials/discord.svg"
@@ -64,7 +67,7 @@ export function DiscordButton() {
         )
       }
     >
-      Discord
+      {t("discord")}
     </SocialButton>
   );
 }
@@ -87,13 +90,14 @@ export function GitHubButton({
 }
 
 export function MasumiButton() {
+  const t = useTranslations("Landing.Social");
   return (
     <Button
       onClick={() =>
         window.open("https://masumi.network", "_blank", "noopener,noreferrer")
       }
     >
-      Masumi Network
+      {t("masumi")}
     </Button>
   );
 }

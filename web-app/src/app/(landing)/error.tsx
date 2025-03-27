@@ -37,7 +37,7 @@ export default function Error({
           <p className="text-muted-foreground">{t("description")}</p>
           {error.digest && (
             <p className="text-muted-foreground text-xs">
-              {t("errorId")}: {error.digest}
+              {t("errorId", { errorId: error.digest })}
             </p>
           )}
         </CardContent>
