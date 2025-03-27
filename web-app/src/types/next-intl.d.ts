@@ -1,10 +1,11 @@
-import en from "messages/en.json";
 import {
   AbstractIntlMessages,
   NamespaceKeys,
   NestedKeyOf,
   useTranslations,
 } from "next-intl";
+
+import en from "@/messages/en.json";
 
 type Messages = typeof en;
 

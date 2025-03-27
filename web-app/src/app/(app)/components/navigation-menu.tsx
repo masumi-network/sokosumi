@@ -27,9 +27,9 @@ export default function NavigationMenu({ className }: NavigationMenuProps) {
     <ul className={cn("flex", className)}>
       {navItems.map((nav) => (
         <NavigationLink
-          key={nav.labelKey as string}
+          key={nav.labelKey}
           href={nav.href}
-          label={t(nav.labelKey as string)}
+          label={t(nav.labelKey)}
           activeClassName="underline"
         />
       ))}

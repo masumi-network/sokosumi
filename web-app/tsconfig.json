@@ -26,7 +26,8 @@
       "@/components/*": ["./src/components/*"],
       "@/hooks/*": ["./src/hooks/*"],
       "@/lib/*": ["./src/lib/*"],
-      "@/types/*": ["./types/*"]
+      "@/types/*": ["./src/types/*"],
+      "@/messages/*": ["./messages/*"]
     }
   },
   "include": [
