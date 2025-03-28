@@ -3,7 +3,6 @@
 import { Loader2 } from "lucide-react";
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
@@ -46,13 +45,10 @@ export async function generateMetadata({
   } catch {
     notFound();
   }
-  const t = await getTranslations("App.Job.Metadata");
 
   return {
-    title: t("title", { title: agent?.name ?? "" }),
-    description: t("description", {
-      description: agent?.description ?? "",
-    }),
+    title: agent?.name ?? "",
+    description: agent?.description ?? "",
   };
 }
 
