@@ -174,11 +174,10 @@ async function main() {
         `Processing agent ${agent.title} (${index + 1}/${dummyAgents.length})`,
       );
 
-
       // Check if agent already exists
       const existingAgent = await prisma.agent.findFirst({
         where: {
-          agentIdentifier: `demo-${index + 1}-${agent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+          onChainIdentifier: `demo-${index + 1}-${agent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
         },
       });
 
@@ -188,76 +187,78 @@ async function main() {
         continue;
       }
 
-
-    const pricing = await prisma.agentPricing.create({
-      data: {
-        pricingType: PricingType.Fixed,
-        fixedPricing: {
-          create: {
-            amounts: {
-              create: {
-                unit: agent.price.unit,
-                amount: BigInt(agent.price.amount),
+      const pricing = await prisma.agentPricing.create({
+        data: {
+          pricingType: PricingType.Fixed,
+          fixedPricing: {
+            create: {
+              amounts: {
+                create: {
+                  unit: agent.price.unit,
+                  amount: BigInt(agent.price.amount),
+                },
               },
             },
           },
         },
       });
 
-    const exampleOutputs = agent.exampleOutputs.map((output) => ({
-      name: output.name,
-      mimeType: output.mimeType,
-      url: output.url,
-    }));
+      const exampleOutputs = agent.exampleOutputs.map((output) => ({
+        name: output.name,
+        mimeType: output.mimeType,
+        url: output.url,
+      }));
 
-    await prisma.agent.create({
-      data: {
-        name: agent.title,
-        description: agent.description,
-        uptimeCheckCount: uptimeCheckCount,
-        uptimeCount: uptimeCount,
-        lastUptimeCheck: new Date(),
-        image: agent.image,
-        apiBaseUrl: "https://api.example.com/agent",
-        capabilityName: agent.title,
-        capabilityVersion: "1.0.0",
-        authorName: "Demo Author",
-        tags: {
-          connectOrCreate: agent.tags.map((tag) => ({
-            where: { name: tag },
-            create: { name: tag },
-          })),
-        },
-        metadataVersion: 1,
-        rating: {
-          create: {
-            totalStars: BigInt(agent.rating ?? 0),
-            totalRatings: BigInt(agent.rating ? 1 : 0),
+      await prisma.agent.create({
+        data: {
+          name: agent.title,
+          description: agent.description,
+          uptimeCheckCount: 0,
+          uptimeCount: 0,
+          lastUptimeCheck: new Date(),
+          image: agent.image,
+          apiBaseUrl: "https://api.example.com/agent",
+          capabilityName: agent.title,
+          capabilityVersion: "1.0.0",
+          authorName: "Demo Author",
+          tags: {
+            connectOrCreate: agent.tags.map((tag) => ({
+              where: { name: tag },
+              create: { name: tag },
+            })),
+          },
+          metadataVersion: 1,
+          rating: {
+            create: {
+              totalStars: BigInt(agent.rating ?? 0),
+              totalRatings: BigInt(agent.rating ? 1 : 0),
+            },
           },
 
-        // No overrides initially
-        overrideName: null,
-        overrideDescription: null,
-        overrideImage: null,
-        overrideApiBaseUrl: null,
-        overrideCapabilityName: null,
-        overrideCapabilityVersion: null,
-        overrideAuthorName: null,
-        overrideTags: {
-          create: [],
-        },
-        pricing: {
-          connect: {
-            id: pricing.id,
+          // No overrides initially
+          overrideName: null,
+          overrideDescription: null,
+          overrideImage: null,
+          overrideApiBaseUrl: null,
+          overrideCapabilityName: null,
+          overrideCapabilityVersion: null,
+          overrideAuthorName: null,
+          overrideTags: {
+            create: [],
           },
-        },
-        onChainIdentifier: `demo-${index + 1}-${agent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
-        status: AgentStatus.ONLINE,
-        showOnFrontPage: true,
-        ranking: BigInt(index + 1),
+          pricing: {
+            connect: {
+              id: pricing.id,
+            },
+          },
+          onChainIdentifier: `demo-${index + 1}-${agent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+          status: AgentStatus.ONLINE,
+          showOnFrontPage: true,
+          ranking: BigInt(index + 1),
 
-        exampleOutput: {
-          create: exampleOutputs,
+          exampleOutput: {
+            create: exampleOutputs,
+          },
         },
       });
 
