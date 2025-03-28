@@ -363,7 +363,7 @@ model Job {
   status      JobStatus
   input       String
   output      String?
-  startedAt   DateTime?
+  startedAt   DateTime? @default(now())
   finishedAt  DateTime?
   cost        BigInt
   fee         BigInt

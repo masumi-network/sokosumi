@@ -11,7 +11,7 @@ CREATE TABLE "Job" (
     "status" "JobStatus" NOT NULL,
     "input" TEXT NOT NULL,
     "output" TEXT,
-    "startedAt" TIMESTAMP(3),
+    "startedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "finishedAt" TIMESTAMP(3),
     "cost" BIGINT NOT NULL,
     "fee" BIGINT NOT NULL,
