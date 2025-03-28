@@ -26,6 +26,12 @@ services:
       value: ${APPLE_CLIENT_ID}
     - name: APPLE_CLIENT_SECRET
       value: ${APPLE_CLIENT_SECRET}
+    - name: REGISTRY_API_KEY
+      value: ${REGISTRY_API_KEY}
+    - name: ADMIN_API_KEY
+      value: ${ADMIN_API_KEY}
+    - name: NEXT_PUBLIC_NETWORK
+      value: ${NEXT_PUBLIC_NETWORK}
   github:
     branch: main
     repo: masumi-network/sokosumi
