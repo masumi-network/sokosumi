@@ -39,6 +39,16 @@ export async function POST() {
   return NextResponse.json({ message: "Syncing started" }, { status: 200 });
 }
 
+const convertStatus = (
+  status: "Online" | "Offline" | "Deregistered" | "Invalid",
+) => {
+  return status.toUpperCase() as
+    | "ONLINE"
+    | "OFFLINE"
+    | "DEREGISTERED"
+    | "INVALID";
+};
+
 async function syncAllEntries() {
   let lastIdentifier: string | undefined = undefined;
   const limit = 20;
@@ -77,40 +87,40 @@ async function syncAllEntries() {
       ...entries.map(async (entry) => {
         const updateDbEntry = async () => {
           await prisma.agent.upsert({
-            where: { agentIdentifier: entry.agentIdentifier },
+            where: { onChainIdentifier: entry.agentIdentifier },
             create: {
-              agentIdentifier: entry.agentIdentifier,
-              onChainName: entry.name,
-              onChainDescription: entry.description,
-              onChainApiBaseUrl: entry.apiBaseUrl,
+              onChainIdentifier: entry.agentIdentifier,
+              name: entry.name,
+              description: entry.description,
+              apiBaseUrl: entry.apiBaseUrl,
               lastUptimeCheck: entry.lastUptimeCheck,
               uptimeCount: entry.uptimeCount,
               uptimeCheckCount: entry.uptimeCheckCount,
-              onChainCapabilityName: entry.Capability?.name ?? "",
-              onChainCapabilityVersion: entry.Capability?.version ?? "",
-              onChainAuthorName: entry.authorName ?? "",
-              onChainAuthorContactEmail: entry.authorContactEmail ?? "",
-              onChainAuthorContactOther: entry.authorContactOther ?? "",
-              onChainImage: entry.image ?? "",
-              onChainAuthorOrganization: entry.authorOrganization ?? "",
+              capabilityName: entry.Capability?.name ?? "",
+              capabilityVersion: entry.Capability?.version ?? "",
+              authorName: entry.authorName ?? "",
+              authorContactEmail: entry.authorContactEmail ?? "",
+              authorContactOther: entry.authorContactOther ?? "",
+              image: entry.image ?? "",
+              authorOrganization: entry.authorOrganization ?? "",
               showOnFrontPage: false,
-              status: entry.status,
-              onChainLegalOther: entry.otherLegal ?? "",
-              onChainLegalTerms: entry.termsAndCondition ?? "",
-              onChainLegalPrivacyPolicy: entry.privacyPolicy ?? "",
+              status: convertStatus(entry.status),
+              legalOther: entry.otherLegal ?? "",
+              legalTerms: entry.termsAndCondition ?? "",
+              legalPrivacyPolicy: entry.privacyPolicy ?? "",
               ranking: 0,
-              Rating: {
+              rating: {
                 create: {
                   totalStars: 0,
                   totalRatings: 0,
                 },
               },
-              Pricing: {
+              pricing: {
                 create: {
                   pricingType: "Fixed",
-                  FixedPricing: {
+                  fixedPricing: {
                     create: {
-                      Amounts: {
+                      amounts: {
                         createMany: {
                           data: entry.AgentPricing.FixedPricing.Amounts.map(
                             (amount) => ({
@@ -124,7 +134,7 @@ async function syncAllEntries() {
                   },
                 },
               },
-              ExampleOutput: {
+              exampleOutput: {
                 createMany: {
                   data: entry.ExampleOutput.map((example) => {
                     return {
@@ -141,7 +151,7 @@ async function syncAllEntries() {
               lastUptimeCheck: entry.lastUptimeCheck,
               uptimeCount: entry.uptimeCount,
               uptimeCheckCount: entry.uptimeCheckCount,
-              status: entry.status,
+              status: convertStatus(entry.status),
             },
           });
         };
