@@ -1,84 +1,17 @@
 import { createClient } from "@hey-api/client-next";
 import { after, NextResponse } from "next/server";
 
-import { getEnvSecrets } from "@/config/env.config";
+import { getEnvPublicConfig, getEnvSecrets } from "@/config/env.config";
 import { postRegistryEntry } from "@/lib/api/generated/registry";
 import prisma from "@/lib/db/prisma";
+import { getLock, releaseLock, timeLimitedExecution } from "@/lib/utils";
 
 const LOCK_KEY = "registry-sync";
 
-async function timeLimitedExecution<T>(
-  fn: () => Promise<T>,
-  timeout: number,
-): Promise<T> {
-  const result = await Promise.race([
-    fn(),
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Timeout")), timeout),
-    ),
-  ]);
-  if (result instanceof Error) {
-    throw result;
-  }
-  return result as T;
-}
-
 export async function POST() {
   // Start a transaction to ensure atomicity
-  const lock = await prisma.$transaction(async (tx) => {
-    // Example: Try to acquire a lock on a specific agent
-    // Using pessimistic locking with 'FOR UPDATE'
-    const lock = await tx.lock.findFirst({
-      where: {
-        key: LOCK_KEY,
-      },
-    });
+  const lock = await getLock(LOCK_KEY);
 
-    if (!lock) {
-      return await tx.lock.create({
-        data: {
-          key: LOCK_KEY,
-          lockedBy: getEnvSecrets().INSTANCE_ID,
-          lockedAt: new Date(),
-          isLocked: true,
-        },
-      });
-    }
-
-    if (lock.isLocked) {
-      if (
-        lock.lockedAt &&
-        lock.lockedAt < new Date(Date.now() - getEnvSecrets().LOCK_TIMEOUT)
-      ) {
-        //TODO: better logging
-        console.warn(
-          "Lock timeout reached, will release key",
-          LOCK_KEY,
-          "last updated at: ",
-          lock.updatedAt,
-          " by instance: ",
-          lock.lockedBy,
-        );
-        return await tx.lock.update({
-          where: { id: lock.id },
-          data: {
-            lockedBy: getEnvSecrets().INSTANCE_ID,
-            lockedAt: new Date(),
-            isLocked: true,
-          },
-        });
-      }
-      return null;
-    }
-    return await tx.lock.update({
-      where: { id: lock.id },
-      data: {
-        lockedBy: getEnvSecrets().INSTANCE_ID,
-        lockedAt: new Date(),
-        isLocked: true,
-      },
-    });
-  });
   if (!lock) {
     return NextResponse.json(
       { message: "Syncing already in progress" },
@@ -92,28 +25,17 @@ export async function POST() {
       await timeLimitedExecution(
         syncAllEntries,
         //give some buffer to unlock the lock before the timeout
-        getEnvSecrets().LOCK_TIMEOUT - 1000,
+        getEnvSecrets().LOCK_TIMEOUT - 1000 * 25,
       );
-
       const timingEnd = Date.now();
-      console.log("Syncing took", (timingEnd - timingStart) / 1000, "seconds");
+      console.info("Syncing took", (timingEnd - timingStart) / 1000, "seconds");
     } catch (error) {
       console.error("Error in sync operation:", error);
     } finally {
-      const updatedLock = await prisma.lock.update({
-        where: { key: LOCK_KEY, updatedAt: lock.updatedAt },
-        data: { isLocked: false, lockedBy: null, lockedAt: null },
-      });
-      if (!updatedLock) {
-        console.error(
-          "Lock changed while locked, will not release. Expected key",
-          LOCK_KEY,
-          "to be last updated at: ",
-          lock.updatedAt,
-        );
-      }
+      releaseLock(lock);
     }
   });
+
   return NextResponse.json({ message: "Syncing started" }, { status: 200 });
 }
 
@@ -131,7 +53,7 @@ async function syncAllEntries() {
     const response = await postRegistryEntry({
       client: registryClient,
       body: {
-        network: "Preprod",
+        network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
         limit,
         cursorId: lastIdentifier,
         filter: {
@@ -161,6 +83,9 @@ async function syncAllEntries() {
               onChainName: entry.name,
               onChainDescription: entry.description,
               onChainApiBaseUrl: entry.apiBaseUrl,
+              lastUptimeCheck: entry.lastUptimeCheck,
+              uptimeCount: entry.uptimeCount,
+              uptimeCheckCount: entry.uptimeCheckCount,
               onChainCapabilityName: entry.Capability?.name ?? "",
               onChainCapabilityVersion: entry.Capability?.version ?? "",
               onChainAuthorName: entry.authorName ?? "",
@@ -199,8 +124,23 @@ async function syncAllEntries() {
                   },
                 },
               },
+              ExampleOutput: {
+                createMany: {
+                  data: entry.ExampleOutput.map((example) => {
+                    return {
+                      mimeType: example.mimeType,
+                      name: example.name,
+                      url: example.url,
+                    };
+                  }),
+                },
+              },
             },
             update: {
+              //No update as the metadata will not change
+              lastUptimeCheck: entry.lastUptimeCheck,
+              uptimeCount: entry.uptimeCount,
+              uptimeCheckCount: entry.uptimeCheckCount,
               status: entry.status,
             },
           });

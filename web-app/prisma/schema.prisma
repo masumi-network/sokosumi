@@ -281,6 +281,10 @@ model Agent {
   onChainLegalOther  String?
   overrideLegalOther String?
 
+  lastUptimeCheck  DateTime
+  uptimeCount      Int
+  uptimeCheckCount Int
+
   onChainImage  String
   overrideImage String?
 

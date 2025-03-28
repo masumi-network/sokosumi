@@ -67,6 +67,7 @@ const envSchemaConfig = z.object({
   NEXT_PUBLIC_MASUMI_URL: z.string().url().default("https://masumi.network"),
   NEXT_PUBLIC_KODOSUMI_URL: z.string().url().default("https://kodosumi.com"),
   NEXT_PUBLIC_SOKOSUMI_URL: z.string().url().default("https://sokosumi.com"),
+  NEXT_PUBLIC_NETWORK: z.literal("Preprod").or(z.literal("Mainnet")),
 });
 
 let envSecrets: z.infer<typeof envSchemaSecrets>;
@@ -84,6 +85,7 @@ function validateEnv() {
     NEXT_PUBLIC_MASUMI_URL: process.env.NEXT_PUBLIC_MASUMI_URL,
     NEXT_PUBLIC_KODOSUMI_URL: process.env.NEXT_PUBLIC_KODOSUMI_URL,
     NEXT_PUBLIC_SOKOSUMI_URL: process.env.NEXT_PUBLIC_SOKOSUMI_URL,
+    NEXT_PUBLIC_NETWORK: process.env.NEXT_PUBLIC_NETWORK,
   });
   if (!parsedConfig.success) {
     console.error(

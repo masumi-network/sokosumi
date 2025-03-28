@@ -206,9 +206,13 @@ async function main() {
       mimeType: output.mimeType,
       url: output.url,
     }));
-
+    const uptimeCheckCount = Math.floor(Math.random() * 25);
+    const uptimeCount = Math.floor(Math.random() * uptimeCheckCount);
     await prisma.agent.create({
       data: {
+        uptimeCheckCount: uptimeCheckCount,
+        uptimeCount: uptimeCount,
+        lastUptimeCheck: new Date(),
         onChainName: agent.title,
         onChainDescription: agent.description,
         onChainImage: agent.image,
