@@ -437,6 +437,9 @@
           "cancelled": "Cancelled"
         }
       }
+    },
+    "Billing": {
+      "title": "Billing"
     }
   },
   "NotFound": {

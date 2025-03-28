@@ -1,11 +1,7 @@
-import { useTranslations } from "next-intl";
+import { redirect } from "next/navigation";
 
-export default function Dashboard() {
-  const t = useTranslations("Dashboard");
+import { AppRoute } from "@/types/routes";
 
-  return (
-    <div className="flex items-center justify-center gap-16 p-8 sm:p-20">
-      <h1>{t("title")}</h1>
-    </div>
-  );
+export default function Page() {
+  redirect(AppRoute.Agents);
 }
