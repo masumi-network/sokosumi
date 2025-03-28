@@ -5,7 +5,7 @@ CREATE TYPE "PricingType" AS ENUM ('Fixed');
 CREATE TYPE "AgentStatus" AS ENUM ('ONLINE', 'OFFLINE', 'DEREGISTERED', 'INVALID');
 
 -- CreateEnum
-CREATE TYPE "AgentListType" AS ENUM ('FAVORITE', 'RECENTLY_USED');
+CREATE TYPE "AgentListType" AS ENUM ('FAVORITE');
 
 -- CreateTable
 CREATE TABLE "user" (

@@ -56,17 +56,14 @@ async function AgentsListContent() {
 
   const agentLists = await getOrCreateAgentListsByTypes(userId, [
     AgentListType.FAVORITE,
-    AgentListType.RECENTLY_USED,
   ]);
 
   const agentListTitleTranslations: Record<AgentListType, string> = {
     [AgentListType.FAVORITE]: t("pinnedTitle"),
-    [AgentListType.RECENTLY_USED]: t("recentlyUsedTitle"),
   };
 
   const agentListTypeTranslations: Record<AgentListType, string> = {
     [AgentListType.FAVORITE]: t("pinnedType"),
-    [AgentListType.RECENTLY_USED]: t("recentlyUsedType"),
   };
 
   return (

@@ -334,5 +334,4 @@ model AgentList {
 
 enum AgentListType {
   FAVORITE
-  RECENTLY_USED
 }

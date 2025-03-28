@@ -69,30 +69,6 @@ export async function getOrCreateAgentListByType(
   return await createAgentList(userId, type);
 }
 
-export async function addAgentToList(
-  agentId: string,
-  listId: string,
-): Promise<AgentList> {
-  return await prisma.agentList.update({
-    where: { id: listId },
-    data: {
-      agents: { connect: { id: agentId } },
-    },
-  });
-}
-
-export async function removeAgentFromList(
-  agentId: string,
-  listId: string,
-): Promise<AgentList> {
-  return await prisma.agentList.update({
-    where: { id: listId },
-    data: {
-      agents: { disconnect: { id: agentId } },
-    },
-  });
-}
-
 export async function getOrCreateAgentListsByTypes(
   userId: string,
   types: AgentListType[],
@@ -129,4 +105,28 @@ export async function getOrCreateAgentListsByTypes(
   return [...existingLists, ...newLists].sort((a, b) =>
     a.type.localeCompare(b.type),
   );
+}
+
+export async function addAgentToList(
+  agentId: string,
+  listId: string,
+): Promise<AgentList> {
+  return await prisma.agentList.update({
+    where: { id: listId },
+    data: {
+      agents: { connect: { id: agentId } },
+    },
+  });
+}
+
+export async function removeAgentFromList(
+  agentId: string,
+  listId: string,
+): Promise<AgentList> {
+  return await prisma.agentList.update({
+    where: { id: listId },
+    data: {
+      agents: { disconnect: { id: agentId } },
+    },
+  });
 }
