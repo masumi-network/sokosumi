@@ -15,7 +15,6 @@ const navItems: NavigationLinkData[] = [
   { href: AppRoute.Home, labelKey: "home" },
   { href: AppRoute.Jobs, labelKey: "jobs" },
   { href: AppRoute.Billing, labelKey: "billing" },
-  { href: AppRoute.Settings, labelKey: "settings" },
 ];
 
 interface NavigationMenuProps {
