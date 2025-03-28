@@ -250,6 +250,9 @@ CREATE TABLE "Agent" (
     "overrideLegalTerms" TEXT,
     "legalOther" TEXT,
     "overrideLegalOther" TEXT,
+    "lastUptimeCheck" TIMESTAMP(3) NOT NULL,
+    "uptimeCount" INTEGER NOT NULL,
+    "uptimeCheckCount" INTEGER NOT NULL,
     "image" TEXT NOT NULL,
     "overrideImage" TEXT,
     "metadataVersion" INTEGER NOT NULL DEFAULT 1,
@@ -259,6 +262,19 @@ CREATE TABLE "Agent" (
     "ranking" BIGINT NOT NULL,
 
     CONSTRAINT "Agent_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Lock" (
+    "id" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "key" TEXT NOT NULL,
+    "isLocked" BOOLEAN NOT NULL,
+    "lockedAt" TIMESTAMP(3),
+    "lockedBy" TEXT,
+
+    CONSTRAINT "Lock_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -324,6 +340,9 @@ CREATE UNIQUE INDEX "Agent_ratingId_key" ON "Agent"("ratingId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Agent_pricingId_key" ON "Agent"("pricingId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Lock_key_key" ON "Lock"("key");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Tag_name_key" ON "Tag"("name");

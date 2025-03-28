@@ -284,6 +284,10 @@ model Agent {
   legalOther         String?
   overrideLegalOther String?
 
+  lastUptimeCheck  DateTime
+  uptimeCount      Int
+  uptimeCheckCount Int
+
   image         String
   overrideImage String?
 
@@ -305,6 +309,16 @@ model Agent {
 
   tags         Tag[] @relation("AgentTag")
   overrideTags Tag[] @relation("AgentTagOverride")
+}
+
+model Lock {
+  id        String    @id @default(cuid())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  key       String    @unique
+  isLocked  Boolean
+  lockedAt  DateTime?
+  lockedBy  String?
 }
 
 model Tag {

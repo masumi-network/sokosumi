@@ -8,6 +8,10 @@ import { z } from "zod";
 const envSchemaSecrets = z.object({
   // Database
   DATABASE_URL: z.string().url(),
+  SEED_DUMMY_AGENTS: z
+    .string()
+    .default("false")
+    .transform((val) => val === "true"),
 
   // Authentication
   BETTER_AUTH_SECRET: z.string().nonempty(),
@@ -22,6 +26,9 @@ const envSchemaSecrets = z.object({
 
   MICROSOFT_CLIENT_ID: z.string().nonempty(),
   MICROSOFT_CLIENT_SECRET: z.string().nonempty(),
+
+  // Admin
+  ADMIN_KEY: z.string().min(8).nonempty(),
 
   APPLE_CLIENT_ID: z.string().nonempty(),
   APPLE_CLIENT_SECRET: z.string().nonempty(),
@@ -46,6 +53,16 @@ const envSchemaSecrets = z.object({
     .number()
     .min(0)
     .default(60 * 5), // 5 minutes
+  LOCK_TIMEOUT: z
+    .number()
+    .min(3 * 60 * 1000)
+    .default(10 * 60 * 1000), // 10 minutes
+  INSTANCE_ID: z.string().min(1).default(crypto.randomUUID()),
+  REGISTRY_API_URL: z
+    .string()
+    .url()
+    .default("https://registry.masumi.network/api/v1"),
+  REGISTRY_API_KEY: z.string().min(1),
 });
 
 const envSchemaConfig = z.object({
@@ -57,6 +74,7 @@ const envSchemaConfig = z.object({
   NEXT_PUBLIC_MASUMI_URL: z.string().url().default("https://masumi.network"),
   NEXT_PUBLIC_KODOSUMI_URL: z.string().url().default("https://kodosumi.com"),
   NEXT_PUBLIC_SOKOSUMI_URL: z.string().url().default("https://sokosumi.com"),
+  NEXT_PUBLIC_NETWORK: z.literal("Preprod").or(z.literal("Mainnet")),
 });
 
 let envSecrets: z.infer<typeof envSchemaSecrets>;
@@ -74,6 +92,7 @@ function validateEnv() {
     NEXT_PUBLIC_MASUMI_URL: process.env.NEXT_PUBLIC_MASUMI_URL,
     NEXT_PUBLIC_KODOSUMI_URL: process.env.NEXT_PUBLIC_KODOSUMI_URL,
     NEXT_PUBLIC_SOKOSUMI_URL: process.env.NEXT_PUBLIC_SOKOSUMI_URL,
+    NEXT_PUBLIC_NETWORK: process.env.NEXT_PUBLIC_NETWORK,
   });
   if (!parsedConfig.success) {
     console.error(

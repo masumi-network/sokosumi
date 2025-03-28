@@ -15,7 +15,9 @@ env:
   LINKEDIN_CLIENT_SECRET: ${{ vars.PUBLIC_DEFAULT_SECRET }}
   APPLE_CLIENT_ID: ${{ vars.PUBLIC_DEFAULT_SECRET }}
   APPLE_CLIENT_SECRET: ${{ vars.PUBLIC_DEFAULT_SECRET }}
-
+  NEXT_PUBLIC_NETWORK: "Preprod"
+  ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
+  REGISTRY_API_KEY: ${{ secrets.REGISTRY_API_KEY }}
 jobs:
   build:
     name: Build and Test
