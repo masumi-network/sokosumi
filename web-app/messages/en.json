@@ -494,6 +494,8 @@
     "title": "Hello Dashboard"
   },
   "Navigation": {
-    "gallery": "Gallery"
+    "dashboard": "Dashboard",
+    "gallery": "Gallery",
+    "jobs": "Jobs"
   }
 }
