@@ -1,3 +1,5 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -90,6 +92,10 @@ function AgentDetails({ agent, className }: AgentDetailsProps) {
     Legal,
   } = agent;
 
+  function hireAgent(_event: React.MouseEvent<HTMLButtonElement>): void {
+    console.log("agent hired");
+  }
+
   return (
     <div className={cn("space-y-4", className)}>
       {/* Agent Summary */}
@@ -115,7 +121,7 @@ function AgentDetails({ agent, className }: AgentDetailsProps) {
           </div>
           <div className="mt-auto flex flex-col gap-3">
             <div className="flex items-center gap-3">
-              <Button variant="default" size="lg">
+              <Button onClick={hireAgent} variant="default" size="lg">
                 {t("hire")}
               </Button>
               <Button variant="outline" size="lg">

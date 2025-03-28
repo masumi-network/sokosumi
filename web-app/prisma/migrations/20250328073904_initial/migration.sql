@@ -4,6 +4,12 @@ CREATE TYPE "PricingType" AS ENUM ('Fixed');
 -- CreateEnum
 CREATE TYPE "Status" AS ENUM ('Online', 'Offline', 'Deregistered', 'Invalid');
 
+-- CreateEnum
+CREATE TYPE "CreditActionType" AS ENUM ('TopUp', 'Referral', 'Purchase', 'Refund', 'Adjustment');
+
+-- CreateEnum
+CREATE TYPE "PaymentStatus" AS ENUM ('Pending', 'Succeeded', 'Failed', 'Refunded', 'Cancelled');
+
 -- CreateTable
 CREATE TABLE "user" (
     "id" TEXT NOT NULL,
@@ -271,6 +277,35 @@ CREATE TABLE "Tag" (
 );
 
 -- CreateTable
+CREATE TABLE "CreditAction" (
+    "id" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "amount" BIGINT NOT NULL,
+    "note" TEXT,
+    "type" "CreditActionType" NOT NULL,
+    "userId" TEXT NOT NULL,
+    "paymentId" TEXT,
+
+    CONSTRAINT "CreditAction_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Payment" (
+    "id" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "amount" BIGINT NOT NULL,
+    "currency" TEXT NOT NULL,
+    "status" "PaymentStatus" NOT NULL,
+    "stripePaymentId" TEXT NOT NULL,
+    "stripeCustomerId" TEXT,
+    "metadata" JSONB,
+
+    CONSTRAINT "Payment_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "_AgentOnChainTag" (
     "A" TEXT NOT NULL,
     "B" TEXT NOT NULL,
@@ -309,6 +344,12 @@ CREATE UNIQUE INDEX "Agent_agentIdentifier_key" ON "Agent"("agentIdentifier");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Tag_name_key" ON "Tag"("name");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CreditAction_paymentId_key" ON "CreditAction"("paymentId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Payment_stripePaymentId_key" ON "Payment"("stripePaymentId");
 
 -- CreateIndex
 CREATE INDEX "_AgentOnChainTag_B_index" ON "_AgentOnChainTag"("B");
@@ -363,6 +404,12 @@ ALTER TABLE "Agent" ADD CONSTRAINT "Agent_ratingId_fkey" FOREIGN KEY ("ratingId"
 
 -- AddForeignKey
 ALTER TABLE "Agent" ADD CONSTRAINT "Agent_agentPricingId_fkey" FOREIGN KEY ("agentPricingId") REFERENCES "AgentPricing"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CreditAction" ADD CONSTRAINT "CreditAction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CreditAction" ADD CONSTRAINT "CreditAction_paymentId_fkey" FOREIGN KEY ("paymentId") REFERENCES "Payment"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "_AgentOnChainTag" ADD CONSTRAINT "_AgentOnChainTag_A_fkey" FOREIGN KEY ("A") REFERENCES "Agent"("id") ON DELETE CASCADE ON UPDATE CASCADE;

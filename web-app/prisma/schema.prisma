@@ -36,6 +36,7 @@ model User {
 
   // Auth unrelated fields
   UserAgentRating UserAgentRating[]
+  CreditAction    CreditAction[]
 
   @@unique([email])
   @@map("user")
@@ -324,4 +325,46 @@ enum Status {
   Offline
   Deregistered
   Invalid
+}
+
+model CreditAction {
+  id        String           @id @default(cuid())
+  createdAt DateTime         @default(now())
+  updatedAt DateTime         @updatedAt
+  amount    BigInt
+  note      String?
+  type      CreditActionType
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payment   Payment?         @relation(fields: [paymentId], references: [id])
+  paymentId String?          @unique
+}
+
+enum CreditActionType {
+  TopUp
+  Referral
+  Purchase
+  Refund
+  Adjustment
+}
+
+model Payment {
+  id               String        @id @default(cuid())
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  amount           BigInt // Amount in cents/smallest currency unit
+  currency         String // e.g., "usd"
+  status           PaymentStatus
+  stripePaymentId  String        @unique // Stripe's payment_intent ID
+  stripeCustomerId String? // Stripe's customer ID
+  metadata         Json? // Additional payment metadata
+  creditAction     CreditAction?
+}
+
+enum PaymentStatus {
+  Pending
+  Succeeded
+  Failed
+  Refunded
+  Cancelled
 }
