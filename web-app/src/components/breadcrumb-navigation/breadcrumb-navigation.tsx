@@ -5,20 +5,30 @@ import { getAgents } from "@/lib/db/services/agent.service";
 import BreadcrumbNavigationClient from "./breadcrumb-navigation.client";
 import BreadcrumbNavigationSkeleton from "./breadcrumb-navigation.skeleton";
 
-export default async function BreadcrumbNavigation() {
+interface BreadcrumbNavigationProps {
+  className?: string;
+}
+
+export default async function BreadcrumbNavigation({
+  className,
+}: BreadcrumbNavigationProps) {
   return (
     <Suspense fallback={<BreadcrumbNavigationSkeleton />}>
-      <BreadcrumbNavigationInner />
+      <BreadcrumbNavigationInner className={className} />
     </Suspense>
   );
 }
 
-async function BreadcrumbNavigationInner() {
+async function BreadcrumbNavigationInner({
+  className,
+}: {
+  className?: string | undefined;
+}) {
   const agents = await getAgents();
 
   if (agents.length === 0) {
     return null;
   }
 
-  return <BreadcrumbNavigationClient agents={agents} />;
+  return <BreadcrumbNavigationClient agents={agents} className={className} />;
 }

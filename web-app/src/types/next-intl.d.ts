@@ -2,6 +2,7 @@ import {
   AbstractIntlMessages,
   NamespaceKeys,
   NestedKeyOf,
+  useFormatter,
   useTranslations,
 } from "next-intl";
 
@@ -16,4 +17,6 @@ declare global {
   type IntlTranslation<NestedKey extends IntlNestedKey> = ReturnType<
     typeof useTranslations<NestedKey>
   >;
+
+  type IntlDateFormatter = ReturnType<typeof useFormatter>;
 }

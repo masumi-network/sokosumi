@@ -15,10 +15,12 @@ import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 
 interface BreadcrumbNavigationClientProps {
   agents: AgentDTO[];
+  className?: string | undefined;
 }
 
 export default function BreadcrumbNavigationClient({
   agents,
+  className,
 }: BreadcrumbNavigationClientProps) {
   const pathname = usePathname();
   const t = useTranslations("Navigation");
@@ -37,7 +39,7 @@ export default function BreadcrumbNavigationClient({
   }
 
   return (
-    <Breadcrumb>
+    <Breadcrumb className={className}>
       <BreadcrumbList>
         <BreadcrumbItem>
           <BreadcrumbLink href={pathWithoutLast}>{t("gallery")}</BreadcrumbLink>

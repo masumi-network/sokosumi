@@ -30,6 +30,25 @@
       "Error": {
         "signOut": "Failed to sign out"
       }
+    },
+    "DataTable": {
+      "Data": {
+        "noResults": "No results."
+      },
+      "ColumnHeader": {
+        "ascending": "Asc",
+        "descending": "Desc",
+        "hide": "Hide"
+      },
+      "Pagination": {
+        "rowsSelected": "{selected} of {total, plural, =1 {# row} other {# rows}} selected",
+        "rowsPerPage": "Rows per page",
+        "page": "Page {page} of {totalPages}",
+        "firstPage": "Go to first page",
+        "previousPage": "Go to previous page",
+        "nextPage": "Go to next page",
+        "lastPage": "Go to last page"
+      }
     }
   },
   "Auth": {
@@ -389,6 +408,32 @@
       },
       "AgentDetail": {
         "backToGallery": "Agents Gallery"
+      }
+    },
+    "Job": {
+      "Header": {
+        "createNewJob": "Create New Job",
+        "price": "Price per run: {price, plural, =0 {Free} =1 {1 credit} other {# credits}}"
+      },
+      "Footer": {
+        "termsAndConditions": "Terms and Conditions",
+        "privacyPolicy": "Privacy Policy",
+        "customerSupport": "Customer Support"
+      },
+      "CreateJob": {
+        "title": "Welcome Screen"
+      },
+      "JobTable": {
+        "Header": {
+          "started": "Started",
+          "job": "Job"
+        },
+        "JobStatusBadge": {
+          "completed": "Completed",
+          "failed": "Failed",
+          "pending": "Pending",
+          "cancelled": "Cancelled"
+        }
       }
     }
   },

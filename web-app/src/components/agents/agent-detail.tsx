@@ -115,9 +115,11 @@ function AgentDetails({ agent, className }: AgentDetailsProps) {
           </div>
           <div className="mt-auto flex flex-col gap-3">
             <div className="flex items-center gap-3">
-              <Button variant="default" size="lg">
-                {t("hire")}
-              </Button>
+              <Link href={`/dashboard/jobs/${agent.id}`}>
+                <Button variant="default" size="lg">
+                  {t("hire")}
+                </Button>
+              </Link>
               <Button variant="outline" size="lg">
                 {t("share")}
               </Button>
