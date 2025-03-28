@@ -1,12 +1,15 @@
 import { Bookmark, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { AgentBookmarkButton } from "@/components/agents/agent-bookmark-button";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
+import { AgentListWithAgent } from "@/lib/db/services/agentList.service";
 
 interface HeaderProps {
   agent: AgentDTO;
+  agentList: AgentListWithAgent;
 }
 
 export function HeaderSkeleton() {
@@ -25,13 +28,13 @@ export function HeaderSkeleton() {
   );
 }
 
-export default function Header({ agent }: HeaderProps) {
+export default function Header({ agent, agentList }: HeaderProps) {
   const t = useTranslations("App.Job.Header");
-  const { name, credits } = agent;
+  const { id: agentId, name, credits } = agent;
 
   return (
     <div className="flex flex-wrap items-center gap-4 lg:gap-6 xl:gap-8">
-      <Bookmark size={36} className="cursor-pointer" />
+      <AgentBookmarkButton agentId={agentId} agentList={agentList} />
       <h1 className="text-2xl font-bold xl:text-3xl">{name}</h1>
       <Button className="gap-2">
         <Plus />

@@ -1,12 +1,16 @@
 // Next.js will invalidate the cache when a
 
+import { AgentListType } from "@prisma/client";
 import { Loader2 } from "lucide-react";
 import { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { auth } from "@/lib/better-auth/auth";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 import { getAgentById, getAgents } from "@/lib/db/services/agent.service";
+import { getOrCreateAgentListByType } from "@/lib/db/services/agentList.service";
 
 import Footer from "./components/footer";
 import Header, { HeaderSkeleton } from "./components/header";
@@ -81,9 +85,23 @@ async function JobInnerLayout({
     return null;
   }
 
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  const userId = session?.user.id;
+  if (!userId) {
+    return null;
+  }
+
+  const agentList = await getOrCreateAgentListByType(
+    userId,
+    AgentListType.FAVORITE,
+  );
+
   return (
     <div className="flex h-full flex-1 flex-col p-4 lg:p-6 xl:p-8">
-      <Header agent={agent} />
+      <Header agent={agent} agentList={agentList} />
       <div className="mt-6 flex flex-1 flex-col justify-center gap-4 lg:flex-row lg:overflow-hidden">
         <JobTable />
         {children}
