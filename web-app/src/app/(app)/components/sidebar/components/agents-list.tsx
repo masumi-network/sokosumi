@@ -1,4 +1,8 @@
-import { useTranslations } from "next-intl";
+import { AgentListType } from "@prisma/client";
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { getTranslations } from "next-intl/server";
+import { Suspense } from "react";
 
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
@@ -9,43 +13,24 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { Skeleton } from "@/components/ui/skeleton";
+import { auth } from "@/lib/better-auth/auth";
+import { getOrCreateAgentListsByTypes } from "@/lib/db/services/agentList.service";
 
-const agentsGroups: Array<{
-  labelKey: keyof IntlMessages["App"]["Sidebar"]["Content"]["AgentsList"];
-  agents: string[];
-}> = [
-  {
-    labelKey: "pinned",
-    agents: Array.from(
-      { length: 10 },
-      (_, index) => `Pinned Agent #${index + 1}`,
-    ),
-  },
-  {
-    labelKey: "recentlyUsed",
-    agents: Array.from(
-      { length: 10 },
-      (_, index) => `Recently Used Agent #${index + 1}`,
-    ),
-  },
-];
-
-export default function AgentsList() {
-  const t = useTranslations("App.Sidebar.Content.AgentsList");
-
+function AgentsListSkeleton() {
   return (
     <ScrollArea className="h-full">
-      {agentsGroups.map((group) => (
-        <SidebarGroup key={group.labelKey}>
+      {[1, 2].map((groupIndex) => (
+        <SidebarGroup key={groupIndex}>
           <SidebarGroupLabel className="text-base">
-            {t(group.labelKey)}
+            <Skeleton className="h-5 w-24" />
           </SidebarGroupLabel>
           <SidebarGroupContent className="mt-2">
             <SidebarMenu>
-              {group.agents.map((agent) => (
-                <SidebarMenuItem key={agent}>
+              {[1, 2, 3].map((itemIndex) => (
+                <SidebarMenuItem key={itemIndex}>
                   <SidebarMenuButton asChild>
-                    <span className="whitespace-nowrap">{agent}</span>
+                    <Skeleton className="h-4 w-32" />
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -55,5 +40,67 @@ export default function AgentsList() {
       ))}
       <ScrollBar orientation="horizontal" />
     </ScrollArea>
+  );
+}
+
+async function AgentsListContent() {
+  const t = await getTranslations("App.Sidebar.Content.AgentsList");
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  const userId = session?.user.id;
+  if (!userId) {
+    redirect("/signin");
+  }
+
+  const agentLists = await getOrCreateAgentListsByTypes(userId, [
+    AgentListType.FAVORITE,
+  ]);
+
+  const agentListTitleTranslations: Record<AgentListType, string> = {
+    [AgentListType.FAVORITE]: t("pinnedTitle"),
+  };
+
+  const agentListTypeTranslations: Record<AgentListType, string> = {
+    [AgentListType.FAVORITE]: t("pinnedType"),
+  };
+
+  return (
+    <ScrollArea className="h-full">
+      {agentLists.map((list) => (
+        <SidebarGroup key={list.id}>
+          <SidebarGroupLabel className="text-base">
+            {agentListTitleTranslations[list.type]}
+          </SidebarGroupLabel>
+          <SidebarGroupContent className="mt-2">
+            {list.agents.length > 0 ? (
+              <SidebarMenu>
+                {list.agents.map((agent) => (
+                  <SidebarMenuItem key={agent.id}>
+                    <SidebarMenuButton asChild>
+                      <span className="whitespace-nowrap">{agent.name}</span>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            ) : (
+              <p className="text-muted-foreground px-3 text-sm">
+                {t("noAgents", { type: agentListTypeTranslations[list.type] })}
+              </p>
+            )}
+          </SidebarGroupContent>
+        </SidebarGroup>
+      ))}
+      <ScrollBar orientation="horizontal" />
+    </ScrollArea>
+  );
+}
+
+export default function AgentsList() {
+  return (
+    <Suspense fallback={<AgentsListSkeleton />}>
+      <AgentsListContent />
+    </Suspense>
   );
 }

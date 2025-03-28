@@ -86,8 +86,8 @@ function AgentDetails({ agent, className }: AgentDetailsProps) {
     image,
     credits,
     tags,
-    ExampleOutput,
-    Legal,
+    exampleOutput,
+    legal,
   } = agent;
 
   return (
@@ -135,7 +135,7 @@ function AgentDetails({ agent, className }: AgentDetailsProps) {
       {/* Example Output */}
       <ScrollArea>
         <div className="flex gap-4 pb-4">
-          {ExampleOutput.map((_, index) => (
+          {exampleOutput.map((_, index) => (
             <Image
               key={index}
               src="/placeholder.svg"
@@ -151,26 +151,26 @@ function AgentDetails({ agent, className }: AgentDetailsProps) {
 
       {/* Developer Information */}
       <div className="text-muted-foreground flex gap-6 text-sm">
-        {Legal && <p>{t("Legal.fromDeveloper")}</p>}
-        {Legal?.privacyPolicy && (
+        {legal && <p>{t("Legal.fromDeveloper")}</p>}
+        {legal?.privacyPolicy && (
           <Link
-            href={Legal.privacyPolicy}
+            href={legal.privacyPolicy}
             className="hover:text-foreground underline underline-offset-4 transition-colors"
           >
             {t("Legal.privacyPolicy")}
           </Link>
         )}
-        {Legal?.terms && (
+        {legal?.terms && (
           <Link
-            href={Legal.terms}
+            href={legal.terms}
             className="hover:text-foreground underline underline-offset-4 transition-colors"
           >
             {t("Legal.terms")}
           </Link>
         )}
-        {Legal?.other && (
+        {legal?.other && (
           <Link
-            href={Legal.other}
+            href={legal.other}
             className="hover:text-foreground underline underline-offset-4 transition-colors"
           >
             {t("Legal.other")}

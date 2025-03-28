@@ -8,9 +8,9 @@ export async function authorizationMiddleware(
   req: NextRequest,
   restrictedPaths: string[] = [AppRoute.Home],
 ) {
-  const sessionCookie = getSessionCookie(req);
-
   if (restrictedPaths.some((path) => req.nextUrl.pathname.startsWith(path))) {
+    const sessionCookie = getSessionCookie(req);
+
     // Check if the session cookie is present
     if (!sessionCookie) {
       // Redirect to login page if not authenticated
