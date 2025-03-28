@@ -37,6 +37,7 @@ model User {
   // Auth unrelated fields
   userAgentRating UserAgentRating[]
   agentLists      AgentList[]
+  Job             Job[]
 
   @@unique([email])
   @@map("user")
@@ -306,6 +307,7 @@ model Agent {
 
   userAgentRating UserAgentRating[]
   agentLists      AgentList[]
+  jobs            Job[]
 
   tags         Tag[] @relation("AgentTag")
   overrideTags Tag[] @relation("AgentTagOverride")
@@ -348,4 +350,30 @@ model AgentList {
 
 enum AgentListType {
   FAVORITE
+}
+
+model Job {
+  id          String    @id @default(cuid())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  agentId     String
+  agent       Agent     @relation(fields: [agentId], references: [id])
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  status      JobStatus
+  input       String
+  output      String?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+  cost        BigInt
+  fee         BigInt
+  paymentTxId String?
+}
+
+enum JobStatus {
+  PAYMENT_PENDING
+  PAYMENT_FAILED
+  PROCESSING
+  COMPLETED
+  FAILED
 }
