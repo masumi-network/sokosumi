@@ -1,5 +1,6 @@
 import { AgentListType } from "@prisma/client";
 import { headers } from "next/headers";
+import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
@@ -79,7 +80,9 @@ async function AgentsListContent() {
                 {list.agents.map((agent) => (
                   <SidebarMenuItem key={agent.id}>
                     <SidebarMenuButton asChild>
-                      <span className="whitespace-nowrap">{agent.name}</span>
+                      <Link href={`/dashboard/gallery/${agent.id}`}>
+                        <span className="whitespace-nowrap">{agent.name}</span>
+                      </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
