@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { useTranslations } from "next-intl";
 
 import {
   Breadcrumb,
@@ -33,6 +34,7 @@ export default function BreadcrumbNavigationClient({
   agents,
 }: BreadcrumbNavigationClientProps) {
   const pathname = usePathname();
+  const t = useTranslations("Navigation");
 
   const parsed = parsePathname(pathname);
 
@@ -51,7 +53,7 @@ export default function BreadcrumbNavigationClient({
     <Breadcrumb>
       <BreadcrumbList>
         <BreadcrumbItem>
-          <BreadcrumbLink href={galleryPath}>Gallery</BreadcrumbLink>
+          <BreadcrumbLink href={galleryPath}>{t("gallery")}</BreadcrumbLink>
         </BreadcrumbItem>
         <BreadcrumbSeparator />
         <BreadcrumbItem>
