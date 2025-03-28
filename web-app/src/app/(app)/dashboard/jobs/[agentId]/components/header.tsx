@@ -3,27 +3,28 @@ import { Bookmark, Plus } from "lucide-react";
 import { headers } from "next/headers";
 import { useTranslations } from "next-intl";
 import { getTranslations } from "next-intl/server";
+import { Suspense } from "react";
 
 import { AgentBookmarkButton } from "@/components/agents/agent-bookmark-button";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { auth } from "@/lib/better-auth/auth";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
-import {
-  AgentListWithAgent,
-  getOrCreateAgentListByType,
-} from "@/lib/db/services/agentList.service";
+import { getOrCreateAgentListByType } from "@/lib/db/services/agentList.service";
+import { sleep } from "@/lib/utils";
 
 interface HeaderProps {
   agent: AgentDTO;
 }
+
+const bookmarkSize = 36;
 
 export function HeaderSkeleton() {
   const t = useTranslations("App.Job.Header");
 
   return (
     <div className="flex flex-wrap items-center gap-4 lg:gap-6 xl:gap-8">
-      <Bookmark size={36} className="cursor-pointer" />
+      <Bookmark size={bookmarkSize} className="cursor-pointer" />
       <Skeleton className="h-10 w-60" />
       <Button className="gap-2">
         <Plus />
@@ -34,28 +35,54 @@ export function HeaderSkeleton() {
   );
 }
 
+function InactiveBookmarkButton() {
+  return (
+    <Bookmark
+      size={bookmarkSize}
+      className="text-muted cursor-not-allowed"
+      aria-label="Bookmark not available"
+    />
+  );
+}
+
+async function AgentBookmarkSection({ agentId }: { agentId: string }) {
+  try {
+    await sleep(1000);
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session?.user.id) return <InactiveBookmarkButton />;
+
+    const agentList = await getOrCreateAgentListByType(
+      session.user.id,
+      AgentListType.FAVORITE,
+    );
+
+    return agentList ? (
+      <AgentBookmarkButton agentId={agentId} agentList={agentList} />
+    ) : (
+      <InactiveBookmarkButton />
+    );
+  } catch (error) {
+    console.error("Failed to load bookmark section:", error);
+    return <InactiveBookmarkButton />;
+  }
+}
+
 export default async function Header({ agent }: HeaderProps) {
   const t = await getTranslations("App.Job.Header");
   const { id: agentId, name, credits } = agent;
 
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-  const userId = session?.user.id;
-
-  let agentList: AgentListWithAgent | undefined = undefined;
-  if (userId) {
-    agentList = await getOrCreateAgentListByType(
-      userId,
-      AgentListType.FAVORITE,
-    );
-  }
-
   return (
     <div className="flex flex-wrap items-center gap-4 lg:gap-6 xl:gap-8">
-      {agentList && (
-        <AgentBookmarkButton agentId={agentId} agentList={agentList} />
-      )}
+      <Suspense
+        fallback={
+          <Bookmark size={bookmarkSize} className="text-muted cursor-pointer" />
+        }
+      >
+        <AgentBookmarkSection agentId={agentId} />
+      </Suspense>
       <h1 className="text-2xl font-bold xl:text-3xl">{name}</h1>
       <Button className="gap-2">
         <Plus />
