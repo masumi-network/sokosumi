@@ -17,6 +17,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { auth } from "@/lib/better-auth/auth";
 import { getOrCreateAgentListsByTypes } from "@/lib/db/services/agentList.service";
+import { AppRoute } from "@/types/routes";
 
 function AgentsListSkeleton() {
   return (
@@ -80,7 +81,7 @@ async function AgentsListContent() {
                 {list.agents.map((agent) => (
                   <SidebarMenuItem key={agent.id}>
                     <SidebarMenuButton asChild>
-                      <Link href={`/dashboard/gallery/${agent.id}`}>
+                      <Link href={`${AppRoute.Agents}/${agent.id}`}>
                         <span className="whitespace-nowrap">{agent.name}</span>
                       </Link>
                     </SidebarMenuButton>
