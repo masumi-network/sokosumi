@@ -39,7 +39,6 @@ export default async function GalleryPage() {
     userId,
     AgentListType.FAVORITE,
   );
-  console.log("agentList", agentList);
 
   return (
     <div className="w-full px-4 py-4 sm:px-8 xl:px-16">
