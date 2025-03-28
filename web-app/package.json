@@ -56,7 +56,7 @@
     "react-social-login-buttons": "^4.1.1",
     "react-window": "^1.8.11",
     "resend": "^4.2.0",
-    "sonner": "^2.0.1",
+    "sonner": "^2.0.2",
     "tailwind-merge": "^3.0.2",
     "tailwindcss-animate": "^1.0.7",
     "use-debounce": "^10.0.4",
