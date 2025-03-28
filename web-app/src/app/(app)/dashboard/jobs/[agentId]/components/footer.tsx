@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { LegalDTO } from "@/lib/db/dto/AgentDTO";
 
 interface FooterProps {
-  legal?: LegalDTO;
+  legal?: LegalDTO | undefined;
 }
 
 export default function Footer({ legal }: FooterProps) {
