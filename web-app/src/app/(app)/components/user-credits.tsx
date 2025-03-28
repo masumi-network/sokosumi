@@ -19,6 +19,5 @@ export default async function UserCredits() {
   if (!user) {
     return <>{t("creditsUnavailable")}</>;
   }
-
   return <>{t("creditsBalance", { credits: user.credits })}</>;
 }

@@ -17,5 +17,5 @@ export async function createUserDTO(user: User): Promise<UserDTO> {
 }
 
 function reduceByMillion(value: number): number {
-  return value / 1_000_000;
+  return value / 10 ** 6;
 }
