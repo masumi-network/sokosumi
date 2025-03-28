@@ -1,7 +1,6 @@
-import { headers } from "next/headers";
 import { Suspense } from "react";
 
-import { auth } from "@/lib/better-auth/auth";
+import { requireAuthentication } from "@/lib/auth/utils";
 
 import UserAvatarClient from "./user-avatar.client";
 import UserAvatarSkeleton from "./user-avatar-skeleton";
@@ -15,13 +14,6 @@ export default async function UserAvatar() {
 }
 
 async function UserAvatarInner() {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  if (!session) {
-    return <UserAvatarSkeleton noAnimation />;
-  }
-
+  const { session } = await requireAuthentication();
   return <UserAvatarClient user={session.user} />;
 }

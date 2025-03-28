@@ -22,8 +22,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { User } from "@/lib/better-auth/auth";
-import { signOut } from "@/lib/better-auth/auth.client";
+import type { User } from "@/lib/auth/auth";
+import { signOut } from "@/lib/auth/auth.client";
 import { AppRoute, LandingRoute } from "@/types/routes";
 
 import UserAvatarContent from "./user-avatar-content";

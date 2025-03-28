@@ -1,6 +1,5 @@
 import { AgentListType } from "@prisma/client";
 import { Bookmark, Plus } from "lucide-react";
-import { headers } from "next/headers";
 import { useTranslations } from "next-intl";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
@@ -8,7 +7,7 @@ import { Suspense } from "react";
 import { AgentBookmarkButton } from "@/components/agents/agent-bookmark-button";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { auth } from "@/lib/better-auth/auth";
+import { requireAuthentication } from "@/lib/auth/utils";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 import { getOrCreateAgentListByType } from "@/lib/db/services/agentList.service";
 
@@ -45,26 +44,18 @@ function InactiveBookmarkButton() {
 }
 
 async function AgentBookmarkSection({ agentId }: { agentId: string }) {
-  try {
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
+  const { session } = await requireAuthentication();
 
-    if (!session?.user.id) return <InactiveBookmarkButton />;
+  const agentList = await getOrCreateAgentListByType(
+    session.user.id,
+    AgentListType.FAVORITE,
+  );
 
-    const agentList = await getOrCreateAgentListByType(
-      session.user.id,
-      AgentListType.FAVORITE,
-    );
-
-    return agentList ? (
-      <AgentBookmarkButton agentId={agentId} agentList={agentList} />
-    ) : (
-      <InactiveBookmarkButton />
-    );
-  } catch {
-    return <InactiveBookmarkButton />;
-  }
+  return agentList ? (
+    <AgentBookmarkButton agentId={agentId} agentList={agentList} />
+  ) : (
+    <InactiveBookmarkButton />
+  );
 }
 
 export default async function Header({ agent }: HeaderProps) {

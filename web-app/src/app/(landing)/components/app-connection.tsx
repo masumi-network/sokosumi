@@ -5,7 +5,7 @@ import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
 import { Button } from "@/components/ui/button";
-import { auth } from "@/lib/better-auth/auth";
+import { auth } from "@/lib/auth/auth";
 import { AppRoute } from "@/types/routes";
 
 import AuthButtons from "./auth-buttons";

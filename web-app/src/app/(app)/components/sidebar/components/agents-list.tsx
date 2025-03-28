@@ -1,7 +1,5 @@
 import { AgentListType } from "@prisma/client";
-import { headers } from "next/headers";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
@@ -15,7 +13,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { auth } from "@/lib/better-auth/auth";
+import { requireAuthentication } from "@/lib/auth/utils";
 import { getOrCreateAgentListsByTypes } from "@/lib/db/services/agentList.service";
 import { AppRoute } from "@/types/routes";
 
@@ -47,16 +45,9 @@ function AgentsListSkeleton() {
 
 async function AgentsListContent() {
   const t = await getTranslations("App.Sidebar.Content.AgentsList");
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const { session } = await requireAuthentication();
 
-  const userId = session?.user.id;
-  if (!userId) {
-    redirect("/signin");
-  }
-
-  const agentLists = await getOrCreateAgentListsByTypes(userId, [
+  const agentLists = await getOrCreateAgentListsByTypes(session.user.id, [
     AgentListType.FAVORITE,
   ]);
 
