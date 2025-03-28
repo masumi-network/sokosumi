@@ -37,7 +37,7 @@ model User {
   // Auth unrelated fields
   userAgentRating UserAgentRating[]
   agentLists      AgentList[]
-  Job             Job[]
+  jobs            Job[]
 
   @@unique([email])
   @@map("user")
