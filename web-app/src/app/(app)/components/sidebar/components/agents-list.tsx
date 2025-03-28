@@ -1,4 +1,5 @@
 import { AgentListType } from "@prisma/client";
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
@@ -14,6 +15,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { requireAuthentication } from "@/lib/auth/utils";
 import { getOrCreateAgentListsByTypes } from "@/lib/db/services/agentList.service";
+import { AppRoute } from "@/types/routes";
 
 function AgentsListSkeleton() {
   return (
@@ -70,7 +72,9 @@ async function AgentsListContent() {
                 {list.agents.map((agent) => (
                   <SidebarMenuItem key={agent.id}>
                     <SidebarMenuButton asChild>
-                      <span className="whitespace-nowrap">{agent.name}</span>
+                      <Link href={`${AppRoute.Jobs}/${agent.id}`}>
+                        <span className="whitespace-nowrap">{agent.name}</span>
+                      </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
