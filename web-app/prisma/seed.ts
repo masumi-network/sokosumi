@@ -1,5 +1,7 @@
 import { AgentStatus, PricingType, PrismaClient } from "@prisma/client";
 
+import { getEnvSecrets } from "@/config/env.config";
+
 const prisma = new PrismaClient();
 
 const dummyAgents = [
@@ -165,7 +167,8 @@ const dummyAgents = [
   },
 ];
 
-const seedDummyAgents = false;
+const seedDummyAgents = getEnvSecrets().SEED_DUMMY_AGENTS;
+
 async function main() {
   let index = 0;
   if (seedDummyAgents) {

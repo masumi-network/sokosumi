@@ -8,6 +8,10 @@ import { z } from "zod";
 const envSchemaSecrets = z.object({
   // Database
   DATABASE_URL: z.string().url(),
+  SEED_DUMMY_AGENTS: z
+    .string()
+    .default("false")
+    .transform((val) => val === "true"),
 
   // Authentication
   BETTER_AUTH_SECRET: z.string().nonempty(),
