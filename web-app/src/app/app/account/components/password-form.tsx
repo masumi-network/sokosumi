@@ -5,11 +5,8 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import { updatePassword } from "@/app/(app)/dashboard/account/actions";
-import {
-  passwordFormSchema,
-  PasswordFormType,
-} from "@/app/(app)/dashboard/account/data";
+import { updatePassword } from "@/app/app/account/actions";
+import { passwordFormSchema, PasswordFormType } from "@/app/app/account/data";
 import { Button } from "@/components/ui/button";
 import {
   Card,

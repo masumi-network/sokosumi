@@ -5,11 +5,8 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import { updateName } from "@/app/(app)/dashboard/account/actions";
-import {
-  nameFormSchema,
-  NameFormType,
-} from "@/app/(app)/dashboard/account/data";
+import { updateName } from "@/app/app/account/actions";
+import { nameFormSchema, NameFormType } from "@/app/app/account/data";
 import { Button } from "@/components/ui/button";
 import {
   Card,
