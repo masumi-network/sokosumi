@@ -6,6 +6,7 @@ import { BadgeCloud } from "@/components/agents";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
+import { LandingRoute } from "@/types/routes";
 
 export function FeaturedAgentSkeleton() {
   return (
@@ -38,7 +39,7 @@ interface FeaturedAgentProps {
 }
 
 export function FeaturedAgent({ agent }: FeaturedAgentProps) {
-  const t = useTranslations("Landing.Gallery.FeaturedAgent");
+  const t = useTranslations("Landing.Agents.FeaturedAgent");
   const { id, name, description, tags, image } = agent;
 
   return (
@@ -51,7 +52,7 @@ export function FeaturedAgent({ agent }: FeaturedAgentProps) {
         </div>
         <p className="text-muted-foreground text-lg">{description}</p>
         <BadgeCloud tags={tags} />
-        <Link href={`/gallery/${id}`}>
+        <Link href={`${LandingRoute.Agents}/${id}`}>
           <Button size="lg" className="w-full md:w-auto">
             {t("button")}
           </Button>

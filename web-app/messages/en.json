@@ -347,7 +347,7 @@
         "githubRegistry": "Masumi Registry"
       }
     },
-    "Gallery": {
+    "Agents": {
       "Metadata": {
         "title": "Agents Gallery",
         "description": "Explore our collection of agents."
@@ -394,7 +394,7 @@
         "creditsUnavailable": "credit balance: unknown"
       }
     },
-    "Gallery": {
+    "Agents": {
       "Metadata": {
         "title": "Agents Gallery",
         "description": "Explore our collection of agents."
@@ -411,7 +411,8 @@
         "backToGallery": "Agents Gallery"
       }
     },
-    "Job": {
+    "Jobs": {
+      "title": "A list of all jobs",
       "Header": {
         "createNewJob": "Create New Job",
         "price": "Price per run: {price, plural, =0 {Free} =1 {1 credit} other {# credits}}"

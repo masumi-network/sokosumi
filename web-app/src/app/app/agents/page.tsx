@@ -12,7 +12,7 @@ import FilterSection from "./components/filter-section";
 import FilteredAgents from "./components/filtered-agents";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("App.Gallery.Metadata");
+  const t = await getTranslations("App.Agents.Metadata");
 
   return {
     title: t("title"),

@@ -8,7 +8,7 @@ import { getAgents } from "@/lib/db/services/agent.service";
 import { FeaturedAgent } from "./components/featured-agent";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("Landing.Gallery.Metadata");
+  const t = await getTranslations("Landing.Agents.Metadata");
 
   return {
     title: t("title"),

@@ -1,12 +1,12 @@
 import { useTranslations } from "next-intl";
 
+import AgentsGallery from "./components/agents-gallery";
+import Hero from "./components/hero";
+import HowItWorks from "./components/how-it-works";
+import { JoinOurCommunity } from "./components/join-our-community";
+import { MonetizeYourAgent } from "./components/monetize-your-agent";
+import NumberTalks from "./components/number-talks";
 import Section from "./components/section";
-import AgentsGallery from "./page/agents-gallery";
-import Hero from "./page/hero";
-import HowItWorks from "./page/how-it-works";
-import { JoinOurCommunity } from "./page/join-our-community";
-import { MonetizeYourAgent } from "./page/monetize-your-agent";
-import NumberTalks from "./page/number-talks";
 
 export default function LandingPage() {
   const t = useTranslations("Landing");
