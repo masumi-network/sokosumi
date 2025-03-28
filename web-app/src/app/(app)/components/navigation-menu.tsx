@@ -4,6 +4,8 @@ import NavigationLink from "@/components/navigation-link";
 import { cn } from "@/lib/utils";
 import { AppRoute } from "@/types/routes";
 
+import UserCredits from "./user-credits";
+
 type NavigationLinkData = {
   href: string;
   labelKey: keyof IntlMessages["App"]["Header"]["NavMenu"];
@@ -34,7 +36,7 @@ export default function NavigationMenu({ className }: NavigationMenuProps) {
         />
       ))}
       <div className="text-muted-foreground font-bold">
-        {t("creditsBalance", { balance: "6901" })}
+        <UserCredits />
       </div>
     </ul>
   );
