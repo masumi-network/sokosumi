@@ -13,11 +13,13 @@ import { cn } from "@/lib/utils";
 interface AgentBookmarkButtonProps {
   agentId: string;
   agentList: AgentListWithAgent;
+  className?: string;
 }
 
 export function AgentBookmarkButton({
   agentId,
   agentList,
+  className,
 }: AgentBookmarkButtonProps) {
   const t = useTranslations("Components.Agents.AgentCard");
   const [isBookmarked, setIsBookmarked] = useState<boolean>(
@@ -55,13 +57,13 @@ export function AgentBookmarkButton({
     <Button
       variant="ghost"
       size="icon"
-      className="h-9 w-9"
+      className={cn("!h-9 !w-9", className)}
       onClick={handleBookmarkToggle}
       disabled={isLoading}
     >
       <Bookmark
         fill={isBookmarked ? "currentColor" : "none"}
-        className={cn("h-9 w-9", isLoading && "animate-pulse")}
+        className={cn("!h-9 !w-9", isLoading && "animate-pulse")}
       />
     </Button>
   );
