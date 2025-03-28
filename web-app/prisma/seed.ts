@@ -1,4 +1,4 @@
-import { PricingType, PrismaClient } from "@prisma/client";
+import { AgentStatus, PricingType, PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -175,7 +175,7 @@ async function main() {
     // Check if agent already exists
     const existingAgent = await prisma.agent.findFirst({
       where: {
-        agentIdentifier: `demo-${index + 1}-${agent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+        onChainIdentifier: `demo-${index + 1}-${agent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
       },
     });
 
@@ -188,9 +188,9 @@ async function main() {
     const pricing = await prisma.agentPricing.create({
       data: {
         pricingType: PricingType.Fixed,
-        FixedPricing: {
+        fixedPricing: {
           create: {
-            Amounts: {
+            amounts: {
               create: {
                 unit: agent.price.unit,
                 amount: BigInt(agent.price.amount),
@@ -209,21 +209,21 @@ async function main() {
 
     await prisma.agent.create({
       data: {
-        onChainName: agent.title,
-        onChainDescription: agent.description,
-        onChainImage: agent.image,
-        onChainApiBaseUrl: "https://api.example.com/agent",
-        onChainCapabilityName: agent.title,
-        onChainCapabilityVersion: "1.0.0",
-        onChainAuthorName: "Demo Author",
-        OnChainTags: {
+        name: agent.title,
+        description: agent.description,
+        image: agent.image,
+        apiBaseUrl: "https://api.example.com/agent",
+        capabilityName: agent.title,
+        capabilityVersion: "1.0.0",
+        authorName: "Demo Author",
+        tags: {
           connectOrCreate: agent.tags.map((tag) => ({
             where: { name: tag },
             create: { name: tag },
           })),
         },
-        onChainMetadataVersion: 1,
-        Rating: {
+        metadataVersion: 1,
+        rating: {
           create: {
             totalStars: BigInt(agent.rating ?? 0),
             totalRatings: BigInt(agent.rating ? 1 : 0),
@@ -238,20 +238,20 @@ async function main() {
         overrideCapabilityName: null,
         overrideCapabilityVersion: null,
         overrideAuthorName: null,
-        OverrideTags: {
+        overrideTags: {
           create: [],
         },
-        Pricing: {
+        pricing: {
           connect: {
             id: pricing.id,
           },
         },
-        agentIdentifier: `demo-${index + 1}-${agent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
-        status: "Online",
+        onChainIdentifier: `demo-${index + 1}-${agent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+        status: AgentStatus.ONLINE,
         showOnFrontPage: true,
         ranking: BigInt(index + 1),
 
-        ExampleOutput: {
+        exampleOutput: {
           create: exampleOutputs,
         },
       },

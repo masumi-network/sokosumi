@@ -1,9 +1,12 @@
-import { Tag } from "@prisma/client";
+import { AgentListType, Tag } from "@prisma/client";
 import { Metadata } from "next";
+import { headers } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
+import { auth } from "@/lib/better-auth/auth";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
-import { getCachedAgents } from "@/lib/db/services/agent.service";
+import { getAgents } from "@/lib/db/services/agent.service";
+import { getOrCreateAgentListByType } from "@/lib/db/services/agentList.service";
 import { getCachedTags } from "@/lib/db/services/tag.service";
 
 import FilterSection from "./components/filter-section";
@@ -19,16 +22,30 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function GalleryPage() {
-  const agents: AgentDTO[] = await getCachedAgents();
+  const agents: AgentDTO[] = await getAgents();
   const tags: Tag[] = await getCachedTags();
   const tagNames = tags.map((tag) => tag.name);
+
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  const userId = session?.user.id;
+  if (!userId) {
+    return null;
+  }
+
+  const agentList = await getOrCreateAgentListByType(
+    userId,
+    AgentListType.FAVORITE,
+  );
 
   return (
     <div className="w-full px-4 py-4 sm:px-8 xl:px-16">
       <div className="space-y-12">
         <FilterSection tags={tagNames} />
         {/* Agent Cards Grid */}
-        <FilteredAgents agents={agents} />
+        <FilteredAgents agents={agents} agentList={agentList ?? undefined} />
       </div>
     </div>
   );

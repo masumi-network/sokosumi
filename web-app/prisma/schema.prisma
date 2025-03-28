@@ -35,7 +35,8 @@ model User {
   passkeys    Passkey[]
 
   // Auth unrelated fields
-  UserAgentRating UserAgentRating[]
+  userAgentRating UserAgentRating[]
+  agentLists      AgentList[]
 
   @@unique([email])
   @@map("user")
@@ -172,7 +173,7 @@ model UnitValue {
   unit      String
   amount    BigInt
 
-  AgentFixedPricing   AgentFixedPricing? @relation(fields: [agentFixedPricingId], references: [id])
+  agentFixedPricing   AgentFixedPricing? @relation(fields: [agentFixedPricingId], references: [id])
   agentFixedPricingId String?
   paymentRequestId    String?
   purchaseRequestId   String?
@@ -184,9 +185,9 @@ model AgentPricing {
   updatedAt DateTime @updatedAt
 
   pricingType         PricingType
-  FixedPricing        AgentFixedPricing? @relation(fields: [agentFixedPricingId], references: [id])
+  fixedPricing        AgentFixedPricing? @relation(fields: [agentFixedPricingId], references: [id])
   agentFixedPricingId String?            @unique
-  Agent               Agent?
+  agent               Agent?
 }
 
 enum PricingType {
@@ -197,8 +198,8 @@ model AgentFixedPricing {
   id           String        @id @default(cuid())
   createdAt    DateTime      @default(now())
   updatedAt    DateTime      @updatedAt
-  AgentPricing AgentPricing?
-  Amounts      UnitValue[]
+  agentPricing AgentPricing?
+  amounts      UnitValue[]
 }
 
 model ExampleOutput {
@@ -209,9 +210,9 @@ model ExampleOutput {
   mimeType  String
   url       String
 
-  Agent           Agent?  @relation("ExampleOutputAgent", fields: [agentId], references: [id])
+  agent           Agent?  @relation("ExampleOutputAgent", fields: [agentId], references: [id])
   agentId         String?
-  AgentOverride   Agent?  @relation("ExampleOutputAgentOverride", fields: [agentIdOverride], references: [id])
+  agentOverride   Agent?  @relation("ExampleOutputAgentOverride", fields: [agentIdOverride], references: [id])
   agentIdOverride String?
 }
 
@@ -234,7 +235,7 @@ model AgentRating {
   updatedAt    DateTime @updatedAt
   totalStars   BigInt
   totalRatings BigInt
-  Agent        Agent?
+  agent        Agent?
 }
 
 model Agent {
@@ -242,71 +243,68 @@ model Agent {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  Rating   AgentRating @relation(fields: [ratingId], references: [id])
+  onChainIdentifier String @unique
+
+  rating   AgentRating @relation(fields: [ratingId], references: [id])
   ratingId String      @unique
 
-  onChainName  String
+  name         String
   overrideName String?
 
-  onChainDescription  String?
+  description         String?
   overrideDescription String?
 
-  onChainApiBaseUrl  String
+  apiBaseUrl         String
   overrideApiBaseUrl String?
 
-  onChainExampleOutput  String?
-  overrideExampleOutput String?
-
-  onChainCapabilityName  String
+  capabilityName         String
   overrideCapabilityName String?
 
-  onChainCapabilityVersion  String
+  capabilityVersion         String
   overrideCapabilityVersion String?
 
-  onChainAuthorName  String
+  authorName         String
   overrideAuthorName String?
 
-  onChainAuthorContactEmail  String?
+  authorContactEmail         String?
   overrideAuthorContactEmail String?
 
-  onChainAuthorContactOther  String?
+  authorContactOther         String?
   overrideAuthorContactOther String?
 
-  onChainAuthorOrganization  String?
+  authorOrganization         String?
   overrideAuthorOrganization String?
 
-  onChainLegalPrivacyPolicy  String?
+  legalPrivacyPolicy         String?
   overrideLegalPrivacyPolicy String?
 
-  onChainLegalTerms  String?
+  legalTerms         String?
   overrideLegalTerms String?
 
-  onChainLegalOther  String?
+  legalOther         String?
   overrideLegalOther String?
 
-  onChainImage  String
+  image         String
   overrideImage String?
 
-  onChainMetadataVersion Int @default(1)
+  metadataVersion Int @default(1)
 
-  Pricing        AgentPricing @relation(fields: [agentPricingId], references: [id])
-  agentPricingId String       @unique
+  pricing   AgentPricing @relation(fields: [pricingId], references: [id])
+  pricingId String       @unique
 
-  agentIdentifier String @unique
-  status          Status
+  status AgentStatus @default(ONLINE)
 
   showOnFrontPage Boolean
+  ranking         BigInt
 
-  ranking BigInt
+  exampleOutput         ExampleOutput[] @relation("ExampleOutputAgent")
+  overrideExampleOutput ExampleOutput[] @relation("ExampleOutputAgentOverride")
 
-  // input is dynamic from the agent and not cached for now
+  userAgentRating UserAgentRating[]
+  agentLists      AgentList[]
 
-  ExampleOutput         ExampleOutput[]   @relation("ExampleOutputAgent")
-  ExampleOutputOverride ExampleOutput[]   @relation("ExampleOutputAgentOverride")
-  UserAgentRating       UserAgentRating[]
-
-  OnChainTags  Tag[] @relation("AgentOnChainTag")
-  OverrideTags Tag[] @relation("AgentTagOverride")
+  tags         Tag[] @relation("AgentTag")
+  overrideTags Tag[] @relation("AgentTagOverride")
 }
 
 model Tag {
@@ -315,13 +313,25 @@ model Tag {
   updatedAt DateTime @updatedAt
   name      String   @unique
 
-  Agents         Agent[] @relation("AgentOnChainTag")
-  AgentsOverride Agent[] @relation("AgentTagOverride")
+  agents         Agent[] @relation("AgentTag")
+  agentsOverride Agent[] @relation("AgentTagOverride")
 }
 
-enum Status {
-  Online
-  Offline
-  Deregistered
-  Invalid
+enum AgentStatus {
+  ONLINE
+  OFFLINE
+  DEREGISTERED
+  INVALID
+}
+
+model AgentList {
+  id     String        @id @default(cuid())
+  user   User          @relation(fields: [userId], references: [id])
+  userId String
+  type   AgentListType
+  agents Agent[]
+}
+
+enum AgentListType {
+  FAVORITE
 }

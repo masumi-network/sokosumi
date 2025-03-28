@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 
 import { Agents, AgentsNotAvailable } from "@/components/agents";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
-import { getCachedAgents } from "@/lib/db/services/agent.service";
+import { getAgents } from "@/lib/db/services/agent.service";
 
 import { FeaturedAgent } from "./components/featured-agent";
 
@@ -17,7 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function GalleryPage() {
-  const agents: AgentDTO[] = await getCachedAgents();
+  const agents: AgentDTO[] = await getAgents();
 
   if (!agents.length) {
     return <AgentsNotAvailable />;
