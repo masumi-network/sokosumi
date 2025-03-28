@@ -2,6 +2,7 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { SokosumiLogo } from "@/components/masumi-logos";
+import { LandingRoute } from "@/types/routes";
 
 export default function Footer() {
   const t = useTranslations("Landing.Footer");
@@ -13,7 +14,7 @@ export default function Footer() {
       <div className="container mx-auto px-4 py-12">
         {/* Top section with logo */}
         <div className="mb-8">
-          <Link href="/">
+          <Link href={LandingRoute.Home}>
             <SokosumiLogo variant="white" width={200} height={26} />
           </Link>
         </div>

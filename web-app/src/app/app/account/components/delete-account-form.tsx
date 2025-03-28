@@ -6,11 +6,8 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import { deleteAccount } from "@/app/app/account/actions";
-import {
-  DeleteAccountFormType,
-  deleteAccountSchema,
-} from "@/app/app/account/data";
+import { deleteAccount } from "@/app/account/actions";
+import { DeleteAccountFormType, deleteAccountSchema } from "@/app/account/data";
 import { Button } from "@/components/ui/button";
 import {
   Card,

@@ -27,7 +27,7 @@ export default function Tags({
   onApplyTags,
   tags: validTags,
 }: TagsProps) {
-  const t = useTranslations("App.Gallery.FilterSection");
+  const t = useTranslations("App.Agents.FilterSection");
 
   const [tags, setTags] = useState<string[]>(appliedTags);
   const [open, setOpen] = useState(false);

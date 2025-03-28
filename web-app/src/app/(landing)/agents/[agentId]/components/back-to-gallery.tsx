@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { LandingRoute } from "@/types/routes";
 
 export default function BackToGallery() {
-  const t = useTranslations("App.Gallery.AgentDetail");
+  const t = useTranslations("App.Agents.AgentDetail");
 
   return (
     <div className="flex items-center gap-4">

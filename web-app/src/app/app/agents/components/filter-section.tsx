@@ -14,7 +14,7 @@ interface FilterSectionProps {
 }
 
 export default function FilterSection({ tags }: FilterSectionProps) {
-  const t = useTranslations("App.Gallery.FilterSection");
+  const t = useTranslations("App.Agents.FilterSection");
   const {
     query,
     tags: appliedTags,

@@ -22,10 +22,15 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "@/app/*": ["./src/app/*"],
+      "@/app/*": ["./src/app/app/*"],
+      "@/landing/*": ["./src/app/(landing)/*"],
+      "@/api/*": ["./src/app/api/*"],
       "@/components/*": ["./src/components/*"],
+      "@/config/*": ["./src/config/*"],
+      "@/context/*": ["./src/context/*"],
       "@/hooks/*": ["./src/hooks/*"],
       "@/lib/*": ["./src/lib/*"],
+      "@/middleware/*": ["./src/middleware/*"],
       "@/types/*": ["./src/types/*"],
       "@/messages/*": ["./messages/*"]
     }
