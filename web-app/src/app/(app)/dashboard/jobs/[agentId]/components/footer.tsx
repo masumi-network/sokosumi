@@ -9,24 +9,24 @@ interface FooterProps {
 
 export default function Footer({ agent }: FooterProps) {
   const t = useTranslations("App.Job.Footer");
-  const { Legal } = agent;
+  const { legal } = agent;
 
   return (
     <div className="mt-4 flex items-center gap-2">
       <Link
-        href={Legal?.terms ?? "/"}
+        href={legal?.terms ?? "/"}
         className="hover:text-foreground underline underline-offset-4 transition-colors"
       >
         {t("termsAndConditions")}
       </Link>
       <Link
-        href={Legal?.privacyPolicy ?? "/"}
+        href={legal?.privacyPolicy ?? "/"}
         className="hover:text-foreground underline underline-offset-4 transition-colors"
       >
         {t("privacyPolicy")}
       </Link>
       <Link
-        href={Legal?.other ?? "/"}
+        href={legal?.other ?? "/"}
         className="hover:text-foreground underline underline-offset-4 transition-colors"
       >
         {t("customerSupport")}
