@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 
-import HorizontalScroll from "@/app/(landing)/components/horizontal-scroll";
 import { AgentCard, AgentCardSkeleton } from "@/components/agents";
+import HorizontalScroll from "@/landing/components/horizontal-scroll";
 import { getAgents } from "@/lib/db/services/agent.service";
 
 async function AgentsList() {

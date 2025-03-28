@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import {
   DiscordButton,
   XButton,
-} from "@/app/(landing)/components/social-button";
+} from "@/landing/(auth)/components/social-buttons";
 
 export function JoinOurCommunity() {
   const t = useTranslations("Landing.Page.JoinOurCommunity");
