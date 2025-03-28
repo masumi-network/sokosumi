@@ -17,10 +17,14 @@ const navItems: NavigationLinkData[] = [
 ];
 
 interface NavigationMenuProps {
+  creditsBalance: number;
   className?: string | undefined;
 }
 
-export default function NavigationMenu({ className }: NavigationMenuProps) {
+export default function NavigationMenu({
+  creditsBalance,
+  className,
+}: NavigationMenuProps) {
   const t = useTranslations("App.Header.NavMenu");
 
   return (
@@ -34,7 +38,7 @@ export default function NavigationMenu({ className }: NavigationMenuProps) {
         />
       ))}
       <div className="text-muted-foreground font-bold">
-        {t("creditsBalance", { balance: "6901" })}
+        {t("creditsBalance", { balance: creditsBalance })}
       </div>
     </ul>
   );
