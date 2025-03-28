@@ -353,21 +353,22 @@ enum AgentListType {
 }
 
 model Job {
-  id          String    @id @default(cuid())
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  agentId     String
-  agent       Agent     @relation(fields: [agentId], references: [id])
-  userId      String
-  user        User      @relation(fields: [userId], references: [id])
-  status      JobStatus
-  input       String
-  output      String?
-  startedAt   DateTime  @default(now())
-  finishedAt  DateTime?
-  cost        BigInt
-  fee         BigInt    @default(0)
-  paymentTxId String?
+  id                String    @id @default(cuid())
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  onChainIdentifier String    @unique
+  agentId           String
+  agent             Agent     @relation(fields: [agentId], references: [id])
+  userId            String
+  user              User      @relation(fields: [userId], references: [id])
+  status            JobStatus
+  input             String
+  output            String?
+  startedAt         DateTime  @default(now())
+  finishedAt        DateTime?
+  cost              BigInt
+  fee               BigInt    @default(0)
+  paymentTxId       String?
 }
 
 enum JobStatus {
