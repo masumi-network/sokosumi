@@ -38,6 +38,7 @@ model User {
   credits         BigInt            @default(0)
   userAgentRating UserAgentRating[]
   agentLists      AgentList[]
+  jobs            Job[]
 
   @@unique([email])
   @@map("user")
@@ -307,6 +308,7 @@ model Agent {
 
   userAgentRating UserAgentRating[]
   agentLists      AgentList[]
+  jobs            Job[]
 
   tags         Tag[] @relation("AgentTag")
   overrideTags Tag[] @relation("AgentTagOverride")
@@ -349,4 +351,31 @@ model AgentList {
 
 enum AgentListType {
   FAVORITE
+}
+
+model Job {
+  id                String    @id @default(cuid())
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  onChainIdentifier String    @unique
+  agentId           String
+  agent             Agent     @relation(fields: [agentId], references: [id])
+  userId            String
+  user              User      @relation(fields: [userId], references: [id])
+  status            JobStatus
+  input             String
+  output            String?
+  startedAt         DateTime  @default(now())
+  finishedAt        DateTime?
+  cost              BigInt
+  fee               BigInt    @default(0)
+  paymentTxId       String?
+}
+
+enum JobStatus {
+  PAYMENT_PENDING
+  PAYMENT_FAILED
+  PROCESSING
+  COMPLETED
+  FAILED
 }
