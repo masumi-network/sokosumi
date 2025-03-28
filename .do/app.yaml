@@ -10,6 +10,22 @@ services:
       value: ${BETTER_AUTH_SECRET}
     - name: BETTER_AUTH_URL
       value: ${BETTER_AUTH_URL}
+    - name: GOOGLE_CLIENT_ID
+      value: ${GOOGLE_CLIENT_ID}
+    - name: GOOGLE_CLIENT_SECRET
+      value: ${GOOGLE_CLIENT_SECRET}
+    - name: MICROSOFT_CLIENT_ID
+      value: ${MICROSOFT_CLIENT_ID}
+    - name: MICROSOFT_CLIENT_SECRET
+      value: ${MICROSOFT_CLIENT_SECRET}
+    - name: LINKEDIN_CLIENT_ID
+      value: ${LINKEDIN_CLIENT_ID}
+    - name: LINKEDIN_CLIENT_SECRET
+      value: ${LINKEDIN_CLIENT_SECRET}
+    - name: APPLE_CLIENT_ID
+      value: ${APPLE_CLIENT_ID}
+    - name: APPLE_CLIENT_SECRET
+      value: ${APPLE_CLIENT_SECRET}
   github:
     branch: main
     repo: masumi-network/sokosumi
