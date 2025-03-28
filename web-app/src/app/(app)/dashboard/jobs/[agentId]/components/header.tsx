@@ -11,7 +11,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { auth } from "@/lib/better-auth/auth";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 import { getOrCreateAgentListByType } from "@/lib/db/services/agentList.service";
-import { sleep } from "@/lib/utils";
 
 interface HeaderProps {
   agent: AgentDTO;
@@ -47,7 +46,6 @@ function InactiveBookmarkButton() {
 
 async function AgentBookmarkSection({ agentId }: { agentId: string }) {
   try {
-    await sleep(1000);
     const session = await auth.api.getSession({
       headers: await headers(),
     });
@@ -64,8 +62,7 @@ async function AgentBookmarkSection({ agentId }: { agentId: string }) {
     ) : (
       <InactiveBookmarkButton />
     );
-  } catch (error) {
-    console.error("Failed to load bookmark section:", error);
+  } catch {
     return <InactiveBookmarkButton />;
   }
 }
