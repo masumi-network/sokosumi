@@ -9,6 +9,7 @@ import {
   AgentsNotFound,
 } from "@/components/agents";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
+import { AgentListWithAgent } from "@/lib/db/services/agentList.service";
 
 import { FilterState } from "./use-gallery-filter";
 
@@ -37,9 +38,10 @@ const filterAgents = (agents: AgentDTO[], { query, tags }: FilterState) => {
 
 interface FilteredAgentsProps {
   agents: AgentDTO[];
+  agentList?: AgentListWithAgent | undefined;
 }
 
-function FilteredAgents({ agents }: FilteredAgentsProps) {
+function FilteredAgents({ agents, agentList }: FilteredAgentsProps) {
   const searchParams = useSearchParams();
 
   const filteredAgents = useMemo(() => {
@@ -59,7 +61,7 @@ function FilteredAgents({ agents }: FilteredAgentsProps) {
     return <AgentsNotFound />;
   }
 
-  return <Agents agents={filteredAgents} />;
+  return <Agents agents={filteredAgents} agentList={agentList} />;
 }
 
 export default FilteredAgents;

@@ -5,7 +5,10 @@
       "agentsNotFound": "No Agents found",
       "AgentCard": {
         "button": "Show details",
-        "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
+        "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}",
+        "addedToBookmarks": "Agent added to pinned agents",
+        "removedFromBookmarks": "Agent removed from pinned agents",
+        "bookmarkError": "Failed to update pinned agents"
       },
       "AgentDetail": {
         "hire": "Hire",
@@ -350,8 +353,9 @@
     "Sidebar": {
       "Content": {
         "AgentsList": {
-          "pinned": "Pinned Agents",
-          "recentlyUsed": "Recently Used Agents"
+          "pinnedTitle": "Your Pinned Agents",
+          "noAgents": "No {type} agents yet",
+          "pinnedType": "pinned"
         }
       },
       "Footer": {

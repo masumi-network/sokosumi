@@ -5,20 +5,20 @@ import { ipfsUrlResolver } from "@/lib/ipfs";
 
 type AgentWithRelations = Prisma.AgentGetPayload<{
   include: {
-    ExampleOutput: true;
-    ExampleOutputOverride: true;
-    Pricing: {
+    exampleOutput: true;
+    overrideExampleOutput: true;
+    pricing: {
       include: {
-        FixedPricing: {
+        fixedPricing: {
           include: {
-            Amounts: true;
+            amounts: true;
           };
         };
       };
     };
-    OverrideTags: true;
-    OnChainTags: true;
-    Rating: true;
+    tags: true;
+    overrideTags: true;
+    rating: true;
   };
 }>;
 
@@ -36,12 +36,12 @@ export interface LegalDTO {
 
 export interface AgentDTO {
   readonly id: string;
-  readonly agentIdentifier: string;
+  readonly onChainIdentifier: string;
   readonly name: string;
   readonly description: string;
-  readonly ExampleOutput: ExampleOutputDTO[];
+  readonly exampleOutput: ExampleOutputDTO[];
   readonly author: string;
-  readonly Legal: LegalDTO | null;
+  readonly legal: LegalDTO | null;
   readonly tags: string[];
   readonly image: string;
   readonly averageStars: number | null;
@@ -55,7 +55,7 @@ function calculateCredits(amount: number): number {
 export async function createAgentDTO(
   agent: AgentWithRelations,
 ): Promise<AgentDTO> {
-  if (!agent.Rating || !agent.Pricing.FixedPricing) {
+  if (!agent.rating || !agent.pricing.fixedPricing) {
     throw new Error("Agent must have Rating and FixedPricing");
   }
 
@@ -63,53 +63,51 @@ export async function createAgentDTO(
 
   return {
     id: agent.id,
-    agentIdentifier: agent.agentIdentifier,
-    name: agent.overrideName ?? agent.onChainName,
+    onChainIdentifier: agent.onChainIdentifier,
+    name: agent.overrideName ?? agent.name,
     description:
-      agent.overrideDescription ??
-      agent.onChainDescription ??
-      t("defaultDescription"),
-    ExampleOutput:
-      agent.ExampleOutputOverride.length > 0
-        ? agent.ExampleOutputOverride.map((example) => ({
+      agent.overrideDescription ?? agent.description ?? t("defaultDescription"),
+    exampleOutput:
+      agent.overrideExampleOutput.length > 0
+        ? agent.overrideExampleOutput.map((example) => ({
             id: example.id,
             name: example.name,
             mimeType: example.mimeType,
             url: ipfsUrlResolver(example.url),
           }))
-        : agent.ExampleOutput.map((example) => ({
+        : agent.exampleOutput.map((example) => ({
             id: example.id,
             name: example.name,
             mimeType: example.mimeType,
             url: ipfsUrlResolver(example.url),
           })),
     averageStars:
-      Number(agent.Rating.totalRatings) === 0
+      Number(agent.rating.totalRatings) === 0
         ? null
         : Math.min(
             5,
             Math.round(
-              Number(agent.Rating.totalStars) /
-                Number(agent.Rating.totalRatings),
+              Number(agent.rating.totalStars) /
+                Number(agent.rating.totalRatings),
             ),
           ),
-    author: agent.overrideAuthorName ?? agent.onChainAuthorName,
-    Legal: (() => {
+    author: agent.overrideAuthorName ?? agent.authorName,
+    legal: (() => {
       const privacyPolicy =
-        agent.overrideLegalPrivacyPolicy ?? agent.onChainLegalPrivacyPolicy;
-      const terms = agent.overrideLegalTerms ?? agent.onChainLegalTerms;
-      const other = agent.overrideLegalOther ?? agent.onChainLegalOther;
+        agent.overrideLegalPrivacyPolicy ?? agent.legalPrivacyPolicy;
+      const terms = agent.overrideLegalTerms ?? agent.legalTerms;
+      const other = agent.overrideLegalOther ?? agent.legalOther;
       return privacyPolicy || terms || other
         ? { privacyPolicy, terms, other }
         : null;
     })(),
     tags:
-      agent.OverrideTags.length > 0
-        ? agent.OverrideTags.map((tag) => tag.name)
-        : agent.OnChainTags.map((tag) => tag.name),
-    image: ipfsUrlResolver(agent.overrideImage ?? agent.onChainImage),
+      agent.overrideTags.length > 0
+        ? agent.overrideTags.map((tag) => tag.name)
+        : agent.tags.map((tag) => tag.name),
+    image: ipfsUrlResolver(agent.overrideImage ?? agent.image),
     credits: calculateCredits(
-      Number(agent.Pricing.FixedPricing.Amounts[0].amount),
+      Number(agent.pricing.fixedPricing.amounts[0].amount),
     ),
   };
 }
