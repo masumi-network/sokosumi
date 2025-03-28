@@ -48,7 +48,8 @@ export default function BreadcrumbNavigationClient({
   const segments =
     customSegments ?? generateSegments(pathname, segmentLabels, agents, t);
 
-  if (!segments.length) {
+  // Only show breadcrumb if there are 2 or more segments
+  if (segments.length < 2) {
     return null;
   }
 
