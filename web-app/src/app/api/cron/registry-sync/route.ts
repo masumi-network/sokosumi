@@ -8,7 +8,10 @@ import { getLock, releaseLock, timeLimitedExecution } from "@/lib/utils";
 
 const LOCK_KEY = "registry-sync";
 
-export async function POST() {
+export async function POST(request: Request) {
+  if (request.headers.get("admin-api-key") !== getEnvSecrets().ADMIN_KEY) {
+    return NextResponse.json({ message: "Invalid api key" }, { status: 401 });
+  }
   // Start a transaction to ensure atomicity
   const lock = await getLock(LOCK_KEY);
 

@@ -23,6 +23,9 @@ const envSchemaSecrets = z.object({
   MICROSOFT_CLIENT_ID: z.string().nonempty(),
   MICROSOFT_CLIENT_SECRET: z.string().nonempty(),
 
+  // Admin
+  ADMIN_KEY: z.string().min(8).nonempty(),
+
   APPLE_CLIENT_ID: z.string().nonempty(),
   APPLE_CLIENT_SECRET: z.string().nonempty(),
 

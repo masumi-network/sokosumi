@@ -29,6 +29,7 @@ jobs:
           APPLE_CLIENT_ID: ${{ vars.APPLE_CLIENT_ID }}
           APPLE_CLIENT_SECRET: ${{ secrets.APPLE_CLIENT_SECRET }}
           REGISTRY_API_KEY: ${{ vars.REGISTRY_API_KEY }}
+          ADMIN_KEY: ${{ vars.ADMIN_KEY }}
           NEXT_PUBLIC_NETWORK: "Preprod"
         with:
           app_name: ${{ vars.DIGITALOCEAN_APP_NAME }}
