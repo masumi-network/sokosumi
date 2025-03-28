@@ -88,7 +88,7 @@ async function JobInnerLayout({
         <JobTable />
         {children}
       </div>
-      <Footer agent={agent} />
+      <Footer legal={agent.legal} />
     </div>
   );
 }
