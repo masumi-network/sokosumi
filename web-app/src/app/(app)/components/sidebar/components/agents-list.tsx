@@ -81,7 +81,7 @@ async function AgentsListContent() {
                 {list.agents.map((agent) => (
                   <SidebarMenuItem key={agent.id}>
                     <SidebarMenuButton asChild>
-                      <Link href={`${AppRoute.Agents}/${agent.id}`}>
+                      <Link href={`${AppRoute.Jobs}/${agent.id}`}>
                         <span className="whitespace-nowrap">{agent.name}</span>
                       </Link>
                     </SidebarMenuButton>
