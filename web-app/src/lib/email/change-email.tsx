@@ -23,7 +23,7 @@ export const ChangeEmailVerificationEmail = async ({
   name,
   changeEmailLink,
 }: ChangeEmailVerificationProps) => {
-  const t = await getTranslations("Auth.Email.ChangeEmail");
+  const t = await getTranslations("Library.Auth.Email.ChangeEmail");
 
   return (
     <Html>

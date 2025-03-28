@@ -8,7 +8,7 @@ import {
 } from "@/lib/auth/data";
 import { FormData } from "@/lib/form";
 
-const signUpFormSchema = (t?: IntlTranslation<"Auth.Schema">) =>
+const signUpFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z
     .object({
       name: nameSchema(t),
@@ -23,31 +23,33 @@ const signUpFormSchema = (t?: IntlTranslation<"Auth.Schema">) =>
 
 type SignUpFormSchemaType = z.infer<ReturnType<typeof signUpFormSchema>>;
 
-const signUpFormData: FormData<SignUpFormSchemaType, "Auth.Pages.SignUp.Form"> =
-  [
-    {
-      name: "email",
-      labelKey: "Fields.Email.label",
-      placeholderKey: "Fields.Email.placeholder",
-    },
-    {
-      name: "name",
-      labelKey: "Fields.Name.label",
-      placeholderKey: "Fields.Name.placeholder",
-    },
-    {
-      name: "password",
-      labelKey: "Fields.Password.label",
-      placeholderKey: "Fields.Password.placeholder",
-      type: "password",
-    },
-    {
-      name: "confirmPassword",
-      labelKey: "Fields.ConfirmPassword.label",
-      placeholderKey: "Fields.ConfirmPassword.placeholder",
-      type: "password",
-    },
-  ];
+const signUpFormData: FormData<
+  SignUpFormSchemaType,
+  "Landing.Auth.Pages.SignUp.Form"
+> = [
+  {
+    name: "email",
+    labelKey: "Fields.Email.label",
+    placeholderKey: "Fields.Email.placeholder",
+  },
+  {
+    name: "name",
+    labelKey: "Fields.Name.label",
+    placeholderKey: "Fields.Name.placeholder",
+  },
+  {
+    name: "password",
+    labelKey: "Fields.Password.label",
+    placeholderKey: "Fields.Password.placeholder",
+    type: "password",
+  },
+  {
+    name: "confirmPassword",
+    labelKey: "Fields.ConfirmPassword.label",
+    placeholderKey: "Fields.ConfirmPassword.placeholder",
+    type: "password",
+  },
+];
 
 export { signUpFormData, signUpFormSchema };
 export type { SignUpFormSchemaType };

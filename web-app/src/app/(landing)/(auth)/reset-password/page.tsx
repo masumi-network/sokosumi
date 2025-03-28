@@ -8,7 +8,7 @@ import ResetPasswordForm from "./components/form";
 import ResetPasswordHeader from "./components/header";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("Auth.Pages.ResetPassword.Metadata");
+  const t = await getTranslations("Landing.Auth.Pages.ResetPassword.Metadata");
 
   return {
     title: t("title"),

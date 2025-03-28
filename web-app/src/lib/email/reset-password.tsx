@@ -23,7 +23,7 @@ export const ResetPasswordEmail = async ({
   name,
   resetLink,
 }: BetterAuthResetPasswordEmailProps) => {
-  const t = await getTranslations("Auth.Email.ResetPassword");
+  const t = await getTranslations("Library.Auth.Email.ResetPassword");
 
   return (
     <Html>

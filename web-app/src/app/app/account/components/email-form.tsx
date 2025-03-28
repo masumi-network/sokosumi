@@ -29,7 +29,9 @@ import { Input } from "@/components/ui/input";
 export function EmailForm() {
   const t = useTranslations("App.Account.Email");
   const form = useForm<EmailFormType>({
-    resolver: zodResolver(emailFormSchema(useTranslations("Auth.Schema"))),
+    resolver: zodResolver(
+      emailFormSchema(useTranslations("Library.Auth.Schema")),
+    ),
     defaultValues: {
       email: "",
     },

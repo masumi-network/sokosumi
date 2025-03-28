@@ -6,13 +6,13 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import { AuthForm, SubmitButton } from "@/app/(landing)/(auth)/components/form";
-import { resetPassword } from "@/app/(landing)/(auth)/reset-password/actions";
+import { AuthForm, SubmitButton } from "@/landing/(auth)/components/form";
+import { resetPassword } from "@/landing/(auth)/reset-password/actions";
 import {
   resetPasswordFormData,
   resetPasswordFormSchema,
   type ResetPasswordFormSchemaType,
-} from "@/app/(landing)/(auth)/reset-password/data";
+} from "@/landing/(auth)/reset-password/data";
 import { LandingRoute } from "@/types/routes";
 
 interface ResetPasswordFormProps {
@@ -20,12 +20,12 @@ interface ResetPasswordFormProps {
 }
 
 export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
-  const t = useTranslations("Auth.Pages.ResetPassword.Form");
+  const t = useTranslations("Landing.Auth.Pages.ResetPassword.Form");
   const router = useRouter();
 
   const form = useForm<ResetPasswordFormSchemaType>({
     resolver: zodResolver(
-      resetPasswordFormSchema(useTranslations("Auth.Schema")),
+      resetPasswordFormSchema(useTranslations("Library.Auth.Schema")),
     ),
     defaultValues: {
       password: "",
@@ -48,7 +48,7 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
     <AuthForm
       form={form}
       formData={resetPasswordFormData}
-      namespace="Auth.Pages.ResetPassword.Form"
+      namespace="Landing.Auth.Pages.ResetPassword.Form"
       onSubmit={onSubmit}
     >
       <SubmitButton form={form} label={t("submit")} />

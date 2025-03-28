@@ -37,7 +37,7 @@ export const auth = betterAuth({
   }),
   emailVerification: {
     sendVerificationEmail: async ({ user, url }) => {
-      const t = await getTranslations("Auth.Email.Verification");
+      const t = await getTranslations("Library.Auth.Email.Verification");
 
       await resend.emails.send({
         from: fromEmail,
@@ -57,7 +57,7 @@ export const auth = betterAuth({
     minPasswordLength: getEnvPublicConfig().NEXT_PUBLIC_PASSWORD_MIN_LENGTH,
     requireEmailVerification: true,
     sendResetPassword: async ({ user, url }) => {
-      const t = await getTranslations("Auth.Email.ResetPassword");
+      const t = await getTranslations("Library.Auth.Email.ResetPassword");
 
       await resend.emails.send({
         from: fromEmail,
@@ -74,7 +74,7 @@ export const auth = betterAuth({
     changeEmail: {
       enabled: true,
       sendChangeEmailVerification: async ({ user, url }) => {
-        const t = await getTranslations("Auth.Email.ChangeEmail");
+        const t = await getTranslations("Library.Auth.Email.ChangeEmail");
 
         await resend.emails.send({
           from: fromEmail,

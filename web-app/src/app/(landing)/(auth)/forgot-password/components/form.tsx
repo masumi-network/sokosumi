@@ -6,13 +6,13 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import { AuthForm, SubmitButton } from "@/app/(landing)/(auth)/components/form";
-import { forgotPassword } from "@/app/(landing)/(auth)/forgot-password/actions";
+import { AuthForm, SubmitButton } from "@/landing/(auth)/components/form";
+import { forgotPassword } from "@/landing/(auth)/forgot-password/actions";
 import {
   forgotPasswordFormData,
   forgotPasswordFormSchema,
   ForgotPasswordFormSchemaType,
-} from "@/app/(landing)/(auth)/forgot-password/data";
+} from "@/landing/(auth)/forgot-password/data";
 import { LandingRoute } from "@/types/routes";
 
 interface ForgotPasswordFormProps {
@@ -22,12 +22,12 @@ interface ForgotPasswordFormProps {
 export default function ForgotPasswordForm({
   initialEmail,
 }: ForgotPasswordFormProps) {
-  const t = useTranslations("Auth.Pages.ForgotPassword.Form");
+  const t = useTranslations("Landing.Auth.Pages.ForgotPassword.Form");
   const router = useRouter();
 
   const form = useForm<ForgotPasswordFormSchemaType>({
     resolver: zodResolver(
-      forgotPasswordFormSchema(useTranslations("Auth.Schema")),
+      forgotPasswordFormSchema(useTranslations("Library.Auth.Schema")),
     ),
     defaultValues: {
       email: initialEmail ?? "",
@@ -48,7 +48,7 @@ export default function ForgotPasswordForm({
     <AuthForm
       form={form}
       formData={forgotPasswordFormData}
-      namespace="Auth.Pages.ForgotPassword.Form"
+      namespace="Landing.Auth.Pages.ForgotPassword.Form"
       onSubmit={onSubmit}
     >
       <SubmitButton form={form} label={t("reset_password")} />

@@ -1,5 +1,5 @@
 export type AuthNamespace =
-  | "Auth.Pages.SignIn.Form"
-  | "Auth.Pages.ForgotPassword.Form"
-  | "Auth.Pages.SignUp.Form"
-  | "Auth.Pages.ResetPassword.Form";
+  | "Landing.Auth.Pages.SignIn.Form"
+  | "Landing.Auth.Pages.ForgotPassword.Form"
+  | "Landing.Auth.Pages.SignUp.Form"
+  | "Landing.Auth.Pages.ResetPassword.Form";

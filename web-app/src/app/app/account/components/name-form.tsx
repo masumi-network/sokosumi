@@ -29,7 +29,9 @@ import { Input } from "@/components/ui/input";
 export function NameForm() {
   const t = useTranslations("App.Account.Name");
   const form = useForm<NameFormType>({
-    resolver: zodResolver(nameFormSchema(useTranslations("Auth.Schema"))),
+    resolver: zodResolver(
+      nameFormSchema(useTranslations("Library.Auth.Schema")),
+    ),
     defaultValues: {
       name: "",
     },

@@ -8,17 +8,19 @@ import {
   passwordSchema,
 } from "@/lib/auth/data";
 
-export const nameFormSchema = (t?: IntlTranslation<"Auth.Schema">) =>
+export const nameFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z.object({
     name: nameSchema(t),
   });
 
-export const emailFormSchema = (t?: IntlTranslation<"Auth.Schema">) =>
+export const emailFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z.object({
     email: emailSchema(t),
   });
 
-export const passwordFormSchema = (t?: IntlTranslation<"Auth.Schema">) =>
+export const passwordFormSchema = (
+  t?: IntlTranslation<"Library.Auth.Schema">,
+) =>
   z
     .object({
       currentPassword: currentPasswordSchema(t),
@@ -30,7 +32,9 @@ export const passwordFormSchema = (t?: IntlTranslation<"Auth.Schema">) =>
       message: t?.("ConfirmPassword.match"),
     });
 
-export const deleteAccountSchema = (t?: IntlTranslation<"Auth.Schema">) =>
+export const deleteAccountSchema = (
+  t?: IntlTranslation<"Library.Auth.Schema">,
+) =>
   z.object({
     currentPassword: currentPasswordSchema(t),
   });

@@ -40,7 +40,7 @@ const socialButtons: Array<{
 ];
 
 export default function SocialButtons() {
-  const t = useTranslations("Auth.SocialButtons");
+  const t = useTranslations("Landing.Auth.SocialButtons");
   const router = useRouter();
 
   const handleClick = async (key: SocialKey) => {

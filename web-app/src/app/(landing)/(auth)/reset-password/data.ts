@@ -3,7 +3,9 @@ import { z } from "zod";
 import { confirmPasswordSchema, passwordSchema } from "@/lib/auth/data";
 import { FormData } from "@/lib/form";
 
-export const resetPasswordFormSchema = (t?: IntlTranslation<"Auth.Schema">) =>
+export const resetPasswordFormSchema = (
+  t?: IntlTranslation<"Library.Auth.Schema">,
+) =>
   z
     .object({
       password: passwordSchema(t),
@@ -21,7 +23,7 @@ export type ResetPasswordFormSchemaType = z.infer<
 
 export const resetPasswordFormData: FormData<
   ResetPasswordFormSchemaType,
-  "Auth.Pages.ResetPassword.Form"
+  "Landing.Auth.Pages.ResetPassword.Form"
 > = [
   {
     name: "password",

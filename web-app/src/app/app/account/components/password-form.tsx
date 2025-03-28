@@ -30,7 +30,9 @@ export function PasswordForm() {
   const t = useTranslations("App.Account.Password");
 
   const form = useForm<PasswordFormType>({
-    resolver: zodResolver(passwordFormSchema(useTranslations("Auth.Schema"))),
+    resolver: zodResolver(
+      passwordFormSchema(useTranslations("Library.Auth.Schema")),
+    ),
     defaultValues: {
       currentPassword: "",
       newPassword: "",

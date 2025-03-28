@@ -1,7 +1,7 @@
 import { useTranslations } from "next-intl";
 
 export default function SignInHeader() {
-  const t = useTranslations("Auth.Pages.SignIn.Header");
+  const t = useTranslations("Landing.Auth.Pages.SignIn.Header");
 
   return (
     <div className="p-6">
