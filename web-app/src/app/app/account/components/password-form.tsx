@@ -27,7 +27,7 @@ import {
 import { Input } from "@/components/ui/input";
 
 export function PasswordForm() {
-  const t = useTranslations("Account.Password");
+  const t = useTranslations("App.Account.Password");
 
   const form = useForm<PasswordFormType>({
     resolver: zodResolver(passwordFormSchema(useTranslations("Auth.Schema"))),

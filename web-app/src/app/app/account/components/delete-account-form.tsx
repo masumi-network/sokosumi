@@ -36,7 +36,7 @@ import {
 import { Input } from "@/components/ui/input";
 
 export function DeleteAccountForm() {
-  const t = useTranslations("Account.Delete");
+  const t = useTranslations("App.Account.Delete");
   const router = useRouter();
 
   const form = useForm<DeleteAccountFormType>({

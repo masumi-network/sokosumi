@@ -6,7 +6,7 @@ import { NameForm } from "./name-form";
 import { PasswordForm } from "./password-form";
 
 export function AccountSettings() {
-  const t = useTranslations("Account");
+  const t = useTranslations("App.Account");
 
   return (
     <div className="mx-auto max-w-5xl space-y-8">

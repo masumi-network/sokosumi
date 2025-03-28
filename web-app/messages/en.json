@@ -395,6 +395,49 @@
         }
       }
     },
+    "Account": {
+      "title": "Account Settings",
+      "description": "Manage your account settings and preferences",
+      "Name": {
+        "title": "Change name",
+        "description": "Update your display name",
+        "newName": "New name",
+        "currentPassword": "Current password",
+        "submit": "Update name",
+        "success": "Name updated successfully",
+        "error": "Failed to update name"
+      },
+      "Email": {
+        "title": "Change email",
+        "description": "Update your email address",
+        "newEmail": "New email",
+        "currentPassword": "Current password",
+        "submit": "Update email",
+        "success": "Email updated successfully",
+        "error": "Failed to update email"
+      },
+      "Password": {
+        "title": "Change password",
+        "description": "Update your password",
+        "currentPassword": "Current password",
+        "newPassword": "New password",
+        "confirmPassword": "Confirm new password",
+        "submit": "Update password",
+        "success": "Password updated successfully",
+        "error": "Failed to update password"
+      },
+      "Delete": {
+        "title": "Delete account",
+        "description": "Permanently delete your account and all associated data",
+        "button": "Delete account",
+        "confirmTitle": "Are you sure?",
+        "confirmDescription": "This action cannot be undone. This will permanently delete your account and remove your data from our servers.",
+        "currentPassword": "Current password",
+        "confirm": "Yes, delete my account",
+        "success": "Account deleted successfully",
+        "error": "Failed to delete account"
+      }
+    },
     "Agents": {
       "Metadata": {
         "title": "Agents Gallery",
@@ -454,49 +497,7 @@
       "defaultDescription": "The author didn't provide a description for this agent."
     }
   },
-  "Account": {
-    "title": "Account Settings",
-    "description": "Manage your account settings and preferences",
-    "Name": {
-      "title": "Change name",
-      "description": "Update your display name",
-      "newName": "New name",
-      "currentPassword": "Current password",
-      "submit": "Update name",
-      "success": "Name updated successfully",
-      "error": "Failed to update name"
-    },
-    "Email": {
-      "title": "Change email",
-      "description": "Update your email address",
-      "newEmail": "New email",
-      "currentPassword": "Current password",
-      "submit": "Update email",
-      "success": "Email updated successfully",
-      "error": "Failed to update email"
-    },
-    "Password": {
-      "title": "Change password",
-      "description": "Update your password",
-      "currentPassword": "Current password",
-      "newPassword": "New password",
-      "confirmPassword": "Confirm new password",
-      "submit": "Update password",
-      "success": "Password updated successfully",
-      "error": "Failed to update password"
-    },
-    "Delete": {
-      "title": "Delete account",
-      "description": "Permanently delete your account and all associated data",
-      "button": "Delete account",
-      "confirmTitle": "Are you sure?",
-      "confirmDescription": "This action cannot be undone. This will permanently delete your account and remove your data from our servers.",
-      "currentPassword": "Current password",
-      "confirm": "Yes, delete my account",
-      "success": "Account deleted successfully",
-      "error": "Failed to delete account"
-    }
-  },
+
   "Navigation": {
     "gallery": "Gallery"
   }
