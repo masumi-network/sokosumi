@@ -165,104 +165,107 @@ const dummyAgents = [
   },
 ];
 
+const seedDummyAgents = false;
 async function main() {
   let index = 0;
-  for (const agent of dummyAgents) {
-    console.log(
-      `Processing agent ${agent.title} (${index + 1}/${dummyAgents.length})`,
-    );
+  if (seedDummyAgents) {
+    for (const agent of dummyAgents) {
+      console.log(
+        `Processing agent ${agent.title} (${index + 1}/${dummyAgents.length})`,
+      );
 
-    // Check if agent already exists
-    const existingAgent = await prisma.agent.findFirst({
-      where: {
-        agentIdentifier: `demo-${index + 1}-${agent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
-      },
-    });
+      // Check if agent already exists
+      const existingAgent = await prisma.agent.findFirst({
+        where: {
+          agentIdentifier: `demo-${index + 1}-${agent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+        },
+      });
 
-    if (existingAgent) {
-      console.log(`Agent ${agent.title} already exists, skipping...`);
-      index++;
-      continue;
-    }
+      if (existingAgent) {
+        console.log(`Agent ${agent.title} already exists, skipping...`);
+        index++;
+        continue;
+      }
 
-    const pricing = await prisma.agentPricing.create({
-      data: {
-        pricingType: PricingType.Fixed,
-        FixedPricing: {
-          create: {
-            Amounts: {
-              create: {
-                unit: agent.price.unit,
-                amount: BigInt(agent.price.amount),
+      const pricing = await prisma.agentPricing.create({
+        data: {
+          pricingType: PricingType.Fixed,
+          FixedPricing: {
+            create: {
+              Amounts: {
+                create: {
+                  unit: agent.price.unit,
+                  amount: BigInt(agent.price.amount),
+                },
               },
             },
           },
         },
-      },
-    });
+      });
 
-    const exampleOutputs = agent.exampleOutputs.map((output) => ({
-      name: output.name,
-      mimeType: output.mimeType,
-      url: output.url,
-    }));
-    const uptimeCheckCount = Math.floor(Math.random() * 25);
-    const uptimeCount = Math.floor(Math.random() * uptimeCheckCount);
-    await prisma.agent.create({
-      data: {
-        uptimeCheckCount: uptimeCheckCount,
-        uptimeCount: uptimeCount,
-        lastUptimeCheck: new Date(),
-        onChainName: agent.title,
-        onChainDescription: agent.description,
-        onChainImage: agent.image,
-        onChainApiBaseUrl: "https://api.example.com/agent",
-        onChainCapabilityName: agent.title,
-        onChainCapabilityVersion: "1.0.0",
-        onChainAuthorName: "Demo Author",
-        OnChainTags: {
-          connectOrCreate: agent.tags.map((tag) => ({
-            where: { name: tag },
-            create: { name: tag },
-          })),
-        },
-        onChainMetadataVersion: 1,
-        Rating: {
-          create: {
-            totalStars: BigInt(agent.rating ?? 0),
-            totalRatings: BigInt(agent.rating ? 1 : 0),
+      const exampleOutputs = agent.exampleOutputs.map((output) => ({
+        name: output.name,
+        mimeType: output.mimeType,
+        url: output.url,
+      }));
+      const uptimeCheckCount = Math.floor(Math.random() * 25);
+      const uptimeCount = Math.floor(Math.random() * uptimeCheckCount);
+      await prisma.agent.create({
+        data: {
+          uptimeCheckCount: uptimeCheckCount,
+          uptimeCount: uptimeCount,
+          lastUptimeCheck: new Date(),
+          onChainName: agent.title,
+          onChainDescription: agent.description,
+          onChainImage: agent.image,
+          onChainApiBaseUrl: "https://api.example.com/agent",
+          onChainCapabilityName: agent.title,
+          onChainCapabilityVersion: "1.0.0",
+          onChainAuthorName: "Demo Author",
+          OnChainTags: {
+            connectOrCreate: agent.tags.map((tag) => ({
+              where: { name: tag },
+              create: { name: tag },
+            })),
+          },
+          onChainMetadataVersion: 1,
+          Rating: {
+            create: {
+              totalStars: BigInt(agent.rating ?? 0),
+              totalRatings: BigInt(agent.rating ? 1 : 0),
+            },
+          },
+
+          // No overrides initially
+          overrideName: null,
+          overrideDescription: null,
+          overrideImage: null,
+          overrideApiBaseUrl: null,
+          overrideCapabilityName: null,
+          overrideCapabilityVersion: null,
+          overrideAuthorName: null,
+          OverrideTags: {
+            create: [],
+          },
+          Pricing: {
+            connect: {
+              id: pricing.id,
+            },
+          },
+          agentIdentifier: `demo-${index + 1}-${agent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+          status: "Online",
+          showOnFrontPage: true,
+          ranking: BigInt(index + 1),
+
+          ExampleOutput: {
+            create: exampleOutputs,
           },
         },
+      });
 
-        // No overrides initially
-        overrideName: null,
-        overrideDescription: null,
-        overrideImage: null,
-        overrideApiBaseUrl: null,
-        overrideCapabilityName: null,
-        overrideCapabilityVersion: null,
-        overrideAuthorName: null,
-        OverrideTags: {
-          create: [],
-        },
-        Pricing: {
-          connect: {
-            id: pricing.id,
-          },
-        },
-        agentIdentifier: `demo-${index + 1}-${agent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
-        status: "Online",
-        showOnFrontPage: true,
-        ranking: BigInt(index + 1),
-
-        ExampleOutput: {
-          create: exampleOutputs,
-        },
-      },
-    });
-
-    console.log(`Created agent ${agent.title}`);
-    index++;
+      console.log(`Created agent ${agent.title}`);
+      index++;
+    }
   }
 }
 
