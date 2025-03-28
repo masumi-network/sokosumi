@@ -2,7 +2,7 @@
 
 import { headers } from "next/headers";
 
-import { auth } from "@/lib/better-auth/auth";
+import { auth } from "@/lib/auth/auth";
 import { AppRoute } from "@/types/routes";
 
 import {

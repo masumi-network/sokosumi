@@ -5,7 +5,7 @@ import {
   emailSchema,
   nameSchema,
   passwordSchema,
-} from "@/lib/better-auth/data";
+} from "@/lib/auth/data";
 import { FormData } from "@/lib/form";
 
 const signUpFormSchema = (t?: IntlTranslation<"Auth.Schema">) =>

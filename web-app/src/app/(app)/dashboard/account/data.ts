@@ -6,7 +6,7 @@ import {
   emailSchema,
   nameSchema,
   passwordSchema,
-} from "@/lib/better-auth/data";
+} from "@/lib/auth/data";
 
 export const nameFormSchema = (t?: IntlTranslation<"Auth.Schema">) =>
   z.object({

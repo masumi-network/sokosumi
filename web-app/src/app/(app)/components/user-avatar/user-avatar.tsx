@@ -1,7 +1,7 @@
 import { headers } from "next/headers";
 import { Suspense } from "react";
 
-import { auth } from "@/lib/better-auth/auth";
+import { auth } from "@/lib/auth/auth";
 
 import UserAvatarClient from "./user-avatar.client";
 import UserAvatarSkeleton from "./user-avatar-skeleton";

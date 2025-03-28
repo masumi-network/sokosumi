@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@/lib/better-auth/auth";
+import { auth } from "@/lib/auth/auth";
 import { LandingRoute } from "@/types/routes";
 
 import { forgotPasswordFormSchema, ForgotPasswordFormSchemaType } from "./data";

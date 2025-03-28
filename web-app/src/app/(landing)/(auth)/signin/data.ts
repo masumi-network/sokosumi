@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { emailSchema, inputPasswordSchema } from "@/lib/better-auth/data";
+import { emailSchema, inputPasswordSchema } from "@/lib/auth/data";
 import { FormData } from "@/lib/form";
 
 const signInFormSchema = (t?: IntlTranslation<"Auth.Schema">) =>

@@ -3,7 +3,7 @@ import { Metadata } from "next";
 import { headers } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
-import { auth } from "@/lib/better-auth/auth";
+import { auth } from "@/lib/auth/auth";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 import { getAgents } from "@/lib/db/services/agent.service";
 import { getOrCreateAgentListByType } from "@/lib/db/services/agentList.service";
