@@ -60,7 +60,7 @@ export default async function JobLayout({
   children: React.ReactNode;
 }) {
   return (
-    <Suspense fallback={<JoLayoutSkeleton />}>
+    <Suspense fallback={<JobLayoutSkeleton />}>
       <JobInnerLayout params={params}>{children}</JobInnerLayout>
     </Suspense>
   );
@@ -93,7 +93,7 @@ async function JobInnerLayout({
   );
 }
 
-function JoLayoutSkeleton() {
+function JobLayoutSkeleton() {
   return (
     <div className="flex flex-1 flex-col p-4 xl:p-8">
       <HeaderSkeleton />
