@@ -495,9 +495,6 @@
       "error": "Failed to delete account"
     }
   },
-  "Dashboard": {
-    "title": "Hello Dashboard"
-  },
   "Navigation": {
     "gallery": "Gallery"
   }
