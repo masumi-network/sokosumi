@@ -30,6 +30,7 @@ jobs:
           APPLE_CLIENT_SECRET: ${{ secrets.APPLE_CLIENT_SECRET }}
           LINKEDIN_CLIENT_ID: ${{ vars.LINKEDIN_CLIENT_ID }}
           LINKEDIN_CLIENT_SECRET: ${{ secrets.LINKEDIN_CLIENT_SECRET }}
+          REGISTRY_API_KEY: ${{ vars.REGISTRY_API_KEY }}
           NEXT_PUBLIC_NETWORK: "Preprod"
         with:
           app_name: ${{ vars.DIGITALOCEAN_APP_NAME }}
