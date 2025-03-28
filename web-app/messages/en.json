@@ -386,12 +386,13 @@
     },
     "Header": {
       "NavMenu": {
-        "home": "Home",
+        "agents": "Agents",
         "jobs": "Jobs",
         "billing": "Billing",
-        "settings": "Settings",
-        "creditsBalance": "credit balance: {credits}",
-        "creditsUnavailable": "credit balance: unknown"
+        "Credit": {
+          "balance": "credit balance: {credits}",
+          "unavailable": "credit balance: unknown"
+        }
       }
     },
     "Agents": {

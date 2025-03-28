@@ -5,19 +5,19 @@ import { auth } from "@/lib/auth/auth";
 import { getUserById } from "@/lib/db/services/user.service";
 
 export default async function UserCredits() {
-  const t = await getTranslations("App.Header.NavMenu");
+  const t = await getTranslations("App.Header.NavMenu.Credit");
   const session = await auth.api.getSession({
     headers: await headers(),
   });
 
   if (!session?.user.id) {
-    return <>{t("creditsUnavailable")}</>;
+    return <>{t("unavailable")}</>;
   }
 
   const user = await getUserById(session.user.id);
 
   if (!user) {
-    return <>{t("creditsUnavailable")}</>;
+    return <>{t("unavailable")}</>;
   }
-  return <>{t("creditsBalance", { credits: user.credits })}</>;
+  return <>{t("balance", { credits: user.credits })}</>;
 }

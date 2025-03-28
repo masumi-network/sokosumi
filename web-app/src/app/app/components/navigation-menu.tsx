@@ -12,7 +12,7 @@ type NavigationLinkData = {
 };
 
 const navItems: NavigationLinkData[] = [
-  { href: AppRoute.Home, labelKey: "home" },
+  { href: AppRoute.Agents, labelKey: "agents" },
   { href: AppRoute.Jobs, labelKey: "jobs" },
   { href: AppRoute.Billing, labelKey: "billing" },
 ];
