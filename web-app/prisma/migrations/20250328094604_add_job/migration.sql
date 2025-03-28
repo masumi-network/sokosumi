@@ -14,7 +14,7 @@ CREATE TABLE "Job" (
     "startedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "finishedAt" TIMESTAMP(3),
     "cost" BIGINT NOT NULL,
-    "fee" BIGINT NOT NULL,
+    "fee" BIGINT NOT NULL DEFAULT 0,
     "paymentTxId" TEXT,
 
     CONSTRAINT "Job_pkey" PRIMARY KEY ("id")
