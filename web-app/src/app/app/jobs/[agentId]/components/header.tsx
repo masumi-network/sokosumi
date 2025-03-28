@@ -18,7 +18,7 @@ interface HeaderProps {
 const bookmarkSize = 36;
 
 export function HeaderSkeleton() {
-  const t = useTranslations("App.Job.Header");
+  const t = useTranslations("App.Jobs.Header");
 
   return (
     <div className="flex flex-wrap items-center gap-4 lg:gap-6 xl:gap-8">
@@ -59,7 +59,7 @@ async function AgentBookmarkSection({ agentId }: { agentId: string }) {
 }
 
 export default async function Header({ agent }: HeaderProps) {
-  const t = await getTranslations("App.Job.Header");
+  const t = await getTranslations("App.Jobs.Header");
   const { id: agentId, name, credits } = agent;
 
   return (

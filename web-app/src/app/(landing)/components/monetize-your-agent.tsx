@@ -4,10 +4,8 @@ import { useTranslations } from "next-intl";
 
 import { KodosumiLogo, MasumiLogo } from "@/components/masumi-logos";
 import { getEnvPublicConfig } from "@/config/env.config";
-import {
-  GitHubButton,
-  MasumiButton,
-} from "@/landing/(auth)/components/social-buttons";
+
+import { GitHubButton, MasumiButton } from "./social-button";
 
 export function MonetizeYourAgent() {
   const t = useTranslations("Landing.Page.MonetizeYourAgent");

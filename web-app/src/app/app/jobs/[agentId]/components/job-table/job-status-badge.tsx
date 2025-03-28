@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { JobStatus } from "./schema";
 
 export default function JobStatusBadge({ status }: { status: JobStatus }) {
-  const t = useTranslations("App.Job.JobTable.JobStatusBadge");
+  const t = useTranslations("App.Jobs.JobTable.JobStatusBadge");
 
   if (status == "Completed")
     return (

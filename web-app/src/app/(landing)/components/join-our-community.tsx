@@ -1,10 +1,7 @@
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 
-import {
-  DiscordButton,
-  XButton,
-} from "@/landing/(auth)/components/social-buttons";
+import { DiscordButton, XButton } from "./social-button";
 
 export function JoinOurCommunity() {
   const t = useTranslations("Landing.Page.JoinOurCommunity");

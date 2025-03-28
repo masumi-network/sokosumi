@@ -10,7 +10,7 @@ import { Job } from "./schema";
 const columnHelper = createColumnHelper<Job>();
 
 export const columns: (
-  t: IntlTranslation<"App.Job.JobTable">,
+  t: IntlTranslation<"App.Jobs.JobTable">,
   dateFormatter: IntlDateFormatter,
 ) => ColumnDef<Job>[] = (t, dateFormatter) => [
   columnHelper.accessor("startedTime", {

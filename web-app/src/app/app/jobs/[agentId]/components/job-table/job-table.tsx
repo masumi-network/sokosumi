@@ -9,7 +9,7 @@ import { columns } from "./columns";
 import { dummyJobData } from "./data";
 
 export default function JobTable() {
-  const t = useTranslations("App.Job.JobTable");
+  const t = useTranslations("App.Jobs.JobTable");
   const dateFormatter = useFormatter();
 
   return (

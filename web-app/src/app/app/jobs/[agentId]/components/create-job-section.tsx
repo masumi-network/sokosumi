@@ -1,7 +1,7 @@
 import { useTranslations } from "next-intl";
 
 export default function CreateJobSection() {
-  const t = useTranslations("App.Job.CreateJob");
+  const t = useTranslations("App.Jobs.CreateJob");
 
   return (
     <div className="flex h-full min-h-[300px] flex-1 flex-col gap-2">
