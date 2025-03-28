@@ -449,8 +449,10 @@
     "message": "The page you're trying to access might have been removed, had its name changed, or is temporarily unavailable.",
     "returnHome": "Return Home"
   },
-  "Agent": {
-    "defaultDescription": "The author didn't provide a description for this agent."
+  "Data": {
+    "Agent": {
+      "defaultDescription": "The author didn't provide a description for this agent."
+    }
   },
   "Account": {
     "title": "Account Settings",

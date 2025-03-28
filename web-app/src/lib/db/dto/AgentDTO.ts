@@ -59,7 +59,7 @@ export async function createAgentDTO(
     throw new Error("Agent must have Rating and FixedPricing");
   }
 
-  const t = await getTranslations("Agent");
+  const t = await getTranslations("Data.Agent");
 
   return {
     id: agent.id,
