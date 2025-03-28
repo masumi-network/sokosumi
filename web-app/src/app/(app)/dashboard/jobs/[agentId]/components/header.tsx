@@ -27,12 +27,12 @@ export function HeaderSkeleton() {
 
 export default function Header({ agent }: HeaderProps) {
   const t = useTranslations("App.Job.Header");
-  const { credits } = agent;
+  const { name, credits } = agent;
 
   return (
     <div className="flex flex-wrap items-center gap-4 lg:gap-6 xl:gap-8">
       <Bookmark size={36} className="cursor-pointer" />
-      <h1 className="text-2xl font-bold xl:text-3xl">{agent.name}</h1>
+      <h1 className="text-2xl font-bold xl:text-3xl">{name}</h1>
       <Button className="gap-2">
         <Plus />
         {t("createNewJob")}
