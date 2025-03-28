@@ -390,7 +390,7 @@
         "jobs": "Jobs",
         "billing": "Billing",
         "settings": "Settings",
-        "creditsBalance": "Credits balance: {balance}"
+        "creditsBalance": "credits balance: {balance}"
       }
     },
     "Gallery": {

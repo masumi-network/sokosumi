@@ -4,6 +4,8 @@ import NavigationLink from "@/components/navigation-link";
 import { cn } from "@/lib/utils";
 import { AppRoute } from "@/types/routes";
 
+import UserCredits from "./user-credits";
+
 type NavigationLinkData = {
   href: string;
   labelKey: keyof IntlMessages["App"]["Header"]["NavMenu"];
@@ -17,14 +19,10 @@ const navItems: NavigationLinkData[] = [
 ];
 
 interface NavigationMenuProps {
-  creditsBalance: number;
   className?: string | undefined;
 }
 
-export default function NavigationMenu({
-  creditsBalance,
-  className,
-}: NavigationMenuProps) {
+export default function NavigationMenu({ className }: NavigationMenuProps) {
   const t = useTranslations("App.Header.NavMenu");
 
   return (
@@ -38,7 +36,7 @@ export default function NavigationMenu({
         />
       ))}
       <div className="text-muted-foreground font-bold">
-        {t("creditsBalance", { balance: creditsBalance })}
+        <UserCredits />
       </div>
     </ul>
   );

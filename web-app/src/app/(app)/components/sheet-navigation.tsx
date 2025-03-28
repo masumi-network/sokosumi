@@ -35,10 +35,7 @@ export default function SheetNavigation() {
           <SheetDescription />
         </SheetHeader>
         <nav className="mt-4">
-          <NavigationMenu
-            className="flex-col gap-4 text-base"
-            creditsBalance={0}
-          />
+          <NavigationMenu className="flex-col gap-4 text-base" />
         </nav>
       </SheetContent>
     </Sheet>
