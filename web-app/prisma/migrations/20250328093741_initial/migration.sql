@@ -2,7 +2,10 @@
 CREATE TYPE "PricingType" AS ENUM ('Fixed');
 
 -- CreateEnum
-CREATE TYPE "Status" AS ENUM ('Online', 'Offline', 'Deregistered', 'Invalid');
+CREATE TYPE "AgentStatus" AS ENUM ('ONLINE', 'OFFLINE', 'DEREGISTERED', 'INVALID');
+
+-- CreateEnum
+CREATE TYPE "AgentListType" AS ENUM ('FAVORITE');
 
 -- CreateEnum
 CREATE TYPE "CreditActionType" AS ENUM ('TopUp', 'Referral', 'Purchase', 'Refund', 'Adjustment');
@@ -227,43 +230,57 @@ CREATE TABLE "Agent" (
     "id" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "onChainIdentifier" TEXT NOT NULL,
     "ratingId" TEXT NOT NULL,
-    "onChainName" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
     "overrideName" TEXT,
-    "onChainDescription" TEXT,
+    "description" TEXT,
     "overrideDescription" TEXT,
-    "onChainApiBaseUrl" TEXT NOT NULL,
+    "apiBaseUrl" TEXT NOT NULL,
     "overrideApiBaseUrl" TEXT,
-    "onChainExampleOutput" TEXT,
-    "overrideExampleOutput" TEXT,
-    "onChainCapabilityName" TEXT NOT NULL,
+    "capabilityName" TEXT NOT NULL,
     "overrideCapabilityName" TEXT,
-    "onChainCapabilityVersion" TEXT NOT NULL,
+    "capabilityVersion" TEXT NOT NULL,
     "overrideCapabilityVersion" TEXT,
-    "onChainAuthorName" TEXT NOT NULL,
+    "authorName" TEXT NOT NULL,
     "overrideAuthorName" TEXT,
-    "onChainAuthorContactEmail" TEXT,
+    "authorContactEmail" TEXT,
     "overrideAuthorContactEmail" TEXT,
-    "onChainAuthorContactOther" TEXT,
+    "authorContactOther" TEXT,
     "overrideAuthorContactOther" TEXT,
-    "onChainAuthorOrganization" TEXT,
+    "authorOrganization" TEXT,
     "overrideAuthorOrganization" TEXT,
-    "onChainLegalPrivacyPolicy" TEXT,
+    "legalPrivacyPolicy" TEXT,
     "overrideLegalPrivacyPolicy" TEXT,
-    "onChainLegalTerms" TEXT,
+    "legalTerms" TEXT,
     "overrideLegalTerms" TEXT,
-    "onChainLegalOther" TEXT,
+    "legalOther" TEXT,
     "overrideLegalOther" TEXT,
-    "onChainImage" TEXT NOT NULL,
+    "lastUptimeCheck" TIMESTAMP(3) NOT NULL,
+    "uptimeCount" INTEGER NOT NULL,
+    "uptimeCheckCount" INTEGER NOT NULL,
+    "image" TEXT NOT NULL,
     "overrideImage" TEXT,
-    "onChainMetadataVersion" INTEGER NOT NULL DEFAULT 1,
-    "agentPricingId" TEXT NOT NULL,
-    "agentIdentifier" TEXT NOT NULL,
-    "status" "Status" NOT NULL,
+    "metadataVersion" INTEGER NOT NULL DEFAULT 1,
+    "pricingId" TEXT NOT NULL,
+    "status" "AgentStatus" NOT NULL DEFAULT 'ONLINE',
     "showOnFrontPage" BOOLEAN NOT NULL,
     "ranking" BIGINT NOT NULL,
 
     CONSTRAINT "Agent_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Lock" (
+    "id" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "key" TEXT NOT NULL,
+    "isLocked" BOOLEAN NOT NULL,
+    "lockedAt" TIMESTAMP(3),
+    "lockedBy" TEXT,
+
+    CONSTRAINT "Lock_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -274,6 +291,15 @@ CREATE TABLE "Tag" (
     "name" TEXT NOT NULL,
 
     CONSTRAINT "Tag_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "AgentList" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "type" "AgentListType" NOT NULL,
+
+    CONSTRAINT "AgentList_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -306,11 +332,19 @@ CREATE TABLE "Payment" (
 );
 
 -- CreateTable
-CREATE TABLE "_AgentOnChainTag" (
+CREATE TABLE "_AgentToAgentList" (
     "A" TEXT NOT NULL,
     "B" TEXT NOT NULL,
 
-    CONSTRAINT "_AgentOnChainTag_AB_pkey" PRIMARY KEY ("A","B")
+    CONSTRAINT "_AgentToAgentList_AB_pkey" PRIMARY KEY ("A","B")
+);
+
+-- CreateTable
+CREATE TABLE "_AgentTag" (
+    "A" TEXT NOT NULL,
+    "B" TEXT NOT NULL,
+
+    CONSTRAINT "_AgentTag_AB_pkey" PRIMARY KEY ("A","B")
 );
 
 -- CreateTable
@@ -334,13 +368,16 @@ CREATE UNIQUE INDEX "organization_slug_key" ON "organization"("slug");
 CREATE UNIQUE INDEX "AgentPricing_agentFixedPricingId_key" ON "AgentPricing"("agentFixedPricingId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Agent_onChainIdentifier_key" ON "Agent"("onChainIdentifier");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Agent_ratingId_key" ON "Agent"("ratingId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Agent_agentPricingId_key" ON "Agent"("agentPricingId");
+CREATE UNIQUE INDEX "Agent_pricingId_key" ON "Agent"("pricingId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Agent_agentIdentifier_key" ON "Agent"("agentIdentifier");
+CREATE UNIQUE INDEX "Lock_key_key" ON "Lock"("key");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Tag_name_key" ON "Tag"("name");
@@ -352,7 +389,10 @@ CREATE UNIQUE INDEX "CreditAction_paymentId_key" ON "CreditAction"("paymentId");
 CREATE UNIQUE INDEX "Payment_stripePaymentId_key" ON "Payment"("stripePaymentId");
 
 -- CreateIndex
-CREATE INDEX "_AgentOnChainTag_B_index" ON "_AgentOnChainTag"("B");
+CREATE INDEX "_AgentToAgentList_B_index" ON "_AgentToAgentList"("B");
+
+-- CreateIndex
+CREATE INDEX "_AgentTag_B_index" ON "_AgentTag"("B");
 
 -- CreateIndex
 CREATE INDEX "_AgentTagOverride_B_index" ON "_AgentTagOverride"("B");
@@ -403,7 +443,10 @@ ALTER TABLE "UserAgentRating" ADD CONSTRAINT "UserAgentRating_agentId_fkey" FORE
 ALTER TABLE "Agent" ADD CONSTRAINT "Agent_ratingId_fkey" FOREIGN KEY ("ratingId") REFERENCES "AgentRating"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Agent" ADD CONSTRAINT "Agent_agentPricingId_fkey" FOREIGN KEY ("agentPricingId") REFERENCES "AgentPricing"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Agent" ADD CONSTRAINT "Agent_pricingId_fkey" FOREIGN KEY ("pricingId") REFERENCES "AgentPricing"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AgentList" ADD CONSTRAINT "AgentList_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "CreditAction" ADD CONSTRAINT "CreditAction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -412,10 +455,16 @@ ALTER TABLE "CreditAction" ADD CONSTRAINT "CreditAction_userId_fkey" FOREIGN KEY
 ALTER TABLE "CreditAction" ADD CONSTRAINT "CreditAction_paymentId_fkey" FOREIGN KEY ("paymentId") REFERENCES "Payment"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "_AgentOnChainTag" ADD CONSTRAINT "_AgentOnChainTag_A_fkey" FOREIGN KEY ("A") REFERENCES "Agent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "_AgentToAgentList" ADD CONSTRAINT "_AgentToAgentList_A_fkey" FOREIGN KEY ("A") REFERENCES "Agent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "_AgentOnChainTag" ADD CONSTRAINT "_AgentOnChainTag_B_fkey" FOREIGN KEY ("B") REFERENCES "Tag"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "_AgentToAgentList" ADD CONSTRAINT "_AgentToAgentList_B_fkey" FOREIGN KEY ("B") REFERENCES "AgentList"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_AgentTag" ADD CONSTRAINT "_AgentTag_A_fkey" FOREIGN KEY ("A") REFERENCES "Agent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "_AgentTag" ADD CONSTRAINT "_AgentTag_B_fkey" FOREIGN KEY ("B") REFERENCES "Tag"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "_AgentTagOverride" ADD CONSTRAINT "_AgentTagOverride_A_fkey" FOREIGN KEY ("A") REFERENCES "Agent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
