@@ -1,4 +1,10 @@
-import { AgentStatus, PricingType, PrismaClient } from "@prisma/client";
+import {
+  AgentStatus,
+  JobStatus,
+  PricingType,
+  PrismaClient,
+} from "@prisma/client";
+import crypto from "crypto";
 
 import { getEnvSecrets } from "@/config/env.config";
 
@@ -169,7 +175,7 @@ const agents = [
 
 const seedDatabase = getEnvSecrets().SEED_DATABASE;
 
-const seedUser = async () => {
+const seedUser = async (): Promise<string> => {
   let user = await prisma.user.findFirst({
     where: {
       email: "dev@sokosumi.com",
@@ -178,7 +184,7 @@ const seedUser = async () => {
 
   if (user) {
     console.log("User already exists, skipping...");
-    return;
+    return user.id;
   }
 
   user = await prisma.user.create({
@@ -205,6 +211,7 @@ const seedUser = async () => {
     },
   });
   console.log(`Account created with id ${account.id}`);
+  return user.id;
 };
 
 const seedAgents = async () => {
@@ -307,10 +314,83 @@ const seedAgents = async () => {
   }
 };
 
+const seedJobs = async (userId: string) => {
+  const agents = await prisma.agent.findMany();
+
+  for (const agent of agents) {
+    const numJobs = Math.floor(Math.random() * 51); // 0 to 50 jobs
+
+    const jobPromises = Array.from({ length: numJobs }, async (_, index) => {
+      const status = [
+        "PAYMENT_PENDING",
+        "PAYMENT_FAILED",
+        "PROCESSING",
+        "COMPLETED",
+        "FAILED",
+      ][Math.floor(Math.random() * 5)] as JobStatus;
+
+      const startedAt = new Date();
+      startedAt.setDate(startedAt.getDate() - Math.floor(Math.random() * 30)); // Random date within last 30 days
+
+      const finishedAt =
+        status === JobStatus.COMPLETED ||
+        status === JobStatus.FAILED ||
+        status === JobStatus.PAYMENT_FAILED
+          ? new Date(startedAt.getTime() + Math.random() * 24 * 60 * 60 * 1000) // Random time within 24 hours of start
+          : null;
+
+      const cost = BigInt(Math.floor(Math.random() * 1000) + 10); // Random cost between 10 and 1010
+      const fee = BigInt(Math.floor(Number(cost) * 0.1)); // 10% fee
+
+      const jobInputs = [
+        "Analyze market trends for emerging technologies",
+        "Generate quarterly financial report",
+        "Create content strategy for social media",
+        "Perform competitor analysis",
+        "Optimize website SEO",
+        "Review code for security vulnerabilities",
+        "Generate marketing copy for new product",
+        "Translate document to multiple languages",
+        "Create data visualization dashboard",
+        "Analyze customer feedback sentiment",
+      ];
+
+      const input = jobInputs[Math.floor(Math.random() * jobInputs.length)];
+      const output =
+        status === JobStatus.COMPLETED
+          ? `Completed analysis for: ${input}`
+          : null;
+
+      return prisma.job.create({
+        data: {
+          onChainIdentifier: `demo-job-${agent.id}-${index}`,
+          agentId: agent.id,
+          userId,
+          status,
+          input,
+          output,
+          startedAt,
+          finishedAt,
+          cost,
+          fee,
+          paymentTxId:
+            status !== JobStatus.PAYMENT_PENDING
+              ? `0x${crypto.randomBytes(32).toString("hex")}`
+              : null,
+        },
+      });
+    });
+
+    await Promise.all(jobPromises);
+    console.log(`Created ${numJobs} jobs for agent ${agent.name}`);
+  }
+};
+
 async function main() {
   if (seedDatabase) {
-    await seedUser();
+    const userId = await seedUser();
     await seedAgents();
+    await seedJobs(userId);
   }
 }
 
