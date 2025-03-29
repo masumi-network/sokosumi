@@ -2,6 +2,7 @@ import { getTranslations } from "next-intl/server";
 
 import { requireAuthentication } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
+import { sleep } from "@/lib/utils";
 
 import JobsTable from "./components/jobs-table";
 
@@ -27,6 +28,7 @@ async function getUserJobs(userId: string) {
 }
 
 export default async function Jobs() {
+  await sleep(1000);
   const t = await getTranslations("App.Jobs");
   const { session } = await requireAuthentication();
   const jobs = await getUserJobs(session.user.id);
