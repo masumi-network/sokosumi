@@ -181,8 +181,6 @@ const seedUser = async () => {
     return;
   }
 
-  // 1e118f20d959659e956ee7f1b1324e3c:c3fe5bba70396d0dc5faa53cdfef782820a2f4ca6bb8789a6f7a4da94cd65de1f25e3ac56722af3cb88b6256a6784abc2de0259c179d41cedce13aa106d443a8
-
   user = await prisma.user.create({
     data: {
       email: "dev@sokosumi.com",
@@ -192,8 +190,7 @@ const seedUser = async () => {
       updatedAt: new Date(),
     },
   });
-  console.log(user);
-  console.log("User created with email dev@sokosumi.com");
+  console.log(`User created with email ${user.email}`);
 
   const account = await prisma.account.create({
     data: {
@@ -207,8 +204,7 @@ const seedUser = async () => {
       updatedAt: new Date(),
     },
   });
-  console.log(account);
-  console.log("Account created with id", account.id);
+  console.log(`Account created with id ${account.id}`);
 };
 
 const seedAgents = async () => {
