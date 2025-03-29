@@ -20,7 +20,7 @@ export async function toggleAgentInList(
     }
 
     // Revalidate the app to update the UI
-    revalidatePath("/dashboard");
+    revalidatePath("/app");
     return { success: true };
   } catch (error) {
     console.error("Error toggling agent in list", error);
