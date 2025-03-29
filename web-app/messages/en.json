@@ -469,9 +469,11 @@
     }
   },
   "Navigation": {
-    "gallery": "Gallery",
-    "dashboard": "Dashboard",
-    "jobs": "Jobs"
+    "app": "App",
+    "jobs": "Jobs",
+    "agents": "Agents",
+    "account": "Account",
+    "billing": "Billing"
   },
   "Library": {
     "Auth": {
