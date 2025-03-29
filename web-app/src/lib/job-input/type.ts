@@ -57,10 +57,12 @@ export const InputStringSchema = (
     name: z.string().nonempty({
       message: t?.("Name.required"),
     }),
-    data: z.object({
-      placeholder: z.string().optional(),
-      description: z.string().optional(),
-    }),
+    data: z
+      .object({
+        placeholder: z.string().optional(),
+        description: z.string().optional(),
+      })
+      .optional(),
     validations: z
       .array(
         requiredValidationSchema(t)
@@ -87,10 +89,12 @@ export const InputNumberSchema = (
     name: z.string().nonempty({
       message: t?.("Name.required"),
     }),
-    data: z.object({
-      placeholder: z.string().optional(),
-      description: z.string().optional(),
-    }),
+    data: z
+      .object({
+        placeholder: z.string().optional(),
+        description: z.string().optional(),
+      })
+      .optional(),
     validations: z
       .array(
         requiredValidationSchema(t)
@@ -117,10 +121,12 @@ export const InputBooleanSchema = (
     name: z.string().nonempty({
       message: t?.("Name.required"),
     }),
-    data: z.object({
-      placeholder: z.string().optional(),
-      description: z.string().optional(),
-    }),
+    data: z
+      .object({
+        placeholder: z.string().optional(),
+        description: z.string().optional(),
+      })
+      .optional(),
     validations: z.array(requiredValidationSchema(t)).optional(),
   });
 
@@ -172,7 +178,9 @@ export const InputNoneSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) =>
     name: z.string().nonempty({
       message: t?.("Name.required"),
     }),
-    data: z.object({
-      description: z.string().optional(),
-    }),
+    data: z
+      .object({
+        description: z.string().nonempty().optional(),
+      })
+      .optional(),
   });
