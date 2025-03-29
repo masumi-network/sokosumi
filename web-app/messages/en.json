@@ -447,6 +447,8 @@
       "JobTable": {
         "Header": {
           "started": "Started",
+          "agent": "Agent",
+          "status": "Status",
           "job": "Job"
         },
         "JobStatusBadge": {
