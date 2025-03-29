@@ -10,7 +10,7 @@ export function isTypeAndValidationValid(
       return type === "string" || type === "number" || type === "option";
     }
     case "format": {
-      return type === "string";
+      return type === "string" || type === "number";
     }
     case "required":
       return type !== "none";
