@@ -10,7 +10,7 @@ import { getUserJobsByAgentId } from "@/lib/db/services/job.service";
 
 import Footer from "./components/footer";
 import Header from "./components/header";
-import { JobTable } from "./components/job-table";
+import JobTable from "./components/job-table";
 import RightSection from "./components/right-section";
 
 // request comes in, at most once every 1 hour (3600 seconds).
