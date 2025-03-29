@@ -4,7 +4,7 @@ import { getEnvSecrets } from "@/config/env.config";
 
 const prisma = new PrismaClient();
 
-const dummyAgents = [
+const agents = [
   {
     title: "Market Analysis Expert",
     description:
@@ -172,9 +172,9 @@ const seedDummyAgents = getEnvSecrets().SEED_DUMMY_AGENTS;
 async function main() {
   let index = 0;
   if (seedDummyAgents) {
-    for (const agent of dummyAgents) {
+    for (const agent of agents) {
       console.log(
-        `Processing agent ${agent.title} (${index + 1}/${dummyAgents.length})`,
+        `Processing agent ${agent.title} (${index + 1}/${agents.length})`,
       );
 
       // Check if agent already exists
