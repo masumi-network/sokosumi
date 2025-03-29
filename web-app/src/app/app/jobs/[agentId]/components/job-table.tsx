@@ -39,7 +39,9 @@ function getColumns(
 ) {
   return [
     columnHelper.accessor("startedAt", {
-      minSize: 120,
+      id: "startedAt",
+      minSize: 80,
+      maxSize: 100,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("Header.started")} />
       ),
@@ -57,7 +59,9 @@ function getColumns(
     }) as ColumnDef<JobWithRelations>,
 
     columnHelper.accessor("status", {
+      id: "status",
       minSize: 100,
+      maxSize: 120,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("Header.status")} />
       ),
@@ -66,21 +70,22 @@ function getColumns(
           <JobStatusBadge status={row.original.status} />
         </div>
       ),
+      enableSorting: true,
       enableHiding: false,
     }) as ColumnDef<JobWithRelations>,
 
     columnHelper.accessor("id", {
       id: "id",
-      minSize: 240,
+      minSize: 200,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("Header.id")} />
       ),
       cell: ({ row }) => (
-        <div className="flex items-center p-2">
-          <div className="w-full truncate">{row.original.id}</div>
+        <div className="p-2">
+          <div className="font-mono text-xs">{row.original.id}</div>
         </div>
       ),
-      enableSorting: false,
+      enableSorting: true,
       enableHiding: false,
     }) as ColumnDef<JobWithRelations>,
   ];

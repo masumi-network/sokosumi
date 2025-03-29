@@ -92,7 +92,7 @@ function getColumns(
     }) as ColumnDef<JobWithRelations>,
 
     columnHelper.accessor("id", {
-      id: "jobId",
+      id: "id",
       minSize: 200,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("Header.id")} />
