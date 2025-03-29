@@ -169,6 +169,48 @@ const agents = [
 
 const seedDatabase = getEnvSecrets().SEED_DATABASE;
 
+const seedUser = async () => {
+  let user = await prisma.user.findFirst({
+    where: {
+      email: "dev@sokosumi.com",
+    },
+  });
+
+  if (user) {
+    console.log("User already exists, skipping...");
+    return;
+  }
+
+  // 1e118f20d959659e956ee7f1b1324e3c:c3fe5bba70396d0dc5faa53cdfef782820a2f4ca6bb8789a6f7a4da94cd65de1f25e3ac56722af3cb88b6256a6784abc2de0259c179d41cedce13aa106d443a8
+
+  user = await prisma.user.create({
+    data: {
+      email: "dev@sokosumi.com",
+      name: "Sokosumi Developer",
+      emailVerified: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  });
+  console.log(user);
+  console.log("User created with email dev@sokosumi.com");
+
+  const account = await prisma.account.create({
+    data: {
+      id: crypto.randomUUID(),
+      userId: user.id,
+      providerId: "credential",
+      accountId: crypto.randomUUID(),
+      password:
+        "1e118f20d959659e956ee7f1b1324e3c:c3fe5bba70396d0dc5faa53cdfef782820a2f4ca6bb8789a6f7a4da94cd65de1f25e3ac56722af3cb88b6256a6784abc2de0259c179d41cedce13aa106d443a8",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  });
+  console.log(account);
+  console.log("Account created with id", account.id);
+};
+
 const seedAgents = async () => {
   let index = 0;
   for (const agent of agents) {
@@ -271,6 +313,7 @@ const seedAgents = async () => {
 
 async function main() {
   if (seedDatabase) {
+    await seedUser();
     await seedAgents();
   }
 }
