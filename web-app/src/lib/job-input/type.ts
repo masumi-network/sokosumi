@@ -1,20 +1,29 @@
-const ValidJobInputTypes = [
-  "string",
-  "number",
-  "boolean",
-  "option",
-  "none",
-] as const;
-const ValidValidationTypes = ["min", "max", "format", "required"] as const;
-const ValidFormatValues = ["url", "email", "integer", "nonempty"] as const;
+export enum ValidJobInputTypes {
+  String = "string",
+  Number = "number",
+  Boolean = "boolean",
+  Option = "option",
+  None = "none",
+}
+export enum ValidJobInputValidationTypes {
+  Min = "min",
+  Max = "max",
+  Format = "format",
+  Required = "required",
+}
 
-type JobInputType = (typeof ValidJobInputTypes)[number];
-type JobInputValidationType = (typeof ValidValidationTypes)[number];
-type JobInputFormatValue = (typeof ValidFormatValues)[number];
+export enum ValidJobInputFormatValues {
+  Url = "url",
+  Email = "email",
+  Integer = "integer",
+  Nonempty = "nonempty",
+}
+
+type JobInputType = ValidJobInputTypes;
+type JobInputValidationType = ValidJobInputValidationTypes;
+type JobInputFormatValue = ValidJobInputFormatValues;
 
 type JobInputSchemaIntlPath = "Library.JobInput.Schema";
-
-export { ValidFormatValues, ValidJobInputTypes, ValidValidationTypes };
 export type {
   JobInputFormatValue,
   JobInputSchemaIntlPath,

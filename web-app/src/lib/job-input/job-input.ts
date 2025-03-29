@@ -1,8 +1,13 @@
 import { z } from "zod";
 
 import { JobInputSchemaIntlPath, ValidJobInputTypes } from "./type";
-import { isTypeAndValidationValid } from "./util";
-import { validationSchema } from "./validation";
+import {
+  formatNumberValidationSchema,
+  formatStringValidationSchema,
+  maxValidationSchema,
+  minValidationSchema,
+  requiredValidationSchema,
+} from "./validation";
 
 export const jobInputSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) =>
   z
@@ -10,57 +15,124 @@ export const jobInputSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) =>
       id: z.string().nonempty({
         message: t?.("Id.required"),
       }),
-      type: z.enum(ValidJobInputTypes, {
+      type: z.enum([ValidJobInputTypes.String], {
         message: t?.("Type.enum", {
-          options: ValidJobInputTypes.join(", "),
+          options: Object.values(ValidJobInputTypes).join(", "),
         }),
       }),
       name: z.string().nonempty({
         message: t?.("Name.required"),
       }),
       data: z.object({
-        values: z
-          .array(
-            z.string().min(1, {
-              message: t?.("Data.Values.value.required"),
-            }),
-          )
-          .min(1, { message: t?.("Data.Values.min") })
-          .optional(),
         placeholder: z.string().optional(),
         description: z.string().optional(),
       }),
-      validations: z.array(validationSchema(t)).optional(),
+      validations: z
+        .array(
+          requiredValidationSchema(t)
+            .or(minValidationSchema(t))
+            .or(maxValidationSchema(t))
+            .or(formatStringValidationSchema(t)),
+        )
+        .optional(),
     })
-    .superRefine((val, ctx) => {
-      const { type, data, validations } = val;
-      // check type and validations
-      if (validations) {
-        const isValidationsValid = validations.every((validation) =>
-          isTypeAndValidationValid(type, validation.validation),
-        );
-        if (!isValidationsValid) {
-          ctx.addIssue({
-            code: z.ZodIssueCode.custom,
-            message: t?.("invalidValidations", { type }),
-            path: ["validations"],
-          });
-        }
-      }
-      // check values for option type
-      if (type === "option" && !data.values) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: t?.("optionValuesRequired"),
-          path: ["data", "values"],
-        });
-      } else if (type !== "option" && !!data.values) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: t?.("noDataValues"),
-          path: ["data", "values"],
-        });
-      }
-    });
+    .or(
+      z.object({
+        id: z.string().nonempty({
+          message: t?.("Id.required"),
+        }),
+        type: z.enum([ValidJobInputTypes.Number], {
+          message: t?.("Type.enum", {
+            options: Object.values(ValidJobInputTypes).join(", "),
+          }),
+        }),
+        name: z.string().nonempty({
+          message: t?.("Name.required"),
+        }),
+        data: z.object({
+          placeholder: z.string().optional(),
+          description: z.string().optional(),
+        }),
+        validations: z
+          .array(
+            requiredValidationSchema(t)
+              .or(minValidationSchema(t))
+              .or(maxValidationSchema(t))
+              .or(formatNumberValidationSchema(t)),
+          )
+          .optional(),
+      }),
+    )
+    .or(
+      z.object({
+        id: z.string().nonempty({
+          message: t?.("Id.required"),
+        }),
+        type: z.enum([ValidJobInputTypes.Boolean], {
+          message: t?.("Type.enum", {
+            options: Object.values(ValidJobInputTypes).join(", "),
+          }),
+        }),
+        name: z.string().nonempty({
+          message: t?.("Name.required"),
+        }),
+        data: z.object({
+          placeholder: z.string().optional(),
+          description: z.string().optional(),
+        }),
+        validations: z.array(requiredValidationSchema(t)).optional(),
+      }),
+    )
+    .or(
+      z.object({
+        id: z.string().nonempty({
+          message: t?.("Id.required"),
+        }),
+        type: z.enum([ValidJobInputTypes.Option], {
+          message: t?.("Type.enum", {
+            options: Object.values(ValidJobInputTypes).join(", "),
+          }),
+        }),
+        name: z.string().nonempty({
+          message: t?.("Name.required"),
+        }),
+        data: z.object({
+          values: z
+            .array(
+              z.string().min(1, {
+                message: t?.("Data.Values.value.required"),
+              }),
+            )
+            .min(1, { message: t?.("Data.Values.min") }),
+          placeholder: z.string().optional(),
+          description: z.string().optional(),
+        }),
+        validations: z
+          .array(
+            requiredValidationSchema(t)
+              .or(minValidationSchema(t))
+              .or(maxValidationSchema(t)),
+          )
+          .optional(),
+      }),
+    )
+    .or(
+      z.object({
+        id: z.string().nonempty({
+          message: t?.("Id.required"),
+        }),
+        type: z.enum([ValidJobInputTypes.None], {
+          message: t?.("Type.enum", {
+            options: Object.values(ValidJobInputTypes).join(", "),
+          }),
+        }),
+        name: z.string().nonempty({
+          message: t?.("Name.required"),
+        }),
+        data: z.object({
+          description: z.string().optional(),
+        }),
+      }),
+    );
 
 export type JobInputSchemaType = z.infer<ReturnType<typeof jobInputSchema>>;

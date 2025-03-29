@@ -2,8 +2,8 @@ import { z } from "zod";
 
 import {
   JobInputSchemaIntlPath,
-  ValidFormatValues,
-  ValidValidationTypes,
+  ValidJobInputFormatValues,
+  ValidJobInputValidationTypes,
 } from "./type";
 
 const limitValidationValueSchema = (
@@ -36,15 +36,35 @@ const limitValidationValueSchema = (
       }
     });
 
-const formatValidationValueSchema = (
+const formatStringValidationValueSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
-  z.enum(ValidFormatValues, {
-    message: t?.("Validations.Value.enum", {
-      options: ValidFormatValues.join(", "),
-      validation: "format",
-    }),
-  });
+  z.enum(
+    [
+      ValidJobInputFormatValues.Url,
+      ValidJobInputFormatValues.Email,
+      ValidJobInputFormatValues.Nonempty,
+    ],
+    {
+      message: t?.("Validations.Value.enum", {
+        options: Object.values(ValidJobInputFormatValues).join(", "),
+        validation: "format",
+      }),
+    },
+  );
+
+const formatNumberValidationValueSchema = (
+  t?: IntlTranslation<JobInputSchemaIntlPath>,
+) =>
+  z.enum(
+    [ValidJobInputFormatValues.Integer, ValidJobInputFormatValues.Nonempty],
+    {
+      message: t?.("Validations.Value.enum", {
+        options: Object.values(ValidJobInputFormatValues).join(", "),
+        validation: "format",
+      }),
+    },
+  );
 
 const requiredValidationValueSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
@@ -58,71 +78,62 @@ const requiredValidationValueSchema = (
     })
     .optional();
 
-export const validationSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) =>
-  z
-    .object({
-      validation: z.enum(ValidValidationTypes, {
-        message: t?.("Validations.Validation.enum", {
-          options: ValidValidationTypes.join(", "),
-        }),
+export const requiredValidationSchema = (
+  t?: IntlTranslation<JobInputSchemaIntlPath>,
+) =>
+  z.object({
+    validation: z.enum([ValidJobInputValidationTypes.Required], {
+      message: t?.("Validations.Validation.enum", {
+        options: Object.values(ValidJobInputValidationTypes).join(", "),
       }),
-      value: z.string().optional(),
-    })
-    .superRefine((val, ctx) => {
-      const { validation, value } = val;
+    }),
+    value: requiredValidationValueSchema(t),
+  });
 
-      switch (validation) {
-        case "min":
-        case "max": {
-          validateValue(
-            ctx,
-            limitValidationValueSchema(validation, t),
-            value,
-            t?.("Validations.Value.invalid", { validation }),
-          );
-          break;
-        }
-        case "format": {
-          validateValue(
-            ctx,
-            formatValidationValueSchema(t),
-            value,
-            t?.("Validations.Value.invalid", { validation }),
-          );
-          break;
-        }
-        case "required": {
-          validateValue(
-            ctx,
-            requiredValidationValueSchema(t),
-            value,
-            t?.("Validations.Value.invalid", { validation }),
-          );
-          break;
-        }
-      }
-    });
+export const minValidationSchema = (
+  t?: IntlTranslation<JobInputSchemaIntlPath>,
+) =>
+  z.object({
+    validation: z.enum([ValidJobInputValidationTypes.Min], {
+      message: t?.("Validations.Validation.enum", {
+        options: Object.values(ValidJobInputValidationTypes).join(", "),
+      }),
+    }),
+    value: limitValidationValueSchema("min", t),
+  });
 
-const validateValue = (
-  ctx: z.RefinementCtx,
-  validationValueSchema: z.Schema,
-  value: string | undefined,
-  invalidMessage: string | undefined,
-) => {
-  const validatedResult = validationValueSchema.safeParse(value);
-  if (!validatedResult.success) {
-    if (validatedResult.error.issues.length > 0) {
-      validatedResult.error.issues.forEach((issue) =>
-        ctx.addIssue({ ...issue, path: ["value"] }),
-      );
-    } else {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: invalidMessage,
-        path: ["value"],
-      });
-    }
-  }
-};
+export const maxValidationSchema = (
+  t?: IntlTranslation<JobInputSchemaIntlPath>,
+) =>
+  z.object({
+    validation: z.enum([ValidJobInputValidationTypes.Max], {
+      message: t?.("Validations.Validation.enum", {
+        options: Object.values(ValidJobInputValidationTypes).join(", "),
+      }),
+    }),
+    value: limitValidationValueSchema("max", t),
+  });
 
-export type ValidationSchemaType = z.infer<ReturnType<typeof validationSchema>>;
+export const formatStringValidationSchema = (
+  t?: IntlTranslation<JobInputSchemaIntlPath>,
+) =>
+  z.object({
+    validation: z.enum([ValidJobInputValidationTypes.Format], {
+      message: t?.("Validations.Validation.enum", {
+        options: Object.values(ValidJobInputValidationTypes).join(", "),
+      }),
+    }),
+    value: formatStringValidationValueSchema(t),
+  });
+
+export const formatNumberValidationSchema = (
+  t?: IntlTranslation<JobInputSchemaIntlPath>,
+) =>
+  z.object({
+    validation: z.enum([ValidJobInputValidationTypes.Format], {
+      message: t?.("Validations.Validation.enum", {
+        options: Object.values(ValidJobInputValidationTypes).join(", "),
+      }),
+    }),
+    value: formatNumberValidationValueSchema(t),
+  });
