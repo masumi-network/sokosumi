@@ -115,7 +115,7 @@ function AgentDetails({ agent, className }: AgentDetailsProps) {
           </div>
           <div className="mt-auto flex flex-col gap-3">
             <div className="flex items-center gap-3">
-              <Link href={`/dashboard/jobs/${agent.id}`}>
+              <Link href={`/app/jobs/${agent.id}`}>
                 <Button variant="default" size="lg">
                   {t("hire")}
                 </Button>
