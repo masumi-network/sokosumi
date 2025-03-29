@@ -469,7 +469,9 @@
     }
   },
   "Navigation": {
-    "gallery": "Gallery"
+    "gallery": "Gallery",
+    "dashboard": "Dashboard",
+    "jobs": "Jobs"
   },
   "Library": {
     "Auth": {
