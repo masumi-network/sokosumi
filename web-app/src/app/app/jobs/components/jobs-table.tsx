@@ -46,6 +46,9 @@ function getColumns(
 
   return [
     columnHelper.accessor("startedAt", {
+      id: "startedAt",
+      minSize: 80,
+      maxSize: 100,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("Header.started")} />
       ),
@@ -64,6 +67,8 @@ function getColumns(
 
     columnHelper.accessor("status", {
       id: "status",
+      minSize: 100,
+      maxSize: 120,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("Header.status")} />
       ),
@@ -78,6 +83,7 @@ function getColumns(
 
     columnHelper.accessor((row) => row.agent.name, {
       id: "agentName",
+      minSize: 150,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("Header.agent")} />
       ),
@@ -87,6 +93,7 @@ function getColumns(
 
     columnHelper.accessor("id", {
       id: "jobId",
+      minSize: 200,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("Header.id")} />
       ),

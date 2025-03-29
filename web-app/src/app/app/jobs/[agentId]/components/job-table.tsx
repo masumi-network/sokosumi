@@ -52,11 +52,7 @@ function getColumns(
           })}
         </div>
       ),
-      sortingFn: (rowA, rowB) => {
-        const a = rowA.original.startedAt;
-        const b = rowB.original.startedAt;
-        return new Date(a).getTime() - new Date(b).getTime();
-      },
+      sortingFn: "datetime",
       enableHiding: false,
     }) as ColumnDef<JobWithRelations>,
 
