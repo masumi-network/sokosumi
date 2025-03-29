@@ -8,7 +8,7 @@ import { z } from "zod";
 const envSchemaSecrets = z.object({
   // Database
   DATABASE_URL: z.string().url(),
-  SEED_DUMMY_AGENTS: z
+  SEED_DATABASE: z
     .string()
     .default("false")
     .transform((val) => val === "true"),
