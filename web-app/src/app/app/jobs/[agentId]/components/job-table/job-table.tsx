@@ -54,6 +54,19 @@ function getColumns(
       enableHiding: false,
     }) as ColumnDef<JobWithRelations>,
 
+    columnHelper.accessor("status", {
+      minSize: 100,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t("Header.status")} />
+      ),
+      cell: ({ row }) => (
+        <div className="p-2">
+          <JobStatusBadge status={row.original.status} />
+        </div>
+      ),
+      enableHiding: false,
+    }) as ColumnDef<JobWithRelations>,
+
     columnHelper.display({
       id: "job",
       minSize: 240,
@@ -61,8 +74,7 @@ function getColumns(
         <DataTableColumnHeader column={column} title={t("Header.job")} />
       ),
       cell: ({ row }) => (
-        <div className="flex items-center gap-2 p-2">
-          <JobStatusBadge status={row.original.status} />
+        <div className="flex items-center p-2">
           <div className="w-full truncate">{row.original.input}</div>
         </div>
       ),
