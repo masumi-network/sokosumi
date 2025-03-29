@@ -1,17 +1,17 @@
 "use client";
 
 import { ColumnDef, createColumnHelper } from "@tanstack/react-table";
+import { useFormatter } from "next-intl";
 
+import JobStatusBadge from "@/app/jobs/job-status-badge";
 import { DataTableColumnHeader } from "@/components/data-table";
 import { JobWithRelations } from "@/lib/db/services/job.service";
-
-import JobStatusBadge from "./job-status-badge";
 
 const columnHelper = createColumnHelper<JobWithRelations>();
 
 export const columns: (
   t: IntlTranslation<"App.Jobs.JobTable">,
-  dateFormatter: IntlDateFormatter,
+  dateFormatter: ReturnType<typeof useFormatter>,
 ) => ColumnDef<JobWithRelations>[] = (t, dateFormatter) => [
   columnHelper.accessor("startedAt", {
     minSize: 120,
