@@ -14,6 +14,7 @@ import {
   signInFormSchema,
   SignInFormSchemaType,
 } from "@/app/(landing)/(auth)/signin/data";
+import { AppRoute, LandingRoute } from "@/types/routes";
 
 export default function SignInForm() {
   const t = useTranslations("Auth.Pages.SignIn.Form");
@@ -32,7 +33,7 @@ export default function SignInForm() {
     const { success, error } = await signin(values);
     if (success) {
       toast.success(t("success"));
-      router.push("/dashboard");
+      router.push(AppRoute.Home);
     } else {
       switch (error) {
         case "emailNotVerified":
@@ -62,7 +63,7 @@ export default function SignInForm() {
             {t("ForgotPassword.text")}{" "}
           </span>
           <Link
-            href={`/forgot-password${form.watch("email") ? `?email=${encodeURIComponent(form.watch("email"))}` : ""}`}
+            href={`${LandingRoute.ForgotPassword}${form.watch("email") ? `?email=${encodeURIComponent(form.watch("email"))}` : ""}`}
             className="text-primary font-medium hover:underline"
           >
             {t("ForgotPassword.link")}

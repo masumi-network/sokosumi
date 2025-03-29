@@ -1,9 +1,8 @@
 import { AgentListType, Tag } from "@prisma/client";
 import { Metadata } from "next";
-import { headers } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
-import { auth } from "@/lib/better-auth/auth";
+import { requireAuthentication } from "@/lib/auth/utils";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 import { getAgents } from "@/lib/db/services/agent.service";
 import { getOrCreateAgentListByType } from "@/lib/db/services/agentList.service";
@@ -26,17 +25,10 @@ export default async function GalleryPage() {
   const tags: Tag[] = await getCachedTags();
   const tagNames = tags.map((tag) => tag.name);
 
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  const userId = session?.user.id;
-  if (!userId) {
-    return null;
-  }
+  const { session } = await requireAuthentication();
 
   const agentList = await getOrCreateAgentListByType(
-    userId,
+    session.user.id,
     AgentListType.FAVORITE,
   );
 

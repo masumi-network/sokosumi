@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@/lib/better-auth/auth";
+import { auth } from "@/lib/auth/auth";
 
 import { signInFormSchema, SignInFormSchemaType } from "./data";
 

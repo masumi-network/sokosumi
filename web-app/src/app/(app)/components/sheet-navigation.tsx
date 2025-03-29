@@ -11,6 +11,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { AppRoute } from "@/types/routes";
 
 import NavigationMenu from "./navigation-menu";
 
@@ -27,7 +28,7 @@ export default function SheetNavigation() {
       <SheetContent className="h-svh w-full max-w-sm p-4" side="right">
         <SheetHeader>
           <SheetTitle className="flex justify-center">
-            <Link href="/dashboard">
+            <Link href={AppRoute.Home}>
               <SokosumiLogo width={200} height={26} />
             </Link>
           </SheetTitle>

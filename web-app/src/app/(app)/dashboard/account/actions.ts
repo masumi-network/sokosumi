@@ -2,7 +2,8 @@
 
 import { headers } from "next/headers";
 
-import { auth } from "@/lib/better-auth/auth";
+import { auth } from "@/lib/auth/auth";
+import { AppRoute } from "@/types/routes";
 
 import {
   DeleteAccountFormType,
@@ -54,7 +55,7 @@ export async function updateEmail(
     await auth.api.changeEmail({
       body: {
         newEmail: email,
-        callbackURL: "/dashboard",
+        callbackURL: AppRoute.Home,
       },
       headers: await headers(),
     });

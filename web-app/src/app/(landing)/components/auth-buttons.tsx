@@ -7,6 +7,7 @@ import {
   SignUpButton,
 } from "@/app/(landing)/(auth)/components/buttons";
 import { cn } from "@/lib/utils";
+import { LandingRoute } from "@/types/routes";
 
 interface AuthButtonsProps {
   containerClassName?: string | undefined;
@@ -15,9 +16,9 @@ interface AuthButtonsProps {
 export default function AuthButtons({ containerClassName }: AuthButtonsProps) {
   const pathname = usePathname();
 
-  if (pathname.startsWith("/signin")) return <SignUpButton />;
+  if (pathname.startsWith(LandingRoute.SignIn)) return <SignUpButton />;
 
-  if (pathname.startsWith("/signup")) return <SignInButton />;
+  if (pathname.startsWith(LandingRoute.SignUp)) return <SignInButton />;
 
   return (
     <div className={cn("flex items-center gap-4", containerClassName)}>

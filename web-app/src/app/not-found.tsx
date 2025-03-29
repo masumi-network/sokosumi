@@ -1,5 +1,7 @@
+import { Metadata } from "next";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -10,6 +12,15 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { LandingRoute } from "@/types/routes";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("NotFound");
+  return {
+    title: t("title"),
+    description: t("description"),
+  };
+}
 
 export default function NotFound() {
   const t = useTranslations("NotFound");
@@ -30,7 +41,7 @@ export default function NotFound() {
         </CardContent>
         <CardFooter className="flex justify-center">
           <Button asChild>
-            <Link href="/">{t("returnHome")}</Link>
+            <Link href={LandingRoute.Home}>{t("returnHome")}</Link>
           </Button>
         </CardFooter>
       </Card>

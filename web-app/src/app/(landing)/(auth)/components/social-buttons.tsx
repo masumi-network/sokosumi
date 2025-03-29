@@ -12,6 +12,7 @@ import {
 import { toast } from "sonner";
 
 import { signInSocial } from "@/lib/actions/auth.actions";
+import { AppRoute } from "@/types/routes";
 
 import Divider from "./divider";
 
@@ -46,7 +47,7 @@ export default function SocialButtons() {
     const { success } = await signInSocial(key);
     if (success) {
       toast.success(t("success"));
-      router.push("/dashboard");
+      router.push(AppRoute.Home);
     } else {
       toast.error(t("error"));
     }

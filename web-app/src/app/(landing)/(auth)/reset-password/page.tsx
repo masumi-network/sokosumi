@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
+import { LandingRoute } from "@/types/routes";
+
 import ResetPasswordForm from "./components/form";
 import ResetPasswordHeader from "./components/header";
 
@@ -24,7 +26,7 @@ export default async function ResetPasswordPage({
   const { token } = await searchParams;
 
   if (!token) {
-    redirect("/signin");
+    redirect(LandingRoute.SignIn);
   }
 
   return (

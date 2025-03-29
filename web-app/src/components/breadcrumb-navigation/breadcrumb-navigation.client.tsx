@@ -2,6 +2,7 @@
 
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
+import React from "react";
 
 import {
   Breadcrumb,
@@ -13,53 +14,96 @@ import {
 } from "@/components/ui/breadcrumb";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 
-const parsePathname = (
-  pathname: string,
-): [agentId: string, galleryPath: string] | undefined => {
-  const match = pathname.match(/^\/(dashboard\/)?gallery\/([^\/]+)$/);
-  if (!match) {
-    return;
-  }
-  return [
-    match[2],
-    match[1] === "dashboard/" ? "/dashboard/gallery" : "/gallery",
-  ];
-};
+interface BreadcrumbSegment {
+  label: string;
+  href: string;
+  isCurrent?: boolean;
+}
 
 interface BreadcrumbNavigationClientProps {
+  /**
+   * Optional segments to override the default path-based segments
+   */
+  segments?: BreadcrumbSegment[];
+  /**
+   * Optional map of path segments to their display labels
+   */
+  segmentLabels?: Record<string, string>;
+  /**
+   * Agents for resolving agent IDs to names
+   */
   agents: AgentDTO[];
+  className?: string | undefined;
 }
 
 export default function BreadcrumbNavigationClient({
+  segments: customSegments,
+  segmentLabels = {},
   agents,
+  className,
 }: BreadcrumbNavigationClientProps) {
   const pathname = usePathname();
   const t = useTranslations("Navigation");
 
-  const parsed = parsePathname(pathname);
+  const segments =
+    customSegments ?? generateSegments(pathname, segmentLabels, agents, t);
 
-  if (!parsed) {
-    return null;
-  }
-
-  const [agentId, galleryPath] = parsed;
-  const agent = agents.find((a) => a.id === agentId);
-
-  if (!agent) {
+  // Only show breadcrumb if there are 2 or more segments
+  if (segments.length < 2) {
     return null;
   }
 
   return (
-    <Breadcrumb>
+    <Breadcrumb className={className}>
       <BreadcrumbList>
-        <BreadcrumbItem>
-          <BreadcrumbLink href={galleryPath}>{t("gallery")}</BreadcrumbLink>
-        </BreadcrumbItem>
-        <BreadcrumbSeparator />
-        <BreadcrumbItem>
-          <BreadcrumbPage>{agent.name}</BreadcrumbPage>
-        </BreadcrumbItem>
+        {segments.map((segment, index) => (
+          <React.Fragment key={segment.href}>
+            <BreadcrumbItem>
+              {segment.isCurrent ? (
+                <BreadcrumbPage>{segment.label}</BreadcrumbPage>
+              ) : (
+                <BreadcrumbLink href={segment.href}>
+                  {segment.label}
+                </BreadcrumbLink>
+              )}
+            </BreadcrumbItem>
+            {index < segments.length - 1 && <BreadcrumbSeparator />}
+          </React.Fragment>
+        ))}
       </BreadcrumbList>
     </Breadcrumb>
   );
+}
+
+function generateSegments(
+  pathname: string,
+  segmentLabels: Record<string, string>,
+  agents: AgentDTO[],
+  t?: IntlTranslation<"Navigation">,
+): BreadcrumbSegment[] {
+  const pathSegments = pathname.split("/").filter(Boolean);
+  if (!pathSegments.length) return [];
+
+  return pathSegments.map((segment, index) => {
+    const href = "/" + pathSegments.slice(0, index + 1).join("/");
+    const isCurrent = index === pathSegments.length - 1;
+
+    // Try to resolve the segment label in the following order:
+    // 1. Custom segment labels map
+    // 2. Agent name resolution
+    // 3. Translation key
+    // 4. Fallback to the segment itself
+    const agent = agents.find((a) => a.id === segment);
+    const label =
+      segmentLabels[segment] ??
+      agent?.name ??
+      (t && t.has(segment) && t(segment)) ??
+      segment;
+
+    return {
+      label,
+      href,
+      isCurrent,
+    };
+  });
 }

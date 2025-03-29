@@ -41,7 +41,7 @@ export interface AgentDTO {
   readonly description: string;
   readonly exampleOutput: ExampleOutputDTO[];
   readonly author: string;
-  readonly legal: LegalDTO | null;
+  readonly legal?: LegalDTO;
   readonly tags: string[];
   readonly image: string;
   readonly averageStars: number | null;
@@ -99,7 +99,7 @@ export async function createAgentDTO(
       const other = agent.overrideLegalOther ?? agent.legalOther;
       return privacyPolicy || terms || other
         ? { privacyPolicy, terms, other }
-        : null;
+        : undefined;
     })(),
     tags:
       agent.overrideTags.length > 0

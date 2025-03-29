@@ -22,8 +22,9 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import type { User } from "@/lib/better-auth/auth";
-import { signOut } from "@/lib/better-auth/auth.client";
+import type { User } from "@/lib/auth/auth";
+import { signOut } from "@/lib/auth/auth.client";
+import { AppRoute, LandingRoute } from "@/types/routes";
 
 import UserAvatarContent from "./user-avatar-content";
 
@@ -42,7 +43,7 @@ export default function UserAvatarClient({ user }: UserAvatarClientProps) {
           toast.error(t("Error.signOut"));
         },
         onSuccess: () => {
-          router.push("/signin");
+          router.push(LandingRoute.SignIn);
         },
       },
     });
@@ -82,13 +83,13 @@ export default function UserAvatarClient({ user }: UserAvatarClientProps) {
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem className="hover:cursor-pointer" asChild>
-            <Link href="/dashboard" className="flex items-center gap-2">
+            <Link href={AppRoute.Home} className="flex items-center gap-2">
               <LayoutGrid className="text-muted-foreground" />
               {t("dashboard")}
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem className="hover:cursor-pointer" asChild>
-            <Link href="/dashboard/account" className="flex items-center gap-2">
+            <Link href={AppRoute.Account} className="flex items-center gap-2">
               <UserIcon className="text-muted-foreground" />
               {t("account")}
             </Link>

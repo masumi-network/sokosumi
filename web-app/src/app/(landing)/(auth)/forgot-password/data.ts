@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { emailSchema } from "@/lib/better-auth/data";
+import { emailSchema } from "@/lib/auth/data";
 import { FormData } from "@/lib/form";
 
 const forgotPasswordFormSchema = (t?: IntlTranslation<"Auth.Schema">) =>

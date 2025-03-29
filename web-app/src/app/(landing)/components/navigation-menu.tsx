@@ -2,6 +2,7 @@ import { useTranslations } from "next-intl";
 
 import NavigationLink from "@/components/navigation-link";
 import { cn } from "@/lib/utils";
+import { LandingRoute } from "@/types/routes";
 
 type NavigationLinkData = {
   href: string;
@@ -11,7 +12,7 @@ type NavigationLinkData = {
 
 const navigationLinks: NavigationLinkData[] = [
   {
-    href: "/gallery",
+    href: LandingRoute.Agents,
     labelKey: "agents",
     showChevron: true,
   },
