@@ -540,6 +540,51 @@
           "footer": "If you didn't request this email change, you can safely ignore this email."
         }
       }
+    },
+    "JobInput": {
+      "Schema": {
+        "Id": {
+          "required": "Input Id is required"
+        },
+        "Type": {
+          "enum": "Must be one of {options}"
+        },
+        "Name": {
+          "required": "Input name is required",
+          "min": "Input name must be at least 2 characters",
+          "max": "Input name must be at most 128 characters"
+        },
+        "Data": {
+          "Placeholder": {
+            "required": "Input placeholder is required",
+            "min": "Input placeholder must be at least 2 characters",
+            "max": "Input placeholder must be at most 128 characters"
+          },
+          "Description": {
+            "min": "Input description must be at least 2 characters",
+            "max": "Input description must be at most 128 characters"
+          },
+          "Values": {
+            "value": { "required": "Option is required" },
+            "min": "Must have at least 1 option"
+          }
+        },
+        "Validations": {
+          "Validation": {
+            "enum": "Must be one of {options}"
+          },
+          "Value": {
+            "invalid": "Value is invalid for validation {validation}",
+            "required": "Value is required for validation {validation}",
+            "integer": "Value must be integer for validation {validation}",
+            "notNegative": "Value must be not negative for validation {validation}",
+            "enum": "Value must be one of {options}, for validation {validation}"
+          }
+        },
+        "invalidValidations": "Validations are not valid for type {type}",
+        "optionValuesRequired": "Values are required for option type",
+        "noDataValues": "Values must be undefined for non-option type"
+      }
     }
   }
 }

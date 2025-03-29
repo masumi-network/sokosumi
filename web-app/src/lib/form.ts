@@ -1,18 +1,11 @@
-import {
-  MessageKeys,
-  NamespaceKeys,
-  NestedKeyOf,
-  NestedValueOf,
-} from "next-intl";
+import { MessageKeys, NestedKeyOf, NestedValueOf } from "next-intl";
 import { z, ZodSchema } from "zod";
 
 type EndsWithFormString<T extends string> = T extends `${infer _Key}.Form`
   ? T
   : never;
 
-type FormIntlNamespaceKeys = EndsWithFormString<
-  NamespaceKeys<IntlMessages, NestedKeyOf<IntlMessages>>
->;
+type FormIntlNamespaceKeys = EndsWithFormString<IntlNamespaceKeys>;
 
 type MessageKeysIn<Path extends string> = MessageKeys<
   NestedValueOf<IntlMessages, Path>,
