@@ -1,9 +1,10 @@
 import { z } from "zod";
 
 import {
+  formatEmailValidationSchema,
+  formatIntegerValidationSchema,
   formatNonEmptyValidationSchema,
-  formatNumberValidationSchema,
-  formatStringValidationSchema,
+  formatUrlValidationSchema,
   maxValidationSchema,
   minValidationSchema,
   requiredValidationSchema,
@@ -46,7 +47,7 @@ export const InputStringSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
   z.object({
-    id: z.string().nonempty({
+    id: z.string().min(1, {
       message: t?.("Id.required"),
     }),
     type: z.enum([ValidJobInputTypes.String], {
@@ -54,7 +55,7 @@ export const InputStringSchema = (
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
     }),
-    name: z.string().nonempty({
+    name: z.string().min(1, {
       message: t?.("Name.required"),
     }),
     data: z
@@ -68,8 +69,9 @@ export const InputStringSchema = (
         requiredValidationSchema(t)
           .or(minValidationSchema(t))
           .or(maxValidationSchema(t))
-          .or(formatStringValidationSchema(t))
-          .or(formatNonEmptyValidationSchema(t)),
+          .or(formatNonEmptyValidationSchema(t))
+          .or(formatUrlValidationSchema(t))
+          .or(formatEmailValidationSchema(t)),
       )
       .optional(),
   });
@@ -78,7 +80,7 @@ export const InputNumberSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
   z.object({
-    id: z.string().nonempty({
+    id: z.string().min(1, {
       message: t?.("Id.required"),
     }),
     type: z.enum([ValidJobInputTypes.Number], {
@@ -86,7 +88,7 @@ export const InputNumberSchema = (
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
     }),
-    name: z.string().nonempty({
+    name: z.string().min(1, {
       message: t?.("Name.required"),
     }),
     data: z
@@ -100,7 +102,7 @@ export const InputNumberSchema = (
         requiredValidationSchema(t)
           .or(minValidationSchema(t))
           .or(maxValidationSchema(t))
-          .or(formatNumberValidationSchema(t))
+          .or(formatIntegerValidationSchema(t))
           .or(formatNonEmptyValidationSchema(t)),
       )
       .optional(),
@@ -110,7 +112,7 @@ export const InputBooleanSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
   z.object({
-    id: z.string().nonempty({
+    id: z.string().min(1, {
       message: t?.("Id.required"),
     }),
     type: z.enum([ValidJobInputTypes.Boolean], {
@@ -118,7 +120,7 @@ export const InputBooleanSchema = (
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
     }),
-    name: z.string().nonempty({
+    name: z.string().min(1, {
       message: t?.("Name.required"),
     }),
     data: z
@@ -134,7 +136,7 @@ export const InputOptionSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
   z.object({
-    id: z.string().nonempty({
+    id: z.string().min(1, {
       message: t?.("Id.required"),
     }),
     type: z.enum([ValidJobInputTypes.Option], {
@@ -142,7 +144,7 @@ export const InputOptionSchema = (
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
     }),
-    name: z.string().nonempty({
+    name: z.string().min(1, {
       message: t?.("Name.required"),
     }),
     data: z.object({
@@ -167,7 +169,7 @@ export const InputOptionSchema = (
 
 export const InputNoneSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) =>
   z.object({
-    id: z.string().nonempty({
+    id: z.string().min(1, {
       message: t?.("Id.required"),
     }),
     type: z.enum([ValidJobInputTypes.None], {
@@ -175,12 +177,12 @@ export const InputNoneSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) =>
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
     }),
-    name: z.string().nonempty({
+    name: z.string().min(1, {
       message: t?.("Name.required"),
     }),
     data: z
       .object({
-        description: z.string().nonempty().optional(),
+        description: z.string().min(1).optional(),
       })
       .optional(),
   });
