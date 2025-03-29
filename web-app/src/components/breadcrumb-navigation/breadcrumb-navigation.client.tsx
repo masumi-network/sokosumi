@@ -79,7 +79,7 @@ function generateSegments(
   pathname: string,
   segmentLabels: Record<string, string>,
   agents: AgentDTO[],
-  t?: (key: string) => string,
+  t?: IntlTranslation<"Navigation">,
 ): BreadcrumbSegment[] {
   const pathSegments = pathname.split("/").filter(Boolean);
   if (!pathSegments.length) return [];
@@ -95,7 +95,10 @@ function generateSegments(
     // 4. Fallback to the segment itself
     const agent = agents.find((a) => a.id === segment);
     const label =
-      segmentLabels[segment] ?? agent?.name ?? (t && t(segment)) ?? segment;
+      segmentLabels[segment] ??
+      agent?.name ??
+      (t && t.has(segment) && t(segment)) ??
+      segment;
 
     return {
       label,
