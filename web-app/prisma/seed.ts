@@ -339,8 +339,8 @@ const seedJobs = async (userId: string) => {
           ? new Date(startedAt.getTime() + Math.random() * 24 * 60 * 60 * 1000) // Random time within 24 hours of start
           : null;
 
-      const cost = BigInt(Math.floor(Math.random() * 1000) + 10); // Random cost between 10 and 1010
-      const fee = BigInt(Math.floor(Number(cost) * 0.1)); // 10% fee
+      const cost = BigInt(Math.floor(Math.random() * 1000) + 1); // Random cost between 1 and 1001
+      const fee = BigInt(Math.floor(Number(cost) * 0.05)); // 5% fee
 
       const jobInputs = [
         "Analyze market trends for emerging technologies",
