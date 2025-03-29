@@ -21,6 +21,12 @@ export default function JobTable({ jobs }: JobTableProps) {
       columns={getColumns(t, dateFormatter)}
       data={jobs}
       containerClassName={cn("w-full lg:w-[max(400px,36%)] rounded-md border")}
+      defaultSort={[
+        {
+          id: "startedAt",
+          desc: true,
+        },
+      ]}
     />
   );
 }
@@ -67,19 +73,19 @@ function getColumns(
       enableHiding: false,
     }) as ColumnDef<JobWithRelations>,
 
-    columnHelper.display({
-      id: "job",
+    columnHelper.accessor("id", {
+      id: "id",
       minSize: 240,
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t("Header.job")} />
+        <DataTableColumnHeader column={column} title={t("Header.id")} />
       ),
       cell: ({ row }) => (
         <div className="flex items-center p-2">
-          <div className="w-full truncate">{row.original.input}</div>
+          <div className="w-full truncate">{row.original.id}</div>
         </div>
       ),
       enableSorting: false,
       enableHiding: false,
-    }),
+    }) as ColumnDef<JobWithRelations>,
   ];
 }
