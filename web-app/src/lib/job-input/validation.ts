@@ -6,35 +6,35 @@ import {
   ValidJobInputValidationTypes,
 } from "./type";
 
+const formatNonEmptyValidationValueSchema = (
+  t?: IntlTranslation<JobInputSchemaIntlPath>,
+) =>
+  z.enum([ValidJobInputFormatValues.Nonempty], {
+    message: t?.("Validations.Value.enum", {
+      options: Object.values(ValidJobInputFormatValues).join(", "),
+      validation: "format",
+    }),
+  });
+
 const formatStringValidationValueSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
-  z.enum(
-    [
-      ValidJobInputFormatValues.Url,
-      ValidJobInputFormatValues.Email,
-      ValidJobInputFormatValues.Nonempty,
-    ],
-    {
-      message: t?.("Validations.Value.enum", {
-        options: Object.values(ValidJobInputFormatValues).join(", "),
-        validation: "format",
-      }),
-    },
-  );
+  z.enum([ValidJobInputFormatValues.Url, ValidJobInputFormatValues.Email], {
+    message: t?.("Validations.Value.enum", {
+      options: Object.values(ValidJobInputFormatValues).join(", "),
+      validation: "format",
+    }),
+  });
 
 const formatNumberValidationValueSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
-  z.enum(
-    [ValidJobInputFormatValues.Integer, ValidJobInputFormatValues.Nonempty],
-    {
-      message: t?.("Validations.Value.enum", {
-        options: Object.values(ValidJobInputFormatValues).join(", "),
-        validation: "format",
-      }),
-    },
-  );
+  z.enum([ValidJobInputFormatValues.Integer], {
+    message: t?.("Validations.Value.enum", {
+      options: Object.values(ValidJobInputFormatValues).join(", "),
+      validation: "format",
+    }),
+  });
 
 const requiredValidationValueSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
@@ -106,4 +106,16 @@ export const formatNumberValidationSchema = (
       }),
     }),
     value: formatNumberValidationValueSchema(t),
+  });
+
+export const formatNonEmptyValidationSchema = (
+  t?: IntlTranslation<JobInputSchemaIntlPath>,
+) =>
+  z.object({
+    validation: z.enum([ValidJobInputValidationTypes.Format], {
+      message: t?.("Validations.Validation.enum", {
+        options: Object.values(ValidJobInputValidationTypes).join(", "),
+      }),
+    }),
+    value: formatNonEmptyValidationValueSchema(t),
   });
