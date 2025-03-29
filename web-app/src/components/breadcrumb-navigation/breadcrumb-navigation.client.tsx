@@ -45,8 +45,9 @@ export default function BreadcrumbNavigationClient({
   const pathname = usePathname();
   const t = useTranslations("Navigation");
 
-  const segments =
-    customSegments ?? generateSegments(pathname, segmentLabels, agents, t);
+  const segments = (
+    customSegments ?? generateSegments(pathname, segmentLabels, agents, t)
+  ).filter((segment) => segment.href !== "/app");
 
   // Only show breadcrumb if there are 2 or more segments
   if (segments.length < 2) {
