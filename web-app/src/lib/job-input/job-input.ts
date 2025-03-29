@@ -18,18 +18,20 @@ export const jobInputSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) =>
       name: z.string().min(1, {
         message: t?.("Name.required"),
       }),
-      data: z.object({
-        values: z
-          .array(
-            z.string().min(1, {
-              message: t?.("Data.Values.value.required"),
-            }),
-          )
-          .nonempty({ message: t?.("Data.Values.min") })
-          .optional(),
-        placeholder: z.string().optional(),
-        description: z.string().optional(),
-      }),
+      data: z
+        .object({
+          values: z
+            .array(
+              z.string().min(1, {
+                message: t?.("Data.Values.value.required"),
+              }),
+            )
+            .nonempty({ message: t?.("Data.Values.min") })
+            .optional(),
+          placeholder: z.string().optional(),
+          description: z.string().optional(),
+        })
+        .optional(),
       validations: z.array(validationSchema(t)).optional(),
     })
     .superRefine((val, ctx) => {
@@ -48,13 +50,13 @@ export const jobInputSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) =>
         }
       }
       // check values for option type
-      if (type === "option" && !data.values) {
+      if (type === "option" && !data?.values) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: t?.("optionValuesRequired"),
           path: ["data", "values"],
         });
-      } else if (type !== "option" && !!data.values) {
+      } else if (type !== "option" && !!data?.values) {
         ctx.addIssue({
           code: z.ZodIssueCode.custom,
           message: t?.("noDataValues"),
