@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { requireAuthentication } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 
-import JobsTable from "./jobs-table";
+import JobsTable from "./components/jobs-table";
 
 // We'll prerender only at build time, refresh every 1 hour
 export const revalidate = 3600;
