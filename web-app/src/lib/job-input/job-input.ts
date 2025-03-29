@@ -7,7 +7,7 @@ import { validationSchema } from "./validation";
 export const jobInputSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) =>
   z
     .object({
-      id: z.string().nonempty({
+      id: z.string().min(1, {
         message: t?.("Id.required"),
       }),
       type: z.enum(ValidJobInputTypes, {
@@ -15,7 +15,7 @@ export const jobInputSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) =>
           options: ValidJobInputTypes.join(", "),
         }),
       }),
-      name: z.string().nonempty({
+      name: z.string().min(1, {
         message: t?.("Name.required"),
       }),
       data: z.object({
@@ -25,7 +25,7 @@ export const jobInputSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) =>
               message: t?.("Data.Values.value.required"),
             }),
           )
-          .min(1, { message: t?.("Data.Values.min") })
+          .nonempty({ message: t?.("Data.Values.min") })
           .optional(),
         placeholder: z.string().optional(),
         description: z.string().optional(),
