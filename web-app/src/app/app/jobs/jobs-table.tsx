@@ -2,6 +2,7 @@
 
 import { ColumnDef, createColumnHelper } from "@tanstack/react-table";
 import { useFormatter, useTranslations } from "next-intl";
+import React from "react";
 
 import { DataTable, DataTableColumnHeader } from "@/components/data-table";
 import { JobWithRelations } from "@/lib/db/services/job.service";
@@ -16,12 +17,21 @@ export default function JobsTable({ jobs }: JobsTableProps) {
 
   const columns = getColumns(t, dateFormatter);
 
+  // Define default sorting - newest jobs first
+  const defaultSort = [
+    {
+      id: "startedAt",
+      desc: true,
+    },
+  ];
+
   return (
     <DataTable
       columns={columns}
       data={jobs}
       containerClassName="w-full rounded-md border"
       showPagination
+      defaultSort={defaultSort}
     />
   );
 }
@@ -79,6 +89,20 @@ function getColumns(
       enableHiding: false,
     }) as ColumnDef<JobWithRelations, unknown>,
 
+    columnHelper.accessor("status", {
+      id: "status",
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t("Header.status")} />
+      ),
+      cell: ({ row }) => (
+        <div className="p-2">
+          <JobStatusBadge status={row.original.status} />
+        </div>
+      ),
+      enableSorting: true,
+      enableHiding: false,
+    }) as ColumnDef<JobWithRelations, unknown>,
+
     columnHelper.accessor((row) => row.agent.name, {
       id: "agentName",
       header: ({ column }) => (
@@ -88,18 +112,17 @@ function getColumns(
       enableHiding: false,
     }) as ColumnDef<JobWithRelations, unknown>,
 
-    columnHelper.display({
-      id: "job",
+    columnHelper.accessor("id", {
+      id: "jobId",
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t("Header.job")} />
+        <DataTableColumnHeader column={column} title={t("Header.id")} />
       ),
       cell: ({ row }) => (
-        <div className="flex items-center gap-2 p-2">
-          <JobStatusBadge status={row.original.status} />
-          <div className="w-full truncate">{row.original.input}</div>
+        <div className="p-2">
+          <div className="font-mono text-xs">{row.original.id}</div>
         </div>
       ),
-      enableSorting: false,
+      enableSorting: true,
       enableHiding: false,
     }) as ColumnDef<JobWithRelations, unknown>,
   ];

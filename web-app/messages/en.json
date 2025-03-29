@@ -449,7 +449,8 @@
           "started": "Started",
           "agent": "Agent",
           "status": "Status",
-          "job": "Job"
+          "job": "Job",
+          "id": "ID"
         },
         "JobStatusBadge": {
           "completed": "Completed",

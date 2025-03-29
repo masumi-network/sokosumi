@@ -38,6 +38,7 @@ interface DataTableProps<TData, TValue> {
   tableHeaderClassName?: string | undefined;
   tableBodyClassName?: string | undefined;
   showPagination?: boolean | undefined;
+  defaultSort?: { id: string; desc: boolean }[];
 }
 
 export default function DataTable<TData, TValue>({
@@ -48,6 +49,7 @@ export default function DataTable<TData, TValue>({
   tableHeaderClassName,
   tableBodyClassName,
   showPagination,
+  defaultSort,
 }: DataTableProps<TData, TValue>) {
   const t = useTranslations("Components.DataTable.Data");
 
@@ -57,7 +59,7 @@ export default function DataTable<TData, TValue>({
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     [],
   );
-  const [sorting, setSorting] = React.useState<SortingState>([]);
+  const [sorting, setSorting] = React.useState<SortingState>(defaultSort ?? []);
 
   const table = useReactTable({
     data,
