@@ -60,7 +60,7 @@ function getColumns(
       ),
       sortingFn: "datetime",
       enableHiding: false,
-    }) as ColumnDef<JobWithRelations, unknown>,
+    }) as ColumnDef<JobWithRelations>,
 
     columnHelper.accessor("status", {
       id: "status",
@@ -74,7 +74,7 @@ function getColumns(
       ),
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<JobWithRelations, unknown>,
+    }) as ColumnDef<JobWithRelations>,
 
     columnHelper.accessor((row) => row.agent.name, {
       id: "agentName",
@@ -83,7 +83,7 @@ function getColumns(
       ),
       cell: ({ row }) => <div className="p-2">{row.original.agent.name}</div>,
       enableHiding: false,
-    }) as ColumnDef<JobWithRelations, unknown>,
+    }) as ColumnDef<JobWithRelations>,
 
     columnHelper.accessor("id", {
       id: "jobId",
@@ -97,6 +97,6 @@ function getColumns(
       ),
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<JobWithRelations, unknown>,
+    }) as ColumnDef<JobWithRelations>,
   ];
 }
