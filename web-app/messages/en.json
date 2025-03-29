@@ -49,6 +49,13 @@
         "nextPage": "Go to next page",
         "lastPage": "Go to last page"
       }
+    },
+    "Breadcrumb": {
+      "app": "App",
+      "jobs": "Jobs",
+      "agents": "Agents",
+      "account": "Account",
+      "billing": "Billing"
     }
   },
   "Landing": {
@@ -471,13 +478,6 @@
     "Agent": {
       "defaultDescription": "The author didn't provide a description for this agent."
     }
-  },
-  "Navigation": {
-    "app": "App",
-    "jobs": "Jobs",
-    "agents": "Agents",
-    "account": "Account",
-    "billing": "Billing"
   },
   "Library": {
     "Auth": {

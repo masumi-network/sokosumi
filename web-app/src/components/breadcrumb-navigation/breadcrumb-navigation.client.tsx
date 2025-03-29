@@ -43,7 +43,7 @@ export default function BreadcrumbNavigationClient({
   className,
 }: BreadcrumbNavigationClientProps) {
   const pathname = usePathname();
-  const t = useTranslations("Navigation");
+  const t = useTranslations("Components.Breadcrumb");
 
   const segments =
     customSegments ?? generateSegments(pathname, segmentLabels, agents, t);
@@ -79,7 +79,7 @@ function generateSegments(
   pathname: string,
   segmentLabels: Record<string, string>,
   agents: AgentDTO[],
-  t?: IntlTranslation<"Navigation">,
+  t?: IntlTranslation<"Components.Breadcrumb">,
 ): BreadcrumbSegment[] {
   const pathSegments = pathname.split("/").filter(Boolean);
   if (!pathSegments.length) return [];
