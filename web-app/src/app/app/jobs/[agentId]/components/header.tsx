@@ -1,4 +1,3 @@
-import { AgentListType } from "@prisma/client";
 import { Bookmark, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { getTranslations } from "next-intl/server";
@@ -9,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { requireAuthentication } from "@/lib/auth/utils";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
-import { getOrCreateAgentListByType } from "@/lib/db/services/agentList.service";
+import { getOrCreateFavoriteAgentList } from "@/lib/db/services/agentList.service";
 
 interface HeaderProps {
   agent: AgentDTO;
@@ -46,10 +45,7 @@ function InactiveBookmarkButton() {
 async function AgentBookmarkSection({ agentId }: { agentId: string }) {
   const { session } = await requireAuthentication();
 
-  const agentList = await getOrCreateAgentListByType(
-    session.user.id,
-    AgentListType.FAVORITE,
-  );
+  const agentList = await getOrCreateFavoriteAgentList(session.user.id);
 
   return agentList ? (
     <AgentBookmarkButton agentId={agentId} agentList={agentList} />

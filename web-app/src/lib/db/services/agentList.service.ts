@@ -56,6 +56,12 @@ export async function createAgentList(
   });
 }
 
+export async function getOrCreateFavoriteAgentList(
+  userId: string,
+): Promise<AgentListWithAgent> {
+  return await getOrCreateAgentListByType(userId, AgentListType.FAVORITE);
+}
+
 export async function getOrCreateAgentListByType(
   userId: string,
   type: AgentListType,
