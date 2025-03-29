@@ -3,24 +3,24 @@
 import { ColumnDef, createColumnHelper } from "@tanstack/react-table";
 
 import { DataTableColumnHeader } from "@/components/data-table";
+import { JobWithRelations } from "@/lib/db/services/job.service";
 
 import JobStatusBadge from "./job-status-badge";
-import { Job } from "./schema";
 
-const columnHelper = createColumnHelper<Job>();
+const columnHelper = createColumnHelper<JobWithRelations>();
 
 export const columns: (
   t: IntlTranslation<"App.Jobs.JobTable">,
   dateFormatter: IntlDateFormatter,
-) => ColumnDef<Job>[] = (t, dateFormatter) => [
-  columnHelper.accessor("startedTime", {
+) => ColumnDef<JobWithRelations>[] = (t, dateFormatter) => [
+  columnHelper.accessor("startedAt", {
     minSize: 120,
     header: ({ column }) => (
       <DataTableColumnHeader column={column} title={t("Header.started")} />
     ),
     cell: ({ row }) => (
       <div className="p-2">
-        {dateFormatter.dateTime(new Date(row.original.startedTime), {
+        {dateFormatter.dateTime(new Date(row.original.startedAt), {
           year: "numeric",
           month: "short",
           day: "numeric",
@@ -28,12 +28,12 @@ export const columns: (
       </div>
     ),
     sortingFn: (rowA, rowB) => {
-      const a = rowA.original.startedTime;
-      const b = rowB.original.startedTime;
+      const a = rowA.original.startedAt;
+      const b = rowB.original.startedAt;
       return new Date(a).getTime() - new Date(b).getTime();
     },
     enableHiding: false,
-  }) as ColumnDef<Job>,
+  }) as ColumnDef<JobWithRelations>,
 
   columnHelper.display({
     id: "job",

@@ -3,8 +3,10 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 
+import { requireAuthentication } from "@/lib/auth/utils";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 import { getAgentById, getAgents } from "@/lib/db/services/agent.service";
+import { getUserJobsByAgentId } from "@/lib/db/services/job.service";
 
 import Footer from "./components/footer";
 import Header from "./components/header";
@@ -64,11 +66,14 @@ export default async function JobPage({
     return null;
   }
 
+  const { session } = await requireAuthentication();
+  const jobs = await getUserJobsByAgentId(agentId, session.user.id);
+
   return (
     <div className="flex h-full flex-1 flex-col p-4 lg:p-6 xl:p-8">
       <Header agent={agent} />
       <div className="mt-6 flex flex-1 flex-col justify-center gap-4 lg:flex-row lg:overflow-hidden">
-        <JobTable />
+        <JobTable jobs={jobs} />
         <RightSection agent={agent} />
       </div>
       <Footer legal={agent.legal} />

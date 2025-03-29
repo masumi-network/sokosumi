@@ -452,8 +452,9 @@
         "JobStatusBadge": {
           "completed": "Completed",
           "failed": "Failed",
-          "pending": "Pending",
-          "cancelled": "Cancelled"
+          "paymentPending": "Payment Pending",
+          "paymentFailed": "Payment Failed",
+          "processing": "Processing"
         }
       }
     },
