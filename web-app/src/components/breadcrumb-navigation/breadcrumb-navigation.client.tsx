@@ -23,10 +23,6 @@ interface BreadcrumbSegment {
 
 interface BreadcrumbNavigationClientProps {
   /**
-   * Optional segments to override the default path-based segments
-   */
-  segments?: BreadcrumbSegment[];
-  /**
    * Optional map of path segments to their display labels
    */
   segmentLabels?: Record<string, string>;
@@ -38,7 +34,6 @@ interface BreadcrumbNavigationClientProps {
 }
 
 export default function BreadcrumbNavigationClient({
-  segments: customSegments,
   segmentLabels = {},
   agents,
   className,
@@ -46,9 +41,9 @@ export default function BreadcrumbNavigationClient({
   const pathname = usePathname();
   const t = useTranslations("Navigation");
 
-  const segments = (
-    customSegments ?? generateSegments(pathname, segmentLabels, agents, t)
-  ).filter((segment) => segment.href !== AppRoute.Home);
+  const segments = generateSegments(pathname, segmentLabels, agents, t).filter(
+    (segment) => segment.href !== AppRoute.Home,
+  );
 
   // Only show breadcrumb if there are 2 or more segments
   if (segments.length < 2) {
