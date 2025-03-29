@@ -554,20 +554,9 @@
           "enum": "Must be one of {options}"
         },
         "Name": {
-          "required": "Input name is required",
-          "min": "Input name must be at least 2 characters",
-          "max": "Input name must be at most 128 characters"
+          "required": "Input name is required"
         },
         "Data": {
-          "Placeholder": {
-            "required": "Input placeholder is required",
-            "min": "Input placeholder must be at least 2 characters",
-            "max": "Input placeholder must be at most 128 characters"
-          },
-          "Description": {
-            "min": "Input description must be at least 2 characters",
-            "max": "Input description must be at most 128 characters"
-          },
           "Values": {
             "value": { "required": "Option is required" },
             "min": "Must have at least 1 option"

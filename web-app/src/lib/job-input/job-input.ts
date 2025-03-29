@@ -15,15 +15,9 @@ export const jobInputSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) =>
           options: ValidJobInputTypes.join(", "),
         }),
       }),
-      name: z
-        .string()
-        .nonempty({
-          message: t?.("Name.required"),
-        })
-        .min(2, { message: t?.("Name.min") })
-        .max(128, {
-          message: t?.("Name.max"),
-        }),
+      name: z.string().nonempty({
+        message: t?.("Name.required"),
+      }),
       data: z.object({
         values: z
           .array(
@@ -33,20 +27,8 @@ export const jobInputSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) =>
           )
           .min(1, { message: t?.("Data.Values.min") })
           .optional(),
-        placeholder: z
-          .string()
-          .nonempty({
-            message: t?.("Data.Placeholder.required"),
-          })
-          .min(2, { message: t?.("Data.Placeholder.min") })
-          .max(128, {
-            message: t?.("Data.Placeholder.max"),
-          }),
-        description: z
-          .string()
-          .min(2, { message: t?.("Data.Description.min") })
-          .max(128, { message: t?.("Data.Description.max") })
-          .optional(),
+        placeholder: z.string().optional(),
+        description: z.string().optional(),
       }),
       validations: z.array(validationSchema(t)).optional(),
     })
