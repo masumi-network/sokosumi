@@ -6,36 +6,6 @@ import {
   ValidJobInputValidationTypes,
 } from "./type";
 
-const limitValidationValueSchema = (
-  validation: "min" | "max",
-  t?: IntlTranslation<JobInputSchemaIntlPath>,
-) =>
-  z
-    .string()
-    .min(1, {
-      message: t?.("Validations.Value.required", {
-        validation,
-      }),
-    })
-    .superRefine((val, ctx) => {
-      const numberValue = Number(val);
-      if (isNaN(numberValue) || numberValue !== Math.floor(numberValue)) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: t?.("Validations.Value.integer", {
-            validation,
-          }),
-        });
-      } else if (numberValue < 0) {
-        ctx.addIssue({
-          code: z.ZodIssueCode.custom,
-          message: t?.("Validations.Value.notNegative", {
-            validation,
-          }),
-        });
-      }
-    });
-
 const formatStringValidationValueSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
@@ -99,7 +69,7 @@ export const minValidationSchema = (
         options: Object.values(ValidJobInputValidationTypes).join(", "),
       }),
     }),
-    value: limitValidationValueSchema("min", t),
+    value: z.number({ coerce: true }).int().min(0),
   });
 
 export const maxValidationSchema = (
@@ -111,7 +81,7 @@ export const maxValidationSchema = (
         options: Object.values(ValidJobInputValidationTypes).join(", "),
       }),
     }),
-    value: limitValidationValueSchema("max", t),
+    value: z.number({ coerce: true }).int().min(0),
   });
 
 export const formatStringValidationSchema = (
