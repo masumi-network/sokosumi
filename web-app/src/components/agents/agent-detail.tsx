@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 import { AgentListWithAgent } from "@/lib/db/services/agentList.service";
 import { cn } from "@/lib/utils";
+import { AppRoute } from "@/types/routes";
 
 import { AgentBookmarkButton } from "./agent-bookmark-button";
 import { BadgeCloud } from "./badge-cloud";
@@ -132,7 +133,7 @@ function AgentDetails({ agent, agentList, className }: AgentDetailsProps) {
           {/* Action Buttons */}
           <div className="mt-auto flex flex-col gap-3">
             <div className="flex items-center gap-3">
-              <Link href={`/app/jobs/${agent.id}`}>
+              <Link href={`${AppRoute.Jobs}/${agent.id}`}>
                 <Button variant="default" size="lg">
                   {t("hire")}
                 </Button>
