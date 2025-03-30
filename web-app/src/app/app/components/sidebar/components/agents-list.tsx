@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { requireAuthentication } from "@/lib/auth/utils";
+import { getHiredAgentsWithJobs } from "@/lib/db/services/agent.service";
 import { getOrCreateFavoriteAgentList } from "@/lib/db/services/agentList.service";
 import { AppRoute } from "@/types/routes";
 
@@ -56,6 +57,9 @@ async function AgentsListContent() {
   const agentListTypeTranslations: Record<AgentListType, string> = {
     [AgentListType.FAVORITE]: t("pinnedType"),
   };
+
+  const hiredAgents = await getHiredAgentsWithJobs(session.user.id);
+  console.log(hiredAgents);
 
   return (
     <ScrollArea className="h-full">

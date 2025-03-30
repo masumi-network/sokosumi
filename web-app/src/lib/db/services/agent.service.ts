@@ -37,3 +37,25 @@ export async function getAgentById(id: string): Promise<AgentDTO> {
 
   return await createAgentDTO(agent);
 }
+
+export async function getHiredAgentsWithJobs(userId: string) {
+  return prisma.agent.findMany({
+    where: {
+      jobs: {
+        some: {
+          userId: userId,
+        },
+      },
+    },
+    include: {
+      jobs: {
+        where: {
+          userId: userId,
+        },
+        orderBy: {
+          startedAt: "desc",
+        },
+      },
+    },
+  });
+}
