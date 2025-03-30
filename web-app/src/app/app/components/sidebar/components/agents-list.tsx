@@ -54,55 +54,21 @@ async function AgentsListContent() {
 
   return (
     <ScrollArea className="h-full">
-      <SidebarGroup key="favorite-agents">
-        <SidebarGroupLabel className="text-base">
-          {t("pinnedTitle")}
-        </SidebarGroupLabel>
-        <SidebarGroupContent className="mt-2">
-          {favoriteAgents.length > 0 ? (
-            <SidebarMenu>
-              {favoriteAgents.map((agent) => (
-                <SidebarMenuItem key={agent.id}>
-                  <SidebarMenuButton asChild>
-                    <Link href={`${AppRoute.Jobs}/${agent.id}`}>
-                      <span className="whitespace-nowrap">{agent.name}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          ) : (
-            <p className="text-muted-foreground px-3 text-sm">
-              {t("noAgents", { type: t("pinnedType") })}
-            </p>
-          )}
-        </SidebarGroupContent>
-      </SidebarGroup>
+      <AgentSection
+        groupKey="favorite-agents"
+        title={t("pinnedTitle")}
+        agents={favoriteAgents}
+        noAgentsType={t("pinnedType")}
+        t={t}
+      />
 
-      <SidebarGroup key="hired-agents">
-        <SidebarGroupLabel className="text-base">
-          {t("hiredTitle")}
-        </SidebarGroupLabel>
-        <SidebarGroupContent className="mt-2">
-          {hiredAgents.length > 0 ? (
-            <SidebarMenu>
-              {hiredAgents.map((agent) => (
-                <SidebarMenuItem key={agent.id}>
-                  <SidebarMenuButton asChild>
-                    <Link href={`${AppRoute.Jobs}/${agent.id}`}>
-                      <span className="whitespace-nowrap">{agent.name}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          ) : (
-            <p className="text-muted-foreground px-3 text-sm">
-              {t("noAgents", { type: t("hiredType") })}
-            </p>
-          )}
-        </SidebarGroupContent>
-      </SidebarGroup>
+      <AgentSection
+        groupKey="hired-agents"
+        title={t("hiredTitle")}
+        agents={hiredAgents}
+        noAgentsType={t("hiredType")}
+        t={t}
+      />
 
       <ScrollBar orientation="horizontal" />
     </ScrollArea>
@@ -114,5 +80,52 @@ export default function AgentsList() {
     <Suspense fallback={<AgentsListSkeleton />}>
       <AgentsListContent />
     </Suspense>
+  );
+}
+
+// Minimal agent interface that includes only the properties we need
+interface AgentDisplay {
+  id: string;
+  name: string;
+}
+
+interface AgentSectionProps {
+  groupKey: string;
+  title: string;
+  agents: AgentDisplay[];
+  noAgentsType: string;
+  t: Awaited<ReturnType<typeof getTranslations>>;
+}
+
+function AgentSection({
+  groupKey,
+  title,
+  agents,
+  noAgentsType,
+  t,
+}: AgentSectionProps) {
+  return (
+    <SidebarGroup key={groupKey}>
+      <SidebarGroupLabel className="text-base">{title}</SidebarGroupLabel>
+      <SidebarGroupContent className="mt-2">
+        {agents.length > 0 ? (
+          <SidebarMenu>
+            {agents.map((agent) => (
+              <SidebarMenuItem key={agent.id}>
+                <SidebarMenuButton asChild>
+                  <Link href={`${AppRoute.Jobs}/${agent.id}`}>
+                    <span className="whitespace-nowrap">{agent.name}</span>
+                  </Link>
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            ))}
+          </SidebarMenu>
+        ) : (
+          <p className="text-muted-foreground px-3 text-sm">
+            {t("noAgents", { type: noAgentsType })}
+          </p>
+        )}
+      </SidebarGroupContent>
+    </SidebarGroup>
   );
 }
