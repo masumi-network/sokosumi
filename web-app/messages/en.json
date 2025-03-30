@@ -24,7 +24,6 @@
       }
     },
     "UserAvatar": {
-      "dashboard": "Dashboard",
       "account": "Account",
       "signOut": "Sign out",
       "Error": {

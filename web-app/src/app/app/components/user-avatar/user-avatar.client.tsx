@@ -1,6 +1,6 @@
 "use client";
 
-import { LayoutGrid, LogOut, User as UserIcon } from "lucide-react";
+import { LogOut, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -82,12 +82,6 @@ export default function UserAvatarClient({ user }: UserAvatarClientProps) {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem className="hover:cursor-pointer" asChild>
-            <Link href={AppRoute.Home} className="flex items-center gap-2">
-              <LayoutGrid className="text-muted-foreground" />
-              {t("dashboard")}
-            </Link>
-          </DropdownMenuItem>
           <DropdownMenuItem className="hover:cursor-pointer" asChild>
             <Link href={AppRoute.Account} className="flex items-center gap-2">
               <UserIcon className="text-muted-foreground" />
