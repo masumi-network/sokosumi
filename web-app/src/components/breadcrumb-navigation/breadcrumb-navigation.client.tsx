@@ -13,6 +13,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
+import { AppRoute } from "@/types/routes";
 
 interface BreadcrumbSegment {
   label: string;
@@ -21,10 +22,6 @@ interface BreadcrumbSegment {
 }
 
 interface BreadcrumbNavigationClientProps {
-  /**
-   * Optional segments to override the default path-based segments
-   */
-  segments?: BreadcrumbSegment[];
   /**
    * Optional map of path segments to their display labels
    */
@@ -37,7 +34,6 @@ interface BreadcrumbNavigationClientProps {
 }
 
 export default function BreadcrumbNavigationClient({
-  segments: customSegments,
   segmentLabels = {},
   agents,
   className,
@@ -45,8 +41,9 @@ export default function BreadcrumbNavigationClient({
   const pathname = usePathname();
   const t = useTranslations("Components.Breadcrumb");
 
-  const segments =
-    customSegments ?? generateSegments(pathname, segmentLabels, agents, t);
+  const segments = generateSegments(pathname, segmentLabels, agents, t).filter(
+    (segment) => segment.href !== AppRoute.Home,
+  );
 
   // Only show breadcrumb if there are 2 or more segments
   if (segments.length < 2) {
