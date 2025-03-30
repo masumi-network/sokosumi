@@ -7,6 +7,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 import { cn } from "@/lib/utils";
+import { AppRoute } from "@/types/routes";
 
 import { BadgeCloud } from "./badge-cloud";
 
@@ -115,7 +116,7 @@ function AgentDetails({ agent, className }: AgentDetailsProps) {
           </div>
           <div className="mt-auto flex flex-col gap-3">
             <div className="flex items-center gap-3">
-              <Link href={`/app/jobs/${agent.id}`}>
+              <Link href={`${AppRoute.Jobs}/${agent.id}`}>
                 <Button variant="default" size="lg">
                   {t("hire")}
                 </Button>
