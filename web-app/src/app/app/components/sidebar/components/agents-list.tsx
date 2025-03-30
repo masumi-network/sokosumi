@@ -15,7 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { requireAuthentication } from "@/lib/auth/utils";
 import {
   getFavoriteAgents,
-  getHiredAgentsWithJobs,
+  getHiredAgentsOrderedByLatestJob,
 } from "@/lib/db/services/agent.service";
 import { AppRoute } from "@/types/routes";
 
@@ -50,7 +50,7 @@ async function AgentsListContent() {
   const { session } = await requireAuthentication();
 
   const favoriteAgents = await getFavoriteAgents(session.user.id);
-  const hiredAgents = await getHiredAgentsWithJobs(session.user.id);
+  const hiredAgents = await getHiredAgentsOrderedByLatestJob(session.user.id);
 
   return (
     <ScrollArea className="h-full">

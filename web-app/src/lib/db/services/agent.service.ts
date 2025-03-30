@@ -45,7 +45,7 @@ export async function getFavoriteAgents(userId: string) {
   return list.agents;
 }
 
-export async function getHiredAgentsWithJobs(userId: string) {
+export async function getHiredAgentsOrderedByLatestJob(userId: string) {
   const agentsWithJobs = await prisma.agent.findMany({
     where: {
       jobs: {
