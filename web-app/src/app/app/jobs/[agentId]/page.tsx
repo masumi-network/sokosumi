@@ -10,7 +10,7 @@ import { getUserJobsByAgentId } from "@/lib/db/services/job.service";
 
 import Footer from "./components/footer";
 import Header from "./components/header";
-import JobTable from "./components/job-table";
+import JobsTable from "./components/jobs-table";
 import RightSection from "./components/right-section";
 
 // request comes in, at most once every 1 hour (3600 seconds).
@@ -73,7 +73,7 @@ export default async function JobPage({
     <div className="flex h-full flex-1 flex-col p-4 lg:p-6 xl:p-8">
       <Header agent={agent} />
       <div className="mt-6 flex flex-1 flex-col justify-center gap-4 lg:flex-row lg:overflow-hidden">
-        <JobTable jobs={jobs} />
+        <JobsTable jobs={jobs} />
         <RightSection agent={agent} />
       </div>
       <Footer legal={agent.legal} />

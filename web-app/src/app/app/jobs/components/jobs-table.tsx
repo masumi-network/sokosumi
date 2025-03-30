@@ -13,7 +13,7 @@ interface JobsTableProps {
 }
 
 export default function JobsTable({ jobs }: JobsTableProps) {
-  const t = useTranslations("App.Jobs.JobTable");
+  const t = useTranslations("App.Jobs.JobsTable");
   const dateFormatter = useFormatter();
 
   const columns = getColumns(t, dateFormatter);
