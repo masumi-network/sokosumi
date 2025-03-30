@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AgentDTO } from "@/lib/db/dto/AgentDTO";
+import { AgentListWithAgent } from "@/lib/db/services/agentList.service";
 import { cn } from "@/lib/utils";
 import { AppRoute } from "@/types/routes";
 
+import { AgentBookmarkButton } from "./agent-bookmark-button";
 import { BadgeCloud } from "./badge-cloud";
 
 interface AgentDetailSkeletonProps {
@@ -75,10 +77,11 @@ function AgentDetailSkeleton({ className }: AgentDetailSkeletonProps) {
 
 interface AgentDetailsProps {
   agent: AgentDTO;
+  agentList?: AgentListWithAgent | undefined;
   className?: string;
 }
 
-function AgentDetails({ agent, className }: AgentDetailsProps) {
+function AgentDetails({ agent, agentList, className }: AgentDetailsProps) {
   const t = useTranslations("Components.Agents.AgentDetail");
   const {
     name,
@@ -105,15 +108,29 @@ function AgentDetails({ agent, className }: AgentDetailsProps) {
           />
         </div>
         <div className="flex flex-1 flex-col gap-y-2 p-2 sm:px-6">
-          <div>
-            <h2 className="text-2xl font-bold">{name}</h2>
-            <p className="text-muted-foreground line-clamp-1">
-              {t("byAuthor", { author })}
-            </p>
-            <p className="pt-1 text-sm font-medium">
-              {t("pricing", { price: credits })}
-            </p>
+          {/* Title and Bookmark Button Container */}
+          <div className="flex items-start justify-between gap-4">
+            {/* Title and Author */}
+            <div>
+              <h2 className="text-2xl font-bold">{name}</h2>
+              <p className="text-muted-foreground line-clamp-1">
+                {t("byAuthor", { author })}
+              </p>
+            </div>
+            {/* Bookmark Button - only render if agentList is provided */}
+            {agentList && (
+              <AgentBookmarkButton
+                agentId={agent.id}
+                agentList={agentList}
+                className="mt-1 flex-shrink-0" // Add margin-top for alignment and prevent shrinking
+              />
+            )}
           </div>
+          {/* Pricing */}
+          <p className="pt-1 text-sm font-medium">
+            {t("pricing", { price: credits })}
+          </p>
+          {/* Action Buttons */}
           <div className="mt-auto flex flex-col gap-3">
             <div className="flex items-center gap-3">
               <Link href={`${AppRoute.Jobs}/${agent.id}`}>

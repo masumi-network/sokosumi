@@ -37,6 +37,44 @@ describe("jobInputSchema", () => {
       });
       expect(result.success).toBe(false);
     });
+
+    it("should not fail with undefined data", () => {
+      const result = jobInputSchema(mockT).safeParse({
+        ...validStringInput,
+        data: undefined,
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("should not fail with empty validations", () => {
+      const result = jobInputSchema(mockT).safeParse({
+        ...validStringInput,
+        validations: undefined,
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("should not fail with valid validations", () => {
+      const result = jobInputSchema(mockT).safeParse({
+        ...validStringInput,
+        validations: [
+          { validation: "min", value: "10" },
+          { validation: "max", value: "100" },
+          { validation: "format", value: "nonempty" },
+          { validation: "format", value: "url" },
+          { validation: "format", value: "email" },
+        ],
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("should fail with invalid validations", () => {
+      const result = jobInputSchema(mockT).safeParse({
+        ...validStringInput,
+        validations: [{ validation: "format", value: "integer" }],
+      });
+      expect(result.success).toBe(false);
+    });
   });
 
   describe("Number input type", () => {
@@ -55,15 +93,33 @@ describe("jobInputSchema", () => {
       expect(result.success).toBe(true);
     });
 
+    it("should not fail with undefined data", () => {
+      const result = jobInputSchema(mockT).safeParse({
+        ...validNumberInput,
+        data: undefined,
+      });
+      expect(result.success).toBe(true);
+    });
+
     it("should accept number input with validations", () => {
       const result = jobInputSchema(mockT).safeParse({
         ...validNumberInput,
         validations: [
           { validation: "min", value: "0" },
           { validation: "max", value: "100" },
+          { validation: "format", value: "integer" },
+          { validation: "format", value: "nonempty" },
         ],
       });
       expect(result.success).toBe(true);
+    });
+
+    it("should fail with invalid validations", () => {
+      const result = jobInputSchema(mockT).safeParse({
+        ...validNumberInput,
+        validations: [{ validation: "format", value: "url" }],
+      });
+      expect(result.success).toBe(false);
     });
   });
 
@@ -82,12 +138,28 @@ describe("jobInputSchema", () => {
       expect(result.success).toBe(true);
     });
 
+    it("should not fail with undefined data", () => {
+      const result = jobInputSchema(mockT).safeParse({
+        ...validBooleanInput,
+        data: undefined,
+      });
+      expect(result.success).toBe(true);
+    });
+
     it("should accept boolean input with required validation", () => {
       const result = jobInputSchema(mockT).safeParse({
         ...validBooleanInput,
         validations: [{ validation: "required" }],
       });
       expect(result.success).toBe(true);
+    });
+
+    it("should fail with invalid validations", () => {
+      const result = jobInputSchema(mockT).safeParse({
+        ...validBooleanInput,
+        validations: [{ validation: "format", value: "url" }],
+      });
+      expect(result.success).toBe(false);
     });
   });
 
@@ -105,6 +177,14 @@ describe("jobInputSchema", () => {
     it("should validate a valid option input", () => {
       const result = jobInputSchema(mockT).safeParse(validOptionInput);
       expect(result.success).toBe(true);
+    });
+
+    it("should fail with undefined data", () => {
+      const result = jobInputSchema(mockT).safeParse({
+        ...validOptionInput,
+        data: undefined,
+      });
+      expect(result.success).toBe(false);
     });
 
     it("should fail with empty values array", () => {
@@ -128,6 +208,26 @@ describe("jobInputSchema", () => {
       });
       expect(result.success).toBe(false);
     });
+
+    it("should succeed with valid validations", () => {
+      const result = jobInputSchema(mockT).safeParse({
+        ...validOptionInput,
+        validations: [
+          { validation: "required", value: "false" },
+          { validation: "min", value: "2" },
+          { validation: "max", value: "4" },
+        ],
+      });
+      expect(result.success).toBe(true);
+    });
+
+    it("should fail with invalid validations", () => {
+      const result = jobInputSchema(mockT).safeParse({
+        ...validOptionInput,
+        validations: [{ validation: "format", value: "url" }],
+      });
+      expect(result.success).toBe(false);
+    });
   });
 
   describe("None input type", () => {
@@ -145,15 +245,12 @@ describe("jobInputSchema", () => {
       expect(result.success).toBe(true);
     });
 
-    it("should not accept validations", () => {
+    it("should not fail with undefined data", () => {
       const result = jobInputSchema(mockT).safeParse({
         ...validNoneInput,
-        validations: [{ validation: "required" }],
+        data: undefined,
       });
       expect(result.success).toBe(true);
-      expect(result.data).not.toEqual(undefined);
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      expect((result.data as any).validations).toBeUndefined();
     });
   });
 });

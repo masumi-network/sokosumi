@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { requireAuthentication } from "@/lib/auth/utils";
-import { getOrCreateAgentListsByTypes } from "@/lib/db/services/agentList.service";
+import { getOrCreateFavoriteAgentList } from "@/lib/db/services/agentList.service";
 import { AppRoute } from "@/types/routes";
 
 function AgentsListSkeleton() {
@@ -47,9 +47,7 @@ async function AgentsListContent() {
   const t = await getTranslations("App.Sidebar.Content.AgentsList");
   const { session } = await requireAuthentication();
 
-  const agentLists = await getOrCreateAgentListsByTypes(session.user.id, [
-    AgentListType.FAVORITE,
-  ]);
+  const list = await getOrCreateFavoriteAgentList(session.user.id);
 
   const agentListTitleTranslations: Record<AgentListType, string> = {
     [AgentListType.FAVORITE]: t("pinnedTitle"),
@@ -61,32 +59,30 @@ async function AgentsListContent() {
 
   return (
     <ScrollArea className="h-full">
-      {agentLists.map((list) => (
-        <SidebarGroup key={list.id}>
-          <SidebarGroupLabel className="text-base">
-            {agentListTitleTranslations[list.type]}
-          </SidebarGroupLabel>
-          <SidebarGroupContent className="mt-2">
-            {list.agents.length > 0 ? (
-              <SidebarMenu>
-                {list.agents.map((agent) => (
-                  <SidebarMenuItem key={agent.id}>
-                    <SidebarMenuButton asChild>
-                      <Link href={`${AppRoute.Jobs}/${agent.id}`}>
-                        <span className="whitespace-nowrap">{agent.name}</span>
-                      </Link>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
-                ))}
-              </SidebarMenu>
-            ) : (
-              <p className="text-muted-foreground px-3 text-sm">
-                {t("noAgents", { type: agentListTypeTranslations[list.type] })}
-              </p>
-            )}
-          </SidebarGroupContent>
-        </SidebarGroup>
-      ))}
+      <SidebarGroup key={list.id}>
+        <SidebarGroupLabel className="text-base">
+          {agentListTitleTranslations[list.type]}
+        </SidebarGroupLabel>
+        <SidebarGroupContent className="mt-2">
+          {list.agents.length > 0 ? (
+            <SidebarMenu>
+              {list.agents.map((agent) => (
+                <SidebarMenuItem key={agent.id}>
+                  <SidebarMenuButton asChild>
+                    <Link href={`${AppRoute.Jobs}/${agent.id}`}>
+                      <span className="whitespace-nowrap">{agent.name}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          ) : (
+            <p className="text-muted-foreground px-3 text-sm">
+              {t("noAgents", { type: agentListTypeTranslations[list.type] })}
+            </p>
+          )}
+        </SidebarGroupContent>
+      </SidebarGroup>
       <ScrollBar orientation="horizontal" />
     </ScrollArea>
   );

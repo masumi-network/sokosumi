@@ -16,17 +16,27 @@ const formatNonEmptyValidationValueSchema = (
     }),
   });
 
-const formatStringValidationValueSchema = (
+const formatUrlValidationValueSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
-  z.enum([ValidJobInputFormatValues.Url, ValidJobInputFormatValues.Email], {
+  z.enum([ValidJobInputFormatValues.Url], {
     message: t?.("Validations.Value.enum", {
       options: Object.values(ValidJobInputFormatValues).join(", "),
       validation: "format",
     }),
   });
 
-const formatNumberValidationValueSchema = (
+const formatEmailValidationValueSchema = (
+  t?: IntlTranslation<JobInputSchemaIntlPath>,
+) =>
+  z.enum([ValidJobInputFormatValues.Email], {
+    message: t?.("Validations.Value.enum", {
+      options: Object.values(ValidJobInputFormatValues).join(", "),
+      validation: "format",
+    }),
+  });
+
+const formatIntegerValidationValueSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
   z.enum([ValidJobInputFormatValues.Integer], {
@@ -84,7 +94,7 @@ export const maxValidationSchema = (
     value: z.number({ coerce: true }).int().min(0),
   });
 
-export const formatStringValidationSchema = (
+export const formatUrlValidationSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
   z.object({
@@ -93,10 +103,10 @@ export const formatStringValidationSchema = (
         options: Object.values(ValidJobInputValidationTypes).join(", "),
       }),
     }),
-    value: formatStringValidationValueSchema(t),
+    value: formatUrlValidationValueSchema(t),
   });
 
-export const formatNumberValidationSchema = (
+export const formatEmailValidationSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
   z.object({
@@ -105,7 +115,19 @@ export const formatNumberValidationSchema = (
         options: Object.values(ValidJobInputValidationTypes).join(", "),
       }),
     }),
-    value: formatNumberValidationValueSchema(t),
+    value: formatEmailValidationValueSchema(t),
+  });
+
+export const formatIntegerValidationSchema = (
+  t?: IntlTranslation<JobInputSchemaIntlPath>,
+) =>
+  z.object({
+    validation: z.enum([ValidJobInputValidationTypes.Format], {
+      message: t?.("Validations.Validation.enum", {
+        options: Object.values(ValidJobInputValidationTypes).join(", "),
+      }),
+    }),
+    value: formatIntegerValidationValueSchema(t),
   });
 
 export const formatNonEmptyValidationSchema = (
