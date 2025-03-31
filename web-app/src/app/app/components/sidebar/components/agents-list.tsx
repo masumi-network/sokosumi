@@ -1,3 +1,4 @@
+import { Agent } from "@prisma/client";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
@@ -13,6 +14,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { requireAuthentication } from "@/lib/auth/utils";
+import { getName } from "@/lib/db/extension/agent";
 import {
   getFavoriteAgents,
   getHiredAgentsOrderedByLatestJob,
@@ -83,16 +85,10 @@ async function AgentsListContent() {
   );
 }
 
-// Minimal agent interface that includes only the properties we need
-interface AgentDisplay {
-  id: string;
-  name: string;
-}
-
 interface AgentSectionProps {
   groupKey: string;
   title: string;
-  agents: AgentDisplay[];
+  agents: Agent[];
   noAgentsType: string;
   t: Awaited<ReturnType<typeof getTranslations>>;
 }
@@ -114,7 +110,7 @@ function AgentSection({
               <SidebarMenuItem key={agent.id}>
                 <SidebarMenuButton asChild>
                   <Link href={`${AppRoute.Jobs}/${agent.id}`}>
-                    <span className="whitespace-nowrap">{agent.name}</span>
+                    <span className="whitespace-nowrap">{getName(agent)}</span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
