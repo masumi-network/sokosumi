@@ -115,6 +115,12 @@ export async function startJob(
         status: "PAYMENT_PENDING",
         paymentId: purchaseResponse.data.id,
         input: JSON.stringify(inputData),
+        identifierFromPurchaser,
+        externalDisputeUnlockTime: startJobResponse.externalDisputeUnlockTime,
+        submitResultTime: startJobResponse.submitResultTime,
+        unlockTime: startJobResponse.unlockTime,
+        blockchainIdentifier: startJobResponse.blockchainIdentifier,
+        sellerVkey: startJobResponse.sellerVkey,
         user: {
           connect: {
             id: userId,

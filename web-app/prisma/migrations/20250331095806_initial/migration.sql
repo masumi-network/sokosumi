@@ -367,6 +367,13 @@ CREATE TABLE "Job" (
     "creditTransactionId" TEXT NOT NULL,
     "errorNote" TEXT,
     "errorNoteKey" TEXT,
+    "blockchainIdentifier" TEXT,
+    "submitResultTime" TIMESTAMP(3),
+    "unlockTime" TIMESTAMP(3),
+    "externalDisputeUnlockTime" TIMESTAMP(3),
+    "agentIdentifier" TEXT,
+    "sellerVkey" TEXT,
+    "identifierFromPurchaser" TEXT,
 
     CONSTRAINT "Job_pkey" PRIMARY KEY ("id")
 );

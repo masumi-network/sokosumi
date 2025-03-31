@@ -438,6 +438,14 @@ model Job {
   creditTransactionId       String             @unique
   errorNote                 String?
   errorNoteKey              String?
+
+  blockchainIdentifier      String?
+  submitResultTime          DateTime?
+  unlockTime                DateTime?
+  externalDisputeUnlockTime DateTime?
+  agentIdentifier           String?
+  sellerVkey                String?
+  identifierFromPurchaser   String?
 }
 
 enum JobStatus {
