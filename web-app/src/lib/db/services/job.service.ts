@@ -14,8 +14,8 @@ import {
 } from "./credit.service";
 
 const startJobSchema = z.object({
-  inputDataHash: z.string(),
-  jobId: z.string(),
+  input_hash: z.string(),
+  job_id: z.string(),
   sellerVkey: z.string(),
   blockchainIdentifier: z.string(),
   submitResultTime: z.string(),
@@ -27,7 +27,7 @@ export async function startJob(
   userId: string,
   agentId: string,
   maxAcceptedCreditCost: bigint,
-  inputData: { key: string; value: string }[],
+  inputData: Map<string, string | number | number[]>,
 ) {
   const agent = await getAgentById(agentId);
 
@@ -53,22 +53,41 @@ export async function startJob(
 
   try {
     const baseUrl = agent.apiBaseUrl;
+    let baseUrlString = baseUrl.toString();
+    if (baseUrlString.endsWith("/")) {
+      baseUrlString = baseUrlString.slice(0, -1);
+    }
     //start_job to the base url
-    const startJobUrl = new URL(`${baseUrl}/start_job`);
-    const identifierFromPurchaser = crypto.randomUUID();
-    const inputHash = calculatedInputHash(inputData);
+    const startJobUrl = new URL(`${baseUrlString}/start_job`);
+    const identifierFromPurchaser = crypto
+      .randomUUID()
+      .replace(/-/g, "")
+      .substring(0, 25);
+
+    const inputHash = calculatedInputHash(
+      JSON.stringify({ input_data: Object.fromEntries(inputData) }),
+    );
+
     const result = await fetch(startJobUrl, {
       method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
-        identifierFromPurchaser,
-        inputData,
+        identifier_from_purchaser: identifierFromPurchaser,
+        input_data: Object.fromEntries(inputData),
       }),
     });
     if (!result.ok) {
       throw new Error("Failed to start job");
     }
-    const startJobResponse = startJobSchema.parse(await result.json());
-    if (startJobResponse.inputDataHash !== inputHash) {
+    const startJobResponseData = startJobSchema.safeParse(await result.json());
+    if (!startJobResponseData.success) {
+      console.log(startJobResponseData.error);
+      throw new Error("Failed to parse start job response");
+    }
+    const startJobResponse = startJobResponseData.data;
+    if (startJobResponse.input_hash !== inputHash) {
       throw new Error("Input data hash mismatch");
     }
 
@@ -89,7 +108,7 @@ export async function startJob(
         unlockTime: startJobResponse.unlockTime,
         metadata: JSON.stringify({
           inputData,
-          jobId: startJobResponse.jobId,
+          jobId: startJobResponse.job_id,
         }),
       },
     });
@@ -100,7 +119,7 @@ export async function startJob(
     const purchaseResponse = purchaseRequest.data;
     const job = await prisma.job.create({
       data: {
-        agentJobId: startJobResponse.jobId,
+        agentJobId: startJobResponse.job_id,
         onChainIdentifier: startJobResponse.blockchainIdentifier,
         agent: {
           connect: {
@@ -249,7 +268,13 @@ export async function syncJobStatus(job: Job) {
 
   if (onChainState === "ResultSubmitted" || onChainState == "Withdrawn") {
     const baseUrl = agent.apiBaseUrl;
-    const syncJobUrl = new URL(`${baseUrl}/status?job_id=${job.agentJobId}`);
+    let baseUrlString = baseUrl.toString();
+    if (baseUrlString.endsWith("/")) {
+      baseUrlString = baseUrlString.slice(0, -1);
+    }
+    const syncJobUrl = new URL(
+      `${baseUrlString}/status?job_id=${job.agentJobId}`,
+    );
     const syncJobResponse = await fetch(syncJobUrl, {
       method: "GET",
     });

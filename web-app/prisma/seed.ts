@@ -312,17 +312,6 @@ const seedAgents = async () => {
     console.log(`Created agent ${agent.title}`);
     index++;
   }
-  await prisma.creditCost.create({
-    data: {
-      unit: "lovelace",
-      //1 usd = 100000000000 credits
-      //1 ada = 1000000 lovelace
-      //1 ada = 0.7 usd
-      //1 usd = 1428571 lovelace
-      //1 lovelace = 100000000000 / 1428571 credits = 700 credits
-      creditCostPerUnit: BigInt(70000),
-    },
-  });
 };
 
 const seedJobs = async (userId: string) => {
@@ -422,6 +411,18 @@ async function main() {
     await seedAgents();
     await seedJobs(userId);
   }
+
+  await prisma.creditCost.create({
+    data: {
+      unit: "",
+      //1 usd = 100000000000 credits
+      //1 ada = 1000000 lovelace
+      //1 ada = 0.7 usd
+      //1 usd = 1428571 lovelace
+      //1 lovelace = 100000000000 / 1428571 credits = 700 credits
+      creditCostPerUnit: BigInt(70000),
+    },
+  });
 }
 
 main()

@@ -101,11 +101,6 @@ export async function releaseLock(lock: { updatedAt: Date; key: string }) {
   }
 }
 
-export const calculatedInputHash = (
-  inputData: { key: string; value: string }[],
-) => {
-  return crypto
-    .createHash("sha256")
-    .update(JSON.stringify(inputData))
-    .digest("hex");
+export const calculatedInputHash = (inputData: string) => {
+  return crypto.createHash("sha256").update(inputData).digest("hex");
 };

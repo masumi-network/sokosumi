@@ -1,6 +1,8 @@
 import { getPaymentInformation } from "@/lib/api/generated/registry";
+import { getRegistryClient } from "@/lib/api/registry-service.client";
 import { AgentDTO, createAgentDTO } from "@/lib/db/dto/AgentDTO";
 import prisma from "@/lib/db/prisma";
+import { jobInputSchema } from "@/lib/job-input";
 
 const agentInclude = {
   pricing: {
@@ -48,10 +50,16 @@ export async function getAgentInputSchema(agentId: string) {
     throw new Error(`Agent with ID ${agentId} has no API base URL`);
   }
 
-  const response = await fetch(`${agentUrl}/schema`);
-  const schema = await response.json();
+  let agentUrlString = agentUrl.toString();
+  if (agentUrlString.endsWith("/")) {
+    agentUrlString = agentUrlString.slice(0, -1);
+  }
 
-  return schema;
+  const response = await fetch(`${agentUrlString}/input_schema`);
+  const schema = await response.json();
+  const inputSchema = jobInputSchema(undefined).parse(schema);
+
+  return inputSchema;
 }
 
 export async function getAgentPricing(agentId: string) {
@@ -60,8 +68,10 @@ export async function getAgentPricing(agentId: string) {
   if (!agent) {
     throw new Error("Agent not found");
   }
+  const registryClient = getRegistryClient();
 
   const paymentInformation = await getPaymentInformation({
+    client: registryClient,
     query: {
       agentIdentifier: agent.onChainIdentifier,
     },

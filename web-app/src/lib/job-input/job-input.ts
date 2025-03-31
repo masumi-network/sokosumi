@@ -12,11 +12,15 @@ import {
 } from "./validation";
 
 export const jobInputSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) =>
-  jobInputStringSchema(t)
-    .or(jobInputNumberSchema(t))
-    .or(jobInputBooleanSchema(t))
-    .or(jobInputOptionSchema(t))
-    .or(jobInputNoneSchema(t));
+  z.object({
+    input_data: z.array(
+      jobInputStringSchema(t)
+        .or(jobInputNumberSchema(t))
+        .or(jobInputBooleanSchema(t))
+        .or(jobInputOptionSchema(t))
+        .or(jobInputNoneSchema(t)),
+    ),
+  });
 
 export type JobInputSchemaType = z.infer<ReturnType<typeof jobInputSchema>>;
 

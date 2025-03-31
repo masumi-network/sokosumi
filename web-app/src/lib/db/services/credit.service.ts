@@ -83,13 +83,13 @@ export async function calculateCreditCostAndValidateAmounts(
   }
   const feeMultiplier = 1 + feePercentagePoints / 100;
 
-  const amountsParsed = amountsSchema.parse(JSON.stringify(amounts));
+  const amountsParsed = amountsSchema.parse(amounts);
 
   let totalCreditCost = BigInt(0);
   for (const amount of amountsParsed) {
     const creditCost = await prisma.creditCost.findUnique({
       where: {
-        unit: amount.unit == "" ? "lovelace" : amount.unit,
+        unit: amount.unit == "lovelace" ? "" : amount.unit,
       },
     });
     if (!creditCost) {
