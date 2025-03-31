@@ -1,4 +1,4 @@
-import { CreditActionType } from "@prisma/client";
+import { CreditActionStatus, CreditActionType } from "@prisma/client";
 import { z } from "zod";
 
 import prisma from "@/lib/db/prisma";
@@ -19,6 +19,7 @@ export async function creditActionSpend(
   amount: bigint,
   includedFee: bigint,
   note: string | null = null,
+  noteKey: string | null = null,
 ) {
   if (amount <= 0) {
     throw new Error("Amount must be greater than 0");
@@ -51,7 +52,9 @@ export async function creditActionSpend(
         amount: -amount,
         includedFee: includedFee,
         type: CreditActionType.Spend,
+        status: CreditActionStatus.Pending,
         note: note,
+        noteKey: noteKey,
       },
     });
   });

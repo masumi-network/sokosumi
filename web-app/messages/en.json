@@ -1,4 +1,12 @@
 {
+  "Job": {
+    "CreationFailed": "Failed to create job",
+    "RefundFailed": "Failed to refund job",
+    "ManualChainState": "The Job failed, please contact our support",
+    "SyncStatusFailed": "Failed to get on-chain status, please contact our support",
+    "SyncOutputFailed": "Failed to get job output, please contact our support",
+    "UnknownError": "An unknown error occurred, please contact our support"
+  },
   "Components": {
     "Agents": {
       "agentsNotAvailable": "No agents available",

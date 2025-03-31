@@ -355,20 +355,24 @@ enum AgentListType {
 }
 
 model CreditAction {
-  id          String             @id @default(cuid())
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
-  amount      BigInt
-  includedFee BigInt
-  note        String?
-  errorNote   String?
-  type        CreditActionType
-  userId      String
-  user        User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  payment     Payment?           @relation(fields: [paymentId], references: [id])
-  paymentId   String?            @unique
-  Job         Job[]
+  id           String           @id @default(cuid())
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  amount       BigInt
+  includedFee  BigInt
+  note         String?
+  noteKey      String?
+  errorNote    String?
+  errorNoteKey String?
+  type         CreditActionType
+  userId       String
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  payment      Payment?         @relation(fields: [paymentId], references: [id])
+  paymentId    String?          @unique
+
   status      CreditActionStatus @default(Pending)
+  Job         Job?               @relation("JobCost")
+  RefundedJob Job?               @relation("JobRefund")
 }
 
 enum CreditActionStatus {
@@ -407,24 +411,28 @@ enum PaymentStatus {
 }
 
 model Job {
-  id                String       @id @default(cuid())
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
-  agentJobId        String
-  paymentId         String
-  onChainIdentifier String       @unique
-  agentId           String
-  agent             Agent        @relation(fields: [agentId], references: [id])
-  userId            String
-  user              User         @relation(fields: [userId], references: [id])
-  status            JobStatus
-  input             String
-  output            String?
-  startedAt         DateTime     @default(now())
-  finishedAt        DateTime?
-  cost              CreditAction @relation(fields: [creditActionId], references: [id])
-  paymentTxId       String?
-  creditActionId    String
+  id                   String        @id @default(cuid())
+  createdAt            DateTime      @default(now())
+  updatedAt            DateTime      @updatedAt
+  agentJobId           String
+  paymentId            String
+  onChainIdentifier    String        @unique
+  agentId              String
+  agent                Agent         @relation(fields: [agentId], references: [id])
+  userId               String
+  user                 User          @relation(fields: [userId], references: [id])
+  status               JobStatus
+  input                String
+  output               String?
+  startedAt            DateTime      @default(now())
+  finishedAt           DateTime?
+  cost                 CreditAction  @relation("JobCost", fields: [creditActionId], references: [id])
+  refundCreditAction   CreditAction? @relation("JobRefund", fields: [refundCreditActionId], references: [id])
+  refundCreditActionId String?       @unique
+  paymentTxId          String?
+  creditActionId       String        @unique
+  errorNote            String?
+  errorNoteKey         String?
 }
 
 enum JobStatus {
@@ -433,6 +441,10 @@ enum JobStatus {
   PROCESSING
   COMPLETED
   FAILED
+  REFUND_REQUESTED
+  DISPUTED
+  REFUNDED
+  REFUND_FAILED
 }
 
 model CreditCost {

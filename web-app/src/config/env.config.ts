@@ -36,6 +36,8 @@ const envSchemaSecrets = z.object({
   LINKEDIN_CLIENT_ID: z.string().min(1),
   LINKEDIN_CLIENT_SECRET: z.string().min(1),
 
+  PAYMENT_API_KEY: z.string().min(1),
+  PAYMENT_API_URL: z.string().url().default("https://payment.masumi.network"),
   // BetterAuth Settings
   BETTER_AUTH_SESSION_EXPIRES_IN: z
     .number()

@@ -1,9 +1,10 @@
-import { Prisma } from "@prisma/client";
+import { Job, Prisma } from "@prisma/client";
 import crypto from "crypto";
 import { z } from "zod";
 
 import { getEnvSecrets } from "@/config/env.config";
 import { getPurchase, postPurchase } from "@/lib/api/generated/payment";
+import { getPaymentClient } from "@/lib/api/payment-service.client";
 import prisma from "@/lib/db/prisma";
 
 import { getAgentById } from "./agent.service";
@@ -62,7 +63,10 @@ export async function startJob(
       throw new Error("Input data hash mismatch");
     }
 
+    const paymentClient = getPaymentClient();
+
     const purchaseRequest = await postPurchase({
+      client: paymentClient,
       body: {
         agentIdentifier: agent.onChainIdentifier,
         inputHash: inputHash,
@@ -126,9 +130,8 @@ export async function startJob(
       },
       data: {
         status: "Failed",
-        errorNote:
-          "Failed to create job: " +
-          (error instanceof Error ? error.message : "Unknown error"),
+        errorNote: error instanceof Error ? error.message : "Unknown error",
+        errorNoteKey: "Job.CreationFailed",
       },
     });
     throw new Error("Failed to create job", { cause: error });
@@ -179,24 +182,16 @@ export async function getUserJobsByAgentId(
   return jobs;
 }
 
-export async function syncJobStatus(jobId: string) {
-  const job = await prisma.job.findUnique({
-    where: {
-      id: jobId,
-    },
-  });
-
-  if (!job) {
-    throw new Error("Job not found");
-  }
-
+export async function syncJobStatus(job: Job) {
   const agent = await getAgentById(job.agentId);
 
   if (!agent) {
     throw new Error("Agent not found");
   }
+  const paymentClient = getPaymentClient();
 
   const purchase = await getPurchase({
+    client: paymentClient,
     query: {
       cursorId: job.paymentId,
       network: "Preprod",
@@ -209,12 +204,23 @@ export async function syncJobStatus(jobId: string) {
     !purchase.data ||
     purchase.data.data.Purchases.length != 1
   ) {
+    await prisma.job.update({
+      where: {
+        id: job.id,
+      },
+      data: {
+        status: "FAILED",
+        errorNote: purchase.error ? String(purchase.error) : "Unknown error",
+        errorNoteKey: "Job.SyncStatusFailed",
+      },
+    });
     throw new Error("Failed to get on-chain status");
   }
 
   const onChainState = purchase.data.data.Purchases[0].onChainState;
 
   if (onChainState === "FundsLocked") {
+    console.log("Funds still in locked state");
     return;
   }
 
@@ -227,12 +233,12 @@ export async function syncJobStatus(jobId: string) {
     if (!syncJobResponse.ok) {
       await prisma.job.update({
         where: {
-          id: jobId,
+          id: job.id,
         },
         data: {
           status: "FAILED",
-          errorNote:
-            "Failed to get on-chain status: " + syncJobResponse.statusText,
+          errorNote: syncJobResponse.statusText,
+          errorNoteKey: "Job.SyncOutputFailed",
         },
       });
       throw new Error("Failed to get on-chain status");
@@ -242,11 +248,12 @@ export async function syncJobStatus(jobId: string) {
     if (syncJobResponseData.error) {
       await prisma.job.update({
         where: {
-          id: jobId,
+          id: job.id,
         },
         data: {
           status: "FAILED",
-          errorNote: "Failed to get output: " + syncJobResponseData.error,
+          errorNote: syncJobResponseData.error,
+          errorNoteKey: "Job.SyncOutputFailed",
         },
       });
       throw new Error("Failed to get output");
@@ -256,7 +263,7 @@ export async function syncJobStatus(jobId: string) {
 
     await prisma.job.update({
       where: {
-        id: jobId,
+        id: job.id,
       },
       data: {
         status: "COMPLETED",
@@ -266,13 +273,53 @@ export async function syncJobStatus(jobId: string) {
     });
     return;
   }
+  if (onChainState === "RefundWithdrawn") {
+    await prisma.$transaction(async (tx) => {
+      const jobToRefund = await tx.job.findUnique({
+        where: {
+          id: job.id,
+        },
+        include: {
+          cost: true,
+        },
+      });
+      if (!jobToRefund) {
+        throw new Error("Job not found");
+      }
+      if (jobToRefund.refundCreditActionId != null) {
+        return;
+      }
+      await tx.job.update({
+        where: {
+          id: job.id,
+        },
+        data: {
+          status: "REFUNDED",
+          refundCreditAction: {
+            create: {
+              amount: jobToRefund.cost.amount,
+              type: "Refund",
+              includedFee: BigInt(0),
+              user: {
+                connect: {
+                  id: jobToRefund.userId,
+                },
+              },
+            },
+          },
+        },
+      });
+    });
+    return;
+  }
   await prisma.job.update({
     where: {
-      id: jobId,
+      id: job.id,
     },
     data: {
       status: "FAILED",
       errorNote: "Unknown on-chain state: " + onChainState,
+      errorNoteKey: "Job.ManualChainState",
     },
   });
 }
