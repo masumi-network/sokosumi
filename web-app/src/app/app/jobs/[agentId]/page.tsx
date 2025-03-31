@@ -6,7 +6,7 @@ import { notFound } from "next/navigation";
 import { requireAuthentication } from "@/lib/auth/utils";
 import { getDescription, getLegal, getName } from "@/lib/db/extension/agent";
 import { getAgentById, getAgents } from "@/lib/db/services/agent.service";
-import { getUserJobsByAgentId } from "@/lib/db/services/job.service";
+import { getJobsByAgentId } from "@/lib/db/services/job.service";
 
 import Footer from "./components/footer";
 import Header from "./components/header";
@@ -63,7 +63,7 @@ export default async function JobPage({
   }
 
   const { session } = await requireAuthentication();
-  const jobs = await getUserJobsByAgentId(agentId, session.user.id);
+  const jobs = await getJobsByAgentId(agentId, session.user.id);
 
   return (
     <div className="flex h-full flex-1 flex-col p-4 lg:p-6 xl:p-8">
