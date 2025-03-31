@@ -19,6 +19,14 @@ import {
 } from "@/lib/db/services/agent.service";
 import { AppRoute } from "@/types/routes";
 
+export default function AgentsList() {
+  return (
+    <Suspense fallback={<AgentsListSkeleton />}>
+      <AgentsListContent />
+    </Suspense>
+  );
+}
+
 function AgentsListSkeleton() {
   return (
     <ScrollArea className="h-full">
@@ -72,14 +80,6 @@ async function AgentsListContent() {
 
       <ScrollBar orientation="horizontal" />
     </ScrollArea>
-  );
-}
-
-export default function AgentsList() {
-  return (
-    <Suspense fallback={<AgentsListSkeleton />}>
-      <AgentsListContent />
-    </Suspense>
   );
 }
 
