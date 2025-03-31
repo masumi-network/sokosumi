@@ -2,10 +2,14 @@ import { Prisma } from "@prisma/client";
 
 import prisma from "@/lib/db/prisma";
 
-export const agentInclude = {
+export const agentPricingInclude = {
   pricing: {
     include: { fixedPricing: { include: { amounts: true } } },
   },
+} as const;
+
+export const agentInclude = {
+  ...agentPricingInclude,
   exampleOutput: true,
   overrideExampleOutput: true,
   tags: true,

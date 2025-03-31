@@ -2,8 +2,12 @@ import { Prisma } from "@prisma/client";
 
 import prisma from "@/lib/db/prisma";
 
+import { agentPricingInclude } from "./agent.service";
+
 const jobInclude = {
-  agent: true,
+  agent: {
+    include: agentPricingInclude,
+  },
   user: true,
 } as const;
 
