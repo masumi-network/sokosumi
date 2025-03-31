@@ -1,11 +1,9 @@
-import { AgentDTO } from "@/lib/db/dto/AgentDTO";
+import { AgentWithRelations, getDescription } from "@/lib/db/extension/agent";
 
 interface JobDetailSectionProps {
-  agent: AgentDTO;
+  agent: AgentWithRelations;
 }
 
 export default function JobDetailSection({ agent }: JobDetailSectionProps) {
-  const { description } = agent;
-
-  return <div>{description}</div>;
+  return <div>{getDescription(agent) ?? "No description available"}</div>;
 }

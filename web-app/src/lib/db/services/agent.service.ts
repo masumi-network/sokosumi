@@ -1,4 +1,4 @@
-import { AgentDTO, createAgentDTO } from "@/lib/db/dto/AgentDTO";
+import { AgentWithRelations } from "@/lib/db/extension/agent";
 import prisma from "@/lib/db/prisma";
 
 const agentInclude = {
@@ -13,27 +13,17 @@ const agentInclude = {
   userAgentRating: true,
 } as const;
 
-export async function getAgents(): Promise<AgentDTO[]> {
-  const agents = await prisma.agent.findMany({
+export async function getAgents(): Promise<AgentWithRelations[]> {
+  return await prisma.agent.findMany({
     include: agentInclude,
   });
-
-  if (!agents) {
-    throw new Error("No agents found");
-  }
-
-  return await Promise.all(agents.map(createAgentDTO));
 }
 
-export async function getAgentById(id: string): Promise<AgentDTO> {
-  const agent = await prisma.agent.findUnique({
+export async function getAgentById(
+  id: string,
+): Promise<AgentWithRelations | null> {
+  return await prisma.agent.findUnique({
     where: { id },
     include: agentInclude,
   });
-
-  if (!agent) {
-    throw new Error(`Agent with ID ${id} not found`);
-  }
-
-  return await createAgentDTO(agent);
 }

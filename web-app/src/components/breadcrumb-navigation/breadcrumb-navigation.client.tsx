@@ -12,7 +12,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { AgentDTO } from "@/lib/db/dto/AgentDTO";
+import { AgentWithRelations, getName } from "@/lib/db/extension/agent";
 import { AppRoute } from "@/types/routes";
 
 interface BreadcrumbSegment {
@@ -29,7 +29,7 @@ interface BreadcrumbNavigationClientProps {
   /**
    * Agents for resolving agent IDs to names
    */
-  agents: AgentDTO[];
+  agents: AgentWithRelations[];
   className?: string | undefined;
 }
 
@@ -75,7 +75,7 @@ export default function BreadcrumbNavigationClient({
 function generateSegments(
   pathname: string,
   segmentLabels: Record<string, string>,
-  agents: AgentDTO[],
+  agents: AgentWithRelations[],
   t?: IntlTranslation<"Components.Breadcrumb">,
 ): BreadcrumbSegment[] {
   const pathSegments = pathname.split("/").filter(Boolean);
@@ -93,7 +93,7 @@ function generateSegments(
     const agent = agents.find((a) => a.id === segment);
     const label =
       segmentLabels[segment] ??
-      agent?.name ??
+      (agent && getName(agent)) ??
       (t && t.has(segment) && t(segment)) ??
       segment;
 

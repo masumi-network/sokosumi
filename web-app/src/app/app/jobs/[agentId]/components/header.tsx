@@ -7,11 +7,15 @@ import { AgentBookmarkButton } from "@/components/agents/agent-bookmark-button";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { requireAuthentication } from "@/lib/auth/utils";
-import { AgentDTO } from "@/lib/db/dto/AgentDTO";
+import {
+  AgentWithRelations,
+  getCredits,
+  getName,
+} from "@/lib/db/extension/agent";
 import { getOrCreateFavoriteAgentList } from "@/lib/db/services/agentList.service";
 
 interface HeaderProps {
-  agent: AgentDTO;
+  agent: AgentWithRelations;
 }
 
 const bookmarkSize = 36;
@@ -56,7 +60,7 @@ async function AgentBookmarkSection({ agentId }: { agentId: string }) {
 
 export default async function Header({ agent }: HeaderProps) {
   const t = await getTranslations("App.Jobs.Header");
-  const { id: agentId, name, credits } = agent;
+  // const { id: agentId, name, credits } = agent;
 
   return (
     <div className="flex flex-wrap items-center gap-4 lg:gap-6 xl:gap-8">
@@ -65,14 +69,16 @@ export default async function Header({ agent }: HeaderProps) {
           <Bookmark size={bookmarkSize} className="text-muted cursor-pointer" />
         }
       >
-        <AgentBookmarkSection agentId={agentId} />
+        <AgentBookmarkSection agentId={agent.id} />
       </Suspense>
-      <h1 className="text-2xl font-bold xl:text-3xl">{name}</h1>
+      <h1 className="text-2xl font-bold xl:text-3xl">{getName(agent)}</h1>
       <Button className="gap-2">
         <Plus />
         {t("createNewJob")}
       </Button>
-      <div className="text-base">{t("price", { price: credits })}</div>
+      <div className="text-base">
+        {t("price", { price: getCredits(agent) })}
+      </div>
     </div>
   );
 }
