@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { Legal } from "@/lib/db/extension/agent";
 
 interface FooterProps {
-  legal?: Legal | undefined;
+  legal?: Legal | null;
 }
 
 export default function Footer({ legal }: FooterProps) {
