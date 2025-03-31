@@ -23,7 +23,7 @@ export const VerificationEmail = async ({
   name,
   verificationLink,
 }: BetterAuthVerificationEmailProps) => {
-  const t = await getTranslations("Auth.Email.Verification");
+  const t = await getTranslations("Library.Auth.Email.Verification");
 
   return (
     <Html>

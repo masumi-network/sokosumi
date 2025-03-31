@@ -5,14 +5,14 @@ export enum LandingRoute {
   SignUp = "/signup",
   ForgotPassword = "/forgot-password",
   ResetPassword = "/reset-password",
-  Agents = "/gallery",
+  Agents = "/agents",
 }
 
 export enum AppRoute {
-  Home = "/dashboard",
-  Account = "/dashboard/account",
-  Agents = "/dashboard/gallery",
-  Billing = "/dashboard/billing",
-  Jobs = "/dashboard/jobs",
-  Settings = "/dashboard/settings",
+  Home = "/app",
+  Account = "/app/account",
+  Agents = "/app/agents",
+  Jobs = "/app/jobs",
+  Billing = "/app/billing",
+  Settings = "/app/settings",
 }

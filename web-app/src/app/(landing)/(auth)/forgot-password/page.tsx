@@ -5,7 +5,7 @@ import ForgotPasswordForm from "./components/form";
 import ForgotPasswordHeader from "./components/header";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("Auth.Pages.ForgotPassword.Metadata");
+  const t = await getTranslations("Landing.Auth.Pages.ForgotPassword.Metadata");
 
   return {
     title: t("title"),

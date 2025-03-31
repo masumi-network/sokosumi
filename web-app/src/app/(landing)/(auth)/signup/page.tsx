@@ -5,7 +5,7 @@ import SignUpForm from "./components/form";
 import SignUpHeader from "./components/header";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("Auth.Pages.SignUp.Metadata");
+  const t = await getTranslations("Landing.Auth.Pages.SignUp.Metadata");
 
   return {
     title: t("title"),

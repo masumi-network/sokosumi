@@ -1,7 +1,7 @@
 import { useTranslations } from "next-intl";
 
 export default function ForgotPasswordHeader() {
-  const t = useTranslations("Auth.Pages.ForgotPassword.Header");
+  const t = useTranslations("LandingAuth.Pages.ForgotPassword.Header");
 
   return (
     <div className="space-y-2 p-6">

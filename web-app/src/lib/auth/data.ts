@@ -2,25 +2,25 @@ import { z } from "zod";
 
 import { getEnvPublicConfig } from "@/config/env.config";
 
-export const nameSchema = (t?: IntlTranslation<"Auth.Schema">) =>
+export const nameSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z
     .string({ message: t?.("Name.invalid") })
-    .nonempty({ message: t?.("Name.required") })
+    .min(1, { message: t?.("Name.required") })
     .min(2, { message: t?.("Name.min") })
     .max(128, {
       message: t?.("Name.max"),
     });
 
-export const emailSchema = (t?: IntlTranslation<"Auth.Schema">) =>
+export const emailSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z
     .string({ message: t?.("Email.invalid") })
-    .nonempty({ message: t?.("Email.required") })
+    .min(1, { message: t?.("Email.required") })
     .email({ message: t?.("Email.invalid") });
 
-export const passwordSchema = (t?: IntlTranslation<"Auth.Schema">) =>
+export const passwordSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z
     .string({ message: t?.("Password.invalid") })
-    .nonempty({ message: t?.("Password.required") })
+    .min(1, { message: t?.("Password.required") })
     .min(getEnvPublicConfig().NEXT_PUBLIC_PASSWORD_MIN_LENGTH, {
       message: t?.("Password.min"),
     })
@@ -37,17 +37,23 @@ export const passwordSchema = (t?: IntlTranslation<"Auth.Schema">) =>
       message: t?.("Password.number"),
     });
 
-export const confirmPasswordSchema = (t?: IntlTranslation<"Auth.Schema">) =>
+export const confirmPasswordSchema = (
+  t?: IntlTranslation<"Library.Auth.Schema">,
+) =>
   z
     .string({ message: t?.("ConfirmPassword.invalid") })
-    .nonempty({ message: t?.("ConfirmPassword.required") });
+    .min(1, { message: t?.("ConfirmPassword.required") });
 
-export const currentPasswordSchema = (t?: IntlTranslation<"Auth.Schema">) =>
+export const currentPasswordSchema = (
+  t?: IntlTranslation<"Library.Auth.Schema">,
+) =>
   z
     .string({ message: t?.("CurrentPassword.invalid") })
-    .nonempty({ message: t?.("CurrentPassword.required") });
+    .min(1, { message: t?.("CurrentPassword.required") });
 
-export const inputPasswordSchema = (t?: IntlTranslation<"Auth.Schema">) =>
+export const inputPasswordSchema = (
+  t?: IntlTranslation<"Library.Auth.Schema">,
+) =>
   z
     .string({ message: t?.("InputPassword.invalid") })
-    .nonempty({ message: t?.("InputPassword.required") });
+    .min(1, { message: t?.("InputPassword.required") });

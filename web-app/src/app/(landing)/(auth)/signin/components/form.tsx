@@ -7,22 +7,24 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import { AuthForm, SubmitButton } from "@/app/(landing)/(auth)/components/form";
-import { signin } from "@/app/(landing)/(auth)/signin/actions";
+import { AuthForm, SubmitButton } from "@/landing/(auth)/components/form";
+import { signin } from "@/landing/(auth)/signin/actions";
 import {
   signInFormData,
   signInFormSchema,
   SignInFormSchemaType,
-} from "@/app/(landing)/(auth)/signin/data";
+} from "@/landing/(auth)/signin/data";
 import { AppRoute, LandingRoute } from "@/types/routes";
 
 export default function SignInForm() {
-  const t = useTranslations("Auth.Pages.SignIn.Form");
+  const t = useTranslations("Landing.Auth.Pages.SignIn.Form");
 
   const router = useRouter();
 
   const form = useForm<SignInFormSchemaType>({
-    resolver: zodResolver(signInFormSchema(useTranslations("Auth.Schema"))),
+    resolver: zodResolver(
+      signInFormSchema(useTranslations("Library.Auth.Schema")),
+    ),
     defaultValues: {
       email: "",
       currentPassword: "",
@@ -49,7 +51,7 @@ export default function SignInForm() {
     <AuthForm
       form={form}
       formData={signInFormData}
-      namespace="Auth.Pages.SignIn.Form"
+      namespace="Landing.Auth.Pages.SignIn.Form"
       onSubmit={onSubmit}
     >
       <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">

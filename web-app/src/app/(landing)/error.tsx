@@ -12,6 +12,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { LandingRoute } from "@/types/routes";
 
 export default function Error({
   error,
@@ -46,7 +47,7 @@ export default function Error({
             {t("tryAgain")}
           </Button>
           <Button asChild variant="outline" className="w-full">
-            <Link href="/">{t("goHome")}</Link>
+            <Link href={LandingRoute.Home}>{t("goHome")}</Link>
           </Button>
         </CardFooter>
       </Card>

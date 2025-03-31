@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   SignInButton,
   SignUpButton,
-} from "@/app/(landing)/(auth)/components/buttons";
+} from "@/landing/(auth)/components/buttons";
 import { cn } from "@/lib/utils";
 import { LandingRoute } from "@/types/routes";
 

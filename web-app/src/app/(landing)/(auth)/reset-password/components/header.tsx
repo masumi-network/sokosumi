@@ -1,7 +1,7 @@
 import { useTranslations } from "next-intl";
 
 export default function ResetPasswordHeader() {
-  const t = useTranslations("Auth.Pages.ResetPassword");
+  const t = useTranslations("Landing.Auth.Pages.ResetPassword");
 
   return (
     <div className="space-y-2 p-6">

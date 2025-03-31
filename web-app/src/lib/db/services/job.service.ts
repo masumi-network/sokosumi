@@ -1,8 +1,9 @@
+import { Prisma } from "@prisma/client";
 import crypto from "crypto";
 import { z } from "zod";
 
 import { getEnvSecrets } from "@/config/env.config";
-import { postPurchase } from "@/lib/api/generated/payment";
+import { getPurchase, postPurchase } from "@/lib/api/generated/payment";
 import prisma from "@/lib/db/prisma";
 
 import { getAgentById } from "./agent.service";
@@ -140,3 +141,138 @@ const calculatedInputHash = (inputData: { key: string; value: string }[]) => {
     .update(JSON.stringify(inputData))
     .digest("hex");
 };
+
+const jobInclude = {
+  agent: true,
+  user: true,
+} as const;
+
+export type JobWithRelations = Prisma.JobGetPayload<{
+  include: typeof jobInclude;
+}>;
+
+/**
+ * Retrieves all jobs associated with a specific agent and user
+ * @param agentId - The unique identifier of the agent
+ * @param userId - The unique identifier of the user
+ * @returns Promise containing an array of jobs with their relations
+ */
+export async function getUserJobsByAgentId(
+  agentId: string,
+  userId: string,
+): Promise<JobWithRelations[]> {
+  const jobs = await prisma.job.findMany({
+    where: {
+      agentId,
+      userId,
+    },
+    include: jobInclude,
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+
+  if (!jobs) {
+    return [];
+  }
+
+  return jobs;
+}
+
+export async function syncJobStatus(jobId: string) {
+  const job = await prisma.job.findUnique({
+    where: {
+      id: jobId,
+    },
+  });
+
+  if (!job) {
+    throw new Error("Job not found");
+  }
+
+  const agent = await getAgentById(job.agentId);
+
+  if (!agent) {
+    throw new Error("Agent not found");
+  }
+
+  const purchase = await getPurchase({
+    query: {
+      cursorId: job.paymentId,
+      network: "Preprod",
+      limit: 1,
+    },
+  });
+
+  if (
+    purchase.error ||
+    !purchase.data ||
+    purchase.data.data.Purchases.length != 1
+  ) {
+    throw new Error("Failed to get on-chain status");
+  }
+
+  const onChainState = purchase.data.data.Purchases[0].onChainState;
+
+  if (onChainState === "FundsLocked") {
+    return;
+  }
+
+  if (onChainState === "ResultSubmitted" || onChainState == "Withdrawn") {
+    const baseUrl = agent.apiBaseUrl;
+    const syncJobUrl = new URL(`${baseUrl}/status?job_id=${job.agentJobId}`);
+    const syncJobResponse = await fetch(syncJobUrl, {
+      method: "GET",
+    });
+    if (!syncJobResponse.ok) {
+      await prisma.job.update({
+        where: {
+          id: jobId,
+        },
+        data: {
+          status: "FAILED",
+          errorNote:
+            "Failed to get on-chain status: " + syncJobResponse.statusText,
+        },
+      });
+      throw new Error("Failed to get on-chain status");
+    }
+
+    const syncJobResponseData = await syncJobResponse.json();
+    if (syncJobResponseData.error) {
+      await prisma.job.update({
+        where: {
+          id: jobId,
+        },
+        data: {
+          status: "FAILED",
+          errorNote: "Failed to get output: " + syncJobResponseData.error,
+        },
+      });
+      throw new Error("Failed to get output");
+    }
+
+    const output = JSON.stringify(syncJobResponseData);
+
+    await prisma.job.update({
+      where: {
+        id: jobId,
+      },
+      data: {
+        status: "COMPLETED",
+        output: output,
+        finishedAt: new Date(),
+      },
+    });
+    return;
+  }
+  await prisma.job.update({
+    where: {
+      id: jobId,
+    },
+    data: {
+      status: "FAILED",
+      errorNote: "Unknown on-chain state: " + onChainState,
+    },
+  });
+}

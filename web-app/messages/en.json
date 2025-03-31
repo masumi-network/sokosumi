@@ -49,206 +49,13 @@
         "nextPage": "Go to next page",
         "lastPage": "Go to last page"
       }
-    }
-  },
-  "Auth": {
-    "Schema": {
-      "Email": {
-        "invalid": "Please enter a valid email address.",
-        "required": "Email is required"
-      },
-      "Name": {
-        "min": "Name must be at least 2 characters.",
-        "max": "Name must be at most 128 characters.",
-        "invalid": "Name must be a valid string.",
-        "required": "Name is required"
-      },
-      "Password": {
-        "invalid": "Password must be a valid string.",
-        "min": "Password must be at least 8 characters",
-        "max": "Password must be at most 128 characters",
-        "lowercase": "Password must contain at least one lowercase letter.",
-        "uppercase": "Password must contain at least one uppercase letter.",
-        "number": "Password must contain at least one number.",
-        "required": "Password is required"
-      },
-      "CurrentPassword": {
-        "invalid": "Current password must be a valid string.",
-        "required": "Current password is required"
-      },
-      "InputPassword": {
-        "invalid": "Password must be a valid string.",
-        "required": "Password is required"
-      },
-      "ConfirmPassword": {
-        "invalid": "Confirm password must be a valid string.",
-        "match": "Password doesn't match",
-        "required": "Confirm password is required"
-      }
     },
-    "Metadata": {
-      "Title": {
-        "default": "Sokosumi - Sign In / Sign Up",
-        "template": "Sokosumi - %s"
-      },
-      "description": "Hire yourself an agent to finish the most time consuming tasks"
-    },
-    "SocialButtons": {
-      "continueWith": "Continue with {provider}",
-      "divider": "or continue with",
-      "success": "Sign In successful",
-      "error": "Sign In failed"
-    },
-    "Words": {
-      "signIn": "Sign In",
-      "signUp": "Sign Up"
-    },
-    "Pages": {
-      "SignIn": {
-        "Metadata": {
-          "title": "Sign In",
-          "description": "Hire yourself an agent to finish the most time consuming tasks"
-        },
-        "Header": {
-          "title": "Sign In",
-          "description": "Hire agents on our platform"
-        },
-        "Form": {
-          "submit": "Sign In",
-          "success": "Sign In successful",
-          "error": "Invalid email or password",
-          "Fields": {
-            "Email": {
-              "label": "Email",
-              "placeholder": "me@example.com"
-            },
-            "Password": {
-              "label": "Password",
-              "placeholder": "Password"
-            }
-          },
-          "ForgotPassword": {
-            "text": "Forgot your password?",
-            "link": "Reset it here"
-          },
-          "Errors": {
-            "Submit": {
-              "verifyEmail": "Please verify your email address"
-            }
-          }
-        }
-      },
-      "SignUp": {
-        "Metadata": {
-          "title": "Sign Up",
-          "description": "Hire yourself an agent to finish the most time consuming tasks"
-        },
-        "Header": {
-          "title": "Sign Up",
-          "description": "Hire agents on our platform"
-        },
-        "Form": {
-          "submit": "Sign Up",
-          "success": "Sign Up successful",
-          "error": "Sign Up failed",
-          "Fields": {
-            "Email": {
-              "label": "Email",
-              "placeholder": "me@example.com"
-            },
-            "Name": {
-              "label": "Name",
-              "placeholder": "John Doe"
-            },
-            "Password": {
-              "label": "Password",
-              "placeholder": "Password"
-            },
-            "ConfirmPassword": {
-              "label": "Confirm password",
-              "placeholder": "Confirm password"
-            }
-          },
-          "Errors": {
-            "Submit": {
-              "userExists": "User already exists"
-            }
-          }
-        }
-      },
-      "ForgotPassword": {
-        "Metadata": {
-          "title": "Reset password",
-          "description": "Reset your password to regain access to your account"
-        },
-        "Header": {
-          "title": "Reset password",
-          "description": "Enter your email address and we'll send you a link to reset your password"
-        },
-        "Form": {
-          "success": "We've sent you an email to reset your password",
-          "error": "Failed to reset password",
-          "reset_password": "Reset password",
-          "Fields": {
-            "Email": {
-              "label": "Email",
-              "placeholder": "me@example.com"
-            }
-          }
-        }
-      },
-      "ResetPassword": {
-        "Metadata": {
-          "title": "Reset password",
-          "description": "Set a new password for your account"
-        },
-        "title": "Reset password",
-        "description": "Enter your new password below",
-        "Form": {
-          "submit": "Reset password",
-          "success": "Password reset successfully",
-          "error": "Password reset failed",
-          "Fields": {
-            "Password": {
-              "label": "New password",
-              "placeholder": "New password"
-            },
-            "ConfirmPassword": {
-              "label": "Confirm password",
-              "placeholder": "Confirm password"
-            }
-          }
-        }
-      }
-    },
-    "Email": {
-      "ResetPassword": {
-        "subject": "Sokosumi - Reset your password",
-        "title": "Reset your password",
-        "greeting": "Hello {name}",
-        "message": "We received a request to reset your password for your account. If you didn't make this request, you can safely ignore this email.",
-        "button": "Reset password",
-        "linkInstructions": "Or copy and paste this URL into your browser:",
-        "footer": "If you didn't request a password reset, please ignore this email or contact support if you have concerns."
-      },
-      "Verification": {
-        "subject": "Sokosumi - Verify your email address",
-        "title": "Verify your email address",
-        "greeting": "Hello {name}",
-        "message": "Thank you for signing up! Please verify your email address by clicking the button below. This helps us ensure the security of your account.",
-        "button": "Verify email",
-        "linkInstructions": "Or copy and paste this URL into your browser:",
-        "footer": "If you didn't create an account, you can safely ignore this email."
-      },
-      "ChangeEmail": {
-        "subject": "Verify your email change",
-        "title": "Verify Email Change",
-        "greeting": "Hello {name}",
-        "message": "Please click the button below to verify your email change request.",
-        "button": "Verify Email Change",
-        "linkInstructions": "Or copy and paste this URL into your browser:",
-        "footer": "If you didn't request this email change, you can safely ignore this email."
-      }
+    "Breadcrumb": {
+      "app": "App",
+      "jobs": "Jobs",
+      "agents": "Agents",
+      "account": "Account",
+      "billing": "Billing"
     }
   },
   "Landing": {
@@ -290,6 +97,177 @@
         "Contact": "Contact"
       },
       "copyright": "© {year} Masumi"
+    },
+    "Auth": {
+      "Schema": {
+        "Email": {
+          "invalid": "Please enter a valid email address.",
+          "required": "Email is required"
+        },
+        "Name": {
+          "min": "Name must be at least 2 characters.",
+          "max": "Name must be at most 128 characters.",
+          "invalid": "Name must be a valid string.",
+          "required": "Name is required"
+        },
+        "Password": {
+          "invalid": "Password must be a valid string.",
+          "min": "Password must be at least 8 characters",
+          "max": "Password must be at most 128 characters",
+          "lowercase": "Password must contain at least one lowercase letter.",
+          "uppercase": "Password must contain at least one uppercase letter.",
+          "number": "Password must contain at least one number.",
+          "required": "Password is required"
+        },
+        "CurrentPassword": {
+          "invalid": "Current password must be a valid string.",
+          "required": "Current password is required"
+        },
+        "InputPassword": {
+          "invalid": "Password must be a valid string.",
+          "required": "Password is required"
+        },
+        "ConfirmPassword": {
+          "invalid": "Confirm password must be a valid string.",
+          "match": "Password doesn't match",
+          "required": "Confirm password is required"
+        }
+      },
+      "Metadata": {
+        "Title": {
+          "default": "Sokosumi - Sign In / Sign Up",
+          "template": "Sokosumi - %s"
+        },
+        "description": "Hire yourself an agent to finish the most time consuming tasks"
+      },
+      "SocialButtons": {
+        "continueWith": "Continue with {provider}",
+        "divider": "or continue with",
+        "success": "Sign In successful",
+        "error": "Sign In failed"
+      },
+      "Words": {
+        "signIn": "Sign In",
+        "signUp": "Sign Up"
+      },
+      "Pages": {
+        "SignIn": {
+          "Metadata": {
+            "title": "Sign In",
+            "description": "Hire yourself an agent to finish the most time consuming tasks"
+          },
+          "Header": {
+            "title": "Sign In",
+            "description": "Hire agents on our platform"
+          },
+          "Form": {
+            "submit": "Sign In",
+            "success": "Sign In successful",
+            "error": "Invalid email or password",
+            "Fields": {
+              "Email": {
+                "label": "Email",
+                "placeholder": "me@example.com"
+              },
+              "Password": {
+                "label": "Password",
+                "placeholder": "Password"
+              }
+            },
+            "ForgotPassword": {
+              "text": "Forgot your password?",
+              "link": "Reset it here"
+            },
+            "Errors": {
+              "Submit": {
+                "verifyEmail": "Please verify your email address"
+              }
+            }
+          }
+        },
+        "SignUp": {
+          "Metadata": {
+            "title": "Sign Up",
+            "description": "Hire yourself an agent to finish the most time consuming tasks"
+          },
+          "Header": {
+            "title": "Sign Up",
+            "description": "Hire agents on our platform"
+          },
+          "Form": {
+            "submit": "Sign Up",
+            "success": "Sign Up successful",
+            "error": "Sign Up failed",
+            "Fields": {
+              "Email": {
+                "label": "Email",
+                "placeholder": "me@example.com"
+              },
+              "Name": {
+                "label": "Name",
+                "placeholder": "John Doe"
+              },
+              "Password": {
+                "label": "Password",
+                "placeholder": "Password"
+              },
+              "ConfirmPassword": {
+                "label": "Confirm password",
+                "placeholder": "Confirm password"
+              }
+            },
+            "Errors": {
+              "Submit": {
+                "userExists": "User already exists"
+              }
+            }
+          }
+        },
+        "ForgotPassword": {
+          "Metadata": {
+            "title": "Reset password",
+            "description": "Reset your password to regain access to your account"
+          },
+          "Header": {
+            "title": "Reset password",
+            "description": "Enter your email address and we'll send you a link to reset your password"
+          },
+          "Form": {
+            "success": "We've sent you an email to reset your password",
+            "error": "Failed to reset password",
+            "reset_password": "Reset password",
+            "Fields": {
+              "Email": {
+                "label": "Email",
+                "placeholder": "me@example.com"
+              }
+            }
+          }
+        },
+        "ResetPassword": {
+          "Metadata": {
+            "title": "Reset password",
+            "description": "Set a new password for your account"
+          },
+          "title": "Reset password",
+          "description": "Enter your new password below",
+          "Form": {
+            "submit": "Reset password",
+            "success": "Password reset successfully",
+            "error": "Password reset failed",
+            "Fields": {
+              "Password": {
+                "label": "New password",
+                "placeholder": "New password"
+              },
+              "ConfirmPassword": {
+                "label": "Confirm password",
+                "placeholder": "Confirm password"
+              }
+            }
+          }
+        }
+      }
     },
     "Page": {
       "Hero": {
@@ -347,7 +325,7 @@
         "githubRegistry": "Masumi Registry"
       }
     },
-    "Gallery": {
+    "Agents": {
       "Metadata": {
         "title": "Agents Gallery",
         "description": "Explore our collection of agents."
@@ -386,15 +364,59 @@
     },
     "Header": {
       "NavMenu": {
-        "home": "Home",
+        "agents": "Agents",
         "jobs": "Jobs",
         "billing": "Billing",
-        "settings": "Settings",
-        "creditsBalance": "credit balance: {credits}",
-        "creditsUnavailable": "credit balance: unknown"
+        "Credit": {
+          "balance": "credit balance: {credits}",
+          "unavailable": "credit balance: unknown"
+        }
       }
     },
-    "Gallery": {
+    "Account": {
+      "title": "Account Settings",
+      "description": "Manage your account settings and preferences",
+      "Name": {
+        "title": "Change name",
+        "description": "Update your display name",
+        "newName": "New name",
+        "currentPassword": "Current password",
+        "submit": "Update name",
+        "success": "Name updated successfully",
+        "error": "Failed to update name"
+      },
+      "Email": {
+        "title": "Change email",
+        "description": "Update your email address",
+        "newEmail": "New email",
+        "currentPassword": "Current password",
+        "submit": "Update email",
+        "success": "Email updated successfully",
+        "error": "Failed to update email"
+      },
+      "Password": {
+        "title": "Change password",
+        "description": "Update your password",
+        "currentPassword": "Current password",
+        "newPassword": "New password",
+        "confirmPassword": "Confirm new password",
+        "submit": "Update password",
+        "success": "Password updated successfully",
+        "error": "Failed to update password"
+      },
+      "Delete": {
+        "title": "Delete account",
+        "description": "Permanently delete your account and all associated data",
+        "button": "Delete account",
+        "confirmTitle": "Are you sure?",
+        "confirmDescription": "This action cannot be undone. This will permanently delete your account and remove your data from our servers.",
+        "currentPassword": "Current password",
+        "confirm": "Yes, delete my account",
+        "success": "Account deleted successfully",
+        "error": "Failed to delete account"
+      }
+    },
+    "Agents": {
       "Metadata": {
         "title": "Agents Gallery",
         "description": "Explore our collection of agents."
@@ -411,7 +433,8 @@
         "backToGallery": "Agents Gallery"
       }
     },
-    "Job": {
+    "Jobs": {
+      "title": "A list of all jobs",
       "Header": {
         "createNewJob": "Create New Job",
         "price": "Price per run: {price, plural, =0 {Free} =1 {1 credit} other {# credits}}"
@@ -422,20 +445,31 @@
         "customerSupport": "Customer Support"
       },
       "CreateJob": {
-        "title": "Welcome Screen"
+        "title": "Welcome Screen",
+        "Input": {
+          "title": "Input",
+          "description": "Ensure inputs are clear, specific, and relevant to the analysis, providing structured data on the reference company, target competitors, and market focus to generate precise, actionable insights in the output."
+        }
       },
-      "JobTable": {
+      "JobsTable": {
         "Header": {
           "started": "Started",
-          "job": "Job"
+          "agent": "Agent",
+          "status": "Status",
+          "job": "Job",
+          "id": "ID"
         },
         "JobStatusBadge": {
           "completed": "Completed",
           "failed": "Failed",
-          "pending": "Pending",
-          "cancelled": "Cancelled"
+          "paymentPending": "Payment Pending",
+          "paymentFailed": "Payment Failed",
+          "processing": "Processing"
         }
       }
+    },
+    "Billing": {
+      "title": "Billing"
     }
   },
   "NotFound": {
@@ -444,58 +478,110 @@
     "message": "The page you're trying to access might have been removed, had its name changed, or is temporarily unavailable.",
     "returnHome": "Return Home"
   },
-  "Agent": {
-    "defaultDescription": "The author didn't provide a description for this agent."
-  },
-  "Account": {
-    "title": "Account Settings",
-    "description": "Manage your account settings and preferences",
-    "Name": {
-      "title": "Change name",
-      "description": "Update your display name",
-      "newName": "New name",
-      "currentPassword": "Current password",
-      "submit": "Update name",
-      "success": "Name updated successfully",
-      "error": "Failed to update name"
-    },
-    "Email": {
-      "title": "Change email",
-      "description": "Update your email address",
-      "newEmail": "New email",
-      "currentPassword": "Current password",
-      "submit": "Update email",
-      "success": "Email updated successfully",
-      "error": "Failed to update email"
-    },
-    "Password": {
-      "title": "Change password",
-      "description": "Update your password",
-      "currentPassword": "Current password",
-      "newPassword": "New password",
-      "confirmPassword": "Confirm new password",
-      "submit": "Update password",
-      "success": "Password updated successfully",
-      "error": "Failed to update password"
-    },
-    "Delete": {
-      "title": "Delete account",
-      "description": "Permanently delete your account and all associated data",
-      "button": "Delete account",
-      "confirmTitle": "Are you sure?",
-      "confirmDescription": "This action cannot be undone. This will permanently delete your account and remove your data from our servers.",
-      "currentPassword": "Current password",
-      "confirm": "Yes, delete my account",
-      "success": "Account deleted successfully",
-      "error": "Failed to delete account"
+  "Data": {
+    "Agent": {
+      "defaultDescription": "The author didn't provide a description for this agent."
     }
   },
-  "Dashboard": {
-    "title": "Hello Dashboard"
-  },
-  "Navigation": {
-    "dashboard": "Dashboard",
-    "gallery": "Gallery",
-    "jobs": "Jobs"
+  "Library": {
+    "Auth": {
+      "Schema": {
+        "Email": {
+          "invalid": "Please enter a valid email address.",
+          "required": "Email is required"
+        },
+        "Name": {
+          "min": "Name must be at least 2 characters.",
+          "max": "Name must be at most 128 characters.",
+          "invalid": "Name must be a valid string.",
+          "required": "Name is required"
+        },
+        "Password": {
+          "invalid": "Password must be a valid string.",
+          "min": "Password must be at least 8 characters",
+          "max": "Password must be at most 128 characters",
+          "lowercase": "Password must contain at least one lowercase letter.",
+          "uppercase": "Password must contain at least one uppercase letter.",
+          "number": "Password must contain at least one number.",
+          "required": "Password is required"
+        },
+        "CurrentPassword": {
+          "invalid": "Current password must be a valid string.",
+          "required": "Current password is required"
+        },
+        "InputPassword": {
+          "invalid": "Password must be a valid string.",
+          "required": "Password is required"
+        },
+        "ConfirmPassword": {
+          "invalid": "Confirm password must be a valid string.",
+          "match": "Password doesn't match",
+          "required": "Confirm password is required"
+        }
+      },
+      "Email": {
+        "ResetPassword": {
+          "subject": "Sokosumi - Reset your password",
+          "title": "Reset your password",
+          "greeting": "Hello {name}",
+          "message": "We received a request to reset your password for your account. If you didn't make this request, you can safely ignore this email.",
+          "button": "Reset password",
+          "linkInstructions": "Or copy and paste this URL into your browser:",
+          "footer": "If you didn't request a password reset, please ignore this email or contact support if you have concerns."
+        },
+        "Verification": {
+          "subject": "Sokosumi - Verify your email address",
+          "title": "Verify your email address",
+          "greeting": "Hello {name}",
+          "message": "Thank you for signing up! Please verify your email address by clicking the button below. This helps us ensure the security of your account.",
+          "button": "Verify email",
+          "linkInstructions": "Or copy and paste this URL into your browser:",
+          "footer": "If you didn't create an account, you can safely ignore this email."
+        },
+        "ChangeEmail": {
+          "subject": "Verify your email change",
+          "title": "Verify Email Change",
+          "greeting": "Hello {name}",
+          "message": "Please click the button below to verify your email change request.",
+          "button": "Verify Email Change",
+          "linkInstructions": "Or copy and paste this URL into your browser:",
+          "footer": "If you didn't request this email change, you can safely ignore this email."
+        }
+      }
+    },
+    "JobInput": {
+      "Schema": {
+        "Id": {
+          "required": "Input Id is required"
+        },
+        "Type": {
+          "enum": "Must be one of {options}"
+        },
+        "Name": {
+          "required": "Input name is required"
+        },
+        "Data": {
+          "Values": {
+            "value": { "required": "Option is required" },
+            "min": "Must have at least 1 option"
+          }
+        },
+        "Validations": {
+          "Validation": {
+            "enum": "Must be one of {options}"
+          },
+          "Value": {
+            "invalid": "Value is invalid for validation {validation}",
+            "required": "Value is required for validation {validation}",
+            "integer": "Value must be integer for validation {validation}",
+            "notNegative": "Value must be not negative for validation {validation}",
+            "enum": "Value must be one of {options}, for validation {validation}"
+          }
+        },
+        "invalidValidations": "Validations are not valid for type {type}",
+        "optionValuesRequired": "Values are required for option type",
+        "noDataValues": "Values must be undefined for non-option type"
+      }
+    }
   }
 }

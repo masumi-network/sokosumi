@@ -4,7 +4,7 @@ import { getTranslations } from "next-intl/server";
 import Heroes from "./components/heroes";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const t = await getTranslations("Auth.Metadata");
+  const t = await getTranslations("Landing.Auth.Metadata");
 
   return {
     title: {

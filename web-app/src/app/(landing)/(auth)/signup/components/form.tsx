@@ -6,21 +6,23 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import { AuthForm, SubmitButton } from "@/app/(landing)/(auth)/components/form";
-import { signup } from "@/app/(landing)/(auth)/signup/actions";
+import { AuthForm, SubmitButton } from "@/landing/(auth)/components/form";
+import { signup } from "@/landing/(auth)/signup/actions";
 import {
   signUpFormData,
   signUpFormSchema,
   SignUpFormSchemaType,
-} from "@/app/(landing)/(auth)/signup/data";
+} from "@/landing/(auth)/signup/data";
 import { LandingRoute } from "@/types/routes";
 
 export default function SignUpForm() {
-  const t = useTranslations("Auth.Pages.SignUp.Form");
+  const t = useTranslations("Landing.Auth.Pages.SignUp.Form");
 
   const router = useRouter();
   const form = useForm<SignUpFormSchemaType>({
-    resolver: zodResolver(signUpFormSchema(useTranslations("Auth.Schema"))),
+    resolver: zodResolver(
+      signUpFormSchema(useTranslations("Library.Auth.Schema")),
+    ),
     defaultValues: {
       email: "",
       name: "",
@@ -47,7 +49,7 @@ export default function SignUpForm() {
     <AuthForm
       form={form}
       formData={signUpFormData}
-      namespace="Auth.Pages.SignUp.Form"
+      namespace="Landing.Auth.Pages.SignUp.Form"
       onSubmit={onSubmit}
     >
       <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">

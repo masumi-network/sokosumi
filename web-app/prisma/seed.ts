@@ -1,10 +1,17 @@
-import { AgentStatus, PricingType, PrismaClient } from "@prisma/client";
+import {
+  AgentStatus,
+  CreditActionType,
+  JobStatus,
+  PricingType,
+  PrismaClient,
+} from "@prisma/client";
+import crypto from "crypto";
 
 import { getEnvSecrets } from "@/config/env.config";
 
 const prisma = new PrismaClient();
 
-const dummyAgents = [
+const agents = [
   {
     title: "Market Analysis Expert",
     description:
@@ -167,119 +174,253 @@ const dummyAgents = [
   },
 ];
 
-const seedDummyAgents = getEnvSecrets().SEED_DUMMY_AGENTS;
+const seedDatabase = getEnvSecrets().SEED_DATABASE;
 
-async function main() {
+const seedUser = async (): Promise<string> => {
+  let user = await prisma.user.findFirst({
+    where: {
+      email: "dev@sokosumi.com",
+    },
+  });
+
+  if (user) {
+    console.log("User already exists, skipping...");
+    return user.id;
+  }
+
+  user = await prisma.user.create({
+    data: {
+      email: "dev@sokosumi.com",
+      name: "Sokosumi Developer",
+      emailVerified: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  });
+  console.log(`User created with email ${user.email}`);
+
+  const account = await prisma.account.create({
+    data: {
+      id: crypto.randomUUID(),
+      userId: user.id,
+      providerId: "credential",
+      accountId: crypto.randomUUID(),
+      password:
+        "1e118f20d959659e956ee7f1b1324e3c:c3fe5bba70396d0dc5faa53cdfef782820a2f4ca6bb8789a6f7a4da94cd65de1f25e3ac56722af3cb88b6256a6784abc2de0259c179d41cedce13aa106d443a8",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    },
+  });
+  console.log(`Account created with id ${account.id}`);
+  return user.id;
+};
+
+const seedAgents = async () => {
   let index = 0;
-  if (seedDummyAgents) {
-    for (const agent of dummyAgents) {
-      console.log(
-        `Processing agent ${agent.title} (${index + 1}/${dummyAgents.length})`,
-      );
+  for (const agent of agents) {
+    console.log(
+      `Processing agent ${agent.title} (${index + 1}/${agents.length})`,
+    );
 
-      // Check if agent already exists
-      const existingAgent = await prisma.agent.findFirst({
-        where: {
-          onChainIdentifier: `demo-${index + 1}-${agent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
-        },
-      });
+    // Check if agent already exists
+    const existingAgent = await prisma.agent.findFirst({
+      where: {
+        onChainIdentifier: `demo-${index + 1}-${agent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+      },
+    });
 
-      if (existingAgent) {
-        console.log(`Agent ${agent.title} already exists, skipping...`);
-        index++;
-        continue;
-      }
+    if (existingAgent) {
+      console.log(`Agent ${agent.title} already exists, skipping...`);
+      index++;
+      continue;
+    }
 
-      const pricing = await prisma.agentPricing.create({
-        data: {
-          pricingType: PricingType.Fixed,
-          fixedPricing: {
-            create: {
-              amounts: {
-                create: {
-                  unit: agent.price.unit,
-                  amount: BigInt(agent.price.amount),
-                },
+    const pricing = await prisma.agentPricing.create({
+      data: {
+        pricingType: PricingType.Fixed,
+        fixedPricing: {
+          create: {
+            amounts: {
+              create: {
+                unit: agent.price.unit,
+                amount: BigInt(agent.price.amount),
               },
             },
           },
         },
-      });
+      },
+    });
 
-      const exampleOutputs = agent.exampleOutputs.map((output) => ({
-        name: output.name,
-        mimeType: output.mimeType,
-        url: output.url,
-      }));
+    const exampleOutputs = agent.exampleOutputs.map((output) => ({
+      name: output.name,
+      mimeType: output.mimeType,
+      url: output.url,
+    }));
 
-      await prisma.agent.create({
+    await prisma.agent.create({
+      data: {
+        name: agent.title,
+        description: agent.description,
+        uptimeCheckCount: 0,
+        uptimeCount: 0,
+        lastUptimeCheck: new Date(),
+        image: agent.image,
+        apiBaseUrl: "https://api.example.com/agent",
+        capabilityName: agent.title,
+        capabilityVersion: "1.0.0",
+        authorName: "Demo Author",
+        tags: {
+          connectOrCreate: agent.tags.map((tag) => ({
+            where: { name: tag },
+            create: { name: tag },
+          })),
+        },
+        metadataVersion: 1,
+        rating: {
+          create: {
+            totalStars: BigInt(agent.rating ?? 0),
+            totalRatings: BigInt(agent.rating ? 1 : 0),
+          },
+        },
+        // No overrides initially
+        overrideName: null,
+        overrideDescription: null,
+        overrideImage: null,
+        overrideApiBaseUrl: null,
+        overrideCapabilityName: null,
+        overrideCapabilityVersion: null,
+        overrideAuthorName: null,
+        overrideTags: {
+          create: [],
+        },
+        pricing: {
+          connect: {
+            id: pricing.id,
+          },
+        },
+        onChainIdentifier: `demo-${index + 1}-${agent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+        status: AgentStatus.ONLINE,
+        showOnFrontPage: true,
+        ranking: BigInt(index + 1),
+
+        exampleOutput: {
+          create: exampleOutputs,
+        },
+      },
+    });
+
+    console.log(`Created agent ${agent.title}`);
+    index++;
+  }
+  await prisma.creditCost.create({
+    data: {
+      unit: "lovelace",
+      //1 usd = 100000000000 credits
+      //1 ada = 1000000 lovelace
+      //1 ada = 0.7 usd
+      //1 usd = 1428571 lovelace
+      //1 lovelace = 100000000000 / 1428571 credits = 700 credits
+      creditCostPerUnit: BigInt(70000),
+    },
+  });
+};
+
+const seedJobs = async (userId: string) => {
+  const agents = await prisma.agent.findMany();
+
+  for (const agent of agents) {
+    const numJobs = Math.floor(Math.random() * 51); // 0 to 50 jobs
+
+    const jobPromises = Array.from({ length: numJobs }, async (_, index) => {
+      const status = [
+        "PAYMENT_PENDING",
+        "PAYMENT_FAILED",
+        "PROCESSING",
+        "COMPLETED",
+        "FAILED",
+      ][Math.floor(Math.random() * 5)] as JobStatus;
+
+      const startedAt = new Date();
+      startedAt.setDate(startedAt.getDate() - Math.floor(Math.random() * 30)); // Random date within last 30 days
+
+      const finishedAt =
+        status === JobStatus.COMPLETED ||
+        status === JobStatus.FAILED ||
+        status === JobStatus.PAYMENT_FAILED
+          ? new Date(startedAt.getTime() + Math.random() * 24 * 60 * 60 * 1000) // Random time within 24 hours of start
+          : null;
+
+      const cost =
+        BigInt(Math.floor(Math.random() * 1000) + 1) * BigInt(100000000000); // Random cost between 1 and 1001 (100000000000 as decimal multiplier)
+      const fee = BigInt(Math.floor(Number(cost) * 0.05)); // 5% fee
+
+      const jobInputs = [
+        "Analyze market trends for emerging technologies",
+        "Generate quarterly financial report",
+        "Create content strategy for social media",
+        "Perform competitor analysis",
+        "Optimize website SEO",
+        "Review code for security vulnerabilities",
+        "Generate marketing copy for new product",
+        "Translate document to multiple languages",
+        "Create data visualization dashboard",
+        "Analyze customer feedback sentiment",
+      ];
+
+      const input = jobInputs[Math.floor(Math.random() * jobInputs.length)];
+      const output =
+        status === JobStatus.COMPLETED
+          ? `Completed analysis for: ${input}`
+          : null;
+
+      const creditAction = await prisma.creditAction.create({
         data: {
-          name: agent.title,
-          description: agent.description,
-          uptimeCheckCount: 0,
-          uptimeCount: 0,
-          lastUptimeCheck: new Date(),
-          image: agent.image,
-          apiBaseUrl: "https://api.example.com/agent",
-          capabilityName: agent.title,
-          capabilityVersion: "1.0.0",
-          authorName: "Demo Author",
-          tags: {
-            connectOrCreate: agent.tags.map((tag) => ({
-              where: { name: tag },
-              create: { name: tag },
-            })),
-          },
-          metadataVersion: 1,
-          rating: {
-            create: {
-              totalStars: BigInt(agent.rating ?? 0),
-              totalRatings: BigInt(agent.rating ? 1 : 0),
-            },
-          },
-
-          // No overrides initially
-          overrideName: null,
-          overrideDescription: null,
-          overrideImage: null,
-          overrideApiBaseUrl: null,
-          overrideCapabilityName: null,
-          overrideCapabilityVersion: null,
-          overrideAuthorName: null,
-          overrideTags: {
-            create: [],
-          },
-          pricing: {
-            connect: {
-              id: pricing.id,
-            },
-          },
-          onChainIdentifier: `demo-${index + 1}-${agent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
-          status: AgentStatus.ONLINE,
-          showOnFrontPage: true,
-          ranking: BigInt(index + 1),
-
-          exampleOutput: {
-            create: exampleOutputs,
-          },
+          amount: cost,
+          includedFee: fee,
+          type: CreditActionType.Spend,
+          userId,
+        },
+      });
+      await prisma.creditAction.create({
+        data: {
+          amount: cost * BigInt(5),
+          includedFee: 0,
+          type: CreditActionType.TopUp,
+          userId,
         },
       });
 
-      console.log(`Created agent ${agent.title}`);
-      index++;
-    }
-
-    await prisma.creditCost.create({
-      data: {
-        unit: "lovelace",
-        //1 usd = 100000000000 credits
-        //1 ada = 1000000 lovelace
-        //1 ada = 0.7 usd
-        //1 usd = 1428571 lovelace
-        //1 lovelace = 100000000000 / 1428571 credits = 700 credits
-        creditCostPerUnit: BigInt(70000),
-      },
+      return prisma.job.create({
+        data: {
+          onChainIdentifier: `demo-job-${agent.id}-${index}`,
+          agentId: agent.id,
+          userId,
+          status,
+          input,
+          output,
+          startedAt,
+          finishedAt,
+          creditActionId: creditAction.id,
+          agentJobId: `demo-job-${index}`,
+          paymentId: `demo-payment-${index}`,
+          paymentTxId:
+            status !== JobStatus.PAYMENT_PENDING
+              ? `0x${crypto.randomBytes(32).toString("hex")}`
+              : null,
+        },
+      });
     });
+
+    await Promise.all(jobPromises);
+    console.log(`Created ${numJobs} jobs for agent ${agent.name}`);
+  }
+};
+
+async function main() {
+  if (seedDatabase) {
+    const userId = await seedUser();
+    await seedAgents();
+    await seedJobs(userId);
   }
 }
 
