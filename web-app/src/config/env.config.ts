@@ -63,6 +63,12 @@ const envSchemaSecrets = z.object({
     .url()
     .default("https://registry.masumi.network/api/v1"),
   REGISTRY_API_KEY: z.string().min(1),
+  BLACKLISTED_AGENT_HOSTNAMES: z
+    .string()
+    .transform((val) => val.split(","))
+    .pipe(z.array(z.string()))
+    .default(""),
+  DEFAULT_NETWORK_FEE_PERCENTAGE: z.number().min(0).default(5),
 });
 
 const envSchemaConfig = z.object({
@@ -112,7 +118,7 @@ function validateEnv() {
 
   if (!parsedSecrets.success) {
     console.error(
-      "❌ Invalid environment variables:",
+      "❌ Invalid environment secrets:",
       JSON.stringify(parsedSecrets.error.format(), null, 2),
     );
     process.exit(1);

@@ -26,8 +26,7 @@ export type GetPaymentInformationData = {
     body?: never;
     path?: never;
     query: {
-        policyId: string;
-        assetName: string;
+        agentIdentifier: string;
     };
     url: '/payment-information/';
 };

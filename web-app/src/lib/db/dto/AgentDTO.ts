@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { getTranslations } from "next-intl/server";
 
+import { getEnvSecrets } from "@/config/env.config";
 import { ipfsUrlResolver } from "@/lib/ipfs";
 
 type AgentWithRelations = Prisma.AgentGetPayload<{
@@ -46,6 +47,7 @@ export interface AgentDTO {
   readonly image: string;
   readonly averageStars: number | null;
   readonly credits: number;
+  readonly apiBaseUrl: URL;
 }
 
 function calculateCredits(amount: number): number {
@@ -60,6 +62,29 @@ export async function createAgentDTO(
   }
 
   const t = await getTranslations("Agent");
+
+  //Validate the API base URL
+  const blacklistedHostnames = getEnvSecrets().BLACKLISTED_AGENT_HOSTNAMES;
+  const apiBaseUrl = new URL(agent.apiBaseUrl);
+  if (blacklistedHostnames.includes(apiBaseUrl.hostname)) {
+    throw new Error("Agent API base URL is not allowed");
+  }
+  if (apiBaseUrl.protocol !== "https:" && apiBaseUrl.protocol !== "http:") {
+    throw new Error("Agent API base URL must be HTTP or HTTPS");
+  }
+  if (
+    apiBaseUrl.port !== "80" &&
+    apiBaseUrl.port !== "443" &&
+    apiBaseUrl.port !== ""
+  ) {
+    throw new Error("Agent API base URL must be HTTP or HTTPS");
+  }
+  if (apiBaseUrl.search !== "") {
+    throw new Error("Agent API base URL must not have a query string");
+  }
+  if (apiBaseUrl.hash !== "") {
+    throw new Error("Agent API base URL must not have a hash");
+  }
 
   return {
     id: agent.id,
@@ -106,6 +131,7 @@ export async function createAgentDTO(
         ? agent.overrideTags.map((tag) => tag.name)
         : agent.tags.map((tag) => tag.name),
     image: ipfsUrlResolver(agent.overrideImage ?? agent.image),
+    apiBaseUrl: apiBaseUrl,
     credits: calculateCredits(
       Number(agent.pricing.fixedPricing.amounts[0].amount),
     ),
