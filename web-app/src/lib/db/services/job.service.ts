@@ -1,11 +1,11 @@
 import { Job, Prisma } from "@prisma/client";
-import crypto from "crypto";
 import { z } from "zod";
 
 import { getEnvSecrets } from "@/config/env.config";
 import { getPurchase, postPurchase } from "@/lib/api/generated/payment";
 import { getPaymentClient } from "@/lib/api/payment-service.client";
 import prisma from "@/lib/db/prisma";
+import { calculatedInputHash } from "@/lib/utils";
 
 import { getAgentById } from "./agent.service";
 import {
@@ -124,7 +124,7 @@ export async function startJob(
 
     return job;
   } catch (error) {
-    await prisma.creditAction.update({
+    const job = await prisma.creditAction.update({
       where: {
         id: creditAction.id,
       },
@@ -133,17 +133,25 @@ export async function startJob(
         errorNote: error instanceof Error ? error.message : "Unknown error",
         errorNoteKey: "Job.CreationFailed",
       },
+      select: {
+        Job: true,
+      },
     });
+    if (job && job.Job) {
+      await prisma.job.update({
+        where: {
+          id: job.Job.id,
+        },
+        data: {
+          status: "FAILED",
+          errorNote: error instanceof Error ? error.message : "Unknown error",
+          errorNoteKey: "Job.CreationFailed",
+        },
+      });
+    }
     throw new Error("Failed to create job", { cause: error });
   }
 }
-
-const calculatedInputHash = (inputData: { key: string; value: string }[]) => {
-  return crypto
-    .createHash("sha256")
-    .update(JSON.stringify(inputData))
-    .digest("hex");
-};
 
 const jobInclude = {
   agent: true,
@@ -245,6 +253,7 @@ export async function syncJobStatus(job: Job) {
     }
 
     const syncJobResponseData = await syncJobResponse.json();
+    //TODO: validate the schema of the output
     if (syncJobResponseData.error) {
       await prisma.job.update({
         where: {

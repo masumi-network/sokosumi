@@ -1,4 +1,5 @@
 import { type ClassValue, clsx } from "clsx";
+import crypto from "crypto";
 import { twMerge } from "tailwind-merge";
 
 import { getEnvSecrets } from "@/config/env.config";
@@ -99,3 +100,12 @@ export async function releaseLock(lock: { updatedAt: Date; key: string }) {
     );
   }
 }
+
+export const calculatedInputHash = (
+  inputData: { key: string; value: string }[],
+) => {
+  return crypto
+    .createHash("sha256")
+    .update(JSON.stringify(inputData))
+    .digest("hex");
+};
