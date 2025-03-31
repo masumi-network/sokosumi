@@ -2,8 +2,7 @@ import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { Agents, AgentsNotAvailable } from "@/components/agents";
-import { AgentWithRelations } from "@/lib/db/extension/agent";
-import { getAgents } from "@/lib/db/services/agent.service";
+import { AgentWithRelations, getAgents } from "@/lib/db/services/agent.service";
 
 import { FeaturedAgent } from "./components/featured-agent";
 

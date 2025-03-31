@@ -2,25 +2,6 @@ import { Agent, ExampleOutput, Prisma } from "@prisma/client";
 
 import { ipfsUrlResolver } from "@/lib/ipfs";
 
-export type AgentWithRelations = Prisma.AgentGetPayload<{
-  include: {
-    exampleOutput: true;
-    overrideExampleOutput: true;
-    pricing: {
-      include: {
-        fixedPricing: {
-          include: {
-            amounts: true;
-          };
-        };
-      };
-    };
-    tags: true;
-    overrideTags: true;
-    rating: true;
-  };
-}>;
-
 export function getName(agent: Agent): string {
   return agent.overrideName ?? agent.name;
 }

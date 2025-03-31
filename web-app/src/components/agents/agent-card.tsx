@@ -4,7 +4,6 @@ import { useTranslations } from "next-intl";
 
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import {
-  AgentWithRelations,
   getAverageStars,
   getCredits,
   getDescription,
@@ -12,6 +11,7 @@ import {
   getResolvedImage,
   getTags,
 } from "@/lib/db/extension/agent";
+import { AgentWithRelations } from "@/lib/db/services/agent.service";
 import { AgentListWithAgent } from "@/lib/db/services/agentList.service";
 import { cn } from "@/lib/utils";
 

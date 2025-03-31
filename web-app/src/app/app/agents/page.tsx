@@ -3,8 +3,7 @@ import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { requireAuthentication } from "@/lib/auth/utils";
-import { AgentWithRelations } from "@/lib/db/extension/agent";
-import { getAgents } from "@/lib/db/services/agent.service";
+import { AgentWithRelations, getAgents } from "@/lib/db/services/agent.service";
 import { getOrCreateFavoriteAgentList } from "@/lib/db/services/agentList.service";
 import { getCachedTags } from "@/lib/db/services/tag.service";
 

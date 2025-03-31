@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 
-import { AgentWithRelations } from "@/lib/db/extension/agent";
+import { AgentWithRelations } from "@/lib/db/services/agent.service";
 
 import CreateJobSection from "./create-job-section";
 import JobDetailSection from "./job-detail-section";

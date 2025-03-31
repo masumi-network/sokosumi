@@ -12,7 +12,8 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { AgentWithRelations, getName } from "@/lib/db/extension/agent";
+import { getName } from "@/lib/db/extension/agent";
+import { AgentWithRelations } from "@/lib/db/services/agent.service";
 import { AppRoute } from "@/types/routes";
 
 interface BreadcrumbSegment {

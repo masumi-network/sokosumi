@@ -7,11 +7,8 @@ import { AgentBookmarkButton } from "@/components/agents/agent-bookmark-button";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { requireAuthentication } from "@/lib/auth/utils";
-import {
-  AgentWithRelations,
-  getCredits,
-  getName,
-} from "@/lib/db/extension/agent";
+import { getCredits, getName } from "@/lib/db/extension/agent";
+import { AgentWithRelations } from "@/lib/db/services/agent.service";
 import { getOrCreateFavoriteAgentList } from "@/lib/db/services/agentList.service";
 
 interface HeaderProps {

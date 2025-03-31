@@ -6,12 +6,12 @@ import { BadgeCloud } from "@/components/agents";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  AgentWithRelations,
   getDescription,
   getName,
   getResolvedImage,
   getTags,
 } from "@/lib/db/extension/agent";
+import { AgentWithRelations } from "@/lib/db/services/agent.service";
 import { LandingRoute } from "@/types/routes";
 
 export function FeaturedAgentSkeleton() {

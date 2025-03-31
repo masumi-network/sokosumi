@@ -6,7 +6,6 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  AgentWithRelations,
   getAuthorName,
   getCredits,
   getDescription,
@@ -16,6 +15,7 @@ import {
   getResolvedImage,
   getTags,
 } from "@/lib/db/extension/agent";
+import { AgentWithRelations } from "@/lib/db/services/agent.service";
 import { AgentListWithAgent } from "@/lib/db/services/agentList.service";
 import { cn } from "@/lib/utils";
 import { AppRoute } from "@/types/routes";

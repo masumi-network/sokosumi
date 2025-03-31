@@ -2,7 +2,8 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { AgentWithRelations, getDescription } from "@/lib/db/extension/agent";
+import { getDescription } from "@/lib/db/extension/agent";
+import { AgentWithRelations } from "@/lib/db/services/agent.service";
 
 interface CreateJobSectionProps {
   agent: AgentWithRelations;

@@ -1,4 +1,5 @@
-import { AgentWithRelations, getDescription } from "@/lib/db/extension/agent";
+import { getDescription } from "@/lib/db/extension/agent";
+import { AgentWithRelations } from "@/lib/db/services/agent.service";
 
 interface JobDetailSectionProps {
   agent: AgentWithRelations;

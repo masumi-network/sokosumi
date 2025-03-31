@@ -1,7 +1,8 @@
-import { AgentWithRelations } from "@/lib/db/extension/agent";
+import { Prisma } from "@prisma/client";
+
 import prisma from "@/lib/db/prisma";
 
-const agentInclude = {
+export const agentInclude = {
   pricing: {
     include: { fixedPricing: { include: { amounts: true } } },
   },
@@ -12,6 +13,10 @@ const agentInclude = {
   rating: true,
   userAgentRating: true,
 } as const;
+
+export type AgentWithRelations = Prisma.AgentGetPayload<{
+  include: typeof agentInclude;
+}>;
 
 export async function getAgents(): Promise<AgentWithRelations[]> {
   return await prisma.agent.findMany({

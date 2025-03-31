@@ -8,7 +8,8 @@ import {
   AgentsNotAvailable,
   AgentsNotFound,
 } from "@/components/agents";
-import { AgentWithRelations, getTags } from "@/lib/db/extension/agent";
+import { getTags } from "@/lib/db/extension/agent";
+import { AgentWithRelations } from "@/lib/db/services/agent.service";
 import { AgentListWithAgent } from "@/lib/db/services/agentList.service";
 
 import { FilterState } from "./use-gallery-filter";
