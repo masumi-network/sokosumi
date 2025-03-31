@@ -1,4 +1,4 @@
-import { Job, Prisma } from "@prisma/client";
+import { CreditTransactionType, Job, Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { getEnvSecrets } from "@/config/env.config";
@@ -7,7 +7,7 @@ import { getPaymentClient } from "@/lib/api/payment-service.client";
 import prisma from "@/lib/db/prisma";
 import { calculatedInputHash } from "@/lib/utils";
 
-import { getAgentById } from "./agent.service";
+import { getAgentById, getAgentPricing } from "./agent.service";
 import {
   calculateCreditCostAndValidateAmounts,
   creditActionSpend,
@@ -26,7 +26,7 @@ const startJobSchema = z.object({
 export async function startJob(
   userId: string,
   agentId: string,
-  amounts: { unit: string; amount: number }[],
+  maxAcceptedCreditCost: bigint,
   inputData: { key: string; value: string }[],
 ) {
   const agent = await getAgentById(agentId);
@@ -35,10 +35,19 @@ export async function startJob(
     throw new Error("Agent not found");
   }
 
+  const pricing = await getAgentPricing(agentId);
+
   const creditCost = await calculateCreditCostAndValidateAmounts(
-    amounts,
+    pricing.FixedPricing.Amounts.map((amount) => ({
+      unit: amount.unit,
+      amount: Number(amount.amount),
+    })),
     getEnvSecrets().DEFAULT_NETWORK_FEE_PERCENTAGE,
   );
+
+  if (creditCost > maxAcceptedCreditCost) {
+    throw new Error("Credit cost is too high");
+  }
 
   const creditAction = await creditActionSpend(userId, creditCost, BigInt(0));
 
@@ -113,34 +122,34 @@ export async function startJob(
         },
       },
     });
-    await prisma.creditAction.update({
+    await prisma.creditTransaction.update({
       where: {
         id: creditAction.id,
       },
       data: {
-        status: "Succeeded",
+        status: "SUCCEEDED",
       },
     });
 
     return job;
   } catch (error) {
-    const job = await prisma.creditAction.update({
+    const job = await prisma.creditTransaction.update({
       where: {
         id: creditAction.id,
       },
       data: {
-        status: "Failed",
+        status: "FAILED",
         errorNote: error instanceof Error ? error.message : "Unknown error",
         errorNoteKey: "Job.CreationFailed",
       },
       select: {
-        Job: true,
+        job: true,
       },
     });
-    if (job && job.Job) {
+    if (job && job.job) {
       await prisma.job.update({
         where: {
-          id: job.Job.id,
+          id: job.job.id,
         },
         data: {
           status: "FAILED",
@@ -295,7 +304,7 @@ export async function syncJobStatus(job: Job) {
       if (!jobToRefund) {
         throw new Error("Job not found");
       }
-      if (jobToRefund.refundCreditActionId != null) {
+      if (jobToRefund.refundCreditTransactionId != null) {
         return;
       }
       await tx.job.update({
@@ -304,10 +313,10 @@ export async function syncJobStatus(job: Job) {
         },
         data: {
           status: "REFUNDED",
-          refundCreditAction: {
+          refundCreditTransaction: {
             create: {
               amount: jobToRefund.cost.amount,
-              type: "Refund",
+              type: CreditTransactionType.REFUND,
               includedFee: BigInt(0),
               user: {
                 connect: {

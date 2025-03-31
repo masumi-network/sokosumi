@@ -1,10 +1,10 @@
-import { CreditActionStatus, CreditActionType } from "@prisma/client";
+import { CreditTransactionStatus, CreditTransactionType } from "@prisma/client";
 import { z } from "zod";
 
 import prisma from "@/lib/db/prisma";
 
 export async function getCreditBalance(userId: string): Promise<number> {
-  const creditBalance = await prisma.creditAction.aggregate({
+  const creditBalance = await prisma.creditTransaction.aggregate({
     where: { userId },
     _sum: {
       amount: true,
@@ -32,7 +32,7 @@ export async function creditActionSpend(
   }
 
   const newCreditAction = await prisma.$transaction(async (tx) => {
-    const creditBalance = await tx.creditAction.aggregate({
+    const creditBalance = await tx.creditTransaction.aggregate({
       where: { userId },
       _sum: {
         amount: true,
@@ -46,13 +46,13 @@ export async function creditActionSpend(
       throw new Error("Insufficient balance");
     }
 
-    return await tx.creditAction.create({
+    return await tx.creditTransaction.create({
       data: {
         userId,
         amount: -amount,
         includedFee: includedFee,
-        type: CreditActionType.Spend,
-        status: CreditActionStatus.Pending,
+        type: CreditTransactionType.SPEND,
+        status: CreditTransactionStatus.PENDING,
         note: note,
         noteKey: noteKey,
       },

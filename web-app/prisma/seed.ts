@@ -1,6 +1,6 @@
 import {
   AgentStatus,
-  CreditActionType,
+  CreditTransactionType,
   JobStatus,
   PricingType,
   PrismaClient,
@@ -373,19 +373,19 @@ const seedJobs = async (userId: string) => {
           ? `Completed analysis for: ${input}`
           : null;
 
-      const creditAction = await prisma.creditAction.create({
+      const creditTransaction = await prisma.creditTransaction.create({
         data: {
           amount: cost,
           includedFee: fee,
-          type: CreditActionType.Spend,
+          type: CreditTransactionType.SPEND,
           userId,
         },
       });
-      await prisma.creditAction.create({
+      await prisma.creditTransaction.create({
         data: {
           amount: cost * BigInt(5),
           includedFee: 0,
-          type: CreditActionType.TopUp,
+          type: CreditTransactionType.TOP_UP,
           userId,
         },
       });
@@ -400,7 +400,7 @@ const seedJobs = async (userId: string) => {
           output,
           startedAt,
           finishedAt,
-          creditActionId: creditAction.id,
+          creditTransactionId: creditTransaction.id,
           agentJobId: `demo-job-${index}`,
           paymentId: `demo-payment-${index}`,
           paymentTxId:
