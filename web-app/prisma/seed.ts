@@ -8,6 +8,8 @@ import crypto from "crypto";
 
 import { getEnvSecrets } from "@/config/env.config";
 
+import { hashPassword } from "./util/password";
+
 const prisma = new PrismaClient();
 
 const agents = [
@@ -189,7 +191,7 @@ const seedUser = async (): Promise<string> => {
 
   user = await prisma.user.create({
     data: {
-      email: "dev@sokosumi.com",
+      email: getEnvSecrets().SEED_USER_EMAIL,
       name: "Sokosumi Developer",
       emailVerified: true,
       createdAt: new Date(),
@@ -198,14 +200,15 @@ const seedUser = async (): Promise<string> => {
   });
   console.log(`User created with email ${user.email}`);
 
+  const password = await hashPassword(getEnvSecrets().SEED_USER_PASSWORD);
+
   const account = await prisma.account.create({
     data: {
       id: crypto.randomUUID(),
       userId: user.id,
       providerId: "credential",
       accountId: crypto.randomUUID(),
-      password:
-        "1e118f20d959659e956ee7f1b1324e3c:c3fe5bba70396d0dc5faa53cdfef782820a2f4ca6bb8789a6f7a4da94cd65de1f25e3ac56722af3cb88b6256a6784abc2de0259c179d41cedce13aa106d443a8",
+      password: password,
       createdAt: new Date(),
       updatedAt: new Date(),
     },
