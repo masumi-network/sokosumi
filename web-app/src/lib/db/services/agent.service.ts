@@ -4,7 +4,7 @@ import prisma from "@/lib/db/prisma";
 
 import { getOrCreateFavoriteAgentList } from "./agentList.service";
 
-export const agentPricingInclude = {
+const agentPricingInclude = {
   pricing: {
     include: { fixedPricing: { include: { amounts: true } } },
   },

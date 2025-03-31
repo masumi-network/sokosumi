@@ -2,12 +2,8 @@ import { AgentList, AgentListType, Prisma } from "@prisma/client";
 
 import prisma from "@/lib/db/prisma";
 
-import { agentPricingInclude } from "./agent.service";
-
 const agentListInclude = {
-  agents: {
-    include: agentPricingInclude,
-  },
+  agents: true,
 } as const;
 
 export type AgentListWithAgent = Prisma.AgentListGetPayload<{
