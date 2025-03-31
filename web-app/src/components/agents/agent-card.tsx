@@ -76,9 +76,9 @@ interface AgentCardProps {
 
 function AgentCard({ agent, agentList, className }: AgentCardProps) {
   const t = useTranslations("Components.Agents.AgentCard");
-  // const { id, name, description, image, tags, averageStars, credits } = agent;
 
   const averageStars = getAverageStars(agent);
+  const description = getDescription(agent);
   return (
     <Card
       className={cn(
@@ -112,9 +112,11 @@ function AgentCard({ agent, agentList, className }: AgentCardProps) {
         )}
 
         <h3 className="mb-2 shrink-0 text-xl font-bold">{getName(agent)}</h3>
-        <p className="text-muted-foreground mb-3 line-clamp-3 min-h-[4.5rem] overflow-hidden text-ellipsis whitespace-normal">
-          {getDescription(agent) ?? "No description available"}
-        </p>
+        {description && (
+          <p className="text-muted-foreground mb-3 line-clamp-3 min-h-[4.5rem] overflow-hidden text-ellipsis whitespace-normal">
+            {description}
+          </p>
+        )}
         <div className="flex min-h-[1.5rem] shrink-0 flex-nowrap overflow-hidden">
           <BadgeCloud tags={getTags(agent)} />
         </div>

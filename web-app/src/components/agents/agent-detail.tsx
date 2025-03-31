@@ -96,6 +96,7 @@ function AgentDetails({ agent, agentList, className }: AgentDetailsProps) {
 
   const legal = getLegal(agent);
   const exampleOutput = getExampleOutput(agent);
+  const description = getDescription(agent);
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -151,9 +152,11 @@ function AgentDetails({ agent, agentList, className }: AgentDetailsProps) {
 
       {/* Tags */}
       <BadgeCloud tags={getTags(agent)} />
-      <div className="text-muted-foreground">
-        <p>{getDescription(agent) ?? "No description available"}</p>
-      </div>
+      {description && (
+        <div className="text-muted-foreground">
+          <p>{description}</p>
+        </div>
+      )}
 
       {/* Example Output */}
       <ScrollArea>

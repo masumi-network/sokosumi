@@ -11,15 +11,19 @@ interface CreateJobSectionProps {
 export default function CreateJobSection({ agent }: CreateJobSectionProps) {
   const t = useTranslations("App.Jobs.CreateJob");
 
+  const description = getDescription(agent);
+
   return (
     <div className="flex h-full min-h-[300px] flex-1 flex-col">
       <h1 className="h-[30px] text-xl font-bold">{t("title")}</h1>
       <ScrollArea className="h-[calc(100%-30px)] rounded-md border p-4">
         <div className="flex flex-1 flex-col gap-4">
           <div className="flex flex-wrap gap-2">
-            <div className="min-w-[200px] flex-1 text-base">
-              {getDescription(agent) ?? "No description available"}
-            </div>
+            {description && (
+              <div className="min-w-[200px] flex-1 text-base">
+                {description}
+              </div>
+            )}
             <Image
               src="/placeholder.svg"
               alt="Example Output"

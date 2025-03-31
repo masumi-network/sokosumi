@@ -5,5 +5,7 @@ interface JobDetailSectionProps {
 }
 
 export default function JobDetailSection({ agent }: JobDetailSectionProps) {
-  return <div>{getDescription(agent) ?? "No description available"}</div>;
+  const description = getDescription(agent);
+
+  return <>{description && <div>{description}</div>}</>;
 }
