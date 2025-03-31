@@ -350,8 +350,10 @@
       "Content": {
         "AgentsList": {
           "pinnedTitle": "Your Pinned Agents",
+          "hiredTitle": "Your Hired Agents",
           "noAgents": "No {type} agents yet",
-          "pinnedType": "pinned"
+          "pinnedType": "pinned",
+          "hiredType": "hired"
         }
       },
       "Footer": {
