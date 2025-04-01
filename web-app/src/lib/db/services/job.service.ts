@@ -50,7 +50,7 @@ export async function startJob(
     throw new Error("Credit cost is too high");
   }
 
-  const creditAction = await creditTransactionSpend(
+  const creditTransaction = await creditTransactionSpend(
     userId,
     creditCost,
     BigInt(0),
@@ -127,7 +127,7 @@ export async function startJob(
         },
         cost: {
           connect: {
-            id: creditAction.id,
+            id: creditTransaction.id,
           },
         },
         status: "PAYMENT_PENDING",
@@ -150,7 +150,7 @@ export async function startJob(
     });
     await prisma.creditTransaction.update({
       where: {
-        id: creditAction.id,
+        id: creditTransaction.id,
       },
       data: {
         status: "SUCCEEDED",
@@ -161,7 +161,7 @@ export async function startJob(
   } catch (error) {
     const job = await prisma.creditTransaction.update({
       where: {
-        id: creditAction.id,
+        id: creditTransaction.id,
       },
       data: {
         status: "FAILED",
