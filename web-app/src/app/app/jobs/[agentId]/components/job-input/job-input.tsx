@@ -16,6 +16,8 @@ import {
   ValidJobInputTypes,
 } from "@/lib/job-input";
 
+import { isOptional } from "./util";
+
 interface JobInputProps {
   form: UseFormReturn<JobInputsFormSchemaType>;
   jobInputSchema: JobInputSchemaType;
@@ -30,7 +32,7 @@ export default function JobInput({ form, jobInputSchema }: JobInputProps) {
       name={id}
       render={({ field }) => (
         <FormItem>
-          <FormLabel>{name}</FormLabel>
+          <FormLabel>{`${name} ${isOptional(jobInputSchema) ? "" : "*"}`}</FormLabel>
           <FormControl>
             <InputField field={field} jobInputSchema={jobInputSchema} />
           </FormControl>
