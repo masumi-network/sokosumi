@@ -95,7 +95,7 @@ export async function startJob(
     const purchaseRequest = await postPurchase({
       client: paymentClient,
       body: {
-        agentIdentifier: agent.onChainIdentifier,
+        agentIdentifier: agent.blockchainIdentifier,
         inputHash: inputHash,
         blockchainIdentifier: startJobResponse.blockchainIdentifier,
         network: "Preprod",

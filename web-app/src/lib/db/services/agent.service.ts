@@ -111,7 +111,7 @@ export async function getAgentPricing(agentId: string) {
   const paymentInformation = await getPaymentInformation({
     client: registryClient,
     query: {
-      agentIdentifier: agent.onChainIdentifier,
+      agentIdentifier: agent.blockchainIdentifier,
     },
   });
 
