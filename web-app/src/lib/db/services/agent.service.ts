@@ -85,6 +85,10 @@ export async function getHiredAgentsOrderedByLatestJob(userId: string) {
 export async function getAgentInputSchema(agentId: string) {
   const agent = await getAgentById(agentId);
 
+  if (!agent) {
+    throw new Error(`Agent with ID ${agentId} not found`);
+  }
+
   const agentUrl = agent.apiBaseUrl;
 
   if (!agentUrl) {
