@@ -13,6 +13,9 @@ jobs:
     name: Deploy App
     runs-on: ubuntu-latest
     environment: production
+    defaults:
+      run:
+        working-directory: ./web-app
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
