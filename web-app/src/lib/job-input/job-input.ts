@@ -8,7 +8,7 @@ import {
   formatUrlValidationSchema,
   maxValidationSchema,
   minValidationSchema,
-  requiredValidationSchema,
+  optionalValidationSchema,
 } from "./validation";
 
 export const jobInputSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) =>
@@ -27,7 +27,7 @@ export const jobInputStringSchema = (
     id: z.string().min(1, {
       message: t?.("Id.required"),
     }),
-    type: z.enum([ValidJobInputTypes.String], {
+    type: z.enum([ValidJobInputTypes.STRING], {
       message: t?.("Type.enum", {
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
@@ -43,7 +43,7 @@ export const jobInputStringSchema = (
       .optional(),
     validations: z
       .array(
-        requiredValidationSchema(t)
+        optionalValidationSchema(t)
           .or(minValidationSchema(t))
           .or(maxValidationSchema(t))
           .or(formatNonEmptyValidationSchema(t))
@@ -64,7 +64,7 @@ export const jobInputNumberSchema = (
     id: z.string().min(1, {
       message: t?.("Id.required"),
     }),
-    type: z.enum([ValidJobInputTypes.Number], {
+    type: z.enum([ValidJobInputTypes.NUMBER], {
       message: t?.("Type.enum", {
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
@@ -80,7 +80,7 @@ export const jobInputNumberSchema = (
       .optional(),
     validations: z
       .array(
-        requiredValidationSchema(t)
+        optionalValidationSchema(t)
           .or(minValidationSchema(t))
           .or(maxValidationSchema(t))
           .or(formatIntegerValidationSchema(t))
@@ -100,7 +100,7 @@ export const jobInputBooleanSchema = (
     id: z.string().min(1, {
       message: t?.("Id.required"),
     }),
-    type: z.enum([ValidJobInputTypes.Boolean], {
+    type: z.enum([ValidJobInputTypes.BOOLEAN], {
       message: t?.("Type.enum", {
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
@@ -114,7 +114,7 @@ export const jobInputBooleanSchema = (
         description: z.string().optional(),
       })
       .optional(),
-    validations: z.array(requiredValidationSchema(t)).optional(),
+    validations: z.array(optionalValidationSchema(t)).optional(),
   });
 
 export type JobInputBooleanSchemaType = z.infer<
@@ -128,7 +128,7 @@ export const jobInputOptionSchema = (
     id: z.string().min(1, {
       message: t?.("Id.required"),
     }),
-    type: z.enum([ValidJobInputTypes.Option], {
+    type: z.enum([ValidJobInputTypes.OPTION], {
       message: t?.("Type.enum", {
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
@@ -149,7 +149,7 @@ export const jobInputOptionSchema = (
     }),
     validations: z
       .array(
-        requiredValidationSchema(t)
+        optionalValidationSchema(t)
           .or(minValidationSchema(t))
           .or(maxValidationSchema(t)),
       )
@@ -167,7 +167,7 @@ export const jobInputNoneSchema = (
     id: z.string().min(1, {
       message: t?.("Id.required"),
     }),
-    type: z.enum([ValidJobInputTypes.None], {
+    type: z.enum([ValidJobInputTypes.NONE], {
       message: t?.("Type.enum", {
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
