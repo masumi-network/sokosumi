@@ -8,6 +8,7 @@
     "prepare": "husky"
   },
   "devDependencies": {
+    "@types/node": "^22.13.17",
     "husky": "^9.1.7"
   }
 }
