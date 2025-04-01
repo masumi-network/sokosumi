@@ -16,7 +16,7 @@ export async function main(_args: unknown): Promise<FunctionResponse> {
     const adminKey = process.env.ADMIN_KEY;
     if (!apiUrlString) {
       return {
-        statusCode: 500,
+        statusCode: 400,
         body: { error: "SOKOSUMI_API_URL environment variable not set" },
       };
     }
@@ -31,7 +31,7 @@ export async function main(_args: unknown): Promise<FunctionResponse> {
     });
     if (!response.ok) {
       return {
-        statusCode: 500,
+        statusCode: response.status,
         body: { error: `API call failed: ${response.statusText}` },
       };
     }
