@@ -8,8 +8,8 @@ permissions:
   contents: read
 
 jobs:
-  deploy:
-    name: Deploy
+  deploy-web-app:
+    name: Deploy Web App
     runs-on: ubuntu-latest
     environment: development
     steps:
@@ -41,3 +41,23 @@ jobs:
           app_name: ${{ vars.DIGITALOCEAN_APP_NAME }}
           project_id: ${{ secrets.DIGITALOCEAN_PROJECT_ID }}
           token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+  deploy-job-sync-function:
+    name: Deploy Job Sync Function
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+        env:
+          SOKOSUMI_API_URL: ${{ vars.SOKOSUMI_API_URL }}
+          ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
+      - name: install dependencies
+        run: npm i
+      - name: build
+        run: npm run build
+      - name: deploy
+        run: npm run deploy
