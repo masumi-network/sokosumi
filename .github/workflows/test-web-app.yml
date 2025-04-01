@@ -1,4 +1,4 @@
-name: Test (Web App)
+name: Test Sokosumi
 on:
   pull_request:
 
