@@ -36,6 +36,12 @@ services:
       value: ${PAYMENT_API_KEY}
     - name: PAYMENT_API_URL
       value: ${PAYMENT_API_URL}
+    - name: SOKOSUMI_API_URL
+      value: ${SOKOSUMI_API_URL}
+    - name: REGISTRY_API_URL
+      value: ${REGISTRY_API_URL}
+    - name: ADMIN_KEY
+      value: ${ADMIN_KEY}
   github:
     branch: main
     repo: masumi-network/sokosumi

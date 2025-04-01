@@ -1,4 +1,4 @@
-name: Test (Web App)
+name: Test Sokosumi
 on:
   pull_request:
 
@@ -21,8 +21,8 @@ env:
   REGISTRY_API_KEY: ${{ vars.PUBLIC_DEFAULT_SECRET }}
 
 jobs:
-  build:
-    name: Build and Test
+  build-web-app:
+    name: Build and Test Sokosumi Web App
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -69,3 +69,59 @@ jobs:
 
       - name: Run Build
         run: npm run build
+
+  build-registry-sync:
+    name: Build Sokosumi Registry Sync Caller
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./registry-cron-caller
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Install Dependencies
+        run: npm i
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run Build
+        run: npm run build
+
+  build-job-sync:
+    name: Build Sokosumi Job Sync Caller
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./job-cron-caller
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Install Dependencies
+        run: npm i
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run Build
+        run: npm run build
+
+  final-status:
+    name: Final Status
+    needs: [build-web-app, build-registry-sync, build-job-sync]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Job Status
+        run: |
+          echo "All jobs completed successfully!"
+          echo "Web App Build: ${{ needs.build-web-app.result }}"
+          echo "Registry Sync Build: ${{ needs.build-registry-sync.result }}"
+          echo "Job Sync Build: ${{ needs.build-job-sync.result }}"

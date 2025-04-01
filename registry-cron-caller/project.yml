@@ -1,0 +1,27 @@
+packages:
+  - name: registry-sync
+    shared: false
+    environment: {}
+    parameters: {}
+    annotations: {}
+    functions:
+      - name: main
+        binary: false
+        main: "main"
+        runtime: nodejs:18
+        web: true
+        webSecure: false
+        parameters: {}
+        environment:
+          ADMIN_KEY: ${ADMIN_KEY}
+          API_URL: ${SOKOSUMI_API_URL}
+        annotations: {}
+        limits: {}
+        triggers:
+          - name: trigger-registry-sync
+            sourceType: scheduler
+            sourceDetails:
+              # every minute
+              cron: "* * * * *"
+              withBody:
+                name: "registry-sync"
