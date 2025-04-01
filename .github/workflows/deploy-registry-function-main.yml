@@ -1,0 +1,48 @@
+name: Main Registry Function Deployment
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['registry-cron-caller/**']
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-function:
+    name: Deploy Function
+    runs-on: ubuntu-latest
+    environment: development
+    env:
+      SOKOSUMI_API_URL: ${{ vars.SOKOSUMI_API_URL }}
+      ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
+      SOKOSUMI_FUNCTION_NAMESPACE: ${{ vars.SOKOSUMI_FUNCTION_NAMESPACE }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+          
+      - name: Install dependencies
+        working-directory: registry-cron-caller
+        run: npm ci
+
+      - name: Build
+        working-directory: registry-cron-caller
+        run: npm run build
+
+      - name: Install serverless
+        working-directory: registry-cron-caller
+        run: doctl serverless install
+
+      - name: Configure serverless connect
+        working-directory: registry-cron-caller
+        run: doctl serverless connect ${{ env.SOKOSUMI_FUNCTION_NAMESPACE }}
+
+      - name: Deploy
+        working-directory: registry-cron-caller
+        run: npm run deploy

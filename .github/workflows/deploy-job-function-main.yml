@@ -1,0 +1,74 @@
+name: Main Job FunctionDeployment
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: ['job-cron-caller/**']
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-function:
+    name: Deploy Function
+    runs-on: ubuntu-latest
+    environment: development
+    env:
+      SOKOSUMI_API_URL: ${{ vars.SOKOSUMI_API_URL }}
+      ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
+      SOKOSUMI_FUNCTION_NAMESPACE: ${{ vars.SOKOSUMI_FUNCTION_NAMESPACE }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Install dependencies
+        working-directory: job-cron-caller
+        run: npm ci
+
+      - name: Build
+        working-directory: job-cron-caller
+        run: npm run build
+
+      - name: Install serverless
+        working-directory: job-cron-caller
+        run: doctl serverless install
+
+      - name: Configure serverless connect
+        working-directory: job-cron-caller
+        run: doctl serverless connect ${{ env.SOKOSUMI_FUNCTION_NAMESPACE }}
+
+      - name: Deploy
+        working-directory: job-cron-caller
+        run: npm run deploy
+
+  deploy-registry-sync-function:
+    name: Deploy Registry Sync Function
+    runs-on: ubuntu-latest
+    environment: development
+    env:
+      SOKOSUMI_API_URL: ${{ vars.SOKOSUMI_API_URL }}
+      ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
+      SOKOSUMI_FUNCTION_NAMESPACE: ${{ vars.SOKOSUMI_FUNCTION_NAMESPACE }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+      - name: install dependencies
+        run: cd registry-cron-caller && npm i
+      - name: build
+        run: cd registry-cron-caller && npm run build
+      - name: Install serverless
+        run: doctl serverless install
+      - name: Configure serverless connect
+        run: doctl serverless connect ${{ env.SOKOSUMI_FUNCTION_NAMESPACE }}
+      - name: deploy
+        run: cd registry-cron-caller && npm run deploy
