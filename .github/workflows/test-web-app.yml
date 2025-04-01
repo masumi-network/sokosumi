@@ -84,7 +84,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Install Dependencies
-        run: npm ci
+        run: npm i
 
       - name: Lint
         run: npm run lint
@@ -106,7 +106,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Install Dependencies
-        run: npm ci
+        run: npm i
 
       - name: Lint
         run: npm run lint
