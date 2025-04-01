@@ -37,6 +37,10 @@ export default function JobInputsForm({
     console.log(values);
   };
 
+  const handleClear = () => {
+    form.reset();
+  };
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(handleSubmit)}>
@@ -52,7 +56,7 @@ export default function JobInputsForm({
             />
           ))}
           <div className="flex items-center justify-between gap-2">
-            <Button variant="outline" onClick={() => form.reset()}>
+            <Button type="reset" variant="outline" onClick={handleClear}>
               {t("clear")}
             </Button>
             <div className="flex items-center gap-2">
