@@ -1,6 +1,10 @@
 import { Prisma } from "@prisma/client";
 
+import { getPaymentInformation } from "@/lib/api/generated/registry";
+import { getRegistryClient } from "@/lib/api/registry-service.client";
+import { getApiBaseUrl } from "@/lib/db/extension/agent";
 import prisma from "@/lib/db/prisma";
+import { jobInputSchema } from "@/lib/job-input";
 
 import { getOrCreateFavoriteAgentList } from "./agentList.service";
 
@@ -77,4 +81,46 @@ export async function getHiredAgentsOrderedByLatestJob(userId: string) {
     // Sort by startedAt descending (newest first)
     return bLatestJob.startedAt.getTime() - aLatestJob.startedAt.getTime();
   });
+}
+
+export async function getAgentInputSchema(agentId: string) {
+  const agent = await getAgentById(agentId);
+
+  if (!agent) {
+    throw new Error(`Agent with ID ${agentId} not found`);
+  }
+
+  const baseUrl = getApiBaseUrl(agent);
+  const inputSchemaUrl = new URL(`/input_schema`, baseUrl);
+
+  const response = await fetch(inputSchemaUrl);
+  const schema = await response.json();
+  const inputSchema = jobInputSchema(undefined).parse(schema);
+
+  return inputSchema;
+}
+
+export async function getAgentPricing(agentId: string) {
+  const agent = await getAgentById(agentId);
+
+  if (!agent) {
+    throw new Error("Agent not found");
+  }
+  const registryClient = getRegistryClient();
+
+  const paymentInformation = await getPaymentInformation({
+    client: registryClient,
+    query: {
+      agentIdentifier: agent.blockchainIdentifier,
+    },
+  });
+
+  if (
+    !paymentInformation ||
+    !paymentInformation.data ||
+    !paymentInformation.data.data
+  ) {
+    throw new Error("Payment information not found or invalid price");
+  }
+  return paymentInformation.data.data.AgentPricing;
 }

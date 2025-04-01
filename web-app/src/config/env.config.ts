@@ -40,6 +40,11 @@ const envSchemaSecrets = z.object({
   LINKEDIN_CLIENT_ID: z.string().min(1),
   LINKEDIN_CLIENT_SECRET: z.string().min(1),
 
+  PAYMENT_API_KEY: z.string().min(1),
+  PAYMENT_API_URL: z
+    .string()
+    .url()
+    .default("https://payment.masumi.network/api/v1"),
   // BetterAuth Settings
   BETTER_AUTH_SESSION_EXPIRES_IN: z
     .number()
@@ -67,6 +72,12 @@ const envSchemaSecrets = z.object({
     .url()
     .default("https://registry.masumi.network/api/v1"),
   REGISTRY_API_KEY: z.string().min(1),
+  BLACKLISTED_AGENT_HOSTNAMES: z
+    .string()
+    .transform((val) => val.split(","))
+    .pipe(z.array(z.string()))
+    .default(""),
+  DEFAULT_NETWORK_FEE_PERCENTAGE: z.number({ coerce: true }).min(0).default(5),
 });
 
 const envSchemaConfig = z.object({
@@ -116,7 +127,7 @@ function validateEnv() {
 
   if (!parsedSecrets.success) {
     console.error(
-      "❌ Invalid environment variables:",
+      "❌ Invalid environment secrets:",
       JSON.stringify(parsedSecrets.error.format(), null, 2),
     );
     process.exit(1);

@@ -34,6 +34,12 @@ export const getHealth = <ThrowOnError extends boolean = false>(options?: Option
  */
 export const getPaymentInformation = <ThrowOnError extends boolean = false>(options: Options<GetPaymentInformationData, ThrowOnError>) => {
     return (options.client ?? _heyApiClient).get<GetPaymentInformationResponse, unknown, ThrowOnError>({
+        security: [
+            {
+                name: 'token',
+                type: 'apiKey'
+            }
+        ],
         url: '/payment-information/',
         ...options
     });

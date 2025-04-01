@@ -42,7 +42,10 @@ export default function CreateJobSection({ agent }: CreateJobSectionProps) {
             <h1 className="text-xl font-bold">{t("Input.title")}</h1>
             <p className="text-base">{t("Input.description")}</p>
           </div>
-          <JobInputsForm credits={credits} jobInputSchemas={dummyInputData} />
+          <JobInputsForm
+            credits={credits}
+            jobInputsDataSchema={dummyInputData}
+          />
         </div>
       </ScrollArea>
     </div>

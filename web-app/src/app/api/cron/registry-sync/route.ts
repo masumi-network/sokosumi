@@ -1,8 +1,8 @@
-import { createClient } from "@hey-api/client-next";
 import { after, NextResponse } from "next/server";
 
 import { getEnvPublicConfig, getEnvSecrets } from "@/config/env.config";
 import { postRegistryEntry } from "@/lib/api/generated/registry";
+import { getRegistryClient } from "@/lib/api/registry-service.client";
 import prisma from "@/lib/db/prisma";
 import { getLock, releaseLock, timeLimitedExecution } from "@/lib/utils";
 
@@ -31,7 +31,11 @@ export async function POST(request: Request) {
         getEnvSecrets().LOCK_TIMEOUT - 1000 * 25,
       );
       const timingEnd = Date.now();
-      console.info("Syncing took", (timingEnd - timingStart) / 1000, "seconds");
+      console.info(
+        "Registry sync took",
+        (timingEnd - timingStart) / 1000,
+        "seconds",
+      );
     } catch (error) {
       console.error("Error in sync operation:", error);
     } finally {
@@ -56,12 +60,7 @@ async function syncAllEntries() {
   let lastIdentifier: string | undefined = undefined;
   const limit = 20;
   const runningDbUpdates: Promise<void>[] = [];
-  const registryClient = createClient({
-    baseUrl: getEnvSecrets().REGISTRY_API_URL,
-  });
-  registryClient.setConfig({
-    headers: { token: getEnvSecrets().REGISTRY_API_KEY },
-  });
+  const registryClient = getRegistryClient();
   while (true) {
     const response = await postRegistryEntry({
       client: registryClient,
@@ -90,9 +89,9 @@ async function syncAllEntries() {
       ...entries.map(async (entry) => {
         const updateDbEntry = async () => {
           await prisma.agent.upsert({
-            where: { onChainIdentifier: entry.agentIdentifier },
+            where: { blockchainIdentifier: entry.agentIdentifier },
             create: {
-              onChainIdentifier: entry.agentIdentifier,
+              blockchainIdentifier: entry.agentIdentifier,
               name: entry.name,
               description: entry.description,
               apiBaseUrl: entry.apiBaseUrl,

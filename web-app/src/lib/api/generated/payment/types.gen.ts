@@ -473,9 +473,9 @@ export type PostPaymentData = {
          */
         agentIdentifier: string;
         /**
-         * The amounts of the payment
+         * The amounts of the payment, should be null for fixed amount
          */
-        RequestedFunds: Array<{
+        RequestedFunds?: Array<{
             amount: string;
             unit: string;
         }>;
@@ -905,7 +905,7 @@ export type PostPurchaseData = {
         /**
          * The amounts to be paid for the purchase
          */
-        Amounts: Array<{
+        Amounts?: Array<{
             amount: string;
             unit: string;
         }>;

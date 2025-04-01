@@ -7,6 +7,21 @@ CREATE TYPE "AgentStatus" AS ENUM ('ONLINE', 'OFFLINE', 'DEREGISTERED', 'INVALID
 -- CreateEnum
 CREATE TYPE "AgentListType" AS ENUM ('FAVORITE');
 
+-- CreateEnum
+CREATE TYPE "CreditTransactionStatus" AS ENUM ('PENDING', 'SUCCEEDED', 'FAILED');
+
+-- CreateEnum
+CREATE TYPE "CreditTransactionType" AS ENUM ('TOP_UP', 'REFERRAL', 'SPEND', 'REFUND', 'MANUAL');
+
+-- CreateEnum
+CREATE TYPE "FiatPaymentService" AS ENUM ('STRIPE');
+
+-- CreateEnum
+CREATE TYPE "FiatPaymentStatus" AS ENUM ('PENDING', 'SUCCEEDED', 'FAILED', 'REFUNDED', 'CANCELLED');
+
+-- CreateEnum
+CREATE TYPE "JobStatus" AS ENUM ('PAYMENT_PENDING', 'PAYMENT_FAILED', 'PROCESSING', 'COMPLETED', 'FAILED', 'REFUND_REQUESTED', 'DISPUTED', 'REFUNDED', 'REFUND_FAILED');
+
 -- CreateTable
 CREATE TABLE "user" (
     "id" TEXT NOT NULL,
@@ -21,6 +36,7 @@ CREATE TABLE "user" (
     "banned" BOOLEAN,
     "banReason" TEXT,
     "banExpires" TIMESTAMP(3),
+    "credits" BIGINT NOT NULL DEFAULT 0,
 
     CONSTRAINT "user_pkey" PRIMARY KEY ("id")
 );
@@ -224,7 +240,7 @@ CREATE TABLE "Agent" (
     "id" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "onChainIdentifier" TEXT NOT NULL,
+    "blockchainIdentifier" TEXT NOT NULL,
     "ratingId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "overrideName" TEXT,
@@ -297,6 +313,80 @@ CREATE TABLE "AgentList" (
 );
 
 -- CreateTable
+CREATE TABLE "CreditTransaction" (
+    "id" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "amount" BIGINT NOT NULL,
+    "includedFee" BIGINT NOT NULL,
+    "note" TEXT,
+    "noteKey" TEXT,
+    "errorNote" TEXT,
+    "errorNoteKey" TEXT,
+    "type" "CreditTransactionType" NOT NULL,
+    "userId" TEXT NOT NULL,
+    "fiatPaymentId" TEXT,
+    "status" "CreditTransactionStatus" NOT NULL DEFAULT 'PENDING',
+
+    CONSTRAINT "CreditTransaction_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "FiatPayment" (
+    "id" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "amount" BIGINT NOT NULL,
+    "currency" TEXT NOT NULL,
+    "status" "FiatPaymentStatus" NOT NULL,
+    "servicePaymentId" TEXT NOT NULL,
+    "serviceCustomerId" TEXT,
+    "metadata" JSONB,
+    "service" "FiatPaymentService" NOT NULL DEFAULT 'STRIPE',
+
+    CONSTRAINT "FiatPayment_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Job" (
+    "id" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "agentJobId" TEXT NOT NULL,
+    "paymentId" TEXT NOT NULL,
+    "agentId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "status" "JobStatus" NOT NULL,
+    "input" TEXT NOT NULL,
+    "output" TEXT,
+    "startedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "finishedAt" TIMESTAMP(3),
+    "refundCreditTransactionId" TEXT,
+    "creditTransactionId" TEXT NOT NULL,
+    "errorNote" TEXT,
+    "errorNoteKey" TEXT,
+    "blockchainIdentifier" TEXT NOT NULL,
+    "submitResultTime" TIMESTAMP(3),
+    "unlockTime" TIMESTAMP(3),
+    "externalDisputeUnlockTime" TIMESTAMP(3),
+    "sellerVkey" TEXT,
+    "identifierFromPurchaser" TEXT,
+
+    CONSTRAINT "Job_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CreditCost" (
+    "id" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "unit" TEXT NOT NULL,
+    "creditCostPerUnit" BIGINT NOT NULL,
+
+    CONSTRAINT "CreditCost_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "_AgentToAgentList" (
     "A" TEXT NOT NULL,
     "B" TEXT NOT NULL,
@@ -333,7 +423,7 @@ CREATE UNIQUE INDEX "organization_slug_key" ON "organization"("slug");
 CREATE UNIQUE INDEX "AgentPricing_agentFixedPricingId_key" ON "AgentPricing"("agentFixedPricingId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Agent_onChainIdentifier_key" ON "Agent"("onChainIdentifier");
+CREATE UNIQUE INDEX "Agent_blockchainIdentifier_key" ON "Agent"("blockchainIdentifier");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Agent_ratingId_key" ON "Agent"("ratingId");
@@ -346,6 +436,24 @@ CREATE UNIQUE INDEX "Lock_key_key" ON "Lock"("key");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Tag_name_key" ON "Tag"("name");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CreditTransaction_fiatPaymentId_key" ON "CreditTransaction"("fiatPaymentId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "FiatPayment_servicePaymentId_key" ON "FiatPayment"("servicePaymentId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Job_refundCreditTransactionId_key" ON "Job"("refundCreditTransactionId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Job_creditTransactionId_key" ON "Job"("creditTransactionId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Job_blockchainIdentifier_key" ON "Job"("blockchainIdentifier");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CreditCost_unit_key" ON "CreditCost"("unit");
 
 -- CreateIndex
 CREATE INDEX "_AgentToAgentList_B_index" ON "_AgentToAgentList"("B");
@@ -406,6 +514,24 @@ ALTER TABLE "Agent" ADD CONSTRAINT "Agent_pricingId_fkey" FOREIGN KEY ("pricingI
 
 -- AddForeignKey
 ALTER TABLE "AgentList" ADD CONSTRAINT "AgentList_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CreditTransaction" ADD CONSTRAINT "CreditTransaction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CreditTransaction" ADD CONSTRAINT "CreditTransaction_fiatPaymentId_fkey" FOREIGN KEY ("fiatPaymentId") REFERENCES "FiatPayment"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Job" ADD CONSTRAINT "Job_agentId_fkey" FOREIGN KEY ("agentId") REFERENCES "Agent"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Job" ADD CONSTRAINT "Job_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Job" ADD CONSTRAINT "Job_creditTransactionId_fkey" FOREIGN KEY ("creditTransactionId") REFERENCES "CreditTransaction"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Job" ADD CONSTRAINT "Job_refundCreditTransactionId_fkey" FOREIGN KEY ("refundCreditTransactionId") REFERENCES "CreditTransaction"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "_AgentToAgentList" ADD CONSTRAINT "_AgentToAgentList_A_fkey" FOREIGN KEY ("A") REFERENCES "Agent"("id") ON DELETE CASCADE ON UPDATE CASCADE;

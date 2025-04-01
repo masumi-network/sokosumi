@@ -34,11 +34,12 @@ model User {
   twofactors  TwoFactor[]
   passkeys    Passkey[]
 
+  userAgentRating    UserAgentRating[]
+  agentLists         AgentList[]
+  creditTransactions CreditTransaction[]
   // Auth unrelated fields
-  credits         BigInt            @default(0)
-  userAgentRating UserAgentRating[]
-  agentLists      AgentList[]
-  jobs            Job[]
+  credits            BigInt              @default(0)
+  jobs               Job[]
 
   @@unique([email])
   @@map("user")
@@ -245,7 +246,7 @@ model Agent {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  onChainIdentifier String @unique
+  blockchainIdentifier String @unique
 
   rating   AgentRating @relation(fields: [ratingId], references: [id])
   ratingId String      @unique
@@ -353,23 +354,95 @@ enum AgentListType {
   FAVORITE
 }
 
+model CreditTransaction {
+  id            String                @id @default(cuid())
+  createdAt     DateTime              @default(now())
+  updatedAt     DateTime              @updatedAt
+  amount        BigInt //positive is always a credit topup and negative is always a credit spend
+  includedFee   BigInt
+  note          String?
+  noteKey       String?
+  errorNote     String?
+  errorNoteKey  String?
+  type          CreditTransactionType
+  userId        String
+  user          User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fiatPayment   FiatPayment?          @relation(fields: [fiatPaymentId], references: [id])
+  fiatPaymentId String?               @unique
+
+  status      CreditTransactionStatus @default(PENDING)
+  job         Job?                    @relation("JobCost")
+  refundedJob Job?                    @relation("JobRefund")
+}
+
+enum CreditTransactionStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+enum CreditTransactionType {
+  TOP_UP
+  REFERRAL
+  SPEND
+  REFUND
+  MANUAL
+}
+
+model FiatPayment {
+  id                String             @id @default(cuid())
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  amount            BigInt // Amount in cents/smallest currency unit
+  currency          String // e.g., "usd"
+  status            FiatPaymentStatus
+  servicePaymentId  String             @unique // Stripe's payment_intent ID
+  serviceCustomerId String? // Stripe's customer ID
+  metadata          Json? // Additional payment metadata
+  creditTransaction CreditTransaction?
+  service           FiatPaymentService @default(STRIPE)
+}
+
+enum FiatPaymentService {
+  STRIPE
+}
+
+enum FiatPaymentStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+  REFUNDED
+  CANCELLED
+}
+
 model Job {
-  id                String    @id @default(cuid())
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  onChainIdentifier String    @unique
-  agentId           String
-  agent             Agent     @relation(fields: [agentId], references: [id])
-  userId            String
-  user              User      @relation(fields: [userId], references: [id])
-  status            JobStatus
-  input             String
-  output            String?
-  startedAt         DateTime  @default(now())
-  finishedAt        DateTime?
-  cost              BigInt
-  fee               BigInt    @default(0)
-  paymentTxId       String?
+  id                        String             @id @default(cuid())
+  createdAt                 DateTime           @default(now())
+  updatedAt                 DateTime           @updatedAt
+  agentJobId                String
+  paymentId                 String
+  agentId                   String
+  agent                     Agent              @relation(fields: [agentId], references: [id])
+  userId                    String
+  user                      User               @relation(fields: [userId], references: [id])
+  status                    JobStatus
+  input                     String
+  output                    String?
+  startedAt                 DateTime           @default(now())
+  finishedAt                DateTime?
+  cost                      CreditTransaction  @relation("JobCost", fields: [creditTransactionId], references: [id])
+  refundCreditTransaction   CreditTransaction? @relation("JobRefund", fields: [refundCreditTransactionId], references: [id])
+  refundCreditTransactionId String?            @unique
+  creditTransactionId       String             @unique
+  errorNote                 String?
+  errorNoteKey              String?
+
+  blockchainIdentifier      String    @unique
+  submitResultTime          DateTime?
+  unlockTime                DateTime?
+  externalDisputeUnlockTime DateTime?
+  sellerVkey                String?
+  identifierFromPurchaser   String?
 }
 
 enum JobStatus {
@@ -378,4 +451,16 @@ enum JobStatus {
   PROCESSING
   COMPLETED
   FAILED
+  REFUND_REQUESTED
+  DISPUTED
+  REFUNDED
+  REFUND_FAILED
+}
+
+model CreditCost {
+  id                String   @id @default(cuid())
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  unit              String   @unique
+  creditCostPerUnit BigInt
 }

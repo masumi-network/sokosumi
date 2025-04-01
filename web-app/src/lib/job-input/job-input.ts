@@ -11,6 +11,17 @@ import {
   optionalValidationSchema,
 } from "./validation";
 
+export const jobInputsDataSchema = (
+  t?: IntlTranslation<JobInputSchemaIntlPath>,
+) =>
+  z.object({
+    input_data: z.array(jobInputSchema(t)),
+  });
+
+export type JobInputsDataSchemaType = z.infer<
+  ReturnType<typeof jobInputsDataSchema>
+>;
+
 export const jobInputSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) =>
   jobInputStringSchema(t)
     .or(jobInputNumberSchema(t))

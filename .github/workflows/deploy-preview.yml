@@ -36,6 +36,8 @@ jobs:
           ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
           NEXT_PUBLIC_NETWORK: ${{ vars.NEXT_PUBLIC_NETWORK }}
           REGISTRY_API_KEY: ${{ secrets.REGISTRY_API_KEY }}
+          PAYMENT_API_KEY: ${{ secrets.PAYMENT_API_KEY }}
+          PAYMENT_API_URL: ${{ vars.PAYMENT_API_URL }}
         with:
           app_name: ${{ vars.DIGITALOCEAN_APP_NAME }}
           project_id: ${{ secrets.DIGITALOCEAN_PROJECT_ID }}

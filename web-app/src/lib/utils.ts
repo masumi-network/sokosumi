@@ -1,4 +1,6 @@
+import json from "@tufjs/canonical-json";
 import { type ClassValue, clsx } from "clsx";
+import crypto from "crypto";
 import { twMerge } from "tailwind-merge";
 
 import { getEnvSecrets } from "@/config/env.config";
@@ -99,3 +101,15 @@ export async function releaseLock(lock: { updatedAt: Date; key: string }) {
     );
   }
 }
+
+export const calculatedInputHash = (
+  inputData: Map<string, string | number | boolean | number[]>,
+  identifierFromPurchaser: string,
+) => {
+  const inputString = json.canonicalize(Object.fromEntries(inputData));
+  console.log("inputString", identifierFromPurchaser + inputString);
+  return crypto
+    .createHash("sha256")
+    .update(identifierFromPurchaser + inputString)
+    .digest("hex");
+};

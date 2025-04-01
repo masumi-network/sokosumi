@@ -1,5 +1,6 @@
 import {
   AgentStatus,
+  CreditTransactionType,
   JobStatus,
   PricingType,
   PrismaClient,
@@ -227,7 +228,7 @@ const seedAgents = async () => {
     // Check if agent already exists
     const existingAgent = await prisma.agent.findFirst({
       where: {
-        onChainIdentifier: `demo-${index + 1}-${agent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+        blockchainIdentifier: `demo-${index + 1}-${agent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
       },
     });
 
@@ -284,7 +285,6 @@ const seedAgents = async () => {
             totalRatings: BigInt(agent.rating ? 1 : 0),
           },
         },
-
         // No overrides initially
         overrideName: null,
         overrideDescription: null,
@@ -301,7 +301,7 @@ const seedAgents = async () => {
             id: pricing.id,
           },
         },
-        onChainIdentifier: `demo-${index + 1}-${agent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+        blockchainIdentifier: `demo-${index + 1}-${agent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
         status: AgentStatus.ONLINE,
         showOnFrontPage: true,
         ranking: BigInt(index + 1),
@@ -342,7 +342,8 @@ const seedJobs = async (userId: string) => {
           ? new Date(startedAt.getTime() + Math.random() * 24 * 60 * 60 * 1000) // Random time within 24 hours of start
           : null;
 
-      const cost = BigInt(Math.floor(Math.random() * 1000) + 1); // Random cost between 1 and 1001
+      const cost =
+        BigInt(Math.floor(Math.random() * 1000) + 1) * BigInt(100000000000); // Random cost between 1 and 1001 (100000000000 as decimal multiplier)
       const fee = BigInt(Math.floor(Number(cost) * 0.05)); // 5% fee
 
       const jobInputs = [
@@ -364,22 +365,36 @@ const seedJobs = async (userId: string) => {
           ? `Completed analysis for: ${input}`
           : null;
 
+      const creditTransaction = await prisma.creditTransaction.create({
+        data: {
+          amount: cost,
+          includedFee: fee,
+          type: CreditTransactionType.SPEND,
+          userId,
+        },
+      });
+      await prisma.creditTransaction.create({
+        data: {
+          amount: cost * BigInt(5),
+          includedFee: 0,
+          type: CreditTransactionType.TOP_UP,
+          userId,
+        },
+      });
+
       return prisma.job.create({
         data: {
-          onChainIdentifier: `demo-job-${agent.id}-${index}`,
           agentId: agent.id,
+          blockchainIdentifier: `demo-blockchainIdentifier-${agent.id}-${index}`,
           userId,
           status,
           input,
           output,
           startedAt,
           finishedAt,
-          cost,
-          fee,
-          paymentTxId:
-            status !== JobStatus.PAYMENT_PENDING
-              ? `0x${crypto.randomBytes(32).toString("hex")}`
-              : null,
+          creditTransactionId: creditTransaction.id,
+          agentJobId: `demo-agentJobId-${agent.id}-${index}`,
+          paymentId: `demo-paymentId-${agent.id}-${index}`,
         },
       });
     });
@@ -395,6 +410,18 @@ async function main() {
     await seedAgents();
     await seedJobs(userId);
   }
+
+  await prisma.creditCost.create({
+    data: {
+      unit: "",
+      //1 usd = 100000000000 credits
+      //1 ada = 1000000 lovelace
+      //1 ada = 0.7 usd
+      //1 usd = 1428571 lovelace
+      //1 lovelace = 100000000000 / 1428571 credits = 700 credits
+      creditCostPerUnit: BigInt(70000),
+    },
+  });
 }
 
 main()

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import {
   defaultValues,
-  JobInputSchemaType,
+  JobInputsDataSchemaType,
   jobInputsFormSchema,
   JobInputsFormSchemaType,
 } from "@/lib/job-input";
@@ -17,19 +17,20 @@ import JobInput from "./job-input";
 
 interface JobInputsFormProps {
   credits: number;
-  jobInputSchemas: JobInputSchemaType[];
+  jobInputsDataSchema: JobInputsDataSchemaType;
   className?: string | undefined;
 }
 
 export default function JobInputsForm({
   credits,
-  jobInputSchemas,
+  jobInputsDataSchema,
   className,
 }: JobInputsFormProps) {
+  const { input_data } = jobInputsDataSchema;
   const t = useTranslations("Library.JobInput.Form");
   const form = useForm<JobInputsFormSchemaType>({
-    resolver: zodResolver(jobInputsFormSchema(jobInputSchemas, t)),
-    defaultValues: defaultValues(jobInputSchemas),
+    resolver: zodResolver(jobInputsFormSchema(input_data, t)),
+    defaultValues: defaultValues(input_data),
   });
 
   const handleSubmit: SubmitHandler<JobInputsFormSchemaType> = (values) => {
@@ -43,7 +44,7 @@ export default function JobInputsForm({
           disabled={form.formState.isSubmitting}
           className={cn("flex flex-1 flex-col gap-6", className)}
         >
-          {jobInputSchemas.map((jobInputSchema) => (
+          {input_data.map((jobInputSchema) => (
             <JobInput
               key={jobInputSchema.id}
               form={form}
