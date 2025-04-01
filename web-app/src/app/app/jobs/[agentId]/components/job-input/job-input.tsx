@@ -70,7 +70,7 @@ function InputField({ field, jobInputSchema }: InputFieldProps) {
         placeholder={data?.placeholder}
         type="number"
         {...field}
-        value={typeof field.value === "string" ? field.value : "0"}
+        value={Number(field.value).toString()}
       />
     );
 
