@@ -45,6 +45,10 @@ jobs:
   deploy-job-sync-function:
     name: Deploy Job Sync Function
     runs-on: ubuntu-latest
+    env:
+      SOKOSUMI_API_URL: ${{ vars.SOKOSUMI_API_URL }}
+      ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
+      SOKOSUMI_FUNCTION_NAMESPACE: ${{ vars.SOKOSUMI_FUNCTION_NAMESPACE }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -52,10 +56,10 @@ jobs:
         uses: digitalocean/action-doctl@v2
         with:
           token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-        env:
-          SOKOSUMI_API_URL: ${{ vars.SOKOSUMI_API_URL }}
-          ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
-          SOKOSUMI_FUNCTION_NAMESPACE: ${{ vars.SOKOSUMI_FUNCTION_NAMESPACE }}
+      - name: echo4
+        run: echo 4 ${{ vars.SOKOSUMI_API_URL }}
+      - name: echo5
+        run: echo 5 ${{ secrets.ADMIN_KEY }}
       - name: install dependencies
         run: cd job-cron-caller && npm i
       - name: build
