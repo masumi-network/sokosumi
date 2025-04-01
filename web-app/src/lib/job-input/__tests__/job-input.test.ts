@@ -149,7 +149,7 @@ describe("jobInputSchema", () => {
     it("should accept boolean input with optional validation", () => {
       const result = jobInputSchema(mockT).safeParse({
         ...validBooleanInput,
-        validations: [{ validation: "optional" }],
+        validations: [{ validation: "optional", value: "true" }],
       });
       expect(result.success).toBe(true);
     });
@@ -215,7 +215,7 @@ describe("jobInputSchema", () => {
         validations: [
           { validation: "min", value: "2" },
           { validation: "max", value: "4" },
-          { validation: "optional" },
+          { validation: "optional", value: "true" },
         ],
       });
       expect(result.success).toBe(true);
@@ -225,6 +225,28 @@ describe("jobInputSchema", () => {
       const result = jobInputSchema(mockT).safeParse({
         ...validOptionInput,
         validations: [{ validation: "format", value: "url" }],
+      });
+      expect(result.success).toBe(false);
+    });
+    it("should fail with invalid optional", () => {
+      const result = jobInputSchema(mockT).safeParse({
+        ...validOptionInput,
+        validations: [
+          { validation: "min", value: "2" },
+          { validation: "max", value: "4" },
+          { validation: "optional", value: "" },
+        ],
+      });
+      expect(result.success).toBe(false);
+    });
+    it("should fail with invalid optional", () => {
+      const result = jobInputSchema(mockT).safeParse({
+        ...validOptionInput,
+        validations: [
+          { validation: "min", value: "2" },
+          { validation: "max", value: "4" },
+          { validation: "optional" },
+        ],
       });
       expect(result.success).toBe(false);
     });

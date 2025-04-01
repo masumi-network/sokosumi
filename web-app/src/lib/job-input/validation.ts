@@ -49,14 +49,12 @@ const formatIntegerValidationValueSchema = (
 const optionalValidationValueSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
-  z
-    .enum(["true", "false"] as const, {
-      message: t?.("Validations.Value.enum", {
-        options: ["true", "false"].join(", "),
-        validation: "optional",
-      }),
-    })
-    .optional();
+  z.enum(["true", "false"] as const, {
+    message: t?.("Validations.Value.enum", {
+      options: ["true", "false"].join(", "),
+      validation: "optional",
+    }),
+  });
 
 export const optionalValidationSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
