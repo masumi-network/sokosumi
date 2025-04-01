@@ -194,8 +194,12 @@ describe("jobInputSchema", () => {
 
     it("should accept boolean input with optional validation", () => {
       const result = jobInputSchema(mockT).safeParse({
-        ...validBooleanInput,
-        validations: [{ validation: "optional", value: "true" }],
+        input_data: [
+          {
+            ...validBooleanInput,
+            validations: [{ validation: "optional", value: "true" }],
+          },
+        ],
       });
       expect(result.success).toBe(true);
     });
@@ -275,13 +279,18 @@ describe("jobInputSchema", () => {
 
     it("should succeed with valid validations", () => {
       const result = jobInputSchema(mockT).safeParse({
-        ...validOptionInput,
-        validations: [
-          { validation: "min", value: "2" },
-          { validation: "max", value: "4" },
-          { validation: "optional", value: "true" },
+        input_data: [
+          {
+            ...validOptionInput,
+            validations: [
+              { validation: "min", value: "2" },
+              { validation: "max", value: "4" },
+              { validation: "optional", value: "true" },
+            ],
+          },
         ],
       });
+      console.log(result.error);
       expect(result.success).toBe(true);
     });
 
