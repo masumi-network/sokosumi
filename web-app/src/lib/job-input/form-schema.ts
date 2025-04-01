@@ -21,10 +21,14 @@ export const makeZodSchemaFromJobInputSchema = (
   switch (jobInputSchema.type) {
     case ValidJobInputTypes.STRING:
       return makeZodSchemaFromJobInputStringSchema(jobInputSchema, t);
-    case ValidJobInputTypes.BOOLEAN:
-      return makeZodSchemaFromJobInputBooleanSchema(jobInputSchema, t);
     case ValidJobInputTypes.NUMBER:
       return makeZodSchemaFromJobInputNumberSchema(jobInputSchema, t);
+    case ValidJobInputTypes.BOOLEAN:
+      return makeZodSchemaFromJobInputBooleanSchema(jobInputSchema, t);
+    case ValidJobInputTypes.OPTION:
+      return z.never().optional();
+    case ValidJobInputTypes.NONE:
+      return z.never().optional();
   }
 };
 
@@ -79,20 +83,6 @@ const makeZodSchemaFromJobInputStringSchema = (
   return canBeOptional ? allowEmptyString(schema) : schema;
 };
 
-// For Boolean Schema we can ignore validations
-// because validations are only Required
-// for UI, we will set default to `false`
-// so undefined is not the case
-const makeZodSchemaFromJobInputBooleanSchema = (
-  jobInputSchema: JobInputBooleanSchemaType,
-  t?: IntlTranslation<JobInputFormIntlPath>,
-) => {
-  const { name } = jobInputSchema;
-  return z.boolean({
-    message: t?.("Boolean.required", { name }),
-  });
-};
-
 const makeZodSchemaFromJobInputNumberSchema = (
   jobInputNumberSchema: JobInputNumberSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
@@ -138,4 +128,18 @@ const makeZodSchemaFromJobInputNumberSchema = (
   );
 
   return canBeOptional ? allowEmptyString(schema) : schema;
+};
+
+// For Boolean Schema we can ignore validations
+// because validations are only Required
+// for UI, we will set default to `false`
+// so undefined is not the case
+const makeZodSchemaFromJobInputBooleanSchema = (
+  jobInputSchema: JobInputBooleanSchemaType,
+  t?: IntlTranslation<JobInputFormIntlPath>,
+) => {
+  const { name } = jobInputSchema;
+  return z.boolean({
+    message: t?.("Boolean.required", { name }),
+  });
 };

@@ -7,6 +7,14 @@ import {
 
 export const dummyInputData: JobInputSchemaType[] = [
   {
+    id: "text",
+    name: "Hello Text",
+    type: ValidJobInputTypes.NONE,
+    data: {
+      description: "Please Input fields to start job",
+    },
+  },
+  {
     id: "reference-company",
     name: "Reference Company",
     type: ValidJobInputTypes.STRING,
@@ -15,10 +23,6 @@ export const dummyInputData: JobInputSchemaType[] = [
       description: "Which company should serve as basis",
     },
     validations: [
-      {
-        validation: ValidJobInputValidationTypes.OPTIONAL,
-        value: "true",
-      },
       {
         validation: ValidJobInputValidationTypes.MIN,
         value: 5,
@@ -34,10 +38,6 @@ export const dummyInputData: JobInputSchemaType[] = [
       description: "Which company should serve as target",
     },
     validations: [
-      {
-        validation: ValidJobInputValidationTypes.OPTIONAL,
-        value: "true",
-      },
       {
         validation: ValidJobInputValidationTypes.MIN,
         value: 5,
@@ -64,6 +64,10 @@ export const dummyInputData: JobInputSchemaType[] = [
       {
         validation: ValidJobInputValidationTypes.FORMAT,
         value: ValidJobInputFormatValues.INTEGER,
+      },
+      {
+        validation: ValidJobInputValidationTypes.OPTIONAL,
+        value: "true",
       },
     ],
   },

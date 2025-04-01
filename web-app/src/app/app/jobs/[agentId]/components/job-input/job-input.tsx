@@ -80,4 +80,8 @@ function InputField({ field, jobInputSchema }: InputFieldProps) {
         disabled={field.disabled}
       />
     );
+
+  if (type === ValidJobInputTypes.OPTION) return null;
+
+  if (type === ValidJobInputTypes.NONE) return null;
 }
