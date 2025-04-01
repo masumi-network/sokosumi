@@ -9,7 +9,7 @@ describe("jobInputSchema", () => {
   describe("String input type", () => {
     const validStringInput = {
       id: "test-id",
-      type: ValidJobInputTypes.String,
+      type: ValidJobInputTypes.STRING,
       name: "Test String Input",
       data: {
         placeholder: "Enter text",
@@ -80,7 +80,7 @@ describe("jobInputSchema", () => {
   describe("Number input type", () => {
     const validNumberInput = {
       id: "number-id",
-      type: ValidJobInputTypes.Number,
+      type: ValidJobInputTypes.NUMBER,
       name: "Test Number Input",
       data: {
         placeholder: "Enter number",
@@ -126,7 +126,7 @@ describe("jobInputSchema", () => {
   describe("Boolean input type", () => {
     const validBooleanInput = {
       id: "boolean-id",
-      type: ValidJobInputTypes.Boolean,
+      type: ValidJobInputTypes.BOOLEAN,
       name: "Test Boolean Input",
       data: {
         description: "Test boolean description",
@@ -166,7 +166,7 @@ describe("jobInputSchema", () => {
   describe("Option input type", () => {
     const validOptionInput = {
       id: "option-id",
-      type: ValidJobInputTypes.Option,
+      type: ValidJobInputTypes.OPTION,
       name: "Test Option Input",
       data: {
         values: ["option1", "option2", "option3"],
@@ -255,7 +255,7 @@ describe("jobInputSchema", () => {
   describe("None input type", () => {
     const validNoneInput = {
       id: "none-id",
-      type: ValidJobInputTypes.None,
+      type: ValidJobInputTypes.NONE,
       name: "Test None Input",
       data: {
         description: "Test none description",
