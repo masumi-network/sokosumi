@@ -9,7 +9,7 @@ describe("jobInputSchema", () => {
   describe("String input type", () => {
     const validStringInput = {
       id: "test-id",
-      type: ValidJobInputTypes.String,
+      type: ValidJobInputTypes.STRING,
       name: "Test String Input",
       data: {
         placeholder: "Enter text",
@@ -106,7 +106,7 @@ describe("jobInputSchema", () => {
   describe("Number input type", () => {
     const validNumberInput = {
       id: "number-id",
-      type: ValidJobInputTypes.Number,
+      type: ValidJobInputTypes.NUMBER,
       name: "Test Number Input",
       data: {
         placeholder: "Enter number",
@@ -166,7 +166,7 @@ describe("jobInputSchema", () => {
   describe("Boolean input type", () => {
     const validBooleanInput = {
       id: "boolean-id",
-      type: ValidJobInputTypes.Boolean,
+      type: ValidJobInputTypes.BOOLEAN,
       name: "Test Boolean Input",
       data: {
         description: "Test boolean description",
@@ -192,14 +192,10 @@ describe("jobInputSchema", () => {
       expect(result.success).toBe(true);
     });
 
-    it("should accept boolean input with required validation", () => {
+    it("should accept boolean input with optional validation", () => {
       const result = jobInputSchema(mockT).safeParse({
-        input_data: [
-          {
-            ...validBooleanInput,
-            validations: [{ validation: "required" }],
-          },
-        ],
+        ...validBooleanInput,
+        validations: [{ validation: "optional", value: "true" }],
       });
       expect(result.success).toBe(true);
     });
@@ -220,7 +216,7 @@ describe("jobInputSchema", () => {
   describe("Option input type", () => {
     const validOptionInput = {
       id: "option-id",
-      type: ValidJobInputTypes.Option,
+      type: ValidJobInputTypes.OPTION,
       name: "Test Option Input",
       data: {
         values: ["option1", "option2", "option3"],
@@ -279,15 +275,11 @@ describe("jobInputSchema", () => {
 
     it("should succeed with valid validations", () => {
       const result = jobInputSchema(mockT).safeParse({
-        input_data: [
-          {
-            ...validOptionInput,
-            validations: [
-              { validation: "required", value: "false" },
-              { validation: "min", value: "2" },
-              { validation: "max", value: "4" },
-            ],
-          },
+        ...validOptionInput,
+        validations: [
+          { validation: "min", value: "2" },
+          { validation: "max", value: "4" },
+          { validation: "optional", value: "true" },
         ],
       });
       expect(result.success).toBe(true);
@@ -304,12 +296,34 @@ describe("jobInputSchema", () => {
       });
       expect(result.success).toBe(false);
     });
+    it("should fail with invalid optional", () => {
+      const result = jobInputSchema(mockT).safeParse({
+        ...validOptionInput,
+        validations: [
+          { validation: "min", value: "2" },
+          { validation: "max", value: "4" },
+          { validation: "optional", value: "" },
+        ],
+      });
+      expect(result.success).toBe(false);
+    });
+    it("should fail with invalid optional", () => {
+      const result = jobInputSchema(mockT).safeParse({
+        ...validOptionInput,
+        validations: [
+          { validation: "min", value: "2" },
+          { validation: "max", value: "4" },
+          { validation: "optional" },
+        ],
+      });
+      expect(result.success).toBe(false);
+    });
   });
 
   describe("None input type", () => {
     const validNoneInput = {
       id: "none-id",
-      type: ValidJobInputTypes.None,
+      type: ValidJobInputTypes.NONE,
       name: "Test None Input",
       data: {
         description: "Test none description",

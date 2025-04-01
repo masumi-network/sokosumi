@@ -1,22 +1,22 @@
 export enum ValidJobInputTypes {
-  String = "string",
-  Number = "number",
-  Boolean = "boolean",
-  Option = "option",
-  None = "none",
+  STRING = "string",
+  NUMBER = "number",
+  BOOLEAN = "boolean",
+  OPTION = "option",
+  NONE = "none",
 }
 export enum ValidJobInputValidationTypes {
-  Min = "min",
-  Max = "max",
-  Format = "format",
-  Required = "required",
+  MIN = "min",
+  MAX = "max",
+  FORMAT = "format",
+  OPTIONAL = "optional",
 }
 
 export enum ValidJobInputFormatValues {
-  Url = "url",
-  Email = "email",
-  Integer = "integer",
-  Nonempty = "nonempty",
+  URL = "url",
+  EMAIL = "email",
+  INTEGER = "integer",
+  NON_EMPTY = "nonempty",
 }
 
 type JobInputType = ValidJobInputTypes;
