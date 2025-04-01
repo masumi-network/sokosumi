@@ -1,0 +1,16 @@
+{
+  "name": "registry-cron-caller",
+  "version": "1.0.0",
+  "description": "DigitalOcean Function to call an API on a schedule",
+  "main": "packages/registry-sync/main/main.js",
+  "scripts": {
+    "build": "tsc",
+    "deploy": "doctl serverless deploy ."
+  },
+  "dependencies": {
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.19",
+    "typescript": "^5.3.3"
+  }
+} 
