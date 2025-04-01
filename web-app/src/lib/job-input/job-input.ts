@@ -83,8 +83,7 @@ export const jobInputNumberSchema = (
         optionalValidationSchema(t)
           .or(minValidationSchema(t))
           .or(maxValidationSchema(t))
-          .or(formatIntegerValidationSchema(t))
-          .or(formatNonEmptyValidationSchema(t)),
+          .or(formatIntegerValidationSchema(t)),
       )
       .optional(),
   });

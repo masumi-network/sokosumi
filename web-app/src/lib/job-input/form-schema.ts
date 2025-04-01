@@ -123,10 +123,6 @@ const makeZodSchemaFromJobInputNumberSchema = (
               return acc.int({
                 message: t?.("Number.format", { name, value }),
               });
-            case ValidJobInputFormatValues.NON_EMPTY:
-              return acc.min(1, {
-                message: t?.("Number.format", { name, value }),
-              });
             default:
               return acc;
           }

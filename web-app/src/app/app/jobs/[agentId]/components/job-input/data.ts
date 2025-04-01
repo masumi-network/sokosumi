@@ -1,5 +1,6 @@
 import {
   JobInputSchemaType,
+  ValidJobInputFormatValues,
   ValidJobInputTypes,
   ValidJobInputValidationTypes,
 } from "@/lib/job-input";
@@ -53,16 +54,16 @@ export const dummyInputData: JobInputSchemaType[] = [
     },
     validations: [
       {
-        validation: ValidJobInputValidationTypes.OPTIONAL,
-        value: "true",
-      },
-      {
         validation: ValidJobInputValidationTypes.MIN,
         value: 60,
       },
       {
         validation: ValidJobInputValidationTypes.MAX,
         value: 3600,
+      },
+      {
+        validation: ValidJobInputValidationTypes.FORMAT,
+        value: ValidJobInputFormatValues.INTEGER,
       },
     ],
   },

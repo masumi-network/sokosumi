@@ -594,7 +594,8 @@
         "Number": {
           "required": "{name} is required",
           "min": "{name} must be at least {value}",
-          "max": "{name} must be at most {value}"
+          "max": "{name} must be at most {value}",
+          "format": "{name} must be a {value}"
         }
       }
     }
