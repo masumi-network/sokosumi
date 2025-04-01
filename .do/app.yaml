@@ -47,32 +47,3 @@ services:
     repo: masumi-network/sokosumi
   name: sokosumi-web-app
   source_dir: web-app
-
-functions:
-  - name: job-sync
-    source_dir: job-cron-caller
-    runtime: nodejs:18
-    web: true
-    web_secure: false
-    environment:
-      ADMIN_KEY: ${ADMIN_KEY}
-      API_URL: ${SOKOSUMI_API_URL}
-    triggers:
-      - type: scheduler
-        cron: "* * * * *"
-        body:
-          name: "job-sync"
-
-  - name: registry-sync
-    source_dir: registry-cron-caller
-    runtime: nodejs:18
-    web: true
-    web_secure: false
-    environment:
-      ADMIN_KEY: ${ADMIN_KEY}
-      API_URL: ${SOKOSUMI_API_URL}
-    triggers:
-      - type: scheduler
-        cron: "* * * * *"
-        body:
-          name: "job-sync"
