@@ -18,16 +18,16 @@ const startJobSchema = z.object({
   job_id: z.string(),
   sellerVkey: z.string(),
   blockchainIdentifier: z.string(),
-  submitResultTime: z.string(),
-  unlockTime: z.string(),
-  externalDisputeUnlockTime: z.string(),
+  submitResultTime: z.number({ coerce: true }).int(),
+  unlockTime: z.number({ coerce: true }).int(),
+  externalDisputeUnlockTime: z.number({ coerce: true }).int(),
 });
 
 export async function startJob(
   userId: string,
   agentId: string,
   maxAcceptedCreditCost: bigint,
-  inputData: Map<string, string | number | number[]>,
+  inputData: Map<string, string | number | boolean | number[]>,
 ) {
   const agent = await getAgentById(agentId);
 
@@ -64,9 +64,7 @@ export async function startJob(
       .replace(/-/g, "")
       .substring(0, 25);
 
-    const inputHash = calculatedInputHash(
-      JSON.stringify({ input_data: Object.fromEntries(inputData) }),
-    );
+    const inputHash = calculatedInputHash(inputData, identifierFromPurchaser);
 
     const result = await fetch(startJobUrl, {
       method: "POST",
@@ -79,6 +77,7 @@ export async function startJob(
       }),
     });
     if (!result.ok) {
+      console.log("result", await result.json());
       throw new Error("Failed to start job");
     }
     const startJobResponseData = startJobSchema.safeParse(await result.json());
@@ -103,9 +102,10 @@ export async function startJob(
         sellerVkey: startJobResponse.sellerVkey,
         paymentType: "Web3CardanoV1",
         identifierFromPurchaser,
-        externalDisputeUnlockTime: startJobResponse.externalDisputeUnlockTime,
-        submitResultTime: startJobResponse.submitResultTime,
-        unlockTime: startJobResponse.unlockTime,
+        externalDisputeUnlockTime:
+          startJobResponse.externalDisputeUnlockTime.toString(),
+        submitResultTime: startJobResponse.submitResultTime.toString(),
+        unlockTime: startJobResponse.unlockTime.toString(),
         metadata: JSON.stringify({
           inputData,
           jobId: startJobResponse.job_id,
@@ -135,9 +135,11 @@ export async function startJob(
         paymentId: purchaseResponse.data.id,
         input: JSON.stringify(inputData),
         identifierFromPurchaser,
-        externalDisputeUnlockTime: startJobResponse.externalDisputeUnlockTime,
-        submitResultTime: startJobResponse.submitResultTime,
-        unlockTime: startJobResponse.unlockTime,
+        externalDisputeUnlockTime: new Date(
+          startJobResponse.externalDisputeUnlockTime,
+        ),
+        submitResultTime: new Date(startJobResponse.submitResultTime),
+        unlockTime: new Date(startJobResponse.unlockTime),
         blockchainIdentifier: startJobResponse.blockchainIdentifier,
         sellerVkey: startJobResponse.sellerVkey,
         user: {

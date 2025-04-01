@@ -50,7 +50,7 @@ async function syncAllJobs() {
 
   const jobs = await prisma.job.findMany({
     where: {
-      status: "PROCESSING",
+      status: "PAYMENT_PENDING",
     },
   });
 
