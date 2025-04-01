@@ -46,28 +46,28 @@ const formatIntegerValidationValueSchema = (
     }),
   });
 
-const requiredValidationValueSchema = (
+const optionalValidationValueSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
   z
     .enum(["true", "false"] as const, {
       message: t?.("Validations.Value.enum", {
         options: ["true", "false"].join(", "),
-        validation: "required",
+        validation: "optional",
       }),
     })
     .optional();
 
-export const requiredValidationSchema = (
+export const optionalValidationSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
   z.object({
-    validation: z.enum([ValidJobInputValidationTypes.Required], {
+    validation: z.enum([ValidJobInputValidationTypes.Optional], {
       message: t?.("Validations.Validation.enum", {
         options: Object.values(ValidJobInputValidationTypes).join(", "),
       }),
     }),
-    value: requiredValidationValueSchema(t),
+    value: optionalValidationValueSchema(t),
   });
 
 export const minValidationSchema = (

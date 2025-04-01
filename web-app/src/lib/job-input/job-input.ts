@@ -8,7 +8,7 @@ import {
   formatUrlValidationSchema,
   maxValidationSchema,
   minValidationSchema,
-  requiredValidationSchema,
+  optionalValidationSchema,
 } from "./validation";
 
 export const jobInputSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) =>
@@ -43,7 +43,7 @@ export const jobInputStringSchema = (
       .optional(),
     validations: z
       .array(
-        requiredValidationSchema(t)
+        optionalValidationSchema(t)
           .or(minValidationSchema(t))
           .or(maxValidationSchema(t))
           .or(formatNonEmptyValidationSchema(t))
@@ -76,7 +76,7 @@ export const jobInputNumberSchema = (
       .optional(),
     validations: z
       .array(
-        requiredValidationSchema(t)
+        optionalValidationSchema(t)
           .or(minValidationSchema(t))
           .or(maxValidationSchema(t))
           .or(formatIntegerValidationSchema(t))
@@ -106,7 +106,7 @@ export const jobInputBooleanSchema = (
         description: z.string().optional(),
       })
       .optional(),
-    validations: z.array(requiredValidationSchema(t)).optional(),
+    validations: z.array(optionalValidationSchema(t)).optional(),
   });
 
 export const jobInputOptionSchema = (
@@ -137,7 +137,7 @@ export const jobInputOptionSchema = (
     }),
     validations: z
       .array(
-        requiredValidationSchema(t)
+        optionalValidationSchema(t)
           .or(minValidationSchema(t))
           .or(maxValidationSchema(t)),
       )

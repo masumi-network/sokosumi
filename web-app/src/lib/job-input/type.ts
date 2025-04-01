@@ -9,7 +9,7 @@ export enum ValidJobInputValidationTypes {
   Min = "min",
   Max = "max",
   Format = "format",
-  Required = "required",
+  Optional = "optional",
 }
 
 export enum ValidJobInputFormatValues {
