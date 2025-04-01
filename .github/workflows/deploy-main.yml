@@ -45,6 +45,7 @@ jobs:
   deploy-job-sync-function:
     name: Deploy Job Sync Function
     runs-on: ubuntu-latest
+    environment: development
     env:
       SOKOSUMI_API_URL: ${{ vars.SOKOSUMI_API_URL }}
       ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
