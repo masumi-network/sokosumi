@@ -35,15 +35,15 @@ export const defaultValues = (jobInputSchemas: JobInputSchemaType[]) => {
 const getDefaultValue = (jobInputSchema: JobInputSchemaType) => {
   const { type } = jobInputSchema;
   switch (type) {
-    case ValidJobInputTypes.String:
+    case ValidJobInputTypes.STRING:
       return "";
-    case ValidJobInputTypes.Boolean:
+    case ValidJobInputTypes.BOOLEAN:
       return "";
-    case ValidJobInputTypes.Number:
+    case ValidJobInputTypes.NUMBER:
       return "0";
-    case ValidJobInputTypes.Option:
+    case ValidJobInputTypes.OPTION:
       return "";
-    case ValidJobInputTypes.None:
+    case ValidJobInputTypes.NONE:
       return "";
   }
 };

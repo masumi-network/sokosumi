@@ -52,7 +52,7 @@ interface InputFieldProps {
 function InputField({ field, jobInputSchema }: InputFieldProps) {
   const { type, data } = jobInputSchema;
 
-  if (type === ValidJobInputTypes.String)
+  if (type === ValidJobInputTypes.STRING)
     return (
       <Input
         placeholder={data?.placeholder}
@@ -62,7 +62,7 @@ function InputField({ field, jobInputSchema }: InputFieldProps) {
       />
     );
 
-  if (type === ValidJobInputTypes.Boolean)
+  if (type === ValidJobInputTypes.BOOLEAN)
     return (
       <Switch
         checked={typeof field.value === "boolean" ? field.value : false}
