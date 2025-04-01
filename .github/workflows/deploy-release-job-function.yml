@@ -1,0 +1,44 @@
+name: Release Job Function Deployment
+
+on:
+  release:
+    types: [released]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-function:
+    name: Deploy Function
+    runs-on: ubuntu-latest
+    environment: production
+    defaults:
+      run:
+        working-directory: ./job-cron-caller
+    env:
+      SOKOSUMI_API_URL: ${{ vars.SOKOSUMI_API_URL }}
+      ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
+      SOKOSUMI_FUNCTION_NAMESPACE: ${{ vars.SOKOSUMI_FUNCTION_NAMESPACE }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install doctl
+        uses: digitalocean/action-doctl@v2
+        with:
+          token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Install serverless
+        run: doctl serverless install
+
+      - name: Configure serverless connect
+        run: doctl serverless connect ${{ env.SOKOSUMI_FUNCTION_NAMESPACE }}
+
+      - name: Deploy
+        run: npm run deploy

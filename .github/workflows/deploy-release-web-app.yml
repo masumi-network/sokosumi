@@ -1,10 +1,8 @@
-name: Main Web-App Deployment
+name: Release Web-App Deployment
 
 on:
-  workflow_dispatch:
-  push:
-    branches: [main]
-    paths: ['web-app/**']
+  release:
+    types: [released]
 
 permissions:
   contents: read
@@ -13,16 +11,16 @@ jobs:
   deploy-app:
     name: Deploy App
     runs-on: ubuntu-latest
-    environment: development
+    environment: production
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Deploy the app
         uses: digitalocean/app_action/deploy@v2
         env:
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           RESEND_FROM_EMAIL: ${{ vars.RESEND_FROM_EMAIL }}
-          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
           BETTER_AUTH_URL: ${{ vars.BETTER_AUTH_URL }}
           GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
@@ -30,8 +28,6 @@ jobs:
           MICROSOFT_CLIENT_SECRET: ${{ secrets.MICROSOFT_CLIENT_SECRET }}
           APPLE_CLIENT_ID: ${{ vars.APPLE_CLIENT_ID }}
           APPLE_CLIENT_SECRET: ${{ secrets.APPLE_CLIENT_SECRET }}
-          LINKEDIN_CLIENT_ID: ${{ vars.LINKEDIN_CLIENT_ID }}
-          LINKEDIN_CLIENT_SECRET: ${{ secrets.LINKEDIN_CLIENT_SECRET }}
           ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
           NEXT_PUBLIC_NETWORK: ${{ vars.NEXT_PUBLIC_NETWORK }}
           REGISTRY_API_KEY: ${{ secrets.REGISTRY_API_KEY }}
