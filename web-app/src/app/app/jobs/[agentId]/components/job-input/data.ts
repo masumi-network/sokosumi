@@ -68,6 +68,12 @@ export const dummyInputData: JobInputSchemaType[] = [
       placeholder: "Select Categories",
       description: "Select Categories",
     },
+    validations: [
+      {
+        validation: ValidJobInputValidationTypes.MAX,
+        value: 3,
+      },
+    ],
   },
   {
     id: "period",
