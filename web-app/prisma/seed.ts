@@ -392,8 +392,8 @@ const seedJobs = async (userId: string) => {
           startedAt,
           finishedAt,
           creditTransactionId: creditTransaction.id,
-          agentJobId: `demo-job-${index}`,
-          paymentId: `demo-payment-${index}`,
+          agentJobId: `demo-job-${agent.id}-${index}`,
+          paymentId: `demo-payment-${agent.id}-${index}`,
         },
       });
     });

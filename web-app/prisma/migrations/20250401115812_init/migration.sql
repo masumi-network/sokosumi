@@ -444,6 +444,9 @@ CREATE UNIQUE INDEX "CreditTransaction_fiatPaymentId_key" ON "CreditTransaction"
 CREATE UNIQUE INDEX "FiatPayment_servicePaymentId_key" ON "FiatPayment"("servicePaymentId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Job_agentJobId_key" ON "Job"("agentJobId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Job_refundCreditTransactionId_key" ON "Job"("refundCreditTransactionId");
 
 -- CreateIndex
