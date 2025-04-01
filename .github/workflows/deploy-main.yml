@@ -57,12 +57,6 @@ jobs:
         uses: digitalocean/action-doctl@v2
         with:
           token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-      - name: echo3
-        run: echo 3 ${{ env.ADMIN_KEY }}
-      - name: echo4
-        run: echo 4 ${{ env.SOKOSUMI_API_URL }}
-      - name: echo5
-        run: echo 5 ${{ env.SOKOSUMI_FUNCTION_NAMESPACE }}
       - name: install dependencies
         run: cd job-cron-caller && npm i
       - name: build
@@ -71,9 +65,5 @@ jobs:
         run: doctl serverless install
       - name: Configure serverless connect
         run: doctl serverless connect ${{ env.SOKOSUMI_FUNCTION_NAMESPACE }}
-      - name: Create .env file
-        run: |
-          echo "SOKOSUMI_API_URL=${{ env.SOKOSUMI_API_URL }}" > job-cron-caller/.env
-          echo "ADMIN_KEY=${{ env.ADMIN_KEY }}" >> job-cron-caller/.env
       - name: deploy
         run: cd job-cron-caller && npm run deploy
