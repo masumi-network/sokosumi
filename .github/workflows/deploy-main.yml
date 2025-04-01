@@ -46,6 +46,7 @@ jobs:
     name: Deploy Job Sync Function
     runs-on: ubuntu-latest
     environment: development
+    needs: [deploy-web-app]
     env:
       SOKOSUMI_API_URL: ${{ vars.SOKOSUMI_API_URL }}
       ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
@@ -72,6 +73,7 @@ jobs:
     name: Deploy Registry Sync Function
     runs-on: ubuntu-latest
     environment: development
+    needs: [deploy-job-sync-function]
     env:
       SOKOSUMI_API_URL: ${{ vars.SOKOSUMI_API_URL }}
       ADMIN_KEY: ${{ secrets.ADMIN_KEY }}

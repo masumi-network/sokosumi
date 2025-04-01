@@ -43,6 +43,7 @@ jobs:
   deploy-job-sync-function:
     name: Deploy Job Sync Function
     runs-on: ubuntu-latest
+    needs: [deploy-web-app]
     environment: production
     env:
       SOKOSUMI_API_URL: ${{ vars.SOKOSUMI_API_URL }}
@@ -68,6 +69,7 @@ jobs:
 
   deploy-registry-sync-function:
     name: Deploy Registry Sync Function
+    needs: [deploy-job-sync-function]
     runs-on: ubuntu-latest
     environment: production
     env:
