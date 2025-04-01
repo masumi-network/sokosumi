@@ -108,7 +108,6 @@ describe("jobInputSchema", () => {
           { validation: "min", value: "0" },
           { validation: "max", value: "100" },
           { validation: "format", value: "integer" },
-          { validation: "format", value: "nonempty" },
         ],
       });
       expect(result.success).toBe(true);
