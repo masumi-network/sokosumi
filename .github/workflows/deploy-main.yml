@@ -45,6 +45,7 @@ jobs:
   deploy-job-sync-function:
     name: Deploy Job Sync Function
     runs-on: ubuntu-latest
+    environment: development
     env:
       SOKOSUMI_API_URL: ${{ vars.SOKOSUMI_API_URL }}
       ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
@@ -56,29 +57,13 @@ jobs:
         uses: digitalocean/action-doctl@v2
         with:
           token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
-      - name: echo4
-        run: echo 4 ${{ vars.SOKOSUMI_API_URL }}
-      - name: echo5
-        run: echo 5 ${{ secrets.ADMIN_KEY }}
       - name: install dependencies
         run: cd job-cron-caller && npm i
       - name: build
         run: cd job-cron-caller && npm run build
       - name: Install serverless
         run: doctl serverless install
-      - name: echo1
-        run: echo 1 $SOKOSUMI_FUNCTION_NAMESPACE
-      - name: echo2
-        run: echo 2 $SOKOSUMI_API_URL
-      - name: echo3
-        run: echo 3 ${SOKOSUMI_API_URL}
-      - name: echo4
-        run: echo 4 ${{ vars.SOKOSUMI_API_URL }}
       - name: Configure serverless connect
-        run: doctl serverless connect ${{ vars.SOKOSUMI_FUNCTION_NAMESPACE }}
-      - name: Create .env file
-        run: |
-          echo "SOKOSUMI_API_URL=${{ vars.SOKOSUMI_API_URL }}" > job-cron-caller/.env
-          echo "ADMIN_KEY=${{ secrets.ADMIN_KEY }}" >> job-cron-caller/.env
+        run: doctl serverless connect ${{ env.SOKOSUMI_FUNCTION_NAMESPACE }}
       - name: deploy
         run: cd job-cron-caller && npm run deploy
