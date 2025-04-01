@@ -384,7 +384,6 @@ const seedJobs = async (userId: string) => {
 
       return prisma.job.create({
         data: {
-          blockchainIdentifier: `demo-job-${index}`,
           agentId: agent.id,
           blockchainIdentifier: `demo-blockchainIdentifier-${agent.id}-${index}`,
           userId,
