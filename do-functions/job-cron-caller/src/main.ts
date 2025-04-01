@@ -1,16 +1,15 @@
-
-
+/* eslint-disable no-restricted-properties */
 interface FunctionResponse {
   statusCode: number;
   body: {
     message?: string;
     timestamp?: string;
-    response?: any;
+    response?: unknown;
     error?: string;
   };
 }
 
-export async function main(args: any): Promise<FunctionResponse> {
+export async function main(_args: unknown): Promise<FunctionResponse> {
   try {
     // Get API endpoint from environment variable
     const apiUrlString = process.env.API_URL;
@@ -18,24 +17,22 @@ export async function main(args: any): Promise<FunctionResponse> {
     if (!apiUrlString) {
       return {
         statusCode: 500,
-        body: { error: 'API_URL environment variable not set' }
+        body: { error: "API_URL environment variable not set" },
       };
     }
     const apiUrl = new URL(apiUrlString);
-    
+
     // Make the API call
-    const response = await fetch(apiUrl,
-      {
-        method: 'POST',
-        headers: {
-        'admin-api-key': `${adminKey}`
-      }
-    }
-    );
-    if(!response.ok){
+    const response = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "admin-api-key": `${adminKey}`,
+      },
+    });
+    if (!response.ok) {
       return {
         statusCode: 500,
-        body: { error: `API call failed: ${response.statusText}` }
+        body: { error: `API call failed: ${response.statusText}` },
       };
     }
     const data = await response.json();
@@ -43,16 +40,17 @@ export async function main(args: any): Promise<FunctionResponse> {
     return {
       statusCode: 200,
       body: {
-        message: 'API call successful',
+        message: "API call successful",
         timestamp: new Date().toISOString(),
-        response: data
-      }
+        response: data,
+      },
     };
-
   } catch (error) {
     return {
       statusCode: 500,
-      body: { error: `Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}` }
+      body: {
+        error: `Unexpected error: ${error instanceof Error ? error.message : "Unknown error"}`,
+      },
     };
   }
-} 
+}

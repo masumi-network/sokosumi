@@ -1,0 +1,10 @@
+{
+  "recommendations": [
+    "bradlc.vscode-tailwindcss",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "streetsidesoftware.code-spell-checker",
+    "prisma.prisma",
+    "lokalise.i18n-ally"
+  ]
+}
