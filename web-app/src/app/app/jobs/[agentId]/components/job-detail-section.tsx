@@ -1,11 +1,12 @@
-import { AgentDTO } from "@/lib/db/dto/AgentDTO";
+import { getDescription } from "@/lib/db/extension/agent";
+import { AgentWithRelations } from "@/lib/db/services/agent.service";
 
 interface JobDetailSectionProps {
-  agent: AgentDTO;
+  agent: AgentWithRelations;
 }
 
 export default function JobDetailSection({ agent }: JobDetailSectionProps) {
-  const { description } = agent;
+  const description = getDescription(agent);
 
-  return <div>{description}</div>;
+  return <>{description && <div>{description}</div>}</>;
 }

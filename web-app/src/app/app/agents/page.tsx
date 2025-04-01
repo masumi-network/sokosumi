@@ -3,8 +3,7 @@ import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { requireAuthentication } from "@/lib/auth/utils";
-import { AgentDTO } from "@/lib/db/dto/AgentDTO";
-import { getAgents } from "@/lib/db/services/agent.service";
+import { AgentWithRelations, getAgents } from "@/lib/db/services/agent.service";
 import { getOrCreateFavoriteAgentList } from "@/lib/db/services/agentList.service";
 import { getCachedTags } from "@/lib/db/services/tag.service";
 
@@ -21,7 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function GalleryPage() {
-  const agents: AgentDTO[] = await getAgents();
+  const agents: AgentWithRelations[] = await getAgents();
   const tags: Tag[] = await getCachedTags();
   const tagNames = tags.map((tag) => tag.name);
 

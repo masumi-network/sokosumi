@@ -5,7 +5,13 @@ import { useTranslations } from "next-intl";
 import { BadgeCloud } from "@/components/agents";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AgentDTO } from "@/lib/db/dto/AgentDTO";
+import {
+  getDescription,
+  getName,
+  getResolvedImage,
+  getTags,
+} from "@/lib/db/extension/agent";
+import { AgentWithRelations } from "@/lib/db/services/agent.service";
 import { LandingRoute } from "@/types/routes";
 
 export function FeaturedAgentSkeleton() {
@@ -35,12 +41,11 @@ export function FeaturedAgentSkeleton() {
 }
 
 interface FeaturedAgentProps {
-  agent: AgentDTO;
+  agent: AgentWithRelations;
 }
 
 export function FeaturedAgent({ agent }: FeaturedAgentProps) {
   const t = useTranslations("Landing.Agents.FeaturedAgent");
-  const { id, name, description, tags, image } = agent;
 
   return (
     <div className="flex flex-col items-center gap-8 md:flex-row">
@@ -48,11 +53,13 @@ export function FeaturedAgent({ agent }: FeaturedAgentProps) {
       <div className="w-full space-y-6 md:w-1/3">
         <h2 className="text-2xl font-bold">{t("title")}</h2>
         <div className="space-y-4">
-          <h3 className="text-4xl font-bold tracking-tight">{name}</h3>
+          <h3 className="text-4xl font-bold tracking-tight">
+            {getName(agent)}
+          </h3>
         </div>
-        <p className="text-muted-foreground text-lg">{description}</p>
-        <BadgeCloud tags={tags} />
-        <Link href={`${LandingRoute.Agents}/${id}`}>
+        <p className="text-muted-foreground text-lg">{getDescription(agent)}</p>
+        <BadgeCloud tags={getTags(agent)} />
+        <Link href={`${LandingRoute.Agents}/${agent.id}`}>
           <Button size="lg" className="w-full md:w-auto">
             {t("button")}
           </Button>
@@ -62,8 +69,8 @@ export function FeaturedAgent({ agent }: FeaturedAgentProps) {
       {/* Image Section - 2/3 width */}
       <div className="relative aspect-16/9 w-full md:w-2/3">
         <Image
-          src={image}
-          alt={`${name} image`}
+          src={getResolvedImage(agent)}
+          alt={`${getName(agent)} image`}
           fill
           className="rounded-lg object-cover"
           priority

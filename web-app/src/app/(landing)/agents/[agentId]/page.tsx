@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 
 import { AgentDetails } from "@/components/agents";
-import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 import { getAgentById, getAgents } from "@/lib/db/services/agent.service";
 
 import BackToGallery from "./components/back-to-gallery";
@@ -28,10 +27,9 @@ export default async function Page({
   params: Promise<{ agentId: string }>;
 }) {
   const { agentId } = await params;
-  let agent: AgentDTO;
-  try {
-    agent = await getAgentById(agentId);
-  } catch {
+  const agent = await getAgentById(agentId);
+
+  if (!agent) {
     notFound();
   }
 

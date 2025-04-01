@@ -2,7 +2,6 @@ import { notFound } from "next/navigation";
 
 import { AgentDetails } from "@/components/agents";
 import { requireAuthentication } from "@/lib/auth/utils";
-import { AgentDTO } from "@/lib/db/dto/AgentDTO";
 import { getAgentById, getAgents } from "@/lib/db/services/agent.service";
 import { getOrCreateFavoriteAgentList } from "@/lib/db/services/agentList.service";
 
@@ -30,10 +29,8 @@ export default async function Page({
   params: Promise<{ agentId: string }>;
 }) {
   const { agentId } = await params;
-  let agent: AgentDTO;
-  try {
-    agent = await getAgentById(agentId);
-  } catch {
+  const agent = await getAgentById(agentId);
+  if (!agent) {
     notFound();
   }
   const { session } = await requireAuthentication();

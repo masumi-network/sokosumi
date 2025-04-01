@@ -2,15 +2,17 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { AgentDTO } from "@/lib/db/dto/AgentDTO";
+import { getDescription } from "@/lib/db/extension/agent";
+import { AgentWithRelations } from "@/lib/db/services/agent.service";
 
 interface CreateJobSectionProps {
-  agent: AgentDTO;
+  agent: AgentWithRelations;
 }
 
 export default function CreateJobSection({ agent }: CreateJobSectionProps) {
   const t = useTranslations("App.Jobs.CreateJob");
-  const { description } = agent;
+
+  const description = getDescription(agent);
 
   return (
     <div className="flex h-full min-h-[300px] flex-1 flex-col">
@@ -18,7 +20,11 @@ export default function CreateJobSection({ agent }: CreateJobSectionProps) {
       <ScrollArea className="h-[calc(100%-30px)] rounded-md border p-4">
         <div className="flex flex-1 flex-col gap-4">
           <div className="flex flex-wrap gap-2">
-            <div className="min-w-[200px] flex-1 text-base">{description}</div>
+            {description && (
+              <div className="min-w-[200px] flex-1 text-base">
+                {description}
+              </div>
+            )}
             <Image
               src="/placeholder.svg"
               alt="Example Output"

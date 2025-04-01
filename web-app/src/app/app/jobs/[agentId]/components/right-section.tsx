@@ -2,13 +2,13 @@
 
 import { useSearchParams } from "next/navigation";
 
-import { AgentDTO } from "@/lib/db/dto/AgentDTO";
+import { AgentWithRelations } from "@/lib/db/services/agent.service";
 
 import CreateJobSection from "./create-job-section";
 import JobDetailSection from "./job-detail-section";
 
 interface RightSectionProps {
-  agent: AgentDTO;
+  agent: AgentWithRelations;
 }
 
 export default function RightSection({ agent }: RightSectionProps) {

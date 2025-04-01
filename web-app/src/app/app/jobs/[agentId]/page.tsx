@@ -4,9 +4,9 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { requireAuthentication } from "@/lib/auth/utils";
-import { AgentDTO } from "@/lib/db/dto/AgentDTO";
+import { getDescription, getLegal, getName } from "@/lib/db/extension/agent";
 import { getAgentById, getAgents } from "@/lib/db/services/agent.service";
-import { getUserJobsByAgentId } from "@/lib/db/services/job.service";
+import { getJobsByAgentId } from "@/lib/db/services/job.service";
 
 import Footer from "./components/footer";
 import Header from "./components/header";
@@ -40,16 +40,14 @@ export async function generateMetadata({
   params: Promise<JobPageParams>;
 }): Promise<Metadata> {
   const { agentId } = await params;
-  let agent: AgentDTO | undefined = undefined;
-  try {
-    agent = await getAgentById(agentId);
-  } catch {
+  const agent = await getAgentById(agentId);
+  if (!agent) {
     notFound();
   }
 
   return {
-    title: agent?.name ?? "",
-    description: agent?.description ?? "",
+    title: getName(agent),
+    description: getDescription(agent),
   };
 }
 
@@ -59,15 +57,13 @@ export default async function JobPage({
   params: Promise<JobPageParams>;
 }) {
   const { agentId } = await params;
-  let agent: AgentDTO;
-  try {
-    agent = await getAgentById(agentId);
-  } catch {
+  const agent = await getAgentById(agentId);
+  if (!agent) {
     return null;
   }
 
   const { session } = await requireAuthentication();
-  const jobs = await getUserJobsByAgentId(agentId, session.user.id);
+  const jobs = await getJobsByAgentId(agentId, session.user.id);
 
   return (
     <div className="flex h-full flex-1 flex-col p-4 lg:p-6 xl:p-8">
@@ -76,7 +72,7 @@ export default async function JobPage({
         <JobsTable jobs={jobs} />
         <RightSection agent={agent} />
       </div>
-      <Footer legal={agent.legal} />
+      <Footer legal={getLegal(agent)} />
     </div>
   );
 }

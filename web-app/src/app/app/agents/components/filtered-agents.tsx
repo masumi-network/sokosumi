@@ -8,12 +8,16 @@ import {
   AgentsNotAvailable,
   AgentsNotFound,
 } from "@/components/agents";
-import { AgentDTO } from "@/lib/db/dto/AgentDTO";
+import { getTags } from "@/lib/db/extension/agent";
+import { AgentWithRelations } from "@/lib/db/services/agent.service";
 import { AgentListWithAgent } from "@/lib/db/services/agentList.service";
 
 import { FilterState } from "./use-gallery-filter";
 
-const filterAgents = (agents: AgentDTO[], { query, tags }: FilterState) => {
+const filterAgents = (
+  agents: AgentWithRelations[],
+  { query, tags }: FilterState,
+) => {
   if (!query && tags.length === 0) {
     return agents;
   }
@@ -24,20 +28,20 @@ const filterAgents = (agents: AgentDTO[], { query, tags }: FilterState) => {
     // Query matching
     const matchesQuery =
       !normalizedQuery ||
-      [agent.name, agent.description || ""].some((text) =>
+      [agent.name, agent.description ?? ""].some((text) =>
         text.toLowerCase().includes(normalizedQuery),
       );
 
     // Tag matching
     const matchesTags =
-      tags.length === 0 || tags.some((tag) => agent.tags.includes(tag));
+      tags.length === 0 || tags.some((tag) => getTags(agent).includes(tag));
 
     return matchesQuery && matchesTags;
   });
 };
 
 interface FilteredAgentsProps {
-  agents: AgentDTO[];
+  agents: AgentWithRelations[];
   agentList?: AgentListWithAgent | undefined;
 }
 

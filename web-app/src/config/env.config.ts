@@ -8,10 +8,14 @@ import { z } from "zod";
 const envSchemaSecrets = z.object({
   // Database
   DATABASE_URL: z.string().url(),
+
+  // Seed
   SEED_DATABASE: z
     .string()
     .default("false")
     .transform((val) => val === "true"),
+  SEED_USER_EMAIL: z.string().email().default("dev@sokosumi.com"),
+  SEED_USER_PASSWORD: z.string().min(8).default("password"),
 
   // Authentication
   BETTER_AUTH_SECRET: z.string().min(1),

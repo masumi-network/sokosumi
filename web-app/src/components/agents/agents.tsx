@@ -1,6 +1,6 @@
 import { useTranslations } from "next-intl";
 
-import { AgentDTO } from "@/lib/db/dto/AgentDTO";
+import { AgentWithRelations } from "@/lib/db/services/agent.service";
 import { AgentListWithAgent } from "@/lib/db/services/agentList.service";
 import { cn } from "@/lib/utils";
 
@@ -49,7 +49,7 @@ function AgentsSkeleton({ className }: AgentsSkeletonProps) {
 }
 
 interface AgentsProps {
-  agents: AgentDTO[];
+  agents: AgentWithRelations[];
   agentList?: AgentListWithAgent | undefined;
   className?: string | undefined;
   agentCardClassName?: string | undefined;

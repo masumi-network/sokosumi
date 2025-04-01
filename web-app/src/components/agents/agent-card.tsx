@@ -3,7 +3,15 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
-import { AgentDTO } from "@/lib/db/dto/AgentDTO";
+import {
+  getAverageStars,
+  getCredits,
+  getDescription,
+  getName,
+  getResolvedImage,
+  getTags,
+} from "@/lib/db/extension/agent";
+import { AgentWithRelations } from "@/lib/db/services/agent.service";
 import { AgentListWithAgent } from "@/lib/db/services/agentList.service";
 import { cn } from "@/lib/utils";
 
@@ -61,15 +69,16 @@ function AgentCardSkeleton({ className }: AgentCardSkeletonProps) {
 }
 
 interface AgentCardProps {
-  agent: AgentDTO;
+  agent: AgentWithRelations;
   agentList?: AgentListWithAgent | undefined;
   className?: string | undefined;
 }
 
 function AgentCard({ agent, agentList, className }: AgentCardProps) {
   const t = useTranslations("Components.Agents.AgentCard");
-  const { id, name, description, image, tags, averageStars, credits } = agent;
 
+  const averageStars = getAverageStars(agent);
+  const description = getDescription(agent);
   return (
     <Card
       className={cn(
@@ -79,8 +88,8 @@ function AgentCard({ agent, agentList, className }: AgentCardProps) {
     >
       <div className="relative h-48 w-full shrink-0">
         <Image
-          src={image ?? "/placeholder.svg"}
-          alt={`${name} image`}
+          src={getResolvedImage(agent)}
+          alt={`${getName(agent)} image`}
           fill
           className="object-cover"
         />
@@ -102,28 +111,30 @@ function AgentCard({ agent, agentList, className }: AgentCardProps) {
           </div>
         )}
 
-        <h3 className="mb-2 shrink-0 text-xl font-bold">{name}</h3>
-        <p className="text-muted-foreground mb-3 line-clamp-3 min-h-[4.5rem] overflow-hidden text-ellipsis whitespace-normal">
-          {description}
-        </p>
+        <h3 className="mb-2 shrink-0 text-xl font-bold">{getName(agent)}</h3>
+        {description && (
+          <p className="text-muted-foreground mb-3 line-clamp-3 min-h-[4.5rem] overflow-hidden text-ellipsis whitespace-normal">
+            {description}
+          </p>
+        )}
         <div className="flex min-h-[1.5rem] shrink-0 flex-nowrap overflow-hidden">
-          <BadgeCloud tags={tags} />
+          <BadgeCloud tags={getTags(agent)} />
         </div>
       </CardContent>
 
       <CardFooter className="mt-auto shrink-0 px-6 pt-2 pb-4">
         <div className="flex w-full items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <AgentCardButton agentId={id} />
+            <AgentCardButton agentId={agent.id} />
 
             <div>
               <p className="text-muted-foreground text-s">
-                {t("pricing", { price: credits })}
+                {t("pricing", { price: getCredits(agent) })}
               </p>
             </div>
           </div>
           {agentList && (
-            <AgentBookmarkButton agentId={id} agentList={agentList} />
+            <AgentBookmarkButton agentId={agent.id} agentList={agentList} />
           )}
         </div>
       </CardFooter>
