@@ -113,3 +113,15 @@ jobs:
 
       - name: Run Build
         run: npm run build
+
+  final-status:
+    name: Final Status
+    needs: [build-web-app, build-registry-sync, build-job-sync]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check Job Status
+        run: |
+          echo "All jobs completed successfully!"
+          echo "Web App Build: ${{ needs.build-web-app.result }}"
+          echo "Registry Sync Build: ${{ needs.build-registry-sync.result }}"
+          echo "Job Sync Build: ${{ needs.build-job-sync.result }}"
