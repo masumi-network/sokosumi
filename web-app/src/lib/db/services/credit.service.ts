@@ -31,7 +31,7 @@ export async function creditTransactionSpend(
     throw new Error("Included fee must be less than amount");
   }
 
-  const newCreditAction = await prisma.$transaction(async (tx) => {
+  const newCreditTransaction = await prisma.$transaction(async (tx) => {
     const creditBalance = await tx.creditTransaction.aggregate({
       where: { userId },
       _sum: {
@@ -58,7 +58,7 @@ export async function creditTransactionSpend(
       },
     });
   });
-  return newCreditAction;
+  return newCreditTransaction;
 }
 
 const amountsSchema = z.array(
