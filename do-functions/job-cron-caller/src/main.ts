@@ -20,7 +20,7 @@ export async function main(_args: unknown): Promise<FunctionResponse> {
         body: { error: "SOKOSUMI_API_URL environment variable not set" },
       };
     }
-    const apiUrl = new URL(apiUrlString);
+    const apiUrl = new URL("/api/cron/job-sync", apiUrlString);
 
     // Make the API call
     const response = await fetch(apiUrl, {

@@ -34,6 +34,8 @@ jobs:
           NEXT_PUBLIC_NETWORK: ${{ vars.NEXT_PUBLIC_NETWORK }}
           REGISTRY_API_KEY: ${{ secrets.REGISTRY_API_KEY }}
           PAYMENT_API_KEY: ${{ secrets.PAYMENT_API_KEY }}
+          SOKOSUMI_API_URL: ${{ vars.SOKOSUMI_API_URL }}
+          REGISTRY_API_URL: ${{ vars.REGISTRY_API_URL }}
           PAYMENT_API_URL: ${{ vars.PAYMENT_API_URL }}
         with:
           app_name: ${{ vars.DIGITALOCEAN_APP_NAME }}

@@ -36,8 +36,43 @@ services:
       value: ${PAYMENT_API_KEY}
     - name: PAYMENT_API_URL
       value: ${PAYMENT_API_URL}
+    - name: SOKOSUMI_API_URL
+      value: ${SOKOSUMI_API_URL}
+    - name: REGISTRY_API_URL
+      value: ${REGISTRY_API_URL}
+    - name: ADMIN_KEY
+      value: ${ADMIN_KEY}
   github:
     branch: main
     repo: masumi-network/sokosumi
   name: sokosumi-web-app
   source_dir: web-app
+
+functions:
+  - name: job-sync
+    source_dir: do-functions/job-cron-caller
+    runtime: nodejs:18
+    web: true
+    web_secure: false
+    environment:
+      ADMIN_KEY: ${ADMIN_KEY}
+      API_URL: ${SOKOSUMI_API_URL}
+    triggers:
+      - type: scheduler
+        cron: "* * * * *"
+        body:
+          name: "job-sync"
+
+  - name: registry-sync
+    source_dir: do-functions/registry-cron-caller
+    runtime: nodejs:18
+    web: true
+    web_secure: false
+    environment:
+      ADMIN_KEY: ${ADMIN_KEY}
+      API_URL: ${SOKOSUMI_API_URL}
+    triggers:
+      - type: scheduler
+        cron: "* * * * *"
+        body:
+          name: "job-sync"
