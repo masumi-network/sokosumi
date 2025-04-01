@@ -365,7 +365,7 @@ CREATE TABLE "Job" (
     "creditTransactionId" TEXT NOT NULL,
     "errorNote" TEXT,
     "errorNoteKey" TEXT,
-    "blockchainIdentifier" TEXT,
+    "blockchainIdentifier" TEXT NOT NULL,
     "submitResultTime" TIMESTAMP(3),
     "unlockTime" TIMESTAMP(3),
     "externalDisputeUnlockTime" TIMESTAMP(3),
