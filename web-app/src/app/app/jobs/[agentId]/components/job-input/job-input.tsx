@@ -56,9 +56,19 @@ function InputField({ field, jobInputSchema }: InputFieldProps) {
     return (
       <Input
         placeholder={data?.placeholder}
-        type={type ?? "text"}
+        type="text"
         {...field}
         value={typeof field.value === "string" ? field.value : ""}
+      />
+    );
+
+  if (type === ValidJobInputTypes.NUMBER)
+    return (
+      <Input
+        placeholder={data?.placeholder}
+        type="number"
+        {...field}
+        value={typeof field.value === "string" ? field.value : "0"}
       />
     );
 

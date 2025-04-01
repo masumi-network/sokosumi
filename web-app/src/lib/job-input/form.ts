@@ -38,7 +38,7 @@ const getDefaultValue = (jobInputSchema: JobInputSchemaType) => {
     case ValidJobInputTypes.STRING:
       return "";
     case ValidJobInputTypes.BOOLEAN:
-      return "";
+      return false;
     case ValidJobInputTypes.NUMBER:
       return "0";
     case ValidJobInputTypes.OPTION:

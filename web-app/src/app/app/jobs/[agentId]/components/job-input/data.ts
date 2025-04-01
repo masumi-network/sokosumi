@@ -44,6 +44,29 @@ export const dummyInputData: JobInputSchemaType[] = [
     ],
   },
   {
+    id: "timeout",
+    name: "Timeout",
+    type: ValidJobInputTypes.NUMBER,
+    data: {
+      placeholder: "Enter the timeout",
+      description: "Timeout in seconds",
+    },
+    validations: [
+      {
+        validation: ValidJobInputValidationTypes.OPTIONAL,
+        value: "true",
+      },
+      {
+        validation: ValidJobInputValidationTypes.MIN,
+        value: 60,
+      },
+      {
+        validation: ValidJobInputValidationTypes.MAX,
+        value: 3600,
+      },
+    ],
+  },
+  {
     id: "fast-check",
     name: "Fast Check",
     type: ValidJobInputTypes.BOOLEAN,
