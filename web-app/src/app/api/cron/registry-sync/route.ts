@@ -89,9 +89,9 @@ async function syncAllEntries() {
       ...entries.map(async (entry) => {
         const updateDbEntry = async () => {
           await prisma.agent.upsert({
-            where: { onChainIdentifier: entry.agentIdentifier },
+            where: { blockchainIdentifier: entry.agentIdentifier },
             create: {
-              onChainIdentifier: entry.agentIdentifier,
+              blockchainIdentifier: entry.agentIdentifier,
               name: entry.name,
               description: entry.description,
               apiBaseUrl: entry.apiBaseUrl,

@@ -246,7 +246,7 @@ model Agent {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  onChainIdentifier String @unique
+  blockchainIdentifier String @unique
 
   rating   AgentRating @relation(fields: [ratingId], references: [id])
   ratingId String      @unique
@@ -419,7 +419,7 @@ model Job {
   id                        String             @id @default(cuid())
   createdAt                 DateTime           @default(now())
   updatedAt                 DateTime           @updatedAt
-  agentJobId                String             @unique
+  agentJobId                String
   paymentId                 String
   agentId                   String
   agent                     Agent              @relation(fields: [agentId], references: [id])
@@ -437,7 +437,7 @@ model Job {
   errorNote                 String?
   errorNoteKey              String?
 
-  blockchainIdentifier      String?   @unique
+  blockchainIdentifier      String    @unique
   submitResultTime          DateTime?
   unlockTime                DateTime?
   externalDisputeUnlockTime DateTime?

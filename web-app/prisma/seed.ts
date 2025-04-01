@@ -228,7 +228,7 @@ const seedAgents = async () => {
     // Check if agent already exists
     const existingAgent = await prisma.agent.findFirst({
       where: {
-        onChainIdentifier: `demo-${index + 1}-${agent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+        blockchainIdentifier: `demo-${index + 1}-${agent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
       },
     });
 
@@ -301,7 +301,7 @@ const seedAgents = async () => {
             id: pricing.id,
           },
         },
-        onChainIdentifier: `demo-${index + 1}-${agent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+        blockchainIdentifier: `demo-${index + 1}-${agent.title.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
         status: AgentStatus.ONLINE,
         showOnFrontPage: true,
         ranking: BigInt(index + 1),
@@ -385,6 +385,7 @@ const seedJobs = async (userId: string) => {
       return prisma.job.create({
         data: {
           agentId: agent.id,
+          blockchainIdentifier: `demo-blockchainIdentifier-${agent.id}-${index}`,
           userId,
           status,
           input,
@@ -392,8 +393,8 @@ const seedJobs = async (userId: string) => {
           startedAt,
           finishedAt,
           creditTransactionId: creditTransaction.id,
-          agentJobId: `demo-job-${agent.id}-${index}`,
-          paymentId: `demo-payment-${agent.id}-${index}`,
+          agentJobId: `demo-agentJobId-${agent.id}-${index}`,
+          paymentId: `demo-paymentId-${agent.id}-${index}`,
         },
       });
     });
