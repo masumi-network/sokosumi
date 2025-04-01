@@ -103,8 +103,8 @@ function InputField({ field, jobInputSchema }: InputFieldProps) {
     if (isSingle) {
       return (
         <Select
-          value={field.value === null ? undefined : String(field.value)}
-          onValueChange={(value) => field.onChange(value)}
+          value={Array.isArray(field.value) ? field.value[0] : ""}
+          onValueChange={(value) => field.onChange([value])}
         >
           <SelectTrigger className="w-full">
             <SelectValue />
