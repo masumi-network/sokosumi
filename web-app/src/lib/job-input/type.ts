@@ -24,8 +24,10 @@ type JobInputValidationType = ValidJobInputValidationTypes;
 type JobInputFormatValue = ValidJobInputFormatValues;
 
 type JobInputSchemaIntlPath = "Library.JobInput.Schema";
+type JobInputFormIntlPath = "Library.JobInput.Form";
 export type {
   JobInputFormatValue,
+  JobInputFormIntlPath,
   JobInputSchemaIntlPath,
   JobInputType,
   JobInputValidationType,

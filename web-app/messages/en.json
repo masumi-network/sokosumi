@@ -577,6 +577,25 @@
         "invalidValidations": "Validations are not valid for type {type}",
         "optionValuesRequired": "Values are required for option type",
         "noDataValues": "Values must be undefined for non-option type"
+      },
+      "Form": {
+        "clear": "Clear",
+        "price": "{price, plural, =0 {Free} =1 {1 credit} other {# credits}} per run",
+        "submit": "Submit",
+        "String": {
+          "required": "{name} is required",
+          "min": "{name} must be at least {value} characters",
+          "max": "{name} must be at most {value} characters",
+          "format": "{name} must be a {value}"
+        },
+        "Boolean": {
+          "required": "{name} is required"
+        },
+        "Number": {
+          "required": "{name} is required",
+          "min": "{name} must be at least {value}",
+          "max": "{name} must be at most {value}"
+        }
       }
     }
   }

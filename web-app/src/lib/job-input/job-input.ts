@@ -53,6 +53,10 @@ export const jobInputStringSchema = (
       .optional(),
   });
 
+export type JobInputStringSchemaType = z.infer<
+  ReturnType<typeof jobInputStringSchema>
+>;
+
 export const jobInputNumberSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
@@ -85,6 +89,10 @@ export const jobInputNumberSchema = (
       .optional(),
   });
 
+export type JobInputNumberSchemaType = z.infer<
+  ReturnType<typeof jobInputNumberSchema>
+>;
+
 export const jobInputBooleanSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
@@ -108,6 +116,10 @@ export const jobInputBooleanSchema = (
       .optional(),
     validations: z.array(requiredValidationSchema(t)).optional(),
   });
+
+export type JobInputBooleanSchemaType = z.infer<
+  ReturnType<typeof jobInputBooleanSchema>
+>;
 
 export const jobInputOptionSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
@@ -144,6 +156,10 @@ export const jobInputOptionSchema = (
       .optional(),
   });
 
+export type JobInputOptionSchemaType = z.infer<
+  ReturnType<typeof jobInputOptionSchema>
+>;
+
 export const jobInputNoneSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
@@ -165,3 +181,7 @@ export const jobInputNoneSchema = (
       })
       .optional(),
   });
+
+export type JobInputNoneSchemaType = z.infer<
+  ReturnType<typeof jobInputNoneSchema>
+>;
