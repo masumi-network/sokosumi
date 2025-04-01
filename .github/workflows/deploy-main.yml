@@ -59,5 +59,9 @@ jobs:
         run: cd job-cron-caller && npm i
       - name: build
         run: cd job-cron-caller && npm run build
+      - name: Install serverless
+        run: doctl serverless install
+      - name: Configure serverless connect
+        run: doctl serverless connect ${{ vars.SOKOSUMI_FUNCTION_NAMESPACE }}
       - name: deploy
         run: cd job-cron-caller && npm run deploy
