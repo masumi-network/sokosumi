@@ -246,7 +246,7 @@ model Agent {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  onChainIdentifier String @unique
+  blockchainIdentifier String @unique
 
   rating   AgentRating @relation(fields: [ratingId], references: [id])
   ratingId String      @unique
@@ -416,12 +416,11 @@ enum FiatPaymentStatus {
 }
 
 model Job {
-  id         String   @id @default(cuid())
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-  agentJobId String
-  paymentId  String
-
+  id                        String             @id @default(cuid())
+  createdAt                 DateTime           @default(now())
+  updatedAt                 DateTime           @updatedAt
+  agentJobId                String
+  paymentId                 String
   agentId                   String
   agent                     Agent              @relation(fields: [agentId], references: [id])
   userId                    String
