@@ -75,7 +75,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./do-functions/registry-cron-caller
+        working-directory: ./registry-cron-caller
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -97,7 +97,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./do-functions/job-cron-caller
+        working-directory: ./job-cron-caller
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

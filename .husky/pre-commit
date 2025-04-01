@@ -93,7 +93,7 @@ echo "${BLUE}🔍 Running Registry Sync lint...${NC}"
 if command -v git-rev-parse >/dev/null 2>&1 && [ -d .git ]; then
     staged_files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.ts' '*.js' '*.tsx' '*.jsx' 2>/dev/null)
     if [ -n "$staged_files" ]; then
-        cd 'do-functions/registry-cron-caller' && npm run lint || 
+        cd 'registry-cron-caller' && npm run lint || 
         (
             echo "${RED}❌ Registry Sync lint check failed. Please fix the errors and try committing again.${NC}"
             exit 4
@@ -106,7 +106,7 @@ echo "${BLUE}🔍 Running Job Sync lint...${NC}"
 if command -v git-rev-parse >/dev/null 2>&1 && [ -d .git ]; then
     staged_files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.ts' '*.js' '*.tsx' '*.jsx' 2>/dev/null)
     if [ -n "$staged_files" ]; then
-        cd 'do-functions/job-cron-caller' && npm run lint || 
+        cd 'job-cron-caller' && npm run lint || 
         (
             echo "${RED}❌ Job Sync lint check failed. Please fix the errors and try committing again.${NC}"
             exit 4

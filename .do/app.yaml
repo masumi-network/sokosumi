@@ -50,7 +50,7 @@ services:
 
 functions:
   - name: job-sync
-    source_dir: do-functions/job-cron-caller
+    source_dir: job-cron-caller
     runtime: nodejs:18
     web: true
     web_secure: false
@@ -64,7 +64,7 @@ functions:
           name: "job-sync"
 
   - name: registry-sync
-    source_dir: do-functions/registry-cron-caller
+    source_dir: registry-cron-caller
     runtime: nodejs:18
     web: true
     web_secure: false
