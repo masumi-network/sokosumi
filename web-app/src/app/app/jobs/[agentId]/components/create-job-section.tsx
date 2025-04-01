@@ -2,8 +2,11 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { getDescription } from "@/lib/db/extension/agent";
+import { getCredits, getDescription } from "@/lib/db/extension/agent";
 import { AgentWithRelations } from "@/lib/db/services/agent.service";
+
+import { JobInputsForm } from "./job-input";
+import { dummyInputData } from "./job-input/data";
 
 interface CreateJobSectionProps {
   agent: AgentWithRelations;
@@ -13,12 +16,13 @@ export default function CreateJobSection({ agent }: CreateJobSectionProps) {
   const t = useTranslations("App.Jobs.CreateJob");
 
   const description = getDescription(agent);
+  const credits = getCredits(agent);
 
   return (
     <div className="flex h-full min-h-[300px] flex-1 flex-col">
       <h1 className="h-[30px] text-xl font-bold">{t("title")}</h1>
       <ScrollArea className="h-[calc(100%-30px)] rounded-md border p-4">
-        <div className="flex flex-1 flex-col gap-4">
+        <div className="flex flex-1 flex-col gap-4 lg:gap-6">
           <div className="flex flex-wrap gap-2">
             {description && (
               <div className="min-w-[200px] flex-1 text-base">
@@ -38,6 +42,10 @@ export default function CreateJobSection({ agent }: CreateJobSectionProps) {
             <h1 className="text-xl font-bold">{t("Input.title")}</h1>
             <p className="text-base">{t("Input.description")}</p>
           </div>
+          <JobInputsForm
+            credits={credits}
+            jobInputsDataSchema={dummyInputData}
+          />
         </div>
       </ScrollArea>
     </div>
