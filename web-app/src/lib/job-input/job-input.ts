@@ -11,16 +11,23 @@ import {
   optionalValidationSchema,
 } from "./validation";
 
-export const jobInputSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) =>
+export const jobInputsDataSchema = (
+  t?: IntlTranslation<JobInputSchemaIntlPath>,
+) =>
   z.object({
-    input_data: z.array(
-      jobInputStringSchema(t)
-        .or(jobInputNumberSchema(t))
-        .or(jobInputBooleanSchema(t))
-        .or(jobInputOptionSchema(t))
-        .or(jobInputNoneSchema(t)),
-    ),
+    input_data: z.array(jobInputSchema(t)),
   });
+
+export type JobInputsDataSchemaType = z.infer<
+  ReturnType<typeof jobInputsDataSchema>
+>;
+
+export const jobInputSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) =>
+  jobInputStringSchema(t)
+    .or(jobInputNumberSchema(t))
+    .or(jobInputBooleanSchema(t))
+    .or(jobInputOptionSchema(t))
+    .or(jobInputNoneSchema(t));
 
 export type JobInputSchemaType = z.infer<ReturnType<typeof jobInputSchema>>;
 
@@ -57,6 +64,10 @@ export const jobInputStringSchema = (
       .optional(),
   });
 
+export type JobInputStringSchemaType = z.infer<
+  ReturnType<typeof jobInputStringSchema>
+>;
+
 export const jobInputNumberSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
@@ -83,11 +94,14 @@ export const jobInputNumberSchema = (
         optionalValidationSchema(t)
           .or(minValidationSchema(t))
           .or(maxValidationSchema(t))
-          .or(formatIntegerValidationSchema(t))
-          .or(formatNonEmptyValidationSchema(t)),
+          .or(formatIntegerValidationSchema(t)),
       )
       .optional(),
   });
+
+export type JobInputNumberSchemaType = z.infer<
+  ReturnType<typeof jobInputNumberSchema>
+>;
 
 export const jobInputBooleanSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
@@ -112,6 +126,10 @@ export const jobInputBooleanSchema = (
       .optional(),
     validations: z.array(optionalValidationSchema(t)).optional(),
   });
+
+export type JobInputBooleanSchemaType = z.infer<
+  ReturnType<typeof jobInputBooleanSchema>
+>;
 
 export const jobInputOptionSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
@@ -148,6 +166,10 @@ export const jobInputOptionSchema = (
       .optional(),
   });
 
+export type JobInputOptionSchemaType = z.infer<
+  ReturnType<typeof jobInputOptionSchema>
+>;
+
 export const jobInputNoneSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
@@ -169,3 +191,7 @@ export const jobInputNoneSchema = (
       })
       .optional(),
   });
+
+export type JobInputNoneSchemaType = z.infer<
+  ReturnType<typeof jobInputNoneSchema>
+>;

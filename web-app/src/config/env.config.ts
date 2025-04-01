@@ -47,23 +47,23 @@ const envSchemaSecrets = z.object({
     .default("https://payment.masumi.network/api/v1"),
   // BetterAuth Settings
   BETTER_AUTH_SESSION_EXPIRES_IN: z
-    .number()
+    .number({ coerce: true })
     .min(1)
     .default(60 * 60 * 24 * 7), // 7 days
   BETTER_AUTH_SESSION_UPDATE_AGE: z
-    .number()
+    .number({ coerce: true })
     .min(1)
     .default(60 * 60 * 24), // 1 day
   BETTER_AUTH_SESSION_FRESH_AGE: z
-    .number()
+    .number({ coerce: true })
     .min(1)
     .default(60 * 5), // 5 minutes
   BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE: z
-    .number()
+    .number({ coerce: true })
     .min(0)
     .default(60 * 5), // 5 minutes
   LOCK_TIMEOUT: z
-    .number()
+    .number({ coerce: true })
     .min(3 * 60 * 1000)
     .default(10 * 60 * 1000), // 10 minutes
   INSTANCE_ID: z.string().min(1).default(crypto.randomUUID()),
@@ -77,14 +77,25 @@ const envSchemaSecrets = z.object({
     .transform((val) => val.split(","))
     .pipe(z.array(z.string()))
     .default(""),
-  DEFAULT_NETWORK_FEE_PERCENTAGE: z.number().min(0).default(5),
+  DEFAULT_NETWORK_FEE_PERCENTAGE: z.number({ coerce: true }).min(0).default(5),
 });
 
 const envSchemaConfig = z.object({
-  NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME: z.number().min(0).default(300),
+  NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME: z
+    .number({ coerce: true })
+    .min(0)
+    .default(300),
 
-  NEXT_PUBLIC_PASSWORD_MIN_LENGTH: z.number().min(8).max(20).default(8),
-  NEXT_PUBLIC_PASSWORD_MAX_LENGTH: z.number().min(10).max(256).default(256),
+  NEXT_PUBLIC_PASSWORD_MIN_LENGTH: z
+    .number({ coerce: true })
+    .min(8)
+    .max(20)
+    .default(8),
+  NEXT_PUBLIC_PASSWORD_MAX_LENGTH: z
+    .number({ coerce: true })
+    .min(10)
+    .max(256)
+    .default(256),
 
   NEXT_PUBLIC_MASUMI_URL: z.string().url().default("https://masumi.network"),
   NEXT_PUBLIC_KODOSUMI_URL: z.string().url().default("https://kodosumi.com"),
