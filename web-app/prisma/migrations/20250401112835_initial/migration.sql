@@ -354,7 +354,6 @@ CREATE TABLE "Job" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "agentJobId" TEXT NOT NULL,
     "paymentId" TEXT NOT NULL,
-    "onChainIdentifier" TEXT NOT NULL,
     "agentId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "status" "JobStatus" NOT NULL,
@@ -363,7 +362,6 @@ CREATE TABLE "Job" (
     "startedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "finishedAt" TIMESTAMP(3),
     "refundCreditTransactionId" TEXT,
-    "paymentTxId" TEXT,
     "creditTransactionId" TEXT NOT NULL,
     "errorNote" TEXT,
     "errorNoteKey" TEXT,
@@ -371,7 +369,6 @@ CREATE TABLE "Job" (
     "submitResultTime" TIMESTAMP(3),
     "unlockTime" TIMESTAMP(3),
     "externalDisputeUnlockTime" TIMESTAMP(3),
-    "agentIdentifier" TEXT,
     "sellerVkey" TEXT,
     "identifierFromPurchaser" TEXT,
 
@@ -447,13 +444,13 @@ CREATE UNIQUE INDEX "CreditTransaction_fiatPaymentId_key" ON "CreditTransaction"
 CREATE UNIQUE INDEX "FiatPayment_servicePaymentId_key" ON "FiatPayment"("servicePaymentId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Job_onChainIdentifier_key" ON "Job"("onChainIdentifier");
-
--- CreateIndex
 CREATE UNIQUE INDEX "Job_refundCreditTransactionId_key" ON "Job"("refundCreditTransactionId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Job_creditTransactionId_key" ON "Job"("creditTransactionId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Job_blockchainIdentifier_key" ON "Job"("blockchainIdentifier");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "CreditCost_unit_key" ON "CreditCost"("unit");

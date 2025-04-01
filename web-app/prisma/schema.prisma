@@ -416,12 +416,12 @@ enum FiatPaymentStatus {
 }
 
 model Job {
-  id                        String             @id @default(cuid())
-  createdAt                 DateTime           @default(now())
-  updatedAt                 DateTime           @updatedAt
-  agentJobId                String
-  paymentId                 String
-  onChainIdentifier         String             @unique
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  agentJobId String
+  paymentId  String
+
   agentId                   String
   agent                     Agent              @relation(fields: [agentId], references: [id])
   userId                    String
@@ -438,7 +438,7 @@ model Job {
   errorNote                 String?
   errorNoteKey              String?
 
-  blockchainIdentifier      String?
+  blockchainIdentifier      String?   @unique
   submitResultTime          DateTime?
   unlockTime                DateTime?
   externalDisputeUnlockTime DateTime?

@@ -120,7 +120,6 @@ export async function startJob(
     const job = await prisma.job.create({
       data: {
         agentJobId: startJobResponse.job_id,
-        onChainIdentifier: startJobResponse.blockchainIdentifier,
         agent: {
           connect: {
             id: agentId,
