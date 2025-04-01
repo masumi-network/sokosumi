@@ -1,5 +1,6 @@
 import { ControllerRenderProps, UseFormReturn } from "react-hook-form";
 
+import MultipleSelect from "@/components/multiple-select";
 import {
   FormControl,
   FormDescription,
@@ -9,6 +10,15 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
   JobInputSchemaType,
@@ -16,7 +26,7 @@ import {
   ValidJobInputTypes,
 } from "@/lib/job-input";
 
-import { isOptional } from "./util";
+import { isOptional, isSingleOption } from "./util";
 
 interface JobInputProps {
   form: UseFormReturn<JobInputsFormSchemaType>;
@@ -83,7 +93,46 @@ function InputField({ field, jobInputSchema }: InputFieldProps) {
       />
     );
 
-  if (type === ValidJobInputTypes.OPTION) return null;
+  if (type === ValidJobInputTypes.OPTION) {
+    const isSingle = isSingleOption(jobInputSchema);
+    const {
+      name,
+      data: { values },
+    } = jobInputSchema;
+
+    if (isSingle) {
+      return (
+        <Select
+          value={field.value === null ? undefined : String(field.value)}
+          onValueChange={(value) => field.onChange(value)}
+        >
+          <SelectTrigger className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectLabel>{name}</SelectLabel>
+              {values.map((value) => (
+                <SelectItem key={value} value={value}>
+                  {value}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      );
+    } else {
+      return (
+        <MultipleSelect
+          name={name}
+          value={Array.isArray(field.value) ? field.value : []}
+          onChange={field.onChange}
+          options={values}
+          className="w-full"
+        />
+      );
+    }
+  }
 
   if (type === ValidJobInputTypes.NONE) return null;
 }

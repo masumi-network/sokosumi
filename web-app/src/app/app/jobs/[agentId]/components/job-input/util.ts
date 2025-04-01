@@ -1,4 +1,5 @@
 import {
+  JobInputOptionSchemaType,
   JobInputSchemaType,
   ValidJobInputTypes,
   ValidJobInputValidationTypes,
@@ -14,5 +15,17 @@ export const isOptional = (jobInputSchema: JobInputSchemaType): boolean => {
   return validations.some(
     ({ validation, value }) =>
       validation === ValidJobInputValidationTypes.OPTIONAL && value === "true",
+  );
+};
+
+export const isSingleOption = (
+  jobInputOptionSchema: JobInputOptionSchemaType,
+): boolean => {
+  const { validations } = jobInputOptionSchema;
+  if (!validations) return false;
+
+  return validations.some(
+    ({ validation, value }) =>
+      validation === ValidJobInputValidationTypes.MAX && value <= 1,
   );
 };

@@ -60,6 +60,40 @@ export const dummyInputData: JobInputSchemaType[] = [
     ],
   },
   {
+    id: "categories",
+    name: "Select Categories",
+    type: ValidJobInputTypes.OPTION,
+    data: {
+      values: ["Speed", "Duration", "Cost", "Quality"],
+      placeholder: "Select Categories",
+      description: "Select Categories",
+    },
+  },
+  {
+    id: "period",
+    name: "Select Period",
+    type: ValidJobInputTypes.OPTION,
+    data: {
+      values: ["Last Year", "Last 3 Years", "Last 5 Years", "Last Decade"],
+      placeholder: "Select Period",
+      description: "Select Period",
+    },
+    validations: [
+      {
+        validation: ValidJobInputValidationTypes.MIN,
+        value: 1,
+      },
+      {
+        validation: ValidJobInputValidationTypes.MAX,
+        value: 1,
+      },
+      {
+        validation: ValidJobInputValidationTypes.OPTIONAL,
+        value: "true",
+      },
+    ],
+  },
+  {
     id: "fast-check",
     name: "Fast Check",
     type: ValidJobInputTypes.BOOLEAN,
