@@ -63,5 +63,9 @@ jobs:
         run: doctl serverless install
       - name: Configure serverless connect
         run: doctl serverless connect ${{ vars.SOKOSUMI_FUNCTION_NAMESPACE }}
+      - name: Create .env file
+        run: |
+          echo "SOKOSUMI_API_URL=${{ vars.SOKOSUMI_API_URL }}" > job-cron-caller/.env
+          echo "ADMIN_KEY=${{ secrets.ADMIN_KEY }}" >> job-cron-caller/.env
       - name: deploy
         run: cd job-cron-caller && npm run deploy
