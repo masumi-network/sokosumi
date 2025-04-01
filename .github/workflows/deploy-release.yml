@@ -57,5 +57,7 @@ jobs:
         run: cd job-cron-caller && npm i
       - name: build
         run: cd job-cron-caller && npm run build
+      - name: install doctl
+        run: doctl serverless install
       - name: deploy
         run: cd job-cron-caller && npm run deploy
