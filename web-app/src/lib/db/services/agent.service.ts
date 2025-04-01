@@ -2,6 +2,7 @@ import { Prisma } from "@prisma/client";
 
 import { getPaymentInformation } from "@/lib/api/generated/registry";
 import { getRegistryClient } from "@/lib/api/registry-service.client";
+import { getApiBaseUrl } from "@/lib/db/extension/agent";
 import prisma from "@/lib/db/prisma";
 import { jobInputSchema } from "@/lib/job-input";
 
@@ -89,18 +90,10 @@ export async function getAgentInputSchema(agentId: string) {
     throw new Error(`Agent with ID ${agentId} not found`);
   }
 
-  const agentUrl = agent.apiBaseUrl;
+  const baseUrl = getApiBaseUrl(agent);
+  const inputSchemaUrl = new URL(`/input_schema`, baseUrl);
 
-  if (!agentUrl) {
-    throw new Error(`Agent with ID ${agentId} has no API base URL`);
-  }
-
-  let agentUrlString = agentUrl.toString();
-  if (agentUrlString.endsWith("/")) {
-    agentUrlString = agentUrlString.slice(0, -1);
-  }
-
-  const response = await fetch(`${agentUrlString}/input_schema`);
+  const response = await fetch(inputSchemaUrl);
   const schema = await response.json();
   const inputSchema = jobInputSchema(undefined).parse(schema);
 

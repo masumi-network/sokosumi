@@ -14,7 +14,7 @@ export async function getCreditBalance(userId: string): Promise<number> {
   return Number(creditBalance._sum.amount ?? 0);
 }
 
-export async function creditActionSpend(
+export async function creditTransactionSpend(
   userId: string,
   amount: bigint,
   includedFee: bigint,

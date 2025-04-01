@@ -1,5 +1,6 @@
 import { Agent, ExampleOutput, Prisma } from "@prisma/client";
 
+import { getEnvSecrets } from "@/config/env.config";
 import { ipfsUrlResolver } from "@/lib/ipfs";
 
 export function getName(agent: Agent): string {
@@ -12,6 +13,32 @@ export function getDescription(agent: Agent): string | null {
 
 export function getResolvedImage(agent: Agent): string {
   return ipfsUrlResolver(agent.overrideImage ?? agent.image);
+}
+
+export function getApiBaseUrl(agent: Agent): URL {
+  //Validate the API base URL
+  const blacklistedHostnames = getEnvSecrets().BLACKLISTED_AGENT_HOSTNAMES;
+  const apiBaseUrl = new URL(agent.apiBaseUrl);
+  if (blacklistedHostnames.includes(apiBaseUrl.hostname)) {
+    throw new Error("Agent API base URL is not allowed");
+  }
+  if (apiBaseUrl.protocol !== "https:" && apiBaseUrl.protocol !== "http:") {
+    throw new Error("Agent API base URL must be HTTP or HTTPS");
+  }
+  if (
+    apiBaseUrl.port !== "80" &&
+    apiBaseUrl.port !== "443" &&
+    apiBaseUrl.port !== ""
+  ) {
+    throw new Error("Agent API base URL must be HTTP or HTTPS");
+  }
+  if (apiBaseUrl.search !== "") {
+    throw new Error("Agent API base URL must not have a query string");
+  }
+  if (apiBaseUrl.hash !== "") {
+    throw new Error("Agent API base URL must not have a hash");
+  }
+  return new URL(agent.overrideApiBaseUrl ?? agent.apiBaseUrl);
 }
 
 export type AgentWithFixedPricing = Prisma.AgentGetPayload<{

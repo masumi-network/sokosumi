@@ -434,7 +434,6 @@ model Job {
   cost                      CreditTransaction  @relation("JobCost", fields: [creditTransactionId], references: [id])
   refundCreditTransaction   CreditTransaction? @relation("JobRefund", fields: [refundCreditTransactionId], references: [id])
   refundCreditTransactionId String?            @unique
-  paymentTxId               String?
   creditTransactionId       String             @unique
   errorNote                 String?
   errorNoteKey              String?
@@ -443,7 +442,6 @@ model Job {
   submitResultTime          DateTime?
   unlockTime                DateTime?
   externalDisputeUnlockTime DateTime?
-  agentIdentifier           String?
   sellerVkey                String?
   identifierFromPurchaser   String?
 }

@@ -4,13 +4,14 @@ import { z } from "zod";
 import { getEnvSecrets } from "@/config/env.config";
 import { getPurchase, postPurchase } from "@/lib/api/generated/payment";
 import { getPaymentClient } from "@/lib/api/payment-service.client";
+import { getApiBaseUrl } from "@/lib/db/extension/agent";
 import prisma from "@/lib/db/prisma";
 import { calculatedInputHash } from "@/lib/utils";
 
 import { getAgentById, getAgentPricing } from "./agent.service";
 import {
   calculateCreditCostAndValidateAmounts,
-  creditActionSpend,
+  creditTransactionSpend,
 } from "./credit.service";
 
 const startJobSchema = z.object({
@@ -49,16 +50,15 @@ export async function startJob(
     throw new Error("Credit cost is too high");
   }
 
-  const creditAction = await creditActionSpend(userId, creditCost, BigInt(0));
+  const creditAction = await creditTransactionSpend(
+    userId,
+    creditCost,
+    BigInt(0),
+  );
 
   try {
-    const baseUrl = agent.apiBaseUrl;
-    let baseUrlString = baseUrl.toString();
-    if (baseUrlString.endsWith("/")) {
-      baseUrlString = baseUrlString.slice(0, -1);
-    }
-    //start_job to the base url
-    const startJobUrl = new URL(`${baseUrlString}/start_job`);
+    const baseUrl = getApiBaseUrl(agent);
+    const startJobUrl = new URL(`/start_job`, baseUrl);
     const identifierFromPurchaser = crypto
       .randomUUID()
       .replace(/-/g, "")
@@ -271,14 +271,10 @@ export async function syncJobStatus(job: Job) {
   }
 
   if (onChainState === "ResultSubmitted" || onChainState == "Withdrawn") {
-    const baseUrl = agent.apiBaseUrl;
-    let baseUrlString = baseUrl.toString();
-    if (baseUrlString.endsWith("/")) {
-      baseUrlString = baseUrlString.slice(0, -1);
-    }
-    const syncJobUrl = new URL(
-      `${baseUrlString}/status?job_id=${job.agentJobId}`,
-    );
+    const baseUrl = getApiBaseUrl(agent);
+    const syncJobUrl = new URL(`/status`, baseUrl);
+    syncJobUrl.searchParams.set("job_id", job.agentJobId);
+
     const syncJobResponse = await fetch(syncJobUrl, {
       method: "GET",
     });

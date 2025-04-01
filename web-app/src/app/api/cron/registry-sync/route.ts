@@ -49,7 +49,11 @@ export async function POST(request: Request) {
 const convertStatus = (
   status: "Online" | "Offline" | "Deregistered" | "Invalid",
 ) => {
-  return status.toUpperCase() as "ONLINE" | "OFFLINE" | "DEREGISTERED";
+  return status.toUpperCase() as
+    | "ONLINE"
+    | "OFFLINE"
+    | "DEREGISTERED"
+    | "INVALID";
 };
 
 async function syncAllEntries() {

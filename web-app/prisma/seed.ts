@@ -395,10 +395,6 @@ const seedJobs = async (userId: string) => {
           creditTransactionId: creditTransaction.id,
           agentJobId: `demo-job-${index}`,
           paymentId: `demo-payment-${index}`,
-          paymentTxId:
-            status !== JobStatus.PAYMENT_PENDING
-              ? `0x${crypto.randomBytes(32).toString("hex")}`
-              : null,
         },
       });
     });
