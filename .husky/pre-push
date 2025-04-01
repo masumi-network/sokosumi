@@ -37,7 +37,7 @@ if ! command -v npm >/dev/null 2>&1; then
 fi
 
 # Protected branches
-protected_branches="^(main|dev)$"
+protected_branches="^(main)$"
 
 # Get the current branch in a cross-platform way
 current_branch=$(git symbolic-ref --short HEAD 2>/dev/null || git rev-parse --short HEAD)
