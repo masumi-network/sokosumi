@@ -54,8 +54,8 @@ jobs:
           SOKOSUMI_API_URL: ${{ vars.SOKOSUMI_API_URL }}
           ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
       - name: install dependencies
-        run: npm i
+        run: cd job-cron-caller && npm i
       - name: build
-        run: npm run build
+        run: cd job-cron-caller && npm run build
       - name: deploy
-        run: npm run deploy
+        run: cd job-cron-caller && npm run deploy
