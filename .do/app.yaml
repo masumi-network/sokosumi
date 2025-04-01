@@ -42,8 +42,6 @@ services:
       value: ${REGISTRY_API_URL}
     - name: ADMIN_KEY
       value: ${ADMIN_KEY}
-    - name: SOKOSUMI_FUNCTION_NAMESPACE
-      value: ${SOKOSUMI_FUNCTION_NAMESPACE}
   github:
     branch: main
     repo: masumi-network/sokosumi

@@ -1,0 +1,33 @@
+name: Build Registry Function
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths: ['registry-cron-caller/**']
+
+env:
+  ADMIN_KEY: ${{ vars.PUBLIC_DEFAULT_SECRET }}
+  SOKOSUMI_API_URL: ${{ vars.PUBLIC_DEFAULT_URL }}
+
+jobs:
+  build-registry-sync:
+    name: Build Registry Function
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./registry-cron-caller
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Run Build
+        run: npm run build
