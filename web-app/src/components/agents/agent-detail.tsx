@@ -100,10 +100,6 @@ function AgentDetails({ agent, agentList, className }: AgentDetailsProps) {
   const exampleOutput = getExampleOutput(agent);
   const description = getDescription(agent);
 
-  function hireAgent(_event: React.MouseEvent<HTMLButtonElement>): void {
-    console.log("agent hired");
-  }
-
   return (
     <div className={cn("space-y-4", className)}>
       {/* Agent Summary */}
