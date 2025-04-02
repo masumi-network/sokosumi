@@ -43,9 +43,14 @@ const filterAgents = (
 interface FilteredAgentsProps {
   agents: AgentWithRelations[];
   agentList?: AgentListWithAgent | undefined;
+  agentPriceList: number[];
 }
 
-function FilteredAgents({ agents, agentList }: FilteredAgentsProps) {
+function FilteredAgents({
+  agents,
+  agentList,
+  agentPriceList,
+}: FilteredAgentsProps) {
   const searchParams = useSearchParams();
 
   const filteredAgents = useMemo(() => {
@@ -65,7 +70,13 @@ function FilteredAgents({ agents, agentList }: FilteredAgentsProps) {
     return <AgentsNotFound />;
   }
 
-  return <Agents agents={filteredAgents} agentList={agentList} />;
+  return (
+    <Agents
+      agents={filteredAgents}
+      agentList={agentList}
+      agentPriceList={agentPriceList}
+    />
+  );
 }
 
 export default FilteredAgents;

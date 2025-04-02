@@ -10,13 +10,18 @@ import { dummyInputData } from "./job-input/data";
 
 interface CreateJobSectionProps {
   agent: AgentWithRelations;
+  agentPricing: number;
 }
 
-export default function CreateJobSection({ agent }: CreateJobSectionProps) {
+export default function CreateJobSection({
+  agent,
+  agentPricing,
+}: CreateJobSectionProps) {
   const t = useTranslations("App.Jobs.CreateJob");
 
   const description = getDescription(agent);
-  const credits = getCreditsToDisplay(agent);
+
+  const credits = getCreditsToDisplay(agentPricing);
 
   return (
     <div className="flex h-full min-h-[300px] flex-1 flex-col">

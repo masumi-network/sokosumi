@@ -9,9 +9,13 @@ import JobDetailSection from "./job-detail-section";
 
 interface RightSectionProps {
   agent: AgentWithRelations;
+  agentPricing: number;
 }
 
-export default function RightSection({ agent }: RightSectionProps) {
+export default function RightSection({
+  agent,
+  agentPricing,
+}: RightSectionProps) {
   const searchParams = useSearchParams();
   const jobId = searchParams.get("jobId") ?? "";
 
@@ -19,5 +23,5 @@ export default function RightSection({ agent }: RightSectionProps) {
     return <JobDetailSection agent={agent} />;
   }
 
-  return <CreateJobSection agent={agent} />;
+  return <CreateJobSection agent={agent} agentPricing={agentPricing} />;
 }

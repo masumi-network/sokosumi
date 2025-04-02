@@ -53,6 +53,7 @@ interface AgentsProps {
   agentList?: AgentListWithAgent | undefined;
   className?: string | undefined;
   agentCardClassName?: string | undefined;
+  agentPriceList: number[];
 }
 
 function Agents({
@@ -60,16 +61,18 @@ function Agents({
   agentList,
   className,
   agentCardClassName,
+  agentPriceList,
 }: AgentsProps) {
   return (
     <div
       className={cn("flex w-full flex-wrap justify-center gap-6", className)}
     >
-      {agents.map((agent) => (
+      {agents.map((agent, index) => (
         <AgentCard
           key={agent.id}
           agent={agent}
           agentList={agentList}
+          agentPrice={agentPriceList[index]}
           className={agentCardClassName}
         />
       ))}
