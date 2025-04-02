@@ -2,9 +2,8 @@ import { CreditTransactionStatus, CreditTransactionType } from "@prisma/client";
 import { z } from "zod";
 
 import { getEnvPublicConfig } from "@/config/env.config";
+import { AgentWithFixedPricing } from "@/lib/db/extension/agent";
 import prisma from "@/lib/db/prisma";
-
-import { AgentWithRelations } from "./agent.service";
 
 export async function getCreditBalance(userId: string): Promise<number> {
   const creditBalance = await prisma.creditTransaction.aggregate({
@@ -71,7 +70,7 @@ const amountsSchema = z.array(
   }),
 );
 export async function calculateAgentCreditCost(
-  agent: AgentWithRelations,
+  agent: AgentWithFixedPricing,
   feePercentagePoints: number | undefined = undefined,
 ) {
   const amounts = agent.pricing?.fixedPricing?.amounts?.map((amount) => ({
