@@ -1,7 +1,10 @@
 import { CreditTransactionStatus, CreditTransactionType } from "@prisma/client";
 import { z } from "zod";
 
+import { getEnvPublicConfig } from "@/config/env.config";
 import prisma from "@/lib/db/prisma";
+
+import { AgentWithRelations } from "./agent.service";
 
 export async function getCreditBalance(userId: string): Promise<number> {
   const creditBalance = await prisma.creditTransaction.aggregate({
@@ -67,6 +70,24 @@ const amountsSchema = z.array(
     amount: z.number().positive(),
   }),
 );
+export async function calculateAgentCreditCost(
+  agent: AgentWithRelations,
+  feePercentagePoints: number | undefined = undefined,
+) {
+  const amounts = agent.pricing?.fixedPricing?.amounts?.map((amount) => ({
+    unit: amount.unit,
+    amount: Number(amount.amount),
+  }));
+  if (!amounts) {
+    return 0;
+  }
+  if (feePercentagePoints === undefined) {
+    feePercentagePoints = getEnvPublicConfig().DEFAULT_NETWORK_FEE_PERCENTAGE;
+  }
+  return Number(
+    await calculateCreditCostAndValidateAmounts(amounts, feePercentagePoints),
+  );
+}
 
 /**
  * Calculate the credit cost for a job
@@ -76,12 +97,15 @@ const amountsSchema = z.array(
  */
 export async function calculateCreditCostAndValidateAmounts(
   amounts: { unit: string; amount: number }[],
-  feePercentagePoints: number,
+  feePercentagePoints: number | undefined = undefined,
 ) {
+  if (feePercentagePoints === undefined) {
+    feePercentagePoints = getEnvPublicConfig().DEFAULT_NETWORK_FEE_PERCENTAGE;
+  }
   if (feePercentagePoints < -100) {
     throw new Error("Added fee percentage must be greater than 0");
   }
-  const feeMultiplier = 1 + feePercentagePoints / 100;
+  const feeMultiplier = Math.max(1 + feePercentagePoints / 100, 0);
 
   const amountsParsed = amountsSchema.parse(amounts);
 
