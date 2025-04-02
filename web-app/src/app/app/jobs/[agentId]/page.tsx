@@ -5,7 +5,11 @@ import { notFound } from "next/navigation";
 
 import { requireAuthentication } from "@/lib/auth/utils";
 import { getDescription, getLegal, getName } from "@/lib/db/extension/agent";
-import { getAgentById, getAgents } from "@/lib/db/services/agent.service";
+import {
+  getAgentById,
+  getAgentInputSchema,
+  getAgents,
+} from "@/lib/db/services/agent.service";
 import { getJobsByAgentId } from "@/lib/db/services/job.service";
 
 import Footer from "./components/footer";
@@ -65,12 +69,14 @@ export default async function JobPage({
   const { session } = await requireAuthentication();
   const jobs = await getJobsByAgentId(agentId, session.user.id);
 
+  const inputSchema = await getAgentInputSchema(agentId);
+
   return (
     <div className="flex h-full flex-1 flex-col p-4 lg:p-6 xl:p-8">
       <Header agent={agent} />
       <div className="mt-6 flex flex-1 flex-col justify-center gap-4 lg:flex-row lg:overflow-hidden">
         <JobsTable jobs={jobs} />
-        <RightSection agent={agent} />
+        <RightSection agent={agent} inputSchema={inputSchema} />
       </div>
       <Footer legal={getLegal(agent)} />
     </div>

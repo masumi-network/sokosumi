@@ -4,7 +4,7 @@ import { getPaymentInformation } from "@/lib/api/generated/registry";
 import { getRegistryClient } from "@/lib/api/registry-service.client";
 import { getApiBaseUrl } from "@/lib/db/extension/agent";
 import prisma from "@/lib/db/prisma";
-import { jobInputSchema } from "@/lib/job-input";
+import { jobInputsDataSchema } from "@/lib/job-input";
 
 import { getOrCreateFavoriteAgentList } from "./agentList.service";
 
@@ -95,7 +95,8 @@ export async function getAgentInputSchema(agentId: string) {
 
   const response = await fetch(inputSchemaUrl);
   const schema = await response.json();
-  const inputSchema = jobInputSchema(undefined).parse(schema);
+
+  const inputSchema = jobInputsDataSchema(undefined).parse(schema);
 
   return inputSchema;
 }
