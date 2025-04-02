@@ -74,7 +74,7 @@
     "@noble/hashes": "^1.7.1",
     "@swc/core": "^1.11.13",
     "@swc/helpers": "^0.5.15",
-    "@tailwindcss/postcss": "^4.0.17",
+    "@tailwindcss/postcss": "^4.1.0",
     "@testing-library/jest-dom": "6.6.3",
     "@testing-library/react": "16.2.0",
     "@types/jest": "29.5.14",
