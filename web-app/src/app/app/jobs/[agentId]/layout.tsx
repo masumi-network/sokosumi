@@ -1,30 +1,15 @@
-// Next.js will invalidate the cache when a
-
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { requireAuthentication } from "@/lib/auth/utils";
 import { getDescription, getLegal, getName } from "@/lib/db/extension/agent";
-import {
-  getAgentById,
-  getAgentInputSchema,
-  getAgents,
-} from "@/lib/db/services/agent.service";
+import { getAgentById, getAgents } from "@/lib/db/services/agent.service";
 import { calculateAgentCreditCost } from "@/lib/db/services/credit.service";
 import { getJobsByAgentId } from "@/lib/db/services/job.service";
 
 import Footer from "./components/footer";
 import Header from "./components/header";
 import JobsTable from "./components/jobs-table";
-import RightSection from "./components/right-section";
-
-// request comes in, at most once every 1 hour (3600 seconds).
-export const revalidate = 3600;
-
-// We'll prerender only the params from `generateStaticParams` at build time.
-// If a request comes in for a path that hasn't been generated,
-// Next.js will server-render the page on-demand.
-export const dynamicParams = true; // or false, to 404 on unknown paths
 
 interface JobPageParams {
   agentId: string;
@@ -36,8 +21,6 @@ export async function generateStaticParams() {
     agentId: String(agent.id),
   }));
 }
-
-// generateMetadata is streamed by default
 
 export async function generateMetadata({
   params,
@@ -56,34 +39,32 @@ export async function generateMetadata({
   };
 }
 
-export default async function JobPage({
+export default async function JobLayout({
+  children,
+  right,
   params,
 }: {
+  children: React.ReactNode;
+  right: React.ReactNode;
   params: Promise<JobPageParams>;
 }) {
-  const { agentId } = await params;
+  const p = await params;
+  const { agentId } = p;
   const agent = await getAgentById(agentId);
   if (!agent) {
-    return null;
+    console.log("agent not found");
+    return notFound();
   }
-
   const { session } = await requireAuthentication();
-  const jobs = await getJobsByAgentId(agentId, session.user.id);
-
   const agentPrice = await calculateAgentCreditCost(agent);
-
-  const inputSchema = await getAgentInputSchema(agentId);
+  const agentJobs = await getJobsByAgentId(agentId, session.user.id);
 
   return (
     <div className="flex h-full flex-1 flex-col p-4 lg:p-6 xl:p-8">
       <Header agent={agent} agentPricing={agentPrice} />
       <div className="mt-6 flex flex-1 flex-col justify-center gap-4 lg:flex-row lg:overflow-hidden">
-        <JobsTable jobs={jobs} />
-        <RightSection
-          agent={agent}
-          agentPricing={agentPrice}
-          inputSchema={inputSchema}
-        />
+        <JobsTable jobs={agentJobs} />
+        {right}
       </div>
       <Footer legal={getLegal(agent)} />
     </div>

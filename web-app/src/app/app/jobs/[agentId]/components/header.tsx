@@ -1,4 +1,5 @@
 import { Bookmark, Plus } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
@@ -60,7 +61,7 @@ export default async function Header({ agent, agentPricing }: HeaderProps) {
   const t = await getTranslations("App.Jobs.Header");
 
   return (
-    <div className="flex flex-wrap items-center gap-4 lg:gap-6 xl:gap-8">
+    <div className="flex flex-row items-center gap-4 lg:gap-6 xl:gap-8">
       <Suspense
         fallback={
           <Bookmark size={bookmarkSize} className="text-muted cursor-pointer" />
@@ -68,13 +69,19 @@ export default async function Header({ agent, agentPricing }: HeaderProps) {
       >
         <AgentBookmarkSection agentId={agent.id} />
       </Suspense>
-      <h1 className="text-2xl font-bold xl:text-3xl">{getName(agent)}</h1>
-      <Button className="gap-2">
-        <Plus />
-        {t("createNewJob")}
-      </Button>
-      <div className="text-base">
-        {t("price", { price: getCreditsToDisplay(agentPricing) })}
+      <h1 className="text-2xl font-bold text-nowrap xl:text-3xl">
+        {getName(agent)}
+      </h1>
+      <div className="flex w-full flex-row items-center justify-end gap-5">
+        <div className="w-full text-end text-base">
+          {t("price", { price: getCreditsToDisplay(agentPricing) })}
+        </div>
+        <Link href={`/app/jobs/${agent.id}`} className="gap-2">
+          <Button className="gap-2">
+            <Plus />
+            {t("createNewJob")}
+          </Button>
+        </Link>
       </div>
     </div>
   );

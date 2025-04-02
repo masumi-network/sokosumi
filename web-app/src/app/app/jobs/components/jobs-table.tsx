@@ -1,6 +1,7 @@
 "use client";
 
 import { ColumnDef, createColumnHelper } from "@tanstack/react-table";
+import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import React from "react";
 
@@ -10,11 +11,13 @@ import { JobWithRelations } from "@/lib/db/services/job.service";
 
 interface JobsTableProps {
   jobs: JobWithRelations[];
+  agentId: string;
 }
 
 export default function JobsTable({ jobs }: JobsTableProps) {
   const t = useTranslations("App.Jobs.JobsTable");
   const dateFormatter = useFormatter();
+  const router = useRouter();
 
   const columns = getColumns(t, dateFormatter);
 
@@ -29,6 +32,10 @@ export default function JobsTable({ jobs }: JobsTableProps) {
   return (
     <DataTable
       columns={columns}
+      rowOnClick={(row) => () => {
+        router.push(`/app/jobs/${row.agent.id}/${row.id}`);
+        return Promise.resolve();
+      }}
       data={jobs}
       containerClassName="w-full rounded-md border"
       showPagination

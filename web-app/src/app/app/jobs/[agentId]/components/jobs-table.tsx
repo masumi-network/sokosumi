@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 
 import { getSharedJobColumns } from "@/app/jobs/components/job-columns";
@@ -14,10 +15,15 @@ interface JobsTableProps {
 export default function JobsTable({ jobs }: JobsTableProps) {
   const t = useTranslations("App.Jobs.JobsTable");
   const dateFormatter = useFormatter();
+  const router = useRouter();
 
   return (
     <DataTable
       columns={getColumns(t, dateFormatter)}
+      rowOnClick={(row) => () => {
+        router.push(`/app/jobs/${row.agentId}/${row.id}`);
+        return Promise.resolve();
+      }}
       data={jobs}
       containerClassName={cn("w-full lg:w-[max(400px,36%)] rounded-md border")}
       defaultSort={[
