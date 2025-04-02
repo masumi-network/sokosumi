@@ -1,5 +1,6 @@
 import {
   AgentStatus,
+  CreditTransactionStatus,
   CreditTransactionType,
   JobStatus,
   PricingType,
@@ -222,6 +223,7 @@ const seedUser = async (): Promise<string> => {
       type: CreditTransactionType.TOP_UP,
       userId: user.id,
       includedFee: 0,
+      status: CreditTransactionStatus.SUCCEEDED,
     },
   });
   console.log(`Credit transaction created with id ${creditTransaction.id}`);
@@ -393,7 +395,7 @@ const seedJobs = async (userId: string) => {
       });
       await prisma.creditTransaction.create({
         data: {
-          amount: cost * BigInt(5),
+          amount: cost + BigInt(5),
           includedFee: 0,
           type: CreditTransactionType.TOP_UP,
           userId,
