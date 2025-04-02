@@ -17,7 +17,7 @@ export default async function RightPage({
   params: Promise<JobPageParams>;
 }) {
   const { agentId } = await params;
-  console.log("agentId in right page", agentId);
+
   const agent = await getAgentById(agentId);
   if (!agent) {
     console.log("agent not found in right page");

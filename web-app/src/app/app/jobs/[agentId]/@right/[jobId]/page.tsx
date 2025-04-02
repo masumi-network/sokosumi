@@ -16,7 +16,7 @@ export default async function JobDetailPage({
   params: Promise<JobPageParams>;
 }) {
   const { agentId, jobId } = await params;
-  console.log("agentId in job detail page", agentId);
+
   const agent = await getAgentById(agentId);
   if (!agent) {
     console.log("agent not found in job detail page");
