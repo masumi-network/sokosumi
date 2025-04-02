@@ -412,10 +412,6 @@ const seedCreditCost = async () => {
         creditCostPerUnit: BigInt(1),
       },
       {
-        unit: "lovelace",
-        creditCostPerUnit: BigInt(1_000_000),
-      },
-      {
         unit: "",
         creditCostPerUnit: BigInt(1_000_000),
       },
