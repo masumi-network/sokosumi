@@ -215,6 +215,16 @@ const seedUser = async (): Promise<string> => {
     },
   });
   console.log(`Account created with id ${account.id}`);
+
+  const creditTransaction = await prisma.creditTransaction.create({
+    data: {
+      amount: 100_000_000_000,
+      type: CreditTransactionType.TOP_UP,
+      userId: user.id,
+      includedFee: 0,
+    },
+  });
+  console.log(`Credit transaction created with id ${creditTransaction.id}`);
   return user.id;
 };
 
