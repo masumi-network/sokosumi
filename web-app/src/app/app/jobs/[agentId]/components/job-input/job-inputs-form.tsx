@@ -1,10 +1,12 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { SubmitHandler, useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
+import { getCreditsToDisplay } from "@/lib/db/extension/agent";
 import {
   defaultValues,
   JobInputsDataSchemaType,
@@ -16,25 +18,53 @@ import { cn } from "@/lib/utils";
 import JobInput from "./job-input";
 
 interface JobInputsFormProps {
-  credits: number;
+  agentId: string;
+  agentPricing: number;
   jobInputsDataSchema: JobInputsDataSchemaType;
   className?: string | undefined;
 }
 
 export default function JobInputsForm({
-  credits,
+  agentId,
+  agentPricing,
   jobInputsDataSchema,
   className,
 }: JobInputsFormProps) {
+  const router = useRouter();
   const { input_data } = jobInputsDataSchema;
   const t = useTranslations("Library.JobInput.Form");
   const form = useForm<JobInputsFormSchemaType>({
     resolver: zodResolver(jobInputsFormSchema(input_data, t)),
     defaultValues: defaultValues(input_data),
   });
+  const credits = getCreditsToDisplay(agentPricing);
 
-  const handleSubmit: SubmitHandler<JobInputsFormSchemaType> = (values) => {
-    console.log(values);
+  const handleSubmit: SubmitHandler<JobInputsFormSchemaType> = async (
+    values,
+  ) => {
+    try {
+      console.log(values, agentPricing);
+      const response = await fetch("/api/job/start", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          agentId: agentId,
+          maxAcceptedCreditCost: agentPricing,
+          inputData: Object.fromEntries(Object.entries(values)),
+        }),
+      });
+
+      if (response.ok) {
+        form.reset();
+        router.refresh();
+        //const data = await response.json();
+        //router.push(`/app/jobs/${data.jobId}`);
+      }
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const handleClear = () => {
