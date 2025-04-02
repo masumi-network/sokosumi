@@ -59,7 +59,17 @@ export function getCredits(agent: AgentWithFixedPricing): number {
   if (!agent.pricing.fixedPricing) {
     throw new Error("Agent must have FixedPricing");
   }
-  return Number(agent.pricing.fixedPricing.amounts[0].amount);
+  const unit = agent.pricing.fixedPricing.amounts[0].unit;
+  const amount = Number(agent.pricing.fixedPricing.amounts[0].amount);
+
+  switch (unit) {
+    case "usdm":
+      return amount;
+    case "lovelace":
+      return amount / 10 ** 6;
+    default:
+      return amount / 10 ** 6; // Default is lovelace
+  }
 }
 
 export type AgentWithRating = Prisma.AgentGetPayload<{
