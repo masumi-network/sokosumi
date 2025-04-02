@@ -264,7 +264,7 @@ export async function syncJobStatus(job: Job) {
 
   const onChainState = purchase.data.data.Purchases[0].onChainState;
 
-  if (onChainState === "FundsLocked") {
+  if (onChainState === "FundsLocked" || onChainState == null) {
     console.log("Funds still in locked state");
     return;
   }
