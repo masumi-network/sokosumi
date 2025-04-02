@@ -11,7 +11,6 @@ import { JobWithRelations } from "@/lib/db/services/job.service";
 
 interface JobsTableProps {
   jobs: JobWithRelations[];
-  agentId: string;
 }
 
 export default function JobsTable({ jobs }: JobsTableProps) {

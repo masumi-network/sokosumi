@@ -40,7 +40,6 @@ export async function generateMetadata({
 }
 
 export default async function JobLayout({
-  children,
   right,
   params,
 }: {

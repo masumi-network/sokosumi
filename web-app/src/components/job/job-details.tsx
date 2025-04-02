@@ -4,6 +4,7 @@ import Markdown from "react-markdown";
 
 import JobStatusBadge from "@/app/jobs/components/job-status-badge";
 import { JobWithRelations } from "@/lib/db/services/job.service";
+import { cn } from "@/lib/utils";
 
 interface JobDetailsProps {
   job: JobWithRelations;
@@ -18,7 +19,7 @@ function JobDetails({ job, className }: JobDetailsProps) {
   const input = job.input ? JSON.parse(job.input) : {};
 
   return (
-    <div className="flex h-full min-h-[300px] flex-1 flex-col">
+    <div className={cn("flex h-full min-h-[300px] flex-1 flex-col", className)}>
       <ScrollArea className="h-[calc(100%)] overflow-y-scroll rounded-md border p-4 px-8">
         <h1 className="h-[30px] text-xl font-bold">{t("title")} </h1>
         <p>
