@@ -59,8 +59,6 @@ export default function JobInputsForm({
       if (response.ok) {
         form.reset();
         router.refresh();
-        //const data = await response.json();
-        //router.push(`/app/jobs/${data.jobId}`);
       }
     } catch (error) {
       console.error(error);
