@@ -3,8 +3,9 @@ import { Prisma } from "@prisma/client";
 import { getPaymentInformation } from "@/lib/api/generated/registry";
 import { getRegistryClient } from "@/lib/api/registry-service.client";
 import { getApiBaseUrl } from "@/lib/db/extension/agent";
+import { inputSchemaMock } from "@/lib/db/mocks/input-schema";
 import prisma from "@/lib/db/prisma";
-import { jobInputSchema } from "@/lib/job-input";
+import { jobInputsDataSchema, JobInputsDataSchemaType } from "@/lib/job-input";
 
 import { getOrCreateFavoriteAgentList } from "./agentList.service";
 
@@ -86,7 +87,9 @@ export async function getHiredAgentsOrderedByLatestJob(userId: string) {
   });
 }
 
-export async function getAgentInputSchema(agentId: string) {
+export async function getAgentInputSchema(
+  agentId: string,
+): Promise<JobInputsDataSchemaType> {
   const agent = await getAgentById(agentId);
 
   if (!agent) {
@@ -96,11 +99,17 @@ export async function getAgentInputSchema(agentId: string) {
   const baseUrl = getApiBaseUrl(agent);
   const inputSchemaUrl = new URL(`/input_schema`, baseUrl);
 
-  const response = await fetch(inputSchemaUrl);
-  const schema = await response.json();
-  const inputSchema = jobInputSchema(undefined).parse(schema);
+  try {
+    const response = await fetch(inputSchemaUrl);
+    const schema = await response.json();
 
-  return inputSchema;
+    const inputSchema = jobInputsDataSchema(undefined).parse(schema);
+
+    return inputSchema;
+  } catch (error) {
+    console.error("Error fetching agent input schema", error);
+    return inputSchemaMock;
+  }
 }
 
 export async function getAgentPricing(agentId: string) {

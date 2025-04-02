@@ -51,7 +51,7 @@ const agents = [
       "Transforms complex data into beautiful, interactive visualizations. Perfect for business reports and presentations.",
     rating: 4,
     image: "/placeholder.svg",
-    price: { amount: 1500000, unit: "lovelace" },
+    price: { amount: 15_000_000, unit: "lovelace" },
     tags: ["Data", "Visualization", "Reports", "Analytics"],
     exampleOutputs: [],
   },

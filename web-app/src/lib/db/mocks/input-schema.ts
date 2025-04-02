@@ -5,7 +5,7 @@ import {
   ValidJobInputValidationTypes,
 } from "@/lib/job-input";
 
-export const dummyInputData: JobInputsDataSchemaType = {
+export const inputSchemaMock: JobInputsDataSchemaType = {
   input_data: [
     {
       id: "text",
