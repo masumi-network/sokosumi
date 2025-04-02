@@ -14,6 +14,7 @@
       "AgentCard": {
         "button": "Show details",
         "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}",
+        "calculating": "Calculating price...",
         "addedToBookmarks": "Agent added to pinned agents",
         "removedFromBookmarks": "Agent removed from pinned agents",
         "bookmarkError": "Failed to update pinned agents"
@@ -28,7 +29,8 @@
           "terms": "Terms",
           "other": "Other"
         },
-        "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
+        "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}",
+        "calculating": "Calculating price..."
       }
     },
     "UserAvatar": {
@@ -566,7 +568,9 @@
         },
         "Data": {
           "Values": {
-            "value": { "required": "Option is required" },
+            "value": {
+              "required": "Option is required"
+            },
             "min": "Must have at least 1 option"
           }
         },

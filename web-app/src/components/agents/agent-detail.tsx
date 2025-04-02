@@ -1,5 +1,3 @@
-"use client";
-
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -9,7 +7,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   getAuthorName,
-  getCredits,
+  getCreditsToDisplay,
   getDescription,
   getExampleOutput,
   getLegal,
@@ -90,10 +88,19 @@ function AgentDetailSkeleton({ className }: AgentDetailSkeletonProps) {
 interface AgentDetailsProps {
   agent: AgentWithRelations;
   agentList?: AgentListWithAgent | undefined;
+  agentPrice: number;
   className?: string;
 }
 
-function AgentDetails({ agent, agentList, className }: AgentDetailsProps) {
+function AgentDetails({
+  agent,
+  agentPrice,
+  agentList,
+  className,
+}: AgentDetailsProps) {
+  const displayPrice = getCreditsToDisplay(agentPrice);
+  console.log("agentPrice", agentPrice);
+  console.log("displayPrice", displayPrice);
   const t = useTranslations("Components.Agents.AgentDetail");
 
   const legal = getLegal(agent);
@@ -134,7 +141,7 @@ function AgentDetails({ agent, agentList, className }: AgentDetailsProps) {
           </div>
           {/* Pricing */}
           <p className="pt-1 text-sm font-medium">
-            {t("pricing", { price: getCredits(agent) })}
+            {t("pricing", { price: displayPrice })}
           </p>
           {/* Action Buttons */}
           <div className="mt-auto flex flex-col gap-3">

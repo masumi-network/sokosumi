@@ -1,7 +1,9 @@
 import { notFound } from "next/navigation";
 
 import { AgentDetails } from "@/components/agents";
+import { getEnvPublicConfig } from "@/config/env.config";
 import { getAgentById, getAgents } from "@/lib/db/services/agent.service";
+import { calculateCreditCostAndValidateAmounts } from "@/lib/db/services/credit.service";
 
 import BackToGallery from "./components/back-to-gallery";
 
@@ -33,10 +35,22 @@ export default async function Page({
     notFound();
   }
 
+  const agentPrice = agent.pricing?.fixedPricing?.amounts
+    ? Number(
+        await calculateCreditCostAndValidateAmounts(
+          agent.pricing.fixedPricing.amounts.map((amount) => ({
+            unit: amount.unit,
+            amount: Number(amount.amount),
+          })),
+          getEnvPublicConfig().DEFAULT_NETWORK_FEE_PERCENTAGE,
+        ),
+      )
+    : 0;
+
   return (
     <div className="container mx-auto space-y-8 p-4 pb-16 xl:p-8">
       <BackToGallery />
-      <AgentDetails agent={agent} />
+      <AgentDetails agent={agent} agentPrice={agentPrice} />
     </div>
   );
 }

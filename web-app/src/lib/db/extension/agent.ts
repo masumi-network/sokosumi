@@ -55,11 +55,8 @@ export type AgentWithFixedPricing = Prisma.AgentGetPayload<{
   };
 }>;
 
-export function getCredits(agent: AgentWithFixedPricing): number {
-  if (!agent.pricing.fixedPricing) {
-    throw new Error("Agent must have FixedPricing");
-  }
-  return Number(agent.pricing.fixedPricing.amounts[0].amount);
+export function getCreditsToDisplay(credits: number): number {
+  return credits / 100000000000;
 }
 
 export type AgentWithRating = Prisma.AgentGetPayload<{

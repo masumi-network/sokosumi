@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import {
   getAverageStars,
-  getCredits,
+  getCreditsToDisplay,
   getDescription,
   getName,
   getResolvedImage,
@@ -71,11 +71,18 @@ function AgentCardSkeleton({ className }: AgentCardSkeletonProps) {
 interface AgentCardProps {
   agent: AgentWithRelations;
   agentList?: AgentListWithAgent | undefined;
+  agentPrice: number;
   className?: string | undefined;
 }
 
-function AgentCard({ agent, agentList, className }: AgentCardProps) {
+function AgentCard({
+  agent,
+  agentPrice,
+  agentList,
+  className,
+}: AgentCardProps) {
   const t = useTranslations("Components.Agents.AgentCard");
+  const displayPrice = getCreditsToDisplay(agentPrice);
 
   const averageStars = getAverageStars(agent);
   const description = getDescription(agent);
@@ -129,7 +136,7 @@ function AgentCard({ agent, agentList, className }: AgentCardProps) {
 
             <div>
               <p className="text-muted-foreground text-s">
-                {t("pricing", { price: getCredits(agent) })}
+                {t("pricing", { price: displayPrice })}
               </p>
             </div>
           </div>

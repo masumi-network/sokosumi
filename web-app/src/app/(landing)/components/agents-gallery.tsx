@@ -1,20 +1,32 @@
 import { Suspense } from "react";
 
 import { AgentCard, AgentCardSkeleton } from "@/components/agents";
+import { getEnvPublicConfig } from "@/config/env.config";
 import HorizontalScroll from "@/landing/components/horizontal-scroll";
 import { getAgents } from "@/lib/db/services/agent.service";
+import { calculateCreditCostAndValidateAmounts } from "@/lib/db/services/credit.service";
 
 async function AgentsList() {
   const agents = await getAgents();
+
   return (
     <HorizontalScroll>
-      {agents.map((agent) => (
-        <AgentCard
-          key={agent.id}
-          agent={agent}
-          className="h-[32rem] w-[24rem]"
-        />
-      ))}
+      {agents.map(async (agent) => {
+        const agentPrice = agent.pricing?.fixedPricing?.amounts
+          ? Number(
+              await calculateCreditCostAndValidateAmounts(
+                agent.pricing.fixedPricing.amounts.map((amount) => ({
+                  unit: amount.unit,
+                  amount: Number(amount.amount),
+                })),
+                getEnvPublicConfig().DEFAULT_NETWORK_FEE_PERCENTAGE,
+              ),
+            )
+          : 0;
+        return (
+          <AgentCard key={agent.id} agent={agent} agentPrice={agentPrice} />
+        );
+      })}
     </HorizontalScroll>
   );
 }
