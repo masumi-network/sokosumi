@@ -17,6 +17,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import JobInput from "./job-input";
+import { useRouterPush, useRouterRefresh } from "./util";
 
 interface JobInputsFormProps {
   agentId: string;
@@ -39,6 +40,8 @@ export default function JobInputsForm({
     defaultValues: defaultValues(input_data),
   });
   const credits = getCreditsToDisplay(agentPricing);
+  const refresh = useRouterRefresh();
+  const push = useRouterPush();
 
   const handleSubmit: SubmitHandler<JobInputsFormSchemaType> = async (
     values,
@@ -59,7 +62,11 @@ export default function JobInputsForm({
 
       if (response.ok) {
         form.reset();
-        router.refresh();
+        const data = await response.json();
+        // prefetch the job page and load async to stay when loading
+        router.prefetch(`/app/jobs/${agentId}/${data.jobId}`);
+        await refresh();
+        await push(`/app/jobs/${agentId}/${data.jobId}`);
       }
     } catch (error) {
       console.error(error);
