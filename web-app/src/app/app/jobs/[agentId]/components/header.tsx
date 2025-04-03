@@ -11,6 +11,7 @@ import { requireAuthentication } from "@/lib/auth/utils";
 import { getCreditsToDisplay, getName } from "@/lib/db/extension/agent";
 import { AgentWithRelations } from "@/lib/db/services/agent.service";
 import { getOrCreateFavoriteAgentList } from "@/lib/db/services/agentList.service";
+import { AppRoute } from "@/types/routes";
 
 interface HeaderProps {
   agent: AgentWithRelations;
@@ -76,7 +77,7 @@ export default async function Header({ agent, agentPricing }: HeaderProps) {
         <div className="w-full text-end text-base">
           {t("price", { price: getCreditsToDisplay(agentPricing) })}
         </div>
-        <Link href={`/app/jobs/${agent.id}`} className="gap-2">
+        <Link href={`${AppRoute.Jobs}/${agent.id}`} className="gap-2">
           <Button className="gap-2">
             <Plus />
             {t("createNewJob")}

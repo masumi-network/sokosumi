@@ -8,6 +8,7 @@ import React from "react";
 import { getSharedJobColumns } from "@/app/jobs/components/job-columns";
 import { DataTable, DataTableColumnHeader } from "@/components/data-table";
 import { JobWithRelations } from "@/lib/db/services/job.service";
+import { AppRoute } from "@/types/routes";
 
 interface JobsTableProps {
   jobs: JobWithRelations[];
@@ -32,7 +33,7 @@ export default function JobsTable({ jobs }: JobsTableProps) {
     <DataTable
       columns={columns}
       rowOnClick={(row) => () => {
-        router.push(`/app/jobs/${row.agent.id}/${row.id}`);
+        router.push(`${AppRoute.Jobs}/${row.agent.id}/${row.id}`);
         return Promise.resolve();
       }}
       data={jobs}

@@ -15,6 +15,7 @@ import {
   JobInputsFormSchemaType,
 } from "@/lib/job-input";
 import { cn } from "@/lib/utils";
+import { AppRoute } from "@/types/routes";
 
 import JobInput from "./job-input";
 import { useRouterPush, useRouterRefresh } from "./util";
@@ -64,9 +65,9 @@ export default function JobInputsForm({
         form.reset();
         const data = await response.json();
         // prefetch the job page and load async to stay when loading
-        router.prefetch(`/app/jobs/${agentId}/${data.jobId}`);
+        router.prefetch(`${AppRoute.Jobs}/${agentId}/${data.jobId}`);
         await refresh();
-        await push(`/app/jobs/${agentId}/${data.jobId}`);
+        await push(`${AppRoute.Jobs}/${agentId}/${data.jobId}`);
       }
     } catch (error) {
       console.error(error);
