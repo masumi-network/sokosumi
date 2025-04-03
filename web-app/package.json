@@ -70,7 +70,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.0",
-    "@hey-api/openapi-ts": "^0.66.0",
+    "@hey-api/openapi-ts": "^0.66.1",
     "@noble/hashes": "^1.7.1",
     "@swc/core": "^1.11.16",
     "@swc/helpers": "^0.5.15",
@@ -95,7 +95,7 @@
     "prettier": "^3.5.3",
     "prettier-plugin-tailwindcss": "^0.6.11",
     "prisma": "^6.5.0",
-    "tailwindcss": "^4.1.0",
+    "tailwindcss": "^4.1.1",
     "tsx": "^4.19.3",
     "typescript": "^5.8.2"
   }
