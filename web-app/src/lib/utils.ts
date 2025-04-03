@@ -108,8 +108,9 @@ export const calculatedInputHash = (
 ) => {
   const inputString = json.canonicalize(Object.fromEntries(inputData));
   console.log("inputString", identifierFromPurchaser + inputString);
-  return crypto
-    .createHash("sha256")
-    .update(identifierFromPurchaser + inputString)
-    .digest("hex");
+  return createHash(identifierFromPurchaser + inputString);
+};
+
+export const createHash = (input: string) => {
+  return crypto.createHash("sha256").update(input).digest("hex");
 };
