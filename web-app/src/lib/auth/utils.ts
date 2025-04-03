@@ -1,9 +1,9 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { createHash } from "src/lib/utils";
 
 import { getEnvSecrets } from "@/config/env.config";
 import { auth, Session } from "@/lib/auth/auth";
+import { createHash } from "@/lib/utils";
 
 export async function requireAuthentication(): Promise<{
   session: Session;
