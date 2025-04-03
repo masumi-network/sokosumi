@@ -1,21 +1,20 @@
+"use client";
 import { Bookmark, Plus } from "lucide-react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { getTranslations } from "next-intl/server";
-import { Suspense } from "react";
 
 import { AgentBookmarkButton } from "@/components/agents/agent-bookmark-button";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { requireAuthentication } from "@/lib/auth/utils";
 import { getCreditsToDisplay, getName } from "@/lib/db/extension/agent";
 import { AgentWithRelations } from "@/lib/db/services/agent.service";
-import { getOrCreateFavoriteAgentList } from "@/lib/db/services/agentList.service";
+import { AgentListWithAgent } from "@/lib/db/services/agentList.service";
 import { AppRoute } from "@/types/routes";
 
 interface HeaderProps {
   agent: AgentWithRelations;
   agentPricing: number;
+  favoriteAgentList: AgentListWithAgent;
 }
 
 const bookmarkSize = 36;
@@ -46,30 +45,33 @@ function InactiveBookmarkButton() {
   );
 }
 
-async function AgentBookmarkSection({ agentId }: { agentId: string }) {
-  const { session } = await requireAuthentication();
-
-  const agentList = await getOrCreateFavoriteAgentList(session.user.id);
-
-  return agentList ? (
-    <AgentBookmarkButton agentId={agentId} agentList={agentList} />
+function AgentBookmarkSection({
+  favoriteAgentList,
+  agentId,
+}: {
+  favoriteAgentList: AgentListWithAgent;
+  agentId: string;
+}) {
+  return favoriteAgentList ? (
+    <AgentBookmarkButton agentId={agentId} agentList={favoriteAgentList} />
   ) : (
     <InactiveBookmarkButton />
   );
 }
 
-export default async function Header({ agent, agentPricing }: HeaderProps) {
-  const t = await getTranslations("App.Jobs.Header");
-
+export default function Header({
+  agent,
+  agentPricing,
+  favoriteAgentList,
+}: HeaderProps) {
+  const t = useTranslations("App.Jobs.Header");
+  const router = useRouter();
   return (
     <div className="flex flex-row items-center gap-4 lg:gap-6 xl:gap-8">
-      <Suspense
-        fallback={
-          <Bookmark size={bookmarkSize} className="text-muted cursor-pointer" />
-        }
-      >
-        <AgentBookmarkSection agentId={agent.id} />
-      </Suspense>
+      <AgentBookmarkSection
+        agentId={agent.id}
+        favoriteAgentList={favoriteAgentList}
+      />
       <h1 className="text-2xl font-bold text-nowrap xl:text-3xl">
         {getName(agent)}
       </h1>
@@ -77,12 +79,16 @@ export default async function Header({ agent, agentPricing }: HeaderProps) {
         <div className="w-full text-end text-base">
           {t("price", { price: getCreditsToDisplay(agentPricing) })}
         </div>
-        <Link href={`${AppRoute.Jobs}/${agent.id}`} className="gap-2">
-          <Button className="gap-2">
-            <Plus />
-            {t("createNewJob")}
-          </Button>
-        </Link>
+        <Button
+          className="gap-2"
+          onClick={() => {
+            router.push(`${AppRoute.Agents}/${agent.id}/jobs`);
+            router.refresh();
+          }}
+        >
+          <Plus />
+          {t("createNewJob")}
+        </Button>
       </div>
     </div>
   );

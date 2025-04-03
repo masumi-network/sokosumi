@@ -489,10 +489,15 @@
           "title": "Inputs",
           "None": "No input"
         }
-      }
+      },
+      "description": "The page showing all your jobs"
     },
     "Billing": {
       "title": "Billing"
+    },
+    "JobsSelected": {
+      "title": "Job",
+      "NoJobSelected": "No job selected..."
     }
   },
   "NotFound": {

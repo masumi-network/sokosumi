@@ -1,6 +1,6 @@
 import { Loader2 } from "lucide-react";
 
-import { HeaderSkeleton } from "./components/header";
+import { HeaderSkeleton } from "./@right/components/header";
 
 export default function JobLoading({ right }: { right: React.ReactNode }) {
   return (

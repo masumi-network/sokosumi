@@ -65,9 +65,9 @@ export default function JobInputsForm({
         form.reset();
         const data = await response.json();
         // prefetch the job page and load async to stay when loading
-        router.prefetch(`${AppRoute.Jobs}/${agentId}/${data.jobId}`);
+        router.prefetch(`${AppRoute.Agents}/${agentId}/jobs/${data.jobId}`);
         await refresh();
-        await push(`${AppRoute.Jobs}/${agentId}/${data.jobId}`);
+        await push(`${AppRoute.Agents}/${agentId}/jobs/${data.jobId}`);
       }
     } catch (error) {
       console.error(error);

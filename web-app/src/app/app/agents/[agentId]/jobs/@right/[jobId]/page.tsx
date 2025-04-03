@@ -25,13 +25,16 @@ export default async function JobDetailPage({
 
   const job = await getJobById(jobId);
   if (!job) {
+    console.log("job not found in job detail page");
     notFound();
   }
   if (job.agent.id !== agentId) {
+    console.log("job not found in job detail page");
     notFound();
   }
   const { session } = await requireAuthentication();
   if (job.userId !== session.user.id) {
+    console.log("job not found in job detail page");
     notFound();
   }
 

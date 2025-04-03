@@ -33,7 +33,7 @@ export default function JobsTable({ jobs }: JobsTableProps) {
     <DataTable
       columns={columns}
       rowOnClick={(row) => () => {
-        router.push(`${AppRoute.Jobs}/${row.agent.id}/${row.id}`);
+        router.push(`${AppRoute.Jobs}/${row.id}`);
         return Promise.resolve();
       }}
       data={jobs}

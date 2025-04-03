@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import CreateJobSection from "@/app/jobs/[agentId]/components/create-job-section";
+import CreateJobSection from "@/app/agents/[agentId]/jobs/@right/components/create-job-section";
 import {
   getAgentById,
   getAgentInputSchema,

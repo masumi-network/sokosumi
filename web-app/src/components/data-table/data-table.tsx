@@ -40,6 +40,7 @@ interface DataTableProps<TData, TValue> {
   showPagination?: boolean | undefined;
   defaultSort?: { id: string; desc: boolean }[];
   rowOnClick?: (row: TData) => () => void | Promise<void>;
+  rowClassName?: (row: TData) => string | undefined;
 }
 
 export default function DataTable<TData, TValue>({
@@ -52,6 +53,7 @@ export default function DataTable<TData, TValue>({
   showPagination,
   defaultSort,
   rowOnClick,
+  rowClassName,
 }: DataTableProps<TData, TValue>) {
   const t = useTranslations("Components.DataTable.Data");
 
@@ -135,12 +137,14 @@ export default function DataTable<TData, TValue>({
                 {rowModel.rows?.length ? (
                   rowModel.rows.map((row) => {
                     const onClick = rowOnClick?.(row.original);
-
                     return (
                       <TableRow
                         key={row.id}
                         data-state={row.getIsSelected() && "selected"}
-                        className={cn(onClick != undefined && "cursor-pointer")}
+                        className={cn(
+                          rowClassName?.(row.original),
+                          onClick != undefined && "cursor-pointer",
+                        )}
                         onClick={onClick}
                       >
                         {row.getVisibleCells().map((cell) => (
