@@ -443,11 +443,11 @@ const seedCreditCost = async () => {
       unit: "",
     },
     update: {
-      creditCostPerUnit: BigInt(1_000_000),
+      creditCostPerUnit: BigInt(70000),
     },
     create: {
       unit: "",
-      creditCostPerUnit: BigInt(1_000_000),
+      creditCostPerUnit: BigInt(70000),
     },
   });
   console.log("Lovelace credit cost seeded");
