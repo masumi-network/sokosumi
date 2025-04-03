@@ -79,7 +79,7 @@
     "@testing-library/react": "16.2.0",
     "@types/jest": "29.5.14",
     "@types/node": "^22.13.17",
-    "@types/react": "^19.0.12",
+    "@types/react": "^19.1.0",
     "@types/react-dom": "^19.1.1",
     "@types/react-window": "^1.8.8",
     "eslint": "^9.23.0",
