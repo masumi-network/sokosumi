@@ -29,3 +29,33 @@ updates:
       - "golddydev"
     commit-message:
       prefix: "build(deps)"
+  
+  # Enable version updates for npm in the job-cron-caller directory
+  - package-ecosystem: "npm"
+    directory: "/job-cron-caller"
+    schedule:
+      interval: "daily"
+      time: "06:00"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "mrgrauel"
+      - "schaier-io"
+      - "golddydev"
+    commit-message:
+      prefix: "build(deps)"
+  
+  # Enable version updates for npm in the registry-cron-caller directory
+  - package-ecosystem: "npm"
+    directory: "/registry-cron-caller"
+    schedule:
+      interval: "daily"
+      time: "06:00"
+      timezone: "Europe/Berlin"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "mrgrauel"
+      - "schaier-io"
+      - "golddydev"
+    commit-message:
+      prefix: "build(deps)"

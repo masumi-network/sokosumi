@@ -80,9 +80,7 @@ export async function calculateAgentCreditCost(
   if (!amounts) {
     return 0;
   }
-  if (feePercentagePoints === undefined) {
-    feePercentagePoints = getEnvPublicConfig().DEFAULT_NETWORK_FEE_PERCENTAGE;
-  }
+  feePercentagePoints ??= getEnvPublicConfig().DEFAULT_NETWORK_FEE_PERCENTAGE;
   return Number(
     await calculateCreditCostAndValidateAmounts(amounts, feePercentagePoints),
   );
@@ -98,9 +96,7 @@ export async function calculateCreditCostAndValidateAmounts(
   amounts: { unit: string; amount: number }[],
   feePercentagePoints: number | undefined = undefined,
 ) {
-  if (feePercentagePoints === undefined) {
-    feePercentagePoints = getEnvPublicConfig().DEFAULT_NETWORK_FEE_PERCENTAGE;
-  }
+  feePercentagePoints ??= getEnvPublicConfig().DEFAULT_NETWORK_FEE_PERCENTAGE;
   if (feePercentagePoints < -100) {
     throw new Error("Added fee percentage must be greater than 0");
   }

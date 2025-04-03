@@ -23,11 +23,16 @@ jobs:
           fetch-depth: 0
           ref: ${{ github.event.pull_request.head.sha }}
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
       - name: Install Dependencies
-        run: npm i
+        run: pnpm i
 
       - name: Lint
-        run: npm run lint
+        run: pnpm run lint
 
       - name: Run Build
-        run: npm run build
+        run: pnpm run build
