@@ -13,7 +13,7 @@ import Footer from "./@right/components/footer";
 import Header from "./@right/components/header";
 import JobsTable from "./@right/components/jobs-table";
 
-interface JobPageParams {
+interface JobLayoutParams {
   agentId: string;
 }
 
@@ -27,7 +27,9 @@ export async function generateStaticParams() {
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<JobPageParams>;
+  params: Promise<JobLayoutParams>;
+  right: React.ReactNode;
+  children: React.ReactNode;
 }): Promise<Metadata> {
   const { agentId } = await params;
   const agent = await getAgentById(agentId);
@@ -47,7 +49,7 @@ export default async function JobLayout({
 }: {
   children: React.ReactNode;
   right: React.ReactNode;
-  params: Promise<JobPageParams>;
+  params: Promise<JobLayoutParams>;
 }) {
   const resultingParams = await params;
 
