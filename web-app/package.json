@@ -21,12 +21,12 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:migrate:reset": "prisma migrate reset",
-    "prisma:seed": "npx prisma db seed",
+    "prisma:seed": "prisma db seed",
     "prisma:studio": "prisma studio",
     "format": "prettier --log-level silent --write src/**/*.ts",
     "generate:payment": "openapi-ts -f openapi-ts.payment.config.ts",
     "generate:registry": "openapi-ts -f openapi-ts.registry.config.ts",
-    "generate:api": "npm run generate:registry && npm run generate:payment"
+    "generate:api": "pnpm run generate:registry && pnpm run generate:payment"
   },
   "dependencies": {
     "@hey-api/client-fetch": "^0.10.0",
