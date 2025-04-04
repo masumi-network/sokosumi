@@ -100,10 +100,8 @@ const envSchemaConfig = z.object({
   NEXT_PUBLIC_KODOSUMI_URL: z.string().url().default("https://kodosumi.com"),
   NEXT_PUBLIC_SOKOSUMI_URL: z.string().url().default("https://sokosumi.com"),
   NEXT_PUBLIC_NETWORK: z.literal("Preprod").or(z.literal("Mainnet")),
-  DEFAULT_NETWORK_FEE_PERCENTAGE: z
-    .number({ coerce: true })
-    .min(-100)
-    .default(5),
+  NEXT_PUBLIC_FEE_PERCENTAGE: z.number({ coerce: true }).min(0).default(5),
+  NEXT_PUBLIC_CREDITS_BASE: z.number({ coerce: true }).default(12),
 });
 
 let envSecrets: z.infer<typeof envSchemaSecrets>;
@@ -122,8 +120,8 @@ function validateEnv() {
     NEXT_PUBLIC_KODOSUMI_URL: process.env.NEXT_PUBLIC_KODOSUMI_URL,
     NEXT_PUBLIC_SOKOSUMI_URL: process.env.NEXT_PUBLIC_SOKOSUMI_URL,
     NEXT_PUBLIC_NETWORK: process.env.NEXT_PUBLIC_NETWORK,
-    NEXT_PUBLIC_DEFAULT_NETWORK_FEE_PERCENTAGE:
-      process.env.NEXT_PUBLIC_DEFAULT_NETWORK_FEE_PERCENTAGE,
+    NEXT_PUBLIC_FEE_PERCENTAGE: process.env.NEXT_PUBLIC_FEE_PERCENTAGE,
+    NEXT_PUBLIC_CREDITS_BASE: process.env.NEXT_PUBLIC_CREDITS_BASE,
   });
   if (!parsedConfig.success) {
     console.error(

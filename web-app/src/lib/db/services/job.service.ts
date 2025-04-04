@@ -1,7 +1,6 @@
 import { CreditTransactionType, Job, Prisma } from "@prisma/client";
 import { z } from "zod";
 
-import { getEnvPublicConfig } from "@/config/env.config";
 import { getPurchase, postPurchase } from "@/lib/api/generated/payment";
 import { getPaymentClient } from "@/lib/api/payment-service.client";
 import { getApiBaseUrl } from "@/lib/db/extension/agent";
@@ -43,7 +42,6 @@ export async function startJob(
       unit: amount.unit,
       amount: Number(amount.amount),
     })),
-    getEnvPublicConfig().DEFAULT_NETWORK_FEE_PERCENTAGE,
   );
 
   if (creditCost > maxAcceptedCreditCost) {

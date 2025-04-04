@@ -71,7 +71,8 @@ const amountsSchema = z.array(
 );
 export async function calculateAgentCreditCost(
   agent: AgentWithFixedPricing,
-  feePercentagePoints: number | undefined = undefined,
+  feePercentagePoints: number | undefined = getEnvPublicConfig()
+    .NEXT_PUBLIC_FEE_PERCENTAGE,
 ) {
   const amounts = agent.pricing?.fixedPricing?.amounts?.map((amount) => ({
     unit: amount.unit,
@@ -80,7 +81,6 @@ export async function calculateAgentCreditCost(
   if (!amounts) {
     return 0;
   }
-  feePercentagePoints ??= getEnvPublicConfig().DEFAULT_NETWORK_FEE_PERCENTAGE;
   return Number(
     await calculateCreditCostAndValidateAmounts(amounts, feePercentagePoints),
   );
@@ -94,13 +94,14 @@ export async function calculateAgentCreditCost(
  */
 export async function calculateCreditCostAndValidateAmounts(
   amounts: { unit: string; amount: number }[],
-  feePercentagePoints: number | undefined = undefined,
+  feePercentagePoints: number | undefined = getEnvPublicConfig()
+    .NEXT_PUBLIC_FEE_PERCENTAGE,
 ) {
-  feePercentagePoints ??= getEnvPublicConfig().DEFAULT_NETWORK_FEE_PERCENTAGE;
-  if (feePercentagePoints < -100) {
-    throw new Error("Added fee percentage must be greater than 0");
+  feePercentagePoints ??= getEnvPublicConfig().NEXT_PUBLIC_FEE_PERCENTAGE;
+  if (feePercentagePoints < 0) {
+    throw new Error("Added fee percentage must be equal to or greater than 0");
   }
-  const feeMultiplier = Math.max(1 + feePercentagePoints / 100, 0);
+  const feeMultiplier = feePercentagePoints / 100;
 
   const amountsParsed = amountsSchema.parse(amounts);
 
@@ -114,11 +115,16 @@ export async function calculateCreditCostAndValidateAmounts(
     if (!creditCost) {
       throw new Error(`Credit cost not found for unit ${amount.unit}`);
     }
-    const cost =
-      Number(creditCost.creditCostPerUnit) * amount.amount * feeMultiplier;
+    const cost = Number(creditCost.creditCostPerUnit) * amount.amount;
+    const fee = cost * feeMultiplier;
+    const totalCost = cost + fee;
     //round up to the nearest integer
-    totalCreditCost += BigInt(Math.ceil(cost));
+    totalCreditCost += BigInt(Math.ceil(totalCost));
   }
 
   return totalCreditCost;
+}
+
+export function getCreditsToDisplay(credits: number): number {
+  return credits / 10 ** getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BASE;
 }

@@ -23,5 +23,5 @@ export async function getUserCredits(id: string): Promise<number> {
       amount: true,
     },
   });
-  return Number(result._sum.amount);
+  return Number(result._sum.amount ?? 0);
 }

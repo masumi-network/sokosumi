@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
 import { auth } from "@/lib/auth/auth";
-import { getCreditsToDisplay } from "@/lib/db/extension/agent";
+import { getCreditsToDisplay } from "@/lib/db/services/credit.service";
 import { getUserById, getUserCredits } from "@/lib/db/services/user.service";
 
 export default async function UserCredits() {

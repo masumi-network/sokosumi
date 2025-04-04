@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { getEnvPublicConfig } from "@/config/env.config";
 import { calculateCreditCostAndValidateAmounts } from "@/lib/db/services/credit.service";
 
 const creditCalculationSchema = z.object({
@@ -22,10 +21,7 @@ export async function POST(request: Request) {
     }
     const { amounts } = result.data;
 
-    const totalCost = await calculateCreditCostAndValidateAmounts(
-      amounts,
-      getEnvPublicConfig().DEFAULT_NETWORK_FEE_PERCENTAGE,
-    );
+    const totalCost = await calculateCreditCostAndValidateAmounts(amounts);
     console.log(totalCost);
 
     return NextResponse.json({ totalCost: totalCost.toString() });
