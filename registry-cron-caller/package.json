@@ -3,6 +3,11 @@
   "version": "1.0.0",
   "description": "DigitalOcean Function to call an API on a schedule",
   "main": "packages/registry-sync/main/main.js",
+  "packageManager": "pnpm@10.7.1",
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=10.7.1"
+  },
   "scripts": {
     "build": "tsc",
     "deploy": "doctl serverless deploy .",
