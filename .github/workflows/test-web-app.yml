@@ -68,10 +68,10 @@ jobs:
         run: pnpm run test:ci
 
       - name: Run Prisma Migrate
-        run: pnpm run prisma:migrate
+        run: pnpm exec prisma migrate dev
 
       - name: Run Prisma Seed
-        run: pnpm run prisma:seed
+        run: pnpm exec prisma db seed
 
       - name: Run Build
         run: pnpm run build
