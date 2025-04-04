@@ -1,5 +1,6 @@
 import {
   AgentStatus,
+  CreditTransactionStatus,
   CreditTransactionType,
   JobStatus,
   PricingType,
@@ -215,6 +216,17 @@ const seedUser = async (): Promise<string> => {
     },
   });
   console.log(`Account created with id ${account.id}`);
+
+  const creditTransaction = await prisma.creditTransaction.create({
+    data: {
+      amount: 100_000_000_000,
+      type: CreditTransactionType.TOP_UP,
+      userId: user.id,
+      includedFee: 0,
+      status: CreditTransactionStatus.SUCCEEDED,
+    },
+  });
+  console.log(`Credit transaction created with id ${creditTransaction.id}`);
   return user.id;
 };
 
@@ -383,7 +395,7 @@ const seedJobs = async (userId: string) => {
       });
       await prisma.creditTransaction.create({
         data: {
-          amount: cost * BigInt(5),
+          amount: cost + BigInt(5),
           includedFee: 0,
           type: CreditTransactionType.TOP_UP,
           userId,
@@ -433,11 +445,11 @@ const seedCreditCost = async () => {
       unit: "",
     },
     update: {
-      creditCostPerUnit: BigInt(1_000_000),
+      creditCostPerUnit: BigInt(70000),
     },
     create: {
       unit: "",
-      creditCostPerUnit: BigInt(1_000_000),
+      creditCostPerUnit: BigInt(70000),
     },
   });
   console.log("Lovelace credit cost seeded");

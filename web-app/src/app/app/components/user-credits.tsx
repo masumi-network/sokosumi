@@ -2,8 +2,8 @@ import { headers } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
 import { auth } from "@/lib/auth/auth";
-import { getCredits } from "@/lib/db/extension/user";
-import { getUserById } from "@/lib/db/services/user.service";
+import { getCreditsToDisplay } from "@/lib/db/extension/agent";
+import { getUserById, getUserCredits } from "@/lib/db/services/user.service";
 
 export default async function UserCredits() {
   const t = await getTranslations("App.Header.NavMenu.Credit");
@@ -16,9 +16,10 @@ export default async function UserCredits() {
   }
 
   const user = await getUserById(session.user.id);
+  const credits = await getUserCredits(session.user.id);
 
   if (!user) {
     return <>{t("unavailable")}</>;
   }
-  return <>{t("balance", { credits: getCredits(user) })}</>;
+  return <>{t("balance", { credits: getCreditsToDisplay(credits) })}</>;
 }

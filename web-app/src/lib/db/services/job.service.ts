@@ -107,7 +107,7 @@ export async function startJob(
         submitResultTime: startJobResponse.submitResultTime.toString(),
         unlockTime: startJobResponse.unlockTime.toString(),
         metadata: JSON.stringify({
-          inputData,
+          inputData: Object.fromEntries(inputData),
           jobId: startJobResponse.job_id,
         }),
       },
@@ -132,7 +132,7 @@ export async function startJob(
         },
         status: "PAYMENT_PENDING",
         paymentId: purchaseResponse.data.id,
-        input: JSON.stringify(inputData),
+        input: JSON.stringify(Object.fromEntries(inputData)),
         identifierFromPurchaser,
         externalDisputeUnlockTime: new Date(
           startJobResponse.externalDisputeUnlockTime,
@@ -264,7 +264,7 @@ export async function syncJobStatus(job: Job) {
 
   const onChainState = purchase.data.data.Purchases[0].onChainState;
 
-  if (onChainState === "FundsLocked") {
+  if (onChainState === "FundsLocked" || onChainState == null) {
     console.log("Funds still in locked state");
     return;
   }
@@ -386,4 +386,13 @@ export async function getJobs(userId: string) {
   });
 
   return jobs;
+}
+
+export async function getJobById(jobId: string) {
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    include: jobInclude,
+  });
+
+  return job;
 }

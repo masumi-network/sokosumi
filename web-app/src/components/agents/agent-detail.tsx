@@ -146,7 +146,7 @@ function AgentDetails({
           {/* Action Buttons */}
           <div className="mt-auto flex flex-col gap-3">
             <div className="flex items-center gap-3">
-              <Link href={`${AppRoute.Jobs}/${agent.id}`}>
+              <Link href={`${AppRoute.Agents}/${agent.id}/jobs`}>
                 <Button variant="default" size="lg">
                   {t("hire")}
                 </Button>

@@ -37,9 +37,8 @@ model User {
   userAgentRating    UserAgentRating[]
   agentLists         AgentList[]
   creditTransactions CreditTransaction[]
-  // Auth unrelated fields
-  credits            BigInt              @default(0)
-  jobs               Job[]
+
+  jobs Job[]
 
   @@unique([email])
   @@map("user")

@@ -1,3 +1,4 @@
+"use client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -14,8 +15,10 @@ import {
   JobInputsFormSchemaType,
 } from "@/lib/job-input";
 import { cn } from "@/lib/utils";
+import { AppRoute } from "@/types/routes";
 
 import JobInput from "./job-input";
+import { useRouterPush, useRouterRefresh } from "./util";
 
 interface JobInputsFormProps {
   agentId: string;
@@ -38,6 +41,8 @@ export default function JobInputsForm({
     defaultValues: defaultValues(input_data),
   });
   const credits = getCreditsToDisplay(agentPricing);
+  const refresh = useRouterRefresh();
+  const push = useRouterPush();
 
   const handleSubmit: SubmitHandler<JobInputsFormSchemaType> = async (
     values,
@@ -58,7 +63,11 @@ export default function JobInputsForm({
 
       if (response.ok) {
         form.reset();
-        router.refresh();
+        const data = await response.json();
+        // prefetch the job page and load async to stay when loading
+        router.prefetch(`${AppRoute.Agents}/${agentId}/jobs/${data.jobId}`);
+        await refresh();
+        await push(`${AppRoute.Agents}/${agentId}/jobs/${data.jobId}`);
       }
     } catch (error) {
       console.error(error);

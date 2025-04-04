@@ -1,6 +1,7 @@
 import { after, NextResponse } from "next/server";
 
 import { getEnvSecrets } from "@/config/env.config";
+import { compareApiKeys } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 import { syncJobStatus } from "@/lib/db/services/job.service";
 import { getLock, releaseLock, timeLimitedExecution } from "@/lib/utils";
@@ -8,7 +9,14 @@ import { getLock, releaseLock, timeLimitedExecution } from "@/lib/utils";
 const LOCK_KEY = "job-sync";
 
 export async function POST(request: Request) {
-  if (request.headers.get("admin-api-key") !== getEnvSecrets().ADMIN_KEY) {
+  const headerApiKey = request.headers.get("admin-api-key");
+  if (!headerApiKey) {
+    return NextResponse.json(
+      { message: "No api key provided" },
+      { status: 401 },
+    );
+  }
+  if (compareApiKeys(headerApiKey) !== true) {
     return NextResponse.json({ message: "Invalid api key" }, { status: 401 });
   }
   // Start a transaction to ensure atomicity

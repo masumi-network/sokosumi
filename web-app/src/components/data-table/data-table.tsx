@@ -39,6 +39,8 @@ interface DataTableProps<TData, TValue> {
   tableBodyClassName?: string | undefined;
   showPagination?: boolean | undefined;
   defaultSort?: { id: string; desc: boolean }[];
+  rowOnClick?: (row: TData) => () => void | Promise<void>;
+  rowClassName?: (row: TData) => string | undefined;
 }
 
 export default function DataTable<TData, TValue>({
@@ -50,6 +52,8 @@ export default function DataTable<TData, TValue>({
   tableBodyClassName,
   showPagination,
   defaultSort,
+  rowOnClick,
+  rowClassName,
 }: DataTableProps<TData, TValue>) {
   const t = useTranslations("Components.DataTable.Data");
 
@@ -85,7 +89,7 @@ export default function DataTable<TData, TValue>({
 
   const rowModel = table.getRowModel();
 
-  return (
+  const tableElements = (
     <div
       className={cn(
         "flex flex-col space-y-4 overflow-hidden",
@@ -131,26 +135,34 @@ export default function DataTable<TData, TValue>({
             <Table className="table-fixed">
               <TableBody>
                 {rowModel.rows?.length ? (
-                  rowModel.rows.map((row) => (
-                    <TableRow
-                      key={row.id}
-                      data-state={row.getIsSelected() && "selected"}
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell
-                          key={cell.id}
-                          style={{
-                            width: cell.column.getSize(),
-                          }}
-                        >
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext(),
-                          )}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  ))
+                  rowModel.rows.map((row) => {
+                    const onClick = rowOnClick?.(row.original);
+                    return (
+                      <TableRow
+                        key={row.id}
+                        data-state={row.getIsSelected() && "selected"}
+                        className={cn(
+                          rowClassName?.(row.original),
+                          onClick != undefined && "cursor-pointer",
+                        )}
+                        onClick={onClick}
+                      >
+                        {row.getVisibleCells().map((cell) => (
+                          <TableCell
+                            key={cell.id}
+                            style={{
+                              width: cell.column.getSize(),
+                            }}
+                          >
+                            {flexRender(
+                              cell.column.columnDef.cell,
+                              cell.getContext(),
+                            )}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    );
+                  })
                 ) : (
                   <TableRow>
                     <TableCell
@@ -169,4 +181,6 @@ export default function DataTable<TData, TValue>({
       {showPagination && <DataTablePagination table={table} />}
     </div>
   );
+
+  return tableElements;
 }

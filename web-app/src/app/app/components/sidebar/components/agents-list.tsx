@@ -109,7 +109,7 @@ function AgentSection({
             {agents.map((agent) => (
               <SidebarMenuItem key={agent.id}>
                 <SidebarMenuButton asChild>
-                  <Link href={`${AppRoute.Jobs}/${agent.id}`}>
+                  <Link href={`${AppRoute.Agents}/${agent.id}/jobs`}>
                     <span className="whitespace-nowrap">{getName(agent)}</span>
                   </Link>
                 </SidebarMenuButton>

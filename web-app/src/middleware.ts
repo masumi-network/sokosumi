@@ -5,6 +5,7 @@ import { authorizationMiddleware } from "./middleware/authorization";
 export async function middleware(req: NextRequest) {
   // Apply authorization middleware
   const authResponse = await authorizationMiddleware(req);
+  authResponse.headers.append("x-current-path", req.nextUrl.pathname);
   if (authResponse) return authResponse;
 
   // If all middlewares pass, proceed with the request

@@ -477,10 +477,27 @@
           "paymentFailed": "Payment Failed",
           "processing": "Processing"
         }
-      }
+      },
+      "JobDetails": {
+        "title": "Job",
+        "status": "Status",
+        "Output": {
+          "title": "Result",
+          "None": "No result data "
+        },
+        "Input": {
+          "title": "Inputs",
+          "None": "No input"
+        }
+      },
+      "description": "The page showing all your jobs"
     },
     "Billing": {
       "title": "Billing"
+    },
+    "JobsSelected": {
+      "title": "Job",
+      "NoJobSelected": "No job selected..."
     }
   },
   "NotFound": {

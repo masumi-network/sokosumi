@@ -3,13 +3,21 @@ import { after, NextResponse } from "next/server";
 import { getEnvPublicConfig, getEnvSecrets } from "@/config/env.config";
 import { postRegistryEntry } from "@/lib/api/generated/registry";
 import { getRegistryClient } from "@/lib/api/registry-service.client";
+import { compareApiKeys } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 import { getLock, releaseLock, timeLimitedExecution } from "@/lib/utils";
 
 const LOCK_KEY = "registry-sync";
 
 export async function POST(request: Request) {
-  if (request.headers.get("admin-api-key") !== getEnvSecrets().ADMIN_KEY) {
+  const headerApiKey = request.headers.get("admin-api-key");
+  if (!headerApiKey) {
+    return NextResponse.json(
+      { message: "No api key provided" },
+      { status: 401 },
+    );
+  }
+  if (compareApiKeys(headerApiKey) !== true) {
     return NextResponse.json({ message: "Invalid api key" }, { status: 401 });
   }
   // Start a transaction to ensure atomicity

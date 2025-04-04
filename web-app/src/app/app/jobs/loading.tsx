@@ -1,44 +1,11 @@
-import { Skeleton } from "@/components/ui/skeleton";
+import { Loader2 } from "lucide-react";
 
-export default function Loading() {
+export default function JobLoading({ right }: { right: React.ReactNode }) {
   return (
-    <div className="flex flex-col items-start gap-6 p-8 sm:p-20">
-      {/* Title skeleton */}
-      <Skeleton className="h-10 w-48" />
-
-      {/* Table skeleton */}
-      <div className="w-full rounded-md border">
-        {/* Table header skeleton */}
-        <div className="bg-background sticky top-0 z-10">
-          <div className="flex border-b p-4">
-            {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className="mx-2 h-8 w-32" />
-            ))}
-          </div>
-        </div>
-
-        {/* Table rows skeleton */}
-        <div className="flex-1">
-          {Array.from({ length: 10 }).map((_, index) => (
-            <div key={index} className="flex border-b p-4">
-              {[1, 2, 3, 4].map((i) => (
-                <Skeleton key={i} className="mx-2 h-6 w-32" />
-              ))}
-            </div>
-          ))}
-        </div>
-
-        {/* Pagination skeleton */}
-        <div className="flex items-center justify-between p-4">
-          <Skeleton className="h-8 w-48" />
-          <div className="flex items-center gap-2">
-            <Skeleton className="h-8 w-8 rounded-md" />
-            <Skeleton className="h-8 w-8 rounded-md" />
-            <Skeleton className="h-8 w-16" />
-            <Skeleton className="h-8 w-8 rounded-md" />
-            <Skeleton className="h-8 w-8 rounded-md" />
-          </div>
-        </div>
+    <div className="flex flex-1 flex-col p-4 xl:p-8">
+      <div className="mt-6 flex flex-1 justify-center py-12">
+        <Loader2 className="mr-2 h-8 w-8 animate-spin" />
+        {right}
       </div>
     </div>
   );
