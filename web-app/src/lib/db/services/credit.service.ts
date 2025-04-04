@@ -33,9 +33,8 @@ export async function creditTransactionSpend(
     throw new Error("Included fee credits must be less than total credits");
   }
 
-  const amount = credits * 10 ** getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BASE;
-  const includedFee =
-    includedFeeCredits * 10 ** getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BASE;
+  const amount = convertCreditsToBaseUnits(credits);
+  const includedFee = convertCreditsToBaseUnits(includedFeeCredits);
 
   const newCreditTransaction = await prisma.$transaction(async (tx) => {
     const creditBalance = await tx.creditTransaction.aggregate({
