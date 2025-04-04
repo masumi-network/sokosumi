@@ -25,7 +25,7 @@ export type Routes =
   | (Route & { pathname: "/" })
   | (Route & { pathname: "/signin" })
   | (Route & { pathname: "/signup" })
-  | (Route & { pathname: "/forgot-password" })
+  | (Route & { pathname: "/forgot-password"; query?: { email: string } })
   | (Route & { pathname: "/reset-password" })
   | (Route & { pathname: "/agents" })
   | (Route & { pathname: "/agents/:agentId"; query: { agentId: string } })

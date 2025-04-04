@@ -1,8 +1,8 @@
 import { Metadata } from "next";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { getTranslations } from "next-intl/server";
 
+import TypedLink from "@/components/typed-link";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -12,7 +12,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { LandingRoute } from "@/types/routes";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("NotFound");
@@ -41,7 +40,7 @@ export default function NotFound() {
         </CardContent>
         <CardFooter className="flex justify-center">
           <Button asChild>
-            <Link href={LandingRoute.Home}>{t("returnHome")}</Link>
+            <TypedLink route={{ pathname: "/" }}>{t("returnHome")}</TypedLink>
           </Button>
         </CardFooter>
       </Card>
