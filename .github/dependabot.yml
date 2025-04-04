@@ -33,6 +33,9 @@ updates:
   # Enable version updates for npm in the job-cron-caller directory
   - package-ecosystem: "npm"
     directory: "/job-cron-caller"
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     schedule:
       interval: "daily"
       time: "06:00"
@@ -48,6 +51,9 @@ updates:
   # Enable version updates for npm in the registry-cron-caller directory
   - package-ecosystem: "npm"
     directory: "/registry-cron-caller"
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
     schedule:
       interval: "daily"
       time: "06:00"
