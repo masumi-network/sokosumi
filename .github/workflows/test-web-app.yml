@@ -70,8 +70,5 @@ jobs:
       - name: Run Prisma Migrate
         run: pnpm exec prisma migrate dev
 
-      - name: Run Prisma Seed
-        run: pnpm exec prisma db seed
-
       - name: Run Build
         run: pnpm run build
