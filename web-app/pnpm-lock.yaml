@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@better-auth/utils':
+        specifier: ^0.2.4
+        version: 0.2.4
       '@hey-api/client-fetch':
         specifier: ^0.10.0
         version: 0.10.0(@hey-api/openapi-ts@0.66.2(typescript@5.8.2))
