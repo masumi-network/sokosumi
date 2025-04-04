@@ -56,7 +56,7 @@ export type AgentWithFixedPricing = Prisma.AgentGetPayload<{
 }>;
 
 export function getCreditsToDisplay(credits: number): number {
-  return credits / 100000000000;
+  return credits / 1_000_000_000_000;
 }
 
 export type AgentWithRating = Prisma.AgentGetPayload<{
