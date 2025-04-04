@@ -7,7 +7,6 @@ import { getSharedJobColumns } from "@/app/jobs/components/job-columns";
 import { DataTable } from "@/components/data-table";
 import { JobWithRelations } from "@/lib/db/services/job.service";
 import { cn } from "@/lib/utils";
-import { AppRoute } from "@/types/routes";
 
 interface JobsTableProps {
   jobs: JobWithRelations[];
@@ -23,9 +22,8 @@ export default function JobsTable({ jobs, highlightedJobIds }: JobsTableProps) {
     <DataTable
       columns={getColumns(t, dateFormatter)}
       rowOnClick={(row) => () => {
-        router.push(`${AppRoute.Agents}/${row.agentId}/jobs/${row.id}`);
+        router.push(`/app/agents/${row.agentId}/jobs/${row.id}`);
         router.refresh();
-        return Promise.resolve();
       }}
       data={jobs}
       rowClassName={(row) => {

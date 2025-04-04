@@ -12,7 +12,6 @@ import {
   getTags,
 } from "@/lib/db/extension/agent";
 import { AgentWithRelations } from "@/lib/db/services/agent.service";
-import { LandingRoute } from "@/types/routes";
 
 export function FeaturedAgentSkeleton() {
   return (
@@ -59,7 +58,7 @@ export function FeaturedAgent({ agent }: FeaturedAgentProps) {
         </div>
         <p className="text-muted-foreground text-lg">{getDescription(agent)}</p>
         <BadgeCloud tags={getTags(agent)} />
-        <Link href={`${LandingRoute.Agents}/${agent.id}`}>
+        <Link href={`/agents/${agent.id}`}>
           <Button size="lg" className="w-full md:w-auto">
             {t("button")}
           </Button>

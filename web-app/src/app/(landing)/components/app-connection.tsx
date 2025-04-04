@@ -1,12 +1,11 @@
-import { Link } from "@react-email/components";
 import { UserRoundIcon } from "lucide-react";
 import { headers } from "next/headers";
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
 import { Button } from "@/components/ui/button";
 import { auth } from "@/lib/auth/auth";
-import { AppRoute } from "@/types/routes";
 
 import AuthButtons from "./auth-buttons";
 
@@ -37,7 +36,7 @@ async function AppConnectionContent() {
   }
 
   return (
-    <Link href={AppRoute.Home} target="_self">
+    <Link href="/app">
       <Button>
         <UserRoundIcon className="size-4" />
         {t("dashboard")}

@@ -7,7 +7,6 @@ import {
   SidebarFooter,
   SidebarHeader,
 } from "@/components/ui/sidebar";
-import { AppRoute } from "@/types/routes";
 
 import AgentsList from "./components/agents-list";
 import CustomTrigger from "./components/custom-trigger";
@@ -19,7 +18,7 @@ export default function Sidebar() {
       <SidebarHeader>
         <div className="flex items-center gap-2 p-2">
           <CustomTrigger />
-          <Link href={AppRoute.Home} className="mx-auto">
+          <Link href="/app" className="mx-auto">
             <SokosumiLogo width={200} height={26} priority />
           </Link>
         </div>

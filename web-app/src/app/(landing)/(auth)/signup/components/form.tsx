@@ -13,7 +13,6 @@ import {
   signUpFormSchema,
   SignUpFormSchemaType,
 } from "@/landing/(auth)/signup/data";
-import { LandingRoute } from "@/types/routes";
 
 export default function SignUpForm() {
   const t = useTranslations("Landing.Auth.Pages.SignUp.Form");
@@ -35,7 +34,7 @@ export default function SignUpForm() {
     const { success, error } = await signup(values);
     if (success) {
       toast.success(t("success"));
-      router.push(LandingRoute.SignIn);
+      router.push("/signin");
     } else {
       if (error === "userExists") {
         toast.error(t("Errors.Submit.userExists"));
