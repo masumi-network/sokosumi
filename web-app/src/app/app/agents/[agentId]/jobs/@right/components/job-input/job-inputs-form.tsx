@@ -7,7 +7,7 @@ import { SubmitHandler, useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
-import { getCreditsToDisplay } from "@/lib/db/extension/agent";
+import { getCreditsToDisplay } from "@/lib/db/services/credit.service";
 import {
   defaultValues,
   JobInputsDataSchemaType,

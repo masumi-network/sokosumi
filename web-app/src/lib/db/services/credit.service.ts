@@ -69,11 +69,14 @@ const amountsSchema = z.array(
     amount: z.number().positive(),
   }),
 );
-export async function calculateAgentCreditCost(
-  agent: AgentWithFixedPricing,
-  feePercentagePoints: number | undefined = getEnvPublicConfig()
-    .NEXT_PUBLIC_FEE_PERCENTAGE,
-) {
+
+/**
+ * Calculates the credit cost for an agent with fixed pricing
+ * @param agent - The agent with fixed pricing information
+ * @returns The total credit cost for the agent in number format, or 0 if no pricing amounts are available
+ * @throws Error if credit cost for a unit is not found or if fee percentage is negative
+ */
+export async function calculateAgentCreditCost(agent: AgentWithFixedPricing) {
   const amounts = agent.pricing?.fixedPricing?.amounts?.map((amount) => ({
     unit: amount.unit,
     amount: Number(amount.amount),
@@ -81,23 +84,19 @@ export async function calculateAgentCreditCost(
   if (!amounts) {
     return 0;
   }
-  return Number(
-    await calculateCreditCostAndValidateAmounts(amounts, feePercentagePoints),
-  );
+  return Number(await calculateCreditCost(amounts));
 }
 
 /**
  * Calculate the credit cost for a job
  * @param amounts - The amounts to calculate the credit cost for
- * @param feePercentagePoints - The fee percentage points to add (or subtract if negative) can not be less than -100 (=100% cost reduction), no upper limit (100=+100% cost increase, 0=no fee)
  * @returns The credit cost for the job
+ * @throws Error if credit cost for a unit is not found or if fee percentage is negative
  */
-export async function calculateCreditCostAndValidateAmounts(
+export async function calculateCreditCost(
   amounts: { unit: string; amount: number }[],
-  feePercentagePoints: number | undefined = getEnvPublicConfig()
-    .NEXT_PUBLIC_FEE_PERCENTAGE,
 ) {
-  feePercentagePoints ??= getEnvPublicConfig().NEXT_PUBLIC_FEE_PERCENTAGE;
+  const feePercentagePoints = getEnvPublicConfig().NEXT_PUBLIC_FEE_PERCENTAGE;
   if (feePercentagePoints < 0) {
     throw new Error("Added fee percentage must be equal to or greater than 0");
   }
@@ -118,7 +117,8 @@ export async function calculateCreditCostAndValidateAmounts(
     const cost = Number(creditCost.creditCostPerUnit) * amount.amount;
     const fee = cost * feeMultiplier;
     const totalCost = cost + fee;
-    //round up to the nearest integer
+
+    // round up to the nearest integer
     totalCreditCost += BigInt(Math.ceil(totalCost));
   }
 

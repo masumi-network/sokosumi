@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 
-import { calculateCreditCostAndValidateAmounts } from "@/lib/db/services/credit.service";
+import { calculateCreditCost } from "@/lib/db/services/credit.service";
 
 const creditCalculationSchema = z.object({
   amounts: z.array(
@@ -21,7 +21,7 @@ export async function POST(request: Request) {
     }
     const { amounts } = result.data;
 
-    const totalCost = await calculateCreditCostAndValidateAmounts(amounts);
+    const totalCost = await calculateCreditCost(amounts);
     console.log(totalCost);
 
     return NextResponse.json({ totalCost: totalCost.toString() });

@@ -6,9 +6,10 @@ import { useTranslations } from "next-intl";
 import { AgentBookmarkButton } from "@/components/agents/agent-bookmark-button";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getCreditsToDisplay, getName } from "@/lib/db/extension/agent";
+import { getName } from "@/lib/db/extension/agent";
 import { AgentWithRelations } from "@/lib/db/services/agent.service";
 import { AgentListWithAgent } from "@/lib/db/services/agentList.service";
+import { getCreditsToDisplay } from "@/lib/db/services/credit.service";
 
 interface HeaderProps {
   agent: AgentWithRelations;

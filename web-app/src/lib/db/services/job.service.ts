@@ -8,10 +8,7 @@ import prisma from "@/lib/db/prisma";
 import { calculatedInputHash } from "@/lib/utils";
 
 import { getAgentById, getAgentPricing } from "./agent.service";
-import {
-  calculateCreditCostAndValidateAmounts,
-  creditTransactionSpend,
-} from "./credit.service";
+import { calculateCreditCost, creditTransactionSpend } from "./credit.service";
 
 const startJobSchema = z.object({
   input_hash: z.string(),
@@ -37,7 +34,7 @@ export async function startJob(
 
   const pricing = await getAgentPricing(agentId);
 
-  const creditCost = await calculateCreditCostAndValidateAmounts(
+  const creditCost = await calculateCreditCost(
     pricing.FixedPricing.Amounts.map((amount) => ({
       unit: amount.unit,
       amount: Number(amount.amount),

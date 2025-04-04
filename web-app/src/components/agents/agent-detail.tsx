@@ -7,7 +7,6 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   getAuthorName,
-  getCreditsToDisplay,
   getDescription,
   getExampleOutput,
   getLegal,
@@ -17,6 +16,7 @@ import {
 } from "@/lib/db/extension/agent";
 import { AgentWithRelations } from "@/lib/db/services/agent.service";
 import { AgentListWithAgent } from "@/lib/db/services/agentList.service";
+import { getCreditsToDisplay } from "@/lib/db/services/credit.service";
 import { cn } from "@/lib/utils";
 
 import { AgentBookmarkButton } from "./agent-bookmark-button";
