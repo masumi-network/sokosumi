@@ -24,7 +24,6 @@ export default function JobsTable({ jobs, highlightedJobIds }: JobsTableProps) {
       rowOnClick={(row) => () => {
         router.push(`/app/jobs/${row.id}`);
         router.refresh();
-        return Promise.resolve();
       }}
       data={jobs}
       rowClassName={(row) => {
