@@ -12,7 +12,6 @@ import {
 } from "@/lib/db/extension/agent";
 import { AgentWithRelations } from "@/lib/db/services/agent.service";
 import { AgentListWithAgent } from "@/lib/db/services/agentList.service";
-import { getCreditsToDisplay } from "@/lib/db/services/credit.service";
 import { cn } from "@/lib/utils";
 
 import { AgentBookmarkButton } from "./agent-bookmark-button";
@@ -82,8 +81,6 @@ function AgentCard({
   className,
 }: AgentCardProps) {
   const t = useTranslations("Components.Agents.AgentCard");
-  const displayPrice = getCreditsToDisplay(agentPrice);
-
   const averageStars = getAverageStars(agent);
   const description = getDescription(agent);
   return (
@@ -136,7 +133,7 @@ function AgentCard({
 
             <div>
               <p className="text-muted-foreground text-s">
-                {t("pricing", { price: displayPrice })}
+                {t("pricing", { price: agentPrice })}
               </p>
             </div>
           </div>

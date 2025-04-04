@@ -45,11 +45,7 @@ export async function startJob(
     throw new Error("Credit cost is too high");
   }
 
-  const creditTransaction = await creditTransactionSpend(
-    userId,
-    creditCost,
-    BigInt(0),
-  );
+  const creditTransaction = await creditTransactionSpend(userId, creditCost, 0);
 
   try {
     const baseUrl = getApiBaseUrl(agent);

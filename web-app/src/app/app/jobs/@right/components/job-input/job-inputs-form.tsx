@@ -7,7 +7,6 @@ import { SubmitHandler, useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
-import { getCreditsToDisplay } from "@/lib/db/services/credit.service";
 import {
   defaultValues,
   JobInputsDataSchemaType,
@@ -39,7 +38,6 @@ export default function JobInputsForm({
     resolver: zodResolver(jobInputsFormSchema(input_data, t)),
     defaultValues: defaultValues(input_data),
   });
-  const credits = getCreditsToDisplay(agentPricing);
   const refresh = useRouterRefresh();
   const push = useRouterPush();
 
@@ -97,7 +95,7 @@ export default function JobInputsForm({
             </Button>
             <div className="flex items-center gap-2">
               <div className="text-muted-foreground text-sm">
-                {t("price", { price: credits })}
+                {t("price", { price: agentPricing })}
               </div>
               <Button type="submit" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting && (

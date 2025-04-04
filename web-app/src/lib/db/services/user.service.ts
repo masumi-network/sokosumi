@@ -14,7 +14,7 @@ export async function getUserById(id: string): Promise<User | null> {
   });
 }
 
-export async function getUserCredits(id: string): Promise<number> {
+export async function getUserCredits(id: string): Promise<bigint> {
   const result = await prisma.creditTransaction.aggregate({
     where: {
       userId: id,
@@ -23,5 +23,5 @@ export async function getUserCredits(id: string): Promise<number> {
       amount: true,
     },
   });
-  return Number(result._sum.amount ?? 0);
+  return result._sum.amount ?? BigInt(0);
 }

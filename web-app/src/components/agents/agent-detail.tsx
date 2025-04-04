@@ -16,7 +16,6 @@ import {
 } from "@/lib/db/extension/agent";
 import { AgentWithRelations } from "@/lib/db/services/agent.service";
 import { AgentListWithAgent } from "@/lib/db/services/agentList.service";
-import { getCreditsToDisplay } from "@/lib/db/services/credit.service";
 import { cn } from "@/lib/utils";
 
 import { AgentBookmarkButton } from "./agent-bookmark-button";
@@ -97,9 +96,6 @@ function AgentDetails({
   agentList,
   className,
 }: AgentDetailsProps) {
-  const displayPrice = getCreditsToDisplay(agentPrice);
-  console.log("agentPrice", agentPrice);
-  console.log("displayPrice", displayPrice);
   const t = useTranslations("Components.Agents.AgentDetail");
 
   const legal = getLegal(agent);
@@ -140,7 +136,7 @@ function AgentDetails({
           </div>
           {/* Pricing */}
           <p className="pt-1 text-sm font-medium">
-            {t("pricing", { price: displayPrice })}
+            {t("pricing", { price: agentPrice })}
           </p>
           {/* Action Buttons */}
           <div className="mt-auto flex flex-col gap-3">
