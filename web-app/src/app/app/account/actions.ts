@@ -3,7 +3,6 @@
 import { headers } from "next/headers";
 
 import { auth } from "@/lib/auth/auth";
-import { AppRoute } from "@/types/routes";
 
 import {
   DeleteAccountFormType,
@@ -55,7 +54,7 @@ export async function updateEmail(
     await auth.api.changeEmail({
       body: {
         newEmail: email,
-        callbackURL: AppRoute.Home,
+        callbackURL: "/app",
       },
       headers: await headers(),
     });

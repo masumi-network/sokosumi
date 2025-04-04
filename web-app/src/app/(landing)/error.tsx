@@ -1,9 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect } from "react";
 
-import TypedLink from "@/components/typed-link";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -46,7 +46,7 @@ export default function Error({
             {t("tryAgain")}
           </Button>
           <Button asChild variant="outline" className="w-full">
-            <TypedLink route={{ pathname: "/" }}>{t("goHome")}</TypedLink>
+            <Link href="/">{t("goHome")}</Link>
           </Button>
         </CardFooter>
       </Card>

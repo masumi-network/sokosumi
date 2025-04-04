@@ -15,7 +15,7 @@ export default function AgentCardButton({ agentId }: AgentCardButtonProps) {
   let pathname = usePathname();
 
   if (pathname === "/") {
-    pathname = "gallery";
+    pathname = "agents";
   }
 
   return (

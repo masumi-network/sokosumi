@@ -2,13 +2,12 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { SokosumiIcon } from "@/components/masumi-icons";
-import { AppRoute } from "@/types/routes";
 
 export default function GalleryButton() {
   const t = useTranslations("App.Sidebar.Footer.AgentAddButton");
 
   return (
-    <Link href={AppRoute.Agents}>
+    <Link href="/app/agents">
       <div className="flex items-center gap-2 p-2">
         <SokosumiIcon width={32} height={32} />
         <div className="flex flex-1 flex-col">

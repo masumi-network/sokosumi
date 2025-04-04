@@ -1,12 +1,12 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import TypedLink from "@/components/typed-link";
 import { AuthForm, SubmitButton } from "@/landing/(auth)/components/form";
 import { signin } from "@/landing/(auth)/signin/actions";
 import {
@@ -14,7 +14,6 @@ import {
   signInFormSchema,
   SignInFormSchemaType,
 } from "@/landing/(auth)/signin/data";
-import { AppRoute } from "@/types/routes";
 
 export default function SignInForm() {
   const t = useTranslations("Landing.Auth.Pages.SignIn.Form");
@@ -35,7 +34,7 @@ export default function SignInForm() {
     const { success, error } = await signin(values);
     if (success) {
       toast.success(t("success"));
-      router.push(AppRoute.Home);
+      router.push("/app");
     } else {
       switch (error) {
         case "emailNotVerified":
@@ -64,17 +63,12 @@ export default function SignInForm() {
           <span className="text-muted-foreground">
             {t("ForgotPassword.text")}{" "}
           </span>
-          <TypedLink
-            route={{
-              pathname: "/forgot-password",
-              query: form.watch("email")
-                ? { email: form.watch("email") }
-                : undefined,
-            }}
+          <Link
+            href={`/forgot-password${form.watch("email") ? `?email=${encodeURIComponent(form.watch("email"))}` : ""}`}
             className="text-primary font-medium hover:underline"
           >
             {t("ForgotPassword.link")}
-          </TypedLink>
+          </Link>
         </div>
       </div>
     </AuthForm>

@@ -6,7 +6,6 @@ import {
   addAgentToList,
   removeAgentFromList,
 } from "@/lib/db/services/agentList.service";
-import { AppRoute } from "@/types/routes";
 
 export async function toggleAgentInList(
   agentId: string,
@@ -21,7 +20,7 @@ export async function toggleAgentInList(
     }
 
     // Revalidate the app to update the UI
-    revalidatePath(AppRoute.Home);
+    revalidatePath("/app");
     return { success: true };
   } catch (error) {
     console.error("Error toggling agent in list", error);

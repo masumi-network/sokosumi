@@ -11,7 +11,6 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@/components/ui/sheet";
-import { LandingRoute } from "@/types/routes";
 
 import AuthButtons from "./auth-buttons";
 import NavigationMenu from "./navigation-menu";
@@ -27,7 +26,7 @@ export default function SheetNavigation() {
       <SheetContent className="h-svh w-full max-w-sm p-4" side="right">
         <SheetHeader>
           <SheetTitle className="flex justify-center">
-            <Link href={LandingRoute.Home}>
+            <Link href="/">
               <SokosumiLogo width={200} height={26} />
             </Link>
           </SheetTitle>

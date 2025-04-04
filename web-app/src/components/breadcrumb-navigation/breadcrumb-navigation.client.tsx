@@ -14,7 +14,6 @@ import {
 } from "@/components/ui/breadcrumb";
 import { getName } from "@/lib/db/extension/agent";
 import { AgentWithRelations } from "@/lib/db/services/agent.service";
-import { AppRoute } from "@/types/routes";
 
 interface BreadcrumbSegment {
   label: string;
@@ -43,7 +42,7 @@ export default function BreadcrumbNavigationClient({
   const t = useTranslations("Components.Breadcrumb");
 
   const segments = generateSegments(pathname, segmentLabels, agents, t).filter(
-    (segment) => segment.href !== AppRoute.Home,
+    (segment) => segment.href !== "/app",
   );
 
   // Only show breadcrumb if there are 2 or more segments

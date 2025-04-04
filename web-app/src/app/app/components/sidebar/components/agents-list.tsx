@@ -19,7 +19,6 @@ import {
   getFavoriteAgents,
   getHiredAgentsOrderedByLatestJob,
 } from "@/lib/db/services/agent.service";
-import { AppRoute } from "@/types/routes";
 
 export default function AgentsList() {
   return (
@@ -109,7 +108,7 @@ function AgentSection({
             {agents.map((agent) => (
               <SidebarMenuItem key={agent.id}>
                 <SidebarMenuButton asChild>
-                  <Link href={`${AppRoute.Agents}/${agent.id}/jobs`}>
+                  <Link href={`/app/agents/${agent.id}/jobs`}>
                     <span className="whitespace-nowrap">{getName(agent)}</span>
                   </Link>
                 </SidebarMenuButton>

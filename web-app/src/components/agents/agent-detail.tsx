@@ -18,7 +18,6 @@ import {
 import { AgentWithRelations } from "@/lib/db/services/agent.service";
 import { AgentListWithAgent } from "@/lib/db/services/agentList.service";
 import { cn } from "@/lib/utils";
-import { AppRoute } from "@/types/routes";
 
 import { AgentBookmarkButton } from "./agent-bookmark-button";
 import { BadgeCloud } from "./badge-cloud";
@@ -146,7 +145,7 @@ function AgentDetails({
           {/* Action Buttons */}
           <div className="mt-auto flex flex-col gap-3">
             <div className="flex items-center gap-3">
-              <Link href={`${AppRoute.Agents}/${agent.id}/jobs`}>
+              <Link href={`/app/agents/${agent.id}/jobs`}>
                 <Button variant="default" size="lg">
                   {t("hire")}
                 </Button>

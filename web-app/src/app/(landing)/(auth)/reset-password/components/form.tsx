@@ -13,7 +13,6 @@ import {
   resetPasswordFormSchema,
   type ResetPasswordFormSchemaType,
 } from "@/landing/(auth)/reset-password/data";
-import { LandingRoute } from "@/types/routes";
 
 interface ResetPasswordFormProps {
   token: string;
@@ -38,7 +37,7 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
     const { success } = await resetPassword(values);
     if (success) {
       toast.success(t("success"));
-      router.push(LandingRoute.SignIn);
+      router.push("/signin");
     } else {
       toast.error(t("error"));
     }

@@ -3,7 +3,6 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
-import { LandingRoute } from "@/types/routes";
 
 export default function HowItWorks() {
   const t = useTranslations("Landing.Page.HowItWorks");
@@ -37,7 +36,7 @@ export default function HowItWorks() {
 
       {/* Explore Gallery Button */}
       <div className="flex justify-start">
-        <Link href={LandingRoute.Agents}>
+        <Link href="/agents">
           <Button>{t("button")}</Button>
         </Link>
       </div>
