@@ -2,7 +2,6 @@ import { useTranslations } from "next-intl";
 
 import NavigationLink from "@/components/navigation-link";
 import { cn } from "@/lib/utils";
-import { AppRoute } from "@/types/routes";
 
 import UserCredits from "./user-credits";
 
@@ -12,9 +11,9 @@ type NavigationLinkData = {
 };
 
 const navItems: NavigationLinkData[] = [
-  { href: AppRoute.Agents, labelKey: "agents" },
-  { href: AppRoute.Jobs, labelKey: "jobs" },
-  { href: AppRoute.Billing, labelKey: "billing" },
+  { href: "/app/agents", labelKey: "agents" },
+  { href: "/app/jobs", labelKey: "jobs" },
+  { href: "/app/billing", labelKey: "billing" },
 ];
 
 interface NavigationMenuProps {

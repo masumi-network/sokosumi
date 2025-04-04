@@ -24,7 +24,6 @@ import {
 } from "@/components/ui/tooltip";
 import type { User } from "@/lib/auth/auth";
 import { signOut } from "@/lib/auth/auth.client";
-import { AppRoute, LandingRoute } from "@/types/routes";
 
 import UserAvatarContent from "./user-avatar-content";
 
@@ -43,7 +42,7 @@ export default function UserAvatarClient({ user }: UserAvatarClientProps) {
           toast.error(t("Error.signOut"));
         },
         onSuccess: () => {
-          router.push(LandingRoute.SignIn);
+          router.push("/signin");
         },
       },
     });
@@ -83,7 +82,7 @@ export default function UserAvatarClient({ user }: UserAvatarClientProps) {
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem className="hover:cursor-pointer" asChild>
-            <Link href={AppRoute.Account} className="flex items-center gap-2">
+            <Link href="/app/account" className="flex items-center gap-2">
               <UserIcon className="text-muted-foreground" />
               {t("account")}
             </Link>

@@ -1,7 +1,6 @@
 "use server";
 
 import { auth } from "@/lib/auth/auth";
-import { LandingRoute } from "@/types/routes";
 
 import { forgotPasswordFormSchema, ForgotPasswordFormSchemaType } from "./data";
 
@@ -20,7 +19,7 @@ export async function forgotPassword(
     await auth.api.forgetPassword({
       body: {
         email,
-        redirectTo: LandingRoute.ResetPassword,
+        redirectTo: "/reset-password",
       },
     });
     return { success: true };

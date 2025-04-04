@@ -2,7 +2,6 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { SokosumiLogo } from "@/components/masumi-logos";
-import { LandingRoute } from "@/types/routes";
 
 export default function Footer() {
   const t = useTranslations("Landing.Footer");
@@ -14,7 +13,7 @@ export default function Footer() {
       <div className="container mx-auto px-4 py-12">
         {/* Top section with logo */}
         <div className="mb-8">
-          <Link href={LandingRoute.Home}>
+          <Link href="/">
             <SokosumiLogo variant="white" width={200} height={26} />
           </Link>
         </div>
@@ -28,7 +27,7 @@ export default function Footer() {
             <ul className="flex flex-wrap justify-center gap-6">
               <li>
                 <Link
-                  href="#"
+                  href="/privacy-policy"
                   className="text-muted-foreground hover:text-landing-footer-foreground flex items-center gap-1 text-sm"
                 >
                   {t("Navigation.PrivacyPolicy")}
@@ -36,7 +35,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  href="#"
+                  href="/terms-of-service"
                   className="text-muted-foreground hover:text-landing-footer-foreground flex items-center gap-1 text-sm"
                 >
                   {t("Navigation.TermsAndConditions")}
@@ -44,7 +43,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  href="#"
+                  href="/cookie-policy"
                   className="text-muted-foreground hover:text-landing-footer-foreground flex items-center gap-1 text-sm"
                 >
                   {t("Navigation.CookiePolicy")}
@@ -52,7 +51,7 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  href="#"
+                  href="/contact"
                   className="text-muted-foreground hover:text-landing-footer-foreground flex items-center gap-1 text-sm"
                 >
                   {t("Navigation.Contact")}

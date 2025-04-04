@@ -9,7 +9,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getCreditsToDisplay, getName } from "@/lib/db/extension/agent";
 import { AgentWithRelations } from "@/lib/db/services/agent.service";
 import { AgentListWithAgent } from "@/lib/db/services/agentList.service";
-import { AppRoute } from "@/types/routes";
 
 interface HeaderProps {
   agent: AgentWithRelations;
@@ -82,7 +81,7 @@ export default function Header({
         <Button
           className="gap-2"
           onClick={() => {
-            router.push(`${AppRoute.Agents}/${agent.id}/jobs`);
+            router.push(`/app/agents/${agent.id}/jobs`);
             router.refresh();
           }}
         >
