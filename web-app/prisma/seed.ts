@@ -54,7 +54,7 @@ const seedUser = async (): Promise<string> => {
 
   const creditTransaction = await prisma.creditTransaction.create({
     data: {
-      amount: convertCreditsToBaseUnits(1000),
+      amount: convertCreditsToBaseUnits(1000.5123),
       type: CreditTransactionType.TOP_UP,
       userId: user.id,
       includedFee: 0,
