@@ -85,11 +85,11 @@ const seedCreditCost = async () => {
       unit: "",
     },
     update: {
-      creditCostPerUnit: BigInt(1_500_000),
+      creditCostPerUnit: BigInt(1_500_000), // 0.6666$ per ADA
     },
     create: {
       unit: "",
-      creditCostPerUnit: BigInt(1_500_000),
+      creditCostPerUnit: BigInt(1_500_000), // 0.6666$ per ADA
     },
   });
   console.log("Lovelace credit cost seeded");
