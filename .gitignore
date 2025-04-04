@@ -21,3 +21,6 @@ yarn-error.log*
 
 # local env files
 .env*.local
+
+# builds
+**/packages
