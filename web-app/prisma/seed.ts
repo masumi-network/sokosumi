@@ -379,10 +379,14 @@ const seedJobs = async (userId: string) => {
         "Analyze customer feedback sentiment",
       ];
 
-      const input = jobInputs[Math.floor(Math.random() * jobInputs.length)];
+      const inputQuery =
+        jobInputs[Math.floor(Math.random() * jobInputs.length)];
+      const input = JSON.stringify({ query: inputQuery });
       const output =
         status === JobStatus.COMPLETED
-          ? `Completed analysis for: ${input}`
+          ? JSON.stringify({
+              result: { raw: `Completed analysis for: ${inputQuery}` },
+            })
           : null;
 
       const creditTransaction = await prisma.creditTransaction.create({
