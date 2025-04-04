@@ -64,7 +64,7 @@ jobs:
           cache-dependency-path: "web-app/pnpm-lock.yaml"
 
       - name: Install Dependencies
-        run: pnpm ci
+        run: pnpm i
 
       - name: Run Tests
         run: pnpm run test:ci

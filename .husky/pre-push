@@ -30,9 +30,9 @@ if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
     exit 1
 fi
 
-# Check if npm is available
-if ! command -v npm >/dev/null 2>&1; then
-    echo "${RED}❌ npm is not installed or not in PATH${NC}"
+# Check if pnpm is available
+if ! command -v pnpm >/dev/null 2>&1; then
+    echo "${RED}❌ pnpm is not installed or not in PATH${NC}"
     exit 2
 fi
 
@@ -66,33 +66,33 @@ done
 
 # Run tests with proper error handling
 echo "${BLUE}🔍 Running test suite...${NC}"
-if cd 'web-app' && ! npm run test:ci; then
+if cd 'web-app' && ! pnpm run test:ci; then
     echo "${RED}❌ Tests failed. Please fix failing tests and try again.${NC}"
     exit 4
 fi
 
 # TypeScript build check
 echo "${BLUE}🔍 Generating OpenAPI types...${NC}"
-if cd 'web-app' && ! npm run generate:api; then
+if cd 'web-app' && ! pnpm run generate:api; then
     echo "${RED}❌ OpenAPI types generation failed. Please fix type errors and try again.${NC}"
     exit 5
 fi
 
 # Nextjs build check
 echo "${BLUE}🔍 Running Next.js build...${NC}"
-if cd 'web-app' && ! npm run build; then
+if cd 'web-app' && ! pnpm run build; then
     echo "${RED}❌ Next.js build failed. Please fix type errors and try again.${NC}"
     exit 5
 fi
 
 # Security audit with better error handling
 echo "${BLUE}🔍 Running security audit...${NC}"
-if cd 'web-app' && npm audit --audit-level=high --json >/dev/null 2>&1; then
+if cd 'web-app' && pnpm audit --audit-level=high --json >/dev/null 2>&1; then
     echo "${GREEN}✅ No high severity vulnerabilities found${NC}"
 else
     echo "${YELLOW}⚠️ Security vulnerabilities found. Please review:${NC}"
-    echo "${YELLOW}1. Run 'npm audit' to see details${NC}"
-    echo "${YELLOW}2. Run 'npm audit fix' to fix automatically fixable issues${NC}"
+    echo "${YELLOW}1. Run 'pnpm audit' to see details${NC}"
+    echo "${YELLOW}2. Run 'pnpm audit fix' to fix automatically fixable issues${NC}"
     echo "${YELLOW}3. Review and update packages with manual fixes required${NC}"
     # Note: We don't exit here as this is a warning
 fi
@@ -106,52 +106,52 @@ fi
 
 # Job Sync build check
 echo "${BLUE}🔍 Running Job Sync build...${NC}"
-if cd 'job-cron-caller' && ! npm run build; then
+if cd 'job-cron-caller' && ! pnpm run build; then
     echo "${RED}❌ Job Sync build failed. Please fix type errors and try again.${NC}"
     exit 5
 fi
 
 # Security audit with better error handling
 echo "${BLUE}🔍 Running security audit...${NC}"
-if cd 'job-cron-caller' && npm audit --audit-level=high --json >/dev/null 2>&1; then
+if cd 'job-cron-caller' && pnpm audit --audit-level=high --json >/dev/null 2>&1; then
     echo "${GREEN}✅ No high severity vulnerabilities found${NC}"
 else
     echo "${YELLOW}⚠️ Security vulnerabilities found. Please review:${NC}"
-    echo "${YELLOW}1. Run 'npm audit' to see details${NC}"
-    echo "${YELLOW}2. Run 'npm audit fix' to fix automatically fixable issues${NC}"
+    echo "${YELLOW}1. Run 'pnpm audit' to see details${NC}"
+    echo "${YELLOW}2. Run 'pnpm audit fix' to fix automatically fixable issues${NC}"
     echo "${YELLOW}3. Review and update packages with manual fixes required${NC}"
     # Note: We don't exit here as this is a warning
 fi
 
 # Check for outdated dependencies
 echo "${BLUE}🔍 Checking for outdated dependencies...${NC}"
-if cd 'job-cron-caller' && ! npm outdated --json >/dev/null 2>&1; then
+if cd 'job-cron-caller' && ! pnpm outdated --json >/dev/null 2>&1; then
     echo "${YELLOW}⚠️ Some dependencies are outdated. Consider updating them.${NC}"
     # Note: We don't exit here as this is informational
 fi
 
 # Registry Sync build check
 echo "${BLUE}🔍 Running Registry Sync build...${NC}"
-if cd 'registry-cron-caller' && ! npm run build; then
+if cd 'registry-cron-caller' && ! pnpm run build; then
     echo "${RED}❌ Registry Sync build failed. Please fix type errors and try again.${NC}"
     exit 5
 fi
 
 # Security audit with better error handling
 echo "${BLUE}🔍 Running security audit...${NC}"
-if cd 'registry-cron-caller' && npm audit --audit-level=high --json >/dev/null 2>&1; then
+if cd 'registry-cron-caller' && pnpm audit --audit-level=high --json >/dev/null 2>&1; then
     echo "${GREEN}✅ No high severity vulnerabilities found${NC}"
 else
     echo "${YELLOW}⚠️ Security vulnerabilities found. Please review:${NC}"
-    echo "${YELLOW}1. Run 'npm audit' to see details${NC}"
-    echo "${YELLOW}2. Run 'npm audit fix' to fix automatically fixable issues${NC}"
+    echo "${YELLOW}1. Run 'pnpm audit' to see details${NC}"
+    echo "${YELLOW}2. Run 'pnpm audit fix' to fix automatically fixable issues${NC}"
     echo "${YELLOW}3. Review and update packages with manual fixes required${NC}"
     # Note: We don't exit here as this is a warning
 fi
 
 # Check for outdated dependencies
 echo "${BLUE}🔍 Checking for outdated dependencies...${NC}"
-if cd 'registry-cron-caller' && ! npm outdated --json >/dev/null 2>&1; then
+if cd 'registry-cron-caller' && ! pnpm outdated --json >/dev/null 2>&1; then
     echo "${YELLOW}⚠️ Some dependencies are outdated. Consider updating them.${NC}"
     # Note: We don't exit here as this is informational
 fi

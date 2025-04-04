@@ -68,9 +68,9 @@ git diff --cached --name-only --diff-filter=ACMR | while IFS= read -r file; do
     fi
 done
 
-# Check if npm is available
-if ! command -v npm >/dev/null 2>&1; then
-    echo "${RED}❌ npm is not installed or not in PATH${NC}"
+# Check if pnpm is available
+if ! command -v pnpm >/dev/null 2>&1; then
+    echo "${RED}❌ pnpm is not installed or not in PATH${NC}"
     exit 3
 fi
 
@@ -80,7 +80,7 @@ echo "${BLUE}🔍 Running Next.js lint...${NC}"
 if command -v git-rev-parse >/dev/null 2>&1 && [ -d .git ]; then
     staged_files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.ts' '*.js' '*.tsx' '*.jsx' 2>/dev/null)
     if [ -n "$staged_files" ]; then
-        cd 'web-app' && npm run lint || 
+        cd 'web-app' && pnpm run lint || 
         (
             echo "${RED}❌ Next.js lint check failed. Please fix the errors and try committing again.${NC}"
             exit 4
@@ -93,7 +93,7 @@ echo "${BLUE}🔍 Running Registry Sync lint...${NC}"
 if command -v git-rev-parse >/dev/null 2>&1 && [ -d .git ]; then
     staged_files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.ts' '*.js' '*.tsx' '*.jsx' 2>/dev/null)
     if [ -n "$staged_files" ]; then
-        cd 'registry-cron-caller' && npm run lint || 
+        cd 'registry-cron-caller' && pnpm run lint || 
         (
             echo "${RED}❌ Registry Sync lint check failed. Please fix the errors and try committing again.${NC}"
             exit 4
@@ -106,7 +106,7 @@ echo "${BLUE}🔍 Running Job Sync lint...${NC}"
 if command -v git-rev-parse >/dev/null 2>&1 && [ -d .git ]; then
     staged_files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.ts' '*.js' '*.tsx' '*.jsx' 2>/dev/null)
     if [ -n "$staged_files" ]; then
-        cd 'job-cron-caller' && npm run lint || 
+        cd 'job-cron-caller' && pnpm run lint || 
         (
             echo "${RED}❌ Job Sync lint check failed. Please fix the errors and try committing again.${NC}"
             exit 4
