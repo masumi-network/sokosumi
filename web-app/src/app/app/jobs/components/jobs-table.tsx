@@ -34,7 +34,6 @@ export default function JobsTable({ jobs }: JobsTableProps) {
       columns={columns}
       rowOnClick={(row) => () => {
         router.push(`${pathname}/${row.id}`);
-        return Promise.resolve();
       }}
       data={jobs}
       containerClassName="w-full rounded-md border"
