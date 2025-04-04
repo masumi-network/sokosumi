@@ -1,6 +1,7 @@
-import { getRandomValues } from "@better-auth/utils";
+// import { getRandomValues } from "@better-auth/utils";
 import { hex } from "@better-auth/utils/hex";
 import { scryptAsync } from "@noble/hashes/scrypt";
+import { getRandomValues } from "crypto";
 
 const config = {
   N: 16384,
