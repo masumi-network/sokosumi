@@ -2,7 +2,7 @@ import { headers } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
 import { auth } from "@/lib/auth/auth";
-import { getCreditsToDisplay } from "@/lib/db/services/credit.service";
+import { formatCreditsForDisplay } from "@/lib/db/services/credit.service";
 import { getUserById, getUserCredits } from "@/lib/db/services/user.service";
 
 export default async function UserCredits() {
@@ -21,5 +21,5 @@ export default async function UserCredits() {
   if (!user) {
     return <>{t("unavailable")}</>;
   }
-  return <>{t("balance", { credits: getCreditsToDisplay(credits) })}</>;
+  return <>{t("balance", { credits: formatCreditsForDisplay(credits) })}</>;
 }

@@ -128,9 +128,13 @@ export async function calculateCreditCost(
     totalCreditCost += BigInt(Math.ceil(totalCost));
   }
 
-  return getCreditsToDisplay(totalCreditCost);
+  return formatCreditsForDisplay(totalCreditCost);
 }
 
-export function getCreditsToDisplay(credits: bigint): number {
+export function formatCreditsForDisplay(credits: bigint): number {
   return Number(credits) / 10 ** getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BASE;
+}
+
+export function convertCreditsToBaseUnits(credits: number): bigint {
+  return BigInt(credits * 10 ** getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BASE);
 }
