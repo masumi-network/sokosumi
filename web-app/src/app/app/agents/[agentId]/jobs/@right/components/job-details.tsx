@@ -1,17 +1,18 @@
-import { ScrollArea } from "@radix-ui/react-scroll-area";
 import { useFormatter, useTranslations } from "next-intl";
 import Markdown from "react-markdown";
 
-import JobStatusBadge from "@/app/agents/[agentId]/jobs/@right/components/job-status-badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import { JobWithRelations } from "@/lib/db/services/job.service";
 import { cn } from "@/lib/utils";
+
+import JobStatusBadge from "./job-status-badge";
 
 interface JobDetailsProps {
   job: JobWithRelations;
   className?: string | undefined;
 }
 
-function JobDetails({ job, className }: JobDetailsProps) {
+export default function JobDetails({ job, className }: JobDetailsProps) {
   const t = useTranslations("App.Agents.Jobs.JobDetails");
   const formatter = useFormatter();
   const result = job.output ? JSON.parse(job.output) : null;
@@ -23,7 +24,6 @@ function JobDetails({ job, className }: JobDetailsProps) {
       <ScrollArea className="h-[calc(100%)] overflow-y-scroll rounded-md border p-4 px-8">
         <h1 className="h-[30px] text-xl font-bold">{t("title")} </h1>
         <p>
-          {" "}
           {formatter.dateTime(job.createdAt, {
             dateStyle: "full",
             timeStyle: "short",
@@ -68,5 +68,3 @@ function JobDetails({ job, className }: JobDetailsProps) {
     </div>
   );
 }
-
-export { JobDetails };
