@@ -3,10 +3,7 @@ import { Suspense } from "react";
 import { AgentCard, AgentCardSkeleton } from "@/components/agents";
 import HorizontalScroll from "@/landing/components/horizontal-scroll";
 import { getAgents } from "@/lib/db/services/agent.service";
-import {
-  calculateAgentCreditCost,
-  formatCreditsForDisplay,
-} from "@/lib/db/services/credit.service";
+import { calculateAgentCreditCost } from "@/lib/db/services/credit.service";
 
 async function AgentsList() {
   const agents = await getAgents();
@@ -16,11 +13,7 @@ async function AgentsList() {
       {agents.map(async (agent) => {
         const agentPrice = await calculateAgentCreditCost(agent);
         return (
-          <AgentCard
-            key={agent.id}
-            agent={agent}
-            agentPrice={formatCreditsForDisplay(agentPrice)}
-          />
+          <AgentCard key={agent.id} agent={agent} agentPrice={agentPrice} />
         );
       })}
     </HorizontalScroll>

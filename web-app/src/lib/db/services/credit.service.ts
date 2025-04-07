@@ -71,22 +71,23 @@ const amountsSchema = z.array(
 );
 
 /**
- * Calculates the credit cost for an agent with fixed pricing
+ * Calculates the human readable credit cost for an agent with fixed pricing
  * @param agent - The agent with fixed pricing information
  * @returns The total credit cost for the agent in number format, or 0 if no pricing amounts are available
  * @throws Error if credit cost for a unit is not found or if fee percentage is negative
  */
 export async function calculateAgentCreditCost(
   agent: AgentWithFixedPricing,
-): Promise<bigint> {
+): Promise<number> {
   const amounts = agent.pricing?.fixedPricing?.amounts?.map((amount) => ({
     unit: amount.unit,
     amount: Number(amount.amount),
   }));
   if (!amounts) {
-    return BigInt(0);
+    return 0.0;
   }
-  return await calculateCreditCost(amounts);
+  const creditCost = await calculateCreditCost(amounts);
+  return formatCreditsForDisplay(creditCost);
 }
 
 /**

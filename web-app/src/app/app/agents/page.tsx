@@ -5,10 +5,7 @@ import { getTranslations } from "next-intl/server";
 import { requireAuthentication } from "@/lib/auth/utils";
 import { AgentWithRelations, getAgents } from "@/lib/db/services/agent.service";
 import { getOrCreateFavoriteAgentList } from "@/lib/db/services/agentList.service";
-import {
-  calculateAgentCreditCost,
-  formatCreditsForDisplay,
-} from "@/lib/db/services/credit.service";
+import { calculateAgentCreditCost } from "@/lib/db/services/credit.service";
 import { getCachedTags } from "@/lib/db/services/tag.service";
 
 import FilterSection from "./components/filter-section";
@@ -34,9 +31,6 @@ export default async function GalleryPage() {
   const agentPriceList = await Promise.all(
     agents.map(async (agent) => await calculateAgentCreditCost(agent)),
   );
-  const agentPriceListFormatted = agentPriceList.map((price) =>
-    formatCreditsForDisplay(price),
-  );
 
   return (
     <div className="w-full px-4 py-4 sm:px-8 xl:px-16">
@@ -46,7 +40,7 @@ export default async function GalleryPage() {
         <FilteredAgents
           agents={agents}
           agentList={agentList}
-          agentPriceList={agentPriceListFormatted}
+          agentPriceList={agentPriceList}
         />
       </div>
     </div>
