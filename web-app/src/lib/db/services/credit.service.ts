@@ -23,10 +23,11 @@ export async function creditTransactionSpend(
   note: string | null = null,
   noteKey: string | null = null,
 ) {
-  if (credits > 0) {
+  console.log("credits outer:", credits);
+  if (credits <= 0) {
     throw new Error("Credits must be greater than 0");
   }
-  if (includedFeeCredits >= 0) {
+  if (includedFeeCredits < 0) {
     throw new Error("Included fee credits must be greater than or equal to 0");
   }
   if (includedFeeCredits > credits) {
@@ -119,14 +120,13 @@ export async function calculateCreditCost(
     if (!creditCost) {
       throw new Error(`Credit cost not found for unit ${amount.unit}`);
     }
-    const cost = Number(creditCost.creditCostPerUnit) * amount.amount;
+    const cost = amount.amount * Number(creditCost.creditCostPerUnit);
     const fee = cost * feeMultiplier;
     const totalCost = cost + fee;
 
     // round up to the nearest integer
     totalCreditCost += BigInt(Math.ceil(totalCost));
   }
-
   return formatCreditsForDisplay(totalCreditCost);
 }
 
