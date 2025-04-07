@@ -15,7 +15,7 @@ interface JobsTableProps {
 }
 
 export default function JobsTable({ jobs, highlightedJobIds }: JobsTableProps) {
-  const t = useTranslations("App.Jobs.JobsTable");
+  const t = useTranslations("App.Agents.Jobs.JobsTable");
   const dateFormatter = useFormatter();
   const router = useRouter();
 

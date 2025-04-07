@@ -12,7 +12,7 @@ interface JobDetailsProps {
 }
 
 function JobDetails({ job, className }: JobDetailsProps) {
-  const t = useTranslations("App.Jobs.JobDetails");
+  const t = useTranslations("App.Agents.Jobs.JobDetails");
   const formatter = useFormatter();
   const result = job.output ? JSON.parse(job.output) : null;
   const output = result?.result?.raw.toString();
