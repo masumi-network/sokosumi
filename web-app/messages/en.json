@@ -483,10 +483,6 @@
           }
         }
       }
-    },
-    "JobsSelected": {
-      "title": "Job",
-      "NoJobSelected": "No job selected..."
     }
   },
   "NotFound": {
