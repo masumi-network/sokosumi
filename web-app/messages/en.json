@@ -374,14 +374,9 @@
       }
     },
     "Header": {
-      "NavMenu": {
-        "agents": "Agents",
-        "jobs": "Jobs",
-        "billing": "Billing",
-        "Credit": {
-          "balance": "credit balance: {credits}",
-          "unavailable": "credit balance: unknown"
-        }
+      "Credit": {
+        "balance": "credit balance: {credits}",
+        "unavailable": "credit balance: unknown"
       }
     },
     "Account": {

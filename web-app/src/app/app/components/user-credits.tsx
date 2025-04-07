@@ -11,7 +11,7 @@ export default async function UserCredits({
 }: {
   className?: string;
 }) {
-  const t = await getTranslations("App.Header.NavMenu.Credit");
+  const t = await getTranslations("App.Header.Credit");
   const session = await auth.api.getSession({
     headers: await headers(),
   });
