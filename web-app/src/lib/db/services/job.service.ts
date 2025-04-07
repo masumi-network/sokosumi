@@ -41,7 +41,7 @@ export async function startJob(
     })),
   );
 
-  if (creditCost >= maxAcceptedCreditCost) {
+  if (creditCost > maxAcceptedCreditCost) {
     throw new Error("Credit cost is too high");
   }
 
