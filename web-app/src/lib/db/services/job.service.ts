@@ -1,6 +1,7 @@
 import { CreditTransactionType, Job, Prisma } from "@prisma/client";
 import { z } from "zod";
 
+import { getEnvPublicConfig } from "@/config/env.config";
 import { getPurchase, postPurchase } from "@/lib/api/generated/payment";
 import { getPaymentClient } from "@/lib/api/payment-service.client";
 import { getApiBaseUrl } from "@/lib/db/extension/agent";
@@ -93,7 +94,7 @@ export async function startJob(
         agentIdentifier: agent.blockchainIdentifier,
         inputHash: inputHash,
         blockchainIdentifier: startJobResponse.blockchainIdentifier,
-        network: "Preprod",
+        network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
         sellerVkey: startJobResponse.sellerVkey,
         paymentType: "Web3CardanoV1",
         identifierFromPurchaser,
@@ -234,7 +235,7 @@ export async function syncJobStatus(job: Job) {
     client: paymentClient,
     query: {
       cursorId: job.paymentId,
-      network: "Preprod",
+      network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
       limit: 1,
     },
   });
