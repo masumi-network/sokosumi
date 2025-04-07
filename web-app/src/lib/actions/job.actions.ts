@@ -1,11 +1,13 @@
-import { NextResponse } from "next/server";
+"use server";
+
+import { headers } from "next/headers";
 import { z } from "zod";
 
 import { auth } from "@/lib/auth/auth";
 import { convertCreditsToBaseUnits } from "@/lib/db/services/credit.service";
 import { startJob } from "@/lib/db/services/job.service";
 
-const inputSchema = z.object({
+const startJobInputSchema = z.object({
   agentId: z.string(),
   maxAcceptedCreditCost: z.number(),
   inputData: z.record(
@@ -14,27 +16,32 @@ const inputSchema = z.object({
   ),
 });
 
-export async function POST(request: Request) {
+export type StartJobInput = z.infer<typeof startJobInputSchema>;
+
+export async function startJobAction(formData: StartJobInput) {
+  // Authentication
   const session = await auth.api.getSession({
-    headers: await request.headers,
+    headers: await headers(),
   });
   if (!session) {
-    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    throw new Error("Not authenticated");
   }
 
-  const requestJson = await request.json();
-  const result = inputSchema.safeParse(requestJson);
+  // Validation
+  const result = startJobInputSchema.safeParse(formData);
   if (!result.success) {
-    return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+    throw new Error("Invalid input");
   }
 
   const data = result.data;
 
+  // Start the job using the existing service
   const job = await startJob(
     session.user.id,
     data.agentId,
     BigInt(convertCreditsToBaseUnits(data.maxAcceptedCreditCost)),
     new Map(Object.entries(data.inputData)),
   );
-  return NextResponse.json({ jobId: job.id }, { status: 200 });
+
+  return { jobId: job.id };
 }

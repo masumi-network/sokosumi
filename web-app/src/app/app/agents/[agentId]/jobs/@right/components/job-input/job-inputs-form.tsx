@@ -1,12 +1,13 @@
 "use client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { SubmitHandler, useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
+import { startJobAction } from "@/lib/actions/job.actions";
 import {
   defaultValues,
   JobInputsDataSchemaType,
@@ -41,34 +42,63 @@ export default function JobInputsForm({
   // const credits = agentPricing;
   const refresh = useRouterRefresh();
   const push = useRouterPush();
+  const pathname = usePathname();
 
+  // Then replace your existing handleSubmit function with this:
   const handleSubmit: SubmitHandler<JobInputsFormSchemaType> = async (
     values,
   ) => {
     try {
-      console.log(values, agentPricing);
-      const response = await fetch("/api/job/start", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          agentId: agentId,
-          maxAcceptedCreditCost: agentPricing,
-          inputData: Object.fromEntries(Object.entries(values)),
-        }),
+      // Transform input data to match expected type
+      // Filter out null values and ensure arrays are of correct type
+      const transformedInputData: Record<
+        string,
+        string | number | boolean | number[]
+      > = {};
+
+      Object.entries(values).forEach(([key, value]) => {
+        // Skip null values
+        if (value === null) return;
+
+        // Convert string[] to number[] if possible
+        if (
+          Array.isArray(value) &&
+          value.every((item) => typeof item === "string")
+        ) {
+          // Try to convert string array to number array
+          const numArray = value.map((v) => Number(v)).filter((n) => !isNaN(n));
+          if (numArray.length === value.length) {
+            // All strings were successfully converted to numbers
+            transformedInputData[key] = numArray;
+            return;
+          }
+        }
+
+        // For other valid types, add them directly
+        if (
+          typeof value === "string" ||
+          typeof value === "number" ||
+          typeof value === "boolean"
+        ) {
+          transformedInputData[key] = value;
+        }
+      });
+      const result = await startJobAction({
+        agentId: agentId,
+        maxAcceptedCreditCost: agentPricing,
+        inputData: transformedInputData,
       });
 
-      if (response.ok) {
+      if (result.jobId) {
         form.reset();
-        const data = await response.json();
         // prefetch the job page and load async to stay when loading
-        router.prefetch(`/app/agents/${agentId}/jobs/${data.jobId}`);
+        router.prefetch(`${pathname}/${result.jobId}`);
         await refresh();
-        await push(`/app/agents/${agentId}/jobs/${data.jobId}`);
+        await push(`${pathname}/${result.jobId}`);
       }
     } catch (error) {
       console.error(error);
+      // You might want to add toast notifications or other error handling here
     }
   };
 
