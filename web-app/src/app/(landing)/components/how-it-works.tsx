@@ -26,6 +26,7 @@ export default function HowItWorks() {
                   src="/placeholder.svg"
                   alt={`${t(`Steps.${key}.title`)} illustration`}
                   fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                   className="object-cover"
                 />
               </div>
