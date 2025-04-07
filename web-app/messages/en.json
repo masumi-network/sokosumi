@@ -460,9 +460,7 @@
       "JobsTable": {
         "Header": {
           "started": "Started",
-          "agent": "Agent",
           "status": "Status",
-          "job": "Job",
           "id": "ID"
         },
         "JobStatusBadge": {
@@ -484,11 +482,7 @@
           "title": "Inputs",
           "None": "No input"
         }
-      },
-      "description": "The page showing all your jobs"
-    },
-    "Billing": {
-      "title": "Billing"
+      }
     },
     "JobsSelected": {
       "title": "Job",
