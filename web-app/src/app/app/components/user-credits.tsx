@@ -2,7 +2,6 @@ import { headers } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
 import { auth } from "@/lib/auth/auth";
-import { formatCreditsForDisplay } from "@/lib/db/services/credit.service";
 import { getUserById, getUserCredits } from "@/lib/db/services/user.service";
 import { cn } from "@/lib/utils";
 
@@ -17,18 +16,14 @@ export default async function UserCredits({
   });
 
   if (!session?.user.id) {
-    return <>{t("unavailable")}</>;
+    return <div className={cn(className)}>{t("unavailable")}</div>;
   }
 
   const user = await getUserById(session.user.id);
   const credits = await getUserCredits(session.user.id);
 
   if (!user) {
-    return <>{t("unavailable")}</>;
+    return <div className={cn(className)}>{t("unavailable")}</div>;
   }
-  return (
-    <div className={cn(className)}>
-      {t("balance", { credits: formatCreditsForDisplay(credits) })}
-    </div>
-  );
+  return <div className={cn(className)}>{t("balance", { credits })}</div>;
 }

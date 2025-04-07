@@ -71,6 +71,7 @@ export function FeaturedAgent({ agent }: FeaturedAgentProps) {
           src={getResolvedImage(agent)}
           alt={`${getName(agent)} image`}
           fill
+          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           className="rounded-lg object-cover"
           priority
         />

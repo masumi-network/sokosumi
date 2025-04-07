@@ -5,7 +5,7 @@ import {
   getAgentById,
   getAgentInputSchema,
 } from "@/lib/db/services/agent.service";
-import { calculateAgentCreditCost } from "@/lib/db/services/credit.service";
+import { calculateAgentHumandReadableCreditCost } from "@/lib/db/services/credit.service";
 
 interface JobPageParams {
   agentId: string;
@@ -24,7 +24,7 @@ export default async function RightPage({
     notFound();
   }
 
-  const agentPrice = await calculateAgentCreditCost(agent);
+  const agentPrice = await calculateAgentHumandReadableCreditCost(agent);
   const inputSchema = await getAgentInputSchema(agentId);
 
   return (
