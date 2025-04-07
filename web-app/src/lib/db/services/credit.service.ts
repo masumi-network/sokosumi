@@ -18,12 +18,11 @@ export async function getCreditBalance(userId: string): Promise<number> {
 
 export async function creditTransactionSpend(
   userId: string,
-  credits: number,
-  includedFeeCredits: number,
+  credits: bigint,
+  includedFeeCredits: bigint,
   note: string | null = null,
   noteKey: string | null = null,
 ) {
-  console.log("credits outer:", credits);
   if (credits <= 0) {
     throw new Error("Credits must be greater than 0");
   }
@@ -33,9 +32,6 @@ export async function creditTransactionSpend(
   if (includedFeeCredits > credits) {
     throw new Error("Included fee credits must be less than total credits");
   }
-
-  const amount = convertCreditsToBaseUnits(credits);
-  const includedFee = convertCreditsToBaseUnits(includedFeeCredits);
 
   const newCreditTransaction = await prisma.$transaction(async (tx) => {
     const creditBalance = await tx.creditTransaction.aggregate({
@@ -47,7 +43,7 @@ export async function creditTransactionSpend(
 
     if (
       creditBalance._sum.amount === null ||
-      creditBalance._sum.amount < amount
+      creditBalance._sum.amount < credits
     ) {
       throw new Error("Insufficient balance");
     }
@@ -55,8 +51,8 @@ export async function creditTransactionSpend(
     return await tx.creditTransaction.create({
       data: {
         userId,
-        amount: -amount,
-        includedFee: includedFee,
+        amount: -credits,
+        includedFee: includedFeeCredits,
         type: CreditTransactionType.SPEND,
         status: CreditTransactionStatus.PENDING,
         note: note,
@@ -82,13 +78,13 @@ const amountsSchema = z.array(
  */
 export async function calculateAgentCreditCost(
   agent: AgentWithFixedPricing,
-): Promise<number> {
+): Promise<bigint> {
   const amounts = agent.pricing?.fixedPricing?.amounts?.map((amount) => ({
     unit: amount.unit,
     amount: Number(amount.amount),
   }));
   if (!amounts) {
-    return 0;
+    return BigInt(0);
   }
   return await calculateCreditCost(amounts);
 }
@@ -101,7 +97,7 @@ export async function calculateAgentCreditCost(
  */
 export async function calculateCreditCost(
   amounts: { unit: string; amount: number }[],
-): Promise<number> {
+): Promise<bigint> {
   const feePercentagePoints = getEnvPublicConfig().NEXT_PUBLIC_FEE_PERCENTAGE;
   if (feePercentagePoints < 0) {
     throw new Error("Added fee percentage must be equal to or greater than 0");
@@ -127,7 +123,7 @@ export async function calculateCreditCost(
     // round up to the nearest integer
     totalCreditCost += BigInt(Math.ceil(totalCost));
   }
-  return formatCreditsForDisplay(totalCreditCost);
+  return totalCreditCost;
 }
 
 export function formatCreditsForDisplay(credits: bigint): number {

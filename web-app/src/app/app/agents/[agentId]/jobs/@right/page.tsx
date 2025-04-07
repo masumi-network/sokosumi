@@ -5,7 +5,10 @@ import {
   getAgentById,
   getAgentInputSchema,
 } from "@/lib/db/services/agent.service";
-import { calculateAgentCreditCost } from "@/lib/db/services/credit.service";
+import {
+  calculateAgentCreditCost,
+  formatCreditsForDisplay,
+} from "@/lib/db/services/credit.service";
 
 interface JobPageParams {
   agentId: string;
@@ -31,7 +34,7 @@ export default async function RightPage({
     <CreateJobSection
       agent={agent}
       inputSchema={inputSchema}
-      agentPricing={agentPrice}
+      agentPricing={formatCreditsForDisplay(agentPrice)}
     />
   );
 }

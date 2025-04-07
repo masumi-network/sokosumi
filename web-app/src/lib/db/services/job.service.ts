@@ -41,11 +41,15 @@ export async function startJob(
     })),
   );
 
-  if (creditCost > maxAcceptedCreditCost) {
+  if (creditCost >= maxAcceptedCreditCost) {
     throw new Error("Credit cost is too high");
   }
 
-  const creditTransaction = await creditTransactionSpend(userId, creditCost, 0);
+  const creditTransaction = await creditTransactionSpend(
+    userId,
+    creditCost,
+    BigInt(0),
+  );
 
   try {
     const baseUrl = getApiBaseUrl(agent);

@@ -6,7 +6,10 @@ import { requireAuthentication } from "@/lib/auth/utils";
 import { getDescription, getLegal, getName } from "@/lib/db/extension/agent";
 import { getAgentById, getAgents } from "@/lib/db/services/agent.service";
 import { getOrCreateFavoriteAgentList } from "@/lib/db/services/agentList.service";
-import { calculateAgentCreditCost } from "@/lib/db/services/credit.service";
+import {
+  calculateAgentCreditCost,
+  formatCreditsForDisplay,
+} from "@/lib/db/services/credit.service";
 import { getJobsByAgentId } from "@/lib/db/services/job.service";
 
 import Footer from "./@right/components/footer";
@@ -75,7 +78,7 @@ export default async function JobLayout({
     <div className="flex h-full flex-1 flex-col p-4 lg:p-6 xl:p-8">
       <Header
         agent={agent}
-        agentPricing={agentPrice}
+        agentPricing={formatCreditsForDisplay(agentPrice)}
         favoriteAgentList={favoriteAgentList}
       />
       <div className="mt-6 flex flex-1 flex-col justify-center gap-4 lg:flex-row lg:overflow-hidden">

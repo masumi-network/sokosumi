@@ -3,7 +3,10 @@ import { getTranslations } from "next-intl/server";
 
 import { Agents, AgentsNotAvailable } from "@/components/agents";
 import { AgentWithRelations, getAgents } from "@/lib/db/services/agent.service";
-import { calculateAgentCreditCost } from "@/lib/db/services/credit.service";
+import {
+  calculateAgentCreditCost,
+  formatCreditsForDisplay,
+} from "@/lib/db/services/credit.service";
 
 import { FeaturedAgent } from "./components/featured-agent";
 
@@ -26,6 +29,9 @@ export default async function GalleryPage() {
   const agentPriceList = await Promise.all(
     agents.map(async (agent) => await calculateAgentCreditCost(agent)),
   );
+  const agentPriceListFormatted = agentPriceList.map((price) =>
+    formatCreditsForDisplay(price),
+  );
   return (
     <div className="container mx-auto px-4 pt-4 pb-8">
       <div className="space-y-12">
@@ -33,7 +39,7 @@ export default async function GalleryPage() {
         <FeaturedAgent agent={agents[0]} />
 
         {/* Agent Cards Grid */}
-        <Agents agents={agents} agentPriceList={agentPriceList} />
+        <Agents agents={agents} agentPriceList={agentPriceListFormatted} />
       </div>
     </div>
   );

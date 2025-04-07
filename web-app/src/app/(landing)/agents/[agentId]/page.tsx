@@ -2,7 +2,10 @@ import { notFound } from "next/navigation";
 
 import { AgentDetails } from "@/components/agents";
 import { getAgentById, getAgents } from "@/lib/db/services/agent.service";
-import { calculateAgentCreditCost } from "@/lib/db/services/credit.service";
+import {
+  calculateAgentCreditCost,
+  formatCreditsForDisplay,
+} from "@/lib/db/services/credit.service";
 
 import BackToGallery from "./components/back-to-gallery";
 
@@ -39,7 +42,10 @@ export default async function Page({
   return (
     <div className="container mx-auto space-y-8 p-4 pb-16 xl:p-8">
       <BackToGallery />
-      <AgentDetails agent={agent} agentPrice={agentPrice} />
+      <AgentDetails
+        agent={agent}
+        agentPrice={formatCreditsForDisplay(agentPrice)}
+      />
     </div>
   );
 }
