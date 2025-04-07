@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { z } from "zod";
 
 import { auth } from "@/lib/auth/auth";
+import { convertCreditsToBaseUnits } from "@/lib/db/services/credit.service";
 import { startJob } from "@/lib/db/services/job.service";
 
 const inputSchema = z.object({
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
   const job = await startJob(
     session.user.id,
     data.agentId,
-    BigInt(data.maxAcceptedCreditCost),
+    BigInt(convertCreditsToBaseUnits(data.maxAcceptedCreditCost)),
     new Map(Object.entries(data.inputData)),
   );
   return NextResponse.json({ jobId: job.id }, { status: 200 });
