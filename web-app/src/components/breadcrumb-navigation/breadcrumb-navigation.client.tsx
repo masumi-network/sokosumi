@@ -45,11 +45,6 @@ export default function BreadcrumbNavigationClient({
     (segment) => segment.href !== "/app",
   );
 
-  // Only show breadcrumb if there are 2 or more segments
-  if (segments.length < 2) {
-    return null;
-  }
-
   return (
     <Breadcrumb className={className}>
       <BreadcrumbList>
