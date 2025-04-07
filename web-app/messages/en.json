@@ -60,11 +60,9 @@
       }
     },
     "Breadcrumb": {
-      "app": "App",
       "jobs": "Jobs",
-      "agents": "Agents",
-      "account": "Account",
-      "billing": "Billing"
+      "agents": "Gallery",
+      "account": "Account"
     }
   },
   "Landing": {
