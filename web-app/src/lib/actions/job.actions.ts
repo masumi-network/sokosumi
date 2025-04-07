@@ -18,7 +18,9 @@ const startJobInputSchema = z.object({
 
 export type StartJobInput = z.infer<typeof startJobInputSchema>;
 
-export async function startJobAction(formData: StartJobInput) {
+export async function startJobWithInputData(
+  formData: StartJobInput,
+): Promise<{ jobId: string }> {
   // Authentication
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -34,13 +36,14 @@ export async function startJobAction(formData: StartJobInput) {
   }
 
   const data = result.data;
+  const inputMap = new Map(Object.entries(data.inputData));
 
   // Start the job using the existing service
   const job = await startJob(
     session.user.id,
     data.agentId,
     BigInt(convertCreditsToBaseUnits(data.maxAcceptedCreditCost)),
-    new Map(Object.entries(data.inputData)),
+    inputMap,
   );
 
   return { jobId: job.id };

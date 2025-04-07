@@ -7,7 +7,7 @@ import { SubmitHandler, useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
-import { startJobAction } from "@/lib/actions/job.actions";
+import { startJobWithInputData } from "@/lib/actions/job.actions";
 import {
   defaultValues,
   JobInputsDataSchemaType,
@@ -83,7 +83,7 @@ export default function JobInputsForm({
           transformedInputData[key] = value;
         }
       });
-      const result = await startJobAction({
+      const result = await startJobWithInputData({
         agentId: agentId,
         maxAcceptedCreditCost: agentPricing,
         inputData: transformedInputData,
