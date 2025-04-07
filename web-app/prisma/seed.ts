@@ -72,11 +72,11 @@ const seedCreditCost = async () => {
       unit: "usdm",
     },
     update: {
-      creditCostPerUnit: 1 * 10 ** 6, // 1 usdm == 1_000_000 credits
+      creditCostPerUnit: 1_000_000, // 1 base unit usdm == 0.000001 usdm == 1_000_000 credits
     },
     create: {
       unit: "usdm",
-      creditCostPerUnit: 1 * 10 ** 6, // 1 usdm == 1_000_000 credits
+      creditCostPerUnit: 1_000_000, // 1 base unit usdm == 0.000001 usdm == 1_000_000 credits
     },
   });
   console.log("USDM credit cost seeded");
