@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { SubmitHandler, useForm } from "react-hook-form";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
@@ -89,7 +90,7 @@ export default function JobInputsForm({
         inputData: transformedInputData,
       });
 
-      if (result.jobId) {
+      if (result.success && result.jobId) {
         form.reset();
         // prefetch the job page and load async to stay when loading
         router.prefetch(`${pathname}/${result.jobId}`);
@@ -98,7 +99,7 @@ export default function JobInputsForm({
       }
     } catch (error) {
       console.error(error);
-      // You might want to add toast notifications or other error handling here
+      toast.error(t("error"));
     }
   };
 
