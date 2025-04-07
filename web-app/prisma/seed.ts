@@ -72,11 +72,11 @@ const seedCreditCost = async () => {
       unit: "usdm",
     },
     update: {
-      creditCostPerUnit: convertCreditsToBaseUnits(1),
+      creditCostPerUnit: 1,
     },
     create: {
       unit: "usdm",
-      creditCostPerUnit: convertCreditsToBaseUnits(1),
+      creditCostPerUnit: 1,
     },
   });
   console.log("USDM credit cost seeded");
@@ -86,11 +86,11 @@ const seedCreditCost = async () => {
       unit: "",
     },
     update: {
-      creditCostPerUnit: convertCreditsToBaseUnits(1_500_000), // 0.6666$ per ADA
+      creditCostPerUnit: 500_000, // 0.50$ per ADA
     },
     create: {
       unit: "",
-      creditCostPerUnit: convertCreditsToBaseUnits(1_500_000), // 0.6666$ per ADA
+      creditCostPerUnit: 500_000, // 0.50$ per ADA
     },
   });
   console.log("Lovelace credit cost seeded");
