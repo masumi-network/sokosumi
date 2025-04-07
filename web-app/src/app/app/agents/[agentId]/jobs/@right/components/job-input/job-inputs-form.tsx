@@ -91,9 +91,6 @@ export default function JobInputsForm({
 
       if (result.success && result.data?.jobId) {
         form.reset();
-        // prefetch the job page and load async to stay when loading
-        router.prefetch(`${pathname}/${result.data.jobId}`);
-        await refresh();
         await push(`${pathname}/${result.data.jobId}`);
       }
     } catch (error) {
