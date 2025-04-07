@@ -6,7 +6,7 @@ import { requireAuthentication } from "@/lib/auth/utils";
 import { getDescription, getLegal, getName } from "@/lib/db/extension/agent";
 import { getAgentById, getAgents } from "@/lib/db/services/agent.service";
 import { getOrCreateFavoriteAgentList } from "@/lib/db/services/agentList.service";
-import { calculateAgentCreditCost } from "@/lib/db/services/credit.service";
+import { calculateAgentHumandReadableCreditCost } from "@/lib/db/services/credit.service";
 import { getJobsByAgentId } from "@/lib/db/services/job.service";
 
 import Footer from "./@right/components/footer";
@@ -60,7 +60,7 @@ export default async function JobLayout({
     return notFound();
   }
   const { session } = await requireAuthentication();
-  const agentPrice = await calculateAgentCreditCost(agent);
+  const agentPrice = await calculateAgentHumandReadableCreditCost(agent);
   const favoriteAgentList = await getOrCreateFavoriteAgentList(session.user.id);
   const headerList = await headers();
   const pathname = headerList.get("x-current-path");

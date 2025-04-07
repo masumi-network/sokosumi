@@ -76,7 +76,7 @@ const amountsSchema = z.array(
  * @returns The total credit cost for the agent in number format, or 0 if no pricing amounts are available
  * @throws Error if credit cost for a unit is not found or if fee percentage is negative
  */
-export async function calculateAgentCreditCost(
+export async function calculateAgentHumandReadableCreditCost(
   agent: AgentWithFixedPricing,
 ): Promise<number> {
   const amounts = agent.pricing?.fixedPricing?.amounts?.map((amount) => ({
