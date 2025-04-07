@@ -2,7 +2,6 @@ import { Metadata } from "next";
 import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
-import { BreadcrumbNavigation } from "@/components/breadcrumb-navigation";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
 import Header from "./components/header";
@@ -34,7 +33,6 @@ export default async function AppLayout({ children }: AppLayoutProps) {
       <div className="flex h-svh flex-1 flex-col">
         <Header className="h-[64px]" />
         <main className="flex min-h-[calc(100svh-64px)] flex-1 flex-col">
-          <BreadcrumbNavigation className="flex h-[48px] items-center px-4 sm:px-8" />
           <div className="flex min-h-[calc(100%-48px)] flex-1 flex-col">
             {children}
           </div>

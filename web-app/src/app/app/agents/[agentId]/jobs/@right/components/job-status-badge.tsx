@@ -10,7 +10,7 @@ interface JobStatusBadgeProps {
 }
 
 export default function JobStatusBadge({ status }: JobStatusBadgeProps) {
-  const t = useTranslations("App.Jobs.JobsTable.JobStatusBadge");
+  const t = useTranslations("App.Agents.Jobs.JobsTable.JobStatusBadge");
 
   switch (status) {
     case JobStatus.COMPLETED:

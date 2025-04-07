@@ -2,7 +2,7 @@ import { ScrollArea } from "@radix-ui/react-scroll-area";
 import { useFormatter, useTranslations } from "next-intl";
 import Markdown from "react-markdown";
 
-import JobStatusBadge from "@/app/jobs/components/job-status-badge";
+import JobStatusBadge from "@/app/agents/[agentId]/jobs/@right/components/job-status-badge";
 import { JobWithRelations } from "@/lib/db/services/job.service";
 import { cn } from "@/lib/utils";
 
@@ -12,7 +12,7 @@ interface JobDetailsProps {
 }
 
 function JobDetails({ job, className }: JobDetailsProps) {
-  const t = useTranslations("App.Jobs.JobDetails");
+  const t = useTranslations("App.Agents.Jobs.JobDetails");
   const formatter = useFormatter();
   const result = job.output ? JSON.parse(job.output) : null;
   const output = result?.result?.raw.toString();

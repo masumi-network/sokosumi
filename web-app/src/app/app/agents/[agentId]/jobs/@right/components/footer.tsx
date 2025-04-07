@@ -8,7 +8,7 @@ interface FooterProps {
 }
 
 export default function Footer({ legal }: FooterProps) {
-  const t = useTranslations("App.Jobs.Footer");
+  const t = useTranslations("App.Agents.Jobs.Footer");
 
   const { terms, privacyPolicy, other } = legal ?? {};
 

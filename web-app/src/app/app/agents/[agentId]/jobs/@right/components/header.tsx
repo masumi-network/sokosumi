@@ -19,7 +19,7 @@ interface HeaderProps {
 const bookmarkSize = 36;
 
 export function HeaderSkeleton() {
-  const t = useTranslations("App.Jobs.Header");
+  const t = useTranslations("App.Agents.Jobs.Header");
 
   return (
     <div className="flex flex-wrap items-center gap-4 lg:gap-6 xl:gap-8">
@@ -63,7 +63,7 @@ export default function Header({
   agentPricing,
   favoriteAgentList,
 }: HeaderProps) {
-  const t = useTranslations("App.Jobs.Header");
+  const t = useTranslations("App.Agents.Jobs.Header");
   const router = useRouter();
   return (
     <div className="flex flex-row items-center gap-4 lg:gap-6 xl:gap-8">

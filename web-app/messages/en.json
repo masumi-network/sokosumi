@@ -60,11 +60,9 @@
       }
     },
     "Breadcrumb": {
-      "app": "App",
       "jobs": "Jobs",
-      "agents": "Agents",
-      "account": "Account",
-      "billing": "Billing"
+      "agents": "Gallery",
+      "account": "Account"
     }
   },
   "Landing": {
@@ -374,14 +372,9 @@
       }
     },
     "Header": {
-      "NavMenu": {
-        "agents": "Agents",
-        "jobs": "Jobs",
-        "billing": "Billing",
-        "Credit": {
-          "balance": "credit balance: {credits}",
-          "unavailable": "credit balance: unknown"
-        }
+      "Credit": {
+        "balance": "credit balance: {credits}",
+        "unavailable": "credit balance: unknown"
       }
     },
     "Account": {
@@ -442,62 +435,52 @@
       },
       "AgentDetail": {
         "backToGallery": "Agents Gallery"
-      }
-    },
-    "Jobs": {
-      "title": "Your latest jobs",
-      "Header": {
-        "createNewJob": "Create New Job",
-        "price": "Price per run: {price, plural, =0 {Free} =1 {1 credit} other {# credits}}"
       },
-      "Footer": {
-        "termsAndConditions": "Terms and Conditions",
-        "privacyPolicy": "Privacy Policy",
-        "customerSupport": "Customer Support"
-      },
-      "CreateJob": {
-        "title": "Welcome Screen",
-        "Input": {
-          "title": "Input",
-          "description": "Ensure inputs are clear, specific, and relevant to the analysis, providing structured data on the reference company, target competitors, and market focus to generate precise, actionable insights in the output."
-        }
-      },
-      "JobsTable": {
+      "Jobs": {
+        "title": "Your latest jobs",
         "Header": {
-          "started": "Started",
-          "agent": "Agent",
+          "createNewJob": "Create New Job",
+          "price": "Price per run: {price, plural, =0 {Free} =1 {1 credit} other {# credits}}"
+        },
+        "Footer": {
+          "termsAndConditions": "Terms and Conditions",
+          "privacyPolicy": "Privacy Policy",
+          "customerSupport": "Customer Support"
+        },
+        "CreateJob": {
+          "title": "Welcome Screen",
+          "Input": {
+            "title": "Input",
+            "description": "Ensure inputs are clear, specific, and relevant to the analysis, providing structured data on the reference company, target competitors, and market focus to generate precise, actionable insights in the output."
+          }
+        },
+        "JobsTable": {
+          "Header": {
+            "started": "Started",
+            "status": "Status",
+            "id": "ID"
+          },
+          "JobStatusBadge": {
+            "completed": "Completed",
+            "failed": "Failed",
+            "paymentPending": "Payment Pending",
+            "paymentFailed": "Payment Failed",
+            "processing": "Processing"
+          }
+        },
+        "JobDetails": {
+          "title": "Job",
           "status": "Status",
-          "job": "Job",
-          "id": "ID"
-        },
-        "JobStatusBadge": {
-          "completed": "Completed",
-          "failed": "Failed",
-          "paymentPending": "Payment Pending",
-          "paymentFailed": "Payment Failed",
-          "processing": "Processing"
+          "Output": {
+            "title": "Result",
+            "None": "No result data "
+          },
+          "Input": {
+            "title": "Inputs",
+            "None": "No input"
+          }
         }
-      },
-      "JobDetails": {
-        "title": "Job",
-        "status": "Status",
-        "Output": {
-          "title": "Result",
-          "None": "No result data "
-        },
-        "Input": {
-          "title": "Inputs",
-          "None": "No input"
-        }
-      },
-      "description": "The page showing all your jobs"
-    },
-    "Billing": {
-      "title": "Billing"
-    },
-    "JobsSelected": {
-      "title": "Job",
-      "NoJobSelected": "No job selected..."
+      }
     }
   },
   "NotFound": {
