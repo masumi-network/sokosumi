@@ -28,20 +28,26 @@ export type StartJobInput = z.infer<typeof startJobInputSchema>;
 export async function startJobWithInputData(formData: StartJobInput): Promise<{
   success: boolean;
   data?: { jobId: string };
-  error?: Error;
+  error?: { message: string; code: string };
 }> {
   // Authentication
   const session = await auth.api.getSession({
     headers: await headers(),
   });
   if (!session) {
-    return { success: false, error: new Error("Not authenticated") };
+    return {
+      success: false,
+      error: { message: "Not authenticated", code: "NOT_AUTHENTICATED" },
+    };
   }
 
   // Validation
   const result = startJobInputSchema.safeParse(formData);
   if (!result.success) {
-    return { success: false, error: new Error("Invalid input") };
+    return {
+      success: false,
+      error: { message: "Invalid input", code: "INVALID_INPUT" },
+    };
   }
 
   const data = result.data;
