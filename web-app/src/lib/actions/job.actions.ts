@@ -10,17 +10,26 @@ import { startJob } from "@/lib/db/services/job.service";
 const startJobInputSchema = z.object({
   agentId: z.string(),
   maxAcceptedCreditCost: z.number(),
-  inputData: z.record(
-    z.string(),
-    z.number().or(z.string()).or(z.boolean()).or(z.array(z.number())),
-  ),
+  inputData: z
+    .record(
+      z.string(),
+      z.union([z.number(), z.string(), z.boolean(), z.array(z.number())]),
+    )
+    .transform((data) => {
+      // Filter out null values
+      return Object.fromEntries(
+        Object.entries(data).filter(([_, value]) => value !== null),
+      );
+    }),
 });
 
 export type StartJobInput = z.infer<typeof startJobInputSchema>;
 
-export async function startJobWithInputData(
-  formData: StartJobInput,
-): Promise<{ success: boolean; jobId?: string; error?: Error }> {
+export async function startJobWithInputData(formData: StartJobInput): Promise<{
+  success: boolean;
+  data?: { jobId: string };
+  error?: Error;
+}> {
   // Authentication
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -46,5 +55,5 @@ export async function startJobWithInputData(
     inputMap,
   );
 
-  return { success: true, jobId: job.id };
+  return { success: true, data: { jobId: job.id } };
 }

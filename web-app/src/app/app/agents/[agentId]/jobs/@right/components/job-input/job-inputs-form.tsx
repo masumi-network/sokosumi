@@ -27,6 +27,36 @@ interface JobInputsFormProps {
   className?: string | undefined;
 }
 
+function transformFormData(values: JobInputsFormSchemaType) {
+  return Object.entries(values).reduce(
+    (acc, [key, value]) => {
+      if (value === null) return acc;
+
+      if (
+        Array.isArray(value) &&
+        value.every((item) => typeof item === "string")
+      ) {
+        const numArray = value.map((v) => Number(v)).filter((n) => !isNaN(n));
+        if (numArray.length === value.length) {
+          acc[key] = numArray;
+          return acc;
+        }
+      }
+
+      if (
+        typeof value === "string" ||
+        typeof value === "number" ||
+        typeof value === "boolean"
+      ) {
+        acc[key] = value;
+      }
+
+      return acc;
+    },
+    {} as Record<string, string | number | boolean | number[]>,
+  );
+}
+
 export default function JobInputsForm({
   agentId,
   agentPricing,
@@ -52,50 +82,19 @@ export default function JobInputsForm({
     try {
       // Transform input data to match expected type
       // Filter out null values and ensure arrays are of correct type
-      const transformedInputData: Record<
-        string,
-        string | number | boolean | number[]
-      > = {};
-
-      Object.entries(values).forEach(([key, value]) => {
-        // Skip null values
-        if (value === null) return;
-
-        // Convert string[] to number[] if possible
-        if (
-          Array.isArray(value) &&
-          value.every((item) => typeof item === "string")
-        ) {
-          // Try to convert string array to number array
-          const numArray = value.map((v) => Number(v)).filter((n) => !isNaN(n));
-          if (numArray.length === value.length) {
-            // All strings were successfully converted to numbers
-            transformedInputData[key] = numArray;
-            return;
-          }
-        }
-
-        // For other valid types, add them directly
-        if (
-          typeof value === "string" ||
-          typeof value === "number" ||
-          typeof value === "boolean"
-        ) {
-          transformedInputData[key] = value;
-        }
-      });
+      const transformedInputData = transformFormData(values);
       const result = await startJobWithInputData({
         agentId: agentId,
         maxAcceptedCreditCost: agentPricing,
         inputData: transformedInputData,
       });
 
-      if (result.success && result.jobId) {
+      if (result.success && result.data?.jobId) {
         form.reset();
         // prefetch the job page and load async to stay when loading
-        router.prefetch(`${pathname}/${result.jobId}`);
+        router.prefetch(`${pathname}/${result.data.jobId}`);
         await refresh();
-        await push(`${pathname}/${result.jobId}`);
+        await push(`${pathname}/${result.data.jobId}`);
       }
     } catch (error) {
       console.error(error);
