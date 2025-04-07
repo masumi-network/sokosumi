@@ -3,10 +3,11 @@
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 
-import { getSharedJobColumns } from "@/app/jobs/components/job-columns";
 import { DataTable } from "@/components/data-table";
 import { JobWithRelations } from "@/lib/db/services/job.service";
 import { cn } from "@/lib/utils";
+
+import { getJobColumns } from "./job-columns";
 
 interface JobsTableProps {
   jobs: JobWithRelations[];
@@ -46,7 +47,7 @@ function getColumns(
   t: ReturnType<typeof useTranslations>,
   dateFormatter: ReturnType<typeof useFormatter>,
 ) {
-  const { startedAtColumn, statusColumn, idColumn } = getSharedJobColumns(
+  const { startedAtColumn, statusColumn, idColumn } = getJobColumns(
     t,
     dateFormatter,
   );

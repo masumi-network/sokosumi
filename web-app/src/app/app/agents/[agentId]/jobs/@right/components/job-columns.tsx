@@ -1,16 +1,14 @@
 import { ColumnDef, createColumnHelper } from "@tanstack/react-table";
 import { useFormatter, useTranslations } from "next-intl";
 
-import JobStatusBadge from "@/app/jobs/components/job-status-badge";
 import { DataTableColumnHeader } from "@/components/data-table";
 import { JobWithRelations } from "@/lib/db/services/job.service";
 
+import JobStatusBadge from "./job-status-badge";
+
 const columnHelper = createColumnHelper<JobWithRelations>();
 
-/**
- * Returns common job table columns shared across job tables
- */
-export function getSharedJobColumns(
+export function getJobColumns(
   t: ReturnType<typeof useTranslations>,
   dateFormatter: ReturnType<typeof useFormatter>,
 ) {
