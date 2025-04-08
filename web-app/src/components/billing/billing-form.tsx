@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -16,11 +16,16 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 interface BillingFormProps {
-  costPerCreditUSD: number;
+  amountPerCredit: number;
+  currency: string;
 }
 
-export default function BillingForm({ costPerCreditUSD }: BillingFormProps) {
+export default function BillingForm({
+  amountPerCredit,
+  currency,
+}: BillingFormProps) {
   const t = useTranslations("App.Billing");
+  const format = useFormatter();
   const [customAmount, setCustomAmount] = useState("");
 
   const handleTopUp = (amount: number | string) => {
@@ -33,12 +38,6 @@ export default function BillingForm({ costPerCreditUSD }: BillingFormProps) {
       <CardHeader>
         <CardTitle>{t("topUpTitle")}</CardTitle>
         <CardDescription>{t("topUpDescription")}</CardDescription>
-        <p className="text-muted-foreground text-sm">
-          {t("costPerCredit", {
-            cost: costPerCreditUSD.toFixed(2),
-            currency: "USD",
-          })}
-        </p>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
@@ -64,13 +63,21 @@ export default function BillingForm({ costPerCreditUSD }: BillingFormProps) {
           />
         </div>
       </CardContent>
-      <CardFooter>
+      <CardFooter className="flex items-center justify-between">
         <Button
           onClick={() => handleTopUp(customAmount)}
           disabled={!customAmount || Number(customAmount) <= 0}
         >
           {t("topUpButton")}
         </Button>
+        <p className="text-muted-foreground text-sm">
+          {t("costPerCredit", {
+            cost: format.number(amountPerCredit, {
+              style: "currency",
+              currency,
+            }),
+          })}
+        </p>
       </CardFooter>
     </Card>
   );
