@@ -44,7 +44,7 @@ export async function getAvailableCredits(userId: string): Promise<number> {
       (negativePendingBalance._sum.amount ?? BigInt(0));
     return availableBalance;
   });
-  return formatCreditsForDisplay(balance ?? BigInt(0));
+  return convertBaseUnitsToCredits(balance ?? BigInt(0));
 }
 
 /**
@@ -198,7 +198,7 @@ export async function calculateAgentHumandReadableCreditCost(
     return 0.0;
   }
   const creditCost = await calculateCreditCost(amounts);
-  return formatCreditsForDisplay(creditCost);
+  return convertBaseUnitsToCredits(creditCost);
 }
 
 /**
@@ -238,7 +238,7 @@ export async function calculateCreditCost(
   return totalCreditCost;
 }
 
-export async function formatCreditsForDisplay(
+export async function convertBaseUnitsToCredits(
   credits: bigint,
 ): Promise<number> {
   return Number(credits) / 10 ** getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BASE;
