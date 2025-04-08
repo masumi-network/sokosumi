@@ -18,7 +18,7 @@ const startJobInputSchema = z.object({
 
 export type StartJobInput = z.infer<typeof startJobInputSchema>;
 
-export async function startJobWithInputData(formData: StartJobInput): Promise<{
+export async function startJobWithInputData(input: StartJobInput): Promise<{
   success: boolean;
   data?: { jobId: string };
   error?: { code: string };
@@ -35,7 +35,7 @@ export async function startJobWithInputData(formData: StartJobInput): Promise<{
   }
 
   // Validation
-  const result = startJobInputSchema.safeParse(formData);
+  const result = startJobInputSchema.safeParse(input);
   if (!result.success) {
     return {
       success: false,
