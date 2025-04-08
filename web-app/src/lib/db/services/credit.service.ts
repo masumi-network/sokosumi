@@ -11,15 +11,18 @@ import { getEnvPublicConfig } from "@/config/env.config";
 import { AgentWithFixedPricing } from "@/lib/db/extension/agent";
 import prisma from "@/lib/db/prisma";
 
-export async function getCreditBalance(userId: string): Promise<number> {
-  const creditBalance = await prisma.creditTransaction.aggregate({
-    where: { userId },
+export async function getCredits(userId: string): Promise<number> {
+  const balance = await prisma.creditTransaction.aggregate({
+    where: {
+      userId,
+      status: CreditTransactionStatus.SUCCEEDED,
+    },
     _sum: {
       amount: true,
     },
   });
 
-  return Number(creditBalance._sum.amount ?? 0);
+  return formatCreditsForDisplay(balance._sum.amount ?? BigInt(0));
 }
 
 export async function getCreditTransactionById(
