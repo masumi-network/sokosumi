@@ -428,12 +428,13 @@ model Job {
   output                    String?
   startedAt                 DateTime           @default(now())
   finishedAt                DateTime?
-  cost                      CreditTransaction  @relation("JobCost", fields: [creditTransactionId], references: [id])
+  creditTransaction         CreditTransaction  @relation("JobCost", fields: [creditTransactionId], references: [id])
+  creditTransactionId       String             @unique
   refundCreditTransaction   CreditTransaction? @relation("JobRefund", fields: [refundCreditTransactionId], references: [id])
   refundCreditTransactionId String?            @unique
-  creditTransactionId       String             @unique
-  errorNote                 String?
-  errorNoteKey              String?
+
+  errorNote    String?
+  errorNoteKey String?
 
   blockchainIdentifier      String    @unique
   submitResultTime          DateTime?

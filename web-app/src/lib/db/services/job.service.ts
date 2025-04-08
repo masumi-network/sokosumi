@@ -121,7 +121,7 @@ export async function startJob(
             id: agentId,
           },
         },
-        cost: {
+        creditTransaction: {
           connect: {
             id: creditTransaction.id,
           },
@@ -324,7 +324,7 @@ export async function syncJobStatus(job: Job) {
           id: job.id,
         },
         include: {
-          cost: true,
+          creditTransaction: true,
         },
       });
       if (!jobToRefund) {
@@ -341,7 +341,7 @@ export async function syncJobStatus(job: Job) {
           status: "REFUNDED",
           refundCreditTransaction: {
             create: {
-              amount: jobToRefund.cost.amount,
+              amount: jobToRefund.creditTransaction.amount,
               type: CreditTransactionType.REFUND,
               includedFee: BigInt(0),
               user: {
