@@ -23,11 +23,8 @@ export async function getCostPerCredit(
   amountPerCredit: number;
   currency: string;
 }> {
-  console.log(`ACTION: Fetching Stripe price for ID: ${priceId}`);
-
   try {
     const price = await stripe.prices.retrieve(priceId);
-    console.log("ACTION: Stripe price retrieved:", price);
 
     if (price.unit_amount === null) {
       console.error("ACTION: Stripe price is missing unit_amount.");
@@ -37,7 +34,6 @@ export async function getCostPerCredit(
       amountPerCredit: price.unit_amount / 100,
       currency: price.currency,
     };
-    console.log("ACTION: Calculated cost per credit:", result);
     return result;
   } catch (error) {
     console.error("ACTION: Failed to fetch Stripe price:", error);
