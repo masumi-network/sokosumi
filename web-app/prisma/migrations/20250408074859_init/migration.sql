@@ -273,8 +273,7 @@ CREATE TABLE "Agent" (
     "metadataVersion" INTEGER NOT NULL DEFAULT 1,
     "pricingId" TEXT NOT NULL,
     "status" "AgentStatus" NOT NULL DEFAULT 'ONLINE',
-    "showOnFrontPage" BOOLEAN NOT NULL,
-    "ranking" BIGINT NOT NULL,
+    "isShown" BOOLEAN NOT NULL,
 
     CONSTRAINT "Agent_pkey" PRIMARY KEY ("id")
 );
