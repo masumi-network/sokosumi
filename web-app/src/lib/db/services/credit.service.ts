@@ -1,4 +1,10 @@
-import { CreditTransactionStatus, CreditTransactionType } from "@prisma/client";
+"use server";
+
+import {
+  CreditTransaction,
+  CreditTransactionStatus,
+  CreditTransactionType,
+} from "@prisma/client";
 import { z } from "zod";
 
 import { getEnvPublicConfig } from "@/config/env.config";
@@ -14,6 +20,55 @@ export async function getCreditBalance(userId: string): Promise<number> {
   });
 
   return Number(creditBalance._sum.amount ?? 0);
+}
+
+export async function getCreditTransactionById(
+  creditTransactionId: string,
+): Promise<CreditTransaction | null> {
+  return await prisma.creditTransaction.findUnique({
+    where: { id: creditTransactionId },
+  });
+}
+
+export async function updateCreditTransactionStatus(
+  creditTransactionId: string,
+  status: CreditTransactionStatus,
+) {
+  await prisma.creditTransaction.update({
+    where: { id: creditTransactionId },
+    data: { status: status },
+  });
+}
+/**
+ * Creates a pending credit transaction for topping up a user's account.
+ *
+ * This function creates a new credit transaction record with PENDING status
+ * that will be updated to COMPLETED when the payment is confirmed via Stripe webhook.
+ *
+ * @param userId - The ID of the user adding credits to their account
+ * @param credits - The number of credits to add (must be positive)
+ * @returns The created credit transaction object
+ * @throws Will throw an error if credits is less than or equal to 0
+ */
+export async function creditTransactionTopUp(
+  userId: string,
+  credits: number,
+): Promise<CreditTransaction> {
+  if (credits <= 0) {
+    throw new Error("Credits must be greater than 0");
+  }
+
+  const newCreditTransaction = await prisma.creditTransaction.create({
+    data: {
+      userId,
+      amount: await convertCreditsToBaseUnits(credits),
+      includedFee: 0,
+      type: CreditTransactionType.TOP_UP,
+      status: CreditTransactionStatus.PENDING,
+    },
+  });
+
+  return newCreditTransaction;
 }
 
 export async function creditTransactionSpend(
@@ -127,10 +182,14 @@ export async function calculateCreditCost(
   return totalCreditCost;
 }
 
-export function formatCreditsForDisplay(credits: bigint): number {
+export async function formatCreditsForDisplay(
+  credits: bigint,
+): Promise<number> {
   return Number(credits) / 10 ** getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BASE;
 }
 
-export function convertCreditsToBaseUnits(credits: number): bigint {
+export async function convertCreditsToBaseUnits(
+  credits: number,
+): Promise<bigint> {
   return BigInt(credits * 10 ** getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BASE);
 }

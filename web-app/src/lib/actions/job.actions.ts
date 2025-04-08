@@ -50,7 +50,7 @@ export async function startJobWithInputData(input: StartJobInput): Promise<{
   const job = await startJob(
     session.user.id,
     data.agentId,
-    BigInt(convertCreditsToBaseUnits(data.maxAcceptedCreditCost)),
+    await convertCreditsToBaseUnits(data.maxAcceptedCreditCost),
     inputMap,
   );
 

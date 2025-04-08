@@ -17,14 +17,17 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createCheckoutSession } from "@/lib/actions/stripe.actions";
+import { creditTransactionTopUp } from "@/lib/db/services/credit.service";
 
 interface BillingFormProps {
+  userId: string;
   priceId: string;
   amountPerCredit: number;
   currency: string;
 }
 
 export default function BillingForm({
+  userId,
   priceId,
   amountPerCredit,
   currency,
@@ -42,11 +45,12 @@ export default function BillingForm({
     }
     setLoading(true);
     try {
+      const creditTransaction = await creditTransactionTopUp(userId, amount);
       const { id, url } = await createCheckoutSession(
+        creditTransaction.id,
         priceId,
         amount,
-        window.location.origin,
-        pathname,
+        `${window.location.origin}${pathname}`,
       );
       console.log("Checkout session created:", id, url);
       window.location.href = url;

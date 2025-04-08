@@ -1,7 +1,13 @@
+import { CreditTransactionStatus } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.config";
+import {
+  convertCreditsToBaseUnits,
+  getCreditTransactionById,
+  updateCreditTransactionStatus,
+} from "@/lib/db/services/credit.service";
 
 const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY, {
   apiVersion: "2025-03-31.basil", // Corrected API version
@@ -48,8 +54,46 @@ export async function POST(request: NextRequest) {
   console.log(`⚠️  Webhook received: ${eventType}`);
   console.log(`⚠️  Webhook data: ${JSON.stringify(data)}`);
 
-  if (eventType === "checkout.session.completed") {
-    console.log(`🔔  Payment received!`);
+  switch (eventType) {
+    case "checkout.session.completed":
+      console.log(`🔔  Payment received!`);
+
+      // Explicitly cast data.object to the correct type
+      const session = data.object as Stripe.Checkout.Session;
+
+      // Access metadata safely
+      const metadata = session.metadata;
+      if (!metadata) {
+        console.error(
+          "⚠️ Metadata missing from checkout session completed event",
+        );
+        break; // Or handle appropriately
+      }
+
+      const creditTransactionId = metadata.creditTransactionId;
+      const credits = metadata.credits;
+      console.log("metadata", metadata);
+
+      const creditTransaction =
+        await getCreditTransactionById(creditTransactionId);
+
+      const baseCredits = await convertCreditsToBaseUnits(Number(credits));
+
+      if (!creditTransaction || creditTransaction.amount !== baseCredits) {
+        console.error(
+          "⚠️ Credit transaction not found or amount does not match",
+        );
+        break; // Or handle appropriately
+      }
+
+      await updateCreditTransactionStatus(
+        creditTransactionId,
+        CreditTransactionStatus.SUCCEEDED,
+      );
+      break;
+    default:
+      console.log(`⚠️  Unhandled event type: ${eventType}`);
+      break;
   }
 
   return NextResponse.json({ message: "Webhook received" }, { status: 200 });

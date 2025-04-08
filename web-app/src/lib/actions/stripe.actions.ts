@@ -52,15 +52,15 @@ export async function getCostPerCredit(
  * @throws Will throw an error if the checkout session cannot be created
  */
 export async function createCheckoutSession(
+  creditTransactionId: string,
   priceId: string,
   credits: number,
-  host: string,
-  pathname: string,
+  url: string,
 ): Promise<{
   id: string;
   url: string;
 }> {
-  console.log("Creating checkout session for pathname:", pathname);
+  console.log("Creating checkout session for url:", url);
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     line_items: [
@@ -69,8 +69,12 @@ export async function createCheckoutSession(
         quantity: credits,
       },
     ],
-    success_url: `${host}${pathname}/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${host}${pathname}/cancel?session_id={CHECKOUT_SESSION_ID}`,
+    metadata: {
+      creditTransactionId: creditTransactionId,
+      credits: credits,
+    },
+    success_url: `${url}/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${url}/cancel`,
   });
   if (!session.url) {
     throw new Error("Stripe session URL is null");
