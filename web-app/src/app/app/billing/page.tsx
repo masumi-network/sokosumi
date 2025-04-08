@@ -51,7 +51,7 @@ export default function BillingPage() {
               placeholder={t("customAmountPlaceholder")}
               value={customAmount}
               onChange={(e) => setCustomAmount(e.target.value)}
-              min="1" // Optional: set a minimum amount
+              min="1"
             />
           </div>
         </CardContent>
