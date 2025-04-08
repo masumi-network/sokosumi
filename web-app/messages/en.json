@@ -380,7 +380,13 @@
     },
     "Billing": {
       "title": "Billing",
-      "description": "Manage your billing settings and preferences"
+      "description": "Manage your billing settings and preferences",
+      "topUpTitle": "Top-up Credits",
+      "topUpDescription": "Add credits to your account balance.",
+      "creditAmount": "{count, plural, =1 {# credit} other {# credits}}",
+      "amountToTopUpLabel": "Credits to top-up:",
+      "customAmountPlaceholder": "Enter credits",
+      "topUpButton": "Top Up"
     },
     "Account": {
       "title": "Account Settings",
