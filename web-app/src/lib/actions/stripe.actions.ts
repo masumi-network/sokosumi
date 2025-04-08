@@ -67,8 +67,8 @@ export async function createCheckoutSession(
         quantity: credits,
       },
     ],
-    success_url: `${pathname}?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${pathname}?session_id={CHECKOUT_SESSION_ID}&canceled=true`,
+    success_url: `${pathname}/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${pathname}/cancel?session_id={CHECKOUT_SESSION_ID}`,
   });
   return { id: session.id, url: session.url };
 }
