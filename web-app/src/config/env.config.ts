@@ -9,6 +9,11 @@ const envSchemaSecrets = z.object({
   // Database
   DATABASE_URL: z.string().url(),
 
+  SHOW_AGENTS_BY_DEFAULT: z
+    .string()
+    .default("false")
+    .transform((val) => val === "true"),
+
   // Seed
   SEED_DATABASE: z
     .string()

@@ -300,8 +300,7 @@ model Agent {
 
   status AgentStatus @default(ONLINE)
 
-  showOnFrontPage Boolean
-  ranking         BigInt
+  isShown Boolean
 
   exampleOutput         ExampleOutput[] @relation("ExampleOutputAgent")
   overrideExampleOutput ExampleOutput[] @relation("ExampleOutputAgentOverride")

@@ -1,7 +1,7 @@
 {
   "version": "0.2",
   "language": "en, lorem",
-  "words": ["masumi", "sokosumi", "kodosumi"],
+  "words": ["masumi", "sokosumi", "kodosumi", "preprod", "mainnet"],
   "ignorePaths": [
     "node_modules",
     ".git",
