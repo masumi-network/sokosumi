@@ -12,9 +12,9 @@ import {
 } from "@/components/ui/card";
 
 interface BillingSuccessPageProps {
-  searchParams: {
+  searchParams: Promise<{
     session_id?: string;
-  };
+  }>;
 }
 
 export default async function BillingSuccessPage({
