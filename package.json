@@ -1,15 +1,14 @@
-
 {
-    "name": "sokosumi",
-    "private": true,
-    "type": "module",
-    "packageManager": "pnpm@10.7.1",
-    "workspaces": [],
-    "scripts": {
-      "prepare": "husky"
-    },
-    "devDependencies": {
-      "@types/node": "^22.14.0",
-      "husky": "^9.1.7"
-    }
+  "name": "sokosumi",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.8.0",
+  "workspaces": [],
+  "scripts": {
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "@types/node": "^22.14.0",
+    "husky": "^9.1.7"
   }
+}
