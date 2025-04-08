@@ -1,0 +1,13 @@
+publicHoistPattern:
+  - "*eslint*"
+  - "*prettier*"
+
+ignoredBuiltDependencies:
+  - "@prisma/engines"
+  - "@swc/core"
+  - esbuild
+  - prisma
+  - sharp
+
+onlyBuiltDependencies:
+  - "@prisma/client"
