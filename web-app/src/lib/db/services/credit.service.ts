@@ -11,6 +11,15 @@ import { getEnvPublicConfig } from "@/config/env.config";
 import { AgentWithFixedPricing } from "@/lib/db/extension/agent";
 import prisma from "@/lib/db/prisma";
 
+/**
+ * Retrieves the available balance of credits for a user.
+ *
+ * This function calculates the available balance by summing all successful credit transactions
+ * and subtracting any pending transactions that have a negative amount (i.e., credits spent).
+ *
+ * @param userId - The ID of the user to retrieve the available balance for
+ * @returns The available balance of credits for the user
+ */
 export async function getAvailableCredits(userId: string): Promise<number> {
   const balance = await prisma.$transaction(async (tx) => {
     const creditBalance = await tx.creditTransaction.aggregate({
@@ -38,6 +47,15 @@ export async function getAvailableCredits(userId: string): Promise<number> {
   return formatCreditsForDisplay(balance ?? BigInt(0));
 }
 
+/**
+ * Retrieves a credit transaction by its ID.
+ *
+ * This function searches for a credit transaction in the database using the provided ID.
+ * If a matching transaction is found, it is returned; otherwise, the function returns null.
+ *
+ * @param creditTransactionId - The ID of the credit transaction to retrieve
+ * @returns A promise that resolves to the credit transaction object or null if not found
+ */
 export async function getCreditTransactionById(
   creditTransactionId: string,
 ): Promise<CreditTransaction | null> {
@@ -46,21 +64,44 @@ export async function getCreditTransactionById(
   });
 }
 
+/**
+ * Updates the status of a credit transaction.
+ *
+ * This function updates an existing credit transaction's status, which is used
+ * to track the lifecycle of a transaction (e.g., from PENDING to SUCCEEDED or FAILED).
+ * This is particularly useful when processing payments or refunds through external
+ * payment providers like Stripe.
+ *
+ * @param creditTransactionId - The ID of the credit transaction to update
+ * @param status - The new status to set for the transaction
+ * @returns A promise that resolves when the update is complete
+ */
 export async function updateCreditTransactionStatus(
   creditTransactionId: string,
   status: CreditTransactionStatus,
-) {
-  await prisma.creditTransaction.update({
+): Promise<CreditTransaction> {
+  return await prisma.creditTransaction.update({
     where: { id: creditTransactionId },
     data: { status: status },
   });
 }
 
+/**
+ * Associates a Stripe checkout session ID with a credit transaction.
+ *
+ * This function updates an existing credit transaction record with the Stripe session ID
+ * that was created for the payment. This allows for tracking and reconciliation between
+ * Stripe payments and credit transactions in the system.
+ *
+ * @param creditTransactionId - The ID of the credit transaction to update
+ * @param stripeSessionId - The Stripe checkout session ID to associate with the transaction
+ * @returns A promise that resolves when the update is complete
+ */
 export async function addStripeSessionIdToCreditTransaction(
   creditTransactionId: string,
   stripeSessionId: string,
-) {
-  await prisma.creditTransaction.update({
+): Promise<CreditTransaction> {
+  return await prisma.creditTransaction.update({
     where: { id: creditTransactionId },
     data: { stripeSessionId: stripeSessionId },
   });
@@ -104,7 +145,7 @@ export async function creditTransactionSpend(
   includedFeeCredits: bigint,
   note: string | null = null,
   noteKey: string | null = null,
-) {
+): Promise<CreditTransaction> {
   if (credits <= 0) {
     throw new Error("Credits must be greater than 0");
   }
