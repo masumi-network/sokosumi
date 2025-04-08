@@ -1,69 +1,35 @@
-"use client";
+import Stripe from "stripe";
 
-import { useTranslations } from "next-intl";
-import { useState } from "react";
+import BillingForm from "@/components/billing/billing-form";
+import { getEnvSecrets } from "@/config/env.config";
 
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY, {
+  apiVersion: "2025-03-31.basil",
+});
 
-export default function BillingPage() {
-  const t = useTranslations("App.Billing");
-  const [customAmount, setCustomAmount] = useState("");
+async function getCostPerCreditUSD(): Promise<number> {
+  const priceId = getEnvSecrets().STRIPE_PRICE_ID;
+  try {
+    const price = await stripe.prices.retrieve(priceId);
+    if (price.currency !== "usd") {
+      throw new Error("Stripe price is not in USD.");
+    }
+    if (price.unit_amount === null) {
+      throw new Error("Stripe price does not have a unit_amount.");
+    }
+    return price.unit_amount / 100;
+  } catch (error) {
+    console.error("Failed to fetch Stripe price:", error);
+    throw error;
+  }
+}
 
-  const handleTopUp = (amount: number | string) => {
-    console.log("Topping up credits:", amount);
-    // TODO: Implement actual top-up logic
-  };
+export default async function BillingPage() {
+  const costPerCreditUSD = await getCostPerCreditUSD();
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("topUpTitle")}</CardTitle>
-          <CardDescription>{t("topUpDescription")}</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            {[10, 25, 50, 100].map((amount) => (
-              <Button
-                key={amount}
-                variant="outline"
-                onClick={() => setCustomAmount(String(amount))}
-              >
-                {t("creditAmount", { count: amount })}
-              </Button>
-            ))}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="custom-amount">{t("amountToTopUpLabel")}</Label>
-            <Input
-              id="custom-amount"
-              type="number"
-              placeholder={t("customAmountPlaceholder")}
-              value={customAmount}
-              onChange={(e) => setCustomAmount(e.target.value)}
-              min="1"
-            />
-          </div>
-        </CardContent>
-        <CardFooter>
-          <Button
-            onClick={() => handleTopUp(customAmount)}
-            disabled={!customAmount || Number(customAmount) <= 0}
-          >
-            {t("topUpButton")}
-          </Button>
-        </CardFooter>
-      </Card>
+      <BillingForm costPerCreditUSD={costPerCreditUSD} />
     </div>
   );
 }

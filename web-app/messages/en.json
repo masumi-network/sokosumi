@@ -383,9 +383,10 @@
       "description": "Manage your billing settings and preferences",
       "topUpTitle": "Top-up Credits",
       "topUpDescription": "Add credits to your account balance.",
+      "costPerCredit": "1 Credit = {cost} {currency}",
       "creditAmount": "{count, plural, =1 {# credit} other {# credits}}",
-      "amountToTopUpLabel": "Credits to top-up:",
-      "customAmountPlaceholder": "Enter credits",
+      "amountToTopUpLabel": "Amount to Top Up",
+      "customAmountPlaceholder": "Enter amount",
       "topUpButton": "Top Up"
     },
     "Account": {
