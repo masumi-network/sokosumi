@@ -387,7 +387,12 @@
       "creditAmount": "{count, plural, =1 {# credit} other {# credits}}",
       "amountToTopUpLabel": "Amount to Top Up",
       "customAmountPlaceholder": "Enter amount",
-      "topUpButton": "Top Up"
+      "topUpButton": "Top Up",
+      "Error": {
+        "title": "Something Went Wrong",
+        "message": "We encountered an error loading the billing information.",
+        "retryButton": "Try again"
+      }
     },
     "Account": {
       "title": "Account Settings",
