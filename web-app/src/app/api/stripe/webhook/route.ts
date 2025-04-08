@@ -1,4 +1,4 @@
-import { CreditTransactionStatus } from "@prisma/client";
+import { CreditTransaction, CreditTransactionStatus } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
@@ -12,6 +12,61 @@ import {
 const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY, {
   apiVersion: "2025-03-31.basil", // Corrected API version
 });
+
+const getCreditTransactionForSession = async (
+  session: Stripe.Checkout.Session,
+): Promise<CreditTransaction | null> => {
+  const metadata = session.metadata;
+  if (!metadata) {
+    console.error("⚠️ Metadata missing from checkout session event");
+    return null; // Or handle appropriately
+  }
+
+  const creditTransactionId = metadata.creditTransactionId;
+  return await getCreditTransactionById(creditTransactionId);
+};
+
+const handleCheckoutSessionExpired = async (
+  session: Stripe.Checkout.Session,
+) => {
+  console.log(`🔔  Payment expired!`);
+
+  const creditTransaction = await getCreditTransactionForSession(session);
+  if (!creditTransaction) {
+    console.error("⚠️ Credit transaction not found");
+    return; // Or handle appropriately
+  }
+
+  await updateCreditTransactionStatus(
+    creditTransaction.id,
+    CreditTransactionStatus.FAILED,
+  );
+};
+
+const handleCheckoutSessionCompleted = async (
+  session: Stripe.Checkout.Session,
+) => {
+  console.log(`🔔  Payment received!`);
+
+  const creditTransaction = await getCreditTransactionForSession(session);
+
+  const credits = session.metadata?.credits;
+  if (!credits) {
+    console.error("⚠️ Credits missing from checkout session completed event");
+    return; // Or handle appropriately
+  }
+  const baseCredits = await convertCreditsToBaseUnits(Number(credits));
+
+  if (!creditTransaction || creditTransaction.amount !== baseCredits) {
+    console.error("⚠️ Credit transaction not found or amount does not match");
+    return; // Or handle appropriately
+  }
+
+  await updateCreditTransactionStatus(
+    creditTransaction.id,
+    CreditTransactionStatus.SUCCEEDED,
+  );
+};
 
 export async function POST(request: NextRequest) {
   console.log(request);
@@ -54,45 +109,16 @@ export async function POST(request: NextRequest) {
   console.log(`⚠️  Webhook received: ${eventType}`);
   console.log(`⚠️  Webhook data: ${JSON.stringify(data)}`);
 
+  const session = data.object as Stripe.Checkout.Session;
   switch (eventType) {
     case "checkout.session.completed":
-      console.log(`🔔  Payment received!`);
-
-      // Explicitly cast data.object to the correct type
-      const session = data.object as Stripe.Checkout.Session;
-
-      // Access metadata safely
-      const metadata = session.metadata;
-      if (!metadata) {
-        console.error(
-          "⚠️ Metadata missing from checkout session completed event",
-        );
-        break; // Or handle appropriately
-      }
-
-      const creditTransactionId = metadata.creditTransactionId;
-      const credits = metadata.credits;
-      console.log("metadata", metadata);
-
-      const creditTransaction =
-        await getCreditTransactionById(creditTransactionId);
-
-      const baseCredits = await convertCreditsToBaseUnits(Number(credits));
-
-      if (!creditTransaction || creditTransaction.amount !== baseCredits) {
-        console.error(
-          "⚠️ Credit transaction not found or amount does not match",
-        );
-        break; // Or handle appropriately
-      }
-
-      await updateCreditTransactionStatus(
-        creditTransactionId,
-        CreditTransactionStatus.SUCCEEDED,
-      );
+      await handleCheckoutSessionCompleted(session);
+      break;
+    case "checkout.session.expired":
+      await handleCheckoutSessionExpired(session);
       break;
     default:
-      console.log(`⚠️  Unhandled event type: ${eventType}`);
+      console.error(`⚠️  Unhandled event type: ${eventType}`);
       break;
   }
 
