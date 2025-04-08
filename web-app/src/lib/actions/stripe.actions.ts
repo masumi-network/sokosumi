@@ -54,8 +54,7 @@ export async function getCostPerCredit(
 export async function createCheckoutSession(
   priceId: string,
   credits: number,
-  successURL: string,
-  cancelURL: string,
+  pathname: string,
 ): Promise<{
   id: string;
   url: string | null;
@@ -68,10 +67,8 @@ export async function createCheckoutSession(
         quantity: credits,
       },
     ],
-    success_url: successURL,
-    cancel_url: cancelURL,
-    // success_url: `${domainURL}/success.html?session_id={CHECKOUT_SESSION_ID}`,
-    // cancel_url: `${domainURL}/canceled.html`,
+    success_url: `${pathname}?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${pathname}?session_id={CHECKOUT_SESSION_ID}&canceled=true`,
   });
   return { id: session.id, url: session.url };
 }

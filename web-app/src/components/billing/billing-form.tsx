@@ -1,5 +1,7 @@
 "use client";
 
+import { Loader2 } from "lucide-react";
+import { usePathname } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -30,19 +32,30 @@ export default function BillingForm({
   const t = useTranslations("App.Billing");
   const format = useFormatter();
   const [customAmount, setCustomAmount] = useState<number | null>(null);
+  const [loading, setLoading] = useState(false);
+  const pathname = usePathname();
 
   const handleTopUp = async (amount: number | null) => {
     console.log("Topping up credits:", amount);
     if (!amount || amount <= 0) {
       return;
     }
-    const { id, url } = await createCheckoutSession(
-      priceId,
-      amount,
-      "http://localhost:3000/success",
-      "http://localhost:3000/cancel",
-    );
-    console.log("Checkout session created:", id, url);
+    setLoading(true);
+    try {
+      const { id, url } = await createCheckoutSession(
+        priceId,
+        amount,
+        pathname,
+      );
+      console.log("Checkout session created:", id, url);
+      if (url) {
+        window.location.href = url;
+      }
+    } catch (error) {
+      console.error("Failed to create checkout session:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -58,6 +71,7 @@ export default function BillingForm({
               key={amount}
               variant="outline"
               onClick={() => setCustomAmount(amount)}
+              disabled={loading}
             >
               {t("creditAmount", { count: amount })}
             </Button>
@@ -72,14 +86,16 @@ export default function BillingForm({
             value={customAmount ?? ""}
             onChange={(e) => setCustomAmount(Number(e.target.value))}
             min="1"
+            disabled={loading}
           />
         </div>
       </CardContent>
       <CardFooter className="flex items-center justify-between">
         <Button
           onClick={() => handleTopUp(customAmount)}
-          disabled={!customAmount || Number(customAmount) <= 0}
+          disabled={!customAmount || Number(customAmount) <= 0 || loading}
         >
+          {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
           {t("topUpButton")}
         </Button>
         <p className="text-muted-foreground text-sm">
