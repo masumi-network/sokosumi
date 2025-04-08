@@ -17,7 +17,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createCheckoutSession } from "@/lib/actions/stripe.actions";
-import { creditTransactionTopUp } from "@/lib/db/services/credit.service";
+import {
+  addStripeSessionIdToCreditTransaction,
+  creditTransactionTopUp,
+} from "@/lib/db/services/credit.service";
 
 interface BillingFormProps {
   userId: string;
@@ -52,6 +55,7 @@ export default function BillingForm({
         amount,
         `${window.location.origin}${pathname}`,
       );
+      await addStripeSessionIdToCreditTransaction(creditTransaction.id, id);
       console.log("Checkout session created:", id, url);
       window.location.href = url;
     } catch (error) {

@@ -368,8 +368,7 @@ model CreditTransaction {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  fiatPayment   FiatPayment?
-  fiatPaymentId String?      @unique
+  stripeSessionId String? @unique
 
   job         Job? @relation("JobCost")
   refundedJob Job? @relation("JobRefund")
@@ -387,35 +386,6 @@ enum CreditTransactionType {
   SPEND
   REFUND
   MANUAL
-}
-
-model FiatPayment {
-  id                String            @id @default(cuid())
-  createdAt         DateTime          @default(now())
-  updatedAt         DateTime          @updatedAt
-  amount            BigInt // Amount in cents/smallest currency unit
-  currency          String // e.g., "usd"
-  status            FiatPaymentStatus
-  servicePaymentId  String            @unique // Stripe's payment_intent ID
-  serviceCustomerId String? // Stripe's customer ID
-  metadata          Json? // Additional payment metadata
-
-  creditTransaction   CreditTransaction @relation(fields: [creditTransactionId], references: [id])
-  creditTransactionId String            @unique
-
-  service FiatPaymentService @default(STRIPE)
-}
-
-enum FiatPaymentService {
-  STRIPE
-}
-
-enum FiatPaymentStatus {
-  PENDING
-  SUCCEEDED
-  FAILED
-  REFUNDED
-  CANCELLED
 }
 
 model Job {

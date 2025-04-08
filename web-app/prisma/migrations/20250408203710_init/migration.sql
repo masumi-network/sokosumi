@@ -14,12 +14,6 @@ CREATE TYPE "CreditTransactionStatus" AS ENUM ('PENDING', 'SUCCEEDED', 'FAILED')
 CREATE TYPE "CreditTransactionType" AS ENUM ('TOP_UP', 'REFERRAL', 'SPEND', 'REFUND', 'MANUAL');
 
 -- CreateEnum
-CREATE TYPE "FiatPaymentService" AS ENUM ('STRIPE');
-
--- CreateEnum
-CREATE TYPE "FiatPaymentStatus" AS ENUM ('PENDING', 'SUCCEEDED', 'FAILED', 'REFUNDED', 'CANCELLED');
-
--- CreateEnum
 CREATE TYPE "JobStatus" AS ENUM ('PAYMENT_PENDING', 'PAYMENT_FAILED', 'PROCESSING', 'COMPLETED', 'FAILED', 'REFUND_REQUESTED', 'DISPUTED', 'REFUNDED', 'REFUND_FAILED');
 
 -- CreateTable
@@ -324,26 +318,9 @@ CREATE TABLE "CreditTransaction" (
     "type" "CreditTransactionType" NOT NULL,
     "status" "CreditTransactionStatus" NOT NULL DEFAULT 'PENDING',
     "userId" TEXT NOT NULL,
-    "fiatPaymentId" TEXT,
+    "stripeSessionId" TEXT,
 
     CONSTRAINT "CreditTransaction_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "FiatPayment" (
-    "id" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    "amount" BIGINT NOT NULL,
-    "currency" TEXT NOT NULL,
-    "status" "FiatPaymentStatus" NOT NULL,
-    "servicePaymentId" TEXT NOT NULL,
-    "serviceCustomerId" TEXT,
-    "metadata" JSONB,
-    "creditTransactionId" TEXT NOT NULL,
-    "service" "FiatPaymentService" NOT NULL DEFAULT 'STRIPE',
-
-    CONSTRAINT "FiatPayment_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -437,13 +414,7 @@ CREATE UNIQUE INDEX "Lock_key_key" ON "Lock"("key");
 CREATE UNIQUE INDEX "Tag_name_key" ON "Tag"("name");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "CreditTransaction_fiatPaymentId_key" ON "CreditTransaction"("fiatPaymentId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "FiatPayment_servicePaymentId_key" ON "FiatPayment"("servicePaymentId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "FiatPayment_creditTransactionId_key" ON "FiatPayment"("creditTransactionId");
+CREATE UNIQUE INDEX "CreditTransaction_stripeSessionId_key" ON "CreditTransaction"("stripeSessionId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Job_creditTransactionId_key" ON "Job"("creditTransactionId");
@@ -519,9 +490,6 @@ ALTER TABLE "AgentList" ADD CONSTRAINT "AgentList_userId_fkey" FOREIGN KEY ("use
 
 -- AddForeignKey
 ALTER TABLE "CreditTransaction" ADD CONSTRAINT "CreditTransaction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "FiatPayment" ADD CONSTRAINT "FiatPayment_creditTransactionId_fkey" FOREIGN KEY ("creditTransactionId") REFERENCES "CreditTransaction"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Job" ADD CONSTRAINT "Job_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

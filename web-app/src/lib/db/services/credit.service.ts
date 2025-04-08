@@ -55,6 +55,17 @@ export async function updateCreditTransactionStatus(
     data: { status: status },
   });
 }
+
+export async function addStripeSessionIdToCreditTransaction(
+  creditTransactionId: string,
+  stripeSessionId: string,
+) {
+  await prisma.creditTransaction.update({
+    where: { id: creditTransactionId },
+    data: { stripeSessionId: stripeSessionId },
+  });
+}
+
 /**
  * Creates a pending credit transaction for topping up a user's account.
  *
