@@ -322,9 +322,9 @@ CREATE TABLE "CreditTransaction" (
     "errorNote" TEXT,
     "errorNoteKey" TEXT,
     "type" "CreditTransactionType" NOT NULL,
+    "status" "CreditTransactionStatus" NOT NULL DEFAULT 'PENDING',
     "userId" TEXT NOT NULL,
     "fiatPaymentId" TEXT,
-    "status" "CreditTransactionStatus" NOT NULL DEFAULT 'PENDING',
 
     CONSTRAINT "CreditTransaction_pkey" PRIMARY KEY ("id")
 );
@@ -340,6 +340,7 @@ CREATE TABLE "FiatPayment" (
     "servicePaymentId" TEXT NOT NULL,
     "serviceCustomerId" TEXT,
     "metadata" JSONB,
+    "creditTransactionId" TEXT NOT NULL,
     "service" "FiatPaymentService" NOT NULL DEFAULT 'STRIPE',
 
     CONSTRAINT "FiatPayment_pkey" PRIMARY KEY ("id")
@@ -350,10 +351,10 @@ CREATE TABLE "Job" (
     "id" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "userId" TEXT NOT NULL,
+    "agentId" TEXT NOT NULL,
     "agentJobId" TEXT NOT NULL,
     "paymentId" TEXT NOT NULL,
-    "agentId" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
     "status" "JobStatus" NOT NULL,
     "input" TEXT NOT NULL,
     "output" TEXT,
@@ -442,6 +443,9 @@ CREATE UNIQUE INDEX "CreditTransaction_fiatPaymentId_key" ON "CreditTransaction"
 CREATE UNIQUE INDEX "FiatPayment_servicePaymentId_key" ON "FiatPayment"("servicePaymentId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "FiatPayment_creditTransactionId_key" ON "FiatPayment"("creditTransactionId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Job_creditTransactionId_key" ON "Job"("creditTransactionId");
 
 -- CreateIndex
@@ -517,13 +521,13 @@ ALTER TABLE "AgentList" ADD CONSTRAINT "AgentList_userId_fkey" FOREIGN KEY ("use
 ALTER TABLE "CreditTransaction" ADD CONSTRAINT "CreditTransaction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "CreditTransaction" ADD CONSTRAINT "CreditTransaction_fiatPaymentId_fkey" FOREIGN KEY ("fiatPaymentId") REFERENCES "FiatPayment"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Job" ADD CONSTRAINT "Job_agentId_fkey" FOREIGN KEY ("agentId") REFERENCES "Agent"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "FiatPayment" ADD CONSTRAINT "FiatPayment_creditTransactionId_fkey" FOREIGN KEY ("creditTransactionId") REFERENCES "CreditTransaction"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Job" ADD CONSTRAINT "Job_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Job" ADD CONSTRAINT "Job_agentId_fkey" FOREIGN KEY ("agentId") REFERENCES "Agent"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Job" ADD CONSTRAINT "Job_creditTransactionId_fkey" FOREIGN KEY ("creditTransactionId") REFERENCES "CreditTransaction"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
