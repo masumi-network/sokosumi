@@ -21,10 +21,12 @@ export default async function BillingSuccessPage({
   searchParams,
 }: BillingSuccessPageProps) {
   const t = await getTranslations("App.Billing.Success");
+  const params = await searchParams;
 
-  // TODO: Optionally fetch session details using searchParams.session_id for display purposes.
-  // Remember: Fulfillment MUST happen via webhooks, not here.
-  console.log("BillingSuccessPage", searchParams);
+  console.log(
+    "Successfully purchased credits with session id:",
+    params.session_id,
+  );
 
   return (
     <div className="mx-auto max-w-xl p-6">
