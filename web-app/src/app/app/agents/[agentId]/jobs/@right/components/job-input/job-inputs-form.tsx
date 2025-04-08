@@ -1,12 +1,14 @@
 "use client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { SubmitHandler, useForm } from "react-hook-form";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
+import { startJobWithInputData } from "@/lib/actions/job.actions";
 import {
   defaultValues,
   JobInputsDataSchemaType,
@@ -16,7 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import JobInput from "./job-input";
-import { useRouterPush, useRouterRefresh } from "./util";
+import { useRouterPush } from "./util";
 
 interface JobInputsFormProps {
   agentId: string;
@@ -25,50 +27,72 @@ interface JobInputsFormProps {
   className?: string | undefined;
 }
 
+function transformFormData(values: JobInputsFormSchemaType) {
+  return Object.entries(values).reduce(
+    (acc, [key, value]) => {
+      if (value === null) return acc;
+
+      if (
+        Array.isArray(value) &&
+        value.every((item) => typeof item === "string")
+      ) {
+        const numArray = value.map((v) => Number(v)).filter((n) => !isNaN(n));
+        if (numArray.length === value.length) {
+          acc[key] = numArray;
+          return acc;
+        }
+      }
+
+      if (
+        typeof value === "string" ||
+        typeof value === "number" ||
+        typeof value === "boolean"
+      ) {
+        acc[key] = value;
+      }
+
+      return acc;
+    },
+    {} as Record<string, string | number | boolean | number[]>,
+  );
+}
+
 export default function JobInputsForm({
   agentId,
   agentPricing,
   jobInputsDataSchema,
   className,
 }: JobInputsFormProps) {
-  const router = useRouter();
   const { input_data } = jobInputsDataSchema;
   const t = useTranslations("Library.JobInput.Form");
   const form = useForm<JobInputsFormSchemaType>({
     resolver: zodResolver(jobInputsFormSchema(input_data, t)),
     defaultValues: defaultValues(input_data),
   });
-  // const credits = agentPricing;
-  const refresh = useRouterRefresh();
   const push = useRouterPush();
+  const pathname = usePathname();
 
+  // Then replace your existing handleSubmit function with this:
   const handleSubmit: SubmitHandler<JobInputsFormSchemaType> = async (
     values,
   ) => {
     try {
-      console.log(values, agentPricing);
-      const response = await fetch("/api/job/start", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          agentId: agentId,
-          maxAcceptedCreditCost: agentPricing,
-          inputData: Object.fromEntries(Object.entries(values)),
-        }),
+      // Transform input data to match expected type
+      // Filter out null values and ensure arrays are of correct type
+      const transformedInputData = transformFormData(values);
+      const result = await startJobWithInputData({
+        agentId: agentId,
+        maxAcceptedCreditCost: agentPricing,
+        inputData: transformedInputData,
       });
 
-      if (response.ok) {
+      if (result.success && result.data?.jobId) {
         form.reset();
-        const data = await response.json();
-        // prefetch the job page and load async to stay when loading
-        router.prefetch(`/app/agents/${agentId}/jobs/${data.jobId}`);
-        await refresh();
-        await push(`/app/agents/${agentId}/jobs/${data.jobId}`);
+        await push(`${pathname}/${result.data.jobId}`);
       }
     } catch (error) {
       console.error(error);
+      toast.error(t("error"));
     }
   };
 
