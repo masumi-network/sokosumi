@@ -113,12 +113,11 @@ async function syncAllEntries() {
               authorContactOther: entry.authorContactOther ?? "",
               image: entry.image ?? "",
               authorOrganization: entry.authorOrganization ?? "",
-              showOnFrontPage: false,
+              isShown: getEnvSecrets().SHOW_AGENTS_BY_DEFAULT,
               status: convertStatus(entry.status),
               legalOther: entry.otherLegal ?? "",
               legalTerms: entry.termsAndCondition ?? "",
               legalPrivacyPolicy: entry.privacyPolicy ?? "",
-              ranking: 0,
               rating: {
                 create: {
                   totalStars: 0,
