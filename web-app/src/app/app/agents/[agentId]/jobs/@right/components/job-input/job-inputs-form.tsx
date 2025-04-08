@@ -1,7 +1,7 @@
 "use client";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -18,7 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import JobInput from "./job-input";
-import { useRouterPush, useRouterRefresh } from "./util";
+import { useRouterPush } from "./util";
 
 interface JobInputsFormProps {
   agentId: string;
@@ -63,15 +63,12 @@ export default function JobInputsForm({
   jobInputsDataSchema,
   className,
 }: JobInputsFormProps) {
-  const router = useRouter();
   const { input_data } = jobInputsDataSchema;
   const t = useTranslations("Library.JobInput.Form");
   const form = useForm<JobInputsFormSchemaType>({
     resolver: zodResolver(jobInputsFormSchema(input_data, t)),
     defaultValues: defaultValues(input_data),
   });
-  // const credits = agentPricing;
-  const refresh = useRouterRefresh();
   const push = useRouterPush();
   const pathname = usePathname();
 
