@@ -54,11 +54,13 @@ export async function getCostPerCredit(
 export async function createCheckoutSession(
   priceId: string,
   credits: number,
+  host: string,
   pathname: string,
 ): Promise<{
   id: string;
-  url: string | null;
+  url: string;
 }> {
+  console.log("Creating checkout session for pathname:", pathname);
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     line_items: [
@@ -67,8 +69,11 @@ export async function createCheckoutSession(
         quantity: credits,
       },
     ],
-    success_url: `${pathname}/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${pathname}/cancel?session_id={CHECKOUT_SESSION_ID}`,
+    success_url: `${host}${pathname}/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${host}${pathname}/cancel?session_id={CHECKOUT_SESSION_ID}`,
   });
+  if (!session.url) {
+    throw new Error("Stripe session URL is null");
+  }
   return { id: session.id, url: session.url };
 }

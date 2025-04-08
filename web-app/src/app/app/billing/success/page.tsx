@@ -41,7 +41,7 @@ export default async function BillingSuccessPage({
             {t("fulfillmentNote")}
           </p>
           <Button asChild>
-            <Link href="/app/">{t("backToDashboard")}</Link>
+            <Link href="/app">{t("backToDashboard")}</Link>
           </Button>
         </CardContent>
       </Card>
