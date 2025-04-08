@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.config"; // Ensure this path is correct
@@ -55,12 +56,13 @@ export async function createCheckoutSession(
   creditTransactionId: string,
   priceId: string,
   credits: number,
-  url: string,
 ): Promise<{
   id: string;
   url: string;
 }> {
-  console.log("Creating checkout session for url:", url);
+  const headerList = await headers();
+  const origin = headerList.get("origin");
+
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     line_items: [
@@ -73,8 +75,8 @@ export async function createCheckoutSession(
       creditTransactionId: creditTransactionId,
       credits: credits,
     },
-    success_url: `${url}/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${url}/cancel`,
+    success_url: `${origin}/app/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${origin}/app/billing/cancel`,
   });
   if (!session.url) {
     throw new Error("Stripe session URL is null");
