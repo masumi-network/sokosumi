@@ -594,6 +594,7 @@
         "clear": "Clear",
         "price": "{price, plural, =0 {Free} =1 {1 credit} other {# credits}} per run",
         "submit": "Submit",
+        "error": "Failed to start job",
         "String": {
           "required": "{name} is required",
           "min": "{name} must be at least {value} characters",
