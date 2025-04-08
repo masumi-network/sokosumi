@@ -11,18 +11,31 @@ import { getEnvPublicConfig } from "@/config/env.config";
 import { AgentWithFixedPricing } from "@/lib/db/extension/agent";
 import prisma from "@/lib/db/prisma";
 
-export async function getCredits(userId: string): Promise<number> {
-  const balance = await prisma.creditTransaction.aggregate({
-    where: {
-      userId,
-      status: CreditTransactionStatus.SUCCEEDED,
-    },
-    _sum: {
-      amount: true,
-    },
-  });
+export async function getAvailableCredits(userId: string): Promise<number> {
+  const balance = await prisma.$transaction(async (tx) => {
+    const creditBalance = await tx.creditTransaction.aggregate({
+      where: { userId, status: CreditTransactionStatus.SUCCEEDED },
+      _sum: {
+        amount: true,
+      },
+    });
 
-  return formatCreditsForDisplay(balance._sum.amount ?? BigInt(0));
+    const negativePendingBalance = await tx.creditTransaction.aggregate({
+      where: {
+        userId,
+        status: CreditTransactionStatus.PENDING,
+        amount: { lt: 0 },
+      },
+      _sum: {
+        amount: true,
+      },
+    });
+    const availableBalance =
+      (creditBalance._sum.amount ?? BigInt(0)) -
+      (negativePendingBalance._sum.amount ?? BigInt(0));
+    return availableBalance;
+  });
+  return formatCreditsForDisplay(balance ?? BigInt(0));
 }
 
 export async function getCreditTransactionById(
@@ -91,34 +104,22 @@ export async function creditTransactionSpend(
     throw new Error("Included fee credits must be less than total credits");
   }
 
-  const newCreditTransaction = await prisma.$transaction(async (tx) => {
-    const creditBalance = await tx.creditTransaction.aggregate({
-      where: { userId },
-      _sum: {
-        amount: true,
-      },
-    });
+  const availableBalance = await getAvailableCredits(userId);
+  if (availableBalance < credits) {
+    throw new Error("Insufficient balance");
+  }
 
-    if (
-      creditBalance._sum.amount === null ||
-      creditBalance._sum.amount < credits
-    ) {
-      throw new Error("Insufficient balance");
-    }
-
-    return await tx.creditTransaction.create({
-      data: {
-        userId,
-        amount: -credits,
-        includedFee: includedFeeCredits,
-        type: CreditTransactionType.SPEND,
-        status: CreditTransactionStatus.PENDING,
-        note: note,
-        noteKey: noteKey,
-      },
-    });
+  return await prisma.creditTransaction.create({
+    data: {
+      userId,
+      amount: -credits,
+      includedFee: includedFeeCredits,
+      type: CreditTransactionType.SPEND,
+      status: CreditTransactionStatus.PENDING,
+      note: note,
+      noteKey: noteKey,
+    },
   });
-  return newCreditTransaction;
 }
 
 const amountsSchema = z.array(
