@@ -1,5 +1,5 @@
 import BillingForm from "@/components/billing/billing-form";
-import { getCostPerCredit } from "@/lib/actions/billing.actions";
+import { getCostPerCredit } from "@/lib/actions/stripe.actions";
 
 export default async function BillingPage() {
   const costPerCredit = await getCostPerCredit();
