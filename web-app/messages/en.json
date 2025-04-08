@@ -36,6 +36,7 @@
     "UserAvatar": {
       "account": "Account",
       "signOut": "Sign out",
+      "billing": "Billing",
       "Error": {
         "signOut": "Failed to sign out"
       }
@@ -376,6 +377,10 @@
         "balance": "credit balance: {credits}",
         "unavailable": "credit balance: unknown"
       }
+    },
+    "Billing": {
+      "title": "Billing",
+      "description": "Manage your billing settings and preferences"
     },
     "Account": {
       "title": "Account Settings",
