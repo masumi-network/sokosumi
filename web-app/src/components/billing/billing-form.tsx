@@ -14,23 +14,35 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { createCheckoutSession } from "@/lib/actions/stripe.actions";
 
 interface BillingFormProps {
+  priceId: string;
   amountPerCredit: number;
   currency: string;
 }
 
 export default function BillingForm({
+  priceId,
   amountPerCredit,
   currency,
 }: BillingFormProps) {
   const t = useTranslations("App.Billing");
   const format = useFormatter();
-  const [customAmount, setCustomAmount] = useState("");
+  const [customAmount, setCustomAmount] = useState<number | null>(null);
 
-  const handleTopUp = (amount: number | string) => {
+  const handleTopUp = async (amount: number | null) => {
     console.log("Topping up credits:", amount);
-    // TODO: Implement actual top-up logic
+    if (!amount || amount <= 0) {
+      return;
+    }
+    const { id, url } = await createCheckoutSession(
+      priceId,
+      amount,
+      "http://localhost:3000/success",
+      "http://localhost:3000/cancel",
+    );
+    console.log("Checkout session created:", id, url);
   };
 
   return (
@@ -45,7 +57,7 @@ export default function BillingForm({
             <Button
               key={amount}
               variant="outline"
-              onClick={() => setCustomAmount(String(amount))}
+              onClick={() => setCustomAmount(amount)}
             >
               {t("creditAmount", { count: amount })}
             </Button>
@@ -57,8 +69,8 @@ export default function BillingForm({
             id="custom-amount"
             type="number"
             placeholder={t("customAmountPlaceholder")}
-            value={customAmount}
-            onChange={(e) => setCustomAmount(e.target.value)}
+            value={customAmount ?? ""}
+            onChange={(e) => setCustomAmount(Number(e.target.value))}
             min="1"
           />
         </div>

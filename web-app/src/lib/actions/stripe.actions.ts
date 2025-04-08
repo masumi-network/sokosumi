@@ -10,13 +10,18 @@ const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY, {
 
 /**
  * Fetches the cost per credit from Stripe.
- * Throws an error if the price cannot be retrieved or is invalid.
+ *
+ * @returns A promise that resolves to an object containing:
+ *   - amountPerCredit: The cost per credit in the currency's base unit (e.g., dollars)
+ *   - currency: The currency code (e.g., 'usd')
+ * @throws Will throw an error if the Stripe price cannot be retrieved or is invalid
  */
-export async function getCostPerCredit(): Promise<{
+export async function getCostPerCredit(
+  priceId: string = getEnvSecrets().STRIPE_PRICE_ID,
+): Promise<{
   amountPerCredit: number;
   currency: string;
 }> {
-  const priceId = getEnvSecrets().STRIPE_PRICE_ID;
   console.log(`ACTION: Fetching Stripe price for ID: ${priceId}`);
 
   try {
@@ -37,4 +42,36 @@ export async function getCostPerCredit(): Promise<{
     console.error("ACTION: Failed to fetch Stripe price:", error);
     throw error;
   }
+}
+
+/**
+ * Creates a checkout session for purchasing credits.
+ *
+ * @returns A promise that resolves to an object containing:
+ *   - id: The ID of the checkout session
+ * @throws Will throw an error if the checkout session cannot be created
+ */
+export async function createCheckoutSession(
+  priceId: string,
+  credits: number,
+  successURL: string,
+  cancelURL: string,
+): Promise<{
+  id: string;
+  url: string | null;
+}> {
+  const session = await stripe.checkout.sessions.create({
+    mode: "payment",
+    line_items: [
+      {
+        price: priceId,
+        quantity: credits,
+      },
+    ],
+    success_url: successURL,
+    cancel_url: cancelURL,
+    // success_url: `${domainURL}/success.html?session_id={CHECKOUT_SESSION_ID}`,
+    // cancel_url: `${domainURL}/canceled.html`,
+  });
+  return { id: session.id, url: session.url };
 }
