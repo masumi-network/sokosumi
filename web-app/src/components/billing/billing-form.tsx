@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -34,7 +34,6 @@ export default function BillingForm({
   const [customAmount, setCustomAmount] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const pathname = usePathname();
-  const router = useRouter();
 
   const handleTopUp = async (amount: number | null) => {
     console.log("Topping up credits:", amount);
@@ -50,7 +49,7 @@ export default function BillingForm({
         pathname,
       );
       console.log("Checkout session created:", id, url);
-      router.push(url);
+      window.location.href = url;
     } catch (error) {
       console.error("Failed to create checkout session:", error);
     } finally {
