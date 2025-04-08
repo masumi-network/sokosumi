@@ -10,17 +10,10 @@ import { startJob } from "@/lib/db/services/job.service";
 const startJobInputSchema = z.object({
   agentId: z.string(),
   maxAcceptedCreditCost: z.number(),
-  inputData: z
-    .record(
-      z.string(),
-      z.union([z.number(), z.string(), z.boolean(), z.array(z.number())]),
-    )
-    .transform((data) => {
-      // Filter out null values
-      return Object.fromEntries(
-        Object.entries(data).filter(([_, value]) => value !== null),
-      );
-    }),
+  inputData: z.record(
+    z.string(),
+    z.union([z.number(), z.string(), z.boolean(), z.array(z.number())]),
+  ),
 });
 
 export type StartJobInput = z.infer<typeof startJobInputSchema>;
