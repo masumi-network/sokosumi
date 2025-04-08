@@ -20,7 +20,7 @@ export default async function RightPage({
 
   const agent = await getAgentById(agentId);
   if (!agent) {
-    console.log("agent not found in right page");
+    console.warn("agent not found in right page");
     notFound();
   }
 

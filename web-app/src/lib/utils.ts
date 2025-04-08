@@ -107,7 +107,6 @@ export const calculatedInputHash = (
   identifierFromPurchaser: string,
 ) => {
   const inputString = json.canonicalize(Object.fromEntries(inputData));
-  console.log("inputString", identifierFromPurchaser + inputString);
   return createHash(identifierFromPurchaser + inputString);
 };
 

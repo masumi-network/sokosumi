@@ -51,14 +51,13 @@ export default async function JobLayout({
   right: React.ReactNode;
   params: Promise<JobLayoutParams>;
 }) {
-  const resultingParams = await params;
-
-  const { agentId } = resultingParams;
+  const { agentId } = await params;
   const agent = await getAgentById(agentId);
   if (!agent) {
-    console.log("agent not found in job layout");
+    console.warn("agent not found in job layout");
     return notFound();
   }
+
   const { session } = await requireAuthentication();
   const agentPrice = await calculateAgentHumandReadableCreditCost(agent);
   const favoriteAgentList = await getOrCreateFavoriteAgentList(session.user.id);
