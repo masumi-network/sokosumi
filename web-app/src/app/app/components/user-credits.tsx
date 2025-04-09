@@ -2,7 +2,8 @@ import { headers } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
 import { auth } from "@/lib/auth/auth";
-import { getCreditBalance, getUserById } from "@/lib/db/services/user.service";
+import { getCreditBalance } from "@/lib/db/services/credit.service";
+import { getUserById } from "@/lib/db/services/user.service";
 import { convertBaseUnitsToCredits } from "@/lib/db/utils/credit.utils";
 import { cn } from "@/lib/utils";
 
