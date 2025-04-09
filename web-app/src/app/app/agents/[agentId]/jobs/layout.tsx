@@ -1,6 +1,8 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
+import DefaultLoading from "@/components/default-loading";
 import { requireAuthentication } from "@/lib/auth/utils";
 import { getDescription, getLegal, getName } from "@/lib/db/extension/agent";
 import { getAgentById, getAgents } from "@/lib/db/services/agent.service";
@@ -9,7 +11,7 @@ import { calculateAgentHumandReadableCreditCost } from "@/lib/db/services/credit
 import { getJobsByAgentId } from "@/lib/db/services/job.service";
 
 import Footer from "./@right/components/footer";
-import Header from "./@right/components/header";
+import Header, { HeaderSkeleton } from "./@right/components/header";
 import JobsTable from "./@right/components/jobs-table";
 
 interface JobLayoutParams {
@@ -43,6 +45,24 @@ export async function generateMetadata({
 }
 
 export default async function JobLayout({
+  children,
+  right,
+  params,
+}: {
+  children: React.ReactNode;
+  right: React.ReactNode;
+  params: Promise<JobLayoutParams>;
+}) {
+  return (
+    <Suspense fallback={<JobLayoutSkeleton />}>
+      <JobLayoutInner right={right} params={params}>
+        {children}
+      </JobLayoutInner>
+    </Suspense>
+  );
+}
+
+async function JobLayoutInner({
   right,
   params,
 }: {
@@ -74,6 +94,17 @@ export default async function JobLayout({
         {right}
       </div>
       <Footer legal={getLegal(agent)} />
+    </div>
+  );
+}
+
+function JobLayoutSkeleton() {
+  return (
+    <div className="flex flex-1 flex-col p-4 xl:p-8">
+      <HeaderSkeleton />
+      <div className="mt-6 flex flex-1 justify-center py-12">
+        <DefaultLoading />
+      </div>
     </div>
   );
 }
