@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 
 import { DataTable } from "@/components/data-table";
@@ -11,13 +11,13 @@ import { getJobColumns } from "./job-columns";
 
 interface JobsTableProps {
   jobs: JobWithRelations[];
-  highlightedJobIds: string[] | undefined;
 }
 
-export default function JobsTable({ jobs, highlightedJobIds }: JobsTableProps) {
+export default function JobsTable({ jobs }: JobsTableProps) {
   const t = useTranslations("App.Agents.Jobs.JobsTable");
   const dateFormatter = useFormatter();
   const router = useRouter();
+  const params = useParams<{ jobId?: string | undefined }>();
 
   return (
     <DataTable
@@ -28,8 +28,7 @@ export default function JobsTable({ jobs, highlightedJobIds }: JobsTableProps) {
       }}
       data={jobs}
       rowClassName={(row) => {
-        if (highlightedJobIds?.includes(row.id))
-          return "bg-gray-200 hover:bg-gray-200";
+        if (params.jobId === row.id) return "bg-gray-200 hover:bg-gray-200";
         return "active:bg-gray-100 hover:bg-gray-50";
       }}
       containerClassName={cn("w-full lg:w-[max(400px,36%)] rounded-md border")}

@@ -1,5 +1,4 @@
 import { Metadata } from "next";
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 
 import { requireAuthentication } from "@/lib/auth/utils";
@@ -61,13 +60,6 @@ export default async function JobLayout({
   const { session } = await requireAuthentication();
   const agentPrice = await calculateAgentHumandReadableCreditCost(agent);
   const favoriteAgentList = await getOrCreateFavoriteAgentList(session.user.id);
-  const headerList = await headers();
-  const pathname = headerList.get("x-current-path");
-  const pathnameArray = pathname?.split("/");
-  let currentIds: string[] | undefined = undefined;
-  if (pathnameArray?.length === 6) {
-    currentIds = [pathnameArray[5]];
-  }
   const agentJobs = await getJobsByAgentId(agentId, session.user.id);
 
   return (
@@ -78,7 +70,7 @@ export default async function JobLayout({
         favoriteAgentList={favoriteAgentList}
       />
       <div className="mt-6 flex flex-1 flex-col justify-center gap-4 lg:flex-row lg:overflow-hidden">
-        <JobsTable jobs={agentJobs} highlightedJobIds={currentIds} />
+        <JobsTable jobs={agentJobs} />
         {right}
       </div>
       <Footer legal={getLegal(agent)} />
