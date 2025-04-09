@@ -8,6 +8,9 @@
     "UnknownError": "An unknown error occurred, please contact our support"
   },
   "Components": {
+    "DefaultErrorBoundary": {
+      "error": "An unknown error occurred, please contact our support"
+    },
     "Agents": {
       "agentsNotAvailable": "No agents available",
       "agentsNotFound": "No Agents found",
@@ -472,12 +475,14 @@
           "title": "Job",
           "status": "Status",
           "Output": {
+            "failedToParseOutput": "Failed to parse output",
             "title": "Result",
-            "None": "No result data "
+            "none": "No result data "
           },
           "Input": {
+            "failedToParseInput": "Failed to parse input",
             "title": "Inputs",
-            "None": "No input"
+            "none": "No input"
           }
         }
       }

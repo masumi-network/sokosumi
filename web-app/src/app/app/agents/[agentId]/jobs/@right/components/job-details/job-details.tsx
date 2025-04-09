@@ -1,10 +1,12 @@
-import Markdown from "markdown-to-jsx";
 import { useFormatter, useTranslations } from "next-intl";
 
 import JobStatusBadge from "@/app/agents/[agentId]/jobs/components/job-status-badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { JobWithRelations } from "@/lib/db/types/job.types";
 import { cn } from "@/lib/utils";
+
+import JobDetailsInputs from "./inputs";
+import JobDetailsOutputs from "./outputs";
 
 interface JobDetailsProps {
   job: JobWithRelations;
@@ -14,9 +16,6 @@ interface JobDetailsProps {
 export default function JobDetails({ job, className }: JobDetailsProps) {
   const t = useTranslations("App.Agents.Jobs.JobDetails");
   const formatter = useFormatter();
-  const result = job.output ? JSON.parse(job.output) : null;
-  const output = result?.result?.raw.toString();
-  const input = job.input ? JSON.parse(job.input) : {};
 
   return (
     <div className={cn("flex h-full min-h-[300px] flex-1 flex-col", className)}>
@@ -33,45 +32,8 @@ export default function JobDetails({ job, className }: JobDetailsProps) {
             <h1 className="text-xl font-bold">{t("status")}</h1>
             <JobStatusBadge status={job.status} />
           </div>
-          {/* inputs */}
-          <div className="flex flex-col gap-2">
-            <h1 className="text-xl font-bold">{t("Input.title")}</h1>
-            {Object.keys(input).length > 0 ? (
-              <div>
-                {Object.entries(input).map(([key, value]) => (
-                  <div className="flex flex-row gap-2" key={key}>
-                    <p className="text-base font-bold">{key}</p>
-                    <p>
-                      {typeof value === "object"
-                        ? JSON.stringify(value)
-                        : String(value)}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <p className="text-base">{t("Input.None")}</p>
-            )}
-          </div>
-          {/* outputs */}
-          <div className="flex flex-col gap-2">
-            <h1 className="text-xl font-bold">{t("Output.title")}</h1>
-            {job.output ? (
-              <Markdown
-                options={{
-                  disableParsingRawHTML: true,
-                  wrapper: ({ children }) => (
-                    <article className="markdown-body">{children}</article>
-                  ),
-                  forceWrapper: true,
-                }}
-              >
-                {output}
-              </Markdown>
-            ) : (
-              <p className="text-base">{t("Output.None")}</p>
-            )}
-          </div>
+          <JobDetailsInputs rawInput={job.input} />
+          <JobDetailsOutputs rawOutput={job.output} />
         </div>
       </ScrollArea>
     </div>

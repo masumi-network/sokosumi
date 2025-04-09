@@ -1,10 +1,11 @@
+import { useTranslations } from "next-intl";
 import { Suspense } from "react";
 
+import DefaultErrorBoundary from "@/components/default-error-boundary";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getAgentInputSchema } from "@/lib/db/services/agent.service";
 
 import JobInputsFormClient from "./job-inputs-form.client";
-import JobInputsFormErrorWrapper from "./job-inputs-form.error";
 
 interface JobInputsFormProps {
   agentId: string;
@@ -18,7 +19,7 @@ export default function JobInputsForm({
   className,
 }: JobInputsFormProps) {
   return (
-    <JobInputsFormErrorWrapper>
+    <DefaultErrorBoundary fallback={<JobInputsFormError />}>
       <Suspense fallback={<JobInputsFormSkeleton />}>
         <JobInputsFormInner
           agentId={agentId}
@@ -26,7 +27,7 @@ export default function JobInputsForm({
           className={className}
         />
       </Suspense>
-    </JobInputsFormErrorWrapper>
+    </DefaultErrorBoundary>
   );
 }
 
@@ -60,6 +61,18 @@ function JobInputsFormSkeleton() {
         <Skeleton className="h-8 w-16" />
         <Skeleton className="h-8 w-16" />
       </div>
+    </div>
+  );
+}
+
+function JobInputsFormError() {
+  const t = useTranslations("Library.JobInput.Error");
+
+  return (
+    <div className="flex min-h-[120px] w-full items-center justify-center rounded-md border border-red-300 bg-red-50 p-4">
+      <span className="text-lg text-red-500">
+        {t("failedToFetchJobInputSchema")}
+      </span>
     </div>
   );
 }
