@@ -13,30 +13,38 @@ export async function getCreditBalance(userId: string): Promise<bigint> {
       amount: true,
     },
   });
-
   return creditBalance._sum.amount ?? BigInt(0);
 }
 
 export async function createCreditTransaction(
   userId: string,
-  credits: bigint,
+  credits: bigint, // if credits is positive, it is a top up
   includedFee: bigint = BigInt(0),
 ): Promise<CreditTransaction> {
-  // if credits is positive, it is a top up
-  if (credits > 0) {
-    const availableBalance = await getCreditBalance(userId);
-    if (availableBalance < credits) {
-      throw new Error("Insufficient balance");
+  const creditTransaction = await prisma.$transaction(async (tx) => {
+    if (credits < 0) {
+      const creditBalance = await tx.creditTransaction.aggregate({
+        where: { userId },
+        _sum: {
+          amount: true,
+        },
+      });
+      if (
+        creditBalance._sum.amount === null ||
+        creditBalance._sum.amount - credits * BigInt(-1) < BigInt(0)
+      ) {
+        throw new Error("Insufficient balance");
+      }
     }
-  }
-
-  return await prisma.creditTransaction.create({
-    data: {
-      userId,
-      amount: credits,
-      includedFee,
-    },
+    return await tx.creditTransaction.create({
+      data: {
+        userId,
+        amount: credits,
+        includedFee,
+      },
+    });
   });
+  return creditTransaction;
 }
 
 const amountsSchema = z.array(
