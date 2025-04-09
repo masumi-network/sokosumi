@@ -1,4 +1,5 @@
 "use server";
+
 import { FiatTransactionStatus } from "@prisma/client";
 
 import prisma from "@/lib/db/prisma";
@@ -25,42 +26,58 @@ export async function updateServicePaymentId(
   return fiatTransaction;
 }
 
-export async function getFiatTransactionByServicePaymentId(
-  servicePaymentId: string,
-) {
-  const fiatTransaction = await prisma.fiatTransaction.findUnique({
-    where: { servicePaymentId },
-  });
-  return fiatTransaction;
-}
-
 export async function updateFiatTransactionStatus(
-  fiatTransactionId: string,
+  sessionId: string,
   status: FiatTransactionStatus,
 ) {
-  const fiatTransaction = await prisma.$transaction(async (tx) => {
-    let fiatTransaction = await tx.fiatTransaction.update({
-      where: { id: fiatTransactionId },
-      data: { status },
-    });
+  switch (status) {
+    case FiatTransactionStatus.SUCCEEDED:
+      await setFiatTransactionSucceeded(sessionId);
+      break;
+    case FiatTransactionStatus.FAILED:
+      await setFiatTransactionFailed(sessionId);
+      break;
+    default:
+      throw new Error(`Invalid status: ${status}`);
+  }
+}
 
-    if (
-      status === FiatTransactionStatus.SUCCEEDED &&
-      !fiatTransaction.creditTransactionId
-    ) {
-      fiatTransaction = await tx.fiatTransaction.update({
-        where: { id: fiatTransaction.id },
-        data: {
-          creditTransaction: {
-            create: {
-              userId: fiatTransaction.userId,
-              amount: fiatTransaction.credits,
-            },
+async function setFiatTransactionSucceeded(sessionId: string) {
+  await prisma.$transaction(async (tx) => {
+    const fiatTransaction = await tx.fiatTransaction.findUnique({
+      where: { servicePaymentId: sessionId },
+    });
+    if (!fiatTransaction) {
+      console.error(`🔔  No fiat transaction found for session ${sessionId}`);
+      return;
+    }
+    return await tx.fiatTransaction.update({
+      where: { id: fiatTransaction.id },
+      data: {
+        status: FiatTransactionStatus.SUCCEEDED,
+        creditTransaction: {
+          create: {
+            userId: fiatTransaction.userId,
+            amount: fiatTransaction.credits,
           },
         },
-      });
-    }
-    return fiatTransaction;
+      },
+    });
   });
-  return fiatTransaction;
+}
+
+async function setFiatTransactionFailed(sessionId: string) {
+  await prisma.$transaction(async (tx) => {
+    const fiatTransaction = await tx.fiatTransaction.findUnique({
+      where: { servicePaymentId: sessionId },
+    });
+    if (!fiatTransaction) {
+      console.error(`🔔  No fiat transaction found for session ${sessionId}`);
+      return;
+    }
+    return await tx.fiatTransaction.update({
+      where: { id: fiatTransaction.id },
+      data: { status: FiatTransactionStatus.FAILED },
+    });
+  });
 }

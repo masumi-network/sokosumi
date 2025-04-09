@@ -3,7 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.config";
-import prisma from "@/lib/db/prisma";
+import { updateFiatTransactionStatus } from "@/lib/db/services/fiatTransaction.service";
 
 const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY, {
   apiVersion: "2025-03-31.basil", // Corrected API version
@@ -14,19 +14,7 @@ const handleFiatTransactionFailed = async (
 ) => {
   console.log(`🔔  Payment failed for session ${session.id}`);
 
-  await prisma.$transaction(async (tx) => {
-    const fiatTransaction = await tx.fiatTransaction.findUnique({
-      where: { servicePaymentId: session.id },
-    });
-    if (!fiatTransaction) {
-      console.error(`🔔  No fiat transaction found for session ${session.id}`);
-      return;
-    }
-    return await tx.fiatTransaction.update({
-      where: { id: fiatTransaction.id },
-      data: { status: FiatTransactionStatus.FAILED },
-    });
-  });
+  await updateFiatTransactionStatus(session.id, FiatTransactionStatus.FAILED);
 };
 
 const checkSessionPayment = async (session: Stripe.Checkout.Session) => {
@@ -39,27 +27,10 @@ const checkSessionPayment = async (session: Stripe.Checkout.Session) => {
     return;
   }
 
-  await prisma.$transaction(async (tx) => {
-    const fiatTransaction = await tx.fiatTransaction.findUnique({
-      where: { servicePaymentId: session.id },
-    });
-    if (!fiatTransaction) {
-      console.error(`🔔  No fiat transaction found for session ${session.id}`);
-      return;
-    }
-    return await tx.fiatTransaction.update({
-      where: { id: fiatTransaction.id },
-      data: {
-        status: FiatTransactionStatus.SUCCEEDED,
-        creditTransaction: {
-          create: {
-            userId: fiatTransaction.userId,
-            amount: fiatTransaction.credits,
-          },
-        },
-      },
-    });
-  });
+  await updateFiatTransactionStatus(
+    session.id,
+    FiatTransactionStatus.SUCCEEDED,
+  );
 };
 
 export async function POST(request: NextRequest) {
