@@ -17,9 +17,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createCheckoutSession } from "@/lib/actions/stripe.actions";
 import {
-  addStripeSessionIdToCreditTransaction,
-  creditTransactionTopUp,
-} from "@/lib/db/services/credit.service";
+  createFiatTransaction,
+  updateFiatTransactionServicePaymentId,
+} from "@/lib/db/services/fiatTransaction.service";
 
 interface BillingFormProps {
   userId: string;
@@ -39,20 +39,20 @@ export default function BillingForm({
   const [customAmount, setCustomAmount] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleTopUp = async (amount: number | null) => {
-    console.log("Topping up credits:", amount);
-    if (!amount || amount <= 0) {
+  const handleTopUp = async (credits: number | null) => {
+    console.log("Topping up credits:", credits);
+    if (!credits || credits <= 0) {
       return;
     }
     setLoading(true);
     try {
-      const creditTransaction = await creditTransactionTopUp(userId, amount);
+      const fiatTransaction = await createFiatTransaction(userId, credits);
       const { id, url } = await createCheckoutSession(
-        creditTransaction.id,
+        fiatTransaction.id,
         priceId,
-        amount,
+        credits,
       );
-      await addStripeSessionIdToCreditTransaction(creditTransaction.id, id);
+      await updateFiatTransactionServicePaymentId(fiatTransaction.id, id);
       console.log("Checkout session created:", id, url);
       window.location.href = url;
     } catch (error) {

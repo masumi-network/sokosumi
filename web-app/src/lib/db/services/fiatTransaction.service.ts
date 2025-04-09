@@ -12,8 +12,6 @@ export async function createFiatTransaction(
     data: {
       userId,
       credits,
-      amount,
-      currency,
     },
   });
   return fiatTransaction;

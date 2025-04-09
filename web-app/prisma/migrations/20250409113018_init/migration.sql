@@ -328,8 +328,6 @@ CREATE TABLE "FiatTransaction" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "credits" BIGINT NOT NULL,
-    "amount" BIGINT NOT NULL,
-    "currency" TEXT NOT NULL,
     "servicePaymentId" TEXT,
     "service" "FiatService" NOT NULL DEFAULT 'STRIPE',
     "status" "FiatTransactionStatus" NOT NULL DEFAULT 'PENDING',
