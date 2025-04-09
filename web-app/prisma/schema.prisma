@@ -369,9 +369,9 @@ model CreditTransaction {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  fiatTransaction    FiatTransaction?  @relation(fields: [fiatTransactionId], references: [id])
+  fiatTransaction    FiatTransaction?
   fiatTransactionId  String?           @unique
-  agentTransaction   AgentTransaction? @relation(fields: [agentTransactionId], references: [id])
+  agentTransaction   AgentTransaction?
   agentTransactionId String?           @unique
 }
 
@@ -396,7 +396,7 @@ model FiatTransaction {
   userId String
   user   User   @relation(fields: [userId], references: [id])
 
-  creditTransaction   CreditTransaction?
+  creditTransaction   CreditTransaction? @relation(fields: [creditTransactionId], references: [id])
   creditTransactionId String?            @unique
 }
 
@@ -411,9 +411,10 @@ enum FiatService {
 }
 
 model AgentTransaction {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        String               @id @default(cuid())
+  createdAt DateTime             @default(now())
+  updatedAt DateTime             @updatedAt
+  type      AgentTransactionType @default(PURCHASE)
 
   credits BigInt // positive is always a credit spend and negative is always a credit topup
 
@@ -423,8 +424,13 @@ model AgentTransaction {
   creditTransaction   CreditTransaction @relation(fields: [creditTransactionId], references: [id])
   creditTransactionId String            @unique
 
-  job   Job?
-  jobId String?
+  job   Job    @relation(fields: [jobId], references: [id])
+  jobId String
+}
+
+enum AgentTransactionType {
+  PURCHASE
+  REFUND
 }
 
 model Job {
@@ -446,10 +452,7 @@ model Job {
   startedAt  DateTime  @default(now())
   finishedAt DateTime?
 
-  agentPurchaseTransaction   AgentTransaction  @relation(fields: [agentPurchaseTransactionId], references: [id])
-  agentPurchaseTransactionId String            @unique
-  agentRefundTransaction     AgentTransaction? @relation(fields: [agentRefundTransactionId], references: [id])
-  agentRefundTransactionId   String?           @unique
+  agentTransactions AgentTransaction[]
 
   errorNote    String?
   errorNoteKey String?
