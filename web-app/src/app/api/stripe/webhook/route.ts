@@ -12,10 +12,10 @@ const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY, {
   apiVersion: "2025-03-31.basil", // Corrected API version
 });
 
-const handleCheckoutSessionExpired = async (
+const handleFiatTransactionFailed = async (
   session: Stripe.Checkout.Session,
 ) => {
-  console.log(`🔔  Payment expired for session ${session.id}`);
+  console.log(`🔔  Payment failed for session ${session.id}`);
 
   const fiatTransaction = await getFiatTransactionByServicePaymentId(
     session.id,
@@ -31,10 +31,15 @@ const handleCheckoutSessionExpired = async (
   );
 };
 
-const handleCheckoutSessionCompleted = async (
-  session: Stripe.Checkout.Session,
-) => {
-  console.log(`🔔  Payment received for session ${session.id}`);
+const checkSessionPayment = async (session: Stripe.Checkout.Session) => {
+  console.log(`🔔  Check payment for session ${session.id}`);
+  const paymentStatus = session.payment_status;
+  if (paymentStatus !== "paid") {
+    console.error(
+      `🔔  Payment status is ${paymentStatus} for session ${session.id}`,
+    );
+    return;
+  }
   const fiatTransaction = await getFiatTransactionByServicePaymentId(
     session.id,
   );
@@ -94,10 +99,12 @@ export async function POST(request: NextRequest) {
   const session = data.object as Stripe.Checkout.Session;
   switch (eventType) {
     case "checkout.session.completed":
-      await handleCheckoutSessionCompleted(session);
+    case "checkout.session.async_payment_succeeded":
+      await checkSessionPayment(session);
       break;
     case "checkout.session.expired":
-      await handleCheckoutSessionExpired(session);
+    case "checkout.session.async_payment_failed":
+      await handleFiatTransactionFailed(session);
       break;
     default:
       break;
