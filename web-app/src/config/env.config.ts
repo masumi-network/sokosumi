@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-properties */
-import { z } from "zod";
 import { v4 as uuidv4 } from "uuid";
+import { z } from "zod";
 
 /**
  * Specify your environment variables schema here.

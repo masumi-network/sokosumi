@@ -1,6 +1,6 @@
 import { BreadcrumbNavigation } from "@/components/breadcrumb-navigation";
-import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { cn } from "@/lib/utils";
 
 import CustomTrigger from "./sidebar/components/custom-trigger";
 import UserAvatar from "./user-avatar";

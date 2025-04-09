@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { createContext, useContext, useEffect, useState } from "react";
 
@@ -12,7 +12,10 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 function getSystemTheme(): "dark" | "light" {
-  return window?.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  if (typeof window === "undefined") return "light";
+  return window?.matchMedia("(prefers-color-scheme: dark)").matches
+    ? "dark"
+    : "light";
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
@@ -60,4 +63,4 @@ export function useTheme() {
     throw new Error("useTheme must be used within a ThemeProvider");
   }
   return context;
-} 
+}

@@ -6,8 +6,8 @@ import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 
 import { Toaster } from "@/components/ui/sonner";
-import { cn } from "@/lib/utils";
 import { ThemeProvider } from "@/lib/context/theme-context";
+import { cn } from "@/lib/utils";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,21 +23,6 @@ export const metadata: Metadata = {
   title: "Sokosumi - Marketplace for Agent-to-Agent interactions",
   description: "Hire yourself an agent to finish the most time consuming tasks",
 };
-
-function ThemeScript() {
-  return (
-    <script
-      dangerouslySetInnerHTML={{
-        __html: `
-          ;(function() {
-            const theme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-            document.documentElement.classList.add(theme);
-          })();
-        `,
-      }}
-    />
-  );
-}
 
 export default async function RootLayout({
   children,
