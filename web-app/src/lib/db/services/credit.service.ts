@@ -1,3 +1,4 @@
+"use server";
 import { CreditTransactionStatus, CreditTransactionType } from "@prisma/client";
 import { z } from "zod";
 
@@ -127,10 +128,14 @@ export async function calculateCreditCost(
   return totalCreditCost;
 }
 
-export function formatCreditsForDisplay(credits: bigint): number {
+export async function formatCreditsForDisplay(
+  credits: bigint,
+): Promise<number> {
   return Number(credits) / 10 ** getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BASE;
 }
 
-export function convertCreditsToBaseUnits(credits: number): bigint {
+export async function convertCreditsToBaseUnits(
+  credits: number,
+): Promise<bigint> {
   return BigInt(credits * 10 ** getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BASE);
 }
