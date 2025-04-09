@@ -604,7 +604,8 @@
             "value": {
               "required": "Option is required"
             },
-            "min": "Must have at least 1 option"
+            "min": "Must have at least 1 option",
+            "unique": "Option values must be unique"
           }
         },
         "Validations": {
@@ -645,9 +646,11 @@
         },
         "Option": {
           "required": "{name} is required",
-          "invalid": "{name} must be one of {options}",
           "min": "{name} must have at least {value, plural, =1 {1 option} other {# options}}",
-          "max": "{name} must have at most {value, plural, =1 {1 option} other {# options}}"
+          "max": "{name} must have at most {value, plural, =1 {1 option} other {# options}}",
+          "integer": "{name} option value must be an index",
+          "nonnegative": "{name} option value must be non negative index",
+          "invalid": "{name} option value must be index from 0 to {maxValue}"
         }
       },
       "Error": {
