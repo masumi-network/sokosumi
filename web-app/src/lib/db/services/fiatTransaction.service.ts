@@ -4,6 +4,7 @@ import prisma from "@/lib/db/prisma";
 
 export async function createFiatTransaction(
   userId: string,
+  credits: bigint,
   amount: number,
   currency: string,
   servicePaymentId: string,
@@ -11,6 +12,7 @@ export async function createFiatTransaction(
   const fiatTransaction = await prisma.fiatTransaction.create({
     data: {
       userId,
+      credits,
       amount,
       currency,
       servicePaymentId,

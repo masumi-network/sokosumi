@@ -1,6 +1,6 @@
 "use server";
 
-import { CreditTransactionType, Job, JobStatus } from "@prisma/client";
+import { Job, JobStatus } from "@prisma/client";
 import { z } from "zod";
 
 import { getEnvPublicConfig } from "@/config/env.config";
