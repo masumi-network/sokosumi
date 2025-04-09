@@ -17,7 +17,6 @@ export default function CreateJobSection({
   agentPricing,
 }: CreateJobSectionProps) {
   const t = useTranslations("App.Agents.Jobs.CreateJob");
-
   const description = getDescription(agent);
 
   return (
