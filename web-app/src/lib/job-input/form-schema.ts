@@ -147,9 +147,17 @@ const makeZodSchemaFromJobInputOptionSchema = (
     validations,
   } = jobInputOptionSchema;
   const defaultSchema = z.array(
-    z.string().refine((val) => values.includes(val), {
-      message: t?.("Option.invalid", { name, options: values.join(", ") }),
-    }),
+    z
+      .number()
+      .int({
+        message: t?.("Option.integer", { name }),
+      })
+      .nonnegative({
+        message: t?.("Option.nonnegative", { name }),
+      })
+      .max(values.length - 1, {
+        message: t?.("Option.invalid", { name, maxValue: values.length - 1 }),
+      }),
     { message: t?.("Option.required", { name }) },
   );
   if (!validations) return defaultSchema;

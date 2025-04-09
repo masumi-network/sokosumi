@@ -103,8 +103,8 @@ function InputField({ field, jobInputSchema }: InputFieldProps) {
     if (isSingle) {
       return (
         <Select
-          value={Array.isArray(field.value) ? field.value[0] : ""}
-          onValueChange={(value) => field.onChange([value])}
+          value={Array.isArray(field.value) ? values[field.value[0]] : ""}
+          onValueChange={(value) => field.onChange([values.indexOf(value)])}
         >
           <SelectTrigger className="w-full">
             <SelectValue />
@@ -125,8 +125,18 @@ function InputField({ field, jobInputSchema }: InputFieldProps) {
       return (
         <MultipleSelect
           name={name}
-          value={Array.isArray(field.value) ? field.value : []}
-          onChange={field.onChange}
+          value={
+            Array.isArray(field.value)
+              ? field.value.map((index) => values[index])
+              : []
+          }
+          onChange={(optionValues) =>
+            field.onChange(
+              optionValues
+                .map((optionValue) => values.indexOf(optionValue))
+                .sort(),
+            )
+          }
           options={values}
           className="w-full"
         />
