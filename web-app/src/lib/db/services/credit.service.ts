@@ -1,4 +1,4 @@
-import { CreditTransaction, CreditTransactionType } from "@prisma/client";
+import { CreditTransaction } from "@prisma/client";
 import { z } from "zod";
 
 import { getEnvPublicConfig } from "@/config/env.config";
@@ -17,33 +17,22 @@ export async function getCreditBalance(userId: string): Promise<bigint> {
   return creditBalance._sum.amount ?? BigInt(0);
 }
 
-export async function createCreditTransactionSpend(
+export async function createCreditTransaction(
   userId: string,
   credits: bigint,
 ): Promise<CreditTransaction> {
-  const availableBalance = await getCreditBalance(userId);
-  if (availableBalance < credits) {
-    throw new Error("Insufficient balance");
+  // if credits is positive, it is a top up
+  if (credits > 0) {
+    const availableBalance = await getCreditBalance(userId);
+    if (availableBalance < credits) {
+      throw new Error("Insufficient balance");
+    }
   }
 
   return await prisma.creditTransaction.create({
     data: {
       userId,
-      amount: -credits,
-      type: CreditTransactionType.SPEND,
-    },
-  });
-}
-
-export async function createCreditTransactionTopUp(
-  userId: string,
-  credits: bigint,
-): Promise<CreditTransaction> {
-  return await prisma.creditTransaction.create({
-    data: {
-      userId,
       amount: credits,
-      type: CreditTransactionType.TOP_UP,
     },
   });
 }

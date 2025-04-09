@@ -16,10 +16,7 @@ import {
 import { calculatedInputHash } from "@/lib/utils";
 
 import { getAgentById, getAgentPricing } from "./agent.service";
-import {
-  calculateCreditCost,
-  createCreditTransactionSpend,
-} from "./credit.service";
+import { calculateCreditCost, createCreditTransaction } from "./credit.service";
 
 const startJobSchema = z.object({
   input_hash: z.string(),
@@ -56,18 +53,7 @@ export async function startJob(
     throw new Error("Credit cost is too high");
   }
 
-  const creditTransaction = await createCreditTransactionSpend(
-    userId,
-    creditCost,
-  );
-  console.log("creditTransaction", creditTransaction);
-
-  // const agentTransaction = await createAgentTransactionPurchase(
-  //   userId,
-  //   creditCost,
-  //   creditTransaction.id,
-  //   job.id,
-  // );
+  const creditTransaction = await createCreditTransaction(userId, creditCost);
 
   try {
     const baseUrl = getApiBaseUrl(agent);
@@ -138,11 +124,11 @@ export async function startJob(
             id: agentId,
           },
         },
-        // creditTransaction: {
-        //   connect: {
-        //     id: creditTransaction.id,
-        //   },
-        // },
+        creditTransactions: {
+          connect: {
+            id: creditTransaction.id,
+          },
+        },
         status: JobStatus.PAYMENT_PENDING,
         paymentId: purchaseResponse.data.id,
         input: JSON.stringify(Object.fromEntries(inputData)),
@@ -161,17 +147,10 @@ export async function startJob(
         },
       },
     });
-    // await prisma.creditTransaction.update({
-    //   where: {
-    //     id: creditTransaction.id,
-    //   },
-    //   data: {
-    //     status: "SUCCEEDED",
-    //   },
-    // });
-
     return job;
   } catch (error) {
+    // TODO: update credit transaction status to failed
+
     // const job = await prisma.creditTransaction.update({
     //   where: {
     //     id: creditTransaction.id,

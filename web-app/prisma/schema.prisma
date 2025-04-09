@@ -434,7 +434,7 @@ model Job {
   sellerVkey                String?
   identifierFromPurchaser   String?
 
-  CreditTransaction CreditTransaction[]
+  creditTransactions CreditTransaction[]
 }
 
 enum JobStatus {
