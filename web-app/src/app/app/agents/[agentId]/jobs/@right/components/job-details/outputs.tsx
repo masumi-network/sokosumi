@@ -30,7 +30,7 @@ function JobDetailsOutputsInner({ rawOutput }: JobDetailsOutputsProps) {
           options={{
             disableParsingRawHTML: true,
             wrapper: ({ children }) => (
-              <article className="markdown-body">{children}</article>
+              <div className="markdown-body">{children}</div>
             ),
             forceWrapper: true,
           }}
