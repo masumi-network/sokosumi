@@ -1,60 +1,22 @@
-import { CreditTransaction, CreditTransactionStatus } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.config";
-import {
-  convertCreditsToBaseUnits,
-  getCreditTransactionById,
-} from "@/lib/db/services/credit.service";
 
 const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY, {
   apiVersion: "2025-03-31.basil", // Corrected API version
 });
 
-const getCreditTransactionForSession = async (
-  session: Stripe.Checkout.Session,
-): Promise<CreditTransaction | null> => {
-  const metadata = session.metadata;
-  if (!metadata) {
-    console.error("⚠️ Metadata missing from checkout session event");
-    return null; // Or handle appropriately
-  }
-
-  const creditTransactionId = metadata.creditTransactionId;
-  return await getCreditTransactionById(creditTransactionId);
-};
-
 const handleCheckoutSessionExpired = async (
   session: Stripe.Checkout.Session,
 ) => {
   console.log(`🔔  Payment expired for session ${session.id}`);
-  return;
 };
 
 const handleCheckoutSessionCompleted = async (
   session: Stripe.Checkout.Session,
 ) => {
-  console.log(`🔔  Payment received!`);
-
-  const creditTransaction = await getCreditTransactionForSession(session);
-
-  const credits = session.metadata?.credits;
-  if (!credits) {
-    console.error("⚠️ Credits missing from checkout session completed event");
-    return; // Or handle appropriately
-  }
-  const baseCredits = await convertCreditsToBaseUnits(Number(credits));
-
-  if (!creditTransaction || creditTransaction.amount !== baseCredits) {
-    console.error("⚠️ Credit transaction not found or amount does not match");
-    return; // Or handle appropriately
-  }
-
-  await updateCreditTransactionStatus(
-    creditTransaction.id,
-    CreditTransactionStatus.SUCCEEDED,
-  );
+  console.log(`🔔  Payment received for session ${session.id}`);
 };
 
 export async function POST(request: NextRequest) {

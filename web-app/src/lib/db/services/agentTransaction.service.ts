@@ -2,8 +2,7 @@
 import { AgentTransactionType } from "@prisma/client";
 
 import prisma from "@/lib/db/prisma";
-
-import { convertCreditsToBaseUnits } from "./credit.service";
+import { convertCreditsToBaseUnits } from "@/lib/db/utils/credit.utils";
 
 export async function createAgentTransaction(
   userId: string,
@@ -15,7 +14,7 @@ export async function createAgentTransaction(
   const agentTransaction = await prisma.agentTransaction.create({
     data: {
       userId,
-      credits: await convertCreditsToBaseUnits(amount),
+      credits: convertCreditsToBaseUnits(amount),
       type,
       creditTransactionId,
       jobId,

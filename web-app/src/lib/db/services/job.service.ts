@@ -1,9 +1,6 @@
 "use server";
 
-import { CreditTransactionType, Job } from "@prisma/client";
-("use server");
-
-import { CreditTransactionType, Job } from "@prisma/client";
+import { CreditTransactionType, Job, JobStatus } from "@prisma/client";
 import { z } from "zod";
 
 import { getEnvPublicConfig } from "@/config/env.config";
@@ -61,6 +58,7 @@ export async function startJob(
     creditCost,
     BigInt(0),
   );
+  console.log("creditTransaction", creditTransaction);
 
   try {
     const baseUrl = getApiBaseUrl(agent);
@@ -131,12 +129,12 @@ export async function startJob(
             id: agentId,
           },
         },
-        creditTransaction: {
-          connect: {
-            id: creditTransaction.id,
-          },
-        },
-        status: "PAYMENT_PENDING",
+        // creditTransaction: {
+        //   connect: {
+        //     id: creditTransaction.id,
+        //   },
+        // },
+        status: JobStatus.PAYMENT_PENDING,
         paymentId: purchaseResponse.data.id,
         input: JSON.stringify(Object.fromEntries(inputData)),
         identifierFromPurchaser,
@@ -154,42 +152,42 @@ export async function startJob(
         },
       },
     });
-    await prisma.creditTransaction.update({
-      where: {
-        id: creditTransaction.id,
-      },
-      data: {
-        status: "SUCCEEDED",
-      },
-    });
+    // await prisma.creditTransaction.update({
+    //   where: {
+    //     id: creditTransaction.id,
+    //   },
+    //   data: {
+    //     status: "SUCCEEDED",
+    //   },
+    // });
 
     return job;
   } catch (error) {
-    const job = await prisma.creditTransaction.update({
-      where: {
-        id: creditTransaction.id,
-      },
-      data: {
-        status: "FAILED",
-        errorNote: error instanceof Error ? error.message : "Unknown error",
-        errorNoteKey: "Job.CreationFailed",
-      },
-      select: {
-        job: true,
-      },
-    });
-    if (job && job.job) {
-      await prisma.job.update({
-        where: {
-          id: job.job.id,
-        },
-        data: {
-          status: "FAILED",
-          errorNote: error instanceof Error ? error.message : "Unknown error",
-          errorNoteKey: "Job.CreationFailed",
-        },
-      });
-    }
+    // const job = await prisma.creditTransaction.update({
+    //   where: {
+    //     id: creditTransaction.id,
+    //   },
+    //   data: {
+    //     status: "FAILED",
+    //     errorNote: error instanceof Error ? error.message : "Unknown error",
+    //     errorNoteKey: "Job.CreationFailed",
+    //   },
+    //   select: {
+    //     job: true,
+    //   },
+    // });
+    // if (job && job.job) {
+    //   await prisma.job.update({
+    //     where: {
+    //       id: job.job.id,
+    //     },
+    //     data: {
+    //       status: "FAILED",
+    //       errorNote: error instanceof Error ? error.message : "Unknown error",
+    //       errorNoteKey: "Job.CreationFailed",
+    //     },
+    //   });
+    // }
     throw new Error("Failed to create job", { cause: error });
   }
 }
