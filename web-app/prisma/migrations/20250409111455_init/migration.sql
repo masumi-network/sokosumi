@@ -8,16 +8,10 @@ CREATE TYPE "AgentStatus" AS ENUM ('ONLINE', 'OFFLINE', 'DEREGISTERED', 'INVALID
 CREATE TYPE "AgentListType" AS ENUM ('FAVORITE');
 
 -- CreateEnum
-CREATE TYPE "CreditTransactionType" AS ENUM ('TOP_UP', 'SPEND', 'REFUND', 'MANUAL');
-
--- CreateEnum
 CREATE TYPE "FiatTransactionStatus" AS ENUM ('PENDING', 'SUCCEEDED', 'FAILED');
 
 -- CreateEnum
 CREATE TYPE "FiatService" AS ENUM ('STRIPE');
-
--- CreateEnum
-CREATE TYPE "AgentTransactionType" AS ENUM ('PURCHASE', 'REFUND');
 
 -- CreateEnum
 CREATE TYPE "JobStatus" AS ENUM ('PAYMENT_PENDING', 'PAYMENT_FAILED', 'PROCESSING', 'COMPLETED', 'FAILED', 'REFUND_REQUESTED', 'DISPUTED', 'REFUNDED', 'REFUND_FAILED');
@@ -321,10 +315,9 @@ CREATE TABLE "CreditTransaction" (
     "noteKey" TEXT,
     "errorNote" TEXT,
     "errorNoteKey" TEXT,
-    "type" "CreditTransactionType" NOT NULL,
     "userId" TEXT NOT NULL,
     "fiatTransactionId" TEXT,
-    "agentTransactionId" TEXT,
+    "jobId" TEXT,
 
     CONSTRAINT "CreditTransaction_pkey" PRIMARY KEY ("id")
 );
@@ -334,6 +327,7 @@ CREATE TABLE "FiatTransaction" (
     "id" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "credits" BIGINT NOT NULL,
     "amount" BIGINT NOT NULL,
     "currency" TEXT NOT NULL,
     "servicePaymentId" TEXT NOT NULL,
@@ -343,20 +337,6 @@ CREATE TABLE "FiatTransaction" (
     "creditTransactionId" TEXT,
 
     CONSTRAINT "FiatTransaction_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "AgentTransaction" (
-    "id" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
-    "type" "AgentTransactionType" NOT NULL DEFAULT 'PURCHASE',
-    "credits" BIGINT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "creditTransactionId" TEXT NOT NULL,
-    "jobId" TEXT NOT NULL,
-
-    CONSTRAINT "AgentTransaction_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -451,16 +431,10 @@ CREATE UNIQUE INDEX "Tag_name_key" ON "Tag"("name");
 CREATE UNIQUE INDEX "CreditTransaction_fiatTransactionId_key" ON "CreditTransaction"("fiatTransactionId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "CreditTransaction_agentTransactionId_key" ON "CreditTransaction"("agentTransactionId");
-
--- CreateIndex
 CREATE UNIQUE INDEX "FiatTransaction_servicePaymentId_key" ON "FiatTransaction"("servicePaymentId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "FiatTransaction_creditTransactionId_key" ON "FiatTransaction"("creditTransactionId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "AgentTransaction_creditTransactionId_key" ON "AgentTransaction"("creditTransactionId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Job_blockchainIdentifier_key" ON "Job"("blockchainIdentifier");
@@ -532,19 +506,13 @@ ALTER TABLE "AgentList" ADD CONSTRAINT "AgentList_userId_fkey" FOREIGN KEY ("use
 ALTER TABLE "CreditTransaction" ADD CONSTRAINT "CreditTransaction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "CreditTransaction" ADD CONSTRAINT "CreditTransaction_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "Job"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "FiatTransaction" ADD CONSTRAINT "FiatTransaction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "FiatTransaction" ADD CONSTRAINT "FiatTransaction_creditTransactionId_fkey" FOREIGN KEY ("creditTransactionId") REFERENCES "CreditTransaction"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AgentTransaction" ADD CONSTRAINT "AgentTransaction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AgentTransaction" ADD CONSTRAINT "AgentTransaction_creditTransactionId_fkey" FOREIGN KEY ("creditTransactionId") REFERENCES "CreditTransaction"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AgentTransaction" ADD CONSTRAINT "AgentTransaction_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "Job"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Job" ADD CONSTRAINT "Job_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
