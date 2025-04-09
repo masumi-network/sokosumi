@@ -1,5 +1,4 @@
 "use server";
-
 import { Tag } from "@prisma/client";
 
 import prisma from "@/lib/db/prisma";

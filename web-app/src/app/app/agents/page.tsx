@@ -24,7 +24,6 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function GalleryPage() {
   const agents: AgentWithRelations[] = await getAgents();
   const tags: Tag[] = await getTags();
-
   const tagNames = tags.map((tag) => tag.name);
 
   const { session } = await requireAuthentication();

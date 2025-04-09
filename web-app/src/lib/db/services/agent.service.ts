@@ -1,5 +1,4 @@
 "use server";
-"use server";
 import { getPaymentInformation } from "@/lib/api/generated/registry";
 import { getRegistryClient } from "@/lib/api/registry-service.client";
 import { getApiBaseUrl } from "@/lib/db/extension/agent";
