@@ -7,8 +7,8 @@ import { AgentBookmarkButton } from "@/components/agents/agent-bookmark-button";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getName } from "@/lib/db/extension/agent";
-import { AgentWithRelations } from "@/lib/db/services/agent.service";
-import { AgentListWithAgent } from "@/lib/db/services/agentList.service";
+import { AgentWithRelations } from "@/lib/db/types/agent.types";
+import { AgentListWithAgent } from "@/lib/db/types/agentList.types";
 
 interface HeaderProps {
   agent: AgentWithRelations;

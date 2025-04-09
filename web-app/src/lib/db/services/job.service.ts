@@ -1,4 +1,6 @@
-import { CreditTransactionType, Job, Prisma } from "@prisma/client";
+"use server";
+
+import { CreditTransactionType, Job } from "@prisma/client";
 import { z } from "zod";
 
 import { getEnvPublicConfig } from "@/config/env.config";
@@ -6,6 +8,11 @@ import { getPurchase, postPurchase } from "@/lib/api/generated/payment";
 import { getPaymentClient } from "@/lib/api/payment-service.client";
 import { getApiBaseUrl } from "@/lib/db/extension/agent";
 import prisma from "@/lib/db/prisma";
+import {
+  jobInclude,
+  jobOrderBy,
+  JobWithRelations,
+} from "@/lib/db/types/job.types";
 import { calculatedInputHash } from "@/lib/utils";
 
 import { getAgentById, getAgentPricing } from "./agent.service";
@@ -183,19 +190,6 @@ export async function startJob(
     throw new Error("Failed to create job", { cause: error });
   }
 }
-
-const jobInclude = {
-  agent: true,
-  user: true,
-} as const;
-
-const jobOrderBy = {
-  createdAt: "desc",
-} as const;
-
-export type JobWithRelations = Prisma.JobGetPayload<{
-  include: typeof jobInclude;
-}>;
 
 /**
  * Retrieves all jobs associated with a specific agent and user

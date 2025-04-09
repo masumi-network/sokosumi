@@ -3,7 +3,7 @@ import { useTranslations } from "next-intl";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getDescription } from "@/lib/db/extension/agent";
-import { AgentWithRelations } from "@/lib/db/services/agent.service";
+import { AgentWithRelations } from "@/lib/db/types/agent.types";
 import { JobInputsDataSchemaType } from "@/lib/job-input";
 
 import { JobInputsForm } from "./job-input";
