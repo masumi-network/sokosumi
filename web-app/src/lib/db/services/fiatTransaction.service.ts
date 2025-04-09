@@ -1,12 +1,13 @@
 import { FiatTransactionStatus } from "@prisma/client";
 
 import prisma from "@/lib/db/prisma";
+import { convertCreditsToBaseUnits } from "@/lib/utils/credit.utils";
 
-export async function createFiatTransaction(userId: string, credits: bigint) {
+export async function createFiatTransaction(userId: string, credits: number) {
   const fiatTransaction = await prisma.fiatTransaction.create({
     data: {
       userId,
-      credits,
+      credits: convertCreditsToBaseUnits(credits),
     },
   });
   return fiatTransaction;
