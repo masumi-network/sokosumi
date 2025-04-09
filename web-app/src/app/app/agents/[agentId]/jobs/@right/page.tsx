@@ -8,14 +8,14 @@ import { calculateAgentHumandReadableCreditCost } from "@/lib/db/services/credit
 
 import CreateJobSection from "./components/create-job-section";
 
-interface JobPageParams {
+interface CreateJobPageParams {
   agentId: string;
 }
 
-export default async function RightPage({
+export default async function CreateJobPage({
   params,
 }: {
-  params: Promise<JobPageParams>;
+  params: Promise<CreateJobPageParams>;
 }) {
   const { agentId } = await params;
 

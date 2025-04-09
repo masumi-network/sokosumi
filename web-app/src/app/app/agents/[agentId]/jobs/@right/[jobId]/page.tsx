@@ -5,15 +5,15 @@ import { requireAuthentication } from "@/lib/auth/utils";
 import { getAgentById } from "@/lib/db/services/agent.service";
 import { getJobById } from "@/lib/db/services/job.service";
 
-interface JobPageParams {
+interface JobDetailsPageParams {
   agentId: string;
   jobId: string;
 }
 
-export default async function JobDetailPage({
+export default async function JobDetailsPage({
   params,
 }: {
-  params: Promise<JobPageParams>;
+  params: Promise<JobDetailsPageParams>;
 }) {
   const { agentId, jobId } = await params;
 
