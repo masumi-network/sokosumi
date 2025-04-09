@@ -330,7 +330,7 @@ CREATE TABLE "FiatTransaction" (
     "credits" BIGINT NOT NULL,
     "amount" BIGINT NOT NULL,
     "currency" TEXT NOT NULL,
-    "servicePaymentId" TEXT NOT NULL,
+    "servicePaymentId" TEXT,
     "service" "FiatService" NOT NULL DEFAULT 'STRIPE',
     "status" "FiatTransactionStatus" NOT NULL DEFAULT 'PENDING',
     "userId" TEXT NOT NULL,

@@ -384,7 +384,7 @@ model FiatTransaction {
   credits          BigInt // amount in credits
   amount           BigInt // amount in cents (100 = 1 USD)
   currency         String // currency code for example 'USD'
-  servicePaymentId String                @unique
+  servicePaymentId String?               @unique
   service          FiatService           @default(STRIPE)
   status           FiatTransactionStatus @default(PENDING)
 

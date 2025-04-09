@@ -7,7 +7,6 @@ export async function createFiatTransaction(
   credits: bigint,
   amount: number,
   currency: string,
-  servicePaymentId: string,
 ) {
   const fiatTransaction = await prisma.fiatTransaction.create({
     data: {
@@ -15,8 +14,18 @@ export async function createFiatTransaction(
       credits,
       amount,
       currency,
-      servicePaymentId,
     },
+  });
+  return fiatTransaction;
+}
+
+export async function updateFiatTransactionServicePaymentId(
+  fiatTransactionId: string,
+  servicePaymentId: string,
+) {
+  const fiatTransaction = await prisma.fiatTransaction.update({
+    where: { id: fiatTransactionId },
+    data: { servicePaymentId },
   });
   return fiatTransaction;
 }
