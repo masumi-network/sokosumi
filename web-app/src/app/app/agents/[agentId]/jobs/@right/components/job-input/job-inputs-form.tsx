@@ -3,7 +3,7 @@ import { Suspense } from "react";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import { Skeleton } from "@/components/ui/skeleton";
-import { inputSchemaMock } from "@/lib/db/mocks/input-schema";
+import { getAgentInputSchema } from "@/lib/db/services/agent.service";
 
 import JobInputsFormClient from "./job-inputs-form.client";
 
@@ -36,8 +36,7 @@ async function JobInputsFormInner({
   agentPricing,
   className,
 }: JobInputsFormProps) {
-  // const inputSchema = await getAgentInputSchema(agentId);
-  const inputSchema = inputSchemaMock;
+  const inputSchema = await getAgentInputSchema(agentId);
 
   return (
     <JobInputsFormClient
