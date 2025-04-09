@@ -1,3 +1,5 @@
+"use server";
+
 import { CreditTransactionType, Job } from "@prisma/client";
 import { z } from "zod";
 

@@ -1,4 +1,5 @@
 "use server";
+
 import { CreditTransactionStatus, CreditTransactionType } from "@prisma/client";
 import { z } from "zod";
 
@@ -6,7 +7,9 @@ import { getEnvPublicConfig } from "@/config/env.config";
 import { AgentWithFixedPricing } from "@/lib/db/extension/agent";
 import prisma from "@/lib/db/prisma";
 
-export async function getCreditBalance(userId: string): Promise<number> {
+export async function getHumandReadableCreditBalance(
+  userId: string,
+): Promise<number> {
   const creditBalance = await prisma.creditTransaction.aggregate({
     where: { userId },
     _sum: {
@@ -14,7 +17,9 @@ export async function getCreditBalance(userId: string): Promise<number> {
     },
   });
 
-  return Number(creditBalance._sum.amount ?? 0);
+  return await convertBaseUnitsToCredits(
+    creditBalance._sum.amount ?? BigInt(0),
+  );
 }
 
 export async function creditTransactionSpend(
@@ -88,13 +93,13 @@ export async function calculateAgentHumandReadableCreditCost(
     return 0.0;
   }
   const creditCost = await calculateCreditCost(amounts);
-  return formatCreditsForDisplay(creditCost);
+  return convertBaseUnitsToCredits(creditCost);
 }
 
 /**
  * Calculate the credit cost for a job
  * @param amounts - The amounts to calculate the credit cost for
- * @returns The credit cost for the job
+ * @returns The credit cost for the job in base units
  * @throws Error if credit cost for a unit is not found or if fee percentage is negative
  */
 export async function calculateCreditCost(
@@ -128,7 +133,7 @@ export async function calculateCreditCost(
   return totalCreditCost;
 }
 
-export async function formatCreditsForDisplay(
+export async function convertBaseUnitsToCredits(
   credits: bigint,
 ): Promise<number> {
   return Number(credits) / 10 ** getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BASE;

@@ -6,7 +6,7 @@ import { requireAuthentication } from "@/lib/auth/utils";
 import { getAgents } from "@/lib/db/services/agent.service";
 import { getOrCreateFavoriteAgentList } from "@/lib/db/services/agentList.service";
 import { calculateAgentHumandReadableCreditCost } from "@/lib/db/services/credit.service";
-import { getCachedTags } from "@/lib/db/services/tag.service";
+import { getTags } from "@/lib/db/services/tag.service";
 import { AgentWithRelations } from "@/lib/db/types/agent.types";
 
 import FilterSection from "./components/filter-section";
@@ -23,7 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function GalleryPage() {
   const agents: AgentWithRelations[] = await getAgents();
-  const tags: Tag[] = await getCachedTags();
+  const tags: Tag[] = await getTags();
   const tagNames = tags.map((tag) => tag.name);
 
   const { session } = await requireAuthentication();
