@@ -163,7 +163,7 @@ function validateEnv() {
 export function getEnvSecrets() {
   if (!envSecrets) {
     if (typeof window !== "undefined") {
-      console.log("Calling secret from client");
+      console.warn("Calling secret from client");
     }
     validateEnv();
   }

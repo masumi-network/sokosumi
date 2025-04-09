@@ -1,9 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
+import { useState } from "react";
 
 import { DataTable } from "@/components/data-table";
+import { useAsyncRouterPush } from "@/hooks/use-async-router";
 import { JobWithRelations } from "@/lib/db/types/job.types";
 import { cn } from "@/lib/utils";
 
@@ -11,25 +13,32 @@ import { getJobColumns } from "./job-columns";
 
 interface JobsTableProps {
   jobs: JobWithRelations[];
-  highlightedJobIds: string[] | undefined;
 }
 
-export default function JobsTable({ jobs, highlightedJobIds }: JobsTableProps) {
+export default function JobsTable({ jobs }: JobsTableProps) {
   const t = useTranslations("App.Agents.Jobs.JobsTable");
   const dateFormatter = useFormatter();
-  const router = useRouter();
+  const params = useParams<{ jobId?: string | undefined }>();
+
+  const asyncRouter = useAsyncRouterPush();
+  const [routerLoading, setRouterLoading] = useState(false);
+
+  const handleRowClick = async (row: JobWithRelations) => {
+    setRouterLoading(true);
+    await asyncRouter.push(`/app/agents/${row.agentId}/jobs/${row.id}`);
+    setRouterLoading(false);
+  };
 
   return (
     <DataTable
       columns={getColumns(t, dateFormatter)}
-      rowOnClick={(row) => () => {
-        router.push(`/app/agents/${row.agentId}/jobs/${row.id}`);
-        router.refresh();
+      onRowClick={(row) => async () => {
+        if (routerLoading) return;
+        await handleRowClick(row);
       }}
       data={jobs}
       rowClassName={(row) => {
-        if (highlightedJobIds?.includes(row.id))
-          return "bg-gray-200 hover:bg-gray-200";
+        if (params.jobId === row.id) return "bg-gray-200 hover:bg-gray-200";
         return "active:bg-gray-100 hover:bg-gray-50";
       }}
       containerClassName={cn("w-full lg:w-[max(400px,36%)] rounded-md border")}

@@ -1,37 +1,28 @@
 import { notFound } from "next/navigation";
 
-import CreateJobSection from "@/app/agents/[agentId]/jobs/@right/components/create-job-section";
-import {
-  getAgentById,
-  getAgentInputSchema,
-} from "@/lib/db/services/agent.service";
+import { getAgentById } from "@/lib/db/services/agent.service";
 import { calculateAgentHumandReadableCreditCost } from "@/lib/db/services/credit.service";
 
-interface JobPageParams {
+import CreateJobSection from "./components/create-job-section";
+
+interface CreateJobPageParams {
   agentId: string;
 }
 
-export default async function RightPage({
+export default async function CreateJobPage({
   params,
 }: {
-  params: Promise<JobPageParams>;
+  params: Promise<CreateJobPageParams>;
 }) {
   const { agentId } = await params;
 
   const agent = await getAgentById(agentId);
   if (!agent) {
-    console.log("agent not found in right page");
+    console.warn("agent not found in right page");
     notFound();
   }
 
   const agentPrice = await calculateAgentHumandReadableCreditCost(agent);
-  const inputSchema = await getAgentInputSchema(agentId);
 
-  return (
-    <CreateJobSection
-      agent={agent}
-      inputSchema={inputSchema}
-      agentPricing={agentPrice}
-    />
-  );
+  return <CreateJobSection agent={agent} agentPricing={agentPrice} />;
 }
