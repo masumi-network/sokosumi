@@ -372,8 +372,8 @@ model CreditTransaction {
   fiatTransaction   FiatTransaction?
   fiatTransactionId String?          @unique
 
-  job   Job?    @relation(fields: [jobId], references: [id])
-  jobId String?
+  job         Job? @relation("CreditTransactionJob")
+  refundedJob Job? @relation("RefundedCreditTransactionJob")
 }
 
 model FiatTransaction {
@@ -432,7 +432,10 @@ model Job {
   sellerVkey                String?
   identifierFromPurchaser   String?
 
-  creditTransactions CreditTransaction[]
+  creditTransaction           CreditTransaction  @relation("CreditTransactionJob", fields: [creditTransactionId], references: [id])
+  creditTransactionId         String             @unique
+  refundedCreditTransaction   CreditTransaction? @relation("RefundedCreditTransactionJob", fields: [refundedCreditTransactionId], references: [id])
+  refundedCreditTransactionId String?            @unique
 }
 
 enum JobStatus {

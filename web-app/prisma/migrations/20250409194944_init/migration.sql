@@ -317,7 +317,6 @@ CREATE TABLE "CreditTransaction" (
     "errorNoteKey" TEXT,
     "userId" TEXT NOT NULL,
     "fiatTransactionId" TEXT,
-    "jobId" TEXT,
 
     CONSTRAINT "CreditTransaction_pkey" PRIMARY KEY ("id")
 );
@@ -359,6 +358,8 @@ CREATE TABLE "Job" (
     "externalDisputeUnlockTime" TIMESTAMP(3),
     "sellerVkey" TEXT,
     "identifierFromPurchaser" TEXT,
+    "creditTransactionId" TEXT NOT NULL,
+    "refundedCreditTransactionId" TEXT,
 
     CONSTRAINT "Job_pkey" PRIMARY KEY ("id")
 );
@@ -438,6 +439,12 @@ CREATE UNIQUE INDEX "FiatTransaction_creditTransactionId_key" ON "FiatTransactio
 CREATE UNIQUE INDEX "Job_blockchainIdentifier_key" ON "Job"("blockchainIdentifier");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Job_creditTransactionId_key" ON "Job"("creditTransactionId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Job_refundedCreditTransactionId_key" ON "Job"("refundedCreditTransactionId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "CreditCost_unit_key" ON "CreditCost"("unit");
 
 -- CreateIndex
@@ -504,9 +511,6 @@ ALTER TABLE "AgentList" ADD CONSTRAINT "AgentList_userId_fkey" FOREIGN KEY ("use
 ALTER TABLE "CreditTransaction" ADD CONSTRAINT "CreditTransaction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "CreditTransaction" ADD CONSTRAINT "CreditTransaction_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "Job"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "FiatTransaction" ADD CONSTRAINT "FiatTransaction_userId_fkey" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -517,6 +521,12 @@ ALTER TABLE "Job" ADD CONSTRAINT "Job_userId_fkey" FOREIGN KEY ("userId") REFERE
 
 -- AddForeignKey
 ALTER TABLE "Job" ADD CONSTRAINT "Job_agentId_fkey" FOREIGN KEY ("agentId") REFERENCES "Agent"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Job" ADD CONSTRAINT "Job_creditTransactionId_fkey" FOREIGN KEY ("creditTransactionId") REFERENCES "CreditTransaction"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Job" ADD CONSTRAINT "Job_refundedCreditTransactionId_fkey" FOREIGN KEY ("refundedCreditTransactionId") REFERENCES "CreditTransaction"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "_AgentToAgentList" ADD CONSTRAINT "_AgentToAgentList_A_fkey" FOREIGN KEY ("A") REFERENCES "Agent"("id") ON DELETE CASCADE ON UPDATE CASCADE;
