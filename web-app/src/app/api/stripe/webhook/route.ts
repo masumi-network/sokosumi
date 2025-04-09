@@ -90,7 +90,6 @@ export async function POST(request: NextRequest) {
   const data = event.data;
   const eventType = event.type;
   console.log(`⚠️  Webhook received: ${eventType}`);
-  console.log(`⚠️  Webhook data: ${JSON.stringify(data)}`);
 
   const session = data.object as Stripe.Checkout.Session;
   switch (eventType) {
