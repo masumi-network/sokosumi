@@ -20,6 +20,7 @@ export async function getCreditBalance(userId: string): Promise<bigint> {
 export async function createCreditTransaction(
   userId: string,
   credits: bigint,
+  includedFee: bigint = BigInt(0),
 ): Promise<CreditTransaction> {
   // if credits is positive, it is a top up
   if (credits > 0) {
@@ -33,6 +34,7 @@ export async function createCreditTransaction(
     data: {
       userId,
       amount: credits,
+      includedFee,
     },
   });
 }
