@@ -10,9 +10,9 @@ import { getOrCreateFavoriteAgentList } from "@/lib/db/services/agentList.servic
 import { calculateAgentHumandReadableCreditCost } from "@/lib/db/services/credit.service";
 import { getJobsByAgentId } from "@/lib/db/services/job.service";
 
-import Footer from "./@right/components/footer";
-import Header, { HeaderSkeleton } from "./@right/components/header";
-import JobsTable from "./@right/components/jobs-table";
+import Footer from "./components/footer";
+import Header, { HeaderSkeleton } from "./components/header";
+import JobsTable from "./components/jobs-table";
 
 interface JobLayoutParams {
   agentId: string;

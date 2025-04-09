@@ -1,11 +1,10 @@
 import { useFormatter, useTranslations } from "next-intl";
 import Markdown from "react-markdown";
 
+import JobStatusBadge from "@/app/agents/[agentId]/jobs/components/job-status-badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { JobWithRelations } from "@/lib/db/services/job.service";
 import { cn } from "@/lib/utils";
-
-import JobStatusBadge from "./job-status-badge";
 
 interface JobDetailsProps {
   job: JobWithRelations;

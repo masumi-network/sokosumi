@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation";
 
-import CreateJobSection from "@/app/agents/[agentId]/jobs/@right/components/create-job-section";
 import {
   getAgentById,
   getAgentInputSchema,
 } from "@/lib/db/services/agent.service";
 import { calculateAgentHumandReadableCreditCost } from "@/lib/db/services/credit.service";
+
+import CreateJobSection from "./components/create-job-section";
 
 interface JobPageParams {
   agentId: string;
