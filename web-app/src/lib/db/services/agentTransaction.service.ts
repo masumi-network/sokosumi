@@ -1,0 +1,32 @@
+"use server";
+import { AgentTransactionType } from "@prisma/client";
+
+import prisma from "@/lib/db/prisma";
+
+import { convertCreditsToBaseUnits } from "./credit.service";
+
+export async function createAgentTransaction(
+  userId: string,
+  creditTransactionId: string,
+  jobId: string,
+  amount: number,
+  type: AgentTransactionType,
+) {
+  const agentTransaction = await prisma.agentTransaction.create({
+    data: {
+      userId,
+      credits: await convertCreditsToBaseUnits(amount),
+      type,
+      creditTransactionId,
+      jobId,
+    },
+  });
+  return agentTransaction;
+}
+
+export async function getAgentTransactionsByUserId(userId: string) {
+  const agentTransactions = await prisma.agentTransaction.findMany({
+    where: { userId },
+  });
+  return agentTransactions;
+}
