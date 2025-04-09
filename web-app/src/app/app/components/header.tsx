@@ -1,5 +1,6 @@
 import { BreadcrumbNavigation } from "@/components/breadcrumb-navigation";
 import { cn } from "@/lib/utils";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 import CustomTrigger from "./sidebar/components/custom-trigger";
 import UserAvatar from "./user-avatar";
@@ -20,6 +21,7 @@ export default function Header({ className }: HeaderProps) {
       <CustomTrigger when="invisible" />
       <BreadcrumbNavigation className="flex flex-1 px-2 sm:px-4" />
       <UserCredits className="text-muted-foreground text-sm" />
+      <ThemeToggle />
       <UserAvatar />
     </header>
   );

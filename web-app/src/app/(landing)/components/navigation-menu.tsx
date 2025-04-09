@@ -47,9 +47,9 @@ export default function NavigationMenu({ className }: NavigationMenuProps) {
           href={nav.href}
           label={t(nav.labelKey)}
           showChevron={nav.showChevron}
-          className="inline-flex items-center gap-1 p-2 text-sm font-medium transition-colors"
-          activeClassName="bg-landing-navigation-active text-primary"
-          inActiveClassName="text-muted-foreground hover:text-primary"
+          className="inline-flex items-center rounded-md gap-1 p-2 text-sm font-medium transition-colors"
+          activeClassName="bg-landing-navigation-active text-primary dark:bg-[#fff1] dark:text-primary-dark"
+          inActiveClassName="text-muted-foreground hover:text-primary dark:text-muted-foreground-dark"
         />
       ))}
     </ul>

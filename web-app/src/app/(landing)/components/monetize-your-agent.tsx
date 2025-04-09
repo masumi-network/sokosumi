@@ -22,10 +22,12 @@ export function MonetizeYourAgent() {
           {/* Masumi Logos */}
           <div className="flex flex-col items-end gap-6">
             <Link href={getEnvPublicConfig().NEXT_PUBLIC_KODOSUMI_URL}>
-              <KodosumiLogo width={418} height={56} />
+              <KodosumiLogo width={418} height={56} className="dark:hidden" variant="black" />
+              <KodosumiLogo width={418} height={56} className="hidden dark:block" variant="white" />
             </Link>
             <Link href={getEnvPublicConfig().NEXT_PUBLIC_MASUMI_URL}>
-              <MasumiLogo width={371} height={57} />
+              <MasumiLogo width={371} height={57} className="dark:hidden" variant="black" />
+              <MasumiLogo width={371} height={57} className="hidden dark:block" variant="white" />
             </Link>
           </div>
 

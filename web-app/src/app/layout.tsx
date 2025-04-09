@@ -7,6 +7,7 @@ import { getLocale, getMessages } from "next-intl/server";
 
 import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
+import { ThemeProvider } from "@/lib/context/theme-context";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,18 +24,44 @@ export const metadata: Metadata = {
   description: "Hire yourself an agent to finish the most time consuming tasks",
 };
 
+function ThemeScript() {
+  return (
+    <script
+      dangerouslySetInnerHTML={{
+        __html: `
+          ;(function() {
+            const theme = localStorage.getItem('theme') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+            document.documentElement.classList.add(theme);
+          })();
+        `,
+      }}
+    />
+  );
+}
+
 export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   const locale = await getLocale();
-
-  // Providing all messages to the client side
   const messages = await getMessages();
 
   return (
-    <html lang={locale}>
+    <html lang={locale} suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              try {
+                if (localStorage.getItem('theme') === 'dark' || (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                  document.documentElement.classList.add('dark')
+                }
+              } catch (e) {}
+            `,
+          }}
+        />
+      </head>
       <body
         className={cn(
           geistSans.variable,
@@ -42,10 +69,12 @@ export default async function RootLayout({
           "bg-background min-h-svh antialiased",
         )}
       >
-        <NextIntlClientProvider messages={messages}>
-          <div className="bg-background">{children}</div>
-          <Toaster />
-        </NextIntlClientProvider>
+        <ThemeProvider>
+          <NextIntlClientProvider messages={messages}>
+            <div className="bg-background">{children}</div>
+            <Toaster />
+          </NextIntlClientProvider>
+        </ThemeProvider>
       </body>
     </html>
   );
