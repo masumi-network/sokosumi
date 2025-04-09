@@ -49,7 +49,7 @@ const handleCheckoutSessionCompleted = async (
 };
 
 export async function POST(request: NextRequest) {
-  console.log(request);
+  console.log("🔔  Stripe webhook received");
 
   const secret = getEnvSecrets().STRIPE_WEBHOOK_SECRET;
   if (!secret) {
@@ -98,7 +98,6 @@ export async function POST(request: NextRequest) {
       await handleCheckoutSessionExpired(session);
       break;
     default:
-      console.error(`⚠️  Unhandled event type: ${eventType}`);
       break;
   }
 

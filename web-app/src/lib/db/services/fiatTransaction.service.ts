@@ -1,9 +1,8 @@
+"use server";
 import { FiatTransactionStatus } from "@prisma/client";
 
 import prisma from "@/lib/db/prisma";
 import { convertCreditsToBaseUnits } from "@/lib/db/utils/credit.utils";
-
-import { createCreditTransaction } from "./credit.service";
 
 export async function createFiatTransaction(userId: string, credits: number) {
   const fiatTransaction = await prisma.fiatTransaction.create({
@@ -30,10 +29,11 @@ export async function updateFiatTransactionCreditTransactionId(
   fiatTransactionId: string,
   creditTransactionId: string,
 ) {
-  await prisma.fiatTransaction.update({
+  const fiatTransaction = await prisma.fiatTransaction.update({
     where: { id: fiatTransactionId },
     data: { creditTransactionId },
   });
+  return fiatTransaction;
 }
 
 export async function getFiatTransactionByServicePaymentId(
@@ -71,14 +71,20 @@ export async function updateFiatTransactionStatus(
     data: { status },
   });
 
-  if (status === FiatTransactionStatus.SUCCEEDED) {
-    const creditTransaction = await createCreditTransaction(
-      fiatTransaction.userId,
-      fiatTransaction.credits,
-    );
+  if (
+    status === FiatTransactionStatus.SUCCEEDED &&
+    !fiatTransaction.creditTransactionId
+  ) {
     await prisma.fiatTransaction.update({
       where: { id: fiatTransaction.id },
-      data: { creditTransactionId: creditTransaction.id },
+      data: {
+        creditTransaction: {
+          create: {
+            userId: fiatTransaction.userId,
+            amount: fiatTransaction.credits,
+          },
+        },
+      },
     });
   }
   return fiatTransaction;
