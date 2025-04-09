@@ -307,25 +307,26 @@ export async function syncJobStatus(job: Job) {
           id: job.id,
         },
         include: {
-          creditTransaction: true,
+          creditTransactions: true,
         },
       });
       if (!jobToRefund) {
         throw new Error("Job not found");
       }
-      if (jobToRefund.refundCreditTransactionId != null) {
-        return;
+      if (jobToRefund.creditTransactions.length != 1) {
+        throw new Error("Job has no credit transaction");
       }
+      const creditTransaction = jobToRefund.creditTransactions[0];
+
       await tx.job.update({
         where: {
           id: job.id,
         },
         data: {
           status: "REFUNDED",
-          refundCreditTransaction: {
+          creditTransactions: {
             create: {
-              amount: jobToRefund.creditTransaction.amount,
-              type: CreditTransactionType.REFUND,
+              amount: creditTransaction.amount,
               includedFee: BigInt(0),
               user: {
                 connect: {
