@@ -49,7 +49,15 @@ const checkSessionPayment = async (session: Stripe.Checkout.Session) => {
     }
     return await tx.fiatTransaction.update({
       where: { id: fiatTransaction.id },
-      data: { status: FiatTransactionStatus.SUCCEEDED },
+      data: {
+        status: FiatTransactionStatus.SUCCEEDED,
+        creditTransaction: {
+          create: {
+            userId: fiatTransaction.userId,
+            amount: fiatTransaction.credits,
+          },
+        },
+      },
     });
   });
 };
