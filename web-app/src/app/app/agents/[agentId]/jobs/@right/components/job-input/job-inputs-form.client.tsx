@@ -9,6 +9,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
+import { useAsyncRouterPush } from "@/hooks/use-async-router";
 import { startJobWithInputData } from "@/lib/actions/job.actions";
 import {
   defaultValues,
@@ -19,7 +20,6 @@ import {
 import { cn } from "@/lib/utils";
 
 import JobInput from "./job-input";
-import { useRouterPush } from "./util";
 
 interface JobInputsFormClientProps {
   agentId: string;
@@ -70,7 +70,7 @@ export default function JobInputsFormClient({
     resolver: zodResolver(jobInputsFormSchema(input_data, t)),
     defaultValues: defaultValues(input_data),
   });
-  const push = useRouterPush();
+  const asyncRouter = useAsyncRouterPush();
   const pathname = usePathname();
 
   // Then replace your existing handleSubmit function with this:
@@ -89,7 +89,7 @@ export default function JobInputsFormClient({
 
       if (result.success && result.data?.jobId) {
         form.reset();
-        await push(`${pathname}/${result.data.jobId}`);
+        await asyncRouter.push(`${pathname}/${result.data.jobId}`);
       }
     } catch (error) {
       console.error(error);
