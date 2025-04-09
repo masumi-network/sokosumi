@@ -4,7 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { Agents, AgentsNotAvailable } from "@/components/agents";
 import { getAgents } from "@/lib/db/services/agent.service";
 import { calculateAgentHumandReadableCreditCost } from "@/lib/db/services/credit.service";
-import { AgentWithRelations } from "@/lib/db/types/agent.type";
+import { AgentWithRelations } from "@/lib/db/types/agent.types";
 
 import { FeaturedAgent } from "./components/featured-agent";
 

@@ -1,22 +1,12 @@
-"use server";
-
 import { CreditTransaction, CreditTransactionType } from "@prisma/client";
 import { z } from "zod";
 
 import { getEnvPublicConfig } from "@/config/env.config";
 import { AgentWithFixedPricing } from "@/lib/db/extension/agent";
 import prisma from "@/lib/db/prisma";
+import { convertBaseUnitsToCredits } from "@/lib/db/utils/credit.utils";
 
-/**
- * Retrieves the available balance of credits for a user.
- *
- * This function calculates the available balance by summing all successful credit transactions
- * and subtracting any pending transactions that have a negative amount (i.e., credits spent).
- *
- * @param userId - The ID of the user to retrieve the available balance for
- * @returns The available balance of credits for the user
- */
-export async function getAvailableCredits(userId: string): Promise<number> {
+export async function getCreditBalance(userId: string): Promise<bigint> {
   const creditBalance = await prisma.creditTransaction.aggregate({
     where: { userId },
     _sum: {
@@ -24,57 +14,7 @@ export async function getAvailableCredits(userId: string): Promise<number> {
     },
   });
 
-  return await convertBaseUnitsToCredits(
-    creditBalance._sum.amount ?? BigInt(0),
-  );
-}
-
-/**
- * Retrieves a credit transaction by its ID.
- *
- * This function searches for a credit transaction in the database using the provided ID.
- * If a matching transaction is found, it is returned; otherwise, the function returns null.
- *
- * @param creditTransactionId - The ID of the credit transaction to retrieve
- * @returns A promise that resolves to the credit transaction object or null if not found
- */
-export async function getCreditTransactionById(
-  creditTransactionId: string,
-): Promise<CreditTransaction | null> {
-  return await prisma.creditTransaction.findUnique({
-    where: { id: creditTransactionId },
-  });
-}
-
-/**
- * Creates a pending credit transaction for topping up a user's account.
- *
- * This function creates a new credit transaction record with PENDING status
- * that will be updated to COMPLETED when the payment is confirmed via Stripe webhook.
- *
- * @param userId - The ID of the user adding credits to their account
- * @param credits - The number of credits to add (must be positive)
- * @returns The created credit transaction object
- * @throws Will throw an error if credits is less than or equal to 0
- */
-export async function creditTransactionTopUp(
-  userId: string,
-  credits: number,
-): Promise<CreditTransaction> {
-  if (credits <= 0) {
-    throw new Error("Credits must be greater than 0");
-  }
-
-  const newCreditTransaction = await prisma.creditTransaction.create({
-    data: {
-      userId,
-      amount: await convertCreditsToBaseUnits(credits),
-      type: CreditTransactionType.TOP_UP,
-      includedFee: 0,
-    },
-  });
-
-  return newCreditTransaction;
+  return creditBalance._sum.amount ?? BigInt(0);
 }
 
 export async function creditTransactionSpend(
@@ -94,7 +34,7 @@ export async function creditTransactionSpend(
     throw new Error("Included fee credits must be less than total credits");
   }
 
-  const availableBalance = await getAvailableCredits(userId);
+  const availableBalance = await getCreditBalance(userId);
   if (availableBalance < credits) {
     throw new Error("Insufficient balance");
   }
@@ -141,7 +81,7 @@ export async function calculateAgentHumandReadableCreditCost(
 /**
  * Calculate the credit cost for a job
  * @param amounts - The amounts to calculate the credit cost for
- * @returns The credit cost for the job
+ * @returns The credit cost for the job in base units
  * @throws Error if credit cost for a unit is not found or if fee percentage is negative
  */
 export async function calculateCreditCost(
@@ -173,16 +113,4 @@ export async function calculateCreditCost(
     totalCreditCost += BigInt(Math.ceil(totalCost));
   }
   return totalCreditCost;
-}
-
-export async function convertBaseUnitsToCredits(
-  credits: bigint,
-): Promise<number> {
-  return Number(credits) / 10 ** getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BASE;
-}
-
-export async function convertCreditsToBaseUnits(
-  credits: number,
-): Promise<bigint> {
-  return BigInt(credits * 10 ** getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BASE);
 }

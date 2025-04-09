@@ -10,8 +10,8 @@ import {
   getResolvedImage,
   getTags,
 } from "@/lib/db/extension/agent";
-import { AgentWithRelations } from "@/lib/db/types/agent.type";
-import { AgentListWithAgent } from "@/lib/db/types/agentList.type";
+import { AgentWithRelations } from "@/lib/db/types/agent.types";
+import { AgentListWithAgent } from "@/lib/db/types/agentList.types";
 import { cn } from "@/lib/utils";
 
 import { AgentBookmarkButton } from "./agent-bookmark-button";

@@ -1,12 +1,11 @@
 "use server";
-
 import { AgentList, AgentListType } from "@prisma/client";
 
 import prisma from "@/lib/db/prisma";
 import {
   agentListInclude,
   AgentListWithAgent,
-} from "@/lib/db/types/agentList.type";
+} from "@/lib/db/types/agentList.types";
 
 export async function getAgentLists(
   userId: string,

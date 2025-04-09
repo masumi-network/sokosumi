@@ -1,10 +1,11 @@
 "use server";
+"use server";
 import { getPaymentInformation } from "@/lib/api/generated/registry";
 import { getRegistryClient } from "@/lib/api/registry-service.client";
 import { getApiBaseUrl } from "@/lib/db/extension/agent";
 import { inputSchemaMock } from "@/lib/db/mocks/input-schema";
 import prisma from "@/lib/db/prisma";
-import { agentInclude, AgentWithRelations } from "@/lib/db/types/agent.type";
+import { agentInclude, AgentWithRelations } from "@/lib/db/types/agent.types";
 import { jobInputsDataSchema, JobInputsDataSchemaType } from "@/lib/job-input";
 
 import { getOrCreateFavoriteAgentList } from "./agentList.service";
