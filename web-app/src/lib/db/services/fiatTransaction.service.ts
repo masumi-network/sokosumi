@@ -35,11 +35,11 @@ export async function getFiatTransactionByServicePaymentId(
 }
 
 export async function updateFiatTransactionStatus(
-  servicePaymentId: string,
+  fiatTransactionId: string,
   status: FiatTransactionStatus,
 ) {
-  const fiatTransaction = await prisma.fiatTransaction.update({
-    where: { servicePaymentId },
+  let fiatTransaction = await prisma.fiatTransaction.update({
+    where: { id: fiatTransactionId },
     data: { status },
   });
 
@@ -47,7 +47,7 @@ export async function updateFiatTransactionStatus(
     status === FiatTransactionStatus.SUCCEEDED &&
     !fiatTransaction.creditTransactionId
   ) {
-    await prisma.fiatTransaction.update({
+    fiatTransaction = await prisma.fiatTransaction.update({
       where: { id: fiatTransaction.id },
       data: {
         creditTransaction: {

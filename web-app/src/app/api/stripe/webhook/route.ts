@@ -24,6 +24,7 @@ const handleCheckoutSessionExpired = async (
     console.error(`🔔  No fiat transaction found for session ${session.id}`);
     return;
   }
+  console.log(`🔔  Updating fiat transaction ${fiatTransaction.id} to FAILED`);
   await updateFiatTransactionStatus(
     fiatTransaction.id,
     FiatTransactionStatus.FAILED,
@@ -41,7 +42,9 @@ const handleCheckoutSessionCompleted = async (
     console.error(`🔔  No fiat transaction found for session ${session.id}`);
     return;
   }
-
+  console.log(
+    `🔔  Updating fiat transaction ${fiatTransaction.id} to SUCCEEDED`,
+  );
   await updateFiatTransactionStatus(
     fiatTransaction.id,
     FiatTransactionStatus.SUCCEEDED,
