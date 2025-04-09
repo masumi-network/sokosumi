@@ -576,7 +576,8 @@
             "value": {
               "required": "Option is required"
             },
-            "min": "Must have at least 1 option"
+            "min": "Must have at least 1 option",
+            "unique": "Option values must be unique"
           }
         },
         "Validations": {

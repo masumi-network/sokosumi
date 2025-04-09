@@ -153,7 +153,10 @@ export const jobInputOptionSchema = (
             message: t?.("Data.Values.value.required"),
           }),
         )
-        .min(1, { message: t?.("Data.Values.min") }),
+        .min(1, { message: t?.("Data.Values.min") })
+        .refine((items) => new Set(items).size === items.length, {
+          message: t?.("Data.Values.unique"),
+        }),
       placeholder: z.string().optional(),
       description: z.string().optional(),
     }),
