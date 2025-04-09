@@ -17,23 +17,10 @@ export async function getCreditBalance(userId: string): Promise<bigint> {
   return creditBalance._sum.amount ?? BigInt(0);
 }
 
-export async function creditTransactionSpend(
+export async function createCreditTransactionSpend(
   userId: string,
   credits: bigint,
-  includedFeeCredits: bigint,
-  note: string | null = null,
-  noteKey: string | null = null,
 ): Promise<CreditTransaction> {
-  if (credits <= 0) {
-    throw new Error("Credits must be greater than 0");
-  }
-  if (includedFeeCredits < 0) {
-    throw new Error("Included fee credits must be greater than or equal to 0");
-  }
-  if (includedFeeCredits > credits) {
-    throw new Error("Included fee credits must be less than total credits");
-  }
-
   const availableBalance = await getCreditBalance(userId);
   if (availableBalance < credits) {
     throw new Error("Insufficient balance");
@@ -43,10 +30,20 @@ export async function creditTransactionSpend(
     data: {
       userId,
       amount: -credits,
-      includedFee: includedFeeCredits,
       type: CreditTransactionType.SPEND,
-      note: note,
-      noteKey: noteKey,
+    },
+  });
+}
+
+export async function createCreditTransactionTopUp(
+  userId: string,
+  credits: bigint,
+): Promise<CreditTransaction> {
+  return await prisma.creditTransaction.create({
+    data: {
+      userId,
+      amount: credits,
+      type: CreditTransactionType.TOP_UP,
     },
   });
 }

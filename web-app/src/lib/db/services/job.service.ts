@@ -16,7 +16,10 @@ import {
 import { calculatedInputHash } from "@/lib/utils";
 
 import { getAgentById, getAgentPricing } from "./agent.service";
-import { calculateCreditCost, creditTransactionSpend } from "./credit.service";
+import {
+  calculateCreditCost,
+  createCreditTransactionSpend,
+} from "./credit.service";
 
 const startJobSchema = z.object({
   input_hash: z.string(),
@@ -53,12 +56,18 @@ export async function startJob(
     throw new Error("Credit cost is too high");
   }
 
-  const creditTransaction = await creditTransactionSpend(
+  const creditTransaction = await createCreditTransactionSpend(
     userId,
     creditCost,
-    BigInt(0),
   );
   console.log("creditTransaction", creditTransaction);
+
+  // const agentTransaction = await createAgentTransactionPurchase(
+  //   userId,
+  //   creditCost,
+  //   creditTransaction.id,
+  //   job.id,
+  // );
 
   try {
     const baseUrl = getApiBaseUrl(agent);
