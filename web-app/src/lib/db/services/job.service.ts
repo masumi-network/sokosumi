@@ -16,7 +16,11 @@ import {
 import { calculatedInputHash } from "@/lib/utils";
 
 import { getAgentById, getAgentPricing } from "./agent.service";
-import { calculateCreditCost, createCreditTransaction } from "./credit.service";
+import {
+  calculateCreditCost,
+  createCreditTransaction,
+  deleteCreditTransaction,
+} from "./credit.service";
 
 const startJobSchema = z.object({
   input_hash: z.string(),
@@ -148,33 +152,7 @@ export async function startJob(
     });
     return job;
   } catch (error) {
-    // TODO: update credit transaction status to failed
-
-    // const job = await prisma.creditTransaction.update({
-    //   where: {
-    //     id: creditTransaction.id,
-    //   },
-    //   data: {
-    //     status: "FAILED",
-    //     errorNote: error instanceof Error ? error.message : "Unknown error",
-    //     errorNoteKey: "Job.CreationFailed",
-    //   },
-    //   select: {
-    //     job: true,
-    //   },
-    // });
-    // if (job && job.job) {
-    //   await prisma.job.update({
-    //     where: {
-    //       id: job.job.id,
-    //     },
-    //     data: {
-    //       status: "FAILED",
-    //       errorNote: error instanceof Error ? error.message : "Unknown error",
-    //       errorNoteKey: "Job.CreationFailed",
-    //     },
-    //   });
-    // }
+    await deleteCreditTransaction(creditTransaction.id);
     throw new Error("Failed to create job", { cause: error });
   }
 }
