@@ -2,7 +2,6 @@
 import { getPaymentInformation } from "@/lib/api/generated/registry";
 import { getRegistryClient } from "@/lib/api/registry-service.client";
 import { getApiBaseUrl } from "@/lib/db/extension/agent";
-import { inputSchemaMock } from "@/lib/db/mocks/input-schema";
 import prisma from "@/lib/db/prisma";
 import { agentInclude, AgentWithRelations } from "@/lib/db/types/agent.types";
 import { jobInputsDataSchema, JobInputsDataSchemaType } from "@/lib/job-input";
@@ -79,17 +78,12 @@ export async function getAgentInputSchema(
   const baseUrl = getApiBaseUrl(agent);
   const inputSchemaUrl = new URL(`/input_schema`, baseUrl);
 
-  try {
-    const response = await fetch(inputSchemaUrl);
-    const schema = await response.json();
+  const response = await fetch(inputSchemaUrl);
+  const schema = await response.json();
 
-    const inputSchema = jobInputsDataSchema(undefined).parse(schema);
+  const inputSchema = jobInputsDataSchema(undefined).parse(schema);
 
-    return inputSchema;
-  } catch (error) {
-    console.error("Error fetching agent input schema", error);
-    return inputSchemaMock;
-  }
+  return inputSchema;
 }
 
 export async function getAgentPricing(agentId: string) {

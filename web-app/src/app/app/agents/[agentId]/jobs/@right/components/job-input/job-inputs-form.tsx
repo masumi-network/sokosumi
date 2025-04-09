@@ -4,6 +4,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getAgentInputSchema } from "@/lib/db/services/agent.service";
 
 import JobInputsFormClient from "./job-inputs-form.client";
+import JobInputsFormErrorWrapper from "./job-inputs-form.error";
 
 interface JobInputsFormProps {
   agentId: string;
@@ -17,13 +18,15 @@ export default function JobInputsForm({
   className,
 }: JobInputsFormProps) {
   return (
-    <Suspense fallback={<JobInputsFormSkeleton />}>
-      <JobInputsFormInner
-        agentId={agentId}
-        agentPricing={agentPricing}
-        className={className}
-      />
-    </Suspense>
+    <JobInputsFormErrorWrapper>
+      <Suspense fallback={<JobInputsFormSkeleton />}>
+        <JobInputsFormInner
+          agentId={agentId}
+          agentPricing={agentPricing}
+          className={className}
+        />
+      </Suspense>
+    </JobInputsFormErrorWrapper>
   );
 }
 

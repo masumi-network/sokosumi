@@ -616,6 +616,9 @@
           "min": "{name} must have at least {value, plural, =1 {1 option} other {# options}}",
           "max": "{name} must have at most {value, plural, =1 {1 option} other {# options}}"
         }
+      },
+      "Error": {
+        "failedToFetchJobInputSchema": "Failed to fetch Job Input Schema"
       }
     }
   }
