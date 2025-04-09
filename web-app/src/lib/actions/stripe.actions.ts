@@ -5,9 +5,7 @@ import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.config"; // Ensure this path is correct
 
-const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY, {
-  apiVersion: "2025-03-31.basil", // Corrected API version
-});
+const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
 /**
  * Fetches the cost per credit from Stripe.

@@ -5,9 +5,7 @@ import Stripe from "stripe";
 import { getEnvSecrets } from "@/config/env.config";
 import { updateFiatTransactionStatus } from "@/lib/db/services/fiatTransaction.service";
 
-const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY, {
-  apiVersion: "2025-03-31.basil", // Corrected API version
-});
+const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
 const handleFiatTransactionFailed = async (
   session: Stripe.Checkout.Session,
