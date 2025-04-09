@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import DefaultLoading from "@/components/default-loading";
 import { requireAuthentication } from "@/lib/auth/utils";
 import { getDescription, getLegal, getName } from "@/lib/db/extension/agent";
-import { getAgentById, getAgents } from "@/lib/db/services/agent.service";
+import { getAgentById } from "@/lib/db/services/agent.service";
 import { getOrCreateFavoriteAgentList } from "@/lib/db/services/agentList.service";
 import { calculateAgentHumandReadableCreditCost } from "@/lib/db/services/credit.service";
 import { getJobsByAgentId } from "@/lib/db/services/job.service";
@@ -18,19 +18,10 @@ interface JobLayoutParams {
   agentId: string;
 }
 
-export async function generateStaticParams() {
-  const agents = await getAgents();
-  return agents.map((agent) => ({
-    agentId: String(agent.id),
-  }));
-}
-
 export async function generateMetadata({
   params,
 }: {
   params: Promise<JobLayoutParams>;
-  right: React.ReactNode;
-  children: React.ReactNode;
 }): Promise<Metadata> {
   const { agentId } = await params;
   const agent = await getAgentById(agentId);
@@ -44,15 +35,17 @@ export async function generateMetadata({
   };
 }
 
+interface JobLayoutProps {
+  children: React.ReactNode;
+  right: React.ReactNode;
+  params: Promise<JobLayoutParams>;
+}
+
 export default async function JobLayout({
   children,
   right,
   params,
-}: {
-  children: React.ReactNode;
-  right: React.ReactNode;
-  params: Promise<JobLayoutParams>;
-}) {
+}: JobLayoutProps) {
   return (
     <Suspense fallback={<JobLayoutSkeleton />}>
       <JobLayoutInner right={right} params={params}>
@@ -62,14 +55,7 @@ export default async function JobLayout({
   );
 }
 
-async function JobLayoutInner({
-  right,
-  params,
-}: {
-  children: React.ReactNode;
-  right: React.ReactNode;
-  params: Promise<JobLayoutParams>;
-}) {
+async function JobLayoutInner({ right, params }: JobLayoutProps) {
   const { agentId } = await params;
   const agent = await getAgentById(agentId);
   if (!agent) {
