@@ -3,10 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.config";
-import {
-  getFiatTransactionByServicePaymentId,
-  updateFiatTransactionStatus,
-} from "@/lib/db/services/fiatTransaction.service";
+import prisma from "@/lib/db/prisma";
 
 const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY, {
   apiVersion: "2025-03-31.basil", // Corrected API version
@@ -17,18 +14,19 @@ const handleFiatTransactionFailed = async (
 ) => {
   console.log(`🔔  Payment failed for session ${session.id}`);
 
-  const fiatTransaction = await getFiatTransactionByServicePaymentId(
-    session.id,
-  );
-  if (!fiatTransaction) {
-    console.error(`🔔  No fiat transaction found for session ${session.id}`);
-    return;
-  }
-  console.log(`🔔  Updating fiat transaction ${fiatTransaction.id} to FAILED`);
-  await updateFiatTransactionStatus(
-    fiatTransaction.id,
-    FiatTransactionStatus.FAILED,
-  );
+  await prisma.$transaction(async (tx) => {
+    const fiatTransaction = await tx.fiatTransaction.findUnique({
+      where: { servicePaymentId: session.id },
+    });
+    if (!fiatTransaction) {
+      console.error(`🔔  No fiat transaction found for session ${session.id}`);
+      return;
+    }
+    return await tx.fiatTransaction.update({
+      where: { id: fiatTransaction.id },
+      data: { status: FiatTransactionStatus.FAILED },
+    });
+  });
 };
 
 const checkSessionPayment = async (session: Stripe.Checkout.Session) => {
@@ -40,20 +38,20 @@ const checkSessionPayment = async (session: Stripe.Checkout.Session) => {
     );
     return;
   }
-  const fiatTransaction = await getFiatTransactionByServicePaymentId(
-    session.id,
-  );
-  if (!fiatTransaction) {
-    console.error(`🔔  No fiat transaction found for session ${session.id}`);
-    return;
-  }
-  console.log(
-    `🔔  Updating fiat transaction ${fiatTransaction.id} to SUCCEEDED`,
-  );
-  await updateFiatTransactionStatus(
-    fiatTransaction.id,
-    FiatTransactionStatus.SUCCEEDED,
-  );
+
+  await prisma.$transaction(async (tx) => {
+    const fiatTransaction = await tx.fiatTransaction.findUnique({
+      where: { servicePaymentId: session.id },
+    });
+    if (!fiatTransaction) {
+      console.error(`🔔  No fiat transaction found for session ${session.id}`);
+      return;
+    }
+    return await tx.fiatTransaction.update({
+      where: { id: fiatTransaction.id },
+      data: { status: FiatTransactionStatus.SUCCEEDED },
+    });
+  });
 };
 
 export async function POST(request: NextRequest) {
