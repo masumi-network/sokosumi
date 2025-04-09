@@ -65,28 +65,6 @@ export async function getCreditTransactionById(
 }
 
 /**
- * Updates the status of a credit transaction.
- *
- * This function updates an existing credit transaction's status, which is used
- * to track the lifecycle of a transaction (e.g., from PENDING to SUCCEEDED or FAILED).
- * This is particularly useful when processing payments or refunds through external
- * payment providers like Stripe.
- *
- * @param creditTransactionId - The ID of the credit transaction to update
- * @param status - The new status to set for the transaction
- * @returns A promise that resolves when the update is complete
- */
-export async function updateCreditTransactionStatus(
-  creditTransactionId: string,
-  status: CreditTransactionStatus,
-): Promise<CreditTransaction> {
-  return await prisma.creditTransaction.update({
-    where: { id: creditTransactionId },
-    data: { status: status },
-  });
-}
-
-/**
  * Associates a Stripe checkout session ID with a credit transaction.
  *
  * This function updates an existing credit transaction record with the Stripe session ID

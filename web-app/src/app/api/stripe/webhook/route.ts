@@ -37,10 +37,7 @@ const handleCheckoutSessionExpired = async (
     return; // Or handle appropriately
   }
 
-  await updateCreditTransactionStatus(
-    creditTransaction.id,
-    CreditTransactionStatus.FAILED,
-  );
+  await updateCreditTransactionStatus(creditTransaction.id);
 };
 
 const handleCheckoutSessionCompleted = async (
