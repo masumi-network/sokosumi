@@ -38,26 +38,29 @@ export async function updateFiatTransactionStatus(
   fiatTransactionId: string,
   status: FiatTransactionStatus,
 ) {
-  let fiatTransaction = await prisma.fiatTransaction.update({
-    where: { id: fiatTransactionId },
-    data: { status },
-  });
+  const fiatTransaction = await prisma.$transaction(async (tx) => {
+    let fiatTransaction = await tx.fiatTransaction.update({
+      where: { id: fiatTransactionId },
+      data: { status },
+    });
 
-  if (
-    status === FiatTransactionStatus.SUCCEEDED &&
-    !fiatTransaction.creditTransactionId
-  ) {
-    fiatTransaction = await prisma.fiatTransaction.update({
-      where: { id: fiatTransaction.id },
-      data: {
-        creditTransaction: {
-          create: {
-            userId: fiatTransaction.userId,
-            amount: fiatTransaction.credits,
+    if (
+      status === FiatTransactionStatus.SUCCEEDED &&
+      !fiatTransaction.creditTransactionId
+    ) {
+      fiatTransaction = await tx.fiatTransaction.update({
+        where: { id: fiatTransaction.id },
+        data: {
+          creditTransaction: {
+            create: {
+              userId: fiatTransaction.userId,
+              amount: fiatTransaction.credits,
+            },
           },
         },
-      },
-    });
-  }
+      });
+    }
+    return fiatTransaction;
+  });
   return fiatTransaction;
 }
