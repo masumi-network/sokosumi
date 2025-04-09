@@ -1,5 +1,5 @@
+import Markdown from "markdown-to-jsx";
 import { useFormatter, useTranslations } from "next-intl";
-import Markdown from "react-markdown";
 
 import JobStatusBadge from "@/app/agents/[agentId]/jobs/components/job-status-badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -20,7 +20,7 @@ export default function JobDetails({ job, className }: JobDetailsProps) {
 
   return (
     <div className={cn("flex h-full min-h-[300px] flex-1 flex-col", className)}>
-      <ScrollArea className="h-[calc(100%)] overflow-y-scroll rounded-md border p-4 px-8">
+      <ScrollArea className="h-[calc(100%)] rounded-md border p-4 px-8">
         <h1 className="h-[30px] text-xl font-bold">{t("title")} </h1>
         <p>
           {formatter.dateTime(job.createdAt, {
@@ -57,7 +57,17 @@ export default function JobDetails({ job, className }: JobDetailsProps) {
           <div className="flex flex-col gap-2">
             <h1 className="text-xl font-bold">{t("Output.title")}</h1>
             {job.output ? (
-              <Markdown>{output}</Markdown>
+              <Markdown
+                options={{
+                  disableParsingRawHTML: true,
+                  wrapper: ({ children }) => (
+                    <article className="markdown-body">{children}</article>
+                  ),
+                  forceWrapper: true,
+                }}
+              >
+                {output}
+              </Markdown>
             ) : (
               <p className="text-base">{t("Output.None")}</p>
             )}
