@@ -49,7 +49,7 @@ export async function getCostPerCredit(
  * @throws Will throw an error if the checkout session cannot be created
  */
 export async function createCheckoutSession(
-  creditTransactionId: string,
+  fiatTransactionId: string,
   priceId: string,
   credits: number,
 ): Promise<{
@@ -68,7 +68,7 @@ export async function createCheckoutSession(
       },
     ],
     metadata: {
-      creditTransactionId: creditTransactionId,
+      fiatTransactionId: fiatTransactionId,
       credits: credits,
     },
     success_url: `${origin}/app/billing/success?session_id={CHECKOUT_SESSION_ID}`,

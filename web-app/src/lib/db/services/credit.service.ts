@@ -1,10 +1,6 @@
 "use server";
 
-import {
-  CreditTransaction,
-  CreditTransactionStatus,
-  CreditTransactionType,
-} from "@prisma/client";
+import { CreditTransaction, CreditTransactionType } from "@prisma/client";
 import { z } from "zod";
 
 import { getEnvPublicConfig } from "@/config/env.config";
@@ -21,30 +17,16 @@ import prisma from "@/lib/db/prisma";
  * @returns The available balance of credits for the user
  */
 export async function getAvailableCredits(userId: string): Promise<number> {
-  const balance = await prisma.$transaction(async (tx) => {
-    const creditBalance = await tx.creditTransaction.aggregate({
-      where: { userId, status: CreditTransactionStatus.SUCCEEDED },
-      _sum: {
-        amount: true,
-      },
-    });
-
-    const negativePendingBalance = await tx.creditTransaction.aggregate({
-      where: {
-        userId,
-        status: CreditTransactionStatus.PENDING,
-        amount: { lt: 0 },
-      },
-      _sum: {
-        amount: true,
-      },
-    });
-    const availableBalance =
-      (creditBalance._sum.amount ?? BigInt(0)) -
-      (negativePendingBalance._sum.amount ?? BigInt(0));
-    return availableBalance;
+  const creditBalance = await prisma.creditTransaction.aggregate({
+    where: { userId },
+    _sum: {
+      amount: true,
+    },
   });
-  return convertBaseUnitsToCredits(balance ?? BigInt(0));
+
+  return await convertBaseUnitsToCredits(
+    creditBalance._sum.amount ?? BigInt(0),
+  );
 }
 
 /**
@@ -61,27 +43,6 @@ export async function getCreditTransactionById(
 ): Promise<CreditTransaction | null> {
   return await prisma.creditTransaction.findUnique({
     where: { id: creditTransactionId },
-  });
-}
-
-/**
- * Associates a Stripe checkout session ID with a credit transaction.
- *
- * This function updates an existing credit transaction record with the Stripe session ID
- * that was created for the payment. This allows for tracking and reconciliation between
- * Stripe payments and credit transactions in the system.
- *
- * @param creditTransactionId - The ID of the credit transaction to update
- * @param stripeSessionId - The Stripe checkout session ID to associate with the transaction
- * @returns A promise that resolves when the update is complete
- */
-export async function addStripeSessionIdToCreditTransaction(
-  creditTransactionId: string,
-  stripeSessionId: string,
-): Promise<CreditTransaction> {
-  return await prisma.creditTransaction.update({
-    where: { id: creditTransactionId },
-    data: { stripeSessionId: stripeSessionId },
   });
 }
 
@@ -108,9 +69,8 @@ export async function creditTransactionTopUp(
     data: {
       userId,
       amount: await convertCreditsToBaseUnits(credits),
-      includedFee: 0,
       type: CreditTransactionType.TOP_UP,
-      status: CreditTransactionStatus.PENDING,
+      includedFee: 0,
     },
   });
 
@@ -145,7 +105,6 @@ export async function creditTransactionSpend(
       amount: -credits,
       includedFee: includedFeeCredits,
       type: CreditTransactionType.SPEND,
-      status: CreditTransactionStatus.PENDING,
       note: note,
       noteKey: noteKey,
     },

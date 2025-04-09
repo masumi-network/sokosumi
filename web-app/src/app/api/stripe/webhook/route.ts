@@ -6,7 +6,6 @@ import { getEnvSecrets } from "@/config/env.config";
 import {
   convertCreditsToBaseUnits,
   getCreditTransactionById,
-  updateCreditTransactionStatus,
 } from "@/lib/db/services/credit.service";
 
 const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY, {
@@ -29,15 +28,8 @@ const getCreditTransactionForSession = async (
 const handleCheckoutSessionExpired = async (
   session: Stripe.Checkout.Session,
 ) => {
-  console.log(`🔔  Payment expired!`);
-
-  const creditTransaction = await getCreditTransactionForSession(session);
-  if (!creditTransaction) {
-    console.error("⚠️ Credit transaction not found");
-    return; // Or handle appropriately
-  }
-
-  await updateCreditTransactionStatus(creditTransaction.id);
+  console.log(`🔔  Payment expired for session ${session.id}`);
+  return;
 };
 
 const handleCheckoutSessionCompleted = async (

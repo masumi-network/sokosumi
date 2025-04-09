@@ -316,7 +316,7 @@ CREATE TABLE "CreditTransaction" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "amount" BIGINT NOT NULL,
-    "includedFee" BIGINT NOT NULL,
+    "includedFee" BIGINT NOT NULL DEFAULT 0,
     "note" TEXT,
     "noteKey" TEXT,
     "errorNote" TEXT,

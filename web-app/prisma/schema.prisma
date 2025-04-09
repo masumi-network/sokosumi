@@ -359,7 +359,7 @@ model CreditTransaction {
   createdAt    DateTime              @default(now())
   updatedAt    DateTime              @updatedAt
   amount       BigInt //positive is always a credit topup and negative is always a credit spend
-  includedFee  BigInt
+  includedFee  BigInt                @default(0)
   note         String?
   noteKey      String?
   errorNote    String?
