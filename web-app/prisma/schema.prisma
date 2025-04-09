@@ -34,11 +34,13 @@ model User {
   twofactors  TwoFactor[]
   passkeys    Passkey[]
 
-  userAgentRating    UserAgentRating[]
-  agentLists         AgentList[]
-  creditTransactions CreditTransaction[]
+  userAgentRatings UserAgentRating[]
+  agentLists       AgentList[]
 
-  jobs Job[]
+  jobs               Job[]
+  creditTransactions CreditTransaction[]
+  fiatTransactions   FiatTransaction[]
+  agentTransactions  AgentTransaction[]
 
   @@unique([email])
   @@map("user")
@@ -353,9 +355,9 @@ enum AgentListType {
 }
 
 model CreditTransaction {
-  id           String                  @id @default(cuid())
-  createdAt    DateTime                @default(now())
-  updatedAt    DateTime                @updatedAt
+  id           String                @id @default(cuid())
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
   amount       BigInt //positive is always a credit topup and negative is always a credit spend
   includedFee  BigInt
   note         String?
@@ -363,29 +365,66 @@ model CreditTransaction {
   errorNote    String?
   errorNoteKey String?
   type         CreditTransactionType
-  status       CreditTransactionStatus @default(PENDING)
 
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  stripeSessionId String? @unique
-
-  job         Job? @relation("JobCost")
-  refundedJob Job? @relation("JobRefund")
+  fiatTransaction    FiatTransaction?  @relation(fields: [fiatTransactionId], references: [id])
+  fiatTransactionId  String?           @unique
+  agentTransaction   AgentTransaction? @relation(fields: [agentTransactionId], references: [id])
+  agentTransactionId String?           @unique
 }
 
-enum CreditTransactionStatus {
+enum CreditTransactionType {
+  TOP_UP
+  SPEND
+  REFUND
+  MANUAL
+}
+
+model FiatTransaction {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  amount           BigInt // amount in cents (100 = 1 USD)
+  currency         String // currency code for example 'USD'
+  servicePaymentId String                @unique
+  service          FiatService           @default(STRIPE)
+  status           FiatTransactionStatus @default(PENDING)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  creditTransaction   CreditTransaction?
+  creditTransactionId String?            @unique
+}
+
+enum FiatTransactionStatus {
   PENDING
   SUCCEEDED
   FAILED
 }
 
-enum CreditTransactionType {
-  TOP_UP
-  REFERRAL
-  SPEND
-  REFUND
-  MANUAL
+enum FiatService {
+  STRIPE
+}
+
+model AgentTransaction {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  credits BigInt // positive is always a credit spend and negative is always a credit topup
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  creditTransaction   CreditTransaction @relation(fields: [creditTransactionId], references: [id])
+  creditTransactionId String            @unique
+
+  job   Job?
+  jobId String?
 }
 
 model Job {
@@ -407,10 +446,10 @@ model Job {
   startedAt  DateTime  @default(now())
   finishedAt DateTime?
 
-  creditTransaction         CreditTransaction  @relation("JobCost", fields: [creditTransactionId], references: [id])
-  creditTransactionId       String             @unique
-  refundCreditTransaction   CreditTransaction? @relation("JobRefund", fields: [refundCreditTransactionId], references: [id])
-  refundCreditTransactionId String?            @unique
+  agentPurchaseTransaction   AgentTransaction  @relation(fields: [agentPurchaseTransactionId], references: [id])
+  agentPurchaseTransactionId String            @unique
+  agentRefundTransaction     AgentTransaction? @relation(fields: [agentRefundTransactionId], references: [id])
+  agentRefundTransactionId   String?           @unique
 
   errorNote    String?
   errorNoteKey String?
