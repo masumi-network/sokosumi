@@ -91,12 +91,11 @@ export async function POST(request: NextRequest) {
       { status: 400 },
     );
   }
-  // Extract the object from the event.
-  const data = event.data;
+
   const eventType = event.type;
   console.log(`⚠️  Webhook received: ${eventType}`);
 
-  const session = data.object as Stripe.Checkout.Session;
+  const session = event.data.object as Stripe.Checkout.Session;
   switch (eventType) {
     case "checkout.session.completed":
     case "checkout.session.async_payment_succeeded":
