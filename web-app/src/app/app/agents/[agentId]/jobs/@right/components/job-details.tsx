@@ -3,7 +3,7 @@ import Markdown from "react-markdown";
 
 import JobStatusBadge from "@/app/agents/[agentId]/jobs/components/job-status-badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { JobWithRelations } from "@/lib/db/services/job.service";
+import { JobWithRelations } from "@/lib/db/types/job.types";
 import { cn } from "@/lib/utils";
 
 interface JobDetailsProps {

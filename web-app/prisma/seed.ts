@@ -6,7 +6,7 @@ import {
 import crypto from "crypto";
 
 import { getEnvSecrets } from "@/config/env.config";
-import { convertCreditsToBaseUnits } from "@/lib/db/services/credit.service";
+import { convertCreditsToBaseUnits } from "@/lib/db/utils/credit.utils";
 
 import { hashPassword } from "./util/password";
 

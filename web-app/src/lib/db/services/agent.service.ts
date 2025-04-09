@@ -1,33 +1,13 @@
-import { Prisma } from "@prisma/client";
-
+"use server";
 import { getPaymentInformation } from "@/lib/api/generated/registry";
 import { getRegistryClient } from "@/lib/api/registry-service.client";
 import { getApiBaseUrl } from "@/lib/db/extension/agent";
 import { inputSchemaMock } from "@/lib/db/mocks/input-schema";
 import prisma from "@/lib/db/prisma";
+import { agentInclude, AgentWithRelations } from "@/lib/db/types/agent.types";
 import { jobInputsDataSchema, JobInputsDataSchemaType } from "@/lib/job-input";
 
 import { getOrCreateFavoriteAgentList } from "./agentList.service";
-
-const agentPricingInclude = {
-  pricing: {
-    include: { fixedPricing: { include: { amounts: true } } },
-  },
-} as const;
-
-export const agentInclude = {
-  ...agentPricingInclude,
-  exampleOutput: true,
-  overrideExampleOutput: true,
-  tags: true,
-  overrideTags: true,
-  rating: true,
-  userAgentRating: true,
-} as const;
-
-export type AgentWithRelations = Prisma.AgentGetPayload<{
-  include: typeof agentInclude;
-}>;
 
 export async function getAgents(): Promise<AgentWithRelations[]> {
   return await prisma.agent.findMany({
