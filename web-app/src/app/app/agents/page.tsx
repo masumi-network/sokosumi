@@ -3,10 +3,11 @@ import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { requireAuthentication } from "@/lib/auth/utils";
-import { AgentWithRelations, getAgents } from "@/lib/db/services/agent.service";
+import { getAgents } from "@/lib/db/services/agent.service";
 import { getOrCreateFavoriteAgentList } from "@/lib/db/services/agentList.service";
 import { calculateAgentHumandReadableCreditCost } from "@/lib/db/services/credit.service";
 import { getCachedTags } from "@/lib/db/services/tag.service";
+import { AgentWithRelations } from "@/lib/db/types/agent.types";
 
 import FilterSection from "./components/filter-section";
 import FilteredAgents from "./components/filtered-agents";
