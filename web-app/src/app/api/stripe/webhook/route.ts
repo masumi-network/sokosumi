@@ -1,7 +1,12 @@
+import { FiatTransactionStatus } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.config";
+import {
+  getFiatTransactionByServicePaymentId,
+  updateFiatTransactionStatus,
+} from "@/lib/db/services/fiatTransaction.service";
 
 const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY, {
   apiVersion: "2025-03-31.basil", // Corrected API version
@@ -11,12 +16,36 @@ const handleCheckoutSessionExpired = async (
   session: Stripe.Checkout.Session,
 ) => {
   console.log(`🔔  Payment expired for session ${session.id}`);
+
+  const fiatTransaction = await getFiatTransactionByServicePaymentId(
+    session.id,
+  );
+  if (!fiatTransaction) {
+    console.error(`🔔  No fiat transaction found for session ${session.id}`);
+    return;
+  }
+  await updateFiatTransactionStatus(
+    fiatTransaction.id,
+    FiatTransactionStatus.FAILED,
+  );
 };
 
 const handleCheckoutSessionCompleted = async (
   session: Stripe.Checkout.Session,
 ) => {
   console.log(`🔔  Payment received for session ${session.id}`);
+  const fiatTransaction = await getFiatTransactionByServicePaymentId(
+    session.id,
+  );
+  if (!fiatTransaction) {
+    console.error(`🔔  No fiat transaction found for session ${session.id}`);
+    return;
+  }
+
+  await updateFiatTransactionStatus(
+    fiatTransaction.id,
+    FiatTransactionStatus.SUCCEEDED,
+  );
 };
 
 export async function POST(request: NextRequest) {
