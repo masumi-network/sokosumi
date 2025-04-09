@@ -6,6 +6,7 @@ import { z } from "zod";
 import { getEnvPublicConfig } from "@/config/env.config";
 import { AgentWithFixedPricing } from "@/lib/db/extension/agent";
 import prisma from "@/lib/db/prisma";
+import { convertBaseUnitsToCredits } from "@/lib/db/utils/credit.utils";
 
 export async function getHumandReadableCreditBalance(
   userId: string,
@@ -131,16 +132,4 @@ export async function calculateCreditCost(
     totalCreditCost += BigInt(Math.ceil(totalCost));
   }
   return totalCreditCost;
-}
-
-export async function convertBaseUnitsToCredits(
-  credits: bigint,
-): Promise<number> {
-  return Number(credits) / 10 ** getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BASE;
-}
-
-export async function convertCreditsToBaseUnits(
-  credits: number,
-): Promise<bigint> {
-  return BigInt(credits * 10 ** getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BASE);
 }
