@@ -8,20 +8,14 @@ import { getDescription, getLegal, getName } from "@/lib/db/extension/agent";
 import { getAgentById } from "@/lib/db/services/agent.service";
 import { getOrCreateFavoriteAgentList } from "@/lib/db/services/agentList.service";
 import { calculateAgentHumandReadableCreditCost } from "@/lib/db/services/credit.service";
-import { getJobsByAgentId } from "@/lib/db/services/job.service";
 
 import Footer from "./components/footer";
 import Header, { HeaderSkeleton } from "./components/header";
-import JobsTable from "./components/jobs-table";
-
-interface JobLayoutParams {
-  agentId: string;
-}
 
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<JobLayoutParams>;
+  params: Promise<{ agentId: string }>;
 }): Promise<Metadata> {
   const { agentId } = await params;
   const agent = await getAgentById(agentId);
@@ -38,7 +32,7 @@ export async function generateMetadata({
 interface JobLayoutProps {
   children: React.ReactNode;
   right: React.ReactNode;
-  params: Promise<JobLayoutParams>;
+  params: Promise<{ agentId: string }>;
 }
 
 export default async function JobLayout({
@@ -55,7 +49,7 @@ export default async function JobLayout({
   );
 }
 
-async function JobLayoutInner({ right, params }: JobLayoutProps) {
+async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
   const { agentId } = await params;
   const agent = await getAgentById(agentId);
   if (!agent) {
@@ -66,7 +60,6 @@ async function JobLayoutInner({ right, params }: JobLayoutProps) {
   const { session } = await requireAuthentication();
   const agentPrice = await calculateAgentHumandReadableCreditCost(agent);
   const favoriteAgentList = await getOrCreateFavoriteAgentList(session.user.id);
-  const agentJobs = await getJobsByAgentId(agentId, session.user.id);
 
   return (
     <div className="flex h-full flex-1 flex-col p-4 lg:p-6 xl:p-8">
@@ -76,7 +69,7 @@ async function JobLayoutInner({ right, params }: JobLayoutProps) {
         favoriteAgentList={favoriteAgentList}
       />
       <div className="mt-6 flex flex-1 flex-col justify-center gap-4 lg:flex-row lg:overflow-hidden">
-        <JobsTable jobs={agentJobs} />
+        {children}
         {right}
       </div>
       <Footer legal={getLegal(agent)} />
