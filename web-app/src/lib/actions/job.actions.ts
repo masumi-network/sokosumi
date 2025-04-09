@@ -4,8 +4,8 @@ import { headers } from "next/headers";
 import { z } from "zod";
 
 import { auth } from "@/lib/auth/auth";
-import { convertCreditsToBaseUnits } from "@/lib/db/services/credit.service";
 import { startJob } from "@/lib/db/services/job.service";
+import { convertCreditsToBaseUnits } from "@/lib/db/utils/credit.utils";
 
 const startJobInputSchema = z.object({
   agentId: z.string(),
@@ -50,7 +50,7 @@ export async function startJobWithInputData(input: StartJobInput): Promise<{
   const job = await startJob(
     session.user.id,
     data.agentId,
-    BigInt(convertCreditsToBaseUnits(data.maxAcceptedCreditCost)),
+    convertCreditsToBaseUnits(data.maxAcceptedCreditCost),
     inputMap,
   );
 

@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 
 import { DataTable } from "@/components/data-table";
-import { JobWithRelations } from "@/lib/db/services/job.service";
+import { JobWithRelations } from "@/lib/db/types/job.types";
 import { cn } from "@/lib/utils";
 
 import { getJobColumns } from "./job-columns";

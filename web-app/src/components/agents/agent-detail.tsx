@@ -14,8 +14,8 @@ import {
   getResolvedImage,
   getTags,
 } from "@/lib/db/extension/agent";
-import { AgentWithRelations } from "@/lib/db/services/agent.service";
-import { AgentListWithAgent } from "@/lib/db/services/agentList.service";
+import { AgentWithRelations } from "@/lib/db/types/agent.types";
+import { AgentListWithAgent } from "@/lib/db/types/agentList.types";
 import { cn } from "@/lib/utils";
 
 import { AgentBookmarkButton } from "./agent-bookmark-button";
