@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { createCheckoutSession } from "@/lib/actions/stripe.actions";
 import {
   createFiatTransaction,
-  updateFiatTransactionServicePaymentId,
+  updateServicePaymentId,
 } from "@/lib/db/services/fiatTransaction.service";
 
 interface BillingFormProps {
@@ -52,7 +52,7 @@ export default function BillingForm({
         priceId,
         credits,
       );
-      await updateFiatTransactionServicePaymentId(fiatTransaction.id, id);
+      await updateServicePaymentId(fiatTransaction.id, id);
       console.log("Checkout session created:", id, url);
       window.location.href = url;
     } catch (error) {

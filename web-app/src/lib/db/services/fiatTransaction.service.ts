@@ -14,24 +14,13 @@ export async function createFiatTransaction(userId: string, credits: number) {
   return fiatTransaction;
 }
 
-export async function updateFiatTransactionServicePaymentId(
+export async function updateServicePaymentId(
   fiatTransactionId: string,
   servicePaymentId: string,
 ) {
   const fiatTransaction = await prisma.fiatTransaction.update({
     where: { id: fiatTransactionId },
     data: { servicePaymentId },
-  });
-  return fiatTransaction;
-}
-
-export async function updateFiatTransactionCreditTransactionId(
-  fiatTransactionId: string,
-  creditTransactionId: string,
-) {
-  const fiatTransaction = await prisma.fiatTransaction.update({
-    where: { id: fiatTransactionId },
-    data: { creditTransactionId },
   });
   return fiatTransaction;
 }
@@ -43,23 +32,6 @@ export async function getFiatTransactionByServicePaymentId(
     where: { servicePaymentId },
   });
   return fiatTransaction;
-}
-
-export async function getFiatTransactionsByUserId(userId: string) {
-  const fiatTransactions = await prisma.fiatTransaction.findMany({
-    where: { userId },
-  });
-  return fiatTransactions;
-}
-
-export async function getFiatTransactionsByUserIdAndStatus(
-  userId: string,
-  status: FiatTransactionStatus,
-) {
-  const fiatTransactions = await prisma.fiatTransaction.findMany({
-    where: { userId, status },
-  });
-  return fiatTransactions;
 }
 
 export async function updateFiatTransactionStatus(
@@ -87,12 +59,5 @@ export async function updateFiatTransactionStatus(
       },
     });
   }
-  return fiatTransaction;
-}
-
-export async function getFiatTransactionById(id: string) {
-  const fiatTransaction = await prisma.fiatTransaction.findUnique({
-    where: { id },
-  });
   return fiatTransaction;
 }
