@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.config"; // Ensure this path is correct
+import { User } from "@/prisma/generated/client";
 
 const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
@@ -47,6 +48,7 @@ export async function getCostPerCredit(
  * @throws Will throw an error if the checkout session cannot be created
  */
 export async function createCheckoutSession(
+  user: User,
   fiatTransactionId: string,
   priceId: string,
   credits: number,
@@ -65,6 +67,8 @@ export async function createCheckoutSession(
         quantity: credits,
       },
     ],
+    customer: user.stripeCustomerId ?? undefined,
+    customer_email: user.email,
     metadata: {
       fiatTransactionId: fiatTransactionId,
       credits: credits,

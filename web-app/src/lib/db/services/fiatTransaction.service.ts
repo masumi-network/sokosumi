@@ -9,6 +9,8 @@ import {
   Prisma,
 } from "@/prisma/generated/client";
 
+import { getUserById } from "./user.service";
+
 export async function createFiatTransaction(
   userId: string,
   credits: number,
@@ -78,8 +80,13 @@ export async function createOneTimePaymentStripeSession(
   credits: number,
 ): Promise<{ stripeSessionId: string; url: string }> {
   return await prisma.$transaction(async (tx) => {
+    const user = await getUserById(userId, tx);
+    if (!user) {
+      throw new Error("User not found");
+    }
     const fiatTransaction = await createFiatTransaction(userId, credits, tx);
     const { id: stripeSessionId, url } = await createCheckoutSession(
+      user,
       fiatTransaction.id,
       priceId,
       credits,
