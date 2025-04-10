@@ -11,22 +11,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-interface BillingSuccessPageProps {
-  searchParams: Promise<{
-    session_id?: string;
-  }>;
-}
-
-export default async function BillingSuccessPage({
-  searchParams,
-}: BillingSuccessPageProps) {
+export default async function BillingSuccessPage() {
   const t = await getTranslations("App.Billing.Success");
-  const params = await searchParams;
-
-  console.log(
-    "Successfully purchased credits with session id:",
-    params.session_id,
-  );
 
   return (
     <div className="mx-auto max-w-xl p-6">
