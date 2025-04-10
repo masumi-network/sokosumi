@@ -1,10 +1,10 @@
 "use server";
 
 import prisma from "@/lib/db/prisma";
-import { Tag } from "@/prisma/generated/client";
+import { Prisma, Tag } from "@/prisma/generated/client";
 
-export async function getTags(): Promise<Tag[]> {
-  const tags = await prisma.tag.findMany({
+export async function getTags(tx?: Prisma.TransactionClient): Promise<Tag[]> {
+  const tags = await (tx ?? prisma).tag.findMany({
     where: {
       OR: [{ agents: { some: {} } }, { agentsOverride: { some: {} } }],
     },

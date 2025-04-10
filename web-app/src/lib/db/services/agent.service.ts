@@ -13,8 +13,10 @@ import { Prisma } from "@/prisma/generated/client";
 
 import { getOrCreateFavoriteAgentList } from "./agentList.service";
 
-export async function getAgents(): Promise<AgentWithRelations[]> {
-  return await prisma.agent.findMany({
+export async function getAgents(
+  tx?: Prisma.TransactionClient,
+): Promise<AgentWithRelations[]> {
+  return await (tx ?? prisma).agent.findMany({
     include: agentInclude,
     where: {
       isShown: true,
@@ -32,13 +34,19 @@ export async function getAgentById(
   });
 }
 
-export async function getFavoriteAgents(userId: string) {
-  const list = await getOrCreateFavoriteAgentList(userId);
+export async function getFavoriteAgents(
+  userId: string,
+  tx?: Prisma.TransactionClient,
+) {
+  const list = await getOrCreateFavoriteAgentList(userId, tx);
   return list.agents;
 }
 
-export async function getHiredAgentsOrderedByLatestJob(userId: string) {
-  const agentsWithJobs = await prisma.agent.findMany({
+export async function getHiredAgentsOrderedByLatestJob(
+  userId: string,
+  tx?: Prisma.TransactionClient,
+) {
+  const agentsWithJobs = await (tx ?? prisma).agent.findMany({
     where: {
       jobs: {
         some: {

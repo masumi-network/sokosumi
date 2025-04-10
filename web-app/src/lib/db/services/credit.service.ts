@@ -8,8 +8,11 @@ import prisma from "@/lib/db/prisma";
 import { convertBaseUnitsToCredits } from "@/lib/db/utils/credit.utils";
 import { Prisma } from "@/prisma/generated/client";
 
-export async function getCreditBalance(userId: string): Promise<bigint> {
-  const creditBalance = await prisma.creditTransaction.aggregate({
+export async function getCreditBalance(
+  userId: string,
+  tx?: Prisma.TransactionClient,
+): Promise<bigint> {
+  const creditBalance = await (tx ?? prisma).creditTransaction.aggregate({
     where: { userId },
     _sum: {
       amount: true,
@@ -23,16 +26,8 @@ export async function validateCreditBalance(
   credits: bigint,
   tx?: Prisma.TransactionClient,
 ): Promise<void> {
-  const creditBalance = await (tx ?? prisma).creditTransaction.aggregate({
-    where: { userId },
-    _sum: {
-      amount: true,
-    },
-  });
-  if (
-    creditBalance._sum.amount === null ||
-    creditBalance._sum.amount - credits < BigInt(0)
-  ) {
+  const creditBalance = await getCreditBalance(userId, tx);
+  if (creditBalance - credits < BigInt(0)) {
     throw new Error("Insufficient balance");
   }
 }
@@ -52,6 +47,7 @@ const amountsSchema = z.array(
  */
 export async function calculateAgentHumandReadableCreditCost(
   agent: AgentWithFixedPricing,
+  tx?: Prisma.TransactionClient,
 ): Promise<number> {
   const amounts = agent.pricing?.fixedPricing?.amounts?.map((amount) => ({
     unit: amount.unit,
@@ -60,7 +56,7 @@ export async function calculateAgentHumandReadableCreditCost(
   if (!amounts) {
     return 0.0;
   }
-  const creditCost = await calculateCreditCost(amounts);
+  const creditCost = await calculateCreditCost(amounts, tx);
   return convertBaseUnitsToCredits(creditCost);
 }
 

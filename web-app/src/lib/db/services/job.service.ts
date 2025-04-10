@@ -13,7 +13,7 @@ import {
   JobWithRelations,
 } from "@/lib/db/types/job.types";
 import { calculatedInputHash } from "@/lib/utils";
-import { Job, JobStatus } from "@/prisma/generated/client";
+import { Job, JobStatus, Prisma } from "@/prisma/generated/client";
 
 import { getAgentById, getAgentPricing } from "./agent.service";
 import { calculateCreditCost, validateCreditBalance } from "./credit.service";
@@ -171,8 +171,9 @@ export async function startJob(
 export async function getJobsByAgentId(
   agentId: string,
   userId: string,
+  tx?: Prisma.TransactionClient,
 ): Promise<JobWithRelations[]> {
-  const jobs = await prisma.job.findMany({
+  const jobs = await (tx ?? prisma).job.findMany({
     where: {
       agentId,
       userId,
@@ -335,23 +336,19 @@ export async function syncJobStatus(job: Job) {
  * @param userId - The unique identifier of the user
  * @returns Promise containing an array of jobs with their relations
  */
-export async function getJobs(userId: string) {
-  const jobs = await prisma.job.findMany({
+export async function getJobs(userId: string, tx?: Prisma.TransactionClient) {
+  return await (tx ?? prisma).job.findMany({
     where: {
       userId,
     },
     include: jobInclude,
     orderBy: jobOrderBy,
   });
-
-  return jobs;
 }
 
-export async function getJobById(jobId: string) {
-  const job = await prisma.job.findUnique({
+export async function getJobById(jobId: string, tx?: Prisma.TransactionClient) {
+  return await (tx ?? prisma).job.findUnique({
     where: { id: jobId },
     include: jobInclude,
   });
-
-  return job;
 }
