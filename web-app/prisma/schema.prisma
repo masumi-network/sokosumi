@@ -42,6 +42,8 @@ model User {
   creditTransactions CreditTransaction[]
   fiatTransactions   FiatTransaction[]
 
+  stripeCustomerId String?
+
   @@unique([email])
   @@map("user")
 }

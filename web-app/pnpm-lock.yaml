@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@better-auth/stripe':
+        specifier: ^1.2.5
+        version: 1.2.5(typescript@5.8.3)
       '@better-auth/utils':
         specifier: ^0.2.4
         version: 0.2.4
@@ -403,6 +406,9 @@ packages:
 
   '@bcoe/v8-coverage@0.2.3':
     resolution: {integrity: sha512-0hYQ8SB4Db5zvZB4axdMHGwEaQjkZzFjQiN9LVYvIFB2nSUHW9tYpxWriPrWDASIxiaXax83REcLxuSdnGPZtw==}
+
+  '@better-auth/stripe@1.2.5':
+    resolution: {integrity: sha512-+87qnc4rtDJxzdCswJQOHTopRRcVw+93cSNz8O1TP3GcBEooEjAspHHAxSmutPm7pluLrHIX5g0uFE2MIOUbmQ==}
 
   '@better-auth/utils@0.2.4':
     resolution: {integrity: sha512-ayiX87Xd5sCHEplAdeMgwkA0FgnXsEZBgDn890XHHwSWNqqRZDYOq3uj2Ei2leTv1I2KbG5HHn60Ah1i2JWZjQ==}
@@ -4748,6 +4754,13 @@ snapshots:
       '@babel/helper-validator-identifier': 7.25.9
 
   '@bcoe/v8-coverage@0.2.3': {}
+
+  '@better-auth/stripe@1.2.5(typescript@5.8.3)':
+    dependencies:
+      better-auth: 1.2.5(typescript@5.8.3)
+      zod: 3.24.2
+    transitivePeerDependencies:
+      - typescript
 
   '@better-auth/utils@0.2.4':
     dependencies:

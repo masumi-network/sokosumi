@@ -1,3 +1,4 @@
+import { stripe } from "@better-auth/stripe";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
@@ -9,6 +10,7 @@ import {
 } from "better-auth/plugins";
 import { passkey } from "better-auth/plugins/passkey";
 import { getTranslations } from "next-intl/server";
+import Stripe from "stripe";
 
 import { getEnvPublicConfig, getEnvSecrets } from "@/config/env.config";
 import prisma from "@/lib/db/prisma";
@@ -21,6 +23,8 @@ export type Session = typeof auth.$Infer.Session;
 export type User = typeof auth.$Infer.Session.user;
 
 const fromEmail = getEnvSecrets().RESEND_FROM_EMAIL;
+
+const stripeClient = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
 export const auth = betterAuth({
   session: {
@@ -113,6 +117,11 @@ export const auth = betterAuth({
     },
   },
   plugins: [
+    stripe({
+      stripeClient,
+      stripeWebhookSecret: getEnvSecrets().STRIPE_WEBHOOK_SECRET,
+      createCustomerOnSignUp: true,
+    }),
     organization(),
     twoFactor({
       otpOptions: {
