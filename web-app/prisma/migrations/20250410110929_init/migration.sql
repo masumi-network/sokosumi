@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "PricingType" AS ENUM ('Fixed');
+CREATE TYPE "PricingType" AS ENUM ('FIXED');
 
 -- CreateEnum
 CREATE TYPE "AgentStatus" AS ENUM ('ONLINE', 'OFFLINE', 'DEREGISTERED', 'INVALID');

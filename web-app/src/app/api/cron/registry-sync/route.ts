@@ -6,6 +6,7 @@ import { getRegistryClient } from "@/lib/api/registry-service.client";
 import { compareApiKeys } from "@/lib/auth/utils";
 import prisma from "@/lib/db/prisma";
 import { getLock, releaseLock, timeLimitedExecution } from "@/lib/utils";
+import { PricingType } from "@/prisma/generated/client";
 
 const LOCK_KEY = "registry-sync";
 
@@ -126,7 +127,7 @@ async function syncAllEntries() {
               },
               pricing: {
                 create: {
-                  pricingType: "Fixed",
+                  pricingType: PricingType.FIXED,
                   fixedPricing: {
                     create: {
                       amounts: {

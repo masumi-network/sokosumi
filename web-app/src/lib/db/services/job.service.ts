@@ -216,7 +216,7 @@ export async function syncJobStatus(job: Job) {
         id: job.id,
       },
       data: {
-        status: "FAILED",
+        status: JobStatus.FAILED,
         errorNote: purchase.error ? String(purchase.error) : "Unknown error",
         errorNoteKey: "Job.SyncStatusFailed",
       },
@@ -245,7 +245,7 @@ export async function syncJobStatus(job: Job) {
           id: job.id,
         },
         data: {
-          status: "FAILED",
+          status: JobStatus.FAILED,
           errorNote: syncJobResponse.statusText,
           errorNoteKey: "Job.SyncOutputFailed",
         },
@@ -261,7 +261,7 @@ export async function syncJobStatus(job: Job) {
           id: job.id,
         },
         data: {
-          status: "FAILED",
+          status: JobStatus.FAILED,
           errorNote: syncJobResponseData.error,
           errorNoteKey: "Job.SyncOutputFailed",
         },
@@ -276,7 +276,7 @@ export async function syncJobStatus(job: Job) {
         id: job.id,
       },
       data: {
-        status: "COMPLETED",
+        status: JobStatus.COMPLETED,
         output: output,
         finishedAt: new Date(),
       },
@@ -303,7 +303,7 @@ export async function syncJobStatus(job: Job) {
           id: job.id,
         },
         data: {
-          status: "REFUNDED",
+          status: JobStatus.REFUNDED,
           refundedCreditTransaction: {
             create: {
               amount: creditTransaction.amount * BigInt(-1),
@@ -325,7 +325,7 @@ export async function syncJobStatus(job: Job) {
       id: job.id,
     },
     data: {
-      status: "FAILED",
+      status: JobStatus.FAILED,
       errorNote: "Unknown on-chain state: " + onChainState,
       errorNoteKey: "Job.ManualChainState",
     },
