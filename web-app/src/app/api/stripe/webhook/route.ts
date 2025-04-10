@@ -34,6 +34,12 @@ const updateFiatTransactionStatus = async (
       );
       return;
     }
+    if (session.client_reference_id !== fiatTransaction.id) {
+      console.error(
+        `🔔  Session client reference id ${session.client_reference_id} does not match fiat transaction id ${fiatTransaction.id}`,
+      );
+      return;
+    }
     switch (status) {
       case FiatTransactionStatus.SUCCEEDED:
         await setFiatTransactionSucceeded(fiatTransaction, tx);
