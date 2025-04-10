@@ -1,9 +1,8 @@
 "use server";
 
-import { FiatTransactionStatus } from "@prisma/client";
-
 import prisma from "@/lib/db/prisma";
 import { convertCreditsToBaseUnits } from "@/lib/db/utils/credit.utils";
+import { FiatTransactionStatus } from "@/prisma/generated/client";
 
 export async function createFiatTransaction(userId: string, credits: number) {
   const fiatTransaction = await prisma.fiatTransaction.create({

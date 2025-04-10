@@ -1,9 +1,9 @@
-import { FiatTransactionStatus } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.config";
 import { updateFiatTransactionStatus } from "@/lib/db/services/fiatTransaction.service";
+import { FiatTransactionStatus } from "@/prisma/generated/client";
 
 const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
