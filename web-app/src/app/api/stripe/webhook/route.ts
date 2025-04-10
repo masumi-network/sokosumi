@@ -16,7 +16,6 @@ const handleFiatTransactionFailed = async (
 };
 
 const checkSessionPayment = async (session: Stripe.Checkout.Session) => {
-  console.log(`🔔  Check payment for session ${session.id}`);
   const paymentStatus = session.payment_status;
   if (paymentStatus !== "paid") {
     console.error(
@@ -32,8 +31,6 @@ const checkSessionPayment = async (session: Stripe.Checkout.Session) => {
 };
 
 export async function POST(request: NextRequest) {
-  console.log("🔔  Stripe webhook received");
-
   const secret = getEnvSecrets().STRIPE_WEBHOOK_SECRET;
   if (!secret) {
     return NextResponse.json(
@@ -60,7 +57,7 @@ export async function POST(request: NextRequest) {
       getEnvSecrets().STRIPE_WEBHOOK_SECRET,
     );
   } catch {
-    console.log(`⚠️  Webhook signature verification failed.`);
+    console.error(`⚠️  Webhook signature verification failed.`);
     return NextResponse.json(
       { message: "Webhook signature verification failed" },
       { status: 400 },
