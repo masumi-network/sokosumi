@@ -16,11 +16,7 @@ import { calculatedInputHash } from "@/lib/utils";
 import { Job, JobStatus } from "@/prisma/generated/client";
 
 import { getAgentById, getAgentPricing } from "./agent.service";
-import {
-  calculateCreditCost,
-  createCreditTransaction,
-  deleteCreditTransaction,
-} from "./credit.service";
+import { calculateCreditCost, validateCreditBalance } from "./credit.service";
 
 const startJobSchema = z.object({
   input_hash: z.string(),
@@ -37,124 +33,133 @@ export async function startJob(
   agentId: string,
   maxAcceptedCreditCost: bigint,
   inputData: Map<string, string | number | boolean | number[]>,
-) {
-  const agent = await getAgentById(agentId);
+): Promise<Job> {
+  return await prisma.$transaction(
+    async (tx) => {
+      const agent = await getAgentById(agentId, tx);
+      if (!agent) {
+        throw new Error("Agent not found");
+      }
+      const pricing = await getAgentPricing(agentId, tx);
+      const creditCost = await calculateCreditCost(
+        pricing.FixedPricing.Amounts.map((amount) => ({
+          unit: amount.unit,
+          amount: Number(amount.amount),
+        })),
+        tx,
+      );
 
-  if (!agent) {
-    throw new Error("Agent not found");
-  }
+      if (creditCost > maxAcceptedCreditCost) {
+        throw new Error("Credit cost is too high");
+      }
+      if (creditCost > 0) {
+        await validateCreditBalance(userId, creditCost, tx);
+      }
+      const baseUrl = getApiBaseUrl(agent);
+      const startJobUrl = new URL(`/start_job`, baseUrl);
+      const identifierFromPurchaser = crypto
+        .randomUUID()
+        .replace(/-/g, "")
+        .substring(0, 25);
 
-  const pricing = await getAgentPricing(agentId);
+      const inputHash = calculatedInputHash(inputData, identifierFromPurchaser);
 
-  const creditCost = await calculateCreditCost(
-    pricing.FixedPricing.Amounts.map((amount) => ({
-      unit: amount.unit,
-      amount: Number(amount.amount),
-    })),
-  );
-
-  if (creditCost > maxAcceptedCreditCost) {
-    throw new Error("Credit cost is too high");
-  }
-
-  const creditTransaction = await createCreditTransaction(userId, -creditCost);
-
-  try {
-    const baseUrl = getApiBaseUrl(agent);
-    const startJobUrl = new URL(`/start_job`, baseUrl);
-    const identifierFromPurchaser = crypto
-      .randomUUID()
-      .replace(/-/g, "")
-      .substring(0, 25);
-
-    const inputHash = calculatedInputHash(inputData, identifierFromPurchaser);
-
-    const result = await fetch(startJobUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        identifier_from_purchaser: identifierFromPurchaser,
-        input_data: Object.fromEntries(inputData),
-      }),
-    });
-    if (!result.ok) {
-      throw new Error("Failed to start job");
-    }
-
-    const startJobResponseData = startJobSchema.safeParse(await result.json());
-    if (!startJobResponseData.success) {
-      throw new Error("Failed to parse start job response");
-    }
-
-    const startJobResponse = startJobResponseData.data;
-    if (startJobResponse.input_hash !== inputHash) {
-      throw new Error("Input data hash mismatch");
-    }
-
-    const paymentClient = getPaymentClient();
-    const purchaseRequest = await postPurchase({
-      client: paymentClient,
-      body: {
-        agentIdentifier: agent.blockchainIdentifier,
-        inputHash: inputHash,
-        blockchainIdentifier: startJobResponse.blockchainIdentifier,
-        network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
-        sellerVkey: startJobResponse.sellerVkey,
-        paymentType: "Web3CardanoV1",
-        identifierFromPurchaser,
-        externalDisputeUnlockTime:
-          startJobResponse.externalDisputeUnlockTime.toString(),
-        submitResultTime: startJobResponse.submitResultTime.toString(),
-        unlockTime: startJobResponse.unlockTime.toString(),
-        metadata: JSON.stringify({
-          inputData: Object.fromEntries(inputData),
-          jobId: startJobResponse.job_id,
+      const result = await fetch(startJobUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          identifier_from_purchaser: identifierFromPurchaser,
+          input_data: Object.fromEntries(inputData),
         }),
-      },
-    });
-    if (purchaseRequest.error || !purchaseRequest.data) {
-      throw new Error("Failed to create purchase request");
-    }
+      });
+      if (!result.ok) {
+        throw new Error("Failed to start job");
+      }
 
-    const purchaseResponse = purchaseRequest.data;
-    const job = await prisma.job.create({
-      data: {
-        agentJobId: startJobResponse.job_id,
-        agent: {
-          connect: {
-            id: agentId,
+      const startJobResponseData = startJobSchema.safeParse(
+        await result.json(),
+      );
+      if (!startJobResponseData.success) {
+        throw new Error("Failed to parse start job response");
+      }
+
+      const startJobResponse = startJobResponseData.data;
+      if (startJobResponse.input_hash !== inputHash) {
+        throw new Error("Input data hash mismatch");
+      }
+
+      const paymentClient = getPaymentClient();
+      const purchaseRequest = await postPurchase({
+        client: paymentClient,
+        body: {
+          agentIdentifier: agent.blockchainIdentifier,
+          inputHash: inputHash,
+          blockchainIdentifier: startJobResponse.blockchainIdentifier,
+          network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
+          sellerVkey: startJobResponse.sellerVkey,
+          paymentType: "Web3CardanoV1",
+          identifierFromPurchaser,
+          externalDisputeUnlockTime:
+            startJobResponse.externalDisputeUnlockTime.toString(),
+          submitResultTime: startJobResponse.submitResultTime.toString(),
+          unlockTime: startJobResponse.unlockTime.toString(),
+          metadata: JSON.stringify({
+            inputData: Object.fromEntries(inputData),
+            jobId: startJobResponse.job_id,
+          }),
+        },
+      });
+      if (purchaseRequest.error || !purchaseRequest.data) {
+        throw new Error("Failed to create purchase request");
+      }
+
+      const purchaseResponse = purchaseRequest.data;
+      const job = await prisma.job.create({
+        data: {
+          agentJobId: startJobResponse.job_id,
+          agent: {
+            connect: {
+              id: agentId,
+            },
+          },
+          creditTransaction: {
+            create: {
+              amount: -creditCost,
+              includedFee: BigInt(0),
+              user: {
+                connect: {
+                  id: userId,
+                },
+              },
+            },
+          },
+          status: JobStatus.PAYMENT_PENDING,
+          paymentId: purchaseResponse.data.id,
+          input: JSON.stringify(Object.fromEntries(inputData)),
+          identifierFromPurchaser,
+          externalDisputeUnlockTime: new Date(
+            startJobResponse.externalDisputeUnlockTime,
+          ),
+          submitResultTime: new Date(startJobResponse.submitResultTime),
+          unlockTime: new Date(startJobResponse.unlockTime),
+          blockchainIdentifier: startJobResponse.blockchainIdentifier,
+          sellerVkey: startJobResponse.sellerVkey,
+          user: {
+            connect: {
+              id: userId,
+            },
           },
         },
-        creditTransaction: {
-          connect: {
-            id: creditTransaction.id,
-          },
-        },
-        status: JobStatus.PAYMENT_PENDING,
-        paymentId: purchaseResponse.data.id,
-        input: JSON.stringify(Object.fromEntries(inputData)),
-        identifierFromPurchaser,
-        externalDisputeUnlockTime: new Date(
-          startJobResponse.externalDisputeUnlockTime,
-        ),
-        submitResultTime: new Date(startJobResponse.submitResultTime),
-        unlockTime: new Date(startJobResponse.unlockTime),
-        blockchainIdentifier: startJobResponse.blockchainIdentifier,
-        sellerVkey: startJobResponse.sellerVkey,
-        user: {
-          connect: {
-            id: userId,
-          },
-        },
-      },
-    });
-    return job;
-  } catch (error) {
-    await deleteCreditTransaction(creditTransaction.id);
-    throw new Error("Failed to create job", { cause: error });
-  }
+      });
+      return job;
+    },
+    {
+      timeout: 2000,
+      maxWait: 10000,
+    },
+  );
 }
 
 /**

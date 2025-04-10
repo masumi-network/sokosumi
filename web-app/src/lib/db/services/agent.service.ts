@@ -3,8 +3,13 @@ import { getPaymentInformation } from "@/lib/api/generated/registry";
 import { getRegistryClient } from "@/lib/api/registry-service.client";
 import { getApiBaseUrl } from "@/lib/db/extension/agent";
 import prisma from "@/lib/db/prisma";
-import { agentInclude, AgentWithRelations } from "@/lib/db/types/agent.types";
+import {
+  agentInclude,
+  agentPricingInclude,
+  AgentWithRelations,
+} from "@/lib/db/types/agent.types";
 import { jobInputsDataSchema, JobInputsDataSchemaType } from "@/lib/job-input";
+import { Prisma } from "@/prisma/generated/client";
 
 import { getOrCreateFavoriteAgentList } from "./agentList.service";
 
@@ -19,8 +24,9 @@ export async function getAgents(): Promise<AgentWithRelations[]> {
 
 export async function getAgentById(
   id: string,
+  tx?: Prisma.TransactionClient,
 ): Promise<AgentWithRelations | null> {
-  return await prisma.agent.findUnique({
+  return await (tx ?? prisma).agent.findUnique({
     where: { id },
     include: agentInclude,
   });
@@ -86,8 +92,14 @@ export async function getAgentInputSchema(
   return inputSchema;
 }
 
-export async function getAgentPricing(agentId: string) {
-  const agent = await getAgentById(agentId);
+export async function getAgentPricing(
+  agentId: string,
+  tx?: Prisma.TransactionClient,
+) {
+  const agent = await (tx ?? prisma).agent.findUnique({
+    where: { id: agentId },
+    include: agentPricingInclude,
+  });
 
   if (!agent) {
     throw new Error("Agent not found");

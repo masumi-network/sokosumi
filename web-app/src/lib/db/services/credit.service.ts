@@ -6,7 +6,7 @@ import { getEnvPublicConfig } from "@/config/env.config";
 import { AgentWithFixedPricing } from "@/lib/db/extension/agent";
 import prisma from "@/lib/db/prisma";
 import { convertBaseUnitsToCredits } from "@/lib/db/utils/credit.utils";
-import { CreditTransaction } from "@/prisma/generated/client";
+import { CreditTransaction, Prisma } from "@/prisma/generated/client";
 
 export async function getCreditBalance(userId: string): Promise<bigint> {
   const creditBalance = await prisma.creditTransaction.aggregate({
@@ -18,35 +18,39 @@ export async function getCreditBalance(userId: string): Promise<bigint> {
   return creditBalance._sum.amount ?? BigInt(0);
 }
 
+export async function validateCreditBalance(
+  userId: string,
+  credits: bigint,
+  tx?: Prisma.TransactionClient,
+): Promise<void> {
+  const creditBalance = await (tx ?? prisma).creditTransaction.aggregate({
+    where: { userId },
+    _sum: {
+      amount: true,
+    },
+  });
+  if (
+    creditBalance._sum.amount === null ||
+    creditBalance._sum.amount - credits < BigInt(0)
+  ) {
+    throw new Error("Insufficient balance");
+  }
+}
+
+// TODO: unused atm
 export async function createCreditTransaction(
   userId: string,
-  credits: bigint, // if credits is positive, it is a top up
-  includedFee: bigint = BigInt(0),
+  credits: bigint, // positive === top up; negative === purchase
+  includedFee: bigint,
+  tx?: Prisma.TransactionClient,
 ): Promise<CreditTransaction> {
-  const creditTransaction = await prisma.$transaction(async (tx) => {
-    if (credits < 0) {
-      const creditBalance = await tx.creditTransaction.aggregate({
-        where: { userId },
-        _sum: {
-          amount: true,
-        },
-      });
-      if (
-        creditBalance._sum.amount === null ||
-        creditBalance._sum.amount - credits * BigInt(-1) < BigInt(0)
-      ) {
-        throw new Error("Insufficient balance");
-      }
-    }
-    return await tx.creditTransaction.create({
-      data: {
-        userId,
-        amount: credits,
-        includedFee,
-      },
-    });
+  return await (tx ?? prisma).creditTransaction.create({
+    data: {
+      userId,
+      amount: credits,
+      includedFee,
+    },
   });
-  return creditTransaction;
 }
 
 const amountsSchema = z.array(
@@ -84,6 +88,7 @@ export async function calculateAgentHumandReadableCreditCost(
  */
 export async function calculateCreditCost(
   amounts: { unit: string; amount: number }[],
+  tx?: Prisma.TransactionClient,
 ): Promise<bigint> {
   const feePercentagePoints = getEnvPublicConfig().NEXT_PUBLIC_FEE_PERCENTAGE;
   if (feePercentagePoints < 0) {
@@ -95,7 +100,7 @@ export async function calculateCreditCost(
 
   let totalCreditCost = BigInt(0);
   for (const amount of amountsParsed) {
-    const creditCost = await prisma.creditCost.findUnique({
+    const creditCost = await (tx ?? prisma).creditCost.findUnique({
       where: {
         unit: amount.unit == "lovelace" ? "" : amount.unit,
       },
