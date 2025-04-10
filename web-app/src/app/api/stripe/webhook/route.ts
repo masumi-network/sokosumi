@@ -1,4 +1,3 @@
-import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
@@ -6,8 +5,8 @@ import { getEnvSecrets } from "@/config/env.config";
 import prisma from "@/lib/db/prisma";
 import {
   getFiatTransactionByServicePaymentId,
-  setFiatTransactionFailed,
-  setFiatTransactionSucceeded,
+  setFiatTransactionStatusToFailed,
+  setFiatTransactionStatusToSucceeded,
 } from "@/lib/db/services/fiatTransaction.service";
 import {
   FiatTransaction,
@@ -20,7 +19,7 @@ export async function POST(req: Request) {
   let event: Stripe.Event;
 
   try {
-    const stripeSignature = (await headers()).get("stripe-signature");
+    const stripeSignature = req.headers.get("stripe-signature");
 
     event = stripe.webhooks.constructEvent(
       await req.text(),
@@ -35,7 +34,6 @@ export async function POST(req: Request) {
       { status: 400 },
     );
   }
-  console.log(`Stripe event id: ${event.id}`);
 
   const permittedEvents: string[] = [
     "checkout.session.completed",
@@ -43,6 +41,8 @@ export async function POST(req: Request) {
     "checkout.session.async_payment_succeeded",
     "checkout.session.async_payment_failed",
   ];
+
+  console.log(`🔍 Event id: ${event.id}`);
 
   if (permittedEvents.includes(event.type)) {
     const session = event.data.object as Stripe.Checkout.Session;
@@ -117,9 +117,9 @@ const updateFiatTransactionStatus = async (
 
     switch (status) {
       case "SUCCEEDED":
-        return await setFiatTransactionSucceeded(fiatTransaction, tx);
+        return await setFiatTransactionStatusToSucceeded(fiatTransaction, tx);
       case "FAILED":
-        return await setFiatTransactionFailed(fiatTransaction, tx);
+        return await setFiatTransactionStatusToFailed(fiatTransaction, tx);
     }
   });
 };

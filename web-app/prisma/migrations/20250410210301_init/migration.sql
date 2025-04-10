@@ -422,6 +422,9 @@ CREATE UNIQUE INDEX "Agent_ratingId_key" ON "Agent"("ratingId");
 CREATE UNIQUE INDEX "Agent_pricingId_key" ON "Agent"("pricingId");
 
 -- CreateIndex
+CREATE INDEX "Agent_blockchainIdentifier_idx" ON "Agent"("blockchainIdentifier");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Lock_key_key" ON "Lock"("key");
 
 -- CreateIndex
@@ -435,6 +438,9 @@ CREATE UNIQUE INDEX "FiatTransaction_servicePaymentId_key" ON "FiatTransaction"(
 
 -- CreateIndex
 CREATE UNIQUE INDEX "FiatTransaction_creditTransactionId_key" ON "FiatTransaction"("creditTransactionId");
+
+-- CreateIndex
+CREATE INDEX "FiatTransaction_servicePaymentId_idx" ON "FiatTransaction"("servicePaymentId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Job_blockchainIdentifier_key" ON "Job"("blockchainIdentifier");

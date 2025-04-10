@@ -14,9 +14,9 @@ import { getUserById } from "./user.service";
 export async function createFiatTransaction(
   userId: string,
   credits: number,
-  tx?: Prisma.TransactionClient,
+  tx: Prisma.TransactionClient = prisma,
 ) {
-  const fiatTransaction = await (tx ?? prisma).fiatTransaction.create({
+  const fiatTransaction = await tx.fiatTransaction.create({
     data: {
       userId,
       credits: convertCreditsToBaseUnits(credits),
@@ -27,9 +27,9 @@ export async function createFiatTransaction(
 
 export async function getFiatTransactionByServicePaymentId(
   servicePaymentId: string,
-  tx?: Prisma.TransactionClient,
+  tx: Prisma.TransactionClient = prisma,
 ) {
-  return await (tx ?? prisma).fiatTransaction.findUnique({
+  return await tx.fiatTransaction.findUnique({
     where: { servicePaymentId },
   });
 }
@@ -37,20 +37,20 @@ export async function getFiatTransactionByServicePaymentId(
 export async function updateServicePaymentId(
   fiatTransactionId: string,
   servicePaymentId: string,
-  tx?: Prisma.TransactionClient,
+  tx: Prisma.TransactionClient = prisma,
 ) {
-  const fiatTransaction = await (tx ?? prisma).fiatTransaction.update({
+  const fiatTransaction = await tx.fiatTransaction.update({
     where: { id: fiatTransactionId },
     data: { servicePaymentId },
   });
   return fiatTransaction;
 }
 
-export async function setFiatTransactionSucceeded(
+export async function setFiatTransactionStatusToSucceeded(
   fiatTransaction: FiatTransaction,
-  tx?: Prisma.TransactionClient,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<FiatTransaction> {
-  return await (tx ?? prisma).fiatTransaction.update({
+  return await tx.fiatTransaction.update({
     where: { id: fiatTransaction.id },
     data: {
       status: FiatTransactionStatus.SUCCEEDED,
@@ -64,11 +64,11 @@ export async function setFiatTransactionSucceeded(
   });
 }
 
-export async function setFiatTransactionFailed(
+export async function setFiatTransactionStatusToFailed(
   fiatTransaction: FiatTransaction,
-  tx?: Prisma.TransactionClient,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<FiatTransaction> {
-  return await (tx ?? prisma).fiatTransaction.update({
+  return await tx.fiatTransaction.update({
     where: { id: fiatTransaction.id },
     data: { status: FiatTransactionStatus.FAILED },
   });

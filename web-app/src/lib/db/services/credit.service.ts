@@ -10,9 +10,9 @@ import { Prisma } from "@/prisma/generated/client";
 
 export async function getCreditBalance(
   userId: string,
-  tx?: Prisma.TransactionClient,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<bigint> {
-  const creditBalance = await (tx ?? prisma).creditTransaction.aggregate({
+  const creditBalance = await tx.creditTransaction.aggregate({
     where: { userId },
     _sum: {
       amount: true,
@@ -24,7 +24,7 @@ export async function getCreditBalance(
 export async function validateCreditBalance(
   userId: string,
   credits: bigint,
-  tx?: Prisma.TransactionClient,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<void> {
   const creditBalance = await getCreditBalance(userId, tx);
   if (creditBalance - credits < BigInt(0)) {
@@ -47,7 +47,7 @@ const amountsSchema = z.array(
  */
 export async function calculateAgentHumandReadableCreditCost(
   agent: AgentWithFixedPricing,
-  tx?: Prisma.TransactionClient,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<number> {
   const amounts = agent.pricing?.fixedPricing?.amounts?.map((amount) => ({
     unit: amount.unit,
@@ -68,7 +68,7 @@ export async function calculateAgentHumandReadableCreditCost(
  */
 export async function calculateCreditCost(
   amounts: { unit: string; amount: number }[],
-  tx?: Prisma.TransactionClient,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<bigint> {
   const feePercentagePoints = getEnvPublicConfig().NEXT_PUBLIC_FEE_PERCENTAGE;
   if (feePercentagePoints < 0) {
@@ -80,7 +80,7 @@ export async function calculateCreditCost(
 
   let totalCreditCost = BigInt(0);
   for (const amount of amountsParsed) {
-    const creditCost = await (tx ?? prisma).creditCost.findUnique({
+    const creditCost = await tx.creditCost.findUnique({
       where: {
         unit: amount.unit == "lovelace" ? "" : amount.unit,
       },

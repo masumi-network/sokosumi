@@ -171,9 +171,9 @@ export async function startJob(
 export async function getJobsByAgentId(
   agentId: string,
   userId: string,
-  tx?: Prisma.TransactionClient,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<JobWithRelations[]> {
-  const jobs = await (tx ?? prisma).job.findMany({
+  const jobs = await tx.job.findMany({
     where: {
       agentId,
       userId,
@@ -336,8 +336,11 @@ export async function syncJobStatus(job: Job) {
  * @param userId - The unique identifier of the user
  * @returns Promise containing an array of jobs with their relations
  */
-export async function getJobs(userId: string, tx?: Prisma.TransactionClient) {
-  return await (tx ?? prisma).job.findMany({
+export async function getJobs(
+  userId: string,
+  tx: Prisma.TransactionClient = prisma,
+) {
+  return await tx.job.findMany({
     where: {
       userId,
     },
@@ -346,8 +349,11 @@ export async function getJobs(userId: string, tx?: Prisma.TransactionClient) {
   });
 }
 
-export async function getJobById(jobId: string, tx?: Prisma.TransactionClient) {
-  return await (tx ?? prisma).job.findUnique({
+export async function getJobById(
+  jobId: string,
+  tx: Prisma.TransactionClient = prisma,
+) {
+  return await tx.job.findUnique({
     where: { id: jobId },
     include: jobInclude,
   });

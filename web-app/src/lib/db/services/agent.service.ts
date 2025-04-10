@@ -14,9 +14,9 @@ import { Prisma } from "@/prisma/generated/client";
 import { getOrCreateFavoriteAgentList } from "./agentList.service";
 
 export async function getAgents(
-  tx?: Prisma.TransactionClient,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithRelations[]> {
-  return await (tx ?? prisma).agent.findMany({
+  return await tx.agent.findMany({
     include: agentInclude,
     where: {
       isShown: true,
@@ -26,9 +26,9 @@ export async function getAgents(
 
 export async function getAgentById(
   id: string,
-  tx?: Prisma.TransactionClient,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithRelations | null> {
-  return await (tx ?? prisma).agent.findUnique({
+  return await tx.agent.findUnique({
     where: { id },
     include: agentInclude,
   });
@@ -36,7 +36,7 @@ export async function getAgentById(
 
 export async function getFavoriteAgents(
   userId: string,
-  tx?: Prisma.TransactionClient,
+  tx: Prisma.TransactionClient = prisma,
 ) {
   const list = await getOrCreateFavoriteAgentList(userId, tx);
   return list.agents;
@@ -44,9 +44,9 @@ export async function getFavoriteAgents(
 
 export async function getHiredAgentsOrderedByLatestJob(
   userId: string,
-  tx?: Prisma.TransactionClient,
+  tx: Prisma.TransactionClient = prisma,
 ) {
-  const agentsWithJobs = await (tx ?? prisma).agent.findMany({
+  const agentsWithJobs = await tx.agent.findMany({
     where: {
       jobs: {
         some: {
@@ -82,8 +82,9 @@ export async function getHiredAgentsOrderedByLatestJob(
 
 export async function getAgentInputSchema(
   agentId: string,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<JobInputsDataSchemaType> {
-  const agent = await getAgentById(agentId);
+  const agent = await getAgentById(agentId, tx);
 
   if (!agent) {
     throw new Error(`Agent with ID ${agentId} not found`);
@@ -102,9 +103,9 @@ export async function getAgentInputSchema(
 
 export async function getAgentPricing(
   agentId: string,
-  tx?: Prisma.TransactionClient,
+  tx: Prisma.TransactionClient = prisma,
 ) {
-  const agent = await (tx ?? prisma).agent.findUnique({
+  const agent = await tx.agent.findUnique({
     where: { id: agentId },
     include: agentPricingInclude,
   });
