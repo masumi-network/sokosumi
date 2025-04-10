@@ -1,8 +1,7 @@
 "use server";
 
-import { User } from "@prisma/client";
-
 import prisma from "@/lib/db/prisma";
+import { User } from "@/prisma/generated/client";
 
 export async function getUserByEmail(email: string): Promise<User | null> {
   return await prisma.user.findUnique({

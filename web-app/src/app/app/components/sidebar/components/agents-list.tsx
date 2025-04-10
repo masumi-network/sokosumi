@@ -1,4 +1,3 @@
-import { Agent } from "@prisma/client";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
@@ -19,6 +18,7 @@ import {
   getFavoriteAgents,
   getHiredAgentsOrderedByLatestJob,
 } from "@/lib/db/services/agent.service";
+import { Agent } from "@/prisma/generated/client";
 
 export default function AgentsList() {
   return (

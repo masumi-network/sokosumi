@@ -1,7 +1,6 @@
-import { Agent, ExampleOutput, Prisma } from "@prisma/client";
-
 import { getEnvSecrets } from "@/config/env.config";
 import { ipfsUrlResolver } from "@/lib/ipfs";
+import { Agent, ExampleOutput, Prisma } from "@/prisma/generated/client";
 
 export function getName(agent: Agent): string {
   return agent.overrideName ?? agent.name;

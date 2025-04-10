@@ -1,10 +1,12 @@
-import { CreditTransaction } from "@prisma/client";
+"use server";
+
 import { z } from "zod";
 
 import { getEnvPublicConfig } from "@/config/env.config";
 import { AgentWithFixedPricing } from "@/lib/db/extension/agent";
 import prisma from "@/lib/db/prisma";
 import { convertBaseUnitsToCredits } from "@/lib/db/utils/credit.utils";
+import { CreditTransaction } from "@/prisma/generated/client";
 
 export async function getCreditBalance(userId: string): Promise<bigint> {
   const creditBalance = await prisma.creditTransaction.aggregate({

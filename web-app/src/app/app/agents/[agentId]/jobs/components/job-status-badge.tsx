@@ -1,9 +1,9 @@
 "use client";
 
-import { JobStatus } from "@prisma/client";
 import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
+import { JobStatus } from "@/prisma/generated/client";
 
 interface JobStatusBadgeProps {
   status: JobStatus;
