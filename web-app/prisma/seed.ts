@@ -1,14 +1,15 @@
-import {
-  CreditTransactionStatus,
-  CreditTransactionType,
-  PrismaClient,
-} from "@prisma/client";
+
 import { v4 as uuidv4 } from "uuid";
 
 import { getEnvSecrets } from "@/config/env.config";
 import { convertCreditsToBaseUnits } from "@/lib/db/utils/credit.utils";
 
 import { hashPassword } from "./util/password";
+import {
+  CreditTransactionStatus,
+  CreditTransactionType,
+  PrismaClient,
+} from "./generated/client";
 
 const prisma = new PrismaClient();
 
