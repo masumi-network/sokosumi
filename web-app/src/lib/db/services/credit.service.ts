@@ -117,11 +117,3 @@ export async function calculateCreditCost(
   }
   return totalCreditCost;
 }
-
-export async function deleteCreditTransaction(creditTransactionId: string) {
-  await prisma.creditTransaction.delete({
-    where: {
-      id: creditTransactionId,
-    },
-  });
-}
