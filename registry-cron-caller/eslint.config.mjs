@@ -16,13 +16,13 @@ const eslintConfig = [
       "prettier",
       "unused-imports",
       "no-relative-import-paths",
-      "@typescript-eslint"
+      "@typescript-eslint",
     ],
     ignorePatterns: [
       "**/dist/**",
       "**/build/**",
       "**/coverage/**",
-      "packages/*"
+      "packages/*",
     ],
     rules: {
       "simple-import-sort/imports": "error",
