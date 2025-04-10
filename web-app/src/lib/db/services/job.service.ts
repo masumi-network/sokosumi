@@ -1,6 +1,5 @@
 "use server";
 
-import { CreditTransactionType, Job } from "@prisma/client";
 import { z } from "zod";
 
 import { getEnvPublicConfig } from "@/config/env.config";
@@ -14,6 +13,7 @@ import {
   JobWithRelations,
 } from "@/lib/db/types/job.types";
 import { calculatedInputHash } from "@/lib/utils";
+import { CreditTransactionType, Job } from "@/prisma/generated/client";
 
 import { getAgentById, getAgentPricing } from "./agent.service";
 import { calculateCreditCost, creditTransactionSpend } from "./credit.service";

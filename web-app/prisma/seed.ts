@@ -1,12 +1,12 @@
-import {
-  CreditTransactionStatus,
-  CreditTransactionType,
-  PrismaClient,
-} from "@prisma/client";
 import crypto from "crypto";
 
 import { getEnvSecrets } from "@/config/env.config";
 import { convertCreditsToBaseUnits } from "@/lib/db/utils/credit.utils";
+import {
+  CreditTransactionStatus,
+  CreditTransactionType,
+  PrismaClient,
+} from "@/prisma/generated/client";
 
 import { hashPassword } from "./util/password";
 

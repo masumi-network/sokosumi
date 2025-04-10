@@ -1,12 +1,15 @@
 "use server";
 
-import { CreditTransactionStatus, CreditTransactionType } from "@prisma/client";
 import { z } from "zod";
 
 import { getEnvPublicConfig } from "@/config/env.config";
 import { AgentWithFixedPricing } from "@/lib/db/extension/agent";
 import prisma from "@/lib/db/prisma";
 import { convertBaseUnitsToCredits } from "@/lib/db/utils/credit.utils";
+import {
+  CreditTransactionStatus,
+  CreditTransactionType,
+} from "@/prisma/generated/client";
 
 export async function getHumandReadableCreditBalance(
   userId: string,
