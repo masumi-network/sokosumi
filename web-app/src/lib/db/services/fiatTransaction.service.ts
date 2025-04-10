@@ -1,5 +1,6 @@
 "use server";
 
+import { createCheckoutSession } from "@/lib/actions/stripe.actions";
 import prisma from "@/lib/db/prisma";
 import { convertCreditsToBaseUnits } from "@/lib/db/utils/credit.utils";
 import {
@@ -8,8 +9,12 @@ import {
   Prisma,
 } from "@/prisma/generated/client";
 
-export async function createFiatTransaction(userId: string, credits: number) {
-  const fiatTransaction = await prisma.fiatTransaction.create({
+export async function createFiatTransaction(
+  userId: string,
+  credits: number,
+  tx?: Prisma.TransactionClient,
+) {
+  const fiatTransaction = await (tx ?? prisma).fiatTransaction.create({
     data: {
       userId,
       credits: convertCreditsToBaseUnits(credits),
@@ -30,8 +35,9 @@ export async function getFiatTransactionByServicePaymentId(
 export async function updateServicePaymentId(
   fiatTransactionId: string,
   servicePaymentId: string,
+  tx?: Prisma.TransactionClient,
 ) {
-  const fiatTransaction = await prisma.fiatTransaction.update({
+  const fiatTransaction = await (tx ?? prisma).fiatTransaction.update({
     where: { id: fiatTransactionId },
     data: { servicePaymentId },
   });
@@ -63,5 +69,22 @@ export async function setFiatTransactionFailed(
   return await (tx ?? prisma).fiatTransaction.update({
     where: { id: fiatTransaction.id },
     data: { status: FiatTransactionStatus.FAILED },
+  });
+}
+
+export async function createOneTimePaymentStripeSession(
+  userId: string,
+  priceId: string,
+  credits: number,
+): Promise<{ stripeSessionId: string; url: string }> {
+  return await prisma.$transaction(async (tx) => {
+    const fiatTransaction = await createFiatTransaction(userId, credits, tx);
+    const { id: stripeSessionId, url } = await createCheckoutSession(
+      fiatTransaction.id,
+      priceId,
+      credits,
+    );
+    await updateServicePaymentId(fiatTransaction.id, stripeSessionId, tx);
+    return { stripeSessionId, url };
   });
 }

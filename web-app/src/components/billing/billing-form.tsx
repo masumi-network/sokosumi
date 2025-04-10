@@ -15,11 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createCheckoutSession } from "@/lib/actions/stripe.actions";
-import {
-  createFiatTransaction,
-  updateServicePaymentId,
-} from "@/lib/db/services/fiatTransaction.service";
+import { createOneTimePaymentStripeSession } from "@/lib/db/services/fiatTransaction.service";
 
 interface BillingFormProps {
   userId: string;
@@ -46,14 +42,13 @@ export default function BillingForm({
     }
     setLoading(true);
     try {
-      const fiatTransaction = await createFiatTransaction(userId, credits);
-      const { id, url } = await createCheckoutSession(
-        fiatTransaction.id,
+      const { stripeSessionId, url } = await createOneTimePaymentStripeSession(
+        userId,
         priceId,
         credits,
       );
-      await updateServicePaymentId(fiatTransaction.id, id);
-      console.log("Checkout session created:", id, url);
+
+      console.log("Checkout session created:", stripeSessionId, url);
       window.location.href = url;
     } catch (error) {
       console.error("Failed to create checkout session:", error);
