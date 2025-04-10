@@ -6,7 +6,7 @@ import { getEnvPublicConfig } from "@/config/env.config";
 import { AgentWithFixedPricing } from "@/lib/db/extension/agent";
 import prisma from "@/lib/db/prisma";
 import { convertBaseUnitsToCredits } from "@/lib/db/utils/credit.utils";
-import { CreditTransaction, Prisma } from "@/prisma/generated/client";
+import { Prisma } from "@/prisma/generated/client";
 
 export async function getCreditBalance(userId: string): Promise<bigint> {
   const creditBalance = await prisma.creditTransaction.aggregate({
@@ -35,22 +35,6 @@ export async function validateCreditBalance(
   ) {
     throw new Error("Insufficient balance");
   }
-}
-
-// TODO: unused atm
-export async function createCreditTransaction(
-  userId: string,
-  credits: bigint, // positive === top up; negative === purchase
-  includedFee: bigint,
-  tx?: Prisma.TransactionClient,
-): Promise<CreditTransaction> {
-  return await (tx ?? prisma).creditTransaction.create({
-    data: {
-      userId,
-      amount: credits,
-      includedFee,
-    },
-  });
 }
 
 const amountsSchema = z.array(
