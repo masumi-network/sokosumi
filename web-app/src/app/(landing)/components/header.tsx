@@ -1,7 +1,6 @@
 import Link from "next/link";
 
-import { SokosumiLogo } from "@/components/masumi-logos";
-import { ThemeToggle } from "@/components/theme-toggle";
+import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
 
 import AppConnection from "./app-connection";
 import Navigation from "./navigation";
@@ -16,19 +15,11 @@ export default function Header() {
       <div className="container mx-auto flex items-center justify-between gap-6">
         {/* Left - Logo */}
         <Link href="/">
-          <SokosumiLogo
+          <ThemedLogo
+            LogoComponent={SokosumiLogo}
             width={200}
             height={26}
             priority
-            variant={"black"}
-            className="dark:hidden"
-          />
-          <SokosumiLogo
-            width={200}
-            height={26}
-            priority
-            variant={"white"}
-            className="hidden dark:block"
           />
         </Link>
 
@@ -37,7 +28,6 @@ export default function Header() {
 
         {/* Right - Auth Buttons */}
         <div className="ml-auto hidden items-center gap-2 sm:flex">
-          <ThemeToggle />
           <AppConnection />
         </div>
 

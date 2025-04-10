@@ -4,12 +4,14 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface SocialButtonProps {
   iconPath: string;
   altText?: string;
   children: React.ReactNode;
   onClick?: () => void;
+  invertInDark?: boolean;
 }
 
 export default function SocialButton({
@@ -17,6 +19,7 @@ export default function SocialButton({
   children,
   onClick,
   altText,
+  invertInDark = false,
 }: SocialButtonProps) {
   const alt =
     altText ??
@@ -29,7 +32,7 @@ export default function SocialButton({
         alt={alt}
         width={20}
         height={20}
-        className="h-4 w-4"
+        className={cn("h-4 w-4", invertInDark && "dark:invert")}
       />
       <span>{children}</span>
     </Button>
@@ -41,6 +44,7 @@ export function XButton() {
   return (
     <SocialButton
       iconPath="/socials/x.svg"
+      invertInDark={true}
       onClick={() =>
         window.open(
           "https://x.com/MasumiNetwork",
@@ -82,6 +86,7 @@ export function GitHubButton({
   return (
     <SocialButton
       iconPath="/socials/github.svg"
+      invertInDark={true}
       onClick={() => window.open(url, "_blank", "noopener,noreferrer")}
     >
       {children}
