@@ -2,20 +2,57 @@ import { NextRequest, NextResponse } from "next/server";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.config";
-import { updateFiatTransactionStatus } from "@/lib/db/services/fiatTransaction.service";
+import prisma from "@/lib/db/prisma";
+import {
+  getFiatTransactionByServicePaymentId,
+  setFiatTransactionFailed,
+  setFiatTransactionSucceeded,
+} from "@/lib/db/services/fiatTransaction.service";
 import { FiatTransactionStatus } from "@/prisma/generated/client";
 
 const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
-const handleFiatTransactionFailed = async (
+const updateFiatTransactionStatus = async (
   session: Stripe.Checkout.Session,
+  status: FiatTransactionStatus,
 ) => {
-  console.log(`🔔  Payment failed for session ${session.id}`);
+  await prisma.$transaction(async (tx) => {
+    const fiatTransaction = await getFiatTransactionByServicePaymentId(
+      session.id,
+      tx,
+    );
+    if (!fiatTransaction) {
+      console.error(
+        `🔔  Fiat transaction is not pending for session ${session.id}`,
+      );
+      return;
+    }
 
-  await updateFiatTransactionStatus(session.id, FiatTransactionStatus.FAILED);
+    if (fiatTransaction.status !== FiatTransactionStatus.PENDING) {
+      console.error(
+        `🔔  Fiat transaction is not pending for session ${session.id}`,
+      );
+      return;
+    }
+    switch (status) {
+      case FiatTransactionStatus.SUCCEEDED:
+        await setFiatTransactionSucceeded(fiatTransaction, tx);
+        break;
+      case FiatTransactionStatus.FAILED:
+        await setFiatTransactionFailed(fiatTransaction, tx);
+        break;
+      default:
+        throw new Error(`Invalid status: ${status}`);
+    }
+  });
 };
 
-const checkSessionPayment = async (session: Stripe.Checkout.Session) => {
+const handleSessionFailureEvents = async (session: Stripe.Checkout.Session) => {
+  console.info(`🔔  Payment failed for session ${session.id}`);
+  await updateFiatTransactionStatus(session, FiatTransactionStatus.FAILED);
+};
+
+const handleSessionSuccessEvents = async (session: Stripe.Checkout.Session) => {
   const paymentStatus = session.payment_status;
   if (paymentStatus !== "paid") {
     console.error(
@@ -23,11 +60,7 @@ const checkSessionPayment = async (session: Stripe.Checkout.Session) => {
     );
     return;
   }
-
-  await updateFiatTransactionStatus(
-    session.id,
-    FiatTransactionStatus.SUCCEEDED,
-  );
+  await updateFiatTransactionStatus(session, FiatTransactionStatus.SUCCEEDED);
 };
 
 export async function POST(request: NextRequest) {
@@ -71,11 +104,11 @@ export async function POST(request: NextRequest) {
   switch (eventType) {
     case "checkout.session.completed":
     case "checkout.session.async_payment_succeeded":
-      await checkSessionPayment(session);
+      await handleSessionSuccessEvents(session);
       break;
     case "checkout.session.expired":
     case "checkout.session.async_payment_failed":
-      await handleFiatTransactionFailed(session);
+      await handleSessionFailureEvents(session);
       break;
     default:
       break;
