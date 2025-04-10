@@ -289,7 +289,6 @@ describe("jobInputSchema", () => {
           },
         ],
       });
-      console.log(result.error);
       expect(result.success).toBe(true);
     });
 

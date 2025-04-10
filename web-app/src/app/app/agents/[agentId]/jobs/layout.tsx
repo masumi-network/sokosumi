@@ -1,35 +1,21 @@
 import { Metadata } from "next";
-import { headers } from "next/headers";
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
+import DefaultLoading from "@/components/default-loading";
 import { requireAuthentication } from "@/lib/auth/utils";
 import { getDescription, getLegal, getName } from "@/lib/db/extension/agent";
-import { getAgentById, getAgents } from "@/lib/db/services/agent.service";
+import { getAgentById } from "@/lib/db/services/agent.service";
 import { getOrCreateFavoriteAgentList } from "@/lib/db/services/agentList.service";
 import { calculateAgentHumandReadableCreditCost } from "@/lib/db/services/credit.service";
-import { getJobsByAgentId } from "@/lib/db/services/job.service";
 
-import Footer from "./@right/components/footer";
-import Header from "./@right/components/header";
-import JobsTable from "./@right/components/jobs-table";
-
-interface JobLayoutParams {
-  agentId: string;
-}
-
-export async function generateStaticParams() {
-  const agents = await getAgents();
-  return agents.map((agent) => ({
-    agentId: String(agent.id),
-  }));
-}
+import Footer from "./components/footer";
+import Header, { HeaderSkeleton } from "./components/header";
 
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<JobLayoutParams>;
-  right: React.ReactNode;
-  children: React.ReactNode;
+  params: Promise<{ agentId: string }>;
 }): Promise<Metadata> {
   const { agentId } = await params;
   const agent = await getAgentById(agentId);
@@ -43,33 +29,37 @@ export async function generateMetadata({
   };
 }
 
-export default async function JobLayout({
-  right,
-  params,
-}: {
+interface JobLayoutProps {
   children: React.ReactNode;
   right: React.ReactNode;
-  params: Promise<JobLayoutParams>;
-}) {
-  const resultingParams = await params;
+  params: Promise<{ agentId: string }>;
+}
 
-  const { agentId } = resultingParams;
+export default async function JobLayout({
+  children,
+  right,
+  params,
+}: JobLayoutProps) {
+  return (
+    <Suspense fallback={<JobLayoutSkeleton />}>
+      <JobLayoutInner right={right} params={params}>
+        {children}
+      </JobLayoutInner>
+    </Suspense>
+  );
+}
+
+async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
+  const { agentId } = await params;
   const agent = await getAgentById(agentId);
   if (!agent) {
-    console.log("agent not found in job layout");
+    console.warn("agent not found in job layout");
     return notFound();
   }
+
   const { session } = await requireAuthentication();
   const agentPrice = await calculateAgentHumandReadableCreditCost(agent);
   const favoriteAgentList = await getOrCreateFavoriteAgentList(session.user.id);
-  const headerList = await headers();
-  const pathname = headerList.get("x-current-path");
-  const pathnameArray = pathname?.split("/");
-  let currentIds: string[] | undefined = undefined;
-  if (pathnameArray?.length === 6) {
-    currentIds = [pathnameArray[5]];
-  }
-  const agentJobs = await getJobsByAgentId(agentId, session.user.id);
 
   return (
     <div className="flex h-full flex-1 flex-col p-4 lg:p-6 xl:p-8">
@@ -79,10 +69,21 @@ export default async function JobLayout({
         favoriteAgentList={favoriteAgentList}
       />
       <div className="mt-6 flex flex-1 flex-col justify-center gap-4 lg:flex-row lg:overflow-hidden">
-        <JobsTable jobs={agentJobs} highlightedJobIds={currentIds} />
+        {children}
         {right}
       </div>
       <Footer legal={getLegal(agent)} />
+    </div>
+  );
+}
+
+function JobLayoutSkeleton() {
+  return (
+    <div className="flex flex-1 flex-col p-4 xl:p-8">
+      <HeaderSkeleton />
+      <div className="mt-6 flex flex-1 justify-center py-12">
+        <DefaultLoading />
+      </div>
     </div>
   );
 }

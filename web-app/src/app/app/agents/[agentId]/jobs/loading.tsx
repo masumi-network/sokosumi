@@ -1,15 +1,15 @@
-import { Loader2 } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
 
-import { HeaderSkeleton } from "./@right/components/header";
-
-export default function JobLoading({ right }: { right: React.ReactNode }) {
+export default function JobPageLoading() {
   return (
-    <div className="flex flex-1 flex-col p-4 xl:p-8">
-      <HeaderSkeleton />
-      <div className="mt-6 flex flex-1 justify-center py-12">
-        <Loader2 className="mr-2 h-8 w-8 animate-spin" />
-        {right}
-      </div>
+    <div className="flex w-full flex-col gap-4 rounded-md border p-4 lg:w-[max(400px,36%)]">
+      {Array.from({ length: 5 }).map((_, index) => (
+        <div key={index} className="flex items-center justify-around">
+          <Skeleton className="h-8 w-24" />
+          <Skeleton className="h-8 w-32" />
+          <Skeleton className="h-8 w-32" />
+        </div>
+      ))}
     </div>
   );
 }

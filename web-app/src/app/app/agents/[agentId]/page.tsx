@@ -37,6 +37,7 @@ export default async function Page({
   const { session } = await requireAuthentication();
   const agentList = await getOrCreateFavoriteAgentList(session.user.id);
   const agentPrice = await calculateAgentHumandReadableCreditCost(agent);
+
   return (
     <div className="w-full space-y-8 px-4 py-4 sm:px-8 xl:px-16">
       <BackToGallery />

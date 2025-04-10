@@ -66,15 +66,17 @@ export default function Header({
   const t = useTranslations("App.Agents.Jobs.Header");
   const router = useRouter();
   return (
-    <div className="flex flex-row items-center gap-4 lg:gap-6 xl:gap-8">
-      <AgentBookmarkSection
-        agentId={agent.id}
-        favoriteAgentList={favoriteAgentList}
-      />
-      <h1 className="text-2xl font-bold text-nowrap xl:text-3xl">
-        {getName(agent)}
-      </h1>
-      <div className="flex w-full flex-row items-center justify-end gap-5">
+    <div className="flex flex-col items-center gap-4 lg:flex-row lg:gap-6 xl:gap-8">
+      <div className="flex flex-row items-center gap-4">
+        <AgentBookmarkSection
+          agentId={agent.id}
+          favoriteAgentList={favoriteAgentList}
+        />
+        <h1 className="text-2xl font-bold text-nowrap xl:text-3xl">
+          {getName(agent)}
+        </h1>
+      </div>
+      <div className="flex flex-1 flex-row items-center justify-end gap-4">
         <div className="w-full text-end text-base">
           {t("price", { price: agentPricing })}
         </div>

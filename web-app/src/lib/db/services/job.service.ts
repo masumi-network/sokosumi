@@ -1,6 +1,5 @@
 "use server";
 
-import { CreditTransactionType, Job } from "@prisma/client";
 import { z } from "zod";
 
 import { getEnvPublicConfig } from "@/config/env.config";
@@ -14,6 +13,7 @@ import {
   JobWithRelations,
 } from "@/lib/db/types/job.types";
 import { calculatedInputHash } from "@/lib/utils";
+import { CreditTransactionType, Job } from "@/prisma/generated/client";
 
 import { getAgentById, getAgentPricing } from "./agent.service";
 import { calculateCreditCost, creditTransactionSpend } from "./credit.service";
@@ -80,21 +80,20 @@ export async function startJob(
       }),
     });
     if (!result.ok) {
-      console.log("result", await result.json());
       throw new Error("Failed to start job");
     }
+
     const startJobResponseData = startJobSchema.safeParse(await result.json());
     if (!startJobResponseData.success) {
-      console.log(startJobResponseData.error);
       throw new Error("Failed to parse start job response");
     }
+
     const startJobResponse = startJobResponseData.data;
     if (startJobResponse.input_hash !== inputHash) {
       throw new Error("Input data hash mismatch");
     }
 
     const paymentClient = getPaymentClient();
-
     const purchaseRequest = await postPurchase({
       client: paymentClient,
       body: {
@@ -255,7 +254,7 @@ export async function syncJobStatus(job: Job) {
   const onChainState = purchase.data.data.Purchases[0].onChainState;
 
   if (onChainState === "FundsLocked" || onChainState == null) {
-    console.log("Funds still in locked state");
+    console.warn("Funds still in locked state");
     return;
   }
 

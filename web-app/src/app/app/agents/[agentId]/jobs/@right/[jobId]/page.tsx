@@ -5,36 +5,36 @@ import { requireAuthentication } from "@/lib/auth/utils";
 import { getAgentById } from "@/lib/db/services/agent.service";
 import { getJobById } from "@/lib/db/services/job.service";
 
-interface JobPageParams {
+interface JobDetailsPageParams {
   agentId: string;
   jobId: string;
 }
 
-export default async function JobDetailPage({
+export default async function JobDetailsPage({
   params,
 }: {
-  params: Promise<JobPageParams>;
+  params: Promise<JobDetailsPageParams>;
 }) {
   const { agentId, jobId } = await params;
 
   const agent = await getAgentById(agentId);
   if (!agent) {
-    console.log("agent not found in job detail page");
+    console.warn("agent not found in job detail page");
     notFound();
   }
 
   const job = await getJobById(jobId);
   if (!job) {
-    console.log("job not found in job detail page");
+    console.warn("job not found in job detail page");
     notFound();
   }
   if (job.agent.id !== agentId) {
-    console.log("job not found in job detail page");
+    console.warn("job not found in job detail page");
     notFound();
   }
   const { session } = await requireAuthentication();
   if (job.userId !== session.user.id) {
-    console.log("job not found in job detail page");
+    console.warn("job not found in job detail page");
     notFound();
   }
 

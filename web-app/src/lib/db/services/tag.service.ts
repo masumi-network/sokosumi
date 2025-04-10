@@ -1,7 +1,7 @@
 "use server";
-import { Tag } from "@prisma/client";
 
 import prisma from "@/lib/db/prisma";
+import { Tag } from "@/prisma/generated/client";
 
 export async function getTags(): Promise<Tag[]> {
   const tags = await prisma.tag.findMany({

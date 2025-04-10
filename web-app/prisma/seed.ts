@@ -7,6 +7,11 @@ import { v4 as uuidv4 } from "uuid";
 
 import { getEnvSecrets } from "@/config/env.config";
 import { convertCreditsToBaseUnits } from "@/lib/db/utils/credit.utils";
+import {
+  CreditTransactionStatus,
+  CreditTransactionType,
+  PrismaClient,
+} from "@/prisma/generated/client";
 
 import { hashPassword } from "./util/password";
 

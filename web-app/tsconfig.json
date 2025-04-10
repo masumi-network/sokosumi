@@ -32,7 +32,8 @@
       "@/lib/*": ["./src/lib/*"],
       "@/middleware/*": ["./src/middleware/*"],
       "@/types/*": ["./src/types/*"],
-      "@/messages/*": ["./messages/*"]
+      "@/messages/*": ["./messages/*"],
+      "@/prisma/*": ["./prisma/*"]
     }
   },
   "include": [
