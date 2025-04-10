@@ -67,12 +67,10 @@ export async function createCheckoutSession(
         quantity: credits,
       },
     ],
+    client_reference_id: fiatTransactionId,
     customer: user.stripeCustomerId ?? undefined,
     customer_email: user.email,
-    metadata: {
-      fiatTransactionId: fiatTransactionId,
-      credits: credits,
-    },
+    billing_address_collection: "required",
     success_url: `${origin}/app/billing/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/app/billing/cancel`,
   });
