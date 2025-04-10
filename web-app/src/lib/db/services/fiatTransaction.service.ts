@@ -49,7 +49,7 @@ export async function updateServicePaymentId(
 export async function setFiatTransactionSucceeded(
   fiatTransaction: FiatTransaction,
   tx?: Prisma.TransactionClient,
-) {
+): Promise<FiatTransaction> {
   return await (tx ?? prisma).fiatTransaction.update({
     where: { id: fiatTransaction.id },
     data: {
@@ -67,7 +67,7 @@ export async function setFiatTransactionSucceeded(
 export async function setFiatTransactionFailed(
   fiatTransaction: FiatTransaction,
   tx?: Prisma.TransactionClient,
-) {
+): Promise<FiatTransaction> {
   return await (tx ?? prisma).fiatTransaction.update({
     where: { id: fiatTransaction.id },
     data: { status: FiatTransactionStatus.FAILED },
