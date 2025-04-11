@@ -72,6 +72,7 @@ export async function createCheckoutSession(
       ? { customer: user.stripeCustomerId }
       : { customer_email: user.email }),
     billing_address_collection: "required",
+    customer_creation: "always",
     success_url: `${origin}/app/billing/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/app/billing/cancel`,
   });
