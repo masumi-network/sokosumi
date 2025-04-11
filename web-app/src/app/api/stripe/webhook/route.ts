@@ -63,7 +63,7 @@ export async function POST(req: Request) {
         }
         case "checkout.session.async_payment_succeeded": {
           const session = event.data.object as Stripe.Checkout.Session;
-          handleCheckoutSessionCompletedEvent(session)
+          handleCheckoutSessionAsyncPaymentSucceededEvent(session)
             .then((fiatTransaction) => {
               console.info(
                 `💰 Fiat transaction status: ${fiatTransaction.status}`,
@@ -144,13 +144,17 @@ const handleCustomerCreatedEvent = async (customer: Stripe.Customer) => {
   return user;
 };
 
-const handleCheckoutSessionCompletedEvent = async (
-  session: Stripe.Checkout.Session,
-) => {
+const checkPaymentStatus = (session: Stripe.Checkout.Session) => {
   const paymentStatus = session.payment_status;
   if (paymentStatus !== "paid") {
     throw new Error("Payment status is not paid");
   }
+};
+
+const handleCheckoutSessionCompletedEvent = async (
+  session: Stripe.Checkout.Session,
+) => {
+  checkPaymentStatus(session);
   return await updateFiatTransactionStatus(session, "SUCCEEDED");
 };
 
@@ -163,10 +167,7 @@ const handleCheckoutSessionExpiredEvent = async (
 const handleCheckoutSessionAsyncPaymentSucceededEvent = async (
   session: Stripe.Checkout.Session,
 ) => {
-  const paymentStatus = session.payment_status;
-  if (paymentStatus !== "paid") {
-    throw new Error("Payment status is not paid");
-  }
+  checkPaymentStatus(session);
   return await updateFiatTransactionStatus(session, "SUCCEEDED");
 };
 
