@@ -45,6 +45,8 @@ model User {
   stripeCustomerId String?
 
   @@unique([email])
+  @@index([stripeCustomerId])
+  @@index([email])
   @@map("user")
 }
 

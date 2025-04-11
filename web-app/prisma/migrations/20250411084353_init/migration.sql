@@ -401,6 +401,12 @@ CREATE TABLE "_AgentTagOverride" (
 );
 
 -- CreateIndex
+CREATE INDEX "user_stripeCustomerId_idx" ON "user"("stripeCustomerId");
+
+-- CreateIndex
+CREATE INDEX "user_email_idx" ON "user"("email");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "user_email_key" ON "user"("email");
 
 -- CreateIndex
