@@ -156,8 +156,8 @@ export async function startJob(
       return job;
     },
     {
-      timeout: 2000,
-      maxWait: 10000,
+      maxWait: 5000, // default: 2000
+      timeout: 10000, // default: 5000
     },
   );
 }
