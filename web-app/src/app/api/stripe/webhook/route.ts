@@ -43,57 +43,47 @@ export async function POST(req: Request) {
 
   console.log(`🔍 Event id: ${event.id}`);
 
-  let response: NextResponse;
   if (permittedEvents.includes(event.type)) {
     try {
       switch (event.type) {
         case "checkout.session.completed": {
           const session = event.data.object as Stripe.Checkout.Session;
-          response = await handleCheckoutSessionCompletedEvent(session);
-          break;
+          return await handleCheckoutSessionCompletedEvent(session);
         }
         case "checkout.session.async_payment_succeeded": {
           const session = event.data.object as Stripe.Checkout.Session;
-          response =
-            await handleCheckoutSessionAsyncPaymentSucceededEvent(session);
-          break;
+          return await handleCheckoutSessionAsyncPaymentSucceededEvent(session);
         }
         case "checkout.session.expired": {
           const session = event.data.object as Stripe.Checkout.Session;
-          response = await handleCheckoutSessionExpiredEvent(session);
-          break;
+          return await handleCheckoutSessionExpiredEvent(session);
         }
         case "checkout.session.async_payment_failed": {
           const session = event.data.object as Stripe.Checkout.Session;
-          response =
-            await handleCheckoutSessionAsyncPaymentFailedEvent(session);
-          break;
+          return await handleCheckoutSessionAsyncPaymentFailedEvent(session);
         }
         case "customer.created": {
           const customer = event.data.object as Stripe.Customer;
-          response = await handleCustomerCreatedEvent(customer);
-          break;
+          return await handleCustomerCreatedEvent(customer);
         }
         default:
-          response = NextResponse.json(
+          return NextResponse.json(
             { message: `Unhandled event: ${event.type}` },
             { status: 200 },
           );
       }
     } catch {
-      response = NextResponse.json(
+      return NextResponse.json(
         { message: "Webhook handler failed" },
         { status: 500 },
       );
     }
   } else {
-    response = NextResponse.json(
+    return NextResponse.json(
       { message: `Unhandled event: ${event.type}` },
       { status: 200 },
     );
   }
-
-  return response;
 }
 
 const handleCustomerCreatedEvent = async (customer: Stripe.Customer) => {
