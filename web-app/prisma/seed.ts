@@ -4,8 +4,6 @@ import { getEnvSecrets } from "@/config/env.config";
 import { convertCreditsToBaseUnits } from "@/lib/db/utils/credit.utils";
 
 import {
-  CreditTransactionStatus,
-  CreditTransactionType,
   PrismaClient,
 } from "./generated/client";
 
