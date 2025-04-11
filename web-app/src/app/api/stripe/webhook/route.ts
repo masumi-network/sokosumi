@@ -38,7 +38,6 @@ export async function POST(req: Request) {
     "checkout.session.async_payment_succeeded",
     "checkout.session.async_payment_failed",
     "customer.created",
-    "customer.created",
   ];
 
   console.log(`🔍 Event id: ${event.id}`);
