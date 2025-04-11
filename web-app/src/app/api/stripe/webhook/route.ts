@@ -8,10 +8,7 @@ import {
   setFiatTransactionStatusToFailed,
   setFiatTransactionStatusToSucceeded,
 } from "@/lib/db/services/fiatTransaction.service";
-import {
-  FiatTransaction,
-  FiatTransactionStatus,
-} from "@/prisma/generated/client";
+import { FiatTransactionStatus } from "@/prisma/generated/client";
 
 const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
@@ -45,109 +42,92 @@ export async function POST(req: Request) {
 
   console.log(`🔍 Event id: ${event.id}`);
 
+  let response: NextResponse;
   if (permittedEvents.includes(event.type)) {
     try {
       switch (event.type) {
         case "checkout.session.completed": {
           const session = event.data.object as Stripe.Checkout.Session;
-          handleCheckoutSessionCompletedEvent(session)
-            .then((fiatTransaction) => {
-              console.info(
-                `💰 Fiat transaction status: ${fiatTransaction.status}`,
-              );
-            })
-            .catch((error) => {
-              console.error(error);
-            });
+          response = await handleCheckoutSessionCompletedEvent(session);
           break;
         }
         case "checkout.session.async_payment_succeeded": {
           const session = event.data.object as Stripe.Checkout.Session;
-          handleCheckoutSessionAsyncPaymentSucceededEvent(session)
-            .then((fiatTransaction) => {
-              console.info(
-                `💰 Fiat transaction status: ${fiatTransaction.status}`,
-              );
-            })
-            .catch((error) => {
-              console.error(error);
-            });
+          response =
+            await handleCheckoutSessionAsyncPaymentSucceededEvent(session);
           break;
         }
         case "checkout.session.expired": {
           const session = event.data.object as Stripe.Checkout.Session;
-          handleCheckoutSessionExpiredEvent(session)
-            .then((fiatTransaction) => {
-              console.info(
-                `💰 Fiat transaction status: ${fiatTransaction.status}`,
-              );
-            })
-            .catch((error) => {
-              console.error(error);
-            });
+          response = await handleCheckoutSessionExpiredEvent(session);
           break;
         }
         case "checkout.session.async_payment_failed": {
           const session = event.data.object as Stripe.Checkout.Session;
-          handleCheckoutSessionAsyncPaymentFailedEvent(session)
-            .then((fiatTransaction) => {
-              console.info(
-                `💰 Fiat transaction status: ${fiatTransaction.status}`,
-              );
-            })
-            .catch((error) => {
-              console.error(error);
-            });
+          response =
+            await handleCheckoutSessionAsyncPaymentFailedEvent(session);
           break;
         }
         case "customer.created": {
           const customer = event.data.object as Stripe.Customer;
-          handleCustomerCreatedEvent(customer)
-            .then((user) => {
-              console.info(
-                `💰 Customer ${customer.id} linked to user: ${user.id}`,
-              );
-            })
-            .catch((error) => {
-              console.error(error);
-            });
+          response = await handleCustomerCreatedEvent(customer);
           break;
         }
         default:
-          throw new Error(`Unhandled event: ${event.type}`);
+          response = NextResponse.json(
+            { message: `Unhandled event: ${event.type}` },
+            { status: 200 },
+          );
       }
-    } catch (error) {
-      console.error(error);
-      return NextResponse.json(
+    } catch {
+      response = NextResponse.json(
         { message: "Webhook handler failed" },
         { status: 500 },
       );
     }
+  } else {
+    response = NextResponse.json(
+      { message: `Unhandled event: ${event.type}` },
+      { status: 200 },
+    );
   }
 
-  // Return a response to acknowledge receipt of the event.
-  return NextResponse.json({ message: "Received" }, { status: 200 });
+  return response;
 }
 
 const handleCustomerCreatedEvent = async (customer: Stripe.Customer) => {
   const email = customer.email;
   if (!email) {
-    throw new Error(`Customer email not found for customer: ${customer.id}`);
+    return NextResponse.json(
+      { message: `Customer email not found for customer: ${customer.id}` },
+      { status: 500 },
+    );
   }
   const user = await prisma.user.update({
     where: { email },
     data: { stripeCustomerId: customer.id },
   });
   if (!user) {
-    throw new Error(`User not found for email: ${email}`);
+    return NextResponse.json(
+      { message: `User not found for email: ${email}` },
+      { status: 500 },
+    );
   }
-  return user;
+  return NextResponse.json(
+    {
+      message: `User ${user.id} updated with stripe customer id: ${customer.id}`,
+    },
+    { status: 200 },
+  );
 };
 
 const checkPaymentStatus = (session: Stripe.Checkout.Session) => {
   const paymentStatus = session.payment_status;
   if (paymentStatus !== "paid") {
-    throw new Error("Payment status is not paid");
+    return NextResponse.json(
+      { message: `Payment status is not paid for session: ${session.id}` },
+      { status: 200 },
+    );
   }
 };
 
@@ -180,31 +160,59 @@ const handleCheckoutSessionAsyncPaymentFailedEvent = async (
 const updateFiatTransactionStatus = async (
   session: Stripe.Checkout.Session,
   status: "SUCCEEDED" | "FAILED",
-): Promise<FiatTransaction> => {
+): Promise<NextResponse> => {
   return await prisma.$transaction(async (tx) => {
     const fiatTransaction = await getFiatTransactionByServicePaymentId(
       session.id,
       tx,
     );
     if (!fiatTransaction) {
-      throw new Error(`Fiat transaction for session ${session.id} not found`);
+      return NextResponse.json(
+        { message: `Fiat transaction for session ${session.id} not found` },
+        { status: 500 },
+      );
     }
 
     if (session.client_reference_id !== fiatTransaction.id) {
-      throw new Error(
-        `Session client reference id ${session.client_reference_id} does not match fiat transaction id ${fiatTransaction.id}`,
+      return NextResponse.json(
+        {
+          message: `Session client reference id ${session.client_reference_id} does not match fiat transaction id ${fiatTransaction.id}`,
+        },
+        { status: 500 },
       );
     }
 
     if (fiatTransaction.status !== FiatTransactionStatus.PENDING) {
-      throw new Error("Fiat transaction is not pending");
+      return NextResponse.json(
+        { message: "Fiat transaction is not pending" },
+        { status: 200 },
+      );
     }
 
-    switch (status) {
-      case "SUCCEEDED":
-        return await setFiatTransactionStatusToSucceeded(fiatTransaction, tx);
-      case "FAILED":
-        return await setFiatTransactionStatusToFailed(fiatTransaction, tx);
+    try {
+      switch (status) {
+        case "SUCCEEDED":
+          await setFiatTransactionStatusToSucceeded(fiatTransaction, tx);
+          return NextResponse.json(
+            {
+              message: `Fiat transaction ${fiatTransaction.id} status changed to SUCCEEDED`,
+            },
+            { status: 200 },
+          );
+        case "FAILED":
+          await setFiatTransactionStatusToFailed(fiatTransaction, tx);
+          return NextResponse.json(
+            {
+              message: `Fiat transaction ${fiatTransaction.id} status changed to FAILED`,
+            },
+            { status: 200 },
+          );
+      }
+    } catch {
+      return NextResponse.json(
+        { message: "Failed to update fiat transaction status" },
+        { status: 500 },
+      );
     }
   });
 };
