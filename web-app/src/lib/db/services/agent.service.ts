@@ -3,13 +3,20 @@ import { getPaymentInformation } from "@/lib/api/generated/registry";
 import { getRegistryClient } from "@/lib/api/registry-service.client";
 import { getApiBaseUrl } from "@/lib/db/extension/agent";
 import prisma from "@/lib/db/prisma";
-import { agentInclude, AgentWithRelations } from "@/lib/db/types/agent.types";
+import {
+  agentInclude,
+  agentPricingInclude,
+  AgentWithRelations,
+} from "@/lib/db/types/agent.types";
 import { jobInputsDataSchema, JobInputsDataSchemaType } from "@/lib/job-input";
+import { Prisma } from "@/prisma/generated/client";
 
 import { getOrCreateFavoriteAgentList } from "./agentList.service";
 
-export async function getAgents(): Promise<AgentWithRelations[]> {
-  return await prisma.agent.findMany({
+export async function getAgents(
+  tx: Prisma.TransactionClient = prisma,
+): Promise<AgentWithRelations[]> {
+  return await tx.agent.findMany({
     include: agentInclude,
     where: {
       isShown: true,
@@ -19,20 +26,27 @@ export async function getAgents(): Promise<AgentWithRelations[]> {
 
 export async function getAgentById(
   id: string,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithRelations | null> {
-  return await prisma.agent.findUnique({
+  return await tx.agent.findUnique({
     where: { id },
     include: agentInclude,
   });
 }
 
-export async function getFavoriteAgents(userId: string) {
-  const list = await getOrCreateFavoriteAgentList(userId);
+export async function getFavoriteAgents(
+  userId: string,
+  tx: Prisma.TransactionClient = prisma,
+) {
+  const list = await getOrCreateFavoriteAgentList(userId, tx);
   return list.agents;
 }
 
-export async function getHiredAgentsOrderedByLatestJob(userId: string) {
-  const agentsWithJobs = await prisma.agent.findMany({
+export async function getHiredAgentsOrderedByLatestJob(
+  userId: string,
+  tx: Prisma.TransactionClient = prisma,
+) {
+  const agentsWithJobs = await tx.agent.findMany({
     where: {
       jobs: {
         some: {
@@ -68,8 +82,9 @@ export async function getHiredAgentsOrderedByLatestJob(userId: string) {
 
 export async function getAgentInputSchema(
   agentId: string,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<JobInputsDataSchemaType> {
-  const agent = await getAgentById(agentId);
+  const agent = await getAgentById(agentId, tx);
 
   if (!agent) {
     throw new Error(`Agent with ID ${agentId} not found`);
@@ -86,8 +101,14 @@ export async function getAgentInputSchema(
   return inputSchema;
 }
 
-export async function getAgentPricing(agentId: string) {
-  const agent = await getAgentById(agentId);
+export async function getAgentPricing(
+  agentId: string,
+  tx: Prisma.TransactionClient = prisma,
+) {
+  const agent = await tx.agent.findUnique({
+    where: { id: agentId },
+    include: agentPricingInclude,
+  });
 
   if (!agent) {
     throw new Error("Agent not found");

@@ -42,6 +42,14 @@ services:
       value: ${REGISTRY_API_URL}
     - name: ADMIN_KEY
       value: ${ADMIN_KEY}
+    - name: STRIPE_PUBLISHABLE_KEY
+      value: ${STRIPE_PUBLISHABLE_KEY}
+    - name: STRIPE_SECRET_KEY
+      value: ${STRIPE_SECRET_KEY}
+    - name: STRIPE_WEBHOOK_SECRET
+      value: ${STRIPE_WEBHOOK_SECRET}
+    - name: STRIPE_PRICE_ID
+      value: ${STRIPE_PRICE_ID}
   github:
     branch: main
     repo: masumi-network/sokosumi

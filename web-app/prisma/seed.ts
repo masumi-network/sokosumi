@@ -8,6 +8,7 @@ import {
   CreditTransactionType,
   PrismaClient,
 } from "./generated/client";
+
 import { hashPassword } from "./util/password";
 
 const prisma = new PrismaClient();
@@ -31,6 +32,7 @@ const seedUser = async (): Promise<string> => {
       email: getEnvSecrets().SEED_USER_EMAIL,
       name: "Sokosumi Developer",
       emailVerified: true,
+      role: "user",
       createdAt: new Date(),
       updatedAt: new Date(),
     },
@@ -55,10 +57,7 @@ const seedUser = async (): Promise<string> => {
   const creditTransaction = await prisma.creditTransaction.create({
     data: {
       amount: convertCreditsToBaseUnits(1000.5123),
-      type: CreditTransactionType.TOP_UP,
       userId: user.id,
-      includedFee: 0,
-      status: CreditTransactionStatus.SUCCEEDED,
     },
   });
   console.log(`Credit transaction created with id ${creditTransaction.id}`);

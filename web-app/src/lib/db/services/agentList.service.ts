@@ -5,12 +5,13 @@ import {
   agentListInclude,
   AgentListWithAgent,
 } from "@/lib/db/types/agentList.types";
-import { AgentList, AgentListType } from "@/prisma/generated/client";
+import { AgentList, AgentListType, Prisma } from "@/prisma/generated/client";
 
 export async function getAgentLists(
   userId: string,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentListWithAgent[]> {
-  const agentLists = await prisma.agentList.findMany({
+  const agentLists = await tx.agentList.findMany({
     where: { userId },
     include: agentListInclude,
     orderBy: {
@@ -28,8 +29,9 @@ export async function getAgentLists(
 export async function getAgentListByType(
   userId: string,
   type: AgentListType,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentListWithAgent | null> {
-  const agentList = await prisma.agentList.findFirst({
+  const agentList = await tx.agentList.findFirst({
     where: {
       userId,
       type,
@@ -43,8 +45,9 @@ export async function getAgentListByType(
 export async function createAgentList(
   userId: string,
   type: AgentListType,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentListWithAgent> {
-  return await prisma.agentList.create({
+  return await tx.agentList.create({
     data: {
       userId,
       type,
@@ -55,29 +58,32 @@ export async function createAgentList(
 
 export async function getOrCreateFavoriteAgentList(
   userId: string,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentListWithAgent> {
-  return await getOrCreateAgentListByType(userId, AgentListType.FAVORITE);
+  return await getOrCreateAgentListByType(userId, AgentListType.FAVORITE, tx);
 }
 
 export async function getOrCreateAgentListByType(
   userId: string,
   type: AgentListType,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentListWithAgent> {
-  const existingList = await getAgentListByType(userId, type);
+  const existingList = await getAgentListByType(userId, type, tx);
 
   if (existingList) {
     return existingList;
   }
 
-  return await createAgentList(userId, type);
+  return await createAgentList(userId, type, tx);
 }
 
 export async function getOrCreateAgentListsByTypes(
   userId: string,
   types: AgentListType[],
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentListWithAgent[]> {
   // Get all existing lists for the user that match the requested types
-  const existingLists = await prisma.agentList.findMany({
+  const existingLists = await tx.agentList.findMany({
     where: {
       userId,
       type: {
@@ -94,7 +100,7 @@ export async function getOrCreateAgentListsByTypes(
   // Create missing lists
   const newLists = await Promise.all(
     missingTypes.map((type) =>
-      prisma.agentList.create({
+      tx.agentList.create({
         data: {
           userId,
           type,
@@ -113,8 +119,9 @@ export async function getOrCreateAgentListsByTypes(
 export async function addAgentToList(
   agentId: string,
   listId: string,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentList> {
-  return await prisma.agentList.update({
+  return await tx.agentList.update({
     where: { id: listId },
     data: {
       agents: { connect: { id: agentId } },
@@ -125,8 +132,9 @@ export async function addAgentToList(
 export async function removeAgentFromList(
   agentId: string,
   listId: string,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentList> {
-  return await prisma.agentList.update({
+  return await tx.agentList.update({
     where: { id: listId },
     data: {
       agents: { disconnect: { id: agentId } },

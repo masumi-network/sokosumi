@@ -41,6 +41,10 @@ jobs:
           PAYMENT_API_KEY: ${{ secrets.PAYMENT_API_KEY }}
           REGISTRY_API_URL: ${{ vars.REGISTRY_API_URL }}
           PAYMENT_API_URL: ${{ vars.PAYMENT_API_URL }}
+          STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          STRIPE_PRICE_ID: ${{ vars.STRIPE_PRICE_ID }}
         with:
           app_name: ${{ vars.DIGITALOCEAN_APP_NAME }}
           project_id: ${{ secrets.DIGITALOCEAN_PROJECT_ID }}

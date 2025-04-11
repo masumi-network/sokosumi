@@ -6,7 +6,7 @@ import { z } from "zod";
  * Specify your environment variables schema here.
  * This way you can ensure the app isn't built with invalid env vars.
  */
-const envSchemaSecrets = z.object({
+const envSecretsSchema = z.object({
   // Database
   DATABASE_URL: z.string().url(),
 
@@ -14,6 +14,12 @@ const envSchemaSecrets = z.object({
     .string()
     .default("false")
     .transform((val) => val === "true"),
+
+  // Stripe
+  STRIPE_PUBLISHABLE_KEY: z.string().min(1),
+  STRIPE_SECRET_KEY: z.string().min(1),
+  STRIPE_WEBHOOK_SECRET: z.string().min(1),
+  STRIPE_PRICE_ID: z.string().min(1),
 
   // Seed
   SEED_DATABASE: z
@@ -85,7 +91,7 @@ const envSchemaSecrets = z.object({
     .default(""),
 });
 
-const envSchemaConfig = z.object({
+const envPublicConfigSchema = z.object({
   NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME: z
     .number({ coerce: true })
     .min(0)
@@ -110,12 +116,12 @@ const envSchemaConfig = z.object({
   NEXT_PUBLIC_CREDITS_BASE: z.number({ coerce: true }).default(12),
 });
 
-let envSecrets: z.infer<typeof envSchemaSecrets>;
+let envSecrets: z.infer<typeof envSecretsSchema>;
 
-let envPublicConfig: z.infer<typeof envSchemaConfig>;
+let envPublicConfig: z.infer<typeof envPublicConfigSchema>;
 
 function validateEnv() {
-  const parsedConfig = envSchemaConfig.safeParse({
+  const parsedConfig = envPublicConfigSchema.safeParse({
     NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME:
       process.env.NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME,
     NEXT_PUBLIC_PASSWORD_MIN_LENGTH:
@@ -143,7 +149,7 @@ function validateEnv() {
     return;
   }
 
-  const parsedSecrets = envSchemaSecrets.safeParse(process.env);
+  const parsedSecrets = envSecretsSchema.safeParse(process.env);
 
   if (!parsedSecrets.success) {
     console.error(
