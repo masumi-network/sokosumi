@@ -1,4 +1,4 @@
-name: ReviewDog
+name: Linting
 on: 
   pull_request:
 
@@ -6,9 +6,13 @@ jobs:
   eslint:
     name: ESLint
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./web-app
     permissions:
-      contents: read
-      pull-requests: write
+      # Need to add these 2 for eslint-annotate-action
+      pull-requests: read
+      checks: write
     steps:
       - uses: actions/checkout@v4
         with:
