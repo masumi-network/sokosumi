@@ -1,4 +1,3 @@
-import { stripeClient } from "@better-auth/stripe/client";
 import {
   adminClient,
   multiSessionClient,
@@ -10,9 +9,6 @@ import { createAuthClient } from "better-auth/react";
 
 export const authClient = createAuthClient({
   plugins: [
-    stripeClient({
-      subscription: false,
-    }),
     organizationClient(),
     twoFactorClient(),
     passkeyClient(),

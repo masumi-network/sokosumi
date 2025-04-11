@@ -30,7 +30,6 @@
     "generate:api": "pnpm run generate:registry && pnpm run generate:payment"
   },
   "dependencies": {
-    "@better-auth/stripe": "^1.2.5",
     "@better-auth/utils": "^0.2.4",
     "@hey-api/client-fetch": "^0.10.0",
     "@hey-api/client-next": "^0.3.0",
