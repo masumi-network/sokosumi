@@ -159,7 +159,7 @@ const updateFiatTransactionStatus = async (
     if (!fiatTransaction) {
       return NextResponse.json(
         { message: `Fiat transaction for session ${session.id} not found` },
-        { status: 500 },
+        { status: status === "FAILED" ? 200 : 500 },
       );
     }
 
@@ -168,7 +168,7 @@ const updateFiatTransactionStatus = async (
         {
           message: `Session client reference id ${session.client_reference_id} does not match fiat transaction id ${fiatTransaction.id}`,
         },
-        { status: 500 },
+        { status: status === "FAILED" ? 200 : 500 },
       );
     }
 
