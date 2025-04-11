@@ -1,7 +1,7 @@
 import { Menu } from "lucide-react";
 import Link from "next/link";
 
-import { SokosumiLogo } from "@/components/masumi-logos";
+import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
@@ -27,7 +27,12 @@ export default function SheetNavigation() {
         <SheetHeader>
           <SheetTitle className="flex justify-center">
             <Link href="/">
-              <SokosumiLogo width={200} height={26} />
+              <ThemedLogo
+                LogoComponent={SokosumiLogo}
+                width={200}
+                height={26}
+                priority
+              />
             </Link>
           </SheetTitle>
           <SheetDescription />

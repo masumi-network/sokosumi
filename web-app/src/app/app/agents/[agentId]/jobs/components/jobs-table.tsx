@@ -38,8 +38,10 @@ export default function JobsTable({ jobs }: JobsTableProps) {
       }}
       data={jobs}
       rowClassName={(row) => {
-        if (params.jobId === row.id) return "bg-gray-200 hover:bg-gray-200";
-        return "active:bg-gray-100 hover:bg-gray-50";
+        if (params.jobId === row.id) {
+          return "bg-muted hover:bg-muted";
+        }
+        return "active:bg-muted hover:bg-muted";
       }}
       containerClassName={cn("w-full lg:w-[max(400px,36%)] rounded-md border")}
       defaultSort={[
