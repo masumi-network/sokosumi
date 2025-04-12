@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
+import { NuqsAdapter } from "nuqs/adapters/next/app";
 
 import { Toaster } from "@/components/ui/sonner";
 import { cn } from "@/lib/utils";
@@ -43,8 +44,10 @@ export default async function RootLayout({
         )}
       >
         <NextIntlClientProvider messages={messages}>
-          <div className="bg-background">{children}</div>
-          <Toaster />
+          <NuqsAdapter>
+            <div className="bg-background">{children}</div>
+            <Toaster />
+          </NuqsAdapter>
         </NextIntlClientProvider>
       </body>
     </html>
