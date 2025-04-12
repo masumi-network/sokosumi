@@ -9,7 +9,7 @@ export default function useGalleryFilter() {
   const [query, setQuery] = useQueryState("query", { defaultValue: "" });
   const [tags, setTags] = useQueryState(
     "tags",
-    parseAsArrayOf(parseAsString, ",").withDefault([]),
+    parseAsArrayOf(parseAsString).withDefault([]),
   );
 
   const resetFilters = () => {
