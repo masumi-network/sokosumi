@@ -91,6 +91,10 @@ const envSecretsSchema = z.object({
 });
 
 const envPublicConfigSchema = z.object({
+  NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME: z
+    .number({ coerce: true })
+    .min(0)
+    .default(300),
   NEXT_PUBLIC_PASSWORD_MIN_LENGTH: z
     .number({ coerce: true })
     .min(8)

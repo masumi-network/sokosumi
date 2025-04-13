@@ -2,9 +2,11 @@
 
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useDebouncedCallback } from "use-debounce";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { getEnvPublicConfig } from "@/config/env.config";
 
 import Tags from "./tags";
 import useGalleryFilter from "./use-gallery-filter";
@@ -23,6 +25,10 @@ export default function FilterSection({ tags }: FilterSectionProps) {
     resetFilters,
   } = useGalleryFilter();
 
+  const debouncedSetQuery = useDebouncedCallback((value: string) => {
+    setQuery(value);
+  }, getEnvPublicConfig().NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME);
+
   return (
     <div className="flex flex-col gap-4">
       <h1 className="text-3xl font-bold">{t("header")}</h1>
@@ -32,8 +38,8 @@ export default function FilterSection({ tags }: FilterSectionProps) {
           <Input
             className="max-w-64 min-w-36"
             placeholder={t("searchPlaceholder")}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            defaultValue={query}
+            onChange={(e) => debouncedSetQuery(e.target.value)}
           />
           <Tags
             appliedTags={appliedTags}
