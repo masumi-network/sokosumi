@@ -11,7 +11,7 @@ import {
   jobInclude,
   jobOrderBy,
   JobWithRelations,
-} from "@/lib/db/types/job.types";
+} from "@/lib/db/types/job.type";
 import { calculatedInputHash } from "@/lib/utils";
 import { Job, JobStatus, Prisma } from "@/prisma/generated/client";
 
