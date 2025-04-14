@@ -51,7 +51,6 @@ export default function Tags({
         key={tag}
         onSelect={(e) => e.preventDefault()}
         style={style}
-        className="hover:bg-foreground hover:text-white"
         checked={tags.includes(tag)}
         onCheckedChange={(checked) => handleCheckTag(tag, checked)}
       >
