@@ -27,7 +27,7 @@
       "@/api/*": ["./src/app/api/*"],
       "@/components/*": ["./src/components/*"],
       "@/config/*": ["./src/config/*"],
-      "@/context/*": ["./src/context/*"],
+      "@/context/*": ["./src/contexts/*"],
       "@/hooks/*": ["./src/hooks/*"],
       "@/lib/*": ["./src/lib/*"],
       "@/middleware/*": ["./src/middleware/*"],
