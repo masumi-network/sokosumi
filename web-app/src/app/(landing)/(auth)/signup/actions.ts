@@ -21,7 +21,6 @@ export async function signup(
         name,
         email,
         password,
-        callbackURL: "/signin",
       },
     });
     return { success: true };
