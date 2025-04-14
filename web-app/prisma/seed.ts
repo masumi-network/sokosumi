@@ -1,12 +1,9 @@
-import { v4 as uuidv4 } from "uuid";
+import crypto from "node:crypto";
 
 import { getEnvSecrets } from "@/config/env.config";
 import { convertCreditsToBaseUnits } from "@/lib/db/utils/credit.utils";
 
-import {
-  PrismaClient,
-} from "./generated/client";
-
+import { PrismaClient } from "./generated/client";
 import { hashPassword } from "./util/password";
 
 const prisma = new PrismaClient();
@@ -41,10 +38,10 @@ const seedUser = async (): Promise<string> => {
 
   const account = await prisma.account.create({
     data: {
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       userId: user.id,
       providerId: "credential",
-      accountId: uuidv4(),
+      accountId: crypto.randomUUID(),
       password: password,
       createdAt: new Date(),
       updatedAt: new Date(),
