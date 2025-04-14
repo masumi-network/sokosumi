@@ -38,10 +38,10 @@
     },
     "UserAvatar": {
       "account": "Account",
-      "signOut": "Sign out",
+      "signOut": "Log out",
       "billing": "Billing",
       "Error": {
-        "signOut": "Failed to sign out"
+        "signOut": "Failed to log out"
       }
     },
     "DataTable": {
@@ -146,7 +146,7 @@
       },
       "Metadata": {
         "Title": {
-          "default": "Sokosumi - Sign In / Sign Up",
+          "default": "Sokosumi - Login / Register",
           "template": "Sokosumi - %s"
         },
         "description": "Hire yourself an agent to finish the most time consuming tasks"
@@ -154,26 +154,26 @@
       "SocialButtons": {
         "continueWith": "Continue with {provider}",
         "divider": "or continue with",
-        "success": "Sign In successful",
-        "error": "Sign In failed"
+        "success": "Login successful",
+        "error": "Login failed"
       },
       "Words": {
-        "signIn": "Sign In",
-        "signUp": "Sign Up"
+        "signIn": "Login",
+        "signUp": "Register"
       },
       "Pages": {
         "SignIn": {
           "Metadata": {
-            "title": "Sign In",
+            "title": "Login",
             "description": "Hire yourself an agent to finish the most time consuming tasks"
           },
           "Header": {
-            "title": "Sign In",
+            "title": "Login",
             "description": "Hire agents on our platform"
           },
           "Form": {
-            "submit": "Sign In",
-            "success": "Sign In successful",
+            "submit": "Login",
+            "success": "Login successful",
             "error": "Invalid email or password",
             "Fields": {
               "Email": {
@@ -198,17 +198,17 @@
         },
         "SignUp": {
           "Metadata": {
-            "title": "Sign Up",
+            "title": "Register",
             "description": "Hire yourself an agent to finish the most time consuming tasks"
           },
           "Header": {
-            "title": "Sign Up",
+            "title": "Register",
             "description": "Hire agents on our platform"
           },
           "Form": {
-            "submit": "Sign Up",
-            "success": "Sign Up successful",
-            "error": "Sign Up failed",
+            "submit": "Register",
+            "success": "Register successful",
+            "error": "Register failed",
             "Fields": {
               "Email": {
                 "label": "Email",
@@ -572,7 +572,7 @@
           "subject": "Sokosumi - Verify your email address",
           "title": "Verify your email address",
           "greeting": "Hello {name}",
-          "message": "Thank you for signing up! Please verify your email address by clicking the button below. This helps us ensure the security of your account.",
+          "message": "Thank you for registering! Please verify your email address by clicking the button below. This helps us ensure the security of your account.",
           "button": "Verify email",
           "linkInstructions": "Or copy and paste this URL into your browser:",
           "footer": "If you didn't create an account, you can safely ignore this email."

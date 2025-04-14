@@ -39,10 +39,10 @@ export default function UserAvatarClient({ user }: UserAvatarClientProps) {
     await signOut({
       fetchOptions: {
         onError: () => {
-          toast.error(t("Error.signOut"));
+          toast.error(t("Error.logout"));
         },
         onSuccess: () => {
-          router.push("/signin");
+          router.push("/login");
         },
       },
     });
@@ -100,7 +100,7 @@ export default function UserAvatarClient({ user }: UserAvatarClientProps) {
           onClick={onSignOut}
         >
           <LogOut className="text-muted-foreground" />
-          {t("signOut")}
+          {t("logout")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
