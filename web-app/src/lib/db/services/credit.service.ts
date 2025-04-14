@@ -64,7 +64,7 @@ export async function calculateAgentCredits(
   if (!amounts) {
     return 0.0;
   }
-  const creditCost = await calculateCreditCost(amounts, tx);
+  const creditCost = await calculateRawCredits(amounts, tx);
   return convertBaseUnitsToCredits(creditCost);
 }
 
@@ -74,7 +74,7 @@ export async function calculateAgentCredits(
  * @returns The credit cost for the job in base units
  * @throws Error if credit cost for a unit is not found or if fee percentage is negative
  */
-export async function calculateCreditCost(
+export async function calculateRawCredits(
   amounts: { unit: string; amount: number }[],
   tx: Prisma.TransactionClient = prisma,
 ): Promise<bigint> {

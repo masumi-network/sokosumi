@@ -17,7 +17,7 @@ import { calculatedInputHash } from "@/lib/utils";
 import { Job, JobStatus, Prisma } from "@/prisma/generated/client";
 
 import { getAgentById, getAgentPricing } from "./agent.service";
-import { calculateCreditCost, validateCreditBalance } from "./credit.service";
+import { calculateRawCredits, validateCreditBalance } from "./credit.service";
 
 const startJobSchema = z.object({
   input_hash: z.string(),
@@ -42,7 +42,7 @@ export async function startJob(
         throw new Error("Agent not found");
       }
       const pricing = await getAgentPricing(agentId, tx);
-      const creditCost = await calculateCreditCost(
+      const creditCost = await calculateRawCredits(
         pricing.FixedPricing.Amounts.map((amount) => ({
           unit: amount.unit,
           amount: Number(amount.amount),
