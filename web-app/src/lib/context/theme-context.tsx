@@ -7,6 +7,7 @@ export function ThemeProvider({ children, ...props }: ThemeProviderProps) {
       attribute="class"
       defaultTheme="system"
       enableSystem
+      scriptProps={{ "data-cfasync": "false" }}
       {...props}
     >
       {children}
