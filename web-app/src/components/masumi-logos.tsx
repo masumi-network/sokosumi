@@ -1,7 +1,21 @@
 import Image, { ImageProps } from "next/image";
+import { type ComponentType } from "react";
 
 interface LogoProps extends Omit<ImageProps, "src" | "alt"> {
   variant?: "black" | "white";
+}
+
+interface ThemedLogoProps extends Omit<LogoProps, "variant" | "className"> {
+  LogoComponent: ComponentType<LogoProps>;
+}
+
+function ThemedLogo({ LogoComponent, ...props }: ThemedLogoProps) {
+  return (
+    <>
+      <LogoComponent variant="black" className="dark:hidden" {...props} />
+      <LogoComponent variant="white" className="hidden dark:block" {...props} />
+    </>
+  );
 }
 
 function SokosumiLogo({ variant = "black", ...props }: LogoProps) {
@@ -34,4 +48,4 @@ function KodosumiLogo({ variant = "black", ...props }: LogoProps) {
   );
 }
 
-export { KodosumiLogo, MasumiLogo, SokosumiLogo };
+export { KodosumiLogo, MasumiLogo, SokosumiLogo, ThemedLogo };

@@ -2,7 +2,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
-import { KodosumiLogo, MasumiLogo } from "@/components/masumi-logos";
+import {
+  KodosumiLogo,
+  MasumiLogo,
+  ThemedLogo,
+} from "@/components/masumi-logos";
 import { getEnvPublicConfig } from "@/config/env.config";
 
 import { GitHubButton, MasumiButton } from "./social-button";
@@ -22,10 +26,14 @@ export function MonetizeYourAgent() {
           {/* Masumi Logos */}
           <div className="flex flex-col items-end gap-6">
             <Link href={getEnvPublicConfig().NEXT_PUBLIC_KODOSUMI_URL}>
-              <KodosumiLogo width={418} height={56} />
+              <ThemedLogo
+                LogoComponent={KodosumiLogo}
+                width={418}
+                height={56}
+              />
             </Link>
             <Link href={getEnvPublicConfig().NEXT_PUBLIC_MASUMI_URL}>
-              <MasumiLogo width={371} height={57} />
+              <ThemedLogo LogoComponent={MasumiLogo} width={371} height={57} />
             </Link>
           </div>
 

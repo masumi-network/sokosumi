@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { SokosumiLogo } from "@/components/masumi-logos";
+import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
 import {
   Sidebar as ShadcnSidebar,
   SidebarContent,
@@ -19,7 +19,12 @@ export default function Sidebar() {
         <div className="flex items-center gap-2 p-2">
           <CustomTrigger />
           <Link href="/app" className="mx-auto">
-            <SokosumiLogo width={200} height={26} priority />
+            <ThemedLogo
+              LogoComponent={SokosumiLogo}
+              width={200}
+              height={26}
+              priority
+            />
           </Link>
         </div>
       </SidebarHeader>

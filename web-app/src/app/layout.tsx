@@ -7,6 +7,7 @@ import { getLocale, getMessages } from "next-intl/server";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
 import { Toaster } from "@/components/ui/sonner";
+import { ThemeProvider } from "@/contexts/theme-context";
 import { cn } from "@/lib/utils";
 
 const geistSans = Geist({
@@ -30,12 +31,10 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const locale = await getLocale();
-
-  // Providing all messages to the client side
   const messages = await getMessages();
 
   return (
-    <html lang={locale}>
+    <html lang={locale} suppressHydrationWarning>
       <body
         className={cn(
           geistSans.variable,
@@ -43,12 +42,14 @@ export default async function RootLayout({
           "bg-background min-h-svh antialiased",
         )}
       >
-        <NextIntlClientProvider messages={messages}>
-          <NuqsAdapter>
-            <div className="bg-background">{children}</div>
-            <Toaster />
-          </NuqsAdapter>
-        </NextIntlClientProvider>
+        <NuqsAdapter>
+          <ThemeProvider>
+            <NextIntlClientProvider messages={messages}>
+              <div className="bg-background">{children}</div>
+              <Toaster />
+            </NextIntlClientProvider>
+          </ThemeProvider>
+        </NuqsAdapter>
       </body>
     </html>
   );
