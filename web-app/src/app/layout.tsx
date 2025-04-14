@@ -7,7 +7,6 @@ import { getLocale, getMessages } from "next-intl/server";
 
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/lib/context/theme-context";
-
 import { cn } from "@/lib/utils";
 
 const geistSans = Geist({

@@ -31,7 +31,6 @@ export default function Header() {
         {/* Right - Auth Buttons */}
         <div className="ml-auto hidden items-center gap-2 sm:flex">
           <AppConnection />
-          <ThemeToggle />
         </div>
 
         {/* Sheet Navigation Trigger */}
