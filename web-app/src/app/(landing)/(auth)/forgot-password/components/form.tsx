@@ -7,12 +7,12 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/landing/(auth)/components/form";
-import { forgotPassword } from "@/landing/(auth)/forgot-password/actions";
 import {
   forgotPasswordFormData,
   forgotPasswordFormSchema,
   ForgotPasswordFormSchemaType,
 } from "@/landing/(auth)/forgot-password/data";
+import { authClient } from "@/lib/auth/auth.client";
 
 interface ForgotPasswordFormProps {
   initialEmail?: string;
@@ -34,13 +34,21 @@ export default function ForgotPasswordForm({
   });
 
   async function onSubmit(values: ForgotPasswordFormSchemaType) {
-    const { success } = await forgotPassword(values);
-    if (success) {
-      toast.success(t("success"));
-      router.push("/signin");
-    } else {
-      toast.error(t("error"));
-    }
+    await authClient.forgetPassword(
+      {
+        email: values.email,
+        redirectTo: "/reset-password",
+      },
+      {
+        onError: () => {
+          toast.error(t("error"));
+        },
+        onSuccess: () => {
+          toast.success(t("success"));
+          router.push("/signin");
+        },
+      },
+    );
   }
 
   return (
