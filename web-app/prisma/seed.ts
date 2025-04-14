@@ -1,4 +1,4 @@
-import crypto from "node:crypto";
+import crypto from "crypto";
 
 import { getEnvSecrets } from "@/config/env.config";
 import { convertCreditsToBaseUnits } from "@/lib/db/utils/credit.utils";
