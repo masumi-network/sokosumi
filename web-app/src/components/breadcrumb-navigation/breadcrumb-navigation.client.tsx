@@ -13,7 +13,7 @@ import {
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
 import { getName } from "@/lib/db/extension/agent";
-import { AgentWithRelations } from "@/lib/db/types/agent.types";
+import { AgentWithRelations } from "@/lib/db/types/agent.type";
 
 interface BreadcrumbSegment {
   label: string;

@@ -6,7 +6,7 @@ import { getAgents } from "@/lib/db/services/agent.service";
 import { getOrCreateFavoriteAgentList } from "@/lib/db/services/agentList.service";
 import { calculateAgentHumandReadableCreditCost } from "@/lib/db/services/credit.service";
 import { getTags } from "@/lib/db/services/tag.service";
-import { AgentWithRelations } from "@/lib/db/types/agent.types";
+import { AgentWithRelations } from "@/lib/db/types/agent.type";
 import { Tag } from "@/prisma/generated/client";
 
 import FilterSection from "./components/filter-section";

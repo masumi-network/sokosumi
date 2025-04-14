@@ -11,7 +11,7 @@ import {
   getResolvedImage,
   getTags,
 } from "@/lib/db/extension/agent";
-import { AgentWithRelations } from "@/lib/db/types/agent.types";
+import { AgentWithRelations } from "@/lib/db/types/agent.type";
 
 export function FeaturedAgentSkeleton() {
   return (

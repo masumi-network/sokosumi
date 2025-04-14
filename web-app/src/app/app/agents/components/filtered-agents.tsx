@@ -9,8 +9,8 @@ import {
   AgentsNotFound,
 } from "@/components/agents";
 import { getTags } from "@/lib/db/extension/agent";
-import { AgentWithRelations } from "@/lib/db/types/agent.types";
-import { AgentListWithAgent } from "@/lib/db/types/agentList.types";
+import { AgentWithRelations } from "@/lib/db/types/agent.type";
+import { AgentListWithAgent } from "@/lib/db/types/agentList.type";
 
 import { GalleryFilterState } from "./use-gallery-filter";
 
