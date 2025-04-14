@@ -4,8 +4,7 @@ import crypto from "crypto";
 import { twMerge } from "tailwind-merge";
 
 import { getEnvSecrets } from "@/config/env.config";
-
-import prisma from "./db/prisma";
+import prisma from "@/lib/db/prisma";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
