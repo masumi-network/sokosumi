@@ -113,6 +113,14 @@ async function syncAllEntries() {
               authorContactEmail: entry.authorContactEmail ?? "",
               authorContactOther: entry.authorContactOther ?? "",
               image: entry.image ?? "",
+              tags: {
+                connectOrCreate: entry.tags?.map((tag) => {
+                  return {
+                    where: { name: tag },
+                    create: { name: tag },
+                  };
+                }),
+              },
               authorOrganization: entry.authorOrganization ?? "",
               isShown: getEnvSecrets().SHOW_AGENTS_BY_DEFAULT,
               status: convertStatus(entry.status),

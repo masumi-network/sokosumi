@@ -12,11 +12,11 @@ import { getTags } from "@/lib/db/extension/agent";
 import { AgentWithRelations } from "@/lib/db/types/agent.types";
 import { AgentListWithAgent } from "@/lib/db/types/agentList.types";
 
-import { FilterState } from "./use-gallery-filter";
+import { GalleryFilterState } from "./use-gallery-filter";
 
 const filterAgents = (
   agents: AgentWithRelations[],
-  { query, tags }: FilterState,
+  { query, tags }: GalleryFilterState,
 ) => {
   if (!query && tags.length === 0) {
     return agents;
@@ -54,7 +54,7 @@ function FilteredAgents({
   const searchParams = useSearchParams();
 
   const filteredAgents = useMemo(() => {
-    const criteria: FilterState = {
+    const criteria: GalleryFilterState = {
       query: searchParams.get("query") ?? "",
       tags: searchParams.get("tags")?.split(",").filter(Boolean) ?? [],
     };

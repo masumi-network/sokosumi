@@ -96,7 +96,6 @@ const envPublicConfigSchema = z.object({
     .number({ coerce: true })
     .min(0)
     .default(300),
-
   NEXT_PUBLIC_PASSWORD_MIN_LENGTH: z
     .number({ coerce: true })
     .min(8)
