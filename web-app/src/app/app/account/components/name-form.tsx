@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import { updateName } from "@/app/account/actions";
 import { nameFormSchema, NameFormType } from "@/app/account/data";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +24,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { authClient } from "@/lib/auth/auth.client";
 
 export function NameForm() {
   const t = useTranslations("App.Account.Name");
@@ -38,13 +38,20 @@ export function NameForm() {
   });
 
   const onSubmit = async (values: NameFormType) => {
-    const { success } = await updateName(values);
-    if (success) {
-      toast.success(t("success"));
-      form.reset();
-    } else {
-      toast.error(t("error"));
-    }
+    await authClient.updateUser(
+      {
+        name: values.name,
+      },
+      {
+        onError: () => {
+          toast.error(t("error"));
+        },
+        onSuccess: () => {
+          toast.success(t("success"));
+          form.reset();
+        },
+      },
+    );
   };
 
   return (
