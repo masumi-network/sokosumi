@@ -21,8 +21,7 @@ export default function AuthButtons({ containerClassName }: AuthButtonsProps) {
 
   return (
     <div className={cn("flex items-center gap-4", containerClassName)}>
-      <SignInButton variant="outline" />
-      <SignUpButton />
+      <SignInButton variant="default" />
     </div>
   );
 }

@@ -26,7 +26,7 @@ export default function LandingLayout({ children }: LandingLayoutProps) {
   return (
     <div className="flex min-h-svh flex-col">
       <Header />
-      <BreadcrumbNavigation className="container mx-auto p-4" />
+      <BreadcrumbNavigation className="container mx-auto" />
       <main className="flex-1">{children}</main>
       <Footer />
     </div>

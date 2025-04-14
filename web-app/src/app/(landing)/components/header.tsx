@@ -3,6 +3,7 @@ import Link from "next/link";
 import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
 
 import AppConnection from "./app-connection";
+import HeaderBlur from "./header-blur";
 import Navigation from "./navigation";
 import SheetNavigation from "./sheet-navigation";
 
@@ -10,8 +11,9 @@ export default function Header() {
   return (
     <div
       id="header"
-      className="bg-background/95 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 w-full border-b px-4 py-3 backdrop-blur lg:px-8 lg:py-6"
+      className="bg-background/0 border-background/0 fixed top-0 z-50 w-full border-b px-4 py-3 lg:px-8 lg:py-6"
     >
+      <HeaderBlur />
       <div className="container mx-auto flex items-center justify-between gap-6">
         {/* Left - Logo */}
         <Link href="/">

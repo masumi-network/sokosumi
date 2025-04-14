@@ -13,22 +13,22 @@ const navigationLinks: NavigationLinkData[] = [
   {
     href: "/agents",
     labelKey: "agents",
-    showChevron: true,
+    showChevron: false,
   },
   {
     href: "/#how-it-works",
     labelKey: "howItWorks",
-    showChevron: true,
+    showChevron: false,
   },
   {
     href: "/#join-our-community",
     labelKey: "community",
-    showChevron: true,
+    showChevron: false,
   },
   {
     href: "/#monetize",
     labelKey: "monetize",
-    showChevron: true,
+    showChevron: false,
   },
 ];
 
@@ -49,7 +49,7 @@ export default function NavigationMenu({ className }: NavigationMenuProps) {
           showChevron={nav.showChevron}
           className="inline-flex items-center gap-1 rounded-md p-2 text-sm font-medium transition-colors"
           activeClassName="bg-landing-navigation-active text-primary dark:bg-secondary dark:text-primary"
-          inActiveClassName="text-muted-foreground hover:text-primary"
+          inActiveClassName="text-foreground/80 hover:text-primary"
         />
       ))}
     </ul>

@@ -1,65 +1,130 @@
+import { ArrowUpRightFromSquare, Languages } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
 
-import { SokosumiLogo } from "@/components/masumi-logos";
+import { Button } from "@/components/ui/button";
 
 export default function Footer() {
-  const t = useTranslations("Landing.Footer");
   return (
-    <footer
-      id="footer"
-      className="bg-landing-footer-background text-landing-footer-foreground"
-    >
+    <footer className="bg-background text-foreground">
       <div className="container mx-auto px-4 py-12">
-        {/* Top section with logo */}
-        <div className="mb-8">
-          <Link href="/">
-            <SokosumiLogo variant="white" width={200} height={26} />
-          </Link>
-        </div>
-
-        {/* Bottom section with copyright and links */}
-        <div className="border-landing-footer-foreground/10 flex flex-col items-center justify-between gap-4 border-t pt-8 md:flex-row">
-          <p className="text-sm">
-            {t("copyright", { year: new Date().getFullYear() })}
-          </p>
-          <nav>
-            <ul className="flex flex-wrap justify-center gap-6">
+        <div className="mb-20 grid grid-cols-1 gap-8 md:grid-cols-4">
+          {/* NAVIGATE */}
+          <div className="border-t pt-8">
+            <h3 className="mb-4 font-medium">{"NAVIGATE"}</h3>
+            <ul className="space-y-2">
               <li>
-                <Link
-                  href="/privacy-policy"
-                  className="text-muted-foreground hover:text-landing-footer-foreground flex items-center gap-1 text-sm"
-                >
-                  {t("Navigation.PrivacyPolicy")}
+                <Link href="/agents" className="hover:text-gray-300">
+                  {"Agents Gallery"}
                 </Link>
               </li>
               <li>
-                <Link
-                  href="/terms-of-service"
-                  className="text-muted-foreground hover:text-landing-footer-foreground flex items-center gap-1 text-sm"
-                >
-                  {t("Navigation.TermsAndConditions")}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/cookie-policy"
-                  className="text-muted-foreground hover:text-landing-footer-foreground flex items-center gap-1 text-sm"
-                >
-                  {t("Navigation.CookiePolicy")}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/contact"
-                  className="text-muted-foreground hover:text-landing-footer-foreground flex items-center gap-1 text-sm"
-                >
-                  {t("Navigation.Contact")}
+                <Link href="/contribute" className="hover:text-gray-300">
+                  {"Contribute"}
                 </Link>
               </li>
             </ul>
-          </nav>
+          </div>
+
+          {/* CONNECT */}
+          <div className="border-t pt-8">
+            <h3 className="mb-4 font-medium">{"CONNECT"}</h3>
+            <ul className="space-y-2">
+              <li>
+                <Link
+                  href="https://twitter.com"
+                  className="hover:text-gray-300"
+                >
+                  {"X/Twitter"}
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="https://discord.com"
+                  className="hover:text-gray-300"
+                >
+                  {"Discord"}
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* GET IN TOUCH */}
+          <div className="border-t pt-8">
+            <h3 className="mb-4 font-medium">{"GET IN TOUCH"}</h3>
+            <ul className="space-y-2">
+              <li>
+                <Link href="/contact" className="hover:text-gray-300">
+                  {"Contact"}
+                </Link>
+              </li>
+              <li>
+                <Link href="/support" className="hover:text-gray-300">
+                  {"Customer Support"}
+                </Link>
+              </li>
+            </ul>
+          </div>
+
+          {/* AGENTIC SERVICES */}
+          <div className="border-t pt-8">
+            <h3 className="mb-4 font-medium">{"AGENTIC SERVICES"}</h3>
+            <ul className="space-y-2">
+              <li>
+                <Link
+                  href="https://masumi.network"
+                  className="flex items-center gap-1 hover:text-gray-300"
+                >
+                  {"masumi"}
+                  <ArrowUpRightFromSquare className="h-4 w-4" />
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="https://kodosumi.io"
+                  className="flex items-center gap-1 hover:text-gray-300"
+                >
+                  {"kodosumi"}
+                  <ArrowUpRightFromSquare className="h-4 w-4" />
+                </Link>
+              </li>
+            </ul>
+          </div>
         </div>
+
+        {/* Bottom section */}
+        <div className="flex flex-col items-center justify-between pt-8 md:flex-row">
+          <div className="mb-4 flex items-center gap-4 md:mb-0">
+            <Button variant="muted">
+              <Languages className="h-4 w-4" />
+              <span>{"English"}</span>
+            </Button>
+            <Link href="/imprint" className="text-sm hover:text-gray-300">
+              {"Imprint"}
+            </Link>
+            <Link
+              href="/privacy-policy"
+              className="text-sm hover:text-gray-300"
+            >
+              {"Privacy Policy"}
+            </Link>
+          </div>
+          <div className="text-sm text-gray-400">
+            {"Serviceplan Group ©"} {new Date().getFullYear()}{" "}
+            {"All rights reserved"}
+          </div>
+        </div>
+      </div>
+
+      {/* Footer image */}
+      <div className="flex w-full justify-center">
+        <Image
+          className="w-full"
+          src="/backgrounds/footer-image.png"
+          alt="Footer"
+          width={1920}
+          height={1080}
+        />
       </div>
     </footer>
   );
