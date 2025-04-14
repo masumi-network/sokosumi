@@ -44,6 +44,7 @@ export default function SignInForm() {
               break;
             default:
               toast.error(t("error"));
+              break;
           }
         },
         onSuccess: () => {

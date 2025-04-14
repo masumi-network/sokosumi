@@ -40,10 +40,13 @@ export default function SignUpForm() {
       },
       {
         onError: (ctx) => {
-          if (ctx.error.code === "USER_ALREADY_EXISTS") {
-            toast.error(t("Errors.Submit.userExists"));
-          } else {
-            toast.error(t("error"));
+          switch (ctx.error.code) {
+            case "USER_ALREADY_EXISTS":
+              toast.error(t("Errors.Submit.userExists"));
+              break;
+            default:
+              toast.error(t("error"));
+              break;
           }
         },
         onSuccess: () => {
