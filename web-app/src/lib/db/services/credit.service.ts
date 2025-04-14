@@ -8,7 +8,7 @@ import prisma from "@/lib/db/prisma";
 import { convertBaseUnitsToCredits } from "@/lib/db/utils/credit.utils";
 import { Prisma } from "@/prisma/generated/client";
 
-export async function getCreditBalance(
+async function getRawCredits(
   userId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<bigint> {
@@ -21,12 +21,20 @@ export async function getCreditBalance(
   return creditBalance._sum.amount ?? BigInt(0);
 }
 
+export async function getCredits(
+  userId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<number> {
+  const rawCredits = await getRawCredits(userId, tx);
+  return convertBaseUnitsToCredits(rawCredits);
+}
+
 export async function validateCreditBalance(
   userId: string,
   credits: bigint,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<void> {
-  const creditBalance = await getCreditBalance(userId, tx);
+  const creditBalance = await getRawCredits(userId, tx);
   if (creditBalance - credits < BigInt(0)) {
     throw new Error("Insufficient balance");
   }
@@ -45,7 +53,7 @@ const amountsSchema = z.array(
  * @returns The total credit cost for the agent in number format, or 0 if no pricing amounts are available
  * @throws Error if credit cost for a unit is not found or if fee percentage is negative
  */
-export async function calculateAgentHumandReadableCreditCost(
+export async function calculateAgentCredits(
   agent: AgentWithFixedPricing,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<number> {

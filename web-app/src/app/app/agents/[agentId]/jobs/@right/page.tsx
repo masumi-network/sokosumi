@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { getAgentById } from "@/lib/db/services/agent.service";
-import { calculateAgentHumandReadableCreditCost } from "@/lib/db/services/credit.service";
+import { calculateAgentCredits } from "@/lib/db/services/credit.service";
 
 import CreateJobSection from "./components/create-job-section";
 
@@ -22,7 +22,7 @@ export default async function CreateJobPage({
     notFound();
   }
 
-  const agentPrice = await calculateAgentHumandReadableCreditCost(agent);
+  const agentPrice = await calculateAgentCredits(agent);
 
   return <CreateJobSection agent={agent} agentPricing={agentPrice} />;
 }

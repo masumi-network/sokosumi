@@ -12,6 +12,7 @@ import {
   jobOrderBy,
   JobWithRelations,
 } from "@/lib/db/types/job.types";
+import { convertBaseUnitsToCredits } from "@/lib/db/utils/credit.utils";
 import { calculatedInputHash } from "@/lib/utils";
 import { Job, JobStatus, Prisma } from "@/prisma/generated/client";
 
@@ -31,7 +32,7 @@ const startJobSchema = z.object({
 export async function startJob(
   userId: string,
   agentId: string,
-  maxAcceptedCreditCost: bigint,
+  maxAcceptedCredits: number,
   inputData: Map<string, string | number | boolean | number[]>,
 ): Promise<Job> {
   return await prisma.$transaction(
@@ -48,8 +49,9 @@ export async function startJob(
         })),
         tx,
       );
-
-      if (creditCost > maxAcceptedCreditCost) {
+      const maxAcceptedRawCredits =
+        convertBaseUnitsToCredits(maxAcceptedCredits);
+      if (creditCost > maxAcceptedRawCredits) {
         throw new Error("Credit cost is too high");
       }
       if (creditCost > 0) {

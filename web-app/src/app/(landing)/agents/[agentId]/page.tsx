@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 
 import { AgentDetails } from "@/components/agents";
 import { getAgentById } from "@/lib/db/services/agent.service";
-import { calculateAgentHumandReadableCreditCost } from "@/lib/db/services/credit.service";
+import { calculateAgentCredits } from "@/lib/db/services/credit.service";
 
 import BackToGallery from "./components/back-to-gallery";
 
@@ -18,7 +18,7 @@ export default async function Page({
     notFound();
   }
 
-  const agentPrice = await calculateAgentHumandReadableCreditCost(agent);
+  const agentPrice = await calculateAgentCredits(agent);
 
   return (
     <div className="container mx-auto space-y-8 p-4 pb-16 xl:p-8">
