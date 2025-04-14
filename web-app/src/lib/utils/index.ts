@@ -13,22 +13,6 @@ export function cn(...inputs: ClassValue[]) {
 export const sleep = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
-export async function timeLimitedExecution<T>(
-  fn: () => Promise<T>,
-  timeout: number,
-): Promise<T> {
-  const result = await Promise.race([
-    fn(),
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error("Timeout")), timeout),
-    ),
-  ]);
-  if (result instanceof Error) {
-    throw result;
-  }
-  return result as T;
-}
-
 export async function getLock(lockKey: string) {
   return await prisma.$transaction(async (tx) => {
     // Example: Try to acquire a lock on a specific agent
