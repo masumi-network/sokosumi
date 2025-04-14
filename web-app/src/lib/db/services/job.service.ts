@@ -12,7 +12,7 @@ import {
   jobOrderBy,
   JobWithRelations,
 } from "@/lib/db/types/job.types";
-import { convertBaseUnitsToCredits } from "@/lib/db/utils/credit.utils";
+import { convertCreditsToBaseUnits } from "@/lib/db/utils/credit.utils";
 import { calculatedInputHash } from "@/lib/utils";
 import { Job, JobStatus, Prisma } from "@/prisma/generated/client";
 
@@ -50,7 +50,7 @@ export async function startJob(
         tx,
       );
       const maxAcceptedRawCredits =
-        convertBaseUnitsToCredits(maxAcceptedCredits);
+        convertCreditsToBaseUnits(maxAcceptedCredits);
       if (creditCost > maxAcceptedRawCredits) {
         throw new Error("Credit cost is too high");
       }
