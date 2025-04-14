@@ -15,7 +15,7 @@ export function getResolvedImage(agent: Agent): string {
 }
 
 export function getApiBaseUrl(agent: Agent): URL {
-  //Validate the API base URL
+  // Validate the API base URL
   const blacklistedHostnames = getEnvSecrets().BLACKLISTED_AGENT_HOSTNAMES;
   const apiBaseUrl = new URL(agent.apiBaseUrl);
   if (blacklistedHostnames.includes(apiBaseUrl.hostname)) {
@@ -154,4 +154,8 @@ export function getExampleOutput(
   return agent.overrideExampleOutput.length > 0
     ? agent.overrideExampleOutput
     : agent.exampleOutput;
+}
+
+export function getResolvedUrl(exampleOutput: ExampleOutput): string {
+  return ipfsUrlResolver(exampleOutput.url);
 }
