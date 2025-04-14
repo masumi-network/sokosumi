@@ -1,4 +1,5 @@
 import { BreadcrumbNavigation } from "@/components/breadcrumb-navigation";
+import ThemeToggle from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 
 import CustomTrigger from "./sidebar/components/custom-trigger";
@@ -13,7 +14,7 @@ export default function Header({ className }: HeaderProps) {
   return (
     <header
       className={cn(
-        "border-grid bg-background/95 sticky top-0 z-50 flex w-full items-center gap-4 border-b px-4 py-3",
+        "border-grid bg-background/95 sticky top-0 z-50 flex w-full items-center gap-2 border-b px-4 py-3 md:gap-4",
         className,
       )}
     >
@@ -21,6 +22,7 @@ export default function Header({ className }: HeaderProps) {
       <BreadcrumbNavigation className="flex flex-1 px-2 sm:px-4" />
       <UserCredits className="text-muted-foreground text-sm" />
       <UserAvatar />
+      <ThemeToggle />
     </header>
   );
 }

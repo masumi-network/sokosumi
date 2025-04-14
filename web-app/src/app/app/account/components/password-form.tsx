@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import { updatePassword } from "@/app/account/actions";
 import { passwordFormSchema, PasswordFormType } from "@/app/account/data";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +24,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { authClient } from "@/lib/auth/auth.client";
 
 export function PasswordForm() {
   const t = useTranslations("App.Account.Password");
@@ -41,13 +41,22 @@ export function PasswordForm() {
   });
 
   const onSubmit = async (values: PasswordFormType) => {
-    const { success } = await updatePassword(values);
-    if (success) {
-      toast.success(t("success"));
-      form.reset();
-    } else {
-      toast.error(t("error"));
-    }
+    await authClient.changePassword(
+      {
+        currentPassword: values.currentPassword,
+        newPassword: values.newPassword,
+        revokeOtherSessions: true,
+      },
+      {
+        onError: () => {
+          toast.error(t("error"));
+        },
+        onSuccess: () => {
+          toast.success(t("success"));
+          form.reset();
+        },
+      },
+    );
   };
 
   return (

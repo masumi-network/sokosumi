@@ -7,12 +7,12 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/landing/(auth)/components/form";
-import { resetPassword } from "@/landing/(auth)/reset-password/actions";
 import {
   resetPasswordFormData,
   resetPasswordFormSchema,
   type ResetPasswordFormSchemaType,
 } from "@/landing/(auth)/reset-password/data";
+import { authClient } from "@/lib/auth/auth.client";
 
 interface ResetPasswordFormProps {
   token: string;
@@ -34,13 +34,21 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
   });
 
   async function onSubmit(values: ResetPasswordFormSchemaType) {
-    const { success } = await resetPassword(values);
-    if (success) {
-      toast.success(t("success"));
-      router.push("/signin");
-    } else {
-      toast.error(t("error"));
-    }
+    await authClient.resetPassword(
+      {
+        newPassword: values.password,
+        token: values.token,
+      },
+      {
+        onError: () => {
+          toast.error(t("error"));
+        },
+        onSuccess: () => {
+          toast.success(t("success"));
+          router.push("/signin");
+        },
+      },
+    );
   }
 
   return (

@@ -8,12 +8,12 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/landing/(auth)/components/form";
-import { signin } from "@/landing/(auth)/signin/actions";
 import {
   signInFormData,
   signInFormSchema,
   SignInFormSchemaType,
 } from "@/landing/(auth)/signin/data";
+import { authClient } from "@/lib/auth/auth.client";
 
 export default function SignInForm() {
   const t = useTranslations("Landing.Auth.Pages.SignIn.Form");
@@ -31,19 +31,28 @@ export default function SignInForm() {
   });
 
   const onSubmit = async (values: SignInFormSchemaType) => {
-    const { success, error } = await signin(values);
-    if (success) {
-      toast.success(t("success"));
-      router.push("/app");
-    } else {
-      switch (error) {
-        case "emailNotVerified":
-          toast.error(t("Errors.Submit.verifyEmail"));
-          break;
-        default:
-          toast.error(t("error"));
-      }
-    }
+    await authClient.signIn.email(
+      {
+        email: values.email,
+        password: values.currentPassword,
+      },
+      {
+        onError: (ctx) => {
+          switch (ctx.error.code) {
+            case "EMAIL_NOT_VERIFIED":
+              toast.error(t("Errors.Submit.verifyEmail"));
+              break;
+            default:
+              toast.error(t("error"));
+              break;
+          }
+        },
+        onSuccess: () => {
+          toast.success(t("success"));
+          router.push("/app");
+        },
+      },
+    );
   };
 
   return (

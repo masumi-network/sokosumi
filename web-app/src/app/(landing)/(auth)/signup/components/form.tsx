@@ -7,12 +7,12 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/landing/(auth)/components/form";
-import { signup } from "@/landing/(auth)/signup/actions";
 import {
   signUpFormData,
   signUpFormSchema,
   SignUpFormSchemaType,
 } from "@/landing/(auth)/signup/data";
+import { authClient } from "@/lib/auth/auth.client";
 
 export default function SignUpForm() {
   const t = useTranslations("Landing.Auth.Pages.SignUp.Form");
@@ -31,17 +31,30 @@ export default function SignUpForm() {
   });
 
   const onSubmit = async (values: SignUpFormSchemaType) => {
-    const { success, error } = await signup(values);
-    if (success) {
-      toast.success(t("success"));
-      router.push("/signin");
-    } else {
-      if (error === "userExists") {
-        toast.error(t("Errors.Submit.userExists"));
-      } else {
-        toast.error(t("error"));
-      }
-    }
+    await authClient.signUp.email(
+      {
+        email: values.email,
+        name: values.name,
+        password: values.password,
+        callbackURL: "/app",
+      },
+      {
+        onError: (ctx) => {
+          switch (ctx.error.code) {
+            case "USER_ALREADY_EXISTS":
+              toast.error(t("Errors.Submit.userExists"));
+              break;
+            default:
+              toast.error(t("error"));
+              break;
+          }
+        },
+        onSuccess: () => {
+          toast.success(t("success"));
+          router.push("/signin");
+        },
+      },
+    );
   };
 
   return (

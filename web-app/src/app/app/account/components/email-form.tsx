@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import { updateEmail } from "@/app/account/actions";
 import { emailFormSchema, EmailFormType } from "@/app/account/data";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,6 +24,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { authClient } from "@/lib/auth/auth.client";
 
 export function EmailForm() {
   const t = useTranslations("App.Account.Email");
@@ -38,13 +38,21 @@ export function EmailForm() {
   });
 
   const onSubmit = async (values: EmailFormType) => {
-    const { success } = await updateEmail(values);
-    if (success) {
-      toast.success(t("success"));
-      form.reset();
-    } else {
-      toast.error(t("error"));
-    }
+    await authClient.changeEmail(
+      {
+        newEmail: values.email,
+        callbackURL: "/app",
+      },
+      {
+        onError: () => {
+          toast.error(t("error"));
+        },
+        onSuccess: () => {
+          toast.success(t("success"));
+          form.reset();
+        },
+      },
+    );
   };
 
   return (

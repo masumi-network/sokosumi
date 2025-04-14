@@ -6,7 +6,6 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import { deleteAccount } from "@/app/account/actions";
 import { DeleteAccountFormType, deleteAccountSchema } from "@/app/account/data";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,6 +33,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { authClient } from "@/lib/auth/auth.client";
 
 export function DeleteAccountForm() {
   const t = useTranslations("App.Account.Delete");
@@ -49,13 +49,20 @@ export function DeleteAccountForm() {
   });
 
   const onSubmit = async (values: DeleteAccountFormType) => {
-    const { success } = await deleteAccount(values);
-    if (success) {
-      toast.success(t("success"));
-      router.push("/");
-    } else {
-      toast.error(t("error"));
-    }
+    await authClient.deleteUser(
+      {
+        password: values.currentPassword,
+      },
+      {
+        onError: () => {
+          toast.error(t("error"));
+        },
+        onSuccess: () => {
+          toast.success(t("success"));
+          router.push("/");
+        },
+      },
+    );
   };
 
   return (

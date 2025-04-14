@@ -35,6 +35,26 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+  emailAndPassword: {
+    enabled: true,
+    maxPasswordLength: getEnvPublicConfig().NEXT_PUBLIC_PASSWORD_MAX_LENGTH,
+    minPasswordLength: getEnvPublicConfig().NEXT_PUBLIC_PASSWORD_MIN_LENGTH,
+    requireEmailVerification: true,
+    autoSignIn: false,
+    sendResetPassword: async ({ user, url }) => {
+      const t = await getTranslations("Library.Auth.Email.ResetPassword");
+
+      await resend.emails.send({
+        from: fromEmail,
+        to: user.email,
+        subject: t("subject"),
+        react: reactResetPasswordEmail({
+          name: user.name,
+          resetLink: url,
+        }),
+      });
+    },
+  },
   emailVerification: {
     sendVerificationEmail: async ({ user, url }) => {
       const t = await getTranslations("Library.Auth.Email.Verification");
@@ -50,25 +70,7 @@ export const auth = betterAuth({
       });
     },
     sendOnSignUp: true,
-  },
-  emailAndPassword: {
-    enabled: true,
-    maxPasswordLength: getEnvPublicConfig().NEXT_PUBLIC_PASSWORD_MAX_LENGTH,
-    minPasswordLength: getEnvPublicConfig().NEXT_PUBLIC_PASSWORD_MIN_LENGTH,
-    requireEmailVerification: true,
-    sendResetPassword: async ({ user, url }) => {
-      const t = await getTranslations("Library.Auth.Email.ResetPassword");
-
-      await resend.emails.send({
-        from: fromEmail,
-        to: user.email,
-        subject: t("subject"),
-        react: reactResetPasswordEmail({
-          name: user.name,
-          resetLink: url,
-        }),
-      });
-    },
+    autoSignInAfterVerification: true,
   },
   user: {
     changeEmail: {
