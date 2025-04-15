@@ -630,8 +630,10 @@
         "submit": "Submit",
         "Error": {
           "insufficientBalance": "Your credit balance is insufficient to start this job.",
+          "insufficientBalanceAction": "Buy credits",
           "invalidInput": "Your input data is invalid.",
           "notAuthenticated": "You must be logged in to start a job.",
+          "notAuthenticatedAction": "Login",
           "default": "Failed to start the job."
         },
         "String": {
