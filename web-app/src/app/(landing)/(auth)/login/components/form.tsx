@@ -12,7 +12,7 @@ import {
   signInFormData,
   signInFormSchema,
   SignInFormSchemaType,
-} from "@/landing/(auth)/signin/data";
+} from "@/landing/(auth)/login/data";
 import { authClient } from "@/lib/auth/auth.client";
 
 export default function SignInForm() {

@@ -39,10 +39,10 @@ export default function UserAvatarClient({ user }: UserAvatarClientProps) {
     await signOut({
       fetchOptions: {
         onError: () => {
-          toast.error(t("Error.signOut"));
+          toast.error(t("Error.logout"));
         },
         onSuccess: () => {
-          router.push("/signin");
+          router.push("/login");
         },
       },
     });

@@ -7,7 +7,7 @@ export function SignInButton(props: React.ComponentProps<typeof Button>) {
   const t = useTranslations("Landing.Auth.Words");
 
   return (
-    <Link href="/signin">
+    <Link href="/login">
       <Button {...props}>{t("signIn")}</Button>
     </Link>
   );
@@ -16,7 +16,7 @@ export function SignInButton(props: React.ComponentProps<typeof Button>) {
 export function SignUpButton(props: React.ComponentProps<typeof Button>) {
   const t = useTranslations("Landing.Auth.Words");
   return (
-    <Link href="/signup">
+    <Link href="/register">
       <Button {...props}>{t("signUp")}</Button>
     </Link>
   );

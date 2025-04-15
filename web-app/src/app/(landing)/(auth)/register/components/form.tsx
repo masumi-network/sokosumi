@@ -11,7 +11,7 @@ import {
   signUpFormData,
   signUpFormSchema,
   SignUpFormSchemaType,
-} from "@/landing/(auth)/signup/data";
+} from "@/landing/(auth)/register/data";
 import { authClient } from "@/lib/auth/auth.client";
 
 export default function SignUpForm() {
@@ -51,7 +51,7 @@ export default function SignUpForm() {
         },
         onSuccess: () => {
           toast.success(t("success"));
-          router.push("/signin");
+          router.push("/login");
         },
       },
     );
