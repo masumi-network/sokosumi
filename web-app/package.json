@@ -48,7 +48,7 @@
     "@radix-ui/react-switch": "^1.1.4",
     "@radix-ui/react-tooltip": "^1.2.0",
     "@react-email/components": "^0.0.36",
-    "@tanstack/react-table": "^8.21.2",
+    "@tanstack/react-table": "^8.21.3",
     "@tufjs/canonical-json": "^2.0.0",
     "better-auth": "^1.2.7",
     "better-auth-harmony": "^1.2.4",
