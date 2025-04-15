@@ -51,7 +51,7 @@ export async function createCheckoutSession(
   user: User,
   fiatTransactionId: string,
   priceId: string,
-  credits: number,
+  humanReadableCredits: number,
 ): Promise<{
   id: string;
   url: string;
@@ -64,7 +64,7 @@ export async function createCheckoutSession(
     line_items: [
       {
         price: priceId,
-        quantity: credits,
+        quantity: humanReadableCredits,
       },
     ],
     client_reference_id: fiatTransactionId,

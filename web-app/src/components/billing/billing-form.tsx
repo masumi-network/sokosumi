@@ -35,9 +35,9 @@ export default function BillingForm({
   const [customAmount, setCustomAmount] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleTopUp = async (credits: number | null) => {
-    console.log("Topping up credits:", credits);
-    if (!credits || credits <= 0) {
+  const handleTopUp = async (humanReadableCredits: number | null) => {
+    console.log("Topping up credits:", humanReadableCredits);
+    if (!humanReadableCredits || humanReadableCredits <= 0) {
       return;
     }
     setLoading(true);
@@ -45,7 +45,7 @@ export default function BillingForm({
       const { stripeSessionId, url } = await createOneTimePaymentStripeSession(
         userId,
         priceId,
-        credits,
+        humanReadableCredits,
       );
 
       console.log("Checkout session created:", stripeSessionId, url);
