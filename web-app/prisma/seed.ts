@@ -27,7 +27,6 @@ const seedUser = async (): Promise<string> => {
       email: getEnvSecrets().SEED_USER_EMAIL,
       name: "Sokosumi Developer",
       emailVerified: true,
-      role: "user",
       createdAt: new Date(),
       updatedAt: new Date(),
     },
