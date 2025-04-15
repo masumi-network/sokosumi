@@ -1,5 +1,6 @@
 "use server";
 
+import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
 
 import { getEnvPublicConfig } from "@/config/env.config";
@@ -56,8 +57,7 @@ export async function startJob(
       }
       const baseUrl = getApiBaseUrl(agent);
       const startJobUrl = new URL(`/start_job`, baseUrl);
-      const identifierFromPurchaser = crypto
-        .randomUUID()
+      const identifierFromPurchaser = uuidv4()
         .replace(/-/g, "")
         .substring(0, 25);
 
