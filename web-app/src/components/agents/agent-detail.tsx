@@ -16,6 +16,8 @@ import {
 } from "@/lib/db/extension/agent";
 import { AgentWithRelations } from "@/lib/db/types/agent.types";
 import { AgentListWithAgent } from "@/lib/db/types/agentList.types";
+import { AgentCreditsPrice } from "@/lib/db/types/credit.type";
+import { convertCreditsToHumanReadableCredits } from "@/lib/db/utils/credit.utils";
 import { cn } from "@/lib/utils";
 
 import { AgentBookmarkButton } from "./agent-bookmark-button";
@@ -86,14 +88,14 @@ function AgentDetailSkeleton({ className }: AgentDetailSkeletonProps) {
 interface AgentDetailsProps {
   agent: AgentWithRelations;
   agentList?: AgentListWithAgent | undefined;
-  agentPrice: number;
+  agentCreditsPrice: AgentCreditsPrice;
   className?: string;
 }
 
 function AgentDetails({
   agent,
-  agentPrice,
   agentList,
+  agentCreditsPrice,
   className,
 }: AgentDetailsProps) {
   const t = useTranslations("Components.Agents.AgentDetail");
@@ -101,6 +103,9 @@ function AgentDetails({
   const legal = getLegal(agent);
   const exampleOutput = getExampleOutput(agent);
   const description = getDescription(agent);
+  const humanReadableCredits = convertCreditsToHumanReadableCredits(
+    agentCreditsPrice.credits,
+  );
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -137,7 +142,7 @@ function AgentDetails({
           </div>
           {/* Pricing */}
           <p className="pt-1 text-sm font-medium">
-            {t("pricing", { price: agentPrice })}
+            {t("pricing", { price: humanReadableCredits })}
           </p>
           {/* Action Buttons */}
           <div className="mt-auto flex flex-col gap-3">

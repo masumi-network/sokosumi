@@ -16,7 +16,10 @@ import { calculatedInputHash } from "@/lib/utils";
 import { Job, JobStatus, Prisma } from "@/prisma/generated/client";
 
 import { getAgentById, getAgentPricing } from "./agent.service";
-import { calculateCreditCost, validateCreditBalance } from "./credit.service";
+import {
+  calculateCreditsPrice,
+  validateCreditsBalance,
+} from "./credit.service";
 
 const startJobSchema = z.object({
   input_hash: z.string(),
@@ -41,18 +44,18 @@ export async function startJob(
         throw new Error("Agent not found");
       }
       const pricing = await getAgentPricing(agentId, tx);
-      const creditCost = await calculateCreditCost(
+      const creditsPrice = await calculateCreditsPrice(
         pricing.FixedPricing.Amounts.map((amount) => ({
           unit: amount.unit,
           amount: Number(amount.amount),
         })),
         tx,
       );
-      if (creditCost.credits > maxAcceptedCredits) {
+      if (creditsPrice.credits > maxAcceptedCredits) {
         throw new Error("Credit cost is too high");
       }
-      if (creditCost.credits > 0) {
-        await validateCreditBalance(userId, creditCost.credits, tx);
+      if (creditsPrice.credits > 0) {
+        await validateCreditsBalance(userId, creditsPrice.credits, tx);
       }
       const baseUrl = getApiBaseUrl(agent);
       const startJobUrl = new URL(`/start_job`, baseUrl);
@@ -125,8 +128,8 @@ export async function startJob(
           },
           creditTransaction: {
             create: {
-              amount: -creditCost.credits,
-              includedFee: creditCost.includedFee,
+              amount: -creditsPrice.credits,
+              includedFee: creditsPrice.includedFee,
               user: {
                 connect: {
                   id: userId,

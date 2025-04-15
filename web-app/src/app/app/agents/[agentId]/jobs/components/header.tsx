@@ -9,12 +9,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getName } from "@/lib/db/extension/agent";
 import { AgentWithRelations } from "@/lib/db/types/agent.types";
 import { AgentListWithAgent } from "@/lib/db/types/agentList.types";
-
-interface HeaderProps {
-  agent: AgentWithRelations;
-  agentPricing: number;
-  favoriteAgentList: AgentListWithAgent;
-}
+import { AgentCreditsPrice } from "@/lib/db/types/credit.type";
+import { convertCreditsToHumanReadableCredits } from "@/lib/db/utils/credit.utils";
 
 const bookmarkSize = 36;
 
@@ -58,13 +54,23 @@ function AgentBookmarkSection({
   );
 }
 
+interface HeaderProps {
+  agent: AgentWithRelations;
+  agentCreditsPrice: AgentCreditsPrice;
+  favoriteAgentList: AgentListWithAgent;
+}
+
 export default function Header({
   agent,
-  agentPricing,
+  agentCreditsPrice,
   favoriteAgentList,
 }: HeaderProps) {
   const t = useTranslations("App.Agents.Jobs.Header");
   const router = useRouter();
+  const humanReadableCredits = convertCreditsToHumanReadableCredits(
+    agentCreditsPrice.credits,
+  );
+
   return (
     <div className="flex flex-col items-center gap-4 lg:flex-row lg:gap-6 xl:gap-8">
       <div className="flex flex-row items-center gap-4">
@@ -78,7 +84,7 @@ export default function Header({
       </div>
       <div className="flex flex-1 flex-row items-center justify-end gap-4">
         <div className="w-full text-end text-base">
-          {t("price", { price: agentPricing })}
+          {t("price", { price: humanReadableCredits })}
         </div>
         <Button
           className="gap-2"

@@ -12,6 +12,8 @@ import {
 } from "@/lib/db/extension/agent";
 import { AgentWithRelations } from "@/lib/db/types/agent.types";
 import { AgentListWithAgent } from "@/lib/db/types/agentList.types";
+import { AgentCreditsPrice } from "@/lib/db/types/credit.type";
+import { convertCreditsToHumanReadableCredits } from "@/lib/db/utils/credit.utils";
 import { cn } from "@/lib/utils";
 
 import { AgentBookmarkButton } from "./agent-bookmark-button";
@@ -70,19 +72,23 @@ function AgentCardSkeleton({ className }: AgentCardSkeletonProps) {
 interface AgentCardProps {
   agent: AgentWithRelations;
   agentList?: AgentListWithAgent | undefined;
-  agentPrice: number;
+  agentCreditsPrice: AgentCreditsPrice;
   className?: string | undefined;
 }
 
 function AgentCard({
   agent,
-  agentPrice,
   agentList,
+  agentCreditsPrice,
   className,
 }: AgentCardProps) {
   const t = useTranslations("Components.Agents.AgentCard");
   const averageStars = getAverageStars(agent);
   const description = getDescription(agent);
+  const humanReadableCredits = convertCreditsToHumanReadableCredits(
+    agentCreditsPrice.credits,
+  );
+
   return (
     <Card
       className={cn(
@@ -134,7 +140,9 @@ function AgentCard({
 
             <div>
               <p className="text-muted-foreground text-s">
-                {t("pricing", { price: agentPrice })}
+                {t("pricing", {
+                  price: humanReadableCredits,
+                })}
               </p>
             </div>
           </div>

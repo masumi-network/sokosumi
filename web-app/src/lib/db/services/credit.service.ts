@@ -5,28 +5,29 @@ import { z } from "zod";
 import { getEnvPublicConfig } from "@/config/env.config";
 import { AgentWithFixedPricing } from "@/lib/db/extension/agent";
 import prisma from "@/lib/db/prisma";
+import { AgentCreditsPrice } from "@/lib/db/types/credit.type";
 import { Prisma } from "@/prisma/generated/client";
 
 export async function getCredits(
   userId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<bigint> {
-  const creditBalance = await tx.creditTransaction.aggregate({
+  const creditsBalance = await tx.creditTransaction.aggregate({
     where: { userId },
     _sum: {
       amount: true,
     },
   });
-  return creditBalance._sum.amount ?? BigInt(0);
+  return creditsBalance._sum.amount ?? BigInt(0);
 }
 
-export async function validateCreditBalance(
+export async function validateCreditsBalance(
   userId: string,
   credits: bigint,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<void> {
-  const creditBalance = await getCredits(userId, tx);
-  if (creditBalance - credits < BigInt(0)) {
+  const creditsBalance = await getCredits(userId, tx);
+  if (creditsBalance - credits < BigInt(0)) {
     throw new Error("Insufficient balance");
   }
 }
@@ -39,15 +40,15 @@ const amountsSchema = z.array(
 );
 
 /**
- * Calculates the human readable credit cost for an agent with fixed pricing
+ * Calculates Agent's credit costs (in base units) and included fee.
  * @param agent - The agent with fixed pricing information
- * @returns The total credit cost for the agent in number format, or 0 if no pricing amounts are available
+ * @returns The total credit cost for the agent in base units, or 0 if no pricing amounts are available
  * @throws Error if credit cost for a unit is not found or if fee percentage is negative
  */
-export async function calculateAgentCreditCost(
+export async function calculateAgentCreditsPrice(
   agent: AgentWithFixedPricing,
   tx: Prisma.TransactionClient = prisma,
-): Promise<{ credits: bigint; includedFee: bigint }> {
+): Promise<AgentCreditsPrice> {
   const amounts = agent.pricing?.fixedPricing?.amounts?.map((amount) => ({
     unit: amount.unit,
     amount: Number(amount.amount),
@@ -55,7 +56,7 @@ export async function calculateAgentCreditCost(
   if (!amounts) {
     return { credits: BigInt(0), includedFee: BigInt(0) };
   }
-  return await calculateCreditCost(amounts, tx);
+  return await calculateCreditsPrice(amounts, tx);
 }
 
 /**
@@ -64,10 +65,10 @@ export async function calculateAgentCreditCost(
  * @returns The credit cost for the job in base units
  * @throws Error if credit cost for a unit is not found or if fee percentage is negative
  */
-export async function calculateCreditCost(
+export async function calculateCreditsPrice(
   amounts: { unit: string; amount: number }[],
   tx: Prisma.TransactionClient = prisma,
-): Promise<{ credits: bigint; includedFee: bigint }> {
+): Promise<AgentCreditsPrice> {
   const feePercentagePoints = getEnvPublicConfig().NEXT_PUBLIC_FEE_PERCENTAGE;
   if (feePercentagePoints < 0) {
     throw new Error("Added fee percentage must be equal to or greater than 0");
@@ -87,11 +88,11 @@ export async function calculateCreditCost(
     if (!creditCost) {
       throw new Error(`Credit cost not found for unit ${amount.unit}`);
     }
-    const cost = amount.amount * Number(creditCost.creditCostPerUnit);
-    const fee = cost * feeMultiplier;
+    const credits = amount.amount * Number(creditCost.creditCostPerUnit);
+    const fee = credits * feeMultiplier;
 
     // round up to the nearest integer
-    totalCredits += BigInt(Math.ceil(cost));
+    totalCredits += BigInt(Math.ceil(credits));
     totalFee += BigInt(Math.ceil(fee));
   }
   return { credits: totalCredits + totalFee, includedFee: totalFee };
