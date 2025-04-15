@@ -13,7 +13,7 @@ export async function requireAuthentication(): Promise<{
   });
 
   if (!session) {
-    redirect("/signin");
+    redirect("/login");
   }
 
   return { session };
