@@ -100,7 +100,7 @@ export default function UserAvatarClient({ user }: UserAvatarClientProps) {
           onClick={onSignOut}
         >
           <LogOut className="text-muted-foreground" />
-          {t("logout")}
+          {t("signOut")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
