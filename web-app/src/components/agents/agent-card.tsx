@@ -56,19 +56,19 @@ function AgentCard({ agent, agentPrice, className }: AgentCardProps) {
   return (
     <Card
       className={cn(
-        "group bg-card relative overflow-hidden rounded-xl transition-shadow hover:shadow-lg",
+        "group bg-card relative gap-4 rounded-none border-none p-0 transition-shadow hover:shadow-lg",
         className,
       )}
     >
       {/* Badge */}
       <div className="absolute top-3 left-3 z-10">
-        <Badge variant="secondary" className="font-medium">
+        <Badge variant="default" className="font-medium">
           {"BADGE"}
         </Badge>
       </div>
 
       {/* Image */}
-      <div className="aspect-[1.6] w-full overflow-hidden">
+      <div className="shadow-foreground/10 aspect-[1.6] w-full overflow-hidden rounded-lg shadow-lg">
         <Image
           src={getResolvedImage(agent)}
           alt={`${getName(agent)} image`}
