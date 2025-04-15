@@ -1,4 +1,13 @@
 {
+  "Footer": {
+    "Navigation": {
+      "PrivacyPolicy": "Privacy Policy",
+      "TermsAndConditions": "Terms & Conditions",
+      "Imprint": "Imprint",
+      "Contact": "Contact"
+    },
+    "copyright": "© {year} Masumi"
+  },
   "Job": {
     "CreationFailed": "Failed to create job",
     "RefundFailed": "Failed to refund job",
@@ -99,15 +108,6 @@
       "Connection": {
         "dashboard": "Dashboard"
       }
-    },
-    "Footer": {
-      "Navigation": {
-        "PrivacyPolicy": "Privacy Policy",
-        "TermsAndConditions": "Terms & Conditions",
-        "CookiePolicy": "Cookie Policy",
-        "Contact": "Contact"
-      },
-      "copyright": "© {year} Masumi"
     },
     "Auth": {
       "Schema": {

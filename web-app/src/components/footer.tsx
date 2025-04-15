@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { SokosumiLogo } from "@/components/masumi-logos";
 
 export default function Footer() {
-  const t = useTranslations("Landing.Footer");
+  const t = useTranslations("Footer");
   return (
     <footer
       id="footer"
@@ -43,15 +43,16 @@ export default function Footer() {
               </li>
               <li>
                 <Link
-                  href="/cookie-policy"
+                  href="/imprint"
                   className="text-muted-foreground hover:text-landing-footer-foreground flex items-center gap-1 text-sm"
                 >
-                  {t("Navigation.CookiePolicy")}
+                  {t("Navigation.Imprint")}
                 </Link>
               </li>
               <li>
                 <Link
-                  href="/contact"
+                  href="https://www.masumi.network/contact"
+                  target="_blank"
                   className="text-muted-foreground hover:text-landing-footer-foreground flex items-center gap-1 text-sm"
                 >
                   {t("Navigation.Contact")}
