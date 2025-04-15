@@ -38,7 +38,7 @@ export async function startJob(
     async (tx) => {
       const agent = await getAgentById(agentId, tx);
       if (!agent) {
-        throw new Error("Agent not found");
+        throw new Error("AGENT_NOT_FOUND");
       }
       const pricing = await getAgentPricing(agentId, tx);
       const creditCost = await calculateCreditCost(
@@ -49,7 +49,7 @@ export async function startJob(
         tx,
       );
       if (creditCost.credits > maxAcceptedCredits) {
-        throw new Error("Credit cost is too high");
+        throw new Error("CREDIT_COST_TOO_HIGH");
       }
       if (creditCost.credits > 0) {
         await validateCreditBalance(userId, creditCost.credits, tx);
@@ -74,19 +74,19 @@ export async function startJob(
         }),
       });
       if (!result.ok) {
-        throw new Error("Failed to start job");
+        throw new Error("START_JOB_FAILED");
       }
 
       const startJobResponseData = startJobSchema.safeParse(
         await result.json(),
       );
       if (!startJobResponseData.success) {
-        throw new Error("Failed to parse start job response");
+        throw new Error("START_JOB_RESPONSE_PARSE_FAILED");
       }
 
       const startJobResponse = startJobResponseData.data;
       if (startJobResponse.input_hash !== inputHash) {
-        throw new Error("Input data hash mismatch");
+        throw new Error("INPUT_DATA_HASH_MISMATCH");
       }
 
       const paymentClient = getPaymentClient();
@@ -111,7 +111,7 @@ export async function startJob(
         },
       });
       if (purchaseRequest.error || !purchaseRequest.data) {
-        throw new Error("Failed to create purchase request");
+        throw new Error("CREATE_PURCHASE_REQUEST_FAILED");
       }
 
       const purchaseResponse = purchaseRequest.data;

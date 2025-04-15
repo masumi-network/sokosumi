@@ -70,10 +70,24 @@ export default function JobInputsFormClient({
       if (result.success && result.data?.jobId) {
         form.reset();
         await asyncRouter.push(`${pathname}/${result.data.jobId}`);
+      } else {
+        switch (result.error?.code) {
+          case "INSUFFICIENT_BALANCE":
+            toast.error(t("Error.insufficientBalance"));
+            break;
+          case "INVALID_INPUT":
+            toast.error(t("Error.invalidInput"));
+            break;
+          case "NOT_AUTHENTICATED":
+            toast.error(t("Error.notAuthenticated"));
+            break;
+          default:
+            toast.error(t("Error.default"));
+            break;
+        }
       }
-    } catch (error) {
-      console.error(error);
-      toast.error(t("error"));
+    } catch {
+      toast.error(t("Error.default"));
     }
   };
 

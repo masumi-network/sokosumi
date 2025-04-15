@@ -628,7 +628,12 @@
         "clear": "Clear",
         "price": "{price, plural, =0 {Free} =1 {1 credit} other {# credits}} per run",
         "submit": "Submit",
-        "error": "Failed to start job",
+        "Error": {
+          "insufficientBalance": "Your credit balance is insufficient to start this job.",
+          "invalidInput": "Your input data is invalid.",
+          "notAuthenticated": "You must be logged in to start a job.",
+          "default": "Failed to start the job."
+        },
         "String": {
           "required": "{name} is required",
           "min": "{name} must be at least {value} characters",
