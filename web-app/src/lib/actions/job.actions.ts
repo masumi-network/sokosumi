@@ -56,7 +56,7 @@ export async function startJobWithInputData(input: StartJobInput): Promise<{
   } catch (error) {
     if (error instanceof Error) {
       switch (error.message) {
-        case "INSUFFICIENT_BALANCE":
+        case "Insufficient balance":
           return { success: false, error: { code: "INSUFFICIENT_BALANCE" } };
         default:
           return { success: false, error: { code: "INTERNAL_SERVER_ERROR" } };

@@ -27,7 +27,7 @@ export async function validateCreditBalance(
 ): Promise<void> {
   const creditBalance = await getCredits(userId, tx);
   if (creditBalance - credits < BigInt(0)) {
-    throw new Error("INSUFFICIENT_BALANCE");
+    throw new Error("Insufficient balance");
   }
 }
 
