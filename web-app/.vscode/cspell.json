@@ -9,7 +9,9 @@
     "mainnet",
     "sonner",
     "ipfs",
-    "nmkr"
+    "nmkr",
+    "cardano",
+    "vkey"
   ],
   "ignorePaths": [
     "node_modules",

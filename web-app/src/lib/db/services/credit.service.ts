@@ -56,8 +56,8 @@ export async function calculateAgentHumandReadableCreditCost(
   if (!amounts) {
     return 0.0;
   }
-  const creditCost = await calculateCreditCost(amounts, tx);
-  return convertBaseUnitsToCredits(creditCost);
+  const cost = await calculateCreditCost(amounts, tx);
+  return convertBaseUnitsToCredits(cost.credits);
 }
 
 /**
@@ -69,7 +69,7 @@ export async function calculateAgentHumandReadableCreditCost(
 export async function calculateCreditCost(
   amounts: { unit: string; amount: number }[],
   tx: Prisma.TransactionClient = prisma,
-): Promise<bigint> {
+): Promise<{ credits: bigint; includedFee: bigint }> {
   const feePercentagePoints = getEnvPublicConfig().NEXT_PUBLIC_FEE_PERCENTAGE;
   if (feePercentagePoints < 0) {
     throw new Error("Added fee percentage must be equal to or greater than 0");
@@ -78,7 +78,9 @@ export async function calculateCreditCost(
 
   const amountsParsed = amountsSchema.parse(amounts);
 
-  let totalCreditCost = BigInt(0);
+  let totalCost = BigInt(0);
+  let totalFee = BigInt(0);
+  // Calculate the total credit cost and fee for each amount
   for (const amount of amountsParsed) {
     const creditCost = await tx.creditCost.findUnique({
       where: {
@@ -90,10 +92,10 @@ export async function calculateCreditCost(
     }
     const cost = amount.amount * Number(creditCost.creditCostPerUnit);
     const fee = cost * feeMultiplier;
-    const totalCost = cost + fee;
 
     // round up to the nearest integer
-    totalCreditCost += BigInt(Math.ceil(totalCost));
+    totalCost += BigInt(Math.ceil(cost));
+    totalFee += BigInt(Math.ceil(fee));
   }
-  return totalCreditCost;
+  return { credits: totalCost + totalFee, includedFee: totalFee };
 }
