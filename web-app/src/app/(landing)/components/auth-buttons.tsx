@@ -15,9 +15,9 @@ interface AuthButtonsProps {
 export default function AuthButtons({ containerClassName }: AuthButtonsProps) {
   const pathname = usePathname();
 
-  if (pathname.startsWith("/signin")) return <SignUpButton />;
+  if (pathname.startsWith("/login")) return <SignUpButton />;
 
-  if (pathname.startsWith("/signup")) return <SignInButton />;
+  if (pathname.startsWith("/register")) return <SignInButton />;
 
   return (
     <div className={cn("flex items-center gap-4", containerClassName)}>
