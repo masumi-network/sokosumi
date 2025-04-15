@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { useAsyncRouterPush } from "@/hooks/use-async-router";
 import { startJobWithInputData } from "@/lib/actions/job.actions";
+import { convertCreditsToBaseUnits } from "@/lib/db/utils/credit.utils";
 import {
   defaultValues,
   JobInputsDataSchemaType,
@@ -62,7 +63,7 @@ export default function JobInputsFormClient({
       const transformedInputData = filterOutNullValues(values);
       const result = await startJobWithInputData({
         agentId: agentId,
-        maxAcceptedCreditCost: agentPricing,
+        maxAcceptedCredits: convertCreditsToBaseUnits(agentPricing),
         inputData: transformedInputData,
       });
 

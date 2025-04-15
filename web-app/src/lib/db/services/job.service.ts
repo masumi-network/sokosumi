@@ -12,12 +12,11 @@ import {
   jobOrderBy,
   JobWithRelations,
 } from "@/lib/db/types/job.types";
-import { convertCreditsToBaseUnits } from "@/lib/db/utils/credit.utils";
 import { calculatedInputHash } from "@/lib/utils";
 import { Job, JobStatus, Prisma } from "@/prisma/generated/client";
 
 import { getAgentById, getAgentPricing } from "./agent.service";
-import { calculateRawCredits, validateCreditBalance } from "./credit.service";
+import { calculateCreditCost, validateCreditBalance } from "./credit.service";
 
 const startJobSchema = z.object({
   input_hash: z.string(),
@@ -32,7 +31,7 @@ const startJobSchema = z.object({
 export async function startJob(
   userId: string,
   agentId: string,
-  maxAcceptedCredits: number,
+  maxAcceptedCredits: bigint,
   inputData: Map<string, string | number | boolean | number[]>,
 ): Promise<Job> {
   return await prisma.$transaction(
@@ -42,20 +41,18 @@ export async function startJob(
         throw new Error("Agent not found");
       }
       const pricing = await getAgentPricing(agentId, tx);
-      const creditCost = await calculateRawCredits(
+      const creditCost = await calculateCreditCost(
         pricing.FixedPricing.Amounts.map((amount) => ({
           unit: amount.unit,
           amount: Number(amount.amount),
         })),
         tx,
       );
-      const maxAcceptedRawCredits =
-        convertCreditsToBaseUnits(maxAcceptedCredits);
-      if (creditCost > maxAcceptedRawCredits) {
+      if (creditCost.credits > maxAcceptedCredits) {
         throw new Error("Credit cost is too high");
       }
-      if (creditCost > 0) {
-        await validateCreditBalance(userId, creditCost, tx);
+      if (creditCost.credits > 0) {
+        await validateCreditBalance(userId, creditCost.credits, tx);
       }
       const baseUrl = getApiBaseUrl(agent);
       const startJobUrl = new URL(`/start_job`, baseUrl);
@@ -128,8 +125,8 @@ export async function startJob(
           },
           creditTransaction: {
             create: {
-              amount: -creditCost,
-              includedFee: BigInt(0),
+              amount: -creditCost.credits,
+              includedFee: creditCost.includedFee,
               user: {
                 connect: {
                   id: userId,

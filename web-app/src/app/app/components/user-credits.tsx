@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { auth } from "@/lib/auth/auth";
 import { getCredits } from "@/lib/db/services/credit.service";
 import { getUserById } from "@/lib/db/services/user.service";
+import { convertBaseUnitsToCredits } from "@/lib/db/utils/credit.utils";
 import { cn } from "@/lib/utils";
 
 export default async function UserCredits({
@@ -26,5 +27,9 @@ export default async function UserCredits({
   if (!user) {
     return <div className={cn(className)}>{t("unavailable")}</div>;
   }
-  return <div className={cn(className)}>{t("balance", { credits })}</div>;
+  return (
+    <div className={cn(className)}>
+      {t("balance", { credits: convertBaseUnitsToCredits(credits) })}
+    </div>
+  );
 }
