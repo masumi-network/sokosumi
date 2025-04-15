@@ -12,7 +12,7 @@ export async function authorizationMiddleware(
     // Check if the session cookie is present
     if (!sessionCookie) {
       // Redirect to login page if not authenticated
-      return NextResponse.redirect(new URL("/signin", req.url));
+      return NextResponse.redirect(new URL("/login", req.url));
     }
   }
   // Allow the request to proceed if authenticated
