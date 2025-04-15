@@ -1,13 +1,6 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { nextCookies } from "better-auth/next-js";
-import {
-  admin,
-  multiSession,
-  organization,
-  twoFactor,
-} from "better-auth/plugins";
-import { passkey } from "better-auth/plugins/passkey";
 import { getTranslations } from "next-intl/server";
 
 import { getEnvPublicConfig, getEnvSecrets } from "@/config/env.config";
@@ -96,41 +89,5 @@ export const auth = betterAuth({
   rateLimit: {
     storage: "database",
   },
-  socialProviders: {
-    google: {
-      clientId: getEnvSecrets().GOOGLE_CLIENT_ID,
-      clientSecret: getEnvSecrets().GOOGLE_CLIENT_SECRET,
-    },
-    microsoft: {
-      clientId: getEnvSecrets().MICROSOFT_CLIENT_ID,
-      clientSecret: getEnvSecrets().MICROSOFT_CLIENT_SECRET,
-    },
-    apple: {
-      clientId: getEnvSecrets().APPLE_CLIENT_ID,
-      clientSecret: getEnvSecrets().APPLE_CLIENT_SECRET,
-    },
-    linkedin: {
-      clientId: getEnvSecrets().LINKEDIN_CLIENT_ID,
-      clientSecret: getEnvSecrets().LINKEDIN_CLIENT_SECRET,
-    },
-  },
-  plugins: [
-    organization(),
-    twoFactor({
-      otpOptions: {
-        async sendOTP({ user, otp }) {
-          await resend.emails.send({
-            from: fromEmail,
-            to: user.email,
-            subject: "Your OTP",
-            html: `Your OTP is ${otp}`,
-          });
-        },
-      },
-    }),
-    passkey(),
-    admin(),
-    multiSession(),
-    nextCookies(),
-  ],
+  plugins: [nextCookies()],
 });

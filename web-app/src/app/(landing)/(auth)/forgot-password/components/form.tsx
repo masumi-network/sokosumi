@@ -45,7 +45,7 @@ export default function ForgotPasswordForm({
         },
         onSuccess: () => {
           toast.success(t("success"));
-          router.push("/signin");
+          router.push("/login");
         },
       },
     );

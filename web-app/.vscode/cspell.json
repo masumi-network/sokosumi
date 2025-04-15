@@ -1,7 +1,18 @@
 {
   "version": "0.2",
   "language": "en, lorem",
-  "words": ["masumi", "sokosumi", "kodosumi", "preprod", "mainnet"],
+  "words": [
+    "masumi",
+    "sokosumi",
+    "kodosumi",
+    "preprod",
+    "mainnet",
+    "sonner",
+    "ipfs",
+    "nmkr",
+    "cardano",
+    "vkey"
+  ],
   "ignorePaths": [
     "node_modules",
     ".git",

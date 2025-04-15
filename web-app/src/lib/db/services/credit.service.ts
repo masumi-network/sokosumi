@@ -5,10 +5,9 @@ import { z } from "zod";
 import { getEnvPublicConfig } from "@/config/env.config";
 import { AgentWithFixedPricing } from "@/lib/db/extension/agent";
 import prisma from "@/lib/db/prisma";
-import { convertBaseUnitsToCredits } from "@/lib/db/utils/credit.utils";
 import { Prisma } from "@/prisma/generated/client";
 
-export async function getCreditBalance(
+export async function getCredits(
   userId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<bigint> {
@@ -26,7 +25,7 @@ export async function validateCreditBalance(
   credits: bigint,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<void> {
-  const creditBalance = await getCreditBalance(userId, tx);
+  const creditBalance = await getCredits(userId, tx);
   if (creditBalance - credits < BigInt(0)) {
     throw new Error("Insufficient balance");
   }
@@ -45,19 +44,18 @@ const amountsSchema = z.array(
  * @returns The total credit cost for the agent in number format, or 0 if no pricing amounts are available
  * @throws Error if credit cost for a unit is not found or if fee percentage is negative
  */
-export async function calculateAgentHumandReadableCreditCost(
+export async function calculateAgentCreditCost(
   agent: AgentWithFixedPricing,
   tx: Prisma.TransactionClient = prisma,
-): Promise<number> {
+): Promise<{ credits: bigint; includedFee: bigint }> {
   const amounts = agent.pricing?.fixedPricing?.amounts?.map((amount) => ({
     unit: amount.unit,
     amount: Number(amount.amount),
   }));
   if (!amounts) {
-    return 0.0;
+    return { credits: BigInt(0), includedFee: BigInt(0) };
   }
-  const creditCost = await calculateCreditCost(amounts, tx);
-  return convertBaseUnitsToCredits(creditCost);
+  return await calculateCreditCost(amounts, tx);
 }
 
 /**
@@ -69,7 +67,7 @@ export async function calculateAgentHumandReadableCreditCost(
 export async function calculateCreditCost(
   amounts: { unit: string; amount: number }[],
   tx: Prisma.TransactionClient = prisma,
-): Promise<bigint> {
+): Promise<{ credits: bigint; includedFee: bigint }> {
   const feePercentagePoints = getEnvPublicConfig().NEXT_PUBLIC_FEE_PERCENTAGE;
   if (feePercentagePoints < 0) {
     throw new Error("Added fee percentage must be equal to or greater than 0");
@@ -78,7 +76,8 @@ export async function calculateCreditCost(
 
   const amountsParsed = amountsSchema.parse(amounts);
 
-  let totalCreditCost = BigInt(0);
+  let totalCredits = BigInt(0);
+  let totalFee = BigInt(0);
   for (const amount of amountsParsed) {
     const creditCost = await tx.creditCost.findUnique({
       where: {
@@ -90,10 +89,10 @@ export async function calculateCreditCost(
     }
     const cost = amount.amount * Number(creditCost.creditCostPerUnit);
     const fee = cost * feeMultiplier;
-    const totalCost = cost + fee;
 
     // round up to the nearest integer
-    totalCreditCost += BigInt(Math.ceil(totalCost));
+    totalCredits += BigInt(Math.ceil(cost));
+    totalFee += BigInt(Math.ceil(fee));
   }
-  return totalCreditCost;
+  return { credits: totalCredits + totalFee, includedFee: totalFee };
 }

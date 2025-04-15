@@ -5,11 +5,10 @@ import { z } from "zod";
 
 import { auth } from "@/lib/auth/auth";
 import { startJob } from "@/lib/db/services/job.service";
-import { convertCreditsToBaseUnits } from "@/lib/db/utils/credit.utils";
 
 const startJobInputSchema = z.object({
   agentId: z.string(),
-  maxAcceptedCreditCost: z.number(),
+  maxAcceptedCredits: z.bigint(),
   inputData: z.record(
     z.string(),
     z.union([z.number(), z.string(), z.boolean(), z.array(z.number())]),
@@ -46,13 +45,23 @@ export async function startJobWithInputData(input: StartJobInput): Promise<{
   const data = result.data;
   const inputMap = new Map(Object.entries(data.inputData));
 
-  // Start the job using the existing service
-  const job = await startJob(
-    session.user.id,
-    data.agentId,
-    convertCreditsToBaseUnits(data.maxAcceptedCreditCost),
-    inputMap,
-  );
-
-  return { success: true, data: { jobId: job.id } };
+  try {
+    const job = await startJob(
+      session.user.id,
+      data.agentId,
+      data.maxAcceptedCredits,
+      inputMap,
+    );
+    return { success: true, data: { jobId: job.id } };
+  } catch (error) {
+    if (error instanceof Error) {
+      switch (error.message) {
+        case "Insufficient balance":
+          return { success: false, error: { code: "INSUFFICIENT_BALANCE" } };
+        default:
+          return { success: false, error: { code: "INTERNAL_SERVER_ERROR" } };
+      }
+    }
+    return { success: false, error: { code: "INTERNAL_SERVER_ERROR" } };
+  }
 }
