@@ -41,7 +41,7 @@ export async function startJob(
         throw new Error("Agent not found");
       }
       const pricing = await getAgentPricing(agentId, tx);
-      const creditCost = await calculateCreditCost(
+      const cost = await calculateCreditCost(
         pricing.FixedPricing.Amounts.map((amount) => ({
           unit: amount.unit,
           amount: Number(amount.amount),
@@ -49,11 +49,11 @@ export async function startJob(
         tx,
       );
 
-      if (creditCost > maxAcceptedCreditCost) {
+      if (cost.credits > maxAcceptedCreditCost) {
         throw new Error("Credit cost is too high");
       }
-      if (creditCost > 0) {
-        await validateCreditBalance(userId, creditCost, tx);
+      if (cost.credits > 0) {
+        await validateCreditBalance(userId, cost.credits, tx);
       }
       const baseUrl = getApiBaseUrl(agent);
       const startJobUrl = new URL(`/start_job`, baseUrl);
@@ -126,8 +126,8 @@ export async function startJob(
           },
           creditTransaction: {
             create: {
-              amount: -creditCost,
-              includedFee: BigInt(0),
+              amount: -cost.credits,
+              includedFee: cost.includedFee,
               user: {
                 connect: {
                   id: userId,
