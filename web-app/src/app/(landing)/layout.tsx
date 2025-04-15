@@ -2,8 +2,8 @@ import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { BreadcrumbNavigation } from "@/components/breadcrumb-navigation";
+import Footer from "@/components/footer";
 
-import Footer from "./components/footer";
 import Header from "./components/header";
 
 interface LandingLayoutProps {
