@@ -31,7 +31,7 @@ const startJobSchema = z.object({
 export async function startJob(
   userId: string,
   agentId: string,
-  maxAcceptedCreditCost: bigint,
+  maxAcceptedCredits: bigint,
   inputData: Map<string, string | number | boolean | number[]>,
 ): Promise<Job> {
   return await prisma.$transaction(
@@ -41,19 +41,18 @@ export async function startJob(
         throw new Error("Agent not found");
       }
       const pricing = await getAgentPricing(agentId, tx);
-      const cost = await calculateCreditCost(
+      const creditCost = await calculateCreditCost(
         pricing.FixedPricing.Amounts.map((amount) => ({
           unit: amount.unit,
           amount: Number(amount.amount),
         })),
         tx,
       );
-
-      if (cost.credits > maxAcceptedCreditCost) {
+      if (creditCost.credits > maxAcceptedCredits) {
         throw new Error("Credit cost is too high");
       }
-      if (cost.credits > 0) {
-        await validateCreditBalance(userId, cost.credits, tx);
+      if (creditCost.credits > 0) {
+        await validateCreditBalance(userId, creditCost.credits, tx);
       }
       const baseUrl = getApiBaseUrl(agent);
       const startJobUrl = new URL(`/start_job`, baseUrl);
@@ -126,8 +125,8 @@ export async function startJob(
           },
           creditTransaction: {
             create: {
-              amount: -cost.credits,
-              includedFee: cost.includedFee,
+              amount: -creditCost.credits,
+              includedFee: creditCost.includedFee,
               user: {
                 connect: {
                   id: userId,
