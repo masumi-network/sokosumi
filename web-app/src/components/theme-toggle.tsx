@@ -17,7 +17,7 @@ const ThemeToggle = () => {
   return (
     <Button
       className="bg-background p-2"
-      variant="outline"
+      variant="ghost"
       size="icon"
       onClick={handleToggleTheme}
     >

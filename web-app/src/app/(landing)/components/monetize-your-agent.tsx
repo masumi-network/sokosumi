@@ -1,66 +1,63 @@
 import Image from "next/image";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
 
-import {
-  KodosumiLogo,
-  MasumiLogo,
-  ThemedLogo,
-} from "@/components/masumi-logos";
-import { getEnvPublicConfig } from "@/config/env.config";
-
-import { GitHubButton, MasumiButton } from "./social-button";
+import { Button } from "@/components/ui/button";
 
 export function MonetizeYourAgent() {
-  const t = useTranslations("Landing.Page.MonetizeYourAgent");
   return (
-    <div className="container py-4">
-      <div className="flex flex-col items-center gap-8 md:flex-row">
-        {/* Content Section */}
-        <div className="w-full space-y-6 md:w-1/2">
-          <h2 className="text-5xl font-bold tracking-tighter">
-            {t("subtitle")}
-          </h2>
-          <p className="text-muted-foreground text-lg">{t("description")}</p>
-
-          {/* Masumi Logos */}
-          <div className="flex flex-col items-end gap-6">
-            <Link href={getEnvPublicConfig().NEXT_PUBLIC_KODOSUMI_URL}>
-              <ThemedLogo
-                LogoComponent={KodosumiLogo}
-                width={418}
-                height={56}
-              />
-            </Link>
-            <Link href={getEnvPublicConfig().NEXT_PUBLIC_MASUMI_URL}>
-              <ThemedLogo LogoComponent={MasumiLogo} width={371} height={57} />
-            </Link>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex flex-wrap items-center justify-end gap-4">
-            <MasumiButton />
-            <GitHubButton url="https://github.com/masumi-network/masumi-payment-service">
-              {t("githubPayment")}
-            </GitHubButton>
-            <GitHubButton url="https://github.com/masumi-network/masumi-registry-service">
-              {t("githubRegistry")}
-            </GitHubButton>
-          </div>
+    <div className="grid gap-6 lg:grid-cols-2">
+      <div className="py-24">
+        <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg drop-shadow-lg">
+          <Image
+            src="/backgrounds/monetize-your-agent.png"
+            alt="Abstract green gradient"
+            fill
+            className="object-cover"
+            priority
+          />
         </div>
-
-        {/* Image Section */}
-        <div className="w-full md:w-1/2">
-          <div className="relative mx-auto aspect-square w-full max-w-md">
-            <Image
-              src="/placeholder.svg"
-              alt="Community Placeholder"
-              fill
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              className="rounded-lg object-cover"
-              priority
-            />
-          </div>
+      </div>
+      <div className="border-muted-foreground/10 flex h-full flex-col justify-center space-y-6 border-l px-12">
+        <div className="space-y-2">
+          <p className="text-muted-foreground text-sm font-medium tracking-wider uppercase">
+            {"FOR DEVELOPERS"}
+          </p>
+          <h2 className="text-5xl font-light">
+            {"Deploy your agents on kodosumi"}
+          </h2>
+        </div>
+        <p className="text-muted-foreground">
+          {"To deploy autonomous agents on our platform, follow these steps:"}
+          {
+            "First, ensure you have the latest version of our software installed."
+          }
+          {"Next, navigate to the &apos;Agents&apos; section in the dashboard."}
+          {
+            "Here, you can create and configure your agents according to your needs. For detailed guidance, check our documentation at www.example.com/docs or reach out to our support team for assistance."
+          }
+        </p>
+        <div className="flex flex-wrap gap-4">
+          <Button asChild variant="default">
+            <Link
+              href="https://docs.masumi.network/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {"Visit Docs"}
+            </Link>
+          </Button>
+          <Button
+            asChild
+            className="bg-quarterny text-foreground hover:bg-quarterny/90"
+          >
+            <Link
+              href="https://masumi.network"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {"Visit Masumi Network"}
+            </Link>
+          </Button>
         </div>
       </div>
     </div>

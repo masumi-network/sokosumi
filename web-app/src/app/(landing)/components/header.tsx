@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
-import ThemeToggle from "@/components/theme-toggle";
 
 import AppConnection from "./app-connection";
 import Navigation from "./navigation";
@@ -11,9 +10,10 @@ export default function Header() {
   return (
     <div
       id="header"
-      className="bg-background/95 supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 w-full border-b px-4 py-3 backdrop-blur lg:px-8 lg:py-6"
+      className="border-background/0 bg-background/0 supports-[backdrop-filter]:bg-background/5 fixed top-0 z-50 w-full border-b px-4 py-3 backdrop-blur transition-colors duration-200 lg:px-8"
     >
-      <div className="container mx-auto flex items-center justify-between gap-6">
+      {/* <HeaderBlur /> */}
+      <div className="container mx-auto flex h-16 items-center justify-between gap-4 px-0 sm:gap-6 sm:px-6 lg:h-20 lg:px-0">
         {/* Left - Logo */}
         <Link href="/">
           <ThemedLogo
@@ -25,16 +25,17 @@ export default function Header() {
         </Link>
 
         {/* Middle - Navigation Links */}
-        <Navigation />
+        <div className="hidden flex-1 items-center justify-center lg:flex">
+          <Navigation />
+        </div>
 
         {/* Right - Auth Buttons */}
-        <div className="ml-auto hidden items-center gap-2 sm:flex">
+        <div className="ml-auto hidden items-center gap-2 lg:flex">
           <AppConnection />
-          <ThemeToggle />
         </div>
 
         {/* Sheet Navigation Trigger */}
-        <div className="flex lg:hidden">
+        <div className="flex flex-1 justify-end lg:hidden">
           <SheetNavigation />
         </div>
       </div>

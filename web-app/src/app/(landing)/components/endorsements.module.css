@@ -1,0 +1,45 @@
+@keyframes marquee {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.marqueeContainer {
+  overflow: hidden;
+  white-space: nowrap;
+  position: relative;
+  width: 100%;
+}
+
+.marqueeContent {
+  display: inline-flex;
+  animation: marquee 30s linear infinite;
+  gap: 5rem;
+
+  @media (max-width: 1024px) {
+    gap: 3rem;
+  }
+
+  @media (max-width: 768px) {
+    gap: 2rem;
+  }
+
+  @media (max-width: 480px) {
+    gap: 1rem;
+  }
+}
+
+.logoWrapper {
+  display: flex;
+  align-items: center;
+  padding: 0 1.5rem;
+  opacity: 0.9;
+  transition: opacity 0.3s ease;
+}
+
+.logoWrapper:hover {
+  opacity: 1;
+} 

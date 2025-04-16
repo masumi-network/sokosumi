@@ -1,38 +1,44 @@
-import Image from "next/image";
-import { useTranslations } from "next-intl";
+import Link from "next/link";
+import { FaDiscord, FaXTwitter } from "react-icons/fa6";
 
-import { DiscordButton, XButton } from "./social-button";
+import { Button } from "@/components/ui/button";
 
 export function JoinOurCommunity() {
-  const t = useTranslations("Landing.Page.JoinOurCommunity");
   return (
-    <div className="container py-4">
-      <div className="flex flex-col items-center gap-8 md:flex-row">
-        {/* Image Section */}
-        <div className="w-full md:w-1/2">
-          <div className="relative mx-auto aspect-square w-full max-w-md">
-            <Image
-              src="/placeholder.svg"
-              alt="Community Placeholder"
-              fill
-              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-              className="rounded-lg object-cover"
-              priority
-            />
-          </div>
-        </div>
-
-        {/* Content Section */}
-        <div className="w-full space-y-6 md:w-1/2">
-          <h2 className="text-5xl font-bold tracking-tighter">
-            {t("subtitle")}
+    <div className="relative overflow-hidden rounded-lg">
+      <div className="opacity absolute inset-0 bg-[url('/backgrounds/footer-image.png')] bg-cover bg-center bg-no-repeat" />
+      <div className="bg-background/70 relative px-6 py-12 sm:px-12 sm:py-16">
+        <div className="mx-auto max-w-2xl text-center">
+          <p className="mb-2 text-xs tracking-wider uppercase">
+            {"WE ARE ONLINE"}
+          </p>
+          <h2 className="mb-8 text-5xl font-light sm:text-4xl">
+            {"Join the Community"}
           </h2>
-          <p className="text-muted-foreground text-lg">{t("description")}</p>
-
-          {/* Social Links */}
-          <div className="flex gap-4">
-            <XButton />
-            <DiscordButton />
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <Button variant="default" asChild>
+              <Link
+                href="https://discord.com/invite/aj4QfnTS92"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <FaDiscord />
+                <span>{"Discord"}</span>
+              </Link>
+            </Button>
+            <Button
+              className="bg-quarterny text-foreground hover:bg-quarterny/90"
+              asChild
+            >
+              <Link
+                href="https://x.com/MasumiNetwork"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <FaXTwitter />
+                <span>{"Twitter"}</span>
+              </Link>
+            </Button>
           </div>
         </div>
       </div>
