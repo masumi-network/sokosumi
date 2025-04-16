@@ -65,9 +65,10 @@ function AgentCard({
   const t = useTranslations("Components.Agents.AgentCard");
   const description = getDescription(agent);
   const pathname = usePathname();
+  const path = pathname === "/" ? "/agents" : pathname;
   return (
     <Link
-      href={`${pathname}/${agent.id}`}
+      href={`${path}/${agent.id}`}
       className="focus:ring-primary block rounded-lg focus:ring-2 focus:outline-none"
     >
       <Card
