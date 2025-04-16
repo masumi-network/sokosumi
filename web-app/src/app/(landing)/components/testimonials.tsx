@@ -57,7 +57,7 @@ export default function Testimonials() {
       image: "/images/user-2.png",
       quote:
         "Since we started using this platform, our team morale has soared!",
-      name: "Name Surename",
+      name: "Firstname Lastname",
       position: "[Profession]",
       company: "[Company]",
     },
