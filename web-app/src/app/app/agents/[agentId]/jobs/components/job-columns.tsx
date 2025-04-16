@@ -2,7 +2,7 @@ import { ColumnDef, createColumnHelper } from "@tanstack/react-table";
 import { useFormatter, useTranslations } from "next-intl";
 
 import { DataTableColumnHeader } from "@/components/data-table";
-import { JobWithRelations } from "@/lib/db/types/job.type";
+import { JobWithRelations } from "@/lib/db/types/job.types";
 
 import JobStatusBadge from "./job-status-badge";
 

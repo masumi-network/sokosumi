@@ -4,7 +4,7 @@ import prisma from "@/lib/db/prisma";
 import {
   agentListInclude,
   AgentListWithAgent,
-} from "@/lib/db/types/agentList.type";
+} from "@/lib/db/types/agentList.types";
 import { AgentList, AgentListType, Prisma } from "@/prisma/generated/client";
 
 export async function getAgentLists(

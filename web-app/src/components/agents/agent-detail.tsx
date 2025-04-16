@@ -14,9 +14,9 @@ import {
   getResolvedImage,
   getTags,
 } from "@/lib/db/extension/agent";
-import { AgentWithRelations } from "@/lib/db/types/agent.type";
-import { AgentListWithAgent } from "@/lib/db/types/agentList.type";
-import { CreditsPrice } from "@/lib/db/types/credit.type";
+import { AgentWithRelations } from "@/lib/db/types/agent.types";
+import { AgentListWithAgent } from "@/lib/db/types/agentList.types";
+import { CreditsPrice } from "@/lib/db/types/credit.types";
 import { convertCentsToCredits } from "@/lib/db/utils/credit.utils";
 import { cn } from "@/lib/utils";
 

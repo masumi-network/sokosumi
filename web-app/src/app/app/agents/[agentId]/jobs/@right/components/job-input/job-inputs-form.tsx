@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getAgentInputSchema } from "@/lib/db/services/agent.service";
-import { CreditsPrice } from "@/lib/db/types/credit.type";
+import { CreditsPrice } from "@/lib/db/types/credit.types";
 
 import JobInputsFormClient from "./job-inputs-form.client";
 

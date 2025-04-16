@@ -5,7 +5,7 @@ import { z } from "zod";
 import { getEnvPublicConfig } from "@/config/env.config";
 import { AgentWithFixedPricing } from "@/lib/db/extension/agent";
 import prisma from "@/lib/db/prisma";
-import { CreditsPrice } from "@/lib/db/types/credit.type";
+import { CreditsPrice } from "@/lib/db/types/credit.types";
 import { convertCentsToCredits } from "@/lib/db/utils/credit.utils";
 import { Prisma } from "@/prisma/generated/client";
 

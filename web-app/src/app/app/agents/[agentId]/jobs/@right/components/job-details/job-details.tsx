@@ -2,7 +2,7 @@ import { useFormatter, useTranslations } from "next-intl";
 
 import JobStatusBadge from "@/app/agents/[agentId]/jobs/components/job-status-badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { JobWithRelations } from "@/lib/db/types/job.type";
+import { JobWithRelations } from "@/lib/db/types/job.types";
 import { cn } from "@/lib/utils";
 
 import JobDetailsInputs from "./inputs";

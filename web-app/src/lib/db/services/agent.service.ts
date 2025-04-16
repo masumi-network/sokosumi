@@ -7,7 +7,7 @@ import {
   agentInclude,
   agentPricingInclude,
   AgentWithRelations,
-} from "@/lib/db/types/agent.type";
+} from "@/lib/db/types/agent.types";
 import { jobInputsDataSchema, JobInputsDataSchemaType } from "@/lib/job-input";
 import { Prisma } from "@/prisma/generated/client";
 

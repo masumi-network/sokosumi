@@ -3,8 +3,8 @@ import { useTranslations } from "next-intl";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getDescription } from "@/lib/db/extension/agent";
-import { AgentWithRelations } from "@/lib/db/types/agent.type";
-import { CreditsPrice } from "@/lib/db/types/credit.type";
+import { AgentWithRelations } from "@/lib/db/types/agent.types";
+import { CreditsPrice } from "@/lib/db/types/credit.types";
 
 import { JobInputsForm } from "./job-input";
 
