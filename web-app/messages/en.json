@@ -284,19 +284,22 @@
         "title": "Number Talks",
         "Numbers": {
           "Duration": {
-            "title": "2 hours",
-            "description": "to complete a full team report something something something",
-            "icon": "Loader"
+            "title": "Running Time",
+            "description": "The ultimate tool for streamlining your workflow. Experience an average of 2 hours saved each day as you effortlessly track and analyze your competitors.",
+            "number": "120",
+            "caption": "min"
           },
           "Cost": {
-            "title": "42% less costs",
-            "description": "of something something because something",
-            "icon": "TrendingDown"
+            "title": "Less Costs",
+            "description": "Unlock significant cost savings with our service, averaging around $42 daily. Streamline your workflow and gain valuable insights into your competitors effortlessly.",
+            "number": "42",
+            "caption": "% less costs"
           },
-          "Time": {
-            "title": "69% more free time",
-            "description": "because team is not something something too much",
-            "icon": "TrendingUp"
+          "Savings": {
+            "title": "Time Savings",
+            "description": "Discover a game-changing platform that boosts your productivity. Over 500 agents are currently in development and will be deployed soon.",
+            "number": "500",
+            "caption": "% more free time"
           }
         }
       },
