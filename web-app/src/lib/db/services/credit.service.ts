@@ -6,7 +6,16 @@ import { getEnvPublicConfig } from "@/config/env.config";
 import { AgentWithFixedPricing } from "@/lib/db/extension/agent";
 import prisma from "@/lib/db/prisma";
 import { AgentCreditsPrice } from "@/lib/db/types/credit.type";
+import { convertCentsToCredits } from "@/lib/db/utils/credit.utils";
 import { Prisma } from "@/prisma/generated/client";
+
+export async function getCredits(
+  userId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<number> {
+  const creditsBalance = await getCents(userId, tx);
+  return convertCentsToCredits(creditsBalance);
+}
 
 export async function getCents(
   userId: string,
