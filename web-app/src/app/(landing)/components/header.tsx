@@ -1,7 +1,6 @@
 import Link from "next/link";
 
 import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
-import ThemeToggle from "@/components/theme-toggle";
 
 import AppConnection from "./app-connection";
 import HeaderBlur from "./header-blur";
@@ -34,7 +33,6 @@ export default function Header() {
         {/* Right - Auth Buttons */}
         <div className="relative z-10 ml-auto hidden items-center gap-2 sm:flex">
           <AppConnection />
-          <ThemeToggle />
         </div>
 
         {/* Sheet Navigation Trigger */}
