@@ -1,5 +1,9 @@
+"use client";
+
 import { CheckCheck } from "lucide-react";
 import Image from "next/image";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +16,7 @@ import {
 import { AgentWithRelations } from "@/lib/db/types/agent.types";
 import { AgentListWithAgent } from "@/lib/db/types/agentList.types";
 import { CreditsPrice } from "@/lib/db/types/credit.type";
+import { convertCentsToCredits } from "@/lib/db/utils/credit.utils";
 import { cn } from "@/lib/utils";
 
 interface AgentCardSkeletonProps {
@@ -50,57 +55,73 @@ interface AgentCardProps {
   className?: string | undefined;
 }
 
-function AgentCard({ agent, agentPrice, className }: AgentCardProps) {
+function AgentCard({
+  agent,
+  agentList,
+  agentCreditsPrice,
+  className,
+}: AgentCardProps) {
   const t = useTranslations("Components.Agents.AgentCard");
   const description = getDescription(agent);
 
+  const pathname = usePathname();
+
+  console.log(agentList);
+  // TODO: Add Bookmark Button
   return (
-    <Card
-      className={cn(
-        "group bg-card relative gap-4 rounded-none border-none p-0 shadow-none transition-shadow hover:shadow-none",
-        className,
-      )}
+    <Link
+      href={`${pathname}/${agent.id}`}
+      className="focus:ring-primary block rounded-lg focus:ring-2 focus:outline-none"
     >
-      {/* Badge */}
-      <div className="absolute top-3 left-3 z-10">
-        <Badge variant="default" className="font-medium">
-          {"BADGE"}
-        </Badge>
-      </div>
+      <Card
+        className={cn(
+          "group bg-card relative cursor-pointer gap-4 rounded-none border-none p-0 shadow-none transition-shadow hover:shadow-none",
+          className,
+        )}
+        tabIndex={-1}
+      >
+        {/* Badge */}
+        <div className="absolute top-3 left-3 z-10">
+          <Badge variant="default" className="font-medium">
+            {"BADGE"}
+          </Badge>
+        </div>
 
-      {/* Image */}
-      <div className="shadow-foreground/10 aspect-[1.6] w-full overflow-hidden rounded-lg shadow-lg">
-        <Image
-          src={getResolvedImage(agent)}
-          alt={`${getName(agent)} image`}
-          width={400}
-          height={250}
-          className="h-full w-full object-cover transition-transform group-hover:scale-105"
-        />
-      </div>
+        {/* Image */}
+        <div className="shadow-foreground/10 aspect-[1.6] w-full overflow-hidden rounded-lg shadow-lg">
+          <Image
+            src={getResolvedImage(agent)}
+            alt={`${getName(agent)} image`}
+            width={400}
+            height={250}
+            className="h-full w-full object-cover transition-transform group-hover:scale-105"
+          />
+        </div>
 
-      {/* Content */}
-      <div className="p-4">
-        <div className="mb-2 flex items-center gap-2">
-          <h3 className="font-medium">{getName(agent)}</h3>
-          <div className="flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-1">
-            <CheckCheck className="h-4 w-4 text-green-500" />
-            <span className="text-muted-foreground text-xs uppercase">
-              {"Verified"}
+        {/* Content */}
+        <div className="p-4">
+          <div className="mb-2 flex items-center gap-2">
+            <h3 className="font-medium">{getName(agent)}</h3>
+            <div className="flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-1">
+              <CheckCheck className="h-4 w-4 text-green-500" />
+              <span className="text-muted-foreground text-xs uppercase">
+                {"Verified"}
+              </span>
+            </div>
+          </div>
+          {description && (
+            <p className="text-muted-foreground mb-4 text-sm">{description}</p>
+          )}
+          <div className="flex items-center gap-2 text-sm">
+            <span className="font-medium">
+              {t("pricing", {
+                price: convertCentsToCredits(agentCreditsPrice.cents),
+              })}
             </span>
           </div>
         </div>
-        {description && (
-          <p className="text-muted-foreground mb-4 text-sm">{description}</p>
-        )}
-        <div className="flex items-center gap-2 text-sm">
-          <span className="font-medium">
-            {t("pricing", { price: agentPrice })}
-          </span>
-          <span className="text-muted-foreground">{"amount may vary"}</span>
-        </div>
-      </div>
-    </Card>
+      </Card>
+    </Link>
   );
 }
 

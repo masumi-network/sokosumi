@@ -3,8 +3,7 @@ import Link from "next/link";
 import { AgentCard } from "@/components/agents";
 import { Button } from "@/components/ui/button";
 import { getAgents } from "@/lib/db/services/agent.service";
-import { calculateAgentCreditCost } from "@/lib/db/services/credit.service";
-import { convertBaseUnitsToCredits } from "@/lib/db/utils/credit.utils";
+import { getAgentCreditsPrice } from "@/lib/db/services/credit.service";
 
 export default async function FeaturedAgents() {
   const agents = await getAgents();
@@ -12,8 +11,7 @@ export default async function FeaturedAgents() {
 
   const agentPriceList = await Promise.all(
     firstFourAgents.map(async (agent) => {
-      const creditCost = await calculateAgentCreditCost(agent);
-      return convertBaseUnitsToCredits(creditCost.credits);
+      return await getAgentCreditsPrice(agent);
     }),
   );
 
@@ -31,7 +29,8 @@ export default async function FeaturedAgents() {
           <AgentCard
             key={agent.id}
             agent={agent}
-            agentPrice={agentPriceList[index]}
+            agentList={undefined}
+            agentCreditsPrice={agentPriceList[index]}
           />
         ))}
       </div>
