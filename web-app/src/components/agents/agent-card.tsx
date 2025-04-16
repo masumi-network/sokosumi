@@ -6,7 +6,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 
-import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import {
   getDescription,
@@ -90,12 +89,6 @@ function AgentCard({
             <AgentBookmarkButton agentId={agent.id} agentList={agentList} />
           </div>
         )}
-        {/* Badge */}
-        <div className="absolute top-3 left-3 z-10">
-          <Badge variant="default" className="font-medium">
-            {"BADGE"}
-          </Badge>
-        </div>
 
         {/* Image */}
         <div className="shadow-foreground/10 aspect-[1.6] w-full overflow-hidden rounded-lg shadow-lg">
@@ -109,7 +102,7 @@ function AgentCard({
         </div>
 
         {/* Content */}
-        <div className="p-4">
+        <div className="pt-1, px-4">
           <div className="mb-2 flex items-center gap-2">
             <h3 className="font-medium">{getName(agent)}</h3>
             <div className="flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-1">
