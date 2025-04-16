@@ -1,6 +1,5 @@
-"use client";
 import { Bookmark, Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { AgentBookmarkButton } from "@/components/agents/agent-bookmark-button";
@@ -66,7 +65,6 @@ export default function Header({
   favoriteAgentList,
 }: HeaderProps) {
   const t = useTranslations("App.Agents.Jobs.Header");
-  const router = useRouter();
 
   return (
     <div className="flex flex-col items-center gap-4 lg:flex-row lg:gap-6 xl:gap-8">
@@ -85,16 +83,12 @@ export default function Header({
             price: convertCentsToCredits(agentCreditsPrice.cents),
           })}
         </div>
-        <Button
-          className="gap-2"
-          onClick={() => {
-            router.push(`/app/agents/${agent.id}/jobs`);
-            router.refresh();
-          }}
-        >
-          <Plus />
-          {t("createNewJob")}
-        </Button>
+        <Link href={`/app/agents/${agent.id}/jobs`}>
+          <Button className="gap-2">
+            <Plus />
+            {t("createNewJob")}
+          </Button>
+        </Link>
       </div>
     </div>
   );
