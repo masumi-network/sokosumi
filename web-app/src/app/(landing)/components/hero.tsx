@@ -2,7 +2,6 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 
 import AgentsShowcase from "./agents-showcase";
-import SearchForm from "./search-form";
 
 export default function Hero() {
   const t = useTranslations("Landing.Page.Hero");
@@ -21,10 +20,6 @@ export default function Hero() {
               {t("caption")}
             </p>
           </div>
-        </div>
-
-        <div className="mx-auto w-full max-w-sm">
-          <SearchForm />
         </div>
       </div>
       <AgentsShowcase />
