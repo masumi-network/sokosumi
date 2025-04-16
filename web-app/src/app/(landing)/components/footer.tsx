@@ -19,7 +19,11 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/contribute" className="hover:text-gray-300">
+                <Link
+                  href="https://github.com/masumi-network"
+                  target="_blank"
+                  className="hover:text-gray-300"
+                >
                   {"Contribute"}
                 </Link>
               </li>
@@ -58,13 +62,12 @@ export default function Footer() {
             <h3 className="mb-4 font-medium">{"GET IN TOUCH"}</h3>
             <ul className="space-y-2">
               <li>
-                <Link href="/contact" className="hover:text-gray-300">
+                <Link
+                  href="https://www.masumi.network/contact"
+                  target="_blank"
+                  className="hover:text-gray-300"
+                >
                   {"Contact"}
-                </Link>
-              </li>
-              <li>
-                <Link href="/support" className="hover:text-gray-300">
-                  {"Customer Support"}
                 </Link>
               </li>
             </ul>
@@ -112,10 +115,12 @@ export default function Footer() {
             >
               {"Privacy Policy"}
             </Link>
-          </div>
-          <div className="text-sm text-gray-400">
-            {"Serviceplan Group ©"} {new Date().getFullYear()}{" "}
-            {"All rights reserved"}
+            <Link
+              href="/terms-of-services"
+              className="text-sm hover:text-gray-300"
+            >
+              {"Terms & Conditions"}
+            </Link>
           </div>
         </div>
       </div>
