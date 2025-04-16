@@ -311,8 +311,7 @@
         }
       },
       "HowItWorks": {
-        "title": "How It Works",
-        "button": "Explore Gallery",
+        "title": "How It works",
         "Steps": {
           "SelectAndTest": {
             "title": "Select & Test",
