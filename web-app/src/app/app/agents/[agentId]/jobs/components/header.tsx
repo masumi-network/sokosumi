@@ -1,6 +1,5 @@
-"use client";
 import { Bookmark, Plus } from "lucide-react";
-import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { AgentBookmarkButton } from "@/components/agents/agent-bookmark-button";
@@ -9,12 +8,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getName } from "@/lib/db/extension/agent";
 import { AgentWithRelations } from "@/lib/db/types/agent.type";
 import { AgentListWithAgent } from "@/lib/db/types/agentList.type";
-
-interface HeaderProps {
-  agent: AgentWithRelations;
-  agentPricing: number;
-  favoriteAgentList: AgentListWithAgent;
-}
+import { CreditsPrice } from "@/lib/db/types/credit.type";
+import { convertCentsToCredits } from "@/lib/db/utils/credit.utils";
 
 const bookmarkSize = 36;
 
@@ -58,13 +53,19 @@ function AgentBookmarkSection({
   );
 }
 
+interface HeaderProps {
+  agent: AgentWithRelations;
+  agentCreditsPrice: CreditsPrice;
+  favoriteAgentList: AgentListWithAgent;
+}
+
 export default function Header({
   agent,
-  agentPricing,
+  agentCreditsPrice,
   favoriteAgentList,
 }: HeaderProps) {
   const t = useTranslations("App.Agents.Jobs.Header");
-  const router = useRouter();
+
   return (
     <div className="flex flex-col items-center gap-4 lg:flex-row lg:gap-6 xl:gap-8">
       <div className="flex flex-row items-center gap-4">
@@ -78,18 +79,16 @@ export default function Header({
       </div>
       <div className="flex flex-1 flex-row items-center justify-end gap-4">
         <div className="w-full text-end text-base">
-          {t("price", { price: agentPricing })}
+          {t("price", {
+            price: convertCentsToCredits(agentCreditsPrice.cents),
+          })}
         </div>
-        <Button
-          className="gap-2"
-          onClick={() => {
-            router.push(`/app/agents/${agent.id}/jobs`);
-            router.refresh();
-          }}
-        >
-          <Plus />
-          {t("createNewJob")}
-        </Button>
+        <Link href={`/app/agents/${agent.id}/jobs`}>
+          <Button className="gap-2">
+            <Plus />
+            {t("createNewJob")}
+          </Button>
+        </Link>
       </div>
     </div>
   );

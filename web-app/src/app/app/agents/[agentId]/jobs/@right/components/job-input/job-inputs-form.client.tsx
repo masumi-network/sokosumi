@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { useAsyncRouterPush } from "@/hooks/use-async-router";
 import { startJobWithInputData } from "@/lib/actions/job.actions";
-import { convertCreditsToBaseUnits } from "@/lib/db/utils/credit.utils";
+import { CreditsPrice } from "@/lib/db/types/credit.type";
+import { convertCentsToCredits } from "@/lib/db/utils/credit.utils";
 import {
   defaultValues,
   JobInputsDataSchemaType,
@@ -22,13 +23,6 @@ import { cn } from "@/lib/utils";
 
 import JobInput from "./job-input";
 
-interface JobInputsFormClientProps {
-  agentId: string;
-  agentPricing: number;
-  jobInputsDataSchema: JobInputsDataSchemaType;
-  className?: string | undefined;
-}
-
 function filterOutNullValues(values: JobInputsFormSchemaType) {
   return Object.fromEntries(
     Object.entries(values).filter(([_, value]) => value !== null) as [
@@ -38,9 +32,16 @@ function filterOutNullValues(values: JobInputsFormSchemaType) {
   );
 }
 
+interface JobInputsFormClientProps {
+  agentId: string;
+  agentCreditsPrice: CreditsPrice;
+  jobInputsDataSchema: JobInputsDataSchemaType;
+  className?: string | undefined;
+}
+
 export default function JobInputsFormClient({
   agentId,
-  agentPricing,
+  agentCreditsPrice,
   jobInputsDataSchema,
   className,
 }: JobInputsFormClientProps) {
@@ -51,6 +52,7 @@ export default function JobInputsFormClient({
     defaultValues: defaultValues(input_data),
   });
   const asyncRouter = useAsyncRouterPush();
+  const router = useRouter();
   const pathname = usePathname();
 
   // Then replace your existing handleSubmit function with this:
@@ -63,17 +65,45 @@ export default function JobInputsFormClient({
       const transformedInputData = filterOutNullValues(values);
       const result = await startJobWithInputData({
         agentId: agentId,
-        maxAcceptedCredits: convertCreditsToBaseUnits(agentPricing),
+        maxAcceptedCents: agentCreditsPrice.cents,
         inputData: transformedInputData,
       });
 
       if (result.success && result.data?.jobId) {
         form.reset();
         await asyncRouter.push(`${pathname}/${result.data.jobId}`);
+      } else {
+        switch (result.error?.code) {
+          case "INSUFFICIENT_BALANCE":
+            toast.error(t("Error.insufficientBalance"), {
+              action: {
+                label: t("Error.insufficientBalanceAction"),
+                onClick: () => {
+                  router.push(`/app/billing`);
+                },
+              },
+            });
+            break;
+          case "INVALID_INPUT":
+            toast.error(t("Error.invalidInput"));
+            break;
+          case "NOT_AUTHENTICATED":
+            toast.error(t("Error.notAuthenticated"), {
+              action: {
+                label: t("Error.notAuthenticatedAction"),
+                onClick: () => {
+                  router.push(`/login`);
+                },
+              },
+            });
+            break;
+          default:
+            toast.error(t("Error.default"));
+            break;
+        }
       }
-    } catch (error) {
-      console.error(error);
-      toast.error(t("error"));
+    } catch {
+      toast.error(t("Error.default"));
     }
   };
 
@@ -101,7 +131,9 @@ export default function JobInputsFormClient({
             </Button>
             <div className="flex items-center gap-2">
               <div className="text-muted-foreground text-sm">
-                {t("price", { price: agentPricing })}
+                {t("price", {
+                  price: convertCentsToCredits(agentCreditsPrice.cents),
+                })}
               </div>
               <Button type="submit" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting && (
