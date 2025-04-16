@@ -16,7 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { convertCreditsToCents } from "@/lib/db";
-import { createStripeCheckoutSession } from "@/lib/services/fiatTransaction.service";
+import { createStripeCheckoutSession } from "@/lib/services";
 
 interface BillingFormProps {
   userId: string;

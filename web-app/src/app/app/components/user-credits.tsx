@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 
 import { auth } from "@/lib/auth/auth";
 import { getUserById } from "@/lib/db";
-import { getCredits } from "@/lib/services/credit.service";
+import { getCredits } from "@/lib/services";
 import { cn } from "@/lib/utils";
 
 export default async function UserCredits({

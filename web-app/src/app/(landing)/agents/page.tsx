@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 
 import { Agents, AgentsNotAvailable } from "@/components/agents";
 import { AgentWithRelations, getAgents } from "@/lib/db";
-import { getAgentCreditsPrice } from "@/lib/services/credit.service";
+import { getAgentCreditsPrice } from "@/lib/services";
 
 import { FeaturedAgent } from "./components/featured-agent";
 

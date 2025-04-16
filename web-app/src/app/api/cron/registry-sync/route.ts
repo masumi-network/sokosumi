@@ -6,7 +6,7 @@ import { postRegistryEntry } from "@/lib/api/generated/registry";
 import { getRegistryClient } from "@/lib/api/registry-service.client";
 import { compareApiKeys } from "@/lib/auth/utils";
 import { prisma } from "@/lib/db";
-import { getLock, releaseLock } from "@/lib/services/lock.service";
+import { getLock, releaseLock } from "@/lib/services";
 import { PricingType } from "@/prisma/generated/client";
 
 const LOCK_KEY = "registry-sync";

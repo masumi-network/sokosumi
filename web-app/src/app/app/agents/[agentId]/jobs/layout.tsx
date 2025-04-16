@@ -10,8 +10,10 @@ import {
   getAgentLegal,
   getAgentName,
 } from "@/lib/db";
-import { getOrCreateFavoriteAgentList } from "@/lib/services/agentList.service";
-import { getAgentCreditsPrice } from "@/lib/services/credit.service";
+import {
+  getAgentCreditsPrice,
+  getOrCreateFavoriteAgentList,
+} from "@/lib/services";
 
 import Footer from "./components/footer";
 import Header, { HeaderSkeleton } from "./components/header";
