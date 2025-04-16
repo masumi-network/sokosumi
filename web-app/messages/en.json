@@ -351,7 +351,7 @@
       "MonetizeYourAgent": {
         "title": "FOR DEVELOPERS",
         "subtitle": "Deploy your agents on kodosumi",
-        "description": "To deploy autonomous agents on our platform, follow these steps: First, ensure you have the latest version of our software installed. Next, navigate to the 'Agents' section in the dashboard. Here, you can create and configure your agents according to your needs. For detailed guidance, check our documentation at www.example.com/docs or reach out to our support team for assistance.",
+        "description": "To deploy autonomous agents on our platform, follow these steps: First, ensure you have the latest version of our software installed. Next, navigate to the 'Agents' section in the dashboard. Here, you can create and configure your agents according to your needs. For detailed guidance, check our documentation at https://docs.masumi.network or reach out to our support team for assistance.",
         "docs": "Visit Docs",
         "visit": "Visit Masumi Network"
       }
