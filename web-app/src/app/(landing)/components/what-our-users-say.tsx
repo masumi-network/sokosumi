@@ -1,6 +1,7 @@
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 
-interface TestimonialProps {
+interface UserProps {
   image: string;
   quote: string;
   name: string;
@@ -9,14 +10,7 @@ interface TestimonialProps {
   index: number;
 }
 
-const Testimonial = ({
-  image,
-  quote,
-  name,
-  position,
-  company,
-  index,
-}: TestimonialProps) => (
+const User = ({ image, quote, name, position, company, index }: UserProps) => (
   <div className="flex-start stretch border-foreground/10 flex gap-12 border-t py-4">
     <div className="relative flex w-[77px] min-w-[77px] flex-col justify-between">
       <Image
@@ -43,32 +37,33 @@ const Testimonial = ({
   </div>
 );
 
-export default function Testimonials() {
-  const testimonials = [
+export default function WhatOurUsersSay() {
+  const t = useTranslations("Landing.Page.WhatOurUsersSay");
+  const users = [
     {
       image: "/images/user-1.png",
-      quote:
-        "Using this platform has saved us so much time. It's a game changer!",
-      name: "Nina Müller",
-      position: "Chief Operating Officer",
-      company: "Cosa travel",
     },
     {
       image: "/images/user-2.png",
-      quote:
-        "Since we started using this platform, our team morale has soared!",
-      name: "Firstname Lastname",
-      position: "[Profession]",
-      company: "[Company]",
     },
   ];
 
+  const usersMap = users.map((user, index) => {
+    return {
+      ...user,
+      quote: t(`users.${index?.toString()}.quote`),
+      name: t(`users.${index?.toString()}.name`),
+      position: t(`users.${index?.toString()}.position`),
+      company: t(`users.${index?.toString()}.company`),
+    };
+  });
+
   return (
     <div className="relative flex w-full flex-col gap-12">
-      <h2 className="text-left text-5xl font-light">{"What our Users Say"}</h2>
+      <h2 className="text-left text-5xl font-light">{t("title")}</h2>
       <div className="grid gap-4 md:grid-cols-2">
-        {testimonials.map((testimonial, index) => (
-          <Testimonial key={index} {...testimonial} index={index} />
+        {usersMap.map((user, index) => (
+          <User key={index} {...user} index={index} />
         ))}
       </div>
     </div>

@@ -328,17 +328,35 @@
           }
         }
       },
+      "WhatOurUsersSay": {
+        "title": "What Our Users Say",
+        "subtitle": "Our users are our best advocates",
+        "users": {
+          "0": {
+            "name": "Nina Müller",
+            "quote": "Using this platform has saved us so much time. It's a game changer!",
+            "company": "Cosa travel",
+            "position": "Chief Operating Officer" 
+          },
+          "1": {
+            "name": "Name Surname",
+            "quote": "Since we started using this platform, our team morale has soared!",
+            "company": "[Company]",
+            "position": "[Profession]"
+          }
+        }
+      },
       "JoinOurCommunity": {
-        "title": "Join Our Community",
+        "title": "Join the Community",
         "subtitle": "We are online",
         "description": "Connect with like-minded individuals, share experiences, and be part of our growing community. Follow us on social media to stay updated with the latest news and events."
       },
       "MonetizeYourAgent": {
-        "title": "Monetize Your Agent",
-        "subtitle": "Deploy your Agents",
-        "description": "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vestibulum vehicula ex eu nisi dictum, a facilisis mauris tincidunt. Nulla facilisi. Cras vel justo vel libero lacinia ultricies. Donec nec odio vel mi vulputate malesuada. Aenean tincidunt, nibh ut interdum luctus, sapien tortor laoreet nisi, eget malesuada odio odio non purus. Sed ut perspiciatis unde omnis iste natus error sit voluptatem.",
-        "githubPayment": "Masumi Payment",
-        "githubRegistry": "Masumi Registry"
+        "title": "FOR DEVELOPERS",
+        "subtitle": "Deploy your agents on kodosumi",
+        "description": "To deploy autonomous agents on our platform, follow these steps: First, ensure you have the latest version of our software installed. Next, navigate to the 'Agents' section in the dashboard. Here, you can create and configure your agents according to your needs. For detailed guidance, check our documentation at www.example.com/docs or reach out to our support team for assistance.",
+        "docs": "Visit Docs",
+        "visit": "Visit Masumi Network"
       }
     },
     "Agents": {

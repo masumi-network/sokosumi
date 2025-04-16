@@ -5,7 +5,7 @@ import HowItWorks from "./components/how-it-works";
 import { JoinOurCommunity } from "./components/join-our-community";
 import { MonetizeYourAgent } from "./components/monetize-your-agent";
 import NumberTalks from "./components/number-talks";
-import Testimonials from "./components/testimonials";
+import WhatOurUsersSay from "./components/what-our-users-say";
 
 export default function LandingPage() {
   return (
@@ -43,10 +43,10 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Testimonials Section */}
-      <section id="testimonials" className="bg-muted py-24">
+      {/* What Our Users Say Section */}
+      <section id="what-our-users-say" className="bg-muted py-24">
         <div className="container mx-auto px-12">
-          <Testimonials />
+          <WhatOurUsersSay />
         </div>
       </section>
 

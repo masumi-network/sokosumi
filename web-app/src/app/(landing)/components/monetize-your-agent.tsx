@@ -1,9 +1,12 @@
 import Image from "next/image";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 
 export function MonetizeYourAgent() {
+  const t = useTranslations("Landing.Page.MonetizeYourAgent");
+
   return (
     <div className="grid gap-6 lg:grid-cols-2">
       <div className="py-24">
@@ -20,22 +23,11 @@ export function MonetizeYourAgent() {
       <div className="border-muted-foreground/10 flex h-full flex-col justify-center space-y-6 border-l px-12">
         <div className="space-y-2">
           <p className="text-muted-foreground text-sm font-medium tracking-wider uppercase">
-            {"FOR DEVELOPERS"}
+            {t("subtitle")}
           </p>
-          <h2 className="text-5xl font-light">
-            {"Deploy your agents on kodosumi"}
-          </h2>
+          <h2 className="text-5xl font-light">{t("title")}</h2>
         </div>
-        <p className="text-muted-foreground">
-          {"To deploy autonomous agents on our platform, follow these steps:"}
-          {
-            "First, ensure you have the latest version of our software installed."
-          }
-          {"Next, navigate to the &apos;Agents&apos; section in the dashboard."}
-          {
-            "Here, you can create and configure your agents according to your needs. For detailed guidance, check our documentation at www.example.com/docs or reach out to our support team for assistance."
-          }
-        </p>
+        <p className="text-muted-foreground">{t("description")}</p>
         <div className="flex flex-wrap gap-4">
           <Button asChild variant="default">
             <Link
@@ -43,7 +35,7 @@ export function MonetizeYourAgent() {
               target="_blank"
               rel="noopener noreferrer"
             >
-              {"Visit Docs"}
+              {t("docs")}
             </Link>
           </Button>
           <Button
@@ -55,7 +47,7 @@ export function MonetizeYourAgent() {
               target="_blank"
               rel="noopener noreferrer"
             >
-              {"Visit Masumi Network"}
+              {t("visit")}
             </Link>
           </Button>
         </div>
