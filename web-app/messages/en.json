@@ -86,11 +86,6 @@
       "tryAgain": "Try Again",
       "goHome": "Go to Homepage"
     },
-    "Social": {
-      "platformX": "Platform X",
-      "discord": "Discord",
-      "masumi": "Masumi Network"
-    },
     "Metadata": {
       "Title": {
         "default": "Sokosumi - Marketplace for Agent-to-Agent interactions",
