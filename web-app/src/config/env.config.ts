@@ -1,4 +1,5 @@
 /* eslint-disable no-restricted-properties */
+import { v4 as uuidv4 } from "uuid";
 import { z } from "zod";
 
 /**
@@ -77,7 +78,7 @@ const envSecretsSchema = z.object({
     .number({ coerce: true })
     .min(3 * 60 * 1000)
     .default(10 * 60 * 1000), // 10 minutes
-  INSTANCE_ID: z.string().min(1).default(crypto.randomUUID()),
+  INSTANCE_ID: z.string().min(1).default(uuidv4()),
   REGISTRY_API_URL: z
     .string()
     .url()
