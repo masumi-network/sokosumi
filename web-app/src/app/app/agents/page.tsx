@@ -4,7 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { requireAuthentication } from "@/lib/auth/utils";
 import { getAgents } from "@/lib/db/services/agent.service";
 import { getOrCreateFavoriteAgentList } from "@/lib/db/services/agentList.service";
-import { calculateAgentCreditsPrice } from "@/lib/db/services/credit.service";
+import { getAgentCreditsPrice } from "@/lib/db/services/credit.service";
 import { getTags } from "@/lib/db/services/tag.service";
 import { AgentWithRelations } from "@/lib/db/types/agent.types";
 import { Tag } from "@/prisma/generated/client";
@@ -30,7 +30,7 @@ export default async function GalleryPage() {
 
   const agentList = await getOrCreateFavoriteAgentList(session.user.id);
   const agentCreditsPriceList = await Promise.all(
-    agents.map((agent) => calculateAgentCreditsPrice(agent)),
+    agents.map((agent) => getAgentCreditsPrice(agent)),
   );
 
   return (

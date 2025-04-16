@@ -7,7 +7,7 @@ import { requireAuthentication } from "@/lib/auth/utils";
 import { getDescription, getLegal, getName } from "@/lib/db/extension/agent";
 import { getAgentById } from "@/lib/db/services/agent.service";
 import { getOrCreateFavoriteAgentList } from "@/lib/db/services/agentList.service";
-import { calculateAgentCreditsPrice } from "@/lib/db/services/credit.service";
+import { getAgentCreditsPrice } from "@/lib/db/services/credit.service";
 
 import Footer from "./components/footer";
 import Header, { HeaderSkeleton } from "./components/header";
@@ -58,7 +58,7 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
   }
 
   const { session } = await requireAuthentication();
-  const agentCreditsPrice = await calculateAgentCreditsPrice(agent);
+  const agentCreditsPrice = await getAgentCreditsPrice(agent);
   const favoriteAgentList = await getOrCreateFavoriteAgentList(session.user.id);
 
   return (

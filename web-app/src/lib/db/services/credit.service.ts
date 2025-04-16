@@ -9,6 +9,16 @@ import { AgentCreditsPrice } from "@/lib/db/types/credit.type";
 import { convertCentsToCredits } from "@/lib/db/utils/credit.utils";
 import { Prisma } from "@/prisma/generated/client";
 
+/**
+ * Retrieves the total credit balance for a given user, expressed in credits.
+ *
+ * This function fetches the user's credit balance in cents using `getCents`,
+ * then converts the value to credits using `convertCentsToCredits`.
+ *
+ * @param userId - The ID of the user whose credit balance is being retrieved.
+ * @param tx - (Optional) The Prisma transaction client to use for database operations. Defaults to the main Prisma client.
+ * @returns The total credit balance as a number of credits.
+ */
 export async function getCredits(
   userId: string,
   tx: Prisma.TransactionClient = prisma,
@@ -17,6 +27,16 @@ export async function getCredits(
   return convertCentsToCredits(creditsBalance);
 }
 
+/**
+ * Retrieves the total credit balance (in cents) for a given user.
+ *
+ * This function aggregates all credit transactions for the specified user and sums the 'amount' field.
+ * If the user has no credit transactions, it returns 0n (bigint zero).
+ *
+ * @param userId - The ID of the user whose credit balance is being retrieved.
+ * @param tx - (Optional) The Prisma transaction client to use for database operations. Defaults to the main Prisma client.
+ * @returns The total credit balance in cents as a bigint.
+ */
 export async function getCents(
   userId: string,
   tx: Prisma.TransactionClient = prisma,
@@ -30,6 +50,17 @@ export async function getCents(
   return creditsBalance._sum.amount ?? BigInt(0);
 }
 
+/**
+ * Validates that a user has sufficient credit balance (in cents) to cover a specified amount.
+ *
+ * This function retrieves the user's current credit balance in cents and checks if it is
+ * greater than or equal to the required amount. If the balance is insufficient, it throws an error.
+ *
+ * @param userId - The ID of the user whose balance is being validated.
+ * @param cents - The amount (in cents) to validate against the user's balance.
+ * @param tx - (Optional) The Prisma transaction client to use for database operations. Defaults to the main Prisma client.
+ * @throws Error if the user's balance is insufficient to cover the specified amount.
+ */
 export async function validateCreditsBalance(
   userId: string,
   cents: bigint,
@@ -59,7 +90,7 @@ const amountsSchema = z.array(
  * @param tx - (Optional) The Prisma transaction client to use for database operations. Defaults to the main Prisma client.
  * @returns An object containing the total price in cents and the included fee, both as bigint.
  */
-export async function calculateAgentCreditsPrice(
+export async function getAgentCreditsPrice(
   agent: AgentWithFixedPricing,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentCreditsPrice> {
