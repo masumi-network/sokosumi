@@ -3,8 +3,8 @@ import pTimeout from "p-timeout";
 
 import { getEnvSecrets } from "@/config/env.config";
 import { compareApiKeys } from "@/lib/auth/utils";
-import prisma from "@/lib/db/prisma";
-import { syncJobStatus } from "@/lib/db/services/job.service";
+import { prisma } from "@/lib/db";
+import { syncJobStatus } from "@/lib/services/job.service";
 import { getLock, releaseLock } from "@/lib/utils";
 
 const LOCK_KEY = "job-sync";

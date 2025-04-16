@@ -6,7 +6,7 @@ import { useState } from "react";
 
 import { DataTable } from "@/components/data-table";
 import { useAsyncRouterPush } from "@/hooks/use-async-router";
-import { JobWithRelations } from "@/lib/db/types/job.types";
+import { JobWithRelations } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 import { getJobColumns } from "./job-columns";

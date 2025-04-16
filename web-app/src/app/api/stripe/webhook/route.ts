@@ -2,12 +2,12 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.config";
-import prisma from "@/lib/db/prisma";
+import { prisma } from "@/lib/db";
 import {
   getFiatTransactionByServicePaymentId,
   setFiatTransactionStatusToFailed,
   setFiatTransactionStatusToSucceeded,
-} from "@/lib/db/services/fiatTransaction.service";
+} from "@/lib/services/fiatTransaction.service";
 import { FiatTransactionStatus } from "@/prisma/generated/client";
 
 const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);

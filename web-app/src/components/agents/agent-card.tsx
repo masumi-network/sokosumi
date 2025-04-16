@@ -4,16 +4,16 @@ import { useTranslations } from "next-intl";
 
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import {
-  getAverageStars,
-  getDescription,
-  getName,
-  getResolvedImage,
-  getTags,
-} from "@/lib/db/extension/agent";
-import { AgentWithRelations } from "@/lib/db/types/agent.types";
-import { AgentListWithAgent } from "@/lib/db/types/agentList.types";
-import { CreditsPrice } from "@/lib/db/types/credit.types";
-import { convertCentsToCredits } from "@/lib/db/utils/credit.utils";
+  AgentListWithAgent,
+  AgentWithRelations,
+  convertCentsToCredits,
+  CreditsPrice,
+  getAgentAverageStars,
+  getAgentDescription,
+  getAgentName,
+  getAgentResolvedImage,
+  getAgentTags,
+} from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 import { AgentBookmarkButton } from "./agent-bookmark-button";
@@ -83,8 +83,8 @@ function AgentCard({
   className,
 }: AgentCardProps) {
   const t = useTranslations("Components.Agents.AgentCard");
-  const averageStars = getAverageStars(agent);
-  const description = getDescription(agent);
+  const averageStars = getAgentAverageStars(agent);
+  const description = getAgentDescription(agent);
 
   return (
     <Card
@@ -95,8 +95,8 @@ function AgentCard({
     >
       <div className="relative h-48 w-full shrink-0">
         <Image
-          src={getResolvedImage(agent)}
-          alt={`${getName(agent)} image`}
+          src={getAgentResolvedImage(agent)}
+          alt={`${getAgentName(agent)} image`}
           fill
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           className="object-cover"
@@ -119,14 +119,16 @@ function AgentCard({
           </div>
         )}
 
-        <h3 className="mb-2 shrink-0 text-xl font-bold">{getName(agent)}</h3>
+        <h3 className="mb-2 shrink-0 text-xl font-bold">
+          {getAgentName(agent)}
+        </h3>
         {description && (
           <p className="text-muted-foreground mb-3 line-clamp-3 min-h-[4.5rem] overflow-hidden text-ellipsis whitespace-normal">
             {description}
           </p>
         )}
         <div className="flex min-h-[1.5rem] shrink-0 flex-nowrap overflow-hidden">
-          <BadgeCloud tags={getTags(agent)} />
+          <BadgeCloud tags={getAgentTags(agent)} />
         </div>
       </CardContent>
 

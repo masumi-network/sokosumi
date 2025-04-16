@@ -6,13 +6,13 @@ import { z } from "zod";
 import { getEnvPublicConfig } from "@/config/env.config";
 import { getPurchase, postPurchase } from "@/lib/api/generated/payment";
 import { getPaymentClient } from "@/lib/api/payment-service.client";
-import { getApiBaseUrl } from "@/lib/db/extension/agent";
-import prisma from "@/lib/db/prisma";
 import {
+  getAgentApiBaseUrl,
   jobInclude,
   jobOrderBy,
   JobWithRelations,
-} from "@/lib/db/types/job.types";
+  prisma,
+} from "@/lib/db";
 import { calculatedInputHash } from "@/lib/utils";
 import { Job, JobStatus, Prisma } from "@/prisma/generated/client";
 
@@ -55,7 +55,7 @@ export async function startJob(
       if (creditsPrice.cents > 0) {
         await validateCreditsBalance(userId, creditsPrice.cents, tx);
       }
-      const baseUrl = getApiBaseUrl(agent);
+      const baseUrl = getAgentApiBaseUrl(agent);
       const startJobUrl = new URL(`/start_job`, baseUrl);
       const identifierFromPurchaser = uuidv4()
         .replace(/-/g, "")
@@ -231,7 +231,7 @@ export async function syncJobStatus(job: Job) {
   }
 
   if (onChainState === "ResultSubmitted" || onChainState == "Withdrawn") {
-    const baseUrl = getApiBaseUrl(agent);
+    const baseUrl = getAgentApiBaseUrl(agent);
     const syncJobUrl = new URL(`/status`, baseUrl);
     syncJobUrl.searchParams.set("job_id", job.agentJobId);
 

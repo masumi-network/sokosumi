@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import {
   addAgentToList,
   removeAgentFromList,
-} from "@/lib/db/services/agentList.service";
+} from "@/lib/services/agentList.service";
 
 export async function toggleAgentInList(
   agentId: string,

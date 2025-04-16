@@ -4,7 +4,7 @@ import {
   createCheckoutSession,
   getConversionFactors,
 } from "@/lib/actions/stripe.actions";
-import prisma from "@/lib/db/prisma";
+import { prisma } from "@/lib/db";
 import {
   FiatTransaction,
   FiatTransactionStatus,

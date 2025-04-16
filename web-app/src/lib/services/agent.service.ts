@@ -1,13 +1,14 @@
 "use server";
+
 import { getPaymentInformation } from "@/lib/api/generated/registry";
 import { getRegistryClient } from "@/lib/api/registry-service.client";
-import { getApiBaseUrl } from "@/lib/db/extension/agent";
-import prisma from "@/lib/db/prisma";
 import {
   agentInclude,
   agentPricingInclude,
   AgentWithRelations,
-} from "@/lib/db/types/agent.types";
+  getAgentApiBaseUrl,
+  prisma,
+} from "@/lib/db";
 import { jobInputsDataSchema, JobInputsDataSchemaType } from "@/lib/job-input";
 import { Prisma } from "@/prisma/generated/client";
 
@@ -90,7 +91,7 @@ export async function getAgentInputSchema(
     throw new Error(`Agent with ID ${agentId} not found`);
   }
 
-  const baseUrl = getApiBaseUrl(agent);
+  const baseUrl = getAgentApiBaseUrl(agent);
   const inputSchemaUrl = new URL(`/input_schema`, baseUrl);
 
   const response = await fetch(inputSchemaUrl);
