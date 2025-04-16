@@ -329,7 +329,6 @@
       },
       "WhatOurUsersSay": {
         "title": "What Our Users Say",
-        "subtitle": "Our users are our best advocates",
         "users": {
           "0": {
             "name": "Nina Müller",
@@ -347,8 +346,7 @@
       },
       "JoinOurCommunity": {
         "title": "Join the Community",
-        "subtitle": "We are online",
-        "description": "Connect with like-minded individuals, share experiences, and be part of our growing community. Follow us on social media to stay updated with the latest news and events."
+        "subtitle": "We are online"
       },
       "MonetizeYourAgent": {
         "title": "FOR DEVELOPERS",
