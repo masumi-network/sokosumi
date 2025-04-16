@@ -1,10 +1,10 @@
 import { after, NextResponse } from "next/server";
+import pTimeout from "p-timeout";
 
 import { getEnvSecrets } from "@/config/env.config";
 import { compareApiKeys } from "@/lib/auth/utils";
-import prisma from "@/lib/db/prisma";
-import { syncJobStatus } from "@/lib/db/services/job.service";
-import { getLock, releaseLock, timeLimitedExecution } from "@/lib/utils";
+import { prisma } from "@/lib/db";
+import { getLock, releaseLock, syncJobStatus } from "@/lib/services";
 
 const LOCK_KEY = "job-sync";
 
@@ -32,11 +32,11 @@ export async function POST(request: Request) {
   after(async () => {
     try {
       const timingStart = Date.now();
-      await timeLimitedExecution(
-        syncAllJobs,
-        //give some buffer to unlock the lock before the timeout
-        getEnvSecrets().LOCK_TIMEOUT - 1000 * 25,
-      );
+      await pTimeout(syncAllJobs(), {
+        milliseconds:
+          //give some buffer to unlock the lock before the timeout
+          getEnvSecrets().LOCK_TIMEOUT - getEnvSecrets().LOCK_TIMEOUT_BUFFER,
+      });
       const timingEnd = Date.now();
       console.info(
         "Job sync took",

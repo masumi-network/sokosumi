@@ -13,11 +13,11 @@ import {
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { requireAuthentication } from "@/lib/auth/utils";
-import { getName } from "@/lib/db/extension/agent";
+import { getAgentName } from "@/lib/db";
 import {
   getFavoriteAgents,
   getHiredAgentsOrderedByLatestJob,
-} from "@/lib/db/services/agent.service";
+} from "@/lib/services";
 import { Agent } from "@/prisma/generated/client";
 
 export default function AgentsList() {
@@ -109,7 +109,9 @@ function AgentSection({
               <SidebarMenuItem key={agent.id}>
                 <SidebarMenuButton asChild>
                   <Link href={`/app/agents/${agent.id}/jobs`}>
-                    <span className="whitespace-nowrap">{getName(agent)}</span>
+                    <span className="whitespace-nowrap">
+                      {getAgentName(agent)}
+                    </span>
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>

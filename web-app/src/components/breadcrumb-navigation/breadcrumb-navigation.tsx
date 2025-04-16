@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 
-import { getAgents } from "@/lib/db/services/agent.service";
+import { getAgents } from "@/lib/db";
 
 import BreadcrumbNavigationClient from "./breadcrumb-navigation.client";
 import BreadcrumbNavigationSkeleton from "./breadcrumb-navigation.skeleton";

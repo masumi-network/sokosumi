@@ -3,8 +3,7 @@ import Link from "next/link";
 import React, { Suspense } from "react";
 
 import { Button } from "@/components/ui/button";
-import { getResolvedImage } from "@/lib/db/extension/agent";
-import { getAgents } from "@/lib/db/services/agent.service";
+import { getAgentResolvedImage, getAgents } from "@/lib/db";
 
 interface AgentCardProps {
   name: string;
@@ -71,7 +70,7 @@ async function AgentsList() {
           id={agent.id}
           name={agent.name}
           description={agent.description}
-          image={getResolvedImage(agent)}
+          image={getAgentResolvedImage(agent)}
           isActive={false}
         />
       ))}

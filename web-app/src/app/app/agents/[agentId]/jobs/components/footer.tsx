@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
-import { Legal } from "@/lib/db/extension/agent";
+import { AgentLegal } from "@/lib/db";
 
 interface FooterProps {
-  legal?: Legal | null;
+  legal?: AgentLegal | null;
 }
 
 export default function Footer({ legal }: FooterProps) {

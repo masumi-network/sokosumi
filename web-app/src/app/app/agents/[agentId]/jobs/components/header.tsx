@@ -5,11 +5,13 @@ import { useTranslations } from "next-intl";
 import { AgentBookmarkButton } from "@/components/agents/agent-bookmark-button";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getName } from "@/lib/db/extension/agent";
-import { AgentWithRelations } from "@/lib/db/types/agent.types";
-import { AgentListWithAgent } from "@/lib/db/types/agentList.types";
-import { CreditsPrice } from "@/lib/db/types/credit.type";
-import { convertCentsToCredits } from "@/lib/db/utils/credit.utils";
+import {
+  AgentListWithAgent,
+  AgentWithRelations,
+  convertCentsToCredits,
+  CreditsPrice,
+  getAgentName,
+} from "@/lib/db";
 
 const bookmarkSize = 36;
 
@@ -74,7 +76,7 @@ export default function Header({
           favoriteAgentList={favoriteAgentList}
         />
         <h1 className="text-2xl font-bold text-nowrap xl:text-3xl">
-          {getName(agent)}
+          {getAgentName(agent)}
         </h1>
       </div>
       <div className="flex flex-1 flex-row items-center justify-end gap-4">

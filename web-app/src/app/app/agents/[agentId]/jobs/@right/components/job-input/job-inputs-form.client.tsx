@@ -11,8 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { useAsyncRouterPush } from "@/hooks/use-async-router";
 import { startJobWithInputData } from "@/lib/actions/job.actions";
-import { CreditsPrice } from "@/lib/db/types/credit.type";
-import { convertCentsToCredits } from "@/lib/db/utils/credit.utils";
+import { convertCentsToCredits, CreditsPrice } from "@/lib/db";
 import {
   defaultValues,
   JobInputsDataSchemaType,

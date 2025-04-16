@@ -78,6 +78,10 @@ const envSecretsSchema = z.object({
     .number({ coerce: true })
     .min(3 * 60 * 1000)
     .default(10 * 60 * 1000), // 10 minutes
+  LOCK_TIMEOUT_BUFFER: z
+    .number({ coerce: true })
+    .min(1000)
+    .default(1000 * 25), // 25 seconds
   INSTANCE_ID: z.string().min(1).default(uuidv4()),
   REGISTRY_API_URL: z
     .string()

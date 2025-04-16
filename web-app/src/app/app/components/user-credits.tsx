@@ -2,8 +2,8 @@ import { headers } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
 import { auth } from "@/lib/auth/auth";
-import { getCredits } from "@/lib/db/services/credit.service";
-import { getUserById } from "@/lib/db/services/user.service";
+import { getUserById } from "@/lib/db";
+import { getCredits } from "@/lib/services";
 import { cn } from "@/lib/utils";
 
 export default async function UserCredits({

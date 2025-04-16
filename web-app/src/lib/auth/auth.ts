@@ -4,7 +4,7 @@ import { nextCookies } from "better-auth/next-js";
 import { getTranslations } from "next-intl/server";
 
 import { getEnvPublicConfig, getEnvSecrets } from "@/config/env.config";
-import prisma from "@/lib/db/prisma";
+import { prisma } from "@/lib/db";
 import { reactChangeEmailVerificationEmail } from "@/lib/email/change-email";
 import { resend } from "@/lib/email/resend";
 import { reactResetPasswordEmail } from "@/lib/email/reset-password";
