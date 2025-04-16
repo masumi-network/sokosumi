@@ -3,23 +3,26 @@
 import { headers } from "next/headers";
 import Stripe from "stripe";
 
-import { getEnvSecrets } from "@/config/env.config"; // Ensure this path is correct
+import { getEnvPublicConfig, getEnvSecrets } from "@/config/env.config"; // Ensure this path is correct
 import { User } from "@/prisma/generated/client";
 
 const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
 /**
- * Fetches the cost per credit from Stripe.
+ * Retrieves the cost per credit for a given Stripe price.
  *
- * @returns A promise that resolves to an object containing:
- *   - amountPerCredit: The cost per credit in the currency's base unit (e.g., dollars)
- *   - currency: The currency code (e.g., 'usd')
- * @throws Will throw an error if the Stripe price cannot be retrieved or is invalid
+ * @param priceId - The Stripe price ID to fetch (defaults to STRIPE_PRICE_ID from environment).
+ * @returns An object containing:
+ *   - centsPerUnitAmount: The price per credit in cents, adjusted for the app's credit base.
+ *   - unitAmountPerCredit: The Stripe unit amount per credit (in the currency's smallest unit).
+ *   - currency: The currency code (e.g., 'usd').
+ * @throws If the Stripe price cannot be retrieved, is missing unit_amount, or is not in USD.
  */
-export async function getCostPerCredit(
+export async function getConversionFactorsPerCredit(
   priceId: string = getEnvSecrets().STRIPE_PRICE_ID,
 ): Promise<{
-  amountPerCredit: number;
+  centsPerUnitAmount: bigint;
+  unitAmountPerCredit: number;
   currency: string;
 }> {
   try {
@@ -33,9 +36,11 @@ export async function getCostPerCredit(
     if (price.currency !== "usd") {
       throw new Error("Stripe price currency is not USD.");
     }
-
     const result = {
-      amountPerCredit: price.unit_amount / 100,
+      centsPerUnitAmount: BigInt(
+        10 ** getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BASE / price.unit_amount,
+      ),
+      unitAmountPerCredit: price.unit_amount,
       currency: price.currency,
     };
     return result;
@@ -56,7 +61,7 @@ export async function createCheckoutSession(
   user: User,
   fiatTransactionId: string,
   priceId: string,
-  quantity: number,
+  amount: bigint,
 ): Promise<{
   id: string;
   url: string;
@@ -69,7 +74,7 @@ export async function createCheckoutSession(
     line_items: [
       {
         price: priceId,
-        quantity: quantity,
+        quantity: Number(amount),
       },
     ],
     client_reference_id: fiatTransactionId,

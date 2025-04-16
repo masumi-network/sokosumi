@@ -15,7 +15,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createOneTimePaymentStripeSession } from "@/lib/db/services/fiatTransaction.service";
+import { createStripeCheckoutSession } from "@/lib/db/services/fiatTransaction.service";
 import { convertCreditsToCents } from "@/lib/db/utils/credit.utils";
 
 interface BillingFormProps {
@@ -36,17 +36,17 @@ export default function BillingForm({
   const [customAmount, setCustomAmount] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const handleTopUp = async (humanReadableCredits: number | null) => {
-    console.log("Topping up credits:", humanReadableCredits);
-    if (!humanReadableCredits || humanReadableCredits <= 0) {
+  const handleTopUp = async (credits: number | null) => {
+    console.log("Topping up credits:", credits);
+    if (!credits || credits <= 0) {
       return;
     }
     setLoading(true);
     try {
-      const { stripeSessionId, url } = await createOneTimePaymentStripeSession(
+      const { stripeSessionId, url } = await createStripeCheckoutSession(
         userId,
         priceId,
-        convertCreditsToCents(humanReadableCredits),
+        convertCreditsToCents(credits),
       );
 
       console.log("Checkout session created:", stripeSessionId, url);
@@ -100,7 +100,7 @@ export default function BillingForm({
         </Button>
         <p className="text-muted-foreground text-sm">
           {t("costPerCredit", {
-            cost: format.number(amountPerCredit, {
+            cost: format.number(amountPerCredit / 100, {
               style: "currency",
               currency,
             }),

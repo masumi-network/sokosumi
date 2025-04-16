@@ -15,10 +15,10 @@ export async function getCents(
   const creditsBalance = await tx.creditTransaction.aggregate({
     where: { userId },
     _sum: {
-      cents: true,
+      amount: true,
     },
   });
-  return creditsBalance._sum.cents ?? BigInt(0);
+  return creditsBalance._sum.amount ?? BigInt(0);
 }
 
 export async function validateCreditsBalance(

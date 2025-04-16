@@ -128,7 +128,7 @@ export async function startJob(
           },
           creditTransaction: {
             create: {
-              cents: -creditsPrice.cents,
+              amount: -creditsPrice.cents,
               includedFee: creditsPrice.includedFee,
               user: {
                 connect: {
@@ -308,7 +308,7 @@ export async function syncJobStatus(job: Job) {
           status: JobStatus.REFUNDED,
           refundedCreditTransaction: {
             create: {
-              cents: creditTransaction.cents * BigInt(-1),
+              amount: creditTransaction.amount * BigInt(-1),
               includedFee: creditTransaction.includedFee,
               user: {
                 connect: {
