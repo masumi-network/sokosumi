@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { getAgentById } from "@/lib/services/agent.service";
+import { getAgentById } from "@/lib/db";
 import { getAgentCreditsPrice } from "@/lib/services/credit.service";
 
 import CreateJobSection from "./components/create-job-section";

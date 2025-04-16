@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { requireAuthentication } from "@/lib/auth/utils";
-import { getAgentById } from "@/lib/services/agent.service";
+import { getAgentById } from "@/lib/db";
 import { getJobsByAgentId } from "@/lib/services/job.service";
 
 import JobsTable from "./components/jobs-table";

@@ -8,6 +8,7 @@ import { getPurchase, postPurchase } from "@/lib/api/generated/payment";
 import { getPaymentClient } from "@/lib/api/payment-service.client";
 import {
   getAgentApiBaseUrl,
+  getAgentById,
   jobInclude,
   jobOrderBy,
   JobWithRelations,
@@ -16,7 +17,7 @@ import {
 import { calculatedInputHash } from "@/lib/utils";
 import { Job, JobStatus, Prisma } from "@/prisma/generated/client";
 
-import { getAgentById, getAgentPricing } from "./agent.service";
+import { getAgentPricing } from "./agent.service";
 import { getCreditsPrice, validateCreditsBalance } from "./credit.service";
 
 const startJobSchema = z.object({

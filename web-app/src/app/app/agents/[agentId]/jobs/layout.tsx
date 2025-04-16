@@ -4,8 +4,12 @@ import { Suspense } from "react";
 
 import DefaultLoading from "@/components/default-loading";
 import { requireAuthentication } from "@/lib/auth/utils";
-import { getAgentDescription, getAgentLegal, getAgentName } from "@/lib/db";
-import { getAgentById } from "@/lib/services/agent.service";
+import {
+  getAgentById,
+  getAgentDescription,
+  getAgentLegal,
+  getAgentName,
+} from "@/lib/db";
 import { getOrCreateFavoriteAgentList } from "@/lib/services/agentList.service";
 import { getAgentCreditsPrice } from "@/lib/services/credit.service";
 

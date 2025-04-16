@@ -2,7 +2,7 @@ import { Suspense } from "react";
 
 import { AgentCard, AgentCardSkeleton } from "@/components/agents";
 import HorizontalScroll from "@/landing/components/horizontal-scroll";
-import { getAgents } from "@/lib/services/agent.service";
+import { getAgents } from "@/lib/db";
 import { getAgentCreditsPrice } from "@/lib/services/credit.service";
 
 async function AgentsList() {

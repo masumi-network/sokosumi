@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { AgentDetails } from "@/components/agents";
-import { getAgentById } from "@/lib/services/agent.service";
+import { getAgentById } from "@/lib/db";
 import { getAgentCreditsPrice } from "@/lib/services/credit.service";
 
 import BackToGallery from "./components/back-to-gallery";

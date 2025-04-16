@@ -7,6 +7,8 @@ import {
   AgentWithFixedPricing,
   convertCentsToCredits,
   CreditsPrice,
+  getCentsByUserId,
+  getCreditCostByUnit,
   prisma,
 } from "@/lib/db";
 import { Prisma } from "@/prisma/generated/client";
@@ -14,7 +16,7 @@ import { Prisma } from "@/prisma/generated/client";
 /**
  * Retrieves the total credit balance for a given user, expressed in credits.
  *
- * This function fetches the user's credit balance in cents using `getCents`,
+ * This function fetches the user's credit balance in cents using `getCentsByUserId`,
  * then converts the value to credits using `convertCentsToCredits`.
  *
  * @param userId - The ID of the user whose credit balance is being retrieved.
@@ -25,31 +27,8 @@ export async function getCredits(
   userId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<number> {
-  const creditsBalance = await getCents(userId, tx);
+  const creditsBalance = await getCentsByUserId(userId, tx);
   return convertCentsToCredits(creditsBalance);
-}
-
-/**
- * Retrieves the total credit balance (in cents) for a given user.
- *
- * This function aggregates all credit transactions for the specified user and sums the 'amount' field.
- * If the user has no credit transactions, it returns 0n (bigint zero).
- *
- * @param userId - The ID of the user whose credit balance is being retrieved.
- * @param tx - (Optional) The Prisma transaction client to use for database operations. Defaults to the main Prisma client.
- * @returns The total credit balance in cents as a bigint.
- */
-export async function getCents(
-  userId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<bigint> {
-  const creditsBalance = await tx.creditTransaction.aggregate({
-    where: { userId },
-    _sum: {
-      amount: true,
-    },
-  });
-  return creditsBalance._sum.amount ?? BigInt(0);
 }
 
 /**
@@ -68,7 +47,7 @@ export async function validateCreditsBalance(
   cents: bigint,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<void> {
-  const centsBalance = await getCents(userId, tx);
+  const centsBalance = await getCentsByUserId(userId, tx);
   if (centsBalance - cents < BigInt(0)) {
     throw new Error("Insufficient balance");
   }
@@ -139,11 +118,7 @@ export async function getCreditsPrice(
   let totalCents = BigInt(0);
   let totalFee = BigInt(0);
   for (const amount of amountsParsed) {
-    const creditCost = await tx.creditCost.findUnique({
-      where: {
-        unit: amount.unit == "lovelace" ? "" : amount.unit,
-      },
-    });
+    const creditCost = await getCreditCostByUnit(amount.unit, tx);
     if (!creditCost) {
       throw new Error(`Credit cost not found for unit ${amount.unit}`);
     }

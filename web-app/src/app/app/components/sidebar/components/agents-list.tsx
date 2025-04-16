@@ -14,10 +14,8 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { requireAuthentication } from "@/lib/auth/utils";
 import { getAgentName } from "@/lib/db";
-import {
-  getFavoriteAgents,
-  getHiredAgentsOrderedByLatestJob,
-} from "@/lib/services/agent.service";
+import { getHiredAgentsOrderedByLatestJob } from "@/lib/services/agent.service";
+import { getFavoriteAgents } from "@/lib/services/agentList.service";
 import { Agent } from "@/prisma/generated/client";
 
 export default function AgentsList() {

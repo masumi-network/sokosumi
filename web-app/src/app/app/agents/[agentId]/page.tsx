@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 
 import { AgentDetails } from "@/components/agents";
 import { requireAuthentication } from "@/lib/auth/utils";
-import { getAgentById } from "@/lib/services/agent.service";
+import { getAgentById } from "@/lib/db";
 import { getOrCreateFavoriteAgentList } from "@/lib/services/agentList.service";
 import { getAgentCreditsPrice } from "@/lib/services/credit.service";
 

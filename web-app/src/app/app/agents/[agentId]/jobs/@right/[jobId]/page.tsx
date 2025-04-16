@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 
 import { JobDetails } from "@/app/agents/[agentId]/jobs/@right/components/job-details";
 import { requireAuthentication } from "@/lib/auth/utils";
-import { getAgentById } from "@/lib/services/agent.service";
+import { getAgentById } from "@/lib/db";
 import { getJobById } from "@/lib/services/job.service";
 
 interface JobDetailsPageParams {
