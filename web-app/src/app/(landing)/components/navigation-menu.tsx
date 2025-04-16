@@ -13,22 +13,18 @@ const navigationLinks: NavigationLinkData[] = [
   {
     href: "/agents",
     labelKey: "agents",
-    showChevron: false,
   },
   {
     href: "/#how-it-works",
     labelKey: "howItWorks",
-    showChevron: false,
   },
   {
     href: "/#join-our-community",
     labelKey: "community",
-    showChevron: false,
   },
   {
     href: "/#monetize",
     labelKey: "monetize",
-    showChevron: false,
   },
 ];
 
@@ -46,7 +42,6 @@ export default function NavigationMenu({ className }: NavigationMenuProps) {
           key={nav.labelKey}
           href={nav.href}
           label={t(nav.labelKey)}
-          showChevron={nav.showChevron}
           className="inline-flex items-center gap-1 rounded-md p-2 text-sm font-medium transition-colors"
           activeClassName="bg-landing-navigation-active text-primary dark:bg-secondary dark:text-primary"
           inActiveClassName="text-foreground/80 hover:text-primary"
