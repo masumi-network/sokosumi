@@ -1,8 +1,6 @@
 import { useTranslations } from "next-intl";
 
-import { AgentWithRelations } from "@/lib/db/types/agent.types";
-import { AgentListWithAgent } from "@/lib/db/types/agentList.types";
-import { CreditsPrice } from "@/lib/db/types/credit.type";
+import { AgentListWithAgent, AgentWithRelations, CreditsPrice } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 import { AgentCard, AgentCardSkeleton } from "./agent-card";

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { toggleAgentInList } from "@/lib/actions/agent.actions";
-import { AgentListWithAgent } from "@/lib/db/types/agentList.types";
+import { AgentListWithAgent } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 interface AgentBookmarkButtonProps {

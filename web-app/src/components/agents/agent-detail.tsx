@@ -6,18 +6,18 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  getAuthorName,
-  getDescription,
-  getExampleOutput,
-  getLegal,
-  getName,
-  getResolvedImage,
-  getTags,
-} from "@/lib/db/extension/agent";
-import { AgentWithRelations } from "@/lib/db/types/agent.types";
-import { AgentListWithAgent } from "@/lib/db/types/agentList.types";
-import { CreditsPrice } from "@/lib/db/types/credit.type";
-import { convertCentsToCredits } from "@/lib/db/utils/credit.utils";
+  AgentListWithAgent,
+  AgentWithRelations,
+  convertCentsToCredits,
+  CreditsPrice,
+  getAgentAuthorName,
+  getAgentDescription,
+  getAgentExampleOutput,
+  getAgentLegal,
+  getAgentName,
+  getAgentResolvedImage,
+  getAgentTags,
+} from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 import { AgentBookmarkButton } from "./agent-bookmark-button";
@@ -100,9 +100,9 @@ function AgentDetails({
 }: AgentDetailsProps) {
   const t = useTranslations("Components.Agents.AgentDetail");
 
-  const legal = getLegal(agent);
-  const exampleOutput = getExampleOutput(agent);
-  const description = getDescription(agent);
+  const legal = getAgentLegal(agent);
+  const exampleOutput = getAgentExampleOutput(agent);
+  const description = getAgentDescription(agent);
 
   return (
     <div className={cn("space-y-4", className)}>
@@ -110,8 +110,8 @@ function AgentDetails({
       <div className="flex w-full flex-col gap-y-4 sm:flex-row">
         <div className="relative mx-auto h-48 w-48">
           <Image
-            src={getResolvedImage(agent)}
-            alt={getName(agent)}
+            src={getAgentResolvedImage(agent)}
+            alt={getAgentName(agent)}
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             className="rounded-md object-cover"
@@ -123,9 +123,9 @@ function AgentDetails({
           <div className="flex items-start justify-between gap-4">
             {/* Title and Author */}
             <div>
-              <h2 className="text-2xl font-bold">{getName(agent)}</h2>
+              <h2 className="text-2xl font-bold">{getAgentName(agent)}</h2>
               <p className="text-muted-foreground line-clamp-1">
-                {t("byAuthor", { author: getAuthorName(agent) })}
+                {t("byAuthor", { author: getAgentAuthorName(agent) })}
               </p>
             </div>
             {/* Bookmark Button - only render if agentList is provided */}
@@ -160,7 +160,7 @@ function AgentDetails({
       </div>
 
       {/* Tags */}
-      <BadgeCloud tags={getTags(agent)} />
+      <BadgeCloud tags={getAgentTags(agent)} />
       {description && (
         <div className="text-muted-foreground">
           <p>{description}</p>

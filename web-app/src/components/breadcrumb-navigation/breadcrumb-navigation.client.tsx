@@ -12,8 +12,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { getName } from "@/lib/db/extension/agent";
-import { AgentWithRelations } from "@/lib/db/types/agent.types";
+import { AgentWithRelations, getAgentName } from "@/lib/db";
 
 interface BreadcrumbSegment {
   label: string;
@@ -88,7 +87,7 @@ function generateSegments(
     const agent = agents.find((a) => a.id === segment);
     const label =
       segmentLabels[segment] ??
-      (agent && getName(agent)) ??
+      (agent && getAgentName(agent)) ??
       (t && t.has(segment) && t(segment)) ??
       segment;
 
