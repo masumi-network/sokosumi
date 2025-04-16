@@ -8,7 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getName } from "@/lib/db/extension/agent";
 import { AgentWithRelations } from "@/lib/db/types/agent.types";
 import { AgentListWithAgent } from "@/lib/db/types/agentList.types";
-import { AgentCreditsPrice } from "@/lib/db/types/credit.type";
+import { CreditsPrice } from "@/lib/db/types/credit.type";
 import { convertCentsToCredits } from "@/lib/db/utils/credit.utils";
 
 const bookmarkSize = 36;
@@ -55,7 +55,7 @@ function AgentBookmarkSection({
 
 interface HeaderProps {
   agent: AgentWithRelations;
-  agentCreditsPrice: AgentCreditsPrice;
+  agentCreditsPrice: CreditsPrice;
   favoriteAgentList: AgentListWithAgent;
 }
 

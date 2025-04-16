@@ -16,7 +16,7 @@ import {
 } from "@/lib/db/extension/agent";
 import { AgentWithRelations } from "@/lib/db/types/agent.types";
 import { AgentListWithAgent } from "@/lib/db/types/agentList.types";
-import { AgentCreditsPrice } from "@/lib/db/types/credit.type";
+import { CreditsPrice } from "@/lib/db/types/credit.type";
 import { convertCentsToCredits } from "@/lib/db/utils/credit.utils";
 import { cn } from "@/lib/utils";
 
@@ -88,7 +88,7 @@ function AgentDetailSkeleton({ className }: AgentDetailSkeletonProps) {
 interface AgentDetailsProps {
   agent: AgentWithRelations;
   agentList?: AgentListWithAgent | undefined;
-  agentCreditsPrice: AgentCreditsPrice;
+  agentCreditsPrice: CreditsPrice;
   className?: string;
 }
 

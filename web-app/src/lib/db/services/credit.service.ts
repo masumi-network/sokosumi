@@ -5,7 +5,7 @@ import { z } from "zod";
 import { getEnvPublicConfig } from "@/config/env.config";
 import { AgentWithFixedPricing } from "@/lib/db/extension/agent";
 import prisma from "@/lib/db/prisma";
-import { AgentCreditsPrice } from "@/lib/db/types/credit.type";
+import { CreditsPrice } from "@/lib/db/types/credit.type";
 import { convertCentsToCredits } from "@/lib/db/utils/credit.utils";
 import { Prisma } from "@/prisma/generated/client";
 
@@ -93,7 +93,7 @@ const amountsSchema = z.array(
 export async function getAgentCreditsPrice(
   agent: AgentWithFixedPricing,
   tx: Prisma.TransactionClient = prisma,
-): Promise<AgentCreditsPrice> {
+): Promise<CreditsPrice> {
   const amounts = agent.pricing?.fixedPricing?.amounts?.map((amount) => ({
     unit: amount.unit,
     amount: Number(amount.amount),
@@ -101,7 +101,7 @@ export async function getAgentCreditsPrice(
   if (!amounts) {
     return { cents: BigInt(0), includedFee: BigInt(0) };
   }
-  return await calculateCreditsPrice(amounts, tx);
+  return await getCreditsPrice(amounts, tx);
 }
 
 /**
@@ -122,10 +122,10 @@ export async function getAgentCreditsPrice(
  * @returns An object with `cents` (total price including fee, as bigint) and `includedFee` (total fee, as bigint).
  * @throws Error if a credit cost for a unit is not found or if the fee percentage is negative.
  */
-export async function calculateCreditsPrice(
+export async function getCreditsPrice(
   amounts: { unit: string; amount: number }[],
   tx: Prisma.TransactionClient = prisma,
-): Promise<AgentCreditsPrice> {
+): Promise<CreditsPrice> {
   const feePercentagePoints = getEnvPublicConfig().NEXT_PUBLIC_FEE_PERCENTAGE;
   if (feePercentagePoints < 0) {
     throw new Error("Added fee percentage must be equal to or greater than 0");

@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { useAsyncRouterPush } from "@/hooks/use-async-router";
 import { startJobWithInputData } from "@/lib/actions/job.actions";
-import { AgentCreditsPrice } from "@/lib/db/types/credit.type";
+import { CreditsPrice } from "@/lib/db/types/credit.type";
 import { convertCentsToCredits } from "@/lib/db/utils/credit.utils";
 import {
   defaultValues,
@@ -34,7 +34,7 @@ function filterOutNullValues(values: JobInputsFormSchemaType) {
 
 interface JobInputsFormClientProps {
   agentId: string;
-  agentCreditsPrice: AgentCreditsPrice;
+  agentCreditsPrice: CreditsPrice;
   jobInputsDataSchema: JobInputsDataSchemaType;
   className?: string | undefined;
 }

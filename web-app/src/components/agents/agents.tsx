@@ -2,7 +2,7 @@ import { useTranslations } from "next-intl";
 
 import { AgentWithRelations } from "@/lib/db/types/agent.types";
 import { AgentListWithAgent } from "@/lib/db/types/agentList.types";
-import { AgentCreditsPrice } from "@/lib/db/types/credit.type";
+import { CreditsPrice } from "@/lib/db/types/credit.type";
 import { cn } from "@/lib/utils";
 
 import { AgentCard, AgentCardSkeleton } from "./agent-card";
@@ -54,7 +54,7 @@ interface AgentsProps {
   agentList?: AgentListWithAgent | undefined;
   className?: string | undefined;
   agentCardClassName?: string | undefined;
-  agentCreditsPriceList: AgentCreditsPrice[];
+  agentCreditsPriceList: CreditsPrice[];
 }
 
 function Agents({
