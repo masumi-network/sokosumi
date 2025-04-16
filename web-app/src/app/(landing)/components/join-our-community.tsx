@@ -36,7 +36,7 @@ export function JoinOurCommunity() {
                 rel="noopener noreferrer"
               >
                 <FaXTwitter />
-                <span>{"Twitter"}</span>
+                <span>{"X/Twitter"}</span>
               </Link>
             </Button>
           </div>
