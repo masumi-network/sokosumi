@@ -16,7 +16,7 @@ export function JoinOurCommunity() {
             {"Join the Community"}
           </h2>
           <div className="flex flex-wrap items-center justify-center gap-4">
-            <Button variant="foreground" asChild>
+            <Button variant="default" asChild>
               <Link
                 href="https://discord.com/invite/aj4QfnTS92"
                 target="_blank"
@@ -26,7 +26,10 @@ export function JoinOurCommunity() {
                 <span>{"Discord"}</span>
               </Link>
             </Button>
-            <Button variant="outline" asChild>
+            <Button
+              className="bg-quarterny text-foreground hover:bg-quarterny/90"
+              asChild
+            >
               <Link
                 href="https://x.com/MasumiNetwork"
                 target="_blank"

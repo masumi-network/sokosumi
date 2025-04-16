@@ -14,7 +14,7 @@ export default function Header() {
       className="bg-background/0 border-background/0 fixed top-0 z-50 w-full border-b py-3 lg:px-8 lg:py-6"
     >
       <HeaderBlur />
-      <div className="relative container mx-auto flex items-center justify-between gap-6 px-12">
+      <div className="relative z-10 container mx-auto flex items-center justify-between gap-6 px-12">
         {/* Left - Logo */}
         <Link href="/">
           <ThemedLogo
@@ -31,12 +31,12 @@ export default function Header() {
         </div>
 
         {/* Right - Auth Buttons */}
-        <div className="ml-auto hidden items-center gap-2 sm:flex">
+        <div className="relative z-10 ml-auto hidden items-center gap-2 sm:flex">
           <AppConnection />
         </div>
 
         {/* Sheet Navigation Trigger */}
-        <div className="flex lg:hidden">
+        <div className="relative z-10 flex lg:hidden">
           <SheetNavigation />
         </div>
       </div>

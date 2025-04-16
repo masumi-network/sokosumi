@@ -99,7 +99,7 @@ export default function Footer() {
         {/* Bottom section */}
         <div className="flex flex-col items-center justify-between pt-8 md:flex-row">
           <div className="mb-4 flex items-center gap-4 md:mb-0">
-            <Button variant="muted">
+            <Button className="bg-quarterny text-foreground hover:bg-quarterny/90">
               <Languages className="h-4 w-4" />
               <span>{"English"}</span>
             </Button>

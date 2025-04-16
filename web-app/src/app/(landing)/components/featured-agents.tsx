@@ -21,7 +21,7 @@ export default async function FeaturedAgents() {
     <div className="flex w-full flex-col gap-16">
       <div className="flex items-center justify-between">
         <h2 className="text-4xl font-light">{"Featured Agents"}</h2>
-        <Button variant="muted" className="text-sm">
+        <Button className="bg-quarterny text-foreground hover:bg-quarterny/90 text-sm">
           <Link href="/agents">{"Explore all"}</Link>
         </Button>
       </div>

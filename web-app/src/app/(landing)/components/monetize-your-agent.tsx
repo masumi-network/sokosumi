@@ -37,7 +37,7 @@ export function MonetizeYourAgent() {
           }
         </p>
         <div className="flex flex-wrap gap-4">
-          <Button asChild variant="foreground">
+          <Button asChild variant="default">
             <Link
               href="https://docs.masumi.network/"
               target="_blank"
@@ -46,7 +46,10 @@ export function MonetizeYourAgent() {
               {"Visit Docs"}
             </Link>
           </Button>
-          <Button asChild variant="muted">
+          <Button
+            asChild
+            className="bg-quarterny text-foreground hover:bg-quarterny/90"
+          >
             <Link
               href="https://masumi.network"
               target="_blank"
