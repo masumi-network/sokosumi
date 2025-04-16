@@ -5,7 +5,7 @@ import { getEnvSecrets } from "@/config/env.config";
 import { compareApiKeys } from "@/lib/auth/utils";
 import { prisma } from "@/lib/db";
 import { syncJobStatus } from "@/lib/services/job.service";
-import { getLock, releaseLock } from "@/lib/utils";
+import { getLock, releaseLock } from "@/lib/services/lock.service";
 
 const LOCK_KEY = "job-sync";
 
