@@ -2,7 +2,7 @@
 
 import {
   createCheckoutSession,
-  getConversionFactorsPerCredit,
+  getConversionFactors,
 } from "@/lib/actions/stripe.actions";
 import prisma from "@/lib/db/prisma";
 import {
@@ -90,12 +90,11 @@ export async function createStripeCheckoutSession(
     if (!user) {
       throw new Error("User not found");
     }
-    const conversionFactorsPerCredit =
-      await getConversionFactorsPerCredit(priceId);
+    const conversionFactorsPerCredit = await getConversionFactors(priceId);
     const fiatTransaction = await createFiatTransaction(
       userId,
       cents,
-      conversionFactorsPerCredit.centsPerUnitAmount,
+      conversionFactorsPerCredit.centsPerAmount,
       conversionFactorsPerCredit.currency,
       tx,
     );
@@ -104,7 +103,7 @@ export async function createStripeCheckoutSession(
       fiatTransaction.id,
       priceId,
       Number(fiatTransaction.amount) /
-        conversionFactorsPerCredit.unitAmountPerCredit,
+        conversionFactorsPerCredit.amountPerCredit,
     );
     await updateServicePaymentId(fiatTransaction.id, stripeSessionId, tx);
     return { stripeSessionId, url };

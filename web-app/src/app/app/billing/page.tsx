@@ -1,12 +1,11 @@
 import BillingForm from "@/components/billing/billing-form";
 import { getEnvSecrets } from "@/config/env.config";
-import { getConversionFactorsPerCredit } from "@/lib/actions/stripe.actions";
+import { getConversionFactors } from "@/lib/actions/stripe.actions";
 import { requireAuthentication } from "@/lib/auth/utils";
 
 export default async function BillingPage() {
   const priceId = getEnvSecrets().STRIPE_PRICE_ID;
-  const conversionFactorsPerCredit =
-    await getConversionFactorsPerCredit(priceId);
+  const conversionFactors = await getConversionFactors(priceId);
   const { session } = await requireAuthentication();
 
   return (
@@ -14,8 +13,8 @@ export default async function BillingPage() {
       <BillingForm
         userId={session.user.id}
         priceId={priceId}
-        amountPerCredit={conversionFactorsPerCredit.unitAmountPerCredit}
-        currency={conversionFactorsPerCredit.currency}
+        amountPerCredit={conversionFactors.amountPerCredit}
+        currency={conversionFactors.currency}
       />
     </div>
   );

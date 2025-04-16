@@ -18,11 +18,11 @@ const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
  *   - currency: The currency code (e.g., 'usd').
  * @throws If the Stripe price cannot be retrieved, is missing unit_amount, or is not in USD.
  */
-export async function getConversionFactorsPerCredit(
+export async function getConversionFactors(
   priceId: string = getEnvSecrets().STRIPE_PRICE_ID,
 ): Promise<{
-  centsPerUnitAmount: bigint;
-  unitAmountPerCredit: number;
+  centsPerAmount: bigint;
+  amountPerCredit: number;
   currency: string;
 }> {
   try {
@@ -37,10 +37,10 @@ export async function getConversionFactorsPerCredit(
       throw new Error("Stripe price currency is not USD.");
     }
     const result = {
-      centsPerUnitAmount: BigInt(
+      centsPerAmount: BigInt(
         10 ** getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BASE / price.unit_amount,
       ),
-      unitAmountPerCredit: price.unit_amount,
+      amountPerCredit: price.unit_amount,
       currency: price.currency,
     };
     return result;
