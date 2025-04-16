@@ -1,5 +1,6 @@
-import Image from "next/image";
 import { useTranslations } from "next-intl";
+
+import { KanjiLogo, ThemedLogo } from "@/components/masumi-logos";
 
 import AgentsShowcase from "./agents-showcase";
 
@@ -24,20 +25,7 @@ export default function Hero() {
       </div>
       <AgentsShowcase />
       <div className="pointer-events-none absolute inset-0 right-0 flex h-full w-full items-center justify-end p-12">
-        <Image
-          className="hidden dark:block"
-          src="/kanji/soukosumi.svg"
-          alt="Hero Background"
-          width={20}
-          height={40}
-        />
-        <Image
-          className="block dark:hidden"
-          src="/kanji/soukosumi-black.svg"
-          alt="Hero Background"
-          width={20}
-          height={40}
-        />
+        <ThemedLogo LogoComponent={KanjiLogo} />
       </div>
     </>
   );

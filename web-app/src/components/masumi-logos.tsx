@@ -18,6 +18,19 @@ function ThemedLogo({ LogoComponent, ...props }: ThemedLogoProps) {
   );
 }
 
+function KanjiLogo({ variant = "black", ...props }: LogoProps) {
+  return (
+    <Image
+      className="hidden dark:block"
+      src={`/kanji/sokosumi-${variant}.svg`}
+      alt="Hero Background"
+      width={20}
+      height={40}
+      {...props}
+    />
+  );
+}
+
 function SokosumiLogo({ variant = "black", ...props }: LogoProps) {
   return (
     <Image
@@ -48,4 +61,4 @@ function KodosumiLogo({ variant = "black", ...props }: LogoProps) {
   );
 }
 
-export { KodosumiLogo, MasumiLogo, SokosumiLogo, ThemedLogo };
+export { KanjiLogo, KodosumiLogo, MasumiLogo, SokosumiLogo, ThemedLogo };
