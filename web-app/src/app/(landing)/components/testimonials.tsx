@@ -32,7 +32,7 @@ const Testimonial = ({
       </span>
     </div>
     <div className="flex w-full flex-col gap-16">
-      <p className="text-3xl font-medium">{`"${quote}"`}</p>
+      <p className="text-3xl">{`"${quote}"`}</p>
       <div className="text-sm">
         <div>{name}</div>
         <div className="text-muted-foreground">

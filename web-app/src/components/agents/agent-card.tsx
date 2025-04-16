@@ -56,7 +56,7 @@ function AgentCard({ agent, agentPrice, className }: AgentCardProps) {
   return (
     <Card
       className={cn(
-        "group bg-card relative gap-4 rounded-none border-none p-0 shadow-none transition-shadow hover:shadow-lg",
+        "group bg-card relative gap-4 rounded-none border-none p-0 shadow-none transition-shadow hover:shadow-none",
         className,
       )}
     >
