@@ -1,8 +1,9 @@
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { FaDiscord, FaXTwitter } from "react-icons/fa6";
 
 import { Button } from "@/components/ui/button";
-import { useTranslations } from "next-intl";
+
 export function JoinOurCommunity() {
   const t = useTranslations("Landing.Page.JoinOurCommunity");
   return (
@@ -13,9 +14,7 @@ export function JoinOurCommunity() {
           <p className="mb-2 text-xs tracking-wider uppercase">
             {t("subtitle")}
           </p>
-          <h2 className="mb-8 text-5xl font-light sm:text-4xl">
-            {t("title")}
-          </h2>
+          <h2 className="mb-8 text-5xl font-light sm:text-4xl">{t("title")}</h2>
           <div className="flex flex-wrap items-center justify-center gap-4">
             <Button variant="default" asChild>
               <Link
