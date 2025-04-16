@@ -21,25 +21,23 @@ export default function Endorsements() {
 
   return (
     <div className="w-full">
-      <div className="container mx-auto w-full px-4">
-        <h2 className="text-foreground mb-12 text-sm font-semibold tracking-wider">
-          {"ENDORSED BY LEADING BRANDS"}
-        </h2>
-        <div className={`w-full py-10 ${styles.marqueeContainer}`}>
-          <div className="from-background pointer-events-none absolute top-0 left-0 z-10 h-full w-[200px] bg-gradient-to-r to-transparent"></div>
-          <div className="from-background pointer-events-none absolute top-0 right-0 z-10 h-full w-[200px] bg-gradient-to-l to-transparent"></div>
-          <div className={styles.marqueeContent}>
-            {logos.map((logo, index) => (
-              <div key={`logo-${index}`} className={styles.logoWrapper}>
-                {logo}
-              </div>
-            ))}
-            {logos.map((logo, index) => (
-              <div key={`logo-copy-${index}`} className={styles.logoWrapper}>
-                {logo}
-              </div>
-            ))}
-          </div>
+      <h2 className="text-foreground mb-12 text-sm font-semibold tracking-wider">
+        {"ENDORSED BY LEADING BRANDS"}
+      </h2>
+      <div className={`w-full py-10 ${styles.marqueeContainer}`}>
+        <div className="from-background pointer-events-none absolute top-0 left-0 z-10 h-full w-[200px] bg-gradient-to-r to-transparent"></div>
+        <div className="from-background pointer-events-none absolute top-0 right-0 z-10 h-full w-[200px] bg-gradient-to-l to-transparent"></div>
+        <div className={styles.marqueeContent}>
+          {logos.map((logo, index) => (
+            <div key={`logo-${index}`} className={styles.logoWrapper}>
+              {logo}
+            </div>
+          ))}
+          {logos.map((logo, index) => (
+            <div key={`logo-copy-${index}`} className={styles.logoWrapper}>
+              {logo}
+            </div>
+          ))}
         </div>
       </div>
     </div>

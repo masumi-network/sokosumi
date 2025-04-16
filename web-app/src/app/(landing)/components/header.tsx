@@ -11,10 +11,10 @@ export default function Header() {
   return (
     <div
       id="header"
-      className="bg-background/0 border-background/0 fixed top-0 z-50 w-full border-b px-4 py-3 lg:px-8 lg:py-6"
+      className="bg-background/0 border-background/0 fixed top-0 z-50 w-full border-b py-3 lg:px-8 lg:py-6"
     >
       <HeaderBlur />
-      <div className="container mx-auto flex items-center justify-between gap-6">
+      <div className="container mx-auto flex items-center justify-between gap-6 px-12">
         {/* Left - Logo */}
         <Link href="/">
           <ThemedLogo

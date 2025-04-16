@@ -38,10 +38,22 @@ export function MonetizeYourAgent() {
         </p>
         <div className="flex flex-wrap gap-4">
           <Button asChild variant="foreground">
-            <Link href="/docs">{"Visit Docs"}</Link>
+            <Link
+              href="https://docs.masumi.network/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {"Visit Docs"}
+            </Link>
           </Button>
           <Button asChild variant="muted">
-            <Link href="/network">{"Visit Masumi Network"}</Link>
+            <Link
+              href="https://masumi.network"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {"Visit Masumi Network"}
+            </Link>
           </Button>
         </div>
       </div>

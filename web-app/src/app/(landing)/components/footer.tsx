@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 export default function Footer() {
   return (
     <footer className="bg-background text-foreground">
-      <div className="container mx-auto px-4 py-12">
+      <div className="container mx-auto px-12 py-12">
         <div className="mb-20 grid grid-cols-1 gap-8 md:grid-cols-4">
           {/* NAVIGATE */}
           <div className="border-t pt-8">
@@ -32,16 +32,20 @@ export default function Footer() {
             <ul className="space-y-2">
               <li>
                 <Link
-                  href="https://twitter.com"
+                  href="https://x.com/MasumiNetwork"
                   className="hover:text-gray-300"
+                  target="_blank"
+                  rel="noopener noreferrer"
                 >
                   {"X/Twitter"}
                 </Link>
               </li>
               <li>
                 <Link
-                  href="https://discord.com"
+                  href="https://discord.com/invite/aj4QfnTS92"
                   className="hover:text-gray-300"
+                  target="_blank"
+                  rel="noopener noreferrer"
                 >
                   {"Discord"}
                 </Link>

@@ -18,7 +18,7 @@ export function JoinOurCommunity() {
           <div className="flex flex-wrap items-center justify-center gap-4">
             <Button variant="foreground" asChild>
               <Link
-                href="https://discord.gg/invite"
+                href="https://discord.com/invite/aj4QfnTS92"
                 target="_blank"
                 rel="noopener noreferrer"
               >
