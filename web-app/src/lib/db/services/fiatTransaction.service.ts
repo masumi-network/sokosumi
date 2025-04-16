@@ -103,8 +103,8 @@ export async function createStripeCheckoutSession(
       user,
       fiatTransaction.id,
       priceId,
-      fiatTransaction.amount /
-        BigInt(conversionFactorsPerCredit.unitAmountPerCredit),
+      Number(fiatTransaction.amount) /
+        conversionFactorsPerCredit.unitAmountPerCredit,
     );
     await updateServicePaymentId(fiatTransaction.id, stripeSessionId, tx);
     return { stripeSessionId, url };
