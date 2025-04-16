@@ -12,7 +12,7 @@ import { Form } from "@/components/ui/form";
 import { useAsyncRouterPush } from "@/hooks/use-async-router";
 import { startJobWithInputData } from "@/lib/actions/job.actions";
 import { AgentCreditsPrice } from "@/lib/db/types/credit.type";
-import { convertCreditsToHumanReadableCredits } from "@/lib/db/utils/credit.utils";
+import { convertCentsToCredits } from "@/lib/db/utils/credit.utils";
 import {
   defaultValues,
   JobInputsDataSchemaType,
@@ -55,10 +55,6 @@ export default function JobInputsFormClient({
   const router = useRouter();
   const pathname = usePathname();
 
-  const humanReadableCredits = convertCreditsToHumanReadableCredits(
-    agentCreditsPrice.credits,
-  );
-
   // Then replace your existing handleSubmit function with this:
   const handleSubmit: SubmitHandler<JobInputsFormSchemaType> = async (
     values,
@@ -69,7 +65,7 @@ export default function JobInputsFormClient({
       const transformedInputData = filterOutNullValues(values);
       const result = await startJobWithInputData({
         agentId: agentId,
-        maxAcceptedCredits: agentCreditsPrice.credits,
+        maxAcceptedCents: agentCreditsPrice.cents,
         inputData: transformedInputData,
       });
 
@@ -135,7 +131,9 @@ export default function JobInputsFormClient({
             </Button>
             <div className="flex items-center gap-2">
               <div className="text-muted-foreground text-sm">
-                {t("price", { price: humanReadableCredits })}
+                {t("price", {
+                  price: convertCentsToCredits(agentCreditsPrice.cents),
+                })}
               </div>
               <Button type="submit" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting && (

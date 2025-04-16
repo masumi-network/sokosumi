@@ -2,9 +2,9 @@ import { headers } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
 import { auth } from "@/lib/auth/auth";
-import { getCredits } from "@/lib/db/services/credit.service";
+import { getCents } from "@/lib/db/services/credit.service";
 import { getUserById } from "@/lib/db/services/user.service";
-import { convertCreditsToHumanReadableCredits } from "@/lib/db/utils/credit.utils";
+import { convertCentsToCredits } from "@/lib/db/utils/credit.utils";
 import { cn } from "@/lib/utils";
 
 export default async function UserCredits({
@@ -22,15 +22,13 @@ export default async function UserCredits({
   }
 
   const user = await getUserById(session.user.id);
-  const credits = await getCredits(session.user.id);
-  const humanReadableCredits = convertCreditsToHumanReadableCredits(credits);
+  const cents = await getCents(session.user.id);
+  const credits = convertCentsToCredits(cents);
 
   if (!user) {
     return <div className={cn(className)}>{t("unavailable")}</div>;
   }
   return (
-    <div className={cn(className)}>
-      {t("balance", { credits: humanReadableCredits })}
-    </div>
+    <div className={cn(className)}>{t("balance", { credits: credits })}</div>
   );
 }

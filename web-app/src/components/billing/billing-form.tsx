@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { createOneTimePaymentStripeSession } from "@/lib/db/services/fiatTransaction.service";
+import { convertCreditsToCents } from "@/lib/db/utils/credit.utils";
 
 interface BillingFormProps {
   userId: string;
@@ -45,7 +46,7 @@ export default function BillingForm({
       const { stripeSessionId, url } = await createOneTimePaymentStripeSession(
         userId,
         priceId,
-        humanReadableCredits,
+        convertCreditsToCents(humanReadableCredits),
       );
 
       console.log("Checkout session created:", stripeSessionId, url);

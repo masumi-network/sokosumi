@@ -2,7 +2,6 @@
 
 import { createCheckoutSession } from "@/lib/actions/stripe.actions";
 import prisma from "@/lib/db/prisma";
-import { convertHumanReadableCreditsToCredits } from "@/lib/db/utils/credit.utils";
 import {
   FiatTransaction,
   FiatTransactionStatus,
@@ -13,13 +12,13 @@ import { getUserById } from "./user.service";
 
 export async function createFiatTransaction(
   userId: string,
-  humanReadableCredits: number,
+  cents: bigint,
   tx: Prisma.TransactionClient = prisma,
 ) {
   const fiatTransaction = await tx.fiatTransaction.create({
     data: {
       userId,
-      credits: convertHumanReadableCreditsToCredits(humanReadableCredits),
+      cents: cents,
     },
   });
   return fiatTransaction;
@@ -57,7 +56,7 @@ export async function setFiatTransactionStatusToSucceeded(
       creditTransaction: {
         create: {
           userId: fiatTransaction.userId,
-          amount: fiatTransaction.credits,
+          cents: fiatTransaction.cents,
         },
       },
     },
@@ -77,23 +76,19 @@ export async function setFiatTransactionStatusToFailed(
 export async function createOneTimePaymentStripeSession(
   userId: string,
   priceId: string,
-  humanReadableCredits: number,
+  cents: bigint,
 ): Promise<{ stripeSessionId: string; url: string }> {
   return await prisma.$transaction(async (tx) => {
     const user = await getUserById(userId, tx);
     if (!user) {
       throw new Error("User not found");
     }
-    const fiatTransaction = await createFiatTransaction(
-      userId,
-      humanReadableCredits,
-      tx,
-    );
+    const fiatTransaction = await createFiatTransaction(userId, cents, tx);
     const { id: stripeSessionId, url } = await createCheckoutSession(
       user,
       fiatTransaction.id,
       priceId,
-      humanReadableCredits,
+      cents,
     );
     await updateServicePaymentId(fiatTransaction.id, stripeSessionId, tx);
     return { stripeSessionId, url };

@@ -35,7 +35,7 @@ const startJobSchema = z.object({
 export async function startJob(
   userId: string,
   agentId: string,
-  maxAcceptedCredits: bigint,
+  maxAcceptedCents: bigint,
   inputData: Map<string, string | number | boolean | number[]>,
 ): Promise<Job> {
   return await prisma.$transaction(
@@ -52,11 +52,11 @@ export async function startJob(
         })),
         tx,
       );
-      if (creditsPrice.credits > maxAcceptedCredits) {
+      if (creditsPrice.cents > maxAcceptedCents) {
         throw new Error("Credit cost is too high");
       }
-      if (creditsPrice.credits > 0) {
-        await validateCreditsBalance(userId, creditsPrice.credits, tx);
+      if (creditsPrice.cents > 0) {
+        await validateCreditsBalance(userId, creditsPrice.cents, tx);
       }
       const baseUrl = getApiBaseUrl(agent);
       const startJobUrl = new URL(`/start_job`, baseUrl);
@@ -128,7 +128,7 @@ export async function startJob(
           },
           creditTransaction: {
             create: {
-              amount: -creditsPrice.credits,
+              cents: -creditsPrice.cents,
               includedFee: creditsPrice.includedFee,
               user: {
                 connect: {
@@ -308,7 +308,7 @@ export async function syncJobStatus(job: Job) {
           status: JobStatus.REFUNDED,
           refundedCreditTransaction: {
             create: {
-              amount: creditTransaction.amount * BigInt(-1),
+              cents: creditTransaction.cents * BigInt(-1),
               includedFee: creditTransaction.includedFee,
               user: {
                 connect: {

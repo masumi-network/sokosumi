@@ -239,7 +239,7 @@ CREATE TABLE "CreditTransaction" (
     "id" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "amount" BIGINT NOT NULL,
+    "cents" BIGINT NOT NULL,
     "includedFee" BIGINT NOT NULL DEFAULT 0,
     "note" TEXT,
     "noteKey" TEXT,
@@ -256,7 +256,7 @@ CREATE TABLE "FiatTransaction" (
     "id" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "credits" BIGINT NOT NULL,
+    "cents" BIGINT NOT NULL,
     "servicePaymentId" TEXT,
     "service" "FiatService" NOT NULL DEFAULT 'STRIPE',
     "status" "FiatTransactionStatus" NOT NULL DEFAULT 'PENDING',
@@ -300,7 +300,7 @@ CREATE TABLE "CreditCost" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "unit" TEXT NOT NULL,
-    "creditCostPerUnit" BIGINT NOT NULL,
+    "centsPerUnit" BIGINT NOT NULL,
 
     CONSTRAINT "CreditCost_pkey" PRIMARY KEY ("id")
 );

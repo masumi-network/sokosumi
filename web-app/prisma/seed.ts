@@ -1,7 +1,7 @@
 import { v4 as uuidv4 } from "uuid";
 
 import { getEnvSecrets } from "@/config/env.config";
-import { convertHumanReadableCreditsToCredits } from "@/lib/db/utils/credit.utils";
+import { convertCreditsToCents } from "@/lib/db/utils/credit.utils";
 import { PrismaClient } from "@/prisma/generated/client";
 
 import { hashPassword } from "./util/password";
@@ -50,7 +50,7 @@ const seedUser = async (): Promise<string> => {
 
   const creditTransaction = await prisma.creditTransaction.create({
     data: {
-      amount: convertHumanReadableCreditsToCredits(1000.5123),
+      cents: convertCreditsToCents(1000.5123),
       userId: user.id,
     },
   });
@@ -65,11 +65,11 @@ const seedCreditCost = async () => {
       unit: "usdm",
     },
     update: {
-      creditCostPerUnit: 1_000_000, // 1 base unit usdm == 0.000001 usdm == 1_000_000 credits
+      centsPerUnit: 1_000_000, // 1 base unit usdm == 0.000001 usdm == 1_000_000 credits
     },
     create: {
       unit: "usdm",
-      creditCostPerUnit: 1_000_000, // 1 base unit usdm == 0.000001 usdm == 1_000_000 credits
+      centsPerUnit: 1_000_000, // 1 base unit usdm == 0.000001 usdm == 1_000_000 credits
     },
   });
   console.log("USDM credit cost seeded");
@@ -79,11 +79,11 @@ const seedCreditCost = async () => {
       unit: "",
     },
     update: {
-      creditCostPerUnit: 500_000, // 1 lovelace == 500_000 credits
+      centsPerUnit: 500_000, // 1 lovelace == 500_000 credits
     },
     create: {
       unit: "",
-      creditCostPerUnit: 500_000, // 1 lovelace == 500_000 credits
+      centsPerUnit: 500_000, // 1 lovelace == 500_000 credits
     },
   });
   console.log("Lovelace credit cost seeded");

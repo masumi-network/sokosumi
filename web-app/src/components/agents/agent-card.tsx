@@ -13,7 +13,7 @@ import {
 import { AgentWithRelations } from "@/lib/db/types/agent.types";
 import { AgentListWithAgent } from "@/lib/db/types/agentList.types";
 import { AgentCreditsPrice } from "@/lib/db/types/credit.type";
-import { convertCreditsToHumanReadableCredits } from "@/lib/db/utils/credit.utils";
+import { convertCentsToCredits } from "@/lib/db/utils/credit.utils";
 import { cn } from "@/lib/utils";
 
 import { AgentBookmarkButton } from "./agent-bookmark-button";
@@ -85,9 +85,6 @@ function AgentCard({
   const t = useTranslations("Components.Agents.AgentCard");
   const averageStars = getAverageStars(agent);
   const description = getDescription(agent);
-  const humanReadableCredits = convertCreditsToHumanReadableCredits(
-    agentCreditsPrice.credits,
-  );
 
   return (
     <Card
@@ -141,7 +138,7 @@ function AgentCard({
             <div>
               <p className="text-muted-foreground text-s">
                 {t("pricing", {
-                  price: humanReadableCredits,
+                  price: convertCentsToCredits(agentCreditsPrice.cents),
                 })}
               </p>
             </div>

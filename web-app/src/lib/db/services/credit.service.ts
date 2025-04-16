@@ -8,26 +8,26 @@ import prisma from "@/lib/db/prisma";
 import { AgentCreditsPrice } from "@/lib/db/types/credit.type";
 import { Prisma } from "@/prisma/generated/client";
 
-export async function getCredits(
+export async function getCents(
   userId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<bigint> {
   const creditsBalance = await tx.creditTransaction.aggregate({
     where: { userId },
     _sum: {
-      amount: true,
+      cents: true,
     },
   });
-  return creditsBalance._sum.amount ?? BigInt(0);
+  return creditsBalance._sum.cents ?? BigInt(0);
 }
 
 export async function validateCreditsBalance(
   userId: string,
-  credits: bigint,
+  cents: bigint,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<void> {
-  const creditsBalance = await getCredits(userId, tx);
-  if (creditsBalance - credits < BigInt(0)) {
+  const centsBalance = await getCents(userId, tx);
+  if (centsBalance - cents < BigInt(0)) {
     throw new Error("Insufficient balance");
   }
 }
@@ -54,7 +54,7 @@ export async function calculateAgentCreditsPrice(
     amount: Number(amount.amount),
   }));
   if (!amounts) {
-    return { credits: BigInt(0), includedFee: BigInt(0) };
+    return { cents: BigInt(0), includedFee: BigInt(0) };
   }
   return await calculateCreditsPrice(amounts, tx);
 }
@@ -77,7 +77,7 @@ export async function calculateCreditsPrice(
 
   const amountsParsed = amountsSchema.parse(amounts);
 
-  let totalCredits = BigInt(0);
+  let totalCents = BigInt(0);
   let totalFee = BigInt(0);
   for (const amount of amountsParsed) {
     const creditCost = await tx.creditCost.findUnique({
@@ -88,12 +88,12 @@ export async function calculateCreditsPrice(
     if (!creditCost) {
       throw new Error(`Credit cost not found for unit ${amount.unit}`);
     }
-    const credits = amount.amount * Number(creditCost.creditCostPerUnit);
-    const fee = credits * feeMultiplier;
+    const cents = amount.amount * Number(creditCost.centsPerUnit);
+    const fee = cents * feeMultiplier;
 
     // round up to the nearest integer
-    totalCredits += BigInt(Math.ceil(credits));
+    totalCents += BigInt(Math.ceil(cents));
     totalFee += BigInt(Math.ceil(fee));
   }
-  return { credits: totalCredits + totalFee, includedFee: totalFee };
+  return { cents: totalCents + totalFee, includedFee: totalFee };
 }

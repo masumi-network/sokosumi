@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.config"; // Ensure this path is correct
+import { convertCentsToCredits } from "@/lib/db/utils/credit.utils";
 import { User } from "@/prisma/generated/client";
 
 const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
@@ -29,6 +30,11 @@ export async function getCostPerCredit(
       console.error("ACTION: Stripe price is missing unit_amount.");
       throw new Error("Stripe price does not have a unit_amount.");
     }
+
+    if (price.currency !== "usd") {
+      throw new Error("Stripe price currency is not USD.");
+    }
+
     const result = {
       amountPerCredit: price.unit_amount / 100,
       currency: price.currency,
@@ -51,7 +57,7 @@ export async function createCheckoutSession(
   user: User,
   fiatTransactionId: string,
   priceId: string,
-  humanReadableCredits: number,
+  cents: bigint,
 ): Promise<{
   id: string;
   url: string;
@@ -64,7 +70,7 @@ export async function createCheckoutSession(
     line_items: [
       {
         price: priceId,
-        quantity: humanReadableCredits,
+        quantity: convertCentsToCredits(cents),
       },
     ],
     client_reference_id: fiatTransactionId,

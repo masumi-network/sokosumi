@@ -1,4 +1,4 @@
 export type AgentCreditsPrice = {
-  credits: bigint;
+  cents: bigint;
   includedFee: bigint;
 };
