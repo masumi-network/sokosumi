@@ -7,8 +7,7 @@ import { requireAuthentication } from "@/lib/auth/utils";
 import { getDescription, getLegal, getName } from "@/lib/db/extension/agent";
 import { getAgentById } from "@/lib/db/services/agent.service";
 import { getOrCreateFavoriteAgentList } from "@/lib/db/services/agentList.service";
-import { calculateAgentCreditCost } from "@/lib/db/services/credit.service";
-import { convertBaseUnitsToCredits } from "@/lib/db/utils/credit.utils";
+import { getAgentCreditsPrice } from "@/lib/db/services/credit.service";
 
 import Footer from "./components/footer";
 import Header, { HeaderSkeleton } from "./components/header";
@@ -59,15 +58,14 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
   }
 
   const { session } = await requireAuthentication();
-  const agentCreditCost = await calculateAgentCreditCost(agent);
-  const agentPrice = convertBaseUnitsToCredits(agentCreditCost.credits);
+  const agentCreditsPrice = await getAgentCreditsPrice(agent);
   const favoriteAgentList = await getOrCreateFavoriteAgentList(session.user.id);
 
   return (
     <div className="flex h-full flex-1 flex-col p-4 lg:p-6 xl:p-8">
       <Header
         agent={agent}
-        agentPricing={agentPrice}
+        agentCreditsPrice={agentCreditsPrice}
         favoriteAgentList={favoriteAgentList}
       />
       <div className="mt-6 flex flex-1 flex-col justify-center gap-4 lg:flex-row lg:overflow-hidden">

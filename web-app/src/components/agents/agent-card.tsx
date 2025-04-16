@@ -11,6 +11,7 @@ import {
 } from "@/lib/db/extension/agent";
 import { AgentWithRelations } from "@/lib/db/types/agent.types";
 import { AgentListWithAgent } from "@/lib/db/types/agentList.types";
+import { CreditsPrice } from "@/lib/db/types/credit.type";
 import { cn } from "@/lib/utils";
 
 interface AgentCardSkeletonProps {
@@ -45,7 +46,7 @@ function AgentCardSkeleton({ className }: AgentCardSkeletonProps) {
 interface AgentCardProps {
   agent: AgentWithRelations;
   agentList?: AgentListWithAgent | undefined;
-  agentPrice: number;
+  agentCreditsPrice: CreditsPrice;
   className?: string | undefined;
 }
 

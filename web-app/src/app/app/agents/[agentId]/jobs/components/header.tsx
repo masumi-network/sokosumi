@@ -8,12 +8,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getName } from "@/lib/db/extension/agent";
 import { AgentWithRelations } from "@/lib/db/types/agent.types";
 import { AgentListWithAgent } from "@/lib/db/types/agentList.types";
-
-interface HeaderProps {
-  agent: AgentWithRelations;
-  agentPricing: number;
-  favoriteAgentList: AgentListWithAgent;
-}
+import { CreditsPrice } from "@/lib/db/types/credit.type";
+import { convertCentsToCredits } from "@/lib/db/utils/credit.utils";
 
 const bookmarkSize = 36;
 
@@ -57,9 +53,15 @@ function AgentBookmarkSection({
   );
 }
 
+interface HeaderProps {
+  agent: AgentWithRelations;
+  agentCreditsPrice: CreditsPrice;
+  favoriteAgentList: AgentListWithAgent;
+}
+
 export default function Header({
   agent,
-  agentPricing,
+  agentCreditsPrice,
   favoriteAgentList,
 }: HeaderProps) {
   const t = useTranslations("App.Agents.Jobs.Header");
@@ -77,7 +79,9 @@ export default function Header({
       </div>
       <div className="flex flex-1 flex-row items-center justify-end gap-4">
         <div className="w-full text-end text-base">
-          {t("price", { price: agentPricing })}
+          {t("price", {
+            price: convertCentsToCredits(agentCreditsPrice.cents),
+          })}
         </div>
         <Link href={`/app/agents/${agent.id}/jobs`}>
           <Button className="gap-2">

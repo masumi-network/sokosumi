@@ -4,17 +4,18 @@ import { useTranslations } from "next-intl";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getDescription } from "@/lib/db/extension/agent";
 import { AgentWithRelations } from "@/lib/db/types/agent.types";
+import { CreditsPrice } from "@/lib/db/types/credit.type";
 
 import { JobInputsForm } from "./job-input";
 
 interface CreateJobSectionProps {
   agent: AgentWithRelations;
-  agentPricing: number;
+  agentCreditsPrice: CreditsPrice;
 }
 
 export default function CreateJobSection({
   agent,
-  agentPricing,
+  agentCreditsPrice,
 }: CreateJobSectionProps) {
   const t = useTranslations("App.Agents.Jobs.CreateJob");
   const description = getDescription(agent);
@@ -43,7 +44,10 @@ export default function CreateJobSection({
             <h1 className="text-xl font-bold">{t("Input.title")}</h1>
             <p className="text-base">{t("Input.description")}</p>
           </div>
-          <JobInputsForm agentId={agent.id} agentPricing={agentPricing} />
+          <JobInputsForm
+            agentId={agent.id}
+            agentCreditsPrice={agentCreditsPrice}
+          />
         </div>
       </ScrollArea>
     </div>

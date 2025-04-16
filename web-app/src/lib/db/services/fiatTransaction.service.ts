@@ -1,8 +1,10 @@
 "use server";
 
-import { createCheckoutSession } from "@/lib/actions/stripe.actions";
+import {
+  createCheckoutSession,
+  getConversionFactors,
+} from "@/lib/actions/stripe.actions";
 import prisma from "@/lib/db/prisma";
-import { convertCreditsToBaseUnits } from "@/lib/db/utils/credit.utils";
 import {
   FiatTransaction,
   FiatTransactionStatus,
@@ -11,15 +13,19 @@ import {
 
 import { getUserById } from "./user.service";
 
-export async function createFiatTransaction(
+async function createFiatTransaction(
   userId: string,
-  credits: number,
+  cents: bigint,
+  centsPerAmount: bigint,
+  currency: string,
   tx: Prisma.TransactionClient = prisma,
 ) {
   const fiatTransaction = await tx.fiatTransaction.create({
     data: {
       userId,
-      credits: convertCreditsToBaseUnits(credits),
+      centsPerAmount,
+      amount: cents / centsPerAmount,
+      currency,
     },
   });
   return fiatTransaction;
@@ -57,7 +63,7 @@ export async function setFiatTransactionStatusToSucceeded(
       creditTransaction: {
         create: {
           userId: fiatTransaction.userId,
-          amount: fiatTransaction.credits,
+          amount: fiatTransaction.amount * fiatTransaction.centsPerAmount,
         },
       },
     },
@@ -74,22 +80,30 @@ export async function setFiatTransactionStatusToFailed(
   });
 }
 
-export async function createOneTimePaymentStripeSession(
+export async function createStripeCheckoutSession(
   userId: string,
   priceId: string,
-  credits: number,
+  cents: bigint,
 ): Promise<{ stripeSessionId: string; url: string }> {
   return await prisma.$transaction(async (tx) => {
     const user = await getUserById(userId, tx);
     if (!user) {
       throw new Error("User not found");
     }
-    const fiatTransaction = await createFiatTransaction(userId, credits, tx);
+    const conversionFactorsPerCredit = await getConversionFactors(priceId);
+    const fiatTransaction = await createFiatTransaction(
+      userId,
+      cents,
+      conversionFactorsPerCredit.centsPerAmount,
+      conversionFactorsPerCredit.currency,
+      tx,
+    );
     const { id: stripeSessionId, url } = await createCheckoutSession(
       user,
       fiatTransaction.id,
       priceId,
-      credits,
+      Number(fiatTransaction.amount) /
+        conversionFactorsPerCredit.amountPerCredit,
     );
     await updateServicePaymentId(fiatTransaction.id, stripeSessionId, tx);
     return { stripeSessionId, url };

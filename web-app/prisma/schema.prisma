@@ -280,7 +280,7 @@ model CreditTransaction {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  amount      BigInt //positive is always a credit topup and negative is always a credit spend
+  amount      BigInt //positive is always a credit topup and negative is always a credit spend; 1_000_000_000_000 = 1 credit (10^12) with NEXT_PUBLIC_CREDITS_BASE = 12
   includedFee BigInt @default(0)
 
   note         String?
@@ -303,7 +303,9 @@ model FiatTransaction {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  credits          BigInt // amount in credits
+  amount           BigInt // Base Unit: 100 = 1 USD, 10000 = 100 USD if currency is USD
+  currency         String
+  centsPerAmount   BigInt
   servicePaymentId String?               @unique
   service          FiatService           @default(STRIPE)
   status           FiatTransactionStatus @default(PENDING)
@@ -373,9 +375,9 @@ enum JobStatus {
 }
 
 model CreditCost {
-  id                String   @id @default(cuid())
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
-  unit              String   @unique
-  creditCostPerUnit BigInt
+  id           String   @id @default(cuid())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  unit         String   @unique
+  centsPerUnit BigInt
 }

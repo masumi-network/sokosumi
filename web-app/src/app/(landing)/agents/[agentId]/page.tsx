@@ -2,8 +2,7 @@ import { notFound } from "next/navigation";
 
 import { AgentDetails } from "@/components/agents";
 import { getAgentById } from "@/lib/db/services/agent.service";
-import { calculateAgentCreditCost } from "@/lib/db/services/credit.service";
-import { convertBaseUnitsToCredits } from "@/lib/db/utils/credit.utils";
+import { getAgentCreditsPrice } from "@/lib/db/services/credit.service";
 
 import BackToGallery from "./components/back-to-gallery";
 
@@ -19,15 +18,12 @@ export default async function Page({
     notFound();
   }
 
-  const agentPriceCreditCost = await calculateAgentCreditCost(agent);
-  const agentPriceCredits = convertBaseUnitsToCredits(
-    agentPriceCreditCost.credits,
-  );
+  const agentCreditsPrice = await getAgentCreditsPrice(agent);
 
   return (
     <div className="container mx-auto space-y-8 p-4 pb-16 xl:p-8">
       <BackToGallery />
-      <AgentDetails agent={agent} agentPrice={agentPriceCredits} />
+      <AgentDetails agent={agent} agentCreditsPrice={agentCreditsPrice} />
     </div>
   );
 }

@@ -68,7 +68,8 @@ const convertStatus = (
 async function syncAllEntries() {
   let lastIdentifier: string | undefined = undefined;
   const limit = 20;
-  const runningDbUpdates: Promise<void>[] = [];
+  const runningAgentsUpdates: Promise<void>[] = [];
+  const runningTagsUpdates: Promise<void>[] = [];
   const registryClient = getRegistryClient();
   while (true) {
     const response = await postRegistryEntry({
@@ -93,8 +94,23 @@ async function syncAllEntries() {
     }
     const entries = response.data.data.entries;
 
-    //add all updates to the queue and start them in parallel
-    runningDbUpdates.push(
+    // add all tags to the database
+    const tags = Array.from(
+      new Set(entries.map((entry) => entry.tags ?? []).flat()),
+    );
+    runningTagsUpdates.push(
+      ...tags.map(async (tag) => {
+        await prisma.tag.upsert({
+          where: { name: tag },
+          create: { name: tag },
+          update: {},
+        });
+      }),
+    );
+    await Promise.all(runningTagsUpdates);
+
+    // add all updates to the queue and start them in parallel
+    runningAgentsUpdates.push(
       ...entries.map(async (entry) => {
         const updateDbEntry = async () => {
           await prisma.agent.upsert({
@@ -114,12 +130,7 @@ async function syncAllEntries() {
               authorContactOther: entry.authorContactOther ?? "",
               image: entry.image ?? "",
               tags: {
-                connectOrCreate: entry.tags?.map((tag) => {
-                  return {
-                    where: { name: tag },
-                    create: { name: tag },
-                  };
-                }),
+                connect: entry.tags?.map((tag) => ({ name: tag })),
               },
               authorOrganization: entry.authorOrganization ?? "",
               isShown: getEnvSecrets().SHOW_AGENTS_BY_DEFAULT,
@@ -187,5 +198,5 @@ async function syncAllEntries() {
     //TODO: figure out why the automatic type inference breaks here if not explicitly casted
     lastIdentifier = lastElement.id as string;
   }
-  await Promise.all(runningDbUpdates);
+  await Promise.all(runningAgentsUpdates);
 }

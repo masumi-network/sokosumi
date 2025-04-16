@@ -8,7 +8,7 @@ import { startJob } from "@/lib/db/services/job.service";
 
 const startJobInputSchema = z.object({
   agentId: z.string(),
-  maxAcceptedCredits: z.bigint(),
+  maxAcceptedCents: z.bigint(),
   inputData: z.record(
     z.string(),
     z.union([z.number(), z.string(), z.boolean(), z.array(z.number())]),
@@ -49,7 +49,7 @@ export async function startJobWithInputData(input: StartJobInput): Promise<{
     const job = await startJob(
       session.user.id,
       data.agentId,
-      data.maxAcceptedCredits,
+      data.maxAcceptedCents,
       inputMap,
     );
     return { success: true, data: { jobId: job.id } };

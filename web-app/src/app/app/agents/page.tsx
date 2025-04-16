@@ -4,10 +4,9 @@ import { getTranslations } from "next-intl/server";
 import { requireAuthentication } from "@/lib/auth/utils";
 import { getAgents } from "@/lib/db/services/agent.service";
 import { getOrCreateFavoriteAgentList } from "@/lib/db/services/agentList.service";
-import { calculateAgentCreditCost } from "@/lib/db/services/credit.service";
+import { getAgentCreditsPrice } from "@/lib/db/services/credit.service";
 import { getTags } from "@/lib/db/services/tag.service";
 import { AgentWithRelations } from "@/lib/db/types/agent.types";
-import { convertBaseUnitsToCredits } from "@/lib/db/utils/credit.utils";
 import { Tag } from "@/prisma/generated/client";
 
 import FilterSection from "./components/filter-section";
@@ -30,11 +29,8 @@ export default async function GalleryPage() {
   const { session } = await requireAuthentication();
 
   const agentList = await getOrCreateFavoriteAgentList(session.user.id);
-  const agentPriceList = await Promise.all(
-    agents.map(async (agent) => {
-      const creditCost = await calculateAgentCreditCost(agent);
-      return convertBaseUnitsToCredits(creditCost.credits);
-    }),
+  const agentCreditsPriceList = await Promise.all(
+    agents.map((agent) => getAgentCreditsPrice(agent)),
   );
 
   return (
@@ -45,7 +41,7 @@ export default async function GalleryPage() {
         <FilteredAgents
           agents={agents}
           agentList={agentList}
-          agentPriceList={agentPriceList}
+          agentCreditsPriceList={agentCreditsPriceList}
         />
       </div>
     </div>

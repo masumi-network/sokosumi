@@ -16,6 +16,8 @@ import {
 } from "@/lib/db/extension/agent";
 import { AgentWithRelations } from "@/lib/db/types/agent.types";
 import { AgentListWithAgent } from "@/lib/db/types/agentList.types";
+import { CreditsPrice } from "@/lib/db/types/credit.type";
+import { convertCentsToCredits } from "@/lib/db/utils/credit.utils";
 import { cn } from "@/lib/utils";
 
 import { AgentBookmarkButton } from "./agent-bookmark-button";
@@ -86,14 +88,14 @@ function AgentDetailSkeleton({ className }: AgentDetailSkeletonProps) {
 interface AgentDetailsProps {
   agent: AgentWithRelations;
   agentList?: AgentListWithAgent | undefined;
-  agentPrice: number;
+  agentCreditsPrice: CreditsPrice;
   className?: string;
 }
 
 function AgentDetails({
   agent,
-  agentPrice,
   agentList,
+  agentCreditsPrice,
   className,
 }: AgentDetailsProps) {
   const t = useTranslations("Components.Agents.AgentDetail");
@@ -137,7 +139,9 @@ function AgentDetails({
           </div>
           {/* Pricing */}
           <p className="pt-1 text-sm font-medium">
-            {t("pricing", { price: agentPrice })}
+            {t("pricing", {
+              price: convertCentsToCredits(agentCreditsPrice.cents),
+            })}
           </p>
           {/* Action Buttons */}
           <div className="mt-auto flex flex-col gap-3">

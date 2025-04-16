@@ -11,6 +11,7 @@ import {
 import { getTags } from "@/lib/db/extension/agent";
 import { AgentWithRelations } from "@/lib/db/types/agent.types";
 import { AgentListWithAgent } from "@/lib/db/types/agentList.types";
+import { CreditsPrice } from "@/lib/db/types/credit.type";
 
 import { GalleryFilterState } from "./use-gallery-filter";
 
@@ -43,13 +44,13 @@ const filterAgents = (
 interface FilteredAgentsProps {
   agents: AgentWithRelations[];
   agentList?: AgentListWithAgent | undefined;
-  agentPriceList: number[];
+  agentCreditsPriceList: CreditsPrice[];
 }
 
 function FilteredAgents({
   agents,
   agentList,
-  agentPriceList,
+  agentCreditsPriceList,
 }: FilteredAgentsProps) {
   const searchParams = useSearchParams();
 
@@ -74,7 +75,7 @@ function FilteredAgents({
     <Agents
       agents={filteredAgents}
       agentList={agentList}
-      agentPriceList={agentPriceList}
+      agentCreditsPriceList={agentCreditsPriceList}
     />
   );
 }

@@ -2,6 +2,7 @@ import { useTranslations } from "next-intl";
 
 import { AgentWithRelations } from "@/lib/db/types/agent.types";
 import { AgentListWithAgent } from "@/lib/db/types/agentList.types";
+import { CreditsPrice } from "@/lib/db/types/credit.type";
 import { cn } from "@/lib/utils";
 
 import { AgentCard, AgentCardSkeleton } from "./agent-card";
@@ -53,7 +54,7 @@ interface AgentsProps {
   agentList?: AgentListWithAgent | undefined;
   className?: string | undefined;
   agentCardClassName?: string | undefined;
-  agentPriceList: number[];
+  agentCreditsPriceList: CreditsPrice[];
 }
 
 function Agents({
@@ -61,7 +62,7 @@ function Agents({
   agentList,
   className,
   agentCardClassName,
-  agentPriceList,
+  agentCreditsPriceList,
 }: AgentsProps) {
   return (
     <div
@@ -72,7 +73,7 @@ function Agents({
           key={agent.id}
           agent={agent}
           agentList={agentList}
-          agentPrice={agentPriceList[index]}
+          agentCreditsPrice={agentCreditsPriceList[index]}
           className={agentCardClassName}
         />
       ))}

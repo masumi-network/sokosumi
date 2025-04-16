@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { getAgentById } from "@/lib/db/services/agent.service";
-import { calculateAgentCreditCost } from "@/lib/db/services/credit.service";
-import { convertBaseUnitsToCredits } from "@/lib/db/utils/credit.utils";
+import { getAgentCreditsPrice } from "@/lib/db/services/credit.service";
 
 import CreateJobSection from "./components/create-job-section";
 
@@ -23,8 +22,9 @@ export default async function CreateJobPage({
     notFound();
   }
 
-  const agentCreditCost = await calculateAgentCreditCost(agent);
-  const agentPrice = convertBaseUnitsToCredits(agentCreditCost.credits);
+  const agentCreditsPrice = await getAgentCreditsPrice(agent);
 
-  return <CreateJobSection agent={agent} agentPricing={agentPrice} />;
+  return (
+    <CreateJobSection agent={agent} agentCreditsPrice={agentCreditsPrice} />
+  );
 }

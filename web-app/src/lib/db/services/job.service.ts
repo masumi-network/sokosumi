@@ -17,7 +17,7 @@ import { calculatedInputHash } from "@/lib/utils";
 import { Job, JobStatus, Prisma } from "@/prisma/generated/client";
 
 import { getAgentById, getAgentPricing } from "./agent.service";
-import { calculateCreditCost, validateCreditBalance } from "./credit.service";
+import { getCreditsPrice, validateCreditsBalance } from "./credit.service";
 
 const startJobSchema = z.object({
   input_hash: z.string(),
@@ -32,7 +32,7 @@ const startJobSchema = z.object({
 export async function startJob(
   userId: string,
   agentId: string,
-  maxAcceptedCredits: bigint,
+  maxAcceptedCents: bigint,
   inputData: Map<string, string | number | boolean | number[]>,
 ): Promise<Job> {
   return await prisma.$transaction(
@@ -42,18 +42,18 @@ export async function startJob(
         throw new Error("Agent not found");
       }
       const pricing = await getAgentPricing(agentId, tx);
-      const creditCost = await calculateCreditCost(
+      const creditsPrice = await getCreditsPrice(
         pricing.FixedPricing.Amounts.map((amount) => ({
           unit: amount.unit,
           amount: Number(amount.amount),
         })),
         tx,
       );
-      if (creditCost.credits > maxAcceptedCredits) {
+      if (creditsPrice.cents > maxAcceptedCents) {
         throw new Error("Credit cost is too high");
       }
-      if (creditCost.credits > 0) {
-        await validateCreditBalance(userId, creditCost.credits, tx);
+      if (creditsPrice.cents > 0) {
+        await validateCreditsBalance(userId, creditsPrice.cents, tx);
       }
       const baseUrl = getApiBaseUrl(agent);
       const startJobUrl = new URL(`/start_job`, baseUrl);
@@ -125,8 +125,8 @@ export async function startJob(
           },
           creditTransaction: {
             create: {
-              amount: -creditCost.credits,
-              includedFee: creditCost.includedFee,
+              amount: -creditsPrice.cents,
+              includedFee: creditsPrice.includedFee,
               user: {
                 connect: {
                   id: userId,

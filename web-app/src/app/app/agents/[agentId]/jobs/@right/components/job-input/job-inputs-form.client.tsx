@@ -11,7 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { useAsyncRouterPush } from "@/hooks/use-async-router";
 import { startJobWithInputData } from "@/lib/actions/job.actions";
-import { convertCreditsToBaseUnits } from "@/lib/db/utils/credit.utils";
+import { CreditsPrice } from "@/lib/db/types/credit.type";
+import { convertCentsToCredits } from "@/lib/db/utils/credit.utils";
 import {
   defaultValues,
   JobInputsDataSchemaType,
@@ -22,13 +23,6 @@ import { cn } from "@/lib/utils";
 
 import JobInput from "./job-input";
 
-interface JobInputsFormClientProps {
-  agentId: string;
-  agentPricing: number;
-  jobInputsDataSchema: JobInputsDataSchemaType;
-  className?: string | undefined;
-}
-
 function filterOutNullValues(values: JobInputsFormSchemaType) {
   return Object.fromEntries(
     Object.entries(values).filter(([_, value]) => value !== null) as [
@@ -38,9 +32,16 @@ function filterOutNullValues(values: JobInputsFormSchemaType) {
   );
 }
 
+interface JobInputsFormClientProps {
+  agentId: string;
+  agentCreditsPrice: CreditsPrice;
+  jobInputsDataSchema: JobInputsDataSchemaType;
+  className?: string | undefined;
+}
+
 export default function JobInputsFormClient({
   agentId,
-  agentPricing,
+  agentCreditsPrice,
   jobInputsDataSchema,
   className,
 }: JobInputsFormClientProps) {
@@ -64,7 +65,7 @@ export default function JobInputsFormClient({
       const transformedInputData = filterOutNullValues(values);
       const result = await startJobWithInputData({
         agentId: agentId,
-        maxAcceptedCredits: convertCreditsToBaseUnits(agentPricing),
+        maxAcceptedCents: agentCreditsPrice.cents,
         inputData: transformedInputData,
       });
 
@@ -130,7 +131,9 @@ export default function JobInputsFormClient({
             </Button>
             <div className="flex items-center gap-2">
               <div className="text-muted-foreground text-sm">
-                {t("price", { price: agentPricing })}
+                {t("price", {
+                  price: convertCentsToCredits(agentCreditsPrice.cents),
+                })}
               </div>
               <Button type="submit" disabled={form.formState.isSubmitting}>
                 {form.formState.isSubmitting && (
