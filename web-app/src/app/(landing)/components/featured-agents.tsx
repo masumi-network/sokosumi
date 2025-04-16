@@ -29,7 +29,6 @@ export default async function FeaturedAgents() {
           <AgentCard
             key={agent.id}
             agent={agent}
-            agentList={undefined}
             agentCreditsPrice={agentPriceList[index]}
           />
         ))}
