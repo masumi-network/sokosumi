@@ -1,24 +1,23 @@
 import Image from "next/image";
+import { useTranslations } from "next-intl";
 
 export default function HowItWorks() {
+  const t = useTranslations("Landing.Page.HowItWorks");
   const steps = [
     {
       number: "01",
-      title: "Select & Test",
-      description:
-        "Select your preferred payment method and test the smart contract lorem functionality, including how disputes are resolved. This ensures a smooth transaction experience.",
+      title: t("Steps.SelectAndTest.title"),
+      description: t("Steps.SelectAndTest.description"),
     },
     {
       number: "02",
-      title: "Run & Monitor",
-      description:
-        "Select your preferred payment method and dive into the innovative features of smart contracts, such as how disputes are managed. This ensures a smooth transaction journey.",
+      title: t("Steps.RunAndMonitor.title"),
+      description: t("Steps.RunAndMonitor.description"),
     },
     {
       number: "03",
-      title: "Get Results",
-      description:
-        "Choose your favorite payment option and explore the smart contract",
+      title: t("Steps.GetResults.title"),
+      description: t("Steps.GetResults.description"),
     },
   ];
 
@@ -26,7 +25,7 @@ export default function HowItWorks() {
     <div className="relative">
       <div className="container mx-auto">
         <h2 className="mb-12 text-5xl font-light tracking-tight">
-          {"How it works"}
+          {t("title")}
         </h2>
 
         <div className="relative flex w-full gap-6">
