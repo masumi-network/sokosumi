@@ -6,11 +6,10 @@ import {
 } from "@/lib/actions/stripe.actions";
 import {
   createFiatTransaction,
+  getUserById,
   prisma,
   updateFiatTransactionServicePaymentId,
 } from "@/lib/db";
-
-import { getUserById } from "./user.service";
 
 export async function createStripeCheckoutSession(
   userId: string,

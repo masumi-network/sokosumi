@@ -4,4 +4,7 @@ export * from "./credit";
 export * from "./creditCost";
 export * from "./fiatTransaction";
 export * from "./job";
+export * from "./lock";
 export { default as prisma } from "./prisma";
+export * from "./tag";
+export * from "./user";

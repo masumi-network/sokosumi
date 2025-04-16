@@ -1,25 +1,21 @@
 import { getEnvSecrets } from "@/config/env.config";
-import { prisma } from "@/lib/db";
+import {
+  createLock,
+  getFirstLockByLockKey,
+  prisma,
+  updateLockByKeyToUnLocked,
+  updateLockToLocked,
+} from "@/lib/db";
 
 export async function getLock(lockKey: string) {
   return await prisma.$transaction(async (tx) => {
     // Example: Try to acquire a lock on a specific agent
     // Using pessimistic locking with 'FOR UPDATE'
-    const lock = await tx.lock.findFirst({
-      where: {
-        key: lockKey,
-      },
-    });
+    const lock = await getFirstLockByLockKey(lockKey, tx);
+    const instanceId = getEnvSecrets().INSTANCE_ID;
 
     if (!lock) {
-      return await tx.lock.create({
-        data: {
-          key: lockKey,
-          lockedBy: getEnvSecrets().INSTANCE_ID,
-          lockedAt: new Date(),
-          isLocked: true,
-        },
-      });
+      return await createLock(lockKey, instanceId, tx);
     }
 
     if (lock.isLocked) {
@@ -36,33 +32,16 @@ export async function getLock(lockKey: string) {
           " by instance: ",
           lock.lockedBy,
         );
-        return await tx.lock.update({
-          where: { id: lock.id },
-          data: {
-            lockedBy: getEnvSecrets().INSTANCE_ID,
-            lockedAt: new Date(),
-            isLocked: true,
-          },
-        });
+        return await updateLockToLocked(lock.id, instanceId, tx);
       }
       return null;
     }
-    return await tx.lock.update({
-      where: { id: lock.id },
-      data: {
-        lockedBy: getEnvSecrets().INSTANCE_ID,
-        lockedAt: new Date(),
-        isLocked: true,
-      },
-    });
+    return await updateLockToLocked(lock.id, instanceId, tx);
   });
 }
 
-export async function releaseLock(lock: { updatedAt: Date; key: string }) {
-  const updatedLock = await prisma.lock.update({
-    where: { key: lock.key, updatedAt: lock.updatedAt },
-    data: { isLocked: false, lockedBy: null, lockedAt: null },
-  });
+export async function releaseLock(lock: { key: string; updatedAt: Date }) {
+  const updatedLock = await updateLockByKeyToUnLocked(lock.key, lock.updatedAt);
   if (!updatedLock) {
     console.error(
       "Lock changed while locked, will not release. Expected key",

@@ -7,15 +7,17 @@ import { getEnvPublicConfig } from "@/config/env.config";
 import { getPurchase, postPurchase } from "@/lib/api/generated/payment";
 import { getPaymentClient } from "@/lib/api/payment-service.client";
 import {
+  createJob,
   getAgentApiBaseUrl,
   getAgentById,
-  jobInclude,
-  jobOrderBy,
-  JobWithRelations,
+  getJobByIdWithCreditTransaction,
   prisma,
+  updateJobStatusToCompleted,
+  updateJobStatusToFailed,
+  updateJobStatusToRefunded,
 } from "@/lib/db";
 import { calculatedInputHash } from "@/lib/utils";
-import { Job, JobStatus, Prisma } from "@/prisma/generated/client";
+import { Job, JobStatus } from "@/prisma/generated/client";
 
 import { getAgentPricing } from "./agent.service";
 import { getCreditsPrice, validateCreditsBalance } from "./credit.service";
@@ -116,28 +118,15 @@ export async function startJob(
       }
 
       const purchaseResponse = purchaseRequest.data;
-      const job = await prisma.job.create({
-        data: {
+      const job = await createJob(
+        {
           agentJobId: startJobResponse.job_id,
-          agent: {
-            connect: {
-              id: agentId,
-            },
-          },
-          creditTransaction: {
-            create: {
-              amount: -creditsPrice.cents,
-              includedFee: creditsPrice.includedFee,
-              user: {
-                connect: {
-                  id: userId,
-                },
-              },
-            },
-          },
-          status: JobStatus.PAYMENT_PENDING,
-          paymentId: purchaseResponse.data.id,
+          agentId,
+          userId,
           input: JSON.stringify(Object.fromEntries(inputData)),
+          jobStatus: JobStatus.PAYMENT_PENDING,
+          paymentId: purchaseResponse.data.id,
+          creditsPrice,
           identifierFromPurchaser,
           externalDisputeUnlockTime: new Date(
             startJobResponse.externalDisputeUnlockTime,
@@ -146,13 +135,9 @@ export async function startJob(
           unlockTime: new Date(startJobResponse.unlockTime),
           blockchainIdentifier: startJobResponse.blockchainIdentifier,
           sellerVkey: startJobResponse.sellerVkey,
-          user: {
-            connect: {
-              id: userId,
-            },
-          },
         },
-      });
+        tx,
+      );
       return job;
     },
     {
@@ -160,33 +145,6 @@ export async function startJob(
       timeout: 10000, // default: 5000
     },
   );
-}
-
-/**
- * Retrieves all jobs associated with a specific agent and user
- * @param agentId - The unique identifier of the agent
- * @param userId - The unique identifier of the user
- * @returns Promise containing an array of jobs with their relations
- */
-export async function getJobsByAgentId(
-  agentId: string,
-  userId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<JobWithRelations[]> {
-  const jobs = await tx.job.findMany({
-    where: {
-      agentId,
-      userId,
-    },
-    include: jobInclude,
-    orderBy: jobOrderBy,
-  });
-
-  if (!jobs) {
-    return [];
-  }
-
-  return jobs;
 }
 
 export async function syncJobStatus(job: Job) {
@@ -211,16 +169,11 @@ export async function syncJobStatus(job: Job) {
     !purchase.data ||
     purchase.data.data.Purchases.length != 1
   ) {
-    await prisma.job.update({
-      where: {
-        id: job.id,
-      },
-      data: {
-        status: JobStatus.FAILED,
-        errorNote: purchase.error ? String(purchase.error) : "Unknown error",
-        errorNoteKey: "Job.SyncStatusFailed",
-      },
-    });
+    await updateJobStatusToFailed(
+      job.id,
+      purchase.error ? String(purchase.error) : "Unknown error",
+      "Job.SyncStatusFailed",
+    );
     throw new Error("Failed to get on-chain status");
   }
 
@@ -240,121 +193,50 @@ export async function syncJobStatus(job: Job) {
       method: "GET",
     });
     if (!syncJobResponse.ok) {
-      await prisma.job.update({
-        where: {
-          id: job.id,
-        },
-        data: {
-          status: JobStatus.FAILED,
-          errorNote: syncJobResponse.statusText,
-          errorNoteKey: "Job.SyncOutputFailed",
-        },
-      });
+      await updateJobStatusToFailed(
+        job.id,
+        syncJobResponse.statusText,
+        "Job.SyncOutputFailed",
+      );
       throw new Error("Failed to get on-chain status");
     }
 
     const syncJobResponseData = await syncJobResponse.json();
     //TODO: validate the schema of the output
     if (syncJobResponseData.error) {
-      await prisma.job.update({
-        where: {
-          id: job.id,
-        },
-        data: {
-          status: JobStatus.FAILED,
-          errorNote: syncJobResponseData.error,
-          errorNoteKey: "Job.SyncOutputFailed",
-        },
-      });
+      await updateJobStatusToFailed(
+        job.id,
+        syncJobResponseData.error,
+        "Job.SyncOutputFailed",
+      );
       throw new Error("Failed to get output");
     }
 
     const output = JSON.stringify(syncJobResponseData);
 
-    await prisma.job.update({
-      where: {
-        id: job.id,
-      },
-      data: {
-        status: JobStatus.COMPLETED,
-        output: output,
-        finishedAt: new Date(),
-      },
-    });
+    await updateJobStatusToCompleted(job.id, output);
     return;
   }
   if (onChainState === "RefundWithdrawn") {
     await prisma.$transaction(async (tx) => {
-      const jobToRefund = await tx.job.findUnique({
-        where: {
-          id: job.id,
-        },
-        include: {
-          creditTransaction: true,
-        },
-      });
+      const jobToRefund = await getJobByIdWithCreditTransaction(job.id, tx);
       if (!jobToRefund) {
         throw new Error("Job not found");
       }
       const creditTransaction = jobToRefund.creditTransaction;
 
-      await tx.job.update({
-        where: {
-          id: job.id,
-        },
-        data: {
-          status: JobStatus.REFUNDED,
-          refundedCreditTransaction: {
-            create: {
-              amount: creditTransaction.amount * BigInt(-1),
-              includedFee: creditTransaction.includedFee,
-              user: {
-                connect: {
-                  id: jobToRefund.userId,
-                },
-              },
-            },
-          },
-        },
-      });
+      await updateJobStatusToRefunded(
+        job.id,
+        jobToRefund.userId,
+        creditTransaction,
+        tx,
+      );
     });
     return;
   }
-  await prisma.job.update({
-    where: {
-      id: job.id,
-    },
-    data: {
-      status: JobStatus.FAILED,
-      errorNote: "Unknown on-chain state: " + onChainState,
-      errorNoteKey: "Job.ManualChainState",
-    },
-  });
-}
-/**
- * Retrieves all jobs associated with a specific user
- * @param userId - The unique identifier of the user
- * @returns Promise containing an array of jobs with their relations
- */
-export async function getJobs(
-  userId: string,
-  tx: Prisma.TransactionClient = prisma,
-) {
-  return await tx.job.findMany({
-    where: {
-      userId,
-    },
-    include: jobInclude,
-    orderBy: jobOrderBy,
-  });
-}
-
-export async function getJobById(
-  jobId: string,
-  tx: Prisma.TransactionClient = prisma,
-) {
-  return await tx.job.findUnique({
-    where: { id: jobId },
-    include: jobInclude,
-  });
+  await updateJobStatusToFailed(
+    job.id,
+    "Unknown on-chain state: " + onChainState,
+    "Job.ManualChainState",
+  );
 }
