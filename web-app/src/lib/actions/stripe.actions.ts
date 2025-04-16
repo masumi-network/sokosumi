@@ -4,7 +4,6 @@ import { headers } from "next/headers";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.config"; // Ensure this path is correct
-import { convertCentsToCredits } from "@/lib/db/utils/credit.utils";
 import { User } from "@/prisma/generated/client";
 
 const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
@@ -57,7 +56,7 @@ export async function createCheckoutSession(
   user: User,
   fiatTransactionId: string,
   priceId: string,
-  cents: bigint,
+  quantity: number,
 ): Promise<{
   id: string;
   url: string;
@@ -70,7 +69,7 @@ export async function createCheckoutSession(
     line_items: [
       {
         price: priceId,
-        quantity: convertCentsToCredits(cents),
+        quantity: quantity,
       },
     ],
     client_reference_id: fiatTransactionId,

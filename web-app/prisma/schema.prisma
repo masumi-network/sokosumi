@@ -303,7 +303,9 @@ model FiatTransaction {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  cents            BigInt // amount in cents
+  creditCents      BigInt
+  amount           Float
+  currency         String
   servicePaymentId String?               @unique
   service          FiatService           @default(STRIPE)
   status           FiatTransactionStatus @default(PENDING)
