@@ -283,6 +283,10 @@
       "Endorsements": {
         "title": "Endorsed by leading brands"
       },
+      "FeaturedAgents": {
+        "title": "Featured Agents",
+        "button": "Explore all"
+      },
       "NumberTalks": {
         "title": "Number Talks",
         "Numbers": {
