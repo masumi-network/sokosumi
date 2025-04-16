@@ -2,18 +2,19 @@ import Link from "next/link";
 import { FaDiscord, FaXTwitter } from "react-icons/fa6";
 
 import { Button } from "@/components/ui/button";
-
+import { useTranslations } from "next-intl";
 export function JoinOurCommunity() {
+  const t = useTranslations("Landing.Page.JoinOurCommunity");
   return (
     <div className="relative overflow-hidden rounded-lg">
       <div className="opacity absolute inset-0 bg-[url('/backgrounds/footer-image.png')] bg-cover bg-center bg-no-repeat" />
       <div className="bg-background/70 relative px-6 py-12 sm:px-12 sm:py-16">
         <div className="mx-auto max-w-2xl text-center">
           <p className="mb-2 text-xs tracking-wider uppercase">
-            {"WE ARE ONLINE"}
+            {t("subtitle")}
           </p>
           <h2 className="mb-8 text-5xl font-light sm:text-4xl">
-            {"Join the Community"}
+            {t("title")}
           </h2>
           <div className="flex flex-wrap items-center justify-center gap-4">
             <Button variant="default" asChild>
