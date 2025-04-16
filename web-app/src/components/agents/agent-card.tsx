@@ -78,7 +78,7 @@ function AgentCard({
     >
       <Card
         className={cn(
-          "group bg-card relative cursor-pointer gap-4 rounded-none border-none p-0 shadow-none transition-shadow hover:shadow-none",
+          "group bg-card flex w-72 cursor-pointer flex-col gap-4 rounded-none border-none p-0 shadow-none transition-shadow hover:shadow-none",
           className,
         )}
         tabIndex={-1}
