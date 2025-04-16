@@ -12,10 +12,7 @@ export default function LandingPage() {
     <>
       {/* Hero Section */}
       <section className="relative -mt-24 flex max-h-[900px] min-h-svh flex-col items-center justify-center overflow-hidden py-20">
-        <div className="blur-in absolute inset-0 z-0 h-full w-full bg-[linear-gradient(rgba(255,255,255,0.4),rgba(255,255,255,0.4)),url('/backgrounds/hero-bg.png')] bg-cover bg-center bg-no-repeat dark:bg-[linear-gradient(rgba(23,23,23,0.4),rgba(23,23,23,0.4)),url('/backgrounds/hero-bg.png')]" />
-        <div className="container h-full px-12 md:px-6">
-          <Hero />
-        </div>
+        <Hero />
       </section>
 
       {/* Endorsements Section */}
