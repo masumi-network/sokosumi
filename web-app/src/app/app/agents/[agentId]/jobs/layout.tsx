@@ -4,10 +4,16 @@ import { Suspense } from "react";
 
 import DefaultLoading from "@/components/default-loading";
 import { requireAuthentication } from "@/lib/auth/utils";
-import { getDescription, getLegal, getName } from "@/lib/db/extension/agent";
-import { getAgentById } from "@/lib/db/services/agent.service";
-import { getOrCreateFavoriteAgentList } from "@/lib/db/services/agentList.service";
-import { getAgentCreditsPrice } from "@/lib/db/services/credit.service";
+import {
+  getAgentById,
+  getAgentDescription,
+  getAgentLegal,
+  getAgentName,
+} from "@/lib/db";
+import {
+  getAgentCreditsPrice,
+  getOrCreateFavoriteAgentList,
+} from "@/lib/services";
 
 import Footer from "./components/footer";
 import Header, { HeaderSkeleton } from "./components/header";
@@ -24,8 +30,8 @@ export async function generateMetadata({
   }
 
   return {
-    title: getName(agent),
-    description: getDescription(agent),
+    title: getAgentName(agent),
+    description: getAgentDescription(agent),
   };
 }
 
@@ -72,7 +78,7 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
         {children}
         {right}
       </div>
-      <Footer legal={getLegal(agent)} />
+      <Footer legal={getAgentLegal(agent)} />
     </div>
   );
 }

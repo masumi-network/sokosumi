@@ -6,12 +6,12 @@ import { BadgeCloud } from "@/components/agents";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  getDescription,
-  getName,
-  getResolvedImage,
-  getTags,
-} from "@/lib/db/extension/agent";
-import { AgentWithRelations } from "@/lib/db/types/agent.types";
+  AgentWithRelations,
+  getAgentDescription,
+  getAgentName,
+  getAgentResolvedImage,
+  getAgentTags,
+} from "@/lib/db";
 
 export function FeaturedAgentSkeleton() {
   return (
@@ -53,11 +53,13 @@ export function FeaturedAgent({ agent }: FeaturedAgentProps) {
         <h2 className="text-2xl font-bold">{t("title")}</h2>
         <div className="space-y-4">
           <h3 className="text-4xl font-bold tracking-tight">
-            {getName(agent)}
+            {getAgentName(agent)}
           </h3>
         </div>
-        <p className="text-muted-foreground text-lg">{getDescription(agent)}</p>
-        <BadgeCloud tags={getTags(agent)} />
+        <p className="text-muted-foreground text-lg">
+          {getAgentDescription(agent)}
+        </p>
+        <BadgeCloud tags={getAgentTags(agent)} />
         <Link href={`/agents/${agent.id}`}>
           <Button size="lg" className="w-full md:w-auto">
             {t("button")}
@@ -68,8 +70,8 @@ export function FeaturedAgent({ agent }: FeaturedAgentProps) {
       {/* Image Section - 2/3 width */}
       <div className="relative aspect-16/9 w-full md:w-2/3">
         <Image
-          src={getResolvedImage(agent)}
-          alt={`${getName(agent)} image`}
+          src={getAgentResolvedImage(agent)}
+          alt={`${getAgentName(agent)} image`}
           fill
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
           className="rounded-lg object-cover"

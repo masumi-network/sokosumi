@@ -3,8 +3,8 @@ import { getTranslations } from "next-intl/server";
 
 import { AgentCard } from "@/components/agents";
 import { Button } from "@/components/ui/button";
-import { getAgents } from "@/lib/db/services/agent.service";
-import { getAgentCreditsPrice } from "@/lib/db/services/credit.service";
+import { getAgents } from "@/lib/db";
+import { getAgentCreditsPrice } from "@/lib/services";
 
 export default async function FeaturedAgents() {
   const t = await getTranslations("Landing.Page.FeaturedAgents");

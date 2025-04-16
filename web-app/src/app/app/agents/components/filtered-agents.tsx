@@ -8,10 +8,12 @@ import {
   AgentsNotAvailable,
   AgentsNotFound,
 } from "@/components/agents";
-import { getTags } from "@/lib/db/extension/agent";
-import { AgentWithRelations } from "@/lib/db/types/agent.types";
-import { AgentListWithAgent } from "@/lib/db/types/agentList.types";
-import { CreditsPrice } from "@/lib/db/types/credit.type";
+import {
+  AgentListWithAgent,
+  AgentWithRelations,
+  CreditsPrice,
+  getAgentTags,
+} from "@/lib/db";
 
 import { GalleryFilterState } from "./use-gallery-filter";
 
@@ -35,7 +37,8 @@ const filterAgents = (
 
     // Tag matching
     const matchesTags =
-      tags.length === 0 || tags.some((tag) => getTags(agent).includes(tag));
+      tags.length === 0 ||
+      tags.some((tag) => getAgentTags(agent).includes(tag));
 
     return matchesQuery && matchesTags;
   });

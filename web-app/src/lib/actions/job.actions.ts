@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import { z } from "zod";
 
 import { auth } from "@/lib/auth/auth";
-import { startJob } from "@/lib/db/services/job.service";
+import { startJob } from "@/lib/services";
 
 const startJobInputSchema = z.object({
   agentId: z.string(),

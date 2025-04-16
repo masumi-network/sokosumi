@@ -1,11 +1,12 @@
 import { after, NextResponse } from "next/server";
+import pTimeout from "p-timeout";
 
 import { getEnvPublicConfig, getEnvSecrets } from "@/config/env.config";
 import { postRegistryEntry } from "@/lib/api/generated/registry";
 import { getRegistryClient } from "@/lib/api/registry-service.client";
 import { compareApiKeys } from "@/lib/auth/utils";
-import prisma from "@/lib/db/prisma";
-import { getLock, releaseLock, timeLimitedExecution } from "@/lib/utils";
+import { prisma } from "@/lib/db";
+import { getLock, releaseLock } from "@/lib/services";
 import { PricingType } from "@/prisma/generated/client";
 
 const LOCK_KEY = "registry-sync";
@@ -34,11 +35,11 @@ export async function POST(request: Request) {
   after(async () => {
     try {
       const timingStart = Date.now();
-      await timeLimitedExecution(
-        syncAllEntries,
-        //give some buffer to unlock the lock before the timeout
-        getEnvSecrets().LOCK_TIMEOUT - 1000 * 25,
-      );
+      await pTimeout(syncAllEntries(), {
+        milliseconds:
+          //give some buffer to unlock the lock before the timeout
+          getEnvSecrets().LOCK_TIMEOUT - getEnvSecrets().LOCK_TIMEOUT_BUFFER,
+      });
       const timingEnd = Date.now();
       console.info(
         "Registry sync took",

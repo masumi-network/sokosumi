@@ -2,10 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import {
-  addAgentToList,
-  removeAgentFromList,
-} from "@/lib/db/services/agentList.service";
+import { addAgentToAgentList, removeAgentFromAgentList } from "@/lib/db";
 
 export async function toggleAgentInList(
   agentId: string,
@@ -14,9 +11,9 @@ export async function toggleAgentInList(
 ): Promise<{ success: boolean }> {
   try {
     if (isBookmarked) {
-      await removeAgentFromList(agentId, listId);
+      await removeAgentFromAgentList(agentId, listId);
     } else {
-      await addAgentToList(agentId, listId);
+      await addAgentToAgentList(agentId, listId);
     }
 
     // Revalidate the app to update the UI

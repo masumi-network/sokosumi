@@ -2,8 +2,8 @@ import { Suspense } from "react";
 
 import { AgentCard, AgentCardSkeleton } from "@/components/agents";
 import HorizontalScroll from "@/landing/components/horizontal-scroll";
-import { getAgents } from "@/lib/db/services/agent.service";
-import { getAgentCreditsPrice } from "@/lib/db/services/credit.service";
+import { getAgents } from "@/lib/db";
+import { getAgentCreditsPrice } from "@/lib/services";
 
 async function AgentsList() {
   const agents = await getAgents();

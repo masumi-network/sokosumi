@@ -5,10 +5,18 @@ export const jobInclude = {
   user: true,
 } as const;
 
+export const jobCreditTransactionInclude = {
+  creditTransaction: true,
+} as const;
+
 export const jobOrderBy = {
   createdAt: "desc",
 } as const;
 
 export type JobWithRelations = Prisma.JobGetPayload<{
   include: typeof jobInclude;
+}>;
+
+export type JobWithCreditTransaction = Prisma.JobGetPayload<{
+  include: typeof jobCreditTransactionInclude;
 }>;

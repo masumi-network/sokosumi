@@ -8,14 +8,14 @@ import { useTranslations } from "next-intl";
 
 import { Card } from "@/components/ui/card";
 import {
-  getDescription,
-  getName,
-  getResolvedImage,
-} from "@/lib/db/extension/agent";
-import { AgentWithRelations } from "@/lib/db/types/agent.types";
-import { AgentListWithAgent } from "@/lib/db/types/agentList.types";
-import { CreditsPrice } from "@/lib/db/types/credit.type";
-import { convertCentsToCredits } from "@/lib/db/utils/credit.utils";
+  AgentListWithAgent,
+  AgentWithRelations,
+  convertCentsToCredits,
+  CreditsPrice,
+  getAgentDescription,
+  getAgentName,
+  getAgentResolvedImage,
+} from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 import { AgentBookmarkButton } from "./agent-bookmark-button";
@@ -63,7 +63,7 @@ function AgentCard({
   className,
 }: AgentCardProps) {
   const t = useTranslations("Components.Agents.AgentCard");
-  const description = getDescription(agent);
+  const description = getAgentDescription(agent);
 
   let pathname = usePathname();
 
@@ -99,8 +99,8 @@ function AgentCard({
         {/* Image */}
         <div className="shadow-foreground/10 aspect-[1.6] w-full overflow-hidden rounded-lg shadow-lg">
           <Image
-            src={getResolvedImage(agent)}
-            alt={`${getName(agent)} image`}
+            src={getAgentResolvedImage(agent)}
+            alt={`${getAgentName(agent)} image`}
             width={400}
             height={250}
             className="h-full w-full object-cover transition-transform group-hover:scale-105"
@@ -110,7 +110,7 @@ function AgentCard({
         {/* Content */}
         <div className="pt-1, px-4">
           <div className="mb-2 flex items-center gap-2">
-            <h3 className="font-medium">{getName(agent)}</h3>
+            <h3 className="font-medium">{getAgentName(agent)}</h3>
             <div className="flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-1">
               <CheckCheck className="h-4 w-4 text-green-500" />
               <span className="text-muted-foreground text-xs uppercase">
