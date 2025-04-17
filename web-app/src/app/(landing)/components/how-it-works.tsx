@@ -28,8 +28,8 @@ export default function HowItWorks() {
           {t("title")}
         </h2>
 
-        <div className="relative flex w-full gap-6">
-          <div className="w-full max-w-[327px] space-y-8 py-20 pt-40">
+        <div className="relative flex w-full flex-col gap-6 lg:flex-row">
+          <div className="max-w-[327px] space-y-8 py-20 pt-10 md:pt-20">
             {steps.map((step, index) => (
               <div
                 key={step.number}
@@ -48,13 +48,13 @@ export default function HowItWorks() {
           </div>
 
           <div className="relative flex w-full justify-end">
-            <div className="relative aspect-[3/2] h-fit overflow-hidden rounded-lg drop-shadow-lg">
+            <div className="relative aspect-[3/2] h-fit w-full max-w-[834px] overflow-hidden rounded-lg drop-shadow-lg">
               <Image
                 src="/backgrounds/how-it-works.png"
                 alt="Competitor Analysis Agent"
-                className="h-fit rounded-lg object-cover"
-                width={834}
-                height={556}
+                className="h-auto rounded-lg object-cover"
+                fill
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
               />
             </div>
           </div>
