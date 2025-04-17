@@ -25,7 +25,7 @@ function KanjiLogo({ variant = "black", ...props }: LogoProps) {
       src={`/kanji/sokosumi-${variant}.svg`}
       alt="Hero Background"
       width={20}
-      height={40}
+      height={43}
       {...props}
     />
   );
