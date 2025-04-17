@@ -27,10 +27,7 @@ export function JoinOurCommunity() {
                 <span>{"Discord"}</span>
               </Link>
             </Button>
-            <Button
-              className="bg-quarterny text-foreground hover:bg-quarterny/90"
-              asChild
-            >
+            <Button variant="outline" asChild>
               <Link
                 href="https://x.com/MasumiNetwork"
                 target="_blank"
