@@ -16,12 +16,7 @@ export default function Header() {
       <div className="container mx-auto flex h-16 items-center justify-between gap-4 px-0 sm:gap-6 sm:px-6 lg:h-20 lg:px-0">
         {/* Left - Logo */}
         <Link href="/">
-          <ThemedLogo
-            LogoComponent={SokosumiLogo}
-            width={200}
-            height={26}
-            priority
-          />
+          <ThemedLogo LogoComponent={SokosumiLogo} priority />
         </Link>
 
         {/* Middle - Navigation Links */}

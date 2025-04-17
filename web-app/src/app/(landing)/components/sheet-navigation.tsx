@@ -27,12 +27,7 @@ export default function SheetNavigation() {
         <SheetHeader>
           <SheetTitle className="flex justify-center">
             <Link href="/">
-              <ThemedLogo
-                LogoComponent={SokosumiLogo}
-                width={200}
-                height={26}
-                priority
-              />
+              <ThemedLogo LogoComponent={SokosumiLogo} priority />
             </Link>
           </SheetTitle>
           <SheetDescription />
