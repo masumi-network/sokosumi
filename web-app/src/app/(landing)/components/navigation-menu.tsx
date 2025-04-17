@@ -43,7 +43,7 @@ export default function NavigationMenu({ className }: NavigationMenuProps) {
           href={nav.href}
           label={t(nav.labelKey)}
           className="inline-flex items-center gap-1 rounded-md p-2 text-sm font-medium transition-colors"
-          activeClassName="bg-landing-navigation-active text-primary dark:bg-secondary dark:text-primary"
+          activeClassName="text-primary dark:bg-secondary dark:text-primary"
           inActiveClassName="text-foreground/80 hover:text-primary"
         />
       ))}

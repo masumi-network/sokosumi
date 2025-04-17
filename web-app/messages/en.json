@@ -101,7 +101,7 @@
         "monetize": "Monetize"
       },
       "Connection": {
-        "dashboard": "Dashboard"
+        "app": "Open App"
       }
     },
     "Auth": {
@@ -334,7 +334,7 @@
             "name": "Nina Müller",
             "quote": "Using this platform has saved us so much time. It's a game changer!",
             "company": "Cosa travel",
-            "position": "Chief Operating Officer" 
+            "position": "Chief Operating Officer"
           },
           "1": {
             "name": "Name Surname",
