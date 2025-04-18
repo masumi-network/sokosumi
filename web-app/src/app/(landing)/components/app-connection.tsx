@@ -39,7 +39,7 @@ async function AppConnectionContent() {
     <Link href="/app">
       <Button>
         <UserRoundIcon className="size-4" />
-        {t("dashboard")}
+        {t("app")}
       </Button>
     </Link>
   );

@@ -50,7 +50,7 @@ export default function NavigationMenu({ className }: NavigationMenuProps) {
             "items-center gap-1 rounded-md p-2 text-sm font-medium transition-colors md:inline-flex",
             nav.hideable && "hidden",
           )}
-          activeClassName="bg-landing-navigation-active text-primary dark:bg-secondary dark:text-primary"
+          activeClassName="text-primary dark:bg-secondary dark:text-primary"
           inActiveClassName="text-foreground/80 hover:text-primary"
         />
       ))}
