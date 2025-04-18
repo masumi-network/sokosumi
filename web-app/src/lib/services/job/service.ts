@@ -174,7 +174,7 @@ export async function syncJobStatus(job: Job) {
     await prisma.$transaction(async (tx) => {
       const jobToRefund = await getJobByIdWithCreditTransaction(job.id, tx);
       if (!jobToRefund) {
-        throw new Error("Job not found");
+        throw new Error("Job to Refund not found");
       }
       const creditTransaction = jobToRefund.creditTransaction;
 
