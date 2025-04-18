@@ -3,6 +3,8 @@ import { type ClassValue, clsx } from "clsx";
 import crypto from "crypto";
 import { twMerge } from "tailwind-merge";
 
+import { JobInputData } from "@/lib/job-input";
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
@@ -10,8 +12,8 @@ export function cn(...inputs: ClassValue[]) {
 export const sleep = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
-export const calculatedInputHash = (
-  inputData: Map<string, string | number | boolean | number[]>,
+export const calculateInputHash = (
+  inputData: JobInputData,
   identifierFromPurchaser: string,
 ) => {
   const inputString = json.canonicalize(Object.fromEntries(inputData));

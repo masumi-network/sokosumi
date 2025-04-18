@@ -1,42 +1,39 @@
 "use server";
 
 import { v4 as uuidv4 } from "uuid";
-import { z } from "zod";
 
-import { getEnvPublicConfig } from "@/config/env.config";
-import { getPurchase, postPurchase } from "@/lib/api/generated/payment";
 import { getPaymentClient } from "@/lib/api/payment-service.client";
 import {
   createJob,
-  getAgentApiBaseUrl,
   getAgentById,
   getJobByIdWithCreditTransaction,
+  JobErrorNoteKeys,
   prisma,
   updateJobStatusToCompleted,
   updateJobStatusToFailed,
   updateJobStatusToRefunded,
 } from "@/lib/db";
-import { calculatedInputHash } from "@/lib/utils";
+import { JobInputData } from "@/lib/job-input";
+import { calculateInputHash } from "@/lib/utils";
 import { Job, JobStatus } from "@/prisma/generated/client";
+import { getAgentPricing } from "@/services/agent.service";
+import {
+  getCreditsPrice,
+  validateCreditsBalance,
+} from "@/services/credit.service";
 
-import { getAgentPricing } from "./agent.service";
-import { getCreditsPrice, validateCreditsBalance } from "./credit.service";
-
-const startJobSchema = z.object({
-  input_hash: z.string(),
-  job_id: z.string(),
-  sellerVkey: z.string(),
-  blockchainIdentifier: z.string(),
-  submitResultTime: z.number({ coerce: true }).int(),
-  unlockTime: z.number({ coerce: true }).int(),
-  externalDisputeUnlockTime: z.number({ coerce: true }).int(),
-});
+import {
+  createPurchase,
+  getAgentJobStatus,
+  getPurchaseOnChainState,
+  startAgentJob,
+} from "./third-party";
 
 export async function startJob(
   userId: string,
   agentId: string,
   maxAcceptedCents: bigint,
-  inputData: Map<string, string | number | boolean | number[]>,
+  inputData: JobInputData,
 ): Promise<Job> {
   return await prisma.$transaction(
     async (tx) => {
@@ -58,66 +55,39 @@ export async function startJob(
       if (creditsPrice.cents > 0) {
         await validateCreditsBalance(userId, creditsPrice.cents, tx);
       }
-      const baseUrl = getAgentApiBaseUrl(agent);
-      const startJobUrl = new URL(`/start_job`, baseUrl);
+
       const identifierFromPurchaser = uuidv4()
         .replace(/-/g, "")
         .substring(0, 25);
+      const inputHash = calculateInputHash(inputData, identifierFromPurchaser);
 
-      const inputHash = calculatedInputHash(inputData, identifierFromPurchaser);
-
-      const result = await fetch(startJobUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          identifier_from_purchaser: identifierFromPurchaser,
-          input_data: Object.fromEntries(inputData),
-        }),
-      });
-      if (!result.ok) {
-        throw new Error("Failed to start job");
-      }
-
-      const startJobResponseData = startJobSchema.safeParse(
-        await result.json(),
+      const startJobResult = await startAgentJob(
+        agent,
+        identifierFromPurchaser,
+        inputData,
       );
-      if (!startJobResponseData.success) {
-        throw new Error("Failed to parse start job response");
+      if (!startJobResult.ok) {
+        throw new Error(startJobResult.error);
       }
-
-      const startJobResponse = startJobResponseData.data;
+      const startJobResponse = startJobResult.data;
       if (startJobResponse.input_hash !== inputHash) {
         throw new Error("Input data hash mismatch");
       }
 
       const paymentClient = getPaymentClient();
-      const purchaseRequest = await postPurchase({
-        client: paymentClient,
-        body: {
-          agentIdentifier: agent.blockchainIdentifier,
-          inputHash: inputHash,
-          blockchainIdentifier: startJobResponse.blockchainIdentifier,
-          network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
-          sellerVkey: startJobResponse.sellerVkey,
-          paymentType: "Web3CardanoV1",
-          identifierFromPurchaser,
-          externalDisputeUnlockTime:
-            startJobResponse.externalDisputeUnlockTime.toString(),
-          submitResultTime: startJobResponse.submitResultTime.toString(),
-          unlockTime: startJobResponse.unlockTime.toString(),
-          metadata: JSON.stringify({
-            inputData: Object.fromEntries(inputData),
-            jobId: startJobResponse.job_id,
-          }),
-        },
-      });
-      if (purchaseRequest.error || !purchaseRequest.data) {
-        throw new Error("Failed to create purchase request");
+      const createPurchaseResult = await createPurchase(
+        paymentClient,
+        agent,
+        startJobResponse,
+        inputData,
+        inputHash,
+        identifierFromPurchaser,
+      );
+      if (!createPurchaseResult.ok) {
+        throw new Error(createPurchaseResult.error);
       }
+      const purchaseResponse = createPurchaseResult.data;
 
-      const purchaseResponse = purchaseRequest.data;
       const job = await createJob(
         {
           agentJobId: startJobResponse.job_id,
@@ -154,69 +124,52 @@ export async function syncJobStatus(job: Job) {
     throw new Error("Agent not found");
   }
   const paymentClient = getPaymentClient();
-
-  const purchase = await getPurchase({
-    client: paymentClient,
-    query: {
-      cursorId: job.paymentId,
-      network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
-      limit: 1,
-    },
-  });
-
-  if (
-    purchase.error ||
-    !purchase.data ||
-    purchase.data.data.Purchases.length != 1
-  ) {
+  const onChainStateResult = await getPurchaseOnChainState(
+    paymentClient,
+    job.paymentId,
+  );
+  if (!onChainStateResult.ok) {
     await updateJobStatusToFailed(
       job.id,
-      purchase.error ? String(purchase.error) : "Unknown error",
-      "Job.SyncStatusFailed",
+      onChainStateResult.error,
+      JobErrorNoteKeys.SyncStatusFailed,
     );
     throw new Error("Failed to get on-chain status");
   }
+  const onChainState = onChainStateResult.data;
 
-  const onChainState = purchase.data.data.Purchases[0].onChainState;
-
-  if (onChainState === "FundsLocked" || onChainState == null) {
+  if (onChainState === null || onChainState === "FundsLocked") {
     console.warn("Funds still in locked state");
     return;
   }
 
   if (onChainState === "ResultSubmitted" || onChainState == "Withdrawn") {
-    const baseUrl = getAgentApiBaseUrl(agent);
-    const syncJobUrl = new URL(`/status`, baseUrl);
-    syncJobUrl.searchParams.set("job_id", job.agentJobId);
-
-    const syncJobResponse = await fetch(syncJobUrl, {
-      method: "GET",
-    });
-    if (!syncJobResponse.ok) {
+    const jobStatusResult = await getAgentJobStatus(agent, job.agentJobId);
+    if (!jobStatusResult.ok) {
       await updateJobStatusToFailed(
         job.id,
-        syncJobResponse.statusText,
-        "Job.SyncOutputFailed",
+        jobStatusResult.error,
+        JobErrorNoteKeys.SyncOutputFailed,
       );
       throw new Error("Failed to get on-chain status");
     }
 
-    const syncJobResponseData = await syncJobResponse.json();
+    const jobStatusResponse = jobStatusResult.data;
     //TODO: validate the schema of the output
-    if (syncJobResponseData.error) {
+    if (jobStatusResponse.error) {
       await updateJobStatusToFailed(
         job.id,
-        syncJobResponseData.error,
+        jobStatusResponse.error,
         "Job.SyncOutputFailed",
       );
       throw new Error("Failed to get output");
     }
 
-    const output = JSON.stringify(syncJobResponseData);
-
+    const output = JSON.stringify(jobStatusResponse);
     await updateJobStatusToCompleted(job.id, output);
     return;
   }
+
   if (onChainState === "RefundWithdrawn") {
     await prisma.$transaction(async (tx) => {
       const jobToRefund = await getJobByIdWithCreditTransaction(job.id, tx);

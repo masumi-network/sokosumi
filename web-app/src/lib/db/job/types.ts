@@ -20,3 +20,9 @@ export type JobWithRelations = Prisma.JobGetPayload<{
 export type JobWithCreditTransaction = Prisma.JobGetPayload<{
   include: typeof jobCreditTransactionInclude;
 }>;
+
+export enum JobErrorNoteKeys {
+  "SyncStatusFailed" = "Job.SyncStatusFailed",
+  "SyncOutputFailed" = "Job.SyncOutputFailed",
+  "ManualChainState" = "Job.ManualChainState",
+}
