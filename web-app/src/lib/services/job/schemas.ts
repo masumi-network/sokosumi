@@ -1,13 +1,42 @@
 import { z } from "zod";
 
+import { jobInputSchema } from "@/lib/job-input";
+
 export const startJobResponseSchema = z.object({
-  input_hash: z.string(),
-  job_id: z.string(),
-  sellerVkey: z.string(),
-  blockchainIdentifier: z.string(),
+  status: z.enum(["success", "error"]),
+  job_id: z.string().min(1),
+  blockchainIdentifier: z.string().min(1),
   submitResultTime: z.number({ coerce: true }).int(),
   unlockTime: z.number({ coerce: true }).int(),
   externalDisputeUnlockTime: z.number({ coerce: true }).int(),
+  agentIdentifier: z.string().min(1),
+  sellerVkey: z.string().min(1),
+  identifierFromPurchaser: z.string().min(1),
+  amounts: z.array(
+    z.object({
+      amount: z.number({ coerce: true }),
+      unit: z.string(),
+    }),
+  ),
+  input_hash: z.string().min(1),
+});
+
+export const jobStatusResponseSchema = z.object({
+  job_id: z.string(),
+  status: z.enum([
+    "pending",
+    "awaiting_payment",
+    "awaiting_input",
+    "running",
+    "completed",
+    "failed",
+  ]),
+  message: z.string().optional(),
+  input_data: z.array(jobInputSchema()).optional(),
+  result: z.string().optional(),
 });
 
 export type StartJobResponseSchemaType = z.infer<typeof startJobResponseSchema>;
+export type JobStatusResponseSchemaType = z.infer<
+  typeof jobStatusResponseSchema
+>;

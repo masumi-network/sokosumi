@@ -12,13 +12,17 @@ import {
 import { AgentWithRelations, getAgentApiBaseUrl } from "@/lib/db";
 import { JobInputData } from "@/lib/job-input";
 
-import { startJobResponseSchema, StartJobResponseSchemaType } from "./schemas";
+import {
+  jobStatusResponseSchema,
+  JobStatusResponseSchemaType,
+  startJobResponseSchema,
+  StartJobResponseSchemaType,
+} from "./schemas";
 
 export async function getAgentJobStatus(
   agent: AgentWithRelations,
   jobId: string,
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): Promise<Result<any, string>> {
+): Promise<Result<JobStatusResponseSchemaType, string>> {
   try {
     const baseUrl = getAgentApiBaseUrl(agent);
     const jobStatusUrl = new URL(`/status`, baseUrl);
@@ -32,8 +36,14 @@ export async function getAgentJobStatus(
       return Err(jobStatusResponse.statusText);
     }
 
-    const jobStatusResponseData = await jobStatusResponse.json();
-    return Ok(jobStatusResponseData);
+    const parsedResult = jobStatusResponseSchema.safeParse(
+      await jobStatusResponse.json(),
+    );
+    if (!parsedResult.success) {
+      return Err("Failed to parse job status response");
+    }
+
+    return Ok(parsedResult.data);
   } catch (err) {
     return Err(String(err));
   }

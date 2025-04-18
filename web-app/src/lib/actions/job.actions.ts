@@ -54,6 +54,7 @@ export async function startJobWithInputData(input: StartJobInput): Promise<{
     );
     return { success: true, data: { jobId: job.id } };
   } catch (error) {
+    console.log(error);
     if (error instanceof Error) {
       switch (error.message) {
         case "Insufficient balance":

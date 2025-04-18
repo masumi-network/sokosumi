@@ -140,22 +140,40 @@ export async function createJob(
   });
 }
 
-export async function updateJobStatusToFailed(
+export async function updateJobStatus(
   jobId: string,
-  errorNote: string,
-  errorNoteKey: string,
+  data: {
+    status: JobStatus;
+    errorNote?: string;
+    errorNoteKey?: string;
+    output?: string;
+    finishedAt?: Date;
+  },
   tx: Prisma.TransactionClient = prisma,
 ) {
   await tx.job.update({
     where: {
       id: jobId,
     },
-    data: {
+    data,
+  });
+}
+
+export async function updateJobStatusToFailed(
+  jobId: string,
+  errorNote: string,
+  errorNoteKey: string,
+  tx: Prisma.TransactionClient = prisma,
+) {
+  await updateJobStatus(
+    jobId,
+    {
       status: JobStatus.FAILED,
       errorNote,
       errorNoteKey,
     },
-  });
+    tx,
+  );
 }
 
 export async function updateJobStatusToCompleted(
@@ -163,16 +181,15 @@ export async function updateJobStatusToCompleted(
   output: string,
   tx: Prisma.TransactionClient = prisma,
 ) {
-  await tx.job.update({
-    where: {
-      id: jobId,
-    },
-    data: {
+  await updateJobStatus(
+    jobId,
+    {
       status: JobStatus.COMPLETED,
       output,
       finishedAt: new Date(),
     },
-  });
+    tx,
+  );
 }
 
 export async function updateJobStatusToRefunded(
