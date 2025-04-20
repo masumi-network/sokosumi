@@ -190,7 +190,9 @@ export async function syncJobStatus(job: Job) {
       return;
     }
     case "DisputedWithdrawn": {
-      await updateJobStatus(job.id, { status: JobStatus.REFUND_FAILED });
+      // await updateJobStatus(job.id, { status: JobStatus.REFUND_FAILED });
+      // TODO:
+      // Not sure what to do here.
       return;
     }
     case "FundsOrDatumInvalid": {
