@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import React, { Suspense } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getAgentResolvedImage, getAgents } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
@@ -53,9 +54,7 @@ const AgentShowcaseCard = ({
 };
 
 const AgentCardSkeleton = () => {
-  return (
-    <div className="bg-secondary h-[88px] w-[88px] animate-pulse rounded-lg" />
-  );
+  return <Skeleton className="h-[90px] w-[90px] rounded-md" />;
 };
 
 async function AgentsShowcaseList() {
@@ -77,7 +76,7 @@ async function AgentsShowcaseList() {
   );
 }
 
-function ShowcaseSkeleton() {
+function AgentsShowcaseSkeleton() {
   return (
     <div className="flex items-center gap-4">
       {[1, 2, 3, 4, 5].map((i) => (
@@ -90,7 +89,7 @@ function ShowcaseSkeleton() {
 export default function AgentsShowcase() {
   return (
     <div className="absolute bottom-0 left-0 flex w-full items-center justify-center gap-4 px-12 py-6">
-      <Suspense fallback={<ShowcaseSkeleton />}>
+      <Suspense fallback={<AgentsShowcaseSkeleton />}>
         <AgentsShowcaseList />
       </Suspense>
     </div>
