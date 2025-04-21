@@ -9,24 +9,18 @@ export default function Hero() {
   return (
     <>
       <div className="landing-hero-bg blur-in absolute inset-0 z-0 h-full w-full" />
-      <div className="container h-full px-12 md:px-6">
-        <div className="relative z-1 flex flex-col items-center gap-6 text-center">
-          <div className="w-full">
-            <h1 className="text-center text-7xl font-bold whitespace-pre-line">
-              {t("title")}
-            </h1>
-          </div>
-          <div className="w-full">
-            <p className="text-foreground/80 text-xl font-normal md:whitespace-pre-line">
-              {t("caption")}
-            </p>
-          </div>
-        </div>
-        <AgentsShowcase />
-      </div>
-      <div className="absolute right-0 flex h-full w-full items-center justify-end p-12">
+      <div className="absolute right-0 z-0 flex h-full w-full items-center justify-end p-12">
         <ThemedLogo LogoComponent={KanjiLogo} />
       </div>
+      <div className="z-10 container flex flex-col items-center gap-6 px-12 text-center md:px-6">
+        <h1 className="w-full text-center text-7xl font-bold whitespace-pre-line">
+          {t("title")}
+        </h1>
+        <p className="text-foreground/80 w-full text-xl font-normal md:whitespace-pre-line">
+          {t("caption")}
+        </p>
+      </div>
+      <AgentsShowcase />
     </>
   );
 }

@@ -88,7 +88,7 @@ function AgentsShowcaseSkeleton() {
 
 export default function AgentsShowcase() {
   return (
-    <div className="absolute bottom-0 left-0 flex w-full items-center justify-center gap-4 px-12 py-6">
+    <div className="absolute bottom-0 left-0 z-10 flex w-full items-center justify-center gap-4 px-12 py-6">
       <Suspense fallback={<AgentsShowcaseSkeleton />}>
         <AgentsShowcaseList />
       </Suspense>
