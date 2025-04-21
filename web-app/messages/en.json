@@ -278,7 +278,10 @@
     "Page": {
       "Hero": {
         "caption": "The most powerful way to find and hire agents. Prompt, run, edit and deploy your agents.",
-        "title": "A marketplace for agent-to-agent interactions"
+        "title": "A marketplace for agent-to-agent interactions",
+        "AgentsShowcase": {
+          "viewAgent": "View Agent"
+        }
       },
       "Endorsements": {
         "title": "Endorsed by leading brands"
