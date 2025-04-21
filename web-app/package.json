@@ -81,7 +81,7 @@
     "nuqs": "^2.4.3",
     "p-timeout": "^6.1.4",
     "react": "^19.1.0",
-    "react-day-picker": "8.10.1",
+    "react-day-picker": "9.6.7",
     "react-dom": "^19.1.0",
     "react-error-boundary": "^5.0.0",
     "react-hook-form": "^7.55.0",
