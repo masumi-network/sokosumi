@@ -1,10 +1,24 @@
 {
   "Footer": {
-    "Navigation": {
-      "PrivacyPolicy": "Privacy Policy",
-      "TermsAndConditions": "Terms & Conditions",
-      "Imprint": "Imprint",
-      "Contact": "Contact"
+    "Navigate": {
+      "title": "Navigate",
+      "agentsGallery": "Agents Gallery",
+      "contribute": "Contribute"
+    },
+    "Connect": {
+      "title": "Connect",
+      "twitter": "X/Twitter",
+      "discord": "Discord"
+    },
+    "GetInTouch": {
+      "title": "Get In Touch",
+      "contact": "Contact",
+      "customerSupport": "Customer Support"
+    },
+    "AgenticServices": {
+      "title": "Agentic Services",
+      "masumi": "masumi",
+      "kodosumi": "kodosumi"
     },
     "copyright": "© {year} Masumi"
   },
