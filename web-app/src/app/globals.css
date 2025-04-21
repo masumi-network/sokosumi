@@ -150,7 +150,25 @@
   }
 }
 
-.blur-in {
+@utility landing-hero-bg {
+  background:
+    linear-gradient(rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.4)),
+    url("/backgrounds/hero-bg.png");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+
+  @variant dark {
+    background:
+      linear-gradient(rgba(23, 23, 23, 0.4), rgba(23, 23, 23, 0.4)),
+      url("/backgrounds/hero-bg.png");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+}
+
+@utility blur-in {
   filter: blur(10px);
   opacity: 0.5;
   animation: blur-in 3s ease forwards;

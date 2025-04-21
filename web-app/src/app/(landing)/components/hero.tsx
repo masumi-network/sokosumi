@@ -8,7 +8,7 @@ export default function Hero() {
   const t = useTranslations("Landing.Page.Hero");
   return (
     <>
-      <div className="blur-in absolute inset-0 z-0 h-full w-full bg-[linear-gradient(rgba(255,255,255,0.4),rgba(255,255,255,0.4)),url('/backgrounds/hero-bg.png')] bg-cover bg-center bg-no-repeat dark:bg-[linear-gradient(rgba(23,23,23,0.4),rgba(23,23,23,0.4)),url('/backgrounds/hero-bg.png')]" />
+      <div className="landing-hero-bg blur-in absolute inset-0 z-0 h-full w-full" />
       <div className="container h-full px-12 md:px-6">
         <div className="relative flex flex-col items-center space-y-20 text-center">
           <div className="relative z-1 space-y-6">
