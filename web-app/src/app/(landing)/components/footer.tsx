@@ -42,11 +42,6 @@ const sectionsData = [
         href: "https://www.masumi.network/contact",
         showExternalLinkIcon: false,
       },
-      {
-        key: "customerSupport",
-        href: "https://www.masumi.network/contact",
-        showExternalLinkIcon: false,
-      },
     ],
   },
   {
