@@ -140,6 +140,30 @@ export async function createJob(
   });
 }
 
+export async function updateJobStatusToAgentConnectionFailed(
+  jobId: string,
+  tx: Prisma.TransactionClient = prisma,
+) {
+  await tx.job.update({
+    where: { id: jobId },
+    data: {
+      status: JobStatus.AGENT_CONNECTION_FAILED,
+    },
+  });
+}
+
+export async function updateJobStatusToPaymentNodeConnectionFailed(
+  jobId: string,
+  tx: Prisma.TransactionClient = prisma,
+) {
+  await tx.job.update({
+    where: { id: jobId },
+    data: {
+      status: JobStatus.PAYMENT_NODE_CONNECTION_FAILED,
+    },
+  });
+}
+
 export async function updateJobStatusToUnknown(
   jobId: string,
   errorNote?: string,

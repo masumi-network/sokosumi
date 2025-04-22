@@ -9,12 +9,14 @@ import {
   getJobByIdWithCreditTransaction,
   JobErrorNoteKeys,
   prisma,
+  updateJobStatusToAgentConnectionFailed,
   updateJobStatusToCompleted,
   updateJobStatusToDisputeRequested,
   updateJobStatusToDisputeResolved,
   updateJobStatusToFailed,
   updateJobStatusToInputRequired,
   updateJobStatusToPaymentFailed,
+  updateJobStatusToPaymentNodeConnectionFailed,
   updateJobStatusToPaymentPending,
   updateJobStatusToProcessing,
   updateJobStatusToRefundRequested,
@@ -139,7 +141,7 @@ export async function syncJobStatus(job: Job) {
     job.paymentId,
   );
   if (!onChainStateResult.ok) {
-    await updateJobStatusToFailed(job.id);
+    await updateJobStatusToPaymentNodeConnectionFailed(job.id);
     throw new Error("Failed to get payment on-chain status");
   }
   const onChainState = onChainStateResult.data.onChainState;
@@ -148,7 +150,7 @@ export async function syncJobStatus(job: Job) {
   // get the job status from the agent
   const jobStatusResult = await getAgentJobStatus(agent, job.agentJobId);
   if (!jobStatusResult.ok) {
-    await updateJobStatusToFailed(job.id);
+    await updateJobStatusToAgentConnectionFailed(job.id);
     throw new Error("Failed to get job status");
   }
   const jobStatusResponse = jobStatusResult.data;
