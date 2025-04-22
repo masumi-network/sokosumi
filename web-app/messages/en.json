@@ -43,15 +43,13 @@
       "AgentCard": {
         "button": "Show details",
         "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}",
-        "calculating": "Calculating price...",
         "addedToBookmarks": "Agent added to pinned agents",
         "removedFromBookmarks": "Agent removed from pinned agents",
         "bookmarkError": "Failed to update pinned agents"
       },
       "AgentDetail": {
         "backToGallery": "Agents Gallery",
-        "hire": "Hire",
-        "share": "Share",
+        "hire": "Hire Agent",
         "byAuthor": "by {author}",
         "Legal": {
           "fromDeveloper": "From the developer:",
@@ -59,8 +57,7 @@
           "terms": "Terms",
           "other": "Other"
         },
-        "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}",
-        "calculating": "Calculating price..."
+        "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
       }
     },
     "UserAvatar": {
