@@ -240,6 +240,10 @@ export type PatchApiKeyData = {
             amount: string;
         }>;
         /**
+         * Whether the API key is usage limited
+         */
+        usageLimited?: boolean;
+        /**
          * The status of the API key
          */
         status?: 'Active' | 'Revoked';

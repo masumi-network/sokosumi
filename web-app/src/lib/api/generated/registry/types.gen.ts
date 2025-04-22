@@ -114,7 +114,7 @@ export type PostRegistryEntryData = {
             paymentTypes?: Array<'Web3CardanoV1'>;
             status?: Array<'Online' | 'Offline' | 'Deregistered' | 'Invalid'>;
             policyId?: string;
-            assetName?: string;
+            assetIdentifier?: string;
             tags?: Array<string>;
             capability?: {
                 name: string;
@@ -468,7 +468,7 @@ export type PatchApiKeyData = {
      * Undefined fields will not be changed
      */
     body?: {
-        apiKey: string;
+        token: string;
         usageLimited?: boolean;
         maxUsageCredits?: number | null;
         status?: 'Active' | 'Revoked';
