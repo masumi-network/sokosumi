@@ -156,7 +156,7 @@ export async function syncJobStatus(job: Job) {
   const jobStatusResponse = jobStatusResult.data;
   switch (onChainState) {
     case null: {
-      if (errorType === undefined) {
+      if (errorType === null) {
         await updateJobStatusToPaymentPending(job.id);
       } else {
         await updateJobStatusToPaymentFailed(job.id, errorType);
