@@ -17,7 +17,7 @@ interface ActionButtonsProps {
   className?: string;
 }
 
-export default function ActionButtons({
+export default function AgentActionButtons({
   agentId,
   agentList,
   className,
@@ -25,6 +25,8 @@ export default function ActionButtons({
   const pathname = usePathname();
   const parentPath = pathname.split("/").slice(0, -1).join("/") || "/";
 
+  const origin = window.location.origin;
+  const url = new URL(`${origin}/agents/${agentId}`);
   return (
     <div className={cn("flex w-full items-center justify-between", className)}>
       <Link href={parentPath}>
@@ -36,7 +38,7 @@ export default function ActionButtons({
         {agentList && (
           <AgentBookmarkButton agentId={agentId} agentList={agentList} />
         )}
-        <ShareButton />
+        <ShareButton url={url} />
       </div>
     </div>
   );

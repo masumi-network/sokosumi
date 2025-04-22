@@ -18,7 +18,7 @@ import {
 } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
-import ActionButtons from "./action-buttons";
+import AgentActionButtons from "./agent-action-buttons";
 import { BadgeCloud } from "./badge-cloud";
 
 interface AgentDetailSkeletonProps {
@@ -108,7 +108,7 @@ function AgentDetails({
 
   return (
     <div className="w-full space-y-6 px-20 py-6">
-      <ActionButtons agentId={agent.id} agentList={agentList} />
+      <AgentActionButtons agentId={agent.id} agentList={agentList} />
       {/* Agent Summary */}
       <div className="flex w-full flex-col gap-y-4 sm:flex-row">
         <div className="relative mx-auto h-48 w-48">
