@@ -207,7 +207,8 @@ export async function syncJobStatus(job: Job) {
       if (jobStatusResponse.status === "completed") {
         const output = JSON.stringify(jobStatusResponse);
         await updateJobStatusToCompleted(job.id, output);
-      } else {
+      }
+      if (jobStatusResponse.status === "failed") {
         await updateJobStatusToFailed(job.id);
       }
       break;
