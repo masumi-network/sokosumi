@@ -22,7 +22,7 @@ export default function JobStatusBadge({
       return (
         <Badge
           variant="default"
-          className={cn("bg-green-100 p-8 text-green-800", className)}
+          className={cn("bg-green-100 text-green-800", className)}
         >
           {t("completed")}
         </Badge>

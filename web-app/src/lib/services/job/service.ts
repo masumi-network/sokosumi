@@ -213,15 +213,15 @@ export async function syncJobStatus(job: Job) {
       if (jobStatusResponse.status === "completed") {
         const output = JSON.stringify(jobStatusResponse);
         await updateJobStatusToCompleted(job.id, output);
-      }
-      if (jobStatusResponse.status === "failed") {
+      } else if (jobStatusResponse.status === "failed") {
         await updateJobStatusToFailed(job.id);
+      } else {
+        await updateJobStatusToUnknown(
+          job.id,
+          `Job status is ${jobStatusResponse.status} with on-chain state ${onChainState}`,
+          JobErrorNoteKeys.StatusMismatch,
+        );
       }
-      await updateJobStatusToUnknown(
-        job.id,
-        `Job status is ${jobStatusResponse.status} with on-chain state ${onChainState}`,
-        JobErrorNoteKeys.StatusMismatch,
-      );
       break;
     }
     default: {

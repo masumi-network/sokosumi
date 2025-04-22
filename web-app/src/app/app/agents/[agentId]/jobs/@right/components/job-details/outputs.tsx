@@ -2,9 +2,27 @@ import Markdown from "markdown-to-jsx";
 import { useTranslations } from "next-intl";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
+import {
+  jobStatusResponseSchema,
+  JobStatusResponseSchemaType,
+} from "@/lib/services/job/schemas";
 
 interface JobDetailsOutputsProps {
   rawOutput: string | null;
+}
+
+interface JobDetailsOutputsLayoutProps {
+  children: React.ReactNode;
+}
+
+function JobDetailsOutputsLayout({ children }: JobDetailsOutputsLayoutProps) {
+  const t = useTranslations("App.Agents.Jobs.JobDetails.Output");
+  return (
+    <div className="flex flex-col gap-2">
+      <h1 className="text-xl font-bold">{t("title")}</h1>
+      {children}
+    </div>
+  );
 }
 
 export default function JobDetailsOutputs({
@@ -19,13 +37,26 @@ export default function JobDetailsOutputs({
 
 function JobDetailsOutputsInner({ rawOutput }: JobDetailsOutputsProps) {
   const t = useTranslations("App.Agents.Jobs.JobDetails.Output");
-  const result = rawOutput ? JSON.parse(rawOutput) : null;
-  const output = result?.result?.raw.toString();
+
+  if (!rawOutput) {
+    return (
+      <JobDetailsOutputsLayout>
+        <p className="text-base">{t("none")}</p>
+      </JobDetailsOutputsLayout>
+    );
+  }
+
+  let output: JobStatusResponseSchemaType;
+  try {
+    const parsedOutput = JSON.parse(rawOutput);
+    output = jobStatusResponseSchema.parse(parsedOutput);
+  } catch {
+    return <JobDetailsOutputsError />;
+  }
 
   return (
-    <div className="flex flex-col gap-2">
-      <h1 className="text-xl font-bold">{t("title")}</h1>
-      {output ? (
+    <JobDetailsOutputsLayout>
+      {output.result ? (
         <Markdown
           options={{
             disableParsingRawHTML: true,
@@ -35,12 +66,12 @@ function JobDetailsOutputsInner({ rawOutput }: JobDetailsOutputsProps) {
             forceWrapper: true,
           }}
         >
-          {output}
+          {output.result}
         </Markdown>
       ) : (
         <p className="text-base">{t("none")}</p>
       )}
-    </div>
+    </JobDetailsOutputsLayout>
   );
 }
 
