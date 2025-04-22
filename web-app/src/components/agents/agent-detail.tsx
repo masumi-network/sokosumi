@@ -104,7 +104,7 @@ function AgentDetails({
   const description = getAgentDescription(agent);
 
   return (
-    <div className="w-full space-y-6 px-4 py-6 sm:px-8 xl:px-16">
+    <div className="w-full space-y-6 px-20 py-6">
       <ActionButtons agentId={agent.id} agentList={agentList} />
       {/* Agent Summary */}
       <div className="flex w-full flex-col gap-y-4 sm:flex-row">
@@ -118,7 +118,7 @@ function AgentDetails({
             priority
           />
         </div>
-        <div className="flex h-48 flex-1 flex-col justify-between p-2 sm:px-6">
+        <div className="flex h-48 flex-1 flex-col justify-between">
           {/* Title and Bookmark Button Container */}
           <div>
             <h2 className="text-3xl font-light">{getAgentName(agent)}</h2>
