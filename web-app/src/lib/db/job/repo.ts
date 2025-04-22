@@ -140,36 +140,30 @@ export async function createJob(
   });
 }
 
-async function updateJobStatus(
+export async function updateJobStatusToUnknown(
   jobId: string,
-  data: {
-    status: JobStatus;
-    errorNoteKey?: string;
-    output?: string;
-    finishedAt?: Date;
-  },
   tx: Prisma.TransactionClient = prisma,
 ) {
   await tx.job.update({
     where: {
       id: jobId,
     },
-    data,
+    data: {
+      status: JobStatus.UNKNOWN,
+    },
   });
-}
-
-export async function updateJobStatusToUnknown(
-  jobId: string,
-  tx: Prisma.TransactionClient = prisma,
-) {
-  await updateJobStatus(jobId, { status: JobStatus.UNKNOWN }, tx);
 }
 
 export async function updateJobStatusToPaymentPending(
   jobId: string,
   tx: Prisma.TransactionClient = prisma,
 ) {
-  await updateJobStatus(jobId, { status: JobStatus.PAYMENT_PENDING }, tx);
+  await tx.job.update({
+    where: {
+      id: jobId,
+    },
+    data: { status: JobStatus.PAYMENT_PENDING },
+  });
 }
 
 export async function updateJobStatusToPaymentFailed(
@@ -177,40 +171,52 @@ export async function updateJobStatusToPaymentFailed(
   errorType?: PurchaseErrorType,
   tx: Prisma.TransactionClient = prisma,
 ) {
-  await updateJobStatus(
-    jobId,
-    {
+  await tx.job.update({
+    where: {
+      id: jobId,
+    },
+    data: {
       status: JobStatus.PAYMENT_FAILED,
-      errorNoteKey: errorType,
+      errorType,
       finishedAt: new Date(),
     },
-    tx,
-  );
+  });
 }
 
 export async function updateJobStatusToDisputeRequested(
   jobId: string,
   tx: Prisma.TransactionClient = prisma,
 ) {
-  await updateJobStatus(jobId, { status: JobStatus.DISPUTE_REQUESTED }, tx);
+  await tx.job.update({
+    where: {
+      id: jobId,
+    },
+    data: { status: JobStatus.DISPUTE_REQUESTED },
+  });
 }
 
 export async function updateJobStatusToDisputeResolved(
   jobId: string,
   tx: Prisma.TransactionClient = prisma,
 ) {
-  await updateJobStatus(
-    jobId,
-    { status: JobStatus.DISPUTE_RESOLVED, finishedAt: new Date() },
-    tx,
-  );
+  await tx.job.update({
+    where: {
+      id: jobId,
+    },
+    data: { status: JobStatus.DISPUTE_RESOLVED, finishedAt: new Date() },
+  });
 }
 
 export async function updateJobStatusToRefundRequested(
   jobId: string,
   tx: Prisma.TransactionClient = prisma,
 ) {
-  await updateJobStatus(jobId, { status: JobStatus.REFUND_REQUESTED }, tx);
+  await tx.job.update({
+    where: {
+      id: jobId,
+    },
+    data: { status: JobStatus.REFUND_REQUESTED },
+  });
 }
 
 export async function updateJobStatusToRefundResolved(
@@ -245,27 +251,36 @@ export async function updateJobStatusToInputRequired(
   jobId: string,
   tx: Prisma.TransactionClient = prisma,
 ) {
-  await updateJobStatus(jobId, { status: JobStatus.INPUT_REQUIRED }, tx);
+  await tx.job.update({
+    where: {
+      id: jobId,
+    },
+    data: { status: JobStatus.INPUT_REQUIRED },
+  });
 }
 
 export async function updateJobStatusToProcessing(
   jobId: string,
   tx: Prisma.TransactionClient = prisma,
 ) {
-  await updateJobStatus(jobId, { status: JobStatus.PROCESSING }, tx);
+  await tx.job.update({
+    where: {
+      id: jobId,
+    },
+    data: { status: JobStatus.PROCESSING },
+  });
 }
 
 export async function updateJobStatusToFailed(
   jobId: string,
   tx: Prisma.TransactionClient = prisma,
 ) {
-  await updateJobStatus(
-    jobId,
-    {
-      status: JobStatus.FAILED,
+  await tx.job.update({
+    where: {
+      id: jobId,
     },
-    tx,
-  );
+    data: { status: JobStatus.FAILED },
+  });
 }
 
 export async function updateJobStatusToCompleted(
@@ -273,13 +288,14 @@ export async function updateJobStatusToCompleted(
   output: string,
   tx: Prisma.TransactionClient = prisma,
 ) {
-  await updateJobStatus(
-    jobId,
-    {
+  await tx.job.update({
+    where: {
+      id: jobId,
+    },
+    data: {
       status: JobStatus.COMPLETED,
       output,
       finishedAt: new Date(),
     },
-    tx,
-  );
+  });
 }

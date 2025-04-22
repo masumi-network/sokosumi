@@ -346,8 +346,10 @@ model Job {
   startedAt  DateTime  @default(now())
   finishedAt DateTime?
 
-  errorNote String?
   errorType String?
+
+  errorNote    String?
+  errorNoteKey String?
 
   blockchainIdentifier      String    @unique
   submitResultTime          DateTime?
