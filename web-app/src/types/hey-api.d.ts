@@ -4,5 +4,6 @@ declare global {
   type PurchaseOnChainState =
     GetPurchaseResponse["data"]["Purchases"][number]["onChainState"];
   type PurchaseErrorType =
-    GetPurchaseResponse["data"]["Purchases"][number]["NextAction"]["errorType"];
+    | GetPurchaseResponse["data"]["Purchases"][number]["NextAction"]["errorType"]
+    | null;
 }
