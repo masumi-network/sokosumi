@@ -9,10 +9,13 @@ import {
   getJobByIdWithCreditTransaction,
   JobErrorNoteKeys,
   prisma,
-  updateJobStatus,
   updateJobStatusToCompleted,
+  updateJobStatusToDisputed,
   updateJobStatusToFailed,
+  updateJobStatusToPaymentFailed,
+  updateJobStatusToProcessing,
   updateJobStatusToRefunded,
+  updateJobStatusToRefundRequested,
 } from "@/lib/db";
 import { JobInputData } from "@/lib/job-input";
 import { calculateInputHash } from "@/lib/utils";
@@ -160,12 +163,12 @@ export async function syncJobStatus(job: Job) {
     }
     case "FundsLocked": {
       if (jobStatusResponse.status === "running") {
-        await updateJobStatus(job.id, { status: JobStatus.PROCESSING });
+        await updateJobStatusToProcessing(job.id);
       }
       return;
     }
     case "RefundRequested": {
-      await updateJobStatus(job.id, { status: JobStatus.REFUND_REQUESTED });
+      await updateJobStatusToRefundRequested(job.id);
       return;
     }
     case "RefundWithdrawn": {
@@ -186,7 +189,7 @@ export async function syncJobStatus(job: Job) {
       return;
     }
     case "Disputed": {
-      await updateJobStatus(job.id, { status: JobStatus.DISPUTED });
+      await updateJobStatusToDisputed(job.id);
       return;
     }
     case "DisputedWithdrawn": {
@@ -196,7 +199,7 @@ export async function syncJobStatus(job: Job) {
       return;
     }
     case "FundsOrDatumInvalid": {
-      await updateJobStatus(job.id, { status: JobStatus.PAYMENT_FAILED });
+      await updateJobStatusToPaymentFailed(job.id);
       return;
     }
     case "ResultSubmitted":

@@ -140,7 +140,7 @@ export async function createJob(
   });
 }
 
-export async function updateJobStatus(
+async function updateJobStatus(
   jobId: string,
   data: {
     status: JobStatus;
@@ -159,6 +159,34 @@ export async function updateJobStatus(
   });
 }
 
+export async function updateJobStatusToPaymentFailed(
+  jobId: string,
+  tx: Prisma.TransactionClient = prisma,
+) {
+  await updateJobStatus(jobId, { status: JobStatus.PAYMENT_FAILED }, tx);
+}
+
+export async function updateJobStatusToDisputed(
+  jobId: string,
+  tx: Prisma.TransactionClient = prisma,
+) {
+  await updateJobStatus(jobId, { status: JobStatus.DISPUTED }, tx);
+}
+
+export async function updateJobStatusToRefundRequested(
+  jobId: string,
+  tx: Prisma.TransactionClient = prisma,
+) {
+  await updateJobStatus(jobId, { status: JobStatus.REFUND_REQUESTED }, tx);
+}
+
+export async function updateJobStatusToProcessing(
+  jobId: string,
+  tx: Prisma.TransactionClient = prisma,
+) {
+  await updateJobStatus(jobId, { status: JobStatus.PROCESSING }, tx);
+}
+
 export async function updateJobStatusToFailed(
   jobId: string,
   errorNote: string,
@@ -171,6 +199,7 @@ export async function updateJobStatusToFailed(
       status: JobStatus.FAILED,
       errorNote,
       errorNoteKey,
+      finishedAt: new Date(),
     },
     tx,
   );
@@ -215,6 +244,7 @@ export async function updateJobStatusToRefunded(
           },
         },
       },
+      finishedAt: new Date(),
     },
   });
 }
