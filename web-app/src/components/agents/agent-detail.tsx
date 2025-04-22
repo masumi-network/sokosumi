@@ -107,7 +107,7 @@ function AgentDetails({
   return (
     <div className="w-full space-y-8 px-4 py-4 sm:px-8 xl:px-16">
       <ActionButtons agentId={agent.id} agentList={agentList} />
-      <div className={cn("space-y-4", className)}>
+      <div className={cn(className)}>
         {/* Agent Summary */}
         <div className="flex w-full flex-col gap-y-4 sm:flex-row">
           <div className="relative mx-auto h-48 w-48">
@@ -120,23 +120,18 @@ function AgentDetails({
               priority
             />
           </div>
-          <div className="flex flex-1 flex-col gap-y-2 p-2 sm:px-6">
+          <div className="flex h-48 flex-1 flex-col justify-between p-2 sm:px-6">
             {/* Title and Bookmark Button Container */}
-            <div className="flex items-start justify-between gap-4">
-              {/* Title and Author */}
-              <div>
-                <h2 className="text-3xl font-light">{getAgentName(agent)}</h2>
-                <p className="text-muted-foreground line-clamp-3">
-                  {description && (
-                    <div className="text-muted-foreground text-3xl font-light">
-                      <p>{description}</p>
-                    </div>
-                  )}
-                </p>
+            <div>
+              <h2 className="text-3xl font-light">{getAgentName(agent)}</h2>
+              <div className="text-muted-foreground line-clamp-3">
+                <div className="text-muted-foreground text-3xl font-light">
+                  {t("byAuthor", { author: getAgentAuthorName(agent) })}
+                </div>
               </div>
             </div>
-            {/* Bottom Section */}
-            <div className="flex items-center justify-between gap-4 pt-8">
+            {/* Pricing and Hire Button */}
+            <div className="flex items-center justify-between gap-4">
               <div className="text-base">
                 <span className="font-medium">
                   {t("pricing", {
@@ -154,10 +149,8 @@ function AgentDetails({
         </div>
 
         {/* Tags */}
-        <BadgeCloud tags={getAgentTags(agent)} />
-
-        <div className="text-muted-foreground text-3xl font-light">
-          {getAgentAuthorName(agent)}
+        <div className="flex flex-wrap gap-2 pt-4">
+          <BadgeCloud tags={getAgentTags(agent)} />
         </div>
 
         {/* Example Output */}
