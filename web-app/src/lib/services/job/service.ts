@@ -7,6 +7,7 @@ import {
   createJob,
   getAgentById,
   getJobByIdWithCreditTransaction,
+  JobErrorNoteKeys,
   prisma,
   updateJobStatusToCompleted,
   updateJobStatusToDisputeRequested,
@@ -211,10 +212,19 @@ export async function syncJobStatus(job: Job) {
       if (jobStatusResponse.status === "failed") {
         await updateJobStatusToFailed(job.id);
       }
+      await updateJobStatusToUnknown(
+        job.id,
+        `Job status is ${jobStatusResponse.status} with on-chain state ${onChainState}`,
+        JobErrorNoteKeys.StatusMismatch,
+      );
       break;
     }
     default: {
-      await updateJobStatusToUnknown(job.id);
+      await updateJobStatusToUnknown(
+        job.id,
+        `Unknown on-chain state ${onChainState}`,
+        JobErrorNoteKeys.Unknown,
+      );
       break;
     }
   }

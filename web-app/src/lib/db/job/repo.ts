@@ -142,6 +142,8 @@ export async function createJob(
 
 export async function updateJobStatusToUnknown(
   jobId: string,
+  errorNote?: string,
+  errorNoteKey?: string,
   tx: Prisma.TransactionClient = prisma,
 ) {
   await tx.job.update({
@@ -150,6 +152,8 @@ export async function updateJobStatusToUnknown(
     },
     data: {
       status: JobStatus.UNKNOWN,
+      errorNote,
+      errorNoteKey,
     },
   });
 }

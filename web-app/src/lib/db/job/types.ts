@@ -20,3 +20,8 @@ export type JobWithRelations = Prisma.JobGetPayload<{
 export type JobWithCreditTransaction = Prisma.JobGetPayload<{
   include: typeof jobCreditTransactionInclude;
 }>;
+
+export enum JobErrorNoteKeys {
+  StatusMismatch = "Job.StatusMismatch",
+  Unknown = "Job.UnknownState",
+}
