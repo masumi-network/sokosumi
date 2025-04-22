@@ -1,6 +1,8 @@
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
+import { KanjiLogo, ThemedLogo } from "@/components/masumi-logos";
+
 import Footer from "./components/footer";
 import Header from "./components/header";
 
@@ -25,7 +27,16 @@ export default function LandingLayout({ children }: LandingLayoutProps) {
     <div className="flex min-h-svh flex-col">
       <Header />
       <main className="flex-1 pt-24">{children}</main>
+      <Kanji />
       <Footer />
+    </div>
+  );
+}
+
+function Kanji() {
+  return (
+    <div className="pointer-events-none fixed right-0 z-0 flex h-full w-full items-center justify-end p-12">
+      <ThemedLogo LogoComponent={KanjiLogo} />
     </div>
   );
 }

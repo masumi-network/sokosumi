@@ -1,17 +1,12 @@
 import { useTranslations } from "next-intl";
 
-import { KanjiLogo, ThemedLogo } from "@/components/masumi-logos";
-
 import AgentsShowcase from "./agents-showcase";
 
 export default function Hero() {
   const t = useTranslations("Landing.Page.Hero");
   return (
     <>
-      <div className="landing-hero-bg blur-in absolute inset-0 z-0 h-full w-full" />
-      <div className="absolute right-0 z-0 flex h-full w-full items-center justify-end p-12">
-        <ThemedLogo LogoComponent={KanjiLogo} />
-      </div>
+      <div className="landing-hero-bg absolute h-full w-full" />
       <div className="z-10 container flex flex-col items-center gap-6 px-12 text-center md:px-6">
         <h1 className="w-full text-center text-7xl font-bold whitespace-pre-line">
           {t("title")}

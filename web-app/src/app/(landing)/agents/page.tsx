@@ -31,7 +31,10 @@ export default async function GalleryPage() {
     <div className="container mx-auto px-4 pt-4 pb-8">
       <div className="space-y-12">
         {/* Featured Agent Section */}
-        <FeaturedAgent agent={agents[0]} />
+        <FeaturedAgent
+          agent={agents[0]}
+          creditsPrice={agentCreditsPriceList[0]}
+        />
 
         {/* Agent Cards Grid */}
         <Agents agents={agents} agentCreditsPriceList={agentCreditsPriceList} />
