@@ -118,7 +118,7 @@ function AgentDetails({
             priority
           />
         </div>
-        <div className="flex h-48 flex-1 flex-col justify-between">
+        <div className="flex h-48 flex-1 flex-col justify-between pl-4">
           {/* Title and Bookmark Button Container */}
           <div>
             <h2 className="text-3xl font-light">{getAgentName(agent)}</h2>
