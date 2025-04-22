@@ -31,9 +31,9 @@ export const jobStatusResponseSchema = z.object({
     "completed",
     "failed",
   ]),
-  message: z.string().optional(),
-  input_data: z.array(jobInputSchema()).optional(),
-  result: z.string().optional(),
+  message: z.string().nullish(),
+  input_data: z.array(jobInputSchema()).nullish(),
+  result: z.string().nullish(),
 });
 
 export type StartJobResponseSchemaType = z.infer<typeof startJobResponseSchema>;
