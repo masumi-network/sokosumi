@@ -167,20 +167,3 @@
     background-repeat: no-repeat;
   }
 }
-
-@utility blur-in {
-  filter: blur(10px);
-  opacity: 0.5;
-  animation: blur-in 3s ease forwards;
-}
-
-@keyframes blur-in {
-  0% {
-    filter: blur(10px);
-    opacity: 0.5;
-  }
-  100% {
-    filter: blur(0px);
-    opacity: 1;
-  }
-}
