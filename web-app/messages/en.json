@@ -45,6 +45,7 @@
         "bookmarkError": "Failed to update pinned agents"
       },
       "AgentDetail": {
+        "backToGallery": "Agents Gallery",
         "hire": "Hire",
         "share": "Share",
         "byAuthor": "by {author}",
@@ -380,9 +381,6 @@
       "FeaturedAgent": {
         "title": "an absolute must-have",
         "button": "Show details"
-      },
-      "AgentDetail": {
-        "backToGallery": "Agents Gallery"
       }
     }
   },
@@ -499,9 +497,6 @@
         "tags": "Tags",
         "selectTags": "Select Tags",
         "applyTags": "Apply"
-      },
-      "AgentDetail": {
-        "backToGallery": "Agents Gallery"
       },
       "Jobs": {
         "title": "Your latest jobs",

@@ -21,6 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { AgentBookmarkButton } from "./agent-bookmark-button";
+import BackToGallery from "./back-to-gallery";
 import { BadgeCloud } from "./badge-cloud";
 
 interface AgentDetailSkeletonProps {
@@ -105,112 +106,115 @@ function AgentDetails({
   const description = getAgentDescription(agent);
 
   return (
-    <div className={cn("space-y-4", className)}>
-      {/* Agent Summary */}
-      <div className="flex w-full flex-col gap-y-4 sm:flex-row">
-        <div className="relative mx-auto h-48 w-48">
-          <Image
-            src={getAgentResolvedImage(agent)}
-            alt={getAgentName(agent)}
-            fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-            className="rounded-md object-cover"
-            priority
-          />
-        </div>
-        <div className="flex flex-1 flex-col gap-y-2 p-2 sm:px-6">
-          {/* Title and Bookmark Button Container */}
-          <div className="flex items-start justify-between gap-4">
-            {/* Title and Author */}
-            <div>
-              <h2 className="text-2xl font-bold">{getAgentName(agent)}</h2>
-              <p className="text-muted-foreground line-clamp-1">
-                {t("byAuthor", { author: getAgentAuthorName(agent) })}
-              </p>
-            </div>
-            {/* Bookmark Button - only render if agentList is provided */}
-            {agentList && (
-              <AgentBookmarkButton
-                agentId={agent.id}
-                agentList={agentList}
-                className="mt-1 flex-shrink-0" // Add margin-top for alignment and prevent shrinking
-              />
-            )}
-          </div>
-          {/* Pricing */}
-          <p className="pt-1 text-sm font-medium">
-            {t("pricing", {
-              price: convertCentsToCredits(agentCreditsPrice.cents),
-            })}
-          </p>
-          {/* Action Buttons */}
-          <div className="mt-auto flex flex-col gap-3">
-            <div className="flex items-center gap-3">
-              <Link href={`/app/agents/${agent.id}/jobs`}>
-                <Button variant="default" size="lg">
-                  {t("hire")}
-                </Button>
-              </Link>
-              <Button variant="outline" size="lg">
-                {t("share")}
-              </Button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Tags */}
-      <BadgeCloud tags={getAgentTags(agent)} />
-      {description && (
-        <div className="text-muted-foreground">
-          <p>{description}</p>
-        </div>
-      )}
-
-      {/* Example Output */}
-      <ScrollArea>
-        <div className="flex gap-4 pb-4">
-          {exampleOutput.map((_, index) => (
+    <div className="w-full space-y-8 px-4 py-4 sm:px-8 xl:px-16">
+      <BackToGallery />
+      <div className={cn("space-y-4", className)}>
+        {/* Agent Summary */}
+        <div className="flex w-full flex-col gap-y-4 sm:flex-row">
+          <div className="relative mx-auto h-48 w-48">
             <Image
-              key={index}
-              src="/placeholder.svg"
-              alt={`Placeholder ${index + 1}`}
-              className="h-64 w-64 flex-shrink-0 rounded-lg object-cover"
-              width={256}
-              height={256}
+              src={getAgentResolvedImage(agent)}
+              alt={getAgentName(agent)}
+              fill
+              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+              className="rounded-md object-cover"
+              priority
             />
-          ))}
+          </div>
+          <div className="flex flex-1 flex-col gap-y-2 p-2 sm:px-6">
+            {/* Title and Bookmark Button Container */}
+            <div className="flex items-start justify-between gap-4">
+              {/* Title and Author */}
+              <div>
+                <h2 className="text-2xl font-bold">{getAgentName(agent)}</h2>
+                <p className="text-muted-foreground line-clamp-1">
+                  {t("byAuthor", { author: getAgentAuthorName(agent) })}
+                </p>
+              </div>
+              {/* Bookmark Button - only render if agentList is provided */}
+              {agentList && (
+                <AgentBookmarkButton
+                  agentId={agent.id}
+                  agentList={agentList}
+                  className="mt-1 flex-shrink-0" // Add margin-top for alignment and prevent shrinking
+                />
+              )}
+            </div>
+            {/* Pricing */}
+            <p className="pt-1 text-sm font-medium">
+              {t("pricing", {
+                price: convertCentsToCredits(agentCreditsPrice.cents),
+              })}
+            </p>
+            {/* Action Buttons */}
+            <div className="mt-auto flex flex-col gap-3">
+              <div className="flex items-center gap-3">
+                <Link href={`/app/agents/${agent.id}/jobs`}>
+                  <Button variant="default" size="lg">
+                    {t("hire")}
+                  </Button>
+                </Link>
+                <Button variant="outline" size="lg">
+                  {t("share")}
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
 
-      {/* Developer Information */}
-      <div className="text-muted-foreground flex gap-6 text-sm">
-        {legal && <p>{t("Legal.fromDeveloper")}</p>}
-        {legal?.privacyPolicy && (
-          <Link
-            href={legal.privacyPolicy}
-            className="hover:text-foreground underline underline-offset-4 transition-colors"
-          >
-            {t("Legal.privacyPolicy")}
-          </Link>
+        {/* Tags */}
+        <BadgeCloud tags={getAgentTags(agent)} />
+        {description && (
+          <div className="text-muted-foreground">
+            <p>{description}</p>
+          </div>
         )}
-        {legal?.terms && (
-          <Link
-            href={legal.terms}
-            className="hover:text-foreground underline underline-offset-4 transition-colors"
-          >
-            {t("Legal.terms")}
-          </Link>
-        )}
-        {legal?.other && (
-          <Link
-            href={legal.other}
-            className="hover:text-foreground underline underline-offset-4 transition-colors"
-          >
-            {t("Legal.other")}
-          </Link>
-        )}
+
+        {/* Example Output */}
+        <ScrollArea>
+          <div className="flex gap-4 pb-4">
+            {exampleOutput.map((_, index) => (
+              <Image
+                key={index}
+                src="/placeholder.svg"
+                alt={`Placeholder ${index + 1}`}
+                className="h-64 w-64 flex-shrink-0 rounded-lg object-cover"
+                width={256}
+                height={256}
+              />
+            ))}
+          </div>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
+
+        {/* Developer Information */}
+        <div className="text-muted-foreground flex gap-6 text-sm">
+          {legal && <p>{t("Legal.fromDeveloper")}</p>}
+          {legal?.privacyPolicy && (
+            <Link
+              href={legal.privacyPolicy}
+              className="hover:text-foreground underline underline-offset-4 transition-colors"
+            >
+              {t("Legal.privacyPolicy")}
+            </Link>
+          )}
+          {legal?.terms && (
+            <Link
+              href={legal.terms}
+              className="hover:text-foreground underline underline-offset-4 transition-colors"
+            >
+              {t("Legal.terms")}
+            </Link>
+          )}
+          {legal?.other && (
+            <Link
+              href={legal.other}
+              className="hover:text-foreground underline underline-offset-4 transition-colors"
+            >
+              {t("Legal.other")}
+            </Link>
+          )}
+        </div>
       </div>
     </div>
   );
