@@ -1,10 +1,10 @@
 "use client";
 
-import { ArrowLeft, Share } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useTranslations } from "next-intl";
 
+import { ShareButton } from "@/components/share-button";
 import { Button } from "@/components/ui/button";
 import { AgentListWithAgent } from "@/lib/db";
 
@@ -19,7 +19,6 @@ export default function ActionButtons({
   agentId,
   agentList,
 }: ActionButtonsProps) {
-  const t = useTranslations("Components.Agents.AgentDetail");
   const pathname = usePathname();
   const parentPath = pathname.split("/").slice(0, -1).join("/") || "/";
 
@@ -34,9 +33,7 @@ export default function ActionButtons({
         {agentList && (
           <AgentBookmarkButton agentId={agentId} agentList={agentList} />
         )}
-        <Button variant="secondary" size="icon">
-          <Share />
-        </Button>
+        <ShareButton />
       </div>
     </div>
   );
