@@ -51,6 +51,8 @@
         "backToGallery": "Agents Gallery",
         "hire": "Hire Agent",
         "byAuthor": "by {author}",
+        "description": "Description",
+        "atAGlance": "At a Glance",
         "Legal": {
           "fromDeveloper": "From the developer:",
           "privacyPolicy": "Privacy Policy",
