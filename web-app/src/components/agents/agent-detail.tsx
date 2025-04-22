@@ -20,8 +20,7 @@ import {
 } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
-import { AgentBookmarkButton } from "./agent-bookmark-button";
-import BackToGallery from "./back-to-gallery";
+import ActionButtons from "./action-buttons";
 import { BadgeCloud } from "./badge-cloud";
 
 interface AgentDetailSkeletonProps {
@@ -107,7 +106,7 @@ function AgentDetails({
 
   return (
     <div className="w-full space-y-8 px-4 py-4 sm:px-8 xl:px-16">
-      <BackToGallery />
+      <ActionButtons agentId={agent.id} agentList={agentList} />
       <div className={cn("space-y-4", className)}>
         {/* Agent Summary */}
         <div className="flex w-full flex-col gap-y-4 sm:flex-row">
@@ -131,14 +130,6 @@ function AgentDetails({
                   {t("byAuthor", { author: getAgentAuthorName(agent) })}
                 </p>
               </div>
-              {/* Bookmark Button - only render if agentList is provided */}
-              {agentList && (
-                <AgentBookmarkButton
-                  agentId={agent.id}
-                  agentList={agentList}
-                  className="mt-1 flex-shrink-0" // Add margin-top for alignment and prevent shrinking
-                />
-              )}
             </div>
             {/* Pricing */}
             <p className="pt-1 text-sm font-medium">
