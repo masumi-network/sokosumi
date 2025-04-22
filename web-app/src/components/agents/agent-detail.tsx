@@ -125,29 +125,29 @@ function AgentDetails({
             <div className="flex items-start justify-between gap-4">
               {/* Title and Author */}
               <div>
-                <h2 className="text-2xl font-bold">{getAgentName(agent)}</h2>
-                <p className="text-muted-foreground line-clamp-1">
-                  {t("byAuthor", { author: getAgentAuthorName(agent) })}
+                <h2 className="text-3xl font-light">{getAgentName(agent)}</h2>
+                <p className="text-muted-foreground line-clamp-3">
+                  {description && (
+                    <div className="text-muted-foreground text-3xl font-light">
+                      <p>{description}</p>
+                    </div>
+                  )}
                 </p>
               </div>
             </div>
-            {/* Pricing */}
-            <p className="pt-1 text-sm font-medium">
-              {t("pricing", {
-                price: convertCentsToCredits(agentCreditsPrice.cents),
-              })}
-            </p>
-            {/* Action Buttons */}
-            <div className="mt-auto flex flex-col gap-3">
-              <div className="flex items-center gap-3">
+            {/* Bottom Section */}
+            <div className="flex items-center justify-between gap-4 pt-8">
+              <div className="text-base">
+                <span className="font-medium">
+                  {t("pricing", {
+                    credits: convertCentsToCredits(agentCreditsPrice.cents),
+                  })}
+                </span>
+              </div>
+              <div className="flex gap-2">
                 <Link href={`/app/agents/${agent.id}/jobs`}>
-                  <Button variant="default" size="lg">
-                    {t("hire")}
-                  </Button>
+                  <Button size="lg">{t("hire")}</Button>
                 </Link>
-                <Button variant="outline" size="lg">
-                  {t("share")}
-                </Button>
               </div>
             </div>
           </div>
@@ -155,11 +155,10 @@ function AgentDetails({
 
         {/* Tags */}
         <BadgeCloud tags={getAgentTags(agent)} />
-        {description && (
-          <div className="text-muted-foreground">
-            <p>{description}</p>
-          </div>
-        )}
+
+        <div className="text-muted-foreground text-3xl font-light">
+          {getAgentAuthorName(agent)}
+        </div>
 
         {/* Example Output */}
         <ScrollArea>

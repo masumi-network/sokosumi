@@ -57,7 +57,7 @@
           "terms": "Terms",
           "other": "Other"
         },
-        "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
+        "pricing": "{credits, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
       }
     },
     "UserAvatar": {
