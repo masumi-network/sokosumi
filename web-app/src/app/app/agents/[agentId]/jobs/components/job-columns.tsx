@@ -16,7 +16,6 @@ export function getJobColumns(
     startedAtColumn: columnHelper.accessor("startedAt", {
       id: "startedAt",
       minSize: 80,
-      maxSize: 100,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("Header.started")} />
       ),
@@ -35,8 +34,7 @@ export function getJobColumns(
 
     statusColumn: columnHelper.accessor("status", {
       id: "status",
-      minSize: 100,
-      maxSize: 120,
+      minSize: 150,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("Header.status")} />
       ),

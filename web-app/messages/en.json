@@ -532,7 +532,15 @@
             "failed": "Failed",
             "paymentPending": "Payment Pending",
             "paymentFailed": "Payment Failed",
-            "processing": "Processing"
+            "processing": "Processing",
+            "agentConnectionFailed": "Agent Connection Failed",
+            "paymentNodeConnectionFailed": "Payment Node Connection Failed",
+            "inputRequired": "Input Required",
+            "disputeRequested": "Dispute Requested",
+            "disputeResolved": "Dispute Resolved",
+            "refundRequested": "Refund Requested",
+            "refundResolved": "Refunded",
+            "unknown": "Unknown"
           }
         },
         "JobDetails": {
