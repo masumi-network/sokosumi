@@ -35,7 +35,7 @@ export default function LandingLayout({ children }: LandingLayoutProps) {
 
 function Kanji() {
   return (
-    <div className="absolute right-0 z-0 flex h-full w-full items-center justify-end p-12">
+    <div className="fixed right-0 z-0 flex h-full w-full items-center justify-end p-12">
       <ThemedLogo LogoComponent={KanjiLogo} />
     </div>
   );
