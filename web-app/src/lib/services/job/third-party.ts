@@ -27,7 +27,6 @@ export async function getAgentJobStatus(
     const baseUrl = getAgentApiBaseUrl(agent);
     const jobStatusUrl = new URL(`/status`, baseUrl);
     jobStatusUrl.searchParams.set("job_id", jobId);
-
     const jobStatusResponse = await fetch(jobStatusUrl, {
       method: "GET",
     });
@@ -35,7 +34,6 @@ export async function getAgentJobStatus(
     if (!jobStatusResponse.ok) {
       return Err(jobStatusResponse.statusText);
     }
-
     const parsedResult = jobStatusResponseSchema.safeParse(
       await jobStatusResponse.json(),
     );
@@ -89,7 +87,12 @@ export async function startAgentJob(
 export async function getPurchaseOnChainState(
   paymentClient: Client,
   paymentId: string,
-): Promise<Result<PurchaseOnChainState, string>> {
+): Promise<
+  Result<
+    { onChainState: PurchaseOnChainState; errorType?: PurchaseErrorType },
+    string
+  >
+> {
   try {
     const purchaseResponse = await getPurchase({
       client: paymentClient,
@@ -111,8 +114,11 @@ export async function getPurchaseOnChainState(
           : "Unknown error",
       );
     }
+    const purchase = purchaseResponse.data.data.Purchases[0];
+    const errorType = purchase.NextAction.errorType;
+    const onChainState = purchase.onChainState;
 
-    return Ok(purchaseResponse.data.data.Purchases[0].onChainState);
+    return Ok({ onChainState, errorType });
   } catch (err) {
     return Err(String(err));
   }
