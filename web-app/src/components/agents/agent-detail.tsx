@@ -3,7 +3,6 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AgentListWithAgent,
@@ -12,7 +11,6 @@ import {
   CreditsPrice,
   getAgentAuthorName,
   getAgentDescription,
-  getAgentExampleOutput,
   getAgentLegal,
   getAgentName,
   getAgentResolvedImage,
@@ -100,7 +98,6 @@ function AgentDetails({
   const t = useTranslations("Components.Agents.AgentDetail");
 
   const legal = getAgentLegal(agent);
-  const exampleOutput = getAgentExampleOutput(agent);
   const description = getAgentDescription(agent);
 
   return (
@@ -147,70 +144,63 @@ function AgentDetails({
       </div>
 
       {/* Description and Tags Sections */}
-      <div className="space-y-6">
+      <div className="space-y-10">
         {/* Description Section */}
-        <div>
-          <h3 className="mb-3 text-xs tracking-wide uppercase">
-            {t("description")}
-          </h3>
-          <p className="text-muted-foreground">{description}</p>
-        </div>
+        {description && (
+          <Section title={t("description")}>{description}</Section>
+        )}
 
         {/* At a Glance Section */}
-        <div>
-          <h3 className="mb-3 text-xs tracking-wide uppercase">
-            {t("atAGlance")}
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            <BadgeCloud tags={getAgentTags(agent)} />
-          </div>
-        </div>
+        <Section title={t("atAGlance")}>
+          <BadgeCloud tags={getAgentTags(agent)} />
+        </Section>
+
+        {/* Developer Information */}
+        {legal && (
+          <Section title={t("Legal.fromDeveloper")}>
+            {legal?.privacyPolicy && (
+              <Link
+                href={legal.privacyPolicy}
+                className="hover:text-foreground underline underline-offset-4 transition-colors"
+              >
+                {t("Legal.privacyPolicy")}
+              </Link>
+            )}
+            {legal?.terms && (
+              <Link
+                href={legal.terms}
+                className="hover:text-foreground underline underline-offset-4 transition-colors"
+              >
+                {t("Legal.terms")}
+              </Link>
+            )}
+            {legal?.other && (
+              <Link
+                href={legal.other}
+                className="hover:text-foreground underline underline-offset-4 transition-colors"
+              >
+                {t("Legal.other")}
+              </Link>
+            )}
+          </Section>
+        )}
       </div>
+    </div>
+  );
+}
 
-      {/* Example Output */}
-      <ScrollArea>
-        <div className="flex gap-4 pb-4">
-          {exampleOutput.map((_, index) => (
-            <Image
-              key={index}
-              src="/placeholder.svg"
-              alt={`Placeholder ${index + 1}`}
-              className="h-64 w-64 flex-shrink-0 rounded-lg object-cover"
-              width={256}
-              height={256}
-            />
-          ))}
-        </div>
-        <ScrollBar orientation="horizontal" />
-      </ScrollArea>
-
-      {/* Developer Information */}
-      <div className="text-muted-foreground flex gap-6 text-sm">
-        {legal && <p>{t("Legal.fromDeveloper")}</p>}
-        {legal?.privacyPolicy && (
-          <Link
-            href={legal.privacyPolicy}
-            className="hover:text-foreground underline underline-offset-4 transition-colors"
-          >
-            {t("Legal.privacyPolicy")}
-          </Link>
-        )}
-        {legal?.terms && (
-          <Link
-            href={legal.terms}
-            className="hover:text-foreground underline underline-offset-4 transition-colors"
-          >
-            {t("Legal.terms")}
-          </Link>
-        )}
-        {legal?.other && (
-          <Link
-            href={legal.other}
-            className="hover:text-foreground underline underline-offset-4 transition-colors"
-          >
-            {t("Legal.other")}
-          </Link>
-        )}
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-3">
+      <h3 className="text-xs tracking-wide uppercase">{title}</h3>
+      <div className="text-muted-foreground flex flex-wrap gap-4">
+        {children}
       </div>
     </div>
   );
