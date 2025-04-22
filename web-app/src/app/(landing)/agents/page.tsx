@@ -28,7 +28,7 @@ export default async function GalleryPage() {
   );
 
   return (
-    <div className="container mx-auto px-4 pt-4 pb-8">
+    <div className="container mx-auto px-8 pt-4 pb-8">
       <div className="space-y-12">
         {/* Featured Agent Section */}
         <FeaturedAgent

@@ -55,15 +55,15 @@ export function AgentBookmarkButton({
 
   return (
     <Button
-      variant="ghost"
+      variant="secondary"
       size="icon"
-      className={cn("!h-9 !w-9", className)}
+      className={cn(className)}
       onClick={handleBookmarkToggle}
       disabled={isLoading}
     >
       <Bookmark
         fill={isBookmarked ? "currentColor" : "none"}
-        className={cn("!h-9 !w-9", isLoading && "animate-pulse")}
+        className={cn(isLoading && "animate-pulse")}
       />
     </Button>
   );

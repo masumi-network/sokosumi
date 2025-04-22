@@ -30,6 +30,10 @@
     "UnknownError": "An unknown error occurred, please contact our support"
   },
   "Components": {
+    "ShareButton": {
+      "linkCopied": "Link copied to clipboard",
+      "copyError": "Failed to copy link"
+    },
     "DefaultErrorBoundary": {
       "error": "An unknown error occurred, please contact our support"
     },
@@ -39,23 +43,23 @@
       "AgentCard": {
         "button": "Show details",
         "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}",
-        "calculating": "Calculating price...",
         "addedToBookmarks": "Agent added to pinned agents",
         "removedFromBookmarks": "Agent removed from pinned agents",
         "bookmarkError": "Failed to update pinned agents"
       },
       "AgentDetail": {
-        "hire": "Hire",
-        "share": "Share",
+        "backToGallery": "Agents Gallery",
+        "hire": "Hire Agent",
         "byAuthor": "by {author}",
+        "description": "Description",
+        "atAGlance": "At a Glance",
         "Legal": {
           "fromDeveloper": "From the developer:",
           "privacyPolicy": "Privacy Policy",
           "terms": "Terms",
           "other": "Other"
         },
-        "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}",
-        "calculating": "Calculating price..."
+        "pricing": "{credits, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
       }
     },
     "UserAvatar": {
@@ -378,12 +382,10 @@
         "description": "Explore our collection of agents."
       },
       "FeaturedAgent": {
+        "title": "an absolute must-have",
         "view": "View Agent",
         "hire": "Hire Agent",
         "pricing": "{credits, plural, =0 {Free} =1 {1 credit} other {# credits}}"
-      },
-      "AgentDetail": {
-        "backToGallery": "Agents Gallery"
       }
     }
   },
@@ -500,9 +502,6 @@
         "tags": "Tags",
         "selectTags": "Select Tags",
         "applyTags": "Apply"
-      },
-      "AgentDetail": {
-        "backToGallery": "Agents Gallery"
       },
       "Jobs": {
         "title": "Your latest jobs",
