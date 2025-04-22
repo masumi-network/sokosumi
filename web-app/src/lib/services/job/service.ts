@@ -168,6 +168,9 @@ export async function syncJobStatus(job: Job) {
       if (jobStatusResponse.status === "awaiting_input") {
         await updateJobStatusToInputRequired(job.id);
       }
+      if (jobStatusResponse.status === "failed") {
+        await updateJobStatusToFailed(job.id);
+      }
       break;
     }
     case "RefundRequested": {
