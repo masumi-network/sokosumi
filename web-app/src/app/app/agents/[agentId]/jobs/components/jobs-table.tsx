@@ -43,7 +43,7 @@ export default function JobsTable({ jobs }: JobsTableProps) {
         }
         return "active:bg-muted hover:bg-muted";
       }}
-      containerClassName={cn("w-full lg:w-[max(400px,36%)] rounded-md border")}
+      containerClassName={cn("w-full lg:w-[max(500px,42%)] rounded-md border")}
       defaultSort={[
         {
           id: "startedAt",

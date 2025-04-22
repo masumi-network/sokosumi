@@ -15,12 +15,12 @@ export function getJobColumns(
   return {
     startedAtColumn: columnHelper.accessor("startedAt", {
       id: "startedAt",
-      minSize: 80,
+      minSize: 100,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("Header.started")} />
       ),
       cell: ({ row }) => (
-        <div className="p-2">
+        <div className="p-2 whitespace-nowrap">
           {dateFormatter.dateTime(new Date(row.original.startedAt), {
             year: "numeric",
             month: "short",
@@ -34,7 +34,7 @@ export function getJobColumns(
 
     statusColumn: columnHelper.accessor("status", {
       id: "status",
-      minSize: 150,
+      minSize: 175,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("Header.status")} />
       ),
@@ -50,11 +50,12 @@ export function getJobColumns(
     idColumn: columnHelper.accessor("id", {
       id: "id",
       minSize: 200,
+      enableResizing: true,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("Header.id")} />
       ),
       cell: ({ row }) => (
-        <div className="p-2">
+        <div className="p-2 whitespace-nowrap">
           <div className="font-mono text-xs">{row.original.id}</div>
         </div>
       ),
