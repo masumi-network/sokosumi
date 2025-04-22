@@ -1,28 +1,33 @@
 import Image from "next/image";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import React, { Suspense } from "react";
 
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { getAgentResolvedImage, getAgents } from "@/lib/db";
+import { cn } from "@/lib/utils";
 
 interface AgentCardProps {
   name: string;
   description: string | null;
   image?: string;
   id: string;
-  isActive: boolean;
 }
 
-const AgentCard = ({
+const AgentShowcaseCard = ({
   name,
   description,
   image,
   id,
-  isActive,
 }: AgentCardProps) => {
+  const t = useTranslations("Landing.Page.Hero.AgentsShowcase");
+
   return (
     <div
-      className={`bg-background/20 group flex h-[90px] items-center overflow-hidden rounded-lg shadow-[0_0_15px_#fff4] backdrop-blur-sm transition-all duration-300 hover:w-[300px] ${isActive ? "w-[300px]" : "w-[90px]"}`}
+      className={cn(
+        "bg-background/20 group flex h-[90px] w-[90px] items-center overflow-hidden rounded-lg shadow-md transition-all duration-300 hover:w-[300px]",
+      )}
     >
       <Image
         src={image ?? "/placeholder.svg"}
@@ -31,54 +36,47 @@ const AgentCard = ({
         height={90}
         className="shrink-0 object-cover"
       />
-      <div
-        className={`w-full max-w-[210px] px-3 transition-opacity duration-300 ${isActive ? "opacity-0" : "opacity-100 group-hover:opacity-100"}`}
-      >
+      <div className="w-[210px] px-3 opacity-100 transition-opacity duration-300 group-hover:opacity-100">
         <h3 className="mb-1 truncate text-sm font-bold">{name}</h3>
         {description && (
           <p className="text-foreground mb-2 w-full truncate text-xs">
             {description}
           </p>
         )}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="bg-background/20 text-foreground hover:text-foreground hover:bg-background/30 dark:bg-quinary dark:hover:bg-quinary/80 text-xs"
-        >
-          <Link href={`/agents/${id}`}>{"View Agent"}</Link>
-        </Button>
+        <Link href={`/agents/${id}`}>
+          <Button variant="default" size="sm">
+            {t("viewAgent")}
+          </Button>
+        </Link>
       </div>
     </div>
   );
 };
 
 const AgentCardSkeleton = () => {
-  return (
-    <div className="bg-secondary h-[88px] w-[88px] animate-pulse rounded-lg" />
-  );
+  return <Skeleton className="h-[90px] w-[90px] rounded-md" />;
 };
 
-async function AgentsList() {
+async function AgentsShowcaseList() {
   const agents = await getAgents();
   const firstFiveAgents = agents.slice(0, 5);
 
   return (
     <div className="flex items-center gap-4">
       {firstFiveAgents.map((agent) => (
-        <AgentCard
+        <AgentShowcaseCard
           key={agent.id}
           id={agent.id}
           name={agent.name}
           description={agent.description}
           image={getAgentResolvedImage(agent)}
-          isActive={false}
         />
       ))}
     </div>
   );
 }
 
-function ShowcaseSkeleton() {
+function AgentsShowcaseSkeleton() {
   return (
     <div className="flex items-center gap-4">
       {[1, 2, 3, 4, 5].map((i) => (
@@ -90,9 +88,9 @@ function ShowcaseSkeleton() {
 
 export default function AgentsShowcase() {
   return (
-    <div className="absolute bottom-0 left-0 flex w-full items-center justify-center gap-4 px-12 py-6">
-      <Suspense fallback={<ShowcaseSkeleton />}>
-        <AgentsList />
+    <div className="absolute bottom-0 left-0 z-10 flex w-full items-center justify-center gap-4 px-12 py-6">
+      <Suspense fallback={<AgentsShowcaseSkeleton />}>
+        <AgentsShowcaseList />
       </Suspense>
     </div>
   );

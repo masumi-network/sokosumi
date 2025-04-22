@@ -72,16 +72,12 @@ function AgentCard({
   }
 
   return (
-    <Link
-      href={`${pathname}/${agent.id}`}
-      className="focus:ring-primary block rounded-lg focus:ring-2 focus:outline-none"
-    >
+    <Link href={`${pathname}/${agent.id}`}>
       <Card
         className={cn(
-          "group bg-card flex w-72 cursor-pointer flex-col gap-4 rounded-none border-none p-0 shadow-none transition-shadow hover:shadow-none",
+          "group bg-background relative flex w-72 flex-col gap-4 rounded-lg border-none p-0 shadow-none",
           className,
         )}
-        tabIndex={-1}
       >
         {/* Bookmark Button (hover only) */}
         {agentList && (

@@ -1,10 +1,23 @@
 {
   "Footer": {
-    "Navigation": {
-      "PrivacyPolicy": "Privacy Policy",
-      "TermsAndConditions": "Terms & Conditions",
-      "Imprint": "Imprint",
-      "Contact": "Contact"
+    "Navigate": {
+      "title": "Navigate",
+      "agentsGallery": "Agents Gallery",
+      "contribute": "Contribute"
+    },
+    "Connect": {
+      "title": "Connect",
+      "twitter": "X/Twitter",
+      "discord": "Discord"
+    },
+    "GetInTouch": {
+      "title": "Get In Touch",
+      "contact": "Contact"
+    },
+    "AgenticServices": {
+      "title": "Agentic Services",
+      "masumi": "masumi",
+      "kodosumi": "kodosumi"
     },
     "copyright": "© {year} Masumi"
   },
@@ -278,7 +291,10 @@
     "Page": {
       "Hero": {
         "caption": "The most powerful way to find and hire agents. Prompt, run, edit and deploy your agents.",
-        "title": "A marketplace for agent-to-agent interactions"
+        "title": "A marketplace for agent-to-agent interactions",
+        "AgentsShowcase": {
+          "viewAgent": "View Agent"
+        }
       },
       "Endorsements": {
         "title": "Endorsed by leading brands"

@@ -1,110 +1,104 @@
 import { ArrowUpRightFromSquare, Languages } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import ThemeToggle from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+
+const sectionsData = [
+  {
+    name: "Navigate",
+    items: [
+      { key: "agentsGallery", href: "/agents", showExternalLinkIcon: false },
+      {
+        key: "contribute",
+        href: "https://github.com/masumi-network",
+        showExternalLinkIcon: false,
+      },
+    ],
+  },
+  {
+    name: "Connect",
+    items: [
+      {
+        key: "twitter",
+        href: "https://x.com/MasumiNetwork",
+        showExternalLinkIcon: false,
+      },
+      {
+        key: "discord",
+        href: "https://discord.com/invite/aj4QfnTS92",
+        showExternalLinkIcon: false,
+      },
+    ],
+  },
+  {
+    name: "GetInTouch",
+    items: [
+      {
+        key: "contact",
+        href: "https://www.masumi.network/contact",
+        showExternalLinkIcon: false,
+      },
+    ],
+  },
+  {
+    name: "AgenticServices",
+    items: [
+      {
+        key: "masumi",
+        href: "https://masumi.network",
+        showExternalLinkIcon: true,
+      },
+      {
+        key: "kodosumi",
+        href: "https://kodosumi.io",
+        showExternalLinkIcon: true,
+      },
+    ],
+  },
+];
 
 export default function Footer() {
+  const t = useTranslations("Footer");
+
   return (
-    <footer className="bg-background text-foreground">
+    <footer>
       <div className="container mx-auto px-12 py-12">
         <div className="mb-20 grid grid-cols-1 gap-8 md:grid-cols-4">
-          {/* NAVIGATE */}
-          <div className="border-t pt-8">
-            <h3 className="mb-4 font-medium">{"NAVIGATE"}</h3>
-            <ul className="space-y-2">
-              <li>
-                <Link href="/agents" className="hover:text-gray-300">
-                  {"Agents Gallery"}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="https://github.com/masumi-network"
-                  target="_blank"
-                  className="hover:text-gray-300"
-                >
-                  {"Contribute"}
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* CONNECT */}
-          <div className="border-t pt-8">
-            <h3 className="mb-4 font-medium">{"CONNECT"}</h3>
-            <ul className="space-y-2">
-              <li>
-                <Link
-                  href="https://x.com/MasumiNetwork"
-                  className="hover:text-gray-300"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {"X/Twitter"}
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="https://discord.com/invite/aj4QfnTS92"
-                  className="hover:text-gray-300"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  {"Discord"}
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* GET IN TOUCH */}
-          <div className="border-t pt-8">
-            <h3 className="mb-4 font-medium">{"GET IN TOUCH"}</h3>
-            <ul className="space-y-2">
-              <li>
-                <Link
-                  href="https://www.masumi.network/contact"
-                  target="_blank"
-                  className="hover:text-gray-300"
-                >
-                  {"Contact"}
-                </Link>
-              </li>
-            </ul>
-          </div>
-
-          {/* AGENTIC SERVICES */}
-          <div className="border-t pt-8">
-            <h3 className="mb-4 font-medium">{"AGENTIC SERVICES"}</h3>
-            <ul className="space-y-2">
-              <li>
-                <Link
-                  href="https://masumi.network"
-                  className="flex items-center gap-1 hover:text-gray-300"
-                >
-                  {"masumi"}
-                  <ArrowUpRightFromSquare className="h-4 w-4" />
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="https://kodosumi.io"
-                  className="flex items-center gap-1 hover:text-gray-300"
-                >
-                  {"kodosumi"}
-                  <ArrowUpRightFromSquare className="h-4 w-4" />
-                </Link>
-              </li>
-            </ul>
-          </div>
+          {sectionsData.map(({ name, items }) => (
+            <div className="border-t pt-8" key={name}>
+              <h3 className="mb-4 font-medium uppercase">
+                {t(`${name}.title`)}
+              </h3>
+              <ul className="space-y-2">
+                {items.map(({ key, href, showExternalLinkIcon }) => (
+                  <li key={key}>
+                    <Link
+                      href={href}
+                      className={cn({
+                        "flex items-center gap-1": showExternalLinkIcon,
+                      })}
+                    >
+                      {t(`${name}.${key}`)}
+                      {showExternalLinkIcon && (
+                        <ArrowUpRightFromSquare className="h-4 w-4" />
+                      )}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
         </div>
 
         {/* Bottom section */}
         <div className="flex flex-col items-center justify-between pt-8 md:flex-row">
           <div className="mb-4 flex items-center gap-4 md:mb-0">
             <ThemeToggle />
-            <Button className="bg-quarterny text-foreground hover:bg-quarterny/90">
+            <Button variant="outline">
               <Languages className="h-4 w-4" />
               <span>{"English"}</span>
             </Button>
