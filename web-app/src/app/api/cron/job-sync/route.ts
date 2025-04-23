@@ -58,7 +58,14 @@ async function syncAllJobs() {
 
   const jobs = await prisma.job.findMany({
     where: {
-      status: "PAYMENT_PENDING",
+      status: {
+        notIn: [
+          "PAYMENT_FAILED",
+          "COMPLETED",
+          "REFUND_RESOLVED",
+          "DISPUTE_RESOLVED",
+        ],
+      },
     },
   });
 

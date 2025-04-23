@@ -141,6 +141,7 @@ export async function syncJobStatus(job: Job) {
     throw new Error("Failed to get job status");
   }
   const jobStatusResponse = jobStatusResult.data;
+
   switch (onChainState) {
     case null: {
       if (errorType === null) {
