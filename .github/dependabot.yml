@@ -12,7 +12,7 @@ updates:
       - "mrgrauel"
       - "golddydev"
     commit-message:
-      prefix: "build(deps)"
+      prefix: "chore(deps)"
 
   # Enable version updates for npm in the web-app directory
   - package-ecosystem: "npm"
@@ -26,7 +26,7 @@ updates:
       - "mrgrauel"
       - "golddydev"
     commit-message:
-      prefix: "build(deps)"
+      prefix: "chore(deps)"
   
   # Enable version updates for npm in the job-cron-caller directory
   - package-ecosystem: "npm"
@@ -43,7 +43,7 @@ updates:
       - "mrgrauel"
       - "golddydev"
     commit-message:
-      prefix: "build(deps)"
+      prefix: "chore(deps)"
   
   # Enable version updates for npm in the registry-cron-caller directory
   - package-ecosystem: "npm"
@@ -60,4 +60,4 @@ updates:
       - "mrgrauel"
       - "golddydev"
     commit-message:
-      prefix: "build(deps)"
+      prefix: "chore(deps)"
