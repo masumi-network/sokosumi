@@ -416,8 +416,8 @@
     },
     "Header": {
       "Credit": {
-        "balance": "credit balance: {credits}",
-        "unavailable": "credit balance: unknown"
+        "balance": "Credits Balance: {credits}",
+        "unavailable": "Credits Balance: unknown"
       }
     },
     "Billing": {

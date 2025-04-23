@@ -20,7 +20,7 @@ export default function Header({ className }: HeaderProps) {
     >
       <CustomTrigger when="invisible" />
       <BreadcrumbNavigation className="flex flex-1 px-2 sm:px-4" />
-      <UserCredits className="text-muted-foreground text-sm" />
+      <UserCredits />
       <UserAvatar />
       <ThemeToggle />
     </header>
