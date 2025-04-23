@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
@@ -64,8 +65,19 @@ export default function SignUpForm() {
       namespace="Landing.Auth.Pages.SignUp.Form"
       onSubmit={onSubmit}
     >
-      <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
-        <SubmitButton form={form} label={t("submit")} />
+      <div className="flex flex-col gap-4">
+        <SubmitButton form={form} label={t("submit")} className="w-full" />
+        <div className="flex flex-col items-center gap-2 sm:flex-row">
+          <span className="text-muted-foreground text-sm">
+            {t("Login.message")}
+          </span>
+          <Link
+            href="/login"
+            className="text-primary text-sm font-medium hover:underline"
+          >
+            {t("Login.link")}
+          </Link>
+        </div>
       </div>
     </AuthForm>
   );

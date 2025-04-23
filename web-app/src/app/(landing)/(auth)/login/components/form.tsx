@@ -27,14 +27,17 @@ export default function SignInForm() {
     defaultValues: {
       email: "",
       currentPassword: "",
+      rememberMe: false,
     },
   });
 
   const onSubmit = async (values: SignInFormSchemaType) => {
+    console.log(values);
     await authClient.signIn.email(
       {
         email: values.email,
         password: values.currentPassword,
+        rememberMe: values.rememberMe,
       },
       {
         onError: (ctx) => {
@@ -62,21 +65,25 @@ export default function SignInForm() {
       namespace="Landing.Auth.Pages.SignIn.Form"
       onSubmit={onSubmit}
     >
-      <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
-        <SubmitButton
-          form={form}
-          label={t("submit")}
-          className="w-full sm:w-auto"
-        />
-        <div className="text-sm">
-          <span className="text-muted-foreground">
-            {t("ForgotPassword.text")}{" "}
-          </span>
+      <div className="flex flex-col gap-4">
+        <SubmitButton form={form} label={t("submit")} className="w-full" />
+        <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <span className="text-muted-foreground text-sm">
+              {t("Register.message")}
+            </span>
+            <Link
+              href="/register"
+              className="text-primary text-sm font-medium hover:underline"
+            >
+              {t("Register.link")}
+            </Link>
+          </div>
           <Link
             href={`/forgot-password${form.watch("email") ? `?email=${encodeURIComponent(form.watch("email"))}` : ""}`}
-            className="text-primary font-medium hover:underline"
+            className="text-muted-foreground text-sm hover:underline"
           >
-            {t("ForgotPassword.link")}
+            {t("forgotPassword")}
           </Link>
         </div>
       </div>

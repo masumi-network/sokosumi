@@ -3,14 +3,15 @@
 import { useTranslations } from "next-intl";
 import { FieldValues, Path, UseFormReturn } from "react-hook-form";
 
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   FormControl,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { FormData } from "@/lib/form";
 
 import { AuthNamespace } from "./types";
@@ -30,20 +31,32 @@ export function FormFields<T extends FieldValues>({
 
   return (
     <>
-      {formData.map(({ name, labelKey, placeholderKey, type }) => (
+      {formData.map(({ name, placeholderKey, labelKey, type }) => (
         <FormField
           key={name.toString()}
           control={form.control}
           name={name as unknown as Path<T>}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{labelKey && t(labelKey)}</FormLabel>
               <FormControl>
-                <Input
-                  placeholder={placeholderKey && t(placeholderKey)}
-                  type={type ?? "text"}
-                  {...field}
-                />
+                {type === "checkbox" ? (
+                  <div className="flex items-center gap-2">
+                    <Checkbox
+                      id={labelKey?.toString() ?? name.toString()}
+                      checked={field.value}
+                      onCheckedChange={field.onChange}
+                    />
+                    <Label htmlFor={labelKey?.toString() ?? name.toString()}>
+                      {labelKey && t(labelKey)}
+                    </Label>
+                  </div>
+                ) : (
+                  <Input
+                    placeholder={placeholderKey && t(placeholderKey)}
+                    type={type ?? "text"}
+                    {...field}
+                  />
+                )}
               </FormControl>
               <FormMessage />
             </FormItem>

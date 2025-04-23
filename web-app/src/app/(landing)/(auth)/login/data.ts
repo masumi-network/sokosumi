@@ -7,6 +7,7 @@ const signInFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z.object({
     email: emailSchema(t),
     currentPassword: inputPasswordSchema(t),
+    rememberMe: z.boolean(),
   });
 
 type SignInFormSchemaType = z.infer<ReturnType<typeof signInFormSchema>>;
@@ -17,14 +18,17 @@ const signInFormData: FormData<
 > = [
   {
     name: "email",
-    labelKey: "Fields.Email.label",
     placeholderKey: "Fields.Email.placeholder",
   },
   {
     name: "currentPassword",
-    labelKey: "Fields.Password.label",
     placeholderKey: "Fields.Password.placeholder",
     type: "password",
+  },
+  {
+    name: "rememberMe",
+    labelKey: "Fields.RememberMe.label",
+    type: "checkbox",
   },
 ];
 

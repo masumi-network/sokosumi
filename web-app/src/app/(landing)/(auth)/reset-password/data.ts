@@ -27,13 +27,11 @@ export const resetPasswordFormData: FormData<
 > = [
   {
     name: "password",
-    labelKey: "Fields.Password.label",
     placeholderKey: "Fields.Password.placeholder",
     type: "password",
   },
   {
     name: "confirmPassword",
-    labelKey: "Fields.ConfirmPassword.label",
     placeholderKey: "Fields.ConfirmPassword.placeholder",
     type: "password",
   },

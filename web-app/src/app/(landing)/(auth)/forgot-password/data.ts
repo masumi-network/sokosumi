@@ -18,7 +18,6 @@ const forgotPasswordFormData: FormData<
 > = [
   {
     name: "email",
-    labelKey: "Fields.Email.label",
     placeholderKey: "Fields.Email.placeholder",
   },
 ];

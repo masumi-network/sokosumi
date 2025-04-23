@@ -21,7 +21,7 @@ export function BaseForm<T extends FieldValues>({
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <fieldset
           disabled={form.formState.isSubmitting}
-          className="flex flex-col gap-6"
+          className="flex flex-col gap-3"
         >
           {children}
         </fieldset>
