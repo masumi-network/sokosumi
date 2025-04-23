@@ -15,20 +15,20 @@ import GalleryButton from "./components/gallery-button";
 export default function Sidebar() {
   return (
     <ShadcnSidebar>
-      <SidebarHeader>
+      <SidebarHeader className="h-[64px] border-b">
         <div className="flex items-center justify-between gap-2 p-2">
           <Link href="/app">
             <ThemedLogo
               LogoComponent={SokosumiLogo}
               priority
-              width={140}
-              height={18.2}
+              width={123}
+              height={16}
             />
           </Link>
           <CustomTrigger />
         </div>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="w-full">
         <AgentsList />
       </SidebarContent>
       <SidebarFooter>

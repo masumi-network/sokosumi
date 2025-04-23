@@ -1,4 +1,4 @@
-import { SquareTerminal } from "lucide-react";
+import { Ellipsis, SquareTerminal } from "lucide-react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
@@ -79,8 +79,6 @@ async function AgentsListContent() {
         noAgentsType={t("hiredType")}
         t={t}
       />
-
-      <ScrollBar orientation="horizontal" />
     </ScrollArea>
   );
 }
@@ -101,7 +99,7 @@ function AgentSection({
   t,
 }: AgentSectionProps) {
   return (
-    <SidebarGroup key={groupKey}>
+    <SidebarGroup key={groupKey} className="w-64">
       <SidebarGroupLabel className="text-base">{title}</SidebarGroupLabel>
       <SidebarGroupContent className="mt-2">
         {agents.length > 0 ? (
@@ -111,12 +109,13 @@ function AgentSection({
                 <SidebarMenuButton asChild>
                   <Link
                     href={`/app/agents/${agent.id}/jobs`}
-                    className="flex items-center gap-1"
+                    className="group/agent-menu flex w-full items-center gap-2"
                   >
                     <SquareTerminal />
-                    <span className="whitespace-nowrap">
+                    <span className="flex-1 truncate whitespace-nowrap">
                       {getAgentName(agent)}
                     </span>
+                    <Ellipsis className="opacity-0 group-hover/agent-menu:opacity-100" />
                   </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
