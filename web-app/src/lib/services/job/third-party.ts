@@ -1,6 +1,5 @@
 "use server";
 
-import { Client } from "@hey-api/client-next";
 import { Err, Ok, Result } from "ts-res";
 
 import { getEnvPublicConfig } from "@/config/env.config";
@@ -9,6 +8,7 @@ import {
   postPurchase,
   PostPurchaseResponse,
 } from "@/lib/api/generated/payment";
+import { getPaymentClient } from "@/lib/api/payment-service.client";
 import { AgentWithRelations, getAgentApiBaseUrl } from "@/lib/db";
 import { JobInputData } from "@/lib/job-input";
 
@@ -19,7 +19,7 @@ import {
   StartJobResponseSchemaType,
 } from "./schemas";
 
-export async function getAgentJobStatus(
+export async function fetchAgentJobStatus(
   agent: AgentWithRelations,
   jobId: string,
 ): Promise<Result<JobStatusResponseSchemaType, string>> {
@@ -85,7 +85,6 @@ export async function startAgentJob(
 }
 
 export async function getPurchaseOnChainState(
-  paymentClient: Client,
   paymentId: string,
 ): Promise<
   Result<
@@ -94,6 +93,7 @@ export async function getPurchaseOnChainState(
   >
 > {
   try {
+    const paymentClient = getPaymentClient();
     const purchaseResponse = await getPurchase({
       client: paymentClient,
       query: {
@@ -125,7 +125,6 @@ export async function getPurchaseOnChainState(
 }
 
 export async function createPurchase(
-  paymentClient: Client,
   agent: AgentWithRelations,
   startJobResponse: StartJobResponseSchemaType,
   inputData: JobInputData,
@@ -133,6 +132,8 @@ export async function createPurchase(
   identifierFromPurchaser: string,
 ): Promise<Result<PostPurchaseResponse, string>> {
   try {
+    const paymentClient = getPaymentClient();
+
     const postPurchaseResponse = await postPurchase({
       client: paymentClient,
       body: {
