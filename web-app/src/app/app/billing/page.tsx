@@ -1,6 +1,6 @@
 import BillingForm from "@/components/billing/billing-form";
 import { getEnvSecrets } from "@/config/env.config";
-import { getConversionFactors } from "@/lib/actions/stripe.actions";
+import { getConversionFactors } from "@/lib/actions";
 import { requireAuthentication } from "@/lib/auth/utils";
 
 export default async function BillingPage() {

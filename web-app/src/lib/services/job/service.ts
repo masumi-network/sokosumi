@@ -2,7 +2,6 @@
 
 import { v4 as uuidv4 } from "uuid";
 
-import { getPaymentClient } from "@/lib/api/payment-service.client";
 import {
   createJob,
   getAgentById,
@@ -23,30 +22,24 @@ import {
   updateJobStatusToRefundResolved,
   updateJobStatusToUnknown,
 } from "@/lib/db";
-import { JobInputData } from "@/lib/job-input";
 import { calculateInputHash } from "@/lib/utils";
 import { Job, JobStatus } from "@/prisma/generated/client";
-import { getAgentPricing } from "@/services/agent.service";
-import {
-  getCreditsPrice,
-  validateCreditsBalance,
-} from "@/services/credit.service";
+import { getAgentPricing } from "@/services/agent";
+import { getCreditsPrice, validateCreditsBalance } from "@/services/credit";
 
+import { StartJobInputSchemaType } from "./schemas";
 import {
   createPurchase,
-  getAgentJobStatus,
+  fetchAgentJobStatus,
   getPurchaseOnChainState,
   startAgentJob,
 } from "./third-party";
 
-export async function startJob(
-  userId: string,
-  agentId: string,
-  maxAcceptedCents: bigint,
-  inputData: JobInputData,
-): Promise<Job> {
+export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
   return await prisma.$transaction(
     async (tx) => {
+      const { userId, agentId, maxAcceptedCents, inputData } = input;
+
       const agent = await getAgentById(agentId, tx);
       if (!agent) {
         throw new Error("Agent not found");
@@ -84,9 +77,7 @@ export async function startJob(
         throw new Error("Input data hash mismatch");
       }
 
-      const paymentClient = getPaymentClient();
       const createPurchaseResult = await createPurchase(
-        paymentClient,
         agent,
         startJobResponse,
         inputData,
@@ -133,13 +124,9 @@ export async function syncJobStatus(job: Job) {
   if (!agent) {
     throw new Error("Agent not found");
   }
-  const paymentClient = getPaymentClient();
 
   // get purchase on chain state
-  const onChainStateResult = await getPurchaseOnChainState(
-    paymentClient,
-    job.paymentId,
-  );
+  const onChainStateResult = await getPurchaseOnChainState(job.paymentId);
   if (!onChainStateResult.ok) {
     await updateJobStatusToPaymentNodeConnectionFailed(job.id);
     throw new Error("Failed to get payment on-chain status");
@@ -148,12 +135,13 @@ export async function syncJobStatus(job: Job) {
   const errorType = onChainStateResult.data.errorType;
 
   // get the job status from the agent
-  const jobStatusResult = await getAgentJobStatus(agent, job.agentJobId);
+  const jobStatusResult = await fetchAgentJobStatus(agent, job.agentJobId);
   if (!jobStatusResult.ok) {
     await updateJobStatusToAgentConnectionFailed(job.id);
     throw new Error("Failed to get job status");
   }
   const jobStatusResponse = jobStatusResult.data;
+
   switch (onChainState) {
     case null: {
       if (errorType === null) {

@@ -5,6 +5,7 @@ import { getEnvSecrets } from "@/config/env.config";
 import { compareApiKeys } from "@/lib/auth/utils";
 import { prisma } from "@/lib/db";
 import { getLock, releaseLock, syncJobStatus } from "@/lib/services";
+import { JobStatus } from "@/prisma/generated/client";
 
 const LOCK_KEY = "job-sync";
 
@@ -58,7 +59,14 @@ async function syncAllJobs() {
 
   const jobs = await prisma.job.findMany({
     where: {
-      status: "PAYMENT_PENDING",
+      status: {
+        notIn: [
+          JobStatus.PAYMENT_FAILED,
+          JobStatus.COMPLETED,
+          JobStatus.REFUND_RESOLVED,
+          JobStatus.DISPUTE_RESOLVED,
+        ],
+      },
     },
   });
 

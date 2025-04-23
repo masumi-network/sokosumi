@@ -1,21 +1,24 @@
 "use server";
 
-import { getPaymentInformation } from "@/lib/api/generated/registry";
-import { getRegistryClient } from "@/lib/api/registry-service.client";
 import {
-  getAgentApiBaseUrl,
+  AgentWithJobs,
   getAgentById,
   getAgentByIdWithPricing,
   getHiredAgents,
   prisma,
 } from "@/lib/db";
-import { jobInputsDataSchema, JobInputsDataSchemaType } from "@/lib/job-input";
+import { JobInputsDataSchemaType } from "@/lib/job-input";
 import { Prisma } from "@/prisma/generated/client";
+
+import {
+  fetchAgentInputSchema,
+  getAgentPaymentInformation,
+} from "./third-party";
 
 export async function getHiredAgentsOrderedByLatestJob(
   userId: string,
   tx: Prisma.TransactionClient = prisma,
-) {
+): Promise<AgentWithJobs[]> {
   const hiredAgentsWithJobs = await getHiredAgents(userId, tx);
 
   // Then sort them manually by the startedAt of the most recent job
@@ -42,15 +45,11 @@ export async function getAgentInputSchema(
     throw new Error(`Agent with ID ${agentId} not found`);
   }
 
-  const baseUrl = getAgentApiBaseUrl(agent);
-  const inputSchemaUrl = new URL(`/input_schema`, baseUrl);
-
-  const response = await fetch(inputSchemaUrl);
-  const schema = await response.json();
-
-  const inputSchema = jobInputsDataSchema(undefined).parse(schema);
-
-  return inputSchema;
+  const inputSchemaResult = await fetchAgentInputSchema(agent);
+  if (!inputSchemaResult.ok) {
+    throw new Error(inputSchemaResult.error);
+  }
+  return inputSchemaResult.data;
 }
 
 export async function getAgentPricing(
@@ -62,21 +61,9 @@ export async function getAgentPricing(
   if (!agent) {
     throw new Error("Agent not found");
   }
-  const registryClient = getRegistryClient();
-
-  const paymentInformation = await getPaymentInformation({
-    client: registryClient,
-    query: {
-      agentIdentifier: agent.blockchainIdentifier,
-    },
-  });
-
-  if (
-    !paymentInformation ||
-    !paymentInformation.data ||
-    !paymentInformation.data.data
-  ) {
-    throw new Error("Payment information not found or invalid price");
+  const agentPricingResult = await getAgentPaymentInformation(agent);
+  if (!agentPricingResult.ok) {
+    throw new Error(agentPricingResult.error);
   }
-  return paymentInformation.data.data.AgentPricing;
+  return agentPricingResult.data;
 }
