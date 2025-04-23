@@ -1,4 +1,4 @@
-import { Ellipsis, SquareTerminal } from "lucide-react";
+import { SquareTerminal } from "lucide-react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
@@ -20,6 +20,8 @@ import {
   getHiredAgentsOrderedByLatestJob,
 } from "@/lib/services";
 import { Agent } from "@/prisma/generated/client";
+
+import AgentDropdownMenu from "./agent-dropdown-menu";
 
 export default function AgentsList() {
   return (
@@ -107,16 +109,16 @@ function AgentSection({
             {agents.map((agent) => (
               <SidebarMenuItem key={agent.id}>
                 <SidebarMenuButton asChild>
-                  <Link
-                    href={`/app/agents/${agent.id}/jobs`}
-                    className="group/agent-menu flex w-full items-center gap-2"
-                  >
-                    <SquareTerminal />
-                    <span className="flex-1 truncate whitespace-nowrap">
+                  <div className="group/agent-menu flex w-full items-center gap-2">
+                    <SquareTerminal className="h-4 w-4" />
+                    <Link
+                      href={`/app/agents/${agent.id}/jobs`}
+                      className="truncate"
+                    >
                       {getAgentName(agent)}
-                    </span>
-                    <Ellipsis className="opacity-0 group-hover/agent-menu:opacity-100" />
-                  </Link>
+                    </Link>
+                    <AgentDropdownMenu agent={agent} />
+                  </div>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}

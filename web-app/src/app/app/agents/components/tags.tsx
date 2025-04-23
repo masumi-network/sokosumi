@@ -60,44 +60,42 @@ export default function Tags({
   };
 
   return (
-    <div className="flex gap-2">
-      <DropdownMenu open={open} onOpenChange={setOpen}>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="outline"
-            className="items-center gap-2 border-dashed text-base"
-          >
-            {appliedTags.length === 0 ? (
-              <CirclePlus className="h-4 w-4" />
-            ) : (
-              <Badge>{appliedTags.length}</Badge>
-            )}
-            {t("tags")}
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-56">
-          <DropdownMenuLabel>{t("selectTags")}</DropdownMenuLabel>
-          <DropdownMenuSeparator />
-          <FixedSizeList
-            height={360}
-            itemCount={validTags.length}
-            width="100%"
-            itemSize={36}
-          >
-            {Row}
-          </FixedSizeList>
-          <DropdownMenuSeparator />
-          <Button
-            className="w-full"
-            onClick={() => {
-              onApplyTags(tags);
-              setOpen(false);
-            }}
-          >
-            {t("applyTags")}
-          </Button>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+    <DropdownMenu open={open} onOpenChange={setOpen}>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="outline"
+          className="items-center gap-2 border-dashed text-base"
+        >
+          {appliedTags.length === 0 ? (
+            <CirclePlus className="h-4 w-4" />
+          ) : (
+            <Badge>{appliedTags.length}</Badge>
+          )}
+          {t("tags")}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent className="w-56">
+        <DropdownMenuLabel>{t("selectTags")}</DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <FixedSizeList
+          height={360}
+          itemCount={validTags.length}
+          width="100%"
+          itemSize={36}
+        >
+          {Row}
+        </FixedSizeList>
+        <DropdownMenuSeparator />
+        <Button
+          className="w-full"
+          onClick={() => {
+            onApplyTags(tags);
+            setOpen(false);
+          }}
+        >
+          {t("applyTags")}
+        </Button>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
