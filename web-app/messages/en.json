@@ -534,7 +534,7 @@
             "paymentFailed": "Payment Failed",
             "processing": "Processing",
             "agentConnectionFailed": "Agent Connection Failed",
-            "paymentNodeConnectionFailed": "Payment Node Connection Failed",
+            "paymentNodeConnectionFailed": "Node Connection Failed",
             "inputRequired": "Input Required",
             "disputeRequested": "Dispute Requested",
             "disputeResolved": "Dispute Resolved",
