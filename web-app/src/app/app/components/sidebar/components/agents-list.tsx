@@ -1,3 +1,4 @@
+import { SquareTerminal } from "lucide-react";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
@@ -108,7 +109,11 @@ function AgentSection({
             {agents.map((agent) => (
               <SidebarMenuItem key={agent.id}>
                 <SidebarMenuButton asChild>
-                  <Link href={`/app/agents/${agent.id}/jobs`}>
+                  <Link
+                    href={`/app/agents/${agent.id}/jobs`}
+                    className="flex items-center gap-1"
+                  >
+                    <SquareTerminal />
                     <span className="whitespace-nowrap">
                       {getAgentName(agent)}
                     </span>
