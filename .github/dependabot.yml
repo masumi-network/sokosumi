@@ -10,7 +10,6 @@ updates:
     open-pull-requests-limit: 10
     reviewers:
       - "mrgrauel"
-      - "bytegen-dev"
       - "golddydev"
     commit-message:
       prefix: "build(deps)"
@@ -25,7 +24,6 @@ updates:
     open-pull-requests-limit: 10
     reviewers:
       - "mrgrauel"
-      - "bytegen-dev"
       - "golddydev"
     commit-message:
       prefix: "build(deps)"
@@ -43,7 +41,6 @@ updates:
     open-pull-requests-limit: 10
     reviewers:
       - "mrgrauel"
-      - "bytegen-dev"
       - "golddydev"
     commit-message:
       prefix: "build(deps)"
@@ -61,7 +58,6 @@ updates:
     open-pull-requests-limit: 10
     reviewers:
       - "mrgrauel"
-      - "bytegen-dev"
       - "golddydev"
     commit-message:
       prefix: "build(deps)"
