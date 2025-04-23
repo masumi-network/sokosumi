@@ -1,4 +1,4 @@
-import { Prisma } from "@/prisma/generated/client";
+import { JobStatus, Prisma } from "@/prisma/generated/client";
 
 export const jobInclude = {
   agent: true,
@@ -25,3 +25,16 @@ export enum JobErrorNoteKeys {
   StatusMismatch = "Job.StatusMismatch",
   Unknown = "Job.UnknownState",
 }
+
+export const finalizedJobStates: JobStatus[] = [
+  JobStatus.COMPLETED,
+  JobStatus.PAYMENT_FAILED,
+  JobStatus.DISPUTE_RESOLVED,
+  JobStatus.REFUND_RESOLVED,
+];
+
+export const allJobStates: JobStatus[] = Object.values(JobStatus);
+
+export const pendingJobStates: JobStatus[] = allJobStates.filter(
+  (state) => !finalizedJobStates.includes(state),
+);
