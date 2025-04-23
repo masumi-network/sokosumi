@@ -196,6 +196,7 @@ export async function updateJobStatusToPaymentPending(
 
 export async function updateJobStatusToPaymentFailed(
   jobId: string,
+  creditTransaction: CreditTransaction,
   errorType?: PurchaseErrorType,
   tx: Prisma.TransactionClient = prisma,
 ) {
@@ -206,6 +207,17 @@ export async function updateJobStatusToPaymentFailed(
     data: {
       status: JobStatus.PAYMENT_FAILED,
       errorType,
+      refundedCreditTransaction: {
+        create: {
+          amount: creditTransaction.amount * BigInt(-1),
+          includedFee: creditTransaction.includedFee,
+          user: {
+            connect: {
+              id: creditTransaction.userId,
+            },
+          },
+        },
+      },
       finishedAt: new Date(),
     },
   });
@@ -249,7 +261,6 @@ export async function updateJobStatusToRefundRequested(
 
 export async function updateJobStatusToRefundResolved(
   jobId: string,
-  userId: string,
   creditTransaction: CreditTransaction,
   tx: Prisma.TransactionClient = prisma,
 ) {
@@ -265,7 +276,7 @@ export async function updateJobStatusToRefundResolved(
           includedFee: creditTransaction.includedFee,
           user: {
             connect: {
-              id: userId,
+              id: creditTransaction.userId,
             },
           },
         },
