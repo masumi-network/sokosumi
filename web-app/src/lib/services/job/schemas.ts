@@ -2,6 +2,16 @@ import { z } from "zod";
 
 import { jobInputSchema } from "@/lib/job-input";
 
+export const startJobInputSchema = z.object({
+  userId: z.string(),
+  agentId: z.string(),
+  maxAcceptedCents: z.bigint(),
+  inputData: z.map(
+    z.string(),
+    z.union([z.number(), z.string(), z.boolean(), z.array(z.number())]),
+  ),
+});
+
 export const startJobResponseSchema = z.object({
   status: z.enum(["success", "error"]),
   job_id: z.string().min(1),
@@ -36,6 +46,7 @@ export const jobStatusResponseSchema = z.object({
   result: z.string().nullish(),
 });
 
+export type StartJobInputSchemaType = z.infer<typeof startJobInputSchema>;
 export type StartJobResponseSchemaType = z.infer<typeof startJobResponseSchema>;
 export type JobStatusResponseSchemaType = z.infer<
   typeof jobStatusResponseSchema

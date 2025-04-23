@@ -6,7 +6,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { toggleAgentInList } from "@/lib/actions/agent.actions";
+import { toggleAgentInList } from "@/lib/actions";
 import { AgentListWithAgent } from "@/lib/db";
 import { cn } from "@/lib/utils";
 

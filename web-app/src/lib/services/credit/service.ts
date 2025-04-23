@@ -1,7 +1,5 @@
 "use server";
 
-import { z } from "zod";
-
 import { getEnvPublicConfig } from "@/config/env.config";
 import {
   AgentWithFixedPricing,
@@ -12,6 +10,8 @@ import {
   prisma,
 } from "@/lib/db";
 import { Prisma } from "@/prisma/generated/client";
+
+import { pricingAmountsSchema, PricingAmountsSchemaType } from "./schema";
 
 /**
  * Retrieves the total credit balance for a given user, expressed in credits.
@@ -52,13 +52,6 @@ export async function validateCreditsBalance(
     throw new Error("Insufficient balance");
   }
 }
-
-const amountsSchema = z.array(
-  z.object({
-    unit: z.string(),
-    amount: z.number().positive(),
-  }),
-);
 
 /**
  * Calculates the total credit price (in cents) and included fee for a given agent's fixed pricing.
@@ -104,7 +97,7 @@ export async function getAgentCreditsPrice(
  * @throws Error if a credit cost for a unit is not found or if the fee percentage is negative.
  */
 export async function getCreditsPrice(
-  amounts: { unit: string; amount: number }[],
+  amounts: PricingAmountsSchemaType,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<CreditsPrice> {
   const feePercentagePoints = getEnvPublicConfig().NEXT_PUBLIC_FEE_PERCENTAGE;
@@ -113,7 +106,7 @@ export async function getCreditsPrice(
   }
   const feeMultiplier = feePercentagePoints / 100;
 
-  const amountsParsed = amountsSchema.parse(amounts);
+  const amountsParsed = pricingAmountsSchema.parse(amounts);
 
   let totalCents = BigInt(0);
   let totalFee = BigInt(0);
