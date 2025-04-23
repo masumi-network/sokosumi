@@ -1,5 +1,6 @@
 "use server";
-import { auth } from "@/lib/auth/auth";
+
+import { auth } from "./auth";
 
 export async function signInSocial(
   provider: "google" | "microsoft" | "apple" | "linkedin",
