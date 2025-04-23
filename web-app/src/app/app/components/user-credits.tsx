@@ -26,9 +26,9 @@ export default async function UserCredits() {
     );
   }
   return (
-    <div className="flex flex-col items-end gap-1">
-      <div className="text-sm font-medium">{user.name}</div>
-      <div className="text-muted-foreground text-sm">
+    <div className="flex flex-col items-end gap-0.5">
+      <div className="text-sm font-semibold">{user.name}</div>
+      <div className="text-muted-foreground text-xs">
         {t("balance", { credits: credits })}
       </div>
     </div>

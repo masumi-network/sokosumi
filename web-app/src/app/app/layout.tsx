@@ -31,8 +31,8 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     <SidebarProvider defaultOpen={defaultOpen}>
       <Sidebar />
       <div className="flex h-svh flex-1 flex-col">
-        <Header className="h-[72px]" />
-        <main className="flex min-h-[calc(100svh-72px)] flex-1 flex-col">
+        <Header className="h-[64px]" />
+        <main className="flex min-h-[calc(100svh-64px)] flex-1 flex-col">
           <div className="flex min-h-[calc(100%-48px)] flex-1 flex-col">
             {children}
           </div>
