@@ -7,8 +7,6 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
 import { AuthForm, SubmitButton } from "@/landing/(auth)/components/form";
 import {
   signInFormData,
@@ -29,14 +27,17 @@ export default function SignInForm() {
     defaultValues: {
       email: "",
       currentPassword: "",
+      rememberMe: false,
     },
   });
 
   const onSubmit = async (values: SignInFormSchemaType) => {
+    console.log(values);
     await authClient.signIn.email(
       {
         email: values.email,
         password: values.currentPassword,
+        rememberMe: values.rememberMe,
       },
       {
         onError: (ctx) => {
@@ -65,30 +66,24 @@ export default function SignInForm() {
       onSubmit={onSubmit}
     >
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
-          <div className="flex items-center gap-2">
-            <Checkbox id="rememberMe" />
-            <Label htmlFor="rememberMe" className="text-sm">
-              {t("rememberMe")}
-            </Label>
+        <SubmitButton form={form} label={t("submit")} className="w-full" />
+        <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <span className="text-muted-foreground text-sm">
+              {t("Register.message")}
+            </span>
+            <Link
+              href="/register"
+              className="text-primary text-sm font-medium hover:underline"
+            >
+              {t("Register.link")}
+            </Link>
           </div>
           <Link
             href={`/forgot-password${form.watch("email") ? `?email=${encodeURIComponent(form.watch("email"))}` : ""}`}
             className="text-muted-foreground text-sm hover:underline"
           >
             {t("forgotPassword")}
-          </Link>
-        </div>
-        <SubmitButton form={form} label={t("submit")} className="w-full" />
-        <div className="flex flex-col items-center gap-2 sm:flex-row">
-          <span className="text-muted-foreground text-sm">
-            {t("Register.message")}
-          </span>
-          <Link
-            href="/register"
-            className="text-primary text-sm font-medium hover:underline"
-          >
-            {t("Register.link")}
           </Link>
         </div>
       </div>

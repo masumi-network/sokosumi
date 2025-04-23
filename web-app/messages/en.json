@@ -193,9 +193,11 @@
               },
               "Password": {
                 "placeholder": "Password"
+              },
+              "RememberMe": {
+                "label": "Keep me signed in"
               }
             },
-            "rememberMe": "Keep me signed in",
             "forgotPassword": "Forgot password?",
             "Register": {
               "message": "Don't have an account?",

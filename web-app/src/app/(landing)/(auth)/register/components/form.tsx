@@ -65,10 +65,6 @@ export default function SignUpForm() {
       namespace="Landing.Auth.Pages.SignUp.Form"
       onSubmit={onSubmit}
     >
-      {/* <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
-        <SubmitButton form={form} label={t("submit")} />
-      </div> */}
-
       <div className="flex flex-col gap-4">
         <SubmitButton form={form} label={t("submit")} className="w-full" />
         <div className="flex flex-col items-center gap-2 sm:flex-row">
