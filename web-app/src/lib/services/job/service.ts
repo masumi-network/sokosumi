@@ -6,7 +6,7 @@ import { getPaymentClient } from "@/lib/api/payment-service.client";
 import {
   createJob,
   getAgentById,
-  getJobByIdWithCreditTransaction,
+  getCreditTransactionByJobId,
   JobErrorNoteKeys,
   prisma,
   updateJobStatusToAgentConnectionFailed,
@@ -159,7 +159,21 @@ export async function syncJobStatus(job: Job) {
       if (errorType === null) {
         await updateJobStatusToPaymentPending(job.id);
       } else {
-        await updateJobStatusToPaymentFailed(job.id, errorType);
+        await prisma.$transaction(async (tx) => {
+          const creditTransaction = await getCreditTransactionByJobId(
+            job.id,
+            tx,
+          );
+          if (!creditTransaction) {
+            throw new Error("Credit transaction not found");
+          }
+          await updateJobStatusToPaymentFailed(
+            job.id,
+            creditTransaction,
+            errorType,
+            tx,
+          );
+        });
       }
       break;
     }
@@ -181,18 +195,11 @@ export async function syncJobStatus(job: Job) {
     }
     case "RefundWithdrawn": {
       await prisma.$transaction(async (tx) => {
-        const jobToRefund = await getJobByIdWithCreditTransaction(job.id, tx);
-        if (!jobToRefund) {
-          throw new Error("Job to Refund not found");
+        const creditTransaction = await getCreditTransactionByJobId(job.id, tx);
+        if (!creditTransaction) {
+          throw new Error("Credit transaction not found");
         }
-        const creditTransaction = jobToRefund.creditTransaction;
-
-        await updateJobStatusToRefundResolved(
-          job.id,
-          jobToRefund.userId,
-          creditTransaction,
-          tx,
-        );
+        await updateJobStatusToRefundResolved(job.id, creditTransaction, tx);
       });
       break;
     }
@@ -205,7 +212,18 @@ export async function syncJobStatus(job: Job) {
       break;
     }
     case "FundsOrDatumInvalid": {
-      await updateJobStatusToPaymentFailed(job.id, errorType);
+      await prisma.$transaction(async (tx) => {
+        const creditTransaction = await getCreditTransactionByJobId(job.id, tx);
+        if (!creditTransaction) {
+          throw new Error("Credit transaction not found");
+        }
+        await updateJobStatusToPaymentFailed(
+          job.id,
+          creditTransaction,
+          errorType,
+          tx,
+        );
+      });
       break;
     }
     case "ResultSubmitted":
