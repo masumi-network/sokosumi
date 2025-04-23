@@ -6,8 +6,8 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { toggleAgentInList } from "@/lib/actions";
 import { AgentListWithAgent } from "@/lib/db";
-import { toggleAgentInList } from "@/lib/services";
 import { cn } from "@/lib/utils";
 
 interface AgentBookmarkButtonProps {

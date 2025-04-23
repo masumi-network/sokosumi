@@ -11,7 +11,7 @@ import {
 } from "react-social-login-buttons";
 import { toast } from "sonner";
 
-import { signInSocial } from "@/lib/actions/auth.actions";
+import { signInSocial } from "@/lib/actions";
 
 import Divider from "./divider";
 

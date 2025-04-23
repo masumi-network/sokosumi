@@ -1,9 +1,6 @@
 "use server";
 
-import {
-  createCheckoutSession,
-  getConversionFactors,
-} from "@/lib/actions/stripe.actions";
+import { createCheckoutSession, getConversionFactors } from "@/lib/actions";
 import {
   createFiatTransaction,
   getUserById,

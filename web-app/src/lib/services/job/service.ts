@@ -22,12 +22,12 @@ import {
   updateJobStatusToRefundResolved,
   updateJobStatusToUnknown,
 } from "@/lib/db";
-import { JobInputData } from "@/lib/job-input";
 import { calculateInputHash } from "@/lib/utils";
 import { Job, JobStatus } from "@/prisma/generated/client";
 import { getAgentPricing } from "@/services/agent";
 import { getCreditsPrice, validateCreditsBalance } from "@/services/credit";
 
+import { StartJobInputSchemaType } from "./schemas";
 import {
   createPurchase,
   fetchAgentJobStatus,
@@ -35,14 +35,11 @@ import {
   startAgentJob,
 } from "./third-party";
 
-export async function startJob(
-  userId: string,
-  agentId: string,
-  maxAcceptedCents: bigint,
-  inputData: JobInputData,
-): Promise<Job> {
+export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
   return await prisma.$transaction(
     async (tx) => {
+      const { userId, agentId, maxAcceptedCents, inputData } = input;
+
       const agent = await getAgentById(agentId, tx);
       if (!agent) {
         throw new Error("Agent not found");

@@ -1,23 +1,17 @@
 "use server";
 
 import { headers } from "next/headers";
-import { z } from "zod";
 
 import { auth } from "@/lib/auth/auth";
-import { startJob } from "@/lib/services";
+import {
+  startJob,
+  startJobInputSchema,
+  StartJobInputSchemaType,
+} from "@/lib/services";
 
-const startJobInputSchema = z.object({
-  agentId: z.string(),
-  maxAcceptedCents: z.bigint(),
-  inputData: z.record(
-    z.string(),
-    z.union([z.number(), z.string(), z.boolean(), z.array(z.number())]),
-  ),
-});
-
-export type StartJobInput = z.infer<typeof startJobInputSchema>;
-
-export async function startJobWithInputData(input: StartJobInput): Promise<{
+export async function startJobWithInputData(
+  input: Omit<StartJobInputSchemaType, "userId">,
+): Promise<{
   success: boolean;
   data?: { jobId: string };
   error?: { code: string };
@@ -32,26 +26,21 @@ export async function startJobWithInputData(input: StartJobInput): Promise<{
       error: { code: "NOT_AUTHENTICATED" },
     };
   }
+  const userId = session.user.id;
+  const inputDataForService: StartJobInputSchemaType = { ...input, userId };
 
   // Validation
-  const result = startJobInputSchema.safeParse(input);
-  if (!result.success) {
+  const parsedResult = startJobInputSchema.safeParse(inputDataForService);
+  if (!parsedResult.success) {
     return {
       success: false,
       error: { code: "INVALID_INPUT" },
     };
   }
 
-  const data = result.data;
-  const inputMap = new Map(Object.entries(data.inputData));
-
+  const data = parsedResult.data;
   try {
-    const job = await startJob(
-      session.user.id,
-      data.agentId,
-      data.maxAcceptedCents,
-      inputMap,
-    );
+    const job = await startJob(data);
     return { success: true, data: { jobId: job.id } };
   } catch (error) {
     if (error instanceof Error) {

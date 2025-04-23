@@ -10,10 +10,11 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { useAsyncRouterPush } from "@/hooks/use-async-router";
-import { startJobWithInputData } from "@/lib/actions/job.actions";
+import { startJobWithInputData } from "@/lib/actions";
 import { convertCentsToCredits, CreditsPrice } from "@/lib/db";
 import {
   defaultValues,
+  JobInputData,
   JobInputsDataSchemaType,
   jobInputsFormSchema,
   JobInputsFormSchemaType,
@@ -22,8 +23,8 @@ import { cn } from "@/lib/utils";
 
 import JobInput from "./job-input";
 
-function filterOutNullValues(values: JobInputsFormSchemaType) {
-  return Object.fromEntries(
+function filterOutNullValues(values: JobInputsFormSchemaType): JobInputData {
+  return new Map(
     Object.entries(values).filter(([_, value]) => value !== null) as [
       string,
       string | number | boolean | number[],
