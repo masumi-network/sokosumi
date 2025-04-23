@@ -3,6 +3,7 @@
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useEffect, useState } from "react";
 
 import { ShareButton } from "@/components/share-button";
 import { Button } from "@/components/ui/button";
@@ -24,9 +25,12 @@ export default function AgentActionButtons({
 }: ActionButtonsProps) {
   const pathname = usePathname();
   const parentPath = pathname.split("/").slice(0, -1).join("/") || "/";
+  const [url, setUrl] = useState<URL | undefined>(undefined);
 
-  const origin = window.location.origin;
-  const url = new URL(`${origin}/agents/${agentId}`);
+  useEffect(() => {
+    setUrl(new URL(`${window.location.origin}/agents/${agentId}`));
+  }, [agentId]);
+
   return (
     <div className={cn("flex w-full items-center justify-between", className)}>
       <Link href={parentPath}>
@@ -38,7 +42,7 @@ export default function AgentActionButtons({
         {agentList && (
           <AgentBookmarkButton agentId={agentId} agentList={agentList} />
         )}
-        <ShareButton url={url} />
+        {url && <ShareButton url={url} />}
       </div>
     </div>
   );
