@@ -29,23 +29,19 @@ const signUpFormData: FormData<
 > = [
   {
     name: "email",
-    labelKey: "Fields.Email.label",
     placeholderKey: "Fields.Email.placeholder",
   },
   {
     name: "name",
-    labelKey: "Fields.Name.label",
     placeholderKey: "Fields.Name.placeholder",
   },
   {
     name: "password",
-    labelKey: "Fields.Password.label",
     placeholderKey: "Fields.Password.placeholder",
     type: "password",
   },
   {
     name: "confirmPassword",
-    labelKey: "Fields.ConfirmPassword.label",
     placeholderKey: "Fields.ConfirmPassword.placeholder",
     type: "password",
   },

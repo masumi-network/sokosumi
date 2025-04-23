@@ -189,17 +189,17 @@
             "error": "Invalid email or password",
             "Fields": {
               "Email": {
-                "label": "Email",
-                "placeholder": "me@example.com"
+                "placeholder": "Email"
               },
               "Password": {
-                "label": "Password",
                 "placeholder": "Password"
               }
             },
-            "ForgotPassword": {
-              "text": "Forgot your password?",
-              "link": "Reset it here"
+            "rememberMe": "Keep me signed in",
+            "forgotPassword": "Forgot password?",
+            "Register": {
+              "message": "Don't have an account?",
+              "link": "Register"
             },
             "Errors": {
               "Submit": {
@@ -223,19 +223,15 @@
             "error": "Register failed",
             "Fields": {
               "Email": {
-                "label": "Email",
-                "placeholder": "me@example.com"
+                "placeholder": "Email"
               },
               "Name": {
-                "label": "Name",
-                "placeholder": "John Doe"
+                "placeholder": "Name"
               },
               "Password": {
-                "label": "Password",
                 "placeholder": "Password"
               },
               "ConfirmPassword": {
-                "label": "Confirm password",
                 "placeholder": "Confirm password"
               }
             },
@@ -261,8 +257,7 @@
             "reset_password": "Reset password",
             "Fields": {
               "Email": {
-                "label": "Email",
-                "placeholder": "me@example.com"
+                "placeholder": "Email"
               }
             }
           }
@@ -280,11 +275,9 @@
             "error": "Password reset failed",
             "Fields": {
               "Password": {
-                "label": "New password",
                 "placeholder": "New password"
               },
               "ConfirmPassword": {
-                "label": "Confirm password",
                 "placeholder": "Confirm password"
               }
             }

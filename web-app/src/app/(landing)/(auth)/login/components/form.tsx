@@ -7,6 +7,8 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import { AuthForm, SubmitButton } from "@/landing/(auth)/components/form";
 import {
   signInFormData,
@@ -62,21 +64,31 @@ export default function SignInForm() {
       namespace="Landing.Auth.Pages.SignIn.Form"
       onSubmit={onSubmit}
     >
-      <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
-        <SubmitButton
-          form={form}
-          label={t("submit")}
-          className="w-full sm:w-auto"
-        />
-        <div className="text-sm">
-          <span className="text-muted-foreground">
-            {t("ForgotPassword.text")}{" "}
-          </span>
+      <div className="flex flex-col gap-4">
+        <div className="flex flex-col items-center justify-between gap-2 sm:flex-row">
+          <div className="flex items-center gap-2">
+            <Checkbox id="rememberMe" />
+            <Label htmlFor="rememberMe" className="text-sm">
+              {t("rememberMe")}
+            </Label>
+          </div>
           <Link
             href={`/forgot-password${form.watch("email") ? `?email=${encodeURIComponent(form.watch("email"))}` : ""}`}
-            className="text-primary font-medium hover:underline"
+            className="text-muted-foreground text-sm hover:underline"
           >
-            {t("ForgotPassword.link")}
+            {t("forgotPassword")}
+          </Link>
+        </div>
+        <SubmitButton form={form} label={t("submit")} className="w-full" />
+        <div className="flex flex-col items-center gap-2 sm:flex-row">
+          <span className="text-muted-foreground text-sm">
+            {t("Register.message")}
+          </span>
+          <Link
+            href="/register"
+            className="text-primary text-sm font-medium hover:underline"
+          >
+            {t("Register.link")}
           </Link>
         </div>
       </div>

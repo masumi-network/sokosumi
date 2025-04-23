@@ -7,7 +7,6 @@ import {
   FormControl,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
@@ -30,14 +29,13 @@ export function FormFields<T extends FieldValues>({
 
   return (
     <>
-      {formData.map(({ name, labelKey, placeholderKey, type }) => (
+      {formData.map(({ name, placeholderKey, type }) => (
         <FormField
           key={name.toString()}
           control={form.control}
           name={name as unknown as Path<T>}
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{labelKey && t(labelKey)}</FormLabel>
               <FormControl>
                 <Input
                   placeholder={placeholderKey && t(placeholderKey)}

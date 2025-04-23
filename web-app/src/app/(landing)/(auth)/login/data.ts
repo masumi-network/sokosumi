@@ -17,12 +17,10 @@ const signInFormData: FormData<
 > = [
   {
     name: "email",
-    labelKey: "Fields.Email.label",
     placeholderKey: "Fields.Email.placeholder",
   },
   {
     name: "currentPassword",
-    labelKey: "Fields.Password.label",
     placeholderKey: "Fields.Password.placeholder",
     type: "password",
   },
