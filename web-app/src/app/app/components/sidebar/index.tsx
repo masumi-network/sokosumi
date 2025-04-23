@@ -16,11 +16,16 @@ export default function Sidebar() {
   return (
     <ShadcnSidebar>
       <SidebarHeader>
-        <div className="flex items-center gap-2 p-2">
-          <CustomTrigger />
-          <Link href="/app" className="mx-auto">
-            <ThemedLogo LogoComponent={SokosumiLogo} priority />
+        <div className="flex items-center justify-between gap-2 p-2">
+          <Link href="/app">
+            <ThemedLogo
+              LogoComponent={SokosumiLogo}
+              priority
+              width={140}
+              height={18.2}
+            />
           </Link>
+          <CustomTrigger />
         </div>
       </SidebarHeader>
       <SidebarContent>
