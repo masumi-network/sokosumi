@@ -92,7 +92,6 @@ function InputField({ id, field, jobInputSchema }: InputFieldProps) {
   if (type === ValidJobInputTypes.BOOLEAN)
     return (
       <Switch
-        className="w-full"
         id={id}
         checked={typeof field.value === "boolean" ? field.value : false}
         onCheckedChange={field.onChange}
