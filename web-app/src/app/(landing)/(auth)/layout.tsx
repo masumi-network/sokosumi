@@ -1,8 +1,6 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
-import Heroes from "./components/heroes";
-
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Landing.Auth.Metadata");
 
@@ -21,13 +19,8 @@ export default function AuthLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="container flex items-center justify-center">
-      <div className="grid w-full grid-cols-1 items-center gap-8 lg:grid-cols-2">
-        <div className="mx-auto w-full max-w-md">{children}</div>
-        <div className="hidden lg:block">
-          <Heroes />
-        </div>
-      </div>
+    <div className="container flex items-center justify-center p-20">
+      <div className="mx-auto w-full max-w-md">{children}</div>
     </div>
   );
 }
