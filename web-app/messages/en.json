@@ -239,6 +239,10 @@
               "Submit": {
                 "userExists": "User already exists"
               }
+            },
+            "Login": {
+              "message": "Already have an account?",
+              "link": "Login"
             }
           }
         },
