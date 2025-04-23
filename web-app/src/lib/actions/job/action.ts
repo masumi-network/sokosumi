@@ -9,6 +9,8 @@ import {
   StartJobInputSchemaType,
 } from "@/lib/services";
 
+import { StartJobErrorCodes } from "./error";
+
 export async function startJobWithInputData(
   input: Omit<StartJobInputSchemaType, "userId">,
 ): Promise<{
@@ -23,7 +25,7 @@ export async function startJobWithInputData(
   if (!session) {
     return {
       success: false,
-      error: { code: "NOT_AUTHENTICATED" },
+      error: { code: StartJobErrorCodes.NOT_AUTHENTICATED },
     };
   }
   const userId = session.user.id;
@@ -34,7 +36,7 @@ export async function startJobWithInputData(
   if (!parsedResult.success) {
     return {
       success: false,
-      error: { code: "INVALID_INPUT" },
+      error: { code: StartJobErrorCodes.INVALID_INPUT },
     };
   }
 
@@ -46,11 +48,20 @@ export async function startJobWithInputData(
     if (error instanceof Error) {
       switch (error.message) {
         case "Insufficient balance":
-          return { success: false, error: { code: "INSUFFICIENT_BALANCE" } };
+          return {
+            success: false,
+            error: { code: StartJobErrorCodes.INSUFFICIENT_BALANCE },
+          };
         default:
-          return { success: false, error: { code: "INTERNAL_SERVER_ERROR" } };
+          return {
+            success: false,
+            error: { code: StartJobErrorCodes.INTERNAL_SERVER_ERROR },
+          };
       }
     }
-    return { success: false, error: { code: "INTERNAL_SERVER_ERROR" } };
+    return {
+      success: false,
+      error: { code: StartJobErrorCodes.INTERNAL_SERVER_ERROR },
+    };
   }
 }
