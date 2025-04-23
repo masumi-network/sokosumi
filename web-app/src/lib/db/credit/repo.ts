@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/db";
-import { Prisma } from "@/prisma/generated/client";
+import { CreditTransaction, Prisma } from "@/prisma/generated/client";
 
 /**
  * Retrieves the total credit balance (in cents) for a given user.
@@ -24,4 +24,16 @@ export async function getCentsByUserId(
     },
   });
   return centsBalance._sum.amount ?? BigInt(0);
+}
+
+export async function getCreditTransactionByJobId(
+  jobId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<CreditTransaction | null> {
+  return tx.creditTransaction.findFirst({
+    where: { job: { id: jobId } },
+    include: {
+      job: true,
+    },
+  });
 }
