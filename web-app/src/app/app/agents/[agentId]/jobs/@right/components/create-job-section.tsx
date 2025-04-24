@@ -1,12 +1,7 @@
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import { Accordion } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   AgentWithRelations,
@@ -15,6 +10,7 @@ import {
   getAgentName,
 } from "@/lib/db";
 
+import AccordionItemWrapper from "./accordion-wrapper";
 import { JobInputsForm } from "./job-input";
 
 interface CreateJobSectionProps {
@@ -88,26 +84,5 @@ function InputAccordionItem({
         />
       </div>
     </AccordionItemWrapper>
-  );
-}
-
-function AccordionItemWrapper({
-  value,
-  title,
-  disabled = false,
-  children,
-}: {
-  value: string;
-  title: string;
-  disabled?: boolean | undefined;
-  children: React.ReactNode;
-}) {
-  return (
-    <AccordionItem value={value} className="bg-muted/50 rounded-xl border-none">
-      <AccordionTrigger className="p-4" disabled={disabled}>
-        <p className="text-base font-semibold">{title}</p>
-      </AccordionTrigger>
-      <AccordionContent className="p-4">{children}</AccordionContent>
-    </AccordionItem>
   );
 }

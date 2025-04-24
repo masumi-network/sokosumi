@@ -20,7 +20,6 @@ function JobDetailsInputsInner({ rawInput }: JobDetailsInputsProps) {
 
   return (
     <div className="flex flex-col gap-2">
-      <h1 className="text-xl font-bold">{t("title")}</h1>
       {Object.keys(input).length > 0 ? (
         <div>
           {Object.entries(input).map(([key, value]) => (

@@ -545,17 +545,18 @@
           }
         },
         "JobDetails": {
-          "title": "Job",
-          "status": "Status",
-          "Output": {
-            "failedToParseOutput": "Failed to parse output",
-            "title": "Result",
-            "none": "No result data"
+          "Header": {
+            "input": "Input"
           },
           "Input": {
+            "title": "Input",
             "failedToParseInput": "Failed to parse input",
-            "title": "Inputs",
             "none": "No input"
+          },
+          "Output": {
+            "title": "Output",
+            "failedToParseOutput": "Failed to parse output",
+            "none": "No result data"
           }
         }
       }

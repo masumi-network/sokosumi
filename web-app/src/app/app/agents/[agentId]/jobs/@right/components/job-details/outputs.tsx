@@ -16,13 +16,7 @@ interface JobDetailsOutputsLayoutProps {
 }
 
 function JobDetailsOutputsLayout({ children }: JobDetailsOutputsLayoutProps) {
-  const t = useTranslations("App.Agents.Jobs.JobDetails.Output");
-  return (
-    <div className="flex flex-col gap-2">
-      <h1 className="text-xl font-bold">{t("title")}</h1>
-      {children}
-    </div>
-  );
+  return <div className="flex flex-col gap-2">{children}</div>;
 }
 
 export default function JobDetailsOutputs({
