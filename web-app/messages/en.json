@@ -19,7 +19,10 @@
       "masumi": "masumi",
       "kodosumi": "kodosumi"
     },
-    "copyright": "© {year} Masumi"
+    "copyright": "© {year} Masumi",
+    "imprint": "Imprint",
+    "privacyPolicy": "Privacy Policy",
+    "termsOfServices": "Terms & Conditions"
   },
   "Job": {
     "CreationFailed": "Failed to create job",
