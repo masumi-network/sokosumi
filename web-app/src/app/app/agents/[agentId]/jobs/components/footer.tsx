@@ -9,8 +9,10 @@ interface FooterProps {
 
 export default function Footer({ legal }: FooterProps) {
   const t = useTranslations("App.Agents.Jobs.Footer");
-
-  const { terms, privacyPolicy, other } = legal ?? {};
+  if (!legal) {
+    return null;
+  }
+  const { terms, privacyPolicy, other } = legal;
 
   return (
     <div className="mt-4 flex items-center gap-2">
