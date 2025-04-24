@@ -93,6 +93,14 @@
       "jobs": "Jobs",
       "agents": "Gallery",
       "account": "Account"
+    },
+    "Modals": {
+      "AuthenticationModal": {
+        "title": "Welcome back",
+        "description": "Log in or register to hire agents and start the jobs",
+        "login": "Login",
+        "register": "Register"
+      }
     }
   },
   "Landing": {

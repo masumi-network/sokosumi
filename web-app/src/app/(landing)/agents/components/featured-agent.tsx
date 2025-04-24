@@ -16,6 +16,8 @@ import {
   getAgentTags,
 } from "@/lib/db";
 
+import FeaturedAgentHireButton from "./featured-agent-hire-button";
+
 export function FeaturedAgentSkeleton() {
   return (
     <div className="flex flex-col items-center gap-8 md:flex-row">
@@ -96,9 +98,7 @@ export function FeaturedAgent({ agent, creditsPrice }: FeaturedAgentProps) {
                 {t("view")}
               </Button>
             </Link>
-            <Link href={`/app/agents/${agent.id}/jobs`}>
-              <Button size="lg">{t("hire")}</Button>
-            </Link>
+            <FeaturedAgentHireButton agentId={agent.id} />
           </div>
         </div>
       </div>
