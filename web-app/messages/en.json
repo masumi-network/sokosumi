@@ -404,11 +404,6 @@
           "noAgents": "No {type} agents yet",
           "pinnedType": "pinned",
           "hiredType": "hired"
-        },
-        "AgentDropdownMenu": {
-          "share": "Share",
-          "archive": "Archive",
-          "delete": "Delete"
         }
       },
       "Footer": {

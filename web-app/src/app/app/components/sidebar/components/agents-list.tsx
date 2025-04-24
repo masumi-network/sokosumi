@@ -21,8 +21,6 @@ import {
 } from "@/lib/services";
 import { Agent } from "@/prisma/generated/client";
 
-import AgentDropdownMenu from "./agent-dropdown-menu";
-
 export default function AgentsList() {
   return (
     <Suspense fallback={<AgentsListSkeleton />}>
@@ -117,7 +115,6 @@ function AgentSection({
                     >
                       {getAgentName(agent)}
                     </Link>
-                    <AgentDropdownMenu agent={agent} />
                   </div>
                 </SidebarMenuButton>
               </SidebarMenuItem>
