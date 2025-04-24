@@ -42,9 +42,11 @@ export default function JobInput({ form, jobInputSchema }: JobInputProps) {
       name={id}
       render={({ field }) => (
         <FormItem>
-          <FormLabel>{`${name} ${isOptional(jobInputSchema) ? "" : "*"}`}</FormLabel>
+          <FormLabel
+            htmlFor={id}
+          >{`${name} ${isOptional(jobInputSchema) ? "" : "*"}`}</FormLabel>
           <FormControl>
-            <InputField field={field} jobInputSchema={jobInputSchema} />
+            <InputField id={id} field={field} jobInputSchema={jobInputSchema} />
           </FormControl>
           {data?.description && (
             <FormDescription>{data.description}</FormDescription>
@@ -57,16 +59,18 @@ export default function JobInput({ form, jobInputSchema }: JobInputProps) {
 }
 
 interface InputFieldProps {
+  id: string;
   jobInputSchema: JobInputSchemaType;
   field: ControllerRenderProps<JobInputsFormSchemaType>;
 }
 
-function InputField({ field, jobInputSchema }: InputFieldProps) {
+function InputField({ id, field, jobInputSchema }: InputFieldProps) {
   const { type, data } = jobInputSchema;
 
   if (type === ValidJobInputTypes.STRING)
     return (
       <Input
+        id={id}
         placeholder={data?.placeholder}
         type="text"
         {...field}
@@ -77,6 +81,7 @@ function InputField({ field, jobInputSchema }: InputFieldProps) {
   if (type === ValidJobInputTypes.NUMBER)
     return (
       <Input
+        id={id}
         placeholder={data?.placeholder}
         type="number"
         {...field}
@@ -87,6 +92,7 @@ function InputField({ field, jobInputSchema }: InputFieldProps) {
   if (type === ValidJobInputTypes.BOOLEAN)
     return (
       <Switch
+        id={id}
         checked={typeof field.value === "boolean" ? field.value : false}
         onCheckedChange={field.onChange}
         disabled={field.disabled}

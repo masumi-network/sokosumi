@@ -15,7 +15,7 @@ export default function UserAvatarContent({
 }: UserAvatarContentProps) {
   return (
     <>
-      <Avatar className="h-8 w-8">
+      <Avatar className="h-10 w-10">
         {imageUrl && (
           <AvatarImage
             src={imageUrl}

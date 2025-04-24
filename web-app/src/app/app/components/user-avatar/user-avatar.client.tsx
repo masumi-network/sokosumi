@@ -56,7 +56,7 @@ export default function UserAvatarClient({ user }: UserAvatarClientProps) {
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
-                className="relative h-8 w-8 rounded-full"
+                className="relative h-10 w-10 rounded-full"
                 aria-label={`User profile for ${user.name ?? "current user"}`}
               >
                 <UserAvatarContent
@@ -81,13 +81,13 @@ export default function UserAvatarClient({ user }: UserAvatarClientProps) {
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem className="hover:cursor-pointer" asChild>
+          <DropdownMenuItem className="cursor-pointer" asChild>
             <Link href="/app/account" className="flex items-center gap-2">
               <UserIcon className="text-muted-foreground" />
               {t("account")}
             </Link>
           </DropdownMenuItem>
-          <DropdownMenuItem className="hover:cursor-pointer" asChild>
+          <DropdownMenuItem className="cursor-pointer" asChild>
             <Link href="/app/billing" className="flex items-center gap-2">
               <CreditCardIcon className="text-muted-foreground" />
               {t("billing")}
@@ -96,7 +96,7 @@ export default function UserAvatarClient({ user }: UserAvatarClientProps) {
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          className="flex items-center gap-2 hover:cursor-pointer"
+          className="flex cursor-pointer items-center gap-2"
           onClick={onSignOut}
         >
           <LogOut className="text-muted-foreground" />

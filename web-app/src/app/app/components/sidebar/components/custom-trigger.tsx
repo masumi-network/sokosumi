@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeftFromLine, ArrowRightFromLine } from "lucide-react";
+import { PanelLeft } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
@@ -25,14 +25,14 @@ export default function CustomTrigger({ when = "always" }: CustomTriggerProps) {
 
   return (
     <Button
-      variant="outline"
+      variant="ghost"
       size="icon"
       onClick={toggleSidebar}
       className={cn("hidden", {
         flex: showTrigger,
       })}
     >
-      {isVisible ? <ArrowLeftFromLine /> : <ArrowRightFromLine />}
+      <PanelLeft />
     </Button>
   );
 }

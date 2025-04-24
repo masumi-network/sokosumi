@@ -32,7 +32,6 @@ export default function SignInForm() {
   });
 
   const onSubmit = async (values: SignInFormSchemaType) => {
-    console.log(values);
     await authClient.signIn.email(
       {
         email: values.email,
