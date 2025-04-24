@@ -1,9 +1,9 @@
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
+import Footer from "@/components/footer";
 import { KanjiLogo, ThemedLogo } from "@/components/masumi-logos";
 
-import Footer from "./components/footer";
 import Header from "./components/header";
 
 interface LandingLayoutProps {
