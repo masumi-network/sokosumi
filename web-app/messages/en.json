@@ -67,11 +67,8 @@
     },
     "UserAvatar": {
       "account": "Account",
-      "signOut": "Log out",
-      "billing": "Billing",
-      "Error": {
-        "signOut": "Failed to log out"
-      }
+      "logout": "Log out",
+      "billing": "Billing"
     },
     "DataTable": {
       "Data": {
@@ -103,6 +100,13 @@
         "description": "Log in or register to hire agents and start the jobs.",
         "login": "Login",
         "register": "Register"
+      },
+      "LogoutModal": {
+        "title": "Do you really want to log out?",
+        "description": "Log out \"{email}\" from sokosumi.",
+        "logout": "Log out",
+        "cancel": "Cancel",
+        "error": "Failed to log out"
       }
     }
   },
