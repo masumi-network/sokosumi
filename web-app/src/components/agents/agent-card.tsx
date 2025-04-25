@@ -5,7 +5,12 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 
-import { Card } from "@/components/ui/card";
+import {
+  Card,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+} from "@/components/ui/card";
 import {
   AgentListWithAgent,
   AgentWithRelations,
@@ -75,7 +80,7 @@ function AgentCard({
     <Link href={`${pathname}/${agent.id}`}>
       <Card
         className={cn(
-          "group relative flex h-72 w-72 flex-col gap-4 rounded-lg border-none bg-blue-500 p-0 shadow-none",
+          "group relative flex h-72 w-72 flex-col gap-4 rounded-lg border-none bg-blue-500/10 p-0 shadow-none",
           className,
         )}
       >
@@ -93,18 +98,20 @@ function AgentCard({
         )}
 
         {/* Image */}
-        <div className="shadow-foreground/10 aspect-[1.6] w-full overflow-hidden rounded-lg shadow-lg">
-          <Image
-            src={getAgentResolvedImage(agent)}
-            alt={`${getAgentName(agent)} image`}
-            width={400}
-            height={250}
-            className="h-full w-full object-cover transition-transform group-hover:scale-105"
-          />
-        </div>
+        <CardHeader>
+          <div className="shadow-foreground/10 w-full overflow-hidden rounded-lg shadow-lg">
+            <Image
+              src={getAgentResolvedImage(agent)}
+              alt={`${getAgentName(agent)} image`}
+              width={400}
+              height={250}
+              className="aspect-[1.6] h-full w-full object-cover transition-transform group-hover:scale-105"
+            />
+          </div>
+        </CardHeader>
 
         {/* Content */}
-        <div>
+        <CardDescription>
           <div className="relative">
             <div className="flex items-start gap-1">
               <h3 className="text-base leading-6 font-medium">
@@ -116,14 +123,16 @@ function AgentCard({
           {description && (
             <p className="text-muted-foreground mb-4 text-sm">{description}</p>
           )}
-          <div className="flex items-center gap-2 text-sm">
-            <span className="font-medium">
-              {t("pricing", {
-                price: convertCentsToCredits(agentCreditsPrice.cents),
-              })}
-            </span>
-          </div>
-        </div>
+        </CardDescription>
+
+        {/* Pricing */}
+        <CardFooter className="px-0">
+          <span className="font-medium">
+            {t("pricing", {
+              price: convertCentsToCredits(agentCreditsPrice.cents),
+            })}
+          </span>
+        </CardFooter>
       </Card>
     </Link>
   );
