@@ -2,6 +2,7 @@ import { useTranslations } from "next-intl";
 
 import { KanjiLogo, ThemedLogo } from "@/components/masumi-logos";
 
+import AgentSearchInput from "./agent-search-input";
 import AgentsShowcase from "./agents-showcase";
 
 export default function Hero() {
@@ -19,6 +20,7 @@ export default function Hero() {
         <p className="text-foreground/80 w-full text-xl font-normal md:whitespace-pre-line">
           {t("caption")}
         </p>
+        <AgentSearchInput />
       </div>
       <AgentsShowcase />
     </>
