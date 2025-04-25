@@ -85,7 +85,7 @@ export default function Header({
         />
       </div>
       <div className="flex flex-1 flex-row items-center justify-end gap-4">
-        <div className="w-full text-end font-semibold">
+        <div className="w-full text-end text-sm font-semibold">
           {t("price", {
             price: convertCentsToCredits(agentCreditsPrice.cents),
           })}
