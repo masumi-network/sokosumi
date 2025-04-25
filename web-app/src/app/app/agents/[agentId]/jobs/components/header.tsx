@@ -19,14 +19,23 @@ export function HeaderSkeleton() {
   const t = useTranslations("App.Agents.Jobs.Header");
 
   return (
-    <div className="flex flex-wrap items-center gap-4 lg:gap-6 xl:gap-8">
-      <Bookmark size={bookmarkSize} className="cursor-pointer" />
-      <Skeleton className="h-10 w-60" />
-      <Button className="gap-2">
-        <Plus />
-        {t("createNewJob")}
-      </Button>
-      <Skeleton className="h-10 w-30" />
+    <div className="flex flex-col items-center gap-4 lg:flex-row lg:gap-6 xl:gap-8">
+      <div className="flex flex-row items-center gap-4">
+        <Skeleton className="h-8 w-60 xl:h-9" />
+        <Skeleton className="h-6 w-16" />
+        <Button variant="secondary" size="icon" disabled>
+          <Bookmark className="animate-pulse" />
+        </Button>
+      </div>
+      <div className="flex flex-1 flex-row items-center justify-end gap-4">
+        <div className="w-full text-end text-sm font-semibold">
+          <Skeleton className="ml-auto h-5 w-24" />
+        </div>
+        <Button className="gap-2" disabled>
+          <Plus />
+          {t("newJob")}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -71,16 +80,22 @@ export default function Header({
   return (
     <div className="flex flex-col items-center gap-4 lg:flex-row lg:gap-6 xl:gap-8">
       <div className="flex flex-row items-center gap-4">
+        <h1 className="text-3xl leading-none font-light tracking-tighter text-nowrap">
+          {getAgentName(agent)}
+        </h1>
+        <Link
+          href={`/app/agents/${agent.id}`}
+          className="text-sm leading-tight font-medium"
+        >
+          {t("details")}
+        </Link>
         <AgentBookmarkSection
           agentId={agent.id}
           favoriteAgentList={favoriteAgentList}
         />
-        <h1 className="text-2xl font-bold text-nowrap xl:text-3xl">
-          {getAgentName(agent)}
-        </h1>
       </div>
       <div className="flex flex-1 flex-row items-center justify-end gap-4">
-        <div className="w-full text-end text-base">
+        <div className="w-full text-end text-sm font-semibold">
           {t("price", {
             price: convertCentsToCredits(agentCreditsPrice.cents),
           })}
@@ -88,7 +103,7 @@ export default function Header({
         <Link href={`/app/agents/${agent.id}/jobs`}>
           <Button className="gap-2">
             <Plus />
-            {t("createNewJob")}
+            {t("newJob")}
           </Button>
         </Link>
       </div>
