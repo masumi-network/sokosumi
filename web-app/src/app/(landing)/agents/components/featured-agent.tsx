@@ -70,9 +70,11 @@ export function FeaturedAgent({ agent, creditsPrice }: FeaturedAgentProps) {
       <div className="w-full space-y-6 md:w-1/2">
         <div className="space-y-4">
           <BadgeCloud tags={getAgentTags(agent)} />
-          <div className="flex items-center gap-2">
-            <h3 className="text-5xl font-light">{getAgentName(agent)}</h3>
-            <AgentVerifiedBadge className="ml-auto" />
+          <div className="relative">
+            <div className="flex items-start gap-1">
+              <h3 className="text-5xl font-light">{getAgentName(agent)}</h3>
+              <AgentVerifiedBadge className="mt-1" />
+            </div>
           </div>
         </div>
         <div className="text-muted-foreground text-5xl font-light">
