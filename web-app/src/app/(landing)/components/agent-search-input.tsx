@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type React from "react";
 
-import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 interface AgentSearchInputProps {
@@ -15,23 +15,29 @@ interface AgentSearchInputProps {
 export default function AgentSearchInput({ className }: AgentSearchInputProps) {
   const t = useTranslations("Landing.Page.Hero.AgentSearchInput");
   const router = useRouter();
-  const handleClick = () => {
+  const handleSubmit = () => {
     router.push(`/agents`);
   };
 
   return (
     <>
-      <div className={cn("relative", className)}>
-        <Button
-          variant="ghost"
-          onClick={handleClick}
-          size="lg"
-          className="border-search-border bg-search-background text-muted-foreground rounded-lg border"
-        >
-          <ArrowUp className="h-4 w-4" />
-          <span className="mr-auto">{t("placeholder")}</span>
-        </Button>
-      </div>
+      <form
+        onSubmit={handleSubmit}
+        className={cn("bg-search-background max-w-sm rounded-md", className)}
+      >
+        <div className="relative">
+          <Input
+            type="text"
+            placeholder={t("placeholder")}
+            className="border-search-border pr-12"
+          />
+          <div className="absolute inset-y-0 right-2 flex items-center">
+            <div className="bg-search-border flex h-7 w-7 items-center justify-center rounded-md">
+              <ArrowUp className="text-muted-foreground h-4 w-4" />
+            </div>
+          </div>
+        </div>
+      </form>
     </>
   );
 }

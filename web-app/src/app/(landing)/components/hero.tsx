@@ -20,7 +20,7 @@ export default function Hero() {
         <p className="text-foreground/80 w-full text-xl font-normal md:whitespace-pre-line">
           {t("caption")}
         </p>
-        <AgentSearchInput className="pt-6" />
+        <AgentSearchInput />
       </div>
       <AgentsShowcase />
     </>
