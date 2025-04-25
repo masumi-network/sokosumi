@@ -45,7 +45,7 @@ export default function LogoutModal({
         },
       },
     });
-    setLoading(true);
+    setLoading(false);
   };
 
   return (
