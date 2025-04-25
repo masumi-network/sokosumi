@@ -68,7 +68,7 @@ export default function UserAvatarClient({ user }: UserAvatarClientProps) {
                 </Button>
               </DropdownMenuTrigger>
             </TooltipTrigger>
-            <TooltipContent side="bottom">{user.name}</TooltipContent>
+            <TooltipContent side="bottom">{user.email}</TooltipContent>
           </Tooltip>
         </TooltipProvider>
 
