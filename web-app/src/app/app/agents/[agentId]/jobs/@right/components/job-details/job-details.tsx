@@ -3,7 +3,6 @@ import { useFormatter, useTranslations } from "next-intl";
 import AccordionItemWrapper from "@/app/agents/[agentId]/jobs/@right/components/accordion-wrapper";
 import JobStatusBadge from "@/app/agents/[agentId]/jobs/components/job-status-badge";
 import { Accordion } from "@/components/ui/accordion";
-import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { JobWithRelations } from "@/lib/db";
 import { cn } from "@/lib/utils";
@@ -53,16 +52,13 @@ function JobDetailsHeader({
 
   return (
     <div className="bg-muted/50 flex items-center rounded-xl p-4">
-      <div className="flex items-center gap-1.5">
-        <p>
+      <div className="flex w-full items-center justify-between">
+        <span>
           {formatter.dateTime(createdAt, {
-            dateStyle: "short",
+            dateStyle: "full",
             timeStyle: "short",
           })}
-        </p>
-        <Badge variant="secondary">{t("input")}</Badge>
-      </div>
-      <div className="flex-1 text-center">
+        </span>
         <JobStatusBadge status={status} />
       </div>
     </div>
