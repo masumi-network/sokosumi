@@ -20,13 +20,15 @@ export function HeaderSkeleton() {
 
   return (
     <div className="flex flex-wrap items-center gap-4 lg:gap-6 xl:gap-8">
-      <Bookmark size={bookmarkSize} className="cursor-pointer" />
       <Skeleton className="h-10 w-60" />
+      <Skeleton className="h-10 w-20" />
+      <Button variant="secondary" size="icon" disabled>
+        <Bookmark className="animate-pulse" />
+      </Button>
       <Button className="gap-2">
         <Plus />
-        {t("createNewJob")}
+        {t("newJob")}
       </Button>
-      <Skeleton className="h-10 w-30" />
     </div>
   );
 }
@@ -71,16 +73,19 @@ export default function Header({
   return (
     <div className="flex flex-col items-center gap-4 lg:flex-row lg:gap-6 xl:gap-8">
       <div className="flex flex-row items-center gap-4">
+        <h1 className="text-2xl font-bold text-nowrap xl:text-3xl">
+          {getAgentName(agent)}
+        </h1>
+        <Link href={`/app/agents/${agent.id}`} className="font-medium">
+          {t("details")}
+        </Link>
         <AgentBookmarkSection
           agentId={agent.id}
           favoriteAgentList={favoriteAgentList}
         />
-        <h1 className="text-2xl font-bold text-nowrap xl:text-3xl">
-          {getAgentName(agent)}
-        </h1>
       </div>
       <div className="flex flex-1 flex-row items-center justify-end gap-4">
-        <div className="w-full text-end text-base">
+        <div className="w-full text-end font-semibold">
           {t("price", {
             price: convertCentsToCredits(agentCreditsPrice.cents),
           })}
@@ -88,7 +93,7 @@ export default function Header({
         <Link href={`/app/agents/${agent.id}/jobs`}>
           <Button className="gap-2">
             <Plus />
-            {t("createNewJob")}
+            {t("newJob")}
           </Button>
         </Link>
       </div>
