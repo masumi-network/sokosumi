@@ -13,7 +13,7 @@ type Callback =
 
 export default function useWithAuthentication() {
   const { data: session, isPending } = useSession();
-  const { Component, showModal } = useModal({ Modal: AuthenticationModal });
+  const { Component, showModal } = useModal(AuthenticationModal);
 
   const withAuthentication = useCallback(
     (callback: Callback) => {

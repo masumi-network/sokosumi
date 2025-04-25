@@ -2,17 +2,16 @@
 
 import { useState } from "react";
 
-type ModalComponent = (
-  props: React.ComponentProps<
-    React.FC<{ open: boolean; onOpenChange: (open: boolean) => void }>
-  >,
-) => React.JSX.Element;
-
-interface UseModalProps {
-  Modal: ModalComponent;
+interface ModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
 }
 
-export default function useModal({ Modal }: UseModalProps) {
+type ModalComponent = (
+  props: React.ComponentProps<React.FC<ModalProps>>,
+) => React.JSX.Element;
+
+export default function useModal(Modal: ModalComponent) {
   const [open, setOpen] = useState(false);
 
   const showModal = () => setOpen(true);
