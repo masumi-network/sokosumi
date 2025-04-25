@@ -80,7 +80,7 @@ function AgentCard({
     <Link href={`${pathname}/${agent.id}`}>
       <Card
         className={cn(
-          "group relative flex h-72 w-72 flex-col gap-4 rounded-lg border-none bg-blue-500/10 p-0 shadow-none",
+          "group relative flex h-72 w-72 flex-col gap-0 rounded-lg border-none bg-blue-500/10 p-0 shadow-none",
           className,
         )}
       >
@@ -98,20 +98,20 @@ function AgentCard({
         )}
 
         {/* Image */}
-        <CardHeader>
-          <div className="shadow-foreground/10 w-full overflow-hidden rounded-lg shadow-lg">
+        <CardHeader className="p-0">
+          <div className="shadow-foreground/10 w-72 overflow-hidden rounded-lg shadow-lg">
             <Image
               src={getAgentResolvedImage(agent)}
               alt={`${getAgentName(agent)} image`}
               width={400}
               height={250}
-              className="aspect-[1.6] h-full w-full object-cover transition-transform group-hover:scale-105"
+              className="aspect-[1.6] w-full object-cover transition-transform group-hover:scale-105"
             />
           </div>
         </CardHeader>
 
         {/* Content */}
-        <CardDescription>
+        <CardDescription className="p-0 pt-1">
           <div className="relative">
             <div className="flex items-start gap-1">
               <h3 className="text-base leading-6 font-medium">
