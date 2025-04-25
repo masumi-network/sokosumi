@@ -100,7 +100,7 @@
     "Modals": {
       "AuthenticationModal": {
         "title": "Welcome back",
-        "description": "Log in or register to hire agents and start the jobs",
+        "description": "Log in or register to hire agents and start the jobs.",
         "login": "Login",
         "register": "Register"
       }

@@ -24,7 +24,7 @@ export default function AuthenticationModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="w-sm">
         <DialogHeader>
           <DialogTitle className="text-center text-lg font-medium">
             {t("title")}
