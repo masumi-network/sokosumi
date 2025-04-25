@@ -68,7 +68,8 @@
     "UserAvatar": {
       "account": "Account",
       "logout": "Log out",
-      "billing": "Billing"
+      "billing": "Billing",
+      "support": "Support"
     },
     "DataTable": {
       "Data": {

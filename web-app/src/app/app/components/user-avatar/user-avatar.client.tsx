@@ -1,7 +1,12 @@
 "use client";
 
 import gravatarUrl from "gravatar-url";
-import { CreditCardIcon, LogOut, User as UserIcon } from "lucide-react";
+import {
+  CircleHelp,
+  CreditCardIcon,
+  LogOut,
+  User as UserIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
@@ -35,6 +40,10 @@ export default function UserAvatarClient({ user }: UserAvatarClientProps) {
   const { Component, showModal } = useModal(({ open, onOpenChange }) => (
     <LogoutModal open={open} onOpenChange={onOpenChange} email={user.email} />
   ));
+
+  const handleSupport = () => {
+    window.open("https://www.masumi.network/contact", "_blank");
+  };
 
   return (
     <>
@@ -78,6 +87,14 @@ export default function UserAvatarClient({ user }: UserAvatarClientProps) {
               </Link>
             </DropdownMenuItem>
           </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="flex cursor-pointer items-center gap-2"
+            onClick={handleSupport}
+          >
+            <CircleHelp className="text-muted-foreground" />
+            {t("support")}
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="flex cursor-pointer items-center gap-2"
