@@ -44,8 +44,8 @@
   --animate-accordion-up: accordion-up 0.2s ease-out;
 
   /* Custom Colors */
-  --color-input-background: var(--input-background);
-  --color-input-border: var(--input-border);
+  --color-search-background: var(--search-background);
+  --color-search-border: var(--search-border);
 
   @keyframes accordion-down {
     from {
@@ -101,8 +101,8 @@
   --sidebar-ring: oklch(0.708 0 0);
 
   /* Custom Colors */
-  --input-background: oklch(0.26 0.0187 18.43);
-  --input-border: hsla(0, 0%, 100%, 0.05);
+  --search-background: oklch(0.26 0.0187 18.43);
+  --search-border: hsla(0, 0%, 100%, 0.05);
 }
 
 .dark {
@@ -139,8 +139,8 @@
   --sidebar-ring: oklch(0.556 0 0);
 
   /* Custom Colors */
-  --input-background: oklch(0.26 0.0187 18.43);
-  --input-border: hsla(0, 0%, 100%, 0.05);
+  --search-background: oklch(0.26 0.0187 18.43);
+  --search-border: hsla(0, 0%, 100%, 0.05);
 }
 
 @layer base {

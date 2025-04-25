@@ -6,8 +6,13 @@ import { useTranslations } from "next-intl";
 import type React from "react";
 
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-export default function InputWithButton() {
+interface AgentSearchInputProps {
+  className?: string;
+}
+
+export default function AgentSearchInput({ className }: AgentSearchInputProps) {
   const t = useTranslations("Landing.Page.Hero.AgentSearchInput");
   const router = useRouter();
   const handleClick = () => {
@@ -16,16 +21,17 @@ export default function InputWithButton() {
 
   return (
     <>
-      <Button
-        onClick={handleClick}
-        size="lg"
-        className="flex items-center justify-between gap-2 rounded-lg"
-      >
-        <span className="text-muted-foreground">{t("placeholder")}</span>
-        <div className="bg-secondary rounded-md p-1">
+      <div className={cn("relative", className)}>
+        <Button
+          variant="ghost"
+          onClick={handleClick}
+          size="lg"
+          className="border-search-border bg-search-background text-muted-foreground rounded-lg border"
+        >
           <ArrowUp className="h-4 w-4" />
-        </div>
-      </Button>
+          <span className="mr-auto">{t("placeholder")}</span>
+        </Button>
+      </div>
     </>
   );
 }
