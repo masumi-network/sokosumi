@@ -1,6 +1,12 @@
 "use client";
 
-import { CreditCardIcon, LogOut, User as UserIcon } from "lucide-react";
+import gravatarUrl from "gravatar-url";
+import {
+  CircleHelp,
+  CreditCardIcon,
+  LogOut,
+  User as UserIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
@@ -11,7 +17,6 @@ import {
   DropdownMenuContent,
   DropdownMenuGroup,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
@@ -36,6 +41,10 @@ export default function UserAvatarClient({ user }: UserAvatarClientProps) {
     <LogoutModal open={open} onOpenChange={onOpenChange} email={user.email} />
   ));
 
+  const handleSupport = () => {
+    window.open("https://www.masumi.network/contact", "_blank");
+  };
+
   return (
     <>
       {Component}
@@ -50,26 +59,20 @@ export default function UserAvatarClient({ user }: UserAvatarClientProps) {
                   aria-label={`User profile for ${user.name ?? "current user"}`}
                 >
                   <UserAvatarContent
-                    imageUrl={user.image ?? ""}
+                    imageUrl={gravatarUrl(user.email, {
+                      size: 80,
+                      default: "404",
+                    })}
                     imageAlt={user.name ?? "User avatar"}
                   />
                 </Button>
               </DropdownMenuTrigger>
             </TooltipTrigger>
-            <TooltipContent side="bottom">{user.name}</TooltipContent>
+            <TooltipContent side="bottom">{user.email}</TooltipContent>
           </Tooltip>
         </TooltipProvider>
 
         <DropdownMenuContent className="w-56" align="end" forceMount>
-          <DropdownMenuLabel className="font-normal">
-            <div className="flex flex-col space-y-1">
-              <p className="text-sm leading-none font-medium">{user.name}</p>
-              <p className="text-muted-foreground text-xs leading-none">
-                {user.email}
-              </p>
-            </div>
-          </DropdownMenuLabel>
-          <DropdownMenuSeparator />
           <DropdownMenuGroup>
             <DropdownMenuItem className="cursor-pointer" asChild>
               <Link href="/app/account" className="flex items-center gap-2">
@@ -84,6 +87,14 @@ export default function UserAvatarClient({ user }: UserAvatarClientProps) {
               </Link>
             </DropdownMenuItem>
           </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            className="flex cursor-pointer items-center gap-2"
+            onClick={handleSupport}
+          >
+            <CircleHelp className="text-muted-foreground" />
+            {t("support")}
+          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
             className="flex cursor-pointer items-center gap-2"
