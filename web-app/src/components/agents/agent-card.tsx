@@ -113,15 +113,17 @@ function AgentCard({
         {/* Content */}
         <CardDescription className="p-0 pt-1">
           <div className="relative">
-            <div className="flex items-start gap-1">
-              <h3 className="text-base leading-6 font-medium">
+            <div className="flex items-center gap-1">
+              <h3 className="text-primary line-clamp-1 text-base leading-6 font-medium">
                 {getAgentName(agent)}
               </h3>
               <AgentVerifiedBadge />
             </div>
           </div>
           {description && (
-            <p className="text-muted-foreground mb-4 text-sm">{description}</p>
+            <p className="text-muted-foreground line-clamp-2 text-sm overflow-ellipsis">
+              {description}
+            </p>
           )}
         </CardDescription>
 
