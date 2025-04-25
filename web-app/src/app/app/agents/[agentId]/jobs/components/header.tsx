@@ -19,16 +19,23 @@ export function HeaderSkeleton() {
   const t = useTranslations("App.Agents.Jobs.Header");
 
   return (
-    <div className="flex flex-wrap items-center gap-4 lg:gap-6 xl:gap-8">
-      <Skeleton className="h-10 w-60" />
-      <Skeleton className="h-10 w-20" />
-      <Button variant="secondary" size="icon" disabled>
-        <Bookmark className="animate-pulse" />
-      </Button>
-      <Button className="gap-2">
-        <Plus />
-        {t("newJob")}
-      </Button>
+    <div className="flex flex-col items-center gap-4 lg:flex-row lg:gap-6 xl:gap-8">
+      <div className="flex flex-row items-center gap-4">
+        <Skeleton className="h-8 w-60 xl:h-9" />
+        <Skeleton className="h-6 w-16" />
+        <Button variant="secondary" size="icon" disabled>
+          <Bookmark className="animate-pulse" />
+        </Button>
+      </div>
+      <div className="flex flex-1 flex-row items-center justify-end gap-4">
+        <div className="w-full text-end text-sm font-semibold">
+          <Skeleton className="ml-auto h-5 w-24" />
+        </div>
+        <Button className="gap-2" disabled>
+          <Plus />
+          {t("newJob")}
+        </Button>
+      </div>
     </div>
   );
 }
