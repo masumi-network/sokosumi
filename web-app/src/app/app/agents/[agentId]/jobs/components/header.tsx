@@ -80,7 +80,7 @@ export default function Header({
   return (
     <div className="flex flex-col items-center gap-4 lg:flex-row lg:gap-6 xl:gap-8">
       <div className="flex flex-row items-center gap-4">
-        <h1 className="text-2xl font-bold text-nowrap xl:text-3xl">
+        <h1 className="text-3xl font-light tracking-tighter text-nowrap">
           {getAgentName(agent)}
         </h1>
         <Link href={`/app/agents/${agent.id}`} className="font-medium">
