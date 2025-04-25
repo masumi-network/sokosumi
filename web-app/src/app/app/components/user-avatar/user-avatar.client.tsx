@@ -1,5 +1,6 @@
 "use client";
 
+import gravatarUrl from "gravatar-url";
 import { CreditCardIcon, LogOut, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -49,7 +50,10 @@ export default function UserAvatarClient({ user }: UserAvatarClientProps) {
                   aria-label={`User profile for ${user.name ?? "current user"}`}
                 >
                   <UserAvatarContent
-                    imageUrl={user.image ?? ""}
+                    imageUrl={gravatarUrl(user.email, {
+                      size: 80,
+                      default: "404",
+                    })}
                     imageAlt={user.name ?? "User avatar"}
                   />
                 </Button>
