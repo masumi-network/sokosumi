@@ -80,7 +80,7 @@ function AgentCard({
     <Link href={`${pathname}/${agent.id}`}>
       <Card
         className={cn(
-          "group relative flex h-72 w-72 flex-col gap-0 rounded-lg border-none bg-blue-500/10 p-0 shadow-none",
+          "group relative flex h-72 w-72 flex-col justify-between gap-0 rounded-lg border-none bg-blue-500/10 p-0 shadow-none",
           className,
         )}
       >
@@ -97,38 +97,40 @@ function AgentCard({
           </div>
         )}
 
-        {/* Image */}
-        <CardHeader className="p-0">
-          <div className="shadow-foreground/10 w-72 overflow-hidden rounded-lg shadow-lg">
-            <Image
-              src={getAgentResolvedImage(agent)}
-              alt={`${getAgentName(agent)} image`}
-              width={400}
-              height={250}
-              className="aspect-[1.6] w-full object-cover transition-transform group-hover:scale-105"
-            />
-          </div>
-        </CardHeader>
-
-        {/* Content */}
-        <CardDescription className="p-0 pt-1">
-          <div className="relative">
-            <div className="flex items-center gap-1">
-              <h3 className="text-primary line-clamp-1 text-base leading-6 font-medium">
-                {getAgentName(agent)}
-              </h3>
-              <AgentVerifiedBadge />
+        <div className="flex flex-1 flex-col">
+          {/* Image */}
+          <CardHeader className="p-0">
+            <div className="shadow-foreground/10 w-72 overflow-hidden rounded-lg shadow-lg">
+              <Image
+                src={getAgentResolvedImage(agent)}
+                alt={`${getAgentName(agent)} image`}
+                width={400}
+                height={250}
+                className="aspect-[1.6] w-full object-cover transition-transform group-hover:scale-105"
+              />
             </div>
-          </div>
-          {description && (
-            <p className="text-muted-foreground line-clamp-2 text-sm overflow-ellipsis">
-              {description}
-            </p>
-          )}
-        </CardDescription>
+          </CardHeader>
+
+          {/* Content */}
+          <CardDescription className="flex-1 p-0 pt-1">
+            <div className="relative">
+              <div className="flex items-center gap-1">
+                <h3 className="text-primary line-clamp-1 text-base leading-6 font-medium">
+                  {getAgentName(agent)}
+                </h3>
+                <AgentVerifiedBadge />
+              </div>
+            </div>
+            {description && (
+              <p className="text-muted-foreground line-clamp-2 text-sm overflow-ellipsis">
+                {description}
+              </p>
+            )}
+          </CardDescription>
+        </div>
 
         {/* Pricing */}
-        <CardFooter className="px-0">
+        <CardFooter className="mt-auto px-0">
           <span className="font-medium">
             {t("pricing", {
               price: convertCentsToCredits(agentCreditsPrice.cents),
