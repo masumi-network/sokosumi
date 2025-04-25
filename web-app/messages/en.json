@@ -430,8 +430,9 @@
     },
     "Header": {
       "Credit": {
-        "balance": "Credits Balance: {credits}",
-        "unavailable": "Credits Balance: unknown"
+        "unavailable": "Credits unavailable",
+        "balance": "{credits, plural, =0 {No credits} =1 {1 credit} other {# credits}}",
+        "buy": "Buy Credits"
       }
     },
     "Billing": {

@@ -1,6 +1,8 @@
 import { headers } from "next/headers";
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
+import { Button } from "@/components/ui/button";
 import { auth } from "@/lib/auth/auth";
 import { getUserById } from "@/lib/db";
 import { getCredits } from "@/lib/services";
@@ -26,10 +28,17 @@ export default async function UserCredits() {
     );
   }
   return (
-    <div className="flex flex-col items-end gap-0.5">
-      <div className="text-sm font-semibold">{user.name}</div>
-      <div className="text-muted-foreground text-xs">
-        {t("balance", { credits: credits })}
+    <div className="flex items-center gap-4">
+      {credits <= 50.0 && (
+        <Button variant="default" size="sm" asChild>
+          <Link href="/app/billing">{t("buy")}</Link>
+        </Button>
+      )}
+      <div className="flex flex-col items-end gap-0.5">
+        <div className="text-sm font-semibold">{user.name}</div>
+        <div className="text-muted-foreground text-xs">
+          {t("balance", { credits: credits })}
+        </div>
       </div>
     </div>
   );
