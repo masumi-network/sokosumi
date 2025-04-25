@@ -10,7 +10,7 @@ export function AgentVerifiedBadge({ className }: AgentVerifiedBadgeProps) {
   return (
     <div
       className={cn(
-        "bg-agent-verified-background flex items-center gap-1 rounded-full px-2 py-1",
+        "bg-agent-verified-background flex items-center gap-1 rounded-full px-2 py-0.5",
         className,
       )}
     >
