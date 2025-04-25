@@ -30,12 +30,8 @@ export default function HowItWorks() {
 
         <div className="relative flex w-full flex-col gap-6 lg:flex-row">
           <div className="max-w-[327px] space-y-8 py-20 pt-10 md:pt-20">
-            {steps.map((step, index) => (
-              <div
-                key={step.number}
-                className="space-y-3"
-                style={{ opacity: `${1 / (index + 1 / (steps.length - 1))}` }}
-              >
+            {steps.map((step) => (
+              <div key={step.number} className="space-y-3">
                 <div className="text-foreground flex items-center gap-2 text-lg">
                   <span className="font-light">{step.number}</span>
                   <span className="font-bold">{step.title}</span>
