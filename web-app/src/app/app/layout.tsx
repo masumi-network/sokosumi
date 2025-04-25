@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
+import { FooterSections } from "@/components/footer";
 import { SidebarProvider } from "@/components/ui/sidebar";
 
 import Header from "./components/header";
@@ -30,13 +31,12 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   return (
     <SidebarProvider defaultOpen={defaultOpen}>
       <Sidebar />
-      <div className="flex h-svh flex-1 flex-col">
+      <div className="flex flex-1 flex-col">
         <Header className="h-[64px]" />
-        <main className="flex min-h-[calc(100svh-64px)] flex-1 flex-col">
-          <div className="flex min-h-[calc(100%-48px)] flex-1 flex-col">
-            {children}
-          </div>
+        <main className="min-h-auto lg:min-h-[calc(100svh-64px)]">
+          {children}
         </main>
+        <FooterSections className="p-4 lg:p-6 xl:p-8" />
       </div>
     </SidebarProvider>
   );
