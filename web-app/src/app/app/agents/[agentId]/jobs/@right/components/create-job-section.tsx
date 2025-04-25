@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { useTranslations } from "next-intl";
 
 import { Accordion } from "@/components/ui/accordion";
@@ -48,18 +47,9 @@ function InformationAccordionItem({ agent }: { agent: AgentWithRelations }) {
 
   return (
     <AccordionItemWrapper value="information" title={t("title")}>
-      <div className="flex items-center gap-6">
-        <Image
-          src="/placeholder.svg"
-          alt="Example Output"
-          className="h-36 w-36 shrink-0 rounded-lg object-cover"
-          width={90}
-          height={90}
-        />
-        <div className="flex flex-1 flex-col gap-0.5">
-          <h3 className="text-lg font-bold">{name}</h3>
-          {description && <p className="text-sm">{description}</p>}
-        </div>
+      <div className="flex flex-1 flex-col gap-0.5">
+        <h3 className="text-lg font-bold">{name}</h3>
+        {description && <p className="text-sm">{description}</p>}
       </div>
     </AccordionItemWrapper>
   );
