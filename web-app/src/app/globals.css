@@ -47,6 +47,9 @@
   --color-search-background: var(--search-background);
   --color-search-border: var(--search-border);
 
+  --color-agent-verified-background: hsla(142, 76%, 36%, 0.05);
+  --color-agent-verified-foreground: hsla(142, 72%, 29%, 1);
+
   @keyframes accordion-down {
     from {
       height: 0;

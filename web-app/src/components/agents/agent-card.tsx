@@ -1,6 +1,5 @@
 "use client";
 
-import { CheckCheck } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -19,6 +18,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { AgentBookmarkButton } from "./agent-bookmark-button";
+import { AgentVerifiedBadge } from "./agent-verified-badge";
 
 interface AgentCardSkeletonProps {
   className?: string | undefined;
@@ -104,15 +104,12 @@ function AgentCard({
         </div>
 
         {/* Content */}
-        <div className="pt-1, px-4">
+        <div>
           <div className="mb-2 flex items-center gap-2">
-            <h3 className="font-medium">{getAgentName(agent)}</h3>
-            <div className="flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-1">
-              <CheckCheck className="h-4 w-4 text-green-500" />
-              <span className="text-muted-foreground text-xs uppercase">
-                {"Verified"}
-              </span>
-            </div>
+            <h3 className="text-base leading-6 font-medium">
+              {getAgentName(agent)}
+            </h3>
+            <AgentVerifiedBadge className="ml-auto" />
           </div>
           {description && (
             <p className="text-muted-foreground mb-4 text-sm">{description}</p>

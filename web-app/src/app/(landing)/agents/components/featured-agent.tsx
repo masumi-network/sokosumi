@@ -1,9 +1,9 @@
-import { CheckCheck } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { BadgeCloud } from "@/components/agents";
+import { AgentVerifiedBadge } from "@/components/agents/agent-verified-badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -72,12 +72,7 @@ export function FeaturedAgent({ agent, creditsPrice }: FeaturedAgentProps) {
           <BadgeCloud tags={getAgentTags(agent)} />
           <div className="flex items-center gap-2">
             <h3 className="text-5xl font-light">{getAgentName(agent)}</h3>
-            <div className="flex items-center gap-1 rounded-full bg-green-500/10 px-2 py-1">
-              <CheckCheck className="h-4 w-4 text-green-500" />
-              <span className="text-muted-foreground text-xs uppercase">
-                {"Verified"}
-              </span>
-            </div>
+            <AgentVerifiedBadge className="ml-auto" />
           </div>
         </div>
         <div className="text-muted-foreground text-5xl font-light">
