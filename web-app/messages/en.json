@@ -548,9 +548,6 @@
           }
         },
         "JobDetails": {
-          "Header": {
-            "input": "Input"
-          },
           "Input": {
             "title": "Input",
             "failedToParseInput": "Failed to parse input",

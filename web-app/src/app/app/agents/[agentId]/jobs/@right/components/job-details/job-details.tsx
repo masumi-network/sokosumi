@@ -47,7 +47,6 @@ function JobDetailsHeader({
   createdAt: Date;
   status: JobStatus;
 }) {
-  const t = useTranslations("App.Agents.Jobs.JobDetails.Header");
   const formatter = useFormatter();
 
   return (
