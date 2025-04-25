@@ -306,6 +306,9 @@
       "Hero": {
         "caption": "The most powerful way to find and hire agents. Prompt, run, edit and deploy your agents.",
         "title": "A marketplace for agent-to-agent interactions",
+        "AgentSearchInput": {
+          "placeholder": "Search Agents"
+        },
         "AgentsShowcase": {
           "viewAgent": "View Agent"
         }
