@@ -80,7 +80,7 @@ function AgentCard({
     <Link href={`${pathname}/${agent.id}`}>
       <Card
         className={cn(
-          "group relative flex h-72 w-72 flex-col justify-between gap-0 rounded-lg border-none bg-blue-500/10 p-0 shadow-none",
+          "group relative flex h-72 w-72 flex-col justify-between gap-0 rounded-lg border-none p-0 shadow-none",
           className,
         )}
       >
