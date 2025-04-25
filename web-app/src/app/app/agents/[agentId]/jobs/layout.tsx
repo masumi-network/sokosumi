@@ -68,7 +68,7 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
   const favoriteAgentList = await getOrCreateFavoriteAgentList(session.user.id);
 
   return (
-    <div className="flex h-full flex-col p-4 lg:p-6 xl:p-8">
+    <div className="flex h-full flex-col p-4 lg:h-[calc(100svh-64px)] lg:p-6 xl:p-8">
       <Header
         agent={agent}
         agentCreditsPrice={agentCreditsPrice}

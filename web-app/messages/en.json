@@ -525,7 +525,9 @@
           "customerSupport": "Customer Support"
         },
         "CreateJob": {
-          "title": "Welcome Screen",
+          "Information": {
+            "title": "Information"
+          },
           "Input": {
             "title": "Input",
             "description": "Ensure inputs are clear, specific, and relevant to the analysis, providing structured data on the reference company, target competitors, and market focus to generate precise, actionable insights in the output."
@@ -554,17 +556,15 @@
           }
         },
         "JobDetails": {
-          "title": "Job",
-          "status": "Status",
-          "Output": {
-            "failedToParseOutput": "Failed to parse output",
-            "title": "Result",
-            "none": "No result data"
-          },
           "Input": {
+            "title": "Input",
             "failedToParseInput": "Failed to parse input",
-            "title": "Inputs",
             "none": "No input"
+          },
+          "Output": {
+            "title": "Output",
+            "failedToParseOutput": "Failed to parse output",
+            "none": "No result data"
           }
         }
       }

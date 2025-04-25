@@ -99,12 +99,7 @@ export default function DataTable<TData, TValue>({
       <div
         className={cn("flex flex-1 flex-col overflow-hidden", tableClassName)}
       >
-        <div
-          className={cn(
-            "bg-background sticky top-0 z-10",
-            tableHeaderClassName,
-          )}
-        >
+        <div className={cn("sticky top-0 z-10", tableHeaderClassName)}>
           <ScrollArea className="h-full">
             <Table className="table-fixed">
               <TableHeader>

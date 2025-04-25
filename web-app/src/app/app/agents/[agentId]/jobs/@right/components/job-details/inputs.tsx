@@ -20,17 +20,19 @@ function JobDetailsInputsInner({ rawInput }: JobDetailsInputsProps) {
 
   return (
     <div className="flex flex-col gap-2">
-      <h1 className="text-xl font-bold">{t("title")}</h1>
       {Object.keys(input).length > 0 ? (
         <div>
           {Object.entries(input).map(([key, value]) => (
-            <div className="flex flex-row gap-2" key={key}>
-              <p className="text-base font-bold">{key}</p>
-              <p>
+            <div
+              className="flex flex-row items-start gap-4 text-base"
+              key={key}
+            >
+              <span className="font-bold">{key}</span>
+              <span className="break-words">
                 {typeof value === "object"
                   ? JSON.stringify(value)
                   : String(value)}
-              </p>
+              </span>
             </div>
           ))}
         </div>
