@@ -53,9 +53,9 @@ export function FeaturedAgent({ agent, creditsPrice }: FeaturedAgentProps) {
   const t = useTranslations("Landing.Agents.FeaturedAgent");
 
   return (
-    <div className="flex flex-col items-center gap-8 md:flex-row">
+    <div className="flex flex-col items-center gap-8 bg-blue-500/10 md:flex-row">
       {/* Image Section - 1/2 width */}
-      <div className="relative aspect-16/9 w-full md:w-1/2">
+      <div className="relative aspect-3/2 w-full overflow-hidden rounded-lg md:w-1/2">
         <Image
           src={getAgentResolvedImage(agent)}
           alt={`${getAgentName(agent)} image`}
@@ -67,17 +67,19 @@ export function FeaturedAgent({ agent, creditsPrice }: FeaturedAgentProps) {
       </div>
 
       {/* Text Content Section - 1/2 width */}
-      <div className="w-full space-y-6 md:w-1/2">
+      <div className="w-full space-y-6 py-12 pr-12 md:w-1/2">
         <div className="space-y-4">
           <BadgeCloud tags={getAgentTags(agent)} />
           <div className="relative">
             <div className="flex items-start gap-1">
-              <h3 className="text-5xl font-light">{getAgentName(agent)}</h3>
-              <AgentVerifiedBadge className="mt-1" />
+              <h3 className="line-clamp-2 text-5xl font-light tracking-tighter">
+                {getAgentName(agent)}
+              </h3>
+              <AgentVerifiedBadge className="m-auto" />
             </div>
           </div>
         </div>
-        <div className="text-muted-foreground text-5xl font-light">
+        <div className="text-muted-foreground text-5xl font-light tracking-tighter">
           {getAgentDescription(agent)}
         </div>
 
