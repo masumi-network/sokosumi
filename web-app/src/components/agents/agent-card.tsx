@@ -99,7 +99,7 @@ function AgentCard({
 
         <div className="flex flex-1 flex-col gap-1">
           {/* Image */}
-          <CardHeader className="p-0">
+          <CardHeader className="p-1">
             <div className="shadow-foreground/10 w-72 overflow-hidden rounded-lg shadow-lg">
               <Image
                 src={getAgentResolvedImage(agent)}
@@ -112,7 +112,7 @@ function AgentCard({
           </CardHeader>
 
           {/* Content */}
-          <CardDescription className="flex-1 p-0">
+          <CardDescription className="flex-1 p-1">
             <div className="relative">
               <div className="flex items-center gap-1">
                 <h3 className="text-primary line-clamp-1 text-base leading-6 font-medium">
@@ -130,7 +130,7 @@ function AgentCard({
         </div>
 
         {/* Pricing */}
-        <CardFooter className="p-0">
+        <CardFooter className="p-1">
           <span className="font-medium">
             {t("pricing", {
               price: convertCentsToCredits(agentCreditsPrice.cents),
