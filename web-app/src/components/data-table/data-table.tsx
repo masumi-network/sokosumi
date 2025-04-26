@@ -17,7 +17,7 @@ import {
 import { useTranslations } from "next-intl";
 import * as React from "react";
 
-import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Table,
   TableBody,
@@ -100,37 +100,34 @@ export default function DataTable<TData, TValue>({
         className={cn("flex flex-1 flex-col overflow-hidden", tableClassName)}
       >
         <div className={cn("sticky top-0 z-10", tableHeaderClassName)}>
-          <ScrollArea className="h-full">
-            <Table className="table-fixed">
-              <TableHeader>
-                {table.getHeaderGroups().map((headerGroup) => (
-                  <TableRow key={headerGroup.id}>
-                    {headerGroup.headers.map((header) => (
-                      <TableHead
-                        key={header.id}
-                        colSpan={header.colSpan}
-                        style={{
-                          width: header.getSize(),
-                        }}
-                      >
-                        {header.isPlaceholder
-                          ? null
-                          : flexRender(
-                              header.column.columnDef.header,
-                              header.getContext(),
-                            )}
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                ))}
-              </TableHeader>
-            </Table>
-            <ScrollBar orientation="horizontal" />
-          </ScrollArea>
+          <Table>
+            <TableHeader>
+              {table.getHeaderGroups().map((headerGroup) => (
+                <TableRow key={headerGroup.id}>
+                  {headerGroup.headers.map((header) => (
+                    <TableHead
+                      key={header.id}
+                      colSpan={header.colSpan}
+                      style={{
+                        width: header.getSize(),
+                      }}
+                    >
+                      {header.isPlaceholder
+                        ? null
+                        : flexRender(
+                            header.column.columnDef.header,
+                            header.getContext(),
+                          )}
+                    </TableHead>
+                  ))}
+                </TableRow>
+              ))}
+            </TableHeader>
+          </Table>
         </div>
         <div className={cn("flex-1 overflow-hidden", tableBodyClassName)}>
           <ScrollArea className="h-full">
-            <Table className="table-fixed">
+            <Table>
               <TableBody>
                 {rowModel.rows?.length ? (
                   rowModel.rows.map((row) => {
@@ -173,7 +170,6 @@ export default function DataTable<TData, TValue>({
                 )}
               </TableBody>
             </Table>
-            <ScrollBar orientation="horizontal" />
           </ScrollArea>
         </div>
       </div>
