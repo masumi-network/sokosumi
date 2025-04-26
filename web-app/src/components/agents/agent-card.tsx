@@ -130,7 +130,7 @@ function AgentCard({
         </div>
 
         {/* Pricing */}
-        <CardFooter className="mt-auto px-0">
+        <CardFooter className="pt-auto mt-auto px-0">
           <span className="font-medium">
             {t("pricing", {
               price: convertCentsToCredits(agentCreditsPrice.cents),
