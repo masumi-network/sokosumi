@@ -60,7 +60,7 @@ function InformationAccordionItem({ agent }: { agent: AgentWithRelations }) {
             className="rounded-md object-cover"
           />
         </div>
-        <div className="flex flex-1 flex-col gap-0.5">
+        <div className="flex flex-1 flex-col justify-center gap-0.5">
           <h3 className="text-lg font-bold">{name}</h3>
           {description && <p className="text-sm">{description}</p>}
         </div>
