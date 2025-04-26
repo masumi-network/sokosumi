@@ -21,7 +21,7 @@ export function getJobColumns(
         <DataTableColumnHeader column={column} title={t("Header.started")} />
       ),
       cell: ({ row }) => (
-        <div className="p-2 whitespace-nowrap">
+        <div className="py-2 whitespace-nowrap">
           {dateFormatter.dateTime(new Date(row.original.startedAt), {
             year: "numeric",
             month: "short",
@@ -40,7 +40,7 @@ export function getJobColumns(
         <DataTableColumnHeader column={column} title={t("Header.status")} />
       ),
       cell: ({ row }) => (
-        <div className="p-2">
+        <div>
           <JobStatusBadge status={row.original.status} />
         </div>
       ),
@@ -56,7 +56,7 @@ export function getJobColumns(
         <DataTableColumnHeader column={column} title={t("Header.id")} />
       ),
       cell: ({ row }) => (
-        <div className="p-2">
+        <div>
           <MiddleTruncate
             text={row.original.id}
             className="font-mono text-xs"
