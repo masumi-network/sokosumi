@@ -16,12 +16,12 @@ export function getJobColumns(
   return {
     startedAtColumn: columnHelper.accessor("startedAt", {
       id: "startedAt",
-      minSize: 100,
+      minSize: 80,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("Header.started")} />
       ),
       cell: ({ row }) => (
-        <div className="py-2 whitespace-nowrap">
+        <div className="p-2 whitespace-nowrap">
           {dateFormatter.dateTime(new Date(row.original.startedAt), {
             year: "numeric",
             month: "short",
@@ -50,8 +50,7 @@ export function getJobColumns(
 
     idColumn: columnHelper.accessor("id", {
       id: "id",
-      minSize: 200,
-      enableResizing: true,
+      minSize: 100,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("Header.id")} />
       ),
