@@ -2,6 +2,7 @@ import { ColumnDef, createColumnHelper } from "@tanstack/react-table";
 import { useFormatter, useTranslations } from "next-intl";
 
 import { DataTableColumnHeader } from "@/components/data-table";
+import { MiddleTruncate } from "@/components/middle-truncate";
 import { JobWithRelations } from "@/lib/db";
 
 import JobStatusBadge from "./job-status-badge";
@@ -55,8 +56,11 @@ export function getJobColumns(
         <DataTableColumnHeader column={column} title={t("Header.id")} />
       ),
       cell: ({ row }) => (
-        <div className="p-2 whitespace-nowrap">
-          <div className="font-mono text-xs">{row.original.id}</div>
+        <div className="p-2">
+          <MiddleTruncate
+            text={row.original.id}
+            className="font-mono text-xs"
+          />
         </div>
       ),
       enableSorting: true,
