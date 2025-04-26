@@ -27,11 +27,12 @@ export default async function FeaturedAgents() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="flex flex-col justify-between gap-2.5 sm:flex-row">
         {firstFourAgents.map((agent, index) => (
           <div
             key={agent.id}
             className={cn(
+              "flex-shrink-0",
               index === 2 && "hidden lg:block",
               index === 3 && "hidden xl:block",
             )}
