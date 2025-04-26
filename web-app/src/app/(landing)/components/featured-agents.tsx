@@ -5,6 +5,7 @@ import { AgentCard } from "@/components/agents";
 import { Button } from "@/components/ui/button";
 import { getAgents } from "@/lib/db";
 import { getAgentCreditsPrice } from "@/lib/services";
+import { cn } from "@/lib/utils";
 
 export default async function FeaturedAgents() {
   const t = await getTranslations("Landing.Page.FeaturedAgents");
@@ -26,13 +27,20 @@ export default async function FeaturedAgents() {
         </Link>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {firstFourAgents.map((agent, index) => (
-          <AgentCard
+          <div
             key={agent.id}
-            agent={agent}
-            agentCreditsPrice={agentPriceList[index]}
-          />
+            className={cn(
+              index === 2 && "hidden lg:block",
+              index === 3 && "hidden xl:block",
+            )}
+          >
+            <AgentCard
+              agent={agent}
+              agentCreditsPrice={agentPriceList[index]}
+            />
+          </div>
         ))}
       </div>
     </div>
