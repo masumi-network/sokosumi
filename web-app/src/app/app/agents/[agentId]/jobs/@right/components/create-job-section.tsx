@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 
 import { Accordion } from "@/components/ui/accordion";
@@ -7,6 +8,7 @@ import {
   CreditsPrice,
   getAgentDescription,
   getAgentName,
+  getAgentResolvedImage,
 } from "@/lib/db";
 
 import AccordionItemWrapper from "./accordion-wrapper";
@@ -44,12 +46,24 @@ function InformationAccordionItem({ agent }: { agent: AgentWithRelations }) {
   const t = useTranslations("App.Agents.Jobs.CreateJob.Information");
   const name = getAgentName(agent);
   const description = getAgentDescription(agent);
+  const image = getAgentResolvedImage(agent);
 
   return (
     <AccordionItemWrapper value="information" title={t("title")}>
-      <div className="flex flex-1 flex-col gap-0.5">
-        <h3 className="text-lg font-bold">{name}</h3>
-        {description && <p className="text-sm">{description}</p>}
+      <div className="flex flex-wrap gap-2">
+        <div className="h-24 w-24 flex-shrink-0">
+          <Image
+            src={image}
+            alt={name}
+            width={96}
+            height={96}
+            className="rounded-md object-cover"
+          />
+        </div>
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <h3 className="text-lg font-bold">{name}</h3>
+          {description && <p className="text-sm">{description}</p>}
+        </div>
       </div>
     </AccordionItemWrapper>
   );
