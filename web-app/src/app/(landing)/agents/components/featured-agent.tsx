@@ -53,7 +53,7 @@ export function FeaturedAgent({ agent, creditsPrice }: FeaturedAgentProps) {
   const t = useTranslations("Landing.Agents.FeaturedAgent");
 
   return (
-    <div className="flex flex-col items-center gap-8 bg-blue-500/10 md:h-96 md:flex-row">
+    <div className="flex flex-col items-center gap-8 md:h-96 md:flex-row">
       {/* Image Section - 1/2 width */}
       <div className="relative h-72 w-full overflow-clip md:h-full md:w-1/2">
         <Image
