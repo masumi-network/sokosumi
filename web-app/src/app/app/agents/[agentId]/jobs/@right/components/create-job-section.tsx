@@ -51,7 +51,7 @@ function InformationAccordionItem({ agent }: { agent: AgentWithRelations }) {
   return (
     <AccordionItemWrapper value="information" title={t("title")}>
       <div className="flex flex-wrap gap-2">
-        <div className="h-24 w-24 flex-shrink-0">
+        <div className="h-24 w-24">
           <Image
             src={image}
             alt={name}
@@ -60,7 +60,7 @@ function InformationAccordionItem({ agent }: { agent: AgentWithRelations }) {
             className="rounded-md object-cover"
           />
         </div>
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <div className="flex flex-1 flex-col gap-0.5">
           <h3 className="text-lg font-bold">{name}</h3>
           {description && <p className="text-sm">{description}</p>}
         </div>
