@@ -29,7 +29,7 @@ export default async function GalleryPage() {
 
   return (
     <div className="container mx-auto px-12 pt-4 pb-8">
-      <div className="space-y-12">
+      <div className="space-y-24">
         {/* Featured Agent Section */}
         <FeaturedAgent
           agent={agents[0]}
