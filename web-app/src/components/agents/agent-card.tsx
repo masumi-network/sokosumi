@@ -97,7 +97,7 @@ function AgentCard({
           </div>
         )}
 
-        <div className="flex flex-1 flex-col gap-1">
+        <div className="flex flex-1 flex-col gap-0">
           {/* Image */}
           <CardHeader className="p-1">
             <div className="shadow-foreground/10 w-72 overflow-hidden rounded-lg shadow-lg">
