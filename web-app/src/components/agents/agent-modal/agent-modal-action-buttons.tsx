@@ -25,8 +25,10 @@ function AgentModalActionButtons({
   const [url, setUrl] = useState<URL | undefined>(undefined);
 
   useEffect(() => {
-    setUrl(new URL(window.location.href));
-  }, []);
+    setUrl(
+      new URL(`${window.location.origin}/agents?modalAgentId=${agent.id}`),
+    );
+  }, [agent.id]);
 
   return (
     <div className={cn("flex w-full items-center justify-between", className)}>
