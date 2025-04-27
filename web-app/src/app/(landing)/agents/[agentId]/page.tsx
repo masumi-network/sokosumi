@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { AgentDetails } from "@/components/agents";
+import { AgentDetail } from "@/components/agents";
 import { getAgentById } from "@/lib/db";
 import { getAgentCreditsPrice } from "@/lib/services";
 
@@ -18,5 +18,5 @@ export default async function Page({
 
   const agentCreditsPrice = await getAgentCreditsPrice(agent);
 
-  return <AgentDetails agent={agent} agentCreditsPrice={agentCreditsPrice} />;
+  return <AgentDetail agent={agent} agentCreditsPrice={agentCreditsPrice} />;
 }

@@ -6,7 +6,7 @@ interface AgentVerifiedBadgeProps {
   className?: string;
 }
 
-export function AgentVerifiedBadge({ className }: AgentVerifiedBadgeProps) {
+function AgentVerifiedBadge({ className }: AgentVerifiedBadgeProps) {
   return (
     <div
       className={cn(
@@ -21,3 +21,5 @@ export function AgentVerifiedBadge({ className }: AgentVerifiedBadgeProps) {
     </div>
   );
 }
+
+export { AgentVerifiedBadge };

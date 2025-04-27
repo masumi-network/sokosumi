@@ -23,9 +23,9 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default function LandingLayout({ children }: LandingLayoutProps) {
   return (
-    <div className="flex min-h-svh flex-col">
-      <Header />
-      <main className="flex-1 pt-24">{children}</main>
+    <div className="flex flex-col">
+      <Header className="h-16 lg:h-20" />
+      <main className="min-h-svh flex-1 pt-16 lg:pt-20">{children}</main>
       <Footer />
     </div>
   );

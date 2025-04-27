@@ -89,18 +89,18 @@ function AgentDetailSkeleton({ className }: AgentDetailSkeletonProps) {
   );
 }
 
-interface AgentDetailsProps {
+interface AgentDetailProps {
   agent: AgentWithRelations;
   agentList?: AgentListWithAgent | undefined;
   agentCreditsPrice: CreditsPrice;
   className?: string;
 }
 
-function AgentDetails({
+function AgentDetail({
   agent,
   agentList,
   agentCreditsPrice,
-}: AgentDetailsProps) {
+}: AgentDetailProps) {
   const t = useTranslations("Components.Agents.AgentDetail");
 
   const legal = getAgentLegal(agent);
@@ -212,4 +212,4 @@ function Section({
   );
 }
 
-export { AgentDetails, AgentDetailSkeleton };
+export { AgentDetail, AgentDetailSkeleton };

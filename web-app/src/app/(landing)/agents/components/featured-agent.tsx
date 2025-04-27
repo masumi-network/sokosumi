@@ -1,9 +1,11 @@
 import Image from "next/image";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 
-import { BadgeCloud } from "@/components/agents";
-import { AgentVerifiedBadge } from "@/components/agents/agent-verified-badge";
+import {
+  AgentModalTrigger,
+  AgentVerifiedBadge,
+  BadgeCloud,
+} from "@/components/agents";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -92,11 +94,11 @@ export function FeaturedAgent({ agent, creditsPrice }: FeaturedAgentProps) {
             </span>
           </div>
           <div className="flex gap-2">
-            <Link href={`/agents/${agent.id}`}>
+            <AgentModalTrigger agentId={agent.id}>
               <Button size="lg" variant="secondary">
                 {t("view")}
               </Button>
-            </Link>
+            </AgentModalTrigger>
             <FeaturedAgentHireButton agentId={agent.id} />
           </div>
         </div>

@@ -43,6 +43,7 @@
     "Agents": {
       "agentsNotAvailable": "No agents available",
       "agentsNotFound": "No Agents found",
+      "hire": "Hire Agent",
       "AgentCard": {
         "button": "Show details",
         "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}",
@@ -63,6 +64,27 @@
           "other": "Other"
         },
         "pricing": "{credits, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
+      },
+      "AgentModal": {
+        "Card1": {
+          "pricing": "{credits, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
+        },
+        "Card2": {
+          "developer": "Developer",
+          "runningTime": "Running Time",
+          "executedJobs": "Executed Jobs",
+          "lastUpdated": "Last Updated"
+        },
+        "Card3": {
+          "title1": "Description",
+          "title2": "At a Glance"
+        },
+        "Card4": {
+          "title": "From the developer:",
+          "privacyPolicy": "Privacy Policy",
+          "terms": "Terms",
+          "other": "Other"
+        }
       }
     },
     "UserAvatar": {
