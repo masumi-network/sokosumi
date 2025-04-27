@@ -424,7 +424,6 @@
       "FeaturedAgent": {
         "title": "an absolute must-have",
         "view": "View Agent",
-        "hire": "Hire Agent",
         "pricing": "{credits, plural, =0 {Free} =1 {1 credit} other {# credits}}"
       }
     }

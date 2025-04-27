@@ -3,9 +3,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 
-import AgentHireButton from "@/components/agents/agent-hire-button";
-import { AgentVerifiedBadge } from "@/components/agents/agent-verified-badge";
-import { BadgeCloud } from "@/components/agents/badge-cloud";
+import {
+  AgentBadgeCloud,
+  AgentHireButton,
+  AgentVerifiedBadge,
+} from "@/components/agents";
 import {
   Dialog,
   DialogContent,
@@ -77,7 +79,7 @@ function AgentModal({
 
 function CardSection({ children }: { children: React.ReactNode }) {
   return (
-    <div className="bg-background/20 border-foreground/20 flex w-full flex-col gap-6 rounded-xl border-1 p-6 backdrop-blur-3xl">
+    <div className="bg-muted/80 border-foreground/20 flex w-full flex-col gap-6 rounded-xl border-1 p-6 backdrop-blur-3xl">
       {children}
     </div>
   );
@@ -200,7 +202,7 @@ function CardSection3({ agent }: { agent: AgentWithRelations }) {
           </>
         )}
         <p className="mb-2 text-xs uppercase">{t("title2")}</p>
-        <BadgeCloud tags={getAgentTags(agent)} />
+        <AgentBadgeCloud tags={getAgentTags(agent)} />
       </div>
     </CardSection>
   );

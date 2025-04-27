@@ -1,8 +1,4 @@
-"use client";
-
 import Image from "next/image";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import {
@@ -23,6 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import { AgentBookmarkButton } from "./agent-bookmark-button";
+import { AgentModalTrigger } from "./agent-modal";
 import { AgentVerifiedBadge } from "./agent-verified-badge";
 
 interface AgentCardSkeletonProps {
@@ -70,14 +67,8 @@ function AgentCard({
   const t = useTranslations("Components.Agents.AgentCard");
   const description = getAgentDescription(agent);
 
-  let pathname = usePathname();
-
-  if (pathname === "/") {
-    pathname = "agents";
-  }
-
   return (
-    <Link href={`${pathname}/${agent.id}`}>
+    <AgentModalTrigger agentId={agent.id}>
       <Card
         className={cn(
           "group relative flex h-72 w-72 flex-col justify-between gap-0 rounded-lg border-none p-0 shadow-none",
@@ -138,7 +129,7 @@ function AgentCard({
           </span>
         </CardFooter>
       </Card>
-    </Link>
+    </AgentModalTrigger>
   );
 }
 

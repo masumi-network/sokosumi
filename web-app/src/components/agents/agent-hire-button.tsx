@@ -11,7 +11,7 @@ interface AgentHireButtonProps {
   agentId: string;
 }
 
-export default function AgentHireButton({ agentId }: AgentHireButtonProps) {
+function AgentHireButton({ agentId }: AgentHireButtonProps) {
   const t = useTranslations("Components.Agents");
   const router = useRouter();
   const { isPending, ModalComponent, withAuthentication } =
@@ -35,3 +35,5 @@ export default function AgentHireButton({ agentId }: AgentHireButtonProps) {
     </>
   );
 }
+
+export { AgentHireButton };

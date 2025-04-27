@@ -1,6 +1,7 @@
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
+import { AgentModalWrapper } from "@/components/agents";
 import { requireAuthentication } from "@/lib/auth/utils";
 import { AgentWithRelations, getAgents, getTags } from "@/lib/db";
 import {
@@ -39,6 +40,12 @@ export default async function GalleryPage() {
         <FilterSection tags={tagNames} />
         {/* Agent Cards Grid */}
         <FilteredAgents
+          agents={agents}
+          agentList={agentList}
+          agentCreditsPriceList={agentCreditsPriceList}
+        />
+        {/* Agent Modal Wrapper */}
+        <AgentModalWrapper
           agents={agents}
           agentList={agentList}
           agentCreditsPriceList={agentCreditsPriceList}

@@ -2,9 +2,10 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 
 import {
+  AgentBadgeCloud,
+  AgentHireButton,
   AgentModalTrigger,
   AgentVerifiedBadge,
-  BadgeCloud,
 } from "@/components/agents";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -17,8 +18,6 @@ import {
   getAgentResolvedImage,
   getAgentTags,
 } from "@/lib/db";
-
-import FeaturedAgentHireButton from "./featured-agent-hire-button";
 
 export function FeaturedAgentSkeleton() {
   return (
@@ -71,7 +70,7 @@ export function FeaturedAgent({ agent, creditsPrice }: FeaturedAgentProps) {
       {/* Text Content Section - 1/2 width */}
       <div className="flex w-full flex-col gap-12 md:w-1/2">
         <div>
-          <BadgeCloud tags={getAgentTags(agent)} />
+          <AgentBadgeCloud tags={getAgentTags(agent)} />
           <div className="relative">
             <div className="flex items-start gap-1">
               <h3 className="line-clamp-2 text-5xl leading-tight font-light">
@@ -99,7 +98,7 @@ export function FeaturedAgent({ agent, creditsPrice }: FeaturedAgentProps) {
                 {t("view")}
               </Button>
             </AgentModalTrigger>
-            <FeaturedAgentHireButton agentId={agent.id} />
+            <AgentHireButton agentId={agent.id} />
           </div>
         </div>
       </div>

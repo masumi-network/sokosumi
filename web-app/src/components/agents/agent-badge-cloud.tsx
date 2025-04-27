@@ -1,10 +1,10 @@
 import { Badge } from "@/components/ui/badge";
 
-interface BadgeCloudProps {
+interface AgentBadgeCloudProps {
   tags: string[];
 }
 
-function BadgeCloud({ tags }: BadgeCloudProps) {
+function AgentBadgeCloud({ tags }: AgentBadgeCloudProps) {
   return (
     <>
       {tags.length > 0 && (
@@ -20,4 +20,4 @@ function BadgeCloud({ tags }: BadgeCloudProps) {
   );
 }
 
-export { BadgeCloud };
+export { AgentBadgeCloud };

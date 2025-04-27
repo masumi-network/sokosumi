@@ -19,7 +19,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import AgentActionButtons from "./agent-action-buttons";
-import { BadgeCloud } from "./badge-cloud";
+import { AgentBadgeCloud } from "./agent-badge-cloud";
 
 interface AgentDetailSkeletonProps {
   className?: string;
@@ -158,7 +158,7 @@ function AgentDetail({
 
         {/* At a Glance Section */}
         <Section title={t("atAGlance")}>
-          <BadgeCloud tags={getAgentTags(agent)} />
+          <AgentBadgeCloud tags={getAgentTags(agent)} />
         </Section>
 
         {/* Developer Information */}
