@@ -7,6 +7,7 @@ import AgentsShowcase from "./agents-showcase";
 
 export default function Hero() {
   const t = useTranslations("Landing.Page.Hero");
+
   return (
     <>
       <div className="landing-hero-bg absolute h-full w-full" />

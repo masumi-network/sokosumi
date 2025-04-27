@@ -1,25 +1,26 @@
 import Image from "next/image";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import React, { Suspense } from "react";
 
+import { AgentModalTrigger, AgentModalWrapper } from "@/components/agents";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getAgentResolvedImage, getAgents } from "@/lib/db";
+import { getAgentCreditsPrice } from "@/lib/services";
 import { cn } from "@/lib/utils";
 
 interface AgentCardProps {
+  agentId: string;
   name: string;
   description: string | null;
   image?: string;
-  id: string;
 }
 
 const AgentShowcaseCard = ({
+  agentId,
   name,
   description,
   image,
-  id,
 }: AgentCardProps) => {
   const t = useTranslations("Landing.Page.Hero.AgentsShowcase");
 
@@ -43,11 +44,11 @@ const AgentShowcaseCard = ({
             {description}
           </p>
         )}
-        <Link href={`/agents/${id}`}>
+        <AgentModalTrigger agentId={agentId}>
           <Button variant="default" size="sm">
             {t("viewAgent")}
           </Button>
-        </Link>
+        </AgentModalTrigger>
       </div>
     </div>
   );
@@ -60,18 +61,25 @@ const AgentCardSkeleton = () => {
 async function AgentsShowcaseList() {
   const agents = await getAgents();
   const firstFiveAgents = agents.slice(0, 5);
+  const agentCreditsPriceList = await Promise.all(
+    agents.map((agent) => getAgentCreditsPrice(agent)),
+  );
 
   return (
     <div className="flex items-center gap-4">
       {firstFiveAgents.map((agent) => (
         <AgentShowcaseCard
           key={agent.id}
-          id={agent.id}
+          agentId={agent.id}
           name={agent.name}
           description={agent.description}
           image={getAgentResolvedImage(agent)}
         />
       ))}
+      <AgentModalWrapper
+        agents={agents}
+        agentCreditsPriceList={agentCreditsPriceList}
+      />
     </div>
   );
 }
