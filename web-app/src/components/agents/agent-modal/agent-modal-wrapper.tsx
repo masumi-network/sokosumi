@@ -2,6 +2,7 @@
 
 import { notFound } from "next/navigation";
 import { useQueryState } from "nuqs";
+import { Suspense } from "react";
 
 import { AgentListWithAgent, AgentWithRelations, CreditsPrice } from "@/lib/db";
 
@@ -31,7 +32,15 @@ interface AgentModalWrapperProps {
   agentCreditsPriceList: CreditsPrice[];
 }
 
-function AgentModalWrapper({
+function AgentModalWrapper(props: AgentModalWrapperProps) {
+  return (
+    <Suspense>
+      <AgentModalWrapperClient {...props} />
+    </Suspense>
+  );
+}
+
+function AgentModalWrapperClient({
   agents,
   agentList,
   agentCreditsPriceList,

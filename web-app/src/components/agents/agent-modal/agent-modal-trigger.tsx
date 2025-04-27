@@ -1,6 +1,7 @@
 "use client";
 
 import { useQueryState } from "nuqs";
+import { Suspense } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -10,7 +11,15 @@ interface AgentModalTriggerProps {
   className?: string | undefined;
 }
 
-function AgentModalTrigger({
+function AgentModalTrigger(props: AgentModalTriggerProps) {
+  return (
+    <Suspense>
+      <AgentModalTriggerClient {...props} />
+    </Suspense>
+  );
+}
+
+function AgentModalTriggerClient({
   agentId,
   children,
   className,
