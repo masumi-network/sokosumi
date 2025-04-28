@@ -19,9 +19,7 @@ function CardSection3({ agent }: { agent: AgentWithRelations }) {
         {agentDescription && (
           <>
             <p className="text-xs uppercase">{t("title1")}</p>
-            <p className="mt-2 mb-10 line-clamp-3">
-              {getAgentDescription(agent)}
-            </p>
+            <p className="mt-2 mb-10">{getAgentDescription(agent)}</p>
           </>
         )}
         <p className="mb-2 text-xs uppercase">{t("title2")}</p>

@@ -87,6 +87,10 @@
           "privacyPolicy": "Privacy Policy",
           "terms": "Terms",
           "other": "Other"
+        },
+        "Card6": {
+          "title": "Recommended",
+          "subtitle": "More from {author}"
         }
       }
     },
