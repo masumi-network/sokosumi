@@ -1,6 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 
-import { getEnvSecrets } from "@/config/env.config";
+import { getEnvPublicConfig, getEnvSecrets } from "@/config/env.config";
 import { convertCreditsToCents } from "@/lib/db";
 import { PrismaClient } from "@/prisma/generated/client";
 
@@ -58,42 +58,56 @@ const seedUser = async (): Promise<string> => {
   return user.id;
 };
 
-const seedCreditCost = async () => {
+const usdmUnit = (network: "Mainnet" | "Preprod" | "Preview") => {
+  switch (network) {
+    case "Mainnet":
+      return "c48cbb3d5e57ed56e276bc45f99ab39abe94e6cd7ac39fb402da47ad0014df105553444d";
+    case "Preprod":
+      return "16a55b2a349361ff88c03788f93e1e966e5d689605d044fef722ddde0014df10745553444d";
+    case "Preview":
+      return "usdm";
+  }
+};
+
+const seedCreditCost = async (seedLovelace: boolean) => {
   console.log("Seeding credit cost...");
+  const unit = usdmUnit(getEnvPublicConfig().NEXT_PUBLIC_NETWORK);
   await prisma.creditCost.upsert({
     where: {
-      unit: "usdm",
+      unit,
     },
     update: {
       centsPerUnit: 1_000_000, // 1 base unit usdm == 0.000001 usdm == 1_000_000 credits
     },
     create: {
-      unit: "usdm",
+      unit,
       centsPerUnit: 1_000_000, // 1 base unit usdm == 0.000001 usdm == 1_000_000 credits
     },
   });
   console.log("USDM credit cost seeded");
 
-  await prisma.creditCost.upsert({
-    where: {
-      unit: "",
-    },
-    update: {
-      centsPerUnit: 500_000, // 1 lovelace == 500_000 credits
-    },
-    create: {
-      unit: "",
-      centsPerUnit: 500_000, // 1 lovelace == 500_000 credits
-    },
-  });
-  console.log("Lovelace credit cost seeded");
+  if (seedLovelace) {
+    await prisma.creditCost.upsert({
+      where: {
+        unit: "",
+      },
+      update: {
+        centsPerUnit: 500_000, // 1 lovelace == 500_000 credits
+      },
+      create: {
+        unit: "",
+        centsPerUnit: 500_000, // 1 lovelace == 500_000 credits
+      },
+    });
+    console.log("Lovelace credit cost seeded");
+  }
 };
 
 async function main() {
   if (seedDatabase) {
     await seedUser();
   }
-  await seedCreditCost();
+  await seedCreditCost(seedDatabase);
 }
 
 main()
