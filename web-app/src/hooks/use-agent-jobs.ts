@@ -2,15 +2,8 @@
 
 import { useEffect, useState } from "react";
 
-import { getJobsByAgentId } from "@/lib/db";
-import { Job, JobStatus } from "@/prisma/generated/client";
-
-const FINISHED_JOB_STATUSES: JobStatus[] = [
-  JobStatus.PAYMENT_FAILED,
-  JobStatus.COMPLETED,
-  JobStatus.REFUND_RESOLVED,
-  JobStatus.DISPUTE_RESOLVED,
-];
+import { FinalizedJobStatuses, getJobsByAgentId } from "@/lib/db";
+import { Job } from "@/prisma/generated/client";
 
 export default function useAgentJobs(agentId: string) {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -40,7 +33,7 @@ export default function useAgentJobs(agentId: string) {
   }, [agentId]);
 
   const executedJobs = jobs.filter((job) =>
-    FINISHED_JOB_STATUSES.includes(job.status),
+    FinalizedJobStatuses.includes(job.status),
   );
 
   return { jobs, executedJobs, isLoading, error };
