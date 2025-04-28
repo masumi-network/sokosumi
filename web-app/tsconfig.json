@@ -24,6 +24,7 @@
       "@/*": ["./src/*"],
       "@/app/*": ["./src/app/app/*"],
       "@/landing/*": ["./src/app/(landing)/*"],
+      "@/auth/*": ["./src/app/(auth)/*"],
       "@/api/*": ["./src/app/api/*"],
       "@/components/*": ["./src/components/*"],
       "@/config/*": ["./src/config/*"],

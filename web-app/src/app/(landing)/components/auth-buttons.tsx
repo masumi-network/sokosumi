@@ -2,10 +2,7 @@
 
 import { usePathname } from "next/navigation";
 
-import {
-  SignInButton,
-  SignUpButton,
-} from "@/landing/(auth)/components/buttons";
+import { SignInButton, SignUpButton } from "@/auth/components/buttons";
 import { cn } from "@/lib/utils";
 
 interface AuthButtonsProps {

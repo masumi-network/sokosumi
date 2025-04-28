@@ -46,7 +46,7 @@ function CardSection1({
             src={getAgentResolvedImage(agent)}
             alt={getAgentName(agent)}
             fill
-            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            sizes="(max-width: 768px) 50vw, 33vw"
             className="rounded-lg object-cover"
             priority
           />

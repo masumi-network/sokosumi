@@ -163,176 +163,6 @@
         "app": "Open App"
       }
     },
-    "Auth": {
-      "Schema": {
-        "Email": {
-          "invalid": "Please enter a valid email address.",
-          "required": "Email is required"
-        },
-        "Name": {
-          "min": "Name must be at least 2 characters.",
-          "max": "Name must be at most 128 characters.",
-          "invalid": "Name must be a valid string.",
-          "required": "Name is required"
-        },
-        "Password": {
-          "invalid": "Password must be a valid string.",
-          "min": "Password must be at least 8 characters",
-          "max": "Password must be at most 128 characters",
-          "lowercase": "Password must contain at least one lowercase letter.",
-          "uppercase": "Password must contain at least one uppercase letter.",
-          "number": "Password must contain at least one number.",
-          "required": "Password is required"
-        },
-        "CurrentPassword": {
-          "invalid": "Current password must be a valid string.",
-          "required": "Current password is required"
-        },
-        "InputPassword": {
-          "invalid": "Password must be a valid string.",
-          "required": "Password is required"
-        },
-        "ConfirmPassword": {
-          "invalid": "Confirm password must be a valid string.",
-          "match": "Password doesn't match",
-          "required": "Confirm password is required"
-        }
-      },
-      "Metadata": {
-        "Title": {
-          "default": "Sokosumi - Login / Register",
-          "template": "Sokosumi - %s"
-        },
-        "description": "Hire yourself an agent to finish the most time consuming tasks"
-      },
-      "SocialButtons": {
-        "continueWith": "Continue with {provider}",
-        "divider": "or continue with",
-        "success": "Login successful",
-        "error": "Login failed"
-      },
-      "Words": {
-        "signIn": "Login",
-        "signUp": "Register"
-      },
-      "Pages": {
-        "SignIn": {
-          "Metadata": {
-            "title": "Login",
-            "description": "Hire yourself an agent to finish the most time consuming tasks"
-          },
-          "Header": {
-            "title": "Login",
-            "description": "Hire agents on our platform"
-          },
-          "Form": {
-            "submit": "Login",
-            "success": "Login successful",
-            "error": "Invalid email or password",
-            "Fields": {
-              "Email": {
-                "placeholder": "Email"
-              },
-              "Password": {
-                "placeholder": "Password"
-              },
-              "RememberMe": {
-                "label": "Keep me signed in"
-              }
-            },
-            "forgotPassword": "Forgot password?",
-            "Register": {
-              "message": "Don't have an account?",
-              "link": "Register"
-            },
-            "Errors": {
-              "Submit": {
-                "verifyEmail": "Please verify your email address"
-              }
-            }
-          }
-        },
-        "SignUp": {
-          "Metadata": {
-            "title": "Register",
-            "description": "Hire yourself an agent to finish the most time consuming tasks"
-          },
-          "Header": {
-            "title": "Register",
-            "description": "Hire agents on our platform"
-          },
-          "Form": {
-            "submit": "Register",
-            "success": "Register successful",
-            "error": "Register failed",
-            "Fields": {
-              "Email": {
-                "placeholder": "Email"
-              },
-              "Name": {
-                "placeholder": "Name"
-              },
-              "Password": {
-                "placeholder": "Password"
-              },
-              "ConfirmPassword": {
-                "placeholder": "Confirm password"
-              }
-            },
-            "Errors": {
-              "Submit": {
-                "userExists": "User already exists"
-              }
-            },
-            "Login": {
-              "message": "Already have an account?",
-              "link": "Login"
-            }
-          }
-        },
-        "ForgotPassword": {
-          "Metadata": {
-            "title": "Reset password",
-            "description": "Reset your password to regain access to your account"
-          },
-          "Header": {
-            "title": "Reset password",
-            "description": "Enter your email address and we'll send you a link to reset your password"
-          },
-          "Form": {
-            "success": "We've sent you an email to reset your password",
-            "error": "Failed to reset password",
-            "reset_password": "Reset password",
-            "Fields": {
-              "Email": {
-                "placeholder": "Email"
-              }
-            }
-          }
-        },
-        "ResetPassword": {
-          "Metadata": {
-            "title": "Reset password",
-            "description": "Set a new password for your account"
-          },
-          "title": "Reset password",
-          "description": "Enter your new password below",
-          "Form": {
-            "submit": "Reset password",
-            "success": "Password reset successfully",
-            "error": "Password reset failed",
-            "Fields": {
-              "Password": {
-                "placeholder": "New password"
-              },
-              "ConfirmPassword": {
-                "placeholder": "Confirm password"
-              }
-            }
-          }
-        }
-      }
-    },
     "Page": {
       "Hero": {
         "caption": "The most powerful way to find and hire agents. Prompt, run, edit and deploy your agents.",
@@ -432,7 +262,195 @@
       }
     }
   },
+  "Auth": {
+    "Error": {
+      "title": "Something went wrong",
+      "description": "We encountered an unexpected error. Our team has been notified and we're working to resolve it.",
+      "errorId": "Error ID: {errorId}",
+      "tryAgain": "Try Again",
+      "goLogin": "Go to Login"
+    },
+    "Footer": {
+      "termsOfServices": "Terms & Conditions",
+      "privacyPolicy": "Privacy Policy"
+    },
+    "Schema": {
+      "Email": {
+        "invalid": "Please enter a valid email address.",
+        "required": "Email is required"
+      },
+      "Name": {
+        "min": "Name must be at least 2 characters.",
+        "max": "Name must be at most 128 characters.",
+        "invalid": "Name must be a valid string.",
+        "required": "Name is required"
+      },
+      "Password": {
+        "invalid": "Password must be a valid string.",
+        "min": "Password must be at least 8 characters",
+        "max": "Password must be at most 128 characters",
+        "lowercase": "Password must contain at least one lowercase letter.",
+        "uppercase": "Password must contain at least one uppercase letter.",
+        "number": "Password must contain at least one number.",
+        "required": "Password is required"
+      },
+      "CurrentPassword": {
+        "invalid": "Current password must be a valid string.",
+        "required": "Current password is required"
+      },
+      "InputPassword": {
+        "invalid": "Password must be a valid string.",
+        "required": "Password is required"
+      },
+      "ConfirmPassword": {
+        "invalid": "Confirm password must be a valid string.",
+        "match": "Password doesn't match",
+        "required": "Confirm password is required"
+      }
+    },
+    "Metadata": {
+      "Title": {
+        "default": "Sokosumi - Login / Register",
+        "template": "Sokosumi - %s"
+      },
+      "description": "Hire yourself an agent to finish the most time consuming tasks"
+    },
+    "SocialButtons": {
+      "continueWith": "Continue with {provider}",
+      "divider": "or continue with",
+      "success": "Login successful",
+      "error": "Login failed"
+    },
+    "Words": {
+      "signIn": "Login",
+      "signUp": "Register"
+    },
+    "Pages": {
+      "SignIn": {
+        "Metadata": {
+          "title": "Login",
+          "description": "Hire yourself an agent to finish the most time consuming tasks"
+        },
+        "Header": {
+          "title": "Login",
+          "description": "Hire agents on our platform"
+        },
+        "Form": {
+          "submit": "Login",
+          "success": "Login successful",
+          "error": "Invalid email or password",
+          "Fields": {
+            "Email": {
+              "placeholder": "Email"
+            },
+            "Password": {
+              "placeholder": "Password"
+            },
+            "RememberMe": {
+              "label": "Keep me signed in"
+            }
+          },
+          "forgotPassword": "Forgot password?",
+          "Register": {
+            "message": "Don't have an account?",
+            "link": "Register"
+          },
+          "Errors": {
+            "Submit": {
+              "verifyEmail": "Please verify your email address"
+            }
+          }
+        }
+      },
+      "SignUp": {
+        "Metadata": {
+          "title": "Register",
+          "description": "Hire yourself an agent to finish the most time consuming tasks"
+        },
+        "Header": {
+          "title": "Register",
+          "description": "Hire agents on our platform"
+        },
+        "Form": {
+          "submit": "Register",
+          "success": "Register successful",
+          "error": "Register failed",
+          "Fields": {
+            "Email": {
+              "placeholder": "Email"
+            },
+            "Name": {
+              "placeholder": "Name"
+            },
+            "Password": {
+              "placeholder": "Password"
+            },
+            "ConfirmPassword": {
+              "placeholder": "Confirm password"
+            }
+          },
+          "Errors": {
+            "Submit": {
+              "userExists": "User already exists"
+            }
+          },
+          "Login": {
+            "message": "Already have an account?",
+            "link": "Login"
+          }
+        }
+      },
+      "ForgotPassword": {
+        "Metadata": {
+          "title": "Reset password",
+          "description": "Reset your password to regain access to your account"
+        },
+        "Header": {
+          "title": "Reset password",
+          "description": "Enter your email address and we'll send you a link to reset your password"
+        },
+        "Form": {
+          "success": "We've sent you an email to reset your password",
+          "error": "Failed to reset password",
+          "reset_password": "Reset password",
+          "Fields": {
+            "Email": {
+              "placeholder": "Email"
+            }
+          }
+        }
+      },
+      "ResetPassword": {
+        "Metadata": {
+          "title": "Reset password",
+          "description": "Set a new password for your account"
+        },
+        "title": "Reset password",
+        "description": "Enter your new password below",
+        "Form": {
+          "submit": "Reset password",
+          "success": "Password reset successfully",
+          "error": "Password reset failed",
+          "Fields": {
+            "Password": {
+              "placeholder": "New password"
+            },
+            "ConfirmPassword": {
+              "placeholder": "Confirm password"
+            }
+          }
+        }
+      }
+    }
+  },
   "App": {
+    "Error": {
+      "title": "Something went wrong",
+      "description": "We encountered an unexpected error. Our team has been notified and we're working to resolve it.",
+      "errorId": "Error ID: {errorId}",
+      "tryAgain": "Try Again",
+      "goApp": "Go to App"
+    },
     "Metadata": {
       "Title": {
         "default": "Sokosumi - Marketplace for Agent-to-Agent interactions",

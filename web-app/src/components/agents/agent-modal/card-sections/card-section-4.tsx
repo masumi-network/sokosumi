@@ -29,6 +29,7 @@ function CardSection4({ agent }: { agent: AgentWithRelations }) {
                     alt={exampleOutput.name}
                     fill
                     className="object-cover"
+                    sizes="33vw"
                   />
                 </div>
               </div>
