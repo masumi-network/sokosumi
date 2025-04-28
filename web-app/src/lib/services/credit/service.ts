@@ -1,9 +1,10 @@
 "use server";
 
-import { getEnvPublicConfig } from "@/config/env.config";
+import { getEnvPublicConfig, getEnvSecrets } from "@/config/env.config";
 import {
   AgentWithFixedPricing,
   convertCentsToCredits,
+  convertCreditsToCents,
   CreditsPrice,
   getCentsByUserId,
   getCreditCostByUnit,
@@ -105,11 +106,11 @@ export async function getCreditsPrice(
     throw new Error("Added fee percentage must be equal to or greater than 0");
   }
   const feeMultiplier = feePercentagePoints / 100;
-
   const amountsParsed = pricingAmountsSchema.parse(amounts);
 
   let totalCents = BigInt(0);
   let totalFee = BigInt(0);
+  const minFeeCents = convertCreditsToCents(getEnvSecrets().MIN_FEE_CREDITS);
   for (const amount of amountsParsed) {
     const creditCost = await getCreditCostByUnit(amount.unit, tx);
     if (!creditCost) {
@@ -121,6 +122,9 @@ export async function getCreditsPrice(
     // round up to the nearest integer
     totalCents += BigInt(Math.ceil(cents));
     totalFee += BigInt(Math.ceil(fee));
+  }
+  if (totalFee < minFeeCents) {
+    totalFee = minFeeCents;
   }
   return { cents: totalCents + totalFee, includedFee: totalFee };
 }
