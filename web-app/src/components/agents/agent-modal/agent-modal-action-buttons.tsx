@@ -3,7 +3,7 @@
 import { ArrowLeft } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import { AgentBookmarkButton } from "@/components/agents";
+import { AgentBookmarkButton } from "@/components/agents/agent-bookmark-button";
 import { ShareButton } from "@/components/share-button";
 import { Button } from "@/components/ui/button";
 import { AgentListWithAgent, AgentWithRelations } from "@/lib/db";

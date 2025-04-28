@@ -2,7 +2,6 @@ export * from "./agent-action-buttons";
 export * from "./agent-badge-cloud";
 export * from "./agent-bookmark-button";
 export * from "./agent-card";
-export * from "./agent-detail";
 export * from "./agent-hire-button";
 export * from "./agent-modal";
 export * from "./agent-verified-badge";
