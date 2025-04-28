@@ -50,7 +50,7 @@ export default function LogoutModal({
 
   return (
     <Dialog open={loading || open} onOpenChange={onOpenChange}>
-      <DialogContent>
+      <DialogContent className="w-sm">
         <DialogHeader>
           <DialogTitle className="text-center text-lg font-medium">
             {t("title")}
