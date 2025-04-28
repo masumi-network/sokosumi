@@ -40,7 +40,7 @@ export async function getJobsByUserId(
  * @param userId - The unique identifier of the user
  * @returns Promise containing an array of jobs with their relations
  */
-export async function getJobsByAgentId(
+export async function getJobsByAgentIdAndUserId(
   agentId: string,
   userId: string,
   tx: Prisma.TransactionClient = prisma,
