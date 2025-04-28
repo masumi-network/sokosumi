@@ -35,30 +35,29 @@ function AgentModal({
     }
   };
 
+  if (!agent || !agentCreditsPrice) {
+    return null;
+  }
+
   return (
-    <Dialog
-      open={!!agent && !!agentCreditsPrice}
-      onOpenChange={handleOnOpenChange}
-    >
+    <Dialog defaultOpen={true} onOpenChange={handleOnOpenChange}>
       <DialogPortal>
         <DialogOverlay className="backdrop-blur-lg" />
         <DialogContent className="w-10/12 max-w-3xl! border-none bg-transparent p-0 [&>button]:hidden">
           <DialogTitle className="hidden" />
           <DialogDescription className="hidden" />
           <ScrollArea className="max-h-[90svh]">
-            {agent && agentCreditsPrice && (
-              <div className="flex flex-col gap-1.5">
-                <CardSection1
-                  agent={agent}
-                  agentList={agentList}
-                  agentCreditsPrice={agentCreditsPrice}
-                  onCloseModal={onCloseModal}
-                />
-                <CardSection2 agent={agent} />
-                <CardSection3 agent={agent} />
-                <CardSection4 agent={agent} />
-              </div>
-            )}
+            <div className="flex flex-col gap-1.5">
+              <CardSection1
+                agent={agent}
+                agentList={agentList}
+                agentCreditsPrice={agentCreditsPrice}
+                onCloseModal={onCloseModal}
+              />
+              <CardSection2 agent={agent} />
+              <CardSection3 agent={agent} />
+              <CardSection4 agent={agent} />
+            </div>
           </ScrollArea>
         </DialogContent>
       </DialogPortal>
