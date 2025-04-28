@@ -80,7 +80,10 @@
           "title2": "At a Glance"
         },
         "Card4": {
-          "title": "From the developer:",
+          "title": "Example Outputs"
+        },
+        "Card5": {
+          "title": "From the developer",
           "privacyPolicy": "Privacy Policy",
           "terms": "Terms",
           "other": "Other"

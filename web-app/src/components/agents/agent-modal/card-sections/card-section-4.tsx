@@ -1,48 +1,40 @@
-import Link from "next/link";
+import Image from "next/image";
 import { useTranslations } from "next-intl";
 
-import { AgentWithRelations, getAgentLegal } from "@/lib/db";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { AgentWithRelations, getAgentExampleOutput } from "@/lib/db";
 
 import { CardSection } from "./card-section";
 
 function CardSection4({ agent }: { agent: AgentWithRelations }) {
   const t = useTranslations("Components.Agents.AgentModal.Card4");
-  const legal = getAgentLegal(agent);
+  const exampleOutputs = getAgentExampleOutput(agent);
 
-  if (!legal) {
+  if (exampleOutputs.length == 0) {
     return null;
   }
 
   return (
     <CardSection>
-      <div>
+      <div className="w-full">
         <p className="mb-2 text-xs uppercase">{t("title")}</p>
-        <div className="flex flex-wrap">
-          {legal?.privacyPolicy && (
-            <Link
-              href={legal.privacyPolicy}
-              className="hover:text-foreground underline underline-offset-4 transition-colors"
-            >
-              {t("privacyPolicy")}
-            </Link>
-          )}
-          {legal?.terms && (
-            <Link
-              href={legal.terms}
-              className="hover:text-foreground underline underline-offset-4 transition-colors"
-            >
-              {t("terms")}
-            </Link>
-          )}
-          {legal?.other && (
-            <Link
-              href={legal.other}
-              className="hover:text-foreground underline underline-offset-4 transition-colors"
-            >
-              {t("other")}
-            </Link>
-          )}
-        </div>
+        <ScrollArea className="h-64 w-full">
+          <div className="flex h-full gap-2">
+            {exampleOutputs.map((exampleOutput) => (
+              <div key={exampleOutput.id} className="h-full w-full">
+                <div className="relative h-64 w-64">
+                  <Image
+                    src={exampleOutput.url}
+                    alt={exampleOutput.name}
+                    fill
+                    className="object-cover"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+          <ScrollBar orientation="horizontal" />
+        </ScrollArea>
       </div>
     </CardSection>
   );
