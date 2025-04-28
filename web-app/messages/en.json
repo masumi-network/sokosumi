@@ -71,9 +71,9 @@
         },
         "Card2": {
           "developer": "Developer",
-          "runningTime": "Running Time",
           "executedJobs": "Executed Jobs",
-          "lastUpdated": "Last Updated"
+          "executedJobsCount": "{count} Tsd.",
+          "unknownExecutedJobs": "Unknown"
         },
         "Card3": {
           "title1": "Description",
