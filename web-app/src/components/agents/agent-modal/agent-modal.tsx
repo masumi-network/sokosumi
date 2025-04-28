@@ -30,7 +30,6 @@ import {
   CardSection4Skeleton,
   CardSection5,
   CardSection5Skeleton,
-  CardSection6,
 } from "./card-sections";
 
 interface AgentModalProps {
@@ -89,7 +88,6 @@ function AgentModalClient({ agentList }: AgentModalProps) {
                   <CardSection3 agent={agent} />
                   <CardSection4 agent={agent} />
                   <CardSection5 agent={agent} />
-                  <CardSection6 agent={agent} />
                 </>
               )}
             </div>
