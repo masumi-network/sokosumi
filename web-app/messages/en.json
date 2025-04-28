@@ -43,6 +43,7 @@
     "Agents": {
       "agentsNotAvailable": "No agents available",
       "agentsNotFound": "No Agents found",
+      "hire": "Hire Agent",
       "AgentCard": {
         "button": "Show details",
         "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}",
@@ -63,6 +64,31 @@
           "other": "Other"
         },
         "pricing": "{credits, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
+      },
+      "AgentModal": {
+        "error": "Failed to fetch agent detail",
+        "backToAgents": "Back To Agents Gallery",
+        "Card1": {
+          "pricing": "{credits, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
+        },
+        "Card2": {
+          "developer": "Developer",
+          "executedJobs": "Executed Jobs",
+          "unknownExecutedJobs": "Unknown"
+        },
+        "Card3": {
+          "title1": "Description",
+          "title2": "At a Glance"
+        },
+        "Card4": {
+          "title": "Example Outputs"
+        },
+        "Card5": {
+          "title": "From the developer",
+          "privacyPolicy": "Privacy Policy",
+          "terms": "Terms",
+          "other": "Other"
+        }
       }
     },
     "UserAvatar": {
@@ -402,7 +428,6 @@
       "FeaturedAgent": {
         "title": "an absolute must-have",
         "view": "View Agent",
-        "hire": "Hire Agent",
         "pricing": "{credits, plural, =0 {Free} =1 {1 credit} other {# credits}}"
       }
     }

@@ -1,7 +1,8 @@
 import { v4 as uuidv4 } from "uuid";
 
-import { getEnvSecrets } from "@/config/env.config";
+import { getEnvPublicConfig, getEnvSecrets } from "@/config/env.config";
 import { convertCreditsToCents } from "@/lib/db";
+import { usdmUnit } from "@/lib/utils";
 import { PrismaClient } from "@/prisma/generated/client";
 
 import { hashPassword } from "./util/password";
@@ -58,22 +59,25 @@ const seedUser = async (): Promise<string> => {
   return user.id;
 };
 
-const seedCreditCost = async () => {
+const seedUSDMCreditCost = async () => {
   console.log("Seeding credit cost...");
+  const unit = usdmUnit(getEnvPublicConfig().NEXT_PUBLIC_NETWORK);
   await prisma.creditCost.upsert({
     where: {
-      unit: "usdm",
+      unit,
     },
     update: {
       centsPerUnit: 1_000_000, // 1 base unit usdm == 0.000001 usdm == 1_000_000 credits
     },
     create: {
-      unit: "usdm",
+      unit,
       centsPerUnit: 1_000_000, // 1 base unit usdm == 0.000001 usdm == 1_000_000 credits
     },
   });
   console.log("USDM credit cost seeded");
+};
 
+const seedLoveLaceCreditCost = async () => {
   await prisma.creditCost.upsert({
     where: {
       unit: "",
@@ -90,10 +94,11 @@ const seedCreditCost = async () => {
 };
 
 async function main() {
+  await seedUSDMCreditCost();
   if (seedDatabase) {
     await seedUser();
+    await seedLoveLaceCreditCost();
   }
-  await seedCreditCost();
 }
 
 main()

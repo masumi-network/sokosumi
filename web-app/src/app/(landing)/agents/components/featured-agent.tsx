@@ -1,9 +1,12 @@
 import Image from "next/image";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 
-import { BadgeCloud } from "@/components/agents";
-import { AgentVerifiedBadge } from "@/components/agents/agent-verified-badge";
+import {
+  AgentBadgeCloud,
+  AgentHireButton,
+  AgentModalTrigger,
+  AgentVerifiedBadge,
+} from "@/components/agents";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -15,8 +18,6 @@ import {
   getAgentResolvedImage,
   getAgentTags,
 } from "@/lib/db";
-
-import FeaturedAgentHireButton from "./featured-agent-hire-button";
 
 export function FeaturedAgentSkeleton() {
   return (
@@ -69,7 +70,7 @@ export function FeaturedAgent({ agent, creditsPrice }: FeaturedAgentProps) {
       {/* Text Content Section - 1/2 width */}
       <div className="flex w-full flex-col gap-12 md:w-1/2">
         <div>
-          <BadgeCloud tags={getAgentTags(agent)} />
+          <AgentBadgeCloud tags={getAgentTags(agent)} />
           <div className="relative">
             <div className="flex items-start gap-1">
               <h3 className="line-clamp-2 text-5xl leading-tight font-light">
@@ -92,12 +93,12 @@ export function FeaturedAgent({ agent, creditsPrice }: FeaturedAgentProps) {
             </span>
           </div>
           <div className="flex gap-2">
-            <Link href={`/agents/${agent.id}`}>
+            <AgentModalTrigger agentId={agent.id}>
               <Button size="lg" variant="secondary">
                 {t("view")}
               </Button>
-            </Link>
-            <FeaturedAgentHireButton agentId={agent.id} />
+            </AgentModalTrigger>
+            <AgentHireButton agentId={agent.id} />
           </div>
         </div>
       </div>

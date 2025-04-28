@@ -35,12 +35,36 @@ export async function getJobsByUserId(
 }
 
 /**
+ * Retrieves all jobs associated with a specific agent
+ * @param agentId - The unique identifier of the agent
+ * @returns Promise containing an array of jobs with their relations
+ */
+export async function getJobsByAgentId(
+  agentId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<JobWithRelations[]> {
+  const jobs = await tx.job.findMany({
+    where: {
+      agentId,
+    },
+    include: jobInclude,
+    orderBy: jobOrderBy,
+  });
+
+  if (!jobs) {
+    return [];
+  }
+
+  return jobs;
+}
+
+/**
  * Retrieves all jobs associated with a specific agent and user
  * @param agentId - The unique identifier of the agent
  * @param userId - The unique identifier of the user
  * @returns Promise containing an array of jobs with their relations
  */
-export async function getJobsByAgentId(
+export async function getJobsByAgentIdAndUserId(
   agentId: string,
   userId: string,
   tx: Prisma.TransactionClient = prisma,

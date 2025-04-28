@@ -9,6 +9,7 @@ import { z } from "zod";
 const envSecretsSchema = z.object({
   // Database
   DATABASE_URL: z.string().url(),
+  MIN_FEE_CREDITS: z.number({ coerce: true }).min(0).default(1),
 
   SHOW_AGENTS_BY_DEFAULT: z
     .string()
