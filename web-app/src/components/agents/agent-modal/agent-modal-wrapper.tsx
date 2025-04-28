@@ -47,25 +47,30 @@ function AgentModalWrapperClient({
 }: AgentModalWrapperProps) {
   const [modalAgentId, setModalAgentId] = useQueryState("modalAgentId");
 
-  if (!modalAgentId) {
-    return null;
+  let agent: AgentWithRelations | undefined;
+  let agentCreditsPrice: CreditsPrice | undefined;
+
+  if (modalAgentId) {
+    const found = findAgentAndAgentCreditsPrice(
+      agents,
+      agentCreditsPriceList,
+      modalAgentId,
+    );
+
+    if (!found) {
+      return notFound();
+    }
+
+    [agent, agentCreditsPrice] = found;
   }
-
-  const found = findAgentAndAgentCreditsPrice(
-    agents,
-    agentCreditsPriceList,
-    modalAgentId,
-  );
-
-  if (!found) {
-    return notFound();
-  }
-
-  const [agent, agentCreditsPrice] = found;
 
   const onCloseModal = () => {
     setModalAgentId(null);
   };
+
+  if (modalAgentId && (!agent || !agentCreditsPrice)) {
+    notFound();
+  }
 
   return (
     <AgentModal
