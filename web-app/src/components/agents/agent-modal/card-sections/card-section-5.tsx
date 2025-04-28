@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
+import { Skeleton } from "@/components/ui/skeleton";
 import { AgentWithRelations, getAgentLegal } from "@/lib/db";
 
 import { CardSection } from "./card-section";
@@ -48,4 +49,19 @@ function CardSection5({ agent }: { agent: AgentWithRelations }) {
   );
 }
 
-export { CardSection5 };
+function CardSection5Skeleton() {
+  return (
+    <CardSection>
+      <div>
+        <Skeleton className="mb-2 h-4 w-12" />
+        <div className="flex flex-wrap gap-4">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-4 w-24" />
+          ))}
+        </div>
+      </div>
+    </CardSection>
+  );
+}
+
+export { CardSection5, CardSection5Skeleton };

@@ -1,11 +1,7 @@
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
-import {
-  AgentModalWrapper,
-  Agents,
-  AgentsNotAvailable,
-} from "@/components/agents";
+import { AgentModal, Agents, AgentsNotAvailable } from "@/components/agents";
 import { AgentWithRelations, getAgents } from "@/lib/db";
 import { getAgentCreditsPrice } from "@/lib/services";
 
@@ -44,10 +40,7 @@ export default async function GalleryPage() {
         <Agents agents={agents} agentCreditsPriceList={agentCreditsPriceList} />
 
         {/* Agent Modal Wrapper */}
-        <AgentModalWrapper
-          agents={agents}
-          agentCreditsPriceList={agentCreditsPriceList}
-        />
+        <AgentModal />
       </div>
     </div>
   );

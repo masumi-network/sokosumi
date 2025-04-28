@@ -66,6 +66,8 @@
         "pricing": "{credits, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
       },
       "AgentModal": {
+        "error": "Failed to fetch agent detail",
+        "backToAgents": "Back To Agents Gallery",
         "Card1": {
           "pricing": "{credits, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
         },

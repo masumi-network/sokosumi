@@ -1,6 +1,7 @@
 import { useTranslations } from "next-intl";
 
 import { AgentBadgeCloud } from "@/components/agents/agent-badge-cloud";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   AgentWithRelations,
   getAgentDescription,
@@ -29,4 +30,21 @@ function CardSection3({ agent }: { agent: AgentWithRelations }) {
   );
 }
 
-export { CardSection3 };
+function CardSection3Skeleton() {
+  return (
+    <CardSection>
+      <div>
+        <Skeleton className="h-4 w-12" />
+        <Skeleton className="mt-2 mb-10 h-32 w-full" />
+        <Skeleton className="h-4 w-12" />
+        <div className="mt-2 flex gap-2">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-4 w-8" />
+          ))}
+        </div>
+      </div>
+    </CardSection>
+  );
+}
+
+export { CardSection3, CardSection3Skeleton };

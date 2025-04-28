@@ -14,12 +14,12 @@ const FINISHED_JOB_STATUSES: JobStatus[] = [
 
 export default function useAgentJobs(agentId: string) {
   const [jobs, setJobs] = useState<Job[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
     const fetchJobs = async () => {
-      setLoading(true);
+      setIsLoading(true);
       setJobs([]);
       setError(null);
 
@@ -33,7 +33,7 @@ export default function useAgentJobs(agentId: string) {
           setError(new Error("An unknown error occurred while fetching jobs"));
         }
       } finally {
-        setLoading(false);
+        setIsLoading(false);
       }
     };
     fetchJobs();
@@ -43,5 +43,5 @@ export default function useAgentJobs(agentId: string) {
     FINISHED_JOB_STATUSES.includes(job.status),
   );
 
-  return { jobs, executedJobs, loading, error };
+  return { jobs, executedJobs, isLoading, error };
 }

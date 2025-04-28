@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { AgentBookmarkButton } from "@/components/agents/agent-bookmark-button";
 import { ShareButton } from "@/components/share-button";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { AgentListWithAgent, AgentWithRelations } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
@@ -43,4 +44,16 @@ function AgentModalActionButtons({
   );
 }
 
-export { AgentModalActionButtons };
+function AgentModalActionButtonsSkeleton() {
+  return (
+    <div className="flex w-full items-center justify-between">
+      <Skeleton className="h-8 w-8" />
+      <div className="flex items-center gap-2">
+        <Skeleton className="h-8 w-8" />
+        <Skeleton className="h-8 w-8" />
+      </div>
+    </div>
+  );
+}
+
+export { AgentModalActionButtons, AgentModalActionButtonsSkeleton };

@@ -3,6 +3,7 @@
 import { CircleCheck, Loader2, SquareTerminal } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { Skeleton } from "@/components/ui/skeleton";
 import useAgentJobs from "@/hooks/use-agent-jobs";
 import { AgentWithRelations, getAgentAuthorName } from "@/lib/db";
 
@@ -12,7 +13,7 @@ function CardSection2({ agent }: { agent: AgentWithRelations }) {
   const t = useTranslations("Components.Agents.AgentModal.Card2");
   const {
     executedJobs,
-    loading: jobsLoading,
+    isLoading: jobsIsLoading,
     error: jobsError,
   } = useAgentJobs(agent.id);
 
@@ -33,7 +34,7 @@ function CardSection2({ agent }: { agent: AgentWithRelations }) {
             <CircleCheck size={16} />
             <span className="text-upper text-xs">{t("executedJobs")}</span>
           </div>
-          {jobsLoading ? (
+          {jobsIsLoading ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : jobsError ? (
             <span className="text-upper text-xs">
@@ -50,4 +51,22 @@ function CardSection2({ agent }: { agent: AgentWithRelations }) {
   );
 }
 
-export { CardSection2 };
+function CardSection2Skeleton() {
+  return (
+    <CardSection>
+      <div className="grid grid-cols-4">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="flex flex-col gap-0.5 px-3">
+            <div className="flex items-center gap-1.5">
+              <Skeleton className="h-4 w-4" />
+              <Skeleton className="h-4 w-12" />
+            </div>
+            <Skeleton className="h-6 w-24" />
+          </div>
+        ))}
+      </div>
+    </CardSection>
+  );
+}
+
+export { CardSection2, CardSection2Skeleton };
