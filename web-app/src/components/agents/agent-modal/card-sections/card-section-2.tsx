@@ -1,7 +1,7 @@
 "use client";
 
 import { CircleCheck, Loader2, SquareTerminal } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import useAgentJobs from "@/hooks/use-agent-jobs";
@@ -11,6 +11,7 @@ import { CardSection } from "./card-section";
 
 function CardSection2({ agent }: { agent: AgentWithRelations }) {
   const t = useTranslations("Components.Agents.AgentModal.Card2");
+  const formatter = useFormatter();
   const {
     executedJobs,
     isLoading: jobsIsLoading,
@@ -42,7 +43,9 @@ function CardSection2({ agent }: { agent: AgentWithRelations }) {
             </span>
           ) : (
             <p className="text-base font-medium">
-              {t("executedJobsCount", { count: executedJobs.length })}
+              {formatter.number(executedJobs.length, {
+                notation: "compact",
+              })}
             </p>
           )}
         </div>

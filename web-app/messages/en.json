@@ -74,7 +74,6 @@
         "Card2": {
           "developer": "Developer",
           "executedJobs": "Executed Jobs",
-          "executedJobsCount": "{count} Tsd.",
           "unknownExecutedJobs": "Unknown"
         },
         "Card3": {
