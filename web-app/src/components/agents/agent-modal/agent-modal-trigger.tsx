@@ -26,13 +26,13 @@ function AgentModalTriggerClient({
   children,
   className,
 }: AgentModalTriggerProps) {
-  const [_, setModalAgentId] = useQueryState("modalAgentId");
+  const [_, setAgentId] = useQueryState("agentId");
 
   return (
     <div
       className={cn("cursor-pointer", className)}
       onClick={() => {
-        setModalAgentId(agentId);
+        setAgentId(agentId);
       }}
     >
       {children}
