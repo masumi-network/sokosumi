@@ -1,6 +1,6 @@
 "use server";
 
-import { getEnvPublicConfig } from "@/config/env.config";
+import { getEnvPublicConfig, getEnvSecrets } from "@/config/env.config";
 import {
   AgentWithFixedPricing,
   convertCentsToCredits,
@@ -110,7 +110,7 @@ export async function getCreditsPrice(
 
   let totalCents = BigInt(0);
   let totalFee = BigInt(0);
-  const minFeeCents = convertCreditsToCents(1); // 1 credit in cents
+  const minFeeCents = convertCreditsToCents(getEnvSecrets().MIN_FEE_CREDITS);
   for (const amount of amountsParsed) {
     const creditCost = await getCreditCostByUnit(amount.unit, tx);
     if (!creditCost) {
