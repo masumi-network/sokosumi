@@ -1,25 +1,25 @@
 import Image from "next/image";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import React, { Suspense } from "react";
 
+import { AgentModal, AgentModalTrigger } from "@/components/agents";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getAgentResolvedImage, getAgents } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 interface AgentCardProps {
+  agentId: string;
   name: string;
   description: string | null;
   image?: string;
-  id: string;
 }
 
 const AgentShowcaseCard = ({
+  agentId,
   name,
   description,
   image,
-  id,
 }: AgentCardProps) => {
   const t = useTranslations("Landing.Page.Hero.AgentsShowcase");
 
@@ -43,11 +43,11 @@ const AgentShowcaseCard = ({
             {description}
           </p>
         )}
-        <Link href={`/agents/${id}`}>
+        <AgentModalTrigger agentId={agentId}>
           <Button variant="default" size="sm">
             {t("viewAgent")}
           </Button>
-        </Link>
+        </AgentModalTrigger>
       </div>
     </div>
   );
@@ -66,12 +66,13 @@ async function AgentsShowcaseList() {
       {firstFiveAgents.map((agent) => (
         <AgentShowcaseCard
           key={agent.id}
-          id={agent.id}
+          agentId={agent.id}
           name={agent.name}
           description={agent.description}
           image={getAgentResolvedImage(agent)}
         />
       ))}
+      <AgentModal />
     </div>
   );
 }

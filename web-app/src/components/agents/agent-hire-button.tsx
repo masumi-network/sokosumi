@@ -7,14 +7,12 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import useWithAuthentication from "@/hooks/use-with-authentication";
 
-interface FeaturedAgentHireButtonProps {
+interface AgentHireButtonProps {
   agentId: string;
 }
 
-export default function FeaturedAgentHireButton({
-  agentId,
-}: FeaturedAgentHireButtonProps) {
-  const t = useTranslations("Landing.Agents.FeaturedAgent");
+function AgentHireButton({ agentId }: AgentHireButtonProps) {
+  const t = useTranslations("Components.Agents");
   const router = useRouter();
   const { isPending, ModalComponent, withAuthentication } =
     useWithAuthentication();
@@ -37,3 +35,5 @@ export default function FeaturedAgentHireButton({
     </>
   );
 }
+
+export { AgentHireButton };

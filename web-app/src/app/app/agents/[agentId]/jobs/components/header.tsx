@@ -2,7 +2,7 @@ import { Bookmark, Plus } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
-import { AgentBookmarkButton } from "@/components/agents/agent-bookmark-button";
+import { AgentBookmarkButton } from "@/components/agents";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
