@@ -27,7 +27,9 @@ export default function AuthLayout({
   return (
     <div className="flex h-svh gap-6 p-6">
       <div className="flex h-full flex-1 flex-col gap-6">
-        <ThemedLogo LogoComponent={SokosumiLogo} priority />
+        <Link href="/">
+          <ThemedLogo LogoComponent={SokosumiLogo} priority />
+        </Link>
         <div className="mx-auto flex w-full max-w-md flex-1 items-center justify-center">
           {children}
         </div>
