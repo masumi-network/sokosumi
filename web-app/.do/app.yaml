@@ -29,7 +29,7 @@ services:
       scope: RUN_AND_BUILD_TIME
       type: GENERAL
     - key: GOOGLE_CLIENT_ID
-      value: ${GOOGLE_CLIENT_ID}
+      value: asdasd213ad123
       scope: RUN_AND_BUILD_TIME
       type: GENERAL
     - key: GOOGLE_CLIENT_SECRET
