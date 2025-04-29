@@ -2,81 +2,81 @@ region: fra
 services:
   environment_slug: node-js
   envs:
-    - name: NODE_ENV
+    - key: NODE_ENV
       value: ${NODE_ENV}
-      type: general
-    - name: RESEND_API_KEY
+      type: GENERAL
+    - key: RESEND_API_KEY
       value: ${RESEND_API_KEY}
-      type: secret
-    - name: RESEND_FROM_EMAIL
+      type: SECRET
+    - key: RESEND_FROM_EMAIL
       value: ${RESEND_FROM_EMAIL}
-      type: general
-    - name: BETTER_AUTH_SECRET
+      type: GENERAL
+    - key: BETTER_AUTH_SECRET
       value: ${BETTER_AUTH_SECRET}
-      type: secret
-    - name: BETTER_AUTH_URL
+      type: SECRET
+    - key: BETTER_AUTH_URL
       value: ${BETTER_AUTH_URL}
-      type: general
-    - name: GOOGLE_CLIENT_ID
+      type: GENERAL
+    - key: GOOGLE_CLIENT_ID
       value: ${GOOGLE_CLIENT_ID}
-      type: general
-    - name: GOOGLE_CLIENT_SECRET
+      type: GENERAL
+    - key: GOOGLE_CLIENT_SECRET
       value: ${GOOGLE_CLIENT_SECRET}
-      type: secret
-    - name: MICROSOFT_CLIENT_ID
+      type: SECRET
+    - key: MICROSOFT_CLIENT_ID
       value: ${MICROSOFT_CLIENT_ID}
-      type: general
-    - name: MICROSOFT_CLIENT_SECRET
+      type: GENERAL
+    - key: MICROSOFT_CLIENT_SECRET
       value: ${MICROSOFT_CLIENT_SECRET}
-      type: secret
-    - name: LINKEDIN_CLIENT_ID
+      type: SECRET
+    - key: LINKEDIN_CLIENT_ID
       value: ${LINKEDIN_CLIENT_ID}
-      type: general
-    - name: LINKEDIN_CLIENT_SECRET
+      type: GENERAL
+    - key: LINKEDIN_CLIENT_SECRET
       value: ${LINKEDIN_CLIENT_SECRET}
-      type: secret
-    - name: APPLE_CLIENT_ID
+      type: SECRET
+    - key: APPLE_CLIENT_ID
       value: ${APPLE_CLIENT_ID}
-      type: general
-    - name: APPLE_CLIENT_SECRET
+      type: GENERAL
+    - key: APPLE_CLIENT_SECRET
       value: ${APPLE_CLIENT_SECRET}
-      type: secret
-    - name: REGISTRY_API_KEY
+      type: SECRET
+    - key: REGISTRY_API_KEY
       value: ${REGISTRY_API_KEY}
-      type: secret
-    - name: ADMIN_API_KEY
+      type: SECRET
+    - key: ADMIN_API_KEY
       value: ${ADMIN_API_KEY}
-      type: secret
-    - name: NEXT_PUBLIC_NETWORK
+      type: SECRET
+    - key: NEXT_PUBLIC_NETWORK
       value: ${NEXT_PUBLIC_NETWORK}
-      type: general
-    - name: PAYMENT_API_KEY
+      type: GENERAL
+    - key: PAYMENT_API_KEY
       value: ${PAYMENT_API_KEY}
-      type: secret
-    - name: PAYMENT_API_URL
+      type: SECRET
+    - key: PAYMENT_API_URL
       value: ${PAYMENT_API_URL}
-      type: general
-    - name: SOKOSUMI_API_URL
+      type: GENERAL
+    - key: SOKOSUMI_API_URL
       value: ${SOKOSUMI_API_URL}
-      type: general
-    - name: REGISTRY_API_URL
+      type: GENERAL
+    - key: REGISTRY_API_URL
       value: ${REGISTRY_API_URL}
-      type: general
-    - name: ADMIN_KEY
+      type: GENERAL
+    - key: ADMIN_KEY
       value: ${ADMIN_KEY}
-      type: secret
-    - name: STRIPE_PUBLISHABLE_KEY
+      type: SECRET
+    - key: STRIPE_PUBLISHABLE_KEY
       value: ${STRIPE_PUBLISHABLE_KEY}
-      type: secret
-    - name: STRIPE_SECRET_KEY
+      type: SECRET
+    - key: STRIPE_SECRET_KEY
       value: ${STRIPE_SECRET_KEY}
-      type: secret
-    - name: STRIPE_WEBHOOK_SECRET
+      type: SECRET
+    - key: STRIPE_WEBHOOK_SECRET
       value: ${STRIPE_WEBHOOK_SECRET}
-      type: secret
-    - name: STRIPE_PRICE_ID
+      type: SECRET
+    - key: STRIPE_PRICE_ID
       value: ${STRIPE_PRICE_ID}
-      type: general
+      type: GENERAL
   github:
     branch: main
     repo: masumi-network/sokosumi
