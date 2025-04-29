@@ -23,6 +23,7 @@ jobs:
       - name: Deploy the app
         uses: digitalocean/app_action/deploy@v2
         env:
+          DIGITALOCEAN_APP_NAME: ${{ vars.DIGITALOCEAN_APP_NAME }}
           RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
           RESEND_FROM_EMAIL: ${{ vars.RESEND_FROM_EMAIL }}
           BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}

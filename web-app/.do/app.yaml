@@ -1,5 +1,8 @@
+name: ${DIGITALOCEAN_APP_NAME}
 region: fra
 services:
+- name: sokosumi-web-app
+  source_dir: web-app
   environment_slug: node-js
   envs:
     - key: NODE_ENV
@@ -80,5 +83,3 @@ services:
   github:
     branch: main
     repo: masumi-network/sokosumi
-  name: sokosumi-web-app
-  source_dir: web-app
