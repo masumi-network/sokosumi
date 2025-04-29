@@ -2,6 +2,9 @@ name: ${DIGITALOCEAN_APP_NAME}
 region: fra
 services:
 - name: sokosumi-web-app
+  github:
+    branch: main
+    repo: masumi-network/sokosumi
   source_dir: ./web-app
   environment_slug: node-js
   envs:
@@ -105,6 +108,3 @@ services:
       value: ${STRIPE_PRICE_ID}
       scope: RUN_AND_BUILD_TIME
       type: GENERAL
-  github:
-    branch: main
-    repo: masumi-network/sokosumi
