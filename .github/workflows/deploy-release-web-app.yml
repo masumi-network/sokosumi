@@ -21,29 +21,6 @@ jobs:
         uses: actions/checkout@v4
       - name: Deploy the app
         uses: digitalocean/app_action/deploy@v2
-        env:
-          DIGITALOCEAN_APP_NAME: ${{ vars.DIGITALOCEAN_APP_NAME }}
-          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
-          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
-          RESEND_FROM_EMAIL: ${{ vars.RESEND_FROM_EMAIL }}
-          BETTER_AUTH_URL: ${{ vars.BETTER_AUTH_URL }}
-          GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          MICROSOFT_CLIENT_ID: ${{ vars.MICROSOFT_CLIENT_ID }}
-          MICROSOFT_CLIENT_SECRET: ${{ secrets.MICROSOFT_CLIENT_SECRET }}
-          APPLE_CLIENT_ID: ${{ vars.APPLE_CLIENT_ID }}
-          APPLE_CLIENT_SECRET: ${{ secrets.APPLE_CLIENT_SECRET }}
-          ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
-          NEXT_PUBLIC_NETWORK: ${{ vars.NEXT_PUBLIC_NETWORK }}
-          REGISTRY_API_KEY: ${{ secrets.REGISTRY_API_KEY }}
-          PAYMENT_API_KEY: ${{ secrets.PAYMENT_API_KEY }}
-          REGISTRY_API_URL: ${{ vars.REGISTRY_API_URL }}
-          PAYMENT_API_URL: ${{ vars.PAYMENT_API_URL }}
-          STRIPE_PUBLISHABLE_KEY: ${{ secrets.STRIPE_PUBLISHABLE_KEY }}
-          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
-          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
-          STRIPE_PRICE_ID: ${{ vars.STRIPE_PRICE_ID }}
-          NODE_ENV: ${{ vars.NODE_ENV }}
         with:
           app_name: ${{ vars.DIGITALOCEAN_APP_NAME }}
           project_id: ${{ secrets.DIGITALOCEAN_PROJECT_ID }}
