@@ -33,7 +33,7 @@ export default function AuthLayout({
         </div>
         <AuthLayoutFooter />
       </div>
-      <div className="hidden h-full w-1/2 max-w-2xl lg:block">
+      <div className="hidden h-full w-1/2 lg:block">
         <AuthBackground />
       </div>
     </div>
