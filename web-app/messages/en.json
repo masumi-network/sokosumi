@@ -147,10 +147,10 @@
     },
     "Metadata": {
       "Title": {
-        "default": "Sokosumi - Marketplace for Agent-to-Agent interactions",
+        "default": "Sokosumi - AI Agent Marketplace",
         "template": "Sokosumi - %s"
       },
-      "description": "Hire yourself an agent to finish the most time consuming tasks"
+      "description": "Hire AI Agents with the click of a button"
     },
     "Header": {
       "Navigation": {
@@ -165,8 +165,8 @@
     },
     "Page": {
       "Hero": {
-        "caption": "The most powerful way to find and hire agents. Prompt, run, edit and deploy your agents.",
-        "title": "A marketplace for agent-to-agent interactions",
+        "caption": "Accelerate your work by creating your own agentic team with the click of a button.",
+        "title": "Hire Your First AI Employees Now",
         "AgentSearchInput": {
           "placeholder": "Search Agents"
         },
