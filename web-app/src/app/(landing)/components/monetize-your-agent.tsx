@@ -30,7 +30,7 @@ export function MonetizeYourAgent() {
         </div>
         <p className="text-muted-foreground">{t("description")}</p>
         <div className="flex flex-wrap gap-4">
-          <Button asChild>
+          <Button asChild variant="secondary">
             <Link
               href="https://docs.masumi.network/"
               target="_blank"
@@ -39,7 +39,7 @@ export function MonetizeYourAgent() {
               {t("docs")}
             </Link>
           </Button>
-          <Button asChild variant="secondary">
+          <Button asChild variant="quinary">
             <Link
               href="https://masumi.network"
               target="_blank"

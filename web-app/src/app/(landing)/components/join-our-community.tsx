@@ -17,7 +17,7 @@ export function JoinOurCommunity() {
           </p>
           <h2 className="mb-8 text-5xl font-light sm:text-4xl">{t("title")}</h2>
           <div className="flex flex-wrap items-center justify-center gap-4">
-            <Button variant="default" asChild>
+            <Button variant="secondary" asChild>
               <Link
                 href="https://discord.com/invite/aj4QfnTS92"
                 target="_blank"
@@ -27,7 +27,7 @@ export function JoinOurCommunity() {
                 <span>{"Discord"}</span>
               </Link>
             </Button>
-            <Button variant="secondary" asChild>
+            <Button variant="quinary" asChild>
               <Link
                 href="https://x.com/MasumiNetwork"
                 target="_blank"
