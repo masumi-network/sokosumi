@@ -147,7 +147,7 @@
     },
     "Metadata": {
       "Title": {
-        "default": "Sokosumi - Marketplace for Agent-to-Agent interactions",
+        "default": "Sokosumi - Marketplace for Human-to-Agent interactions",
         "template": "Sokosumi - %s"
       },
       "description": "Hire yourself an agent to finish the most time consuming tasks"
