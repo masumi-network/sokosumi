@@ -27,7 +27,7 @@ export function ShareButton({ url, className }: ShareButtonProps) {
 
   return (
     <Button
-      variant="secondary"
+      variant="quinary"
       size="icon"
       onClick={handleShare}
       className={cn(className)}

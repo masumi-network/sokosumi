@@ -55,7 +55,7 @@ export function AgentBookmarkButton({
 
   return (
     <Button
-      variant="secondary"
+      variant="quinary"
       size="icon"
       className={cn(className)}
       onClick={handleBookmarkToggle}

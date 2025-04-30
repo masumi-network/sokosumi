@@ -94,7 +94,7 @@ export function FeaturedAgent({ agent, creditsPrice }: FeaturedAgentProps) {
           </div>
           <div className="flex gap-2">
             <AgentModalTrigger agentId={agent.id}>
-              <Button size="lg" variant="secondary">
+              <Button size="lg" variant="quinary">
                 {t("view")}
               </Button>
             </AgentModalTrigger>
