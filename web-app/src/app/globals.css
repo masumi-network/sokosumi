@@ -44,9 +44,6 @@
   --animate-accordion-up: accordion-up 0.2s ease-out;
 
   /* Custom Colors */
-  --color-search-background: var(--search-background);
-  --color-search-border: var(--search-border);
-
   --color-agent-verified-background: hsla(142, 76%, 36%, 0.05);
   --color-agent-verified-foreground: hsla(142, 72%, 29%, 1);
 
@@ -102,10 +99,6 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
-
-  /* Custom Colors */
-  --search-background: oklch(0.26 0.0187 18.43);
-  --search-border: hsla(0, 0%, 100%, 0.05);
 }
 
 .dark {
@@ -140,10 +133,6 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
-
-  /* Custom Colors */
-  --search-background: oklch(0.26 0.0187 18.43);
-  --search-border: hsla(0, 0%, 100%, 0.05);
 }
 
 @layer base {
@@ -167,8 +156,8 @@
 
 @utility landing-hero-bg {
   background:
-    linear-gradient(rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.4)),
-    url("/backgrounds/hero-bg.png");
+    linear-gradient(rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.2)),
+    url("/backgrounds/visuals/ink-drop-1.png");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -176,7 +165,7 @@
   @variant dark {
     background:
       linear-gradient(rgba(23, 23, 23, 0.4), rgba(23, 23, 23, 0.4)),
-      url("/backgrounds/hero-bg.png");
+      url("/backgrounds/visuals/ink-drop-1.png");
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;

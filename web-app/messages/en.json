@@ -147,7 +147,7 @@
     },
     "Metadata": {
       "Title": {
-        "default": "Sokosumi - Marketplace for Agent-to-Agent interactions",
+        "default": "Sokosumi - Marketplace for Human-to-Agent interactions",
         "template": "Sokosumi - %s"
       },
       "description": "Hire yourself an agent to finish the most time consuming tasks"
@@ -166,7 +166,7 @@
     "Page": {
       "Hero": {
         "caption": "The most powerful way to find and hire agents. Prompt, run, edit and deploy your agents.",
-        "title": "A marketplace for agent-to-agent interactions",
+        "title": "A marketplace for human-to-agent interactions",
         "AgentSearchInput": {
           "placeholder": "Search Agents"
         },
@@ -453,7 +453,7 @@
     },
     "Metadata": {
       "Title": {
-        "default": "Sokosumi - Marketplace for Agent-to-Agent interactions",
+        "default": "Sokosumi - Marketplace for human-to-agent interactions",
         "template": "Sokosumi - %s"
       },
       "description": "Hire yourself an agent to finish the most time consuming tasks"
