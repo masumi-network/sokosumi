@@ -7,7 +7,7 @@ import { getRegistryClient } from "@/lib/api/registry-service.client";
 import { compareApiKeys } from "@/lib/auth/utils";
 import { prisma } from "@/lib/db";
 import { getLock, releaseLock } from "@/lib/services";
-import { PricingType } from "@/prisma/generated/client";
+import { AgentStatus, PricingType } from "@/prisma/generated/client";
 
 const LOCK_KEY = "registry-sync";
 
@@ -59,11 +59,16 @@ export async function POST(request: Request) {
 const convertStatus = (
   status: "Online" | "Offline" | "Deregistered" | "Invalid",
 ) => {
-  return status.toUpperCase() as
-    | "ONLINE"
-    | "OFFLINE"
-    | "DEREGISTERED"
-    | "INVALID";
+  switch (status) {
+    case "Online":
+      return AgentStatus.ONLINE;
+    case "Offline":
+      return AgentStatus.OFFLINE;
+    case "Deregistered":
+      return AgentStatus.DEREGISTERED;
+    case "Invalid":
+      return AgentStatus.INVALID;
+  }
 };
 
 async function syncAllEntries() {
