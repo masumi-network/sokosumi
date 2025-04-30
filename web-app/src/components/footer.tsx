@@ -71,13 +71,13 @@ export default function Footer({ className }: FooterProps) {
       <FooterSections className="container mx-auto px-12 py-12" />
 
       {/* Footer image */}
-      <div className="flex w-full justify-center">
+      <div className="flex aspect-3/1 w-full justify-center">
         <Image
           className="w-full"
-          src="/backgrounds/footer-image.png"
+          src="/backgrounds/visuals/blurry-ink-wave-1.png"
           alt="Footer"
-          width={1920}
-          height={1080}
+          width={1024}
+          height={1024}
         />
       </div>
     </footer>
