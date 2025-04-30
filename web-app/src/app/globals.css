@@ -167,8 +167,8 @@
 
 @utility landing-hero-bg {
   background:
-    linear-gradient(rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.4)),
-    url("/backgrounds/hero-bg.png");
+    linear-gradient(rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.2)),
+    url("/backgrounds/visuals/ink-drop-1.png");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -176,7 +176,7 @@
   @variant dark {
     background:
       linear-gradient(rgba(23, 23, 23, 0.4), rgba(23, 23, 23, 0.4)),
-      url("/backgrounds/hero-bg.png");
+      url("/backgrounds/visuals/ink-drop-1.png");
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
