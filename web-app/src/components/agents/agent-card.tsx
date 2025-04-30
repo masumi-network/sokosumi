@@ -106,7 +106,7 @@ function AgentCard({
           <CardDescription className="flex-1 px-1">
             <div className="relative">
               <div className="flex items-center gap-1">
-                <h3 className="text-primary line-clamp-1 text-base leading-6 font-medium">
+                <h3 className="text-foreground line-clamp-1 text-base leading-6 font-medium">
                   {getAgentName(agent)}
                 </h3>
                 <AgentVerifiedBadge />
@@ -122,7 +122,7 @@ function AgentCard({
 
         {/* Pricing */}
         <CardFooter className="px-1">
-          <span className="font-medium">
+          <span className="text-foreground font-medium">
             {t("pricing", {
               price: convertCentsToCredits(agentCreditsPrice.cents),
             })}
