@@ -100,12 +100,12 @@ export default function Header({
             price: convertCentsToCredits(agentCreditsPrice.cents),
           })}
         </div>
-        <Link href={`/app/agents/${agent.id}/jobs`}>
-          <Button className="gap-2">
+        <Button className="gap-2" asChild>
+          <Link href={`/app/agents/${agent.id}/jobs`}>
             <Plus />
             {t("newJob")}
-          </Button>
-        </Link>
+          </Link>
+        </Button>
       </div>
     </div>
   );
