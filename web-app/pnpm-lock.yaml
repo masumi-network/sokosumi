@@ -180,8 +180,8 @@ importers:
         specifier: ^5.5.0
         version: 5.5.0(react@19.1.0)
       react-resizable-panels:
-        specifier: ^2.1.9
-        version: 2.1.9(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+        specifier: ^3.0.0
+        version: 3.0.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       react-social-login-buttons:
         specifier: ^4.1.1
         version: 4.1.1(react@19.1.0)
@@ -193,7 +193,7 @@ importers:
         version: 2.15.3(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       resend:
         specifier: ^4.4.1
-        version: 4.4.1(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+        version: 4.5.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
       sonner:
         specifier: ^2.0.3
         version: 2.0.3(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
@@ -4433,8 +4433,8 @@ packages:
       '@types/react':
         optional: true
 
-  react-resizable-panels@2.1.9:
-    resolution: {integrity: sha512-z77+X08YDIrgAes4jl8xhnUu1LNIRp4+E7cv4xHmLOxxUPO/ML7PSrE813b90vj7xvQ1lcf7g2uA9GeMZonjhQ==}
+  react-resizable-panels@3.0.0:
+    resolution: {integrity: sha512-UPFAMvU5UfXA4yGpqhjvY35zEC44ML0yRHjLvoK3nQrFFcU+mWUGMmURYsD3mp7P8oZdrKEwR++pFIexqSASlw==}
     peerDependencies:
       react: ^16.14.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
       react-dom: ^16.14.0 || ^17.0.0 || ^18.0.0 || ^19.0.0 || ^19.0.0-rc
@@ -4513,8 +4513,8 @@ packages:
   requires-port@1.0.0:
     resolution: {integrity: sha512-KigOCHcocU3XODJxsu8i/j8T9tzT4adHiecwORRQ0ZZFcp7ahwXuRU1m+yuO90C5ZUyGeGfocHDI14M3L3yDAQ==}
 
-  resend@4.4.1:
-    resolution: {integrity: sha512-FR22bzMW3VfoyZSBc8ScGo8ShrMWHmWB0G3FrispzWCnYSEEK5M7pyRvZtInKmM/09lsJETKc2q66mX+dXPSmg==}
+  resend@4.5.0:
+    resolution: {integrity: sha512-gUmfRaYlqJUVO0W29yibZatAhqEUtpE7ZWa2AMRpbIZVOgK+ONFI1Qf8a4VB3ItAWJSyF90VVRu3p3Jc01x2Rg==}
     engines: {node: '>=18'}
 
   resolve-cwd@3.0.0:
@@ -9560,7 +9560,7 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.1.2
 
-  react-resizable-panels@2.1.9(react-dom@19.1.0(react@19.1.0))(react@19.1.0):
+  react-resizable-panels@3.0.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0):
     dependencies:
       react: 19.1.0
       react-dom: 19.1.0(react@19.1.0)
@@ -9653,7 +9653,7 @@ snapshots:
 
   requires-port@1.0.0: {}
 
-  resend@4.4.1(react-dom@19.1.0(react@19.1.0))(react@19.1.0):
+  resend@4.5.0(react-dom@19.1.0(react@19.1.0))(react@19.1.0):
     dependencies:
       '@react-email/render': 1.0.6(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
     transitivePeerDependencies:
