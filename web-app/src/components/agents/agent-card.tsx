@@ -14,9 +14,11 @@ import {
   getAgentAuthorName,
   getAgentName,
   getAgentResolvedImage,
+  getAgentTags,
 } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
+import { AgentBadgeCloud, AgentBadgeCloudSkeleton } from "./agent-badge-cloud";
 import { AgentBookmarkButton } from "./agent-bookmark-button";
 import { AgentHireButton } from "./agent-hire-button";
 import { AgentModalTrigger } from "./agent-modal";
@@ -53,6 +55,20 @@ const agentCardImageContainerVariants = cva(
   },
 );
 
+const agentCardTagsVariants = cva("absolute top-3 left-3", {
+  variants: {
+    size: {
+      xs: "hidden",
+      sm: "hidden",
+      md: "block",
+      lg: "block",
+    },
+  },
+  defaultVariants: {
+    size: "md",
+  },
+});
+
 const agentCardImageHoverVariants = cva(
   "absolute inset-0 z-20 opacity-0 backdrop-blur-md transition-opacity group-hover:opacity-100",
   {
@@ -63,6 +79,9 @@ const agentCardImageHoverVariants = cva(
         md: "block",
         lg: "hidden",
       },
+    },
+    defaultVariants: {
+      size: "md",
     },
   },
 );
@@ -122,6 +141,11 @@ function AgentCardSkeleton({
       {/* Image */}
       <div className={cn(agentCardImageContainerVariants({ size }))}>
         <Skeleton className="h-full w-full" />
+
+        {/* Tags */}
+        <div className={cn(agentCardTagsVariants({ size }))}>
+          <AgentBadgeCloudSkeleton />
+        </div>
       </div>
 
       {/* Content */}
@@ -172,6 +196,11 @@ function AgentCard({
             height={250}
             className="h-full w-full object-cover transition-transform group-hover:scale-105"
           />
+
+          {/* Tags */}
+          <div className={cn(agentCardTagsVariants({ size }))}>
+            <AgentBadgeCloud tags={getAgentTags(agent)} />
+          </div>
 
           {/* Bookmark Button (hover only) */}
           <div className={cn(agentCardImageHoverVariants({ size }))}>
