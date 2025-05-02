@@ -27,10 +27,10 @@ import { AgentVerifiedBadge } from "./agent-verified-badge";
 const agentCardVariants = cva("flex rounded-lg border-none p-1 shadow-none", {
   variants: {
     size: {
-      xs: "w-64 flex-row items-center gap-2.5",
-      sm: "w-80 flex-row items-center gap-4",
-      md: "w-80 flex-col gap-2",
-      lg: "rounded-md px-6 has-[>svg]:px-4",
+      xs: "w-64 flex-row items-center gap-2.5 hover:bg-foreground/5 transition-colors",
+      sm: "w-80 flex-row items-center gap-4 hover:bg-foreground/5 transition-colors",
+      md: "w-80 flex-col gap-2 hover:bg-foreground/5 transition-colors",
+      lg: "w-6xl flex-row items-center gap-2",
     },
   },
   defaultVariants: {
@@ -43,10 +43,10 @@ const agentCardImageContainerVariants = cva(
   {
     variants: {
       size: {
-        xs: "w-12 h-12 aspect-square",
+        xs: "w-16 h-16 aspect-square",
         sm: "w-24 h-24 aspect-square",
         md: "w-full aspect-[1.6]",
-        lg: "w-full aspect-[1.6]",
+        lg: "w-xl aspect-[1.6]",
       },
     },
     defaultVariants: {
@@ -55,7 +55,7 @@ const agentCardImageContainerVariants = cva(
   },
 );
 
-const agentCardTagsVariants = cva("absolute top-3 left-3", {
+const agentCardTagsVariants = cva("absolute top-3 left-3 z-20", {
   variants: {
     size: {
       xs: "hidden",
@@ -70,14 +70,14 @@ const agentCardTagsVariants = cva("absolute top-3 left-3", {
 });
 
 const agentCardImageHoverVariants = cva(
-  "absolute inset-0 z-20 opacity-0 backdrop-blur-md transition-opacity group-hover:opacity-100",
+  "absolute inset-0 z-20 opacity-0 transition-opacity group-hover:opacity-100",
   {
     variants: {
       size: {
         xs: "hidden",
         sm: "hidden",
-        md: "block",
-        lg: "hidden",
+        md: "block backdrop-blur-md",
+        lg: "block [&>div>div:nth-child(2)]:hidden",
       },
     },
     defaultVariants: {
@@ -89,10 +89,10 @@ const agentCardImageHoverVariants = cva(
 const agentCardContentVariants = cva("flex flex-col", {
   variants: {
     size: {
-      xs: "flex-1 min-w-0 [&_h3]:font-medium [&_h3]:text-xs [&_p]:text-xs",
-      sm: "flex-1 min-w-0 [&_h3]:font-medium [&_h3]:text-sm [&_p]:text-sm",
-      md: "flex-1 p-1 [&_h3]:font-medium [&_h3]:text-base [&_p]:text-base",
-      lg: "flex-1 p-1 [&_h3]:font-medium [&_h3]:text-base [&_p]:text-base",
+      xs: "flex-1 gap-1 min-w-0 [&_h3]:font-medium [&_h3]:text-xs [&_p]:text-xs",
+      sm: "flex-1 gap-2 min-w-0 [&_h3]:font-medium [&_h3]:text-sm [&_p]:text-sm",
+      md: "flex-1 gap-2 p-1 [&_h3]:font-medium [&_h3]:text-base [&_p]:text-base",
+      lg: "flex-1 p-12 gap-12 [&>div]:gap-2 [&_h3]:font-light [&_h3]:text-3xl [&_p]:text-base",
     },
   },
   defaultVariants: {
@@ -100,7 +100,7 @@ const agentCardContentVariants = cva("flex flex-col", {
   },
 });
 
-const agentCardViewButtonContainerVariants = cva("mt-1", {
+const agentCardViewButtonContainerVariants = cva("", {
   variants: {
     size: {
       xs: "block",
@@ -114,19 +114,22 @@ const agentCardViewButtonContainerVariants = cva("mt-1", {
   },
 });
 
-const agentCardPricingContentVariants = cva("", {
-  variants: {
-    size: {
-      xs: "hidden",
-      sm: "hidden",
-      md: "px-1 [&_p]:font-medium [&_p]:text-sm",
-      lg: "px-1 [&_p]:font-medium [&_p]:text-sm",
+const agentCardPricingAndButtonsContentVariants = cva(
+  "flex flex-row items-center justify-between mt-auto",
+  {
+    variants: {
+      size: {
+        xs: "hidden",
+        sm: "hidden",
+        md: "[&>div:nth-child(2)]:hidden [&>div>p]:font-medium [&>div>p]:text-sm",
+        lg: "[&>div>p]:font-medium [&>div>p]:text-base",
+      },
+    },
+    defaultVariants: {
+      size: "md",
     },
   },
-  defaultVariants: {
-    size: "md",
-  },
-});
+);
 
 interface AgentCardSkeletonProps {
   className?: string | undefined;
@@ -149,20 +152,30 @@ function AgentCardSkeleton({
       </div>
 
       {/* Content */}
-      <div className={cn(agentCardContentVariants({ size }), "gap-1")}>
-        <div className="flex items-center gap-2">
-          <Skeleton className="h-4 w-24" />
-          <Skeleton className="h-4 w-12 rounded-lg" />
+      <div className={cn(agentCardContentVariants({ size }))}>
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center gap-2">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-4 w-12 rounded-lg" />
+          </div>
+          <Skeleton className="h-4 w-16" />
         </div>
-        <Skeleton className="h-4 w-18" />
+        {/* View Button */}
         <div className={cn(agentCardViewButtonContainerVariants({ size }))}>
-          <Skeleton className="h-6 w-24" />
+          <Skeleton className="h-6 w-18" />
         </div>
-      </div>
-
-      {/* Pricing */}
-      <div className={cn(agentCardPricingContentVariants({ size }))}>
-        <Skeleton className="h-4 w-24" />
+        {/* Pricing and Buttons */}
+        <div
+          className={cn(agentCardPricingAndButtonsContentVariants({ size }))}
+        >
+          <div>
+            <Skeleton className="h-4 w-16" />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Skeleton className="h-6 w-18" />
+            <Skeleton className="h-6 w-18" />
+          </div>
+        </div>
       </div>
     </Card>
   );
@@ -185,7 +198,7 @@ function AgentCard({
   const t = useTranslations("Components.Agents.AgentCard");
 
   return (
-    <AgentModalTrigger agentId={agent.id} className="m-0">
+    <AgentCardWrapper size={size} agentId={agent.id}>
       <Card className={cn(agentCardVariants({ size }), className)}>
         {/* Image */}
         <div className={cn(agentCardImageContainerVariants({ size }))}>
@@ -196,11 +209,6 @@ function AgentCard({
             height={250}
             className="h-full w-full object-cover transition-transform group-hover:scale-105"
           />
-
-          {/* Tags */}
-          <div className={cn(agentCardTagsVariants({ size }))}>
-            <AgentBadgeCloud tags={getAgentTags(agent)} />
-          </div>
 
           {/* Bookmark Button (hover only) */}
           <div className={cn(agentCardImageHoverVariants({ size }))}>
@@ -218,19 +226,27 @@ function AgentCard({
               </ClickBlocker>
             </div>
           </div>
+
+          {/* Tags */}
+          <div className={cn(agentCardTagsVariants({ size }))}>
+            <AgentBadgeCloud tags={getAgentTags(agent)} />
+          </div>
         </div>
 
         {/* Content */}
         <div className={cn(agentCardContentVariants({ size }))}>
-          <div className="flex items-center gap-2">
-            <h3 className="text-primary truncate text-base leading-6 font-medium">
-              {getAgentName(agent)}
-            </h3>
-            <AgentVerifiedBadge />
+          <div className="flex flex-col">
+            <div className="flex items-center gap-2">
+              <h3 className="text-primary truncate text-base leading-6 font-medium">
+                {getAgentName(agent)}
+              </h3>
+              <AgentVerifiedBadge />
+            </div>
+            <p className="text-muted-foreground truncate text-sm">
+              {getAgentAuthorName(agent)}
+            </p>
           </div>
-          <p className="text-muted-foreground truncate text-sm">
-            {getAgentAuthorName(agent)}
-          </p>
+          {/* View Button */}
           <div className={cn(agentCardViewButtonContainerVariants({ size }))}>
             <AgentModalTrigger agentId={agent.id}>
               <Button variant="outline" className="text-xs" size="sm">
@@ -238,19 +254,46 @@ function AgentCard({
               </Button>
             </AgentModalTrigger>
           </div>
-        </div>
-
-        {/* Pricing */}
-        <div className={cn(agentCardPricingContentVariants({ size }))}>
-          <p>
-            {t("pricing", {
-              price: convertCentsToCredits(agentCreditsPrice.cents),
-            })}
-          </p>
+          {/* Pricing and Buttons */}
+          <div
+            className={cn(agentCardPricingAndButtonsContentVariants({ size }))}
+          >
+            <div>
+              <p>
+                {t("pricing", {
+                  price: convertCentsToCredits(agentCreditsPrice.cents),
+                })}
+              </p>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <AgentModalTrigger agentId={agent.id}>
+                <Button variant="outline" size="lg">
+                  {t("view")}
+                </Button>
+              </AgentModalTrigger>
+              <AgentHireButton agentId={agent.id} />
+            </div>
+          </div>
         </div>
       </Card>
-    </AgentModalTrigger>
+    </AgentCardWrapper>
   );
+}
+
+function AgentCardWrapper({
+  size,
+  agentId,
+  children,
+}: { agentId: string; children: React.ReactNode } & VariantProps<
+  typeof agentCardVariants
+>) {
+  if (!size || size === "md") {
+    <AgentModalTrigger agentId={agentId} className="m-0">
+      {children}
+    </AgentModalTrigger>;
+  }
+
+  return <>{children}</>;
 }
 
 export { AgentCard, AgentCardSkeleton };

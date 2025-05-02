@@ -76,9 +76,7 @@ function Agents({
           agentList={agentList}
           agentCreditsPrice={agentCreditsPriceList[index]}
           className={agentCardClassName}
-          size="md"
         />
-        // <AgentCardSkeleton key={index} size="md" />
       ))}
     </div>
   );
