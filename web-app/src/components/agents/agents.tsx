@@ -41,7 +41,7 @@ function AgentsSkeleton({ className }: AgentsSkeletonProps) {
       className={cn("flex w-full flex-wrap justify-center gap-6", className)}
     >
       {Array.from({ length: 6 }).map((_, i) => (
-        <AgentCardSkeleton key={i} />
+        <AgentCardSkeleton key={i} size="md" />
       ))}
     </div>
   );
@@ -76,7 +76,9 @@ function Agents({
           agentList={agentList}
           agentCreditsPrice={agentCreditsPriceList[index]}
           className={agentCardClassName}
+          size="md"
         />
+        // <AgentCardSkeleton key={index} size="md" />
       ))}
     </div>
   );
