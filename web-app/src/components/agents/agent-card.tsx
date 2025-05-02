@@ -77,7 +77,7 @@ const agentCardImageHoverVariants = cva(
         xs: "hidden",
         sm: "hidden",
         md: "block backdrop-blur-md",
-        lg: "block [&>div>div:nth-child(2)]:hidden",
+        lg: "hidden",
       },
     },
     defaultVariants: {
