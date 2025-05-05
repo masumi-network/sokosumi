@@ -34,7 +34,7 @@ export default function AuthenticationModal({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="block space-y-1.5">
-          <Button className="w-full" asChild>
+          <Button variant="primary" className="w-full" asChild>
             <Link href="/login">{t("login")}</Link>
           </Button>
           <Button variant="secondary" className="w-full" asChild>
