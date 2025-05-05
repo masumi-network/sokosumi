@@ -8,8 +8,7 @@ import { cn } from "@/lib/utils";
 
 export default async function FeaturedAgents() {
   const t = await getTranslations("Landing.Page.FeaturedAgents");
-  const agentsWithPrice = await getOnlineAgentsWithCreditsPrice();
-  const firstFourAgents = agentsWithPrice.slice(0, 4);
+  const agentsWithPrice = (await getOnlineAgentsWithCreditsPrice()).slice(0, 4);
 
   return (
     <div className="flex w-full flex-col gap-16">
@@ -21,7 +20,7 @@ export default async function FeaturedAgents() {
       </div>
 
       <div className="flex flex-col justify-between gap-2.5 sm:flex-row">
-        {firstFourAgents.map(({ agent, creditsPrice }, index) => (
+        {agentsWithPrice.map(({ agent, creditsPrice }, index) => (
           <div
             key={agent.id}
             className={cn(

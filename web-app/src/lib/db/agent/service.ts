@@ -1,3 +1,4 @@
+"use server";
 import { getAgentCreditsPrice } from "@/lib/services";
 import { Prisma } from "@/prisma/generated/client";
 
