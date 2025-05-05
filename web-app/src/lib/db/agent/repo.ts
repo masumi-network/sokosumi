@@ -17,7 +17,7 @@ export async function getOnlineAgents(
   return await getAgentsWithStatus(AgentStatus.ONLINE, tx);
 }
 
-export async function getAgentsWithStatus(
+async function getAgentsWithStatus(
   status: AgentStatus,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithRelations[]> {
@@ -25,17 +25,6 @@ export async function getAgentsWithStatus(
     include: agentInclude,
     where: {
       status,
-      isShown: true,
-    },
-  });
-}
-
-export async function getAgents(
-  tx: Prisma.TransactionClient = prisma,
-): Promise<AgentWithRelations[]> {
-  return await tx.agent.findMany({
-    include: agentInclude,
-    where: {
       isShown: true,
     },
   });
