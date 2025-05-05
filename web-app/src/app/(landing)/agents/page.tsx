@@ -7,7 +7,7 @@ import {
   Agents,
   AgentsNotAvailable,
 } from "@/components/agents";
-import { getOnlineAgentsWithCreditsPrice } from "@/lib/db/agent";
+import { getOnlineAgentsWithCreditsPrice } from "@/lib/services";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Landing.Agents.Metadata");

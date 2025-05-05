@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 
 import { AgentCard } from "@/components/agents";
 import { Button } from "@/components/ui/button";
-import { getOnlineAgentsWithCreditsPrice } from "@/lib/db/agent";
+import { getOnlineAgentsWithCreditsPrice } from "@/lib/services";
 import { cn } from "@/lib/utils";
 
 export default async function FeaturedAgents() {
