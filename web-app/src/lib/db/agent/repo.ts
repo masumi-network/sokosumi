@@ -25,6 +25,7 @@ export async function getAgentsWithStatus(
     include: agentInclude,
     where: {
       status,
+      isShown: true,
     },
   });
 }
