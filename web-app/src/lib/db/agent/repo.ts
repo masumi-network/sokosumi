@@ -11,6 +11,9 @@ import {
   AgentWithRelations,
 } from "./types";
 
+/**
+ * Get all agents that are online and shown
+ */
 export async function getOnlineAgents(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithRelations[]> {

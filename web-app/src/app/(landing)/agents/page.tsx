@@ -7,8 +7,7 @@ import {
   Agents,
   AgentsNotAvailable,
 } from "@/components/agents";
-import { AgentWithRelations, getOnlineAgents } from "@/lib/db";
-import { getAgentCreditsPrice } from "@/lib/services";
+import { getOnlineAgentsWithCreditsPrice } from "@/lib/services";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Landing.Agents.Metadata");
@@ -20,29 +19,30 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function GalleryPage() {
-  const agents: AgentWithRelations[] = await getOnlineAgents();
+  const agentsWithPrice = await getOnlineAgentsWithCreditsPrice();
 
-  if (!agents.length) {
+  if (!agentsWithPrice.length) {
     return <AgentsNotAvailable />;
   }
-
-  const agentCreditsPriceList = await Promise.all(
-    agents.map((agent) => getAgentCreditsPrice(agent)),
-  );
 
   return (
     <div className="container mx-auto px-12 pt-4 pb-8">
       <div className="space-y-24">
         {/* Featured Agent Section */}
         <AgentCard
-          agent={agents[0]}
-          agentCreditsPrice={agentCreditsPriceList[0]}
+          agent={agentsWithPrice[0].agent}
+          agentCreditsPrice={agentsWithPrice[0].creditsPrice}
           className="w-full"
           size="lg"
         />
 
         {/* Agent Cards Grid */}
-        <Agents agents={agents} agentCreditsPriceList={agentCreditsPriceList} />
+        <Agents
+          agents={agentsWithPrice.map((item) => item.agent)}
+          agentCreditsPriceList={agentsWithPrice.map(
+            (item) => item.creditsPrice,
+          )}
+        />
       </div>
       {/* Agent Modal Component */}
       <AgentModal />
