@@ -2,7 +2,7 @@ import { Bookmark, Plus } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
-import { AgentBookmarkButton } from "@/components/agents";
+import { AgentBookmarkButton, AgentModalTrigger } from "@/components/agents";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -83,12 +83,11 @@ export default function Header({
         <h1 className="text-3xl leading-none font-light tracking-tighter text-nowrap">
           {getAgentName(agent)}
         </h1>
-        <Link
-          href={`/app/agents/${agent.id}`}
-          className="text-sm leading-tight font-medium"
-        >
-          {t("details")}
-        </Link>
+        <AgentModalTrigger agentId={agent.id}>
+          <span className="text-sm leading-tight font-medium">
+            {t("details")}
+          </span>
+        </AgentModalTrigger>
         <AgentBookmarkSection
           agentId={agent.id}
           favoriteAgentList={favoriteAgentList}

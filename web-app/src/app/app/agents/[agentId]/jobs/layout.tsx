@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import { AgentModal } from "@/components/agents";
 import DefaultLoading from "@/components/default-loading";
 import { requireAuthentication } from "@/lib/auth/utils";
 import {
@@ -79,6 +80,9 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
         {right}
       </div>
       <Footer legal={getAgentLegal(agent)} />
+
+      {/* Agent Modal */}
+      <AgentModal agentList={favoriteAgentList} />
     </div>
   );
 }

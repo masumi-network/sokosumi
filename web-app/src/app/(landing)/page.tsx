@@ -12,8 +12,6 @@ import WhatOurUsersSay from "./components/what-our-users-say";
 export default function LandingPage() {
   return (
     <>
-      {/* Agent Modal for AgentShowCaseList */}
-      <AgentModal />
       {/* Hero Section */}
       <section className="relative -mt-16 flex max-h-[900px] min-h-svh flex-col items-center justify-center overflow-hidden py-20 lg:-mt-20">
         <Hero />
@@ -67,6 +65,8 @@ export default function LandingPage() {
           <JoinOurCommunity />
         </div>
       </section>
+      {/* Agent Modal for AgentShowCaseList */}
+      <AgentModal />
     </>
   );
 }

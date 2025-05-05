@@ -44,9 +44,9 @@ export default async function GalleryPage() {
           agentList={agentList}
           agentCreditsPriceList={agentCreditsPriceList}
         />
-        {/* Agent Modal */}
-        <AgentModal agentList={agentList} />
       </div>
+      {/* Agent Modal */}
+      <AgentModal agentList={agentList} />
     </div>
   );
 }

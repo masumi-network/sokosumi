@@ -43,10 +43,9 @@ export default async function GalleryPage() {
 
         {/* Agent Cards Grid */}
         <Agents agents={agents} agentCreditsPriceList={agentCreditsPriceList} />
-
-        {/* Agent Modal Wrapper */}
-        <AgentModal />
       </div>
+      {/* Agent Modal Component */}
+      <AgentModal />
     </div>
   );
 }
