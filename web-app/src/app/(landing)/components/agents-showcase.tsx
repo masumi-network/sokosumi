@@ -2,7 +2,7 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 import React, { Suspense } from "react";
 
-import { AgentModal, AgentModalTrigger } from "@/components/agents";
+import { AgentModalTrigger } from "@/components/agents";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getAgentResolvedImage, getOnlineAgents } from "@/lib/db";
@@ -72,7 +72,6 @@ async function AgentsShowcaseList() {
           image={getAgentResolvedImage(agent)}
         />
       ))}
-      <AgentModal />
     </div>
   );
 }

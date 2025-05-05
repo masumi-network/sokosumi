@@ -1,3 +1,5 @@
+import { AgentModal } from "@/components/agents";
+
 import Endorsements from "./components/endorsements";
 import FeaturedAgents from "./components/featured-agents";
 import Hero from "./components/hero";
@@ -10,6 +12,8 @@ import WhatOurUsersSay from "./components/what-our-users-say";
 export default function LandingPage() {
   return (
     <>
+      {/* Agent Modal for AgentShowCaseList */}
+      <AgentModal />
       {/* Hero Section */}
       <section className="relative -mt-16 flex max-h-[900px] min-h-svh flex-col items-center justify-center overflow-hidden py-20 lg:-mt-20">
         <Hero />
