@@ -288,9 +288,11 @@ function AgentCardWrapper({
   typeof agentCardVariants
 >) {
   if (!size || size === "md") {
-    <AgentModalTrigger agentId={agentId} className="m-0">
-      {children}
-    </AgentModalTrigger>;
+    return (
+      <AgentModalTrigger agentId={agentId} className="m-0">
+        {children}
+      </AgentModalTrigger>
+    );
   }
 
   return <>{children}</>;
