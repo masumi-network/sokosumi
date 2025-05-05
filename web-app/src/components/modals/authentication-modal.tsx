@@ -37,7 +37,7 @@ export default function AuthenticationModal({
           <Button className="w-full" asChild>
             <Link href="/login">{t("login")}</Link>
           </Button>
-          <Button variant="quinary" className="w-full" asChild>
+          <Button variant="secondary" className="w-full" asChild>
             <Link href="/register">{t("register")}</Link>
           </Button>
         </DialogFooter>

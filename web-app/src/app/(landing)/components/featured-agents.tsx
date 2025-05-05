@@ -22,7 +22,7 @@ export default async function FeaturedAgents() {
     <div className="flex w-full flex-col gap-16">
       <div className="flex items-center justify-between">
         <h2 className="text-4xl font-light">{t("title")}</h2>
-        <Button variant="quinary" asChild>
+        <Button variant="secondary" asChild>
           <Link href="/agents">{t("button")}</Link>
         </Button>
       </div>

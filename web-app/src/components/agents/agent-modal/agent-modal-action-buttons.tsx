@@ -31,7 +31,7 @@ function AgentModalActionButtons({
 
   return (
     <div className={cn("flex w-full items-center justify-between", className)}>
-      <Button size="icon" variant="quinary" onClick={onCloseModal}>
+      <Button size="icon" variant="secondary" onClick={onCloseModal}>
         <ArrowLeft />
       </Button>
       <div className="flex items-center gap-2">

@@ -27,7 +27,7 @@ export function JoinOurCommunity() {
                 <span>{"Discord"}</span>
               </Link>
             </Button>
-            <Button variant="quinary" asChild>
+            <Button variant="secondary" asChild>
               <Link
                 href="https://x.com/MasumiNetwork"
                 target="_blank"

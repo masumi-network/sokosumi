@@ -39,7 +39,7 @@ export function MonetizeYourAgent() {
               {t("docs")}
             </Link>
           </Button>
-          <Button asChild variant="quinary">
+          <Button asChild variant="secondary">
             <Link
               href="https://masumi.network"
               target="_blank"

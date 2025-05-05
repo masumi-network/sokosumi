@@ -26,6 +26,7 @@ function AgentHireButton({ agentId }: AgentHireButtonProps) {
       {ModalComponent}
       <Button
         size="lg"
+        variant="primary"
         onClick={withAuthentication(handleHire)}
         disabled={isPending}
       >

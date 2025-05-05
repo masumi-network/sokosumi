@@ -44,7 +44,7 @@ const AgentShowcaseCard = ({
           </p>
         )}
         <AgentModalTrigger agentId={agentId}>
-          <Button variant="quinary" size="sm">
+          <Button variant="secondary" size="sm">
             {t("viewAgent")}
           </Button>
         </AgentModalTrigger>
