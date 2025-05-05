@@ -7,8 +7,7 @@ import {
   Agents,
   AgentsNotAvailable,
 } from "@/components/agents";
-import { AgentWithRelations, getOnlineAgents } from "@/lib/db";
-import { getAgentCreditsPrice } from "@/lib/services";
+import { getOnlineAgentsWithCreditsPrice } from "@/lib/db/agent";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Landing.Agents.Metadata");
@@ -20,27 +19,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function GalleryPage() {
-  const agents: AgentWithRelations[] = await getOnlineAgents();
-
-  // Combine agent and price, omitting agents where getAgentCreditsPrice throws
-  const agentPriceResults = await Promise.allSettled(
-    agents.map(async (agent) => {
-      const agentCreditsPrice = await getAgentCreditsPrice(agent);
-      return { agent, agentCreditsPrice };
-    }),
-  );
-
-  interface AgentWithPrice {
-    agent: AgentWithRelations;
-    agentCreditsPrice: Awaited<ReturnType<typeof getAgentCreditsPrice>>;
-  }
-
-  const agentsWithPrice: AgentWithPrice[] = agentPriceResults
-    .filter(
-      (result): result is PromiseFulfilledResult<AgentWithPrice> =>
-        result.status === "fulfilled",
-    )
-    .map((result) => result.value);
+  const agentsWithPrice = await getOnlineAgentsWithCreditsPrice();
 
   if (!agentsWithPrice.length) {
     return <AgentsNotAvailable />;
@@ -52,7 +31,7 @@ export default async function GalleryPage() {
         {/* Featured Agent Section */}
         <AgentCard
           agent={agentsWithPrice[0].agent}
-          agentCreditsPrice={agentsWithPrice[0].agentCreditsPrice}
+          agentCreditsPrice={agentsWithPrice[0].creditsPrice}
           className="w-full"
           size="lg"
         />
@@ -61,7 +40,7 @@ export default async function GalleryPage() {
         <Agents
           agents={agentsWithPrice.map((item) => item.agent)}
           agentCreditsPriceList={agentsWithPrice.map(
-            (item) => item.agentCreditsPrice,
+            (item) => item.creditsPrice,
           )}
         />
 
