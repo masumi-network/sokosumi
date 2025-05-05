@@ -22,27 +22,48 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function GalleryPage() {
   const agents: AgentWithRelations[] = await getOnlineAgents();
 
-  if (!agents.length) {
-    return <AgentsNotAvailable />;
+  // Combine agent and price, omitting agents where getAgentCreditsPrice throws
+  const agentPriceResults = await Promise.allSettled(
+    agents.map(async (agent) => {
+      const agentCreditsPrice = await getAgentCreditsPrice(agent);
+      return { agent, agentCreditsPrice };
+    }),
+  );
+
+  interface AgentWithPrice {
+    agent: AgentWithRelations;
+    agentCreditsPrice: Awaited<ReturnType<typeof getAgentCreditsPrice>>;
   }
 
-  const agentCreditsPriceList = await Promise.all(
-    agents.map((agent) => getAgentCreditsPrice(agent)),
-  );
+  const agentsWithPrice: AgentWithPrice[] = agentPriceResults
+    .filter(
+      (result): result is PromiseFulfilledResult<AgentWithPrice> =>
+        result.status === "fulfilled",
+    )
+    .map((result) => result.value);
+
+  if (!agentsWithPrice.length) {
+    return <AgentsNotAvailable />;
+  }
 
   return (
     <div className="container mx-auto px-12 pt-4 pb-8">
       <div className="space-y-24">
         {/* Featured Agent Section */}
         <AgentCard
-          agent={agents[0]}
-          agentCreditsPrice={agentCreditsPriceList[0]}
+          agent={agentsWithPrice[0].agent}
+          agentCreditsPrice={agentsWithPrice[0].agentCreditsPrice}
           className="w-full"
           size="lg"
         />
 
         {/* Agent Cards Grid */}
-        <Agents agents={agents} agentCreditsPriceList={agentCreditsPriceList} />
+        <Agents
+          agents={agentsWithPrice.map((item) => item.agent)}
+          agentCreditsPriceList={agentsWithPrice.map(
+            (item) => item.agentCreditsPrice,
+          )}
+        />
 
         {/* Agent Modal Wrapper */}
         <AgentModal />
