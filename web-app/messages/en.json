@@ -45,7 +45,7 @@
       "agentsNotFound": "No Agents found",
       "hire": "Hire Agent",
       "AgentCard": {
-        "button": "Show details",
+        "view": "View Agent",
         "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}",
         "addedToBookmarks": "Agent added to pinned agents",
         "removedFromBookmarks": "Agent removed from pinned agents",
@@ -254,11 +254,6 @@
       "Metadata": {
         "title": "Agents Gallery",
         "description": "Explore our collection of agents."
-      },
-      "FeaturedAgent": {
-        "title": "an absolute must-have",
-        "view": "View Agent",
-        "pricing": "{credits, plural, =0 {Free} =1 {1 credit} other {# credits}}"
       }
     }
   },

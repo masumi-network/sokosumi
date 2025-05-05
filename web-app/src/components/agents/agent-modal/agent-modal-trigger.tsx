@@ -10,12 +10,12 @@ interface AgentModalTriggerProps {
   agentId: string;
   children: React.ReactNode;
   className?: string | undefined;
-  skeleton?: React.ReactNode | undefined;
+  fallback?: React.ReactNode | undefined;
 }
 
 function AgentModalTrigger(props: AgentModalTriggerProps) {
   return (
-    <Suspense fallback={<AgentModalTriggerSkeleton />}>
+    <Suspense fallback={props.fallback ?? <AgentModalTriggerSkeleton />}>
       <AgentModalTriggerClient {...props} />
     </Suspense>
   );
