@@ -1,8 +1,9 @@
 "use server";
+
+import { AgentWithRelations, prisma } from "@/lib/db";
 import { getAgentCreditsPrice } from "@/lib/services";
 import { Prisma } from "@/prisma/generated/client";
 
-import { AgentWithRelations, prisma } from "..";
 import { getOnlineAgents } from "./repo";
 
 interface AgentWithCreditPrice {
