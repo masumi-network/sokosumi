@@ -266,11 +266,11 @@ function AgentCard({
               </p>
             </div>
             <div className="flex items-center gap-1.5">
-              <AgentModalTrigger agentId={agent.id}>
-                <Button variant="outline" size="lg">
+              <Button variant="secondary" size="lg" asChild>
+                <AgentModalTrigger agentId={agent.id}>
                   {t("view")}
-                </Button>
-              </AgentModalTrigger>
+                </AgentModalTrigger>
+              </Button>
               <AgentHireButton agentId={agent.id} />
             </div>
           </div>
