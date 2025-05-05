@@ -14,7 +14,7 @@ import {
 export async function getOnlineAgents(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithRelations[]> {
-  return await getAgentsWithStatus(AgentStatus.INVALID, tx);
+  return await getAgentsWithStatus(AgentStatus.ONLINE, tx);
 }
 
 export async function getAgentsWithStatus(
