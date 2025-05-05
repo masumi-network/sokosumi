@@ -29,6 +29,7 @@ function AgentHireButton({ agentId }: AgentHireButtonProps) {
         variant="primary"
         onClick={withAuthentication(handleHire)}
         disabled={isPending}
+        className="cursor-pointer"
       >
         {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
         {t("hire")}
