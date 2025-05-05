@@ -88,6 +88,7 @@ export default function Tags({
         <DropdownMenuSeparator />
         <Button
           className="w-full"
+          variant="primary"
           onClick={() => {
             onApplyTags(tags);
             setOpen(false);
