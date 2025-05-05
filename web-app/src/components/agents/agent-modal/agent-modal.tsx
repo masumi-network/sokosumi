@@ -117,7 +117,7 @@ function AgentModalError() {
       <div className="flex min-h-[120px] w-full items-center justify-center rounded-md border border-red-300 bg-red-50 p-4">
         <span className="text-lg text-red-500">{t("error")}</span>
       </div>
-      <Button asChild variant="outline" className="w-full">
+      <Button asChild variant="secondary" className="w-full">
         <Link href="/agents">{t("backToAgents")}</Link>
       </Button>
     </CardSection>

@@ -122,7 +122,7 @@ export function FooterSections({ className }: FooterSectionsProps) {
       <div className="flex flex-col items-center justify-between pt-8 md:flex-row">
         <div className="mb-4 flex items-center gap-4 md:mb-0">
           <ThemeToggle />
-          <Button variant="outline">
+          <Button variant="secondary">
             <Languages className="h-4 w-4" />
             <span>{"English"}</span>
           </Button>
