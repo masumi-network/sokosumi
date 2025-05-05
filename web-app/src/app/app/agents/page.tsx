@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 
 import { AgentModal } from "@/components/agents";
 import { requireAuthentication } from "@/lib/auth/utils";
-import { AgentWithRelations, getAgents, getTags } from "@/lib/db";
+import { AgentWithRelations, getOnlineAgents, getTags } from "@/lib/db";
 import {
   getAgentCreditsPrice,
   getOrCreateFavoriteAgentList,
@@ -23,7 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function GalleryPage() {
-  const agents: AgentWithRelations[] = await getAgents();
+  const agents: AgentWithRelations[] = await getOnlineAgents();
   const tags: Tag[] = await getTags();
   const tagNames = tags.map((tag) => tag.name);
 

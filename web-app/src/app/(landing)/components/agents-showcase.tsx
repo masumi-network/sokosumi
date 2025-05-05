@@ -5,7 +5,7 @@ import React, { Suspense } from "react";
 import { AgentModal, AgentModalTrigger } from "@/components/agents";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getAgentResolvedImage, getAgents } from "@/lib/db";
+import { getAgentResolvedImage, getOnlineAgents } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 interface AgentCardProps {
@@ -58,7 +58,7 @@ const AgentCardSkeleton = () => {
 };
 
 async function AgentsShowcaseList() {
-  const agents = await getAgents();
+  const agents = await getOnlineAgents();
   const firstFiveAgents = agents.slice(0, 5);
 
   return (

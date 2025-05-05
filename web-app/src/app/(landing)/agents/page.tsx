@@ -7,7 +7,7 @@ import {
   Agents,
   AgentsNotAvailable,
 } from "@/components/agents";
-import { AgentWithRelations, getAgents } from "@/lib/db";
+import { AgentWithRelations, getOnlineAgents } from "@/lib/db";
 import { getAgentCreditsPrice } from "@/lib/services";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -20,7 +20,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function GalleryPage() {
-  const agents: AgentWithRelations[] = await getAgents();
+  const agents: AgentWithRelations[] = await getOnlineAgents();
 
   if (!agents.length) {
     return <AgentsNotAvailable />;

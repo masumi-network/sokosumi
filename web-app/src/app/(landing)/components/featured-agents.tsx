@@ -3,13 +3,13 @@ import { getTranslations } from "next-intl/server";
 
 import { AgentCard } from "@/components/agents";
 import { Button } from "@/components/ui/button";
-import { getAgents } from "@/lib/db";
+import { getOnlineAgents } from "@/lib/db";
 import { getAgentCreditsPrice } from "@/lib/services";
 import { cn } from "@/lib/utils";
 
 export default async function FeaturedAgents() {
   const t = await getTranslations("Landing.Page.FeaturedAgents");
-  const agents = await getAgents();
+  const agents = await getOnlineAgents();
   const firstFourAgents = agents.slice(0, 4);
 
   const agentPriceList = await Promise.all(
