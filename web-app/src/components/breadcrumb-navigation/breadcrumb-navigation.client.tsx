@@ -76,8 +76,14 @@ function generateSegments(
   if (!pathSegments.length) return [];
 
   return pathSegments.map((segment, index) => {
-    const href = "/" + pathSegments.slice(0, index + 1).join("/");
+    let href = "/" + pathSegments.slice(0, index + 1).join("/");
     const isCurrent = index === pathSegments.length - 1;
+
+    // If href is /app/agents/agentId
+    // Then change href to /app/agents?agentId=agentId
+    if (href.match(/^\/app\/agents\/[a-zA-Z0-9]+$/)) {
+      href = `/app/agents?agentId=${segment}`;
+    }
 
     // Try to resolve the segment label in the following order:
     // 1. Custom segment labels map
@@ -88,8 +94,7 @@ function generateSegments(
     const label =
       segmentLabels[segment] ??
       (agent && getAgentName(agent)) ??
-      (t && t.has(segment) && t(segment)) ??
-      segment;
+      (t && t.has(segment) ? t(segment) : segment);
 
     return {
       label,
