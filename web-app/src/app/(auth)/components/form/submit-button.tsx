@@ -23,6 +23,7 @@ export function SubmitButton<T extends FieldValues>({
   return (
     <Button
       type="submit"
+      variant="primary"
       className={className}
       disabled={form.formState.isSubmitting}
       {...props}
