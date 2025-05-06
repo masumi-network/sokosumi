@@ -60,6 +60,18 @@
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
 
+  /* Materials */
+  --color-ultrathin: var(--ultrathin);
+  --color-ultrathin-overlay: var(--ultrathin-overlay);
+  --color-thin: var(--thin);
+  --color-thin-overlay: var(--thin-overlay);
+  --color-regular: var(--regular);
+  --color-regular-overlay: var(--regular-overlay);
+  --color-thick: var(--thick);
+  --color-thick-overlay: var(--thick-overlay);
+  --color-ultrathick: var(--ultrathick);
+  --color-ultrathick-overlay: var(--ultrathick-overlay);
+
   /* Custom Colors */
   --color-agent-verified-background: hsla(142, 76%, 36%, 0.05);
   --color-agent-verified-foreground: hsla(142, 72%, 29%, 1);
@@ -134,6 +146,18 @@
   --semantic-quaternary: hsla(0, 72%, 51%, 0.1);
   --semantic-quinary: hsla(0, 72%, 51%, 0.05);
   --semantic-foreground: hsla(0, 86%, 97%, 1);
+
+  /* Materials */
+  --ultrathin: hsla(0, 0%, 100%, 0.33);
+  --ultrathin-overlay: hsla(0, 0%, 45%, 1);
+  --thin: hsla(0, 0%, 96%, 0.48);
+  --thin-overlay: hsla(0, 0%, 64%, 1);
+  --regular: hsla(0, 0%, 100%, 0.85);
+  --regular-overlay: hsla(0, 0%, 32%, 1);
+  --thick: hsla(0, 0%, 100%, 0.9);
+  --thick-overlay: hsla(0, 0%, 45%, 1);
+  --ultrathick: hsla(0, 0%, 98%, 0.97);
+  --ultrathick-overlay: hsla(0, 0%, 64%, 1);
 }
 
 .dark {
@@ -187,6 +211,18 @@
   --semantic-quaternary: hsla(0, 70%, 35%, 0.2);
   --semantic-quinary: hsla(0, 70%, 35%, 0.1);
   --semantic-foreground: hsla(0, 86%, 97%, 1);
+
+  /* Materials */
+  --ultrathin: hsla(0, 0%, 15%, 0.55);
+  --ultrathin-overlay: hsla(0, 0%, 64%, 1);
+  --thin: hsla(0, 0%, 15%, 0.7);
+  --thin-overlay: hsla(0, 0%, 64%, 1);
+  --regular: hsla(0, 0%, 15%, 0.8);
+  --regular-overlay: hsla(0, 0%, 45%, 1);
+  --thick: hsla(0, 0%, 15%, 0.9);
+  --thick-overlay: hsla(0, 0%, 45%, 1);
+  --ultrathick: hsla(0, 0%, 15%, 0.95);
+  --ultrathick-overlay: hsla(0, 0%, 45%, 1);
 }
 
 @layer base {
