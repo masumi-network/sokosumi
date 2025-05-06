@@ -12,7 +12,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.1",
-    "@types/node": "^18.19.95",
+    "@types/node": "^18.19.96",
     "eslint": "^9.25.1",
     "eslint-config-prettier": "^10.1.2",
     "eslint-plugin-import": "^2.31.0",
