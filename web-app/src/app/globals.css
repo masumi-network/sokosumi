@@ -60,17 +60,17 @@
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
 
-  /* Materials */
-  --color-ultrathin: var(--ultrathin);
-  --color-ultrathin-overlay: var(--ultrathin-overlay);
-  --color-thin: var(--thin);
-  --color-thin-overlay: var(--thin-overlay);
-  --color-regular: var(--regular);
-  --color-regular-overlay: var(--regular-overlay);
-  --color-thick: var(--thick);
-  --color-thick-overlay: var(--thick-overlay);
-  --color-ultrathick: var(--ultrathick);
-  --color-ultrathick-overlay: var(--ultrathick-overlay);
+  /* Material */
+  --color-material-ultrathin: var(--material-ultrathin);
+  --color-material-ultrathin-overlay: var(--material-ultrathin-overlay);
+  --color-material-thin: var(--material-thin);
+  --color-material-thin-overlay: var(--material-thin-overlay);
+  --color-material-regular: var(--material-regular);
+  --color-material-regular-overlay: var(--material-regular-overlay);
+  --color-material-thick: var(--material-thick);
+  --color-material-thick-overlay: var(--material-thick-overlay);
+  --color-material-ultrathick: var(--material-ultrathick);
+  --color-material-ultrathick-overlay: var(--material-ultrathick-overlay);
 
   /* Alpha */
   --color-alpha-95: var(--alpha-95);
@@ -161,16 +161,16 @@
   --semantic-foreground: hsla(0, 86%, 97%, 1);
 
   /* Material */
-  --ultrathin: hsla(0, 0%, 100%, 0.33);
-  --ultrathin-overlay: hsla(0, 0%, 45%, 1);
-  --thin: hsla(0, 0%, 96%, 0.48);
-  --thin-overlay: hsla(0, 0%, 64%, 1);
-  --regular: hsla(0, 0%, 100%, 0.85);
-  --regular-overlay: hsla(0, 0%, 32%, 1);
-  --thick: hsla(0, 0%, 100%, 0.9);
-  --thick-overlay: hsla(0, 0%, 45%, 1);
-  --ultrathick: hsla(0, 0%, 98%, 0.97);
-  --ultrathick-overlay: hsla(0, 0%, 64%, 1);
+  --material-ultrathin: hsla(0, 0%, 100%, 0.33);
+  --material-ultrathin-overlay: hsla(0, 0%, 45%, 1);
+  --material-thin: hsla(0, 0%, 96%, 0.48);
+  --material-thin-overlay: hsla(0, 0%, 64%, 1);
+  --material-regular: hsla(0, 0%, 100%, 0.85);
+  --material-regular-overlay: hsla(0, 0%, 32%, 1);
+  --material-thick: hsla(0, 0%, 100%, 0.9);
+  --material-thick-overlay: hsla(0, 0%, 45%, 1);
+  --material-ultrathick: hsla(0, 0%, 98%, 0.97);
+  --material-ultrathick-overlay: hsla(0, 0%, 64%, 1);
 
   /* Alpha */
   --alpha-95: hsla(0, 0%, 100%, 0.05);
@@ -239,16 +239,16 @@
   --semantic-foreground: hsla(0, 86%, 97%, 1);
 
   /* Material */
-  --ultrathin: hsla(0, 0%, 15%, 0.55);
-  --ultrathin-overlay: hsla(0, 0%, 64%, 1);
-  --thin: hsla(0, 0%, 15%, 0.7);
-  --thin-overlay: hsla(0, 0%, 64%, 1);
-  --regular: hsla(0, 0%, 15%, 0.8);
-  --regular-overlay: hsla(0, 0%, 45%, 1);
-  --thick: hsla(0, 0%, 15%, 0.9);
-  --thick-overlay: hsla(0, 0%, 45%, 1);
-  --ultrathick: hsla(0, 0%, 15%, 0.95);
-  --ultrathick-overlay: hsla(0, 0%, 45%, 1);
+  --material-ultrathin: hsla(0, 0%, 15%, 0.55);
+  --material-ultrathin-overlay: hsla(0, 0%, 64%, 1);
+  --material-thin: hsla(0, 0%, 15%, 0.7);
+  --material-thin-overlay: hsla(0, 0%, 64%, 1);
+  --material-regular: hsla(0, 0%, 15%, 0.8);
+  --material-regular-overlay: hsla(0, 0%, 45%, 1);
+  --material-thick: hsla(0, 0%, 15%, 0.9);
+  --material-thick-overlay: hsla(0, 0%, 45%, 1);
+  --material-ultrathick: hsla(0, 0%, 15%, 0.95);
+  --material-ultrathick-overlay: hsla(0, 0%, 45%, 1);
 
   /* Alpha */
   --alpha-95: hsla(0, 0%, 4%, 0.05);
