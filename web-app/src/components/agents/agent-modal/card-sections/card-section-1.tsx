@@ -41,7 +41,7 @@ function CardSection1({
       />
       <div className="flex gap-6">
         <div className="relative h-56 w-56 shrink-0">
-          <div className="bg-foreground absolute inset-0 blur-sm" />
+          <div className="absolute inset-0 rounded-lg blur-sm" />
           <Image
             src={getAgentResolvedImage(agent)}
             alt={getAgentName(agent)}
