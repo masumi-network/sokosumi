@@ -35,9 +35,6 @@ updates:
           - "eslint*"
           
     open-pull-requests-limit: 10
-    reviewers:
-      - "mrgrauel"
-      - "golddydev"
     commit-message:
       prefix: "chore(deps)"
 
@@ -49,12 +46,9 @@ updates:
       time: "06:00"
       timezone: "Europe/Berlin"
     open-pull-requests-limit: 10
-    reviewers:
-      - "mrgrauel"
-      - "golddydev"
     commit-message:
       prefix: "chore(deps)"
-  
+
   # Enable version updates for npm in the job-cron-caller directory
   - package-ecosystem: "npm"
     directory: "/job-cron-caller"
@@ -66,12 +60,9 @@ updates:
       time: "06:00"
       timezone: "Europe/Berlin"
     open-pull-requests-limit: 10
-    reviewers:
-      - "mrgrauel"
-      - "golddydev"
     commit-message:
       prefix: "chore(deps)"
-  
+
   # Enable version updates for npm in the registry-cron-caller directory
   - package-ecosystem: "npm"
     directory: "/registry-cron-caller"
@@ -83,8 +74,5 @@ updates:
       time: "06:00"
       timezone: "Europe/Berlin"
     open-pull-requests-limit: 10
-    reviewers:
-      - "mrgrauel"
-      - "golddydev"
     commit-message:
       prefix: "chore(deps)"
