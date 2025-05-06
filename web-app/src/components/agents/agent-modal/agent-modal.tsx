@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import useAgentDetail from "@/hooks/use-agent-detail";
-import { AgentListWithAgent } from "@/lib/db";
+import useFavoriteAgentList from "@/hooks/use-favorite-agent-list";
 
 import {
   CardSection,
@@ -32,19 +32,17 @@ import {
   CardSection5Skeleton,
 } from "./card-sections";
 
-interface AgentModalProps {
-  agentList?: AgentListWithAgent | undefined;
-}
-
-function AgentModal({ agentList }: AgentModalProps) {
+function AgentModal() {
   return (
     <Suspense>
-      <AgentModalClient agentList={agentList} />
+      <AgentModalClient />
     </Suspense>
   );
 }
 
-function AgentModalClient({ agentList }: AgentModalProps) {
+function AgentModalClient() {
+  const { favoriteAgentList } = useFavoriteAgentList();
+
   const [agentId, setAgentId] = useQueryState("agentId");
   const { agent, agentCreditsPrice, isLoading, error } =
     useAgentDetail(agentId);
@@ -80,7 +78,7 @@ function AgentModalClient({ agentList }: AgentModalProps) {
                 <>
                   <CardSection1
                     agent={agent}
-                    agentList={agentList}
+                    agentList={favoriteAgentList}
                     agentCreditsPrice={agentCreditsPrice}
                     onCloseModal={onCloseModal}
                   />

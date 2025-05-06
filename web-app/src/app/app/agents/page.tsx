@@ -1,7 +1,6 @@
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
-import { AgentModal } from "@/components/agents";
 import { requireAuthentication } from "@/lib/auth/utils";
 import { AgentWithRelations, getOnlineAgents, getTags } from "@/lib/db";
 import {
@@ -29,7 +28,7 @@ export default async function GalleryPage() {
 
   const { session } = await requireAuthentication();
 
-  const agentList = await getOrCreateFavoriteAgentList(session.user.id);
+  const favoriteAgentList = await getOrCreateFavoriteAgentList(session.user.id);
   const agentCreditsPriceList = await Promise.all(
     agents.map((agent) => getAgentCreditsPrice(agent)),
   );
@@ -41,12 +40,10 @@ export default async function GalleryPage() {
         {/* Agent Cards Grid */}
         <FilteredAgents
           agents={agents}
-          agentList={agentList}
+          agentList={favoriteAgentList}
           agentCreditsPriceList={agentCreditsPriceList}
         />
       </div>
-      {/* Agent Modal */}
-      <AgentModal agentList={agentList} />
     </div>
   );
 }

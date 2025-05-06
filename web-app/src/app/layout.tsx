@@ -6,6 +6,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
+import { AgentModal } from "@/components/agents";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/lib/context/theme-context";
 import { cn } from "@/lib/utils";
@@ -46,7 +47,10 @@ export default async function RootLayout({
           <ThemeProvider>
             <NextIntlClientProvider messages={messages}>
               <div className="bg-background">{children}</div>
+              {/* Toaster */}
               <Toaster />
+              {/* Agent Modal */}
+              <AgentModal />
             </NextIntlClientProvider>
           </ThemeProvider>
         </NuqsAdapter>

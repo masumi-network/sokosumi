@@ -1,12 +1,7 @@
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
-import {
-  AgentCard,
-  AgentModal,
-  Agents,
-  AgentsNotAvailable,
-} from "@/components/agents";
+import { AgentCard, Agents, AgentsNotAvailable } from "@/components/agents";
 import { getOnlineAgentsWithCreditsPrice } from "@/lib/services";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -44,8 +39,6 @@ export default async function GalleryPage() {
           )}
         />
       </div>
-      {/* Agent Modal Component */}
-      <AgentModal />
     </div>
   );
 }

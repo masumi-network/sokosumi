@@ -8,7 +8,7 @@ export default function useAgentDetail(agentId: string | null) {
   const [agentCreditsPrice, setAgentCreditsPrice] = useState<
     CreditsPrice | undefined
   >();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
 
   const resetData = () => {

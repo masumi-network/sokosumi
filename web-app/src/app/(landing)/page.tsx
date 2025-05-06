@@ -1,5 +1,3 @@
-import { AgentModal } from "@/components/agents";
-
 import Endorsements from "./components/endorsements";
 import FeaturedAgents from "./components/featured-agents";
 import Hero from "./components/hero";
@@ -65,8 +63,6 @@ export default function LandingPage() {
           <JoinOurCommunity />
         </div>
       </section>
-      {/* Agent Modal for AgentShowCaseList */}
-      <AgentModal />
     </>
   );
 }
