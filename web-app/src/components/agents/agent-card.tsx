@@ -92,7 +92,7 @@ const agentCardContentVariants = cva("flex flex-col", {
       xs: "flex-1 gap-1 min-w-0 [&_h3]:font-medium [&_h3]:text-xs [&_p]:text-xs",
       sm: "flex-1 gap-2 min-w-0 [&_h3]:font-medium [&_h3]:text-sm [&_p]:text-sm",
       md: "flex-1 gap-2 p-1 [&_h3]:font-medium [&_h3]:text-base [&_p]:text-base",
-      lg: "flex-1 p-12 gap-12 [&>div]:gap-2 [&_h3]:font-light [&_h3]:text-3xl [&_p]:text-base",
+      lg: "flex-1 p-12 max-w-1/2 gap-12 [&>div]:gap-2 [&_h3]:font-light [&_h3]:text-3xl [&_p]:text-base",
     },
   },
   defaultVariants: {
@@ -237,7 +237,7 @@ function AgentCard({
         <div className={cn(agentCardContentVariants({ size }))}>
           <div className="flex flex-col">
             <div className="flex items-center gap-2">
-              <h3 className="text-foreground truncate text-base leading-6 font-medium">
+              <h3 className="text-foreground truncate text-base leading-9 font-medium">
                 {getAgentName(agent)}
               </h3>
               <AgentVerifiedBadge />
