@@ -1,12 +1,14 @@
+# Terms of Service
+
 **Marketplace Terms to Sell and Buy Agentic Services**
 
 (hereinafter “**Marketplace Terms**”)
 
-# General Provisions
+## General Provisions
 
 Plan.Net Studios GmbH & Co. KG, Friedenstraße 24, 81671 Munich (hereinafter „**PNS**“) offers users (hereinafter „**User**“) (PNS and the User hereinafter collectively referred to as the “**Parties**” and individually as a “**Party**”) the opportunity to use the marketplace (hereinafter „**Marketplace**“) to sell and buy agentic services (hereinafter “**Agentic Services**”) subject to these Marketplace Terms. The Marketplace and the Agentic Services are offered exclusively to merchants as defined in Section 1 para. 1 German Commercial Code (HGB). Certain Agentic Services are offered by PNS, while other Agentic Services are offered by other Users.
 
-# Services of PNS
+## Services of PNS
 
 The Marketplace is a platform for buyers (hereinafter “**Buyer**”) and PNS or third party suppliers (third party suppliers hereinafter “**Supplier**”) of Agentic Services. The User, as a Party to these Marketplace Terms, may act as either a Buyer or a Supplier, depending on the circumstances and their activities on the Marketplace. A Buyer purchases an Agentic Services either from PNS or from a Supplier, as the case may be.
 
@@ -20,7 +22,7 @@ PNS will make the Marketplace available to the User with an Availability of at l
 
 If the User becomes aware of an outage, malfunction or degradation of the Availability of the Marketplace, the User shall promptly inform PNS and describe the symptoms of the issue in a detailed and reproducible manner, by sending an email to \[…\]. PNS will use its best endeavors to analyze and respond to such faults with a reaction time of up to 4 hours during its normal business hours, 9:00 through 17:00 CET on working days in the State of Bavaria, Germany.
 
-# Registration and Access to the Marketplace
+## Registration and Access to the Marketplace
 
 To become a User of the Marketplace, the user must register for the Marketplace and accept these Marketplace Terms in accordance with the registration procedure implemented by PNS. PNS is under no obligation to accept any registration request and may accept or reject any such request in its sole discretion.
 
@@ -37,7 +39,7 @@ PNS is authorized to temporarily or permanently suspend User’s access to the M
 
 All logins are individualized and may only be used by the User. The User must keep confidential its login, password and other credentials (“**Account Credentials**”) and protect them against unauthorized access by third parties. In the event of an actual or suspected misuse of the account or Account Credentials by a third party, the User shall promptly notify PNS thereof. As soon as PNS learns of such unauthorized use, PNS will take appropriate measures to restore the security of the affected account, which may include a temporary suspension of access to the account if there is no less restrictive but equally effective alternative, and PNS may request the User’s cooperation in this respect as appropriate. PNS reserves the right to change the login and password of the User; in such case, PNS shall promptly inform the User thereof.
 
-# Offers for Agentic Services on the Marketplace
+## Offers for Agentic Services on the Marketplace
 
 The Marketplace may contain Agentic Service offered by PNS and Agentic Services offered by a Supplier.
 
@@ -63,7 +65,7 @@ Supplier shall ensure that each Agentic Service is kept up-to-date with current 
 
 PNS may implement mechanisms that rate, or allow Buyers to rate, and provide feedback about an Agentic Service, Supplier’s performance in connection with an Agentic Service and the Marketplace. PNS may make these ratings and feedback publicly available.
 
-# Conclusion of Contracts on the Marketplace
+## Conclusion of Contracts on the Marketplace
 
 The offering of Agentic Services on the Marketplace by PNS or Suppliers shall not constitute legally a binding offer within the meaning of Section 145 German Civil Code (BGB), but rather merely constitutes an invitation to tender (invitatio ad offerendum).
 
@@ -82,7 +84,7 @@ Unless otherwise agreed between Buyer and Supplier or PNS, a contract for the pr
 
 With respect to all transactions on the Marketplace, the system time applicable on the platform of the Marketplace in question shall govern exclusively.
 
-# Rights and obligations of the User and restrictions on use
+## Rights and obligations of the User and restrictions on use
 
 The User shall ensure by appropriate technical and organizational measures, for example by appropriately managing usage and access authorizations, that only authorized users use the Marketplace on its behalf and that they act in compliance with these Marketplace Terms. The User is solely responsible for all activities that take place under its account, including activities of third parties to which the User has granted access, insofar as these activities were authorized by the User or were not authorized by the User but could have been prevented by the User if due care had been exercised. If the User becomes aware or suspects that (i) an unauthorized third party has or may have obtained access to Account Credentials or (ii) unauthorized activities occurred within the User’s account, the User is obliged to immediately change its Account Credentials and inform PNS.
 
@@ -97,7 +99,7 @@ The User shall
 
 The User shall refrain from any acts which would put the functionality of the Marketplace at risk or disrupt its functionality, and that it shall not access any data it is not authorized to access. In addition, the User must ensure that the information it communicates via the Marketplace and the data it uploads to the Marketplace do not contain any viruses, worms or trojan horses.
 
-# Ownership and Content
+## Ownership and Content
 
 Except for the rights explicitly granted to the User in these Marketplace Terms, all right, title and interest (including intellectual property rights) in the Marketplace, PNS’s Agentic Services and the respective underlying technology remain with PNS and its licensors, and all right, title and interest (including intellectual property rights) in the Agentic Services of Supplier and the underlying technology remain with the respective Supplier and its licensors, as applicable.
 
@@ -111,7 +113,7 @@ If PNS learns of any activities that may constitute a criminal offense posing a 
 
 The User shall indemnify and hold PNS harmless from and against all claims made by a third party against PNS alleging an infringement of their rights or based on violations of Applicable Laws content uploaded by the User, or the User’s offering or use of any Agentic Service. The User shall also assume the costs of PNS’s legal defense in this respect, including all court and lawyers' fees.
 
-# Limitation of liability
+## Limitation of liability
 
 PNS shall be fully liable for damages (i) which are based on an intentional or grossly negligent breach of duty by PNS or on an intentional or grossly negligent breach of duty by a legal representative of PNS or a vicarious agent of PNS, (ii) which result from the breach of a guarantee assumed by PNS, (iii) from a fraudulently concealed defect, (iv) from injury to life, body or health resulting from a negligent breach of duty by PNS or an intentional or negligent breach of duty by a legal representative of PNS or a vicarious agent of PNS, and (v) under the Product Liability Act (ProdHaftG).
 
@@ -129,7 +131,7 @@ PNS is not liable for any information that violates Applicable Laws or content t
 
 The above limitations of liability also apply to the personal liability of employees, representatives, organs and vicarious agents of PNS.
 
-# Confidential Information
+## Confidential Information
 
 Each Party shall treat Confidential Information confidentially, protect it from access by third parties by means of confidentiality measures appropriate to the circumstances and use it only for the purposes of these Marketplace Terms. “**Confidential Information**” are all information which one Party discloses or makes available to the other Party orally, in writing or in any other (e.g. electronic) form and which are either labelled as confidential or which a recipient acting with the care of a prudent businessman would reasonably consider confidential, in particular technical and commercial information, such as, for example business and trade secrets, information of a scientific, industrial or commercial nature, in particular product and marketing plans and information about customers, suppliers and (development) clients, as well as processes, algorithms, software and source code, data, drawings, drafts, sketches, plans, descriptions, specifications, measurement results, calculations, experience, procedures, samples, secret technical know-how or as yet unpublished applications for technical property rights. Information is not Confidential Information if it demonstrably
 
@@ -146,11 +148,11 @@ The receiving Party also undertakes not to reverse engineer, decompile, disassem
 
 The confidentiality obligation shall remain in force for 5 years after termination of these Marketplace Terms.
 
-# Compliance
+## Compliance
 
 Each Party is responsible for compliance with the statutory obligations applicable to it (including tax obligations). PNS is in particular not responsible for the fulfillment of the User’s industry-specific, statutory or regulatory requirements. The User shall review the suitability of the Marketplace and any Agentic Services for use in accordance with the industry-specific, legal and regulatory requirements applicable to the User.
 
-# Credits and Remuneration
+## Credits and Remuneration
 
 The User may purchase virtual credits for Agentic Services (“**Credits**”) from PNS with a payment method offered on the Marketplace. Credits cannot be returned or converted back into fiat money. Payment is due immediately as of the purchasing of the Credits.
 
@@ -160,11 +162,11 @@ The User is responsible (i) for providing complete and accurate billing and cont
 
 All prices are net and do not include taxes. The User is responsible for payment of all taxes associated with the Marketplace. If PNS is required by law to pay or collect any taxes for which the User is responsible under this Section 11, PNS will invoice the User and the User will pay such amount unless the User provides PNS with a valid tax exemption certificate approved by the appropriate taxing authority. If the User is required to withhold or deduct any taxes from the fees or expenses, the User agrees to increase the amount payable to PNS by the amount of such taxes so that PNS receives the full amount of all fees.
 
-# Disputes
+## Disputes
 
 Within the ‘Unlock Time’ specified within the Agentic Service offering, Buyer can dispute the purchase of the Agentic Service and request a refund of the Credits. If (i) PNS or Supplier (as the case may be) agree to the refund or (ii) PNS decides that the refund is justified at its own discretion, the Credits for the Agentic Service and any paid commission for PNS are refunded to Buyer. A refund is made only in Credits, not in fiat money.
 
-# Term
+## Term
 
 These Marketplace Terms shall become effective on User’s registration on the Marketplace by PNS and remain in place for as long as the User has a Marketplace account with PNS.
 
@@ -172,7 +174,7 @@ Either Party may terminate the Marketplace account and thereby these Marketplace
 
 All notices of termination must be given in text form.
 
-# General provisions
+## General provisions
 
 PNS shall notify the User of any changes to the Marketplace Terms in writing or email. Where the User does not object to such changes within six weeks from the date of receipt of the notice, the changes are deemed to have been consented to. In the event of any amendment to these Marketplace Terms, the User’s attention is specially drawn to his right of objection and to the legal consequences of silence.
 

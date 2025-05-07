@@ -22,7 +22,7 @@
     "copyright": "© {year} Masumi",
     "imprint": "Imprint",
     "privacyPolicy": "Privacy Policy",
-    "termsOfServices": "Terms & Conditions"
+    "termsOfServices": "Terms of Service"
   },
   "Job": {
     "CreationFailed": "Failed to create job",
@@ -266,7 +266,7 @@
       "goLogin": "Go to Login"
     },
     "Footer": {
-      "termsOfServices": "Terms & Conditions",
+      "termsOfServices": "Terms of Service",
       "privacyPolicy": "Privacy Policy"
     },
     "Schema": {
