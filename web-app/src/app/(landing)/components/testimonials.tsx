@@ -37,8 +37,8 @@ const User = ({ image, quote, name, position, company, index }: UserProps) => (
   </div>
 );
 
-export default function WhatOurUsersSay() {
-  const t = useTranslations("Landing.Page.WhatOurUsersSay");
+export default function Testimonials() {
+  const t = useTranslations("Landing.Page.Testimonials");
   const users = [
     {
       image: "/images/user-1.png",
