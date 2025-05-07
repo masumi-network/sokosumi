@@ -37,7 +37,9 @@ export const auth = betterAuth({
       create: {
         after: async (user) => {
           try {
-            const cents = convertCreditsToCents(50);
+            const cents = convertCreditsToCents(
+              getEnvSecrets().FREE_CREDITS_ON_SIGNUP,
+            );
             await createCreditTransaction(user.id, cents);
           } catch (error) {
             console.error(
