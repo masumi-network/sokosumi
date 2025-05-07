@@ -133,7 +133,7 @@ export function FooterSections({ className }: FooterSectionsProps) {
             {t("privacyPolicy")}
           </Link>
           <Link
-            href="/terms-of-services"
+            href="/terms-of-service"
             className="text-sm hover:text-gray-300"
           >
             {t("termsOfServices")}
