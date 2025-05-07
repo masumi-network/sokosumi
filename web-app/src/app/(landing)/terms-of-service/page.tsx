@@ -1,15 +1,19 @@
+"use client";
+import Markdown from "markdown-to-jsx";
+import { useEffect, useState } from "react";
+
 export default function TermsPage() {
+  const [markdownContent, setMarkdownContent] = useState<string>("");
+
+  useEffect(() => {
+    fetch("/files/terms-of-service.md")
+      .then((response) => response.text())
+      .then((text) => setMarkdownContent(text));
+  }, []);
   return (
     <>
-      <section className="bg-background mx-auto mt-8 max-w-2xl rounded-lg p-6 shadow">
-        <h1 className="text-foreground mb-4 text-2xl font-bold">
-          {"Terms & Conditions"}
-        </h1>
-        <p className="text-muted-foreground">
-          {
-            "This is a dummy terms & conditions component. Replace this text with your actual terms & conditions content."
-          }
-        </p>
+      <section className="prose mx-auto max-w-1/2 p-6 pt-8">
+        <Markdown>{markdownContent}</Markdown>
       </section>
     </>
   );
