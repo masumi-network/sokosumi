@@ -55,7 +55,7 @@ function JobDetailsOutputsInner({ rawOutput }: JobDetailsOutputsProps) {
           options={{
             disableParsingRawHTML: true,
             wrapper: ({ children }) => (
-              <div className="markdown-body">{children}</div>
+              <div className="prose dark:prose-invert">{children}</div>
             ),
             forceWrapper: true,
           }}
