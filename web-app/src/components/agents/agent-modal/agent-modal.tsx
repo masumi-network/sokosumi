@@ -2,8 +2,6 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useQueryState } from "nuqs";
-import { Suspense } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -15,8 +13,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import useAgentDetail from "@/hooks/use-agent-detail";
-import useFavoriteAgentList from "@/hooks/use-favorite-agent-list";
+import { AgentListWithAgent, AgentWithRelations, CreditsPrice } from "@/lib/db";
 
 import {
   CardSection,
@@ -32,94 +29,72 @@ import {
   CardSection5Skeleton,
 } from "./card-sections";
 
-function AgentModal() {
+export function AgentModal({ children }: { children: React.ReactNode }) {
   return (
-    <Suspense>
-      <AgentModalClient />
-    </Suspense>
-  );
-}
-
-function AgentModalClient() {
-  const { favoriteAgentList } = useFavoriteAgentList();
-
-  const [agentId, setAgentId] = useQueryState("agentId");
-  const { agent, agentCreditsPrice, isLoading, error } =
-    useAgentDetail(agentId);
-
-  const handleOnOpenChange = (open: boolean) => {
-    if (!open) {
-      setAgentId(null);
-    }
-  };
-
-  const onCloseModal = () => {
-    setAgentId(null);
-  };
-
-  if (!agentId) {
-    return null;
-  }
-
-  return (
-    <Dialog defaultOpen={true} onOpenChange={handleOnOpenChange}>
+    <Dialog open={true}>
       <DialogPortal>
         <DialogOverlay className="backdrop-blur-lg" />
         <DialogContent className="w-[80vw] max-w-3xl! border-none bg-transparent p-0 focus:ring-0 focus:outline-none [&>button]:hidden">
           <DialogTitle className="hidden" />
           <DialogDescription className="hidden" />
-          <ScrollArea className="max-h-[90svh]">
-            <div className="flex w-[80vw] max-w-3xl! flex-col gap-1.5">
-              {isLoading ? (
-                <AgentModalSkeleton />
-              ) : error || !agent || !agentCreditsPrice ? (
-                <AgentModalError />
-              ) : (
-                <>
-                  <CardSection1
-                    agent={agent}
-                    agentList={favoriteAgentList}
-                    agentCreditsPrice={agentCreditsPrice}
-                    onCloseModal={onCloseModal}
-                  />
-                  <CardSection2 agent={agent} />
-                  <CardSection3 agent={agent} />
-                  <CardSection4 agent={agent} />
-                  <CardSection5 agent={agent} />
-                </>
-              )}
-            </div>
-          </ScrollArea>
+          <ScrollArea className="max-h-[90svh]">{children}</ScrollArea>
         </DialogContent>
       </DialogPortal>
     </Dialog>
   );
 }
 
-function AgentModalSkeleton() {
+interface AgentModalContentProps {
+  agent: AgentWithRelations;
+  agentCreditsPrice: CreditsPrice;
+  agentList?: AgentListWithAgent | undefined;
+}
+
+export function AgentModalContent({
+  agent,
+  agentCreditsPrice,
+  agentList,
+}: AgentModalContentProps) {
   return (
-    <>
+    <div className="flex w-[80vw] max-w-3xl! flex-col gap-1.5">
+      <CardSection1
+        agent={agent}
+        agentList={agentList}
+        agentCreditsPrice={agentCreditsPrice}
+      />
+      <CardSection2 agent={agent} />
+      <CardSection3 agent={agent} />
+      <CardSection4 agent={agent} />
+      <CardSection5 agent={agent} />
+    </div>
+  );
+}
+
+export function AgentModalSkeleton() {
+  return (
+    <div className="flex w-[80vw] max-w-3xl! flex-col gap-1.5">
       <CardSection1Skeleton />
       <CardSection2Skeleton />
       <CardSection3Skeleton />
       <CardSection4Skeleton />
       <CardSection5Skeleton />
-    </>
+    </div>
   );
 }
 
-function AgentModalError() {
+export function AgentModalError() {
   const t = useTranslations("Components.Agents.AgentModal");
+
   return (
-    <CardSection>
-      <div className="flex min-h-[120px] w-full items-center justify-center rounded-md border border-red-300 bg-red-50 p-4">
-        <span className="text-lg text-red-500">{t("error")}</span>
-      </div>
-      <Button asChild variant="secondary" className="w-full">
-        <Link href="/agents">{t("backToAgents")}</Link>
-      </Button>
-    </CardSection>
+    <div className="flex w-[80vw] max-w-3xl! flex-col gap-1.5">
+      <CardSection>
+        <div className="flex min-h-[120px] w-full items-center justify-center rounded-md border border-red-300 bg-red-50 p-4">
+          <span className="text-lg text-red-500">{t("error")}</span>
+        </div>
+        <Button asChild variant="secondary" className="w-full">
+          <Link href="/agents">{t("backToAgents")}</Link>
+        </Button>
+      </CardSection>
+    </div>
   );
 }
-
-export { AgentModal };

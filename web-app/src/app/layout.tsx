@@ -1,12 +1,10 @@
 import "./globals.css";
 
-import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
-import { AgentModal } from "@/components/agents";
 import { Toaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/lib/context/theme-context";
 import { cn } from "@/lib/utils";
@@ -20,11 +18,6 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
-
-export const metadata: Metadata = {
-  title: "Sokosumi - Marketplace for Agent-to-Agent interactions",
-  description: "Hire yourself an agent to finish the most time consuming tasks",
-};
 
 export default async function RootLayout({
   children,
@@ -49,8 +42,6 @@ export default async function RootLayout({
               <div className="bg-background">{children}</div>
               {/* Toaster */}
               <Toaster />
-              {/* Agent Modal */}
-              <AgentModal />
             </NextIntlClientProvider>
           </ThemeProvider>
         </NuqsAdapter>

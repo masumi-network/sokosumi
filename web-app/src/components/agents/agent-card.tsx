@@ -1,5 +1,6 @@
 import { cva, VariantProps } from "class-variance-authority";
 import Image from "next/image";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import ClickBlocker from "@/components/click-blocker";
@@ -21,7 +22,6 @@ import { cn } from "@/lib/utils";
 import { AgentBadgeCloud, AgentBadgeCloudSkeleton } from "./agent-badge-cloud";
 import { AgentBookmarkButton } from "./agent-bookmark-button";
 import { AgentHireButton } from "./agent-hire-button";
-import { AgentModalTrigger } from "./agent-modal";
 import { AgentVerifiedBadge } from "./agent-verified-badge";
 
 const agentCardVariants = cva("flex rounded-lg border-none p-1 shadow-none", {
@@ -197,8 +197,10 @@ function AgentCard({
 }: AgentCardProps & VariantProps<typeof agentCardVariants>) {
   const t = useTranslations("Components.Agents.AgentCard");
 
+  const isLink = !size || size === "md";
+
   return (
-    <AgentCardWrapper size={size} agentId={agent.id}>
+    <AgentCardWrapper agentId={agent.id} isLink={isLink}>
       <Card className={cn(agentCardVariants({ size }), className)}>
         {/* Image */}
         <div className={cn(agentCardImageContainerVariants({ size }))}>
@@ -248,11 +250,13 @@ function AgentCard({
           </div>
           {/* View Button */}
           <div className={cn(agentCardViewButtonContainerVariants({ size }))}>
-            <AgentModalTrigger agentId={agent.id}>
-              <Button variant="secondary" className="text-xs" size="sm">
-                {t("view")}
-              </Button>
-            </AgentModalTrigger>
+            <Button variant="secondary" size="sm">
+              {!isLink && (
+                <Link href={`/agents/${agent.id}`} className="text-xs">
+                  {t("view")}
+                </Link>
+              )}
+            </Button>
           </div>
           {/* Pricing and Buttons */}
           <div
@@ -267,9 +271,9 @@ function AgentCard({
             </div>
             <div className="flex items-center gap-1.5">
               <Button variant="secondary" size="lg" asChild>
-                <AgentModalTrigger agentId={agent.id}>
-                  {t("view")}
-                </AgentModalTrigger>
+                {!isLink && (
+                  <Link href={`/agents/${agent.id}`}>{t("view")}</Link>
+                )}
               </Button>
               <AgentHireButton agentId={agent.id} />
             </div>
@@ -281,21 +285,19 @@ function AgentCard({
 }
 
 function AgentCardWrapper({
-  size,
+  isLink,
   agentId,
   children,
-}: { agentId: string; children: React.ReactNode } & VariantProps<
-  typeof agentCardVariants
->) {
-  if (!size || size === "md") {
-    return (
-      <AgentModalTrigger agentId={agentId} className="m-0">
-        {children}
-      </AgentModalTrigger>
-    );
+}: {
+  isLink: boolean;
+  agentId: string;
+  children: React.ReactNode;
+} & VariantProps<typeof agentCardVariants>) {
+  if (isLink) {
+    return <Link href={`/agents/${agentId}`}>{children}</Link>;
   }
 
-  return <>{children}</>;
+  return children;
 }
 
 export { AgentCard, AgentCardSkeleton };

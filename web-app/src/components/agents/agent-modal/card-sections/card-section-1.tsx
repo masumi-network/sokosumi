@@ -23,12 +23,10 @@ function CardSection1({
   agent,
   agentList,
   agentCreditsPrice,
-  onCloseModal,
 }: {
   agent: AgentWithRelations;
   agentList: AgentListWithAgent | undefined;
   agentCreditsPrice: CreditsPrice;
-  onCloseModal: () => void;
 }) {
   const t = useTranslations("Components.Agents.AgentModal.Card1");
 
@@ -37,7 +35,7 @@ function CardSection1({
       <AgentModalActionButtons
         agent={agent}
         agentList={agentList}
-        onCloseModal={onCloseModal}
+        onCloseModal={() => {}}
       />
       <div className="flex gap-6">
         <div className="relative h-56 w-56 shrink-0">
