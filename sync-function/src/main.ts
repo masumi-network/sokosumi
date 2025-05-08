@@ -12,7 +12,6 @@ interface FunctionResponse {
 // Generic function for API calls
 async function callApi(apiUrlString: string, endpoint: string) {
   const url = new URL(endpoint, apiUrlString);
-  console.log("URL:", url);
   const adminKey = process.env.ADMIN_KEY;
   if (!adminKey) {
     throw new Error("ADMIN_KEY environment variable not set");
@@ -33,8 +32,6 @@ export async function main(_args: unknown): Promise<FunctionResponse> {
   try {
     // Get API endpoint from environment variable
     const apiUrlString = process.env.SOKOSUMI_URL;
-    console.log("SOKOSUMI URL:", apiUrlString);
-
     if (!apiUrlString) {
       return {
         statusCode: 400,
