@@ -1,8 +1,8 @@
 import Image from "next/image";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import React, { Suspense } from "react";
 
+import { AgentDetailLink } from "@/components/agents";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getAgentResolvedImage, getOnlineAgents } from "@/lib/db";
@@ -44,7 +44,7 @@ const AgentShowcaseCard = ({
           </p>
         )}
         <Button variant="secondary" size="sm" asChild>
-          <Link href={`/agents/${agentId}`}>{t("viewAgent")}</Link>
+          <AgentDetailLink agentId={agentId}>{t("viewAgent")}</AgentDetailLink>
         </Button>
       </div>
     </div>

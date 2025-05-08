@@ -1,6 +1,5 @@
 import { cva, VariantProps } from "class-variance-authority";
 import Image from "next/image";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import ClickBlocker from "@/components/click-blocker";
@@ -21,6 +20,7 @@ import { cn } from "@/lib/utils";
 
 import { AgentBadgeCloud, AgentBadgeCloudSkeleton } from "./agent-badge-cloud";
 import { AgentBookmarkButton } from "./agent-bookmark-button";
+import { AgentDetailLink } from "./agent-detail-link";
 import { AgentHireButton } from "./agent-hire-button";
 import { AgentVerifiedBadge } from "./agent-verified-badge";
 
@@ -252,9 +252,9 @@ function AgentCard({
           <div className={cn(agentCardViewButtonContainerVariants({ size }))}>
             <Button variant="secondary" size="sm">
               {!isLink && (
-                <Link href={`/agents/${agent.id}`} className="text-xs">
+                <AgentDetailLink agentId={agent.id} className="text-xs">
                   {t("view")}
-                </Link>
+                </AgentDetailLink>
               )}
             </Button>
           </div>
@@ -272,7 +272,9 @@ function AgentCard({
             <div className="flex items-center gap-1.5">
               <Button variant="secondary" size="lg" asChild>
                 {!isLink && (
-                  <Link href={`/agents/${agent.id}`}>{t("view")}</Link>
+                  <AgentDetailLink agentId={agent.id}>
+                    {t("view")}
+                  </AgentDetailLink>
                 )}
               </Button>
               <AgentHireButton agentId={agent.id} />
@@ -294,7 +296,7 @@ function AgentCardWrapper({
   children: React.ReactNode;
 } & VariantProps<typeof agentCardVariants>) {
   if (isLink) {
-    return <Link href={`/agents/${agentId}`}>{children}</Link>;
+    return <AgentDetailLink agentId={agentId}>{children}</AgentDetailLink>;
   }
 
   return children;
