@@ -8,8 +8,8 @@ function AgentDetailSection5({ legal }: { legal: AgentLegal }) {
   const t = useTranslations("Components.Agents.AgentDetail.Section5");
 
   return (
-    <div>
-      <p className="mb-2 text-xs uppercase">{t("title")}</p>
+    <div className="flex flex-col gap-2">
+      <p className="text-xs uppercase">{t("title")}</p>
       <div className="flex flex-wrap gap-4">
         {legal?.privacyPolicy && (
           <Link

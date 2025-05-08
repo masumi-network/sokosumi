@@ -13,11 +13,11 @@ function AgentDetailSection3({ agent }: { agent: AgentWithRelations }) {
   const agentDescription = getAgentDescription(agent);
 
   return (
-    <div>
+    <div className="flex flex-col gap-2">
       {agentDescription && (
         <>
           <p className="text-xs uppercase">{t("title1")}</p>
-          <p className="mt-2 mb-10">{getAgentDescription(agent)}</p>
+          <p className="mb-10">{getAgentDescription(agent)}</p>
         </>
       )}
       <p className="mb-2 text-xs uppercase">{t("title2")}</p>

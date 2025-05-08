@@ -29,7 +29,7 @@ function AgentDetailSection1({
   const t = useTranslations("Components.Agents.AgentDetail.Section1");
 
   return (
-    <>
+    <div className="flex flex-col gap-2">
       <AgentActionButtons agent={agent} agentList={agentList} />
       <div className="flex gap-6">
         <div className="relative h-56 w-56 shrink-0">
@@ -62,13 +62,13 @@ function AgentDetailSection1({
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
 function AgentDetailSection1Skeleton() {
   return (
-    <>
+    <div className="flex flex-col gap-2">
       <AgentActionButtonsSkeleton />
       <div className="flex gap-6">
         <Skeleton className="h-56 w-56 rounded-lg" />
@@ -87,7 +87,7 @@ function AgentDetailSection1Skeleton() {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
