@@ -17,3 +17,11 @@ packages:
           SOKOSUMI_API_URL: ${SOKOSUMI_API_URL}
         annotations: {}
         limits: {}
+        triggers:
+          - name: masumi-sync
+            sourceType: scheduler
+            sourceDetails:
+              # every minute
+              cron: "* * * * *"
+              withBody:
+                name: "masumi-sync"
