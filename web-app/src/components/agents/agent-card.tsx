@@ -250,13 +250,13 @@ function AgentCard({
           </div>
           {/* View Button */}
           <div className={cn(agentCardViewButtonContainerVariants({ size }))}>
-            <Button variant="secondary" size="sm">
-              {!isLink && (
+            {!isLink && (
+              <Button variant="secondary" size="sm">
                 <AgentDetailLink agentId={agent.id} className="text-xs">
                   {t("view")}
                 </AgentDetailLink>
-              )}
-            </Button>
+              </Button>
+            )}
           </div>
           {/* Pricing and Buttons */}
           <div
@@ -270,13 +270,13 @@ function AgentCard({
               </p>
             </div>
             <div className="flex items-center gap-1.5">
-              <Button variant="secondary" size="lg" asChild>
-                {!isLink && (
+              {!isLink && (
+                <Button variant="secondary" size="lg">
                   <AgentDetailLink agentId={agent.id}>
                     {t("view")}
                   </AgentDetailLink>
-                )}
-              </Button>
+                </Button>
+              )}
               <AgentHireButton agentId={agent.id} />
             </div>
           </div>
