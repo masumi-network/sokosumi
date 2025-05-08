@@ -52,43 +52,31 @@
         "bookmarkError": "Failed to update pinned agents"
       },
       "AgentDetail": {
-        "backToGallery": "Agents Gallery",
-        "hire": "Hire Agent",
-        "byAuthor": "by {author}",
-        "description": "Description",
-        "atAGlance": "At a Glance",
-        "Legal": {
-          "fromDeveloper": "From the developer:",
-          "privacyPolicy": "Privacy Policy",
-          "terms": "Terms",
-          "other": "Other"
-        },
-        "pricing": "{credits, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
-      },
-      "AgentModal": {
-        "error": "Failed to fetch agent detail",
-        "backToAgents": "Back To Agents Gallery",
-        "Card1": {
+        "Section1": {
           "pricing": "{credits, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
         },
-        "Card2": {
+        "Section2": {
           "developer": "Developer",
           "executedJobs": "Executed Jobs",
           "unknownExecutedJobs": "Unknown"
         },
-        "Card3": {
+        "Section3": {
           "title1": "Description",
           "title2": "At a Glance"
         },
-        "Card4": {
+        "Section4": {
           "title": "Example Outputs"
         },
-        "Card5": {
+        "Section5": {
           "title": "From the developer",
           "privacyPolicy": "Privacy Policy",
           "terms": "Terms",
           "other": "Other"
         }
+      },
+      "AgentModal": {
+        "error": "Failed to fetch agent detail",
+        "backToAgents": "Back To Agents Gallery"
       }
     },
     "UserAvatar": {
