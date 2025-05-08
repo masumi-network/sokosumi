@@ -6,7 +6,7 @@ import { compareApiKeys } from "@/lib/auth/utils";
 import { FinalizedJobStatuses, prisma } from "@/lib/db";
 import { getLock, releaseLock, syncJobStatus } from "@/lib/services";
 
-const LOCK_KEY = "job-sync";
+const LOCK_KEY = "jobs-sync";
 
 export async function POST(request: Request) {
   const headerApiKey = request.headers.get("admin-api-key");
