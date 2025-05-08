@@ -28,7 +28,7 @@ export async function main(_args: unknown): Promise<FunctionResponse> {
   try {
     // Get API endpoint from environment variable
     const apiUrlString = process.env.SOKOSUMI_API_URL; // https://sokosumi.com/api
-    
+
     if (!apiUrlString) {
       return {
         statusCode: 400,
