@@ -11,22 +11,6 @@ function isLockExpired(lockedAt: Date | null): boolean {
   return Date.now() - lockedAt.getTime() > LOCK_TIMEOUT_MS;
 }
 
-// async function getLockByKey(
-//   key: string,
-//   tx: Prisma.TransactionClient = prisma,
-// ): Promise<Lock | null> {
-//   const lock = await tx.lock.findFirst({ where: { key } });
-//   if (!lock) return null;
-//   if (isLockExpired(lock.lockedAt)) {
-//     // If expired, allow force-unlock
-//     return await tx.lock.update({
-//       where: { key },
-//       data: { isLocked: false, lockedBy: null, lockedAt: null },
-//     });
-//   }
-//   return lock;
-// }
-
 async function createLockByKey(
   key: string,
   instanceId: string,
