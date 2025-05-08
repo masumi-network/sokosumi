@@ -1,6 +1,11 @@
 import { notFound } from "next/navigation";
+import { Suspense } from "react";
 
-import { AgentModalContent } from "@/components/agents";
+import {
+  AgentModal,
+  AgentModalContent,
+  AgentModalSkeleton,
+} from "@/components/agents";
 import { requireAuthentication } from "@/lib/auth/utils";
 import { getAgentById, getJobsByAgentId } from "@/lib/db";
 import {
@@ -9,6 +14,22 @@ import {
 } from "@/lib/services";
 
 export default async function AgentModalPage({
+  params,
+}: {
+  params: Promise<{ agentId: string }>;
+}) {
+  const { agentId } = await params;
+
+  return (
+    <AgentModal exactPathname={`/app/agents/${agentId}`}>
+      <Suspense fallback={<AgentModalSkeleton />}>
+        <AgentModalInner params={params} />
+      </Suspense>
+    </AgentModal>
+  );
+}
+
+async function AgentModalInner({
   params,
 }: {
   params: Promise<{ agentId: string }>;

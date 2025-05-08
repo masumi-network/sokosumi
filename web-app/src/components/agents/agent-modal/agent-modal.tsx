@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -34,9 +35,17 @@ import {
   CardSection5Skeleton,
 } from "./card-sections";
 
-export function AgentModal({ children }: { children: React.ReactNode }) {
+export function AgentModal({
+  children,
+  exactPathname,
+}: {
+  children: React.ReactNode;
+  exactPathname: string;
+}) {
+  const pathname = usePathname();
+
   return (
-    <Dialog open={true}>
+    <Dialog open={pathname == exactPathname}>
       <DialogPortal>
         <DialogOverlay className="backdrop-blur-lg" />
         <DialogContent className="w-[80vw] max-w-3xl! border-none bg-transparent p-0 focus:ring-0 focus:outline-none [&>button]:hidden">
