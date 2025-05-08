@@ -42,10 +42,8 @@ export async function main(_args: unknown): Promise<FunctionResponse> {
     // Agents and Jobs API calls in parallel
     let agentsData, jobsData;
     try {
-      [agentsData, jobsData] = await Promise.all([
-        callApi(baseUrl, "api/sync/agents"),
-        callApi(baseUrl, "api/sync/jobs"),
-      ]);
+      agentsData = await callApi(baseUrl, "api/sync/agents");
+      jobsData = await callApi(baseUrl, "api/sync/jobs");
     } catch (err) {
       return {
         statusCode: 500,
