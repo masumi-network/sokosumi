@@ -11,23 +11,23 @@ function isLockExpired(lockedAt: Date | null): boolean {
   return Date.now() - lockedAt.getTime() > LOCK_TIMEOUT_MS;
 }
 
-export async function getLockByKey(
-  key: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<Lock | null> {
-  const lock = await tx.lock.findFirst({ where: { key } });
-  if (!lock) return null;
-  if (isLockExpired(lock.lockedAt)) {
-    // If expired, allow force-unlock
-    return await tx.lock.update({
-      where: { key },
-      data: { isLocked: false, lockedBy: null, lockedAt: null },
-    });
-  }
-  return lock;
-}
+// async function getLockByKey(
+//   key: string,
+//   tx: Prisma.TransactionClient = prisma,
+// ): Promise<Lock | null> {
+//   const lock = await tx.lock.findFirst({ where: { key } });
+//   if (!lock) return null;
+//   if (isLockExpired(lock.lockedAt)) {
+//     // If expired, allow force-unlock
+//     return await tx.lock.update({
+//       where: { key },
+//       data: { isLocked: false, lockedBy: null, lockedAt: null },
+//     });
+//   }
+//   return lock;
+// }
 
-export async function createLockByKey(
+async function createLockByKey(
   key: string,
   instanceId: string,
   tx: Prisma.TransactionClient = prisma,
@@ -42,7 +42,7 @@ export async function createLockByKey(
   });
 }
 
-export async function tryUnlockLockByKey(
+export async function unlockLock(
   key: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Lock | null> {
@@ -66,25 +66,27 @@ export async function tryUnlockLockByKey(
   return null;
 }
 
-export async function tryAcquireLockByKey(
+export async function acquireLock(
   key: string,
   instanceId: string,
   tx: Prisma.TransactionClient = prisma,
-): Promise<Lock | null> {
+): Promise<Lock> {
   // Check if lock exists and is expired
   const existingLock = await tx.lock.findFirst({ where: { key } });
-  if (existingLock) {
-    if (existingLock.isLocked && !isLockExpired(existingLock.lockedAt)) {
-      // Lock is held and not expired
-      return existingLock;
-    }
-    if (existingLock.isLocked && isLockExpired(existingLock.lockedAt)) {
-      // Force unlock expired lock
-      await tx.lock.update({
-        where: { key },
-        data: { isLocked: false, lockedBy: null, lockedAt: null },
-      });
-    }
+  if (!existingLock) {
+    return await createLockByKey(key, instanceId, tx);
+  }
+  // If lock exists and is not expired, return the lock
+  if (existingLock.isLocked && !isLockExpired(existingLock.lockedAt)) {
+    throw new Error("LOCK_IS_LOCKED");
+  }
+
+  // If lock exists and is expired, force unlock
+  if (existingLock.isLocked && isLockExpired(existingLock.lockedAt)) {
+    await tx.lock.update({
+      where: { key },
+      data: { isLocked: false, lockedBy: null, lockedAt: null },
+    });
   }
   // Try to atomically acquire the lock if it is not locked
   const result = await tx.lock.updateMany({
@@ -98,11 +100,14 @@ export async function tryAcquireLockByKey(
       lockedAt: new Date(),
     },
   });
-
+  let lock: Lock | null = null;
   if (result.count === 1) {
     // Successfully acquired the lock, return the updated lock
-    return await tx.lock.findFirst({ where: { key } });
+    lock = await tx.lock.findFirst({ where: { key } });
   }
   // Failed to acquire the lock
-  return null;
+  if (!lock) {
+    throw new Error("LOCK_NOT_ACQUIRED");
+  }
+  return lock;
 }

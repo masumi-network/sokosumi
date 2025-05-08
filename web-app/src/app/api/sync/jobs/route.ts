@@ -3,13 +3,13 @@ import pTimeout from "p-timeout";
 
 import { getEnvSecrets } from "@/config/env.config";
 import { compareApiKeys } from "@/lib/auth/utils";
-import { FinalizedJobStatuses, prisma } from "@/lib/db";
 import {
   acquireLock,
-  getOrCreateLock,
-  releaseLock,
-  syncJobStatus,
-} from "@/lib/services";
+  FinalizedJobStatuses,
+  prisma,
+  unlockLock,
+} from "@/lib/db";
+import { syncJobStatus } from "@/lib/services";
 import { Lock } from "@/prisma/generated/client";
 
 const LOCK_KEY = "jobs-sync";
@@ -28,16 +28,14 @@ export async function POST(request: Request) {
   // Start a transaction to ensure atomicity
   let lock: Lock;
   try {
-    lock = await getOrCreateLock(LOCK_KEY);
-    if (lock.isLocked) {
+    lock = await acquireLock(LOCK_KEY, getEnvSecrets().INSTANCE_ID);
+  } catch (error) {
+    if (error instanceof Error && error.message === "LOCK_IS_LOCKED") {
       return NextResponse.json(
         { message: "Syncing already in progress" },
         { status: 429 },
       );
     }
-
-    lock = await acquireLock(lock.key);
-  } catch {
     return NextResponse.json(
       { message: "Failed to acquire lock" },
       { status: 500 },
@@ -61,7 +59,7 @@ export async function POST(request: Request) {
     } catch (error) {
       console.error("Error in sync operation:", error);
     } finally {
-      releaseLock(lock.key);
+      unlockLock(lock.key);
     }
   });
 
