@@ -1,11 +1,11 @@
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 
-import { AgentHireButton } from "@/components/agents/agent-hire-button";
 import {
-  AgentModalActionButtons,
-  AgentModalActionButtonsSkeleton,
-} from "@/components/agents/agent-modal/agent-modal-action-buttons";
+  AgentActionButtons,
+  AgentActionButtonsSkeleton,
+} from "@/components/agents/agent-action-buttons";
+import { AgentHireButton } from "@/components/agents/agent-hire-button";
 import { AgentVerifiedBadge } from "@/components/agents/agent-verified-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -32,11 +32,7 @@ function CardSection1({
 
   return (
     <CardSection>
-      <AgentModalActionButtons
-        agent={agent}
-        agentList={agentList}
-        onCloseModal={() => {}}
-      />
+      <AgentActionButtons agent={agent} agentList={agentList} />
       <div className="flex gap-6">
         <div className="relative h-56 w-56 shrink-0">
           <div className="absolute inset-0 rounded-lg blur-sm" />
@@ -75,7 +71,7 @@ function CardSection1({
 function CardSection1Skeleton() {
   return (
     <CardSection>
-      <AgentModalActionButtonsSkeleton />
+      <AgentActionButtonsSkeleton />
       <div className="flex gap-6">
         <Skeleton className="h-56 w-56 rounded-lg" />
         <div className="flex flex-1 flex-col gap-1.5">
