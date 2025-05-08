@@ -1,15 +1,9 @@
 "use server";
 
-import { getEnvSecrets } from "@/config/env.config";
 import { prisma } from "@/lib/db";
 import { Lock, Prisma } from "@/prisma/generated/client";
 
-const LOCK_TIMEOUT_MS = getEnvSecrets().LOCK_TIMEOUT;
-
-function isLockExpired(lockedAt: Date | null): boolean {
-  if (!lockedAt) return true;
-  return Date.now() - lockedAt.getTime() > LOCK_TIMEOUT_MS;
-}
+import { isLockExpired } from "./utils";
 
 async function createLockByKey(
   key: string,
