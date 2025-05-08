@@ -15,13 +15,13 @@ If you do not use DigitalOcean, you can deploy on other functions platforms, wit
 1. Install dependencies:
 
 ```bash
-npm install
+pnpm install
 ```
 
 2. Build the TypeScript code:
 
 ```bash
-npm run build
+pnpm run build
 ```
 
 3. Set up your environment variables in the DigitalOcean dashboard:
@@ -32,5 +32,5 @@ npm run build
 Deploy the function using the DigitalOcean CLI:
 
 ```bash
-npm run deploy
+pnpm run deploy
 ```
