@@ -7,3 +7,9 @@ services:
     repo: masumi-network/sokosumi
   source_dir: ./web-app
   environment_slug: node-js
+  envs:
+  - key: ADMIN_KEY
+    scope: RUN_AND_BUILD_TIME
+    value: ${ADMIN_KEY}
+    type: secret
+
