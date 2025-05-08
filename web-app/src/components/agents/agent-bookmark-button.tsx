@@ -2,7 +2,7 @@
 
 import { Bookmark } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -23,9 +23,13 @@ export function AgentBookmarkButton({
 }: AgentBookmarkButtonProps) {
   const t = useTranslations("Components.Agents.AgentCard");
   const [isBookmarked, setIsBookmarked] = useState<boolean>(
-    !!agentList?.agents.some((agent) => agent.id === agentId),
+    agentList.agents.some((agent) => agent.id === agentId),
   );
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    setIsBookmarked(agentList.agents.some((agent) => agent.id === agentId));
+  }, [agentList, agentId]);
 
   const handleBookmarkToggle = async () => {
     setIsLoading(true);

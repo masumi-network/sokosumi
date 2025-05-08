@@ -251,7 +251,7 @@ function AgentCard({
           {/* View Button */}
           <div className={cn(agentCardViewButtonContainerVariants({ size }))}>
             {!isLink && (
-              <Button variant="secondary" size="sm">
+              <Button variant="secondary" size="sm" asChild>
                 <AgentDetailLink agentId={agent.id} className="text-xs">
                   {t("view")}
                 </AgentDetailLink>
@@ -271,7 +271,7 @@ function AgentCard({
             </div>
             <div className="flex items-center gap-1.5">
               {!isLink && (
-                <Button variant="secondary" size="lg">
+                <Button variant="secondary" size="lg" asChild>
                   <AgentDetailLink agentId={agent.id}>
                     {t("view")}
                   </AgentDetailLink>

@@ -1,8 +1,9 @@
-import { headers } from "next/headers";
-import Link from "next/link";
-import { Suspense } from "react";
+"use client";
 
-import { auth } from "@/lib/auth/auth";
+import Link from "next/link";
+
+import useIsClient from "@/hooks/use-is-client";
+import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
 
 interface AgentDetailLinkProps {
@@ -16,29 +17,21 @@ function AgentDetailLink({
   agentId,
   className,
 }: AgentDetailLinkProps) {
-  return (
-    <Suspense
-      fallback={
-        <AgentDetailLinkSkeleton className={className}>
-          {children}
-        </AgentDetailLinkSkeleton>
-      }
-    >
-      <AgentDetailLinkInner className={className} agentId={agentId}>
-        {children}
-      </AgentDetailLinkInner>
-    </Suspense>
-  );
-}
+  const { data: session, isPending } = useSession();
+  const isClient = useIsClient();
 
-async function AgentDetailLinkInner({
-  children,
-  agentId,
-  className,
-}: AgentDetailLinkProps) {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  if (!isClient || isPending) {
+    return (
+      <div
+        className={cn(
+          "pointer-events-none animate-pulse bg-transparent",
+          className,
+        )}
+      >
+        {children}
+      </div>
+    );
+  }
 
   if (!session) {
     return (
@@ -52,25 +45,6 @@ async function AgentDetailLinkInner({
     <Link className={className} href={`/app/agents/${agentId}`}>
       {children}
     </Link>
-  );
-}
-
-function AgentDetailLinkSkeleton({
-  children,
-  className,
-}: {
-  children: React.ReactNode;
-  className?: string | undefined;
-}) {
-  return (
-    <div
-      className={cn(
-        "pointer-events-none animate-pulse bg-transparent",
-        className,
-      )}
-    >
-      {children}
-    </div>
   );
 }
 
