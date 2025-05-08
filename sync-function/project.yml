@@ -14,7 +14,7 @@ packages:
         parameters: {}
         environment:
           ADMIN_KEY: ${ADMIN_KEY}
-          SOKOSUMI_API_URL: ${SOKOSUMI_API_URL}
+          SOKOSUMI_URL: ${SOKOSUMI_URL}
         annotations: {}
         limits: {}
         triggers:

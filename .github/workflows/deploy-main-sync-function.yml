@@ -18,7 +18,7 @@ jobs:
       run:
         working-directory: ./sync-function
     env:
-      SOKOSUMI_API_URL: ${{ vars.SOKOSUMI_API_URL }}
+      SOKOSUMI_URL: ${{ vars.SOKOSUMI_URL }}
       ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
       SOKOSUMI_FUNCTION_NAMESPACE: ${{ vars.SOKOSUMI_FUNCTION_NAMESPACE }}
     steps:
