@@ -6,8 +6,8 @@ import { postRegistryEntry } from "@/lib/api/generated/registry";
 import { getRegistryClient } from "@/lib/api/registry-service.client";
 import { compareApiKeys } from "@/lib/auth/utils";
 import { prisma } from "@/lib/db";
-import { getLock, releaseLock } from "@/lib/services";
-import { AgentStatus, PricingType } from "@/prisma/generated/client";
+import { acquireLock, getOrCreateLock, releaseLock } from "@/lib/services";
+import { AgentStatus, Lock, PricingType } from "@/prisma/generated/client";
 
 const LOCK_KEY = "agents-sync";
 
@@ -23,12 +23,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "Invalid api key" }, { status: 401 });
   }
   // Start a transaction to ensure atomicity
-  const lock = await getLock(LOCK_KEY);
+  let lock: Lock;
+  try {
+    lock = await getOrCreateLock(LOCK_KEY);
+    if (lock.isLocked) {
+      return NextResponse.json(
+        { message: "Syncing already in progress" },
+        { status: 429 },
+      );
+    }
 
-  if (!lock) {
+    lock = await acquireLock(lock.key);
+  } catch {
     return NextResponse.json(
-      { message: "Syncing already in progress" },
-      { status: 429 },
+      { message: "Failed to acquire lock" },
+      { status: 500 },
     );
   }
 
@@ -49,7 +58,7 @@ export async function POST(request: Request) {
     } catch (error) {
       console.error("Error in sync operation:", error);
     } finally {
-      releaseLock(lock);
+      releaseLock(lock.key);
     }
   });
 
