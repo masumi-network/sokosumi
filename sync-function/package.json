@@ -1,0 +1,26 @@
+{
+  "name": "masumi-sync",
+  "version": "1.0.0",
+  "description": "DigitalOcean Function to sync Masumi services",
+  "main": "packages/masumi-sync/main/main.js",
+  "packageManager": "pnpm@10.10.0",
+  "scripts": {
+    "build": "tsc",
+    "deploy": "doctl serverless deploy .",
+    "lint": "eslint src",
+    "format": "prettier --write src"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "3.3.1",
+    "@types/node": "18.19.99",
+    "eslint": "9.26.0",
+    "eslint-config-prettier": "10.1.3",
+    "eslint-plugin-import": "2.31.0",
+    "eslint-plugin-no-relative-import-paths": "1.6.1",
+    "eslint-plugin-prettier": "5.4.0",
+    "eslint-plugin-simple-import-sort": "12.1.1",
+    "eslint-plugin-unused-imports": "4.1.4",
+    "prettier": "3.5.3",
+    "typescript": "5.8.3"
+  }
+}

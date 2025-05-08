@@ -47,4 +47,4 @@ node_modules
 package-lock.json
 .DS_Store
 
-packages/registry-sync/main/*
+packages/masumi-sync/main/*

@@ -9,7 +9,7 @@ import { prisma } from "@/lib/db";
 import { getLock, releaseLock } from "@/lib/services";
 import { AgentStatus, PricingType } from "@/prisma/generated/client";
 
-const LOCK_KEY = "registry-sync";
+const LOCK_KEY = "agents-sync";
 
 export async function POST(request: Request) {
   const headerApiKey = request.headers.get("admin-api-key");
