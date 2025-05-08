@@ -1,8 +1,8 @@
 {
-  "name": "sync-masumi-services",
+  "name": "masumi-sync",
   "version": "1.0.0",
   "description": "DigitalOcean Function to sync Masumi services",
-  "main": "packages/sync-function/main/main.js",
+  "main": "packages/masumi-sync/main/main.js",
   "packageManager": "pnpm@10.10.0",
   "scripts": {
     "build": "tsc",

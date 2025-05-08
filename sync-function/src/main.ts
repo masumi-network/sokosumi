@@ -12,10 +12,14 @@ interface FunctionResponse {
 // Generic function for API calls
 async function callApi(apiUrlString: string, endpoint: string) {
   const url = new URL(endpoint, apiUrlString);
+  const adminKey = process.env.ADMIN_KEY;
+  if (!adminKey) {
+    throw new Error("ADMIN_KEY environment variable not set");
+  }
   const response = await fetch(url, {
     method: "POST",
     headers: {
-      "admin-api-key": `${process.env.ADMIN_KEY}`,
+      "admin-api-key": `${adminKey}`,
     },
   });
   if (!response.ok) {
