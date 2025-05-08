@@ -10,6 +10,7 @@ const envSecretsSchema = z.object({
   // Database
   DATABASE_URL: z.string().url(),
   MIN_FEE_CREDITS: z.number({ coerce: true }).min(0).default(1),
+  FREE_CREDITS_ON_SIGNUP: z.number({ coerce: true }).min(0).default(0),
 
   SHOW_AGENTS_BY_DEFAULT: z
     .string()

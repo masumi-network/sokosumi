@@ -4,7 +4,11 @@ import { nextCookies } from "better-auth/next-js";
 import { getTranslations } from "next-intl/server";
 
 import { getEnvPublicConfig, getEnvSecrets } from "@/config/env.config";
-import { prisma } from "@/lib/db";
+import {
+  convertCreditsToCents,
+  createCreditTransaction,
+  prisma,
+} from "@/lib/db";
 import { reactChangeEmailVerificationEmail } from "@/lib/email/change-email";
 import { resend } from "@/lib/email/resend";
 import { reactResetPasswordEmail } from "@/lib/email/reset-password";
@@ -28,6 +32,24 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+  databaseHooks: {
+    user: {
+      create: {
+        after: async (user) => {
+          try {
+            const cents = convertCreditsToCents(
+              getEnvSecrets().FREE_CREDITS_ON_SIGNUP,
+            );
+            await createCreditTransaction(user.id, cents);
+          } catch (error) {
+            console.error(
+              `Error creating credit transaction for user ${user.id} with error: ${error}`,
+            );
+          }
+        },
+      },
+    },
+  },
   emailAndPassword: {
     enabled: true,
     maxPasswordLength: getEnvPublicConfig().NEXT_PUBLIC_PASSWORD_MAX_LENGTH,
