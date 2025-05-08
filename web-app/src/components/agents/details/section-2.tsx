@@ -1,20 +1,27 @@
-"use client";
-
-import { CircleCheck, Loader2, SquareTerminal } from "lucide-react";
+import { CircleCheck, SquareTerminal } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import useAgentJobs from "@/hooks/use-agent-jobs";
-import { AgentWithRelations, getAgentAuthorName } from "@/lib/db";
+import {
+  AgentWithRelations,
+  FinalizedJobStatuses,
+  getAgentAuthorName,
+  JobWithRelations,
+} from "@/lib/db";
 
-function AgentDetailSection2({ agent }: { agent: AgentWithRelations }) {
+function AgentDetailSection2({
+  agent,
+  jobs,
+}: {
+  agent: AgentWithRelations;
+  jobs: JobWithRelations[];
+}) {
   const t = useTranslations("Components.Agents.AgentDetail.Section2");
   const formatter = useFormatter();
-  const {
-    executedJobs,
-    isLoading: jobsIsLoading,
-    error: jobsError,
-  } = useAgentJobs(agent.id);
+
+  const executedJobs = jobs.filter((job) =>
+    FinalizedJobStatuses.includes(job.status),
+  );
 
   return (
     <div className="grid grid-cols-2">
@@ -32,17 +39,11 @@ function AgentDetailSection2({ agent }: { agent: AgentWithRelations }) {
           <CircleCheck size={16} />
           <span className="text-upper text-xs">{t("executedJobs")}</span>
         </div>
-        {jobsIsLoading ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : jobsError ? (
-          <span className="text-upper text-xs">{t("unknownExecutedJobs")}</span>
-        ) : (
-          <p className="text-base font-medium">
-            {formatter.number(executedJobs.length, {
-              notation: "compact",
-            })}
-          </p>
-        )}
+        <p className="text-base font-medium">
+          {formatter.number(executedJobs.length, {
+            notation: "compact",
+          })}
+        </p>
       </div>
     </div>
   );

@@ -13,7 +13,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { AgentListWithAgent, AgentWithRelations, CreditsPrice } from "@/lib/db";
+import {
+  AgentListWithAgent,
+  AgentWithRelations,
+  CreditsPrice,
+  JobWithRelations,
+} from "@/lib/db";
 
 import {
   CardSection,
@@ -47,12 +52,14 @@ export function AgentModal({ children }: { children: React.ReactNode }) {
 interface AgentModalContentProps {
   agent: AgentWithRelations;
   agentCreditsPrice: CreditsPrice;
+  jobs: JobWithRelations[];
   agentList?: AgentListWithAgent | undefined;
 }
 
 export function AgentModalContent({
   agent,
   agentCreditsPrice,
+  jobs,
   agentList,
 }: AgentModalContentProps) {
   return (
@@ -62,7 +69,7 @@ export function AgentModalContent({
         agentList={agentList}
         agentCreditsPrice={agentCreditsPrice}
       />
-      <CardSection2 agent={agent} />
+      <CardSection2 agent={agent} jobs={jobs} />
       <CardSection3 agent={agent} />
       <CardSection4 agent={agent} />
       <CardSection5 agent={agent} />

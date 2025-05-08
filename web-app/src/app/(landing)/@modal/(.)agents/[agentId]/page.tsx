@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 
 import { AgentModalContent } from "@/components/agents";
 import { auth } from "@/lib/auth/auth";
-import { getAgentById } from "@/lib/db";
+import { getAgentById, getJobsByAgentId } from "@/lib/db";
 import {
   getAgentCreditsPrice,
   getOrCreateFavoriteAgentList,
@@ -31,6 +31,7 @@ export default async function AgentModalPage({
     return notFound();
   }
 
+  const jobs = await getJobsByAgentId(agentId);
   const agentList = !!userId
     ? await getOrCreateFavoriteAgentList(userId)
     : undefined;
@@ -39,6 +40,7 @@ export default async function AgentModalPage({
     <AgentModalContent
       agent={agent}
       agentCreditsPrice={agentCreditsPrice}
+      jobs={jobs}
       agentList={agentList}
     />
   );
