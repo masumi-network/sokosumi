@@ -1,21 +1,21 @@
-name: Build Registry Function
+name: Build Sync Function
 
 on:
   workflow_dispatch:
   pull_request:
-    paths: ['registry-cron-caller/**']
+    paths: ['sync-function/**']
 
 env:
   ADMIN_KEY: ${{ vars.PUBLIC_DEFAULT_SECRET }}
   SOKOSUMI_API_URL: ${{ vars.PUBLIC_DEFAULT_URL }}
 
 jobs:
-  build-registry-sync:
-    name: Build Registry Function
+  build-sync-function:
+    name: Build Sync Function
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: ./registry-cron-caller
+        working-directory: ./sync-function
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

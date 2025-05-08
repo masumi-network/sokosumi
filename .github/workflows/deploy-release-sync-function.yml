@@ -1,10 +1,9 @@
-name: Main Job Function Deployment
+name: Release Sync Function Deployment
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths: ['job-cron-caller/**']
+  release:
+    types: [released]
 
 permissions:
   contents: read
@@ -13,10 +12,10 @@ jobs:
   deploy-function:
     name: Deploy Function
     runs-on: ubuntu-latest
-    environment: development
+    environment: production
     defaults:
       run:
-        working-directory: ./job-cron-caller
+        working-directory: ./sync-function
     env:
       SOKOSUMI_API_URL: ${{ vars.SOKOSUMI_API_URL }}
       ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
@@ -47,5 +46,3 @@ jobs:
 
       - name: Deploy
         run: pnpm run deploy
-
-  
