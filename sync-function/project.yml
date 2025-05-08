@@ -1,5 +1,5 @@
 packages:
-  - name: registry-sync
+  - name: masumi-sync
     shared: false
     environment: {}
     parameters: {}

@@ -27,7 +27,7 @@ async function callApi(apiUrlString: string, endpoint: string) {
 export async function main(_args: unknown): Promise<FunctionResponse> {
   try {
     // Get API endpoint from environment variable
-    const apiUrlString = process.env.SOKOSUMI_API_URL; // https://sokosumi.com/api
+    const apiUrlString = process.env.SOKOSUMI_API_URL;
 
     if (!apiUrlString) {
       return {
