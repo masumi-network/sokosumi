@@ -18,20 +18,34 @@ import {
   getAgentResolvedImage,
 } from "@/lib/db";
 
+interface AgentDetailSection1Props {
+  agent: AgentWithRelations;
+  agentList: AgentListWithAgent | undefined;
+  agentCreditsPrice: CreditsPrice;
+  showBackButton?: boolean | undefined;
+  showCloseButton?: boolean | undefined;
+  onClose?: (() => void) | undefined;
+}
+
 function AgentDetailSection1({
   agent,
   agentList,
   agentCreditsPrice,
-}: {
-  agent: AgentWithRelations;
-  agentList: AgentListWithAgent | undefined;
-  agentCreditsPrice: CreditsPrice;
-}) {
+  showBackButton,
+  showCloseButton,
+  onClose,
+}: AgentDetailSection1Props) {
   const t = useTranslations("Components.Agents.AgentDetail.Section1");
 
   return (
     <div className="flex flex-col gap-2">
-      <AgentActionButtons agent={agent} agentList={agentList} />
+      <AgentActionButtons
+        agent={agent}
+        agentList={agentList}
+        showBackButton={showBackButton}
+        showCloseButton={showCloseButton}
+        onClose={onClose}
+      />
       <div className="flex gap-6">
         <div className="relative h-48 w-48 shrink-0">
           <div className="absolute inset-0 rounded-lg blur-sm" />

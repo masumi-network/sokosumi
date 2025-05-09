@@ -12,17 +12,26 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 
+interface AgentModalProps {
+  children: React.ReactNode;
+  open?: boolean | undefined;
+  exactPathname?: string | undefined;
+}
+
 export function AgentModal({
   children,
   exactPathname,
-}: {
-  children: React.ReactNode;
-  exactPathname: string;
-}) {
+  open: customOpen,
+}: AgentModalProps) {
   const pathname = usePathname();
 
+  const open =
+    typeof customOpen === "boolean"
+      ? customOpen
+      : !exactPathname || pathname == exactPathname;
+
   return (
-    <Dialog open={pathname == exactPathname}>
+    <Dialog open={open}>
       <DialogPortal>
         <DialogOverlay className="backdrop-blur-lg" />
         <DialogContent className="w-[80vw] max-w-3xl! border-none bg-transparent p-0 focus:ring-0 focus:outline-none [&>button]:hidden">

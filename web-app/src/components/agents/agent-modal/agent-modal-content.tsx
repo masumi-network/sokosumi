@@ -28,6 +28,9 @@ interface AgentModalContentProps {
   agentCreditsPrice: CreditsPrice;
   jobs: JobWithRelations[];
   agentList?: AgentListWithAgent | undefined;
+  showBackButton?: boolean | undefined;
+  showCloseButton?: boolean | undefined;
+  onClose?: (() => void) | undefined;
 }
 
 export function AgentModalContent({
@@ -35,6 +38,9 @@ export function AgentModalContent({
   agentCreditsPrice,
   jobs,
   agentList,
+  showBackButton,
+  showCloseButton,
+  onClose,
 }: AgentModalContentProps) {
   return (
     <div className="flex w-[80vw] max-w-3xl! flex-col gap-1.5">
@@ -42,6 +48,9 @@ export function AgentModalContent({
         agent={agent}
         agentList={agentList}
         agentCreditsPrice={agentCreditsPrice}
+        showBackButton={showBackButton}
+        showCloseButton={showCloseButton}
+        onClose={onClose}
       />
       <CardSection2 jobs={jobs} />
       <CardSection3 agent={agent} />
