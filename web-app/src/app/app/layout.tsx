@@ -10,7 +10,6 @@ import Sidebar from "./components/sidebar";
 
 interface AppLayoutProps {
   children: React.ReactNode;
-  agentDetail: React.ReactNode;
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -25,10 +24,7 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function AppLayout({
-  children,
-  agentDetail,
-}: AppLayoutProps) {
+export default async function AppLayout({ children }: AppLayoutProps) {
   const cookieStore = await cookies();
   const defaultOpen = cookieStore.get("sidebar_state")?.value === "true";
 
@@ -40,7 +36,6 @@ export default async function AppLayout({
         <main className="min-h-[calc(100svh-64px)]">{children}</main>
         <FooterSections className="p-4 lg:p-6 xl:p-8" />
       </div>
-      {agentDetail}
     </SidebarProvider>
   );
 }
