@@ -19,9 +19,12 @@ const withNextIntl = createNextIntlPlugin();
 export default withSentryConfig(
   withNextIntl(withPlausibleProxy()(nextConfig)),
   {
+    // Disable telemetry to avoid sending data to Sentry
+    // eslint-disable-next-line no-restricted-properties
+    telemetry: process.env.NODE_ENV === "production",
+
     // For all available options, see:
     // https://www.npmjs.com/package/@sentry/webpack-plugin#options
-
     org: "masumi",
     project: "sokosumi",
 
@@ -43,11 +46,5 @@ export default withSentryConfig(
 
     // Automatically tree-shake Sentry logger statements to reduce bundle size
     disableLogger: true,
-
-    // Enables automatic instrumentation of Vercel Cron Monitors. (Does not yet work with App Router route handlers.)
-    // See the following for more information:
-    // https://docs.sentry.io/product/crons/
-    // https://vercel.com/docs/cron-jobs
-    automaticVercelMonitors: true,
   },
 );
