@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { AgentDetail } from "@/components/agents";
+import { AgentModalContent } from "@/components/agents";
 import { requireAuthentication } from "@/lib/auth/utils";
 import { getAgentById, getJobsByAgentId } from "@/lib/db";
 import {
@@ -32,13 +32,11 @@ export default async function AgentDetailPage({
   const jobs = await getJobsByAgentId(agentId);
 
   return (
-    <div className="mx-auto max-w-5xl p-4 pb-8">
-      <AgentDetail
-        agent={agent}
-        agentCreditsPrice={agentCreditsPrice}
-        agentList={agentList}
-        jobs={jobs}
-      />
-    </div>
+    <AgentModalContent
+      agent={agent}
+      agentCreditsPrice={agentCreditsPrice}
+      agentList={agentList}
+      jobs={jobs}
+    />
   );
 }

@@ -1,5 +1,5 @@
-import { AgentDetailSkeleton } from "@/components/agents";
+import { AgentModalContentSkeleton } from "@/components/agents";
 
 export default function AgentDetailLoading() {
-  return <AgentDetailSkeleton />;
+  return <AgentModalContentSkeleton />;
 }

@@ -60,7 +60,7 @@ export function AgentModalContent({
   );
 }
 
-export function AgentModalSkeleton() {
+export function AgentModalContentSkeleton() {
   return (
     <div className="flex w-[80vw] max-w-3xl! flex-col gap-1.5">
       <CardSection1Skeleton />

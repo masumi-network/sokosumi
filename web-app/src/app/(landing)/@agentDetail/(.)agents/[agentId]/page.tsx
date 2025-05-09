@@ -5,7 +5,7 @@ import { Suspense } from "react";
 import {
   AgentModal,
   AgentModalContent,
-  AgentModalSkeleton,
+  AgentModalContentSkeleton,
 } from "@/components/agents";
 import { auth } from "@/lib/auth/auth";
 import { getAgentById, getJobsByAgentId } from "@/lib/db";
@@ -23,7 +23,7 @@ export default async function AgentModalPage({
 
   return (
     <AgentModal exactPathname={`/agents/${agentId}`}>
-      <Suspense fallback={<AgentModalSkeleton />}>
+      <Suspense fallback={<AgentModalContentSkeleton />}>
         <AgentModalInner params={params} />
       </Suspense>
     </AgentModal>
