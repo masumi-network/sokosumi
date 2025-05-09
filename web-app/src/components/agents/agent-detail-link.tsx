@@ -1,10 +1,7 @@
 "use client";
 
 import Link from "next/link";
-
-import useIsClient from "@/hooks/use-is-client";
-import { useSession } from "@/lib/auth/auth.client";
-import { cn } from "@/lib/utils";
+import { usePathname } from "next/navigation";
 
 interface AgentDetailLinkProps {
   children: React.ReactNode;
@@ -17,32 +14,18 @@ function AgentDetailLink({
   agentId,
   className,
 }: AgentDetailLinkProps) {
-  const { data: session, isPending } = useSession();
-  const isClient = useIsClient();
+  const pathname = usePathname();
 
-  if (!isClient || isPending) {
+  if (pathname.startsWith("/app")) {
     return (
-      <div
-        className={cn(
-          "pointer-events-none animate-pulse bg-transparent",
-          className,
-        )}
-      >
-        {children}
-      </div>
-    );
-  }
-
-  if (!session) {
-    return (
-      <Link className={className} href={`/agents/${agentId}`}>
+      <Link className={className} href={`/app/agents/${agentId}`}>
         {children}
       </Link>
     );
   }
 
   return (
-    <Link className={className} href={`/app/agents/${agentId}`}>
+    <Link className={className} href={`/agents/${agentId}`}>
       {children}
     </Link>
   );
