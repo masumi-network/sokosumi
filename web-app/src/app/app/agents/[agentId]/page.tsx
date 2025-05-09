@@ -1,0 +1,37 @@
+import { notFound } from "next/navigation";
+
+import { AgentDetail } from "@/components/agents";
+import { getAgentById, getJobsByAgentId } from "@/lib/db";
+import { getAgentCreditsPrice } from "@/lib/services";
+import { sleep } from "@/lib/utils";
+
+export default async function AgentDetailPage({
+  params,
+}: {
+  params: Promise<{ agentId: string }>;
+}) {
+  await sleep(5000);
+  const { agentId } = await params;
+
+  const agent = await getAgentById(agentId);
+  if (!agent) {
+    return notFound();
+  }
+
+  const agentCreditsPrice = await getAgentCreditsPrice(agent);
+  if (!agentCreditsPrice) {
+    return notFound();
+  }
+
+  const jobs = await getJobsByAgentId(agentId);
+
+  return (
+    <div className="mx-auto flex justify-center px-4 py-8">
+      <AgentDetail
+        agent={agent}
+        agentCreditsPrice={agentCreditsPrice}
+        jobs={jobs}
+      />
+    </div>
+  );
+}

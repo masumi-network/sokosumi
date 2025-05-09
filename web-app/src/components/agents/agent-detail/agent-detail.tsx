@@ -77,7 +77,7 @@ export function AgentDetailSkeleton({
   className?: string | undefined;
 }) {
   return (
-    <div className={cn("flex flex-col gap-1.5", className)}>
+    <div className={cn("flex w-full max-w-3xl flex-col gap-1.5", className)}>
       <CardSection>
         <AgentDetailSection1Skeleton />
       </CardSection>
