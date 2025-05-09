@@ -7,8 +7,8 @@ import { useState } from "react";
 
 import {
   AgentBookmarkButton,
+  AgentDetail,
   AgentModal,
-  AgentModalContent,
 } from "@/components/agents";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -100,7 +100,7 @@ export default function Header({
       </div>
       {/* Agent Modal */}
       <AgentModal open={open}>
-        <AgentModalContent
+        <AgentDetail
           agent={agent}
           agentCreditsPrice={agentCreditsPrice}
           jobs={jobs}

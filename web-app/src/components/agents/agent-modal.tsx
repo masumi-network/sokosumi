@@ -1,7 +1,3 @@
-"use client";
-
-import { usePathname } from "next/navigation";
-
 import {
   Dialog,
   DialogContent,
@@ -14,24 +10,12 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface AgentModalProps {
   children: React.ReactNode;
-  exactPathname?: string | undefined;
   open?: boolean | undefined;
 }
 
-export function AgentModal({
-  children,
-  exactPathname,
-  open: customOpen,
-}: AgentModalProps) {
-  const pathname = usePathname();
-
-  const open =
-    typeof customOpen === "boolean"
-      ? customOpen
-      : !exactPathname || pathname == exactPathname;
-
+export function AgentModal({ children, open }: AgentModalProps) {
   return (
-    <Dialog open={open}>
+    <Dialog open={open ?? true}>
       <DialogPortal>
         <DialogOverlay className="backdrop-blur-lg" />
         <DialogContent className="w-[80vw] max-w-3xl! border-none bg-transparent p-0 focus:ring-0 focus:outline-none [&>button]:hidden">

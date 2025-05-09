@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { AgentModalContent } from "@/components/agents";
+import { AgentDetail } from "@/components/agents";
 import { getAgentById, getJobsByAgentId } from "@/lib/db";
 import { getAgentCreditsPrice } from "@/lib/services";
 
@@ -24,7 +24,7 @@ export default async function AgentDetailPage({
   const jobs = await getJobsByAgentId(agentId);
 
   return (
-    <AgentModalContent
+    <AgentDetail
       agent={agent}
       agentCreditsPrice={agentCreditsPrice}
       jobs={jobs}
