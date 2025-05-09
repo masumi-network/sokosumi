@@ -38,7 +38,7 @@ function AgentDetailSection1({
   const t = useTranslations("Components.Agents.AgentDetail.Section1");
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-6">
       <AgentActionButtons
         agent={agent}
         agentList={agentList}
@@ -97,7 +97,7 @@ function AgentDetailSection1({
 
 function AgentDetailSection1Skeleton() {
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-6">
       <AgentActionButtonsSkeleton />
       <div className="flex gap-6">
         <Skeleton className="h-56 w-56 rounded-lg" />
