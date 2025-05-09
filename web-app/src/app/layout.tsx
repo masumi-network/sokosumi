@@ -3,9 +3,11 @@ import "./globals.css";
 import { Geist, Geist_Mono } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
+import PlausibleProvider from "next-plausible";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
 import { Toaster } from "@/components/ui/sonner";
+import { getEnvSecrets } from "@/config/env.config";
 import { ThemeProvider } from "@/lib/context/theme-context";
 import { cn } from "@/lib/utils";
 
@@ -29,6 +31,14 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} suppressHydrationWarning>
+      <head>
+        <PlausibleProvider
+          domain={getEnvSecrets().PLAUSIBLE_DOMAIN}
+          trackOutboundLinks={true}
+          trackFileDownloads={true}
+          hash={true}
+        />
+      </head>
       <body
         className={cn(
           geistSans.variable,
