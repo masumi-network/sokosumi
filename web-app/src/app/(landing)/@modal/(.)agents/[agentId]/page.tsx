@@ -17,7 +17,7 @@ export default async function AgentModalPage({
   const { agentId } = await params;
 
   return (
-    <AgentModal exactPathname={`/agents/${agentId}`}>
+    <AgentModal exactPathname={`/agents/${agentId}`} showOverlayImage>
       <Suspense fallback={<AgentModalSkeleton />}>
         <AgentModalInner params={params} />
       </Suspense>
