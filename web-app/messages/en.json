@@ -386,7 +386,8 @@
           },
           "Errors": {
             "Submit": {
-              "userExists": "User already exists"
+              "userExists": "User already exists",
+              "emailDomainNotAllowed": "Email must end with {allowedEmailDomains}"
             }
           },
           "Login": {
