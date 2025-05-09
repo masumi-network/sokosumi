@@ -1,15 +1,7 @@
 import Image, { ImageProps } from "next/image";
 
-interface IconProps extends Omit<ImageProps, "src" | "alt"> {
-  variant?: "red";
-}
-
-export function SokosumiIcon({ variant = "red", ...props }: IconProps) {
+export function SokosumiIcon({ ...props }: Omit<ImageProps, "src" | "alt">) {
   return (
-    <Image
-      src={`/icons/sokosumi-icon-${variant}.svg`}
-      alt="Sokosumi Icon"
-      {...props}
-    />
+    <Image src={`/icons/sokosumi-icon.svg`} alt="Sokosumi Icon" {...props} />
   );
 }

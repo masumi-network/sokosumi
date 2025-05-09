@@ -3,8 +3,14 @@ import pTimeout from "p-timeout";
 
 import { getEnvSecrets } from "@/config/env.config";
 import { compareApiKeys } from "@/lib/auth/utils";
-import { FinalizedJobStatuses, prisma } from "@/lib/db";
-import { getLock, releaseLock, syncJobStatus } from "@/lib/services";
+import {
+  acquireLock,
+  FinalizedJobStatuses,
+  prisma,
+  unlockLock,
+} from "@/lib/db";
+import { syncJobStatus } from "@/lib/services";
+import { Lock } from "@/prisma/generated/client";
 
 const LOCK_KEY = "jobs-sync";
 
@@ -20,12 +26,19 @@ export async function POST(request: Request) {
     return NextResponse.json({ message: "Invalid api key" }, { status: 401 });
   }
   // Start a transaction to ensure atomicity
-  const lock = await getLock(LOCK_KEY);
-
-  if (!lock) {
+  let lock: Lock;
+  try {
+    lock = await acquireLock(LOCK_KEY, getEnvSecrets().INSTANCE_ID);
+  } catch (error) {
+    if (error instanceof Error && error.message === "LOCK_IS_LOCKED") {
+      return NextResponse.json(
+        { message: "Syncing already in progress" },
+        { status: 429 },
+      );
+    }
     return NextResponse.json(
-      { message: "Syncing already in progress" },
-      { status: 429 },
+      { message: "Failed to acquire lock" },
+      { status: 500 },
     );
   }
 
@@ -46,7 +59,7 @@ export async function POST(request: Request) {
     } catch (error) {
       console.error("Error in sync operation:", error);
     } finally {
-      releaseLock(lock);
+      unlockLock(lock.key);
     }
   });
 

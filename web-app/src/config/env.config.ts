@@ -78,7 +78,7 @@ const envSecretsSchema = z.object({
     .default(60 * 5), // 5 minutes
   LOCK_TIMEOUT: z
     .number({ coerce: true })
-    .min(3 * 60 * 1000)
+    .min(1 * 60 * 1000)
     .default(10 * 60 * 1000), // 10 minutes
   LOCK_TIMEOUT_BUFFER: z
     .number({ coerce: true })
