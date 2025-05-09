@@ -42,6 +42,8 @@ export default async function RootLayout({
         <PlausibleProvider
           domain={getEnvSecrets().PLAUSIBLE_DOMAIN}
           trackOutboundLinks={true}
+          trackFileDownloads={true}
+          hash={true}
         />
       </head>
       <body
