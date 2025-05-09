@@ -25,9 +25,5 @@ export default function AgentDetailLayout({
 }: {
   children: React.ReactNode;
 }) {
-  return (
-    <div className="mx-auto flex max-w-5xl justify-center px-4 py-8">
-      {children}
-    </div>
-  );
+  return children;
 }

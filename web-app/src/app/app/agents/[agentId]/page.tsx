@@ -32,11 +32,13 @@ export default async function AgentDetailPage({
   const jobs = await getJobsByAgentId(agentId);
 
   return (
-    <AgentModalContent
-      agent={agent}
-      agentCreditsPrice={agentCreditsPrice}
-      agentList={agentList}
-      jobs={jobs}
-    />
+    <div className="mx-auto flex max-w-5xl justify-center px-4 py-8">
+      <AgentModalContent
+        agent={agent}
+        agentCreditsPrice={agentCreditsPrice}
+        agentList={agentList}
+        jobs={jobs}
+      />
+    </div>
   );
 }

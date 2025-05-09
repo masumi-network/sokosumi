@@ -303,14 +303,8 @@
 }
 
 @utility agent-detail-card {
-  background:
-    linear-gradient(
-      0deg,
-      var(--material-thin-overlay) 0%,
-      var(--material-thin-overlay) 100%
-    ),
-    var(--material-thin);
-  background-blend-mode: overlay, normal;
+  background: var(--material-thin, #f5f5f57a);
+  background-blend-mode: overlay;
   backdrop-filter: blur(calc(var(--blur-3xl, 64px) / 2));
   border: 1px solid var(--quaternary);
   border-radius: calc(var(--radius));
