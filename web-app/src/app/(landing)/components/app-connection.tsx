@@ -36,7 +36,7 @@ async function AppConnectionContent() {
   }
 
   return (
-    <Button variant="secondary" asChild>
+    <Button variant="primary" asChild>
       <Link href="/app">
         <UserRoundIcon className="size-4" />
         {t("app")}
