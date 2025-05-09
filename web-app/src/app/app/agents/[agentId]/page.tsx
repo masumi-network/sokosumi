@@ -3,14 +3,12 @@ import { notFound } from "next/navigation";
 import { AgentDetail } from "@/components/agents";
 import { getAgentById, getJobsByAgentId } from "@/lib/db";
 import { getAgentCreditsPrice } from "@/lib/services";
-import { sleep } from "@/lib/utils";
 
 export default async function AgentDetailPage({
   params,
 }: {
   params: Promise<{ agentId: string }>;
 }) {
-  await sleep(5000);
   const { agentId } = await params;
 
   const agent = await getAgentById(agentId);
