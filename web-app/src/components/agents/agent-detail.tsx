@@ -46,7 +46,7 @@ function AgentDetail({
         />
       </SectionWrapper>
       <SectionWrapper>
-        <AgentDetailSection2 agent={agent} jobs={jobs} />
+        <AgentDetailSection2 jobs={jobs} />
       </SectionWrapper>
       <SectionWrapper>
         <AgentDetailSection3 agent={agent} />
