@@ -1,3 +1,4 @@
+import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
@@ -6,8 +7,12 @@ import {
   AgentModalContent,
   AgentModalSkeleton,
 } from "@/components/agents";
+import { auth } from "@/lib/auth/auth";
 import { getAgentById, getJobsByAgentId } from "@/lib/db";
-import { getAgentCreditsPrice } from "@/lib/services";
+import {
+  getAgentCreditsPrice,
+  getOrCreateFavoriteAgentList,
+} from "@/lib/services";
 
 export default async function AgentModalPage({
   params,
@@ -31,6 +36,10 @@ async function AgentModalInner({
   params: Promise<{ agentId: string }>;
 }) {
   const { agentId } = await params;
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+  const userId = session?.user.id;
 
   const agent = await getAgentById(agentId);
   if (!agent) {
@@ -42,12 +51,16 @@ async function AgentModalInner({
     return notFound();
   }
 
+  const agentList = userId
+    ? await getOrCreateFavoriteAgentList(userId)
+    : undefined;
   const jobs = await getJobsByAgentId(agentId);
 
   return (
     <AgentModalContent
       agent={agent}
       agentCreditsPrice={agentCreditsPrice}
+      agentList={agentList}
       jobs={jobs}
     />
   );
