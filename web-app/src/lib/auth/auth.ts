@@ -1,5 +1,6 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { getTranslations } from "next-intl/server";
 
@@ -32,6 +33,24 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      switch (ctx.path) {
+        case "/sign-up/email":
+          const allowedEmailDomains = getEnvSecrets().ALLOWED_EMAIL_DOMAINS;
+          if (
+            allowedEmailDomains.length !== 0 &&
+            !allowedEmailDomains.includes(ctx.body?.email.split("@")[1])
+          ) {
+            throw new APIError("BAD_REQUEST", {
+              code: "EMAIL_DOMAIN_NOT_ALLOWED",
+              message: allowedEmailDomains.join(", "),
+            });
+          }
+          break;
+      }
+    }),
+  },
   databaseHooks: {
     user: {
       create: {

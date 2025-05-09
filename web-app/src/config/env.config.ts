@@ -11,6 +11,11 @@ const envSecretsSchema = z.object({
   DATABASE_URL: z.string().url(),
   MIN_FEE_CREDITS: z.number({ coerce: true }).min(0).default(1),
   FREE_CREDITS_ON_SIGNUP: z.number({ coerce: true }).min(0).default(0),
+  ALLOWED_EMAIL_DOMAINS: z
+    .string()
+    .default("")
+    .transform((val) => (val.trim() === "" ? [] : val.split(",")))
+    .pipe(z.array(z.string())),
 
   SHOW_AGENTS_BY_DEFAULT: z
     .string()
