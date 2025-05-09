@@ -7,7 +7,7 @@ import Header from "./components/header";
 
 interface LandingLayoutProps {
   children: React.ReactNode;
-  modal: React.ReactNode;
+  agentDetail: React.ReactNode;
 }
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -22,13 +22,16 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function LandingLayout({ children, modal }: LandingLayoutProps) {
+export default function LandingLayout({
+  children,
+  agentDetail,
+}: LandingLayoutProps) {
   return (
     <div className="flex flex-col">
       <Header className="h-16 lg:h-20" />
       <main className="min-h-svh flex-1 pt-16 lg:pt-20">{children}</main>
       <Footer />
-      {modal}
+      {agentDetail}
     </div>
   );
 }
