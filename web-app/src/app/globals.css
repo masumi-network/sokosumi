@@ -301,3 +301,18 @@
     background-repeat: no-repeat;
   }
 }
+
+@utility agent-detail-card {
+  background:
+    linear-gradient(
+      0deg,
+      var(--material-thin-overlay) 0%,
+      var(--material-thin-overlay) 100%
+    ),
+    var(--material-thin);
+  background-blend-mode: overlay, normal;
+  backdrop-filter: blur(calc(var(--blur-3xl, 64px) / 2));
+  border: 1px solid var(--quaternary);
+  border-radius: calc(var(--radius));
+  padding: calc(var(--spacing) * 6);
+}
