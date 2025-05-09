@@ -56,7 +56,6 @@
           "pricing": "{credits, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
         },
         "Section2": {
-          "developer": "Developer",
           "executedJobs": "Executed Jobs",
           "unknownExecutedJobs": "Unknown"
         },

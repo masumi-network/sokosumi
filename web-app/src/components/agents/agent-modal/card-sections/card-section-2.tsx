@@ -2,20 +2,14 @@ import {
   AgentDetailSection2,
   AgentDetailSection2Skeleton,
 } from "@/components/agents/details";
-import { AgentWithRelations, JobWithRelations } from "@/lib/db";
+import { JobWithRelations } from "@/lib/db";
 
 import { CardSection } from "./card-section";
 
-function CardSection2({
-  agent,
-  jobs,
-}: {
-  agent: AgentWithRelations;
-  jobs: JobWithRelations[];
-}) {
+function CardSection2({ jobs }: { jobs: JobWithRelations[] }) {
   return (
     <CardSection>
-      <AgentDetailSection2 agent={agent} jobs={jobs} />
+      <AgentDetailSection2 jobs={jobs} />
     </CardSection>
   );
 }

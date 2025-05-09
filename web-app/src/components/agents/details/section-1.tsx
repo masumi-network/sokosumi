@@ -13,6 +13,7 @@ import {
   AgentWithRelations,
   convertCentsToCredits,
   CreditsPrice,
+  getAgentAuthorName,
   getAgentName,
   getAgentResolvedImage,
 } from "@/lib/db";
@@ -32,7 +33,7 @@ function AgentDetailSection1({
     <div className="flex flex-col gap-2">
       <AgentActionButtons agent={agent} agentList={agentList} />
       <div className="flex gap-6">
-        <div className="relative h-56 w-56 shrink-0">
+        <div className="relative h-48 w-48 shrink-0">
           <div className="absolute inset-0 rounded-lg blur-sm" />
           <Image
             src={getAgentResolvedImage(agent)}
@@ -44,10 +45,24 @@ function AgentDetailSection1({
           />
         </div>
         <div className="flex flex-1 flex-col gap-1.5">
-          <div className="flex-1">
+          <div className="flex flex-1 flex-col gap-2">
             <div className="flex items-center gap-4">
               <h2 className="text-3xl font-light">{getAgentName(agent)}</h2>
               <AgentVerifiedBadge />
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="relative h-8 w-8">
+                <Image
+                  src="/backgrounds/visuals/blurry-ink-wave-1.png"
+                  alt="author"
+                  fill
+                  sizes="100px"
+                  className="rounded-full object-cover"
+                />
+              </div>
+              <p className="text-muted-foreground">
+                {getAgentAuthorName(agent)}
+              </p>
             </div>
           </div>
           <div className="flex items-center justify-between">
@@ -73,10 +88,14 @@ function AgentDetailSection1Skeleton() {
       <div className="flex gap-6">
         <Skeleton className="h-56 w-56 rounded-lg" />
         <div className="flex flex-1 flex-col gap-1.5">
-          <div className="flex-1">
+          <div className="flex flex-1 flex-col gap-2">
             <div className="flex items-center gap-4">
               <Skeleton className="h-8 w-40" />
               <Skeleton className="h-8 w-16" />
+            </div>
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-8 w-8 rounded-full" />
+              <Skeleton className="h-4 w-24" />
             </div>
           </div>
           <div className="flex items-center justify-between">

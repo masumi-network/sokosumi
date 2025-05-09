@@ -43,7 +43,7 @@ export function AgentModalContent({
         agentList={agentList}
         agentCreditsPrice={agentCreditsPrice}
       />
-      <CardSection2 agent={agent} jobs={jobs} />
+      <CardSection2 jobs={jobs} />
       <CardSection3 agent={agent} />
       <CardSection4 agent={agent} />
       <CardSection5 agent={agent} />
