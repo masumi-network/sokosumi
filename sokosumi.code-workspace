@@ -1,0 +1,17 @@
+{ 
+    "folders": [
+        {
+            "name": "Web Application",
+            "path": "web-app"
+        },
+        {
+            "name": "Masumi Sync Function",
+            "path": "sync-function"
+        },
+        {
+            "name": "GitHub",
+            "path": ".github"
+        }
+    ],
+    "settings": {}
+}
