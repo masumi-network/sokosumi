@@ -52,7 +52,7 @@ function InformationAccordionItem({ agent }: { agent: AgentWithRelations }) {
 
   return (
     <AccordionItemWrapper value="information" title={t("title")}>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-6">
         <div className="h-24 w-24">
           <Image
             src={image}
