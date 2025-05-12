@@ -1,6 +1,6 @@
 import DefaultMarkdown, { MarkdownToJSX } from "markdown-to-jsx";
 
-interface MarkDownProps {
+interface MarkdownProps {
   children: string;
   options?: MarkdownToJSX.Options | undefined;
   className?: string | undefined;
@@ -14,11 +14,11 @@ const defaultOptions: MarkdownToJSX.Options = {
   forceWrapper: true,
 };
 
-export default function MarkDown({
+export default function Markdown({
   children,
   options = defaultOptions,
   className,
-}: MarkDownProps) {
+}: MarkdownProps) {
   return (
     <DefaultMarkdown options={options} className={className}>
       {children}
