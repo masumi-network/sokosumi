@@ -1,6 +1,6 @@
 import path from "path";
 
-import MarkdownFile from "@/components/markdown-file";
+import { MarkdownFile } from "@/components/markdown";
 
 export default function Privacy() {
   const fileSystemPath = path.join(
