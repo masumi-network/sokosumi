@@ -22,7 +22,7 @@
     "copyright": "© {year} Masumi",
     "imprint": "Imprint",
     "privacyPolicy": "Privacy Policy",
-    "termsOfServices": "Terms & Conditions"
+    "termsOfServices": "Terms of Service"
   },
   "Job": {
     "CreationFailed": "Failed to create job",
@@ -45,50 +45,37 @@
       "agentsNotFound": "No Agents found",
       "hire": "Hire Agent",
       "AgentCard": {
-        "button": "Show details",
+        "view": "View Agent",
         "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}",
         "addedToBookmarks": "Agent added to pinned agents",
         "removedFromBookmarks": "Agent removed from pinned agents",
         "bookmarkError": "Failed to update pinned agents"
       },
       "AgentDetail": {
-        "backToGallery": "Agents Gallery",
-        "hire": "Hire Agent",
-        "byAuthor": "by {author}",
-        "description": "Description",
-        "atAGlance": "At a Glance",
-        "Legal": {
-          "fromDeveloper": "From the developer:",
-          "privacyPolicy": "Privacy Policy",
-          "terms": "Terms",
-          "other": "Other"
-        },
-        "pricing": "{credits, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
-      },
-      "AgentModal": {
-        "error": "Failed to fetch agent detail",
-        "backToAgents": "Back To Agents Gallery",
-        "Card1": {
+        "Section1": {
           "pricing": "{credits, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
         },
-        "Card2": {
-          "developer": "Developer",
+        "Section2": {
           "executedJobs": "Executed Jobs",
           "unknownExecutedJobs": "Unknown"
         },
-        "Card3": {
+        "Section3": {
           "title1": "Description",
           "title2": "At a Glance"
         },
-        "Card4": {
+        "Section4": {
           "title": "Example Outputs"
         },
-        "Card5": {
+        "Section5": {
           "title": "From the developer",
           "privacyPolicy": "Privacy Policy",
           "terms": "Terms",
           "other": "Other"
         }
+      },
+      "AgentModal": {
+        "error": "Failed to fetch agent detail",
+        "backToAgents": "Back To Agents Gallery"
       }
     },
     "UserAvatar": {
@@ -221,7 +208,7 @@
           }
         }
       },
-      "WhatOurUsersSay": {
+      "Testimonials": {
         "title": "What Our Users Say",
         "users": {
           "0": {
@@ -254,11 +241,6 @@
       "Metadata": {
         "title": "Agents Gallery",
         "description": "Explore our collection of agents."
-      },
-      "FeaturedAgent": {
-        "title": "an absolute must-have",
-        "view": "View Agent",
-        "pricing": "{credits, plural, =0 {Free} =1 {1 credit} other {# credits}}"
       }
     }
   },
@@ -271,7 +253,7 @@
       "goLogin": "Go to Login"
     },
     "Footer": {
-      "termsOfServices": "Terms & Conditions",
+      "termsOfServices": "Terms of Service",
       "privacyPolicy": "Privacy Policy"
     },
     "Schema": {
@@ -391,7 +373,8 @@
           },
           "Errors": {
             "Submit": {
-              "userExists": "User already exists"
+              "userExists": "User already exists",
+              "emailDomainNotAllowed": "Email must end with {allowedEmailDomains}"
             }
           },
           "Login": {
@@ -453,7 +436,7 @@
     },
     "Metadata": {
       "Title": {
-        "default": "Sokosumi - Marketplace for Agent-to-Agent interactions",
+        "default": "Sokosumi - Marketplace for human-to-agent interactions",
         "template": "Sokosumi - %s"
       },
       "description": "Hire yourself an agent to finish the most time consuming tasks"

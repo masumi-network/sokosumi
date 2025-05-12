@@ -37,3 +37,20 @@ export async function getCreditTransactionByJobId(
     },
   });
 }
+
+export async function createCreditTransaction(
+  userId: string,
+  cents: bigint,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<CreditTransaction> {
+  return tx.creditTransaction.create({
+    data: {
+      amount: cents,
+      user: {
+        connect: {
+          id: userId,
+        },
+      },
+    },
+  });
+}

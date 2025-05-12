@@ -2,10 +2,10 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 import React, { Suspense } from "react";
 
-import { AgentModal, AgentModalTrigger } from "@/components/agents";
+import { AgentDetailLink } from "@/components/agents";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getAgentResolvedImage, getAgents } from "@/lib/db";
+import { getAgentResolvedImage, getOnlineAgents } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 interface AgentCardProps {
@@ -43,11 +43,9 @@ const AgentShowcaseCard = ({
             {description}
           </p>
         )}
-        <AgentModalTrigger agentId={agentId}>
-          <Button variant="default" size="sm">
-            {t("viewAgent")}
-          </Button>
-        </AgentModalTrigger>
+        <Button variant="secondary" size="sm" asChild>
+          <AgentDetailLink agentId={agentId}>{t("viewAgent")}</AgentDetailLink>
+        </Button>
       </div>
     </div>
   );
@@ -58,7 +56,7 @@ const AgentCardSkeleton = () => {
 };
 
 async function AgentsShowcaseList() {
-  const agents = await getAgents();
+  const agents = await getOnlineAgents();
   const firstFiveAgents = agents.slice(0, 5);
 
   return (
@@ -72,7 +70,6 @@ async function AgentsShowcaseList() {
           image={getAgentResolvedImage(agent)}
         />
       ))}
-      <AgentModal />
     </div>
   );
 }

@@ -10,11 +10,20 @@ const envSecretsSchema = z.object({
   // Database
   DATABASE_URL: z.string().url(),
   MIN_FEE_CREDITS: z.number({ coerce: true }).min(0).default(1),
+  FREE_CREDITS_ON_SIGNUP: z.number({ coerce: true }).min(0).default(0),
+  ALLOWED_EMAIL_DOMAINS: z
+    .string()
+    .default("")
+    .transform((val) => (val.trim() === "" ? [] : val.split(",")))
+    .pipe(z.array(z.string())),
 
   SHOW_AGENTS_BY_DEFAULT: z
     .string()
     .default("false")
     .transform((val) => val === "true"),
+
+  // Plausible
+  PLAUSIBLE_DOMAIN: z.string().default("sokosumi.com"),
 
   // Stripe
   STRIPE_PUBLISHABLE_KEY: z.string().min(1),
@@ -77,7 +86,7 @@ const envSecretsSchema = z.object({
     .default(60 * 5), // 5 minutes
   LOCK_TIMEOUT: z
     .number({ coerce: true })
-    .min(3 * 60 * 1000)
+    .min(1 * 60 * 1000)
     .default(10 * 60 * 1000), // 10 minutes
   LOCK_TIMEOUT_BUFFER: z
     .number({ coerce: true })

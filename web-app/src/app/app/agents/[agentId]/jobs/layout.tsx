@@ -9,6 +9,7 @@ import {
   getAgentDescription,
   getAgentLegal,
   getAgentName,
+  getJobsByAgentId,
 } from "@/lib/db";
 import {
   getAgentCreditsPrice,
@@ -66,6 +67,7 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
   const { session } = await requireAuthentication();
   const agentCreditsPrice = await getAgentCreditsPrice(agent);
   const favoriteAgentList = await getOrCreateFavoriteAgentList(session.user.id);
+  const jobs = await getJobsByAgentId(agentId);
 
   return (
     <div className="flex h-full flex-col p-4 lg:h-[calc(100svh-64px)] lg:p-6 xl:p-8">
@@ -73,6 +75,7 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
         agent={agent}
         agentCreditsPrice={agentCreditsPrice}
         favoriteAgentList={favoriteAgentList}
+        jobs={jobs}
       />
       <div className="mt-6 flex flex-1 flex-col justify-center gap-4 lg:flex-row lg:overflow-hidden">
         {children}

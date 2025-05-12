@@ -1,0 +1,98 @@
+import {
+  AgentListWithAgent,
+  AgentWithRelations,
+  CreditsPrice,
+  getAgentExampleOutput,
+  getAgentLegal,
+  JobWithRelations,
+} from "@/lib/db";
+import { cn } from "@/lib/utils";
+
+import { CardSection } from "./card-section";
+import { AgentDetailSection1, AgentDetailSection1Skeleton } from "./section-1";
+import { AgentDetailSection2, AgentDetailSection2Skeleton } from "./section-2";
+import { AgentDetailSection3, AgentDetailSection3Skeleton } from "./section-3";
+import { AgentDetailSection4, AgentDetailSection4Skeleton } from "./section-4";
+import { AgentDetailSection5, AgentDetailSection5Skeleton } from "./section-5";
+
+interface AgentDetailProps {
+  agent: AgentWithRelations;
+  agentCreditsPrice: CreditsPrice;
+  jobs: JobWithRelations[];
+  agentList?: AgentListWithAgent | undefined;
+  showBackButton?: boolean | undefined;
+  showCloseButton?: boolean | undefined;
+  onClose?: (() => void) | undefined;
+  className?: string | undefined;
+}
+
+export function AgentDetail({
+  agent,
+  agentCreditsPrice,
+  jobs,
+  agentList,
+  showBackButton,
+  showCloseButton,
+  onClose,
+  className,
+}: AgentDetailProps) {
+  const exampleOutputs = getAgentExampleOutput(agent);
+  const legal = getAgentLegal(agent);
+
+  return (
+    <div className={cn("flex w-full max-w-3xl flex-col gap-1.5", className)}>
+      <CardSection>
+        <AgentDetailSection1
+          agent={agent}
+          agentList={agentList}
+          agentCreditsPrice={agentCreditsPrice}
+          showBackButton={showBackButton}
+          showCloseButton={showCloseButton}
+          onClose={onClose}
+        />
+      </CardSection>
+      <CardSection>
+        <AgentDetailSection2 jobs={jobs} />
+      </CardSection>
+      <CardSection>
+        <AgentDetailSection3 agent={agent} />
+      </CardSection>
+      {exampleOutputs.length > 0 && (
+        <CardSection>
+          <AgentDetailSection4 exampleOutputs={exampleOutputs} />
+        </CardSection>
+      )}
+      {legal && (
+        <CardSection>
+          <AgentDetailSection5 legal={legal} />
+        </CardSection>
+      )}
+    </div>
+  );
+}
+
+export function AgentDetailSkeleton({
+  className,
+}: {
+  className?: string | undefined;
+}) {
+  return (
+    <div className={cn("flex w-full max-w-3xl flex-col gap-1.5", className)}>
+      <CardSection>
+        <AgentDetailSection1Skeleton />
+      </CardSection>
+      <CardSection>
+        <AgentDetailSection2Skeleton />
+      </CardSection>
+      <CardSection>
+        <AgentDetailSection3Skeleton />
+      </CardSection>
+      <CardSection>
+        <AgentDetailSection4Skeleton />
+      </CardSection>
+      <CardSection>
+        <AgentDetailSection5Skeleton />
+      </CardSection>
+    </div>
+  );
+}

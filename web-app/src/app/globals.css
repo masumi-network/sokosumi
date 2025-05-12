@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@plugin "@tailwindcss/typography";
 
 @import "tw-animate-css";
 
@@ -10,15 +11,26 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
   --color-background: var(--background);
+  --color-background-platform: var(--background-platform);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
+  --color-primary-variant: var(--primary-variant);
+  --color-primary-tertiary: var(--primary-tertiary);
+  --color-primary-quaternary: var(--primary-quaternary);
+  --color-primary-quinary: var(--primary-quinary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-primary-muted-foreground: var(--primary-muted-foreground);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
+  --color-tertiary: var(--tertiary);
+  --color-tertiary-foreground: var(--tertiary-foreground);
+  --color-quaternary: var(--quaternary);
+  --color-quinary: var(--quinary);
+  --color-senary: var(--senary);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
@@ -40,13 +52,41 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-semantic: var(--semantic);
+  --color-semantic-variant: var(--semantic-variant);
+  --color-semantic-tertiary: var(--semantic-tertiary);
+  --color-semantic-quaternary: var(--semantic-quaternary);
+  --color-semantic-quinary: var(--semantic-quinary);
+  --color-semantic-foreground: var(--semantic-foreground);
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
 
-  /* Custom Colors */
-  --color-search-background: var(--search-background);
-  --color-search-border: var(--search-border);
+  /* Material */
+  --color-material-ultrathin: var(--material-ultrathin);
+  --color-material-ultrathin-overlay: var(--material-ultrathin-overlay);
+  --color-material-thin: var(--material-thin);
+  --color-material-thin-overlay: var(--material-thin-overlay);
+  --color-material-regular: var(--material-regular);
+  --color-material-regular-overlay: var(--material-regular-overlay);
+  --color-material-thick: var(--material-thick);
+  --color-material-thick-overlay: var(--material-thick-overlay);
+  --color-material-ultrathick: var(--material-ultrathick);
+  --color-material-ultrathick-overlay: var(--material-ultrathick-overlay);
 
+  /* Alpha */
+  --color-alpha-95: var(--alpha-95);
+  --color-alpha-90: var(--alpha-90);
+  --color-alpha-80: var(--alpha-80);
+  --color-alpha-70: var(--alpha-70);
+  --color-alpha-60: var(--alpha-60);
+  --color-alpha-50: var(--alpha-50);
+  --color-alpha-40: var(--alpha-40);
+  --color-alpha-30: var(--alpha-30);
+  --color-alpha-20: var(--alpha-20);
+  --color-alpha-10: var(--alpha-10);
+  --color-alpha-5: var(--alpha-5);
+
+  /* Custom Colors */
   --color-agent-verified-background: hsla(142, 76%, 36%, 0.05);
   --color-agent-verified-foreground: hsla(142, 72%, 29%, 1);
 
@@ -71,29 +111,41 @@
 
 :root {
   --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
+  --background: hsla(0, 0%, 100%, 1);
+  --background-platform: hsla(0, 0%, 98%, 1);
+  --foreground: hsla(0, 0%, 4%, 1);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
+  --primary: hsla(264, 100%, 50%, 1);
+  --primary-variant: hsla(264, 100%, 50%, 1);
+  --primary-tertiary: hsla(264, 100%, 50%, 0.2);
+  --primary-quaternary: hsla(264, 100%, 50%, 0.1);
+  --primary-quinary: hsla(264, 100%, 50%, 0.05);
+  --primary-foreground: hsla(0, 0%, 98%, 1);
+  --primary-muted-foreground: hsla(0, 0%, 98%, 0.6);
+  --secondary: hsla(0, 0%, 4%, 0.95);
+  --secondary-foreground: hsla(0, 0%, 98%, 1);
+  --tertiary: hsla(0, 0%, 4%, 0.2);
+  --tertiary-foreground: hsla(0, 0%, 4%, 0.8);
+  --quaternary: hsla(0, 0%, 4%, 0.1);
+  --quinary: hsla(0, 0%, 4%, 0.05);
+  --senary: hsla(0, 0%, 4%, 0.03);
   --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
+  --muted-foreground: hsla(0, 0%, 4%, 0.5);
   --accent: oklch(0.97 0 0);
   --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
+  --destructive: hsla(0, 72%, 51%, 1);
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
+  --ring: hsla(300, 100%, 91%, 1);
+  --ring-semantic: hsla(0, 96%, 89%, 1);
+  --chart-1: hsla(173, 58%, 39%, 1);
+  --chart-2: hsla(12, 76%, 61%, 1);
+  --chart-3: hsla(197, 37%, 24%, 1);
+  --chart-4: hsla(43, 74%, 66%, 1);
+  --chart-5: hsla(27, 87%, 67%, 1);
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -102,36 +154,76 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --semantic: hsla(0, 72%, 51%, 1);
+  --semantic-variant: hsla(0, 74%, 42%, 1);
+  --semantic-tertiary: hsla(0, 72%, 51%, 0.2);
+  --semantic-quaternary: hsla(0, 72%, 51%, 0.1);
+  --semantic-quinary: hsla(0, 72%, 51%, 0.05);
+  --semantic-foreground: hsla(0, 86%, 97%, 1);
 
-  /* Custom Colors */
-  --search-background: oklch(0.26 0.0187 18.43);
-  --search-border: hsla(0, 0%, 100%, 0.05);
+  /* Material */
+  --material-ultrathin: hsla(0, 0%, 100%, 0.33);
+  --material-ultrathin-overlay: hsla(0, 0%, 45%, 1);
+  --material-thin: hsla(0, 0%, 96%, 0.48);
+  --material-thin-overlay: hsla(0, 0%, 64%, 1);
+  --material-regular: hsla(0, 0%, 100%, 0.85);
+  --material-regular-overlay: hsla(0, 0%, 32%, 1);
+  --material-thick: hsla(0, 0%, 100%, 0.9);
+  --material-thick-overlay: hsla(0, 0%, 45%, 1);
+  --material-ultrathick: hsla(0, 0%, 98%, 0.97);
+  --material-ultrathick-overlay: hsla(0, 0%, 64%, 1);
+
+  /* Alpha */
+  --alpha-95: hsla(0, 0%, 100%, 0.05);
+  --alpha-90: hsla(0, 0%, 100%, 0.1);
+  --alpha-80: hsla(0, 0%, 100%, 0.2);
+  --alpha-70: hsla(0, 0%, 100%, 0.3);
+  --alpha-60: hsla(0, 0%, 100%, 0.4);
+  --alpha-50: hsla(0, 0%, 100%, 0.5);
+  --alpha-40: hsla(0, 0%, 100%, 0.6);
+  --alpha-30: hsla(0, 0%, 100%, 0.7);
+  --alpha-20: hsla(0, 0%, 100%, 0.8);
+  --alpha-10: hsla(0, 0%, 100%, 0.9);
+  --alpha-5: hsla(0, 0%, 100%, 0.95);
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
+  --radius: 0.625rem;
+  --background: hsla(0, 0%, 4%, 1);
+  --background-platform: hsla(0, 0%, 9%, 1);
+  --foreground: hsla(0, 0%, 98%, 1);
   --card: oklch(0.145 0 0);
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
   --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
+  --primary: hsla(264, 100%, 50%, 1);
+  --primary-variant: hsla(260, 100%, 73%, 1);
+  --primary-tertiary: hsla(260, 100%, 73%, 0.3);
+  --primary-quaternary: hsla(260, 100%, 73%, 0.2);
+  --primary-quinary: hsla(260, 100%, 73%, 0.1);
+  --primary-foreground: hsla(0, 0%, 98%, 1);
+  --primary-muted-foreground: hsla(0, 0%, 98%, 0.6);
+  --secondary: hsla(0, 0%, 100%, 0.95);
+  --secondary-foreground: hsla(0, 0%, 4%, 1);
+  --tertiary: hsla(0, 0%, 100%, 0.3);
+  --tertiary-foreground: hsla(0, 0%, 100%, 0.8);
+  --quaternary: hsla(0, 0%, 100%, 0.2);
+  --quinary: hsla(0, 0%, 100%, 0.1);
+  --senary: hsla(0, 0%, 100%, 0.05);
   --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
+  --muted-foreground: hsla(0, 0%, 100%, 0.6);
   --accent: oklch(0.269 0 0);
   --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
+  --destructive: hsla(0, 70%, 35%, 1);
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
+  --ring: hsla(304, 63%, 32%, 1);
+  --ring-semantic: hsla(0, 75%, 15%, 1);
+  --chart-1: hsla(220, 70%, 50%, 1);
+  --chart-2: hsla(340, 75%, 55%, 1);
+  --chart-3: hsla(30, 80%, 55%, 1);
+  --chart-4: hsla(280, 65%, 60%, 1);
+  --chart-5: hsla(160, 60%, 45%, 1);
   --sidebar: oklch(0.205 0 0);
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.488 0.243 264.376);
@@ -140,10 +232,37 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+  --semantic: hsla(0, 70%, 35%, 1);
+  --semantic-variant: hsla(0, 84%, 60%, 1);
+  --semantic-tertiary: hsla(0, 70%, 35%, 0.3);
+  --semantic-quaternary: hsla(0, 70%, 35%, 0.2);
+  --semantic-quinary: hsla(0, 70%, 35%, 0.1);
+  --semantic-foreground: hsla(0, 86%, 97%, 1);
 
-  /* Custom Colors */
-  --search-background: oklch(0.26 0.0187 18.43);
-  --search-border: hsla(0, 0%, 100%, 0.05);
+  /* Material */
+  --material-ultrathin: hsla(0, 0%, 15%, 0.55);
+  --material-ultrathin-overlay: hsla(0, 0%, 64%, 1);
+  --material-thin: hsla(0, 0%, 15%, 0.7);
+  --material-thin-overlay: hsla(0, 0%, 64%, 1);
+  --material-regular: hsla(0, 0%, 15%, 0.8);
+  --material-regular-overlay: hsla(0, 0%, 45%, 1);
+  --material-thick: hsla(0, 0%, 15%, 0.9);
+  --material-thick-overlay: hsla(0, 0%, 45%, 1);
+  --material-ultrathick: hsla(0, 0%, 15%, 0.95);
+  --material-ultrathick-overlay: hsla(0, 0%, 45%, 1);
+
+  /* Alpha */
+  --alpha-95: hsla(0, 0%, 4%, 0.05);
+  --alpha-90: hsla(0, 0%, 4%, 0.1);
+  --alpha-80: hsla(0, 0%, 4%, 0.2);
+  --alpha-70: hsla(0, 0%, 4%, 0.3);
+  --alpha-60: hsla(0, 0%, 4%, 0.4);
+  --alpha-50: hsla(0, 0%, 4%, 0.5);
+  --alpha-40: hsla(0, 0%, 4%, 0.6);
+  --alpha-30: hsla(0, 0%, 4%, 0.7);
+  --alpha-20: hsla(0, 0%, 4%, 0.8);
+  --alpha-10: hsla(0, 0%, 4%, 0.9);
+  --alpha-5: hsla(0, 0%, 4%, 0.95);
 }
 
 @layer base {
@@ -167,8 +286,8 @@
 
 @utility landing-hero-bg {
   background:
-    linear-gradient(rgba(255, 255, 255, 0.4), rgba(255, 255, 255, 0.4)),
-    url("/backgrounds/hero-bg.png");
+    linear-gradient(rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.2)),
+    url("/backgrounds/visuals/ink-drop-1.png");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -176,9 +295,27 @@
   @variant dark {
     background:
       linear-gradient(rgba(23, 23, 23, 0.4), rgba(23, 23, 23, 0.4)),
-      url("/backgrounds/hero-bg.png");
+      url("/backgrounds/visuals/ink-drop-1.png");
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
+  }
+}
+
+@utility agent-detail-card {
+  background: var(--material-thin, #f5f5f57a);
+  background-blend-mode: overlay;
+  backdrop-filter: blur(64px);
+  border: 1px solid var(--quaternary);
+  border-radius: calc(var(--radius));
+  padding: calc(var(--spacing) * 6);
+
+  @variant dark {
+    background: var(--material-thin, #a3a3a3);
+    background-blend-mode: overlay;
+    backdrop-filter: blur(64px);
+    border: 1px solid var(--quaternary);
+    border-radius: calc(var(--radius));
+    padding: calc(var(--spacing) * 6);
   }
 }

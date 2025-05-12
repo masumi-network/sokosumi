@@ -34,14 +34,12 @@ export default function AuthenticationModal({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="block space-y-1.5">
-          <Link href="/login" className="block">
-            <Button className="w-full">{t("login")}</Button>
-          </Link>
-          <Link href="/register" className="block">
-            <Button variant="secondary" className="w-full">
-              {t("register")}
-            </Button>
-          </Link>
+          <Button variant="primary" className="w-full" asChild>
+            <Link href="/login">{t("login")}</Link>
+          </Button>
+          <Button variant="secondary" className="w-full" asChild>
+            <Link href="/register">{t("register")}</Link>
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

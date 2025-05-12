@@ -40,10 +40,20 @@ export default function SignUpForm() {
         callbackURL: "/app",
       },
       {
+        onRequest: (ctx) => {
+          console.log("ctx onRequest", ctx);
+        },
         onError: (ctx) => {
           switch (ctx.error.code) {
             case "USER_ALREADY_EXISTS":
               toast.error(t("Errors.Submit.userExists"));
+              break;
+            case "EMAIL_DOMAIN_NOT_ALLOWED":
+              toast.error(
+                t("Errors.Submit.emailDomainNotAllowed", {
+                  allowedEmailDomains: ctx.error.message,
+                }),
+              );
               break;
             default:
               toast.error(t("error"));

@@ -50,7 +50,7 @@ function AuthLayoutFooter() {
       <Link href="/privacy-policy" className="text-sm hover:text-gray-300">
         {t("privacyPolicy")}
       </Link>
-      <Link href="/terms-of-services" className="text-sm hover:text-gray-300">
+      <Link href="/terms-of-service" className="text-sm hover:text-gray-300">
         {t("termsOfServices")}
       </Link>
     </div>

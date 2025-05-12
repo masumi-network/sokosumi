@@ -9,15 +9,15 @@ export function JoinOurCommunity() {
 
   return (
     <div className="relative overflow-hidden rounded-lg">
-      <div className="opacity absolute inset-0 bg-[url('/backgrounds/footer-image.png')] bg-cover bg-center bg-no-repeat" />
-      <div className="bg-background/40 dark:bg-background/70 relative px-6 py-12 sm:px-12 sm:py-16">
+      <div className="opacity absolute inset-0 bg-[url('/backgrounds/visuals/blurry-ink-wave-1.png')] bg-cover bg-center bg-no-repeat" />
+      <div className="bg-background/40 dark:bg-background/40 relative px-6 py-12 sm:px-12 sm:py-16">
         <div className="mx-auto max-w-2xl text-center">
           <p className="mb-2 text-xs tracking-wider uppercase">
             {t("subtitle")}
           </p>
           <h2 className="mb-8 text-5xl font-light sm:text-4xl">{t("title")}</h2>
           <div className="flex flex-wrap items-center justify-center gap-4">
-            <Button variant="default" asChild>
+            <Button asChild>
               <Link
                 href="https://discord.com/invite/aj4QfnTS92"
                 target="_blank"

@@ -25,7 +25,7 @@ export default function AgentSearchInput({ className }: AgentSearchInputProps) {
       <form
         onClick={handleSubmit}
         className={cn(
-          "bg-search-background hover:bg-search-background/80 max-w-sm cursor-pointer rounded-md transition-colors",
+          "bg-background hover:bg-background/80 max-w-sm cursor-pointer rounded-md transition-colors",
           className,
         )}
       >
@@ -33,11 +33,11 @@ export default function AgentSearchInput({ className }: AgentSearchInputProps) {
           <Input
             type="text"
             placeholder={t("placeholder")}
-            className="border-search-border cursor-pointer pr-12"
+            className="border-border cursor-pointer pr-12"
             readOnly
           />
           <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center">
-            <div className="bg-search-border flex h-7 w-7 items-center justify-center rounded-md">
+            <div className="bg-border flex h-7 w-7 items-center justify-center rounded-md">
               <ArrowUp className="text-muted-foreground h-4 w-4" />
             </div>
           </div>

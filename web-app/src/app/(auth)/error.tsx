@@ -42,10 +42,10 @@ export default function Error({
           )}
         </CardContent>
         <CardFooter className="flex flex-col gap-4">
-          <Button onClick={reset} variant="default" className="w-full">
+          <Button onClick={reset} variant="primary" className="w-full">
             {t("tryAgain")}
           </Button>
-          <Button asChild variant="outline" className="w-full">
+          <Button asChild variant="secondary" className="w-full">
             <Link href="/login">{t("goLogin")}</Link>
           </Button>
         </CardFooter>

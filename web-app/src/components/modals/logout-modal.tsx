@@ -60,7 +60,12 @@ export default function LogoutModal({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="block space-y-1.5">
-          <Button className="w-full" onClick={handleLogout} disabled={loading}>
+          <Button
+            variant="primary"
+            className="w-full"
+            onClick={handleLogout}
+            disabled={loading}
+          >
             {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {t("logout")}
           </Button>

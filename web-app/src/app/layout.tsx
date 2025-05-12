@@ -1,12 +1,13 @@
 import "./globals.css";
 
-import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
+import PlausibleProvider from "next-plausible";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
 import { Toaster } from "@/components/ui/sonner";
+import { getEnvSecrets } from "@/config/env.config";
 import { ThemeProvider } from "@/lib/context/theme-context";
 import { cn } from "@/lib/utils";
 
@@ -20,11 +21,6 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: "Sokosumi - Marketplace for Agent-to-Agent interactions",
-  description: "Hire yourself an agent to finish the most time consuming tasks",
-};
-
 export default async function RootLayout({
   children,
 }: Readonly<{
@@ -35,6 +31,14 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} suppressHydrationWarning>
+      <head>
+        <PlausibleProvider
+          domain={getEnvSecrets().PLAUSIBLE_DOMAIN}
+          trackOutboundLinks={true}
+          trackFileDownloads={true}
+          hash={true}
+        />
+      </head>
       <body
         className={cn(
           geistSans.variable,
@@ -46,6 +50,7 @@ export default async function RootLayout({
           <ThemeProvider>
             <NextIntlClientProvider messages={messages}>
               <div className="bg-background">{children}</div>
+              {/* Toaster */}
               <Toaster />
             </NextIntlClientProvider>
           </ThemeProvider>

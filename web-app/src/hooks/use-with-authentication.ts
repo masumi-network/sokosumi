@@ -5,6 +5,7 @@ import { useCallback } from "react";
 import AuthenticationModal from "@/components/modals/authentication-modal";
 import { useSession } from "@/lib/auth/auth.client";
 
+import useIsClient from "./use-is-client";
 import useModal from "./use-modal";
 
 type Callback =
@@ -12,8 +13,11 @@ type Callback =
   | ((...args: unknown[]) => Promise<void>);
 
 export default function useWithAuthentication() {
-  const { data: session, isPending } = useSession();
+  const isClient = useIsClient();
+  const { data: session, isPending: isSessionPending } = useSession();
   const { Component, showModal } = useModal(AuthenticationModal);
+
+  const isPending = isClient ? isSessionPending : true;
 
   const withAuthentication = useCallback(
     (callback: Callback) => {

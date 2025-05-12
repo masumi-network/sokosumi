@@ -126,7 +126,7 @@ export default function JobInputsFormClient({
             />
           ))}
           <div className="flex items-center justify-between gap-2">
-            <Button type="reset" variant="outline" onClick={handleClear}>
+            <Button type="reset" variant="secondary" onClick={handleClear}>
               {t("clear")}
             </Button>
             <div className="flex items-center gap-2">

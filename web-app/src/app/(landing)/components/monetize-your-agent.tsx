@@ -12,7 +12,7 @@ export function MonetizeYourAgent() {
       <div className="py-24">
         <div className="relative aspect-[4/3] w-full overflow-hidden rounded-lg drop-shadow-lg">
           <Image
-            src="/backgrounds/monetize-your-agent.png"
+            src="/backgrounds/visuals/ink-areal-3.png"
             alt="Abstract green gradient"
             fill
             className="object-cover"

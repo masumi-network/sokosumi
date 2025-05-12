@@ -1,10 +1,15 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { getTranslations } from "next-intl/server";
 
 import { getEnvPublicConfig, getEnvSecrets } from "@/config/env.config";
-import { prisma } from "@/lib/db";
+import {
+  convertCreditsToCents,
+  createCreditTransaction,
+  prisma,
+} from "@/lib/db";
 import { reactChangeEmailVerificationEmail } from "@/lib/email/change-email";
 import { resend } from "@/lib/email/resend";
 import { reactResetPasswordEmail } from "@/lib/email/reset-password";
@@ -28,6 +33,42 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+  hooks: {
+    before: createAuthMiddleware(async (ctx) => {
+      switch (ctx.path) {
+        case "/sign-up/email":
+          const allowedEmailDomains = getEnvSecrets().ALLOWED_EMAIL_DOMAINS;
+          if (
+            allowedEmailDomains.length !== 0 &&
+            !allowedEmailDomains.includes(ctx.body?.email.split("@")[1])
+          ) {
+            throw new APIError("BAD_REQUEST", {
+              code: "EMAIL_DOMAIN_NOT_ALLOWED",
+              message: allowedEmailDomains.join(", "),
+            });
+          }
+          break;
+      }
+    }),
+  },
+  databaseHooks: {
+    user: {
+      create: {
+        after: async (user) => {
+          try {
+            const cents = convertCreditsToCents(
+              getEnvSecrets().FREE_CREDITS_ON_SIGNUP,
+            );
+            await createCreditTransaction(user.id, cents);
+          } catch (error) {
+            console.error(
+              `Error creating credit transaction for user ${user.id} with error: ${error}`,
+            );
+          }
+        },
+      },
+    },
+  },
   emailAndPassword: {
     enabled: true,
     maxPasswordLength: getEnvPublicConfig().NEXT_PUBLIC_PASSWORD_MAX_LENGTH,
