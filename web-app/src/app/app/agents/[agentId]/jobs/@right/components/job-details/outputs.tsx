@@ -1,7 +1,7 @@
 import { useTranslations } from "next-intl";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
-import Markdown from "@/components/mark-down";
+import Markdown from "@/components/markdown";
 import {
   jobStatusResponseSchema,
   JobStatusResponseSchemaType,

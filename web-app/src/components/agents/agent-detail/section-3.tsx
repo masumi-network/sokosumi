@@ -1,7 +1,7 @@
 import { useTranslations } from "next-intl";
 
 import { AgentBadgeCloud } from "@/components/agents/agent-badge-cloud";
-import Markdown from "@/components/mark-down";
+import Markdown from "@/components/markdown";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AgentWithRelations,

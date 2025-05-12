@@ -2,7 +2,7 @@
 
 import { readFile } from "fs/promises";
 
-import Markdown from "./mark-down";
+import Markdown from "./markdown";
 
 export interface MarkdownFileProps {
   fileSystemPath: string;
