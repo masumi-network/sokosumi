@@ -121,6 +121,8 @@ const envPublicConfigSchema = z.object({
     .max(256)
     .default(256),
 
+  NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional(),
+
   NEXT_PUBLIC_MASUMI_URL: z.string().url().default("https://masumi.network"),
   NEXT_PUBLIC_KODOSUMI_URL: z.string().url().default("https://kodosumi.com"),
   NEXT_PUBLIC_SOKOSUMI_URL: z.string().url().default("https://sokosumi.com"),
