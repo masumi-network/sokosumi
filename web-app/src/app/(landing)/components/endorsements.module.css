@@ -3,57 +3,38 @@
     transform: translateX(0);
   }
   100% {
-    transform: translateX(-100%);
+    transform: translateX(-65%);
   }
 }
 
 .marqueeContainer {
   overflow: hidden;
-  white-space: nowrap;
   position: relative;
   width: 100%;
 }
 
 .marqueeContent {
   display: flex;
-  animation: marquee 5s linear infinite alternate;
-  gap: 4rem;
-
-  @media (max-width: 1024px) {
-    gap: 3rem;
-  }
-
-  @media (max-width: 768px) {
-    gap: 2rem;
-  }
-
-  @media (max-width: 480px) {
-    gap: 1rem;
-  }
-
+  min-width: 200%;
+  animation: marquee 20s linear infinite alternate;
   will-change: transform;
-}
-
-/* Pause animation on hover/focus for accessibility */
-.marqueeContainer:hover .marqueeContent,
-.marqueeContainer:focus-within .marqueeContent {
-  animation-play-state: paused;
+  gap: 9rem;
 }
 
 .logoWrapper {
   display: flex;
   align-items: center;
-  margin-right: 5rem;
+  flex: 0 0 auto;
   opacity: 0.9;
   transition: opacity 0.3s ease;
-  flex: 0 0 auto;
 }
 
 .logoWrapper:hover {
   opacity: 1;
 }
 
-/* Remove margin from last logo in each set to avoid extra space */
-.logoWrapper:last-child {
-  margin-right: 0;
+/* Pause animation on hover/focus for accessibility */
+.marqueeContainer:hover .marqueeContent,
+.marqueeContainer:focus-within .marqueeContent {
+  animation-play-state: paused;
 }

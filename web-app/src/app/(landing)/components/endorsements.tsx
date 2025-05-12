@@ -65,29 +65,8 @@ export default function Endorsements() {
       </h2>
       <div className={`w-full py-10 ${styles.marqueeContainer}`}>
         <div className={styles.marqueeContent}>
-          {logos.map((logo) => (
-            <div key={logo.key} className={styles.logoWrapper}>
-              <ThemedImage
-                srcLight={logo.srcLight}
-                srcDark={logo.srcDark}
-                alt={logo.alt}
-                width={logo.width}
-                height={logo.height}
-                style={{
-                  display: "inline-block",
-                  width: logo.width,
-                  height: logo.height,
-                }}
-              />
-            </div>
-          ))}
-          {/* Duplicate for seamless looping */}
-          {logos.map((logo) => (
-            <div
-              key={`duplicate-${logo.key}`}
-              className={styles.logoWrapper}
-              aria-hidden="true"
-            >
+          {[...logos, ...logos].map((logo, idx) => (
+            <div key={logo.key + "-" + idx} className={styles.logoWrapper}>
               <ThemedImage
                 srcLight={logo.srcLight}
                 srcDark={logo.srcDark}
