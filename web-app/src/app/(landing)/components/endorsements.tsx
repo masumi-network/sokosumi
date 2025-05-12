@@ -17,6 +17,14 @@ export default function Endorsements() {
   const t = useTranslations("Landing.Page.Endorsements");
   const logos: Logo[] = [
     {
+      key: "house-of-communication",
+      srcLight: "/endorsement/house-of-communication-black.svg",
+      srcDark: "/endorsement/house-of-communication-white.svg",
+      alt: "House of Communication",
+      width: 385,
+      height: 40,
+    },
+    {
       key: "lufthansa",
       srcLight: "/endorsement/lufthansa-black.svg",
       srcDark: "/endorsement/lufthansa-white.svg",
@@ -41,20 +49,12 @@ export default function Endorsements() {
       height: 64,
     },
     {
-      key: "house-of-communication",
-      srcLight: "/endorsement/house-of-communication-black.svg",
-      srcDark: "/endorsement/house-of-communication-white.svg",
-      alt: "House of Communication",
-      width: 617,
-      height: 64,
-    },
-    {
       key: "nmkr",
       srcLight: "/endorsement/nmkr-black.svg",
       srcDark: "/endorsement/nmkr-white.svg",
       alt: "Nmkr",
-      width: 352,
-      height: 64,
+      width: 220,
+      height: 40,
     },
   ];
 
@@ -73,7 +73,32 @@ export default function Endorsements() {
                 alt={logo.alt}
                 width={logo.width}
                 height={logo.height}
-                style={{ display: "inline-block" }}
+                style={{
+                  display: "inline-block",
+                  width: logo.width,
+                  height: logo.height,
+                }}
+              />
+            </div>
+          ))}
+          {/* Duplicate for seamless looping */}
+          {logos.map((logo) => (
+            <div
+              key={`duplicate-${logo.key}`}
+              className={styles.logoWrapper}
+              aria-hidden="true"
+            >
+              <ThemedImage
+                srcLight={logo.srcLight}
+                srcDark={logo.srcDark}
+                alt={logo.alt}
+                width={logo.width}
+                height={logo.height}
+                style={{
+                  display: "inline-block",
+                  width: logo.width,
+                  height: logo.height,
+                }}
               />
             </div>
           ))}

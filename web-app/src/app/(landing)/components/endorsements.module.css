@@ -3,7 +3,7 @@
     transform: translateX(0);
   }
   100% {
-    transform: translateX(-50%);
+    transform: translateX(-100%);
   }
 }
 
@@ -15,9 +15,9 @@
 }
 
 .marqueeContent {
-  display: inline-flex;
-  animation: marquee 30s linear infinite;
-  gap: 5rem;
+  display: flex;
+  animation: marquee 5s linear infinite alternate;
+  gap: 4rem;
 
   @media (max-width: 1024px) {
     gap: 3rem;
@@ -30,16 +30,30 @@
   @media (max-width: 480px) {
     gap: 1rem;
   }
+
+  will-change: transform;
+}
+
+/* Pause animation on hover/focus for accessibility */
+.marqueeContainer:hover .marqueeContent,
+.marqueeContainer:focus-within .marqueeContent {
+  animation-play-state: paused;
 }
 
 .logoWrapper {
   display: flex;
   align-items: center;
-  padding: 0 1.5rem;
+  margin-right: 5rem;
   opacity: 0.9;
   transition: opacity 0.3s ease;
+  flex: 0 0 auto;
 }
 
 .logoWrapper:hover {
   opacity: 1;
-} 
+}
+
+/* Remove margin from last logo in each set to avoid extra space */
+.logoWrapper:last-child {
+  margin-right: 0;
+}
