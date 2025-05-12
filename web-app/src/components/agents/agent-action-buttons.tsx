@@ -1,6 +1,7 @@
 "use client";
 
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { AgentBookmarkButton } from "@/components/agents/agent-bookmark-button";
@@ -10,30 +11,48 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AgentListWithAgent, AgentWithRelations } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
-interface AgentModalActionButtonsProps {
+interface AgentActionButtonsProps {
   agent: AgentWithRelations;
   agentList?: AgentListWithAgent | undefined;
-  onCloseModal: () => void;
+  showBackButton?: boolean | undefined;
+  showCloseButton?: boolean | undefined;
+  onClose?: (() => void) | undefined;
   className?: string | undefined;
 }
 
-function AgentModalActionButtons({
+function AgentActionButtons({
   agent,
   agentList,
-  onCloseModal,
+  showBackButton = true,
+  showCloseButton = false,
+  onClose,
   className,
-}: AgentModalActionButtonsProps) {
+}: AgentActionButtonsProps) {
+  const router = useRouter();
   const [url, setUrl] = useState<URL | undefined>(undefined);
 
   useEffect(() => {
-    setUrl(new URL(`${window.location.origin}/agents?agentId=${agent.id}`));
+    setUrl(new URL(`${window.location.origin}/agents/${agent.id}`));
   }, [agent.id]);
+
+  const onBack = () => {
+    router.back();
+  };
 
   return (
     <div className={cn("flex w-full items-center justify-between", className)}>
-      <Button size="icon" variant="secondary" onClick={onCloseModal}>
-        <ArrowLeft />
-      </Button>
+      <div className="flex items-center gap-2">
+        {showBackButton && (
+          <Button size="icon" variant="secondary" onClick={onBack}>
+            <ArrowLeft />
+          </Button>
+        )}
+        {showCloseButton && !!onClose && (
+          <Button size="icon" variant="secondary" onClick={onClose}>
+            <X />
+          </Button>
+        )}
+      </div>
       <div className="flex items-center gap-2">
         {agentList && (
           <AgentBookmarkButton agentId={agent.id} agentList={agentList} />
@@ -44,7 +63,7 @@ function AgentModalActionButtons({
   );
 }
 
-function AgentModalActionButtonsSkeleton() {
+function AgentActionButtonsSkeleton() {
   return (
     <div className="flex w-full items-center justify-between">
       <Skeleton className="h-8 w-8" />
@@ -56,4 +75,4 @@ function AgentModalActionButtonsSkeleton() {
   );
 }
 
-export { AgentModalActionButtons, AgentModalActionButtonsSkeleton };
+export { AgentActionButtons, AgentActionButtonsSkeleton };

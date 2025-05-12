@@ -301,3 +301,21 @@
     background-repeat: no-repeat;
   }
 }
+
+@utility agent-detail-card {
+  background: var(--material-thin, #f5f5f57a);
+  background-blend-mode: overlay;
+  backdrop-filter: blur(64px);
+  border: 1px solid var(--quaternary);
+  border-radius: calc(var(--radius));
+  padding: calc(var(--spacing) * 6);
+
+  @variant dark {
+    background: var(--material-thin, #a3a3a3);
+    background-blend-mode: overlay;
+    backdrop-filter: blur(64px);
+    border: 1px solid var(--quaternary);
+    border-radius: calc(var(--radius));
+    padding: calc(var(--spacing) * 6);
+  }
+}

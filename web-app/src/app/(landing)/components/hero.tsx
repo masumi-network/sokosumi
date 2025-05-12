@@ -10,7 +10,7 @@ export default function Hero() {
 
   return (
     <>
-      <div className="landing-hero-bg absolute h-full w-full" />
+      <div className="landing-hero-bg absolute inset-0 h-full w-full" />
       <div className="pointer-events-none absolute right-0 items-center justify-end pr-4">
         <ThemedLogo LogoComponent={KanjiLogo} />
       </div>

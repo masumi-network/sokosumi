@@ -1,8 +1,15 @@
+"use client";
+
 import { Bookmark, Plus } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 
-import { AgentBookmarkButton, AgentModalTrigger } from "@/components/agents";
+import {
+  AgentBookmarkButton,
+  AgentDetail,
+  AgentModal,
+} from "@/components/agents";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -11,9 +18,8 @@ import {
   convertCentsToCredits,
   CreditsPrice,
   getAgentName,
+  JobWithRelations,
 } from "@/lib/db";
-
-const bookmarkSize = 36;
 
 export function HeaderSkeleton() {
   const t = useTranslations("App.Agents.Jobs.Header");
@@ -40,42 +46,29 @@ export function HeaderSkeleton() {
   );
 }
 
-function InactiveBookmarkButton() {
-  return (
-    <Bookmark
-      size={bookmarkSize}
-      className="text-muted cursor-not-allowed"
-      aria-label="Bookmark not available"
-    />
-  );
-}
-
-function AgentBookmarkSection({
-  favoriteAgentList,
-  agentId,
-}: {
-  favoriteAgentList: AgentListWithAgent;
-  agentId: string;
-}) {
-  return favoriteAgentList ? (
-    <AgentBookmarkButton agentId={agentId} agentList={favoriteAgentList} />
-  ) : (
-    <InactiveBookmarkButton />
-  );
-}
-
 interface HeaderProps {
   agent: AgentWithRelations;
   agentCreditsPrice: CreditsPrice;
   favoriteAgentList: AgentListWithAgent;
+  jobs: JobWithRelations[];
 }
 
 export default function Header({
   agent,
   agentCreditsPrice,
   favoriteAgentList,
+  jobs,
 }: HeaderProps) {
   const t = useTranslations("App.Agents.Jobs.Header");
+  const [open, setOpen] = useState(false);
+
+  const handleDetailsClick = () => {
+    setOpen(true);
+  };
+
+  const handleClose = () => {
+    setOpen(false);
+  };
 
   return (
     <div className="flex flex-col items-center gap-4 lg:flex-row lg:gap-6 xl:gap-8">
@@ -83,15 +76,14 @@ export default function Header({
         <h1 className="text-3xl leading-none font-light tracking-tighter text-nowrap">
           {getAgentName(agent)}
         </h1>
-        <AgentModalTrigger agentId={agent.id}>
-          <span className="text-sm leading-tight font-medium">
-            {t("details")}
-          </span>
-        </AgentModalTrigger>
-        <AgentBookmarkSection
-          agentId={agent.id}
-          favoriteAgentList={favoriteAgentList}
-        />
+        <Button
+          className="text-sm leading-tight font-medium"
+          variant="ghost"
+          onClick={handleDetailsClick}
+        >
+          {t("details")}
+        </Button>
+        <AgentBookmarkButton agentId={agent.id} agentList={favoriteAgentList} />
       </div>
       <div className="flex flex-1 flex-row items-center justify-end gap-4">
         <div className="w-full text-end text-sm font-semibold">
@@ -106,6 +98,17 @@ export default function Header({
           </Link>
         </Button>
       </div>
+      {/* Agent Modal */}
+      <AgentModal open={open}>
+        <AgentDetail
+          agent={agent}
+          agentCreditsPrice={agentCreditsPrice}
+          jobs={jobs}
+          showBackButton={false}
+          showCloseButton
+          onClose={handleClose}
+        />
+      </AgentModal>
     </div>
   );
 }

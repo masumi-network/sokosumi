@@ -1,13 +1,14 @@
-publicHoistPattern:
-  - "*eslint*"
-  - "*prettier*"
-
 ignoredBuiltDependencies:
-  - "@prisma/engines"
-  - "@swc/core"
+  - '@prisma/engines'
+  - '@sentry/cli'
+  - '@swc/core'
+  - '@tailwindcss/oxide'
   - esbuild
   - prisma
   - sharp
-
+  - unrs-resolver
 onlyBuiltDependencies:
-  - "@prisma/client"
+  - '@prisma/client'
+publicHoistPattern:
+  - '*eslint*'
+  - '*prettier*'

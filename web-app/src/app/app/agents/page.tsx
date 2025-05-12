@@ -27,7 +27,6 @@ export default async function GalleryPage() {
   const tagNames = tags.map((tag) => tag.name);
 
   const { session } = await requireAuthentication();
-
   const favoriteAgentList = await getOrCreateFavoriteAgentList(session.user.id);
   const agentCreditsPriceList = await Promise.all(
     agents.map((agent) => getAgentCreditsPrice(agent)),

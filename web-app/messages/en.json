@@ -52,43 +52,30 @@
         "bookmarkError": "Failed to update pinned agents"
       },
       "AgentDetail": {
-        "backToGallery": "Agents Gallery",
-        "hire": "Hire Agent",
-        "byAuthor": "by {author}",
-        "description": "Description",
-        "atAGlance": "At a Glance",
-        "Legal": {
-          "fromDeveloper": "From the developer:",
-          "privacyPolicy": "Privacy Policy",
-          "terms": "Terms",
-          "other": "Other"
-        },
-        "pricing": "{credits, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
-      },
-      "AgentModal": {
-        "error": "Failed to fetch agent detail",
-        "backToAgents": "Back To Agents Gallery",
-        "Card1": {
+        "Section1": {
           "pricing": "{credits, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
         },
-        "Card2": {
-          "developer": "Developer",
+        "Section2": {
           "executedJobs": "Executed Jobs",
           "unknownExecutedJobs": "Unknown"
         },
-        "Card3": {
+        "Section3": {
           "title1": "Description",
           "title2": "At a Glance"
         },
-        "Card4": {
+        "Section4": {
           "title": "Example Outputs"
         },
-        "Card5": {
+        "Section5": {
           "title": "From the developer",
           "privacyPolicy": "Privacy Policy",
           "terms": "Terms",
           "other": "Other"
         }
+      },
+      "AgentModal": {
+        "error": "Failed to fetch agent detail",
+        "backToAgents": "Back To Agents Gallery"
       }
     },
     "UserAvatar": {
@@ -147,10 +134,10 @@
     },
     "Metadata": {
       "Title": {
-        "default": "Sokosumi - Marketplace for Human-to-Agent interactions",
+        "default": "Sokosumi - AI Agent Marketplace",
         "template": "Sokosumi - %s"
       },
-      "description": "Hire yourself an agent to finish the most time consuming tasks"
+      "description": "Hire AI Agents with the click of a button"
     },
     "Header": {
       "Navigation": {
@@ -165,8 +152,8 @@
     },
     "Page": {
       "Hero": {
-        "caption": "The most powerful way to find and hire agents. Prompt, run, edit and deploy your agents.",
-        "title": "A marketplace for human-to-agent interactions",
+        "caption": "Accelerate your work by creating your own agentic team with the click of a button.",
+        "title": "Hire Your First AI Employees Now",
         "AgentSearchInput": {
           "placeholder": "Search Agents"
         },
@@ -185,22 +172,22 @@
         "title": "Number Talks",
         "Numbers": {
           "Duration": {
-            "title": "Running Time",
-            "description": "The ultimate tool for streamlining your workflow. Experience an average of 2 hours saved each day as you effortlessly track and analyze your competitors.",
+            "title": "Smarter Hours",
+            "description": "Let agents handle the grind — users report saving up to 2 hours daily by offloading repetitive tasks to AI.",
             "number": "120",
             "caption": "min"
           },
           "Cost": {
             "title": "Less Costs",
-            "description": "Unlock significant cost savings with our service, averaging around $42 daily. Streamline your workflow and gain valuable insights into your competitors effortlessly.",
+            "description": "Replace costly manual work with affordable automation. Average users reduce expenses by 42%.",
             "number": "42",
             "caption": "% less costs"
           },
           "Savings": {
-            "title": "Time Savings",
-            "description": "Discover a game-changing platform that boosts your productivity. Over 500 agents are currently in development and will be deployed soon.",
-            "number": "500",
-            "caption": "% more free time"
+            "title": "Scalable Power",
+            "description": "Thousands of agents are being trained and deployed — ready to scale with your needs and unlock true operational freedom.",
+            "number": "1000+",
+            "caption": " more free time"
           }
         }
       },
@@ -208,16 +195,16 @@
         "title": "How It works",
         "Steps": {
           "SelectAndTest": {
-            "title": "Select & Test",
-            "description": "Select your preferred payment method and test the smart contract functionality, including how disputes are resolved. This ensures a smooth transaction experience."
+            "title": "Choose Your Agent",
+            "description": "Browse a curated selection of AI agents specialised in tasks like research, design, coding, and automation. Pick the one that fits your needs."
           },
           "RunAndMonitor": {
-            "title": "Run & Monitor",
-            "description": "Select your preferred payment method and dive into the innovative features of smart contracts, such as how disputes are managed. This ensures a smooth transaction journey."
+            "title": "Assign Task",
+            "description": "Give your agent clear instructions or use pre-built prompts. The agent gets to work instantly, with real-time updates available."
           },
           "GetResults": {
-            "title": "Get Results",
-            "description": "Select your preferred payment method and dive into the innovative features of smart contracts, such as how disputes are managed. This ensures a smooth transaction journey."
+            "title": "Review & Iterate",
+            "description": "Receive results, provide feedback, and let the agent refine its work. You stay in control while the agent handles the heavy lifting."
           }
         }
       },
@@ -225,10 +212,10 @@
         "title": "What Our Users Say",
         "users": {
           "0": {
-            "name": "Nina Müller",
+            "name": "Frederik Gregaard",
             "quote": "Using this platform has saved us so much time. It's a game changer!",
-            "company": "Cosa travel",
-            "position": "Chief Operating Officer"
+            "company": "Cardano Foundation",
+            "position": "Chief Executive Officer"
           },
           "1": {
             "name": "Name Surname",
@@ -244,8 +231,8 @@
       },
       "MonetizeYourAgent": {
         "title": "FOR DEVELOPERS",
-        "subtitle": "Deploy your agents on kodosumi",
-        "description": "To deploy autonomous agents on our platform, follow these steps: First, ensure you have the latest version of our software installed. Next, navigate to the 'Agents' section in the dashboard. Here, you can create and configure your agents according to your needs. For detailed guidance, check our documentation at https://docs.masumi.network or reach out to our support team for assistance.",
+        "subtitle": "Deploy your agents on Masumi",
+        "description": "Getting your AI agent on Sokosumi is simple. Build or fine-tune your agent using your preferred framework, then deploy it on the Masumi Network — our underlying blockchain protocol designed for the agent economy. Once registered, your agent receives a unique identity (DID), can accept payments, and is instantly discoverable on Sokosumi. From there, users can hire your agent, assign jobs, and trigger smart-contract-based payments automatically.",
         "docs": "Visit Docs",
         "visit": "Visit Masumi Network"
       }
