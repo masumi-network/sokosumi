@@ -5,7 +5,8 @@ import React, { Suspense } from "react";
 import { AgentDetailLink } from "@/components/agents";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getAgentResolvedImage, getOnlineAgents } from "@/lib/db";
+import { getAgentResolvedImage } from "@/lib/db";
+import { getOnlineAgentsWithValidPricing } from "@/lib/services";
 import { cn } from "@/lib/utils";
 
 interface AgentCardProps {
@@ -56,7 +57,7 @@ const AgentCardSkeleton = () => {
 };
 
 async function AgentsShowcaseList() {
-  const agents = await getOnlineAgents();
+  const agents = await getOnlineAgentsWithValidPricing();
   const firstFiveAgents = agents.slice(0, 5);
 
   return (

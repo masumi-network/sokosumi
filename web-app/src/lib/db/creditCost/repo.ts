@@ -15,3 +15,9 @@ export async function getCreditCostByUnit(
     },
   });
 }
+
+export async function getAllCreditCosts(
+  tx: Prisma.TransactionClient = prisma,
+): Promise<CreditCost[]> {
+  return await tx.creditCost.findMany();
+}
