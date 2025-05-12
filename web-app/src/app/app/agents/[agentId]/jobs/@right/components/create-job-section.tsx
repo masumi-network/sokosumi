@@ -7,6 +7,7 @@ import {
   AgentWithRelations,
   CreditsPrice,
   getAgentDescription,
+  getAgentLegal,
   getAgentName,
   getAgentResolvedImage,
 } from "@/lib/db";
@@ -85,6 +86,7 @@ function InputAccordionItem({
         <JobInputsForm
           agentId={agent.id}
           agentCreditsPrice={agentCreditsPrice}
+          legal={getAgentLegal(agent)}
         />
       </div>
     </AccordionItemWrapper>

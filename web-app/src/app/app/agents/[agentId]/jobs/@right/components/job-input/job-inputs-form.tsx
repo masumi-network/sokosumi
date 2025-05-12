@@ -3,7 +3,7 @@ import { Suspense } from "react";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CreditsPrice } from "@/lib/db";
+import { AgentLegal, CreditsPrice } from "@/lib/db";
 import { getAgentInputSchema } from "@/lib/services";
 
 import JobInputsFormClient from "./job-inputs-form.client";
@@ -11,12 +11,14 @@ import JobInputsFormClient from "./job-inputs-form.client";
 interface JobInputsFormProps {
   agentId: string;
   agentCreditsPrice: CreditsPrice;
+  legal?: AgentLegal | null | undefined;
   className?: string | undefined;
 }
 
 export default function JobInputsForm({
   agentId,
   agentCreditsPrice,
+  legal,
   className,
 }: JobInputsFormProps) {
   return (
@@ -25,6 +27,7 @@ export default function JobInputsForm({
         <JobInputsFormInner
           agentId={agentId}
           agentCreditsPrice={agentCreditsPrice}
+          legal={legal}
           className={className}
         />
       </Suspense>
@@ -35,6 +38,7 @@ export default function JobInputsForm({
 async function JobInputsFormInner({
   agentId,
   agentCreditsPrice,
+  legal,
   className,
 }: JobInputsFormProps) {
   const inputSchema = await getAgentInputSchema(agentId);
@@ -44,6 +48,7 @@ async function JobInputsFormInner({
       agentId={agentId}
       agentCreditsPrice={agentCreditsPrice}
       jobInputsDataSchema={inputSchema}
+      legal={legal}
       className={className}
     />
   );
