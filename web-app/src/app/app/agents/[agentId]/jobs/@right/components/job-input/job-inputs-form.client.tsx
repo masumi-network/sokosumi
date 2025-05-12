@@ -5,6 +5,7 @@ import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import React from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -162,26 +163,48 @@ function AcceptTermsOfService({
 }) {
   const t = useTranslations("Library.JobInput.Form");
 
+  if (!legal) {
+    return null;
+  }
+
+  const legalLinks = filterLegalLinks(legal, t);
+
   return (
     <div className="text-muted-foreground text-right text-xs">
       <span>{t("acceptByClickingSubmit")}</span>
-      <Link href={legal?.terms ?? "/terms-of-service"} className="text-white">
-        <span>{t("termsOfService")}</span>
-      </Link>
-      {", "}
-      <Link
-        href={legal?.privacyPolicy ?? "/privacy-policy"}
-        className="text-white"
-      >
-        <span>{t("privacyPolicy")}</span>
-      </Link>
-      {legal?.other && (
-        <>
-          {", "}
-          <span>{t("legal")}</span>
-        </>
-      )}
+      {legalLinks.map((legalLink, index) => (
+        <React.Fragment key={legalLink.href}>
+          <Link href={legalLink.href} className="text-white">
+            <span>{legalLink.label}</span>
+          </Link>
+          {index < legalLinks.length - 1 && ", "}
+        </React.Fragment>
+      ))}
+
       <span>{t("byCreator")}</span>
     </div>
   );
+}
+
+function filterLegalLinks(
+  legal: AgentLegal,
+  t: IntlTranslation<"Library.JobInput.Form">,
+) {
+  return [
+    {
+      href: legal?.terms,
+      label: t("termsOfService"),
+    },
+    {
+      href: legal?.privacyPolicy,
+      label: t("privacyPolicy"),
+    },
+    {
+      href: legal?.other,
+      label: t("legal"),
+    },
+  ].filter((legalLink) => !!legalLink.href) as {
+    href: string;
+    label: string;
+  }[];
 }
