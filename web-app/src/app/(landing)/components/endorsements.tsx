@@ -1,16 +1,22 @@
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { SiLufthansa } from "react-icons/si";
 
 import styles from "./endorsements.module.css";
 
 export default function Endorsements() {
   const t = useTranslations("Landing.Page.Endorsements");
   const logos = [
-    <SiLufthansa key="lufthansa" size={64} />,
     <Image
       key="bvg"
-      src="/endorsement/bvg.svg"
+      src="/endorsement/lufthansa-white.svg"
+      alt="Lufthansa"
+      width={64}
+      height={64}
+      style={{ display: "inline-block" }}
+    />,
+    <Image
+      key="bvg"
+      src="/endorsement/bvg-white.svg"
       alt="BVG"
       width={64}
       height={64}
@@ -18,7 +24,7 @@ export default function Endorsements() {
     />,
     <Image
       key="cardano-foundation"
-      src="/endorsement/cardano-foundation.svg"
+      src="/endorsement/cardano-foundation-white.svg"
       alt="Cardano Foundation"
       width={64}
       height={64}
@@ -26,7 +32,7 @@ export default function Endorsements() {
     />,
     <Image
       key="house-of-communication"
-      src="/endorsement/house-of-communication.svg"
+      src="/endorsement/house-of-communication-white.svg"
       alt="House of Communication"
       width={523}
       height={64}
@@ -34,7 +40,7 @@ export default function Endorsements() {
     />,
     <Image
       key="nmkr"
-      src="/endorsement/nmkr.svg"
+      src="/endorsement/nmkr-white.svg"
       alt="Nmkr"
       width={214}
       height={64}
