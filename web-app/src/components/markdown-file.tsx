@@ -1,3 +1,5 @@
+"use server";
+
 import { readFile } from "fs/promises";
 
 import Markdown from "./mark-down";
