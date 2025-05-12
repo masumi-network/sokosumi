@@ -1,6 +1,7 @@
 import { useTranslations } from "next-intl";
 
 import { AgentBadgeCloud } from "@/components/agents/agent-badge-cloud";
+import Markdown from "@/components/markdown";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AgentWithRelations,
@@ -11,17 +12,22 @@ import {
 function AgentDetailSection3({ agent }: { agent: AgentWithRelations }) {
   const t = useTranslations("Components.Agents.AgentDetail.Section3");
   const agentDescription = getAgentDescription(agent);
+  const tags = getAgentTags(agent);
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-10">
       {agentDescription && (
-        <>
-          <p className="text-xs uppercase">{t("title1")}</p>
-          <p className="mb-10">{getAgentDescription(agent)}</p>
-        </>
+        <div>
+          <p className="mb-2 text-xs uppercase">{t("title1")}</p>
+          <Markdown>{agentDescription}</Markdown>
+        </div>
       )}
-      <p className="mb-2 text-xs uppercase">{t("title2")}</p>
-      <AgentBadgeCloud tags={getAgentTags(agent)} />
+      {tags.length > 0 && (
+        <div>
+          <p className="mb-2 text-xs uppercase">{t("title2")}</p>
+          <AgentBadgeCloud tags={tags} />
+        </div>
+      )}
     </div>
   );
 }

@@ -1,12 +1,14 @@
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 
+import Markdown from "@/components/markdown";
 import { Accordion } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   AgentWithRelations,
   CreditsPrice,
   getAgentDescription,
+  getAgentLegal,
   getAgentName,
   getAgentResolvedImage,
 } from "@/lib/db";
@@ -50,7 +52,7 @@ function InformationAccordionItem({ agent }: { agent: AgentWithRelations }) {
 
   return (
     <AccordionItemWrapper value="information" title={t("title")}>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-wrap gap-6">
         <div className="h-24 w-24">
           <Image
             src={image}
@@ -62,7 +64,7 @@ function InformationAccordionItem({ agent }: { agent: AgentWithRelations }) {
         </div>
         <div className="flex flex-1 flex-col justify-center gap-0.5">
           <h3 className="text-lg font-bold">{name}</h3>
-          {description && <p className="text-sm">{description}</p>}
+          {description && <Markdown>{description}</Markdown>}
         </div>
       </div>
     </AccordionItemWrapper>
@@ -85,6 +87,7 @@ function InputAccordionItem({
         <JobInputsForm
           agentId={agent.id}
           agentCreditsPrice={agentCreditsPrice}
+          legal={getAgentLegal(agent)}
         />
       </div>
     </AccordionItemWrapper>

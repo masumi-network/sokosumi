@@ -2,8 +2,10 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
+import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import React from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -11,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { useAsyncRouterPush } from "@/hooks/use-async-router";
 import { StartJobErrorCodes, startJobWithInputData } from "@/lib/actions";
-import { convertCentsToCredits, CreditsPrice } from "@/lib/db";
+import { AgentLegal, convertCentsToCredits, CreditsPrice } from "@/lib/db";
 import {
   defaultValues,
   JobInputData,
@@ -36,6 +38,7 @@ interface JobInputsFormClientProps {
   agentId: string;
   agentCreditsPrice: CreditsPrice;
   jobInputsDataSchema: JobInputsDataSchemaType;
+  legal?: AgentLegal | null | undefined;
   className?: string | undefined;
 }
 
@@ -43,6 +46,7 @@ export default function JobInputsFormClient({
   agentId,
   agentCreditsPrice,
   jobInputsDataSchema,
+  legal,
   className,
 }: JobInputsFormClientProps) {
   const { input_data } = jobInputsDataSchema;
@@ -125,26 +129,82 @@ export default function JobInputsFormClient({
               jobInputSchema={jobInputSchema}
             />
           ))}
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex items-end justify-between gap-2">
             <Button type="reset" variant="secondary" onClick={handleClear}>
               {t("clear")}
             </Button>
-            <div className="flex items-center gap-2">
-              <div className="text-muted-foreground text-sm">
-                {t("price", {
-                  price: convertCentsToCredits(agentCreditsPrice.cents),
-                })}
+            <div className="flex flex-col items-end gap-2">
+              <AcceptTermsOfService legal={legal} />
+              <div className="flex items-center gap-2">
+                <div className="text-muted-foreground text-sm">
+                  {t("price", {
+                    price: convertCentsToCredits(agentCreditsPrice.cents),
+                  })}
+                </div>
+                <Button type="submit" disabled={form.formState.isSubmitting}>
+                  {form.formState.isSubmitting && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
+                  {t("submit")}
+                </Button>
               </div>
-              <Button type="submit" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
-                {t("submit")}
-              </Button>
             </div>
           </div>
         </fieldset>
       </form>
     </Form>
   );
+}
+
+function AcceptTermsOfService({
+  legal,
+}: {
+  legal?: AgentLegal | null | undefined;
+}) {
+  const t = useTranslations("Library.JobInput.Form");
+
+  if (!legal) {
+    return null;
+  }
+
+  const legalLinks = filterLegalLinks(legal, t);
+
+  return (
+    <div className="text-muted-foreground text-right text-xs">
+      <span>{t("acceptByClickingSubmit")}</span>
+      {legalLinks.map((legalLink, index) => (
+        <React.Fragment key={legalLink.href}>
+          <Link href={legalLink.href} className="text-foreground">
+            <span>{legalLink.label}</span>
+          </Link>
+          {index < legalLinks.length - 1 && ", "}
+        </React.Fragment>
+      ))}
+
+      <span>{t("byCreator")}</span>
+    </div>
+  );
+}
+
+function filterLegalLinks(
+  legal: AgentLegal,
+  t: IntlTranslation<"Library.JobInput.Form">,
+) {
+  return [
+    {
+      href: legal?.terms,
+      label: t("termsOfService"),
+    },
+    {
+      href: legal?.privacyPolicy,
+      label: t("privacyPolicy"),
+    },
+    {
+      href: legal?.other,
+      label: t("legal"),
+    },
+  ].filter((legalLink) => !!legalLink.href) as {
+    href: string;
+    label: string;
+  }[];
 }

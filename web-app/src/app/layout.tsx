@@ -1,6 +1,7 @@
 import "./globals.css";
 
 import { Geist, Geist_Mono } from "next/font/google";
+import Script from "next/script";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import PlausibleProvider from "next-plausible";
@@ -46,6 +47,7 @@ export default async function RootLayout({
           "bg-background min-h-svh antialiased",
         )}
       >
+        <Script src="/js/plain.js" strategy="afterInteractive" />
         <NuqsAdapter>
           <ThemeProvider>
             <NextIntlClientProvider messages={messages}>

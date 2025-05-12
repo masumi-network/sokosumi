@@ -1,7 +1,7 @@
-import Markdown from "markdown-to-jsx";
 import { useTranslations } from "next-intl";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
+import Markdown from "@/components/markdown";
 import {
   jobStatusResponseSchema,
   JobStatusResponseSchemaType,
@@ -51,17 +51,7 @@ function JobDetailsOutputsInner({ rawOutput }: JobDetailsOutputsProps) {
   return (
     <JobDetailsOutputsLayout>
       {output.result ? (
-        <Markdown
-          options={{
-            disableParsingRawHTML: true,
-            wrapper: ({ children }) => (
-              <div className="prose dark:prose-invert">{children}</div>
-            ),
-            forceWrapper: true,
-          }}
-        >
-          {output.result}
-        </Markdown>
+        <Markdown>{output.result}</Markdown>
       ) : (
         <p className="text-base">{t("none")}</p>
       )}

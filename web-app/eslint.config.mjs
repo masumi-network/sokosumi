@@ -23,6 +23,7 @@ const eslintConfig = [
       "**/coverage/**",
       "src/components/ui/**",
       "src/lib/api/generated/**",
+      "public/js/plain.js",
     ],
     rules: {
       "simple-import-sort/imports": "error",
