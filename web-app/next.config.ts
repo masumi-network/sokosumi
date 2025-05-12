@@ -46,5 +46,10 @@ export default withSentryConfig(
 
     // Automatically tree-shake Sentry logger statements to reduce bundle size
     disableLogger: true,
+
+    // Automatically instrument Next.js middleware with error and performance monitoring.
+    // disable it on `dev mode` to reduce large middleware bundle size
+    // eslint-disable-next-line no-restricted-properties
+    autoInstrumentMiddleware: process.env.NODE_ENV === "production",
   },
 );
