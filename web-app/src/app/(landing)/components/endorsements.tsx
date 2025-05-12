@@ -18,15 +18,15 @@ export default function Endorsements() {
       key="bvg"
       src="/endorsement/bvg-white.svg"
       alt="BVG"
-      width={64}
+      width={72}
       height={64}
       style={{ display: "inline-block" }}
     />,
     <Image
       key="cardano-foundation"
-      src="/endorsement/cardano-foundation-white.svg"
+      src="/endorsement/cardano-white.svg"
       alt="Cardano Foundation"
-      width={64}
+      width={72}
       height={64}
       style={{ display: "inline-block" }}
     />,
@@ -34,7 +34,7 @@ export default function Endorsements() {
       key="house-of-communication"
       src="/endorsement/house-of-communication-white.svg"
       alt="House of Communication"
-      width={523}
+      width={617}
       height={64}
       style={{ display: "inline-block" }}
     />,
@@ -42,7 +42,7 @@ export default function Endorsements() {
       key="nmkr"
       src="/endorsement/nmkr-white.svg"
       alt="Nmkr"
-      width={214}
+      width={352}
       height={64}
       style={{ display: "inline-block" }}
     />,
