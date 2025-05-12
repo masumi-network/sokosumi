@@ -47,7 +47,7 @@ export default async function RootLayout({
           "bg-background min-h-svh antialiased",
         )}
       >
-        <Script src="/js/plain.js" strategy="beforeInteractive" />
+        <Script src="/js/plain.js" strategy="afterInteractive" />
         <NuqsAdapter>
           <ThemeProvider>
             <NextIntlClientProvider messages={messages}>
