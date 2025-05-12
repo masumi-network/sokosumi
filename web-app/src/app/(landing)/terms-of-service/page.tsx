@@ -1,6 +1,6 @@
 import path from "path";
 
-import { MarkdownFile } from "@/components/markdown";
+import MarkdownFile from "@/components/markdown-file";
 
 export default function Terms() {
   const fileSystemPath = path.join(
