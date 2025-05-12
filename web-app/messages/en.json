@@ -718,6 +718,11 @@
         "clear": "Clear",
         "price": "{price, plural, =0 {Free} =1 {1 credit} other {# credits}} per run",
         "submit": "Submit",
+        "acceptByClickingSubmit": "By clicking on Submit you're accepting the ",
+        "termsOfService": "Terms of Service",
+        "privacyPolicy": "Privacy Policy",
+        "legal": "other Legal Requirements",
+        "byCreator": " by the creator of the Agent",
         "Error": {
           "insufficientBalance": "Your credit balance is insufficient to start this job.",
           "insufficientBalanceAction": "Buy credits",
