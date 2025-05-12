@@ -37,7 +37,7 @@ export async function getOnlineAgentsWithValidPricing(
   const creditCosts = await getAllCreditCosts(tx);
   // also include "lovelace" because that is valid (parsed empty string while calculating)
   const validCreditCostUnits = Array.from(
-    new Set(...creditCosts.map((creditCost) => creditCost.unit), "lovelace"),
+    new Set([...creditCosts.map((creditCost) => creditCost.unit), "lovelace"]),
   );
 
   return await getOnlineAgentsWithValidCreditCostUnits(

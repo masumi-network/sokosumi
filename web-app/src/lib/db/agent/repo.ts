@@ -33,9 +33,7 @@ export async function getOnlineAgentsWithValidCreditCostUnits(
     if (!amounts) {
       return true;
     }
-    return amounts.every((amount) =>
-      validCreditCostUnits.includes(amount.unit),
-    );
+    return amounts.every(({ unit }) => validCreditCostUnits.includes(unit));
   });
 }
 
