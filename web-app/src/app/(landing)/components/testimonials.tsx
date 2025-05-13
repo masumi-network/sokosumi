@@ -16,7 +16,7 @@ const User = ({ image, quote, name, position, company, index }: UserProps) => (
       <Image
         src={image}
         alt={name}
-        className="h-[96px] w-[77px] object-cover"
+        className="h-[96px] w-[77px] rounded-lg object-cover"
         width={77}
         height={96}
       />
@@ -41,10 +41,10 @@ export default function Testimonials() {
   const t = useTranslations("Landing.Page.Testimonials");
   const users = [
     {
-      image: "/images/user-1.png",
+      image: "/testimonials/frederik-gregaard.jpeg",
     },
     {
-      image: "/images/user-2.png",
+      image: "/testimonials/mock-user.png",
     },
   ];
 
