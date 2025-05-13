@@ -1,6 +1,5 @@
 import { Metadata } from "next";
 import { cookies } from "next/headers";
-import Script from "next/script";
 import { getTranslations } from "next-intl/server";
 
 import { FooterSections } from "@/components/footer";
@@ -31,10 +30,6 @@ export default async function AppLayout({ children }: AppLayoutProps) {
 
   return (
     <>
-      <Script
-        src="/js/usersnap/beta-announcement.js"
-        strategy="afterInteractive"
-      />
       <SidebarProvider defaultOpen={defaultOpen}>
         <Sidebar />
         <div className="flex flex-1 flex-col">

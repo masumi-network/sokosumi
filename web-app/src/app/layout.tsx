@@ -8,6 +8,7 @@ import PlausibleProvider from "next-plausible";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
 import { Toaster } from "@/components/ui/sonner";
+import { UsersnapProvider } from "@/components/usersnap/usersnap-provider";
 import { getEnvSecrets } from "@/config/env.config";
 import { ThemeProvider } from "@/lib/context/theme-context";
 import { cn } from "@/lib/utils";
@@ -48,15 +49,17 @@ export default async function RootLayout({
         )}
       >
         <Script src="/js/plain.js" strategy="afterInteractive" />
-        <NuqsAdapter>
-          <ThemeProvider>
-            <NextIntlClientProvider messages={messages}>
-              <div className="bg-background">{children}</div>
-              {/* Toaster */}
-              <Toaster />
-            </NextIntlClientProvider>
-          </ThemeProvider>
-        </NuqsAdapter>
+        <UsersnapProvider>
+          <NuqsAdapter>
+            <ThemeProvider>
+              <NextIntlClientProvider messages={messages}>
+                <div className="bg-background">{children}</div>
+                {/* Toaster */}
+                <Toaster />
+              </NextIntlClientProvider>
+            </ThemeProvider>
+          </NuqsAdapter>
+        </UsersnapProvider>
       </body>
     </html>
   );
