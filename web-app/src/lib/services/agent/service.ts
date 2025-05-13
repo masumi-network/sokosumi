@@ -3,6 +3,7 @@
 import {
   AgentWithJobs,
   AgentWithRelations,
+  denormalizeUnit,
   getAgentById,
   getAgentByIdWithPricing,
   getAllCreditCosts,
@@ -35,9 +36,8 @@ export async function getOnlineAgentsWithValidPricing(
 ): Promise<AgentWithRelations[]> {
   // get all credit costs
   const creditCosts = await getAllCreditCosts(tx);
-  // also include "lovelace" because that is valid (parsed empty string while calculating)
-  const validCreditCostUnits = Array.from(
-    new Set([...creditCosts.map((creditCost) => creditCost.unit), "lovelace"]),
+  const validCreditCostUnits = creditCosts.map((creditCost) =>
+    denormalizeUnit(creditCost.unit),
   );
 
   return await getOnlineAgentsWithValidCreditCostUnits(

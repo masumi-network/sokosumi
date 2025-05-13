@@ -3,7 +3,7 @@
 import { prisma } from "@/lib/db";
 import { CreditCost, Prisma } from "@/prisma/generated/client";
 
-import { parseUnit } from "./utils";
+import { normalizeUnit } from "./utils";
 
 export async function getCreditCostByUnit(
   unit: string,
@@ -11,7 +11,7 @@ export async function getCreditCostByUnit(
 ): Promise<CreditCost | null> {
   return await tx.creditCost.findUnique({
     where: {
-      unit: parseUnit(unit),
+      unit: normalizeUnit(unit),
     },
   });
 }
