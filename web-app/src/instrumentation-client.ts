@@ -4,10 +4,9 @@
 
 import * as Sentry from "@sentry/nextjs";
 
-import { getEnvPublicConfig } from "@/config/env.config";
-
 Sentry.init({
-  dsn: getEnvPublicConfig().NEXT_PUBLIC_SENTRY_DSN,
+  // eslint-disable-next-line no-restricted-properties
+  dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
 
   // Add optional integrations for additional features
   integrations: [Sentry.replayIntegration()],
