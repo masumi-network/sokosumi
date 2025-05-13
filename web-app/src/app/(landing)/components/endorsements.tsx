@@ -1,8 +1,7 @@
 import { useTranslations } from "next-intl";
+import Marquee from "react-fast-marquee";
 
 import { ThemedImage } from "@/components/ui/themed-image";
-
-import styles from "./endorsements.module.css";
 
 interface Logo {
   key: string;
@@ -60,13 +59,14 @@ export default function Endorsements() {
 
   return (
     <div className="w-full">
-      <h2 className="text-foreground mb-12 text-sm font-semibold tracking-wider uppercase">
+      <h2 className="text-foreground text-sm font-semibold tracking-wider uppercase">
         {t("title")}
       </h2>
-      <div className={`w-full py-10 ${styles.marqueeContainer}`}>
-        <div className={styles.marqueeContent}>
-          {[...logos, ...logos].map((logo, idx) => (
-            <div key={logo.key + "-" + idx} className={styles.logoWrapper}>
+
+      <div className={`w-full pt-10`}>
+        <Marquee direction="left" pauseOnHover={false}>
+          {logos.map((logo) => (
+            <div key={logo.key} className="mx-8">
               <ThemedImage
                 srcLight={logo.srcLight}
                 srcDark={logo.srcDark}
@@ -81,7 +81,7 @@ export default function Endorsements() {
               />
             </div>
           ))}
-        </div>
+        </Marquee>
       </div>
     </div>
   );
