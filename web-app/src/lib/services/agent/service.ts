@@ -3,7 +3,6 @@
 import {
   AgentWithJobs,
   AgentWithRelations,
-  denormalizeUnit,
   getAgentById,
   getAgentByIdWithPricing,
   getAllCreditCosts,
@@ -36,9 +35,10 @@ export async function getOnlineAgentsWithValidPricing(
 ): Promise<AgentWithRelations[]> {
   // get all credit costs
   const creditCosts = await getAllCreditCosts(tx);
-  const validCreditCostUnits = creditCosts.map((creditCost) =>
-    denormalizeUnit(creditCost.unit),
-  );
+  const validCreditCostUnits = creditCosts
+    // for now lovelace unit is not supported
+    .filter(({ unit }) => unit !== "")
+    .map(({ unit }) => unit);
 
   return await getOnlineAgentsWithValidCreditCostUnits(
     tx,
