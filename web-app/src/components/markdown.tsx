@@ -9,7 +9,7 @@ interface MarkdownProps {
 const defaultOptions: MarkdownToJSX.Options = {
   disableParsingRawHTML: true,
   wrapper: ({ children }) => (
-    <div className="prose dark:prose-invert">{children}</div>
+    <article className="prose dark:prose-invert max-w-none">{children}</article>
   ),
   forceWrapper: true,
 };
