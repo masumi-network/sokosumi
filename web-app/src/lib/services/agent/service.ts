@@ -35,10 +35,7 @@ export async function getOnlineAgentsWithValidPricing(
 ): Promise<AgentWithRelations[]> {
   // get all credit costs
   const creditCosts = await getAllCreditCosts(tx);
-  const validCreditCostUnits = creditCosts
-    // for now lovelace unit is not supported
-    .filter(({ unit }) => unit !== "")
-    .map(({ unit }) => unit);
+  const validCreditCostUnits = creditCosts.map(({ unit }) => unit);
 
   return await getOnlineAgentsWithValidCreditCostUnits(
     tx,
