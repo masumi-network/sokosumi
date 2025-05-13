@@ -46,18 +46,18 @@ export default function AgentList({
                 <SidebarMenuButton
                   asChild
                   className={cn({
-                    "bg-primary hover:bg-primary": agentId === agent.id,
+                    "text-primary-foreground hover:text-primary-foreground active:text-primary-foreground bg-primary hover:bg-primary active:bg-primary":
+                      agentId === agent.id,
+                    "text-tertiary-foreground hover:text-foreground":
+                      agentId !== agent.id,
                   })}
                 >
-                  <div className="group/agent-menu flex w-full items-center gap-2">
-                    <SquareTerminal className="h-4 w-4" />
-                    <Link
-                      href={`/app/agents/${agent.id}/jobs`}
-                      className="truncate"
-                    >
-                      {getAgentName(agent)}
-                    </Link>
-                  </div>
+                  <Link href={`/app/agents/${agent.id}/jobs`}>
+                    <div className="group/agent-menu flex w-full items-center gap-2">
+                      <SquareTerminal className="h-4 w-4" />
+                      <span className="truncate">{getAgentName(agent)}</span>
+                    </div>
+                  </Link>
                 </SidebarMenuButton>
               </SidebarMenuItem>
             ))}
