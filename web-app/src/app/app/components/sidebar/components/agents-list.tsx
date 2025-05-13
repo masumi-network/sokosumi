@@ -1,5 +1,3 @@
-import { SquareTerminal } from "lucide-react";
-import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
@@ -14,12 +12,12 @@ import {
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { requireAuthentication } from "@/lib/auth/utils";
-import { getAgentName } from "@/lib/db";
 import {
   getFavoriteAgents,
   getHiredAgentsOrderedByLatestJob,
 } from "@/lib/services";
-import { Agent } from "@/prisma/generated/client";
+
+import AgentList from "./agent-list";
 
 export default function AgentsList() {
   return (
@@ -64,68 +62,19 @@ async function AgentsListContent() {
 
   return (
     <ScrollArea className="h-full">
-      <AgentSection
+      <AgentList
         groupKey="favorite-agents"
         title={t("pinnedTitle")}
         agents={favoriteAgents}
         noAgentsType={t("pinnedType")}
-        t={t}
       />
 
-      <AgentSection
+      <AgentList
         groupKey="hired-agents"
         title={t("hiredTitle")}
         agents={hiredAgents}
         noAgentsType={t("hiredType")}
-        t={t}
       />
     </ScrollArea>
-  );
-}
-
-interface AgentSectionProps {
-  groupKey: string;
-  title: string;
-  agents: Agent[];
-  noAgentsType: string;
-  t: Awaited<ReturnType<typeof getTranslations>>;
-}
-
-function AgentSection({
-  groupKey,
-  title,
-  agents,
-  noAgentsType,
-  t,
-}: AgentSectionProps) {
-  return (
-    <SidebarGroup key={groupKey} className="w-64">
-      <SidebarGroupLabel className="text-base">{title}</SidebarGroupLabel>
-      <SidebarGroupContent className="mt-2">
-        {agents.length > 0 ? (
-          <SidebarMenu>
-            {agents.map((agent) => (
-              <SidebarMenuItem key={agent.id}>
-                <SidebarMenuButton asChild>
-                  <div className="group/agent-menu flex w-full items-center gap-2">
-                    <SquareTerminal className="h-4 w-4" />
-                    <Link
-                      href={`/app/agents/${agent.id}/jobs`}
-                      className="truncate"
-                    >
-                      {getAgentName(agent)}
-                    </Link>
-                  </div>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            ))}
-          </SidebarMenu>
-        ) : (
-          <p className="text-muted-foreground px-3 text-sm">
-            {t("noAgents", { type: noAgentsType })}
-          </p>
-        )}
-      </SidebarGroupContent>
-    </SidebarGroup>
   );
 }
