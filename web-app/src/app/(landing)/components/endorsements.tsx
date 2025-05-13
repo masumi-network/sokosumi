@@ -66,7 +66,7 @@ export default function Endorsements() {
       <div className={`w-full pt-10`}>
         <Marquee direction="left" pauseOnHover={false}>
           {logos.map((logo) => (
-            <div key={logo.key} className="mx-8">
+            <div key={logo.key} className="mx-10 xl:mx-16">
               <ThemedImage
                 srcLight={logo.srcLight}
                 srcDark={logo.srcDark}
