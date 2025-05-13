@@ -59,7 +59,7 @@ export default function Endorsements() {
 
   return (
     <div className="w-full">
-      <h2 className="text-foreground text-sm font-semibold tracking-wider uppercase">
+      <h2 className="text-foreground mb-12 text-sm font-semibold tracking-wider uppercase">
         {t("title")}
       </h2>
 
