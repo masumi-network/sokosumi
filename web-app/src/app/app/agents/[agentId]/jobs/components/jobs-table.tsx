@@ -39,7 +39,7 @@ export default function JobsTable({ jobs }: JobsTableProps) {
       data={jobs}
       rowClassName={(row) => {
         if (params.jobId === row.id) {
-          return "bg-muted hover:bg-muted";
+          return "bg-primary hover:bg-primary";
         }
         return "active:bg-muted hover:bg-muted";
       }}
