@@ -18,6 +18,13 @@
         right: "20px",
         bottom: "20px",
       },
+      links: [
+        {
+          icon: "bulb",
+          text: "Feedback and Feature Requests",
+          url: "https://sokosumi.featurebase.app/",
+        },
+      ],
     });
   };
   script.src = "https://chat.cdn-plain.com/index.js";
