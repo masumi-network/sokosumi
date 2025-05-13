@@ -45,9 +45,13 @@ export default function AgentList({
               <SidebarMenuItem key={agent.id}>
                 <SidebarMenuButton
                   asChild
-                  className={cn({
-                    "bg-primary hover:bg-primary": agentId === agent.id,
-                  })}
+                  className={cn(
+                    "text-tertiary-foreground hover:text-foreground",
+                    {
+                      "text-primary-foreground hover:text-primary-foreground bg-primary hover:bg-primary":
+                        agentId === agent.id,
+                    },
+                  )}
                 >
                   <div className="group/agent-menu flex w-full items-center gap-2">
                     <SquareTerminal className="h-4 w-4" />
