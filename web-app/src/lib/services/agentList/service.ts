@@ -7,7 +7,7 @@ import {
   getAgentListsByTypes,
   prisma,
 } from "@/lib/db";
-import { AgentListType, Prisma } from "@/prisma/generated/client";
+import { Agent, AgentListType, Prisma } from "@/prisma/generated/client";
 
 export async function getOrCreateAgentListByType(
   userId: string,
@@ -33,7 +33,7 @@ export async function getOrCreateFavoriteAgentList(
 export async function getFavoriteAgents(
   userId: string,
   tx: Prisma.TransactionClient = prisma,
-) {
+): Promise<Agent[]> {
   const list = await getOrCreateFavoriteAgentList(userId, tx);
   return list.agents;
 }

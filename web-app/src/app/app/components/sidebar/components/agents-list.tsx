@@ -16,6 +16,7 @@ import {
   getFavoriteAgents,
   getHiredAgentsOrderedByLatestJob,
 } from "@/lib/services";
+import { Agent } from "@/prisma/generated/client";
 
 import AgentList from "./agent-list";
 
@@ -58,7 +59,10 @@ async function AgentsListContent() {
   const { session } = await requireAuthentication();
 
   const favoriteAgents = await getFavoriteAgents(session.user.id);
-  const hiredAgents = await getHiredAgentsOrderedByLatestJob(session.user.id);
+  const hiredAgents = filterDuplicatedAgents(
+    await getHiredAgentsOrderedByLatestJob(session.user.id),
+    favoriteAgents,
+  );
 
   return (
     <ScrollArea className="h-full">
@@ -77,4 +81,12 @@ async function AgentsListContent() {
       />
     </ScrollArea>
   );
+}
+
+function filterDuplicatedAgents(hiredAgents: Agent[], favoriteAgents: Agent[]) {
+  return hiredAgents.filter((hiredAgent) => {
+    return !favoriteAgents.some(
+      (favoriteAgent) => favoriteAgent.id === hiredAgent.id,
+    );
+  });
 }
