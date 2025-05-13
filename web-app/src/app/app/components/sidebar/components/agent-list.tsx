@@ -43,15 +43,13 @@ export default function AgentList({
           <SidebarMenu>
             {agents.map((agent) => (
               <SidebarMenuItem key={agent.id}>
-                <SidebarMenuButton asChild>
-                  <div
-                    className={cn(
-                      "group/agent-menu flex w-full items-center gap-2",
-                      {
-                        "bg-primary": agentId === agent.id,
-                      },
-                    )}
-                  >
+                <SidebarMenuButton
+                  asChild
+                  className={cn({
+                    "bg-primary hover:bg-primary": agentId === agent.id,
+                  })}
+                >
+                  <div className="group/agent-menu flex w-full items-center gap-2">
                     <SquareTerminal className="h-4 w-4" />
                     <Link
                       href={`/app/agents/${agent.id}/jobs`}
