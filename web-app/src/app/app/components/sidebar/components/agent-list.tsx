@@ -48,7 +48,7 @@ export default function AgentList({
                   className={cn(
                     "text-tertiary-foreground hover:text-foreground",
                     {
-                      "text-primary-foreground hover:text-primary-foreground bg-primary hover:bg-primary":
+                      "text-primary-foreground hover:text-primary-foreground bg-primary hover:bg-primary active:bg-primary":
                         agentId === agent.id,
                     },
                   )}
