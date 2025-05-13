@@ -20,6 +20,23 @@ export async function getOnlineAgents(
   return await getAgentsWithStatus(AgentStatus.ONLINE, tx);
 }
 
+export async function getOnlineAgentsWithValidCreditCostUnits(
+  tx: Prisma.TransactionClient = prisma,
+  validCreditCostUnits: string[],
+): Promise<AgentWithRelations[]> {
+  const onlineAgents = await getOnlineAgents(tx);
+  return onlineAgents.filter((agent) => {
+    const amounts = agent.pricing.fixedPricing?.amounts?.map((amount) => ({
+      unit: amount.unit,
+      amount: Number(amount.amount),
+    }));
+    if (!amounts) {
+      return true;
+    }
+    return amounts.every(({ unit }) => validCreditCostUnits.includes(unit));
+  });
+}
+
 async function getAgentsWithStatus(
   status: AgentStatus,
   tx: Prisma.TransactionClient = prisma,

@@ -5,8 +5,9 @@ import {
   AgentWithRelations,
   getAgentById,
   getAgentByIdWithPricing,
+  getAllCreditCosts,
   getHiredAgents,
-  getOnlineAgents,
+  getOnlineAgentsWithValidCreditCostUnits,
   prisma,
 } from "@/lib/db";
 import { JobInputsDataSchemaType } from "@/lib/job-input";
@@ -17,6 +18,30 @@ import {
   fetchAgentInputSchema,
   getAgentPaymentInformation,
 } from "./third-party";
+
+/**
+ * Get online agents with valid fixed pricing
+ * (valid amount unit)
+ *
+ * This function:
+ * - Finds all valid unit from creditCost model
+ * - Filter online agents using these valid units
+ *
+ * @param tx - (Optional) Prisma transaction client for DB operations. Defaults to the main Prisma client.
+ * @returns An array of `AgentWithRelations`
+ */
+export async function getOnlineAgentsWithValidPricing(
+  tx: Prisma.TransactionClient = prisma,
+): Promise<AgentWithRelations[]> {
+  // get all credit costs
+  const creditCosts = await getAllCreditCosts(tx);
+  const validCreditCostUnits = creditCosts.map(({ unit }) => unit);
+
+  return await getOnlineAgentsWithValidCreditCostUnits(
+    tx,
+    validCreditCostUnits,
+  );
+}
 
 export async function getHiredAgentsOrderedByLatestJob(
   userId: string,
@@ -79,7 +104,7 @@ interface AgentWithCreditPrice {
 export async function getOnlineAgentsWithCreditsPrice(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithCreditPrice[]> {
-  const agents = await getOnlineAgents(tx);
+  const agents = await getOnlineAgentsWithValidPricing(tx);
   const results = await Promise.allSettled(
     agents.map(async (agent) => {
       const creditsPrice = await getAgentCreditsPrice(agent, tx);

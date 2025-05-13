@@ -1,10 +1,11 @@
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
+import { AgentsNotAvailable } from "@/components/agents";
 import { requireAuthentication } from "@/lib/auth/utils";
-import { AgentWithRelations, getOnlineAgents, getTags } from "@/lib/db";
+import { getTags } from "@/lib/db";
 import {
-  getAgentCreditsPrice,
+  getOnlineAgentsWithCreditsPrice,
   getOrCreateFavoriteAgentList,
 } from "@/lib/services";
 import { Tag } from "@/prisma/generated/client";
@@ -22,15 +23,17 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function GalleryPage() {
-  const agents: AgentWithRelations[] = await getOnlineAgents();
+  const agentsWithPrice = await getOnlineAgentsWithCreditsPrice();
+
+  if (!agentsWithPrice.length) {
+    return <AgentsNotAvailable />;
+  }
+
   const tags: Tag[] = await getTags();
   const tagNames = tags.map((tag) => tag.name);
 
   const { session } = await requireAuthentication();
   const favoriteAgentList = await getOrCreateFavoriteAgentList(session.user.id);
-  const agentCreditsPriceList = await Promise.all(
-    agents.map((agent) => getAgentCreditsPrice(agent)),
-  );
 
   return (
     <div className="w-full px-4 py-4 sm:px-8 xl:px-16">
@@ -38,9 +41,11 @@ export default async function GalleryPage() {
         <FilterSection tags={tagNames} />
         {/* Agent Cards Grid */}
         <FilteredAgents
-          agents={agents}
+          agents={agentsWithPrice.map((item) => item.agent)}
           agentList={favoriteAgentList}
-          agentCreditsPriceList={agentCreditsPriceList}
+          agentCreditsPriceList={agentsWithPrice.map(
+            (item) => item.creditsPrice,
+          )}
         />
       </div>
     </div>
