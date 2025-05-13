@@ -3,43 +3,38 @@
     transform: translateX(0);
   }
   100% {
-    transform: translateX(-50%);
+    transform: translateX(-65%);
   }
 }
 
 .marqueeContainer {
   overflow: hidden;
-  white-space: nowrap;
   position: relative;
   width: 100%;
 }
 
 .marqueeContent {
-  display: inline-flex;
-  animation: marquee 30s linear infinite;
-  gap: 5rem;
-
-  @media (max-width: 1024px) {
-    gap: 3rem;
-  }
-
-  @media (max-width: 768px) {
-    gap: 2rem;
-  }
-
-  @media (max-width: 480px) {
-    gap: 1rem;
-  }
+  display: flex;
+  min-width: 200%;
+  animation: marquee 20s linear infinite alternate;
+  will-change: transform;
+  gap: 9rem;
 }
 
 .logoWrapper {
   display: flex;
   align-items: center;
-  padding: 0 1.5rem;
+  flex: 0 0 auto;
   opacity: 0.9;
   transition: opacity 0.3s ease;
 }
 
 .logoWrapper:hover {
   opacity: 1;
-} 
+}
+
+/* Pause animation on hover/focus for accessibility */
+.marqueeContainer:hover .marqueeContent,
+.marqueeContainer:focus-within .marqueeContent {
+  animation-play-state: paused;
+}
