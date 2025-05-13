@@ -38,9 +38,11 @@ export default function JobsTable({ jobs }: JobsTableProps) {
       }}
       data={jobs}
       rowClassName={(row) => {
-        return cn("text-foreground active:bg-muted hover:bg-muted", {
-          "text-primary-foreground bg-primary hover:bg-primary":
+        return cn({
+          "text-primary-foreground bg-primary hover:bg-primary active:bg-primary":
             params.jobId === row.id,
+          "text-foreground active:bg-muted hover:bg-muted":
+            params.jobId !== row.id,
         });
       }}
       containerClassName={cn(
