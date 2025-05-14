@@ -336,13 +336,30 @@ export async function updateJobStatusToProcessing(
 
 export async function updateJobStatusToFailed(
   jobId: string,
+  creditTransaction: CreditTransaction | null,
   tx: Prisma.TransactionClient = prisma,
 ) {
   await tx.job.update({
     where: {
       id: jobId,
     },
-    data: { status: JobStatus.FAILED },
+    data: {
+      status: JobStatus.FAILED,
+      finishedAt: new Date(),
+      ...(creditTransaction && {
+        refundedCreditTransaction: {
+          create: {
+            amount: creditTransaction.amount * BigInt(-1),
+            includedFee: creditTransaction.includedFee,
+            user: {
+              connect: {
+                id: creditTransaction.userId,
+              },
+            },
+          },
+        },
+      }),
+    },
   });
 }
 

@@ -12,7 +12,6 @@ import {
   updateJobStatusToCompleted,
   updateJobStatusToDisputeRequested,
   updateJobStatusToDisputeResolved,
-  updateJobStatusToFailed,
   updateJobStatusToInputRequired,
   updateJobStatusToPaymentFailed,
   updateJobStatusToPaymentNodeConnectionFailed,
@@ -172,9 +171,6 @@ export async function syncJobStatus(job: Job) {
       if (jobStatusResponse.status === "awaiting_input") {
         await updateJobStatusToInputRequired(job.id);
       }
-      if (jobStatusResponse.status === "failed") {
-        await updateJobStatusToFailed(job.id);
-      }
       break;
     }
     case "RefundRequested": {
@@ -214,13 +210,12 @@ export async function syncJobStatus(job: Job) {
       });
       break;
     }
+    // If job is failed for `ResultSubmitted`, we need to request a refund
     case "ResultSubmitted":
     case "Withdrawn": {
       if (jobStatusResponse.status === "completed") {
         const output = JSON.stringify(jobStatusResponse);
         await updateJobStatusToCompleted(job.id, output);
-      } else if (jobStatusResponse.status === "failed") {
-        await updateJobStatusToFailed(job.id);
       } else {
         await updateJobStatusToUnknown(
           job.id,
