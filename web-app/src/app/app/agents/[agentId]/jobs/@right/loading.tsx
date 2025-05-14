@@ -1,5 +1,7 @@
 import DefaultLoading from "@/components/default-loading";
 
 export default function CreateJobPageLoading() {
-  return <DefaultLoading className="flex-1 rounded-md border p-4 px-8" />;
+  return (
+    <DefaultLoading className="bg-muted/50 h-full min-h-[300px] w-full flex-1 rounded-xl border-none p-8" />
+  );
 }

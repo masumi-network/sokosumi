@@ -1,29 +1,51 @@
+import { Plus } from "lucide-react";
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
-import { getAgentById } from "@/lib/db";
-import { getAgentCreditsPrice } from "@/lib/services";
+import { Button } from "@/components/ui/button";
+import { requireAuthentication } from "@/lib/auth/utils";
+import { getAgentById, getJobsByAgentIdAndUserId } from "@/lib/db";
 
-import CreateJobSection from "./components/create-job-section";
+import JobDetailRedirector from "./components/job-detail-redirector";
 
-interface CreateJobPageParams {
+interface RightSectionPageParams {
   agentId: string;
 }
 
-export default async function CreateJobPage({
+export default async function RightSectionPage({
   params,
 }: {
-  params: Promise<CreateJobPageParams>;
+  params: Promise<RightSectionPageParams>;
 }) {
+  const t = await getTranslations("App.Agents.Jobs.RightSection");
+
   const { agentId } = await params;
 
   const agent = await getAgentById(agentId);
   if (!agent) {
+    console.warn("agent not found in right page");
     notFound();
   }
 
-  const agentCreditsPrice = await getAgentCreditsPrice(agent);
+  const { session } = await requireAuthentication();
+  const agentJobs = await getJobsByAgentIdAndUserId(agentId, session.user.id);
+
+  if (agentJobs.length > 0) {
+    return <JobDetailRedirector agentId={agentId} jobId={agentJobs[0].id} />;
+  }
 
   return (
-    <CreateJobSection agent={agent} agentCreditsPrice={agentCreditsPrice} />
+    <div className="bg-muted/50 flex h-full w-full flex-1 items-center justify-center rounded-xl border-none">
+      <div className="flex flex-col gap-4">
+        <p>{t("noExecutedJobs")}</p>
+        <Button variant="primary" className="gap-2" asChild>
+          <Link href={`/app/agents/${agent.id}/jobs`}>
+            <Plus />
+            {t("newJob")}
+          </Link>
+        </Button>
+      </div>
+    </div>
   );
 }

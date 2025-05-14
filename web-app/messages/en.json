@@ -549,7 +549,6 @@
         "applyTags": "Apply"
       },
       "Jobs": {
-        "title": "Your latest jobs",
         "Header": {
           "newJob": "New Job",
           "details": "Details",
@@ -559,6 +558,10 @@
           "termsAndConditions": "Terms and Conditions",
           "privacyPolicy": "Privacy Policy",
           "customerSupport": "Customer Support"
+        },
+        "RightSection": {
+          "noExecutedJobs": "No executed jobs yet",
+          "newJob": "New Job"
         },
         "CreateJob": {
           "Information": {
