@@ -1,1 +1,1 @@
-export { default as CreateJobModal } from "./create-job-modal";
+export { default as CreateJobModalTrigger } from "./create-job-modal-trigger";

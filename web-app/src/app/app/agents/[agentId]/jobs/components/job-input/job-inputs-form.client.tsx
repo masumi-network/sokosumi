@@ -38,6 +38,7 @@ interface JobInputsFormClientProps {
   agentId: string;
   agentCreditsPrice: CreditsPrice;
   jobInputsDataSchema: JobInputsDataSchemaType;
+  setLoading: (loading: boolean) => void;
   legal?: AgentLegal | null | undefined;
   className?: string | undefined;
 }
@@ -46,6 +47,7 @@ export default function JobInputsFormClient({
   agentId,
   agentCreditsPrice,
   jobInputsDataSchema,
+  setLoading,
   legal,
   className,
 }: JobInputsFormClientProps) {
@@ -64,6 +66,8 @@ export default function JobInputsFormClient({
     values,
   ) => {
     try {
+      setLoading(true);
+
       // Transform input data to match expected type
       // Filter out null values and ensure arrays are of correct type
       const transformedInputData = filterOutNullValues(values);
@@ -108,6 +112,8 @@ export default function JobInputsFormClient({
       }
     } catch {
       toast.error(t("Error.default"));
+    } finally {
+      setLoading(false);
     }
   };
 

@@ -549,6 +549,7 @@
         "applyTags": "Apply"
       },
       "Jobs": {
+        "newJob": "New Job",
         "Header": {
           "newJob": "New Job",
           "details": "Details",
@@ -560,10 +561,11 @@
           "customerSupport": "Customer Support"
         },
         "RightSection": {
-          "noExecutedJobs": "No executed jobs yet",
-          "newJob": "New Job"
+          "noExecutedJobs": "No executed jobs yet"
         },
         "CreateJob": {
+          "title": "New {name}",
+          "cancel": "Cancel",
           "Information": {
             "title": "Information"
           },

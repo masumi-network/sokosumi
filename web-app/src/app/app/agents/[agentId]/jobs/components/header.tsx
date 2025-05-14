@@ -1,7 +1,6 @@
 "use client";
 
 import { Bookmark, Plus } from "lucide-react";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -20,6 +19,9 @@ import {
   getAgentName,
   JobWithRelations,
 } from "@/lib/db";
+import { JobInputsDataSchemaType } from "@/lib/job-input";
+
+import { CreateJobModalTrigger } from "./create-job-modal";
 
 export function HeaderSkeleton() {
   const t = useTranslations("App.Agents.Jobs.Header");
@@ -51,6 +53,7 @@ interface HeaderProps {
   agentCreditsPrice: CreditsPrice;
   favoriteAgentList: AgentListWithAgent;
   jobs: JobWithRelations[];
+  agentInputSchemaPromise: Promise<JobInputsDataSchemaType>;
 }
 
 export default function Header({
@@ -58,16 +61,17 @@ export default function Header({
   agentCreditsPrice,
   favoriteAgentList,
   jobs,
+  agentInputSchemaPromise,
 }: HeaderProps) {
   const t = useTranslations("App.Agents.Jobs.Header");
-  const [open, setOpen] = useState(false);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const handleDetailsClick = () => {
-    setOpen(true);
+    setDetailOpen(true);
   };
 
-  const handleClose = () => {
-    setOpen(false);
+  const handleDetailClose = () => {
+    setDetailOpen(false);
   };
 
   return (
@@ -91,15 +95,14 @@ export default function Header({
             price: convertCentsToCredits(agentCreditsPrice.cents),
           })}
         </div>
-        <Button variant="primary" className="gap-2" asChild>
-          <Link href={`/app/agents/${agent.id}/jobs?create=true`}>
-            <Plus />
-            {t("newJob")}
-          </Link>
-        </Button>
+        <CreateJobModalTrigger
+          agent={agent}
+          agentCreditsPrice={agentCreditsPrice}
+          inputSchemaPromise={agentInputSchemaPromise}
+        />
       </div>
       {/* Agent Modal */}
-      <AgentModal open={open}>
+      <AgentModal open={detailOpen}>
         <AgentDetail
           agent={agent}
           agentCreditsPrice={agentCreditsPrice}
@@ -107,7 +110,7 @@ export default function Header({
           jobs={jobs}
           showBackButton={false}
           showCloseButton
-          onClose={handleClose}
+          onClose={handleDetailClose}
         />
       </AgentModal>
     </div>

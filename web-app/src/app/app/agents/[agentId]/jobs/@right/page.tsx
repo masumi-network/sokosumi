@@ -1,11 +1,10 @@
-import { Plus } from "lucide-react";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
-import { Button } from "@/components/ui/button";
+import { CreateJobModalTrigger } from "@/app/agents/[agentId]/jobs/components/create-job-modal";
 import { requireAuthentication } from "@/lib/auth/utils";
 import { getAgentById, getJobsByAgentIdAndUserId } from "@/lib/db";
+import { getAgentCreditsPrice, getAgentInputSchema } from "@/lib/services";
 
 import JobDetailRedirector from "./components/job-detail-redirector";
 
@@ -28,6 +27,9 @@ export default async function RightSectionPage({
     notFound();
   }
 
+  const agentCreditsPrice = await getAgentCreditsPrice(agent);
+  const agentInputSchemaPromise = getAgentInputSchema(agentId);
+
   const { session } = await requireAuthentication();
   const agentJobs = await getJobsByAgentIdAndUserId(agentId, session.user.id);
 
@@ -39,12 +41,11 @@ export default async function RightSectionPage({
     <div className="bg-muted/50 flex h-full w-full flex-1 items-center justify-center rounded-xl border-none">
       <div className="flex flex-col gap-4">
         <p>{t("noExecutedJobs")}</p>
-        <Button variant="primary" className="gap-2" asChild>
-          <Link href={`/app/agents/${agent.id}/jobs?create=true`}>
-            <Plus />
-            {t("newJob")}
-          </Link>
-        </Button>
+        <CreateJobModalTrigger
+          agent={agent}
+          agentCreditsPrice={agentCreditsPrice}
+          inputSchemaPromise={agentInputSchemaPromise}
+        />
       </div>
     </div>
   );

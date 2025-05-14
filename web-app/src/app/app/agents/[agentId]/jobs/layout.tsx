@@ -13,10 +13,10 @@ import {
 } from "@/lib/db";
 import {
   getAgentCreditsPrice,
+  getAgentInputSchema,
   getOrCreateFavoriteAgentList,
 } from "@/lib/services";
 
-import { CreateJobModal } from "./components/create-job-modal";
 import Footer from "./components/footer";
 import Header, { HeaderSkeleton } from "./components/header";
 
@@ -70,6 +70,8 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
   const favoriteAgentList = await getOrCreateFavoriteAgentList(session.user.id);
   const jobs = await getJobsByAgentId(agentId);
 
+  const agentInputSchemaPromise = getAgentInputSchema(agentId);
+
   return (
     <div className="flex h-full flex-col p-4 lg:h-[calc(100svh-64px)] lg:p-6 xl:p-8">
       <Header
@@ -77,14 +79,13 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
         agentCreditsPrice={agentCreditsPrice}
         favoriteAgentList={favoriteAgentList}
         jobs={jobs}
+        agentInputSchemaPromise={agentInputSchemaPromise}
       />
       <div className="mt-6 flex flex-1 flex-col justify-center gap-4 lg:flex-row lg:overflow-hidden">
         {children}
         {right}
       </div>
       <Footer legal={getAgentLegal(agent)} />
-      {/* Create Job Modal */}
-      <CreateJobModal agent={agent} agentCreditsPrice={agentCreditsPrice} />
     </div>
   );
 }
