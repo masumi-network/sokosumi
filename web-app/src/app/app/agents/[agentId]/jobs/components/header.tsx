@@ -92,7 +92,7 @@ export default function Header({
           })}
         </div>
         <Button variant="primary" className="gap-2" asChild>
-          <Link href={`/app/agents/${agent.id}/jobs`}>
+          <Link href={`/app/agents/${agent.id}/jobs?create=true`}>
             <Plus />
             {t("newJob")}
           </Link>

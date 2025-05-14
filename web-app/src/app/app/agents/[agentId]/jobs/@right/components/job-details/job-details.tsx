@@ -1,6 +1,6 @@
 import { useFormatter, useTranslations } from "next-intl";
 
-import AccordionItemWrapper from "@/app/agents/[agentId]/jobs/@right/components/accordion-wrapper";
+import AccordionItemWrapper from "@/app/agents/[agentId]/jobs/components/accordion-wrapper";
 import JobStatusBadge from "@/app/agents/[agentId]/jobs/components/job-status-badge";
 import { Accordion } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";

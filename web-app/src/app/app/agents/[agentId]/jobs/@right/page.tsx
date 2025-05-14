@@ -40,7 +40,7 @@ export default async function RightSectionPage({
       <div className="flex flex-col gap-4">
         <p>{t("noExecutedJobs")}</p>
         <Button variant="primary" className="gap-2" asChild>
-          <Link href={`/app/agents/${agent.id}/jobs`}>
+          <Link href={`/app/agents/${agent.id}/jobs?create=true`}>
             <Plus />
             {t("newJob")}
           </Link>

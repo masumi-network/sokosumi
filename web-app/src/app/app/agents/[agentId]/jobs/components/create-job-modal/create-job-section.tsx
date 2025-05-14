@@ -1,9 +1,10 @@
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 
+import AccordionItemWrapper from "@/app/agents/[agentId]/jobs/components/accordion-wrapper";
+import { JobInputsForm } from "@/app/agents/[agentId]/jobs/components/job-input";
 import Markdown from "@/components/markdown";
 import { Accordion } from "@/components/ui/accordion";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   AgentWithRelations,
   CreditsPrice,
@@ -12,9 +13,6 @@ import {
   getAgentName,
   getAgentResolvedImage,
 } from "@/lib/db";
-
-import AccordionItemWrapper from "./accordion-wrapper";
-import { JobInputsForm } from "./job-input";
 
 interface CreateJobSectionProps {
   agent: AgentWithRelations;
@@ -26,21 +24,14 @@ export default function CreateJobSection({
   agentCreditsPrice,
 }: CreateJobSectionProps) {
   return (
-    <div className="flex h-full min-h-[300px] flex-1 flex-col">
-      <ScrollArea className="h-full">
-        <Accordion
-          type="multiple"
-          defaultValue={["information", "input"]}
-          className="w-full space-y-1.5"
-        >
-          <InformationAccordionItem agent={agent} />
-          <InputAccordionItem
-            agent={agent}
-            agentCreditsPrice={agentCreditsPrice}
-          />
-        </Accordion>
-      </ScrollArea>
-    </div>
+    <Accordion
+      type="multiple"
+      defaultValue={["information", "input"]}
+      className="w-full space-y-1.5"
+    >
+      <InformationAccordionItem agent={agent} />
+      <InputAccordionItem agent={agent} agentCreditsPrice={agentCreditsPrice} />
+    </Accordion>
   );
 }
 

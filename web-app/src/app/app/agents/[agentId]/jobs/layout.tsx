@@ -16,6 +16,7 @@ import {
   getOrCreateFavoriteAgentList,
 } from "@/lib/services";
 
+import { CreateJobModal } from "./components/create-job-modal";
 import Footer from "./components/footer";
 import Header, { HeaderSkeleton } from "./components/header";
 
@@ -82,6 +83,8 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
         {right}
       </div>
       <Footer legal={getAgentLegal(agent)} />
+      {/* Create Job Modal */}
+      <CreateJobModal agent={agent} agentCreditsPrice={agentCreditsPrice} />
     </div>
   );
 }
