@@ -561,7 +561,7 @@
           "customerSupport": "Customer Support"
         },
         "RightSection": {
-          "noExecutedJobs": "No executed jobs yet"
+          "noExecutedJobs": "No executed jobs"
         },
         "CreateJob": {
           "title": "New {name}",
