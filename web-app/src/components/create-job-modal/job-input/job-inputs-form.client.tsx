@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import React from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
@@ -58,10 +58,9 @@ export default function JobInputsFormClient({
   });
   const asyncRouter = useAsyncRouterPush();
   const router = useRouter();
-  const pathname = usePathname();
 
   // create job modal context
-  const { setLoading } = useCreateJobModalContext();
+  const { setLoading, handleClose } = useCreateJobModalContext();
 
   // Then replace your existing handleSubmit function with this:
   const handleSubmit: SubmitHandler<JobInputsFormSchemaType> = async (
@@ -81,7 +80,10 @@ export default function JobInputsFormClient({
 
       if (result.success && result.data?.jobId) {
         form.reset();
-        await asyncRouter.push(`${pathname}/${result.data.jobId}`);
+        handleClose();
+        await asyncRouter.push(
+          `/app/agents/${agentId}/jobs/${result.data.jobId}`,
+        );
       } else {
         switch (result.error?.code) {
           case StartJobErrorCodes.INSUFFICIENT_BALANCE:

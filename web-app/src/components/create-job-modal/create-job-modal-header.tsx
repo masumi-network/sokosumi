@@ -26,6 +26,8 @@ export default function CreateJobModalHeader({
       <Button
         size="icon"
         variant="ghost"
+        disabled={loading}
+        className={loading ? "animate-pulse" : ""}
         onClick={isExpanded ? handleCollapse : handleExpand}
       >
         {isExpanded ? <ChevronUp /> : <ChevronDown />}
