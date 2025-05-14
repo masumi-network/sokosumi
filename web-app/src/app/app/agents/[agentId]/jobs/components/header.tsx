@@ -103,6 +103,7 @@ export default function Header({
         <AgentDetail
           agent={agent}
           agentCreditsPrice={agentCreditsPrice}
+          agentList={favoriteAgentList}
           jobs={jobs}
           showBackButton={false}
           showCloseButton

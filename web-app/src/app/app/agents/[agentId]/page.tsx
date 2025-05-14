@@ -1,8 +1,12 @@
 import { notFound } from "next/navigation";
 
 import { AgentDetail } from "@/components/agents";
+import { requireAuthentication } from "@/lib/auth/utils";
 import { getAgentById, getJobsByAgentId } from "@/lib/db";
-import { getAgentCreditsPrice } from "@/lib/services";
+import {
+  getAgentCreditsPrice,
+  getOrCreateFavoriteAgentList,
+} from "@/lib/services";
 
 export default async function AgentDetailPage({
   params,
@@ -21,6 +25,8 @@ export default async function AgentDetailPage({
     return notFound();
   }
 
+  const { session } = await requireAuthentication();
+  const agentList = await getOrCreateFavoriteAgentList(session.user.id);
   const jobs = await getJobsByAgentId(agentId);
 
   return (
@@ -28,6 +34,7 @@ export default async function AgentDetailPage({
       <AgentDetail
         agent={agent}
         agentCreditsPrice={agentCreditsPrice}
+        agentList={agentList}
         jobs={jobs}
       />
     </div>

@@ -42,7 +42,7 @@ export default function JobStatusBadge({
           variant="default"
           className={cn("bg-yellow-100 text-yellow-800", className)}
         >
-          {t("paymentPending")}
+          {t("paymentProcessing")}
         </Badge>
       );
     case JobStatus.PROCESSING:
