@@ -18,7 +18,6 @@ export default async function CreateJobPage({
 
   const agent = await getAgentById(agentId);
   if (!agent) {
-    console.warn("agent not found in right page");
     notFound();
   }
 
