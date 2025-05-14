@@ -31,6 +31,7 @@ import {
   createPurchase,
   fetchAgentJobStatus,
   getPurchaseOnChainState,
+  requestRefund,
   startAgentJob,
 } from "./third-party";
 
@@ -210,8 +211,15 @@ export async function syncJobStatus(job: Job) {
       });
       break;
     }
-    // If job is failed for `ResultSubmitted`, we need to request a refund
-    case "ResultSubmitted":
+    case "ResultSubmitted": {
+      if (jobStatusResponse.status === "completed") {
+        const output = JSON.stringify(jobStatusResponse);
+        await updateJobStatusToCompleted(job.id, output);
+      } else {
+        await requestRefund(job);
+      }
+      break;
+    }
     case "Withdrawn": {
       if (jobStatusResponse.status === "completed") {
         const output = JSON.stringify(jobStatusResponse);

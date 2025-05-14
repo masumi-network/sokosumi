@@ -6,11 +6,13 @@ import { getEnvPublicConfig } from "@/config/env.config";
 import {
   getPurchase,
   postPurchase,
+  postPurchaseRequestRefund,
   PostPurchaseResponse,
 } from "@/lib/api/generated/payment";
 import { getPaymentClient } from "@/lib/api/payment-service.client";
 import { AgentWithRelations, getAgentApiBaseUrl } from "@/lib/db";
 import { JobInputData } from "@/lib/job-input";
+import { Job } from "@/prisma/generated/client";
 
 import {
   jobStatusResponseSchema,
@@ -160,6 +162,27 @@ export async function createPurchase(
     }
 
     return Ok(postPurchaseResponse.data);
+  } catch (err) {
+    return Err(String(err));
+  }
+}
+
+export async function requestRefund(job: Job): Promise<Result<void, string>> {
+  try {
+    const paymentClient = getPaymentClient();
+    const refundResponse = await postPurchaseRequestRefund({
+      client: paymentClient,
+      body: {
+        blockchainIdentifier: job.blockchainIdentifier,
+        network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
+      },
+    });
+
+    if (refundResponse.error || !refundResponse.data) {
+      return Err("Failed to request refund");
+    }
+
+    return Ok(undefined);
   } catch (err) {
     return Err(String(err));
   }
