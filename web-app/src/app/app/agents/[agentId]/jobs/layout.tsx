@@ -2,6 +2,10 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 
+import {
+  CreateJobModal,
+  CreateJobModalContextProvider,
+} from "@/components/create-job-modal";
 import DefaultLoading from "@/components/default-loading";
 import { requireAuthentication } from "@/lib/auth/utils";
 import {
@@ -73,20 +77,27 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
   const agentInputSchemaPromise = getAgentInputSchema(agentId);
 
   return (
-    <div className="flex h-full flex-col p-4 lg:h-[calc(100svh-64px)] lg:p-6 xl:p-8">
-      <Header
-        agent={agent}
-        agentCreditsPrice={agentCreditsPrice}
-        favoriteAgentList={favoriteAgentList}
-        jobs={jobs}
-        agentInputSchemaPromise={agentInputSchemaPromise}
-      />
-      <div className="mt-6 flex flex-1 flex-col justify-center gap-4 lg:flex-row lg:overflow-hidden">
-        {children}
-        {right}
+    <CreateJobModalContextProvider>
+      <div className="flex h-full flex-col p-4 lg:h-[calc(100svh-64px)] lg:p-6 xl:p-8">
+        <Header
+          agent={agent}
+          agentCreditsPrice={agentCreditsPrice}
+          favoriteAgentList={favoriteAgentList}
+          jobs={jobs}
+        />
+        <div className="mt-6 flex flex-1 flex-col justify-center gap-4 lg:flex-row lg:overflow-hidden">
+          {children}
+          {right}
+        </div>
+        <Footer legal={getAgentLegal(agent)} />
+        {/* Create Job Modal */}
+        <CreateJobModal
+          agent={agent}
+          agentCreditsPrice={agentCreditsPrice}
+          inputSchemaPromise={agentInputSchemaPromise}
+        />
       </div>
-      <Footer legal={getAgentLegal(agent)} />
-    </div>
+    </CreateJobModalContextProvider>
   );
 }
 

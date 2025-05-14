@@ -9,6 +9,7 @@ import {
   AgentDetail,
   AgentModal,
 } from "@/components/agents";
+import { CreateJobModalTrigger } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -19,9 +20,6 @@ import {
   getAgentName,
   JobWithRelations,
 } from "@/lib/db";
-import { JobInputsDataSchemaType } from "@/lib/job-input";
-
-import { CreateJobModalTrigger } from "./create-job-modal";
 
 export function HeaderSkeleton() {
   const t = useTranslations("App.Agents.Jobs.Header");
@@ -53,7 +51,6 @@ interface HeaderProps {
   agentCreditsPrice: CreditsPrice;
   favoriteAgentList: AgentListWithAgent;
   jobs: JobWithRelations[];
-  agentInputSchemaPromise: Promise<JobInputsDataSchemaType>;
 }
 
 export default function Header({
@@ -61,7 +58,6 @@ export default function Header({
   agentCreditsPrice,
   favoriteAgentList,
   jobs,
-  agentInputSchemaPromise,
 }: HeaderProps) {
   const t = useTranslations("App.Agents.Jobs.Header");
   const [detailOpen, setDetailOpen] = useState(false);
@@ -95,11 +91,7 @@ export default function Header({
             price: convertCentsToCredits(agentCreditsPrice.cents),
           })}
         </div>
-        <CreateJobModalTrigger
-          agent={agent}
-          agentCreditsPrice={agentCreditsPrice}
-          inputSchemaPromise={agentInputSchemaPromise}
-        />
+        <CreateJobModalTrigger />
       </div>
       {/* Agent Modal */}
       <AgentModal open={detailOpen}>

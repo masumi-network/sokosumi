@@ -6,39 +6,34 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { AgentWithRelations, getAgentName } from "@/lib/db";
 
+import { useCreateJobModalContext } from "./create-job-modal-context";
+
 interface CreateJobModalHeaderProps {
   agent: AgentWithRelations;
-  loading: boolean;
-  onClose: () => void;
-  expanded: boolean;
-  onExpand: () => void;
-  onCollapse: () => void;
 }
 
 export default function CreateJobModalHeader({
   agent,
-  loading,
-  onClose,
-  expanded,
-  onExpand,
-  onCollapse,
 }: CreateJobModalHeaderProps) {
   const t = useTranslations("App.Agents.Jobs.CreateJob");
   const name = getAgentName(agent);
+
+  const { isExpanded, handleCollapse, handleExpand, handleClose, loading } =
+    useCreateJobModalContext();
 
   return (
     <div className="flex items-center justify-between py-3">
       <Button
         size="icon"
         variant="ghost"
-        onClick={expanded ? onCollapse : onExpand}
+        onClick={isExpanded ? handleCollapse : handleExpand}
       >
-        {expanded ? <ChevronUp /> : <ChevronDown />}
+        {isExpanded ? <ChevronUp /> : <ChevronDown />}
       </Button>
       <h3 className="text-lg font-medium">{t("title", { name })}</h3>
       <Button
         variant="ghost"
-        onClick={onClose}
+        onClick={handleClose}
         disabled={loading}
         className={loading ? "animate-pulse" : ""}
       >

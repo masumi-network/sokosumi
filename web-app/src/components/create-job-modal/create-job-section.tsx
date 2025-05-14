@@ -2,10 +2,8 @@
 
 import Image from "next/image";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
 
 import AccordionItemWrapper from "@/app/agents/[agentId]/jobs/components/accordion-wrapper";
-import { JobInputsForm } from "@/app/agents/[agentId]/jobs/components/job-input";
 import Markdown from "@/components/markdown";
 import { Accordion } from "@/components/ui/accordion";
 import {
@@ -18,54 +16,30 @@ import {
 } from "@/lib/db";
 import { JobInputsDataSchemaType } from "@/lib/job-input";
 
+import { useCreateJobModalContext } from "./create-job-modal-context";
 import CreateJobModalHeader from "./create-job-modal-header";
+import { JobInputsForm } from "./job-input";
 
 interface CreateJobSectionProps {
   agent: AgentWithRelations;
   agentCreditsPrice: CreditsPrice;
   inputSchemaPromise: Promise<JobInputsDataSchemaType>;
-  loading: boolean;
-  setLoading: (loading: boolean) => void;
-  onClose: () => void;
 }
 
 export default function CreateJobSection({
   agent,
   agentCreditsPrice,
   inputSchemaPromise,
-  loading,
-  setLoading,
-  onClose,
 }: CreateJobSectionProps) {
-  const [accordionValue, setAccordionValue] = useState<string[]>([
-    "information",
-    "input",
-  ]);
+  const { accordionValue, setAccordionValue } = useCreateJobModalContext();
 
   const handleAccordionValueChange = (value: string[]) => {
     setAccordionValue(value);
   };
 
-  const handleExpand = () => {
-    setAccordionValue(["information", "input"]);
-  };
-
-  const handleCollapse = () => {
-    setAccordionValue([]);
-  };
-
-  const isExpanded = accordionValue.length === 2;
-
   return (
     <div className="bg-background flex flex-col rounded-xl p-6 pt-0">
-      <CreateJobModalHeader
-        agent={agent}
-        loading={loading}
-        onClose={onClose}
-        expanded={isExpanded}
-        onExpand={handleExpand}
-        onCollapse={handleCollapse}
-      />
+      <CreateJobModalHeader agent={agent} />
       <Accordion
         type="multiple"
         value={accordionValue}
@@ -77,7 +51,6 @@ export default function CreateJobSection({
           agent={agent}
           agentCreditsPrice={agentCreditsPrice}
           inputSchemaPromise={inputSchemaPromise}
-          setLoading={setLoading}
         />
       </Accordion>
     </div>
@@ -115,12 +88,10 @@ function InputAccordionItem({
   agent,
   agentCreditsPrice,
   inputSchemaPromise,
-  setLoading,
 }: {
   agent: AgentWithRelations;
   agentCreditsPrice: CreditsPrice;
   inputSchemaPromise: Promise<JobInputsDataSchemaType>;
-  setLoading: (loading: boolean) => void;
 }) {
   const t = useTranslations("App.Agents.Jobs.CreateJob.Input");
 
@@ -133,7 +104,6 @@ function InputAccordionItem({
           agentCreditsPrice={agentCreditsPrice}
           legal={getAgentLegal(agent)}
           inputSchemaPromise={inputSchemaPromise}
-          setLoading={setLoading}
         />
       </div>
     </AccordionItemWrapper>

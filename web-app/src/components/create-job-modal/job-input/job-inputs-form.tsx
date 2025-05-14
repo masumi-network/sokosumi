@@ -14,7 +14,6 @@ interface JobInputsFormProps {
   agentId: string;
   agentCreditsPrice: CreditsPrice;
   inputSchemaPromise: Promise<JobInputsDataSchemaType>;
-  setLoading: (loading: boolean) => void;
   legal?: AgentLegal | null | undefined;
   className?: string | undefined;
 }
@@ -23,7 +22,6 @@ export default function JobInputsForm({
   agentId,
   agentCreditsPrice,
   inputSchemaPromise,
-  setLoading,
   legal,
   className,
 }: JobInputsFormProps) {
@@ -34,7 +32,6 @@ export default function JobInputsForm({
           agentId={agentId}
           agentCreditsPrice={agentCreditsPrice}
           inputSchemaPromise={inputSchemaPromise}
-          setLoading={setLoading}
           legal={legal}
           className={className}
         />
@@ -47,7 +44,6 @@ function JobInputsFormInner({
   agentId,
   agentCreditsPrice,
   inputSchemaPromise,
-  setLoading,
   legal,
   className,
 }: JobInputsFormProps) {
@@ -58,7 +54,6 @@ function JobInputsFormInner({
       agentId={agentId}
       agentCreditsPrice={agentCreditsPrice}
       jobInputsDataSchema={inputSchema}
-      setLoading={setLoading}
       legal={legal}
       className={className}
     />

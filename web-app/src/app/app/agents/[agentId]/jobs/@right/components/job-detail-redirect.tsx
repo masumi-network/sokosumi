@@ -5,15 +5,15 @@ import { useEffect } from "react";
 
 import DefaultLoading from "@/components/default-loading";
 
-interface JobDetailRedirectorProps {
+interface JobDetailRedirectProps {
   agentId: string;
   jobId: string;
 }
 
-export default function JobDetailRedirector({
+export default function JobDetailRedirect({
   agentId,
   jobId,
-}: JobDetailRedirectorProps) {
+}: JobDetailRedirectProps) {
   const router = useRouter();
 
   useEffect(() => {

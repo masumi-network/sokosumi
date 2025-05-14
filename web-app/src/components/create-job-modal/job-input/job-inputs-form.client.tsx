@@ -9,6 +9,7 @@ import React from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { toast } from "sonner";
 
+import { useCreateJobModalContext } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { useAsyncRouterPush } from "@/hooks/use-async-router";
@@ -38,7 +39,6 @@ interface JobInputsFormClientProps {
   agentId: string;
   agentCreditsPrice: CreditsPrice;
   jobInputsDataSchema: JobInputsDataSchemaType;
-  setLoading: (loading: boolean) => void;
   legal?: AgentLegal | null | undefined;
   className?: string | undefined;
 }
@@ -47,7 +47,6 @@ export default function JobInputsFormClient({
   agentId,
   agentCreditsPrice,
   jobInputsDataSchema,
-  setLoading,
   legal,
   className,
 }: JobInputsFormClientProps) {
@@ -60,6 +59,9 @@ export default function JobInputsFormClient({
   const asyncRouter = useAsyncRouterPush();
   const router = useRouter();
   const pathname = usePathname();
+
+  // create job modal context
+  const { setLoading } = useCreateJobModalContext();
 
   // Then replace your existing handleSubmit function with this:
   const handleSubmit: SubmitHandler<JobInputsFormSchemaType> = async (
