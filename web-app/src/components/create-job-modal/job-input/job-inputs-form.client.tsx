@@ -55,6 +55,7 @@ export default function JobInputsFormClient({
   const form = useForm<JobInputsFormSchemaType>({
     resolver: zodResolver(jobInputsFormSchema(input_data, t)),
     defaultValues: defaultValues(input_data),
+    mode: "onChange",
   });
   const asyncRouter = useAsyncRouterPush();
   const router = useRouter();
@@ -151,7 +152,12 @@ export default function JobInputsFormClient({
                     price: convertCentsToCredits(agentCreditsPrice.cents),
                   })}
                 </div>
-                <Button type="submit" disabled={form.formState.isSubmitting}>
+                <Button
+                  type="submit"
+                  disabled={
+                    form.formState.isSubmitting || !form.formState.isValid
+                  }
+                >
                   {form.formState.isSubmitting && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
