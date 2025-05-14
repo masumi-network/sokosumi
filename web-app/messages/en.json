@@ -578,7 +578,7 @@
           "JobStatusBadge": {
             "completed": "Completed",
             "failed": "Failed",
-            "paymentPending": "Payment Pending",
+            "paymentProcessing": "Payment Processing",
             "paymentFailed": "Payment Failed",
             "processing": "Processing",
             "agentConnectionFailed": "Agent Connection Failed",
