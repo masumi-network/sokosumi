@@ -721,7 +721,7 @@
       },
       "Form": {
         "clear": "Clear",
-        "price": "{price, plural, =0 {Free} =1 {1 credit} other {# credits}} per execution",
+        "price": "{price, plural, =0 {Free} =1 {1 credit} other {# credits}} per run",
         "submit": "Pay & Run",
         "acceptByClickingSubmit": "By clicking on \"Pay & Run\" you're accepting the ",
         "termsOfService": "Terms of Service",
