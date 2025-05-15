@@ -1,6 +1,14 @@
-function CardSection({ children }: { children: React.ReactNode }) {
+import { cn } from "@/lib/utils";
+
+function CardSection({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string | undefined;
+}) {
   return (
-    <div className="agent-detail-card flex w-full flex-col">{children}</div>
+    <div className={cn("flex w-full flex-col", className)}>{children}</div>
   );
 }
 

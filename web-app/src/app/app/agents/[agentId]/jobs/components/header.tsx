@@ -103,6 +103,7 @@ export default function Header({
           showBackButton={false}
           showCloseButton
           onClose={handleDetailClose}
+          cardClassName="agent-modal-card"
         />
       </AgentModal>
     </div>
