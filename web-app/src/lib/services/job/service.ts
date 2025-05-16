@@ -184,7 +184,7 @@ export async function syncAgentJobStatus(job: Job): Promise<Job> {
     throw new Error("Failed to get job status");
   }
   const jobStatusResponse = jobStatusResult.data;
-  console.log("jobStatusResponse", jobStatusResponse);
+
   let output: string | undefined;
   if (jobStatusResponse.status === "completed") {
     output = JSON.stringify(jobStatusResponse);
