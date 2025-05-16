@@ -3,14 +3,18 @@
 import { v4 as uuidv4 } from "uuid";
 
 import {
+  computeJobStatus,
   createJob,
   getAgentById,
+  jobInclude,
+  JobStatus,
   jobStatusToAgentJobStatus,
-  nextActionErrorTypeToNextJobActionErrorType,
   nextActionToNextJobAction,
   onChainStateToOnChainJobStatus,
   prisma,
   refundJob,
+  updateNextAction,
+  updateOnChainStatus,
 } from "@/lib/db";
 import { calculateInputHash } from "@/lib/utils";
 import {
@@ -112,62 +116,49 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
 }
 
 export async function syncJobStatus(job: Job) {
-  job = await syncOnChainJobStatus(job);
-  job = await syncAgentJobStatus(job);
+  let updatedJob = await syncRegistryStatus(job);
+  updatedJob = await syncAgentJobStatus(updatedJob);
 
-  switch (job.onChainStatus) {
-    case null:
-      if (job.nextActionErrorType !== null) {
-        await refundJob(job.id);
-      }
-      break;
-    case OnChainJobStatus.FUNDS_OR_DATUM_INVALID:
+  const jobStatus = computeJobStatus(updatedJob);
+  switch (jobStatus) {
+    case JobStatus.PAYMENT_FAILED:
+    case JobStatus.REFUND_RESOLVED:
       await refundJob(job.id);
       break;
-    case OnChainJobStatus.FUNDS_LOCKED:
+    default:
       break;
-    case OnChainJobStatus.FUNDS_WITHDRAWN:
-      break;
-    case OnChainJobStatus.REFUND_REQUESTED:
-      break;
-    case OnChainJobStatus.REFUND_WITHDRAWN:
-      await refundJob(job.id);
-      break;
-    case OnChainJobStatus.DISPUTED:
-      break;
-    case OnChainJobStatus.DISPUTED_WITHDRAWN:
-      // TODO: update credits, but we have missing information at the moment
-      break;
-    case OnChainJobStatus.RESULT_SUBMITTED:
-      if (
-        job.agentJobStatus !== AgentJobStatus.COMPLETED &&
-        new Date().getTime() - new Date(job.updatedAt).getTime() >
-          10 * 60 * 1000
-      ) {
-        // TODO: Request Refund if updated is older then 10 minutes
-      }
-      break;
+  }
+  if (job.onChainStatus === OnChainJobStatus.RESULT_SUBMITTED) {
+    if (
+      job.agentJobStatus !== AgentJobStatus.COMPLETED &&
+      new Date().getTime() - new Date(job.updatedAt).getTime() > 10 * 60 * 1000
+    ) {
+      // TODO: Request Refund if updated is older then 10 minutes
+    }
   }
 }
 
-export async function syncOnChainJobStatus(job: Job): Promise<Job> {
+export async function syncRegistryStatus(job: Job): Promise<Job> {
   const purchaseResult = await getPaymentClientPurchase(job.paymentId);
   if (!purchaseResult.ok) {
     throw new Error("Failed to get payment on-chain status");
   }
   const purchase = purchaseResult.data;
-  const updatedJob = await prisma.job.update({
-    where: { id: job.id },
-    data: {
-      onChainStatus: onChainStateToOnChainJobStatus(purchase.onChainState),
-      nextAction: nextActionToNextJobAction(
-        purchase.NextAction.requestedAction,
-      ),
-      nextActionErrorType: nextActionErrorTypeToNextJobActionErrorType(
-        purchase.NextAction.errorType,
-      ),
-      nextActionErrorNote: purchase.NextAction.errorNote,
-    },
+  const updatedJob = await prisma.$transaction(async (tx) => {
+    const onChainStatus = onChainStateToOnChainJobStatus(purchase.onChainState);
+    let newJob =
+      onChainStatus !== null
+        ? await updateOnChainStatus(job.id, onChainStatus, tx)
+        : job;
+    const nextAction = nextActionToNextJobAction(purchase.NextAction);
+    newJob = await updateNextAction(
+      job.id,
+      nextAction.requestedAction,
+      nextAction.errorType,
+      nextAction.errorNote,
+      tx,
+    );
+    return newJob;
   });
   return updatedJob;
 }
@@ -196,5 +187,6 @@ export async function syncAgentJobStatus(job: Job): Promise<Job> {
       agentJobStatus: jobStatusToAgentJobStatus(jobStatusResponse.status),
       ...(output !== undefined ? { output } : {}),
     },
+    include: jobInclude,
   });
 }

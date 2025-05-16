@@ -7,8 +7,9 @@ declare global {
     | GetPurchaseResponse["data"]["Purchases"][number]["NextAction"]["errorType"]
     | null;
   type PurchaseNextAction =
-    | GetPurchaseResponse["data"]["Purchases"][number]["NextAction"]["requestedAction"]
-    | null;
+    GetPurchaseResponse["data"]["Purchases"][number]["NextAction"];
+  type PurchaseRequestedAction =
+    GetPurchaseResponse["data"]["Purchases"][number]["NextAction"]["requestedAction"];
   type Purchase = GetPurchaseResponse["data"]["Purchases"][number];
 
   type JobStatusResponse = GetJobStatusResponse["data"]["JobStatus"];

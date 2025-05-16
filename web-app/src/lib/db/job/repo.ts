@@ -10,7 +10,14 @@ import {
   JobWithRelations,
   prisma,
 } from "@/lib/db";
-import { Job, Prisma } from "@/prisma/generated/client";
+import {
+  AgentJobStatus,
+  Job,
+  NextJobAction,
+  NextJobActionErrorType,
+  OnChainJobStatus,
+  Prisma,
+} from "@/prisma/generated/client";
 
 export type JobWithStatus = JobWithRelations & { status: JobStatus };
 
@@ -177,4 +184,45 @@ export async function refundJob(
       },
     },
   });
+}
+
+export async function updateOnChainStatus(
+  jobId: string,
+  onChainStatus: OnChainJobStatus,
+  tx: Prisma.TransactionClient = prisma,
+) {
+  const job = await tx.job.update({
+    where: { id: jobId },
+    data: { onChainStatus },
+    include: jobInclude,
+  });
+  return mapJobWithStatus(job);
+}
+
+export async function updateAgentJobStatus(
+  jobId: string,
+  agentJobStatus: AgentJobStatus,
+  tx: Prisma.TransactionClient = prisma,
+) {
+  const job = await tx.job.update({
+    where: { id: jobId },
+    data: { agentJobStatus },
+    include: jobInclude,
+  });
+  return mapJobWithStatus(job);
+}
+
+export async function updateNextAction(
+  jobId: string,
+  nextAction: NextJobAction,
+  nextActionErrorType: NextJobActionErrorType | null,
+  nextActionErrorNote: string | null,
+  tx: Prisma.TransactionClient = prisma,
+) {
+  const job = await tx.job.update({
+    where: { id: jobId },
+    data: { nextAction, nextActionErrorType, nextActionErrorNote },
+    include: jobInclude,
+  });
+  return mapJobWithStatus(job);
 }

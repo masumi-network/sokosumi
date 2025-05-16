@@ -83,6 +83,7 @@ async function syncAllJobs() {
       ],
     },
   });
+
   for (const job of jobs) {
     runningDbUpdates.push(syncJobStatus(job));
   }

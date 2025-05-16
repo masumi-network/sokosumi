@@ -1,5 +1,6 @@
 import {
   AgentJobStatus,
+  Job,
   NextJobAction,
   NextJobActionErrorType,
   OnChainJobStatus,
@@ -9,9 +10,6 @@ import {
 export const jobInclude = {
   agent: true,
   user: true,
-  creditTransaction: true,
-  refundedCreditTransaction: true,
-  onChainTransaction: true,
 } as const;
 
 export const jobOrderBy = {
@@ -44,9 +42,8 @@ export enum JobStatus {
 /**
  * Compute the overall job status by combining the on-chain and agent statuses.
  */
-export function computeJobStatus(job: JobWithRelations): JobStatus {
+export function computeJobStatus(job: Job): JobStatus {
   const { onChainStatus, agentJobStatus, nextActionErrorType } = job;
-
   switch (onChainStatus) {
     case null:
       if (nextActionErrorType === null) {
@@ -100,8 +97,10 @@ export const FinalizedAgentJobStatuses: AgentJobStatus[] = [
 
 export function onChainStateToOnChainJobStatus(
   onChainState: PurchaseOnChainState,
-): OnChainJobStatus {
+): OnChainJobStatus | null {
   switch (onChainState) {
+    case null:
+      return null;
     case "FundsLocked":
       return OnChainJobStatus.FUNDS_LOCKED;
     case "FundsOrDatumInvalid":
@@ -123,10 +122,28 @@ export function onChainStateToOnChainJobStatus(
   }
 }
 
-export function nextActionToNextJobAction(
-  nextAction: PurchaseNextAction,
+export function nextActionToNextJobAction(nextAction: PurchaseNextAction): {
+  requestedAction: NextJobAction;
+  errorType: NextJobActionErrorType | null;
+  errorNote: string | null;
+} {
+  const requestedAction = requestedActionToNextJobAction(
+    nextAction.requestedAction,
+  );
+  const errorType = nextActionErrorTypeToNextJobActionErrorType(
+    nextAction.errorType,
+  );
+  return {
+    requestedAction,
+    errorType,
+    errorNote: nextAction.errorNote,
+  };
+}
+
+function requestedActionToNextJobAction(
+  requestedAction: PurchaseRequestedAction,
 ): NextJobAction {
-  switch (nextAction) {
+  switch (requestedAction) {
     case "None":
       return NextJobAction.NONE;
     case "Ignore":
@@ -152,11 +169,11 @@ export function nextActionToNextJobAction(
     case "WithdrawRefundInitiated":
       return NextJobAction.WITHDRAW_REFUND_INITIATED;
     default:
-      throw new Error(`Unknown next action: ${nextAction}`);
+      throw new Error(`Unknown next action: ${requestedAction}`);
   }
 }
 
-export function nextActionErrorTypeToNextJobActionErrorType(
+function nextActionErrorTypeToNextJobActionErrorType(
   nextActionErrorType: PurchaseErrorType,
 ): NextJobActionErrorType | null {
   switch (nextActionErrorType) {
