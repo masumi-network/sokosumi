@@ -202,11 +202,12 @@ export async function updateOnChainStatus(
 export async function updateAgentJobStatus(
   jobId: string,
   agentJobStatus: AgentJobStatus,
+  output: string | null,
   tx: Prisma.TransactionClient = prisma,
 ) {
   const job = await tx.job.update({
     where: { id: jobId },
-    data: { agentJobStatus },
+    data: { agentJobStatus, output },
     include: jobInclude,
   });
   return mapJobWithStatus(job);

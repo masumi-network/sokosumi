@@ -6,13 +6,13 @@ import {
   computeJobStatus,
   createJob,
   getAgentById,
-  jobInclude,
   JobStatus,
   jobStatusToAgentJobStatus,
   nextActionToNextJobAction,
   onChainStateToOnChainJobStatus,
   prisma,
   refundJob,
+  updateAgentJobStatus,
   updateNextAction,
   updateOnChainStatus,
 } from "@/lib/db";
@@ -138,7 +138,7 @@ export async function syncJobStatus(job: Job) {
   }
 }
 
-export async function syncRegistryStatus(job: Job): Promise<Job> {
+async function syncRegistryStatus(job: Job): Promise<Job> {
   const purchaseResult = await getPaymentClientPurchase(job.paymentId);
   if (!purchaseResult.ok) {
     throw new Error("Failed to get payment on-chain status");
@@ -163,7 +163,7 @@ export async function syncRegistryStatus(job: Job): Promise<Job> {
   return updatedJob;
 }
 
-export async function syncAgentJobStatus(job: Job): Promise<Job> {
+async function syncAgentJobStatus(job: Job): Promise<Job> {
   const agent = await getAgentById(job.agentId);
 
   if (!agent) {
@@ -176,17 +176,14 @@ export async function syncAgentJobStatus(job: Job): Promise<Job> {
   }
   const jobStatusResponse = jobStatusResult.data;
 
-  let output: string | undefined;
+  let output: string | null = null;
   if (jobStatusResponse.status === "completed") {
     output = JSON.stringify(jobStatusResponse);
   }
 
-  return await prisma.job.update({
-    where: { id: job.id },
-    data: {
-      agentJobStatus: jobStatusToAgentJobStatus(jobStatusResponse.status),
-      ...(output !== undefined ? { output } : {}),
-    },
-    include: jobInclude,
-  });
+  return await updateAgentJobStatus(
+    job.id,
+    jobStatusToAgentJobStatus(jobStatusResponse.status),
+    output,
+  );
 }
