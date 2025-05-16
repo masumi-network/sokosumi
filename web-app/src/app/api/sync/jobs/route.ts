@@ -76,14 +76,16 @@ async function syncAllJobs() {
           onChainStatus: {
             notIn: FinalizedOnChainJobStatuses,
           },
+          nextActionErrorType: null,
         },
         {
           onChainStatus: null,
+          nextActionErrorType: null,
         },
       ],
     },
   });
-
+  console.log("Found", jobs.length, "jobs to sync");
   for (const job of jobs) {
     runningDbUpdates.push(syncJobStatus(job));
   }
