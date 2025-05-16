@@ -130,7 +130,7 @@ function PlaylistMainSection({
           {selectedExampleOutput.name}
         </p>
         <div className="flex items-center gap-1">
-          <AgentHireButton agentId={agentId} />
+          <AgentHireButton agentId={agentId} size="default" />
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X />
           </Button>
