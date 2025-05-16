@@ -37,8 +37,6 @@ export enum JobStatus {
   REFUND_FAILED = "refund_failed",
   DISPUTE_PENDING = "dispute_pending",
   DISPUTE_RESOLVED = "dispute_resolved",
-  AGENT_CONNECTION_FAILED = "agent_connection_failed",
-  PAYMENT_NODE_CONNECTION_FAILED = "payment_node_connection_failed",
 }
 
 /**
@@ -46,46 +44,34 @@ export enum JobStatus {
  */
 export function computeJobStatus(job: JobWithRelations): JobStatus {
   const { onChainStatus, agentJobStatus, nextActionErrorType } = job;
-  // 1) Awaiting payment if no on-chain status yet
-  if (onChainStatus === null) {
-    if (nextActionErrorType === null) {
-      return JobStatus.PAYMENT_PENDING;
-    } else {
-      return JobStatus.PAYMENT_FAILED;
-    }
-  }
 
-  // 3) Processing by agent
-  if (
-    onChainStatus === OnChainJobStatus.FUNDS_LOCKED &&
-    agentJobStatus === AgentJobStatus.RUNNING
-  ) {
-    return JobStatus.PROCESSING;
-  }
-
-  // 4) Agent completed off-chain but result not yet submitted on-chain
-  if (
-    agentJobStatus === AgentJobStatus.COMPLETED &&
-    onChainStatus !== OnChainJobStatus.RESULT_SUBMITTED
-  ) {
-    return JobStatus.PROCESSING;
-  }
-
-  // 5) Fully completed on both sides
-  if (
-    agentJobStatus === AgentJobStatus.COMPLETED &&
-    onChainStatus === OnChainJobStatus.RESULT_SUBMITTED
-  ) {
-    return JobStatus.COMPLETED;
-  }
-
-  // 6) Agent failure before submission
-  if (agentJobStatus === AgentJobStatus.FAILED) {
-    return JobStatus.FAILED;
-  }
-
-  // 7) On-chain refund/dispute flows
   switch (onChainStatus) {
+    case null:
+      if (nextActionErrorType === null) {
+        return JobStatus.PAYMENT_PENDING;
+      } else {
+        return JobStatus.PAYMENT_FAILED;
+      }
+    case OnChainJobStatus.FUNDS_LOCKED:
+      if (agentJobStatus === AgentJobStatus.AWAITING_INPUT) {
+        return JobStatus.INPUT_REQUIRED;
+      } else {
+        return JobStatus.PROCESSING;
+      }
+    case OnChainJobStatus.RESULT_SUBMITTED:
+      if (agentJobStatus === AgentJobStatus.COMPLETED) {
+        return JobStatus.COMPLETED;
+      } else {
+        return JobStatus.PROCESSING;
+      }
+    case OnChainJobStatus.FUNDS_WITHDRAWN:
+      if (agentJobStatus === AgentJobStatus.COMPLETED) {
+        return JobStatus.COMPLETED;
+      } else {
+        return JobStatus.FAILED;
+      }
+    case OnChainJobStatus.FUNDS_OR_DATUM_INVALID:
+      return JobStatus.PAYMENT_FAILED;
     case OnChainJobStatus.REFUND_REQUESTED:
       return JobStatus.REFUND_PENDING;
     case OnChainJobStatus.REFUND_WITHDRAWN:
@@ -94,10 +80,9 @@ export function computeJobStatus(job: JobWithRelations): JobStatus {
       return JobStatus.DISPUTE_PENDING;
     case OnChainJobStatus.DISPUTED_WITHDRAWN:
       return JobStatus.DISPUTE_RESOLVED;
+    default:
+      return JobStatus.PROCESSING;
   }
-
-  // Fallback to processing status
-  return JobStatus.PROCESSING;
 }
 
 export const FinalizedOnChainJobStatuses: OnChainJobStatus[] = [
