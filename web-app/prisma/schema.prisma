@@ -378,7 +378,7 @@ model OnChainTransaction {
   hash   String
   status OnChainTransactionStatus
 
-  jobId String
+  jobId String @unique
   job   Job    @relation(fields: [jobId], references: [id])
 }
 
