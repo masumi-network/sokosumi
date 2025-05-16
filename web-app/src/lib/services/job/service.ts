@@ -31,6 +31,7 @@ import {
   createPurchase,
   fetchAgentJobStatus,
   getPaymentClientPurchase,
+  postPaymentClientRequestRefund,
   startAgentJob,
 } from "./third-party";
 
@@ -136,7 +137,7 @@ export async function syncJob(job: Job) {
         new Date().getTime() - new Date(job.updatedAt).getTime() >
           10 * 60 * 1000
       ) {
-        // TODO: Request Refund if updated is older then 10 minutes
+        await postPaymentClientRequestRefund(job);
       }
     }
   });
