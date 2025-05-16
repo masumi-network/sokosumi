@@ -9,9 +9,6 @@ import {
 export const jobInclude = {
   agent: true,
   user: true,
-} as const;
-
-export const jobCreditTransactionInclude = {
   creditTransaction: true,
 } as const;
 
@@ -21,10 +18,6 @@ export const jobOrderBy = {
 
 export type JobWithRelations = Prisma.JobGetPayload<{
   include: typeof jobInclude;
-}>;
-
-export type JobWithCreditTransaction = Prisma.JobGetPayload<{
-  include: typeof jobCreditTransactionInclude;
 }>;
 
 export enum JobErrorNoteKeys {

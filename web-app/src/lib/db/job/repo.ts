@@ -4,11 +4,9 @@ import {
   computeJobStatus,
   CreditsPrice,
   getCreditTransactionByJobId,
-  jobCreditTransactionInclude,
   jobInclude,
   jobOrderBy,
   JobStatus,
-  JobWithCreditTransaction,
   JobWithRelations,
   prisma,
 } from "@/lib/db";
@@ -90,22 +88,14 @@ export async function getJobById(
   jobId: string,
   tx: Prisma.TransactionClient = prisma,
 ) {
-  return await tx.job.findUnique({
+  const job = await tx.job.findUnique({
     where: { id: jobId },
     include: jobInclude,
   });
-}
-
-export async function getJobByIdWithCreditTransaction(
-  jobId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<JobWithCreditTransaction | null> {
-  return await tx.job.findUnique({
-    where: {
-      id: jobId,
-    },
-    include: jobCreditTransactionInclude,
-  });
+  if (!job) {
+    return null;
+  }
+  return mapJobWithStatus(job);
 }
 
 interface CreateJobData {
