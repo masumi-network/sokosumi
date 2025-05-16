@@ -33,7 +33,7 @@ export function getJobColumns(
       enableHiding: false,
     }) as ColumnDef<JobWithRelations>,
 
-    statusColumn: columnHelper.accessor("status", {
+    statusColumn: columnHelper.accessor("onChainStatus", {
       id: "status",
       minSize: 175,
       header: ({ column }) => (
