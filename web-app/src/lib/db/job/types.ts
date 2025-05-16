@@ -41,13 +41,6 @@ export enum JobStatus {
   PAYMENT_NODE_CONNECTION_FAILED = "payment_node_connection_failed",
 }
 
-export const FinalizedJobStatuses: JobStatus[] = [
-  JobStatus.PAYMENT_FAILED,
-  JobStatus.COMPLETED,
-  JobStatus.REFUND_RESOLVED,
-  JobStatus.DISPUTE_RESOLVED,
-];
-
 /**
  * Compute the overall job status by combining the on-chain and agent statuses.
  */
@@ -117,6 +110,11 @@ export const FinalizedOnChainJobStatuses: OnChainJobStatus[] = [
   OnChainJobStatus.DISPUTED_WITHDRAWN,
   OnChainJobStatus.FUNDS_WITHDRAWN,
   OnChainJobStatus.REFUND_WITHDRAWN,
+];
+
+export const FinalizedAgentJobStatuses: AgentJobStatus[] = [
+  AgentJobStatus.COMPLETED,
+  AgentJobStatus.FAILED,
 ];
 
 export function onChainStateToOnChainJobStatus(
