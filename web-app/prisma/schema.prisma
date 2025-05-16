@@ -328,10 +328,9 @@ enum FiatService {
 }
 
 model Job {
-  id        String     @id @default(cuid())
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-  status    JobStatus?
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   userId String
   user   User   @relation(fields: [userId], references: [id])
@@ -362,6 +361,7 @@ model Job {
   sellerVkey                String?
   identifierFromPurchaser   String?
 
+  onChainStatus      OnChainJobStatus?
   onChainTransaction OnChainTransaction?
 
   creditTransaction           CreditTransaction  @relation("CreditTransactionJob", fields: [creditTransactionId], references: [id])
@@ -405,11 +405,11 @@ enum NextJobAction {
   SET_REFUND_REQUESTED_INITIATED
   UNSET_REFUND_REQUESTED_REQUESTED
   UNSET_REFUND_REQUESTED_INITIATED
-  WITHDRAW_FUNDS_REQUESTED
-  WITHDRAW_FUNDS_INITIATED
+  WITHDRAW_REFUND_REQUESTED
+  WITHDRAW_REFUND_INITIATED
 }
 
-enum JobStatus {
+enum OnChainJobStatus {
   FUNDS_LOCKED
   FUNDS_OR_DATUM_INVALID
   FUNDS_WITHDRAWN

@@ -5,7 +5,7 @@ import { getEnvSecrets } from "@/config/env.config";
 import { compareApiKeys } from "@/lib/auth/utils";
 import {
   acquireLock,
-  FinalizedJobStatuses,
+  FinalizedOnChainJobStatuses,
   prisma,
   unlockLock,
 } from "@/lib/db";
@@ -71,12 +71,18 @@ async function syncAllJobs() {
 
   const jobs = await prisma.job.findMany({
     where: {
-      status: {
-        notIn: FinalizedJobStatuses,
-      },
+      OR: [
+        {
+          onChainStatus: {
+            notIn: FinalizedOnChainJobStatuses,
+          },
+        },
+        {
+          onChainStatus: null,
+        },
+      ],
     },
   });
-
   for (const job of jobs) {
     runningDbUpdates.push(syncJobStatus(job));
   }

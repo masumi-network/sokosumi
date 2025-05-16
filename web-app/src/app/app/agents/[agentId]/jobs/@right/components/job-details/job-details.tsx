@@ -4,9 +4,8 @@ import AccordionItemWrapper from "@/app/agents/[agentId]/jobs/components/accordi
 import JobStatusBadge from "@/app/agents/[agentId]/jobs/components/job-status-badge";
 import { Accordion } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { JobWithRelations } from "@/lib/db";
+import { JobStatus, JobWithRelations } from "@/lib/db";
 import { cn } from "@/lib/utils";
-import { JobStatus } from "@/prisma/generated/client";
 
 import JobDetailsInputs from "./inputs";
 import JobDetailsOutputs from "./outputs";

@@ -84,14 +84,9 @@ export async function startAgentJob(
   }
 }
 
-export async function getPurchaseOnChainState(
+export async function getPaymentClientPurchase(
   paymentId: string,
-): Promise<
-  Result<
-    { onChainState: PurchaseOnChainState; errorType?: PurchaseErrorType },
-    string
-  >
-> {
+): Promise<Result<Purchase, string>> {
   try {
     const paymentClient = getPaymentClient();
     const purchaseResponse = await getPurchase({
@@ -115,10 +110,8 @@ export async function getPurchaseOnChainState(
       );
     }
     const purchase = purchaseResponse.data.data.Purchases[0];
-    const errorType = purchase.NextAction.errorType;
-    const onChainState = purchase.onChainState;
 
-    return Ok({ onChainState, errorType });
+    return Ok(purchase);
   } catch (err) {
     return Err(String(err));
   }
