@@ -151,11 +151,13 @@ async function syncRegistryStatus(
     return job;
   }
   const purchase = purchaseResult.data;
+
   const onChainStatus = onChainStateToOnChainJobStatus(purchase.onChainState);
   let newJob =
     onChainStatus !== null
       ? await updateOnChainStatus(job.id, onChainStatus, tx)
       : job;
+
   const nextAction = nextActionToNextJobAction(purchase.NextAction);
   newJob = await updateNextAction(
     job.id,
