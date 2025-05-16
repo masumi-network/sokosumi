@@ -61,7 +61,10 @@ export function AgentDetail({
       </CardSection>
       {exampleOutputs.length > 0 && (
         <CardSection className={cardClassName}>
-          <AgentDetailSection4 exampleOutputs={exampleOutputs} />
+          <AgentDetailSection4
+            exampleOutputs={exampleOutputs}
+            agentId={agent.id}
+          />
         </CardSection>
       )}
       {legal && (
