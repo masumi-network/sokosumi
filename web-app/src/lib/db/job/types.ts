@@ -44,21 +44,15 @@ export enum JobStatus {
 /**
  * Compute the overall job status by combining the on-chain and agent statuses.
  */
-export function computeJobStatus(
-  onChainStatus: OnChainJobStatus | null,
-  agentJobStatus: AgentJobStatus | null,
-): JobStatus {
+export function computeJobStatus(job: JobWithRelations): JobStatus {
+  const { onChainStatus, agentJobStatus, nextActionErrorType } = job;
   // 1) Awaiting payment if no on-chain status yet
   if (onChainStatus === null) {
-    return JobStatus.PAYMENT_PENDING;
-  }
-
-  // 2) Agent requires user input before processing
-  if (
-    onChainStatus === OnChainJobStatus.FUNDS_LOCKED &&
-    agentJobStatus === AgentJobStatus.AWAITING_INPUT
-  ) {
-    return JobStatus.INPUT_REQUIRED;
+    if (nextActionErrorType === null) {
+      return JobStatus.PAYMENT_PENDING;
+    } else {
+      return JobStatus.PAYMENT_FAILED;
+    }
   }
 
   // 3) Processing by agent

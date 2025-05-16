@@ -17,7 +17,7 @@ export type JobWithStatus = JobWithRelations & { status: JobStatus };
 function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
   return {
     ...job,
-    status: computeJobStatus(job.onChainStatus, job.agentJobStatus ?? null),
+    status: computeJobStatus(job),
   };
 }
 
