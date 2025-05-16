@@ -41,7 +41,7 @@ export function getJobColumns(
       ),
       cell: ({ row }) => (
         <div>
-          <JobStatusBadge status={row.original.status} />
+          <JobStatusBadge status={row.original.onChainStatus} />
         </div>
       ),
       enableSorting: true,

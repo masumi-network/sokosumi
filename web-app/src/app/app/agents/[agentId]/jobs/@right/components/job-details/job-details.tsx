@@ -4,8 +4,9 @@ import AccordionItemWrapper from "@/app/agents/[agentId]/jobs/components/accordi
 import JobStatusBadge from "@/app/agents/[agentId]/jobs/components/job-status-badge";
 import { Accordion } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { JobStatus, JobWithRelations } from "@/lib/db";
+import { JobWithRelations } from "@/lib/db";
 import { cn } from "@/lib/utils";
+import { OnChainJobStatus } from "@/prisma/generated/client";
 
 import JobDetailsInputs from "./inputs";
 import JobDetailsOutputs from "./outputs";
@@ -26,7 +27,10 @@ export default function JobDetails({ job, className }: JobDetailsProps) {
           defaultValue={["input", "output"]}
           className="w-full space-y-1.5"
         >
-          <JobDetailsHeader createdAt={job.createdAt} status={job.status} />
+          <JobDetailsHeader
+            createdAt={job.createdAt}
+            status={job.onChainStatus}
+          />
           <AccordionItemWrapper value="input" title={t("Input.title")}>
             <JobDetailsInputs rawInput={job.input} />
           </AccordionItemWrapper>
@@ -44,7 +48,7 @@ function JobDetailsHeader({
   status,
 }: {
   createdAt: Date;
-  status: JobStatus;
+  status: OnChainJobStatus | null;
 }) {
   const formatter = useFormatter();
 

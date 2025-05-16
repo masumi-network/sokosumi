@@ -39,20 +39,20 @@ export enum JobErrorNoteKeys {
 //   JobStatus.DISPUTE_RESOLVED,
 // ];
 
-export enum JobStatus {
-  COMPLETED = "completed",
-  FAILED = "failed",
-  PAYMENT_PENDING = "payment_pending",
-  PAYMENT_FAILED = "payment_failed",
-  PROCESSING = "processing",
-  REFUND_PENDING = "refund_pending",
-  REFUND_FAILED = "refund_failed",
-  DISPUTE_PENDING = "dispute_pending",
-  DISPUTE_FAILED = "dispute_failed",
-  AGENT_CONNECTION_FAILED = "agent_connection_failed",
-  PAYMENT_NODE_CONNECTION_FAILED = "payment_node_connection_failed",
-  INPUT_REQUIRED = "input_required",
-}
+// export enum JobStatus {
+//   COMPLETED = "completed",
+//   FAILED = "failed",
+//   PAYMENT_PENDING = "payment_pending",
+//   PAYMENT_FAILED = "payment_failed",
+//   PROCESSING = "processing",
+//   REFUND_PENDING = "refund_pending",
+//   REFUND_FAILED = "refund_failed",
+//   DISPUTE_PENDING = "dispute_pending",
+//   DISPUTE_FAILED = "dispute_failed",
+//   AGENT_CONNECTION_FAILED = "agent_connection_failed",
+//   PAYMENT_NODE_CONNECTION_FAILED = "payment_node_connection_failed",
+//   INPUT_REQUIRED = "input_required",
+// }
 
 export const FinalizedOnChainJobStatuses: OnChainJobStatus[] = [
   OnChainJobStatus.DISPUTED_WITHDRAWN,

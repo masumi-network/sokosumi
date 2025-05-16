@@ -3,11 +3,11 @@
 import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
-import { JobStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
+import { OnChainJobStatus } from "@/prisma/generated/client";
 
 interface JobStatusBadgeProps {
-  status: JobStatus;
+  status: OnChainJobStatus | null;
   className?: string;
 }
 
@@ -16,9 +16,9 @@ export default function JobStatusBadge({
   className,
 }: JobStatusBadgeProps) {
   const t = useTranslations("App.Agents.Jobs.JobsTable.JobStatusBadge");
-
+  console.log("status", status);
   switch (status) {
-    case JobStatus.COMPLETED:
+    case OnChainJobStatus.RESULT_SUBMITTED:
       return (
         <Badge
           variant="default"
@@ -27,7 +27,7 @@ export default function JobStatusBadge({
           {t("completed")}
         </Badge>
       );
-    case JobStatus.FAILED:
+    case OnChainJobStatus.FUNDS_OR_DATUM_INVALID:
       return (
         <Badge
           variant="default"
@@ -36,7 +36,7 @@ export default function JobStatusBadge({
           {t("failed")}
         </Badge>
       );
-    case JobStatus.PAYMENT_PENDING:
+    case null:
       return (
         <Badge
           variant="default"
@@ -45,7 +45,7 @@ export default function JobStatusBadge({
           {t("paymentProcessing")}
         </Badge>
       );
-    case JobStatus.PROCESSING:
+    case OnChainJobStatus.FUNDS_LOCKED:
       return (
         <Badge
           variant="default"
@@ -54,7 +54,7 @@ export default function JobStatusBadge({
           {t("processing")}
         </Badge>
       );
-    case JobStatus.PAYMENT_FAILED:
+    case OnChainJobStatus.FUNDS_OR_DATUM_INVALID:
       return (
         <Badge
           variant="default"
@@ -63,34 +63,34 @@ export default function JobStatusBadge({
           {t("paymentFailed")}
         </Badge>
       );
-    case JobStatus.AGENT_CONNECTION_FAILED:
-      return (
-        <Badge
-          variant="default"
-          className={cn("bg-red-100 text-red-800", className)}
-        >
-          {t("agentConnectionFailed")}
-        </Badge>
-      );
-    case JobStatus.PAYMENT_NODE_CONNECTION_FAILED:
-      return (
-        <Badge
-          variant="default"
-          className={cn("bg-red-100 text-red-800", className)}
-        >
-          {t("paymentNodeConnectionFailed")}
-        </Badge>
-      );
-    case JobStatus.INPUT_REQUIRED:
-      return (
-        <Badge
-          variant="default"
-          className={cn("bg-yellow-100 text-yellow-800", className)}
-        >
-          {t("inputRequired")}
-        </Badge>
-      );
-    case JobStatus.DISPUTE_REQUESTED:
+    // case JobStatus.AGENT_CONNECTION_FAILED:
+    //   return (
+    //     <Badge
+    //       variant="default"
+    //       className={cn("bg-red-100 text-red-800", className)}
+    //     >
+    //       {t("agentConnectionFailed")}
+    //     </Badge>
+    //   );
+    // case JobStatus.PAYMENT_NODE_CONNECTION_FAILED:
+    //   return (
+    //     <Badge
+    //       variant="default"
+    //       className={cn("bg-red-100 text-red-800", className)}
+    //     >
+    //       {t("paymentNodeConnectionFailed")}
+    //     </Badge>
+    //   );
+    // case JobStatus.INPUT_REQUIRED:
+    //   return (
+    //     <Badge
+    //       variant="default"
+    //       className={cn("bg-yellow-100 text-yellow-800", className)}
+    //     >
+    //       {t("inputRequired")}
+    //     </Badge>
+    //   );
+    case OnChainJobStatus.DISPUTED:
       return (
         <Badge
           variant="default"
@@ -99,7 +99,7 @@ export default function JobStatusBadge({
           {t("disputeRequested")}
         </Badge>
       );
-    case JobStatus.DISPUTE_RESOLVED:
+    case OnChainJobStatus.DISPUTED_WITHDRAWN:
       return (
         <Badge
           variant="default"
@@ -108,7 +108,7 @@ export default function JobStatusBadge({
           {t("disputeResolved")}
         </Badge>
       );
-    case JobStatus.REFUND_REQUESTED:
+    case OnChainJobStatus.REFUND_REQUESTED:
       return (
         <Badge
           variant="default"
@@ -117,7 +117,7 @@ export default function JobStatusBadge({
           {t("refundRequested")}
         </Badge>
       );
-    case JobStatus.REFUND_RESOLVED:
+    case OnChainJobStatus.REFUND_WITHDRAWN:
       return (
         <Badge
           variant="default"
@@ -126,7 +126,6 @@ export default function JobStatusBadge({
           {t("refundResolved")}
         </Badge>
       );
-    case JobStatus.UNKNOWN:
     default:
       return (
         <Badge
