@@ -10,6 +10,8 @@ export const jobInclude = {
   agent: true,
   user: true,
   creditTransaction: true,
+  refundedCreditTransaction: true,
+  onChainTransaction: true,
 } as const;
 
 export const jobOrderBy = {
@@ -97,15 +99,7 @@ export const FinalizedAgentJobStatuses: AgentJobStatus[] = [
 ];
 
 export function onChainStateToOnChainJobStatus(
-  onChainState:
-    | "FundsLocked"
-    | "FundsOrDatumInvalid"
-    | "ResultSubmitted"
-    | "RefundRequested"
-    | "Disputed"
-    | "Withdrawn"
-    | "RefundWithdrawn"
-    | "DisputedWithdrawn",
+  onChainState: PurchaseOnChainState,
 ): OnChainJobStatus {
   switch (onChainState) {
     case "FundsLocked":
@@ -130,19 +124,7 @@ export function onChainStateToOnChainJobStatus(
 }
 
 export function nextActionToNextJobAction(
-  nextAction:
-    | "None"
-    | "Ignore"
-    | "WaitingForManualAction"
-    | "WaitingForExternalAction"
-    | "FundsLockingRequested"
-    | "FundsLockingInitiated"
-    | "SetRefundRequestedRequested"
-    | "SetRefundRequestedInitiated"
-    | "UnSetRefundRequestedRequested"
-    | "UnSetRefundRequestedInitiated"
-    | "WithdrawRefundRequested"
-    | "WithdrawRefundInitiated",
+  nextAction: PurchaseNextAction,
 ): NextJobAction {
   switch (nextAction) {
     case "None":
@@ -175,7 +157,7 @@ export function nextActionToNextJobAction(
 }
 
 export function nextActionErrorTypeToNextJobActionErrorType(
-  nextActionErrorType: "NetworkError" | "InsufficientFunds" | "Unknown",
+  nextActionErrorType: PurchaseErrorType,
 ): NextJobActionErrorType | null {
   switch (nextActionErrorType) {
     case "NetworkError":
@@ -190,13 +172,7 @@ export function nextActionErrorTypeToNextJobActionErrorType(
 }
 
 export function jobStatusToAgentJobStatus(
-  jobStatus:
-    | "pending"
-    | "awaiting_payment"
-    | "awaiting_input"
-    | "running"
-    | "completed"
-    | "failed",
+  jobStatus: JobStatusResponse,
 ): AgentJobStatus {
   switch (jobStatus) {
     case "pending":

@@ -6,5 +6,10 @@ declare global {
   type PurchaseErrorType =
     | GetPurchaseResponse["data"]["Purchases"][number]["NextAction"]["errorType"]
     | null;
+  type PurchaseNextAction =
+    | GetPurchaseResponse["data"]["Purchases"][number]["NextAction"]["requestedAction"]
+    | null;
   type Purchase = GetPurchaseResponse["data"]["Purchases"][number];
+
+  type JobStatusResponse = GetJobStatusResponse["data"]["JobStatus"];
 }
