@@ -85,7 +85,6 @@ async function syncAllJobs() {
       ],
     },
   });
-  console.log("Found", jobs.length, "jobs to sync");
   for (const job of jobs) {
     runningDbUpdates.push(syncJob(job));
   }
