@@ -217,7 +217,7 @@ importers:
         version: 3.3.0
       tailwindcss-animate:
         specifier: 1.0.7
-        version: 1.0.7(tailwindcss@4.1.6)
+        version: 1.0.7(tailwindcss@4.1.7)
       ts-res:
         specifier: 1.3.0
         version: 1.3.0
@@ -257,7 +257,7 @@ importers:
         version: 4.1.6
       '@tailwindcss/typography':
         specifier: ^0.5.16
-        version: 0.5.16(tailwindcss@4.1.6)
+        version: 0.5.16(tailwindcss@4.1.7)
       '@testing-library/jest-dom':
         specifier: 6.6.3
         version: 6.6.3
@@ -319,8 +319,8 @@ importers:
         specifier: 6.7.0
         version: 6.7.0(typescript@5.8.3)
       tailwindcss:
-        specifier: 4.1.6
-        version: 4.1.6
+        specifier: 4.1.7
+        version: 4.1.7
       tsx:
         specifier: 4.19.4
         version: 4.19.4
@@ -5733,6 +5733,9 @@ packages:
   tailwindcss@4.1.6:
     resolution: {integrity: sha512-j0cGLTreM6u4OWzBeLBpycK0WIh8w7kSwcUsQZoGLHZ7xDTdM69lN64AgoIEEwFi0tnhs4wSykUa5YWxAzgFYg==}
 
+  tailwindcss@4.1.7:
+    resolution: {integrity: sha512-kr1o/ErIdNhTz8uzAYL7TpaUuzKIE6QPQ4qmSdxnoX/lo+5wmUHQA6h3L5yIqEImSRnAAURDirLu/BgiXGPAhg==}
+
   tapable@2.2.1:
     resolution: {integrity: sha512-GNzQvQTOIP6RyTfE2Qxb8ZVlNmw0n88vp1szwWRimP02mnTsx3Wtn5qRdqY9w2XduFNUgvOwhNnQsjwCp+kqaQ==}
     engines: {node: '>=6'}
@@ -5761,8 +5764,8 @@ packages:
       uglify-js:
         optional: true
 
-  terser@5.39.1:
-    resolution: {integrity: sha512-Mm6+uad0ZuDtcV8/4uOZQDQ8RuiC5Pu+iZRedJtF7yA/27sPL7d++In/AJKpWZlU3SYMPPkVfwetn6sgZ66pUA==}
+  terser@5.39.2:
+    resolution: {integrity: sha512-yEPUmWve+VA78bI71BW70Dh0TuV4HHd+I5SHOAfS1+QBOmvmCiiffgjR8ryyEd3KIfvPGFqoADt8LdQ6XpXIvg==}
     engines: {node: '>=10'}
     hasBin: true
 
@@ -8448,13 +8451,13 @@ snapshots:
       postcss: 8.5.3
       tailwindcss: 4.1.6
 
-  '@tailwindcss/typography@0.5.16(tailwindcss@4.1.6)':
+  '@tailwindcss/typography@0.5.16(tailwindcss@4.1.7)':
     dependencies:
       lodash.castarray: 4.4.0
       lodash.isplainobject: 4.0.6
       lodash.merge: 4.6.2
       postcss-selector-parser: 6.0.10
-      tailwindcss: 4.1.6
+      tailwindcss: 4.1.7
 
   '@tanstack/react-table@8.21.3(react-dom@19.1.0(react@19.1.0))(react@19.1.0)':
     dependencies:
@@ -12124,11 +12127,13 @@ snapshots:
 
   tailwind-merge@3.3.0: {}
 
-  tailwindcss-animate@1.0.7(tailwindcss@4.1.6):
+  tailwindcss-animate@1.0.7(tailwindcss@4.1.7):
     dependencies:
-      tailwindcss: 4.1.6
+      tailwindcss: 4.1.7
 
   tailwindcss@4.1.6: {}
+
+  tailwindcss@4.1.7: {}
 
   tapable@2.2.1: {}
 
@@ -12156,13 +12161,13 @@ snapshots:
       jest-worker: 27.5.1
       schema-utils: 4.3.2
       serialize-javascript: 6.0.2
-      terser: 5.39.1
+      terser: 5.39.2
       webpack: 5.99.8(@swc/core@1.11.24(@swc/helpers@0.5.17))(esbuild@0.25.4)
     optionalDependencies:
       '@swc/core': 1.11.24(@swc/helpers@0.5.17)
       esbuild: 0.25.4
 
-  terser@5.39.1:
+  terser@5.39.2:
     dependencies:
       '@jridgewell/source-map': 0.3.6
       acorn: 8.14.1
