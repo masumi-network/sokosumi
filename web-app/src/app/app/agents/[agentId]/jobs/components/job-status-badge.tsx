@@ -16,7 +16,6 @@ export default function JobStatusBadge({
   className,
 }: JobStatusBadgeProps) {
   const t = useTranslations("App.Agents.Jobs.JobsTable.JobStatusBadge");
-  console.log("status", status);
   switch (status) {
     case OnChainJobStatus.RESULT_SUBMITTED:
       return (
