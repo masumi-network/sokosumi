@@ -119,10 +119,10 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
 
 export async function syncJob(job: Job) {
   await prisma.$transaction(async (tx) => {
-    let updatedJob = await syncRegistryStatus(job, tx);
-    updatedJob = await syncAgentJobStatus(updatedJob, tx);
+    job = await syncRegistryStatus(job, tx);
+    job = await syncAgentJobStatus(job, tx);
 
-    const jobStatus = computeJobStatus(updatedJob);
+    const jobStatus = computeJobStatus(job);
     switch (jobStatus) {
       case JobStatus.PAYMENT_FAILED:
       case JobStatus.REFUND_RESOLVED:
