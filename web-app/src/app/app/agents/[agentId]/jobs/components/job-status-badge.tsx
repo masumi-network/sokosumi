@@ -107,24 +107,6 @@ export default function JobStatusBadge({
           {t("disputeResolved")}
         </Badge>
       );
-    case JobStatus.AGENT_CONNECTION_FAILED:
-      return (
-        <Badge
-          variant="default"
-          className={cn("bg-red-100 text-red-800", className)}
-        >
-          {t("agentConnectionFailed")}
-        </Badge>
-      );
-    case JobStatus.PAYMENT_NODE_CONNECTION_FAILED:
-      return (
-        <Badge
-          variant="default"
-          className={cn("bg-red-100 text-red-800", className)}
-        >
-          {t("paymentNodeConnectionFailed")}
-        </Badge>
-      );
     default:
       return (
         <Badge
