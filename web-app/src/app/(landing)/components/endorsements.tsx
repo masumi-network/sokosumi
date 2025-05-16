@@ -24,22 +24,6 @@ export default function Endorsements() {
       height: 40,
     },
     {
-      key: "lufthansa",
-      srcLight: "/endorsement/lufthansa-black.svg",
-      srcDark: "/endorsement/lufthansa-white.svg",
-      alt: "Lufthansa",
-      width: 64,
-      height: 64,
-    },
-    {
-      key: "bvg",
-      srcLight: "/endorsement/bvg-black.svg",
-      srcDark: "/endorsement/bvg-white.svg",
-      alt: "BVG",
-      width: 72,
-      height: 64,
-    },
-    {
       key: "cardano-foundation",
       srcLight: "/endorsement/cardano-black.svg",
       srcDark: "/endorsement/cardano-white.svg",
