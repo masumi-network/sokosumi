@@ -131,14 +131,17 @@ export async function syncJob(job: Job) {
       default:
         break;
     }
-    if (job.onChainStatus === OnChainJobStatus.RESULT_SUBMITTED) {
-      if (
-        job.agentJobStatus !== AgentJobStatus.COMPLETED &&
-        new Date().getTime() - new Date(job.updatedAt).getTime() >
-          10 * 60 * 1000
-      ) {
-        await postPaymentClientRequestRefund(job);
-      }
+    switch (job.onChainStatus) {
+      case OnChainJobStatus.RESULT_SUBMITTED:
+        if (
+          job.agentJobStatus !== AgentJobStatus.COMPLETED &&
+          new Date().getTime() - job.updatedAt.getTime() > 10 * 60 * 1000
+        ) {
+          await postPaymentClientRequestRefund(job);
+        }
+        break;
+      default:
+        break;
     }
   });
 }
