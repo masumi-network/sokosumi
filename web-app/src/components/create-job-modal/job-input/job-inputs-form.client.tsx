@@ -3,12 +3,13 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import React from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { toast } from "sonner";
 
+import { useCreateJobModalContext } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { useAsyncRouterPush } from "@/hooks/use-async-router";
@@ -54,16 +55,21 @@ export default function JobInputsFormClient({
   const form = useForm<JobInputsFormSchemaType>({
     resolver: zodResolver(jobInputsFormSchema(input_data, t)),
     defaultValues: defaultValues(input_data),
+    mode: "onChange",
   });
   const asyncRouter = useAsyncRouterPush();
   const router = useRouter();
-  const pathname = usePathname();
+
+  // create job modal context
+  const { setLoading, handleClose } = useCreateJobModalContext();
 
   // Then replace your existing handleSubmit function with this:
   const handleSubmit: SubmitHandler<JobInputsFormSchemaType> = async (
     values,
   ) => {
     try {
+      setLoading(true);
+
       // Transform input data to match expected type
       // Filter out null values and ensure arrays are of correct type
       const transformedInputData = filterOutNullValues(values);
@@ -75,7 +81,10 @@ export default function JobInputsFormClient({
 
       if (result.success && result.data?.jobId) {
         form.reset();
-        await asyncRouter.push(`${pathname}/${result.data.jobId}`);
+        handleClose();
+        await asyncRouter.push(
+          `/app/agents/${agentId}/jobs/${result.data.jobId}`,
+        );
       } else {
         switch (result.error?.code) {
           case StartJobErrorCodes.INSUFFICIENT_BALANCE:
@@ -108,6 +117,8 @@ export default function JobInputsFormClient({
       }
     } catch {
       toast.error(t("Error.default"));
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -141,7 +152,12 @@ export default function JobInputsFormClient({
                     price: convertCentsToCredits(agentCreditsPrice.cents),
                   })}
                 </div>
-                <Button type="submit" disabled={form.formState.isSubmitting}>
+                <Button
+                  type="submit"
+                  disabled={
+                    form.formState.isSubmitting || !form.formState.isValid
+                  }
+                >
                   {form.formState.isSubmitting && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}

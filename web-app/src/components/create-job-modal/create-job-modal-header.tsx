@@ -1,0 +1,46 @@
+"use client";
+
+import { ChevronDown, ChevronUp } from "lucide-react";
+import { useTranslations } from "next-intl";
+
+import { Button } from "@/components/ui/button";
+import { AgentWithRelations, getAgentName } from "@/lib/db";
+
+import { useCreateJobModalContext } from "./create-job-modal-context";
+
+interface CreateJobModalHeaderProps {
+  agent: AgentWithRelations;
+}
+
+export default function CreateJobModalHeader({
+  agent,
+}: CreateJobModalHeaderProps) {
+  const t = useTranslations("App.Agents.Jobs.CreateJob");
+  const name = getAgentName(agent);
+
+  const { isExpanded, handleCollapse, handleExpand, handleClose, loading } =
+    useCreateJobModalContext();
+
+  return (
+    <div className="flex items-center justify-between py-3">
+      <Button
+        size="icon"
+        variant="ghost"
+        disabled={loading}
+        className={loading ? "animate-pulse" : ""}
+        onClick={isExpanded ? handleCollapse : handleExpand}
+      >
+        {isExpanded ? <ChevronUp /> : <ChevronDown />}
+      </Button>
+      <h3 className="text-lg font-medium">{t("title", { name })}</h3>
+      <Button
+        variant="ghost"
+        onClick={handleClose}
+        disabled={loading}
+        className={loading ? "animate-pulse" : ""}
+      >
+        <span className="text-primary">{t("cancel")}</span>
+      </Button>
+    </div>
+  );
+}

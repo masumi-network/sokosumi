@@ -1,16 +1,19 @@
+"use client";
+
 import { useTranslations } from "next-intl";
-import { Suspense } from "react";
+import { Suspense, use } from "react";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AgentLegal, CreditsPrice } from "@/lib/db";
-import { getAgentInputSchema } from "@/lib/services";
+import { JobInputsDataSchemaType } from "@/lib/job-input";
 
 import JobInputsFormClient from "./job-inputs-form.client";
 
 interface JobInputsFormProps {
   agentId: string;
   agentCreditsPrice: CreditsPrice;
+  inputSchemaPromise: Promise<JobInputsDataSchemaType>;
   legal?: AgentLegal | null | undefined;
   className?: string | undefined;
 }
@@ -18,6 +21,7 @@ interface JobInputsFormProps {
 export default function JobInputsForm({
   agentId,
   agentCreditsPrice,
+  inputSchemaPromise,
   legal,
   className,
 }: JobInputsFormProps) {
@@ -27,6 +31,7 @@ export default function JobInputsForm({
         <JobInputsFormInner
           agentId={agentId}
           agentCreditsPrice={agentCreditsPrice}
+          inputSchemaPromise={inputSchemaPromise}
           legal={legal}
           className={className}
         />
@@ -35,13 +40,14 @@ export default function JobInputsForm({
   );
 }
 
-async function JobInputsFormInner({
+function JobInputsFormInner({
   agentId,
   agentCreditsPrice,
+  inputSchemaPromise,
   legal,
   className,
 }: JobInputsFormProps) {
-  const inputSchema = await getAgentInputSchema(agentId);
+  const inputSchema = use(inputSchemaPromise);
 
   return (
     <JobInputsFormClient

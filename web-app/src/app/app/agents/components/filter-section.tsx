@@ -2,6 +2,7 @@
 
 import { X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { Suspense } from "react";
 import { useDebouncedCallback } from "use-debounce";
 
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,15 @@ interface FilterSectionProps {
   tags: string[];
 }
 
-export default function FilterSection({ tags }: FilterSectionProps) {
+export default function FilterSection(props: FilterSectionProps) {
+  return (
+    <Suspense>
+      <FilterSectionInner {...props} />
+    </Suspense>
+  );
+}
+
+function FilterSectionInner({ tags }: FilterSectionProps) {
   const t = useTranslations("App.Agents.FilterSection");
   const {
     query,

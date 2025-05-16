@@ -24,6 +24,7 @@ interface AgentDetailProps {
   showCloseButton?: boolean | undefined;
   onClose?: (() => void) | undefined;
   className?: string | undefined;
+  cardClassName?: string | undefined;
 }
 
 export function AgentDetail({
@@ -35,13 +36,14 @@ export function AgentDetail({
   showCloseButton,
   onClose,
   className,
+  cardClassName = "agent-detail-card",
 }: AgentDetailProps) {
   const exampleOutputs = getAgentExampleOutput(agent);
   const legal = getAgentLegal(agent);
 
   return (
     <div className={cn("flex w-full max-w-3xl flex-col gap-1.5", className)}>
-      <CardSection>
+      <CardSection className={cardClassName}>
         <AgentDetailSection1
           agent={agent}
           agentList={agentList}
@@ -51,19 +53,19 @@ export function AgentDetail({
           onClose={onClose}
         />
       </CardSection>
-      <CardSection>
+      <CardSection className={cardClassName}>
         <AgentDetailSection2 jobs={jobs} />
       </CardSection>
-      <CardSection>
+      <CardSection className={cardClassName}>
         <AgentDetailSection3 agent={agent} />
       </CardSection>
       {exampleOutputs.length > 0 && (
-        <CardSection>
+        <CardSection className={cardClassName}>
           <AgentDetailSection4 exampleOutputs={exampleOutputs} />
         </CardSection>
       )}
       {legal && (
-        <CardSection>
+        <CardSection className={cardClassName}>
           <AgentDetailSection5 legal={legal} />
         </CardSection>
       )}

@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
 
 import {
   Agents,
@@ -50,7 +50,15 @@ interface FilteredAgentsProps {
   agentCreditsPriceList: CreditsPrice[];
 }
 
-function FilteredAgents({
+export default function FilteredAgents(props: FilteredAgentsProps) {
+  return (
+    <Suspense>
+      <FilteredAgentsInner {...props} />
+    </Suspense>
+  );
+}
+
+function FilteredAgentsInner({
   agents,
   agentList,
   agentCreditsPriceList,
@@ -82,5 +90,3 @@ function FilteredAgents({
     />
   );
 }
-
-export default FilteredAgents;

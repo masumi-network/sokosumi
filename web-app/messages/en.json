@@ -549,7 +549,7 @@
         "applyTags": "Apply"
       },
       "Jobs": {
-        "title": "Your latest jobs",
+        "newJob": "New Job",
         "Header": {
           "newJob": "New Job",
           "details": "Details",
@@ -560,7 +560,12 @@
           "privacyPolicy": "Privacy Policy",
           "customerSupport": "Customer Support"
         },
+        "RightSection": {
+          "noExecutedJobs": "No executed jobs"
+        },
         "CreateJob": {
+          "title": "New {name}",
+          "cancel": "Cancel",
           "Information": {
             "title": "Information"
           },
@@ -717,8 +722,8 @@
       "Form": {
         "clear": "Clear",
         "price": "{price, plural, =0 {Free} =1 {1 credit} other {# credits}} per run",
-        "submit": "Submit",
-        "acceptByClickingSubmit": "By clicking on Submit you're accepting the ",
+        "submit": "Hire",
+        "acceptByClickingSubmit": "By clicking on \"Hire\" you're accepting the ",
         "termsOfService": "Terms of Service",
         "privacyPolicy": "Privacy Policy",
         "legal": "other Legal Requirements",

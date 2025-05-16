@@ -1,4 +1,5 @@
 "use client";
+
 import type { SpaceApi } from "@usersnap/browser";
 import { loadSpace } from "@usersnap/browser";
 import { useEffect, useState } from "react";
