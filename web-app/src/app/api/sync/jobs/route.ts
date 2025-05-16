@@ -9,7 +9,7 @@ import {
   prisma,
   unlockLock,
 } from "@/lib/db";
-import { syncJobStatus } from "@/lib/services";
+import { syncJob } from "@/lib/services";
 import { Lock } from "@/prisma/generated/client";
 
 const LOCK_KEY = "jobs-sync";
@@ -87,7 +87,7 @@ async function syncAllJobs() {
   });
   console.log("Found", jobs.length, "jobs to sync");
   for (const job of jobs) {
-    runningDbUpdates.push(syncJobStatus(job));
+    runningDbUpdates.push(syncJob(job));
   }
 
   await Promise.allSettled(runningDbUpdates);
