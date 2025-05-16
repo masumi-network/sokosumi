@@ -32,27 +32,93 @@ export enum JobErrorNoteKeys {
   Unknown = "Job.UnknownState",
 }
 
-// export const FinalizedJobStatuses: JobStatus[] = [
-//   JobStatus.PAYMENT_FAILED,
-//   JobStatus.COMPLETED,
-//   JobStatus.REFUND_RESOLVED,
-//   JobStatus.DISPUTE_RESOLVED,
-// ];
+export enum JobStatus {
+  COMPLETED = "completed",
+  FAILED = "failed",
+  PAYMENT_PENDING = "payment_pending",
+  PAYMENT_FAILED = "payment_failed",
+  PROCESSING = "processing",
+  INPUT_REQUIRED = "input_required",
+  REFUND_PENDING = "refund_pending",
+  REFUND_RESOLVED = "refund_resolved",
+  REFUND_FAILED = "refund_failed",
+  DISPUTE_PENDING = "dispute_pending",
+  DISPUTE_RESOLVED = "dispute_resolved",
+  AGENT_CONNECTION_FAILED = "agent_connection_failed",
+  PAYMENT_NODE_CONNECTION_FAILED = "payment_node_connection_failed",
+}
 
-// export enum JobStatus {
-//   COMPLETED = "completed",
-//   FAILED = "failed",
-//   PAYMENT_PENDING = "payment_pending",
-//   PAYMENT_FAILED = "payment_failed",
-//   PROCESSING = "processing",
-//   REFUND_PENDING = "refund_pending",
-//   REFUND_FAILED = "refund_failed",
-//   DISPUTE_PENDING = "dispute_pending",
-//   DISPUTE_FAILED = "dispute_failed",
-//   AGENT_CONNECTION_FAILED = "agent_connection_failed",
-//   PAYMENT_NODE_CONNECTION_FAILED = "payment_node_connection_failed",
-//   INPUT_REQUIRED = "input_required",
-// }
+export const FinalizedJobStatuses: JobStatus[] = [
+  JobStatus.PAYMENT_FAILED,
+  JobStatus.COMPLETED,
+  JobStatus.REFUND_RESOLVED,
+  JobStatus.DISPUTE_RESOLVED,
+];
+
+/**
+ * Compute the overall job status by combining the on-chain and agent statuses.
+ */
+export function computeJobStatus(
+  onChainStatus: OnChainJobStatus | null,
+  agentJobStatus: AgentJobStatus | null,
+): JobStatus {
+  // 1) Awaiting payment if no on-chain status yet
+  if (onChainStatus === null) {
+    return JobStatus.PAYMENT_PENDING;
+  }
+
+  // 2) Agent requires user input before processing
+  if (
+    onChainStatus === OnChainJobStatus.FUNDS_LOCKED &&
+    agentJobStatus === AgentJobStatus.AWAITING_INPUT
+  ) {
+    return JobStatus.INPUT_REQUIRED;
+  }
+
+  // 3) Processing by agent
+  if (
+    onChainStatus === OnChainJobStatus.FUNDS_LOCKED &&
+    agentJobStatus === AgentJobStatus.RUNNING
+  ) {
+    return JobStatus.PROCESSING;
+  }
+
+  // 4) Agent completed off-chain but result not yet submitted on-chain
+  if (
+    agentJobStatus === AgentJobStatus.COMPLETED &&
+    onChainStatus !== OnChainJobStatus.RESULT_SUBMITTED
+  ) {
+    return JobStatus.PROCESSING;
+  }
+
+  // 5) Fully completed on both sides
+  if (
+    agentJobStatus === AgentJobStatus.COMPLETED &&
+    onChainStatus === OnChainJobStatus.RESULT_SUBMITTED
+  ) {
+    return JobStatus.COMPLETED;
+  }
+
+  // 6) Agent failure before submission
+  if (agentJobStatus === AgentJobStatus.FAILED) {
+    return JobStatus.FAILED;
+  }
+
+  // 7) On-chain refund/dispute flows
+  switch (onChainStatus) {
+    case OnChainJobStatus.REFUND_REQUESTED:
+      return JobStatus.REFUND_PENDING;
+    case OnChainJobStatus.REFUND_WITHDRAWN:
+      return JobStatus.REFUND_RESOLVED;
+    case OnChainJobStatus.DISPUTED:
+      return JobStatus.DISPUTE_PENDING;
+    case OnChainJobStatus.DISPUTED_WITHDRAWN:
+      return JobStatus.DISPUTE_RESOLVED;
+  }
+
+  // Fallback to processing status
+  return JobStatus.PROCESSING;
+}
 
 export const FinalizedOnChainJobStatuses: OnChainJobStatus[] = [
   OnChainJobStatus.DISPUTED_WITHDRAWN,

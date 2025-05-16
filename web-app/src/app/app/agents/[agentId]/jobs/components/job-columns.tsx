@@ -3,11 +3,11 @@ import { useFormatter, useTranslations } from "next-intl";
 
 import { DataTableColumnHeader } from "@/components/data-table";
 import { MiddleTruncate } from "@/components/middle-truncate";
-import { JobWithRelations } from "@/lib/db";
+import { JobWithStatus } from "@/lib/db";
 
 import JobStatusBadge from "./job-status-badge";
 
-const columnHelper = createColumnHelper<JobWithRelations>();
+const columnHelper = createColumnHelper<JobWithStatus>();
 
 export function getJobColumns(
   t: ReturnType<typeof useTranslations>,
@@ -31,9 +31,9 @@ export function getJobColumns(
       ),
       sortingFn: "datetime",
       enableHiding: false,
-    }) as ColumnDef<JobWithRelations>,
+    }) as ColumnDef<JobWithStatus>,
 
-    statusColumn: columnHelper.accessor("onChainStatus", {
+    statusColumn: columnHelper.accessor("status", {
       id: "status",
       minSize: 175,
       header: ({ column }) => (
@@ -41,12 +41,12 @@ export function getJobColumns(
       ),
       cell: ({ row }) => (
         <div>
-          <JobStatusBadge status={row.original.onChainStatus} />
+          <JobStatusBadge status={row.original.status} />
         </div>
       ),
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<JobWithRelations>,
+    }) as ColumnDef<JobWithStatus>,
 
     idColumn: columnHelper.accessor("id", {
       id: "id",
@@ -64,6 +64,6 @@ export function getJobColumns(
       ),
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<JobWithRelations>,
+    }) as ColumnDef<JobWithStatus>,
   };
 }
