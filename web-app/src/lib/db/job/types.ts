@@ -4,12 +4,14 @@ import {
   NextJobAction,
   NextJobActionErrorType,
   OnChainJobStatus,
+  OnChainTransactionStatus,
   Prisma,
 } from "@/prisma/generated/client";
 
 export const jobInclude = {
   agent: true,
   user: true,
+  onChainTransaction: true,
 } as const;
 
 export const jobOrderBy = {
@@ -214,5 +216,22 @@ export function jobStatusToAgentJobStatus(
       return AgentJobStatus.FAILED;
     default:
       throw new Error(`Unknown job status: ${jobStatus}`);
+  }
+}
+
+export function transactionStatusToOnChainTransactionStatus(
+  currentTransactionStatus: CurrentTransactionStatus,
+): OnChainTransactionStatus {
+  switch (currentTransactionStatus) {
+    case "Pending":
+      return OnChainTransactionStatus.PENDING;
+    case "Confirmed":
+      return OnChainTransactionStatus.COMPLETED;
+    case "FailedViaTimeout":
+      return OnChainTransactionStatus.FAILED;
+    default:
+      throw new Error(
+        `Unknown transaction status: ${currentTransactionStatus}`,
+      );
   }
 }

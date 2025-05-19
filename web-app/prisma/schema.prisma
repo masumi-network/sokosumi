@@ -361,8 +361,10 @@ model Job {
   sellerVkey                String?
   identifierFromPurchaser   String?
 
-  onChainStatus      OnChainJobStatus?
-  onChainTransaction OnChainTransaction?
+  onChainStatus OnChainJobStatus?
+
+  onChainTransaction   OnChainTransaction? @relation(fields: [onChainTransactionId], references: [id])
+  onChainTransactionId String?             @unique
 
   creditTransaction           CreditTransaction  @relation("CreditTransactionJob", fields: [creditTransactionId], references: [id])
   creditTransactionId         String             @unique
@@ -375,11 +377,10 @@ model OnChainTransaction {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  hash   String
+  hash   String                   @unique
   status OnChainTransactionStatus
 
-  jobId String @unique
-  job   Job    @relation(fields: [jobId], references: [id])
+  job Job?
 }
 
 enum OnChainTransactionStatus {

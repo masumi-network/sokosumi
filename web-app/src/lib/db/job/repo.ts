@@ -16,6 +16,7 @@ import {
   NextJobAction,
   NextJobActionErrorType,
   OnChainJobStatus,
+  OnChainTransactionStatus,
   Prisma,
 } from "@/prisma/generated/client";
 
@@ -223,6 +224,33 @@ export async function updateNextAction(
   const job = await tx.job.update({
     where: { id: jobId },
     data: { nextAction, nextActionErrorType, nextActionErrorNote },
+    include: jobInclude,
+  });
+  return mapJobWithStatus(job);
+}
+
+export async function connectTransaction(
+  jobId: string,
+  hash: string,
+  status: OnChainTransactionStatus,
+  tx: Prisma.TransactionClient = prisma,
+) {
+  const job = await tx.job.update({
+    where: { id: jobId },
+    data: {
+      onChainTransaction: {
+        upsert: {
+          create: {
+            hash,
+            status,
+          },
+          update: {
+            hash,
+            status,
+          },
+        },
+      },
+    },
     include: jobInclude,
   });
   return mapJobWithStatus(job);

@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import {
   computeJobStatus,
+  connectTransaction,
   createJob,
   getAgentById,
   JobStatus,
@@ -12,6 +13,7 @@ import {
   onChainStateToOnChainJobStatus,
   prisma,
   refundJob,
+  transactionStatusToOnChainTransactionStatus,
   updateAgentJobStatus,
   updateNextAction,
   updateOnChainStatus,
@@ -170,6 +172,17 @@ async function syncRegistryStatus(
     nextAction.errorNote,
     tx,
   );
+
+  // Transaction
+  const transaction = purchase.CurrentTransaction;
+  if (transaction) {
+    newJob = await connectTransaction(
+      job.id,
+      transaction.txHash,
+      transactionStatusToOnChainTransactionStatus(transaction.status),
+    );
+  }
+
   return newJob;
 }
 

@@ -13,4 +13,6 @@ declare global {
   type Purchase = GetPurchaseResponse["data"]["Purchases"][number];
 
   type JobStatusResponse = GetJobStatusResponse["data"]["JobStatus"];
+  type CurrentTransactionStatus =
+    GetPurchaseResponse["data"]["Purchases"][number]["CurrentTransaction"]["status"];
 }

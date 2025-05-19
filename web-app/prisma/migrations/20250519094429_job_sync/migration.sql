@@ -3,6 +3,7 @@
 
   - You are about to drop the column `errorType` on the `Job` table. All the data in the column will be lost.
   - You are about to drop the column `status` on the `Job` table. All the data in the column will be lost.
+  - A unique constraint covering the columns `[onChainTransactionId]` on the table `Job` will be added. If there are existing duplicate values, this will fail.
 
 */
 -- CreateEnum
@@ -27,7 +28,8 @@ ADD COLUMN     "agentJobStatus" "AgentJobStatus",
 ADD COLUMN     "nextAction" "NextJobAction" NOT NULL DEFAULT 'NONE',
 ADD COLUMN     "nextActionErrorNote" TEXT,
 ADD COLUMN     "nextActionErrorType" "NextJobActionErrorType",
-ADD COLUMN     "onChainStatus" "OnChainJobStatus";
+ADD COLUMN     "onChainStatus" "OnChainJobStatus",
+ADD COLUMN     "onChainTransactionId" TEXT;
 
 -- DropEnum
 DROP TYPE "JobStatus";
@@ -39,13 +41,15 @@ CREATE TABLE "OnChainTransaction" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "hash" TEXT NOT NULL,
     "status" "OnChainTransactionStatus" NOT NULL,
-    "jobId" TEXT NOT NULL,
 
     CONSTRAINT "OnChainTransaction_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "OnChainTransaction_jobId_key" ON "OnChainTransaction"("jobId");
+CREATE UNIQUE INDEX "OnChainTransaction_hash_key" ON "OnChainTransaction"("hash");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Job_onChainTransactionId_key" ON "Job"("onChainTransactionId");
 
 -- AddForeignKey
-ALTER TABLE "OnChainTransaction" ADD CONSTRAINT "OnChainTransaction_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "Job"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Job" ADD CONSTRAINT "Job_onChainTransactionId_fkey" FOREIGN KEY ("onChainTransactionId") REFERENCES "OnChainTransaction"("id") ON DELETE SET NULL ON UPDATE CASCADE;
