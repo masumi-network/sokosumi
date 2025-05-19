@@ -135,9 +135,10 @@ export async function syncJob(job: Job) {
     }
     switch (job.onChainStatus) {
       case OnChainJobStatus.RESULT_SUBMITTED:
+        const completedAt = job.completedAt ?? new Date();
         if (
           job.agentJobStatus !== AgentJobStatus.COMPLETED &&
-          new Date().getTime() - job.updatedAt.getTime() > 10 * 60 * 1000 // 10 minutes
+          new Date().getTime() - completedAt.getTime() > 10 * 60 * 1000 // 10 minutes
         ) {
           await postPaymentClientRequestRefund(job);
         }
