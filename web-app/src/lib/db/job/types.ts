@@ -44,6 +44,7 @@ export enum JobStatus {
  */
 export function computeJobStatus(job: Job): JobStatus {
   const { onChainStatus, agentJobStatus, nextActionErrorType } = job;
+
   switch (onChainStatus) {
     case null:
       if (nextActionErrorType === null) {
@@ -52,22 +53,27 @@ export function computeJobStatus(job: Job): JobStatus {
         return JobStatus.PAYMENT_FAILED;
       }
     case OnChainJobStatus.FUNDS_LOCKED:
-      if (agentJobStatus === AgentJobStatus.AWAITING_INPUT) {
-        return JobStatus.INPUT_REQUIRED;
-      } else {
-        return JobStatus.PROCESSING;
+      switch (agentJobStatus) {
+        case AgentJobStatus.AWAITING_INPUT:
+          return JobStatus.INPUT_REQUIRED;
+        case AgentJobStatus.COMPLETED:
+          return JobStatus.COMPLETED;
+        default:
+          return JobStatus.PROCESSING;
       }
     case OnChainJobStatus.RESULT_SUBMITTED:
-      if (agentJobStatus === AgentJobStatus.COMPLETED) {
-        return JobStatus.COMPLETED;
-      } else {
-        return JobStatus.PROCESSING;
+      switch (agentJobStatus) {
+        case AgentJobStatus.COMPLETED:
+          return JobStatus.COMPLETED;
+        default:
+          return JobStatus.PROCESSING;
       }
     case OnChainJobStatus.FUNDS_WITHDRAWN:
-      if (agentJobStatus === AgentJobStatus.COMPLETED) {
-        return JobStatus.COMPLETED;
-      } else {
-        return JobStatus.FAILED;
+      switch (agentJobStatus) {
+        case AgentJobStatus.COMPLETED:
+          return JobStatus.COMPLETED;
+        default:
+          return JobStatus.FAILED;
       }
     case OnChainJobStatus.FUNDS_OR_DATUM_INVALID:
       return JobStatus.PAYMENT_FAILED;
