@@ -192,9 +192,13 @@ export async function updateOnChainStatus(
   onChainStatus: OnChainJobStatus,
   tx: Prisma.TransactionClient = prisma,
 ) {
+  const data: Prisma.JobUpdateInput = { onChainStatus };
+  if (onChainStatus === OnChainJobStatus.RESULT_SUBMITTED) {
+    data.resultSubmittedAt = new Date();
+  }
   const job = await tx.job.update({
     where: { id: jobId },
-    data: { onChainStatus },
+    data,
     include: jobInclude,
   });
   return mapJobWithStatus(job);
@@ -206,9 +210,13 @@ export async function updateAgentJobStatus(
   output: string | null,
   tx: Prisma.TransactionClient = prisma,
 ) {
+  const data: Prisma.JobUpdateInput = { agentJobStatus, output };
+  if (agentJobStatus === AgentJobStatus.COMPLETED) {
+    data.completedAt = new Date();
+  }
   const job = await tx.job.update({
     where: { id: jobId },
-    data: { agentJobStatus, output },
+    data,
     include: jobInclude,
   });
   return mapJobWithStatus(job);
