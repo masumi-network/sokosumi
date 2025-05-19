@@ -177,6 +177,8 @@ function nextActionErrorTypeToNextJobActionErrorType(
   nextActionErrorType: PurchaseErrorType,
 ): NextJobActionErrorType | null {
   switch (nextActionErrorType) {
+    case null:
+      return null;
     case "NetworkError":
       return NextJobActionErrorType.NETWORK_ERROR;
     case "InsufficientFunds":
@@ -184,7 +186,7 @@ function nextActionErrorTypeToNextJobActionErrorType(
     case "Unknown":
       return NextJobActionErrorType.UNKNOWN;
     default:
-      return null;
+      throw new Error(`Unknown next action error type: ${nextActionErrorType}`);
   }
 }
 
