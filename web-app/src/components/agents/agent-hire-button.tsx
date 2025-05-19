@@ -3,15 +3,17 @@
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { ComponentProps } from "react";
 
 import { Button } from "@/components/ui/button";
 import useWithAuthentication from "@/hooks/use-with-authentication";
 
 interface AgentHireButtonProps {
   agentId: string;
+  size?: ComponentProps<typeof Button>["size"] | undefined;
 }
 
-function AgentHireButton({ agentId }: AgentHireButtonProps) {
+function AgentHireButton({ agentId, size = "lg" }: AgentHireButtonProps) {
   const t = useTranslations("Components.Agents");
   const router = useRouter();
   const { isPending, ModalComponent, withAuthentication } =
@@ -25,7 +27,7 @@ function AgentHireButton({ agentId }: AgentHireButtonProps) {
     <>
       {ModalComponent}
       <Button
-        size="lg"
+        size={size}
         variant="primary"
         onClick={withAuthentication(handleHire)}
         disabled={isPending}
