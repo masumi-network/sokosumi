@@ -103,7 +103,6 @@ function PlaylistSidebar({
             className={cn("h-24 w-24 cursor-pointer p-2", {
               "border-primary border-2": currentIndex === index,
             })}
-            showMaximizeButton={false}
             onClick={() => onClick(index)}
           />
         ))}
@@ -137,10 +136,7 @@ function PlaylistMainSection({
         </div>
       </div>
       <div className="flex flex-col items-center justify-center gap-6 p-6">
-        <ExampleDetailThumbnail
-          exampleOutput={selectedExampleOutput}
-          showMaximizeButton={false}
-        />
+        <ExampleDetailThumbnail exampleOutput={selectedExampleOutput} />
         <Button variant="primary" asChild>
           <a
             href={selectedExampleOutput.url}

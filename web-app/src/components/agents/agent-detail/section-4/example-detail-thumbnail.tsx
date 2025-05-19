@@ -1,4 +1,4 @@
-import { Maximize2 } from "lucide-react";
+import { Download } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -7,7 +7,6 @@ import { ExampleOutput } from "@/prisma/generated/client";
 interface ExampleDetailThumbnailProps {
   exampleOutput: ExampleOutput;
   onClick?: (() => void) | undefined;
-  showMaximizeButton?: boolean | undefined;
   className?: string | undefined;
 }
 
@@ -15,7 +14,6 @@ export default function ExampleDetailThumbnail({
   exampleOutput,
   onClick,
   className,
-  showMaximizeButton = true,
 }: ExampleDetailThumbnailProps) {
   const { name, mimeType } = exampleOutput;
 
@@ -23,9 +21,6 @@ export default function ExampleDetailThumbnail({
     <div
       className={cn(
         "border-quinary bg-accent relative flex h-60 w-60 flex-col items-center justify-center gap-2 rounded-lg border shadow-sm",
-        {
-          group: showMaximizeButton,
-        },
         className,
       )}
       onClick={onClick}
@@ -37,9 +32,16 @@ export default function ExampleDetailThumbnail({
         <p className="text-muted-foreground w-full truncate text-center text-xs">
           {mimeType}
         </p>
-        <div className="absolute top-2 right-2 hidden group-hover:block">
+        <div className="absolute top-2 right-2">
           <Button variant="outline" size="icon">
-            <Maximize2 />
+            <a
+              href={exampleOutput.url}
+              download
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Download />
+            </a>
           </Button>
         </div>
       </div>
