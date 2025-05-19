@@ -2,6 +2,7 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
+import { organization } from "better-auth/plugins";
 import { getTranslations } from "next-intl/server";
 
 import { getEnvPublicConfig, getEnvSecrets } from "@/config/env.config";
@@ -130,5 +131,5 @@ export const auth = betterAuth({
   rateLimit: {
     storage: "database",
   },
-  plugins: [nextCookies()],
+  plugins: [organization(), nextCookies()],
 });
