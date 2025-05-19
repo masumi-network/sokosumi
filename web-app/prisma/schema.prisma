@@ -341,11 +341,12 @@ model Job {
   agentJobId     String
   agentJobStatus AgentJobStatus?
 
-  paymentId  String
-  input      String
-  output     String?
-  startedAt  DateTime  @default(now())
-  finishedAt DateTime?
+  paymentId         String
+  input             String
+  output            String?
+  startedAt         DateTime  @default(now())
+  completedAt       DateTime? // when the job was completed on the agent side
+  resultSubmittedAt DateTime? // when the job on-chain status was `RESULT_SUBMITTED`
 
   nextAction          NextJobAction           @default(NONE)
   nextActionErrorType NextJobActionErrorType?

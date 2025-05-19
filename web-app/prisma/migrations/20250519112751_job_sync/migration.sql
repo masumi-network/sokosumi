@@ -2,6 +2,7 @@
   Warnings:
 
   - You are about to drop the column `errorType` on the `Job` table. All the data in the column will be lost.
+  - You are about to drop the column `finishedAt` on the `Job` table. All the data in the column will be lost.
   - You are about to drop the column `status` on the `Job` table. All the data in the column will be lost.
   - A unique constraint covering the columns `[onChainTransactionId]` on the table `Job` will be added. If there are existing duplicate values, this will fail.
 
@@ -23,13 +24,16 @@ CREATE TYPE "AgentJobStatus" AS ENUM ('PENDING', 'AWAITING_PAYMENT', 'AWAITING_I
 
 -- AlterTable
 ALTER TABLE "Job" DROP COLUMN "errorType",
+DROP COLUMN "finishedAt",
 DROP COLUMN "status",
 ADD COLUMN     "agentJobStatus" "AgentJobStatus",
+ADD COLUMN     "completedAt" TIMESTAMP(3),
 ADD COLUMN     "nextAction" "NextJobAction" NOT NULL DEFAULT 'NONE',
 ADD COLUMN     "nextActionErrorNote" TEXT,
 ADD COLUMN     "nextActionErrorType" "NextJobActionErrorType",
 ADD COLUMN     "onChainStatus" "OnChainJobStatus",
-ADD COLUMN     "onChainTransactionId" TEXT;
+ADD COLUMN     "onChainTransactionId" TEXT,
+ADD COLUMN     "resultSubmittedAt" TIMESTAMP(3);
 
 -- DropEnum
 DROP TYPE "JobStatus";
