@@ -36,7 +36,6 @@ export enum JobStatus {
   INPUT_REQUIRED = "input_required",
   REFUND_PENDING = "refund_pending",
   REFUND_RESOLVED = "refund_resolved",
-  REFUND_FAILED = "refund_failed",
   DISPUTE_PENDING = "dispute_pending",
   DISPUTE_RESOLVED = "dispute_resolved",
 }
