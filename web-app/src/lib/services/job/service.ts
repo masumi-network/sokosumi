@@ -129,7 +129,9 @@ export async function syncJob(job: Job) {
       switch (jobStatus) {
         case JobStatus.PAYMENT_FAILED:
         case JobStatus.REFUND_RESOLVED:
-          await refundJob(job.id, tx);
+          if (job.refundedCreditTransactionId === null) {
+            await refundJob(job.id, tx);
+          }
           break;
         default:
           break;
