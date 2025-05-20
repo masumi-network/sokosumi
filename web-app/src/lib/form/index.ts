@@ -1,5 +1,5 @@
 import { MessageKeys, NestedKeyOf, NestedValueOf } from "next-intl";
-import { z, ZodJSONSchema } from "zod/v4";
+import { z, ZodType } from "zod/v4";
 
 type EndsWithFormString<T extends string> = T extends `${infer _Key}.Form`
   ? T
@@ -13,7 +13,7 @@ type MessageKeysIn<Path extends string> = MessageKeys<
 >;
 
 type FormData<
-  T extends z.infer<ZodJSONSchema>,
+  T extends z.infer<ZodType>,
   Path extends FormIntlNamespaceKeys,
 > = Array<{
   name: keyof T;
