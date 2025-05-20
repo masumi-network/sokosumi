@@ -3,8 +3,8 @@
 import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
+import { JobStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
-import { JobStatus } from "@/prisma/generated/client";
 
 interface JobStatusBadgeProps {
   status: JobStatus;
@@ -16,7 +16,6 @@ export default function JobStatusBadge({
   className,
 }: JobStatusBadgeProps) {
   const t = useTranslations("App.Agents.Jobs.JobsTable.JobStatusBadge");
-
   switch (status) {
     case JobStatus.COMPLETED:
       return (
@@ -45,15 +44,6 @@ export default function JobStatusBadge({
           {t("paymentProcessing")}
         </Badge>
       );
-    case JobStatus.PROCESSING:
-      return (
-        <Badge
-          variant="default"
-          className={cn("bg-blue-100 text-blue-800", className)}
-        >
-          {t("processing")}
-        </Badge>
-      );
     case JobStatus.PAYMENT_FAILED:
       return (
         <Badge
@@ -63,22 +53,13 @@ export default function JobStatusBadge({
           {t("paymentFailed")}
         </Badge>
       );
-    case JobStatus.AGENT_CONNECTION_FAILED:
+    case JobStatus.PROCESSING:
       return (
         <Badge
           variant="default"
-          className={cn("bg-red-100 text-red-800", className)}
+          className={cn("bg-blue-100 text-blue-800", className)}
         >
-          {t("agentConnectionFailed")}
-        </Badge>
-      );
-    case JobStatus.PAYMENT_NODE_CONNECTION_FAILED:
-      return (
-        <Badge
-          variant="default"
-          className={cn("bg-red-100 text-red-800", className)}
-        >
-          {t("paymentNodeConnectionFailed")}
+          {t("processing")}
         </Badge>
       );
     case JobStatus.INPUT_REQUIRED:
@@ -90,25 +71,7 @@ export default function JobStatusBadge({
           {t("inputRequired")}
         </Badge>
       );
-    case JobStatus.DISPUTE_REQUESTED:
-      return (
-        <Badge
-          variant="default"
-          className={cn("bg-orange-100 text-orange-800", className)}
-        >
-          {t("disputeRequested")}
-        </Badge>
-      );
-    case JobStatus.DISPUTE_RESOLVED:
-      return (
-        <Badge
-          variant="default"
-          className={cn("bg-green-100 text-green-800", className)}
-        >
-          {t("disputeResolved")}
-        </Badge>
-      );
-    case JobStatus.REFUND_REQUESTED:
+    case JobStatus.REFUND_PENDING:
       return (
         <Badge
           variant="default"
@@ -126,7 +89,24 @@ export default function JobStatusBadge({
           {t("refundResolved")}
         </Badge>
       );
-    case JobStatus.UNKNOWN:
+    case JobStatus.DISPUTE_PENDING:
+      return (
+        <Badge
+          variant="default"
+          className={cn("bg-orange-100 text-orange-800", className)}
+        >
+          {t("disputeRequested")}
+        </Badge>
+      );
+    case JobStatus.DISPUTE_RESOLVED:
+      return (
+        <Badge
+          variant="default"
+          className={cn("bg-green-100 text-green-800", className)}
+        >
+          {t("disputeResolved")}
+        </Badge>
+      );
     default:
       return (
         <Badge

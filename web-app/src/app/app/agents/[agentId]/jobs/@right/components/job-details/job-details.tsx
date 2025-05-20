@@ -4,21 +4,19 @@ import AccordionItemWrapper from "@/app/agents/[agentId]/jobs/components/accordi
 import JobStatusBadge from "@/app/agents/[agentId]/jobs/components/job-status-badge";
 import { Accordion } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { JobWithRelations } from "@/lib/db";
+import { JobStatus, JobWithStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
-import { JobStatus } from "@/prisma/generated/client";
 
 import JobDetailsInputs from "./inputs";
 import JobDetailsOutputs from "./outputs";
 
 interface JobDetailsProps {
-  job: JobWithRelations;
-  className?: string | undefined;
+  job: JobWithStatus;
+  className?: string;
 }
 
 export default function JobDetails({ job, className }: JobDetailsProps) {
   const t = useTranslations("App.Agents.Jobs.JobDetails");
-
   return (
     <div className={cn("flex h-full min-h-[300px] flex-1 flex-col", className)}>
       <ScrollArea className="h-full">
@@ -48,7 +46,6 @@ function JobDetailsHeader({
   status: JobStatus;
 }) {
   const formatter = useFormatter();
-
   return (
     <div className="bg-muted/50 flex items-center rounded-xl p-4">
       <div className="flex w-full items-center justify-between">

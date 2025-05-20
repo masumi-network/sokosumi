@@ -6,13 +6,13 @@ import { useState } from "react";
 
 import { DataTable } from "@/components/data-table";
 import { useAsyncRouterPush } from "@/hooks/use-async-router";
-import { JobWithRelations } from "@/lib/db";
+import { JobWithStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 import { getJobColumns } from "./job-columns";
 
 interface JobsTableProps {
-  jobs: JobWithRelations[];
+  jobs: JobWithStatus[];
 }
 
 export default function JobsTable({ jobs }: JobsTableProps) {
@@ -23,7 +23,7 @@ export default function JobsTable({ jobs }: JobsTableProps) {
   const asyncRouter = useAsyncRouterPush();
   const [routerLoading, setRouterLoading] = useState(false);
 
-  const handleRowClick = async (row: JobWithRelations) => {
+  const handleRowClick = async (row: JobWithStatus) => {
     setRouterLoading(true);
     await asyncRouter.push(`/app/agents/${row.agentId}/jobs/${row.id}`);
     setRouterLoading(false);
@@ -34,7 +34,7 @@ export default function JobsTable({ jobs }: JobsTableProps) {
       columns={getColumns(t, dateFormatter)}
       onRowClick={(row) => async () => {
         if (routerLoading) return;
-        await handleRowClick(row);
+        await handleRowClick(row as JobWithStatus);
       }}
       data={jobs}
       rowClassName={(row) => {

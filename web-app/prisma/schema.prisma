@@ -384,15 +384,19 @@ model Job {
   agentId String
   agent   Agent  @relation(fields: [agentId], references: [id])
 
-  agentJobId String
-  paymentId  String
-  status     JobStatus
-  input      String
-  output     String?
-  startedAt  DateTime  @default(now())
-  finishedAt DateTime?
+  agentJobId     String
+  agentJobStatus AgentJobStatus?
 
-  errorType String?
+  paymentId         String
+  input             String
+  output            String?
+  startedAt         DateTime  @default(now())
+  completedAt       DateTime? // when the job was completed on the agent side
+  resultSubmittedAt DateTime? // when the job on-chain status was `RESULT_SUBMITTED`
+
+  nextAction          NextJobAction           @default(NONE)
+  nextActionErrorType NextJobActionErrorType?
+  nextActionErrorNote String?
 
   errorNote    String?
   errorNoteKey String?
@@ -404,32 +408,76 @@ model Job {
   sellerVkey                String?
   identifierFromPurchaser   String?
 
+  onChainStatus OnChainJobStatus?
+
+  onChainTransaction   OnChainTransaction? @relation(fields: [onChainTransactionId], references: [id])
+  onChainTransactionId String?             @unique
+
   creditTransaction           CreditTransaction  @relation("CreditTransactionJob", fields: [creditTransactionId], references: [id])
   creditTransactionId         String             @unique
   refundedCreditTransaction   CreditTransaction? @relation("RefundedCreditTransactionJob", fields: [refundedCreditTransactionId], references: [id])
   refundedCreditTransactionId String?            @unique
 }
 
-enum JobStatus {
-  AGENT_CONNECTION_FAILED
-  PAYMENT_NODE_CONNECTION_FAILED
+model OnChainTransaction {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  PAYMENT_PENDING
-  PAYMENT_FAILED
+  hash   String                   @unique
+  status OnChainTransactionStatus
 
-  INPUT_REQUIRED
+  job Job?
+}
 
-  PROCESSING
+enum OnChainTransactionStatus {
+  PENDING
   COMPLETED
   FAILED
+}
 
-  DISPUTE_REQUESTED
-  DISPUTE_RESOLVED
+enum NextJobActionErrorType {
+  NETWORK_ERROR
+  INSUFFICIENT_FUNDS
+  UNKNOWN
+}
+
+enum NextJobAction {
+  NONE
+  IGNORE
+  WAITING_FOR_MANUAL_ACTION
+  WAITING_FOR_EXTERNAL_ACTION
+  FUNDS_LOCKING_REQUESTED
+  FUNDS_LOCKING_INITIATED
+  SET_REFUND_REQUESTED_REQUESTED
+  SET_REFUND_REQUESTED_INITIATED
+  UNSET_REFUND_REQUESTED_REQUESTED
+  UNSET_REFUND_REQUESTED_INITIATED
+  WITHDRAW_REFUND_REQUESTED
+  WITHDRAW_REFUND_INITIATED
+}
+
+enum OnChainJobStatus {
+  FUNDS_LOCKED
+  FUNDS_OR_DATUM_INVALID
+  FUNDS_WITHDRAWN
+
+  RESULT_SUBMITTED
 
   REFUND_REQUESTED
-  REFUND_RESOLVED
+  REFUND_WITHDRAWN
 
-  UNKNOWN
+  DISPUTED
+  DISPUTED_WITHDRAWN
+}
+
+enum AgentJobStatus {
+  PENDING
+  AWAITING_PAYMENT
+  AWAITING_INPUT
+  RUNNING
+  COMPLETED
+  FAILED
 }
 
 model CreditCost {

@@ -3,27 +3,28 @@
 import { v4 as uuidv4 } from "uuid";
 
 import {
+  computeJobStatus,
+  connectTransaction,
   createJob,
   getAgentById,
-  getCreditTransactionByJobId,
-  JobErrorNoteKeys,
+  JobStatus,
+  jobStatusToAgentJobStatus,
+  nextActionToNextJobAction,
+  onChainStateToOnChainJobStatus,
   prisma,
-  updateJobStatusToAgentConnectionFailed,
-  updateJobStatusToCompleted,
-  updateJobStatusToDisputeRequested,
-  updateJobStatusToDisputeResolved,
-  updateJobStatusToFailed,
-  updateJobStatusToInputRequired,
-  updateJobStatusToPaymentFailed,
-  updateJobStatusToPaymentNodeConnectionFailed,
-  updateJobStatusToPaymentPending,
-  updateJobStatusToProcessing,
-  updateJobStatusToRefundRequested,
-  updateJobStatusToRefundResolved,
-  updateJobStatusToUnknown,
+  refundJob,
+  transactionStatusToOnChainTransactionStatus,
+  updateAgentJobStatus,
+  updateNextAction,
+  updateOnChainStatus,
 } from "@/lib/db";
 import { calculateInputHash } from "@/lib/utils";
-import { Job, JobStatus } from "@/prisma/generated/client";
+import {
+  AgentJobStatus,
+  Job,
+  OnChainJobStatus,
+  Prisma,
+} from "@/prisma/generated/client";
 import { getAgentPricing } from "@/services/agent";
 import { getCreditsPrice, validateCreditsBalance } from "@/services/credit";
 
@@ -31,7 +32,8 @@ import { StartJobInputSchemaType } from "./schemas";
 import {
   createPurchase,
   fetchAgentJobStatus,
-  getPurchaseOnChainState,
+  getPaymentClientPurchase,
+  postPaymentClientRequestRefund,
   startAgentJob,
 } from "./third-party";
 
@@ -95,7 +97,6 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
           agentId,
           userId,
           input: JSON.stringify(Object.fromEntries(inputData)),
-          jobStatus: JobStatus.PAYMENT_PENDING,
           paymentId: purchaseResponse.data.id,
           creditsPrice,
           identifierFromPurchaser,
@@ -118,125 +119,99 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
   );
 }
 
-export async function syncJobStatus(job: Job) {
-  const agent = await getAgentById(job.agentId);
+export async function syncJob(job: Job) {
+  await prisma.$transaction(async (tx) => {
+    job = await syncRegistryStatus(job, tx);
+    job = await syncAgentJobStatus(job, tx);
+
+    const jobStatus = computeJobStatus(job);
+    switch (jobStatus) {
+      case JobStatus.PAYMENT_FAILED:
+      case JobStatus.REFUND_RESOLVED:
+        await refundJob(job.id, tx);
+        break;
+      default:
+        break;
+    }
+    switch (job.onChainStatus) {
+      case OnChainJobStatus.RESULT_SUBMITTED:
+        const completedAt = job.completedAt ?? new Date();
+        if (
+          job.agentJobStatus !== AgentJobStatus.COMPLETED &&
+          new Date().getTime() - completedAt.getTime() > 10 * 60 * 1000 // 10 minutes
+        ) {
+          await postPaymentClientRequestRefund(job);
+        }
+        break;
+      default:
+        break;
+    }
+  });
+}
+
+async function syncRegistryStatus(
+  job: Job,
+  tx: Prisma.TransactionClient,
+): Promise<Job> {
+  const purchaseResult = await getPaymentClientPurchase(job.paymentId);
+  if (!purchaseResult.ok) {
+    return job;
+  }
+  const purchase = purchaseResult.data;
+
+  const onChainStatus = onChainStateToOnChainJobStatus(purchase.onChainState);
+  let newJob =
+    onChainStatus !== null
+      ? await updateOnChainStatus(job.id, onChainStatus, tx)
+      : job;
+
+  const nextAction = nextActionToNextJobAction(purchase.NextAction);
+  newJob = await updateNextAction(
+    job.id,
+    nextAction.requestedAction,
+    nextAction.errorType,
+    nextAction.errorNote,
+    tx,
+  );
+
+  // Transaction
+  const transaction = purchase.CurrentTransaction;
+  if (transaction) {
+    newJob = await connectTransaction(
+      job.id,
+      transaction.txHash,
+      transactionStatusToOnChainTransactionStatus(transaction.status),
+    );
+  }
+
+  return newJob;
+}
+
+async function syncAgentJobStatus(
+  job: Job,
+  tx: Prisma.TransactionClient,
+): Promise<Job> {
+  const agent = await getAgentById(job.agentId, tx);
 
   if (!agent) {
-    throw new Error("Agent not found");
+    return job;
   }
 
-  // get purchase on chain state
-  const onChainStateResult = await getPurchaseOnChainState(job.paymentId);
-  if (!onChainStateResult.ok) {
-    await updateJobStatusToPaymentNodeConnectionFailed(job.id);
-    throw new Error("Failed to get payment on-chain status");
-  }
-  const onChainState = onChainStateResult.data.onChainState;
-  const errorType = onChainStateResult.data.errorType;
-
-  // get the job status from the agent
   const jobStatusResult = await fetchAgentJobStatus(agent, job.agentJobId);
   if (!jobStatusResult.ok) {
-    await updateJobStatusToAgentConnectionFailed(job.id);
-    throw new Error("Failed to get job status");
+    return job;
   }
   const jobStatusResponse = jobStatusResult.data;
 
-  switch (onChainState) {
-    case null: {
-      if (errorType === null) {
-        await updateJobStatusToPaymentPending(job.id);
-      } else {
-        await prisma.$transaction(async (tx) => {
-          const creditTransaction = await getCreditTransactionByJobId(
-            job.id,
-            tx,
-          );
-          if (!creditTransaction) {
-            throw new Error("Credit transaction not found");
-          }
-          await updateJobStatusToPaymentFailed(
-            job.id,
-            creditTransaction,
-            errorType,
-            tx,
-          );
-        });
-      }
-      break;
-    }
-    case "FundsLocked": {
-      if (jobStatusResponse.status === "running") {
-        await updateJobStatusToProcessing(job.id);
-      }
-      if (jobStatusResponse.status === "awaiting_input") {
-        await updateJobStatusToInputRequired(job.id);
-      }
-      if (jobStatusResponse.status === "failed") {
-        await updateJobStatusToFailed(job.id);
-      }
-      break;
-    }
-    case "RefundRequested": {
-      await updateJobStatusToRefundRequested(job.id);
-      break;
-    }
-    case "RefundWithdrawn": {
-      await prisma.$transaction(async (tx) => {
-        const creditTransaction = await getCreditTransactionByJobId(job.id, tx);
-        if (!creditTransaction) {
-          throw new Error("Credit transaction not found");
-        }
-        await updateJobStatusToRefundResolved(job.id, creditTransaction, tx);
-      });
-      break;
-    }
-    case "Disputed": {
-      await updateJobStatusToDisputeRequested(job.id);
-      break;
-    }
-    case "DisputedWithdrawn": {
-      await updateJobStatusToDisputeResolved(job.id);
-      break;
-    }
-    case "FundsOrDatumInvalid": {
-      await prisma.$transaction(async (tx) => {
-        const creditTransaction = await getCreditTransactionByJobId(job.id, tx);
-        if (!creditTransaction) {
-          throw new Error("Credit transaction not found");
-        }
-        await updateJobStatusToPaymentFailed(
-          job.id,
-          creditTransaction,
-          errorType,
-          tx,
-        );
-      });
-      break;
-    }
-    case "ResultSubmitted":
-    case "Withdrawn": {
-      if (jobStatusResponse.status === "completed") {
-        const output = JSON.stringify(jobStatusResponse);
-        await updateJobStatusToCompleted(job.id, output);
-      } else if (jobStatusResponse.status === "failed") {
-        await updateJobStatusToFailed(job.id);
-      } else {
-        await updateJobStatusToUnknown(
-          job.id,
-          `Job status is ${jobStatusResponse.status} with on-chain state ${onChainState}`,
-          JobErrorNoteKeys.StatusMismatch,
-        );
-      }
-      break;
-    }
-    default: {
-      await updateJobStatusToUnknown(
-        job.id,
-        `Unknown on-chain state ${onChainState}`,
-        JobErrorNoteKeys.Unknown,
-      );
-      break;
-    }
+  let output: string | null = null;
+  if (jobStatusResponse.status === "completed") {
+    output = JSON.stringify(jobStatusResponse);
   }
+
+  return await updateAgentJobStatus(
+    job.id,
+    jobStatusToAgentJobStatus(jobStatusResponse.status),
+    output,
+    tx,
+  );
 }

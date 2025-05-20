@@ -6,11 +6,13 @@ import { getEnvPublicConfig } from "@/config/env.config";
 import {
   getPurchase,
   postPurchase,
+  postPurchaseRequestRefund,
   PostPurchaseResponse,
 } from "@/lib/api/generated/payment";
 import { getPaymentClient } from "@/lib/api/payment-service.client";
 import { AgentWithRelations, getAgentApiBaseUrl } from "@/lib/db";
 import { JobInputData } from "@/lib/job-input";
+import { Job } from "@/prisma/generated/client";
 
 import {
   jobStatusResponseSchema,
@@ -84,14 +86,32 @@ export async function startAgentJob(
   }
 }
 
-export async function getPurchaseOnChainState(
+export async function postPaymentClientRequestRefund(
+  job: Job,
+): Promise<Result<void, string>> {
+  try {
+    const paymentClient = getPaymentClient();
+    const refundResponse = await postPurchaseRequestRefund({
+      client: paymentClient,
+      body: {
+        blockchainIdentifier: job.blockchainIdentifier,
+        network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
+      },
+    });
+
+    if (refundResponse.error || !refundResponse.data) {
+      return Err("Failed to request refund");
+    }
+
+    return Ok();
+  } catch (err) {
+    return Err(String(err));
+  }
+}
+
+export async function getPaymentClientPurchase(
   paymentId: string,
-): Promise<
-  Result<
-    { onChainState: PurchaseOnChainState; errorType?: PurchaseErrorType },
-    string
-  >
-> {
+): Promise<Result<Purchase, string>> {
   try {
     const paymentClient = getPaymentClient();
     const purchaseResponse = await getPurchase({
@@ -115,10 +135,8 @@ export async function getPurchaseOnChainState(
       );
     }
     const purchase = purchaseResponse.data.data.Purchases[0];
-    const errorType = purchase.NextAction.errorType;
-    const onChainState = purchase.onChainState;
 
-    return Ok({ onChainState, errorType });
+    return Ok(purchase);
   } catch (err) {
     return Err(String(err));
   }
