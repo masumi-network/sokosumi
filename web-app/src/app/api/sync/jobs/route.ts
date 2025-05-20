@@ -1,4 +1,5 @@
 import { after, NextResponse } from "next/server";
+import pLimit from "p-limit";
 import pTimeout from "p-timeout";
 
 import { getEnvSecrets } from "@/config/env.config";
@@ -102,9 +103,10 @@ async function syncAllJobs() {
     return true;
   });
 
-  // Process jobs sequentially
+  // Process 5 jobs at a time
+  const limit = pLimit(5);
   for (const job of jobs) {
-    runningDbUpdates.push(syncJob(job));
+    runningDbUpdates.push(limit(() => syncJob(job)));
   }
   await Promise.allSettled(runningDbUpdates);
 }
