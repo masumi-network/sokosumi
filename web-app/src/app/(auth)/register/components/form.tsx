@@ -40,9 +40,6 @@ export default function SignUpForm() {
         callbackURL: "/app",
       },
       {
-        onRequest: (ctx) => {
-          console.log("ctx onRequest", ctx);
-        },
         onError: (ctx) => {
           switch (ctx.error.code) {
             case "USER_ALREADY_EXISTS":
