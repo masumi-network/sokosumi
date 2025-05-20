@@ -355,12 +355,12 @@ model Job {
   errorNote    String?
   errorNoteKey String?
 
-  blockchainIdentifier      String    @unique
-  submitResultTime          DateTime?
-  unlockTime                DateTime?
-  externalDisputeUnlockTime DateTime?
-  sellerVkey                String?
-  identifierFromPurchaser   String?
+  blockchainIdentifier      String   @unique
+  submitResultTime          DateTime
+  unlockTime                DateTime
+  externalDisputeUnlockTime DateTime
+  sellerVkey                String
+  identifierFromPurchaser   String
 
   onChainStatus OnChainJobStatus?
 

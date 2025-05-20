@@ -94,8 +94,7 @@ async function syncAllJobs() {
   jobs = jobs.filter((job) => {
     if (
       job.onChainStatus === OnChainJobStatus.RESULT_SUBMITTED &&
-      job.agentJobStatus === AgentJobStatus.COMPLETED &&
-      job.externalDisputeUnlockTime
+      job.agentJobStatus === AgentJobStatus.COMPLETED
     ) {
       return job.externalDisputeUnlockTime.getTime() > Date.now();
     }
