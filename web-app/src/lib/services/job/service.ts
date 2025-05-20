@@ -7,7 +7,6 @@ import {
   computeJobStatus,
   connectTransaction,
   createJob,
-  finalizedAgentJobStatuses,
   getAgentById,
   JobStatus,
   jobStatusToAgentJobStatus,
@@ -125,12 +124,7 @@ export async function syncJob(job: Job) {
   await prisma.$transaction(
     async (tx) => {
       job = await syncRegistryStatus(job, tx);
-      if (
-        !job.agentJobStatus ||
-        !finalizedAgentJobStatuses.includes(job.agentJobStatus)
-      ) {
-        job = await syncAgentJobStatus(job, tx);
-      }
+      job = await syncAgentJobStatus(job, tx);
       const jobStatus = computeJobStatus(job);
       switch (jobStatus) {
         case JobStatus.PAYMENT_FAILED:
