@@ -150,15 +150,15 @@ const makeZodSchemaFromJobInputOptionSchema = (
     z
       .number()
       .int({
-        message: t?.("Option.integer", { name }),
+        error: t?.("Option.integer", { name }),
       })
       .nonnegative({
-        message: t?.("Option.nonnegative", { name }),
+        error: t?.("Option.nonnegative", { name }),
       })
       .max(values.length - 1, {
-        message: t?.("Option.invalid", { name, maxValue: values.length - 1 }),
+        error: t?.("Option.invalid", { name, maxValue: values.length - 1 }),
       }),
-    { message: t?.("Option.required", { name }) },
+    { error: t?.("Option.required", { name }) },
   );
   if (!validations) return defaultSchema;
 
@@ -168,11 +168,11 @@ const makeZodSchemaFromJobInputOptionSchema = (
     switch (validation) {
       case ValidJobInputValidationTypes.MIN:
         return acc.min(value, {
-          message: t?.("Option.min", { name, value }),
+          error: t?.("Option.min", { name, value }),
         });
       case ValidJobInputValidationTypes.MAX:
         return acc.max(value, {
-          message: t?.("Option.max", { name, value }),
+          error: t?.("Option.max", { name, value }),
         });
       case ValidJobInputValidationTypes.OPTIONAL:
         canBeOptional = value === "true";
