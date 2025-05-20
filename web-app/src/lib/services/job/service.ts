@@ -124,6 +124,7 @@ export async function syncJob(job: Job) {
     async (tx) => {
       job = await syncRegistryStatus(job, tx);
       job = await syncAgentJobStatus(job, tx);
+
       const jobStatus = computeJobStatus(job);
       switch (jobStatus) {
         case JobStatus.PAYMENT_FAILED:
@@ -133,6 +134,7 @@ export async function syncJob(job: Job) {
         default:
           break;
       }
+
       switch (job.onChainStatus) {
         case OnChainJobStatus.RESULT_SUBMITTED:
           const completedAt = job.completedAt ?? new Date();
