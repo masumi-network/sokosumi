@@ -1,5 +1,5 @@
 import { jobStatusToAgentJobStatus } from "@/lib/db/job/utils";
-import { PrismaClient } from "@/prisma/generated/client";
+import { AgentJobStatus, PrismaClient } from "@/prisma/generated/client";
 
 const prisma = new PrismaClient();
 
@@ -23,6 +23,10 @@ async function main() {
             where: { id: job.id },
             data: {
               agentJobStatus: agentJobStatus,
+              completedAt:
+                agentJobStatus === AgentJobStatus.COMPLETED
+                  ? new Date()
+                  : undefined,
             },
           });
         }
