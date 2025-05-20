@@ -235,22 +235,10 @@ export async function updateJobWithPurchase(
   if (transaction) {
     data = {
       ...data,
-      onChainTransaction: {
-        upsert: {
-          create: {
-            hash: transaction.txHash,
-            status: transactionStatusToOnChainTransactionStatus(
-              transaction.status,
-            ),
-          },
-          update: {
-            hash: transaction.txHash,
-            status: transactionStatusToOnChainTransactionStatus(
-              transaction.status,
-            ),
-          },
-        },
-      },
+      onChainTransactionHash: transaction.txHash,
+      onChainTransactionStatus: transactionStatusToOnChainTransactionStatus(
+        transaction.status,
+      ),
     };
   }
 
