@@ -1,15 +1,6 @@
 "use server";
 
-import {
-  computeJobStatus,
-  CreditsPrice,
-  getCreditTransactionByJobId,
-  jobInclude,
-  jobOrderBy,
-  JobStatus,
-  JobWithRelations,
-  prisma,
-} from "@/lib/db";
+import { CreditsPrice, getCreditTransactionByJobId, prisma } from "@/lib/db";
 import {
   AgentJobStatus,
   Job,
@@ -19,6 +10,9 @@ import {
   OnChainTransactionStatus,
   Prisma,
 } from "@/prisma/generated/client";
+
+import { jobInclude, jobOrderBy, JobStatus, JobWithRelations } from "./types";
+import { computeJobStatus } from "./utils";
 
 export type JobWithStatus = JobWithRelations & { status: JobStatus };
 
