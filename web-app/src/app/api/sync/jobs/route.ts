@@ -1,4 +1,5 @@
 import { after, NextResponse } from "next/server";
+import pLimit from "p-limit";
 import pTimeout from "p-timeout";
 
 import { getEnvSecrets } from "@/config/env.config";
@@ -10,7 +11,11 @@ import {
   unlockLock,
 } from "@/lib/db";
 import { syncJob } from "@/lib/services";
-import { Lock } from "@/prisma/generated/client";
+import {
+  AgentJobStatus,
+  Lock,
+  OnChainJobStatus,
+} from "@/prisma/generated/client";
 
 const LOCK_KEY = "jobs-sync";
 
@@ -69,7 +74,7 @@ export async function POST(request: Request) {
 async function syncAllJobs() {
   const runningDbUpdates: Promise<void>[] = [];
 
-  const jobs = await prisma.job.findMany({
+  let jobs = await prisma.job.findMany({
     where: {
       OR: [
         {
@@ -85,9 +90,23 @@ async function syncAllJobs() {
       ],
     },
   });
-  for (const job of jobs) {
-    runningDbUpdates.push(syncJob(job));
-  }
 
+  // Filter out jobs that are already completed and the external dispute unlock time has passed
+  const nowTimestamp = Date.now();
+  jobs = jobs.filter((job) => {
+    if (
+      job.onChainStatus === OnChainJobStatus.RESULT_SUBMITTED &&
+      job.agentJobStatus === AgentJobStatus.COMPLETED
+    ) {
+      return job.externalDisputeUnlockTime.getTime() > nowTimestamp;
+    }
+    return true;
+  });
+
+  // Process 5 jobs at a time
+  const limit = pLimit(5);
+  for (const job of jobs) {
+    runningDbUpdates.push(limit(() => syncJob(job)));
+  }
   await Promise.allSettled(runningDbUpdates);
 }

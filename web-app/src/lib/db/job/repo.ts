@@ -4,15 +4,18 @@ import { CreditsPrice, getCreditTransactionByJobId, prisma } from "@/lib/db";
 import {
   AgentJobStatus,
   Job,
-  NextJobAction,
-  NextJobActionErrorType,
   OnChainJobStatus,
-  OnChainTransactionStatus,
   Prisma,
 } from "@/prisma/generated/client";
 
 import { jobInclude, jobOrderBy, JobStatus, JobWithRelations } from "./types";
-import { computeJobStatus } from "./utils";
+import {
+  computeJobStatus,
+  jobStatusToAgentJobStatus,
+  nextActionToNextJobAction,
+  onChainStateToOnChainJobStatus,
+  transactionStatusToOnChainTransactionStatus,
+} from "./utils";
 
 export type JobWithStatus = JobWithRelations & { status: JobStatus };
 
@@ -159,10 +162,19 @@ export async function refundJob(
   jobId: string,
   tx: Prisma.TransactionClient = prisma,
 ) {
+  const job = await tx.job.findUnique({
+    where: { id: jobId },
+    select: { refundedCreditTransaction: true },
+  });
+  if (job?.refundedCreditTransaction) {
+    return;
+  }
+
   const creditTransaction = await getCreditTransactionByJobId(jobId, tx);
   if (!creditTransaction) {
     throw new Error("Credit transaction not found");
   }
+
   await tx.job.update({
     where: { id: jobId },
     data: {
@@ -181,29 +193,13 @@ export async function refundJob(
   });
 }
 
-export async function updateOnChainStatus(
+export async function updateJobWithAgentJobStatus(
   jobId: string,
-  onChainStatus: OnChainJobStatus,
+  jobStatusResponse: JobStatusResponse,
   tx: Prisma.TransactionClient = prisma,
 ) {
-  const data: Prisma.JobUpdateInput = { onChainStatus };
-  if (onChainStatus === OnChainJobStatus.RESULT_SUBMITTED) {
-    data.resultSubmittedAt = new Date();
-  }
-  const job = await tx.job.update({
-    where: { id: jobId },
-    data,
-    include: jobInclude,
-  });
-  return mapJobWithStatus(job);
-}
-
-export async function updateAgentJobStatus(
-  jobId: string,
-  agentJobStatus: AgentJobStatus,
-  output: string | null,
-  tx: Prisma.TransactionClient = prisma,
-) {
+  const output = JSON.stringify(jobStatusResponse);
+  const agentJobStatus = jobStatusToAgentJobStatus(jobStatusResponse.status);
   const data: Prisma.JobUpdateInput = { agentJobStatus, output };
   if (agentJobStatus === AgentJobStatus.COMPLETED) {
     data.completedAt = new Date();
@@ -216,43 +212,51 @@ export async function updateAgentJobStatus(
   return mapJobWithStatus(job);
 }
 
-export async function updateNextAction(
+export async function updateJobWithPurchase(
   jobId: string,
-  nextAction: NextJobAction,
-  nextActionErrorType: NextJobActionErrorType | null,
-  nextActionErrorNote: string | null,
+  purchase: Purchase,
   tx: Prisma.TransactionClient = prisma,
 ) {
-  const job = await tx.job.update({
-    where: { id: jobId },
-    data: { nextAction, nextActionErrorType, nextActionErrorNote },
-    include: jobInclude,
-  });
-  return mapJobWithStatus(job);
-}
+  const onChainStatus = onChainStateToOnChainJobStatus(purchase.onChainState);
+  let data: Prisma.JobUpdateInput = { onChainStatus };
+  if (onChainStatus === OnChainJobStatus.RESULT_SUBMITTED) {
+    data.resultSubmittedAt = new Date();
+  }
 
-export async function connectTransaction(
-  jobId: string,
-  hash: string,
-  status: OnChainTransactionStatus,
-  tx: Prisma.TransactionClient = prisma,
-) {
-  const job = await tx.job.update({
-    where: { id: jobId },
-    data: {
+  const nextAction = nextActionToNextJobAction(purchase.NextAction);
+  data = {
+    ...data,
+    nextAction: nextAction.requestedAction,
+    nextActionErrorType: nextAction.errorType,
+    nextActionErrorNote: nextAction.errorNote,
+  };
+
+  const transaction = purchase.CurrentTransaction;
+  if (transaction) {
+    data = {
+      ...data,
       onChainTransaction: {
         upsert: {
           create: {
-            hash,
-            status,
+            hash: transaction.txHash,
+            status: transactionStatusToOnChainTransactionStatus(
+              transaction.status,
+            ),
           },
           update: {
-            hash,
-            status,
+            hash: transaction.txHash,
+            status: transactionStatusToOnChainTransactionStatus(
+              transaction.status,
+            ),
           },
         },
       },
-    },
+    };
+  }
+
+  const job = await tx.job.update({
+    where: { id: jobId },
+    data,
     include: jobInclude,
   });
   return mapJobWithStatus(job);
