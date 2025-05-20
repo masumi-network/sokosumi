@@ -125,6 +125,7 @@ export async function syncJob(job: Job) {
       job = await syncRegistryStatus(job, tx);
       job = await syncAgentJobStatus(job, tx);
 
+      // Refund if the job failed
       const jobStatus = computeJobStatus(job);
       switch (jobStatus) {
         case JobStatus.PAYMENT_FAILED:
@@ -135,14 +136,19 @@ export async function syncJob(job: Job) {
           break;
       }
 
+      // Request a refund if the job is not completed after 10 minutes
       switch (job.onChainStatus) {
         case OnChainJobStatus.RESULT_SUBMITTED:
-          const completedAt = job.completedAt ?? new Date();
-          if (
-            job.agentJobStatus !== AgentJobStatus.COMPLETED &&
-            new Date().getTime() - completedAt.getTime() > 10 * 60 * 1000 // 10 minutes
-          ) {
-            await postPaymentClientRequestRefund(job);
+          if (job.agentJobStatus !== AgentJobStatus.COMPLETED) {
+            const resultSubmittedAt = job.resultSubmittedAt;
+            if (!resultSubmittedAt) {
+              await postPaymentClientRequestRefund(job);
+            } else if (
+              new Date().getTime() - resultSubmittedAt.getTime() >
+              10 * 60 * 1000 // 10 minutes
+            ) {
+              await postPaymentClientRequestRefund(job);
+            }
           }
           break;
         default:
