@@ -159,10 +159,19 @@ export async function refundJob(
   jobId: string,
   tx: Prisma.TransactionClient = prisma,
 ) {
+  const job = await tx.job.findUnique({
+    where: { id: jobId },
+    select: { refundedCreditTransaction: true },
+  });
+  if (job?.refundedCreditTransaction) {
+    return;
+  }
+
   const creditTransaction = await getCreditTransactionByJobId(jobId, tx);
   if (!creditTransaction) {
     throw new Error("Credit transaction not found");
   }
+
   await tx.job.update({
     where: { id: jobId },
     data: {
