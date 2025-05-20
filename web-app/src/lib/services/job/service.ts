@@ -4,19 +4,13 @@ import { v4 as uuidv4 } from "uuid";
 
 import {
   computeJobStatus,
-  connectTransaction,
   createJob,
   getAgentById,
   JobStatus,
-  jobStatusToAgentJobStatus,
-  nextActionToNextJobAction,
-  onChainStateToOnChainJobStatus,
   prisma,
   refundJob,
-  transactionStatusToOnChainTransactionStatus,
-  updateAgentJobStatus,
-  updateNextAction,
-  updateOnChainStatus,
+  updateJobWithAgentJobStatus,
+  updateJobWithPurchase,
 } from "@/lib/db";
 import { calculateInputHash } from "@/lib/utils";
 import {
@@ -175,32 +169,11 @@ async function syncRegistryStatus(
   purchase: Purchase,
   tx: Prisma.TransactionClient,
 ): Promise<Job> {
-  const onChainStatus = onChainStateToOnChainJobStatus(purchase.onChainState);
-
-  let newJob =
-    onChainStatus !== null
-      ? await updateOnChainStatus(job.id, onChainStatus, tx)
-      : job;
-
-  const nextAction = nextActionToNextJobAction(purchase.NextAction);
-  newJob = await updateNextAction(
-    job.id,
-    nextAction.requestedAction,
-    nextAction.errorType,
-    nextAction.errorNote,
-    tx,
-  );
-  // Transaction
-  const transaction = purchase.CurrentTransaction;
-  if (transaction) {
-    newJob = await connectTransaction(
-      job.id,
-      transaction.txHash,
-      transactionStatusToOnChainTransactionStatus(transaction.status),
-    );
+  try {
+    return await updateJobWithPurchase(job.id, purchase, tx);
+  } catch {
+    return job;
   }
-
-  return newJob;
 }
 
 async function syncAgentJobStatus(
@@ -209,9 +182,7 @@ async function syncAgentJobStatus(
   tx: Prisma.TransactionClient,
 ): Promise<Job> {
   try {
-    const output = JSON.stringify(jobStatusResponse);
-    const agentJobStatus = jobStatusToAgentJobStatus(jobStatusResponse.status);
-    return await updateAgentJobStatus(job.id, agentJobStatus, output, tx);
+    return await updateJobWithAgentJobStatus(job.id, jobStatusResponse, tx);
   } catch {
     return job;
   }
