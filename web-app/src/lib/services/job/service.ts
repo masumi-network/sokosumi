@@ -3,7 +3,6 @@
 import { v4 as uuidv4 } from "uuid";
 
 import {
-  AgentWithRelations,
   computeJobStatus,
   connectTransaction,
   createJob,
@@ -197,22 +196,21 @@ async function syncAgentJobStatus(
   job: Job,
   tx: Prisma.TransactionClient,
 ): Promise<Job> {
-  let agent: AgentWithRelations | null = null;
   try {
-    agent = await getAgentById(job.agentId, tx);
+    const agent = await getAgentById(job.agentId, tx);
+    if (!agent) {
+      return job;
+    }
+    const jobStatusResult = await fetchAgentJobStatus(agent, job.agentJobId);
+    if (!jobStatusResult.ok) {
+      return job;
+    }
+    const jobStatusResponse = jobStatusResult.data;
+
+    const output = JSON.stringify(jobStatusResponse);
+    const agentJobStatus = jobStatusToAgentJobStatus(jobStatusResponse.status);
+    return await updateAgentJobStatus(job.id, agentJobStatus, output, tx);
   } catch {
     return job;
   }
-  if (!agent) {
-    return job;
-  }
-  const jobStatusResult = await fetchAgentJobStatus(agent, job.agentJobId);
-  if (!jobStatusResult.ok) {
-    return job;
-  }
-  const jobStatusResponse = jobStatusResult.data;
-
-  const output = JSON.stringify(jobStatusResponse);
-  const agentJobStatus = jobStatusToAgentJobStatus(jobStatusResponse.status);
-  return await updateAgentJobStatus(job.id, agentJobStatus, output, tx);
 }
