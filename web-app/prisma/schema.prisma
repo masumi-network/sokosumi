@@ -33,6 +33,9 @@ model User {
 
   stripeCustomerId String?
 
+  members     Member[]
+  invitations Invitation[]
+
   @@unique([email])
   @@map("user")
 }
@@ -47,6 +50,8 @@ model Session {
   userAgent String?
   userId    String
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  activeOrganizationId String?
 
   @@unique([token])
   @@map("session")
@@ -80,6 +85,47 @@ model Verification {
   updatedAt  DateTime?
 
   @@map("verification")
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String
+  logo      String?
+  metadata  String?
+  createdAt DateTime @default(now())
+
+  members     Member[]
+  invitations Invitation[]
+
+  @@unique([slug])
+  @@map("organization")
+}
+
+model Member {
+  id             String       @id @default(cuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role           String?
+  createdAt      DateTime     @default(now())
+
+  @@map("member")
+}
+
+model Invitation {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email          String
+  role           String?
+  status         String
+  expiresAt      DateTime
+  inviterId      String
+  inviter        User         @relation(fields: [inviterId], references: [id], onDelete: Cascade)
+
+  @@map("invitation")
 }
 
 model RateLimit {
