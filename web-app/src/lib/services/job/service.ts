@@ -3,6 +3,7 @@
 import { v4 as uuidv4 } from "uuid";
 
 import {
+  AgentWithRelations,
   computeJobStatus,
   connectTransaction,
   createJob,
@@ -114,39 +115,44 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
     },
     {
       maxWait: 5000, // default: 2000
-      timeout: 10000, // default: 5000
+      timeout: 20000, // default: 5000
     },
   );
 }
 
 export async function syncJob(job: Job) {
-  await prisma.$transaction(async (tx) => {
-    job = await syncRegistryStatus(job, tx);
-    job = await syncAgentJobStatus(job, tx);
-
-    const jobStatus = computeJobStatus(job);
-    switch (jobStatus) {
-      case JobStatus.PAYMENT_FAILED:
-      case JobStatus.REFUND_RESOLVED:
-        await refundJob(job.id, tx);
-        break;
-      default:
-        break;
-    }
-    switch (job.onChainStatus) {
-      case OnChainJobStatus.RESULT_SUBMITTED:
-        const completedAt = job.completedAt ?? new Date();
-        if (
-          job.agentJobStatus !== AgentJobStatus.COMPLETED &&
-          new Date().getTime() - completedAt.getTime() > 10 * 60 * 1000 // 10 minutes
-        ) {
-          await postPaymentClientRequestRefund(job);
-        }
-        break;
-      default:
-        break;
-    }
-  });
+  await prisma.$transaction(
+    async (tx) => {
+      job = await syncRegistryStatus(job, tx);
+      job = await syncAgentJobStatus(job, tx);
+      const jobStatus = computeJobStatus(job);
+      switch (jobStatus) {
+        case JobStatus.PAYMENT_FAILED:
+        case JobStatus.REFUND_RESOLVED:
+          await refundJob(job.id, tx);
+          break;
+        default:
+          break;
+      }
+      switch (job.onChainStatus) {
+        case OnChainJobStatus.RESULT_SUBMITTED:
+          const completedAt = job.completedAt ?? new Date();
+          if (
+            job.agentJobStatus !== AgentJobStatus.COMPLETED &&
+            new Date().getTime() - completedAt.getTime() > 10 * 60 * 1000 // 10 minutes
+          ) {
+            await postPaymentClientRequestRefund(job);
+          }
+          break;
+        default:
+          break;
+      }
+    },
+    {
+      timeout: 50000,
+      maxWait: 10000,
+    },
+  );
 }
 
 async function syncRegistryStatus(
@@ -160,6 +166,7 @@ async function syncRegistryStatus(
   const purchase = purchaseResult.data;
 
   const onChainStatus = onChainStateToOnChainJobStatus(purchase.onChainState);
+
   let newJob =
     onChainStatus !== null
       ? await updateOnChainStatus(job.id, onChainStatus, tx)
@@ -173,7 +180,6 @@ async function syncRegistryStatus(
     nextAction.errorNote,
     tx,
   );
-
   // Transaction
   const transaction = purchase.CurrentTransaction;
   if (transaction) {
@@ -191,12 +197,15 @@ async function syncAgentJobStatus(
   job: Job,
   tx: Prisma.TransactionClient,
 ): Promise<Job> {
-  const agent = await getAgentById(job.agentId, tx);
-
+  let agent: AgentWithRelations | null = null;
+  try {
+    agent = await getAgentById(job.agentId, tx);
+  } catch {
+    return job;
+  }
   if (!agent) {
     return job;
   }
-
   const jobStatusResult = await fetchAgentJobStatus(agent, job.agentJobId);
   if (!jobStatusResult.ok) {
     return job;
@@ -207,11 +216,6 @@ async function syncAgentJobStatus(
   if (jobStatusResponse.status === "completed") {
     output = JSON.stringify(jobStatusResponse);
   }
-
-  return await updateAgentJobStatus(
-    job.id,
-    jobStatusToAgentJobStatus(jobStatusResponse.status),
-    output,
-    tx,
-  );
+  const agentJobStatus = jobStatusToAgentJobStatus(jobStatusResponse.status);
+  return await updateAgentJobStatus(job.id, agentJobStatus, output, tx);
 }
