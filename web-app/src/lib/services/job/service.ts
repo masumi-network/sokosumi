@@ -120,11 +120,17 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
 }
 
 export async function syncJob(job: Job) {
+  const agentJobStatus = await getAgentJobStatus(job);
+  const onChainPurchase = await getOnChainPurchase(job.paymentId);
+
   await prisma.$transaction(
     async (tx) => {
-      job = await syncRegistryStatus(job, tx);
-      job = await syncAgentJobStatus(job, tx);
-
+      if (onChainPurchase) {
+        job = await syncRegistryStatus(job, onChainPurchase, tx);
+      }
+      if (agentJobStatus) {
+        job = await syncAgentJobStatus(job, agentJobStatus, tx);
+      }
       // Refund if the job failed
       const jobStatus = computeJobStatus(job);
       switch (jobStatus) {
@@ -164,14 +170,9 @@ export async function syncJob(job: Job) {
 
 async function syncRegistryStatus(
   job: Job,
+  purchase: Purchase,
   tx: Prisma.TransactionClient,
 ): Promise<Job> {
-  const purchaseResult = await getPaymentClientPurchase(job.paymentId);
-  if (!purchaseResult.ok) {
-    return job;
-  }
-  const purchase = purchaseResult.data;
-
   const onChainStatus = onChainStateToOnChainJobStatus(purchase.onChainState);
 
   let newJob =
@@ -202,23 +203,39 @@ async function syncRegistryStatus(
 
 async function syncAgentJobStatus(
   job: Job,
+  jobStatusResponse: JobStatusResponse,
   tx: Prisma.TransactionClient,
 ): Promise<Job> {
   try {
-    const agent = await getAgentById(job.agentId, tx);
-    if (!agent) {
-      return job;
-    }
-    const jobStatusResult = await fetchAgentJobStatus(agent, job.agentJobId);
-    if (!jobStatusResult.ok) {
-      return job;
-    }
-    const jobStatusResponse = jobStatusResult.data;
-
     const output = JSON.stringify(jobStatusResponse);
     const agentJobStatus = jobStatusToAgentJobStatus(jobStatusResponse.status);
     return await updateAgentJobStatus(job.id, agentJobStatus, output, tx);
   } catch {
     return job;
   }
+}
+
+async function getOnChainPurchase(
+  jobPaymentId: string,
+): Promise<Purchase | null> {
+  const purchaseResult = await getPaymentClientPurchase(jobPaymentId);
+  if (!purchaseResult.ok) {
+    return null;
+  }
+  return purchaseResult.data;
+}
+
+export async function getAgentJobStatus(
+  job: Job,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<JobStatusResponse | null> {
+  const agent = await getAgentById(job.agentId, tx);
+  if (!agent) {
+    return null;
+  }
+  const jobStatusResult = await fetchAgentJobStatus(agent, job.agentJobId);
+  if (!jobStatusResult.ok) {
+    return null;
+  }
+  return jobStatusResult.data;
 }
