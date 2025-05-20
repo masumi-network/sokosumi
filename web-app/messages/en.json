@@ -365,6 +365,9 @@
             "Name": {
               "placeholder": "Name"
             },
+            "Organization": {
+              "placeholder": "Organization"
+            },
             "Password": {
               "placeholder": "Password"
             },
@@ -630,6 +633,10 @@
           "max": "Name must be at most 128 characters.",
           "invalid": "Name must be a valid string.",
           "required": "Name is required"
+        },
+        "Organization": {
+          "invalid": "Organization must be a valid string.",
+          "required": "Organization is required"
         },
         "Password": {
           "invalid": "Password must be a valid string.",

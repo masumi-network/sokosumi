@@ -17,6 +17,13 @@ export const emailSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
     .min(1, { message: t?.("Email.required") })
     .email({ message: t?.("Email.invalid") });
 
+export const organizationSchema = (
+  t?: IntlTranslation<"Library.Auth.Schema">,
+) =>
+  z
+    .string({ message: t?.("Organization.invalid") })
+    .min(1, { message: t?.("Organization.required") });
+
 export const passwordSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z
     .string({ message: t?.("Password.invalid") })
