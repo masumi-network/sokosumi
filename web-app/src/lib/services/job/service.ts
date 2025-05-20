@@ -116,7 +116,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
     },
     {
       maxWait: 5000, // default: 2000
-      timeout: 20000, // default: 5000
+      timeout: 10000, // default: 5000
     },
   );
 }
@@ -155,8 +155,8 @@ export async function syncJob(job: Job) {
       }
     },
     {
-      timeout: 50000,
-      maxWait: 10000,
+      maxWait: 5000, // default: 2000
+      timeout: 20000, // default: 5000
     },
   );
 }
