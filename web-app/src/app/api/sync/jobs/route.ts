@@ -5,7 +5,7 @@ import { getEnvSecrets } from "@/config/env.config";
 import { compareApiKeys } from "@/lib/auth/utils";
 import {
   acquireLock,
-  FinalizedOnChainJobStatuses,
+  finalizedOnChainJobStatuses,
   prisma,
   unlockLock,
 } from "@/lib/db";
@@ -74,7 +74,7 @@ async function syncAllJobs() {
       OR: [
         {
           onChainStatus: {
-            notIn: FinalizedOnChainJobStatuses,
+            notIn: finalizedOnChainJobStatuses,
           },
           nextActionErrorType: null,
         },

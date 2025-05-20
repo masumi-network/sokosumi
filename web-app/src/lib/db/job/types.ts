@@ -91,13 +91,13 @@ export function computeJobStatus(job: Job): JobStatus {
   }
 }
 
-export const FinalizedOnChainJobStatuses: OnChainJobStatus[] = [
+export const finalizedOnChainJobStatuses: OnChainJobStatus[] = [
   OnChainJobStatus.DISPUTED_WITHDRAWN,
   OnChainJobStatus.FUNDS_WITHDRAWN,
   OnChainJobStatus.REFUND_WITHDRAWN,
 ];
 
-export const FinalizedAgentJobStatuses: AgentJobStatus[] = [
+export const finalizedAgentJobStatuses: AgentJobStatus[] = [
   AgentJobStatus.COMPLETED,
   AgentJobStatus.FAILED,
 ];

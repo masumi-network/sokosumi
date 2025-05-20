@@ -2,7 +2,7 @@ import { CircleCheck } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { FinalizedOnChainJobStatuses, JobWithRelations } from "@/lib/db";
+import { finalizedOnChainJobStatuses, JobWithRelations } from "@/lib/db";
 
 function AgentDetailSection2({ jobs }: { jobs: JobWithRelations[] }) {
   const t = useTranslations("Components.Agents.AgentDetail.Section2");
@@ -11,7 +11,7 @@ function AgentDetailSection2({ jobs }: { jobs: JobWithRelations[] }) {
   const executedJobs = jobs.filter(
     (job) =>
       job.onChainStatus !== null &&
-      FinalizedOnChainJobStatuses.includes(job.onChainStatus),
+      finalizedOnChainJobStatuses.includes(job.onChainStatus),
   );
 
   return (
