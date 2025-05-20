@@ -24,6 +24,7 @@
     "prisma:seed": "prisma db seed",
     "prisma:studio": "prisma studio",
     "data-migration:job-sync": "tsx ./prisma/migrations/20250519112751_job_sync/data-migration.ts",
+    "data-migration:add-organization": "tsx ./prisma/migrations/20250520120625_add_organization/data-migration.ts",
     "format": "prettier --log-level silent --write src/**/*.ts",
     "generate:payment": "openapi-ts -f openapi-ts.payment.config.ts",
     "generate:registry": "openapi-ts -f openapi-ts.registry.config.ts",
