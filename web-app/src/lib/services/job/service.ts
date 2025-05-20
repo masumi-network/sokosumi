@@ -120,8 +120,10 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
 }
 
 export async function syncJob(job: Job) {
-  const agentJobStatus = await getAgentJobStatus(job);
-  const onChainPurchase = await getOnChainPurchase(job.paymentId);
+  const [agentJobStatus, onChainPurchase] = await Promise.all([
+    getAgentJobStatus(job),
+    getOnChainPurchase(job.paymentId),
+  ]);
 
   await prisma.$transaction(
     async (tx) => {
