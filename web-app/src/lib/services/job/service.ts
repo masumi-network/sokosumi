@@ -218,10 +218,7 @@ async function syncAgentJobStatus(
   }
   const jobStatusResponse = jobStatusResult.data;
 
-  let output: string | null = null;
-  if (jobStatusResponse.status === "completed") {
-    output = JSON.stringify(jobStatusResponse);
-  }
+  const output = JSON.stringify(jobStatusResponse);
   const agentJobStatus = jobStatusToAgentJobStatus(jobStatusResponse.status);
   return await updateAgentJobStatus(job.id, agentJobStatus, output, tx);
 }
