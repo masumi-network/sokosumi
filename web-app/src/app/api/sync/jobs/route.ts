@@ -91,12 +91,13 @@ async function syncAllJobs() {
   });
 
   // Filter out jobs that are already completed and the external dispute unlock time has passed
+  const nowTimestamp = Date.now();
   jobs = jobs.filter((job) => {
     if (
       job.onChainStatus === OnChainJobStatus.RESULT_SUBMITTED &&
       job.agentJobStatus === AgentJobStatus.COMPLETED
     ) {
-      return job.externalDisputeUnlockTime.getTime() > Date.now();
+      return job.externalDisputeUnlockTime.getTime() > nowTimestamp;
     }
     return true;
   });
