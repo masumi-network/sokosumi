@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v4";
 
 import { emailSchema, inputPasswordSchema } from "@/lib/auth/data";
 import { FormData } from "@/lib/form";

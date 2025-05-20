@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from "zod/v4";
 
 import { confirmPasswordSchema, passwordSchema } from "@/lib/auth/data";
 import { FormData } from "@/lib/form";
