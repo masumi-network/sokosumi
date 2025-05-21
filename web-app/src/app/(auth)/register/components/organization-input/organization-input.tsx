@@ -111,7 +111,13 @@ export default function OrganizationInput({
                     onSelect={() => handleSelectOrganization(organization)}
                     className="flex items-center gap-2"
                   >
-                    {value?.id === organization.id && <Check />}
+                    <Check
+                      className={
+                        value?.id === organization.id
+                          ? "opacity-100"
+                          : "opacity-0"
+                      }
+                    />
                     <span className="flex-1">{organization.name}</span>
                     <span className="text-muted-foreground text-sm">
                       {organization._count.members}
