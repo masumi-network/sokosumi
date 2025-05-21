@@ -9,6 +9,7 @@ import { z } from "zod";
 const envSecretsSchema = z.object({
   // Database
   DATABASE_URL: z.string().url(),
+  DATABASE_DIRECT_URL: z.string().url(),
   MIN_FEE_CREDITS: z.number({ coerce: true }).min(0).default(1),
   FREE_CREDITS_ON_SIGNUP: z.number({ coerce: true }).min(0).default(0),
   ALLOWED_EMAIL_DOMAINS: z
