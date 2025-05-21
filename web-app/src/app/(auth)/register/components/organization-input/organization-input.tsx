@@ -20,6 +20,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { OrganizationWithMembersCount } from "@/lib/db";
 import { cn } from "@/lib/utils";
 import { Organization } from "@/prisma/generated/client";
 
@@ -27,7 +28,7 @@ import CreateOrganization from "./create-organization";
 import { createOrganizationSchema, CreateOrganizationSchemaType } from "./data";
 
 interface OrganizationInputProps {
-  organizations: Organization[];
+  organizations: OrganizationWithMembersCount[];
   value: Organization | undefined;
   onChange: (organization: Organization) => void;
 }
@@ -108,16 +109,13 @@ export default function OrganizationInput({
                     key={organization.id}
                     value={organization.name}
                     onSelect={() => handleSelectOrganization(organization)}
+                    className="flex items-center gap-2"
                   >
-                    {organization.name}
-                    <Check
-                      className={cn(
-                        "ml-auto",
-                        value?.id === organization.id
-                          ? "opacity-100"
-                          : "opacity-0",
-                      )}
-                    />
+                    {value?.id === organization.id && <Check />}
+                    <span className="flex-1">{organization.name}</span>
+                    <span className="text-muted-foreground text-sm">
+                      {organization._count.members}
+                    </span>
                   </CommandItem>
                 ))}
               </CommandGroup>

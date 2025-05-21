@@ -21,12 +21,13 @@ import {
 } from "@/components/ui/form";
 import { createOrganizationMember } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
+import { OrganizationWithMembersCount } from "@/lib/db";
 import { Organization } from "@/prisma/generated/client";
 
 import { OrganizationInput } from "./organization-input";
 
 interface SignUpFormProps {
-  organizations: Organization[];
+  organizations: OrganizationWithMembersCount[];
 }
 
 export default function SignUpForm({ organizations }: SignUpFormProps) {
