@@ -108,5 +108,10 @@ async function syncAllJobs() {
   for (const job of jobs) {
     runningDbUpdates.push(limit(() => syncJob(job)));
   }
-  await Promise.allSettled(runningDbUpdates);
+  try {
+    await Promise.allSettled(runningDbUpdates);
+  } catch (error) {
+    console.error("Error in sync operation:", error);
+    throw error;
+  }
 }

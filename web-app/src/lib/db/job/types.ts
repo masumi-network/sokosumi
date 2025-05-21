@@ -7,7 +7,6 @@ import {
 export const jobInclude = {
   agent: true,
   user: true,
-  onChainTransaction: true,
 } as const;
 
 export const jobOrderBy = {
