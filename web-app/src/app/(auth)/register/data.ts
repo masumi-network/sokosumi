@@ -28,12 +28,12 @@ type SignUpFormSchemaType = z.infer<ReturnType<typeof signUpFormSchema>>;
 const signUpFormData: FormData<SignUpFormSchemaType, "Auth.Pages.SignUp.Form"> =
   [
     {
-      name: "email",
-      placeholderKey: "Fields.Email.placeholder",
-    },
-    {
       name: "name",
       placeholderKey: "Fields.Name.placeholder",
+    },
+    {
+      name: "email",
+      placeholderKey: "Fields.Email.placeholder",
     },
     {
       name: "password",
