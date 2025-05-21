@@ -69,6 +69,11 @@ export default function OrganizationInput({
     setOpen(false);
   };
 
+  const handleCreateOrganization = (organization: Organization) => {
+    onChange(organization);
+    setOpen(false);
+  };
+
   return (
     <div>
       <Popover open={open} onOpenChange={handleOpenChange}>
@@ -92,7 +97,10 @@ export default function OrganizationInput({
             <CommandInput placeholder={t("search")} />
             <CommandList>
               <CommandEmpty className="p-2">
-                <CreateOrganization form={createOrganizationForm} />
+                <CreateOrganization
+                  form={createOrganizationForm}
+                  onCreate={handleCreateOrganization}
+                />
               </CommandEmpty>
               <CommandGroup>
                 {organizations.map((organization) => (

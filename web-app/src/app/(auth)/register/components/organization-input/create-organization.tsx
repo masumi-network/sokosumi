@@ -8,14 +8,19 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createOrganizationFromName } from "@/lib/actions";
+import { Organization } from "@/prisma/generated/client";
 
 import { CreateOrganizationSchemaType } from "./data";
 
 interface CreateOrganizationProps {
   form: UseFormReturn<CreateOrganizationSchemaType>;
+  onCreate: (organization: Organization) => void;
 }
 
-export default function CreateOrganization({ form }: CreateOrganizationProps) {
+export default function CreateOrganization({
+  form,
+  onCreate,
+}: CreateOrganizationProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form.Fields.Organization");
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -25,8 +30,9 @@ export default function CreateOrganization({ form }: CreateOrganizationProps) {
 
   const onSubmit = async (values: CreateOrganizationSchemaType) => {
     const organizationResult = await createOrganizationFromName(values.name);
-    if (organizationResult.success) {
+    if (organizationResult.success && organizationResult.organization) {
       toast.success(t("success"));
+      onCreate(organizationResult.organization);
     } else {
       toast.error(t("error"));
     }
