@@ -1,6 +1,6 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -20,7 +20,7 @@ export default function SignUpForm() {
 
   const router = useRouter();
   const form = useForm<SignUpFormSchemaType>({
-    resolver: zodResolver(
+    resolver: standardSchemaResolver(
       signUpFormSchema(useTranslations("Library.Auth.Schema")),
     ),
     defaultValues: {

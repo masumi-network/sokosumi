@@ -1,6 +1,6 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
@@ -23,11 +23,10 @@ export default function ForgotPasswordForm({
 }: ForgotPasswordFormProps) {
   const t = useTranslations("Auth.Pages.ForgotPassword.Form");
   const router = useRouter();
+  const schemaT = useTranslations("Library.Auth.Schema");
 
   const form = useForm<ForgotPasswordFormSchemaType>({
-    resolver: zodResolver(
-      forgotPasswordFormSchema(useTranslations("Library.Auth.Schema")),
-    ),
+    resolver: standardSchemaResolver(forgotPasswordFormSchema(schemaT)),
     defaultValues: {
       email: initialEmail ?? "",
     },

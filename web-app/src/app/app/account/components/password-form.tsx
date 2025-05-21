@@ -1,6 +1,6 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -30,7 +30,7 @@ export function PasswordForm() {
   const t = useTranslations("App.Account.Password");
 
   const form = useForm<PasswordFormType>({
-    resolver: zodResolver(
+    resolver: standardSchemaResolver(
       passwordFormSchema(useTranslations("Library.Auth.Schema")),
     ),
     defaultValues: {

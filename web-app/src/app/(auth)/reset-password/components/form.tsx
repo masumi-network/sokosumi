@@ -1,6 +1,6 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
@@ -23,7 +23,7 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
   const router = useRouter();
 
   const form = useForm<ResetPasswordFormSchemaType>({
-    resolver: zodResolver(
+    resolver: standardSchemaResolver(
       resetPasswordFormSchema(useTranslations("Library.Auth.Schema")),
     ),
     defaultValues: {

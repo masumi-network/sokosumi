@@ -1,6 +1,6 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
@@ -40,7 +40,7 @@ export function DeleteAccountForm() {
   const router = useRouter();
 
   const form = useForm<DeleteAccountFormType>({
-    resolver: zodResolver(
+    resolver: standardSchemaResolver(
       deleteAccountSchema(useTranslations("Library.Auth.Schema")),
     ),
     defaultValues: {

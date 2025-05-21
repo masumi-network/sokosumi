@@ -1,6 +1,6 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
+import { standardSchemaResolver } from "@hookform/resolvers/standard-schema";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -53,7 +53,7 @@ export default function JobInputsFormClient({
   const { input_data } = jobInputsDataSchema;
   const t = useTranslations("Library.JobInput.Form");
   const form = useForm<JobInputsFormSchemaType>({
-    resolver: zodResolver(jobInputsFormSchema(input_data, t)),
+    resolver: standardSchemaResolver(jobInputsFormSchema(input_data, t)),
     defaultValues: defaultValues(input_data),
     mode: "onChange",
   });
