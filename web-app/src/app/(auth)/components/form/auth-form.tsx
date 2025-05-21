@@ -3,6 +3,7 @@
 import { ReactNode } from "react";
 import { FieldValues, UseFormReturn } from "react-hook-form";
 
+import { OrganizationWithMembersCount } from "@/lib/db/organization";
 import { FormData } from "@/lib/form";
 
 import { BaseForm } from "./base-form";
@@ -14,6 +15,7 @@ interface AuthFormProps<T extends FieldValues> {
   formData: FormData<T, AuthNamespace>;
   namespace: AuthNamespace;
   onSubmit: (values: T) => Promise<void>;
+  organizations?: OrganizationWithMembersCount[] | undefined;
   children: ReactNode;
 }
 
@@ -22,11 +24,17 @@ export function AuthForm<T extends FieldValues>({
   formData,
   namespace,
   onSubmit,
+  organizations,
   children,
 }: AuthFormProps<T>) {
   return (
     <BaseForm form={form} onSubmit={onSubmit}>
-      <FormFields form={form} formData={formData} namespace={namespace} />
+      <FormFields
+        form={form}
+        formData={formData}
+        namespace={namespace}
+        organizations={organizations}
+      />
       {children}
     </BaseForm>
   );

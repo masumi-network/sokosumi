@@ -13,18 +13,9 @@ import {
   signUpFormSchema,
   SignUpFormSchemaType,
 } from "@/auth/register/data";
-import {
-  FormControl,
-  FormField,
-  FormItem,
-  FormMessage,
-} from "@/components/ui/form";
 import { createOrganizationMember } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
 import { OrganizationWithMembersCount } from "@/lib/db";
-import { Organization } from "@/prisma/generated/client";
-
-import { OrganizationInput } from "./organization-input";
 
 interface SignUpFormProps {
   organizations: OrganizationWithMembersCount[];
@@ -46,14 +37,6 @@ export default function SignUpForm({ organizations }: SignUpFormProps) {
       organizationId: "",
     },
   });
-
-  const organizationId = form.watch("organizationId");
-  const organization = organizations.find(
-    (organization) => organization.id === organizationId,
-  );
-  const handleOrganizationChange = (organization: Organization) => {
-    form.setValue("organizationId", organization.id);
-  };
 
   const onSubmit = async (values: SignUpFormSchemaType) => {
     const userResult = await authClient.signUp.email(
@@ -90,7 +73,7 @@ export default function SignUpForm({ organizations }: SignUpFormProps) {
     // create member using organization
     const memberResult = await createOrganizationMember(
       userResult.data.user.id,
-      organizationId,
+      values.organizationId,
     );
     if (!memberResult.success) {
       toast.error(t("errorMember"));
@@ -106,25 +89,9 @@ export default function SignUpForm({ organizations }: SignUpFormProps) {
       formData={signUpFormData}
       namespace="Auth.Pages.SignUp.Form"
       onSubmit={onSubmit}
+      organizations={organizations}
     >
       <div className="flex flex-col gap-4">
-        <FormField
-          key="organizationId"
-          control={form.control}
-          name="organizationId"
-          render={() => (
-            <FormItem>
-              <FormControl>
-                <OrganizationInput
-                  organizations={organizations}
-                  value={organization}
-                  onChange={handleOrganizationChange}
-                />
-              </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
         <SubmitButton form={form} label={t("submit")} className="w-full" />
         <div className="flex flex-col items-center gap-2 sm:flex-row">
           <span className="text-muted-foreground text-sm">
