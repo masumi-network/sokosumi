@@ -364,24 +364,13 @@ model Job {
 
   onChainStatus OnChainJobStatus?
 
-  onChainTransaction   OnChainTransaction? @relation(fields: [onChainTransactionId], references: [id])
-  onChainTransactionId String?             @unique
+  onChainTransactionHash   String?
+  onChainTransactionStatus OnChainTransactionStatus?
 
   creditTransaction           CreditTransaction  @relation("CreditTransactionJob", fields: [creditTransactionId], references: [id])
   creditTransactionId         String             @unique
   refundedCreditTransaction   CreditTransaction? @relation("RefundedCreditTransactionJob", fields: [refundedCreditTransactionId], references: [id])
   refundedCreditTransactionId String?            @unique
-}
-
-model OnChainTransaction {
-  id        String   @id @default(cuid())
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  hash   String                   @unique
-  status OnChainTransactionStatus
-
-  job Job?
 }
 
 enum OnChainTransactionStatus {

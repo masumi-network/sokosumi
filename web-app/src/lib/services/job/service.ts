@@ -172,6 +172,7 @@ async function syncRegistryStatus(
   try {
     return await updateJobWithPurchase(job.id, purchase, tx);
   } catch {
+    console.log("Error syncing registry status: ", job.id);
     return job;
   }
 }
@@ -184,6 +185,7 @@ async function syncAgentJobStatus(
   try {
     return await updateJobWithAgentJobStatus(job.id, jobStatusResponse, tx);
   } catch {
+    console.log("Error syncing agent job status: ", job.id);
     return job;
   }
 }
