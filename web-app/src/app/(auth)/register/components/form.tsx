@@ -19,6 +19,7 @@ import {
   FormItem,
   FormMessage,
 } from "@/components/ui/form";
+import { createOrganizationMember } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
 import { Organization } from "@/prisma/generated/client";
 
@@ -81,10 +82,21 @@ export default function SignUpForm({ organizations }: SignUpFormProps) {
         },
       },
     );
-    if (!!userResult.data?.user) {
-      toast.success(t("success"));
-      router.push("/login");
+    if (!userResult.data?.user) {
+      return;
     }
+
+    // create member using organization
+    const memberResult = await createOrganizationMember(
+      userResult.data.user.id,
+      organizationId,
+    );
+    if (!memberResult.success) {
+      toast.error(t("errorMember"));
+    } else {
+      toast.success(t("success"));
+    }
+    router.push("/login");
   };
 
   return (

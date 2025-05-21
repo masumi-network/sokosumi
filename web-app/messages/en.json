@@ -358,6 +358,7 @@
           "submit": "Register",
           "success": "Register successful",
           "error": "Register failed",
+          "errorMember": "Failed to create organization member",
           "Fields": {
             "Email": {
               "placeholder": "Email"
