@@ -1,7 +1,12 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { FieldValues, Path, UseFormReturn } from "react-hook-form";
+import {
+  ControllerRenderProps,
+  FieldValues,
+  Path,
+  UseFormReturn,
+} from "react-hook-form";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -31,32 +36,15 @@ export function FormFields<T extends FieldValues>({
 
   return (
     <>
-      {formData.map(({ name, placeholderKey, labelKey, type }) => (
+      {formData.map((formDataItem) => (
         <FormField
-          key={name.toString()}
+          key={formDataItem.name.toString()}
           control={form.control}
-          name={name as unknown as Path<T>}
+          name={formDataItem.name as unknown as Path<T>}
           render={({ field }) => (
             <FormItem>
               <FormControl>
-                {type === "checkbox" ? (
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      id={labelKey?.toString() ?? name.toString()}
-                      checked={field.value}
-                      onCheckedChange={field.onChange}
-                    />
-                    <Label htmlFor={labelKey?.toString() ?? name.toString()}>
-                      {labelKey && t(labelKey)}
-                    </Label>
-                  </div>
-                ) : (
-                  <Input
-                    placeholder={placeholderKey && t(placeholderKey)}
-                    type={type ?? "text"}
-                    {...field}
-                  />
-                )}
+                <FormInput field={field} formDataItem={formDataItem} t={t} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -64,5 +52,42 @@ export function FormFields<T extends FieldValues>({
         />
       ))}
     </>
+  );
+}
+
+interface FormInputProps<T extends FieldValues> {
+  field: ControllerRenderProps<T, Path<T>>;
+  formDataItem: FormData<T, AuthNamespace>[number];
+  t: IntlTranslation<AuthNamespace>;
+}
+
+function FormInput<T extends FieldValues>({
+  field,
+  formDataItem,
+  t,
+}: FormInputProps<T>) {
+  const { type, labelKey, name, placeholderKey } = formDataItem;
+
+  if (type === "checkbox") {
+    return (
+      <div className="flex items-center gap-2">
+        <Checkbox
+          id={labelKey?.toString() ?? name.toString()}
+          checked={field.value}
+          onCheckedChange={field.onChange}
+        />
+        <Label htmlFor={labelKey?.toString() ?? name.toString()}>
+          {labelKey && t(labelKey)}
+        </Label>
+      </div>
+    );
+  }
+
+  return (
+    <Input
+      placeholder={placeholderKey && t(placeholderKey)}
+      type={type ?? "text"}
+      {...field}
+    />
   );
 }

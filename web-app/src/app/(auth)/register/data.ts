@@ -4,7 +4,7 @@ import {
   confirmPasswordSchema,
   emailSchema,
   nameSchema,
-  organizationSchema,
+  organizationIdSchema,
   passwordSchema,
 } from "@/lib/auth/data";
 import { FormData } from "@/lib/form";
@@ -14,9 +14,9 @@ const signUpFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
     .object({
       name: nameSchema(t),
       email: emailSchema(t),
-      organization: organizationSchema(t),
       password: passwordSchema(t),
       confirmPassword: confirmPasswordSchema(t),
+      organizationId: organizationIdSchema(t),
     })
     .refine(({ password, confirmPassword }) => password === confirmPassword, {
       path: ["confirmPassword"],
@@ -34,10 +34,6 @@ const signUpFormData: FormData<SignUpFormSchemaType, "Auth.Pages.SignUp.Form"> =
     {
       name: "name",
       placeholderKey: "Fields.Name.placeholder",
-    },
-    {
-      name: "organization",
-      placeholderKey: "Fields.Organization.placeholder",
     },
     {
       name: "password",
