@@ -223,9 +223,7 @@ function AgentCard({
                   />
                 </ClickBlocker>
               )}
-              <ClickBlocker>
-                <AgentHireButton agentId={agent.id} />
-              </ClickBlocker>
+              <Button variant="primary">{t("view")}</Button>
             </div>
           </div>
 
