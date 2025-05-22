@@ -1,3 +1,4 @@
+"use client";
 import { useTranslations } from "next-intl";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
@@ -6,6 +7,8 @@ import {
   jobStatusResponseSchema,
   JobStatusResponseSchemaType,
 } from "@/lib/services/job/schemas";
+
+import DownloadMarkdown from "./download-markdown";
 
 interface JobDetailsOutputsProps {
   rawOutput: string | null;
@@ -51,7 +54,10 @@ function JobDetailsOutputsInner({ rawOutput }: JobDetailsOutputsProps) {
   return (
     <JobDetailsOutputsLayout>
       {output.result ? (
-        <Markdown>{output.result}</Markdown>
+        <>
+          <Markdown>{output.result}</Markdown>
+          <DownloadMarkdown markdown={output.result} />
+        </>
       ) : (
         <p className="text-base">{t("none")}</p>
       )}
@@ -68,3 +74,27 @@ function JobDetailsOutputsError() {
     </div>
   );
 }
+
+// function Download({ markdown }: { markdown: string }) {
+//   const downloadFile = () => {
+//     const url = URL.createObjectURL(
+//       new Blob([markdown], { type: "text/markdown" }),
+//     );
+//     Object.assign(document.createElement("a"), {
+//       href: url,
+//       download: "output.md",
+//     }).click();
+//     URL.revokeObjectURL(url);
+//   };
+
+//   const t = useTranslations("App.Agents.Jobs.JobDetails.Output");
+
+//   return (
+//     <button
+//       onClick={() => downloadFile()}
+//       className="text-muted-foreground text-sm"
+//     >
+//       {t("download")}
+//     </button>
+//   );
+// }

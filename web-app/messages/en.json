@@ -623,7 +623,8 @@
           "Output": {
             "title": "Output",
             "failedToParseOutput": "Failed to parse output",
-            "none": "No result data"
+            "none": "No result data",
+            "download": "Download as Markdown"
           }
         }
       }
