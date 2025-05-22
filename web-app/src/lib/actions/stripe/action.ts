@@ -77,6 +77,7 @@ export async function createCheckoutSession(
         quantity: quantity,
       },
     ],
+    allow_promotion_codes: true,
     client_reference_id: fiatTransactionId,
     ...(user.stripeCustomerId
       ? { customer: user.stripeCustomerId }
