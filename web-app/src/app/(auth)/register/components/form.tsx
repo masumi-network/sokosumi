@@ -14,6 +14,7 @@ import {
   SignUpFormSchemaType,
 } from "@/auth/register/data";
 import { createOrganizationMember } from "@/lib/actions";
+import { updateUserMarketingOptIn } from "@/lib/actions/user/action";
 import { authClient } from "@/lib/auth/auth.client";
 import { OrganizationWithMembersCount } from "@/lib/db";
 
@@ -35,10 +36,12 @@ export default function SignUpForm({ organizations }: SignUpFormProps) {
       password: "",
       confirmPassword: "",
       organizationId: "",
+      marketingOptIn: false,
     },
   });
 
   const onSubmit = async (values: SignUpFormSchemaType) => {
+    console.log("values", values);
     const userResult = await authClient.signUp.email(
       {
         email: values.email,
@@ -68,6 +71,21 @@ export default function SignUpForm({ organizations }: SignUpFormProps) {
     );
     if (!userResult.data?.user) {
       return;
+    }
+
+    // Update marketing opt-in status
+    if (values.marketingOptIn !== undefined) {
+      const marketingOptInResult = await updateUserMarketingOptIn(
+        userResult.data.user.id,
+        values.marketingOptIn,
+      );
+      console.log("marketingOptInResult", marketingOptInResult);
+      if (!marketingOptInResult.success) {
+        console.error(
+          "Failed to update marketing opt-in:",
+          marketingOptInResult.error,
+        );
+      }
     }
 
     // create member using organization

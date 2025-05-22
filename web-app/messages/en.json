@@ -366,6 +366,9 @@
             "Name": {
               "placeholder": "Name"
             },
+            "MarketingOptIn": {
+              "label": "I would like to receive updates and news from Sokosumi"
+            },
             "Organization": {
               "placeholder": "Select an organization",
               "search": "Search organizations",

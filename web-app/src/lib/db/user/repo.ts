@@ -20,3 +20,14 @@ export async function getUserById(
     where: { id },
   });
 }
+
+export async function setUserMarketingOptIn(
+  userId: string,
+  marketingOptIn: boolean,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<User> {
+  return await tx.user.update({
+    where: { id: userId },
+    data: { marketingOptIn },
+  });
+}

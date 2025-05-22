@@ -36,6 +36,8 @@ model User {
   members     Member[]
   invitations Invitation[]
 
+  marketingOptIn Boolean @default(false)
+
   @@unique([email])
   @@map("user")
 }
