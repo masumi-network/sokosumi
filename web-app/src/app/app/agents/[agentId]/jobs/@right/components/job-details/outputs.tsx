@@ -1,3 +1,4 @@
+"use client";
 import { useTranslations } from "next-intl";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
@@ -6,6 +7,8 @@ import {
   jobStatusResponseSchema,
   JobStatusResponseSchemaType,
 } from "@/lib/services/job/schemas";
+
+import DownloadMarkdown from "./download-markdown";
 
 interface JobDetailsOutputsProps {
   rawOutput: string | null;
@@ -51,7 +54,10 @@ function JobDetailsOutputsInner({ rawOutput }: JobDetailsOutputsProps) {
   return (
     <JobDetailsOutputsLayout>
       {output.result ? (
-        <Markdown>{output.result}</Markdown>
+        <>
+          <Markdown>{output.result}</Markdown>
+          <DownloadMarkdown markdown={output.result} />
+        </>
       ) : (
         <p className="text-base">{t("none")}</p>
       )}
