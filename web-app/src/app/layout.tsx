@@ -45,7 +45,7 @@ export default async function RootLayout({
         className={cn(
           geistSans.variable,
           geistMono.variable,
-          "bg-background min-h-svh antialiased",
+          "bg-background min-h-svh max-w-dvw antialiased",
         )}
       >
         <Script src="/js/plain.js" strategy="afterInteractive" />

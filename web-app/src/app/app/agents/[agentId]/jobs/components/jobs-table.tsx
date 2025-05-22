@@ -45,9 +45,7 @@ export default function JobsTable({ jobs }: JobsTableProps) {
             params.jobId !== row.id,
         });
       }}
-      containerClassName={cn(
-        "w-full lg:w-[max(480px,32%)] rounded-xl bg-muted/50",
-      )}
+      containerClassName={cn("job-table-width rounded-xl bg-muted/50")}
       defaultSort={[
         {
           id: "startedAt",

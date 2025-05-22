@@ -329,3 +329,11 @@
     padding: var(--spacing-6, 24px);
   }
 }
+
+@utility job-table-width {
+  @apply w-full lg:w-[max(480px,32%)];
+}
+
+@utility job-details-width {
+  @apply w-full lg:w-[calc(100%-max(480px,32%))];
+}

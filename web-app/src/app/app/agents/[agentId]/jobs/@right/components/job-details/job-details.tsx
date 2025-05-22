@@ -18,8 +18,13 @@ interface JobDetailsProps {
 export default function JobDetails({ job, className }: JobDetailsProps) {
   const t = useTranslations("App.Agents.Jobs.JobDetails");
   return (
-    <div className={cn("flex h-full min-h-[300px] flex-1 flex-col", className)}>
-      <ScrollArea className="h-full">
+    <div
+      className={cn(
+        "job-details-width flex h-full min-h-[300px] flex-1 flex-col",
+        className,
+      )}
+    >
+      <ScrollArea className="h-full [&_[data-slot=scroll-area-viewport]>div]:block!">
         <Accordion
           type="multiple"
           defaultValue={["input", "output"]}
