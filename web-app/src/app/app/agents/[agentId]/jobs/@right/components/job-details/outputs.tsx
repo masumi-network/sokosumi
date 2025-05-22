@@ -74,27 +74,3 @@ function JobDetailsOutputsError() {
     </div>
   );
 }
-
-// function Download({ markdown }: { markdown: string }) {
-//   const downloadFile = () => {
-//     const url = URL.createObjectURL(
-//       new Blob([markdown], { type: "text/markdown" }),
-//     );
-//     Object.assign(document.createElement("a"), {
-//       href: url,
-//       download: "output.md",
-//     }).click();
-//     URL.revokeObjectURL(url);
-//   };
-
-//   const t = useTranslations("App.Agents.Jobs.JobDetails.Output");
-
-//   return (
-//     <button
-//       onClick={() => downloadFile()}
-//       className="text-muted-foreground text-sm"
-//     >
-//       {t("download")}
-//     </button>
-//   );
-// }
