@@ -45,7 +45,7 @@
       "agentsNotFound": "No Agents found",
       "hire": "Hire Agent",
       "AgentCard": {
-        "view": "View Agent",
+        "view": "Show Details",
         "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}",
         "addedToBookmarks": "Agent added to pinned agents",
         "removedFromBookmarks": "Agent removed from pinned agents",
