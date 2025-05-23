@@ -7,7 +7,7 @@ import {
   organizationInclude,
   organizationOrderBy,
   OrganizationWithRelations,
-} from "./type";
+} from "./types";
 
 export async function getAllOrganizations(
   tx: Prisma.TransactionClient = prisma,

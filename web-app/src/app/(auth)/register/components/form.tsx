@@ -16,7 +16,10 @@ import {
 import { createOrganizationMember } from "@/lib/actions";
 import { updateUserMarketingOptIn } from "@/lib/actions/user/action";
 import { authClient } from "@/lib/auth/auth.client";
-import { OrganizationWithRelations } from "@/lib/db";
+import {
+  isEmailAllowedByOrganization,
+  OrganizationWithRelations,
+} from "@/lib/db";
 
 interface SignUpFormProps {
   organizations: OrganizationWithRelations[];
@@ -41,6 +44,19 @@ export default function SignUpForm({ organizations }: SignUpFormProps) {
   });
 
   const onSubmit = async (values: SignUpFormSchemaType) => {
+    const organization = organizations.find(
+      (organization) => organization.id === values.organizationId,
+    );
+    if (!organization) {
+      toast.error(t("Errors.errorOrganization"));
+      return;
+    }
+
+    if (!isEmailAllowedByOrganization(values.email, organization)) {
+      toast.error(t("Errors.errorEmailDomainNotAllowedByOrganization"));
+      return;
+    }
+
     const userResult = await authClient.signUp.email(
       {
         email: values.email,
@@ -52,11 +68,11 @@ export default function SignUpForm({ organizations }: SignUpFormProps) {
         onError: (ctx) => {
           switch (ctx.error.code) {
             case "USER_ALREADY_EXISTS":
-              toast.error(t("Errors.Submit.userExists"));
+              toast.error(t("Errors.userExists"));
               break;
             case "EMAIL_DOMAIN_NOT_ALLOWED":
               toast.error(
-                t("Errors.Submit.emailDomainNotAllowed", {
+                t("Errors.emailDomainNotAllowed", {
                   allowedEmailDomains: ctx.error.message,
                 }),
               );
@@ -89,10 +105,15 @@ export default function SignUpForm({ organizations }: SignUpFormProps) {
     // create member using organization
     const memberResult = await createOrganizationMember(
       userResult.data.user.id,
-      values.organizationId,
+      userResult.data.user.email,
+      organization,
     );
     if (!memberResult.success) {
-      toast.error(t("errorMember"));
+      if (memberResult.code === "EMAIL_DOMAIN_NOT_ALLOWED_BY_ORGANIZATION") {
+        toast.error(t("Errors.errorEmailDomainNotAllowedByOrganization"));
+      } else {
+        toast.error(t("Errors.errorMember"));
+      }
     } else {
       toast.success(t("success"));
     }

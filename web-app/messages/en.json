@@ -358,7 +358,6 @@
           "submit": "Register",
           "success": "Register successful",
           "error": "Register failed",
-          "errorMember": "Failed to create organization member",
           "Fields": {
             "Email": {
               "placeholder": "Email"
@@ -394,10 +393,11 @@
             }
           },
           "Errors": {
-            "Submit": {
-              "userExists": "User already exists",
-              "emailDomainNotAllowed": "Email must end with {allowedEmailDomains}"
-            }
+            "errorMember": "Failed to create organization member",
+            "errorOrganization": "Organization not found",
+            "errorEmailDomainNotAllowedByOrganization": "Email domain not allowed to join organization",
+            "userExists": "User already exists",
+            "emailDomainNotAllowed": "Email must end with {allowedEmailDomains}"
           },
           "Login": {
             "message": "Already have an account?",
