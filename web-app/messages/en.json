@@ -339,9 +339,7 @@
             "link": "Register"
           },
           "Errors": {
-            "Submit": {
-              "verifyEmail": "Please verify your email address"
-            }
+            "verifyEmail": "Please verify your email address"
           }
         }
       },
