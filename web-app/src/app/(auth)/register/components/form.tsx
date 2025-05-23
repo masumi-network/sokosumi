@@ -16,10 +16,10 @@ import {
 import { createOrganizationMember } from "@/lib/actions";
 import { updateUserMarketingOptIn } from "@/lib/actions/user/action";
 import { authClient } from "@/lib/auth/auth.client";
-import { OrganizationWithMembersCount } from "@/lib/db";
+import { OrganizationWithRelations } from "@/lib/db";
 
 interface SignUpFormProps {
-  organizations: OrganizationWithMembersCount[];
+  organizations: OrganizationWithRelations[];
 }
 
 export default function SignUpForm({ organizations }: SignUpFormProps) {
@@ -41,7 +41,6 @@ export default function SignUpForm({ organizations }: SignUpFormProps) {
   });
 
   const onSubmit = async (values: SignUpFormSchemaType) => {
-    console.log("values", values);
     const userResult = await authClient.signUp.email(
       {
         email: values.email,
@@ -79,7 +78,6 @@ export default function SignUpForm({ organizations }: SignUpFormProps) {
         userResult.data.user.id,
         values.marketingOptIn,
       );
-      console.log("marketingOptInResult", marketingOptInResult);
       if (!marketingOptInResult.success) {
         console.error(
           "Failed to update marketing opt-in:",

@@ -20,7 +20,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { OrganizationWithMembersCount } from "@/lib/db";
+import { OrganizationWithRelations } from "@/lib/db";
 import { cn } from "@/lib/utils";
 import { Organization } from "@/prisma/generated/client";
 
@@ -28,7 +28,7 @@ import CreateOrganization from "./create-organization";
 import { createOrganizationSchema, CreateOrganizationSchemaType } from "./data";
 
 interface OrganizationInputProps {
-  organizations: OrganizationWithMembersCount[];
+  organizations: OrganizationWithRelations[];
   value: Organization | undefined;
   onChange: (organization: Organization) => void;
 }

@@ -3,7 +3,7 @@
 import { ReactNode } from "react";
 import { FieldValues, UseFormReturn } from "react-hook-form";
 
-import { OrganizationWithMembersCount } from "@/lib/db/organization";
+import { OrganizationWithRelations } from "@/lib/db";
 import { FormData } from "@/lib/form";
 
 import { BaseForm } from "./base-form";
@@ -15,7 +15,7 @@ interface AuthFormProps<T extends FieldValues> {
   formData: FormData<T, AuthNamespace>;
   namespace: AuthNamespace;
   onSubmit: (values: T) => Promise<void>;
-  organizations?: OrganizationWithMembersCount[] | undefined;
+  organizations?: OrganizationWithRelations[] | undefined;
   children: ReactNode;
 }
 

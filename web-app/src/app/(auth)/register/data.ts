@@ -33,11 +33,11 @@ const signUpFormData: FormData<SignUpFormSchemaType, "Auth.Pages.SignUp.Form"> =
       placeholderKey: "Fields.Name.placeholder",
     },
     {
-      name: "organizationId",
-    },
-    {
       name: "email",
       placeholderKey: "Fields.Email.placeholder",
+    },
+    {
+      name: "organizationId",
     },
     {
       name: "password",
