@@ -17,13 +17,15 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { OrganizationWithRelations } from "@/lib/db";
+import {
+  filterAllowedOrganizations,
+  OrganizationWithRelations,
+} from "@/lib/db";
 import { FormData } from "@/lib/form";
 import { Organization } from "@/prisma/generated/client";
 
 import { OrganizationInput } from "./organization-input";
 import { AuthNamespace } from "./types";
-import { filterAllowedOrganizations } from "./utils";
 
 interface FormFieldsProps<T extends FieldValues> {
   form: UseFormReturn<T>;

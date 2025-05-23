@@ -21,15 +21,11 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { OrganizationWithRelations } from "@/lib/db";
-import { cn } from "@/lib/utils";
+import { cn, isValidEmail } from "@/lib/utils";
 import { Organization } from "@/prisma/generated/client";
 
 import CreateOrganization from "./create-organization";
-import {
-  createOrganizationSchema,
-  CreateOrganizationSchemaType,
-  isValidEmail,
-} from "./data";
+import { createOrganizationSchema, CreateOrganizationSchemaType } from "./data";
 
 interface OrganizationInputProps {
   email: string;
