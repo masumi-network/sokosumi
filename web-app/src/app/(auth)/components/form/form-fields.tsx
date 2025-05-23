@@ -40,11 +40,6 @@ export function FormFields<T extends FieldValues>({
 }: FormFieldsProps<T>) {
   const t = useTranslations(namespace);
 
-  const email = form.watch("email" as unknown as Path<T>);
-  const allowedOrganizations = organizations
-    ? filterAllowedOrganizations(email, organizations)
-    : undefined;
-
   return (
     <>
       {formData.map((formDataItem) => (
@@ -56,10 +51,11 @@ export function FormFields<T extends FieldValues>({
             <FormItem>
               <FormControl>
                 <FormInput
+                  form={form}
                   field={field}
                   formDataItem={formDataItem}
                   t={t}
-                  organizations={allowedOrganizations}
+                  organizations={organizations}
                 />
               </FormControl>
               <FormMessage />
@@ -72,6 +68,7 @@ export function FormFields<T extends FieldValues>({
 }
 
 interface FormInputProps<T extends FieldValues> {
+  form: UseFormReturn<T>;
   field: ControllerRenderProps<T, Path<T>>;
   formDataItem: FormData<T, AuthNamespace>[number];
   t: IntlTranslation<AuthNamespace>;
@@ -79,6 +76,7 @@ interface FormInputProps<T extends FieldValues> {
 }
 
 function FormInput<T extends FieldValues>({
+  form,
   field,
   formDataItem,
   t,
@@ -102,6 +100,12 @@ function FormInput<T extends FieldValues>({
   }
 
   if (name === "organizationId" && !!organizations) {
+    const email = form.watch("email" as unknown as Path<T>);
+    const allowedOrganizations = filterAllowedOrganizations(
+      email,
+      organizations,
+    );
+
     const organizationId = field.value;
     const organization = organizations.find(
       (organization) => organization.id === organizationId,
@@ -112,7 +116,8 @@ function FormInput<T extends FieldValues>({
 
     return (
       <OrganizationInput
-        organizations={organizations}
+        email={email}
+        organizations={allowedOrganizations}
         value={organization}
         onChange={handleOrganizationChange}
       />

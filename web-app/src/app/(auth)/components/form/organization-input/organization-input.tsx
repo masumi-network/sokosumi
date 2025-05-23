@@ -25,15 +25,21 @@ import { cn } from "@/lib/utils";
 import { Organization } from "@/prisma/generated/client";
 
 import CreateOrganization from "./create-organization";
-import { createOrganizationSchema, CreateOrganizationSchemaType } from "./data";
+import {
+  createOrganizationSchema,
+  CreateOrganizationSchemaType,
+  isValidEmail,
+} from "./data";
 
 interface OrganizationInputProps {
+  email: string;
   organizations: OrganizationWithRelations[];
   value: Organization | undefined;
   onChange: (organization: Organization) => void;
 }
 
 export default function OrganizationInput({
+  email,
   organizations,
   value,
   onChange,
@@ -98,10 +104,16 @@ export default function OrganizationInput({
             <CommandInput placeholder={t("search")} />
             <CommandList>
               <CommandEmpty className="p-2">
-                <CreateOrganization
-                  form={createOrganizationForm}
-                  onCreate={handleCreateOrganization}
-                />
+                {isValidEmail(email) ? (
+                  <CreateOrganization
+                    form={createOrganizationForm}
+                    onCreate={handleCreateOrganization}
+                  />
+                ) : (
+                  <div className="text-muted-foreground p-2 text-center text-sm">
+                    {t("invalidEmail")}
+                  </div>
+                )}
               </CommandEmpty>
               <CommandGroup>
                 {organizations.map((organization) => (

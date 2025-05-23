@@ -14,3 +14,9 @@ export const createOrganizationSchema = (
 export type CreateOrganizationSchemaType = z.infer<
   ReturnType<typeof createOrganizationSchema>
 >;
+
+export function isValidEmail(email: string): boolean {
+  const emailSchema = z.string().email();
+  const result = emailSchema.safeParse(email);
+  return result.success;
+}
