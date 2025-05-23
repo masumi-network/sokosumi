@@ -6,13 +6,18 @@ export function isEmailAllowedByOrganization(
   email: string,
   organization: OrganizationWithRelations,
 ) {
+  const emailDomain = getEmailDomain(email);
+  if (!emailDomain) {
+    return false;
+  }
+
   const { allowedDomains } = organization;
   if (allowedDomains.length === 0) {
     return true;
   }
 
-  return allowedDomains.some(({ domain }) =>
-    email.toLowerCase().endsWith(domain.toLowerCase()),
+  return allowedDomains.some(
+    ({ domain }) => domain.toLowerCase() === emailDomain.toLowerCase(),
   );
 }
 
@@ -29,6 +34,8 @@ export function filterAllowedOrganizations(
   return organizations.filter(
     ({ allowedDomains }) =>
       allowedDomains.length === 0 ||
-      allowedDomains.some(({ domain }) => domain === emailDomain),
+      allowedDomains.some(
+        ({ domain }) => domain.toLowerCase() === emailDomain.toLowerCase(),
+      ),
   );
 }
