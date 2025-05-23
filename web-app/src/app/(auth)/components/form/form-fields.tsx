@@ -23,6 +23,7 @@ import { Organization } from "@/prisma/generated/client";
 
 import { OrganizationInput } from "./organization-input";
 import { AuthNamespace } from "./types";
+import { filterAllowedOrganizations } from "./utils";
 
 interface FormFieldsProps<T extends FieldValues> {
   form: UseFormReturn<T>;
@@ -39,6 +40,11 @@ export function FormFields<T extends FieldValues>({
 }: FormFieldsProps<T>) {
   const t = useTranslations(namespace);
 
+  const email = form.watch("email" as unknown as Path<T>);
+  const allowedOrganizations = organizations
+    ? filterAllowedOrganizations(email, organizations)
+    : undefined;
+
   return (
     <>
       {formData.map((formDataItem) => (
@@ -53,7 +59,7 @@ export function FormFields<T extends FieldValues>({
                   field={field}
                   formDataItem={formDataItem}
                   t={t}
-                  organizations={organizations}
+                  organizations={allowedOrganizations}
                 />
               </FormControl>
               <FormMessage />
