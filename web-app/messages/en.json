@@ -627,12 +627,11 @@
             "failedToParseOutput": "Failed to parse output",
             "none": "No result data",
             "download": "Download",
-            "requestRefund": "Request Refund",
-            "refundRequested": "Refund Requested",
             "Refund": {
               "error": "Failed to request refund",
               "request": "Request Refund",
               "requested": "Refund Requested",
+              "refunded": "Refunded",
               "Tooltip": {
                 "available": {
                   "title": "Refund available",

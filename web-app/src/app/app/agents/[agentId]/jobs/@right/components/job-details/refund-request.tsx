@@ -21,6 +21,32 @@ interface RequestRefundButtonProps {
   className?: string;
 }
 
+function ButtonBase({
+  disabled,
+  onClick,
+  children,
+  className,
+}: {
+  disabled: boolean;
+  onClick?: () => void;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <Button
+      variant="ghost"
+      disabled={disabled}
+      onClick={onClick}
+      className={cn(
+        "text-muted-foreground flex items-center justify-end gap-2 text-sm",
+        className,
+      )}
+    >
+      {children}
+    </Button>
+  );
+}
+
 export default function RequestRefundButton({
   job,
   className,
@@ -30,11 +56,29 @@ export default function RequestRefundButton({
   const [error, setError] = useState<string | null>(null);
   const [isRefundRequested, setIsRefundRequested] = useState(
     job.onChainStatus === OnChainJobStatus.REFUND_REQUESTED ||
-      job.onChainStatus === OnChainJobStatus.REFUND_WITHDRAWN ||
       job.nextAction === NextJobAction.SET_REFUND_REQUESTED_INITIATED ||
       job.nextAction === NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
   );
   const format = useFormatter();
+
+  const isRefunded = job.onChainStatus === OnChainJobStatus.REFUND_WITHDRAWN;
+  if (isRefunded) {
+    return (
+      <ButtonBase disabled={true} className={className}>
+        <HandCoins className="h-4 w-4" />
+        {t("refunded")}
+      </ButtonBase>
+    );
+  }
+
+  if (isRefundRequested) {
+    return (
+      <ButtonBase disabled={true} className={className}>
+        <LoaderCircle className="h-4 w-4 animate-spin" />
+        {t("requested")}
+      </ButtonBase>
+    );
+  }
 
   const isRefundDisabled = job.unlockTime.getTime() < Date.now();
   const { title, description } = isRefundDisabled
@@ -67,7 +111,6 @@ export default function RequestRefundButton({
       await requestRefundJob(job.blockchainIdentifier);
       setIsRefundRequested(true);
     } catch (err) {
-      console.log(err);
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setIsLoading(false);
@@ -75,14 +118,10 @@ export default function RequestRefundButton({
   };
   const buttonElement = (
     <div>
-      <Button
-        variant="ghost"
+      <ButtonBase
         onClick={handleClick}
         disabled={isLoading || isRefundDisabled || isRefundRequested}
-        className={cn(
-          "text-muted-foreground flex items-center justify-end gap-2 text-sm",
-          className,
-        )}
+        className={className}
       >
         {isLoading ? (
           <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -90,26 +129,10 @@ export default function RequestRefundButton({
           <HandCoins className="h-4 w-4" />
         )}
         {t("request")}
-      </Button>
+      </ButtonBase>
       {error && <p className="text-xs text-red-500">{t("error")}</p>}
     </div>
   );
-
-  if (isRefundRequested) {
-    return (
-      <Button
-        variant="ghost"
-        disabled={true}
-        className={cn(
-          "text-muted-foreground flex items-center justify-end gap-2 text-sm",
-          className,
-        )}
-      >
-        <LoaderCircle className="h-4 w-4 animate-spin" />
-        {t("requested")}
-      </Button>
-    );
-  }
 
   return (
     <TooltipProvider>
