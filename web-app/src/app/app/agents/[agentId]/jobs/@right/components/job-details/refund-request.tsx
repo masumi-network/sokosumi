@@ -14,7 +14,7 @@ import {
 import { JobWithStatus } from "@/lib/db";
 import { requestRefundJob } from "@/lib/services/job/service";
 import { cn } from "@/lib/utils";
-import { OnChainJobStatus } from "@/prisma/generated/client";
+import { NextJobAction, OnChainJobStatus } from "@/prisma/generated/client";
 
 interface RequestRefundButtonProps {
   job: JobWithStatus;
@@ -28,11 +28,13 @@ export default function RequestRefundButton({
   const t = useTranslations("App.Agents.Jobs.JobDetails.Output.Refund");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const format = useFormatter();
-
-  let isRefundRequested =
+  const [isRefundRequested, setIsRefundRequested] = useState(
     job.onChainStatus === OnChainJobStatus.REFUND_REQUESTED ||
-    job.onChainStatus === OnChainJobStatus.REFUND_WITHDRAWN;
+      job.onChainStatus === OnChainJobStatus.REFUND_WITHDRAWN ||
+      job.nextAction === NextJobAction.SET_REFUND_REQUESTED_INITIATED ||
+      job.nextAction === NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
+  );
+  const format = useFormatter();
 
   const isRefundDisabled = job.unlockTime.getTime() < Date.now();
   const { title, description } = isRefundDisabled
@@ -63,14 +65,14 @@ export default function RequestRefundButton({
 
     try {
       await requestRefundJob(job.blockchainIdentifier);
-      isRefundRequested = true;
+      setIsRefundRequested(true);
     } catch (err) {
+      console.log(err);
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setIsLoading(false);
     }
   };
-
   const buttonElement = (
     <div>
       <Button
