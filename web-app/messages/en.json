@@ -391,9 +391,9 @@
             }
           },
           "Errors": {
-            "errorMember": "Failed to create organization member",
-            "errorOrganization": "Organization not found",
-            "errorEmailDomainNotAllowedByOrganization": "Email domain not allowed to join organization",
+            "member": "Failed to create organization member",
+            "organization": "Organization not found",
+            "emailDomainNotAllowedByOrganization": "Email domain not allowed to join organization",
             "userExists": "User already exists",
             "emailDomainNotAllowed": "Email must end with {allowedEmailDomains}"
           },

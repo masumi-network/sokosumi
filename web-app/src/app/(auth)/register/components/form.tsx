@@ -48,12 +48,12 @@ export default function SignUpForm({ organizations }: SignUpFormProps) {
       (organization) => organization.id === values.organizationId,
     );
     if (!organization) {
-      toast.error(t("Errors.errorOrganization"));
+      toast.error(t("Errors.organization"));
       return;
     }
 
     if (!isEmailAllowedByOrganization(values.email, organization)) {
-      toast.error(t("Errors.errorEmailDomainNotAllowedByOrganization"));
+      toast.error(t("Errors.emailDomainNotAllowedByOrganization"));
       return;
     }
 
@@ -110,9 +110,9 @@ export default function SignUpForm({ organizations }: SignUpFormProps) {
     );
     if (!memberResult.success) {
       if (memberResult.code === "EMAIL_DOMAIN_NOT_ALLOWED_BY_ORGANIZATION") {
-        toast.error(t("Errors.errorEmailDomainNotAllowedByOrganization"));
+        toast.error(t("Errors.emailDomainNotAllowedByOrganization"));
       } else {
-        toast.error(t("Errors.errorMember"));
+        toast.error(t("Errors.member"));
       }
     } else {
       toast.success(t("success"));

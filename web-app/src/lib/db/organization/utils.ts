@@ -11,13 +11,13 @@ export function isEmailAllowedByOrganization(
     return false;
   }
 
-  const { allowedDomains } = organization;
-  if (allowedDomains.length === 0) {
+  const { requiredEmailDomains } = organization;
+  if (requiredEmailDomains.length === 0) {
     return true;
   }
 
-  return allowedDomains.some(
-    ({ domain }) => domain.toLowerCase() === emailDomain.toLowerCase(),
+  return requiredEmailDomains.some(
+    (domain) => domain.toLowerCase() === emailDomain.toLowerCase(),
   );
 }
 
@@ -32,10 +32,10 @@ export function filterAllowedOrganizations(
   }
 
   return organizations.filter(
-    ({ allowedDomains }) =>
-      allowedDomains.length === 0 ||
-      allowedDomains.some(
-        ({ domain }) => domain.toLowerCase() === emailDomain.toLowerCase(),
+    ({ requiredEmailDomains }) =>
+      requiredEmailDomains.length === 0 ||
+      requiredEmailDomains.some(
+        (domain) => domain.toLowerCase() === emailDomain.toLowerCase(),
       ),
   );
 }

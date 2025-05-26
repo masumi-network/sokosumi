@@ -14,21 +14,12 @@ export const organizationOrderBy = {
   },
 } as const;
 
-export const organizationAllowedDomainsInclude = {
-  allowedDomains: true,
-} as const;
-
 export type OrganizationWithMembersCount = Prisma.OrganizationGetPayload<{
   include: typeof organizationMembersCountInclude;
 }>;
 
-export type OrganizationWithAllowedDomains = Prisma.OrganizationGetPayload<{
-  include: typeof organizationAllowedDomainsInclude;
-}>;
-
 export const organizationInclude = {
   ...organizationMembersCountInclude,
-  ...organizationAllowedDomainsInclude,
 } as const;
 
 export type OrganizationWithRelations = Prisma.OrganizationGetPayload<{
