@@ -6,6 +6,8 @@ import { getAllOrganizations } from "@/lib/db";
 import SignUpForm from "./components/form";
 import SignUpHeader from "./components/header";
 
+export const dynamic = "force-dynamic";
+
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Auth.Pages.SignUp.Metadata");
 
