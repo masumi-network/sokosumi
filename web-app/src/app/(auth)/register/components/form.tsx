@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -42,6 +43,11 @@ export default function SignUpForm({ organizations }: SignUpFormProps) {
       marketingOptIn: false,
     },
   });
+
+  const email = form.watch("email");
+  useEffect(() => {
+    form.setValue("organizationId", "");
+  }, [email, form]);
 
   const onSubmit = async (values: SignUpFormSchemaType) => {
     const organizationResult = checkOrganizationAndEmail(

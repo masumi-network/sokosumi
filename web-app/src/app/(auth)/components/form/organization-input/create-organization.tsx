@@ -15,10 +15,10 @@ import { CreateOrganizationSchemaType } from "./data";
 
 interface CreateOrganizationProps {
   form: UseFormReturn<CreateOrganizationSchemaType>;
-  onCreate: (organization: Organization) => void;
+  onAfterCreate: (organization: Organization) => void;
 }
 
-function CreateOrganization({ form, onCreate }: CreateOrganizationProps) {
+function CreateOrganization({ form, onAfterCreate }: CreateOrganizationProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form.Fields.Organization");
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -30,7 +30,7 @@ function CreateOrganization({ form, onCreate }: CreateOrganizationProps) {
     const organizationResult = await createOrganizationFromName(values.name);
     if (organizationResult.success && organizationResult.organization) {
       toast.success(t("success"));
-      onCreate(organizationResult.organization);
+      onAfterCreate(organizationResult.organization);
     } else {
       toast.error(t("error"));
     }

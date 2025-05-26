@@ -64,15 +64,11 @@ export default function OrganizationInput({
     if (createOrganizationForm.formState.isSubmitting) {
       return;
     }
+    handleOrganizationNameChange("");
     setOpen(open);
   };
 
   const handleSelectOrganization = (organization: Organization) => {
-    onChange(organization);
-    setOpen(false);
-  };
-
-  const handleCreateOrganization = (organization: Organization) => {
     onChange(organization);
     setOpen(false);
   };
@@ -103,7 +99,7 @@ export default function OrganizationInput({
                 {isValidEmail(email) ? (
                   <CreateOrganization
                     form={createOrganizationForm}
-                    onCreate={handleCreateOrganization}
+                    onAfterCreate={handleSelectOrganization}
                   />
                 ) : (
                   <div className="text-muted-foreground p-2 text-center text-sm">

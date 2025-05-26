@@ -108,9 +108,8 @@ function FormInput<T extends FieldValues>({
       organizations,
     );
 
-    const organizationId = field.value;
-    const organization = organizations.find(
-      (organization) => organization.id === organizationId,
+    const organization = allowedOrganizations.find(
+      (organization) => organization.id === field.value,
     );
     const handleOrganizationChange = (organization: Organization) => {
       field.onChange(organization.id);
