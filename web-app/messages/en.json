@@ -627,7 +627,17 @@
             "failedToParseOutput": "Failed to parse output",
             "none": "No result data",
             "download": "Download",
-            "requestRefund": "Request Refund"
+            "requestRefund": "Request Refund",
+            "Tooltip": {
+              "available": {
+                "title": "Refund available",
+                "description": "You can request a refund until {unlockAt}."
+              },
+              "unavailable": {
+                "title": "Refund no longer available",
+                "description": "You could have requested a refund until {unlockAt}."
+              }
+            }
           }
         }
       }

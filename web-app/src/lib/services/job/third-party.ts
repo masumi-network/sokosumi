@@ -12,7 +12,6 @@ import {
 import { getPaymentClient } from "@/lib/api/payment-service.client";
 import { AgentWithRelations, getAgentApiBaseUrl } from "@/lib/db";
 import { JobInputData } from "@/lib/job-input";
-import { Job } from "@/prisma/generated/client";
 
 import {
   jobStatusResponseSchema,
@@ -87,14 +86,14 @@ export async function startAgentJob(
 }
 
 export async function postPaymentClientRequestRefund(
-  job: Job,
+  jobBlockchainIdentifier: string,
 ): Promise<Result<void, string>> {
   try {
     const paymentClient = getPaymentClient();
     const refundResponse = await postPurchaseRequestRefund({
       client: paymentClient,
       body: {
-        blockchainIdentifier: job.blockchainIdentifier,
+        blockchainIdentifier: jobBlockchainIdentifier,
         network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
       },
     });

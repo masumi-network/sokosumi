@@ -144,12 +144,12 @@ export async function syncJob(job: Job) {
           if (job.agentJobStatus !== AgentJobStatus.COMPLETED) {
             const resultSubmittedAt = job.resultSubmittedAt;
             if (!resultSubmittedAt) {
-              await postPaymentClientRequestRefund(job);
+              await postPaymentClientRequestRefund(job.blockchainIdentifier);
             } else if (
               new Date().getTime() - resultSubmittedAt.getTime() >
               10 * 60 * 1000 // 10 minutes
             ) {
-              await postPaymentClientRequestRefund(job);
+              await postPaymentClientRequestRefund(job.blockchainIdentifier);
             }
           }
           break;
@@ -213,4 +213,13 @@ export async function getAgentJobStatus(
     return null;
   }
   return jobStatusResult.data;
+}
+
+export async function requestRefundJob(jobBlockchainIdentifier: string) {
+  const refundResult = await postPaymentClientRequestRefund(
+    jobBlockchainIdentifier,
+  );
+  if (!refundResult.ok) {
+    throw new Error(refundResult.error);
+  }
 }

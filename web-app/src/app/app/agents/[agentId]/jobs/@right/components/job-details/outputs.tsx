@@ -58,9 +58,7 @@ function JobDetailsOutputsInner({ job }: JobDetailsOutputsProps) {
           <Markdown>{output.result}</Markdown>
           <div className="flex justify-between gap-2">
             <DownloadMarkdown markdown={output.result} />
-            {job.unlockTime.getTime() > Date.now() && (
-              <RequestRefundButton job={job} />
-            )}
+            <RequestRefundButton job={job} />
           </div>
         </>
       ) : (
