@@ -1,10 +1,15 @@
 import { notFound } from "next/navigation";
 
 import { AgentDetail } from "@/components/agents";
+import {
+  CreateJobModal,
+  CreateJobModalContextProvider,
+} from "@/components/create-job-modal";
 import { requireAuthentication } from "@/lib/auth/utils";
 import { getAgentById, getJobsByAgentId } from "@/lib/db";
 import {
   getAgentCreditsPrice,
+  getAgentInputSchema,
   getOrCreateFavoriteAgentList,
 } from "@/lib/services";
 
@@ -29,14 +34,24 @@ export default async function AgentDetailPage({
   const agentList = await getOrCreateFavoriteAgentList(session.user.id);
   const jobs = await getJobsByAgentId(agentId);
 
+  const agentInputSchemaPromise = getAgentInputSchema(agentId);
+
   return (
-    <div className="mx-auto flex justify-center px-4 py-8">
-      <AgentDetail
+    <CreateJobModalContextProvider>
+      <div className="mx-auto flex justify-center px-4 py-8">
+        <AgentDetail
+          agent={agent}
+          agentCreditsPrice={agentCreditsPrice}
+          agentList={agentList}
+          jobs={jobs}
+        />
+      </div>
+      {/* Create Job Modal */}
+      <CreateJobModal
         agent={agent}
         agentCreditsPrice={agentCreditsPrice}
-        agentList={agentList}
-        jobs={jobs}
+        inputSchemaPromise={agentInputSchemaPromise}
       />
-    </div>
+    </CreateJobModalContextProvider>
   );
 }
