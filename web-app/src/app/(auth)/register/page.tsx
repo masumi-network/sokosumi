@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
-import { getAllOrganizations } from "@/lib/db";
+import { getOrganizations } from "@/lib/db";
 
 import SignUpForm from "./components/form";
 import SignUpHeader from "./components/header";
@@ -16,7 +16,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function SignUp() {
-  const organizations = await getAllOrganizations();
+  const organizations = await getOrganizations();
 
   return (
     <div className="flex flex-1 flex-col">
