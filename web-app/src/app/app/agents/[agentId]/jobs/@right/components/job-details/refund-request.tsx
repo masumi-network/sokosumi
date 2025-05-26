@@ -4,13 +4,16 @@ import { TicketX } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
+import { JobWithStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 interface RequestRefundButtonProps {
+  job: JobWithStatus;
   className?: string;
 }
 
 export default function RequestRefundButton({
+  job,
   className,
 }: RequestRefundButtonProps) {
   const t = useTranslations("App.Agents.Jobs.JobDetails.Output");
