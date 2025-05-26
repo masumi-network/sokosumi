@@ -102,8 +102,6 @@ export default function RequestRefundButton({
       };
 
   const handleClick = async () => {
-    if (isLoading) return;
-
     setIsLoading(true);
     setError(null);
 
