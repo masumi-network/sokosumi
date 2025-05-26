@@ -1,6 +1,6 @@
 "use client";
 
-import { TicketX } from "lucide-react";
+import { HandCoins, LoaderCircle } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -14,6 +14,7 @@ import {
 import { JobWithStatus } from "@/lib/db";
 import { requestRefundJob } from "@/lib/services/job/service";
 import { cn } from "@/lib/utils";
+import { OnChainJobStatus } from "@/prisma/generated/client";
 
 interface RequestRefundButtonProps {
   job: JobWithStatus;
@@ -24,10 +25,14 @@ export default function RequestRefundButton({
   job,
   className,
 }: RequestRefundButtonProps) {
-  const t = useTranslations("App.Agents.Jobs.JobDetails.Output");
+  const t = useTranslations("App.Agents.Jobs.JobDetails.Output.Refund");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const format = useFormatter();
+
+  let isRefundRequested =
+    job.onChainStatus === OnChainJobStatus.REFUND_REQUESTED ||
+    job.onChainStatus === OnChainJobStatus.REFUND_WITHDRAWN;
 
   const isRefundDisabled = job.unlockTime.getTime() < Date.now();
   const { title, description } = isRefundDisabled
@@ -58,6 +63,7 @@ export default function RequestRefundButton({
 
     try {
       await requestRefundJob(job.blockchainIdentifier);
+      isRefundRequested = true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -66,19 +72,42 @@ export default function RequestRefundButton({
   };
 
   const buttonElement = (
-    <Button
-      variant="ghost"
-      onClick={handleClick}
-      disabled={isLoading || isRefundDisabled}
-      className={cn(
-        "text-muted-foreground flex items-center justify-end gap-2 text-sm",
-        className,
-      )}
-    >
-      <TicketX className="h-4 w-4" />
-      {t("requestRefund")}
-    </Button>
+    <div>
+      <Button
+        variant="ghost"
+        onClick={handleClick}
+        disabled={isLoading || isRefundDisabled || isRefundRequested}
+        className={cn(
+          "text-muted-foreground flex items-center justify-end gap-2 text-sm",
+          className,
+        )}
+      >
+        {isLoading ? (
+          <LoaderCircle className="h-4 w-4 animate-spin" />
+        ) : (
+          <HandCoins className="h-4 w-4" />
+        )}
+        {t("request")}
+      </Button>
+      {error && <p className="text-xs text-red-500">{t("error")}</p>}
+    </div>
   );
+
+  if (isRefundRequested) {
+    return (
+      <Button
+        variant="ghost"
+        disabled={true}
+        className={cn(
+          "text-muted-foreground flex items-center justify-end gap-2 text-sm",
+          className,
+        )}
+      >
+        <LoaderCircle className="h-4 w-4 animate-spin" />
+        {t("requested")}
+      </Button>
+    );
+  }
 
   return (
     <TooltipProvider>
