@@ -17,7 +17,10 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { OrganizationWithMembersCount } from "@/lib/db";
+import {
+  filterAllowedOrganizations,
+  OrganizationWithRelations,
+} from "@/lib/db";
 import { FormData } from "@/lib/form";
 import { Organization } from "@/prisma/generated/client";
 
@@ -28,7 +31,7 @@ interface FormFieldsProps<T extends FieldValues> {
   form: UseFormReturn<T>;
   formData: FormData<T, AuthNamespace>;
   namespace: AuthNamespace;
-  organizations?: OrganizationWithMembersCount[] | undefined;
+  organizations?: OrganizationWithRelations[] | undefined;
 }
 
 export function FormFields<T extends FieldValues>({
@@ -50,6 +53,7 @@ export function FormFields<T extends FieldValues>({
             <FormItem>
               <FormControl>
                 <FormInput
+                  form={form}
                   field={field}
                   formDataItem={formDataItem}
                   t={t}
@@ -66,13 +70,15 @@ export function FormFields<T extends FieldValues>({
 }
 
 interface FormInputProps<T extends FieldValues> {
+  form: UseFormReturn<T>;
   field: ControllerRenderProps<T, Path<T>>;
   formDataItem: FormData<T, AuthNamespace>[number];
   t: IntlTranslation<AuthNamespace>;
-  organizations?: OrganizationWithMembersCount[] | undefined;
+  organizations?: OrganizationWithRelations[] | undefined;
 }
 
 function FormInput<T extends FieldValues>({
+  form,
   field,
   formDataItem,
   t,
@@ -96,9 +102,14 @@ function FormInput<T extends FieldValues>({
   }
 
   if (name === "organizationId" && !!organizations) {
-    const organizationId = field.value;
-    const organization = organizations.find(
-      (organization) => organization.id === organizationId,
+    const email = form.watch("email" as unknown as Path<T>);
+    const allowedOrganizations = filterAllowedOrganizations(
+      email,
+      organizations,
+    );
+
+    const organization = allowedOrganizations.find(
+      (organization) => organization.id === field.value,
     );
     const handleOrganizationChange = (organization: Organization) => {
       field.onChange(organization.id);
@@ -106,7 +117,8 @@ function FormInput<T extends FieldValues>({
 
     return (
       <OrganizationInput
-        organizations={organizations}
+        email={email}
+        organizations={allowedOrganizations}
         value={organization}
         onChange={handleOrganizationChange}
       />

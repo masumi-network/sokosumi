@@ -4,21 +4,18 @@ import { prisma } from "@/lib/db";
 import { Organization, Prisma } from "@/prisma/generated/client";
 
 import {
-  organizationMembersCountInclude,
-  OrganizationWithMembersCount,
-} from "./type";
+  organizationInclude,
+  organizationOrderBy,
+  OrganizationWithRelations,
+} from "./types";
 
 export async function getAllOrganizations(
   tx: Prisma.TransactionClient = prisma,
-): Promise<OrganizationWithMembersCount[]> {
+): Promise<OrganizationWithRelations[]> {
   return await tx.organization.findMany({
-    orderBy: {
-      members: {
-        _count: "desc",
-      },
-    },
+    orderBy: { ...organizationOrderBy },
     include: {
-      ...organizationMembersCountInclude,
+      ...organizationInclude,
     },
   });
 }

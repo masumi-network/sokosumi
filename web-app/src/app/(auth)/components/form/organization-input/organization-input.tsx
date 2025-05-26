@@ -20,20 +20,22 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { OrganizationWithMembersCount } from "@/lib/db";
-import { cn } from "@/lib/utils";
+import { OrganizationWithRelations } from "@/lib/db";
+import { cn, isValidEmail } from "@/lib/utils";
 import { Organization } from "@/prisma/generated/client";
 
 import CreateOrganization from "./create-organization";
 import { createOrganizationSchema, CreateOrganizationSchemaType } from "./data";
 
 interface OrganizationInputProps {
-  organizations: OrganizationWithMembersCount[];
+  email: string;
+  organizations: OrganizationWithRelations[];
   value: Organization | undefined;
   onChange: (organization: Organization) => void;
 }
 
 export default function OrganizationInput({
+  email,
   organizations,
   value,
   onChange,
@@ -62,15 +64,11 @@ export default function OrganizationInput({
     if (createOrganizationForm.formState.isSubmitting) {
       return;
     }
+    handleOrganizationNameChange("");
     setOpen(open);
   };
 
   const handleSelectOrganization = (organization: Organization) => {
-    onChange(organization);
-    setOpen(false);
-  };
-
-  const handleCreateOrganization = (organization: Organization) => {
     onChange(organization);
     setOpen(false);
   };
@@ -98,10 +96,16 @@ export default function OrganizationInput({
             <CommandInput placeholder={t("search")} />
             <CommandList>
               <CommandEmpty className="p-2">
-                <CreateOrganization
-                  form={createOrganizationForm}
-                  onCreate={handleCreateOrganization}
-                />
+                {isValidEmail(email) ? (
+                  <CreateOrganization
+                    form={createOrganizationForm}
+                    onAfterCreate={handleSelectOrganization}
+                  />
+                ) : (
+                  <div className="text-muted-foreground p-2 text-center text-sm">
+                    {t("invalidEmail")}
+                  </div>
+                )}
               </CommandEmpty>
               <CommandGroup>
                 {organizations.map((organization) => (

@@ -2,6 +2,7 @@
 
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { memo } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -14,13 +15,10 @@ import { CreateOrganizationSchemaType } from "./data";
 
 interface CreateOrganizationProps {
   form: UseFormReturn<CreateOrganizationSchemaType>;
-  onCreate: (organization: Organization) => void;
+  onAfterCreate: (organization: Organization) => void;
 }
 
-export default function CreateOrganization({
-  form,
-  onCreate,
-}: CreateOrganizationProps) {
+function CreateOrganization({ form, onAfterCreate }: CreateOrganizationProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form.Fields.Organization");
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
@@ -32,7 +30,7 @@ export default function CreateOrganization({
     const organizationResult = await createOrganizationFromName(values.name);
     if (organizationResult.success && organizationResult.organization) {
       toast.success(t("success"));
-      onCreate(organizationResult.organization);
+      onAfterCreate(organizationResult.organization);
     } else {
       toast.error(t("error"));
     }
@@ -66,3 +64,5 @@ export default function CreateOrganization({
     </form>
   );
 }
+
+export default memo(CreateOrganization);

@@ -339,9 +339,7 @@
             "link": "Register"
           },
           "Errors": {
-            "Submit": {
-              "verifyEmail": "Please verify your email address"
-            }
+            "verifyEmail": "Please verify your email address"
           }
         }
       },
@@ -358,7 +356,6 @@
           "submit": "Register",
           "success": "Register successful",
           "error": "Register failed",
-          "errorMember": "Failed to create organization member",
           "Fields": {
             "Email": {
               "placeholder": "Email"
@@ -376,6 +373,7 @@
               "createPlaceholder": "New organization name",
               "success": "Organization created successfully",
               "error": "Failed to create organization",
+              "invalidEmail": "Input valid email to see organizations",
               "Schema": {
                 "Name": {
                   "min": "Organization name must be at least 2 characters.",
@@ -393,10 +391,11 @@
             }
           },
           "Errors": {
-            "Submit": {
-              "userExists": "User already exists",
-              "emailDomainNotAllowed": "Email must end with {allowedEmailDomains}"
-            }
+            "member": "Failed to create organization member",
+            "organization": "Organization not found",
+            "emailDomainNotAllowedByOrganization": "Email domain not allowed to join organization",
+            "userExists": "User already exists",
+            "emailDomainNotAllowed": "Email must end with {allowedEmailDomains}"
           },
           "Login": {
             "message": "Already have an account?",

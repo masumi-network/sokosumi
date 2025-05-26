@@ -4,7 +4,12 @@ import { revalidatePath } from "next/cache";
 import slugify from "slugify";
 import { v4 as uuidv4 } from "uuid";
 
-import { connectUserToOrganization, createOrganization } from "@/lib/db";
+import {
+  connectUserToOrganization,
+  createOrganization,
+  isEmailAllowedByOrganization,
+  OrganizationWithRelations,
+} from "@/lib/db";
 
 export async function createOrganizationFromName(name: string) {
   try {
@@ -26,10 +31,19 @@ export async function createOrganizationFromName(name: string) {
 
 export async function createOrganizationMember(
   userId: string,
-  organizationId: string,
+  userEmail: string,
+  organization: OrganizationWithRelations,
 ) {
   try {
-    await connectUserToOrganization(userId, organizationId);
+    // check user email's domain
+    if (!isEmailAllowedByOrganization(userEmail, organization)) {
+      return {
+        success: false,
+        code: "EMAIL_DOMAIN_NOT_ALLOWED_BY_ORGANIZATION",
+      };
+    }
+
+    await connectUserToOrganization(userId, organization.id);
     return { success: true };
   } catch (error) {
     console.error("Error creating organization member", error);
