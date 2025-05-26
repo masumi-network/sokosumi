@@ -9,7 +9,7 @@ import {
   OrganizationWithRelations,
 } from "./types";
 
-export async function getAllOrganizations(
+export async function getOrganizations(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<OrganizationWithRelations[]> {
   return await tx.organization.findMany({

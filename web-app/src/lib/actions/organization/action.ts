@@ -20,8 +20,8 @@ export async function createOrganizationFromName(name: string) {
     })}-${uuidv4()}`;
 
     const organization = await createOrganization(name, slug);
-    // Revalidate the app to update the UI
-    revalidatePath("/app");
+    // Revalidate the register page to update the UI
+    revalidatePath("/register");
     return { organization, success: true };
   } catch (error) {
     console.error("Error creating organization", error);

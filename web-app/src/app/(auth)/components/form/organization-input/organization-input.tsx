@@ -107,7 +107,9 @@ export default function OrganizationInput({
                   </div>
                 )}
               </CommandEmpty>
-              <CommandGroup>
+              <CommandGroup
+                className={organizations.length === 0 ? "p-0" : "p-2"}
+              >
                 {organizations.map((organization) => (
                   <CommandItem
                     key={organization.id}
