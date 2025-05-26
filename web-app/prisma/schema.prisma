@@ -100,21 +100,8 @@ model Organization {
   members     Member[]
   invitations Invitation[]
 
-  allowedDomains AllowedDomain[]
-
   @@unique([slug])
   @@map("organization")
-}
-
-model AllowedDomain {
-  id             String       @id @default(cuid())
-  domain         String
-  organizationId String
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdAt      DateTime     @default(now())
-
-  @@unique([domain, organizationId])
-  @@map("allowedDomain")
 }
 
 model Member {
