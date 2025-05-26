@@ -89,7 +89,7 @@ export default function SignUpForm({ organizations }: SignUpFormProps) {
     }
 
     // Update marketing opt-in status
-    if (values.marketingOptIn !== undefined) {
+    if (values.marketingOptIn) {
       const marketingOptInResult = await updateUserMarketingOptIn(
         userResult.data.user.id,
         values.marketingOptIn,
