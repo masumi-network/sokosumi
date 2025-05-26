@@ -627,7 +627,8 @@
             "title": "Output",
             "failedToParseOutput": "Failed to parse output",
             "none": "No result data",
-            "download": "Download as Markdown"
+            "download": "Download",
+            "requestRefund": "Request Refund"
           }
         }
       }

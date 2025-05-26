@@ -29,18 +29,16 @@ export default function DownloadMarkdown({
   const t = useTranslations("App.Agents.Jobs.JobDetails.Output");
 
   return (
-    <div className="flex justify-end">
-      <Button
-        variant="ghost"
-        onClick={downloadFile}
-        className={cn(
-          "text-muted-foreground flex items-center justify-end gap-2 text-sm",
-          className,
-        )}
-      >
-        <Download className="h-4 w-4" />
-        {t("download")}
-      </Button>
-    </div>
+    <Button
+      variant="ghost"
+      onClick={downloadFile}
+      className={cn(
+        "text-muted-foreground flex items-center justify-end gap-2 text-sm",
+        className,
+      )}
+    >
+      <Download className="h-4 w-4" />
+      {t("download")}
+    </Button>
   );
 }
