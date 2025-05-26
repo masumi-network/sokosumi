@@ -44,18 +44,17 @@ export default function SignUpForm({ organizations }: SignUpFormProps) {
   });
 
   const onSubmit = async (values: SignUpFormSchemaType) => {
-    const organization = organizations.find(
-      (organization) => organization.id === values.organizationId,
+    const organizationResult = checkOrganizationAndEmail(
+      organizations,
+      values.organizationId,
+      values.email,
+      t,
     );
-    if (!organization) {
-      toast.error(t("Errors.organization"));
+    if (!organizationResult.success) {
+      toast.error(organizationResult.error);
       return;
     }
-
-    if (!isEmailAllowedByOrganization(values.email, organization)) {
-      toast.error(t("Errors.emailDomainNotAllowedByOrganization"));
-      return;
-    }
+    const { organization } = organizationResult;
 
     const userResult = await authClient.signUp.email(
       {
@@ -144,4 +143,29 @@ export default function SignUpForm({ organizations }: SignUpFormProps) {
       </div>
     </AuthForm>
   );
+}
+
+function checkOrganizationAndEmail(
+  organizations: OrganizationWithRelations[],
+  organizationId: string,
+  email: string,
+  t: IntlTranslation<"Auth.Pages.SignUp.Form">,
+):
+  | { success: true; organization: OrganizationWithRelations }
+  | { success: false; error: string } {
+  const organization = organizations.find(
+    (organization) => organization.id === organizationId,
+  );
+  if (!organization) {
+    return { success: false, error: t("Errors.organization") };
+  }
+
+  if (!isEmailAllowedByOrganization(email, organization)) {
+    return {
+      success: false,
+      error: t("Errors.emailDomainNotAllowedByOrganization"),
+    };
+  }
+
+  return { success: true, organization };
 }
