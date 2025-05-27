@@ -201,7 +201,10 @@ export async function updateJobWithAgentJobStatus(
   const output = JSON.stringify(jobStatusResponse);
   const agentJobStatus = jobStatusToAgentJobStatus(jobStatusResponse.status);
   const data: Prisma.JobUpdateInput = { agentJobStatus, output };
-  if (agentJobStatus === AgentJobStatus.COMPLETED) {
+  if (
+    agentJobStatus === AgentJobStatus.COMPLETED &&
+    data.completedAt === null
+  ) {
     data.completedAt = new Date();
   }
   const job = await tx.job.update({
