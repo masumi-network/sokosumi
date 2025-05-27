@@ -32,7 +32,7 @@
   },
   "dependencies": {
     "@better-auth/utils": "0.2.5",
-    "@hey-api/client-fetch": "0.10.1",
+    "@hey-api/client-fetch": "0.10.2",
     "@hey-api/client-next": "0.3.1",
     "@hookform/resolvers": "5.0.1",
     "@icons-pack/react-simple-icons": "12.9.0",
