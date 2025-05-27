@@ -4,6 +4,7 @@ import { CreditsPrice, getCreditTransactionByJobId, prisma } from "@/lib/db";
 import {
   AgentJobStatus,
   Job,
+  NextJobAction,
   OnChainJobStatus,
   Prisma,
 } from "@/prisma/generated/client";
@@ -194,25 +195,27 @@ export async function refundJob(
 }
 
 export async function updateJobWithAgentJobStatus(
-  jobId: string,
+  job: Job,
   jobStatusResponse: JobStatusResponse,
   tx: Prisma.TransactionClient = prisma,
 ) {
   const output = JSON.stringify(jobStatusResponse);
   const agentJobStatus = jobStatusToAgentJobStatus(jobStatusResponse.status);
-  const data: Prisma.JobUpdateInput = { agentJobStatus, output };
-  if (
-    agentJobStatus === AgentJobStatus.COMPLETED &&
-    data.completedAt === null
-  ) {
-    data.completedAt = new Date();
-  }
-  const job = await tx.job.update({
-    where: { id: jobId },
+  const data: Prisma.JobUpdateInput = {
+    agentJobStatus,
+    output,
+    ...(agentJobStatus === AgentJobStatus.COMPLETED &&
+      job.completedAt === null && {
+        completedAt: new Date(),
+      }),
+  };
+
+  const updatedJob = await tx.job.update({
+    where: { id: job.id },
     data,
     include: jobInclude,
   });
-  return mapJobWithStatus(job);
+  return mapJobWithStatus(updatedJob);
 }
 
 export async function updateJobWithPurchase(
@@ -248,6 +251,19 @@ export async function updateJobWithPurchase(
   const job = await tx.job.update({
     where: { id: jobId },
     data,
+    include: jobInclude,
+  });
+  return mapJobWithStatus(job);
+}
+
+export async function setNextActionToJob(
+  jobBlockchainIdentifier: string,
+  nextJobAction: NextJobAction,
+  tx: Prisma.TransactionClient = prisma,
+) {
+  const job = await tx.job.update({
+    where: { blockchainIdentifier: jobBlockchainIdentifier },
+    data: { nextAction: nextJobAction },
     include: jobInclude,
   });
   return mapJobWithStatus(job);

@@ -121,8 +121,10 @@ export default function RequestRefundButton({
     setError(null);
 
     try {
-      await requestRefundJob(job.blockchainIdentifier);
-      setIsRefundRequested(true);
+      job = await requestRefundJob(job.blockchainIdentifier);
+      setIsRefundRequested(
+        job.nextAction === NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
+      );
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {

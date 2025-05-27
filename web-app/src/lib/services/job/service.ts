@@ -7,8 +7,10 @@ import {
   createJob,
   getAgentById,
   JobStatus,
+  JobWithStatus,
   prisma,
   refundJob,
+  setNextActionToJob,
   updateJobWithAgentJobStatus,
   updateJobWithPurchase,
 } from "@/lib/db";
@@ -16,6 +18,7 @@ import { calculateInputHash } from "@/lib/utils";
 import {
   AgentJobStatus,
   Job,
+  NextJobAction,
   OnChainJobStatus,
   Prisma,
 } from "@/prisma/generated/client";
@@ -183,7 +186,7 @@ async function syncAgentJobStatus(
   tx: Prisma.TransactionClient,
 ): Promise<Job> {
   try {
-    return await updateJobWithAgentJobStatus(job.id, jobStatusResponse, tx);
+    return await updateJobWithAgentJobStatus(job, jobStatusResponse, tx);
   } catch {
     console.log("Error syncing agent job status: ", job.id);
     return job;
@@ -215,11 +218,18 @@ export async function getAgentJobStatus(
   return jobStatusResult.data;
 }
 
-export async function requestRefundJob(jobBlockchainIdentifier: string) {
+export async function requestRefundJob(
+  jobBlockchainIdentifier: string,
+): Promise<JobWithStatus> {
   const refundResult = await postPaymentClientRequestRefund(
     jobBlockchainIdentifier,
   );
   if (!refundResult.ok) {
     throw new Error(refundResult.error);
   }
+  const job = await setNextActionToJob(
+    jobBlockchainIdentifier,
+    NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
+  );
+  return job;
 }
