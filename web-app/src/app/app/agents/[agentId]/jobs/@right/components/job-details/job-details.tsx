@@ -35,7 +35,7 @@ export default function JobDetails({ job, className }: JobDetailsProps) {
             <JobDetailsInputs rawInput={job.input} />
           </AccordionItemWrapper>
           <AccordionItemWrapper value="output" title={t("Output.title")}>
-            <JobDetailsOutputs rawOutput={job.output} />
+            <JobDetailsOutputs job={job} />
           </AccordionItemWrapper>
         </Accordion>
       </ScrollArea>

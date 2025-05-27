@@ -626,7 +626,23 @@
             "title": "Output",
             "failedToParseOutput": "Failed to parse output",
             "none": "No result data",
-            "download": "Download as Markdown"
+            "download": "Download",
+            "Refund": {
+              "error": "Failed to request refund",
+              "request": "Request Refund",
+              "requested": "Refund Requested",
+              "refunded": "Refunded",
+              "Tooltip": {
+                "available": {
+                  "title": "Refund available",
+                  "description": "You can request a refund until {unlockAt}."
+                },
+                "unavailable": {
+                  "title": "Refund no longer available",
+                  "description": "You could have requested a refund until {unlockAt}."
+                }
+              }
+            }
           }
         }
       }

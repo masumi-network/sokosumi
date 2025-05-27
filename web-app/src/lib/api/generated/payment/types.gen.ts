@@ -436,9 +436,14 @@ export type GetPaymentResponses = {
                     txHash: string | null;
                 }> | null;
                 RequestedFunds: Array<{
-                    id: string;
-                    createdAt: string;
-                    updatedAt: string;
+                    amount: string;
+                    unit: string;
+                }>;
+                WithdrawnForSeller: Array<{
+                    amount: string;
+                    unit: string;
+                }>;
+                WithdrawnForBuyer: Array<{
                     amount: string;
                     unit: string;
                 }>;
@@ -557,9 +562,14 @@ export type PostPaymentResponses = {
                 errorNote: string | null;
             };
             RequestedFunds: Array<{
-                id: string;
-                createdAt: string;
-                updatedAt: string;
+                amount: string;
+                unit: string;
+            }>;
+            WithdrawnForSeller: Array<{
+                amount: string;
+                unit: string;
+            }>;
+            WithdrawnForBuyer: Array<{
                 amount: string;
                 unit: string;
             }>;
@@ -650,9 +660,14 @@ export type PostPaymentSubmitResultResponses = {
                 resultHash: string | null;
             };
             RequestedFunds: Array<{
-                id: string;
-                createdAt: string;
-                updatedAt: string;
+                amount: string;
+                unit: string;
+            }>;
+            WithdrawnForSeller: Array<{
+                amount: string;
+                unit: string;
+            }>;
+            WithdrawnForBuyer: Array<{
                 amount: string;
                 unit: string;
             }>;
@@ -739,9 +754,14 @@ export type PostPaymentAuthorizeRefundResponses = {
                 resultHash: string | null;
             };
             RequestedFunds: Array<{
-                id: string;
-                createdAt: string;
-                updatedAt: string;
+                amount: string;
+                unit: string;
+            }>;
+            WithdrawnForSeller: Array<{
+                amount: string;
+                unit: string;
+            }>;
+            WithdrawnForBuyer: Array<{
                 amount: string;
                 unit: string;
             }>;
@@ -854,9 +874,14 @@ export type GetPurchaseResponses = {
                     status: 'Pending' | 'Confirmed' | 'FailedViaTimeout';
                 }>;
                 PaidFunds: Array<{
-                    id: string;
-                    createdAt: string;
-                    updatedAt: string;
+                    amount: string;
+                    unit: string;
+                }>;
+                WithdrawnForSeller: Array<{
+                    amount: string;
+                    unit: string;
+                }>;
+                WithdrawnForBuyer: Array<{
                     amount: string;
                     unit: string;
                 }>;
@@ -989,9 +1014,14 @@ export type PostPurchaseResponses = {
                 status: 'Pending' | 'Confirmed' | 'FailedViaTimeout';
             } | null;
             PaidFunds: Array<{
-                id: string;
-                createdAt: string;
-                updatedAt: string;
+                amount: string;
+                unit: string;
+            }>;
+            WithdrawnForSeller: Array<{
+                amount: string;
+                unit: string;
+            }>;
+            WithdrawnForBuyer: Array<{
                 amount: string;
                 unit: string;
             }>;
@@ -1083,9 +1113,14 @@ export type PostPurchaseRequestRefundResponses = {
                 status: 'Pending' | 'Confirmed' | 'FailedViaTimeout';
             } | null;
             PaidFunds: Array<{
-                id: string;
-                createdAt: string;
-                updatedAt: string;
+                amount: string;
+                unit: string;
+            }>;
+            WithdrawnForSeller: Array<{
+                amount: string;
+                unit: string;
+            }>;
+            WithdrawnForBuyer: Array<{
                 amount: string;
                 unit: string;
             }>;
@@ -1177,9 +1212,14 @@ export type PostPurchaseCancelRefundRequestResponses = {
                 status: 'Pending' | 'Confirmed' | 'FailedViaTimeout';
             } | null;
             PaidFunds: Array<{
-                id: string;
-                createdAt: string;
-                updatedAt: string;
+                amount: string;
+                unit: string;
+            }>;
+            WithdrawnForSeller: Array<{
+                amount: string;
+                unit: string;
+            }>;
+            WithdrawnForBuyer: Array<{
                 amount: string;
                 unit: string;
             }>;

@@ -3,15 +3,17 @@ import { useTranslations } from "next-intl";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import Markdown from "@/components/markdown";
+import { JobWithStatus } from "@/lib/db";
 import {
   jobStatusResponseSchema,
   JobStatusResponseSchemaType,
 } from "@/lib/services/job/schemas";
 
 import DownloadMarkdown from "./download-markdown";
+import RequestRefundButton from "./refund-request";
 
 interface JobDetailsOutputsProps {
-  rawOutput: string | null;
+  job: JobWithStatus;
 }
 
 interface JobDetailsOutputsLayoutProps {
@@ -22,20 +24,18 @@ function JobDetailsOutputsLayout({ children }: JobDetailsOutputsLayoutProps) {
   return <div className="flex flex-col gap-2">{children}</div>;
 }
 
-export default function JobDetailsOutputs({
-  rawOutput,
-}: JobDetailsOutputsProps) {
+export default function JobDetailsOutputs({ job }: JobDetailsOutputsProps) {
   return (
     <DefaultErrorBoundary fallback={<JobDetailsOutputsError />}>
-      <JobDetailsOutputsInner rawOutput={rawOutput} />
+      <JobDetailsOutputsInner job={job} />
     </DefaultErrorBoundary>
   );
 }
 
-function JobDetailsOutputsInner({ rawOutput }: JobDetailsOutputsProps) {
+function JobDetailsOutputsInner({ job }: JobDetailsOutputsProps) {
   const t = useTranslations("App.Agents.Jobs.JobDetails.Output");
 
-  if (!rawOutput) {
+  if (!job.output) {
     return (
       <JobDetailsOutputsLayout>
         <p className="text-base">{t("none")}</p>
@@ -45,7 +45,7 @@ function JobDetailsOutputsInner({ rawOutput }: JobDetailsOutputsProps) {
 
   let output: JobStatusResponseSchemaType;
   try {
-    const parsedOutput = JSON.parse(rawOutput);
+    const parsedOutput = JSON.parse(job.output);
     output = jobStatusResponseSchema.parse(parsedOutput);
   } catch {
     return <JobDetailsOutputsError />;
@@ -56,7 +56,10 @@ function JobDetailsOutputsInner({ rawOutput }: JobDetailsOutputsProps) {
       {output.result ? (
         <>
           <Markdown>{output.result}</Markdown>
-          <DownloadMarkdown markdown={output.result} />
+          <div className="flex justify-between gap-2">
+            <DownloadMarkdown markdown={output.result} />
+            <RequestRefundButton job={job} />
+          </div>
         </>
       ) : (
         <p className="text-base">{t("none")}</p>
