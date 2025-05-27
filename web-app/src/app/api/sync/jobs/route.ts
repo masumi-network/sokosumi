@@ -81,7 +81,6 @@ async function syncAllJobs() {
           onChainStatus: {
             notIn: finalizedOnChainJobStatuses,
           },
-          nextActionErrorType: null,
         },
         {
           onChainStatus: null,
