@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -16,10 +17,13 @@ import {
 import { createOrganizationMember } from "@/lib/actions";
 import { updateUserMarketingOptIn } from "@/lib/actions/user/action";
 import { authClient } from "@/lib/auth/auth.client";
-import { OrganizationWithMembersCount } from "@/lib/db";
+import {
+  isEmailAllowedByOrganization,
+  OrganizationWithRelations,
+} from "@/lib/db";
 
 interface SignUpFormProps {
-  organizations: OrganizationWithMembersCount[];
+  organizations: OrganizationWithRelations[];
 }
 
 export default function SignUpForm({ organizations }: SignUpFormProps) {
@@ -40,8 +44,24 @@ export default function SignUpForm({ organizations }: SignUpFormProps) {
     },
   });
 
+  const email = form.watch("email");
+  useEffect(() => {
+    form.setValue("organizationId", "");
+  }, [email, form]);
+
   const onSubmit = async (values: SignUpFormSchemaType) => {
-    console.log("values", values);
+    const organizationResult = checkOrganizationAndEmail(
+      organizations,
+      values.organizationId,
+      values.email,
+      t,
+    );
+    if (!organizationResult.success) {
+      toast.error(organizationResult.error);
+      return;
+    }
+    const { organization } = organizationResult;
+
     const userResult = await authClient.signUp.email(
       {
         email: values.email,
@@ -53,11 +73,11 @@ export default function SignUpForm({ organizations }: SignUpFormProps) {
         onError: (ctx) => {
           switch (ctx.error.code) {
             case "USER_ALREADY_EXISTS":
-              toast.error(t("Errors.Submit.userExists"));
+              toast.error(t("Errors.userExists"));
               break;
             case "EMAIL_DOMAIN_NOT_ALLOWED":
               toast.error(
-                t("Errors.Submit.emailDomainNotAllowed", {
+                t("Errors.emailDomainNotAllowed", {
                   allowedEmailDomains: ctx.error.message,
                 }),
               );
@@ -74,12 +94,11 @@ export default function SignUpForm({ organizations }: SignUpFormProps) {
     }
 
     // Update marketing opt-in status
-    if (values.marketingOptIn !== undefined) {
+    if (values.marketingOptIn) {
       const marketingOptInResult = await updateUserMarketingOptIn(
         userResult.data.user.id,
         values.marketingOptIn,
       );
-      console.log("marketingOptInResult", marketingOptInResult);
       if (!marketingOptInResult.success) {
         console.error(
           "Failed to update marketing opt-in:",
@@ -91,10 +110,15 @@ export default function SignUpForm({ organizations }: SignUpFormProps) {
     // create member using organization
     const memberResult = await createOrganizationMember(
       userResult.data.user.id,
-      values.organizationId,
+      userResult.data.user.email,
+      organization,
     );
     if (!memberResult.success) {
-      toast.error(t("errorMember"));
+      if (memberResult.code === "EMAIL_DOMAIN_NOT_ALLOWED_BY_ORGANIZATION") {
+        toast.error(t("Errors.emailDomainNotAllowedByOrganization"));
+      } else {
+        toast.error(t("Errors.member"));
+      }
     } else {
       toast.success(t("success"));
     }
@@ -125,4 +149,29 @@ export default function SignUpForm({ organizations }: SignUpFormProps) {
       </div>
     </AuthForm>
   );
+}
+
+function checkOrganizationAndEmail(
+  organizations: OrganizationWithRelations[],
+  organizationId: string,
+  email: string,
+  t: IntlTranslation<"Auth.Pages.SignUp.Form">,
+):
+  | { success: true; organization: OrganizationWithRelations }
+  | { success: false; error: string } {
+  const organization = organizations.find(
+    (organization) => organization.id === organizationId,
+  );
+  if (!organization) {
+    return { success: false, error: t("Errors.organization") };
+  }
+
+  if (!isEmailAllowedByOrganization(email, organization)) {
+    return {
+      success: false,
+      error: t("Errors.emailDomainNotAllowedByOrganization"),
+    };
+  }
+
+  return { success: true, organization };
 }

@@ -2,6 +2,7 @@
 
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { memo } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -14,25 +15,17 @@ import { CreateOrganizationSchemaType } from "./data";
 
 interface CreateOrganizationProps {
   form: UseFormReturn<CreateOrganizationSchemaType>;
-  onCreate: (organization: Organization) => void;
+  onAfterCreate: (organization: Organization) => void;
 }
 
-export default function CreateOrganization({
-  form,
-  onCreate,
-}: CreateOrganizationProps) {
+function CreateOrganization({ form, onAfterCreate }: CreateOrganizationProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form.Fields.Organization");
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.stopPropagation();
-    form.handleSubmit(onSubmit)(e);
-  };
 
   const onSubmit = async (values: CreateOrganizationSchemaType) => {
     const organizationResult = await createOrganizationFromName(values.name);
     if (organizationResult.success && organizationResult.organization) {
       toast.success(t("success"));
-      onCreate(organizationResult.organization);
+      onAfterCreate(organizationResult.organization);
     } else {
       toast.error(t("error"));
     }
@@ -41,7 +34,7 @@ export default function CreateOrganization({
   const name = form.watch("name");
 
   return (
-    <form onSubmit={handleSubmit}>
+    <div>
       <fieldset
         disabled={form.formState.isSubmitting}
         className="flex flex-col gap-3"
@@ -56,6 +49,7 @@ export default function CreateOrganization({
           size="sm"
           variant="primary"
           className="text-xs"
+          onClick={form.handleSubmit(onSubmit)}
         >
           {form.formState.isSubmitting && (
             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -63,6 +57,8 @@ export default function CreateOrganization({
           {t("create", { organization: name })}
         </Button>
       </fieldset>
-    </form>
+    </div>
   );
 }
+
+export default memo(CreateOrganization);

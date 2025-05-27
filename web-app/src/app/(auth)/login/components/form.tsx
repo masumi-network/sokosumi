@@ -42,7 +42,7 @@ export default function SignInForm() {
         onError: (ctx) => {
           switch (ctx.error.code) {
             case "EMAIL_NOT_VERIFIED":
-              toast.error(t("Errors.Submit.verifyEmail"));
+              toast.error(t("Errors.verifyEmail"));
               break;
             default:
               toast.error(t("error"));
