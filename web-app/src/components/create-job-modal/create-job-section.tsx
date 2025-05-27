@@ -31,7 +31,8 @@ export default function CreateJobSection({
   agentCreditsPrice,
   inputSchemaPromise,
 }: CreateJobSectionProps) {
-  const { accordionValue, setAccordionValue } = useCreateJobModalContext();
+  const { accordionValue, setAccordionValue, loading } =
+    useCreateJobModalContext();
 
   const handleAccordionValueChange = (value: string[]) => {
     setAccordionValue(value);
@@ -46,25 +47,36 @@ export default function CreateJobSection({
         className="w-full space-y-1.5"
         onValueChange={handleAccordionValueChange}
       >
-        <InformationAccordionItem agent={agent} />
+        <InformationAccordionItem agent={agent} disabled={loading} />
         <InputAccordionItem
           agent={agent}
           agentCreditsPrice={agentCreditsPrice}
           inputSchemaPromise={inputSchemaPromise}
+          disabled={loading}
         />
       </Accordion>
     </div>
   );
 }
 
-function InformationAccordionItem({ agent }: { agent: AgentWithRelations }) {
+function InformationAccordionItem({
+  agent,
+  disabled,
+}: {
+  agent: AgentWithRelations;
+  disabled?: boolean | undefined;
+}) {
   const t = useTranslations("App.Agents.Jobs.CreateJob.Information");
   const name = getAgentName(agent);
   const description = getAgentDescription(agent);
   const image = getAgentResolvedImage(agent);
 
   return (
-    <AccordionItemWrapper value="information" title={t("title")}>
+    <AccordionItemWrapper
+      value="information"
+      title={t("title")}
+      disabled={disabled}
+    >
       <div className="flex flex-wrap gap-6">
         <div className="h-24 w-24">
           <Image
@@ -88,15 +100,17 @@ function InputAccordionItem({
   agent,
   agentCreditsPrice,
   inputSchemaPromise,
+  disabled,
 }: {
   agent: AgentWithRelations;
   agentCreditsPrice: CreditsPrice;
   inputSchemaPromise: Promise<JobInputsDataSchemaType>;
+  disabled?: boolean | undefined;
 }) {
   const t = useTranslations("App.Agents.Jobs.CreateJob.Input");
 
   return (
-    <AccordionItemWrapper value="input" title={t("title")}>
+    <AccordionItemWrapper value="input" title={t("title")} disabled={disabled}>
       <div className="flex flex-col gap-6">
         <p className="text-sm">{t("description")}</p>
         <JobInputsForm
