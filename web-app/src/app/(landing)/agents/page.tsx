@@ -2,7 +2,14 @@ import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { AgentCard, Agents, AgentsNotAvailable } from "@/components/agents";
-import { getOnlineAgentsWithCreditsPrice } from "@/lib/services";
+import {
+  CreateJobModal,
+  CreateJobModalContextProvider,
+} from "@/components/create-job-modal";
+import {
+  getAgentInputSchema,
+  getOnlineAgentsWithCreditsPrice,
+} from "@/lib/services";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Landing.Agents.Metadata");
@@ -20,16 +27,29 @@ export default async function GalleryPage() {
     return <AgentsNotAvailable />;
   }
 
+  const featuredAgentWithPrice = agentsWithPrice[0];
+  const featuredAgentInputSchemaPromise = getAgentInputSchema(
+    featuredAgentWithPrice.agent.id,
+  );
+
   return (
     <div className="container mx-auto px-12 pt-4 pb-8">
       <div className="space-y-24">
-        {/* Featured Agent Section */}
-        <AgentCard
-          agent={agentsWithPrice[0].agent}
-          agentCreditsPrice={agentsWithPrice[0].creditsPrice}
-          className="w-full"
-          size="lg"
-        />
+        <CreateJobModalContextProvider>
+          {/* Featured Agent Section */}
+          <AgentCard
+            agent={featuredAgentWithPrice.agent}
+            agentCreditsPrice={featuredAgentWithPrice.creditsPrice}
+            className="w-full"
+            size="lg"
+          />
+          {/* Create Job Modal */}
+          <CreateJobModal
+            agent={featuredAgentWithPrice.agent}
+            agentCreditsPrice={featuredAgentWithPrice.creditsPrice}
+            inputSchemaPromise={featuredAgentInputSchemaPromise}
+          />
+        </CreateJobModalContextProvider>
 
         {/* Agent Cards Grid */}
         <Agents

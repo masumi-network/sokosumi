@@ -24,7 +24,6 @@ interface PlaylistModalProps {
   open: boolean;
   onClose: () => void;
   exampleOutputs: ExampleOutput[];
-  agentId: string;
   initialIndex?: number | undefined;
 }
 
@@ -32,7 +31,6 @@ export default function PlaylistModal({
   open,
   onClose,
   exampleOutputs,
-  agentId,
   initialIndex,
 }: PlaylistModalProps) {
   const [currentIndex, setCurrentIndex] = useState(initialIndex ?? 0);
@@ -74,7 +72,6 @@ export default function PlaylistModal({
             />
             <PlaylistMainSection
               selectedExampleOutput={selectedExampleOutput}
-              agentId={agentId}
               onClose={onClose}
             />
           </div>
@@ -113,11 +110,9 @@ function PlaylistSidebar({
 
 function PlaylistMainSection({
   selectedExampleOutput,
-  agentId,
   onClose,
 }: {
   selectedExampleOutput: ExampleOutput;
-  agentId: string;
   onClose: () => void;
 }) {
   const t = useTranslations("Components.Agents.AgentDetail.Section4");
@@ -129,7 +124,7 @@ function PlaylistMainSection({
           {selectedExampleOutput.name}
         </p>
         <div className="flex items-center gap-1">
-          <AgentHireButton agentId={agentId} size="default" />
+          <AgentHireButton />
           <Button variant="ghost" size="icon" onClick={onClose}>
             <X />
           </Button>

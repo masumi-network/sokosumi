@@ -121,7 +121,7 @@ const agentCardPricingAndButtonsContentVariants = cva(
       size: {
         xs: "hidden",
         sm: "hidden",
-        md: "[&>div:nth-child(2)]:hidden [&>div>p]:font-medium [&>div>p]:text-sm",
+        md: "[&>div>p]:font-medium [&>div>p]:text-sm",
         lg: "[&>div>p]:font-medium [&>div>p]:text-base",
       },
     },
@@ -173,7 +173,7 @@ function AgentCardSkeleton({
           </div>
           <div className="flex items-center gap-1.5">
             <Skeleton className="h-6 w-18" />
-            <Skeleton className="h-6 w-18" />
+            {size === "lg" && <Skeleton className="h-6 w-18" />}
           </div>
         </div>
       </div>
@@ -275,7 +275,7 @@ function AgentCard({
                   </AgentDetailLink>
                 </Button>
               )}
-              <AgentHireButton agentId={agent.id} />
+              {size === "lg" && <AgentHireButton />}
             </div>
           </div>
         </div>

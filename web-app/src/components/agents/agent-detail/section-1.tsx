@@ -87,7 +87,7 @@ function AgentDetailSection1({
                 })}
               </span>
             </div>
-            <AgentHireButton agentId={agent.id} />
+            <AgentHireButton />
           </div>
         </div>
       </div>

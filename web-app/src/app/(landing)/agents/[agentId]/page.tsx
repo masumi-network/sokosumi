@@ -1,8 +1,12 @@
 import { notFound } from "next/navigation";
 
 import { AgentDetail } from "@/components/agents";
+import {
+  CreateJobModal,
+  CreateJobModalContextProvider,
+} from "@/components/create-job-modal";
 import { getAgentById, getJobsByAgentId } from "@/lib/db";
-import { getAgentCreditsPrice } from "@/lib/services";
+import { getAgentCreditsPrice, getAgentInputSchema } from "@/lib/services";
 
 export default async function AgentDetailPage({
   params,
@@ -23,11 +27,21 @@ export default async function AgentDetailPage({
 
   const jobs = await getJobsByAgentId(agentId);
 
+  const agentInputSchemaPromise = getAgentInputSchema(agentId);
+
   return (
-    <AgentDetail
-      agent={agent}
-      agentCreditsPrice={agentCreditsPrice}
-      jobs={jobs}
-    />
+    <CreateJobModalContextProvider>
+      <AgentDetail
+        agent={agent}
+        agentCreditsPrice={agentCreditsPrice}
+        jobs={jobs}
+      />
+      {/* Create Job Modal */}
+      <CreateJobModal
+        agent={agent}
+        agentCreditsPrice={agentCreditsPrice}
+        inputSchemaPromise={agentInputSchemaPromise}
+      />
+    </CreateJobModalContextProvider>
   );
 }
