@@ -32,7 +32,7 @@ export default function BillingForm({
   currency,
 }: BillingFormProps) {
   const t = useTranslations("App.Billing");
-  const format = useFormatter();
+  const formatter = useFormatter();
   const [customAmount, setCustomAmount] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -100,7 +100,7 @@ export default function BillingForm({
         </Button>
         <p className="text-muted-foreground text-sm">
           {t("costPerCredit", {
-            cost: format.number(amountPerCredit / 100, {
+            cost: formatter.number(amountPerCredit / 100, {
               style: "currency",
               currency,
             }),

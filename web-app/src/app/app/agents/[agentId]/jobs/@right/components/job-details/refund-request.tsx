@@ -47,6 +47,34 @@ function ButtonBase({
   );
 }
 
+function makeTitleAndDescription(
+  isRefundDisabled: boolean,
+  unlockTime: Date,
+  t: IntlTranslation<"App.Agents.Jobs.JobDetails.Output.Refund">,
+  formatter: IntlDateFormatter,
+) {
+  const unlockTimeFormatted = formatter.dateTime(unlockTime, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
+
+  const { title, description } = isRefundDisabled
+    ? {
+        title: t("Tooltip.unavailable.title"),
+        description: t("Tooltip.unavailable.description", {
+          unlockAt: unlockTimeFormatted,
+        }),
+      }
+    : {
+        title: t("Tooltip.available.title"),
+        description: t("Tooltip.available.description", {
+          unlockAt: unlockTimeFormatted,
+        }),
+      };
+
+  return { title, description };
+}
+
 export default function RequestRefundButton({
   job,
   className,
@@ -59,7 +87,7 @@ export default function RequestRefundButton({
       job.nextAction === NextJobAction.SET_REFUND_REQUESTED_INITIATED ||
       job.nextAction === NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
   );
-  const format = useFormatter();
+  const formatter = useFormatter();
 
   const isRefunded = job.onChainStatus === OnChainJobStatus.REFUND_WITHDRAWN;
   if (isRefunded) {
@@ -81,25 +109,12 @@ export default function RequestRefundButton({
   }
 
   const isRefundDisabled = job.unlockTime.getTime() < Date.now();
-  const { title, description } = isRefundDisabled
-    ? {
-        title: t("Tooltip.unavailable.title"),
-        description: t("Tooltip.unavailable.description", {
-          unlockAt: format.dateTime(job.unlockTime, {
-            dateStyle: "medium",
-            timeStyle: "short",
-          }),
-        }),
-      }
-    : {
-        title: t("Tooltip.available.title"),
-        description: t("Tooltip.available.description", {
-          unlockAt: format.dateTime(job.unlockTime, {
-            dateStyle: "medium",
-            timeStyle: "short",
-          }),
-        }),
-      };
+  const { title, description } = makeTitleAndDescription(
+    isRefundDisabled,
+    job.unlockTime,
+    t,
+    formatter,
+  );
 
   const handleClick = async () => {
     setIsLoading(true);
