@@ -341,8 +341,7 @@ model CreditTransaction {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  fiatTransaction   FiatTransaction?
-  fiatTransactionId String?          @unique
+  fiatTransaction FiatTransaction?
 
   job         Job? @relation("CreditTransactionJob")
   refundedJob Job? @relation("RefundedCreditTransactionJob")
