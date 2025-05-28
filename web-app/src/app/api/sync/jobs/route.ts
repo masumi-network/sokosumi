@@ -95,7 +95,7 @@ async function syncAllJobs() {
         onChainStatus: OnChainJobStatus.RESULT_SUBMITTED,
         agentJobStatus: AgentJobStatus.COMPLETED,
         externalDisputeUnlockTime: {
-          gt: new Date(Date.now() - 1000 * 60 * 10), // 10min grace period
+          lt: new Date(Date.now() - 1000 * 60 * 10), // 10min grace period
         },
       },
     },
