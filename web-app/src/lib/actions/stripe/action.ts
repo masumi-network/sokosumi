@@ -6,7 +6,9 @@ import Stripe from "stripe";
 import { getEnvPublicConfig, getEnvSecrets } from "@/config/env.config"; // Ensure this path is correct
 import { User } from "@/prisma/generated/client";
 
-const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
+const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY, {
+  apiVersion: "2025-04-30.basil",
+});
 
 /**
  * Retrieves the cost per credit for a given Stripe price.

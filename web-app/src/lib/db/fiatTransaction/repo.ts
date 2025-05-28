@@ -17,7 +17,8 @@ export async function createFiatTransaction(
   return await tx.fiatTransaction.create({
     data: {
       userId,
-      centsPerAmount,
+      cents,
+      centsPerAmount: null,
       amount: cents / centsPerAmount,
       currency,
     },

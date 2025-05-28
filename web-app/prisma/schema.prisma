@@ -355,7 +355,8 @@ model FiatTransaction {
 
   amount           BigInt // Base Unit: 100 = 1 USD, 10000 = 100 USD if currency is USD
   currency         String
-  cents            BigInt
+  centsPerAmount   BigInt?
+  cents            BigInt                @default(0)
   servicePaymentId String?               @unique
   service          FiatService           @default(STRIPE)
   status           FiatTransactionStatus @default(PENDING)
