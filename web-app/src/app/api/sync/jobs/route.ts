@@ -102,11 +102,6 @@ async function syncAllJobs() {
             gt: new Date(Date.now() - 1000 * 60 * 10), // 10min grace period
           },
         },
-        // Get jobs that are missing input hash
-        // Remove in July 2025
-        {
-          inputHash: null,
-        },
       ],
     },
   });
