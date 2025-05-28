@@ -84,6 +84,9 @@ async function syncAllJobs() {
             gt: new Date(Date.now() - 1000 * 60 * 5),
           },
         },
+        {
+          inputHash: null,
+        },
       ],
     },
   });
