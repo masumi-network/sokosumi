@@ -51,15 +51,6 @@ export async function setFiatTransactionStatusToSucceeded(
   currency: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<FiatTransaction> {
-  // First, create the credit transaction
-  const creditTransaction = await tx.creditTransaction.create({
-    data: {
-      userId: fiatTransaction.userId,
-      amount: fiatTransaction.cents,
-    },
-  });
-
-  // Then, update the fiat transaction with the credit transaction ID and other data
   return await tx.fiatTransaction.update({
     where: { id: fiatTransaction.id },
     data: {
@@ -67,8 +58,9 @@ export async function setFiatTransactionStatusToSucceeded(
       amount,
       currency,
       creditTransaction: {
-        connect: {
-          id: creditTransaction.id,
+        create: {
+          userId: fiatTransaction.userId,
+          amount: fiatTransaction.cents,
         },
       },
     },
