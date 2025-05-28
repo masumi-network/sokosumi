@@ -43,17 +43,3 @@ export async function createStripeCheckoutSession(
     return { stripeSessionId, url };
   });
 }
-
-export async function createStripeFreeClaimCheckoutSession(
-  userId: string,
-): Promise<{ stripeSessionId: string; url: string }> {
-  return await prisma.$transaction(async (tx) => {
-    const user = await getUserById(userId, tx);
-    if (!user) {
-      throw new Error("User not found");
-    }
-    const { id: stripeSessionId, url } =
-      await createFreeClaimCheckoutSession(user);
-    return { stripeSessionId, url };
-  });
-}
