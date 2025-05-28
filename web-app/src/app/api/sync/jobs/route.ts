@@ -87,7 +87,7 @@ async function syncAllJobs() {
         {
           onChainStatus: null,
           submitResultTime: {
-            gt: new Date(Date.now() - 1000 * 60 * 5),
+            gt: new Date(Date.now() - 1000 * 60 * 10), // 10min grace period
           },
         },
         // Filter out jobs that are already completed and the external dispute unlock time has passed
@@ -99,7 +99,7 @@ async function syncAllJobs() {
             not: AgentJobStatus.COMPLETED,
           },
           externalDisputeUnlockTime: {
-            gt: new Date(Date.now() - 1000 * 60 * 5),
+            gt: new Date(Date.now() - 1000 * 60 * 10), // 10min grace period
           },
         },
         // Get jobs that are missing input hash
