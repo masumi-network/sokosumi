@@ -6,11 +6,7 @@ import { organization } from "better-auth/plugins";
 import { getTranslations } from "next-intl/server";
 
 import { getEnvPublicConfig, getEnvSecrets } from "@/config/env.config";
-import {
-  convertCreditsToCents,
-  createCreditTransaction,
-  prisma,
-} from "@/lib/db";
+import { prisma } from "@/lib/db";
 import { reactChangeEmailVerificationEmail } from "@/lib/email/change-email";
 import { resend } from "@/lib/email/resend";
 import { reactResetPasswordEmail } from "@/lib/email/reset-password";
@@ -51,24 +47,6 @@ export const auth = betterAuth({
           break;
       }
     }),
-  },
-  databaseHooks: {
-    user: {
-      create: {
-        after: async (user) => {
-          try {
-            const cents = convertCreditsToCents(
-              getEnvSecrets().FREE_CREDITS_ON_SIGNUP,
-            );
-            await createCreditTransaction(user.id, cents);
-          } catch (error) {
-            console.error(
-              `Error creating credit transaction for user ${user.id} with error: ${error}`,
-            );
-          }
-        },
-      },
-    },
   },
   emailAndPassword: {
     enabled: true,
