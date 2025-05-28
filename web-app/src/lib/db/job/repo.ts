@@ -224,7 +224,11 @@ export async function updateJobWithPurchase(
   tx: Prisma.TransactionClient = prisma,
 ) {
   const onChainStatus = onChainStateToOnChainJobStatus(purchase.onChainState);
-  let data: Prisma.JobUpdateInput = { onChainStatus };
+  let data: Prisma.JobUpdateInput = {
+    onChainStatus,
+    inputHash: purchase.inputHash,
+    outputHash: purchase.resultHash,
+  };
   if (onChainStatus === OnChainJobStatus.RESULT_SUBMITTED) {
     data.resultSubmittedAt = new Date();
   }

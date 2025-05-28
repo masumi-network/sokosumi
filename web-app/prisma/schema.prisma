@@ -393,7 +393,9 @@ model Job {
 
   paymentId         String
   input             String
+  inputHash         String?
   output            String?
+  outputHash        String?
   startedAt         DateTime  @default(now())
   completedAt       DateTime? // when the job was completed on the agent side
   resultSubmittedAt DateTime? // when the job on-chain status was `RESULT_SUBMITTED`
