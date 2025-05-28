@@ -37,7 +37,7 @@ export default async function UserCredits() {
         <FreeCreditsButton
           userId={user.id}
           priceId={getEnvSecrets().STRIPE_PRICE_ID}
-          discount={getEnvSecrets().STRIPE_WELCOME_PROMO_CODE}
+          coupon={getEnvSecrets().STRIPE_WELCOME_COUPON}
         />
       ) : (
         credits <= 50.0 && (

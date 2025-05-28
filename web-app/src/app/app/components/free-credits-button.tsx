@@ -5,17 +5,19 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { convertCreditsToCents } from "@/lib/db";
+import { convertCreditsToCents, getUserById } from "@/lib/db";
 import { createStripeCheckoutSession } from "@/lib/services";
 
 interface FreeCreditsButtonProps {
   userId: string;
   priceId: string;
+  coupon: string;
 }
 
 export default function FreeCreditsButton({
   userId,
   priceId,
+  coupon,
 }: FreeCreditsButtonProps) {
   const [loading, setLoading] = useState(false);
   const t = useTranslations("App.Billing.FreeClaim");
@@ -23,11 +25,18 @@ export default function FreeCreditsButton({
   const handleFreeClaim = async () => {
     setLoading(true);
     try {
+      const user = await getUserById(userId);
+      if (!user) {
+        throw new Error("User not found");
+      }
+      if (user.stripeCustomerId) {
+        throw new Error("User already has a stripe customer id");
+      }
       const { url } = await createStripeCheckoutSession(
         userId,
         priceId,
         convertCreditsToCents(100),
-        100,
+        coupon,
       );
       window.location.href = url;
     } catch (error) {

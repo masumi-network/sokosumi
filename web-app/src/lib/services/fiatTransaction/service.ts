@@ -1,12 +1,6 @@
 "use server";
 
-import Stripe from "stripe";
-
-import {
-  createCheckoutSession,
-  createCoupon,
-  getConversionFactors,
-} from "@/lib/actions";
+import { createCheckoutSession, getConversionFactors } from "@/lib/actions";
 import {
   createFiatTransaction,
   getUserById,
@@ -18,7 +12,7 @@ export async function createStripeCheckoutSession(
   userId: string,
   priceId: string,
   cents: bigint,
-  percent_off: number | null = null,
+  coupon: string | null = null,
 ): Promise<{ stripeSessionId: string; url: string }> {
   return await prisma.$transaction(async (tx) => {
     const user = await getUserById(userId, tx);
@@ -33,17 +27,13 @@ export async function createStripeCheckoutSession(
       conversionFactorsPerCredit.currency,
       tx,
     );
-    let coupon: Stripe.Coupon | null = null;
-    if (percent_off) {
-      coupon = await createCoupon(percent_off);
-    }
     const { id: stripeSessionId, url } = await createCheckoutSession(
       user,
       fiatTransaction.id,
       priceId,
       Number(fiatTransaction.amount) /
         conversionFactorsPerCredit.amountPerCredit,
-      coupon?.id ?? null,
+      coupon,
     );
     await updateFiatTransactionServicePaymentId(
       fiatTransaction.id,
