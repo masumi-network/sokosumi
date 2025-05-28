@@ -32,7 +32,6 @@ model User {
   jobs               Job[]
 
   stripeCustomerId String?
-  // stripeUsedCoupons String[] @default([])
 
   members     Member[]
   invitations Invitation[]
@@ -356,7 +355,7 @@ model FiatTransaction {
 
   amount           BigInt // Base Unit: 100 = 1 USD, 10000 = 100 USD if currency is USD
   currency         String
-  centsPerAmount   BigInt
+  cents            BigInt
   servicePaymentId String?               @unique
   service          FiatService           @default(STRIPE)
   status           FiatTransactionStatus @default(PENDING)
