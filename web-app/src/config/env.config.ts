@@ -29,6 +29,7 @@ const envSecretsSchema = z.object({
   STRIPE_SECRET_KEY: z.string().min(1),
   STRIPE_WEBHOOK_SECRET: z.string().min(1),
   STRIPE_PRICE_ID: z.string().min(1),
+  STRIPE_FREE_CREDITS_PROMO_CODE: z.string().min(1),
 
   // Seed
   SEED_DATABASE: z

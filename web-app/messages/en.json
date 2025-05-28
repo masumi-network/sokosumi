@@ -510,6 +510,9 @@
         "title": "Payment Cancelled",
         "description": "Your payment process was cancelled. You have not been charged.",
         "backToBilling": "Back to Billing"
+      },
+      "FreeClaim": {
+        "button": "Claim 100 Free Credits"
       }
     },
     "Account": {

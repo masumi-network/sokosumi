@@ -1,6 +1,10 @@
 "use server";
 
-import { createCheckoutSession, getConversionFactors } from "@/lib/actions";
+import {
+  createCheckoutSession,
+  createFreeClaimCheckoutSession,
+  getConversionFactors,
+} from "@/lib/actions";
 import {
   createFiatTransaction,
   getUserById,
@@ -38,6 +42,20 @@ export async function createStripeCheckoutSession(
       stripeSessionId,
       tx,
     );
+    return { stripeSessionId, url };
+  });
+}
+
+export async function createStripeFreeClaimCheckoutSession(
+  userId: string,
+): Promise<{ stripeSessionId: string; url: string }> {
+  return await prisma.$transaction(async (tx) => {
+    const user = await getUserById(userId, tx);
+    if (!user) {
+      throw new Error("User not found");
+    }
+    const { id: stripeSessionId, url } =
+      await createFreeClaimCheckoutSession(user);
     return { stripeSessionId, url };
   });
 }

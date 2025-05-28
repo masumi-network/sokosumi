@@ -32,6 +32,7 @@ model User {
   jobs               Job[]
 
   stripeCustomerId String?
+  // stripeUsedCoupons String[] @default([])
 
   members     Member[]
   invitations Invitation[]

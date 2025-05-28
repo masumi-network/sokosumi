@@ -37,7 +37,6 @@ export default function BillingForm({
   const [loading, setLoading] = useState(false);
 
   const handleTopUp = async (credits: number | null) => {
-    console.log("Topping up credits:", credits);
     if (!credits || credits <= 0) {
       return;
     }

@@ -91,3 +91,47 @@ export async function createCheckoutSession(
   }
   return { id: session.id, url: session.url };
 }
+
+/**
+ * Creates a checkout session for claiming free credits.
+ * This session uses a predefined price with a 100% discount promotion code
+ * to allow users to claim free credits without payment.
+ *
+ * @param user - The user object containing user details and Stripe customer ID
+ * @returns A promise that resolves to an object containing:
+ *   - id: The ID of the checkout session
+ *   - url: The URL to redirect the user to complete the checkout
+ * @throws Will throw an error if the checkout session cannot be created or if the session URL is null
+ */
+export async function createFreeClaimCheckoutSession(
+  user: User,
+): Promise<{ id: string; url: string }> {
+  const headerList = await headers();
+  const origin = headerList.get("origin");
+
+  const session = await stripe.checkout.sessions.create({
+    mode: "payment",
+    line_items: [
+      {
+        price: getEnvSecrets().STRIPE_PRICE_ID,
+        quantity: 100,
+      },
+    ],
+    discounts: [
+      {
+        promotion_code: getEnvSecrets().STRIPE_FREE_CREDITS_PROMO_CODE,
+      },
+    ],
+    client_reference_id: user.id,
+    ...(user.stripeCustomerId
+      ? { customer: user.stripeCustomerId }
+      : { customer_email: user.email, customer_creation: "always" }),
+    billing_address_collection: "required",
+    success_url: `${origin}/app/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${origin}/app/billing/cancel`,
+  });
+  if (!session.url) {
+    throw new Error("Stripe session URL is null");
+  }
+  return { id: session.id, url: session.url };
+}
