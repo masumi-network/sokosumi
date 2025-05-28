@@ -154,14 +154,14 @@ const updateFiatTransactionStatus = async (
   status: "SUCCEEDED" | "FAILED",
 ): Promise<NextResponse> => {
   const amountTotal = session.amount_total;
-  if (!amountTotal) {
+  if (amountTotal === null) {
     return NextResponse.json(
       { message: `Session amount total is null for session ${session.id}` },
       { status: 500 },
     );
   }
   const currency = session.currency;
-  if (!currency) {
+  if (currency === null) {
     return NextResponse.json(
       { message: `Session currency is null for session ${session.id}` },
       { status: 500 },
