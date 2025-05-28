@@ -90,6 +90,8 @@ async function syncAllJobs() {
             gt: new Date(Date.now() - 1000 * 60 * 10), // 10min grace period
           },
         },
+      ],
+      AND: [
         // Filter out jobs that are already completed and the external dispute unlock time has passed
         {
           onChainStatus: {
