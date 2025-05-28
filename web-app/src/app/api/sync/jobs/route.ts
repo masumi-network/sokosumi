@@ -77,21 +77,21 @@ async function syncAllJobs() {
   const jobs = await prisma.job.findMany({
     where: {
       OR: [
+        // Filter out jobs that are finalized
         {
-          // Filter out jobs that are finalized
           onChainStatus: {
             notIn: finalizedOnChainJobStatuses,
           },
         },
+        // Filter out jobs with a failed payment and unable to submit result
         {
-          // Filter out jobs with a failed payment and unable to submit result
           onChainStatus: null,
           submitResultTime: {
             gt: new Date(Date.now() - 1000 * 60 * 5),
           },
         },
+        // Filter out jobs that are already completed and the external dispute unlock time has passed
         {
-          // Filter out jobs that are already completed and the external dispute unlock time has passed
           onChainStatus: {
             not: OnChainJobStatus.RESULT_SUBMITTED,
           },
@@ -102,8 +102,9 @@ async function syncAllJobs() {
             gt: new Date(Date.now() - 1000 * 60 * 5),
           },
         },
+        // Get jobs that are missing input hash
+        // Remove in July 2025
         {
-          // Get jobs that are missing input hash
           inputHash: null,
         },
       ],
