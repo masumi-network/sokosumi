@@ -91,20 +91,13 @@ async function syncAllJobs() {
           },
         },
       ],
-      AND: [
-        // Filter out jobs that are already completed and the external dispute unlock time has passed
-        {
-          onChainStatus: {
-            not: OnChainJobStatus.RESULT_SUBMITTED,
-          },
-          agentJobStatus: {
-            not: AgentJobStatus.COMPLETED,
-          },
-          externalDisputeUnlockTime: {
-            gt: new Date(Date.now() - 1000 * 60 * 10), // 10min grace period
-          },
+      NOT: {
+        onChainStatus: OnChainJobStatus.RESULT_SUBMITTED,
+        agentJobStatus: AgentJobStatus.COMPLETED,
+        externalDisputeUnlockTime: {
+          gt: new Date(Date.now() - 1000 * 60 * 10), // 10min grace period
         },
-      ],
+      },
     },
   });
 
