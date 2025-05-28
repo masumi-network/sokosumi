@@ -5,23 +5,30 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { createStripeFreeClaimCheckoutSession } from "@/lib/services";
+import { convertCreditsToCents } from "@/lib/db";
+import { createStripeCheckoutSession } from "@/lib/services";
 
 interface FreeCreditsButtonProps {
   userId: string;
+  priceId: string;
 }
 
-export default function FreeCreditsButton({ userId }: FreeCreditsButtonProps) {
+export default function FreeCreditsButton({
+  userId,
+  priceId,
+}: FreeCreditsButtonProps) {
   const [loading, setLoading] = useState(false);
   const t = useTranslations("App.Billing.FreeClaim");
 
   const handleFreeClaim = async () => {
     setLoading(true);
     try {
-      const { stripeSessionId, url } =
-        await createStripeFreeClaimCheckoutSession(userId);
-
-      console.log("Checkout session created:", stripeSessionId, url);
+      const { url } = await createStripeCheckoutSession(
+        userId,
+        priceId,
+        convertCreditsToCents(100),
+        100,
+      );
       window.location.href = url;
     } catch (error) {
       console.error("Failed to create checkout session:", error);
