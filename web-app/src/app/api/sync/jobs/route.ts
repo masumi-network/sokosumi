@@ -11,7 +11,11 @@ import {
   unlockLock,
 } from "@/lib/db";
 import { syncJob } from "@/lib/services";
-import { Lock } from "@/prisma/generated/client";
+import {
+  AgentJobStatus,
+  Lock,
+  OnChainJobStatus,
+} from "@/prisma/generated/client";
 
 const LOCK_KEY = "jobs-sync";
 
@@ -74,17 +78,32 @@ async function syncAllJobs() {
     where: {
       OR: [
         {
+          // Filter out jobs that are finalized
           onChainStatus: {
             notIn: finalizedOnChainJobStatuses,
           },
         },
         {
+          // Filter out jobs with a failed payment and unable to submit result
           onChainStatus: null,
           submitResultTime: {
             gt: new Date(Date.now() - 1000 * 60 * 5),
           },
         },
         {
+          // Filter out jobs that are already completed and the external dispute unlock time has passed
+          onChainStatus: {
+            not: OnChainJobStatus.RESULT_SUBMITTED,
+          },
+          agentJobStatus: {
+            not: AgentJobStatus.COMPLETED,
+          },
+          externalDisputeUnlockTime: {
+            gt: new Date(Date.now() - 1000 * 60 * 5),
+          },
+        },
+        {
+          // Get jobs that are missing input hash
           inputHash: null,
         },
       ],
