@@ -2,11 +2,11 @@
 
 import gravatarUrl from "gravatar-url";
 import {
+  Building2,
   CircleHelp,
   CreditCardIcon,
   LogOut,
   User as UserIcon,
-  UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -86,7 +86,7 @@ export default function UserAvatarClient({ user }: UserAvatarClientProps) {
                 href="/app/organizations"
                 className="flex items-center gap-2"
               >
-                <UsersIcon className="text-muted-foreground" />
+                <Building2 className="text-muted-foreground" />
                 {t("organizations")}
               </Link>
             </DropdownMenuItem>

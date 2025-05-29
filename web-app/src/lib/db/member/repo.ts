@@ -3,6 +3,12 @@
 import { prisma } from "@/lib/db";
 import { Member, Prisma, Role } from "@/prisma/generated/client";
 
+import {
+  memberOrderBy,
+  memberOrganizationInclude,
+  MemberWithOrganization,
+} from "./types";
+
 export async function getOrganizationMembers(
   organizationId: string,
   tx: Prisma.TransactionClient = prisma,
@@ -34,5 +40,18 @@ export async function createMember(
       },
       role,
     },
+  });
+}
+
+export async function listMembers(
+  userId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<MemberWithOrganization[]> {
+  return await tx.member.findMany({
+    where: {
+      userId,
+    },
+    include: memberOrganizationInclude,
+    orderBy: [...memberOrderBy],
   });
 }
