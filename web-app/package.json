@@ -116,7 +116,7 @@
     "@noble/hashes": "1.8.0",
     "@swc/core": "1.11.29",
     "@swc/helpers": "0.5.17",
-    "@tailwindcss/postcss": "4.1.7",
+    "@tailwindcss/postcss": "4.1.8",
     "@tailwindcss/typography": "^0.5.16",
     "@testing-library/jest-dom": "6.6.3",
     "@testing-library/react": "16.3.0",
