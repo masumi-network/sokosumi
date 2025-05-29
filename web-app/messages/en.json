@@ -81,9 +81,10 @@
     },
     "UserAvatar": {
       "account": "Account",
-      "logout": "Log out",
+      "organizations": "Organizations",
       "billing": "Billing",
-      "support": "Support"
+      "support": "Support",
+      "logout": "Log out"
     },
     "DataTable": {
       "Data": {

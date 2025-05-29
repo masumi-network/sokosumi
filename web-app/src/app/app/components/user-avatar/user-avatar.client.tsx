@@ -6,6 +6,7 @@ import {
   CreditCardIcon,
   LogOut,
   User as UserIcon,
+  UsersIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -78,6 +79,15 @@ export default function UserAvatarClient({ user }: UserAvatarClientProps) {
               <Link href="/app/account" className="flex items-center gap-2">
                 <UserIcon className="text-muted-foreground" />
                 {t("account")}
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem className="cursor-pointer" asChild>
+              <Link
+                href="/app/organizations"
+                className="flex items-center gap-2"
+              >
+                <UsersIcon className="text-muted-foreground" />
+                {t("organizations")}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem className="cursor-pointer" asChild>
