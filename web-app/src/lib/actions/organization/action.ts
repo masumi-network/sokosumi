@@ -5,11 +5,13 @@ import slugify from "slugify";
 import { v4 as uuidv4 } from "uuid";
 
 import {
-  connectUserToOrganization,
+  createMember,
   createOrganization,
+  getOrganizationMembers,
   isEmailAllowedByOrganization,
   OrganizationWithRelations,
 } from "@/lib/db";
+import { Role } from "@/prisma/generated/client";
 
 export async function createOrganizationFromName(name: string) {
   try {
@@ -43,7 +45,12 @@ export async function createOrganizationMember(
       };
     }
 
-    await connectUserToOrganization(userId, organization.id);
+    // check if organization has any members
+    const members = await getOrganizationMembers(organization.id);
+
+    // if there are no members, the create as ADMIN
+    const role = members.length === 0 ? Role.ADMIN : Role.MEMBER;
+    await createMember(userId, organization.id, role);
     return { success: true };
   } catch (error) {
     console.error("Error creating organization member", error);
