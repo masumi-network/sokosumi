@@ -11,10 +11,9 @@ import {
   getMembersByUserId,
   isEmailAllowedByOrganization,
   MemberWithOrganization,
-  OrganizationWithRelations,
 } from "@/lib/db";
 import { generateOrganizationSlugFromName } from "@/lib/services";
-import { Role } from "@/prisma/generated/client";
+import { Organization, Role } from "@/prisma/generated/client";
 
 import { LeaveOrganizationErrorCodes } from "./error";
 
@@ -35,7 +34,7 @@ export async function createOrganizationFromName(name: string) {
 export async function createOrganizationMember(
   userId: string,
   userEmail: string,
-  organization: OrganizationWithRelations,
+  organization: Organization,
 ) {
   try {
     // check user email's domain

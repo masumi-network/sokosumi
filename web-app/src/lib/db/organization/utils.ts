@@ -1,10 +1,11 @@
 import { getEmailDomain } from "@/lib/utils";
+import { Organization } from "@/prisma/generated/client";
 
-import { OrganizationWithRelations } from "./types";
+import { OrganizationWithMembersCount } from "./types";
 
 export function isEmailAllowedByOrganization(
   email: string,
-  organization: OrganizationWithRelations,
+  organization: Organization,
 ) {
   const emailDomain = getEmailDomain(email);
   if (!emailDomain) {
@@ -23,8 +24,8 @@ export function isEmailAllowedByOrganization(
 
 export function filterAllowedOrganizations(
   email: string,
-  organizations: OrganizationWithRelations[],
-): OrganizationWithRelations[] {
+  organizations: OrganizationWithMembersCount[],
+): OrganizationWithMembersCount[] {
   const emailDomain = getEmailDomain(email);
 
   if (!emailDomain) {

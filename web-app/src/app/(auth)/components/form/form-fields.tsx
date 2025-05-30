@@ -19,7 +19,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   filterAllowedOrganizations,
-  OrganizationWithRelations,
+  OrganizationWithMembersCount,
 } from "@/lib/db";
 import { FormData } from "@/lib/form";
 import { Organization } from "@/prisma/generated/client";
@@ -31,7 +31,7 @@ interface FormFieldsProps<T extends FieldValues> {
   form: UseFormReturn<T>;
   formData: FormData<T, AuthNamespace>;
   namespace: AuthNamespace;
-  organizations?: OrganizationWithRelations[] | undefined;
+  organizations?: OrganizationWithMembersCount[] | undefined;
 }
 
 export function FormFields<T extends FieldValues>({
@@ -74,7 +74,7 @@ interface FormInputProps<T extends FieldValues> {
   field: ControllerRenderProps<T, Path<T>>;
   formDataItem: FormData<T, AuthNamespace>[number];
   t: IntlTranslation<AuthNamespace>;
-  organizations?: OrganizationWithRelations[] | undefined;
+  organizations?: OrganizationWithMembersCount[] | undefined;
 }
 
 function FormInput<T extends FieldValues>({

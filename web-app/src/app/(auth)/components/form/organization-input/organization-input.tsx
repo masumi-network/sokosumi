@@ -20,7 +20,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { OrganizationWithRelations } from "@/lib/db";
+import { OrganizationWithMembersCount } from "@/lib/db";
 import { cn, isValidEmail } from "@/lib/utils";
 import { Organization } from "@/prisma/generated/client";
 
@@ -29,7 +29,7 @@ import { createOrganizationSchema, CreateOrganizationSchemaType } from "./data";
 
 interface OrganizationInputProps {
   email: string;
-  organizations: OrganizationWithRelations[];
+  organizations: OrganizationWithMembersCount[];
   value: Organization | undefined;
   onChange: (organization: Organization) => void;
 }

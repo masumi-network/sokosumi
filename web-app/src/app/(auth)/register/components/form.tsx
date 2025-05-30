@@ -19,11 +19,12 @@ import { updateUserMarketingOptIn } from "@/lib/actions/user/action";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   isEmailAllowedByOrganization,
-  OrganizationWithRelations,
+  OrganizationWithMembersCount,
 } from "@/lib/db";
+import { Organization } from "@/prisma/generated/client";
 
 interface SignUpFormProps {
-  organizations: OrganizationWithRelations[];
+  organizations: OrganizationWithMembersCount[];
 }
 
 export default function SignUpForm({ organizations }: SignUpFormProps) {
@@ -152,12 +153,12 @@ export default function SignUpForm({ organizations }: SignUpFormProps) {
 }
 
 function checkOrganizationAndEmail(
-  organizations: OrganizationWithRelations[],
+  organizations: Organization[],
   organizationId: string,
   email: string,
   t: IntlTranslation<"Auth.Pages.SignUp.Form">,
 ):
-  | { success: true; organization: OrganizationWithRelations }
+  | { success: true; organization: Organization }
   | { success: false; error: string } {
   const organization = organizations.find(
     (organization) => organization.id === organizationId,
