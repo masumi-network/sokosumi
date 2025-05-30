@@ -108,7 +108,7 @@ export async function createCoupon(
 export async function constructEvent(req: Request, stripeSignature: string) {
   return stripe.webhooks.constructEvent(
     await req.text(),
-    stripeSignature as string,
+    stripeSignature,
     getEnvSecrets().STRIPE_WEBHOOK_SECRET,
   );
 }
