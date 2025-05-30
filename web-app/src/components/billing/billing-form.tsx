@@ -16,18 +16,15 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { convertCreditsToCents } from "@/lib/db";
-import { createStripeCheckoutSession } from "@/lib/services";
+import { purchaseCredits } from "@/lib/actions";
 
 interface BillingFormProps {
-  userId: string;
   priceId: string;
   amountPerCredit: number;
   currency: string;
 }
 
 export default function BillingForm({
-  userId,
   priceId,
   amountPerCredit,
   currency,
@@ -43,15 +40,16 @@ export default function BillingForm({
     }
     setLoading(true);
     try {
-      const { url } = await createStripeCheckoutSession(
-        userId,
-        priceId,
-        convertCreditsToCents(credits),
-      );
-      window.location.href = url;
+      const result = await purchaseCredits(credits, priceId);
+
+      if (result.success && result.url) {
+        window.location.href = result.url;
+      } else {
+        toast.error(result.error ?? "Failed to create checkout");
+      }
     } catch (error) {
       console.error("Failed to create checkout session:", error);
-      toast.error("Failed to create checkout");
+      toast.error("An unexpected error occurred");
     } finally {
       setLoading(false);
     }

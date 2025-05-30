@@ -65,3 +65,52 @@ export async function claimFreeCredits(
     };
   }
 }
+
+export async function purchaseCredits(
+  credits: number,
+  priceId: string = getEnvSecrets().STRIPE_PRICE_ID,
+): Promise<{
+  success: boolean;
+  url?: string;
+  error?: string;
+}> {
+  try {
+    // Validate input
+    if (!credits || credits <= 0) {
+      return {
+        success: false,
+        error: "Invalid credit amount",
+      };
+    }
+
+    // Get the current user session
+    const session = await auth.api.getSession({
+      headers: await headers(),
+    });
+
+    if (!session?.user) {
+      return {
+        success: false,
+        error: "User not authenticated",
+      };
+    }
+
+    // Create the checkout session
+    const { url } = await createStripeCheckoutSession(
+      session.user.id,
+      priceId,
+      convertCreditsToCents(credits),
+    );
+
+    return {
+      success: true,
+      url,
+    };
+  } catch (error) {
+    console.error("Failed to create checkout session:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Unknown error occurred",
+    };
+  }
+}
