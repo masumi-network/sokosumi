@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { requireAuthentication } from "@/lib/auth/utils";
 import { listMembers } from "@/lib/db";
 
-import Members from "./components/Members";
+import Members from "./components/members";
 
 export default async function OrganizationsPage() {
   const t = await getTranslations("App.Organizations");
