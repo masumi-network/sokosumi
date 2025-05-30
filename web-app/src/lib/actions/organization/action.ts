@@ -1,8 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import slugify from "slugify";
-import { v4 as uuidv4 } from "uuid";
 
 import { getSession } from "@/lib/auth/utils";
 import {
@@ -15,17 +13,14 @@ import {
   MemberWithOrganization,
   OrganizationWithRelations,
 } from "@/lib/db";
+import { generateOrganizationSlugFromName } from "@/lib/services";
 import { Role } from "@/prisma/generated/client";
 
 import { LeaveOrganizationErrorCodes } from "./error";
 
 export async function createOrganizationFromName(name: string) {
   try {
-    // make slug from name
-    // slugify name and attach uuid
-    const slug = `${slugify(name, {
-      lower: true,
-    })}-${uuidv4()}`;
+    const slug = await generateOrganizationSlugFromName(name);
 
     const organization = await createOrganization(name, slug);
     // Revalidate the register page to update the UI

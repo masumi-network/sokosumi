@@ -27,3 +27,13 @@ export async function createOrganization(
 ): Promise<Organization> {
   return await tx.organization.create({ data: { name, slug } });
 }
+
+export async function getOrganizationBySlug(
+  slug: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<OrganizationWithRelations | null> {
+  return await tx.organization.findUnique({
+    where: { slug },
+    include: { ...organizationInclude },
+  });
+}
