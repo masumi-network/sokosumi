@@ -1,7 +1,7 @@
 "use server";
 
 import { UnAuthorizedError } from "@/lib/auth/errors";
-import { getAuthenticatedUser } from "@/lib/auth/utils";
+import { getSessionUser } from "@/lib/auth/utils";
 import {
   AgentWithJobs,
   AgentWithRelations,
@@ -48,7 +48,7 @@ export async function getOnlineAgentsWithValidPricing(
 export async function getHiredAgentsOrderedByLatestJob(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithJobs[]> {
-  const user = await getAuthenticatedUser();
+  const user = await getSessionUser();
   if (!user) {
     throw new UnAuthorizedError();
   }

@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 
-import { requireAuthentication } from "@/lib/auth/utils";
+import { getSessionUser } from "@/lib/auth/utils";
 
 import UserAvatarClient from "./user-avatar.client";
 import UserAvatarSkeleton from "./user-avatar-skeleton";
@@ -14,7 +14,7 @@ export default async function UserAvatar() {
 }
 
 async function UserAvatarInner() {
-  const { session } = await requireAuthentication();
+  const sessionUser = await getSessionUser();
 
-  return <UserAvatarClient user={session.user} />;
+  return <UserAvatarClient sessionUser={sessionUser} />;
 }

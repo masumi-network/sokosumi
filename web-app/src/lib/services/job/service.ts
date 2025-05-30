@@ -3,7 +3,7 @@
 import { v4 as uuidv4 } from "uuid";
 
 import { UnAuthorizedError } from "@/lib/auth/errors";
-import { getAuthenticatedUser } from "@/lib/auth/utils";
+import { getSessionUser } from "@/lib/auth/utils";
 import {
   computeJobStatus,
   createJob,
@@ -41,7 +41,7 @@ export async function getMyJobsByAgentId(
   agentId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<JobWithStatus[]> {
-  const user = await getAuthenticatedUser();
+  const user = await getSessionUser();
   if (!user) {
     throw new UnAuthorizedError();
   }

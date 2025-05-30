@@ -1,44 +1,45 @@
+"use server";
+
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { auth, Session, User } from "@/lib/auth/auth";
+import { auth, Session, SessionUser } from "@/lib/auth/auth";
 
-export async function requireAuthentication(): Promise<{
-  session: Session;
-}> {
+import { UnAuthorizedError } from "./errors";
+
+export async function getSession(
+  shouldRedirect: boolean = true,
+): Promise<Session> {
   const session = await auth.api.getSession({
     headers: await headers(),
   });
 
   if (!session) {
-    redirect("/login");
+    if (shouldRedirect) {
+      redirect("/login");
+    }
+    throw new UnAuthorizedError();
   }
 
-  return { session };
+  return session as Session;
 }
 
-export async function getAuthenticatedUser(): Promise<User | null> {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+export async function getSessionUser(
+  shouldRedirect: boolean = false,
+): Promise<SessionUser> {
+  const session = await getSession(shouldRedirect);
 
-  if (!session) {
-    return null;
+  if (!session.user) {
+    throw new UnAuthorizedError();
   }
 
   return session.user;
 }
 
-export async function verifyUserAuthentication(
-  userId: string,
-): Promise<boolean> {
-  const user = await getAuthenticatedUser();
-  if (!user) {
-    return false;
-  }
-  if (user.id !== userId) {
-    return false;
-  }
+export async function verifyUserIdWithSession(userId: string): Promise<void> {
+  const sessionUser = await getSessionUser(false);
 
-  return true;
+  if (sessionUser.id !== userId) {
+    throw new Error("UserId does not match session user id");
+  }
 }

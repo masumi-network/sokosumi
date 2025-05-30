@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { JobDetails } from "@/app/agents/[agentId]/jobs/@right/components/job-details";
-import { requireAuthentication } from "@/lib/auth/utils";
+import { getSessionUser } from "@/lib/auth/utils";
 import { getAgentById, getJobById } from "@/lib/db";
 
 interface JobDetailsPageParams {
@@ -31,8 +31,8 @@ export default async function JobDetailsPage({
     console.warn("job not found in job detail page");
     notFound();
   }
-  const { session } = await requireAuthentication();
-  if (job.userId !== session.user.id) {
+  const sessionUser = await getSessionUser(true);
+  if (job.userId !== sessionUser.id) {
     console.warn("job not found in job detail page");
     notFound();
   }

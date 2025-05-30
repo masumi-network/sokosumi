@@ -13,7 +13,8 @@ import { reactResetPasswordEmail } from "@/lib/email/reset-password";
 import { reactVerificationEmail } from "@/lib/email/verification";
 
 export type Session = typeof auth.$Infer.Session;
-export type User = typeof auth.$Infer.Session.user;
+export type SessionUser = typeof auth.$Infer.Session.user;
+export type SessionSession = typeof auth.$Infer.Session.session;
 
 const fromEmail = getEnvSecrets().RESEND_FROM_EMAIL;
 
