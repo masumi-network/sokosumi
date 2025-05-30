@@ -1,21 +1,22 @@
 "use client";
 
+import { User } from "@prisma/client";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
-import { convertCreditsToCents, getUserById } from "@/lib/db";
+import { convertCreditsToCents } from "@/lib/db";
 import { createStripeCheckoutSession } from "@/lib/services";
 
 interface FreeCreditsButtonProps {
-  userId: string;
+  user: User;
   priceId: string;
   coupon: string;
 }
 
 export default function FreeCreditsButton({
-  userId,
+  user,
   priceId,
   coupon,
 }: FreeCreditsButtonProps) {
@@ -25,16 +26,12 @@ export default function FreeCreditsButton({
   const handleFreeClaim = async () => {
     setLoading(true);
     try {
-      const user = await getUserById(userId);
-      if (!user) {
-        throw new Error("User not found");
-      }
       // The coupon is only valid for new users
       if (user.stripeCustomerId) {
         throw new Error("User already has a stripe customer id");
       }
       const { url } = await createStripeCheckoutSession(
-        userId,
+        user.id,
         priceId,
         convertCreditsToCents(100),
         coupon,

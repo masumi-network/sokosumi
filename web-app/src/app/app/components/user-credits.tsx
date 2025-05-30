@@ -35,7 +35,7 @@ export default async function UserCredits() {
     <div className="flex items-center gap-4">
       {user.stripeCustomerId == null ? (
         <FreeCreditsButton
-          userId={user.id}
+          user={user}
           priceId={getEnvSecrets().STRIPE_PRICE_ID}
           coupon={getEnvSecrets().STRIPE_WELCOME_COUPON}
         />
