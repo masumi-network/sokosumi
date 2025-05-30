@@ -544,6 +544,7 @@
     "Organizations": {
       "title": "Organizations",
       "newOrganization": "New Organization",
+      "membersNotAvailable": "No members found",
       "Role": {
         "admin": "Admin",
         "member": "Member"

@@ -15,11 +15,27 @@ interface MembersProps {
 }
 
 export default function Members({ members }: MembersProps) {
+  if (members.length === 0) {
+    return <MembersNotAvailable />;
+  }
+
   return (
     <div className="flex w-full flex-col divide-y rounded-lg border">
       {members.map((member) => (
         <MemberRow key={member.id} member={member} />
       ))}
+    </div>
+  );
+}
+
+export function MembersNotAvailable() {
+  const t = useTranslations("App.Organizations");
+
+  return (
+    <div className="flex w-full items-center justify-center p-8">
+      <p className="text-muted-foreground text-center text-base">
+        {t("membersNotAvailable")}
+      </p>
     </div>
   );
 }
