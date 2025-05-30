@@ -1,6 +1,9 @@
 "use server";
 
+import { headers } from "next/headers";
+
 import { createCheckoutSession, getConversionFactors } from "@/lib/actions";
+import { auth } from "@/lib/auth/auth";
 import {
   createFiatTransaction,
   getUserById,
@@ -14,8 +17,14 @@ export async function createStripeCheckoutSession(
   cents: bigint,
   coupon: string | null = null,
 ): Promise<{ stripeSessionId: string; url: string }> {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+  if (session?.user?.id !== userId) {
+    throw new Error("User not identical to the one in the session");
+  }
   return await prisma.$transaction(async (tx) => {
-    const user = await getUserById(userId, tx);
+    const user = await getUserById(session.user.id, tx);
     if (!user) {
       throw new Error("User not found");
     }

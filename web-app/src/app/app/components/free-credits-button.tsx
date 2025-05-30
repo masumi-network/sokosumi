@@ -29,6 +29,7 @@ export default function FreeCreditsButton({
       if (!user) {
         throw new Error("User not found");
       }
+      // The coupon is only valid for new users
       if (user.stripeCustomerId) {
         throw new Error("User already has a stripe customer id");
       }
