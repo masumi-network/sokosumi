@@ -1,6 +1,7 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { JobDetails } from "@/app/agents/[agentId]/jobs/@right/components/job-details";
+import { UnAuthorizedError } from "@/lib/auth/errors";
 import { getSessionUser } from "@/lib/auth/utils";
 import { getAgentById, getJobById } from "@/lib/db";
 
@@ -31,10 +32,17 @@ export default async function JobDetailsPage({
     console.warn("job not found in job detail page");
     notFound();
   }
-  const sessionUser = await getSessionUser(true);
-  if (job.userId !== sessionUser.id) {
-    console.warn("job not found in job detail page");
-    notFound();
+  try {
+    const sessionUser = await getSessionUser();
+    if (job.userId !== sessionUser.id) {
+      console.warn("job not found in job detail page");
+      notFound();
+    }
+  } catch (error) {
+    if (error instanceof UnAuthorizedError) {
+      redirect("/login");
+    }
+    throw error;
   }
 
   return <JobDetails job={job} />;
