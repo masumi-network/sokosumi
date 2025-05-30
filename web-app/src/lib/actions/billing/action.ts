@@ -7,10 +7,7 @@ import { auth } from "@/lib/auth/auth";
 import { convertCreditsToCents, getUserById } from "@/lib/db";
 import { createStripeCheckoutSession } from "@/lib/services";
 
-export async function claimFreeCredits(
-  priceId: string = getEnvSecrets().STRIPE_PRICE_ID,
-  coupon: string = getEnvSecrets().STRIPE_WELCOME_COUPON,
-): Promise<{
+export async function claimFreeCredits(): Promise<{
   success: boolean;
   url?: string;
   error?: string;
@@ -48,9 +45,9 @@ export async function claimFreeCredits(
     // Create the checkout session
     const { url } = await createStripeCheckoutSession(
       user.id,
-      priceId,
       convertCreditsToCents(100),
-      coupon,
+      getEnvSecrets().STRIPE_PRICE_ID,
+      getEnvSecrets().STRIPE_WELCOME_COUPON,
     );
 
     return {
@@ -66,10 +63,7 @@ export async function claimFreeCredits(
   }
 }
 
-export async function purchaseCredits(
-  credits: number,
-  priceId: string = getEnvSecrets().STRIPE_PRICE_ID,
-): Promise<{
+export async function purchaseCredits(credits: number): Promise<{
   success: boolean;
   url?: string;
   error?: string;
@@ -98,8 +92,8 @@ export async function purchaseCredits(
     // Create the checkout session
     const { url } = await createStripeCheckoutSession(
       session.user.id,
-      priceId,
       convertCreditsToCents(credits),
+      getEnvSecrets().STRIPE_PRICE_ID,
     );
 
     return {

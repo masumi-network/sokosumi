@@ -13,8 +13,8 @@ import {
 
 export async function createStripeCheckoutSession(
   userId: string,
-  priceId: string,
   cents: bigint,
+  priceId: string,
   coupon: string | null = null,
 ): Promise<{ stripeSessionId: string; url: string }> {
   // Verify that the user is the one initiating the transaction
