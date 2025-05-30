@@ -15,8 +15,8 @@ importers:
         specifier: 0.10.2
         version: 0.10.2(@hey-api/openapi-ts@0.69.0(typescript@5.8.3))
       '@hey-api/client-next':
-        specifier: 0.3.2
-        version: 0.3.2(@hey-api/openapi-ts@0.69.0(typescript@5.8.3))
+        specifier: 0.4.0
+        version: 0.4.0(@hey-api/openapi-ts@0.69.0(typescript@5.8.3))
       '@hookform/resolvers':
         specifier: 5.0.1
         version: 5.0.1(react-hook-form@7.56.4(react@19.1.0))
@@ -756,8 +756,8 @@ packages:
     peerDependencies:
       '@hey-api/openapi-ts': < 2
 
-  '@hey-api/client-next@0.3.2':
-    resolution: {integrity: sha512-XHXFA34YwUhZ6XSAmqKG5QKTRXaYw2RO6Fbv/wqNv4+H3XO0vM89dB35PslQwaKB6mM4jHQcsnyU+m3n3rovqA==}
+  '@hey-api/client-next@0.4.0':
+    resolution: {integrity: sha512-vpKaN6Yk0iEuUvDV0gK2iRlIXdRzC6f/ctFd3R7f90feWg6f9p9rh6eBvFCYxcu8tdTV+NsTD7z6g6gw6XCtew==}
     peerDependencies:
       '@hey-api/openapi-ts': < 2
 
@@ -6363,7 +6363,7 @@ snapshots:
     dependencies:
       '@hey-api/openapi-ts': 0.69.0(typescript@5.8.3)
 
-  '@hey-api/client-next@0.3.2(@hey-api/openapi-ts@0.69.0(typescript@5.8.3))':
+  '@hey-api/client-next@0.4.0(@hey-api/openapi-ts@0.69.0(typescript@5.8.3))':
     dependencies:
       '@hey-api/openapi-ts': 0.69.0(typescript@5.8.3)
 
