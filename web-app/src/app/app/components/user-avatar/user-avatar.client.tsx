@@ -27,18 +27,24 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import useModal from "@/hooks/use-modal";
-import type { User } from "@/lib/auth/auth";
+import type { SessionUser } from "@/lib/auth/auth";
 
 import UserAvatarContent from "./user-avatar-content";
 
 interface UserAvatarClientProps {
-  user: User;
+  sessionUser: SessionUser;
 }
 
-export default function UserAvatarClient({ user }: UserAvatarClientProps) {
+export default function UserAvatarClient({
+  sessionUser,
+}: UserAvatarClientProps) {
   const t = useTranslations("Components.UserAvatar");
   const { Component, showModal } = useModal(({ open, onOpenChange }) => (
-    <LogoutModal open={open} onOpenChange={onOpenChange} email={user.email} />
+    <LogoutModal
+      open={open}
+      onOpenChange={onOpenChange}
+      email={sessionUser.email}
+    />
   ));
 
   const handleSupport = () => {
@@ -56,19 +62,19 @@ export default function UserAvatarClient({ user }: UserAvatarClientProps) {
                 <Button
                   variant="outline"
                   className="relative h-10 w-10 rounded-full"
-                  aria-label={`User profile for ${user.name ?? "current user"}`}
+                  aria-label={`User profile for ${sessionUser.name ?? "current user"}`}
                 >
                   <UserAvatarContent
-                    imageUrl={gravatarUrl(user.email, {
+                    imageUrl={gravatarUrl(sessionUser.email, {
                       size: 80,
                       default: "404",
                     })}
-                    imageAlt={user.name ?? "User avatar"}
+                    imageAlt={sessionUser.name ?? "User avatar"}
                   />
                 </Button>
               </DropdownMenuTrigger>
             </TooltipTrigger>
-            <TooltipContent side="bottom">{user.email}</TooltipContent>
+            <TooltipContent side="bottom">{sessionUser.email}</TooltipContent>
           </Tooltip>
         </TooltipProvider>
 
