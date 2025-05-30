@@ -79,13 +79,13 @@ export async function listMyMembers(): Promise<
 
 export async function leaveOrganization(
   organizationId: string,
-): Promise<{ success: false; code: string } | { success: true }> {
+): Promise<{ success: false; error: { code: string } } | { success: true }> {
   try {
     const session = await getSession();
     if (!session) {
       return {
         success: false,
-        code: LeaveOrganizationErrorCodes.NOT_AUTHENTICATED,
+        error: { code: LeaveOrganizationErrorCodes.NOT_AUTHENTICATED },
       };
     }
     const userId = session.user.id;
@@ -97,7 +97,7 @@ export async function leaveOrganization(
     if (members.length <= 1) {
       return {
         success: false,
-        code: LeaveOrganizationErrorCodes.MEMBER_COUNT_NOT_ALLOWED,
+        error: { code: LeaveOrganizationErrorCodes.MEMBER_COUNT_NOT_ALLOWED },
       };
     }
 
@@ -108,7 +108,7 @@ export async function leaveOrganization(
     console.error("Error leaving organization", error);
     return {
       success: false,
-      code: LeaveOrganizationErrorCodes.INTERNAL_SERVER_ERROR,
+      error: { code: LeaveOrganizationErrorCodes.INTERNAL_SERVER_ERROR },
     };
   }
 }
