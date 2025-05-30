@@ -1,6 +1,6 @@
 "use server";
 
-import { getSession } from "@/lib/auth/utils";
+import { getSessionOrThrow } from "@/lib/auth/utils";
 import {
   AgentListWithAgent,
   createAgentList,
@@ -26,7 +26,7 @@ export async function getOrCreateAgentListByType(
   type: AgentListType,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentListWithAgent> {
-  const session = await getSession();
+  const session = await getSessionOrThrow();
   const existingList = await getAgentListByType(session.user.id, type, tx);
 
   if (existingList) {

@@ -1,11 +1,10 @@
 import { UserRoundIcon } from "lucide-react";
-import { headers } from "next/headers";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
 import { Button } from "@/components/ui/button";
-import { auth } from "@/lib/auth/auth";
+import { getSession } from "@/lib/auth/utils";
 
 import AuthButtons from "./auth-buttons";
 
@@ -27,9 +26,7 @@ export default function AppConnection() {
 
 async function AppConnectionContent() {
   const t = await getTranslations("Landing.Header.Connection");
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const session = await getSession();
 
   if (!session) {
     return <AuthButtons />;

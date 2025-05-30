@@ -1,6 +1,6 @@
 "use server";
 
-import { getSession } from "@/lib/auth/utils";
+import { getSessionOrThrow } from "@/lib/auth/utils";
 import {
   AgentWithJobs,
   AgentWithRelations,
@@ -47,7 +47,7 @@ export async function getOnlineAgentsWithValidPricing(
 export async function getHiredAgentsOrderedByLatestJob(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithJobs[]> {
-  const session = await getSession();
+  const session = await getSessionOrThrow();
   const hiredAgentsWithJobs = await getHiredAgents(session.user.id, tx);
 
   // Then sort them manually by the startedAt of the most recent job
