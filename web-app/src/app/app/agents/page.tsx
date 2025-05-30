@@ -2,7 +2,6 @@ import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { AgentsNotAvailable } from "@/components/agents";
-import { requireAuthentication } from "@/lib/auth/utils";
 import { getTags } from "@/lib/db";
 import {
   getOnlineAgentsWithCreditsPrice,
@@ -32,8 +31,7 @@ export default async function GalleryPage() {
   const tags: Tag[] = await getTags();
   const tagNames = tags.map((tag) => tag.name);
 
-  const { session } = await requireAuthentication();
-  const favoriteAgentList = await getOrCreateFavoriteAgentList(session.user.id);
+  const favoriteAgentList = await getOrCreateFavoriteAgentList();
 
   return (
     <div className="w-full px-4 py-4 sm:px-8 xl:px-16">

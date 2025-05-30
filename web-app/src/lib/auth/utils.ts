@@ -1,9 +1,7 @@
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 
-import { getEnvSecrets } from "@/config/env.config";
-import { auth, Session } from "@/lib/auth/auth";
-import { createHash } from "@/lib/utils";
+import { auth, Session, User } from "@/lib/auth/auth";
 
 export async function requireAuthentication(): Promise<{
   session: Session;
@@ -19,7 +17,28 @@ export async function requireAuthentication(): Promise<{
   return { session };
 }
 
-export const compareApiKeys = (apiKey: string) => {
-  const envApiKey = getEnvSecrets().ADMIN_KEY;
-  return createHash(apiKey) === createHash(envApiKey);
-};
+export async function getAuthenticatedUser(): Promise<User | null> {
+  const session = await auth.api.getSession({
+    headers: await headers(),
+  });
+
+  if (!session) {
+    return null;
+  }
+
+  return session.user;
+}
+
+export async function verifyUserAuthentication(
+  userId: string,
+): Promise<boolean> {
+  const user = await getAuthenticatedUser();
+  if (!user) {
+    return false;
+  }
+  if (user.id !== userId) {
+    return false;
+  }
+
+  return true;
+}
