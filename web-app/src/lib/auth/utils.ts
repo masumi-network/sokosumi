@@ -28,3 +28,17 @@ export async function getAuthenticatedUser(): Promise<User | null> {
 
   return session.user;
 }
+
+export async function verifyUserAuthentication(
+  userId: string,
+): Promise<boolean> {
+  const user = await getAuthenticatedUser();
+  if (!user) {
+    return false;
+  }
+  if (user.id !== userId) {
+    return false;
+  }
+
+  return true;
+}
