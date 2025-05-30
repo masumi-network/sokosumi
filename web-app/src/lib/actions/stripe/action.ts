@@ -95,16 +95,6 @@ export async function createCheckoutSession(
   return { id: session.id, url: session.url };
 }
 
-export async function createCoupon(
-  percent_off: number,
-): Promise<Stripe.Coupon> {
-  const coupon = await stripe.coupons.create({
-    percent_off: percent_off,
-    duration: "once",
-  });
-  return coupon;
-}
-
 export async function constructEvent(req: Request, stripeSignature: string) {
   return stripe.webhooks.constructEvent(
     await req.text(),
