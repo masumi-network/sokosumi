@@ -98,6 +98,10 @@ export async function leaveOrganization(
 
     // delete member
     await deleteMember(userId, organizationId);
+
+    // revalidate the organization page
+    revalidatePath(`/app/organizations`);
+
     return { success: true };
   } catch (error) {
     console.error("Error leaving organization", error);
