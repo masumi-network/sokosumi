@@ -61,7 +61,7 @@ export function MembersSkeleton() {
 
 function MemberRow({ member }: { member: MemberWithOrganization }) {
   const { organization, role } = member;
-  const { id: organizationId, name, logo } = organization;
+  const { slug, name, logo } = organization;
 
   return (
     <div className="flex items-center justify-between p-4">
@@ -71,7 +71,7 @@ function MemberRow({ member }: { member: MemberWithOrganization }) {
         ) : (
           <Building2 size={24} />
         )}
-        <Link href={`/app/organizations/${organizationId}`}>
+        <Link href={`/app/organizations/${slug}`}>
           <p className="text-primary text-lg font-medium hover:underline">
             {name}
           </p>
