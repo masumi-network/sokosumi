@@ -3,6 +3,7 @@
 import { Loader2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -42,16 +43,15 @@ export default function BillingForm({
     }
     setLoading(true);
     try {
-      const { stripeSessionId, url } = await createStripeCheckoutSession(
+      const { url } = await createStripeCheckoutSession(
         userId,
         priceId,
         convertCreditsToCents(credits),
       );
-
-      console.log("Checkout session created:", stripeSessionId, url);
       window.location.href = url;
     } catch (error) {
       console.error("Failed to create checkout session:", error);
+      toast.error("Failed to create checkout");
     } finally {
       setLoading(false);
     }

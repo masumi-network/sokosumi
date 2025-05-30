@@ -1,0 +1,1 @@
+export { claimFreeCredits } from "./action";

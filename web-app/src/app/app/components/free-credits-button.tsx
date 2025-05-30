@@ -1,44 +1,30 @@
 "use client";
 
-import { User } from "@prisma/client";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { convertCreditsToCents } from "@/lib/db";
-import { createStripeCheckoutSession } from "@/lib/services";
+import { claimFreeCredits } from "@/lib/actions";
 
-interface FreeCreditsButtonProps {
-  user: User;
-  priceId: string;
-  coupon: string;
-}
-
-export default function FreeCreditsButton({
-  user,
-  priceId,
-  coupon,
-}: FreeCreditsButtonProps) {
+export default function FreeCreditsButton() {
   const [loading, setLoading] = useState(false);
   const t = useTranslations("App.Billing.FreeClaim");
 
   const handleFreeClaim = async () => {
     setLoading(true);
     try {
-      // The coupon is only valid for new users
-      if (user.stripeCustomerId) {
-        throw new Error("User already has a stripe customer id");
+      const result = await claimFreeCredits();
+
+      if (result.success && result.url) {
+        window.location.href = result.url;
+      } else {
+        toast.error(result.error ?? "Failed to claim free credits");
       }
-      const { url } = await createStripeCheckoutSession(
-        user.id,
-        priceId,
-        convertCreditsToCents(100),
-        coupon,
-      );
-      window.location.href = url;
     } catch (error) {
-      console.error("Failed to create checkout session:", error);
+      console.error("Failed to claim free credits:", error);
+      toast.error("An unexpected error occurred");
     } finally {
       setLoading(false);
     }

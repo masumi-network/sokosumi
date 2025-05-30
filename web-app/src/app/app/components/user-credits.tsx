@@ -3,7 +3,6 @@ import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
-import { getEnvSecrets } from "@/config/env.config";
 import { auth } from "@/lib/auth/auth";
 import { getUserById } from "@/lib/db";
 import { getCredits } from "@/lib/services";
@@ -34,11 +33,7 @@ export default async function UserCredits() {
   return (
     <div className="flex items-center gap-4">
       {user.stripeCustomerId == null ? (
-        <FreeCreditsButton
-          user={user}
-          priceId={getEnvSecrets().STRIPE_PRICE_ID}
-          coupon={getEnvSecrets().STRIPE_WELCOME_COUPON}
-        />
+        <FreeCreditsButton />
       ) : (
         credits <= 50.0 && (
           <Button variant="default" size="sm" asChild>
