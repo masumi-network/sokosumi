@@ -11,7 +11,6 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { requireAuthentication } from "@/lib/auth/utils";
 import {
   getFavoriteAgents,
   getHiredAgentsOrderedByLatestJob,
@@ -56,11 +55,10 @@ function AgentsListSkeleton() {
 
 async function AgentsListContent() {
   const t = await getTranslations("App.Sidebar.Content.AgentsList");
-  const { session } = await requireAuthentication();
 
-  const favoriteAgents = await getFavoriteAgents(session.user.id);
+  const favoriteAgents = await getFavoriteAgents();
   const hiredAgents = filterDuplicatedAgents(
-    await getHiredAgentsOrderedByLatestJob(session.user.id),
+    await getHiredAgentsOrderedByLatestJob(),
     favoriteAgents,
   );
 
