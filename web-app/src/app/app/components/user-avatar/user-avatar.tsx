@@ -15,5 +15,6 @@ export default async function UserAvatar() {
 
 async function UserAvatarInner() {
   const { session } = await requireAuthentication();
+
   return <UserAvatarClient user={session.user} />;
 }

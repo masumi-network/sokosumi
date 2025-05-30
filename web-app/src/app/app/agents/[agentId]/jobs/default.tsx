@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
-import { requireAuthentication } from "@/lib/auth/utils";
-import { getAgentById, getJobsByAgentIdAndUserId } from "@/lib/db";
+import { getAgentById } from "@/lib/db";
+import { getMyJobsByAgentId } from "@/lib/services";
 
 import JobsTable from "./components/jobs-table";
 
@@ -17,8 +17,7 @@ export default async function JobDefaultPage({ params }: JobDefaultPageProps) {
     return notFound();
   }
 
-  const { session } = await requireAuthentication();
-  const agentJobs = await getJobsByAgentIdAndUserId(agentId, session.user.id);
+  const agentJobs = await getMyJobsByAgentId(agentId);
 
   return <JobsTable jobs={agentJobs} />;
 }

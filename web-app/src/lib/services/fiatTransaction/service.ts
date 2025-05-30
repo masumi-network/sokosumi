@@ -1,6 +1,8 @@
 "use server";
 
 import { createCheckoutSession, getConversionFactors } from "@/lib/actions";
+import { UnAuthorizedError } from "@/lib/auth/errors";
+import { verifyUserAuthentication } from "@/lib/auth/utils";
 import {
   createFiatTransaction,
   getUserById,
@@ -14,6 +16,11 @@ export async function createStripeCheckoutSession(
   cents: bigint,
 ): Promise<{ stripeSessionId: string; url: string }> {
   return await prisma.$transaction(async (tx) => {
+    const authorized = await verifyUserAuthentication(userId);
+    if (!authorized) {
+      throw new UnAuthorizedError();
+    }
+
     const user = await getUserById(userId, tx);
     if (!user) {
       throw new Error("User not found");
