@@ -1,8 +1,6 @@
 "use server";
 
-import { headers } from "next/headers";
-
-import { auth } from "@/lib/auth/auth";
+import { getSession } from "@/lib/auth/utils";
 import {
   startJob,
   startJobInputSchema,
@@ -19,9 +17,7 @@ export async function startJobWithInputData(
   error?: { code: string };
 }> {
   // Authentication
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const session = await getSession();
   if (!session) {
     return {
       success: false,

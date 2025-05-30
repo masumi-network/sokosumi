@@ -1,7 +1,7 @@
 "use server";
 
 import { getEnvSecrets } from "@/config/env.config";
-import { getSessionUser } from "@/lib/auth/utils";
+import { getSessionOrThrow } from "@/lib/auth/utils";
 import { convertCreditsToCents, getUserById } from "@/lib/db";
 import { createStripeCheckoutSession } from "@/lib/services";
 
@@ -12,10 +12,10 @@ export async function claimFreeCredits(): Promise<{
 }> {
   try {
     // Get the current user session
-    const sessionUser = await getSessionUser();
+    const session = await getSessionOrThrow();
 
     // Get the full user from database to check stripeCustomerId
-    const user = await getUserById(sessionUser.id);
+    const user = await getUserById(session.user.id);
     if (!user) {
       return {
         success: false,
@@ -70,11 +70,11 @@ export async function purchaseCredits(
     }
 
     // Get the current user session
-    const sessionUser = await getSessionUser();
+    const session = await getSessionOrThrow();
 
     // Create the checkout session
     const { url } = await createStripeCheckoutSession(
-      sessionUser.id,
+      session.user.id,
       convertCreditsToCents(credits),
       priceId,
     );

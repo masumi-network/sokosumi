@@ -1,8 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 
 import { JobDetails } from "@/app/agents/[agentId]/jobs/@right/components/job-details";
-import { UnAuthorizedError } from "@/lib/auth/errors";
-import { getSessionUser } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/utils";
 import { getAgentById, getJobById } from "@/lib/db";
 
 interface JobDetailsPageParams {
@@ -15,6 +14,10 @@ export default async function JobDetailsPage({
 }: {
   params: Promise<JobDetailsPageParams>;
 }) {
+  const session = await getSession();
+  if (!session) {
+    redirect("/login");
+  }
   const { agentId, jobId } = await params;
 
   const agent = await getAgentById(agentId);
@@ -32,17 +35,10 @@ export default async function JobDetailsPage({
     console.warn("job not found in job detail page");
     notFound();
   }
-  try {
-    const sessionUser = await getSessionUser();
-    if (job.userId !== sessionUser.id) {
-      console.warn("job not found in job detail page");
-      notFound();
-    }
-  } catch (error) {
-    if (error instanceof UnAuthorizedError) {
-      redirect("/login");
-    }
-    throw error;
+
+  if (job.userId !== session.user.id) {
+    console.warn("job not found in job detail page");
+    notFound();
   }
 
   return <JobDetails job={job} />;

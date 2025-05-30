@@ -14,7 +14,6 @@ import { reactVerificationEmail } from "@/lib/email/verification";
 
 export type Session = typeof auth.$Infer.Session;
 export type SessionUser = typeof auth.$Infer.Session.user;
-export type SessionSession = typeof auth.$Infer.Session.session;
 
 const fromEmail = getEnvSecrets().RESEND_FROM_EMAIL;
 
