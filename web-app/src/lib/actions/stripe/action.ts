@@ -6,9 +6,7 @@ import Stripe from "stripe";
 import { getEnvPublicConfig, getEnvSecrets } from "@/config/env.config"; // Ensure this path is correct
 import { User } from "@/prisma/generated/client";
 
-const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY, {
-  apiVersion: "2025-04-30.basil",
-});
+const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
 /**
  * Retrieves the cost per credit for a given Stripe price.
@@ -105,4 +103,12 @@ export async function createCoupon(
     duration: "once",
   });
   return coupon;
+}
+
+export async function constructEvent(req: Request, stripeSignature: string) {
+  return stripe.webhooks.constructEvent(
+    await req.text(),
+    stripeSignature as string,
+    getEnvSecrets().STRIPE_WEBHOOK_SECRET,
+  );
 }

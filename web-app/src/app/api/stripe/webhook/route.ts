@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-import { getEnvSecrets } from "@/config/env.config";
+import { constructEvent } from "@/lib/actions/stripe/action";
 import {
   getFiatTransactionByServicePaymentId,
   prisma,
@@ -10,19 +10,13 @@ import {
 } from "@/lib/db";
 import { FiatTransactionStatus } from "@/prisma/generated/client";
 
-const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
-
 export async function POST(req: Request) {
   let event: Stripe.Event;
 
   try {
     const stripeSignature = req.headers.get("stripe-signature");
 
-    event = stripe.webhooks.constructEvent(
-      await req.text(),
-      stripeSignature as string,
-      getEnvSecrets().STRIPE_WEBHOOK_SECRET,
-    );
+    event = await constructEvent(req, stripeSignature as string);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.log(`❌ Error message: ${message}`);
