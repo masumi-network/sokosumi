@@ -1,9 +1,7 @@
 "use server";
 
-import { headers } from "next/headers";
-
 import { getEnvSecrets } from "@/config/env.config";
-import { auth } from "@/lib/auth/auth";
+import { getSessionUser } from "@/lib/auth/utils";
 import { convertCreditsToCents, getUserById } from "@/lib/db";
 import { createStripeCheckoutSession } from "@/lib/services";
 
@@ -14,19 +12,10 @@ export async function claimFreeCredits(): Promise<{
 }> {
   try {
     // Get the current user session
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session?.user) {
-      return {
-        success: false,
-        error: "User not authenticated",
-      };
-    }
+    const sessionUser = await getSessionUser();
 
     // Get the full user from database to check stripeCustomerId
-    const user = await getUserById(session.user.id);
+    const user = await getUserById(sessionUser.id);
     if (!user) {
       return {
         success: false,
@@ -81,20 +70,11 @@ export async function purchaseCredits(
     }
 
     // Get the current user session
-    const session = await auth.api.getSession({
-      headers: await headers(),
-    });
-
-    if (!session?.user) {
-      return {
-        success: false,
-        error: "User not authenticated",
-      };
-    }
+    const sessionUser = await getSessionUser();
 
     // Create the checkout session
     const { url } = await createStripeCheckoutSession(
-      session.user.id,
+      sessionUser.id,
       convertCreditsToCents(credits),
       priceId,
     );
