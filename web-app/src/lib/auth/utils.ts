@@ -23,7 +23,7 @@ export async function getSessionUser(): Promise<SessionUser> {
   return session.user;
 }
 
-export async function verifyUserIdWithSession(userId: string): Promise<void> {
+export async function verifyUserId(userId: string): Promise<void> {
   const sessionUser = await getSessionUser();
   if (sessionUser.id !== userId) {
     throw new Error("UserId does not match session user id");

@@ -1,7 +1,7 @@
 "use server";
 
 import { createCheckoutSession, getConversionFactors } from "@/lib/actions";
-import { verifyUserIdWithSession } from "@/lib/auth/utils";
+import { verifyUserId } from "@/lib/auth/utils";
 import {
   createFiatTransaction,
   getUserById,
@@ -16,7 +16,7 @@ export async function createStripeCheckoutSession(
   coupon: string | null = null,
 ): Promise<{ stripeSessionId: string; url: string }> {
   // Verify that the user is the one initiating the transaction
-  await verifyUserIdWithSession(userId);
+  await verifyUserId(userId);
 
   // Create the fiat transaction and the checkout session
   return await prisma.$transaction(async (tx) => {
