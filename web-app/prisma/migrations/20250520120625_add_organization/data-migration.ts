@@ -37,13 +37,13 @@ async function main() {
       });
 
       // check if organization has any members
-      const members = await getMembersByOrganizationId(organization.id);
+      const members = await getMembersByOrganizationId(organization.id, tx);
 
       // if there are no members, the create as ADMIN
       const role = members.length === 0 ? Role.ADMIN : Role.MEMBER;
 
       // Create the member
-      await createMember(user.id, organization.id, role);
+      await createMember(user.id, organization.id, role, tx);
     });
   }
 }
