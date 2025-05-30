@@ -1,7 +1,6 @@
 "use server";
 
-import { UnAuthorizedError } from "@/lib/auth/errors";
-import { getAuthenticatedUser } from "@/lib/auth/utils";
+import { getSessionOrThrow } from "@/lib/auth/utils";
 import {
   AgentWithJobs,
   AgentWithRelations,
@@ -48,13 +47,8 @@ export async function getOnlineAgentsWithValidPricing(
 export async function getHiredAgentsOrderedByLatestJob(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithJobs[]> {
-  const user = await getAuthenticatedUser();
-  if (!user) {
-    throw new UnAuthorizedError();
-  }
-  const userId = user.id;
-
-  const hiredAgentsWithJobs = await getHiredAgents(userId, tx);
+  const session = await getSessionOrThrow();
+  const hiredAgentsWithJobs = await getHiredAgents(session.user.id, tx);
 
   // Then sort them manually by the startedAt of the most recent job
   return hiredAgentsWithJobs.sort((a, b) => {

@@ -1,7 +1,7 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { JobDetails } from "@/app/agents/[agentId]/jobs/@right/components/job-details";
-import { requireAuthentication } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/utils";
 import { getAgentById, getJobById } from "@/lib/db";
 
 interface JobDetailsPageParams {
@@ -14,6 +14,10 @@ export default async function JobDetailsPage({
 }: {
   params: Promise<JobDetailsPageParams>;
 }) {
+  const session = await getSession();
+  if (!session) {
+    redirect("/login");
+  }
   const { agentId, jobId } = await params;
 
   const agent = await getAgentById(agentId);
@@ -31,7 +35,7 @@ export default async function JobDetailsPage({
     console.warn("job not found in job detail page");
     notFound();
   }
-  const { session } = await requireAuthentication();
+
   if (job.userId !== session.user.id) {
     console.warn("job not found in job detail page");
     notFound();

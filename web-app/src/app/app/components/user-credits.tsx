@@ -1,17 +1,18 @@
-import { headers } from "next/headers";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
-import { auth } from "@/lib/auth/auth";
+import { getSession } from "@/lib/auth/utils";
 import { getUserById } from "@/lib/db";
 import { getCredits } from "@/lib/services";
 
 export default async function UserCredits() {
   const t = await getTranslations("App.Header.Credit");
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
+  const session = await getSession();
+  if (!session) {
+    redirect("/login");
+  }
 
   if (!session?.user.id) {
     return (

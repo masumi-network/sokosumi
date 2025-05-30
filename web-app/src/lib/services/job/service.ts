@@ -2,8 +2,7 @@
 
 import { v4 as uuidv4 } from "uuid";
 
-import { UnAuthorizedError } from "@/lib/auth/errors";
-import { getAuthenticatedUser } from "@/lib/auth/utils";
+import { getSessionOrThrow } from "@/lib/auth/utils";
 import {
   computeJobStatus,
   createJob,
@@ -41,13 +40,8 @@ export async function getMyJobsByAgentId(
   agentId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<JobWithStatus[]> {
-  const user = await getAuthenticatedUser();
-  if (!user) {
-    throw new UnAuthorizedError();
-  }
-  const userId = user.id;
-
-  return await getJobsByAgentIdAndUserId(agentId, userId, tx);
+  const session = await getSessionOrThrow();
+  return await getJobsByAgentIdAndUserId(agentId, session.user.id, tx);
 }
 
 export async function startJob(input: StartJobInputSchemaType): Promise<Job> {

@@ -1,6 +1,7 @@
+import { redirect } from "next/navigation";
 import { Suspense } from "react";
 
-import { requireAuthentication } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/utils";
 
 import UserAvatarClient from "./user-avatar.client";
 import UserAvatarSkeleton from "./user-avatar-skeleton";
@@ -14,7 +15,10 @@ export default async function UserAvatar() {
 }
 
 async function UserAvatarInner() {
-  const { session } = await requireAuthentication();
+  const session = await getSession();
+  if (!session) {
+    redirect("/login");
+  }
 
-  return <UserAvatarClient user={session.user} />;
+  return <UserAvatarClient sessionUser={session.user} />;
 }

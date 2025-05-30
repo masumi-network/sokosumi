@@ -1,7 +1,6 @@
 "use server";
 
-import { UnAuthorizedError } from "@/lib/auth/errors";
-import { getAuthenticatedUser } from "@/lib/auth/utils";
+import { getSessionOrThrow } from "@/lib/auth/utils";
 import {
   AgentListWithAgent,
   createAgentList,
@@ -27,17 +26,12 @@ export async function getOrCreateAgentListByType(
   type: AgentListType,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentListWithAgent> {
-  const user = await getAuthenticatedUser();
-  if (!user) {
-    throw new UnAuthorizedError();
-  }
-  const userId = user.id;
-
-  const existingList = await getAgentListByType(userId, type, tx);
+  const session = await getSessionOrThrow();
+  const existingList = await getAgentListByType(session.user.id, type, tx);
 
   if (existingList) {
     return existingList;
   }
 
-  return await createAgentList(userId, type, tx);
+  return await createAgentList(session.user.id, type, tx);
 }
