@@ -63,7 +63,10 @@ export async function claimFreeCredits(): Promise<{
   }
 }
 
-export async function purchaseCredits(credits: number): Promise<{
+export async function purchaseCredits(
+  credits: number,
+  priceId: string,
+): Promise<{
   success: boolean;
   url?: string;
   error?: string;
@@ -93,7 +96,7 @@ export async function purchaseCredits(credits: number): Promise<{
     const { url } = await createStripeCheckoutSession(
       session.user.id,
       convertCreditsToCents(credits),
-      getEnvSecrets().STRIPE_PRICE_ID,
+      priceId,
     );
 
     return {
