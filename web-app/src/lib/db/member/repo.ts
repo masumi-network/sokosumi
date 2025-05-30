@@ -1,5 +1,6 @@
 "use server";
 
+import { requireAuthentication } from "@/lib/auth/utils";
 import { prisma } from "@/lib/db";
 import { Member, Prisma, Role } from "@/prisma/generated/client";
 
@@ -44,14 +45,29 @@ export async function createMember(
 }
 
 export async function listMembers(
-  userId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<MemberWithOrganization[]> {
+  const { session } = await requireAuthentication();
+  const userId = session.user.id;
+
   return await tx.member.findMany({
     where: {
       userId,
     },
     include: memberOrganizationInclude,
     orderBy: [...memberOrderBy],
+  });
+}
+
+export async function deleteMember(
+  userId: string,
+  organizationId: string,
+  tx: Prisma.TransactionClient = prisma,
+) {
+  return await tx.member.deleteMany({
+    where: {
+      userId,
+      organizationId,
+    },
   });
 }

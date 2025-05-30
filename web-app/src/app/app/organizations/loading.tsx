@@ -1,6 +1,6 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
-import { MembersSkeleton } from "./components/Members";
+import { MembersSkeleton } from "./components/members";
 
 export default function OrganizationsLoadingPage() {
   return (

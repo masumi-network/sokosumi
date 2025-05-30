@@ -123,6 +123,13 @@
         "logout": "Log out",
         "cancel": "Cancel",
         "error": "Failed to log out"
+      },
+      "LeaveOrganizationModal": {
+        "title": "Do you really want to leave the organization?",
+        "description": "Leave the organization \"{organization}\".",
+        "leave": "Leave",
+        "cancel": "Cancel",
+        "error": "Failed to leave organization"
       }
     }
   },
@@ -532,7 +539,9 @@
     "Organizations": {
       "title": "Organizations",
       "newOrganization": "New Organization",
-      "leave": "Leave",
+      "MemberActions": {
+        "leave": "Leave"
+      },
       "Role": {
         "admin": "Admin",
         "member": "Member"

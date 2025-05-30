@@ -7,8 +7,10 @@ import { v4 as uuidv4 } from "uuid";
 import {
   createMember,
   createOrganization,
+  deleteMember,
   getOrganizationMembers,
   isEmailAllowedByOrganization,
+  listMembers,
   OrganizationWithRelations,
 } from "@/lib/db";
 import { Role } from "@/prisma/generated/client";
@@ -54,6 +56,25 @@ export async function createOrganizationMember(
     return { success: true };
   } catch (error) {
     console.error("Error creating organization member", error);
+    return { success: false };
+  }
+}
+
+export async function leaveOrganization(organizationId: string) {
+  try {
+    const members = await listMembers();
+
+    // if you have less than 2 members, you cannot leave
+    if (members.length <= 1) {
+      return { success: false, code: "MEMBER_COUNT_NOT_ALLOWED" };
+    }
+
+    // delete member
+    await deleteMember(organizationId);
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error leaving organization", error);
     return { success: false };
   }
 }

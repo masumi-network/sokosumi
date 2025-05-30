@@ -4,10 +4,11 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MemberWithOrganization } from "@/lib/db";
 import { Role } from "@/prisma/generated/client";
+
+import MemberActionButtons from "./member-action-buttons";
 
 interface MembersProps {
   members: MemberWithOrganization[];
@@ -43,7 +44,6 @@ export function MembersSkeleton() {
 }
 
 function MemberRow({ member }: { member: MemberWithOrganization }) {
-  const t = useTranslations("App.Organizations");
   const { organization, role } = member;
   const { id: organizationId, name, logo } = organization;
 
@@ -62,9 +62,7 @@ function MemberRow({ member }: { member: MemberWithOrganization }) {
         </Link>
         <RoleBadge role={role} />
       </div>
-      <div className="flex items-center gap-2">
-        <Button variant="destructive">{t("leave")}</Button>
-      </div>
+      <MemberActionButtons organization={organization} />
     </div>
   );
 }
