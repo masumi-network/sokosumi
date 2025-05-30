@@ -115,6 +115,7 @@ model Member {
   role           Role         @default(MEMBER)
   createdAt      DateTime     @default(now())
 
+  @@unique([userId, organizationId])
   @@map("member")
 }
 
