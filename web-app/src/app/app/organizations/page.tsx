@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 
 import { listMyMembers } from "@/lib/actions";
 
-import Members from "./components/members";
+import Organizations from "./components/organizations";
 
 export default async function OrganizationsPage() {
   const t = await getTranslations("App.Organizations");
@@ -19,7 +19,7 @@ export default async function OrganizationsPage() {
         <h1 className="text-2xl font-bold">{t("title")}</h1>
       </div>
       <div className="container mx-auto">
-        <Members members={members} />
+        <Organizations members={members} />
       </div>
     </div>
   );

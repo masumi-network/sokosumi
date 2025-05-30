@@ -549,7 +549,7 @@
         "admin": "Admin",
         "member": "Member"
       },
-      "MemberActions": {
+      "OrganizationActions": {
         "leave": "Leave"
       },
       "OrganizationDetail": {

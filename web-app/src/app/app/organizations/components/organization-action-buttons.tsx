@@ -7,14 +7,14 @@ import { Button } from "@/components/ui/button";
 import useModal from "@/hooks/use-modal";
 import { Organization } from "@/prisma/generated/client";
 
-interface MemberActionButtonsProps {
+interface OrganizationActionButtonsProps {
   organization: Organization;
 }
 
-export default function MemberActionButtons({
+export default function OrganizationActionButtons({
   organization,
-}: MemberActionButtonsProps) {
-  const t = useTranslations("App.Organizations.MemberActions");
+}: OrganizationActionButtonsProps) {
+  const t = useTranslations("App.Organizations.OrganizationActions");
 
   const { Component, showModal } = useModal(({ open, onOpenChange }) => (
     <LeaveOrganizationModal

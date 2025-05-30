@@ -8,27 +8,27 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { MemberWithOrganization } from "@/lib/db";
 import { Role } from "@/prisma/generated/client";
 
-import MemberActionButtons from "./member-action-buttons";
+import OrganizationActionButtons from "./organization-action-buttons";
 
-interface MembersProps {
+interface OrganizationsProps {
   members: MemberWithOrganization[];
 }
 
-export default function Members({ members }: MembersProps) {
+export default function Organizations({ members }: OrganizationsProps) {
   if (members.length === 0) {
-    return <MembersNotAvailable />;
+    return <OrganizationsNotAvailable />;
   }
 
   return (
     <div className="flex w-full flex-col divide-y rounded-lg border">
       {members.map((member) => (
-        <MemberRow key={member.id} member={member} />
+        <OrganizationRow key={member.id} member={member} />
       ))}
     </div>
   );
 }
 
-export function MembersNotAvailable() {
+export function OrganizationsNotAvailable() {
   const t = useTranslations("App.Organizations");
 
   return (
@@ -40,7 +40,7 @@ export function MembersNotAvailable() {
   );
 }
 
-export function MembersSkeleton() {
+export function OrganizationsSkeleton() {
   return (
     <div className="flex w-full flex-col divide-y rounded-lg border">
       {[1, 2, 3].map((_, index) => (
@@ -59,7 +59,7 @@ export function MembersSkeleton() {
   );
 }
 
-function MemberRow({ member }: { member: MemberWithOrganization }) {
+function OrganizationRow({ member }: { member: MemberWithOrganization }) {
   const { organization, role } = member;
   const { slug, name, logo } = organization;
 
@@ -78,7 +78,7 @@ function MemberRow({ member }: { member: MemberWithOrganization }) {
         </Link>
         <RoleBadge role={role} />
       </div>
-      <MemberActionButtons organization={organization} />
+      <OrganizationActionButtons organization={organization} />
     </div>
   );
 }

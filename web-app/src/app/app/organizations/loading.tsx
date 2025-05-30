@@ -1,6 +1,6 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
-import { MembersSkeleton } from "./components/members";
+import { OrganizationsSkeleton } from "./components/organizations";
 
 export default function OrganizationsLoadingPage() {
   return (
@@ -10,7 +10,7 @@ export default function OrganizationsLoadingPage() {
         <Skeleton className="h-8 w-32" />
       </div>
       <div className="container mx-auto">
-        <MembersSkeleton />
+        <OrganizationsSkeleton />
       </div>
     </div>
   );
