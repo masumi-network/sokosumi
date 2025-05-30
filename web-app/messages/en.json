@@ -129,7 +129,12 @@
         "description": "Leave the organization \"{organization}\".",
         "leave": "Leave",
         "cancel": "Cancel",
-        "error": "Failed to leave organization"
+        "success": "You have left the organization",
+        "error": "Failed to leave organization",
+        "Errors": {
+          "unauthorized": "Unauthorized",
+          "memberCountNotAllowed": "You must be member of at least one Organization."
+        }
       }
     }
   },
@@ -539,12 +544,12 @@
     "Organizations": {
       "title": "Organizations",
       "newOrganization": "New Organization",
-      "MemberActions": {
-        "leave": "Leave"
-      },
       "Role": {
         "admin": "Admin",
         "member": "Member"
+      },
+      "MemberActions": {
+        "leave": "Leave"
       }
     },
     "Billing": {

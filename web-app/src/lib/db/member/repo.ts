@@ -1,6 +1,5 @@
 "use server";
 
-import { requireAuthentication } from "@/lib/auth/utils";
 import { prisma } from "@/lib/db";
 import { Member, Prisma, Role } from "@/prisma/generated/client";
 
@@ -10,7 +9,7 @@ import {
   MemberWithOrganization,
 } from "./types";
 
-export async function getOrganizationMembers(
+export async function getMembersByOrganizationId(
   organizationId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Member[]> {
@@ -18,6 +17,19 @@ export async function getOrganizationMembers(
     where: {
       organizationId,
     },
+  });
+}
+
+export async function getMembersByUserId(
+  userId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<MemberWithOrganization[]> {
+  return await tx.member.findMany({
+    where: {
+      userId,
+    },
+    include: memberOrganizationInclude,
+    orderBy: [...memberOrderBy],
   });
 }
 
@@ -41,21 +53,6 @@ export async function createMember(
       },
       role,
     },
-  });
-}
-
-export async function listMembers(
-  tx: Prisma.TransactionClient = prisma,
-): Promise<MemberWithOrganization[]> {
-  const { session } = await requireAuthentication();
-  const userId = session.user.id;
-
-  return await tx.member.findMany({
-    where: {
-      userId,
-    },
-    include: memberOrganizationInclude,
-    orderBy: [...memberOrderBy],
   });
 }
 

@@ -3,6 +3,7 @@
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -14,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { leaveOrganization } from "@/lib/actions";
+import { leaveOrganization, LeaveOrganizationErrorCodes } from "@/lib/actions";
 import { Organization } from "@/prisma/generated/client";
 
 interface LeaveOrganizationModalProps {
@@ -34,7 +35,20 @@ export default function LeaveOrganizationModal({
   const handleLeaveOrganization = async () => {
     setLoading(true);
     const result = await leaveOrganization(organization.id);
-    if (result.success) {
+    if (!result.success) {
+      switch (result.code) {
+        case LeaveOrganizationErrorCodes.NOT_AUTHENTICATED:
+          toast.error(t("Errors.unauthorized"));
+          break;
+        case LeaveOrganizationErrorCodes.MEMBER_COUNT_NOT_ALLOWED:
+          toast.error(t("Errors.memberCountNotAllowed"));
+          break;
+        default:
+          toast.error(t("error"));
+          break;
+      }
+    } else {
+      toast.success(t("success"));
       onOpenChange(false);
     }
     setLoading(false);
@@ -48,7 +62,9 @@ export default function LeaveOrganizationModal({
             {t("title")}
           </DialogTitle>
           <DialogDescription className="text-muted-foreground text-center text-base">
-            {t("description", { organization: organization.name })}
+            {t("description", {
+              organization: organization.name,
+            })}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="block space-y-1.5">

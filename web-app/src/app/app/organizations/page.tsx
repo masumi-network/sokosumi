@@ -1,16 +1,17 @@
+import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
-import { requireAuthentication } from "@/lib/auth/utils";
-import { listMembers } from "@/lib/db";
+import { listMyMembers } from "@/lib/actions";
 
 import Members from "./components/members";
 
 export default async function OrganizationsPage() {
   const t = await getTranslations("App.Organizations");
 
-  const { session } = await requireAuthentication();
-  const userId = session.user.id;
-  const members = await listMembers(userId);
+  const members = await listMyMembers();
+  if (!members) {
+    redirect("/login");
+  }
 
   return (
     <div className="flex flex-col items-center justify-center gap-8 p-8">

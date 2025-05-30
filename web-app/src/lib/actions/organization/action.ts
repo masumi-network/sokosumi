@@ -4,16 +4,20 @@ import { revalidatePath } from "next/cache";
 import slugify from "slugify";
 import { v4 as uuidv4 } from "uuid";
 
+import { getSession } from "@/lib/auth/utils";
 import {
   createMember,
   createOrganization,
   deleteMember,
-  getOrganizationMembers,
+  getMembersByOrganizationId,
+  getMembersByUserId,
   isEmailAllowedByOrganization,
-  listMembers,
+  MemberWithOrganization,
   OrganizationWithRelations,
 } from "@/lib/db";
 import { Role } from "@/prisma/generated/client";
+
+import { LeaveOrganizationErrorCodes } from "./error";
 
 export async function createOrganizationFromName(name: string) {
   try {
@@ -48,7 +52,7 @@ export async function createOrganizationMember(
     }
 
     // check if organization has any members
-    const members = await getOrganizationMembers(organization.id);
+    const members = await getMembersByOrganizationId(organization.id);
 
     // if there are no members, the create as ADMIN
     const role = members.length === 0 ? Role.ADMIN : Role.MEMBER;
@@ -60,21 +64,51 @@ export async function createOrganizationMember(
   }
 }
 
-export async function leaveOrganization(organizationId: string) {
-  try {
-    const members = await listMembers();
+export async function listMyMembers(): Promise<
+  MemberWithOrganization[] | null
+> {
+  const session = await getSession();
+  if (!session) {
+    return null;
+  }
 
-    // if you have less than 2 members, you cannot leave
+  const userId = session.user.id;
+
+  return await getMembersByUserId(userId);
+}
+
+export async function leaveOrganization(
+  organizationId: string,
+): Promise<{ success: false; code: string } | { success: true }> {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return {
+        success: false,
+        code: LeaveOrganizationErrorCodes.NOT_AUTHENTICATED,
+      };
+    }
+    const userId = session.user.id;
+
+    // get all members for the user
+    const members = await getMembersByUserId(userId);
+
+    // if user has less than 2 members, cannot leave
     if (members.length <= 1) {
-      return { success: false, code: "MEMBER_COUNT_NOT_ALLOWED" };
+      return {
+        success: false,
+        code: LeaveOrganizationErrorCodes.MEMBER_COUNT_NOT_ALLOWED,
+      };
     }
 
     // delete member
-    await deleteMember(organizationId);
-
+    await deleteMember(userId, organizationId);
     return { success: true };
   } catch (error) {
     console.error("Error leaving organization", error);
-    return { success: false };
+    return {
+      success: false,
+      code: LeaveOrganizationErrorCodes.INTERNAL_SERVER_ERROR,
+    };
   }
 }
