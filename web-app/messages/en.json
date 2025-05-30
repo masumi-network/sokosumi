@@ -512,7 +512,8 @@
         "backToBilling": "Back to Billing"
       },
       "FreeClaim": {
-        "button": "Get 100 free credits"
+        "button": "Get 100 free credits",
+        "error": "Failed to claim free credits"
       }
     },
     "Account": {

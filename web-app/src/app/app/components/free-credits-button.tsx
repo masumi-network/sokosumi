@@ -20,11 +20,11 @@ export default function FreeCreditsButton() {
       if (result.success && result.url) {
         window.location.href = result.url;
       } else {
-        toast.error(result.error ?? "Failed to claim free credits");
+        toast.error(t("error"));
       }
     } catch (error) {
       console.error("Failed to claim free credits:", error);
-      toast.error("An unexpected error occurred");
+      toast.error(t("error"));
     } finally {
       setLoading(false);
     }
