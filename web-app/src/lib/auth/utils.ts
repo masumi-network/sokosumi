@@ -12,9 +12,6 @@ export async function getSession(): Promise<Session> {
   });
 
   if (!session) {
-    // if (shouldRedirect) {
-    //   redirect("/login");
-    // }
     throw new UnAuthorizedError();
   }
 
