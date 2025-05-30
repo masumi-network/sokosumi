@@ -17,12 +17,15 @@ export async function createStripeCheckoutSession(
   cents: bigint,
   coupon: string | null = null,
 ): Promise<{ stripeSessionId: string; url: string }> {
+  // Verify that the user is the one initiating the transaction
   const session = await auth.api.getSession({
     headers: await headers(),
   });
   if (session?.user?.id !== userId) {
     throw new Error("User not identical to the one in the session");
   }
+
+  // Create the fiat transaction and the checkout session
   return await prisma.$transaction(async (tx) => {
     const user = await getUserById(session.user.id, tx);
     if (!user) {
@@ -44,6 +47,7 @@ export async function createStripeCheckoutSession(
         conversionFactorsPerCredit.amountPerCredit,
       coupon,
     );
+
     await updateFiatTransactionServicePaymentId(
       fiatTransaction.id,
       stripeSessionId,
