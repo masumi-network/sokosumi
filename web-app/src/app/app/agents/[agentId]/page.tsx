@@ -5,7 +5,6 @@ import {
   CreateJobModal,
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
-import { requireAuthentication } from "@/lib/auth/utils";
 import { getAgentById, getJobsByAgentId } from "@/lib/db";
 import {
   getAgentCreditsPrice,
@@ -30,8 +29,7 @@ export default async function AgentDetailPage({
     return notFound();
   }
 
-  const { session } = await requireAuthentication();
-  const agentList = await getOrCreateFavoriteAgentList(session.user.id);
+  const agentList = await getOrCreateFavoriteAgentList();
   const jobs = await getJobsByAgentId(agentId);
 
   const agentInputSchemaPromise = getAgentInputSchema(agentId);

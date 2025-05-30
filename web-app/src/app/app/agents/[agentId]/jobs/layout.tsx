@@ -7,7 +7,6 @@ import {
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
 import DefaultLoading from "@/components/default-loading";
-import { requireAuthentication } from "@/lib/auth/utils";
 import {
   getAgentById,
   getAgentDescription,
@@ -69,9 +68,8 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
     return notFound();
   }
 
-  const { session } = await requireAuthentication();
   const agentCreditsPrice = await getAgentCreditsPrice(agent);
-  const favoriteAgentList = await getOrCreateFavoriteAgentList(session.user.id);
+  const favoriteAgentList = await getOrCreateFavoriteAgentList();
   const jobs = await getJobsByAgentId(agentId);
 
   const agentInputSchemaPromise = getAgentInputSchema(agentId);
