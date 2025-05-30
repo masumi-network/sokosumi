@@ -1,8 +1,6 @@
 "use server";
 
-import { headers } from "next/headers";
-
-import { auth, User } from "@/lib/auth/auth";
+import { auth } from "@/lib/auth/auth";
 
 export async function signInSocial(
   provider: "google" | "microsoft" | "apple" | "linkedin",
@@ -17,16 +15,4 @@ export async function signInSocial(
   } catch {
     return { success: false };
   }
-}
-
-export async function getAuthenticatedUser(): Promise<User | null> {
-  const session = await auth.api.getSession({
-    headers: await headers(),
-  });
-
-  if (!session) {
-    return null;
-  }
-
-  return session.user;
 }

@@ -4,7 +4,7 @@ import pTimeout from "p-timeout";
 import { getEnvPublicConfig, getEnvSecrets } from "@/config/env.config";
 import { postRegistryEntry } from "@/lib/api/generated/registry";
 import { getRegistryClient } from "@/lib/api/registry-service.client";
-import { compareApiKeys } from "@/lib/auth/utils";
+import { compareApiKeys } from "@/lib/api/utils";
 import { acquireLock, prisma, unlockLock } from "@/lib/db";
 import { AgentStatus, Lock, PricingType } from "@/prisma/generated/client";
 

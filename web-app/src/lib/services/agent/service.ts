@@ -1,7 +1,7 @@
 "use server";
 
-import { getAuthenticatedUser } from "@/lib/actions";
 import { UnAuthorizedError } from "@/lib/auth/errors";
+import { getAuthenticatedUser } from "@/lib/auth/utils";
 import {
   AgentWithJobs,
   AgentWithRelations,

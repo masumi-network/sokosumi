@@ -2,8 +2,8 @@
 
 import { v4 as uuidv4 } from "uuid";
 
-import { getAuthenticatedUser } from "@/lib/actions";
 import { UnAuthorizedError } from "@/lib/auth/errors";
+import { getAuthenticatedUser } from "@/lib/auth/utils";
 import {
   computeJobStatus,
   createJob,

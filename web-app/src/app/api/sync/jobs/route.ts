@@ -3,7 +3,7 @@ import pLimit from "p-limit";
 import pTimeout from "p-timeout";
 
 import { getEnvSecrets } from "@/config/env.config";
-import { compareApiKeys } from "@/lib/auth/utils";
+import { compareApiKeys } from "@/lib/api/utils";
 import {
   acquireLock,
   finalizedOnChainJobStatuses,
