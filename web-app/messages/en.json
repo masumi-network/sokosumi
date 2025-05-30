@@ -551,6 +551,9 @@
       },
       "MemberActions": {
         "leave": "Leave"
+      },
+      "OrganizationDetail": {
+        "title": "{name}"
       }
     },
     "Billing": {
