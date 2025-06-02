@@ -125,7 +125,7 @@
     "@types/react": "19.1.6",
     "@types/react-dom": "19.1.5",
     "@types/react-window": "1.8.8",
-    "eslint": "9.27.0",
+    "eslint": "9.28.0",
     "eslint-config-next": "15.3.3",
     "eslint-config-prettier": "10.1.5",
     "eslint-plugin-no-relative-import-paths": "1.6.1",
