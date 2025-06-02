@@ -58,14 +58,14 @@ export async function createCheckoutSession(
   fiatTransactionId: string,
   priceId: string,
   quantity: number,
-  coupon: string | null,
+  promotionCode: string | null,
 ): Promise<{
   id: string;
   url: string;
 }> {
   const headerList = await headers();
   const origin = headerList.get("origin");
-
+  console.log("promotionCode", promotionCode);
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     line_items: [
@@ -74,8 +74,8 @@ export async function createCheckoutSession(
         quantity: quantity,
       },
     ],
-    ...(coupon
-      ? { discounts: [{ coupon: coupon }] }
+    ...(promotionCode
+      ? { discounts: [{ promotion_code: promotionCode }] }
       : { allow_promotion_codes: true }),
     client_reference_id: fiatTransactionId,
     ...(user.stripeCustomerId
@@ -97,4 +97,35 @@ export async function constructEvent(req: Request, stripeSignature: string) {
     stripeSignature,
     getEnvSecrets().STRIPE_WEBHOOK_SECRET,
   );
+}
+
+export async function createCustomer(email: string): Promise<Stripe.Customer> {
+  return await stripe.customers.create({
+    email: email,
+  });
+}
+
+export async function getPromotionCode(
+  customerId: string,
+  couponId: string,
+  maxRedemptions: number = 1,
+  metadata: Record<string, string> = {
+    type: "welcome_bonus",
+  },
+): Promise<Stripe.PromotionCode> {
+  const promotionCodes = await stripe.promotionCodes.list({
+    coupon: couponId,
+    customer: customerId,
+    limit: 1,
+  });
+  console.log("promotionCodes", promotionCodes);
+  if (promotionCodes.data.length > 0) {
+    return promotionCodes.data[0];
+  }
+  return await stripe.promotionCodes.create({
+    customer: customerId,
+    coupon: couponId,
+    max_redemptions: maxRedemptions,
+    metadata,
+  });
 }

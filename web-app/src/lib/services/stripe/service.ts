@@ -8,14 +8,19 @@ import {
   prisma,
   updateFiatTransactionServicePaymentId,
 } from "@/lib/db";
+import { User } from "@/prisma/generated/client";
 
-import { createCheckoutSession, getConversionFactors } from "./third-party";
+import {
+  createCheckoutSession,
+  createCustomer,
+  getConversionFactors,
+} from "./third-party";
 
 export async function createStripeCheckoutSession(
   userId: string,
   credits: number,
   priceId: string,
-  coupon: string | null = null,
+  promotionCode: string | null = null,
 ): Promise<{ stripeSessionId: string; url: string }> {
   // Verify that the user is the one initiating the transaction
   await verifyUserId(userId);
@@ -41,7 +46,7 @@ export async function createStripeCheckoutSession(
       priceId,
       Number(fiatTransaction.amount) /
         conversionFactorsPerCredit.amountPerCredit,
-      coupon,
+      promotionCode,
     );
 
     await updateFiatTransactionServicePaymentId(
@@ -50,5 +55,18 @@ export async function createStripeCheckoutSession(
       tx,
     );
     return { stripeSessionId, url };
+  });
+}
+
+export async function createStripeCustomer(user: User) {
+  return await prisma.$transaction(async (tx) => {
+    if (!user.stripeCustomerId) {
+      const customer = await createCustomer(user.email);
+      return await tx.user.update({
+        where: { id: user.id },
+        data: { stripeCustomerId: customer.id },
+      });
+    }
+    return user;
   });
 }

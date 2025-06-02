@@ -3,7 +3,11 @@
 import { getEnvSecrets } from "@/config/env.config";
 import { getSessionOrThrow } from "@/lib/auth/utils";
 import { getUserById } from "@/lib/db";
-import { createStripeCheckoutSession } from "@/lib/services";
+import {
+  createStripeCheckoutSession,
+  createStripeCustomer,
+  getPromotionCode,
+} from "@/lib/services";
 
 export async function claimFreeCredits(): Promise<{
   success: boolean;
@@ -15,7 +19,7 @@ export async function claimFreeCredits(): Promise<{
     const session = await getSessionOrThrow();
 
     // Get the full user from database to check stripeCustomerId
-    const user = await getUserById(session.user.id);
+    let user = await getUserById(session.user.id);
     if (!user) {
       return {
         success: false,
@@ -23,20 +27,28 @@ export async function claimFreeCredits(): Promise<{
       };
     }
 
-    // Check if the user already has a Stripe customer ID (coupon is only for new users)
-    if (user.stripeCustomerId) {
+    // Check if the user already has a Stripe Welcome Promotion Code
+    if (!user.stripeCustomerId) {
+      user = await createStripeCustomer(user);
+    }
+
+    if (!user.stripeCustomerId) {
       return {
         success: false,
-        error: "User already has a stripe customer id",
+        error: "Stripe customer ID not found",
       };
     }
+    const promotionCode = await getPromotionCode(
+      user.stripeCustomerId,
+      getEnvSecrets().STRIPE_WELCOME_COUPON,
+    );
 
     // Create the checkout session
     const { url } = await createStripeCheckoutSession(
       user.id,
       100,
       getEnvSecrets().STRIPE_PRICE_ID,
-      getEnvSecrets().STRIPE_WELCOME_COUPON,
+      promotionCode.id,
     );
 
     return {

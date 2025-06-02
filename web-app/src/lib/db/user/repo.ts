@@ -15,7 +15,7 @@ export async function getUserByEmail(
 export async function getUserById(
   id: string,
   tx: Prisma.TransactionClient = prisma,
-): Promise<User | null> {
+) {
   return await tx.user.findUnique({
     where: { id },
   });

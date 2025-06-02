@@ -8,6 +8,7 @@ import {
   CreditsPrice,
   getCentsByUserId,
   getCreditCostByUnit,
+  hasFreeCreditsTransaction,
   prisma,
 } from "@/lib/db";
 import { Prisma } from "@/prisma/generated/client";
@@ -127,4 +128,25 @@ export async function getCreditsPrice(
     totalFee = minFeeCents;
   }
   return { cents: totalCents + totalFee, includedFee: totalFee };
+}
+
+/**
+ * Checks if a user can claim free credits.
+ *
+ * This function checks if the user has already claimed free credits by querying the database.
+ * If the user has claimed free credits, it returns false. Otherwise, it returns true.
+ *
+ * @param userId - The ID of the user whose free credits claim status is being checked.
+ * @param tx - (Optional) The Prisma transaction client to use for database operations. Defaults to the main Prisma client.
+ * @returns True if the user can claim free credits, false otherwise.
+ */
+export async function canClaimFreeCredits(
+  userId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<boolean> {
+  const hasClaimedFreeCredits = await hasFreeCreditsTransaction(userId, tx);
+  if (hasClaimedFreeCredits) {
+    return false;
+  }
+  return true;
 }
