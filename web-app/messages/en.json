@@ -573,6 +573,10 @@
       }
     },
     "Organizations": {
+      "Metadata": {
+        "title": "Organizations",
+        "description": "Manage your organizations"
+      },
       "title": "Organizations",
       "newOrganization": "New Organization",
       "membersNotAvailable": "No members found",
@@ -584,6 +588,10 @@
         "leave": "Leave"
       },
       "OrganizationDetail": {
+        "Metadata": {
+          "title": "Organization Details",
+          "description": "Manage your organization"
+        },
         "title": "{name}"
       }
     },

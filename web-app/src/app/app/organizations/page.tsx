@@ -1,9 +1,18 @@
+import { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { listMyMembers } from "@/lib/actions";
 
 import Organizations from "./components/organizations";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("App.Organizations.Metadata");
+  return {
+    title: t("title"),
+    description: t("description"),
+  };
+}
 
 export default async function OrganizationsPage() {
   const t = await getTranslations("App.Organizations");

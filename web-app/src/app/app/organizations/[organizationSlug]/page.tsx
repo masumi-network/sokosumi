@@ -1,8 +1,19 @@
+import { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { getSession } from "@/lib/auth/utils";
 import { getOrganizationBySlug } from "@/lib/db";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations(
+    "App.Organizations.OrganizationDetail.Metadata",
+  );
+  return {
+    title: t("title"),
+    description: t("description"),
+  };
+}
 
 export default async function OrganizationPage({
   params,
