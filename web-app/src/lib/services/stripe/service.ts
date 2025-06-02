@@ -6,6 +6,7 @@ import {
   createFiatTransaction,
   getUserById,
   prisma,
+  setStripeCustomerId,
   updateFiatTransactionServicePaymentId,
 } from "@/lib/db";
 import { User } from "@/prisma/generated/client";
@@ -59,14 +60,9 @@ export async function createStripeCheckoutSession(
 }
 
 export async function createStripeCustomer(user: User) {
-  return await prisma.$transaction(async (tx) => {
-    if (!user.stripeCustomerId) {
-      const customer = await createCustomer(user.email);
-      return await tx.user.update({
-        where: { id: user.id },
-        data: { stripeCustomerId: customer.id },
-      });
-    }
-    return user;
-  });
+  if (!user.stripeCustomerId) {
+    const customer = await createCustomer(user.email);
+    return await setStripeCustomerId(user.id, customer.id);
+  }
+  return user;
 }
