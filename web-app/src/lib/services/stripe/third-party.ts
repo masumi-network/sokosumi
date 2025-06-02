@@ -118,7 +118,6 @@ export async function getPromotionCode(
     customer: customerId,
     limit: 1,
   });
-  console.log("promotionCodes", promotionCodes);
   if (promotionCodes.data.length > 0) {
     return promotionCodes.data[0];
   }
