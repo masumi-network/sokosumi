@@ -2,6 +2,7 @@
 
 import Stripe from "stripe";
 
+import { getEnvSecrets } from "@/config/env.config";
 import { verifyUserId } from "@/lib/auth/utils";
 import {
   convertCreditsToCents,
@@ -60,12 +61,22 @@ export async function createStripeCheckoutSession(
   });
 }
 
-export async function getPromotionCode(
+export async function getWelcomePromotionCode(
+  userId: string,
+): Promise<Stripe.PromotionCode | null> {
+  const couponId = getEnvSecrets().STRIPE_WELCOME_COUPON;
+  if (!couponId) {
+    return null;
+  }
+  return await getPromotionCode(userId, couponId, 1);
+}
+
+async function getPromotionCode(
   userId: string,
   couponId: string,
   maxRedemptions: number = 1,
   metadata?: Record<string, string>,
-): Promise<Stripe.PromotionCode> {
+): Promise<Stripe.PromotionCode | null> {
   await verifyUserId(userId);
   const user = await getUserById(userId);
   if (!user) {

@@ -5,7 +5,7 @@ import { getTranslations } from "next-intl/server";
 import { Button } from "@/components/ui/button";
 import { getSession } from "@/lib/auth/utils";
 import { getUserById } from "@/lib/db";
-import { canClaimFreeCredits, getCredits } from "@/lib/services";
+import { getCredits, getWelcomePromotionCode } from "@/lib/services";
 
 import FreeCreditsButton from "./free-credits-button";
 
@@ -31,11 +31,11 @@ export default async function UserCredits() {
   }
 
   const credits = await getCredits(session.user.id);
-  const claimable = await canClaimFreeCredits(session.user.id);
+  const promotionCode = await getWelcomePromotionCode(session.user.id);
 
   return (
     <div className="flex items-center gap-4">
-      {claimable ? (
+      {promotionCode?.active ? (
         <FreeCreditsButton />
       ) : (
         credits <= 50.0 && (
