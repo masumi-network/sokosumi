@@ -18,7 +18,6 @@ export async function createFiatTransaction(
     data: {
       userId,
       cents,
-      centsPerAmount: null,
       amount,
       currency,
     },

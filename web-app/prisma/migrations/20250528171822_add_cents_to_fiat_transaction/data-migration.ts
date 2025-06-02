@@ -3,26 +3,15 @@ import { PrismaClient } from "@/prisma/generated/client";
 const prisma = new PrismaClient();
 
 async function main() {
-  // find all fiat transactions without cents
-  const fiatTransactions = await prisma.fiatTransaction.findMany({
-    where: {
-      cents: 0,
-    },
-  });
-  console.log(
-    `Found ${fiatTransactions.length} fiat transactions without cents`,
-  );
+  // Use raw SQL to update cents based on centsPerAmount and amount
+  // This works with the schema as it existed at this migration time
+  const result = await prisma.$executeRaw`
+    UPDATE "FiatTransaction" 
+    SET "cents" = COALESCE("centsPerAmount", 0) * "amount"
+    WHERE "cents" = 0 AND "centsPerAmount" IS NOT NULL
+  `;
 
-  for (const fiatTransaction of fiatTransactions) {
-    await prisma.$transaction(async (tx) => {
-      const { centsPerAmount, amount } = fiatTransaction;
-      const cents = (centsPerAmount ?? BigInt(0)) * BigInt(amount);
-      await tx.fiatTransaction.update({
-        where: { id: fiatTransaction.id },
-        data: { cents },
-      });
-    });
-  }
+  console.log(`Updated ${result} fiat transactions with calculated cents`);
 }
 
 main()
