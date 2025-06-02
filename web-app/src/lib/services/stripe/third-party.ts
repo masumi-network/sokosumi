@@ -65,7 +65,6 @@ export async function createCheckoutSession(
 }> {
   const headerList = await headers();
   const origin = headerList.get("origin");
-  console.log("promotionCode", promotionCode);
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     line_items: [
