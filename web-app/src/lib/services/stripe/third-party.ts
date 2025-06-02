@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.config"; // Ensure this path is correct
+import { setStripeCustomerId } from "@/lib/db";
 import { User } from "@/prisma/generated/client";
 
 const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
@@ -99,9 +100,11 @@ export async function constructEvent(req: Request, stripeSignature: string) {
 }
 
 async function createCustomer(email: string): Promise<Stripe.Customer> {
-  return await stripe.customers.create({
+  const customer = await stripe.customers.create({
     email: email,
   });
+  await setStripeCustomerId(email, customer.id);
+  return customer;
 }
 
 export async function getPromotionCode(

@@ -33,12 +33,12 @@ export async function setUserMarketingOptIn(
 }
 
 export async function setStripeCustomerId(
-  userId: string,
+  email: string,
   stripeCustomerId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<User> {
   return await tx.user.update({
-    where: { id: userId },
+    where: { email },
     data: { stripeCustomerId },
   });
 }

@@ -6,16 +6,10 @@ import {
   createFiatTransaction,
   getUserById,
   prisma,
-  setStripeCustomerId,
   updateFiatTransactionServicePaymentId,
 } from "@/lib/db";
-import { User } from "@/prisma/generated/client";
 
-import {
-  createCheckoutSession,
-  createCustomer,
-  getConversionFactors,
-} from "./third-party";
+import { createCheckoutSession, getConversionFactors } from "./third-party";
 
 export async function createStripeCheckoutSession(
   userId: string,
@@ -57,12 +51,4 @@ export async function createStripeCheckoutSession(
     );
     return { stripeSessionId, url };
   });
-}
-
-export async function createStripeCustomer(user: User) {
-  if (!user.stripeCustomerId) {
-    const customer = await createCustomer(user.email);
-    return await setStripeCustomerId(user.id, customer.id);
-  }
-  return user;
 }
