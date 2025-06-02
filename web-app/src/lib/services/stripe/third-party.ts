@@ -3,7 +3,7 @@
 import { headers } from "next/headers";
 import Stripe from "stripe";
 
-import { getEnvPublicConfig, getEnvSecrets } from "@/config/env.config"; // Ensure this path is correct
+import { getEnvSecrets } from "@/config/env.config"; // Ensure this path is correct
 import { User } from "@/prisma/generated/client";
 
 const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
@@ -21,7 +21,6 @@ const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 export async function getConversionFactors(
   priceId: string = getEnvSecrets().STRIPE_PRICE_ID,
 ): Promise<{
-  centsPerAmount: bigint;
   amountPerCredit: number;
   currency: string;
 }> {
@@ -37,9 +36,6 @@ export async function getConversionFactors(
       throw new Error("Stripe price currency is not USD.");
     }
     const result = {
-      centsPerAmount: BigInt(
-        10 ** getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BASE / price.unit_amount,
-      ),
       amountPerCredit: price.unit_amount,
       currency: price.currency,
     };
