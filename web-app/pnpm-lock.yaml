@@ -12,8 +12,8 @@ importers:
         specifier: 0.2.5
         version: 0.2.5
       '@hey-api/client-fetch':
-        specifier: 0.10.2
-        version: 0.10.2(@hey-api/openapi-ts@0.69.1(typescript@5.8.3))
+        specifier: 0.11.0
+        version: 0.11.0(@hey-api/openapi-ts@0.69.1(typescript@5.8.3))
       '@hey-api/client-next':
         specifier: 0.4.0
         version: 0.4.0(@hey-api/openapi-ts@0.69.1(typescript@5.8.3))
@@ -755,8 +755,8 @@ packages:
   '@hexagon/base64@1.1.28':
     resolution: {integrity: sha512-lhqDEAvWixy3bZ+UOYbPwUbBkwBq5C1LAJ/xPC8Oi+lL54oyakv/npbA0aU2hgCsx/1NUd4IBvV03+aUBWxerw==}
 
-  '@hey-api/client-fetch@0.10.2':
-    resolution: {integrity: sha512-AGiFYDx+y8VT1wlQ3EbzzZtfU8EfV+hLLRTtr8Y/tjYZaxIECwJagVZf24YzNbtEBXONFV50bwcU1wLVGXe1ow==}
+  '@hey-api/client-fetch@0.11.0':
+    resolution: {integrity: sha512-Wafgv5BMCVjdYPgE60CL8NSC6Fi3j3PZYES8Qg23xO+9JNrjN5PguOIHQS2FMKaZ8jMtpa3S4I3ni0XBh/VeSg==}
     peerDependencies:
       '@hey-api/openapi-ts': < 2
 
@@ -6358,7 +6358,7 @@ snapshots:
 
   '@hexagon/base64@1.1.28': {}
 
-  '@hey-api/client-fetch@0.10.2(@hey-api/openapi-ts@0.69.1(typescript@5.8.3))':
+  '@hey-api/client-fetch@0.11.0(@hey-api/openapi-ts@0.69.1(typescript@5.8.3))':
     dependencies:
       '@hey-api/openapi-ts': 0.69.1(typescript@5.8.3)
 
