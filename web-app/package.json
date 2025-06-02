@@ -1,7 +1,7 @@
 {
   "name": "sokosumi-web",
   "version": "0.1.0",
-  "packageManager": "pnpm@10.11.0",
+  "packageManager": "pnpm@10.11.1",
   "engines": {
     "node": ">=20.0.0"
   },
@@ -100,8 +100,8 @@
     "recharts": "2.15.3",
     "resend": "4.5.1",
     "slugify": "^1.6.6",
-    "sonner": "2.0.4",
-    "stripe": "18.2.0",
+    "sonner": "2.0.5",
+    "stripe": "18.2.1",
     "tailwind-merge": "3.3.0",
     "tailwindcss-animate": "1.0.7",
     "ts-res": "1.3.0",
@@ -109,11 +109,11 @@
     "use-debounce": "10.0.4",
     "uuid": "11.1.0",
     "vaul": "1.1.2",
-    "zod": "3.25.47"
+    "zod": "3.25.48"
   },
   "devDependencies": {
     "@eslint/eslintrc": "3.3.1",
-    "@hey-api/openapi-ts": "0.69.1",
+    "@hey-api/openapi-ts": "0.69.2",
     "@noble/hashes": "1.8.0",
     "@swc/core": "1.11.29",
     "@swc/helpers": "0.5.17",
