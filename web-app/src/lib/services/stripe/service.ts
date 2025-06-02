@@ -1,5 +1,7 @@
 "use server";
 
+import Stripe from "stripe";
+
 import { verifyUserId } from "@/lib/auth/utils";
 import {
   convertCreditsToCents,
@@ -9,7 +11,12 @@ import {
   updateFiatTransactionServicePaymentId,
 } from "@/lib/db";
 
-import { createCheckoutSession, getConversionFactors } from "./third-party";
+import {
+  createCheckoutSession,
+  createCustomer,
+  getConversionFactors,
+  getOrCreatePromotionCode,
+} from "./third-party";
 
 export async function createStripeCheckoutSession(
   userId: string,
@@ -51,4 +58,26 @@ export async function createStripeCheckoutSession(
     );
     return { stripeSessionId, url };
   });
+}
+
+export async function getPromotionCode(
+  userId: string,
+  couponId: string,
+  maxRedemptions: number = 1,
+  metadata?: Record<string, string>,
+): Promise<Stripe.PromotionCode> {
+  await verifyUserId(userId);
+  const user = await getUserById(userId);
+  if (!user) {
+    throw new Error("User not found");
+  }
+  let stripeCustomerId = user.stripeCustomerId;
+  stripeCustomerId ??= await createCustomer(user);
+
+  return await getOrCreatePromotionCode(
+    stripeCustomerId,
+    couponId,
+    maxRedemptions,
+    metadata,
+  );
 }

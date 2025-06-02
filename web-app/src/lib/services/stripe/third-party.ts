@@ -99,25 +99,18 @@ export async function constructEvent(req: Request, stripeSignature: string) {
   );
 }
 
-async function createCustomer(email: string): Promise<Stripe.Customer> {
-  const customer = await stripe.customers.create({
-    email: email,
-  });
-  await setStripeCustomerId(email, customer.id);
-  return customer;
+export async function createCustomer(user: User): Promise<string> {
+  const customer = await stripe.customers.create({ email: user.email });
+  await setStripeCustomerId(user.id, customer.id);
+  return customer.id;
 }
 
-export async function getPromotionCode(
-  user: User,
+export async function getOrCreatePromotionCode(
+  customerId: string,
   couponId: string,
   maxRedemptions: number = 1,
   metadata?: Record<string, string>,
 ): Promise<Stripe.PromotionCode> {
-  let customerId = user.stripeCustomerId;
-  if (!customerId) {
-    const customer = await createCustomer(user.email);
-    customerId = customer.id;
-  }
   const promotionCodes = await stripe.promotionCodes.list({
     coupon: couponId,
     customer: customerId,
