@@ -33,6 +33,15 @@ export async function createOrganization(
 export async function getOrganizationBySlug(
   slug: string,
   tx: Prisma.TransactionClient = prisma,
+): Promise<Organization | null> {
+  return await tx.organization.findUnique({
+    where: { slug },
+  });
+}
+
+export async function getOrganizationBySlugWithRelations(
+  slug: string,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<OrganizationWithRelations | null> {
   return await tx.organization.findUnique({
     where: { slug },

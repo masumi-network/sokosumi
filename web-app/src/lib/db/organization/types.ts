@@ -8,10 +8,6 @@ export const organizationMembersCountInclude = {
   },
 } as const;
 
-export const organizationMembersInclude = {
-  members: true,
-} as const;
-
 export const organizationOrderBy = {
   members: {
     _count: "desc",
@@ -24,7 +20,6 @@ export type OrganizationWithMembersCount = Prisma.OrganizationGetPayload<{
 
 export const organizationInclude = {
   ...organizationMembersCountInclude,
-  ...organizationMembersInclude,
 } as const;
 
 export type OrganizationWithRelations = Prisma.OrganizationGetPayload<{

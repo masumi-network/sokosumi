@@ -3,7 +3,11 @@
 import { nanoid } from "nanoid";
 import slugify from "slugify";
 
-import { getOrganizationBySlug } from "@/lib/db";
+import { getSessionOrThrow } from "@/lib/auth/utils";
+import {
+  getMemberByUserIdAndOrganizationId,
+  getOrganizationBySlug,
+} from "@/lib/db";
 
 export async function generateOrganizationSlugFromName(name: string) {
   const slugedName = slugify(name, { lower: true, strict: true });
@@ -14,4 +18,18 @@ export async function generateOrganizationSlugFromName(name: string) {
 
   const uniqueId = nanoid(6);
   return `${slugedName}-${uniqueId}`;
+}
+
+export async function isMemberOfOrganization(
+  organizationId: string,
+): Promise<boolean> {
+  const session = await getSessionOrThrow();
+  const userId = session.user.id;
+
+  const member = await getMemberByUserIdAndOrganizationId(
+    userId,
+    organizationId,
+  );
+
+  return !!member;
 }

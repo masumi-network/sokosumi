@@ -589,7 +589,7 @@
       },
       "OrganizationDetail": {
         "Metadata": {
-          "title": "Organization Details",
+          "title": "{name}",
           "description": "Manage your organization"
         },
         "title": "{name}"

@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 
 import { getSession } from "@/lib/auth/utils";
 import { getOrganizationBySlug } from "@/lib/db";
+import { isMemberOfOrganization } from "@/lib/services";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations(
@@ -25,20 +26,17 @@ export default async function OrganizationPage({
 
   const session = await getSession();
   if (!session) {
-    return redirect("/login");
+    redirect("/login");
   }
-  const userId = session.user.id;
 
   const organization = await getOrganizationBySlug(organizationSlug);
   if (!organization) {
     return notFound();
   }
 
-  const inOrganization = organization.members.some(
-    (member) => member.userId == userId,
-  );
-  if (!inOrganization) {
-    return redirect("/app/organizations");
+  const isMember = await isMemberOfOrganization(organization.id);
+  if (!isMember) {
+    redirect("/app/organizations");
   }
 
   return (
