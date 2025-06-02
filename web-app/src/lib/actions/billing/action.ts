@@ -3,11 +3,7 @@
 import { getEnvSecrets } from "@/config/env.config";
 import { getSessionOrThrow } from "@/lib/auth/utils";
 import { getUserById } from "@/lib/db";
-import {
-  createStripeCheckoutSession,
-  createStripeCustomer,
-  getPromotionCode,
-} from "@/lib/services";
+import { createStripeCheckoutSession, getPromotionCode } from "@/lib/services";
 
 export async function claimFreeCredits(): Promise<{
   success: boolean;
@@ -19,7 +15,7 @@ export async function claimFreeCredits(): Promise<{
     const session = await getSessionOrThrow();
 
     // Get the full user from database to check stripeCustomerId
-    let user = await getUserById(session.user.id);
+    const user = await getUserById(session.user.id);
     if (!user) {
       return {
         success: false,
@@ -27,19 +23,8 @@ export async function claimFreeCredits(): Promise<{
       };
     }
 
-    // Check if the user already has a Stripe Welcome Promotion Code
-    if (!user.stripeCustomerId) {
-      user = await createStripeCustomer(user);
-    }
-
-    if (!user.stripeCustomerId) {
-      return {
-        success: false,
-        error: "Stripe customer ID not found",
-      };
-    }
     const promotionCode = await getPromotionCode(
-      user.stripeCustomerId,
+      user,
       getEnvSecrets().STRIPE_WELCOME_COUPON,
     );
 
