@@ -1,6 +1,5 @@
 "use server";
 
-import { createCheckoutSession, getConversionFactors } from "@/lib/actions";
 import { verifyUserId } from "@/lib/auth/utils";
 import {
   createFiatTransaction,
@@ -8,6 +7,8 @@ import {
   prisma,
   updateFiatTransactionServicePaymentId,
 } from "@/lib/db";
+
+import { createCheckoutSession, getConversionFactors } from "./third-party";
 
 export async function createStripeCheckoutSession(
   userId: string,

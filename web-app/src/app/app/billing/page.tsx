@@ -1,6 +1,6 @@
 import BillingForm from "@/components/billing/billing-form";
 import { getEnvSecrets } from "@/config/env.config";
-import { getConversionFactors } from "@/lib/actions";
+import { getConversionFactors } from "@/lib/services";
 
 export default async function BillingPage() {
   const priceId = getEnvSecrets().STRIPE_PRICE_ID;

@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-import { constructEvent } from "@/lib/actions/stripe/action";
 import {
   getFiatTransactionByServicePaymentId,
   prisma,
   setFiatTransactionStatusToFailed,
   setFiatTransactionStatusToSucceeded,
 } from "@/lib/db";
+import { constructEvent } from "@/lib/services";
 import { FiatTransactionStatus } from "@/prisma/generated/client";
 
 export async function POST(req: Request) {
