@@ -108,9 +108,7 @@ export async function getPromotionCode(
   customerId: string,
   couponId: string,
   maxRedemptions: number = 1,
-  metadata: Record<string, string> = {
-    type: "welcome_bonus",
-  },
+  metadata?: Record<string, string>,
 ): Promise<Stripe.PromotionCode> {
   const promotionCodes = await stripe.promotionCodes.list({
     coupon: couponId,
