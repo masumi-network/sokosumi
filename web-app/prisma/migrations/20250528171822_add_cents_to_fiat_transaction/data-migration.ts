@@ -3,7 +3,7 @@ import { PrismaClient } from "@/prisma/generated/client";
 const prisma = new PrismaClient();
 
 async function main() {
-  // find all users without member
+  // find all fiat transactions without cents
   const fiatTransactions = await prisma.fiatTransaction.findMany({
     where: {
       cents: 0,
