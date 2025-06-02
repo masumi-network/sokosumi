@@ -2,6 +2,7 @@
 
 import { verifyUserId } from "@/lib/auth/utils";
 import {
+  convertCreditsToCents,
   createFiatTransaction,
   getUserById,
   prisma,
@@ -12,7 +13,7 @@ import { createCheckoutSession, getConversionFactors } from "./third-party";
 
 export async function createStripeCheckoutSession(
   userId: string,
-  cents: bigint,
+  credits: number,
   priceId: string,
   coupon: string | null = null,
 ): Promise<{ stripeSessionId: string; url: string }> {
@@ -26,10 +27,11 @@ export async function createStripeCheckoutSession(
       throw new Error("User not found");
     }
     const conversionFactorsPerCredit = await getConversionFactors(priceId);
+    const amount = credits * conversionFactorsPerCredit.amountPerCredit;
     const fiatTransaction = await createFiatTransaction(
       userId,
-      cents,
-      conversionFactorsPerCredit.centsPerAmount,
+      convertCreditsToCents(credits),
+      amount,
       conversionFactorsPerCredit.currency,
       tx,
     );

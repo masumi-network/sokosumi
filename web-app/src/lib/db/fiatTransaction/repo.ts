@@ -10,7 +10,7 @@ import {
 export async function createFiatTransaction(
   userId: string,
   cents: bigint,
-  centsPerAmount: bigint,
+  amount: number,
   currency: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<FiatTransaction> {
@@ -19,7 +19,7 @@ export async function createFiatTransaction(
       userId,
       cents,
       centsPerAmount: null,
-      amount: cents / centsPerAmount,
+      amount,
       currency,
     },
   });

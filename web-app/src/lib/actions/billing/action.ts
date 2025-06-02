@@ -2,7 +2,7 @@
 
 import { getEnvSecrets } from "@/config/env.config";
 import { getSessionOrThrow } from "@/lib/auth/utils";
-import { convertCreditsToCents, getUserById } from "@/lib/db";
+import { getUserById } from "@/lib/db";
 import { createStripeCheckoutSession } from "@/lib/services";
 
 export async function claimFreeCredits(): Promise<{
@@ -34,7 +34,7 @@ export async function claimFreeCredits(): Promise<{
     // Create the checkout session
     const { url } = await createStripeCheckoutSession(
       user.id,
-      convertCreditsToCents(100),
+      100,
       getEnvSecrets().STRIPE_PRICE_ID,
       getEnvSecrets().STRIPE_WELCOME_COUPON,
     );
@@ -75,7 +75,7 @@ export async function purchaseCredits(
     // Create the checkout session
     const { url } = await createStripeCheckoutSession(
       session.user.id,
-      convertCreditsToCents(credits),
+      credits,
       priceId,
     );
 
