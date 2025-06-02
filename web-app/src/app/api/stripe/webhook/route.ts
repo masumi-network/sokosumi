@@ -1,16 +1,14 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-import { getEnvSecrets } from "@/config/env.config";
 import {
   getFiatTransactionByServicePaymentId,
   prisma,
   setFiatTransactionStatusToFailed,
   setFiatTransactionStatusToSucceeded,
 } from "@/lib/db";
+import { constructEvent } from "@/lib/services";
 import { FiatTransactionStatus } from "@/prisma/generated/client";
-
-const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
 export async function POST(req: Request) {
   let event: Stripe.Event;
@@ -18,11 +16,7 @@ export async function POST(req: Request) {
   try {
     const stripeSignature = req.headers.get("stripe-signature");
 
-    event = stripe.webhooks.constructEvent(
-      await req.text(),
-      stripeSignature as string,
-      getEnvSecrets().STRIPE_WEBHOOK_SECRET,
-    );
+    event = await constructEvent(req, stripeSignature as string);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.log(`❌ Error message: ${message}`);
@@ -71,7 +65,9 @@ export async function POST(req: Request) {
             { status: 200 },
           );
       }
-    } catch {
+    } catch (error) {
+      console.log(`🔍 Webhook handler failed for event: ${event.type}`);
+      console.log(`🔍 Error: ${error}`);
       return NextResponse.json(
         { message: "Webhook handler failed" },
         { status: 500 },
@@ -151,6 +147,20 @@ const updateFiatTransactionStatus = async (
   session: Stripe.Checkout.Session,
   status: "SUCCEEDED" | "FAILED",
 ): Promise<NextResponse> => {
+  const amountTotal = session.amount_total;
+  if (amountTotal === null) {
+    return NextResponse.json(
+      { message: `Session amount total is null for session ${session.id}` },
+      { status: 500 },
+    );
+  }
+  const currency = session.currency;
+  if (currency === null) {
+    return NextResponse.json(
+      { message: `Session currency is null for session ${session.id}` },
+      { status: 500 },
+    );
+  }
   return await prisma.$transaction(async (tx) => {
     const fiatTransaction = await getFiatTransactionByServicePaymentId(
       session.id,
@@ -182,7 +192,12 @@ const updateFiatTransactionStatus = async (
     try {
       switch (status) {
         case "SUCCEEDED":
-          await setFiatTransactionStatusToSucceeded(fiatTransaction, tx);
+          await setFiatTransactionStatusToSucceeded(
+            fiatTransaction,
+            BigInt(amountTotal),
+            currency,
+            tx,
+          );
           return NextResponse.json(
             {
               message: `Fiat transaction ${fiatTransaction.id} status changed to SUCCEEDED`,
@@ -190,7 +205,12 @@ const updateFiatTransactionStatus = async (
             { status: 200 },
           );
         case "FAILED":
-          await setFiatTransactionStatusToFailed(fiatTransaction, tx);
+          await setFiatTransactionStatusToFailed(
+            fiatTransaction,
+            BigInt(amountTotal),
+            currency,
+            tx,
+          );
           return NextResponse.json(
             {
               message: `Fiat transaction ${fiatTransaction.id} status changed to FAILED`,

@@ -1,7 +1,6 @@
 import { v4 as uuidv4 } from "uuid";
 
 import { getEnvPublicConfig, getEnvSecrets } from "@/config/env.config";
-import { convertCreditsToCents } from "@/lib/db";
 import { usdmUnit } from "@/lib/utils";
 import { PrismaClient } from "@/prisma/generated/client";
 
@@ -48,14 +47,6 @@ const seedUser = async (): Promise<string> => {
     },
   });
   console.log(`Account created with id ${account.id}`);
-
-  const creditTransaction = await prisma.creditTransaction.create({
-    data: {
-      amount: convertCreditsToCents(1000.5123),
-      userId: user.id,
-    },
-  });
-  console.log(`Credit transaction created with id ${creditTransaction.id}`);
   return user.id;
 };
 

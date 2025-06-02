@@ -498,6 +498,37 @@
         "buy": "Buy Credits"
       }
     },
+    "Billing": {
+      "title": "Billing",
+      "description": "Manage your billing settings and preferences",
+      "topUpTitle": "Top-up Credits",
+      "topUpDescription": "Add credits to your account balance.",
+      "costPerCredit": "1 Credit = {cost}",
+      "creditAmount": "{count, plural, =1 {# credit} other {# credits}}",
+      "amountToTopUpLabel": "Amount to Top Up",
+      "customAmountPlaceholder": "Enter amount",
+      "topUpButton": "Top Up",
+      "Error": {
+        "title": "Something Went Wrong",
+        "message": "We encountered an error loading the billing information.",
+        "retryButton": "Try again"
+      },
+      "Success": {
+        "title": "Payment Successful!",
+        "description": "Your credit purchase was successful. Thank you!",
+        "fulfillmentNote": "Your credits will be added to your account shortly. You can check your balance on the billing page.",
+        "backToDashboard": "Browse Agents"
+      },
+      "Cancel": {
+        "title": "Payment Cancelled",
+        "description": "Your payment process was cancelled. You have not been charged.",
+        "backToBilling": "Back to Billing"
+      },
+      "FreeClaim": {
+        "button": "Get 100 free credits",
+        "error": "Failed to claim free credits"
+      }
+    },
     "Account": {
       "title": "Account Settings",
       "description": "Manage your account settings and preferences",
@@ -554,33 +585,6 @@
       },
       "OrganizationDetail": {
         "title": "{name}"
-      }
-    },
-    "Billing": {
-      "title": "Billing",
-      "description": "Manage your billing settings and preferences",
-      "topUpTitle": "Top-up Credits",
-      "topUpDescription": "Add credits to your account balance.",
-      "costPerCredit": "1 Credit = {cost}",
-      "creditAmount": "{count, plural, =1 {# credit} other {# credits}}",
-      "amountToTopUpLabel": "Amount to Top Up",
-      "customAmountPlaceholder": "Enter amount",
-      "topUpButton": "Top Up",
-      "Error": {
-        "title": "Something Went Wrong",
-        "message": "We encountered an error loading the billing information.",
-        "retryButton": "Try again"
-      },
-      "Success": {
-        "title": "Payment Successful!",
-        "description": "Your credit purchase was successful. Thank you!",
-        "fulfillmentNote": "Your credits will be added to your account shortly. You can check your balance on the billing page.",
-        "backToDashboard": "Browse Agents"
-      },
-      "Cancel": {
-        "title": "Payment Cancelled",
-        "description": "Your payment process was cancelled. You have not been charged.",
-        "backToBilling": "Back to Billing"
       }
     },
     "Agents": {

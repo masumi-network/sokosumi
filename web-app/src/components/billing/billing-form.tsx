@@ -3,6 +3,7 @@
 import { Loader2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -15,18 +16,15 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { convertCreditsToCents } from "@/lib/db";
-import { createStripeCheckoutSession } from "@/lib/services";
+import { purchaseCredits } from "@/lib/actions";
 
 interface BillingFormProps {
-  userId: string;
   priceId: string;
   amountPerCredit: number;
   currency: string;
 }
 
 export default function BillingForm({
-  userId,
   priceId,
   amountPerCredit,
   currency,
@@ -37,22 +35,21 @@ export default function BillingForm({
   const [loading, setLoading] = useState(false);
 
   const handleTopUp = async (credits: number | null) => {
-    console.log("Topping up credits:", credits);
     if (!credits || credits <= 0) {
       return;
     }
     setLoading(true);
     try {
-      const { stripeSessionId, url } = await createStripeCheckoutSession(
-        userId,
-        priceId,
-        convertCreditsToCents(credits),
-      );
+      const result = await purchaseCredits(credits, priceId);
 
-      console.log("Checkout session created:", stripeSessionId, url);
-      window.location.href = url;
+      if (result.success && result.url) {
+        window.location.href = result.url;
+      } else {
+        toast.error(result.error ?? "Failed to create checkout");
+      }
     } catch (error) {
       console.error("Failed to create checkout session:", error);
+      toast.error("An unexpected error occurred");
     } finally {
       setLoading(false);
     }

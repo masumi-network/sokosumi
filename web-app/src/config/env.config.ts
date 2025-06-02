@@ -1,6 +1,6 @@
 /* eslint-disable no-restricted-properties */
 import { v4 as uuidv4 } from "uuid";
-import { z } from "zod";
+import z from "zod";
 
 /**
  * Specify your environment variables schema here.
@@ -10,7 +10,6 @@ const envSecretsSchema = z.object({
   // Database
   DATABASE_URL: z.string().url(),
   MIN_FEE_CREDITS: z.number({ coerce: true }).min(0).default(1),
-  FREE_CREDITS_ON_SIGNUP: z.number({ coerce: true }).min(0).default(0),
   ALLOWED_EMAIL_DOMAINS: z
     .string()
     .default("")
@@ -30,6 +29,7 @@ const envSecretsSchema = z.object({
   STRIPE_SECRET_KEY: z.string().min(1),
   STRIPE_WEBHOOK_SECRET: z.string().min(1),
   STRIPE_PRICE_ID: z.string().min(1),
+  STRIPE_WELCOME_COUPON: z.string().min(1),
 
   // Seed
   SEED_DATABASE: z

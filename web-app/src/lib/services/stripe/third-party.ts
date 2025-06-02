@@ -62,6 +62,7 @@ export async function createCheckoutSession(
   fiatTransactionId: string,
   priceId: string,
   quantity: number,
+  coupon: string | null,
 ): Promise<{
   id: string;
   url: string;
@@ -77,7 +78,9 @@ export async function createCheckoutSession(
         quantity: quantity,
       },
     ],
-    allow_promotion_codes: true,
+    ...(coupon
+      ? { discounts: [{ coupon: coupon }] }
+      : { allow_promotion_codes: true }),
     client_reference_id: fiatTransactionId,
     ...(user.stripeCustomerId
       ? { customer: user.stripeCustomerId }
@@ -90,4 +93,12 @@ export async function createCheckoutSession(
     throw new Error("Stripe session URL is null");
   }
   return { id: session.id, url: session.url };
+}
+
+export async function constructEvent(req: Request, stripeSignature: string) {
+  return stripe.webhooks.constructEvent(
+    await req.text(),
+    stripeSignature,
+    getEnvSecrets().STRIPE_WEBHOOK_SECRET,
+  );
 }

@@ -10,15 +10,16 @@ import {
 export async function createFiatTransaction(
   userId: string,
   cents: bigint,
-  centsPerAmount: bigint,
+  amount: number,
   currency: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<FiatTransaction> {
   return await tx.fiatTransaction.create({
     data: {
       userId,
-      centsPerAmount,
-      amount: cents / centsPerAmount,
+      cents,
+      centsPerAmount: null,
+      amount,
       currency,
     },
   });
@@ -46,16 +47,20 @@ export async function updateFiatTransactionServicePaymentId(
 
 export async function setFiatTransactionStatusToSucceeded(
   fiatTransaction: FiatTransaction,
+  amount: bigint,
+  currency: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<FiatTransaction> {
   return await tx.fiatTransaction.update({
     where: { id: fiatTransaction.id },
     data: {
       status: FiatTransactionStatus.SUCCEEDED,
+      amount,
+      currency,
       creditTransaction: {
         create: {
           userId: fiatTransaction.userId,
-          amount: fiatTransaction.amount * fiatTransaction.centsPerAmount,
+          amount: fiatTransaction.cents,
         },
       },
     },
@@ -64,10 +69,12 @@ export async function setFiatTransactionStatusToSucceeded(
 
 export async function setFiatTransactionStatusToFailed(
   fiatTransaction: FiatTransaction,
+  amount: bigint,
+  currency: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<FiatTransaction> {
   return await tx.fiatTransaction.update({
     where: { id: fiatTransaction.id },
-    data: { status: FiatTransactionStatus.FAILED },
+    data: { status: FiatTransactionStatus.FAILED, amount, currency },
   });
 }
