@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 
-import { EditFormSchemaType as OrganizationInformationEditFormSchemaType } from "@/components/organizations";
 import { isUnAuthorizedError } from "@/lib/auth/errors";
 import { getSession } from "@/lib/auth/utils";
 import {
@@ -19,7 +18,7 @@ import {
   findMemberInOrganization,
   generateOrganizationSlugFromName,
 } from "@/lib/services";
-import { Organization, Role } from "@/prisma/generated/client";
+import { Organization, Prisma, Role } from "@/prisma/generated/client";
 
 import {
   LeaveOrganizationErrorCodes,
@@ -122,7 +121,7 @@ export async function leaveOrganization(
 
 export async function updateOrganizationInformation(
   organizationId: string,
-  data: OrganizationInformationEditFormSchemaType,
+  data: Prisma.OrganizationUpdateInput,
 ): Promise<{ success: false; error: { code: string } } | { success: true }> {
   try {
     // check membership
@@ -147,11 +146,7 @@ export async function updateOrganizationInformation(
     }
 
     // update organization information
-    const updatedOrganization = await updateOrganization(organizationId, {
-      name: data.name,
-      metadata: data.metadata === "" ? undefined : data.metadata,
-      requiredEmailDomains: data.requiredEmailDomains,
-    });
+    const updatedOrganization = await updateOrganization(organizationId, data);
 
     // revalidate the organization page
     revalidatePath(`/app/organizations/${updatedOrganization.slug}`);

@@ -27,7 +27,11 @@ export default function OrganizationInformationEditForm({
   const t = useTranslations("Components.Organization.Edit.Form");
 
   const onSubmit = async (values: EditFormSchemaType) => {
-    const result = await updateOrganizationInformation(organizationId, values);
+    const result = await updateOrganizationInformation(organizationId, {
+      name: values.name,
+      metadata: values.metadata === "" ? undefined : values.metadata,
+      requiredEmailDomains: values.requiredEmailDomains,
+    });
     if (!result.success) {
       switch (result.error.code) {
         case UpdateOrganizationInformationErrorCodes.NOT_AUTHENTICATED:
