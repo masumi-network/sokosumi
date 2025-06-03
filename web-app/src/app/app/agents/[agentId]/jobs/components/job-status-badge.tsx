@@ -15,7 +15,7 @@ export default function JobStatusBadge({
   status,
   className,
 }: JobStatusBadgeProps) {
-  const t = useTranslations("App.Agents.Jobs.JobsTable.JobStatusBadge");
+  const t = useTranslations("App.Agents.Jobs.StatusBadge");
   switch (status) {
     case JobStatus.COMPLETED:
       return (
@@ -57,7 +57,7 @@ export default function JobStatusBadge({
       return (
         <Badge
           variant="default"
-          className={cn("bg-blue-100 text-blue-800", className)}
+          className={cn("bg-sky-100 text-sky-800", className)}
         >
           {t("processing")}
         </Badge>
@@ -84,7 +84,7 @@ export default function JobStatusBadge({
       return (
         <Badge
           variant="default"
-          className={cn("bg-green-100 text-green-800", className)}
+          className={cn("bg-purple-100 text-purple-800", className)}
         >
           {t("refundResolved")}
         </Badge>
@@ -102,9 +102,18 @@ export default function JobStatusBadge({
       return (
         <Badge
           variant="default"
-          className={cn("bg-green-100 text-green-800", className)}
+          className={cn("bg-purple-100 text-purple-800", className)}
         >
           {t("disputeResolved")}
+        </Badge>
+      );
+    case JobStatus.OUTPUT_PENDING:
+      return (
+        <Badge
+          variant="default"
+          className={cn("bg-red-100 text-red-800", className)}
+        >
+          {t("outputPending")}
         </Badge>
       );
     default:
