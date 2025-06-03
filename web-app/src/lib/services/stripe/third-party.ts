@@ -110,19 +110,24 @@ export async function getOrCreatePromotionCode(
   couponId: string,
   maxRedemptions: number = 1,
   metadata?: Record<string, string>,
-): Promise<Stripe.PromotionCode> {
-  const promotionCodes = await stripe.promotionCodes.list({
-    coupon: couponId,
-    customer: customerId,
-    limit: 1,
-  });
-  if (promotionCodes.data.length > 0) {
-    return promotionCodes.data[0];
+): Promise<Stripe.PromotionCode | null> {
+  try {
+    const promotionCodes = await stripe.promotionCodes.list({
+      coupon: couponId,
+      customer: customerId,
+      limit: 1,
+    });
+    if (promotionCodes.data.length > 0) {
+      return promotionCodes.data[0];
+    }
+    const promotionCode = await stripe.promotionCodes.create({
+      customer: customerId,
+      coupon: couponId,
+      max_redemptions: maxRedemptions,
+      metadata,
+    });
+    return promotionCode;
+  } catch {
+    return null;
   }
-  return await stripe.promotionCodes.create({
-    customer: customerId,
-    coupon: couponId,
-    max_redemptions: maxRedemptions,
-    metadata,
-  });
 }

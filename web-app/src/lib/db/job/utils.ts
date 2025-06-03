@@ -36,7 +36,7 @@ export function computeJobStatus(job: Job): JobStatus {
         case AgentJobStatus.COMPLETED:
           return JobStatus.COMPLETED;
         default:
-          return JobStatus.PROCESSING;
+          return JobStatus.OUTPUT_PENDING;
       }
     case OnChainJobStatus.FUNDS_WITHDRAWN:
       switch (agentJobStatus) {
@@ -55,8 +55,6 @@ export function computeJobStatus(job: Job): JobStatus {
       return JobStatus.DISPUTE_PENDING;
     case OnChainJobStatus.DISPUTED_WITHDRAWN:
       return JobStatus.DISPUTE_RESOLVED;
-    default:
-      return JobStatus.PROCESSING;
   }
 }
 

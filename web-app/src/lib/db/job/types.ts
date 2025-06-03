@@ -24,13 +24,17 @@ export enum JobErrorNoteKeys {
 
 export enum JobStatus {
   COMPLETED = "completed",
-  FAILED = "failed",
-  PAYMENT_PENDING = "payment_pending",
-  PAYMENT_FAILED = "payment_failed",
   PROCESSING = "processing",
   INPUT_REQUIRED = "input_required",
+  OUTPUT_PENDING = "output_pending", // Result is submitted on-chain, but not available by the agent
+  FAILED = "failed",
+
+  PAYMENT_PENDING = "payment_pending",
+  PAYMENT_FAILED = "payment_failed",
+
   REFUND_PENDING = "refund_pending",
   REFUND_RESOLVED = "refund_resolved",
+
   DISPUTE_PENDING = "dispute_pending",
   DISPUTE_RESOLVED = "dispute_resolved",
 }

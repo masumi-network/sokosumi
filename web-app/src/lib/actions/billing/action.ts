@@ -2,7 +2,10 @@
 
 import { getEnvSecrets } from "@/config/env.config";
 import { getSessionOrThrow } from "@/lib/auth/utils";
-import { createStripeCheckoutSession, getPromotionCode } from "@/lib/services";
+import {
+  createStripeCheckoutSession,
+  getWelcomePromotionCode,
+} from "@/lib/services";
 
 export async function claimFreeCredits(): Promise<{
   success: boolean;
@@ -13,10 +16,13 @@ export async function claimFreeCredits(): Promise<{
     // Get the current user session
     const session = await getSessionOrThrow();
 
-    const promotionCode = await getPromotionCode(
-      session.user.id,
-      getEnvSecrets().STRIPE_WELCOME_COUPON,
-    );
+    const promotionCode = await getWelcomePromotionCode(session.user.id);
+    if (!promotionCode) {
+      return {
+        success: false,
+        error: "Promotion code not found",
+      };
+    }
 
     // Create the checkout session
     const { url } = await createStripeCheckoutSession(

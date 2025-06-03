@@ -1,12 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/db";
-import {
-  CreditTransaction,
-  FiatService,
-  FiatTransactionStatus,
-  Prisma,
-} from "@/prisma/generated/client";
+import { CreditTransaction, Prisma } from "@/prisma/generated/client";
 
 /**
  * Retrieves the total credit balance (in cents) for a given user.
@@ -58,34 +53,4 @@ export async function createCreditTransaction(
       },
     },
   });
-}
-
-/**
- * Checks if a user has claimed free credits.
- *
- * This function checks if the user has succeeded a free credits transaction by querying the database.
- * If the user has succeeded a free credits transaction, it returns true. Otherwise, it returns false.
- *
- * @param userId - The ID of the user whose free credits claim status is being checked.
- * @param tx - (Optional) The Prisma transaction client to use for database operations. Defaults to the main Prisma client.
- * @returns True if the user has claimed free credits, false otherwise.
- */
-export async function hasFreeCreditsTransaction(
-  userId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<boolean> {
-  const exists = await tx.fiatTransaction.findFirst({
-    where: {
-      userId,
-      amount: 0,
-      service: FiatService.STRIPE,
-      status: FiatTransactionStatus.SUCCEEDED,
-      NOT: {
-        creditTransaction: {
-          is: null,
-        },
-      },
-    },
-  });
-  return exists !== null;
 }
