@@ -618,7 +618,7 @@
           "disputeResolved": "Dispute Resolved",
           "refundRequested": "Refund Requested",
           "refundResolved": "Refunded",
-          "outputPending": "Output Pending",
+          "outputPending": "Output Missing",
           "unknown": "Unknown"
         },
         "JobDetails": {
