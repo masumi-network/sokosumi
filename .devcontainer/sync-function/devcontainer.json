@@ -1,0 +1,39 @@
+{
+  "name": "Sokosumi Sync Function Development",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:18",
+  "features": {
+    "ghcr.io/devcontainers/features/git:1": {},
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/common-utils:2": {
+      "installZsh": true,
+      "configureZshAsDefaultShell": true,
+      "installOhMyZsh": true,
+      "upgradePackages": true
+    }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "ms-vscode.vscode-typescript-next",
+        "amazonwebservices.aws-toolkit-vscode",
+        "redhat.vscode-yaml"
+      ],
+      "settings": {
+        "editor.formatOnSave": true,
+        "editor.defaultFormatter": "esbenp.prettier-vscode",
+        "editor.codeActionsOnSave": {
+          "source.fixAll.eslint": true
+        },
+        "typescript.tsdk": "node_modules/typescript/lib",
+        "yaml.schemas": {
+          "https://raw.githubusercontent.com/lalcebo/json-schema/master/serverless/serverless.schema.json": ["project.yml"]
+        }
+      }
+    }
+  },
+  "postCreateCommand": "npm install -g pnpm && pnpm install",
+  "remoteUser": "node",
+  "workspaceFolder": "/workspaces/sokosumi/sync-function"
+}
