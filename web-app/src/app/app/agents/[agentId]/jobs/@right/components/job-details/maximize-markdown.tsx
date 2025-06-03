@@ -41,11 +41,11 @@ export default function MaximizeMarkdown({
       </Button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="h-[80vh] max-w-4xl overflow-y-auto">
+        <DialogContent className="flex h-[90vh] min-h-[300px] max-w-7xl flex-col overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{t("maximizeTitle")}</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
+          <div className="flex-grow overflow-y-auto py-2">
             <Markdown>{markdown}</Markdown>
           </div>
           <DialogFooter>
