@@ -5,7 +5,7 @@ import { OrganizationLogo } from "@/components/organizations";
 import RoleBadge from "@/components/organizations/role-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OrganizationWithRelations } from "@/lib/db";
-import { Member } from "@/prisma/generated/client";
+import { Member, Role } from "@/prisma/generated/client";
 
 import OrganizationEditButton from "./organization-edit-button";
 import RequiredEmailDomains from "./required-email-domains";
@@ -23,6 +23,7 @@ export default function OrganizationInformation({
 
   const { name, metadata, requiredEmailDomains } = organization;
   const { role } = member;
+  const isAdmin = role === Role.ADMIN;
 
   return (
     <div className="flex flex-col gap-8">
@@ -40,9 +41,11 @@ export default function OrganizationInformation({
             </p>
           )}
         </div>
-        <div className="self-stretch">
-          <OrganizationEditButton organization={organization} />
-        </div>
+        {isAdmin && (
+          <div className="self-stretch">
+            <OrganizationEditButton organization={organization} />
+          </div>
+        )}
       </div>
       <RequiredEmailDomains requiredEmailDomains={requiredEmailDomains} />
     </div>

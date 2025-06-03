@@ -46,6 +46,7 @@ export default function OrganizationInformationEditForm({
         default:
           toast.error(t("error"));
       }
+      return;
     }
 
     toast.success(t("success"));
