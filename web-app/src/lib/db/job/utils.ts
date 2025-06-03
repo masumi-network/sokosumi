@@ -55,8 +55,6 @@ export function computeJobStatus(job: Job): JobStatus {
       return JobStatus.DISPUTE_PENDING;
     case OnChainJobStatus.DISPUTED_WITHDRAWN:
       return JobStatus.DISPUTE_RESOLVED;
-    default:
-      return JobStatus.PROCESSING;
   }
 }
 

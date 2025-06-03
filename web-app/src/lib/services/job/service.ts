@@ -147,6 +147,15 @@ export async function syncJob(job: Job) {
         case JobStatus.REFUND_RESOLVED:
           await refundJob(job.id, tx);
           break;
+        case JobStatus.OUTPUT_PENDING:
+          const currentTime = new Date();
+          const oneHourBeforeUnlock = new Date(
+            job.unlockTime.getTime() - 60 * 60 * 1000, // 1 hour before unlock
+          );
+          if (currentTime >= oneHourBeforeUnlock) {
+            await refundJob(job.id, tx);
+          }
+          break;
         default:
           break;
       }
