@@ -41,7 +41,7 @@ export default function MaximizeMarkdown({
       </Button>
 
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="flex max-h-[90vh] max-w-[95vw] flex-col overflow-y-auto">
+        <DialogContent className="flex max-h-[90vh] !max-w-[95vw] flex-col overflow-y-auto sm:!max-w-[95vw]">
           <DialogHeader>
             <DialogTitle>{t("maximizeTitle")}</DialogTitle>
           </DialogHeader>
