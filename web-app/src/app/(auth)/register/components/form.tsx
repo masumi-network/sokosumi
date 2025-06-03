@@ -19,12 +19,12 @@ import { updateUserMarketingOptIn } from "@/lib/actions/user/action";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   isEmailAllowedByOrganization,
-  OrganizationWithMembersCount,
+  OrganizationWithRelations,
 } from "@/lib/db";
 import { Organization } from "@/prisma/generated/client";
 
 interface SignUpFormProps {
-  organizations: OrganizationWithMembersCount[];
+  organizations: OrganizationWithRelations[];
 }
 
 export default function SignUpForm({ organizations }: SignUpFormProps) {

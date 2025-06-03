@@ -22,14 +22,14 @@ import ExampleDetailThumbnail from "./example-detail-thumbnail";
 
 interface PlaylistModalProps {
   open: boolean;
-  onClose: () => void;
+  onOpenChange: (open: boolean) => void;
   exampleOutputs: ExampleOutput[];
   initialIndex?: number | undefined;
 }
 
 export default function PlaylistModal({
   open,
-  onClose,
+  onOpenChange,
   exampleOutputs,
   initialIndex,
 }: PlaylistModalProps) {
@@ -42,9 +42,7 @@ export default function PlaylistModal({
   }, [initialIndex]);
 
   const handleOpenChange = (open: boolean) => {
-    if (!open) {
-      onClose();
-    }
+    onOpenChange(open);
   };
 
   const handlePlaylistClick = (index: number) => {
@@ -72,7 +70,7 @@ export default function PlaylistModal({
             />
             <PlaylistMainSection
               selectedExampleOutput={selectedExampleOutput}
-              onClose={onClose}
+              onOpenChange={onOpenChange}
             />
           </div>
         </DialogContent>
@@ -110,10 +108,10 @@ function PlaylistSidebar({
 
 function PlaylistMainSection({
   selectedExampleOutput,
-  onClose,
+  onOpenChange,
 }: {
   selectedExampleOutput: ExampleOutput;
-  onClose: () => void;
+  onOpenChange: (open: boolean) => void;
 }) {
   const t = useTranslations("Components.Agents.AgentDetail.Section4");
 
@@ -125,7 +123,11 @@ function PlaylistMainSection({
         </p>
         <div className="flex items-center gap-1">
           <AgentHireButton />
-          <Button variant="ghost" size="icon" onClick={onClose}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => onOpenChange(false)}
+          >
             <X />
           </Button>
         </div>

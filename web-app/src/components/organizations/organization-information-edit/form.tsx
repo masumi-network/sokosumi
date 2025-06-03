@@ -1,0 +1,66 @@
+import { Loader2 } from "lucide-react";
+import { useTranslations } from "next-intl";
+import { UseFormReturn } from "react-hook-form";
+import { toast } from "sonner";
+
+import { Button } from "@/components/ui/button";
+import { Form } from "@/components/ui/form";
+import {
+  updateOrganizationInformation,
+  UpdateOrganizationInformationErrorCodes,
+} from "@/lib/actions";
+
+import { editFormData, EditFormSchemaType } from "./data";
+import { FormFields } from "./form-fields";
+
+interface OrganizationInformationEditFormProps {
+  organizationId: string;
+  form: UseFormReturn<EditFormSchemaType>;
+  onOpenChange: (open: boolean) => void;
+}
+
+export default function OrganizationInformationEditForm({
+  organizationId,
+  form,
+  onOpenChange,
+}: OrganizationInformationEditFormProps) {
+  const t = useTranslations("Components.Organization.Edit.Form");
+
+  const onSubmit = async (values: EditFormSchemaType) => {
+    const result = await updateOrganizationInformation(organizationId, values);
+    if (!result.success) {
+      switch (result.error.code) {
+        case UpdateOrganizationInformationErrorCodes.NOT_AUTHENTICATED:
+          toast.error(t("Errors.unauthorized"));
+          break;
+        case UpdateOrganizationInformationErrorCodes.NOT_MEMBER:
+          toast.error(t("Errors.notMember"));
+          break;
+        case UpdateOrganizationInformationErrorCodes.NOT_ADMIN:
+          toast.error(t("Errors.notAdmin"));
+          break;
+        default:
+          toast.error(t("error"));
+      }
+    }
+
+    toast.success(t("success"));
+    onOpenChange(false);
+  };
+
+  const isLoading = form.formState.isSubmitting;
+
+  return (
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)}>
+        <fieldset disabled={isLoading} className="flex flex-col gap-8">
+          <FormFields form={form} formData={editFormData} />
+          <Button type="submit" disabled={isLoading} className="w-full">
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+            {t("submit")}
+          </Button>
+        </fieldset>
+      </form>
+    </Form>
+  );
+}

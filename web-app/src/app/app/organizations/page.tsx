@@ -23,13 +23,11 @@ export default async function OrganizationsPage() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center gap-8 p-8">
+    <div className="container flex flex-col gap-8 p-8">
       <div className="flex w-full items-center justify-between">
         <h1 className="text-2xl font-bold">{t("title")}</h1>
       </div>
-      <div className="container mx-auto">
-        <Organizations members={members} />
-      </div>
+      <Organizations members={members} />
     </div>
   );
 }

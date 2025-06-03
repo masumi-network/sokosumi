@@ -7,13 +7,12 @@ import {
   organizationInclude,
   organizationMembersCountInclude,
   organizationOrderBy,
-  OrganizationWithMembersCount,
   OrganizationWithRelations,
 } from "./types";
 
 export async function getOrganizationsWithMembersCount(
   tx: Prisma.TransactionClient = prisma,
-): Promise<OrganizationWithMembersCount[]> {
+): Promise<OrganizationWithRelations[]> {
   return await tx.organization.findMany({
     include: {
       ...organizationMembersCountInclude,
@@ -33,18 +32,20 @@ export async function createOrganization(
 export async function getOrganizationBySlug(
   slug: string,
   tx: Prisma.TransactionClient = prisma,
-): Promise<Organization | null> {
-  return await tx.organization.findUnique({
-    where: { slug },
-  });
-}
-
-export async function getOrganizationBySlugWithRelations(
-  slug: string,
-  tx: Prisma.TransactionClient = prisma,
 ): Promise<OrganizationWithRelations | null> {
   return await tx.organization.findUnique({
     where: { slug },
     include: { ...organizationInclude },
+  });
+}
+
+export async function updateOrganization(
+  organizationId: string,
+  data: Prisma.OrganizationUpdateInput,
+  tx: Prisma.TransactionClient = prisma,
+) {
+  return await tx.organization.update({
+    where: { id: organizationId },
+    data,
   });
 }

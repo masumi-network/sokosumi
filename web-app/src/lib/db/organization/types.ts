@@ -14,10 +14,6 @@ export const organizationOrderBy = {
   },
 } as const;
 
-export type OrganizationWithMembersCount = Prisma.OrganizationGetPayload<{
-  include: typeof organizationMembersCountInclude;
-}>;
-
 export const organizationInclude = {
   ...organizationMembersCountInclude,
 } as const;

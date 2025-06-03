@@ -1,0 +1,62 @@
+import { Building2 } from "lucide-react";
+import { useTranslations } from "next-intl";
+
+import { OrganizationLogo } from "@/components/organizations";
+import RoleBadge from "@/components/organizations/role-badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { OrganizationWithRelations } from "@/lib/db";
+import { Member } from "@/prisma/generated/client";
+
+import OrganizationEditButton from "./organization-edit-button";
+import RequiredEmailDomains from "./required-email-domains";
+
+interface OrganizationInformationProps {
+  organization: OrganizationWithRelations;
+  member: Member;
+}
+
+export default function OrganizationInformation({
+  organization,
+  member,
+}: OrganizationInformationProps) {
+  const t = useTranslations("App.Organizations.OrganizationDetail");
+
+  const { name, metadata, requiredEmailDomains } = organization;
+  const { role } = member;
+
+  return (
+    <div className="flex flex-col gap-8">
+      <div className="flex items-center gap-2">
+        <p className="text-muted-foreground">{t("roleIndicator")}</p>
+        <RoleBadge role={role} />
+      </div>
+      <div className="flex items-center gap-8 lg:gap-12">
+        <OrganizationLogo organization={organization} size={96} />
+        <div className="flex flex-1 flex-col justify-center self-stretch">
+          <h1 className="text-xl font-bold">{t("title", { name: name })}</h1>
+          {metadata && (
+            <p className="text-muted-foreground mt-auto line-clamp-2 text-sm">
+              {metadata}
+            </p>
+          )}
+        </div>
+        <div className="self-stretch">
+          <OrganizationEditButton organization={organization} />
+        </div>
+      </div>
+      <RequiredEmailDomains requiredEmailDomains={requiredEmailDomains} />
+    </div>
+  );
+}
+
+export function OrganizationInformationSkeleton() {
+  return (
+    <div className="flex items-center gap-12">
+      <Building2 size={96} />
+      <div className="flex flex-col justify-between self-stretch">
+        <Skeleton className="h-6 w-64" />
+        <Skeleton className="h-4 w-32" />
+      </div>
+    </div>
+  );
+}

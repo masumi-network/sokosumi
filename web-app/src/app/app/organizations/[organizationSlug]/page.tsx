@@ -4,24 +4,36 @@ import { getTranslations } from "next-intl/server";
 
 import { getSession } from "@/lib/auth/utils";
 import { getOrganizationBySlug } from "@/lib/db";
-import { isMemberOfOrganization } from "@/lib/services";
+import { findMemberInOrganization } from "@/lib/services";
 
-export async function generateMetadata(): Promise<Metadata> {
+import OrganizationInformation from "./components/organization-information";
+
+interface OrganizationPageProps {
+  params: Promise<{ organizationSlug: string }>;
+}
+
+export async function generateMetadata({
+  params,
+}: OrganizationPageProps): Promise<Metadata> {
   const t = await getTranslations(
     "App.Organizations.OrganizationDetail.Metadata",
   );
+
+  const { organizationSlug } = await params;
+  const organization = await getOrganizationBySlug(organizationSlug);
+  if (!organization) {
+    return notFound();
+  }
+
   return {
-    title: t("title"),
+    title: t("title", { name: organization.name }),
     description: t("description"),
   };
 }
 
 export default async function OrganizationPage({
   params,
-}: {
-  params: Promise<{ organizationSlug: string }>;
-}) {
-  const t = await getTranslations("App.Organizations.OrganizationDetail");
+}: OrganizationPageProps) {
   const { organizationSlug } = await params;
 
   const session = await getSession();
@@ -34,16 +46,14 @@ export default async function OrganizationPage({
     return notFound();
   }
 
-  const isMember = await isMemberOfOrganization(organization.id);
-  if (!isMember) {
+  const member = await findMemberInOrganization(organization.id);
+  if (!member) {
     redirect("/app/organizations");
   }
 
   return (
-    <div className="flex flex-col items-center justify-center gap-8 p-8">
-      <h1 className="text-2xl font-bold">
-        {t("title", { name: organization.name })}
-      </h1>
+    <div className="container flex flex-col gap-8 p-8">
+      <OrganizationInformation organization={organization} member={member} />
     </div>
   );
 }

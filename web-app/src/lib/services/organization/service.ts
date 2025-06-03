@@ -8,6 +8,7 @@ import {
   getMemberByUserIdAndOrganizationId,
   getOrganizationBySlug,
 } from "@/lib/db";
+import { Member } from "@/prisma/generated/client";
 
 export async function generateOrganizationSlugFromName(name: string) {
   const slugedName = slugify(name, { lower: true, strict: true });
@@ -20,9 +21,9 @@ export async function generateOrganizationSlugFromName(name: string) {
   return `${slugedName}-${uniqueId}`;
 }
 
-export async function isMemberOfOrganization(
+export async function findMemberInOrganization(
   organizationId: string,
-): Promise<boolean> {
+): Promise<Member | null> {
   const session = await getSessionOrThrow();
   const userId = session.user.id;
 
@@ -31,5 +32,5 @@ export async function isMemberOfOrganization(
     organizationId,
   );
 
-  return !!member;
+  return member;
 }

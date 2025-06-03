@@ -110,6 +110,59 @@
       "agents": "Gallery",
       "account": "Account"
     },
+    "Organization": {
+      "Role": {
+        "admin": "Admin",
+        "member": "Member"
+      },
+      "Edit": {
+        "title": "Edit Organization Information",
+        "Form": {
+          "submit": "Save",
+          "cancel": "Cancel",
+          "success": "Organization information updated successfully",
+          "error": "Failed to update organization information",
+          "Errors": {
+            "unauthorized": "Unauthorized",
+            "notMember": "You are not a member of this organization",
+            "notAdmin": "You are not an admin of this organization"
+          },
+          "Fields": {
+            "Name": {
+              "placeholder": "Organization name"
+            },
+            "Metadata": {
+              "placeholder": "Organization metadata"
+            },
+            "RequiredEmailDomains": {
+              "label": "Required email domains",
+              "placeholder": "Add domain",
+              "duplicate": "Domain already exists",
+              "invalid": "Invalid domain",
+              "noDomains": "No domains"
+            }
+          }
+        },
+        "Schema": {
+          "Name": {
+            "min": "Organization name must be at least 2 characters.",
+            "max": "Organization name must be at most 50 characters.",
+            "invalid": "Organization name must be a valid string.",
+            "required": "Organization name is required"
+          },
+          "Metadata": {
+            "min": "Organization metadata must be at least 10 characters.",
+            "max": "Organization metadata must be at most 500 characters.",
+            "invalid": "Organization metadata must be a valid string."
+          },
+          "RequiredEmailDomains": {
+            "max": "Organization must have at most 10 required email domains.",
+            "unique": "Must be unique domains",
+            "invalid": "Must be a valid domain"
+          }
+        }
+      }
+    },
     "Modals": {
       "AuthenticationModal": {
         "title": "Welcome back",
@@ -580,10 +633,6 @@
       "title": "Organizations",
       "newOrganization": "New Organization",
       "membersNotAvailable": "No members found",
-      "Role": {
-        "admin": "Admin",
-        "member": "Member"
-      },
       "OrganizationActions": {
         "leave": "Leave"
       },
@@ -592,7 +641,11 @@
           "title": "{name}",
           "description": "Manage your organization"
         },
-        "title": "{name}"
+        "roleIndicator": "View as:",
+        "title": "{name}",
+        "requiredEmailDomains": "Required email domains:",
+        "edit": "Edit",
+        "membersCount": "{count, plural, =0 {No member} =1 {1 member} other {# members}}"
       }
     },
     "Agents": {
