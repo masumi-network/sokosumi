@@ -53,7 +53,7 @@ jobs:
         uses: anthropics/claude-code-action@beta
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
-          allowed_tools: Bash(pnpm install),Bash(pnpm run lint),Bash(pnpm run test)
+          allowed_tools: Bash(pnpm install),Bash(pnpm run lint),Bash(pnpm run test),Bash(git:*)
           claude_env: |
             CI: true
             DATABASE_URL: "postgresql://user:password@localhost:5432/sokosumi"
