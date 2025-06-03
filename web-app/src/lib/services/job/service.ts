@@ -132,19 +132,38 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
  * @param job - The job to potentially request a refund for
  */
 async function requestRefundIfNeeded(job: Job) {
+  let shouldRequestRefund = false;
   const currentTime = new Date();
+
+  // Check if we're within 1 hour of unlock time
   const oneHourBeforeUnlock = new Date(
     job.unlockTime.getTime() - 60 * 60 * 1000, // 1 hour before unlock
   );
+
   if (currentTime >= oneHourBeforeUnlock) {
-    await postPaymentClientRequestRefund(job.blockchainIdentifier);
+    shouldRequestRefund = true;
   }
+
+  // Check if result was submitted more than 10 minutes ago
   const resultSubmittedAt = job.resultSubmittedAt;
   if (
     resultSubmittedAt &&
     currentTime.getTime() - resultSubmittedAt.getTime() > 10 * 60 * 1000 // 10 minutes
   ) {
-    await postPaymentClientRequestRefund(job.blockchainIdentifier);
+    shouldRequestRefund = true;
+  }
+
+  // Only make one refund request if either condition is met
+  if (shouldRequestRefund) {
+    const refundResult = await postPaymentClientRequestRefund(
+      job.blockchainIdentifier,
+    );
+    if (!refundResult.ok) {
+      console.error(
+        `Failed to request refund for job ${job.id}:`,
+        refundResult.error,
+      );
+    }
   }
 }
 
