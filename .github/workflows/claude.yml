@@ -55,6 +55,7 @@ jobs:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           allowed_tools: Bash(pnpm install),Bash(pnpm run lint),Bash(pnpm run test)
           claude_env: |
+            CI: true
             DATABASE_URL: "postgresql://user:password@localhost:5432/sokosumi"
             SOKOSUMI_URL: "https://sokosumi.com"
             ADMIN_KEY: ${{ vars.PUBLIC_DEFAULT_SECRET }}
