@@ -2,13 +2,14 @@ import { Building2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { OrganizationLogo } from "@/components/organizations";
-import RoleBadge from "@/components/organizations/role-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OrganizationWithRelations } from "@/lib/db";
 import { Member, Role } from "@/prisma/generated/client";
 
 import OrganizationEditButton from "./organization-edit-button";
-import RequiredEmailDomains from "./required-email-domains";
+import RequiredEmailDomains, {
+  RequiredEmailDomainsSkeleton,
+} from "./required-email-domains";
 
 interface OrganizationInformationProps {
   organization: OrganizationWithRelations;
@@ -27,10 +28,6 @@ export default function OrganizationInformation({
 
   return (
     <div className="flex flex-col gap-8">
-      <div className="flex items-center gap-2">
-        <p className="text-muted-foreground">{t("roleIndicator")}</p>
-        <RoleBadge role={role} />
-      </div>
       <div className="flex items-center gap-8 lg:gap-12">
         <OrganizationLogo organization={organization} size={96} />
         <div className="flex flex-1 flex-col justify-center self-stretch">
@@ -54,12 +51,18 @@ export default function OrganizationInformation({
 
 export function OrganizationInformationSkeleton() {
   return (
-    <div className="flex items-center gap-12">
-      <Building2 size={96} />
-      <div className="flex flex-col justify-between self-stretch">
-        <Skeleton className="h-6 w-64" />
-        <Skeleton className="h-4 w-32" />
+    <div className="flex flex-col gap-8">
+      <div className="flex items-center gap-2">
+        <Skeleton className="h-4 w-20" />
       </div>
+      <div className="flex items-center gap-8 lg:gap-12">
+        <Building2 size={96} />
+        <div className="flex flex-1 flex-col justify-between self-stretch">
+          <Skeleton className="h-6 w-64" />
+          <Skeleton className="h-4 w-32" />
+        </div>
+      </div>
+      <RequiredEmailDomainsSkeleton />
     </div>
   );
 }

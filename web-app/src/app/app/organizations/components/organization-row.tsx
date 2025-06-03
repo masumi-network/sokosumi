@@ -1,8 +1,10 @@
 import { Building2 } from "lucide-react";
 import Link from "next/link";
 
-import { OrganizationLogo } from "@/components/organizations";
-import RoleBadge from "@/components/organizations/role-badge";
+import {
+  OrganizationLogo,
+  OrganizationRoleBadge,
+} from "@/components/organizations";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MemberWithOrganization } from "@/lib/db";
 
@@ -25,7 +27,7 @@ export default function OrganizationRow({
             {name}
           </p>
         </Link>
-        <RoleBadge role={role} />
+        <OrganizationRoleBadge role={role} />
       </div>
       <OrganizationActionButtons organization={organization} />
     </div>

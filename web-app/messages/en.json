@@ -638,14 +638,32 @@
       },
       "OrganizationDetail": {
         "Metadata": {
-          "title": "{name}",
+          "Title": {
+            "default": "{name}",
+            "template": "{name} - %"
+          },
           "description": "Manage your organization"
         },
         "roleIndicator": "View as:",
         "title": "{name}",
         "requiredEmailDomains": "Required email domains:",
         "edit": "Edit",
-        "membersCount": "{count, plural, =0 {No member} =1 {1 member} other {# members}}"
+        "members": "View Members"
+      },
+      "Members": {
+        "Metadata": {
+          "title": "Members",
+          "description": "Manage your organization members"
+        },
+        "roleIndicator": "View as:",
+        "MembersTable": {
+          "Header": {
+            "name": "Name",
+            "email": "Email",
+            "role": "Role",
+            "action": "Action"
+          }
+        }
       }
     },
     "Agents": {

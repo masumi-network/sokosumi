@@ -1,7 +1,10 @@
 import { Metadata } from "next";
+import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
+import { OrganizationRoleBadge } from "@/components/organizations";
+import { Button } from "@/components/ui/button";
 import { getSession } from "@/lib/auth/utils";
 import { getOrganizationBySlug } from "@/lib/db";
 import { findMemberInOrganization } from "@/lib/services";
@@ -26,7 +29,10 @@ export async function generateMetadata({
   }
 
   return {
-    title: t("title", { name: organization.name }),
+    title: {
+      default: t("Title.default", { name: organization.name }),
+      template: t("Title.template", { name: organization.name }),
+    },
     description: t("description"),
   };
 }
@@ -34,8 +40,9 @@ export async function generateMetadata({
 export default async function OrganizationPage({
   params,
 }: OrganizationPageProps) {
-  const { organizationSlug } = await params;
+  const t = await getTranslations("App.Organizations.OrganizationDetail");
 
+  const { organizationSlug } = await params;
   const session = await getSession();
   if (!session) {
     redirect("/login");
@@ -53,7 +60,16 @@ export default async function OrganizationPage({
 
   return (
     <div className="container flex flex-col gap-8 p-8">
+      <div className="flex items-center gap-2">
+        <p className="text-muted-foreground">{t("roleIndicator")}</p>
+        <OrganizationRoleBadge role={member.role} />
+      </div>
       <OrganizationInformation organization={organization} member={member} />
+      <Button asChild variant="secondary">
+        <Link href={`/app/organizations/${organizationSlug}/members`}>
+          {t("members")}
+        </Link>
+      </Button>
     </div>
   );
 }

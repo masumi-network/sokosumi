@@ -3,7 +3,7 @@ import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { Role } from "@/prisma/generated/client";
 
-export default function RoleBadge({ role }: { role: Role }) {
+export function OrganizationRoleBadge({ role }: { role: Role }) {
   const t = useTranslations("Components.Organization.Role");
 
   if (role === Role.ADMIN) {

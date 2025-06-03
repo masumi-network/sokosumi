@@ -4,6 +4,10 @@ export const memberOrganizationInclude = {
   organization: true,
 } as const;
 
+export const memberUserInclude = {
+  user: true,
+} as const;
+
 export const memberOrderBy = [
   {
     role: "desc", // This will put ADMIN first since it's alphabetically after MEMBER
@@ -15,4 +19,8 @@ export const memberOrderBy = [
 
 export type MemberWithOrganization = Prisma.MemberGetPayload<{
   include: typeof memberOrganizationInclude;
+}>;
+
+export type MemberWithUser = Prisma.MemberGetPayload<{
+  include: typeof memberUserInclude;
 }>;

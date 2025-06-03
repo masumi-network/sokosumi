@@ -6,7 +6,9 @@ import { Member, Prisma, Role } from "@/prisma/generated/client";
 import {
   memberOrderBy,
   memberOrganizationInclude,
+  memberUserInclude,
   MemberWithOrganization,
+  MemberWithUser,
 } from "./types";
 
 export async function getMembersByOrganizationId(
@@ -17,6 +19,26 @@ export async function getMembersByOrganizationId(
     where: {
       organizationId,
     },
+  });
+}
+
+export async function getMembersWithUserByOrganizationId(
+  organizationId: string,
+  params: {
+    page: number;
+    limit: number;
+  } = {
+    page: 1,
+    limit: 10,
+  },
+  tx: Prisma.TransactionClient = prisma,
+): Promise<MemberWithUser[]> {
+  return await tx.member.findMany({
+    where: { organizationId },
+    include: memberUserInclude,
+    orderBy: [...memberOrderBy],
+    skip: (params.page - 1) * params.limit,
+    take: params.limit,
   });
 }
 
