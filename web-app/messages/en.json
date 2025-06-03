@@ -631,6 +631,9 @@
             "failedToParseOutput": "Failed to parse output",
             "none": "No result data",
             "download": "Download",
+            "copy": "Copy",
+            "copySuccess": "Output copied to clipboard",
+            "copyError": "Failed to copy output",
             "Refund": {
               "error": "Failed to request refund",
               "request": "Request Refund",

@@ -31,14 +31,12 @@ export default function DownloadMarkdown({
   return (
     <Button
       variant="ghost"
+      size="icon"
       onClick={downloadFile}
-      className={cn(
-        "text-muted-foreground flex items-center justify-end gap-2 text-sm",
-        className,
-      )}
+      className={cn("text-muted-foreground", className)}
+      title={t("download")}
     >
       <Download className="h-4 w-4" />
-      {t("download")}
     </Button>
   );
 }

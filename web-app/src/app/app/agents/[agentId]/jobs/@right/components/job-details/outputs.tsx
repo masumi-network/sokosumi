@@ -9,6 +9,7 @@ import {
   JobStatusResponseSchemaType,
 } from "@/lib/services/job/schemas";
 
+import CopyMarkdown from "./copy-markdown";
 import DownloadMarkdown from "./download-markdown";
 import RequestRefundButton from "./refund-request";
 
@@ -57,7 +58,10 @@ function JobDetailsOutputsInner({ job }: JobDetailsOutputsProps) {
         <>
           <Markdown>{output.result}</Markdown>
           <div className="flex justify-between gap-2">
-            <DownloadMarkdown markdown={output.result} />
+            <div className="flex gap-1">
+              <DownloadMarkdown markdown={output.result} />
+              <CopyMarkdown markdown={output.result} />
+            </div>
             <RequestRefundButton job={job} />
           </div>
         </>
