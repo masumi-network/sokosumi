@@ -17,13 +17,7 @@ import {
   updateJobWithPurchase,
 } from "@/lib/db";
 import { calculateInputHash } from "@/lib/utils";
-import {
-  AgentJobStatus,
-  Job,
-  NextJobAction,
-  OnChainJobStatus,
-  Prisma,
-} from "@/prisma/generated/client";
+import { Job, NextJobAction, Prisma } from "@/prisma/generated/client";
 import { getAgentPricing } from "@/services/agent";
 import { getCreditsPrice, validateCreditsBalance } from "@/services/credit";
 
@@ -126,6 +120,53 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
   );
 }
 
+/**
+ * Requests a refund for a job if certain conditions are met:
+ * 1. If the current time is within 1 hour before the unlock time
+ * 2. If the job result was submitted more than 10 minutes ago
+ *
+ * This function helps ensure timely refunds for jobs that are either
+ * approaching their unlock deadline or have had results submitted
+ * but may not be processing correctly.
+ *
+ * @param job - The job to potentially request a refund for
+ */
+async function requestRefundIfNeeded(job: Job) {
+  let shouldRequestRefund = false;
+  const currentTime = new Date();
+
+  // Check if we're within 1 hour of unlock time
+  const oneHourBeforeUnlock = new Date(
+    job.unlockTime.getTime() - 60 * 60 * 1000, // 1 hour before unlock
+  );
+
+  if (currentTime >= oneHourBeforeUnlock) {
+    shouldRequestRefund = true;
+  }
+
+  // Check if result was submitted more than 10 minutes ago
+  const resultSubmittedAt = job.resultSubmittedAt;
+  if (
+    resultSubmittedAt &&
+    currentTime.getTime() - resultSubmittedAt.getTime() > 10 * 60 * 1000 // 10 minutes
+  ) {
+    shouldRequestRefund = true;
+  }
+
+  // Only make one refund request if either condition is met
+  if (shouldRequestRefund) {
+    const refundResult = await postPaymentClientRequestRefund(
+      job.blockchainIdentifier,
+    );
+    if (!refundResult.ok) {
+      console.error(
+        `Failed to request refund for job ${job.id}:`,
+        refundResult.error,
+      );
+    }
+  }
+}
+
 export async function syncJob(job: Job) {
   const [agentJobStatus, onChainPurchase] = await Promise.all([
     getAgentJobStatus(job),
@@ -140,31 +181,14 @@ export async function syncJob(job: Job) {
       if (agentJobStatus) {
         job = await syncAgentJobStatus(job, agentJobStatus, tx);
       }
-      // Refund if the job failed
       const jobStatus = computeJobStatus(job);
       switch (jobStatus) {
         case JobStatus.PAYMENT_FAILED:
         case JobStatus.REFUND_RESOLVED:
           await refundJob(job.id, tx);
           break;
-        default:
-          break;
-      }
-
-      // Request a refund if the job is not completed after 10 minutes
-      switch (job.onChainStatus) {
-        case OnChainJobStatus.RESULT_SUBMITTED:
-          if (job.agentJobStatus !== AgentJobStatus.COMPLETED) {
-            const resultSubmittedAt = job.resultSubmittedAt;
-            if (!resultSubmittedAt) {
-              await postPaymentClientRequestRefund(job.blockchainIdentifier);
-            } else if (
-              new Date().getTime() - resultSubmittedAt.getTime() >
-              10 * 60 * 1000 // 10 minutes
-            ) {
-              await postPaymentClientRequestRefund(job.blockchainIdentifier);
-            }
-          }
+        case JobStatus.OUTPUT_PENDING:
+          await requestRefundIfNeeded(job);
           break;
         default:
           break;

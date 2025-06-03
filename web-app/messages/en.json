@@ -603,22 +603,23 @@
             "started": "Started",
             "status": "Status",
             "id": "ID"
-          },
-          "JobStatusBadge": {
-            "completed": "Completed",
-            "failed": "Failed",
-            "paymentProcessing": "Payment Processing",
-            "paymentFailed": "Payment Failed",
-            "processing": "Processing",
-            "agentConnectionFailed": "Agent Connection Failed",
-            "paymentNodeConnectionFailed": "Node Connection Failed",
-            "inputRequired": "Input Required",
-            "disputeRequested": "Dispute Requested",
-            "disputeResolved": "Dispute Resolved",
-            "refundRequested": "Refund Requested",
-            "refundResolved": "Refunded",
-            "unknown": "Unknown"
           }
+        },
+        "StatusBadge": {
+          "completed": "Completed",
+          "failed": "Failed",
+          "paymentProcessing": "Payment Processing",
+          "paymentFailed": "Payment Failed",
+          "processing": "Processing",
+          "agentConnectionFailed": "Agent Connection Failed",
+          "paymentNodeConnectionFailed": "Node Connection Failed",
+          "inputRequired": "Input Required",
+          "disputeRequested": "Dispute Requested",
+          "disputeResolved": "Dispute Resolved",
+          "refundRequested": "Refund Requested",
+          "refundResolved": "Refunded",
+          "outputPending": "Output Missing",
+          "unknown": "Unknown"
         },
         "JobDetails": {
           "Input": {
