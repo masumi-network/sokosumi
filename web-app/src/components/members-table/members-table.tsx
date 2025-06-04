@@ -7,6 +7,7 @@ import { MemberWithUser } from "@/lib/db";
 import { cn } from "@/lib/utils";
 import { Role } from "@/prisma/generated/client";
 
+import { MemberActionsModalContextProvider } from "./member-actions-modal-context";
 import { getMemberColumns } from "./member-columns";
 
 interface MembersTableProps {
@@ -18,12 +19,14 @@ export default function MembersTable({ members, role }: MembersTableProps) {
   const t = useTranslations("App.Organizations.Members.MembersTable");
 
   return (
-    <DataTable
-      columns={getColumns(t, role)}
-      data={members}
-      rowClassName={() => "text-foreground active:bg-muted hover:bg-muted"}
-      containerClassName={cn("w-full rounded-xl bg-muted/50")}
-    />
+    <MemberActionsModalContextProvider>
+      <DataTable
+        columns={getColumns(t, role)}
+        data={members}
+        rowClassName={() => "text-foreground active:bg-muted hover:bg-muted"}
+        containerClassName={cn("w-full rounded-xl bg-muted/50")}
+      />
+    </MemberActionsModalContextProvider>
   );
 }
 
