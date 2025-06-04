@@ -86,7 +86,7 @@ export async function leaveOrganization(
     if (!session) {
       return {
         success: false,
-        error: { code: OrganizationActionErrorCode.NOT_AUTHENTICATED },
+        error: { code: OrganizationActionErrorCode.UNAUTHORIZED },
       };
     }
     const userId = session.user.id;
@@ -155,7 +155,7 @@ export async function updateOrganizationInformation(
       return {
         success: false,
         error: {
-          code: OrganizationActionErrorCode.NOT_AUTHENTICATED,
+          code: OrganizationActionErrorCode.UNAUTHORIZED,
         },
       };
     }
@@ -233,7 +233,7 @@ export async function changeMemberRole(
       return {
         success: false,
         error: {
-          code: OrganizationActionErrorCode.NOT_AUTHENTICATED,
+          code: OrganizationActionErrorCode.UNAUTHORIZED,
         },
       };
     }

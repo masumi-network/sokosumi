@@ -37,7 +37,7 @@ export default function LeaveOrganizationModal({
     const result = await leaveOrganization(organization.id);
     if (!result.success) {
       switch (result.error.code) {
-        case OrganizationActionErrorCode.NOT_AUTHENTICATED:
+        case OrganizationActionErrorCode.UNAUTHORIZED:
           toast.error(t("Errors.unauthorized"));
           break;
         case OrganizationActionErrorCode.MEMBER_COUNT_NOT_ALLOWED:

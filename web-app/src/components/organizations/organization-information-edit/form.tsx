@@ -34,7 +34,7 @@ export default function OrganizationInformationEditForm({
     });
     if (!result.success) {
       switch (result.error.code) {
-        case OrganizationActionErrorCode.NOT_AUTHENTICATED:
+        case OrganizationActionErrorCode.UNAUTHORIZED:
           toast.error(t("Errors.unauthorized"));
           break;
         case OrganizationActionErrorCode.NOT_MEMBER:
