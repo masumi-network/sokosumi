@@ -60,15 +60,11 @@
       }
     }
   },
-  "forwardPorts": [3000, 5432, 5555],
+  "forwardPorts": [3000, 5555],
   "portsAttributes": {
     "3000": {
       "label": "Next.js Development Server",
       "onAutoForward": "notify"
-    },
-    "5432": {
-      "label": "PostgreSQL",
-      "onAutoForward": "silent"
     },
     "5555": {
       "label": "Prisma Studio",
