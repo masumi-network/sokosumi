@@ -662,6 +662,11 @@
             "email": "Email",
             "role": "Role",
             "action": "Action"
+          },
+          "Actions": {
+            "kick": "Kick",
+            "changeToAdmin": "Change to Admin",
+            "changeToMember": "Change to Member"
           }
         }
       }

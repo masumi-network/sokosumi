@@ -1,10 +1,13 @@
+"use client";
+
 import { ColumnDef, createColumnHelper } from "@tanstack/react-table";
-import { Ellipsis } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { DataTableColumnHeader } from "@/components/data-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import { MemberWithUser } from "@/lib/db";
+
+import MemberRowActionsDropdown from "./member-row-actions-dropdown";
 
 const columnHelper = createColumnHelper<MemberWithUser>();
 
@@ -51,11 +54,7 @@ export function getMemberColumns(t: ReturnType<typeof useTranslations>) {
       id: "action",
       maxSize: 80,
       header: () => <div>{t("Header.action")}</div>,
-      cell: () => (
-        <div>
-          <Ellipsis />
-        </div>
-      ),
+      cell: ({ row }) => <MemberRowActionsDropdown member={row.original} />,
     }) as ColumnDef<MemberWithUser>,
   };
 }
