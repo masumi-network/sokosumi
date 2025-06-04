@@ -17,7 +17,7 @@ interface MemberRowActionsDropdownProps {
 export default function MemberRowActionsDropdown({
   member,
 }: MemberRowActionsDropdownProps) {
-  const t = useTranslations("App.Organizations.Members.MembersTable.Actions");
+  const t = useTranslations("Components.MembersTable.Actions");
 
   const { role } = member;
 

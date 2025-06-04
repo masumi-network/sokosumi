@@ -105,6 +105,19 @@
         "lastPage": "Go to last page"
       }
     },
+    "MembersTable": {
+      "Header": {
+        "name": "Name",
+        "email": "Email",
+        "role": "Role",
+        "action": "Action"
+      },
+      "Actions": {
+        "kick": "Kick",
+        "changeToAdmin": "Change to Admin",
+        "changeToMember": "Change to Member"
+      }
+    },
     "Breadcrumb": {
       "jobs": "Jobs",
       "agents": "Gallery",
@@ -655,20 +668,7 @@
           "title": "Members",
           "description": "Manage your organization members"
         },
-        "roleIndicator": "View as:",
-        "MembersTable": {
-          "Header": {
-            "name": "Name",
-            "email": "Email",
-            "role": "Role",
-            "action": "Action"
-          },
-          "Actions": {
-            "kick": "Kick",
-            "changeToAdmin": "Change to Admin",
-            "changeToMember": "Change to Member"
-          }
-        }
+        "roleIndicator": "View as:"
       }
     },
     "Agents": {

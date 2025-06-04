@@ -16,7 +16,7 @@ interface MembersTableProps {
 }
 
 export default function MembersTable({ members, role }: MembersTableProps) {
-  const t = useTranslations("App.Organizations.Members.MembersTable");
+  const t = useTranslations("Components.MembersTable");
 
   return (
     <MemberActionsModalContextProvider>
