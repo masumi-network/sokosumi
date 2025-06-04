@@ -11,6 +11,23 @@
       "upgradePackages": true
     }
   },
+  "containerEnv": {
+    "ADMIN_KEY": "${localEnv:ADMIN_KEY}",
+
+    "REGISTRY_API_KEY": "${localEnv:REGISTRY_API_KEY}",
+    "PAYMENT_API_KEY": "${localEnv:PAYMENT_API_KEY}",
+
+    "BETTER_AUTH_SECRET": "${localEnv:BETTER_AUTH_SECRET}",
+
+    "RESEND_API_KEY": "${localEnv:RESEND_API_KEY}",
+    
+    "STRIPE_SECRET_KEY": "${localEnv:STRIPE_SECRET_KEY}",
+    "STRIPE_PUBLISHABLE_KEY": "${localEnv:STRIPE_PUBLISHABLE_KEY}",
+    "STRIPE_WEBHOOK_SECRET": "${localEnv:STRIPE_WEBHOOK_SECRET}",
+
+    "DATABASE_URL": "${localEnv:DATABASE_URL}"
+  },
+  "runArgs": ["--env-file", ".devcontainer/web-app/.env.local"],
   "customizations": {
     "vscode": {
       "extensions": [
