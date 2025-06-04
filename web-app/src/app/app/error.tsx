@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect } from "react";
 
@@ -12,6 +13,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { UnAuthorizedError } from "@/lib/auth/errors";
 
 export default function Error({
   error,
@@ -21,11 +23,20 @@ export default function Error({
   reset: () => void;
 }) {
   const t = useTranslations("App.Error");
+  const router = useRouter();
 
   useEffect(() => {
-    // Log the error to an error reporting service
-    console.error(error);
-  }, [error]);
+    // Redirect to login if the error is UnAuthorizedError
+    if (error instanceof UnAuthorizedError) {
+      router.push("/login");
+      return;
+    }
+  }, [error, router]);
+
+  // Don't render the error UI if it's an UnAuthorizedError since we're redirecting
+  if (error instanceof UnAuthorizedError) {
+    return null;
+  }
 
   return (
     <div className="container mx-auto flex min-h-[80vh] items-center justify-center px-4">
