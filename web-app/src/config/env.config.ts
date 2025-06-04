@@ -46,13 +46,6 @@ const envSecretsSchema = z.object({
   RESEND_API_KEY: z.string().min(1),
   RESEND_FROM_EMAIL: z.string().email(),
 
-  // Social Providers
-  GOOGLE_CLIENT_ID: z.string().min(1),
-  GOOGLE_CLIENT_SECRET: z.string().min(1),
-
-  MICROSOFT_CLIENT_ID: z.string().min(1),
-  MICROSOFT_CLIENT_SECRET: z.string().min(1),
-
   // Admin
   ADMIN_KEY: z.string().min(8),
 
