@@ -14,25 +14,31 @@
   "customizations": {
     "vscode": {
       "extensions": [
-        "dbaeumer.vscode-eslint",
-        "esbenp.prettier-vscode",
-        "prisma.prisma",
         "bradlc.vscode-tailwindcss",
-        "ms-playwright.playwright",
-        "csstools.postcss",
-        "dsznajder.es7-react-js-snippets",
-        "ms-vscode.vscode-typescript-next"
+        "esbenp.prettier-vscode",
+        "dbaeumer.vscode-eslint",
+        "streetsidesoftware.code-spell-checker",
+        "prisma.prisma",
+        "lokalise.i18n-ally"
       ],
       "settings": {
         "editor.formatOnSave": true,
         "editor.defaultFormatter": "esbenp.prettier-vscode",
-        "editor.codeActionsOnSave": {
-          "source.fixAll.eslint": true
+        "[prisma]": {
+          "editor.defaultFormatter": "Prisma.prisma"
         },
-        "typescript.tsdk": "node_modules/typescript/lib",
-        "tailwindCSS.includeLanguages": {
-          "typescript": "javascript",
-          "typescriptreact": "javascript"
+        "editor.wordWrap": "on",
+        "editor.tabSize": 2,
+        "editor.codeActionsOnSave": {
+          "source.fixAll": "explicit"
+        },
+        "files.associations": {
+          "*.css": "tailwindcss"
+        },
+        "i18n-ally.localesPaths": ["messages", "src/i18n"],
+        "i18n-ally.keystyle": "nested",
+        "[typescriptreact]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode"
         }
       }
     }
