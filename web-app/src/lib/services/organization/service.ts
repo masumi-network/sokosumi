@@ -44,7 +44,7 @@ export async function getOrganizationMembers(
     limit: number;
   } = {
     page: 1,
-    limit: 10,
+    limit: 100,
   },
 ) {
   const session = await getSessionOrThrow();
