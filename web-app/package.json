@@ -65,7 +65,7 @@
     "@radix-ui/react-toggle-group": "1.1.10",
     "@radix-ui/react-tooltip": "1.2.7",
     "@react-email/components": "0.0.41",
-    "@sentry/nextjs": "9.24.0",
+    "@sentry/nextjs": "9.25.1",
     "@tanstack/react-table": "8.21.3",
     "@tufjs/canonical-json": "2.0.0",
     "@usersnap/browser": "^1.0.2",
@@ -78,7 +78,7 @@
     "embla-carousel-react": "8.6.0",
     "gravatar-url": "4.0.1",
     "input-otp": "1.4.2",
-    "lucide-react": "0.511.0",
+    "lucide-react": "0.512.0",
     "markdown-to-jsx": "7.7.6",
     "next": "15.3.3",
     "next-intl": "4.1.0",
@@ -109,7 +109,7 @@
     "use-debounce": "10.0.4",
     "uuid": "11.1.0",
     "vaul": "1.1.2",
-    "zod": "3.25.49"
+    "zod": "3.25.50"
   },
   "devDependencies": {
     "@eslint/eslintrc": "3.3.1",
