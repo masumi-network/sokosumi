@@ -9,14 +9,6 @@
       "configureZshAsDefaultShell": true,
       "installOhMyZsh": true,
       "upgradePackages": true
-    },
-    "ghcr.io/devcontainers/features/postgresql:1": {
-      "version": "latest",
-      "port": 5432,
-      "initSql": [
-        "CREATE USER sokosumi WITH PASSWORD 'sokosumi';",
-        "CREATE DATABASE sokosumi OWNER sokosumi;"
-      ]
     }
   },
   "containerEnv": {
@@ -34,10 +26,6 @@
     "STRIPE_WEBHOOK_SECRET": "${localEnv:STRIPE_WEBHOOK_SECRET}",
     "STRIPE_PRICE_ID": "${localEnv:STRIPE_PRICE_ID}",
     "STRIPE_WELCOME_COUPON": "${localEnv:STRIPE_WELCOME_COUPON}",
-
-    "DATABASE_URL": "postgresql://sokosumi:sokosumi@localhost:5432/sokosumi",
-
-    "LOCK_TIMEOUT": 10000
   },
   "runArgs": ["--env-file", ".devcontainer/web-app/env.container"],
   "customizations": {
