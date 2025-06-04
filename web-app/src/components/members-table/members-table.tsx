@@ -7,6 +7,7 @@ import { MemberWithUser } from "@/lib/db";
 import { cn } from "@/lib/utils";
 import { Role } from "@/prisma/generated/client";
 
+import MemberActionsModal from "./member-actions-modal";
 import { MemberActionsModalContextProvider } from "./member-actions-modal-context";
 import { getMemberColumns } from "./member-columns";
 
@@ -26,6 +27,7 @@ export default function MembersTable({ members, role }: MembersTableProps) {
         rowClassName={() => "text-foreground active:bg-muted hover:bg-muted"}
         containerClassName={cn("w-full rounded-xl bg-muted/50")}
       />
+      <MemberActionsModal />
     </MemberActionsModalContextProvider>
   );
 }

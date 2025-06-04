@@ -4,7 +4,7 @@ import { createContext, useContext, useState } from "react";
 
 import { MemberWithUser } from "@/lib/db";
 
-enum MemberAction {
+export enum MemberAction {
   CHANGE_TO_ADMIN = "CHANGE_TO_ADMIN",
   CHANGE_TO_MEMBER = "CHANGE_TO_MEMBER",
   KICK = "KICK",
@@ -26,6 +26,7 @@ interface MemberActionsModalContextType {
   // functions
   openActionModal: (member: MemberWithUser, action: MemberAction) => void;
   closeActionModal: () => void;
+  startAction: () => Promise<void>;
 }
 
 const initialState: MemberActionsModalContextType = {
@@ -37,6 +38,7 @@ const initialState: MemberActionsModalContextType = {
   selectedAction: null,
   openActionModal: () => {},
   closeActionModal: () => {},
+  startAction: async () => {},
 };
 
 export const MemberActionsModalContext =
@@ -77,6 +79,12 @@ export function MemberActionsModalContextProvider({
     setOpen(false);
   };
 
+  const startAction = async () => {
+    if (!selectedMember || !selectedAction) {
+      return;
+    }
+  };
+
   const value: MemberActionsModalContextType = {
     open,
     setOpen,
@@ -86,6 +94,7 @@ export function MemberActionsModalContextProvider({
     selectedAction,
     openActionModal,
     closeActionModal,
+    startAction,
   };
 
   return (

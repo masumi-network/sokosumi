@@ -10,6 +10,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MemberWithUser } from "@/lib/db";
 
+import {
+  MemberAction,
+  useMemberActionsModalContext,
+} from "./member-actions-modal-context";
+
 interface MemberRowActionsDropdownProps {
   member: MemberWithUser;
 }
@@ -19,7 +24,21 @@ export default function MemberRowActionsDropdown({
 }: MemberRowActionsDropdownProps) {
   const t = useTranslations("Components.MembersTable.Actions");
 
+  const { openActionModal } = useMemberActionsModalContext();
+
   const { role } = member;
+
+  const handleChangeToAdmin = () => {
+    openActionModal(member, MemberAction.CHANGE_TO_ADMIN);
+  };
+
+  const handleChangeToMember = () => {
+    openActionModal(member, MemberAction.CHANGE_TO_MEMBER);
+  };
+
+  const handleKick = () => {
+    openActionModal(member, MemberAction.KICK);
+  };
 
   return (
     <DropdownMenu>
@@ -30,12 +49,18 @@ export default function MemberRowActionsDropdown({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         {role === "MEMBER" && (
-          <DropdownMenuItem>{t("changeToAdmin")}</DropdownMenuItem>
+          <DropdownMenuItem onClick={handleChangeToAdmin}>
+            {t("changeToAdmin")}
+          </DropdownMenuItem>
         )}
         {role === "ADMIN" && (
-          <DropdownMenuItem>{t("changeToMember")}</DropdownMenuItem>
+          <DropdownMenuItem onClick={handleChangeToMember}>
+            {t("changeToMember")}
+          </DropdownMenuItem>
         )}
-        <DropdownMenuItem variant="destructive">{t("kick")}</DropdownMenuItem>
+        <DropdownMenuItem variant="destructive" onClick={handleKick}>
+          {t("kick")}
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

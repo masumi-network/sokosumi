@@ -115,7 +115,20 @@
       "Actions": {
         "kick": "Kick",
         "changeToAdmin": "Change to Admin",
-        "changeToMember": "Change to Member"
+        "changeToMember": "Change to Member",
+        "Modal": {
+          "changeRoleTitle": "Change Role",
+          "kickTitle": "Kick Membmer",
+          "changeToAdminDescription": "Are you sure you want to change the role of {member} to Admin?",
+          "changeToMemberDescription": "Are you sure you want to change the role of {member} to Member?",
+          "kickDescription": "Are you sure you want to kick {member} from the organization?",
+          "confirm": "Confirm",
+          "cancel": "Cancel",
+          "changeRoleSuccess": "Role changed successfully",
+          "kickSuccess": "Member kicked successfully",
+          "changeRoleError": "Failed to change role",
+          "kickError": "Failed to kick member"
+        }
       }
     },
     "Breadcrumb": {
