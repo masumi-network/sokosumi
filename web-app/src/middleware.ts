@@ -2,12 +2,25 @@ import { getSessionCookie } from "better-auth/cookies";
 import { NextRequest, NextResponse } from "next/server";
 
 export async function middleware(request: NextRequest) {
+  const response = NextResponse.next();
+
+  // Add current URL to headers for server components
+  const pathname = request.nextUrl.pathname;
+  const searchParams = request.nextUrl.search;
+
+  response.headers.set("x-pathname", pathname);
+  response.headers.set("x-search-params", searchParams);
+
   const sessionCookie = getSessionCookie(request);
   if (!sessionCookie) {
-    return NextResponse.redirect(new URL("/login", request.url));
+    const currentPath = pathname + searchParams;
+    const returnUrl = encodeURIComponent(currentPath);
+    return NextResponse.redirect(
+      new URL(`/login?returnUrl=${returnUrl}`, request.url),
+    );
   }
 
-  return NextResponse.next();
+  return response;
 }
 
 export const config = {

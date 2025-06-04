@@ -28,7 +28,12 @@ export default function Error({
   useEffect(() => {
     // Redirect to login if the error is UnAuthorizedError
     if (error instanceof UnAuthorizedError) {
-      router.push("/login");
+      // Use the URL from the error if available, otherwise fall back to current URL
+      const redirectUrl =
+        (error as UnAuthorizedError).redirectUrl ??
+        window.location.pathname + window.location.search;
+      const returnUrl = encodeURIComponent(redirectUrl);
+      router.push(`/login?returnUrl=${returnUrl}`);
       return;
     }
   }, [error, router]);
