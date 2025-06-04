@@ -30,15 +30,46 @@ A fully configured development environment for the Sokosumi Web App using VS Cod
    export STRIPE_WEBHOOK_SECRET="your-stripe-webhook-secret"
    export STRIPE_PRICE_ID="your-stripe-price-id"
    export STRIPE_WELCOME_COUPON="your-stripe-coupon"
+   
+   # Database configuration (REQUIRED)
+   export DATABASE_URL="postgresql://username:password@localhost:5432/sokosumi_dev"
    ```
 
-3. **Open in Dev Container**:
+3. **Set up PostgreSQL Database**:
+   The devcontainer expects a PostgreSQL database to be available. You have several options:
+   
+   **Option A: Local PostgreSQL Installation**
+   ```bash
+   # Install PostgreSQL locally (if not already installed)
+   # macOS with Homebrew:
+   brew install postgresql
+   brew services start postgresql
+   
+   # Create database
+   createdb sokosumi_dev
+   ```
+   
+   **Option B: Docker PostgreSQL**
+   ```bash
+   # Run PostgreSQL in a separate container
+   docker run --name sokosumi-postgres \
+     -e POSTGRES_DB=sokosumi_dev \
+     -e POSTGRES_USER=username \
+     -e POSTGRES_PASSWORD=password \
+     -p 5432:5432 \
+     -d postgres:15
+   ```
+   
+   **Option C: Cloud Database**
+   Use a cloud PostgreSQL service (AWS RDS, Google Cloud SQL, etc.) and update your `DATABASE_URL` accordingly.
+
+4. **Open in Dev Container**:
    - Open VS Code in the project root
    - Press `Ctrl+Shift+P` (or `Cmd+Shift+P` on Mac)
    - Type "Dev Containers: Reopen in Container"
    - Select "Sokosumi Web App Development"
 
-4. **Wait for setup** - The container will automatically:
+5. **Wait for setup** - The container will automatically:
    - Pull the Node.js 22 base image
    - Install all required tools and extensions
    - Run `pnpm install` to install dependencies
@@ -67,6 +98,8 @@ A fully configured development environment for the Sokosumi Web App using VS Cod
 - **3000** - Next.js Development Server
 - **5555** - Prisma Studio
 
+> **Note**: PostgreSQL (port 5432) is expected to be running externally as configured in your `DATABASE_URL`
+
 ## 🔧 Configuration Details
 
 ### Environment Variables
@@ -77,6 +110,7 @@ The container automatically loads environment variables from two sources:
    - API keys and secrets for external services
    - Authentication tokens
    - Stripe configuration
+   - **DATABASE_URL** - PostgreSQL connection string (required)
 
 2. **Container Environment File** (`.devcontainer/web-app/env.container`):
    - Application configuration
@@ -135,12 +169,14 @@ pnpm type-check
 
 ## 🗃 Database Configuration
 
-The development environment includes:
-- **PostgreSQL** running on port 5432
+The development environment expects:
+- **PostgreSQL** accessible via your `DATABASE_URL` environment variable
 - **Prisma Studio** for database management on port 5555
 - **Auto-seeding** with developer account:
   - Email: `developer@sokosumi.com`
   - Password: `developer`
+
+> **Important**: Ensure your PostgreSQL database is running and accessible before starting the development server. The container does not include PostgreSQL - you must set it up externally.
 
 ## 🌐 API Endpoints
 
@@ -160,10 +196,14 @@ The container is configured to work with:
 
 ### Common Issues
 
-1. **Port conflicts**: Ensure ports 3000, 5432, and 5555 are available
+1. **Port conflicts**: Ensure ports 3000 and 5555 are available
 2. **Environment variables not loaded**: Check your shell profile and restart VS Code
-3. **Database connection issues**: Verify PostgreSQL is running in the container
+3. **Database connection issues**: 
+   - Verify PostgreSQL is running and accessible
+   - Check your `DATABASE_URL` environment variable
+   - Ensure the database specified in `DATABASE_URL` exists
 4. **Extension not working**: Reload the window (`Ctrl+Shift+P` → "Developer: Reload Window")
+5. **Prisma connection errors**: Run `pnpm prisma migrate dev` to ensure database schema is up to date
 
 ### Logs and Debugging
 
