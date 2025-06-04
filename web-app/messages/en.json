@@ -118,7 +118,7 @@
         "changeToMember": "Change to Member",
         "Modal": {
           "changeRoleTitle": "Change Role",
-          "kickTitle": "Kick Membmer",
+          "kickTitle": "Kick Member",
           "changeToAdminDescription": "Are you sure you want to change the role of {member} to Admin?",
           "changeToMemberDescription": "Are you sure you want to change the role of {member} to Member?",
           "kickDescription": "Are you sure you want to kick {member} from the organization?",
@@ -132,12 +132,12 @@
             "changeRoleError": "Failed to change role",
             "kickError": "Failed to kick member",
             "unauthorized": "Unauthorized",
-            "notMember":"You are not a member of this organization",
+            "notMember": "You are not a member of this organization",
             "notAdmin": "You are not an admin of this organization",
             "memberNotFound": "Member not found",
             "memberNotInOrganization": "Member is not in this organization",
             "changeMyRoleNotAllowed": "You can not change your own role",
-            "kickMyselfNotAllowed": "You can not kick your self"
+            "kickMyselfNotAllowed": "You can not kick yourself"
           }
         }
       }
