@@ -744,11 +744,22 @@
             "failedToParseOutput": "Failed to parse output",
             "none": "No result data",
             "download": "Download",
+            "copy": "Copy",
+            "copySuccess": "Output copied to clipboard",
+            "copyError": "Failed to copy output",
+            "maximize": "Maximize",
+            "maximizeTitle": "Job Output",
+            "close": "Close",
             "Refund": {
               "error": "Failed to request refund",
               "request": "Request Refund",
               "requested": "Refund Requested",
               "refunded": "Refunded",
+              "confirmTitle": "Request Refund?",
+              "confirmDescription": "Are you sure you want to request a refund for this job?",
+              "learnMore": "Learn more about refunds and disputes",
+              "cancel": "Cancel",
+              "confirm": "Request Refund",
               "Tooltip": {
                 "available": {
                   "title": "Refund available",

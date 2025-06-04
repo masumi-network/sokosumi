@@ -37,7 +37,7 @@
     "@hey-api/client-next": "0.4.0",
     "@hookform/resolvers": "5.0.1",
     "@icons-pack/react-simple-icons": "13.0.0",
-    "@prisma/client": "6.8.2",
+    "@prisma/client": "6.9.0",
     "@radix-ui/react-accordion": "1.2.11",
     "@radix-ui/react-alert-dialog": "1.1.14",
     "@radix-ui/react-aspect-ratio": "1.1.7",
@@ -65,7 +65,7 @@
     "@radix-ui/react-toggle-group": "1.1.10",
     "@radix-ui/react-tooltip": "1.2.7",
     "@react-email/components": "0.0.41",
-    "@sentry/nextjs": "9.24.0",
+    "@sentry/nextjs": "9.25.1",
     "@tanstack/react-table": "8.21.3",
     "@tufjs/canonical-json": "2.0.0",
     "@usersnap/browser": "^1.0.2",
@@ -78,7 +78,7 @@
     "embla-carousel-react": "8.6.0",
     "gravatar-url": "4.0.1",
     "input-otp": "1.4.2",
-    "lucide-react": "0.511.0",
+    "lucide-react": "0.512.0",
     "markdown-to-jsx": "7.7.6",
     "nanoid": "^5.1.5",
     "next": "15.3.3",
@@ -110,7 +110,7 @@
     "use-debounce": "10.0.4",
     "uuid": "11.1.0",
     "vaul": "1.1.2",
-    "zod": "3.25.49"
+    "zod": "3.25.50"
   },
   "devDependencies": {
     "@eslint/eslintrc": "3.3.1",
@@ -139,7 +139,7 @@
     "postcss": "8.5.4",
     "prettier": "3.5.3",
     "prettier-plugin-tailwindcss": "0.6.12",
-    "prisma": "6.8.2",
+    "prisma": "6.9.0",
     "tailwindcss": "4.1.8",
     "tsx": "4.19.4",
     "typescript": "5.8.3"

@@ -1,9 +1,20 @@
 "use client";
 
-import { HandCoins, LoaderCircle } from "lucide-react";
+import { ExternalLink, HandCoins, LoaderCircle } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -82,6 +93,7 @@ export default function RequestRefundButton({
   const t = useTranslations("App.Agents.Jobs.JobDetails.Output.Refund");
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isRefundRequested, setIsRefundRequested] = useState(
     job.onChainStatus === OnChainJobStatus.REFUND_REQUESTED ||
       job.nextAction === NextJobAction.SET_REFUND_REQUESTED_INITIATED ||
@@ -116,7 +128,7 @@ export default function RequestRefundButton({
     formatter,
   );
 
-  const handleClick = async () => {
+  const handleRefundRequest = async () => {
     setIsLoading(true);
     setError(null);
 
@@ -129,22 +141,52 @@ export default function RequestRefundButton({
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setIsLoading(false);
+      setIsDialogOpen(false);
     }
   };
+
   const buttonElement = (
     <div>
-      <ButtonBase
-        onClick={handleClick}
-        disabled={isLoading || isRefundDisabled || isRefundRequested}
-        className={className}
-      >
-        {isLoading ? (
-          <LoaderCircle className="h-4 w-4 animate-spin" />
-        ) : (
-          <HandCoins className="h-4 w-4" />
-        )}
-        {t("request")}
-      </ButtonBase>
+      <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <AlertDialogTrigger asChild>
+          <ButtonBase
+            disabled={isLoading || isRefundDisabled || isRefundRequested}
+            className={className}
+          >
+            {isLoading ? (
+              <LoaderCircle className="h-4 w-4 animate-spin" />
+            ) : (
+              <HandCoins className="h-4 w-4" />
+            )}
+            {t("request")}
+          </ButtonBase>
+        </AlertDialogTrigger>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("confirmTitle")}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t("confirmDescription")}
+              <div className="mt-2">
+                <a
+                  href="https://docs.masumi.network/core-concepts/refunds-and-disputes"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-primary flex items-center gap-1 hover:underline"
+                >
+                  {t("learnMore")}
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleRefundRequest}>
+              {t("confirm")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
       {error && <p className="text-xs text-red-500">{t("error")}</p>}
     </div>
   );

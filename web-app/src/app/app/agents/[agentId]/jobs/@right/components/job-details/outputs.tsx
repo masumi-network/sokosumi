@@ -9,7 +9,9 @@ import {
   JobStatusResponseSchemaType,
 } from "@/lib/services/job/schemas";
 
+import CopyMarkdown from "./copy-markdown";
 import DownloadMarkdown from "./download-markdown";
+import MaximizeMarkdown from "./maximize-markdown";
 import RequestRefundButton from "./refund-request";
 
 interface JobDetailsOutputsProps {
@@ -57,7 +59,13 @@ function JobDetailsOutputsInner({ job }: JobDetailsOutputsProps) {
         <>
           <Markdown>{output.result}</Markdown>
           <div className="flex justify-between gap-2">
-            <DownloadMarkdown markdown={output.result} />
+            <div className="flex gap-4">
+              <MaximizeMarkdown markdown={output.result} />
+              <div className="flex gap-1">
+                <DownloadMarkdown markdown={output.result} />
+                <CopyMarkdown markdown={output.result} />
+              </div>
+            </div>
             <RequestRefundButton job={job} />
           </div>
         </>
