@@ -24,10 +24,12 @@
     "STRIPE_SECRET_KEY": "${localEnv:STRIPE_SECRET_KEY}",
     "STRIPE_PUBLISHABLE_KEY": "${localEnv:STRIPE_PUBLISHABLE_KEY}",
     "STRIPE_WEBHOOK_SECRET": "${localEnv:STRIPE_WEBHOOK_SECRET}",
+    "STRIPE_PRICE_ID": "${localEnv:STRIPE_PRICE_ID}",
+    "STRIPE_WELCOME_COUPON": "${localEnv:STRIPE_WELCOME_COUPON}",
 
     "DATABASE_URL": "${localEnv:DATABASE_URL}"
   },
-  "runArgs": ["--env-file", ".devcontainer/web-app/.env.local"],
+  "runArgs": ["--env-file", ".devcontainer/web-app/env.container"],
   "customizations": {
     "vscode": {
       "extensions": [
