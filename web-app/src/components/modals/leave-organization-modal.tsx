@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { leaveOrganization, LeaveOrganizationErrorCodes } from "@/lib/actions";
+import { leaveOrganization, OrganizationActionErrorCode } from "@/lib/actions";
 import { Organization } from "@/prisma/generated/client";
 
 interface LeaveOrganizationModalProps {
@@ -37,10 +37,10 @@ export default function LeaveOrganizationModal({
     const result = await leaveOrganization(organization.id);
     if (!result.success) {
       switch (result.error.code) {
-        case LeaveOrganizationErrorCodes.NOT_AUTHENTICATED:
+        case OrganizationActionErrorCode.NOT_AUTHENTICATED:
           toast.error(t("Errors.unauthorized"));
           break;
-        case LeaveOrganizationErrorCodes.MEMBER_COUNT_NOT_ALLOWED:
+        case OrganizationActionErrorCode.MEMBER_COUNT_NOT_ALLOWED:
           toast.error(t("Errors.memberCountNotAllowed"));
           break;
         default:

@@ -22,7 +22,7 @@ export async function generateOrganizationSlugFromName(name: string) {
   return `${slugedName}-${uniqueId}`;
 }
 
-export async function findMemberInOrganization(
+export async function findMyMemberInOrganization(
   organizationId: string,
 ): Promise<Member | null> {
   const session = await getSessionOrThrow();

@@ -10,20 +10,19 @@ import {
   deleteMember,
   getMembersByOrganizationId,
   getMembersByUserId,
+  getMemberWithRelationsById,
   isEmailAllowedByOrganization,
   MemberWithOrganization,
+  updateMemberRole,
   updateOrganization,
 } from "@/lib/db";
 import {
-  findMemberInOrganization,
+  findMyMemberInOrganization,
   generateOrganizationSlugFromName,
 } from "@/lib/services";
 import { Organization, Prisma, Role } from "@/prisma/generated/client";
 
-import {
-  LeaveOrganizationErrorCodes,
-  UpdateOrganizationInformationErrorCodes,
-} from "./error";
+import { OrganizationActionErrorCode } from "./error";
 
 export async function createOrganizationFromName(name: string) {
   try {
@@ -87,7 +86,7 @@ export async function leaveOrganization(
     if (!session) {
       return {
         success: false,
-        error: { code: LeaveOrganizationErrorCodes.NOT_AUTHENTICATED },
+        error: { code: OrganizationActionErrorCode.NOT_AUTHENTICATED },
       };
     }
     const userId = session.user.id;
@@ -99,7 +98,7 @@ export async function leaveOrganization(
     if (members.length <= 1) {
       return {
         success: false,
-        error: { code: LeaveOrganizationErrorCodes.MEMBER_COUNT_NOT_ALLOWED },
+        error: { code: OrganizationActionErrorCode.MEMBER_COUNT_NOT_ALLOWED },
       };
     }
 
@@ -114,7 +113,7 @@ export async function leaveOrganization(
     console.error("Error leaving organization", error);
     return {
       success: false,
-      error: { code: LeaveOrganizationErrorCodes.INTERNAL_SERVER_ERROR },
+      error: { code: OrganizationActionErrorCode.INTERNAL_SERVER_ERROR },
     };
   }
 }
@@ -125,12 +124,12 @@ export async function updateOrganizationInformation(
 ): Promise<{ success: false; error: { code: string } } | { success: true }> {
   try {
     // check membership
-    const member = await findMemberInOrganization(organizationId);
+    const member = await findMyMemberInOrganization(organizationId);
     if (!member) {
       return {
         success: false,
         error: {
-          code: UpdateOrganizationInformationErrorCodes.NOT_MEMBER,
+          code: OrganizationActionErrorCode.NOT_MEMBER,
         },
       };
     }
@@ -140,7 +139,7 @@ export async function updateOrganizationInformation(
       return {
         success: false,
         error: {
-          code: UpdateOrganizationInformationErrorCodes.NOT_ADMIN,
+          code: OrganizationActionErrorCode.NOT_ADMIN,
         },
       };
     }
@@ -156,7 +155,7 @@ export async function updateOrganizationInformation(
       return {
         success: false,
         error: {
-          code: UpdateOrganizationInformationErrorCodes.NOT_AUTHENTICATED,
+          code: OrganizationActionErrorCode.NOT_AUTHENTICATED,
         },
       };
     }
@@ -164,7 +163,85 @@ export async function updateOrganizationInformation(
     return {
       success: false,
       error: {
-        code: UpdateOrganizationInformationErrorCodes.INTERNAL_SERVER_ERROR,
+        code: OrganizationActionErrorCode.INTERNAL_SERVER_ERROR,
+      },
+    };
+  }
+}
+
+export async function changeMemberRole(
+  organizationId: string,
+  memberId: string,
+  newRole: Role,
+) {
+  try {
+    // check membership
+    const myMember = await findMyMemberInOrganization(organizationId);
+    if (!myMember) {
+      return {
+        success: false,
+        error: {
+          code: OrganizationActionErrorCode.NOT_MEMBER,
+        },
+      };
+    }
+
+    // check role is ADMIN
+    if (myMember.role !== Role.ADMIN) {
+      return {
+        success: false,
+        error: {
+          code: OrganizationActionErrorCode.NOT_ADMIN,
+        },
+      };
+    }
+
+    // check memberId is exists
+    // and memberId is not the same as myMember
+    const member = await getMemberWithRelationsById(memberId);
+    if (!member) {
+      return {
+        success: false,
+        error: { code: OrganizationActionErrorCode.MEMBER_NOT_FOUND },
+      };
+    }
+    if (member.userId === myMember.userId) {
+      return {
+        success: false,
+        error: {
+          code: OrganizationActionErrorCode.CHANGE_MY_ROLE_NOT_ALLOWED,
+        },
+      };
+    }
+
+    // check member is in same organization
+    if (member.organizationId !== organizationId) {
+      return {
+        success: false,
+        error: { code: OrganizationActionErrorCode.MEMBER_NOT_IN_ORGANIZATION },
+      };
+    }
+
+    // update member role
+    await updateMemberRole(memberId, newRole);
+
+    // revalidate the organization page
+    revalidatePath(`/app/organizations/${member.organization.slug}/members`);
+    return { success: true };
+  } catch (error) {
+    if (isUnAuthorizedError(error)) {
+      return {
+        success: false,
+        error: {
+          code: OrganizationActionErrorCode.NOT_AUTHENTICATED,
+        },
+      };
+    }
+    console.error("Error updating organization information", error);
+    return {
+      success: false,
+      error: {
+        code: OrganizationActionErrorCode.INTERNAL_SERVER_ERROR,
       },
     };
   }

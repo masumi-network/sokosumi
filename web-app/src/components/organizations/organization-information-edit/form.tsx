@@ -6,8 +6,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import {
+  OrganizationActionErrorCode,
   updateOrganizationInformation,
-  UpdateOrganizationInformationErrorCodes,
 } from "@/lib/actions";
 
 import { editFormData, EditFormSchemaType } from "./data";
@@ -34,13 +34,13 @@ export default function OrganizationInformationEditForm({
     });
     if (!result.success) {
       switch (result.error.code) {
-        case UpdateOrganizationInformationErrorCodes.NOT_AUTHENTICATED:
+        case OrganizationActionErrorCode.NOT_AUTHENTICATED:
           toast.error(t("Errors.unauthorized"));
           break;
-        case UpdateOrganizationInformationErrorCodes.NOT_MEMBER:
+        case OrganizationActionErrorCode.NOT_MEMBER:
           toast.error(t("Errors.notMember"));
           break;
-        case UpdateOrganizationInformationErrorCodes.NOT_ADMIN:
+        case OrganizationActionErrorCode.NOT_ADMIN:
           toast.error(t("Errors.notAdmin"));
           break;
         default:

@@ -4,10 +4,12 @@ import { prisma } from "@/lib/db";
 import { Member, Prisma, Role } from "@/prisma/generated/client";
 
 import {
+  memberInclude,
   memberOrderBy,
   memberOrganizationInclude,
   memberUserInclude,
   MemberWithOrganization,
+  MemberWithRelations,
   MemberWithUser,
 } from "./types";
 
@@ -103,5 +105,26 @@ export async function deleteMember(
       userId,
       organizationId,
     },
+  });
+}
+
+export async function getMemberWithRelationsById(
+  memberId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<MemberWithRelations | null> {
+  return await tx.member.findUnique({
+    where: { id: memberId },
+    include: memberInclude,
+  });
+}
+
+export async function updateMemberRole(
+  memberId: string,
+  newRole: Role,
+  tx: Prisma.TransactionClient = prisma,
+) {
+  return await tx.member.update({
+    where: { id: memberId },
+    data: { role: newRole },
   });
 }

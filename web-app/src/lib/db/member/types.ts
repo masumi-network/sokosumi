@@ -17,10 +17,19 @@ export const memberOrderBy = [
   },
 ] as const;
 
+export const memberInclude = {
+  ...memberOrganizationInclude,
+  ...memberUserInclude,
+} as const;
+
 export type MemberWithOrganization = Prisma.MemberGetPayload<{
   include: typeof memberOrganizationInclude;
 }>;
 
 export type MemberWithUser = Prisma.MemberGetPayload<{
   include: typeof memberUserInclude;
+}>;
+
+export type MemberWithRelations = Prisma.MemberGetPayload<{
+  include: typeof memberInclude;
 }>;

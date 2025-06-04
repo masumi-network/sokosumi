@@ -7,7 +7,7 @@ import { OrganizationRoleBadge } from "@/components/organizations";
 import { getSession } from "@/lib/auth/utils";
 import { getOrganizationBySlug } from "@/lib/db";
 import {
-  findMemberInOrganization,
+  findMyMemberInOrganization,
   getOrganizationMembers,
 } from "@/lib/services";
 
@@ -40,7 +40,7 @@ export default async function OrganizationMembersPage({
     return notFound();
   }
 
-  const member = await findMemberInOrganization(organization.id);
+  const member = await findMyMemberInOrganization(organization.id);
   if (!member) {
     redirect("/app/organizations");
   }
