@@ -124,10 +124,21 @@
           "kickDescription": "Are you sure you want to kick {member} from the organization?",
           "confirm": "Confirm",
           "cancel": "Cancel",
-          "changeRoleSuccess": "Role changed successfully",
-          "kickSuccess": "Member kicked successfully",
-          "changeRoleError": "Failed to change role",
-          "kickError": "Failed to kick member"
+          "Successes": {
+            "changeRoleSuccess": "Role changed successfully",
+            "kickSuccess": "Member kicked successfully"
+          },
+          "Errors": {
+            "changeRoleError": "Failed to change role",
+            "kickError": "Failed to kick member",
+            "unauthorized": "Unauthorized",
+            "notMember":"You are not a member of this organization",
+            "notAdmin": "You are not an admin of this organization",
+            "memberNotFound": "Member not found",
+            "memberNotInOrganization": "Member is not in this organization",
+            "changeMyRoleNotAllowed": "You can not change your own role",
+            "kickMyselfNotAllowed": "You can not kick your self"
+          }
         }
       }
     },

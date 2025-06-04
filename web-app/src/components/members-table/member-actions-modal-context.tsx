@@ -1,8 +1,16 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { createContext, useContext, useState } from "react";
+import { toast } from "sonner";
 
+import {
+  changeMemberRole,
+  kickMember,
+  OrganizationActionErrorCode,
+} from "@/lib/actions";
 import { MemberWithUser } from "@/lib/db";
+import { Role } from "@/prisma/generated/client";
 
 export enum MemberAction {
   CHANGE_TO_ADMIN = "CHANGE_TO_ADMIN",
@@ -49,6 +57,8 @@ export function MemberActionsModalContextProvider({
 }: {
   children: React.ReactNode;
 }) {
+  const t = useTranslations("Components.MembersTable.Actions.Modal");
+
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -83,6 +93,69 @@ export function MemberActionsModalContextProvider({
     if (!selectedMember || !selectedAction) {
       return;
     }
+
+    let result;
+    setLoading(true);
+
+    if (selectedAction === MemberAction.CHANGE_TO_ADMIN) {
+      result = await changeMemberRole(
+        selectedMember.organizationId,
+        selectedMember.id,
+        Role.ADMIN,
+      );
+    } else if (selectedAction === MemberAction.CHANGE_TO_MEMBER) {
+      result = await changeMemberRole(
+        selectedMember.organizationId,
+        selectedMember.id,
+        Role.MEMBER,
+      );
+    } else {
+      result = await kickMember(
+        selectedMember.organizationId,
+        selectedMember.id,
+      );
+    }
+
+    if (!result.success) {
+      switch (result.error.code) {
+        case OrganizationActionErrorCode.UNAUTHORIZED:
+          toast.error(t("Errors.unauthorized"));
+          break;
+        case OrganizationActionErrorCode.NOT_MEMBER:
+          toast.error(t("Errors.notMember"));
+          break;
+        case OrganizationActionErrorCode.NOT_ADMIN:
+          toast.error(t("Errors.notAdmin"));
+          break;
+        case OrganizationActionErrorCode.MEMBER_NOT_FOUND:
+          toast.error(t("Errors.memberNotFound"));
+          break;
+        case OrganizationActionErrorCode.MEMBER_NOT_IN_ORGANIZATION:
+          toast.error(t("Errors.memberNotInOrganization"));
+          break;
+        case OrganizationActionErrorCode.CHANGE_MY_ROLE_NOT_ALLOWED:
+          toast.error(t("Errors.changeMyRoleNotAllowed"));
+          break;
+        case OrganizationActionErrorCode.KICK_MYSELF_NOT_ALLOWED:
+          toast.error(t("Errors.kickMyselfNotAllowed"));
+          break;
+        default:
+          toast.error(
+            selectedAction === MemberAction.KICK
+              ? t("Errors.kickError")
+              : t("Errors.changeRoleError"),
+          );
+          break;
+      }
+    } else {
+      toast.success(
+        selectedAction === MemberAction.KICK
+          ? t("Successes.kickSuccess")
+          : t("Successes.changeRoleSuccess"),
+      );
+      setOpen(false);
+    }
+    setLoading(false);
   };
 
   const value: MemberActionsModalContextType = {

@@ -7,7 +7,8 @@ import { getSession } from "@/lib/auth/utils";
 import {
   createMember,
   createOrganization,
-  deleteMember,
+  deleteMemberById,
+  deleteMemberByUserIdAndOrganizationId,
   getMembersByOrganizationId,
   getMembersByUserId,
   getMemberWithRelationsById,
@@ -103,7 +104,7 @@ export async function leaveOrganization(
     }
 
     // delete member
-    await deleteMember(userId, organizationId);
+    await deleteMemberByUserIdAndOrganizationId(userId, organizationId);
 
     // revalidate the organization page
     revalidatePath(`/app/organizations`);
@@ -173,7 +174,7 @@ export async function changeMemberRole(
   organizationId: string,
   memberId: string,
   newRole: Role,
-) {
+): Promise<{ success: false; error: { code: string } } | { success: true }> {
   try {
     // check membership
     const myMember = await findMyMemberInOrganization(organizationId);
@@ -224,6 +225,83 @@ export async function changeMemberRole(
 
     // update member role
     await updateMemberRole(memberId, newRole);
+
+    // revalidate the organization page
+    revalidatePath(`/app/organizations/${member.organization.slug}/members`);
+    return { success: true };
+  } catch (error) {
+    if (isUnAuthorizedError(error)) {
+      return {
+        success: false,
+        error: {
+          code: OrganizationActionErrorCode.UNAUTHORIZED,
+        },
+      };
+    }
+    console.error("Error updating organization information", error);
+    return {
+      success: false,
+      error: {
+        code: OrganizationActionErrorCode.INTERNAL_SERVER_ERROR,
+      },
+    };
+  }
+}
+
+export async function kickMember(
+  organizationId: string,
+  memberId: string,
+): Promise<{ success: false; error: { code: string } } | { success: true }> {
+  try {
+    // check membership
+    const myMember = await findMyMemberInOrganization(organizationId);
+    if (!myMember) {
+      return {
+        success: false,
+        error: {
+          code: OrganizationActionErrorCode.NOT_MEMBER,
+        },
+      };
+    }
+
+    // check role is ADMIN
+    if (myMember.role !== Role.ADMIN) {
+      return {
+        success: false,
+        error: {
+          code: OrganizationActionErrorCode.NOT_ADMIN,
+        },
+      };
+    }
+
+    // check memberId is exists
+    // and memberId is not the same as myMember
+    const member = await getMemberWithRelationsById(memberId);
+    if (!member) {
+      return {
+        success: false,
+        error: { code: OrganizationActionErrorCode.MEMBER_NOT_FOUND },
+      };
+    }
+    if (member.userId === myMember.userId) {
+      return {
+        success: false,
+        error: {
+          code: OrganizationActionErrorCode.KICK_MYSELF_NOT_ALLOWED,
+        },
+      };
+    }
+
+    // check member is in same organization
+    if (member.organizationId !== organizationId) {
+      return {
+        success: false,
+        error: { code: OrganizationActionErrorCode.MEMBER_NOT_IN_ORGANIZATION },
+      };
+    }
+
+    // kick member
+    await deleteMemberById(memberId);
 
     // revalidate the organization page
     revalidatePath(`/app/organizations/${member.organization.slug}/members`);

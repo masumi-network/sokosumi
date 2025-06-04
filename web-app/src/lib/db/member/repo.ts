@@ -95,7 +95,7 @@ export async function createMember(
   });
 }
 
-export async function deleteMember(
+export async function deleteMemberByUserIdAndOrganizationId(
   userId: string,
   organizationId: string,
   tx: Prisma.TransactionClient = prisma,
@@ -105,6 +105,15 @@ export async function deleteMember(
       userId,
       organizationId,
     },
+  });
+}
+
+export async function deleteMemberById(
+  memberId: string,
+  tx: Prisma.TransactionClient = prisma,
+) {
+  return await tx.member.delete({
+    where: { id: memberId },
   });
 }
 
