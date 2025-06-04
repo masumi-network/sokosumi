@@ -75,7 +75,7 @@
       "onAutoForward": "silent"
     }
   },
-  "postCreateCommand": "npm install -g pnpm && pnpm install && pnpm prisma migrate dev",
+  "postCreateCommand": "npm install -g pnpm && pnpm install",
   "remoteUser": "node",
   "workspaceFolder": "/workspaces/sokosumi/web-app"
 }
