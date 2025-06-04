@@ -13,7 +13,6 @@ import {
   getMembersByUserId,
   getMemberWithRelationsById,
   isEmailAllowedByOrganization,
-  MemberWithOrganization,
   updateMemberRole,
   updateOrganization,
 } from "@/lib/db";
@@ -64,19 +63,6 @@ export async function createOrganizationMember(
     console.error("Error creating organization member", error);
     return { success: false };
   }
-}
-
-export async function listMyMembers(): Promise<
-  MemberWithOrganization[] | null
-> {
-  const session = await getSession();
-  if (!session) {
-    return null;
-  }
-
-  const userId = session.user.id;
-
-  return await getMembersByUserId(userId);
 }
 
 export async function leaveOrganization(

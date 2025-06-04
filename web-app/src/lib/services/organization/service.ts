@@ -7,7 +7,9 @@ import { getSessionOrThrow } from "@/lib/auth/utils";
 import {
   filterMembers,
   getMemberByUserIdAndOrganizationId,
+  getMembersByUserId,
   getOrganizationBySlug,
+  MemberWithOrganization,
 } from "@/lib/db";
 import { Member } from "@/prisma/generated/client";
 
@@ -20,6 +22,13 @@ export async function generateOrganizationSlugFromName(name: string) {
 
   const uniqueId = nanoid(6);
   return `${slugedName}-${uniqueId}`;
+}
+
+export async function listMyMembers(): Promise<MemberWithOrganization[]> {
+  const session = await getSessionOrThrow();
+  const userId = session.user.id;
+
+  return await getMembersByUserId(userId);
 }
 
 export async function findMyMemberInOrganization(

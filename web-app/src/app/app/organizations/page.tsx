@@ -1,8 +1,7 @@
 import { Metadata } from "next";
-import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
-import { listMyMembers } from "@/lib/actions";
+import { listMyMembers } from "@/lib/services";
 
 import Organizations from "./components/organizations";
 
@@ -18,9 +17,6 @@ export default async function OrganizationsPage() {
   const t = await getTranslations("App.Organizations");
 
   const members = await listMyMembers();
-  if (!members) {
-    redirect("/login");
-  }
 
   return (
     <div className="container flex flex-col gap-8 p-8">
