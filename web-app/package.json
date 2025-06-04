@@ -37,7 +37,7 @@
     "@hey-api/client-next": "0.4.0",
     "@hookform/resolvers": "5.0.1",
     "@icons-pack/react-simple-icons": "13.0.0",
-    "@prisma/client": "6.8.2",
+    "@prisma/client": "6.9.0",
     "@radix-ui/react-accordion": "1.2.11",
     "@radix-ui/react-alert-dialog": "1.1.14",
     "@radix-ui/react-aspect-ratio": "1.1.7",
@@ -138,7 +138,7 @@
     "postcss": "8.5.4",
     "prettier": "3.5.3",
     "prettier-plugin-tailwindcss": "0.6.12",
-    "prisma": "6.8.2",
+    "prisma": "6.9.0",
     "tailwindcss": "4.1.8",
     "tsx": "4.19.4",
     "typescript": "5.8.3"
