@@ -11,13 +11,6 @@ import FreeCreditsButton from "./free-credits-button";
 export default async function UserCredits() {
   const t = await getTranslations("App.Header.Credit");
   const session = await getSessionOrThrow();
-
-  if (!session?.user.id) {
-    return (
-      <div className="text-muted-foreground text-sm">{t("unavailable")}</div>
-    );
-  }
-
   const user = await getUserById(session.user.id);
 
   if (!user) {
