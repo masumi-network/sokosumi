@@ -7,17 +7,29 @@ updates:
       interval: "daily"
       time: "06:00"
       timezone: "Europe/Berlin"
+          
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore(deps)"
+
+  # Enable version updates for npm in the web-app directory
+  - package-ecosystem: "npm"
+    directory: "/web-app"
+    schedule:
+      interval: "daily"
+      time: "06:00"
+      timezone: "Europe/Berlin"
     groups:
       hey-api:
         patterns:
-          - "@hey-api/**"
+          - "@hey-api*"
       prisma:
         patterns:
           - "prisma"
           - "@prisma/client"
       radix:
         patterns:
-          - "radix-ui/**"
+          - "@radix-ui/**"
       tailwind:
         patterns:
           - "tailwind-merge"
@@ -33,18 +45,6 @@ updates:
       eslint:
         patterns:
           - "eslint*"
-          
-    open-pull-requests-limit: 10
-    commit-message:
-      prefix: "chore(deps)"
-
-  # Enable version updates for npm in the web-app directory
-  - package-ecosystem: "npm"
-    directory: "/web-app"
-    schedule:
-      interval: "daily"
-      time: "06:00"
-      timezone: "Europe/Berlin"
     open-pull-requests-limit: 10
     commit-message:
       prefix: "chore(deps)"
