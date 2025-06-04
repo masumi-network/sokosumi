@@ -22,8 +22,8 @@ export async function getMembersByOrganizationId(
   });
 }
 
-export async function getMembersWithUserByOrganizationId(
-  organizationId: string,
+export async function filterMembers(
+  where: Prisma.MemberWhereInput,
   params: {
     page: number;
     limit: number;
@@ -34,7 +34,7 @@ export async function getMembersWithUserByOrganizationId(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<MemberWithUser[]> {
   return await tx.member.findMany({
-    where: { organizationId },
+    where,
     include: memberUserInclude,
     orderBy: [...memberOrderBy],
     skip: (params.page - 1) * params.limit,

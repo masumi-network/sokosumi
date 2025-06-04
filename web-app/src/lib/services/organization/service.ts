@@ -5,6 +5,7 @@ import slugify from "slugify";
 
 import { getSessionOrThrow } from "@/lib/auth/utils";
 import {
+  filterMembers,
   getMemberByUserIdAndOrganizationId,
   getOrganizationBySlug,
 } from "@/lib/db";
@@ -33,4 +34,29 @@ export async function findMemberInOrganization(
   );
 
   return member;
+}
+
+export async function getOrganizationMembers(
+  organizationId: string,
+  includeMe = false,
+  params: {
+    page: number;
+    limit: number;
+  } = {
+    page: 1,
+    limit: 10,
+  },
+) {
+  const session = await getSessionOrThrow();
+  const userId = session.user.id;
+
+  const members = await filterMembers(
+    {
+      organizationId,
+      ...(includeMe ? {} : { userId: { not: userId } }),
+    },
+    params,
+  );
+
+  return members;
 }

@@ -4,11 +4,11 @@ import { getTranslations } from "next-intl/server";
 
 import { OrganizationRoleBadge } from "@/components/organizations";
 import { getSession } from "@/lib/auth/utils";
+import { getOrganizationBySlug } from "@/lib/db";
 import {
-  getMembersWithUserByOrganizationId,
-  getOrganizationBySlug,
-} from "@/lib/db";
-import { findMemberInOrganization } from "@/lib/services";
+  findMemberInOrganization,
+  getOrganizationMembers,
+} from "@/lib/services";
 
 import MembersTable from "./components/members-table";
 
@@ -46,7 +46,7 @@ export default async function OrganizationMembersPage({
     redirect("/app/organizations");
   }
 
-  const members = await getMembersWithUserByOrganizationId(organization.id);
+  const members = await getOrganizationMembers(organization.id);
 
   return (
     <div className="container flex flex-col gap-8 p-8">
