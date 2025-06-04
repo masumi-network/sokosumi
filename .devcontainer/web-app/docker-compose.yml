@@ -1,0 +1,43 @@
+version: '3.8'
+
+services:
+  app:
+    image: mcr.microsoft.com/devcontainers/javascript-node:22
+    volumes:
+      - ../..:/workspaces:cached
+    command: sleep infinity
+    environment:
+      DATABASE_URL: "postgresql://sokosumi:sokosumi@db:5432/sokosumi"
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - sokosumi-network
+
+  db:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sokosumi
+      POSTGRES_PASSWORD: sokosumi
+      POSTGRES_DB: sokosumi
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - sokosumi-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sokosumi -d sokosumi"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres-data:
+
+networks:
+  sokosumi-network:
+    driver: bridge 

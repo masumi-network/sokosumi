@@ -1,24 +1,8 @@
 {
   "name": "Sokosumi Web App Development",
-  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
-  "features": {
-    "ghcr.io/devcontainers/features/git:1": {},
-    "ghcr.io/devcontainers/features/github-cli:1": {},
-    "ghcr.io/devcontainers/features/common-utils:2": {
-      "installZsh": true,
-      "configureZshAsDefaultShell": true,
-      "installOhMyZsh": true,
-      "upgradePackages": true
-    },
-    "ghcr.io/devcontainers/features/postgresql:1": {
-      "version": "latest",
-      "port": 5432,
-      "initSql": [
-        "CREATE USER sokosumi WITH PASSWORD 'sokosumi';",
-        "CREATE DATABASE sokosumi OWNER sokosumi;"
-      ]
-    }
-  },
+  "dockerComposeFile": "./docker-compose.yml",
+  "service": "app",
+  "workspaceFolder": "/workspaces/sokosumi/web-app",
   "containerEnv": {
     "ADMIN_KEY": "${localEnv:ADMIN_KEY}",
 
@@ -35,7 +19,7 @@
     "STRIPE_PRICE_ID": "${localEnv:STRIPE_PRICE_ID}",
     "STRIPE_WELCOME_COUPON": "${localEnv:STRIPE_WELCOME_COUPON}",
 
-    "DATABASE_URL": "postgresql://sokosumi:sokosumi@localhost:5432/sokosumi",
+    "DATABASE_URL": "postgresql://sokosumi:sokosumi@db:5432/sokosumi",
 
     "LOCK_TIMEOUT": 10000
   },
@@ -87,7 +71,6 @@
       "onAutoForward": "silent"
     }
   },
-  "postCreateCommand": "npm install -g pnpm && pnpm install && pnpm prisma migrate dev",
-  "remoteUser": "node",
-  "workspaceFolder": "/workspaces/sokosumi/web-app"
+  "postCreateCommand": "npm install -g pnpm && pnpm install && pnpm prisma generate && pnpm prisma migrate dev",
+  "remoteUser": "node"
 }
