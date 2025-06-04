@@ -78,7 +78,7 @@
     "embla-carousel-react": "8.6.0",
     "gravatar-url": "4.0.1",
     "input-otp": "1.4.2",
-    "lucide-react": "0.512.0",
+    "lucide-react": "0.513.0",
     "markdown-to-jsx": "7.7.6",
     "next": "15.3.3",
     "next-intl": "4.1.0",
@@ -109,7 +109,7 @@
     "use-debounce": "10.0.4",
     "uuid": "11.1.0",
     "vaul": "1.1.2",
-    "zod": "3.25.50"
+    "zod": "3.25.51"
   },
   "devDependencies": {
     "@eslint/eslintrc": "3.3.1",
