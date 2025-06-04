@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
+import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import { getSession } from "@/lib/auth/utils";
 import { getOrganizationBySlug } from "@/lib/db";
@@ -9,8 +10,6 @@ import {
   findMemberInOrganization,
   getOrganizationMembers,
 } from "@/lib/services";
-
-import MembersTable from "./components/members-table";
 
 interface OrganizationMembersPageProps {
   params: Promise<{ organizationSlug: string }>;
