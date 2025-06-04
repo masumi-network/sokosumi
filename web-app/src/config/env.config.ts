@@ -49,12 +49,6 @@ const envSecretsSchema = z.object({
   // Admin
   ADMIN_KEY: z.string().min(8),
 
-  APPLE_CLIENT_ID: z.string().min(1),
-  APPLE_CLIENT_SECRET: z.string().min(1),
-
-  LINKEDIN_CLIENT_ID: z.string().min(1),
-  LINKEDIN_CLIENT_SECRET: z.string().min(1),
-
   PAYMENT_API_KEY: z.string().min(1),
   PAYMENT_API_URL: z
     .string()
