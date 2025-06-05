@@ -692,7 +692,8 @@
           "title": "Members",
           "description": "Manage your organization members"
         },
-        "roleIndicator": "View as:"
+        "roleIndicator": "View as:",
+        "inviteMember": "Invite Member"
       }
     },
     "Agents": {

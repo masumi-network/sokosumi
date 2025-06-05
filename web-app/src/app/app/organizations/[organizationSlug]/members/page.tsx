@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 
 import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
+import { Button } from "@/components/ui/button";
 import { getOrganizationBySlug } from "@/lib/db";
 import {
   findMyMemberInOrganization,
@@ -43,9 +44,12 @@ export default async function OrganizationMembersPage({
 
   return (
     <div className="container flex flex-col gap-8 p-8">
-      <div className="flex items-center gap-2">
-        <p className="text-muted-foreground">{t("roleIndicator")}</p>
-        <OrganizationRoleBadge role={member.role} />
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <p className="text-muted-foreground">{t("roleIndicator")}</p>
+          <OrganizationRoleBadge role={member.role} />
+        </div>
+        <Button>{t("inviteMember")}</Button>
       </div>
       <MembersTable members={members} role={member.role} />
     </div>

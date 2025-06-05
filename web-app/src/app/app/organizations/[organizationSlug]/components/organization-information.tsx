@@ -1,15 +1,16 @@
 import { Building2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import { OrganizationLogo } from "@/components/organizations";
+import {
+  OrganizationLogo,
+  RequiredEmailDomains,
+  RequiredEmailDomainsSkeleton,
+} from "@/components/organizations";
 import { Skeleton } from "@/components/ui/skeleton";
 import { OrganizationWithRelations } from "@/lib/db";
 import { Member, Role } from "@/prisma/generated/client";
 
 import OrganizationEditButton from "./organization-edit-button";
-import RequiredEmailDomains, {
-  RequiredEmailDomainsSkeleton,
-} from "./required-email-domains";
 
 interface OrganizationInformationProps {
   organization: OrganizationWithRelations;
@@ -44,7 +45,10 @@ export default function OrganizationInformation({
           </div>
         )}
       </div>
-      <RequiredEmailDomains requiredEmailDomains={requiredEmailDomains} />
+      <div className="flex flex-col gap-2">
+        <p className="text-muted-foreground">{t("requiredEmailDomains")}</p>
+        <RequiredEmailDomains requiredEmailDomains={requiredEmailDomains} />
+      </div>
     </div>
   );
 }
@@ -62,7 +66,10 @@ export function OrganizationInformationSkeleton() {
           <Skeleton className="h-4 w-32" />
         </div>
       </div>
-      <RequiredEmailDomainsSkeleton />
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-4 w-20" />
+        <RequiredEmailDomainsSkeleton />
+      </div>
     </div>
   );
 }
