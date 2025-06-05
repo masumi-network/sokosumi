@@ -3,7 +3,7 @@ name: Test Web App
 on:
   workflow_dispatch:
   pull_request:
-    paths: ['web-app/**']
+    paths: ["web-app/**"]
 
 env:
   DATABASE_URL: "postgresql://user:password@localhost:5432/sokosumi"

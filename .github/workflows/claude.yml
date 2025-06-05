@@ -70,5 +70,3 @@ jobs:
             STRIPE_WEBHOOK_SECRET: ${{ vars.PUBLIC_DEFAULT_SECRET }}
             STRIPE_PRICE_ID: ${{ vars.PUBLIC_DEFAULT_SECRET }}
             STRIPE_WELCOME_COUPON: ${{ vars.PUBLIC_DEFAULT_SECRET }}
-
-
