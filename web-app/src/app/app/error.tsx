@@ -1,9 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { UnAuthorizedError } from "@/lib/auth/errors";
+import { useUnauthorizedErrorHandler } from "@/hooks/use-unauthorized-error-handler";
 
 export default function Error({
   error,
@@ -23,27 +21,9 @@ export default function Error({
   reset: () => void;
 }) {
   const t = useTranslations("App.Error");
-  const router = useRouter();
+  const { renderIfAuthorized } = useUnauthorizedErrorHandler(error);
 
-  useEffect(() => {
-    // Redirect to login if the error is UnAuthorizedError
-    if (error instanceof UnAuthorizedError) {
-      // Use the URL from the error if available, otherwise fall back to current URL
-      const redirectUrl =
-        (error as UnAuthorizedError).redirectUrl ??
-        window.location.pathname + window.location.search;
-      const returnUrl = encodeURIComponent(redirectUrl);
-      router.push(`/login?returnUrl=${returnUrl}`);
-      return;
-    }
-  }, [error, router]);
-
-  // Don't render the error UI if it's an UnAuthorizedError since we're redirecting
-  if (error instanceof UnAuthorizedError) {
-    return null;
-  }
-
-  return (
+  return renderIfAuthorized(
     <div className="container mx-auto flex min-h-[80vh] items-center justify-center px-4">
       <Card className="w-full max-w-md">
         <CardHeader>
@@ -66,6 +46,6 @@ export default function Error({
           </Button>
         </CardFooter>
       </Card>
-    </div>
+    </div>,
   );
 }
