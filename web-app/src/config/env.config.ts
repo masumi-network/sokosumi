@@ -54,7 +54,9 @@ const envSecretsSchema = z.object({
     .string()
     .url()
     .default("https://payment.masumi.network/api/v1"),
+
   // BetterAuth Settings
+  BETTER_AUTH_URL: z.string().url(),
   BETTER_AUTH_SESSION_EXPIRES_IN: z
     .number({ coerce: true })
     .min(1)

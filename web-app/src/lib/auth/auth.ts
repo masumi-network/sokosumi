@@ -8,6 +8,7 @@ import { getTranslations } from "next-intl/server";
 import { getEnvPublicConfig, getEnvSecrets } from "@/config/env.config";
 import { prisma } from "@/lib/db";
 import { reactChangeEmailVerificationEmail } from "@/lib/email/change-email";
+import { reactInviteUserEmail } from "@/lib/email/invitation";
 import { resend } from "@/lib/email/resend";
 import { reactResetPasswordEmail } from "@/lib/email/reset-password";
 import { reactVerificationEmail } from "@/lib/email/verification";
@@ -109,5 +110,24 @@ export const auth = betterAuth({
   rateLimit: {
     storage: "database",
   },
-  plugins: [organization(), nextCookies()],
+  plugins: [
+    organization({
+      async sendInvitationEmail(data) {
+        const inviteLink = `${getEnvSecrets().BETTER_AUTH_URL}/accept-invitation/${data.id}`;
+        const t = await getTranslations("Library.Auth.Email.InviteUserEmail");
+
+        await resend.emails.send({
+          from: fromEmail,
+          to: data.email,
+          subject: t("subject"),
+          react: reactInviteUserEmail({
+            organizationName: data.organization.name,
+            invitorUsername: data.inviter.user.name,
+            inviteLink,
+          }),
+        });
+      },
+    }),
+    nextCookies(),
+  ],
 });
