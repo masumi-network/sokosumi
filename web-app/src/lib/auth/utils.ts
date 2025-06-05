@@ -21,7 +21,7 @@ export async function getSessionOrThrow(): Promise<Session> {
     const headersList = await headers();
     const pathname = headersList.get("x-pathname") ?? "";
     const searchParams = headersList.get("x-search-params") ?? "";
-    const currentUrl = pathname + (searchParams ? `?${searchParams}` : "");
+    const currentUrl = pathname + searchParams;
 
     throw new UnAuthorizedError(currentUrl);
   }
