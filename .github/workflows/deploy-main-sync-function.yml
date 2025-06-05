@@ -14,9 +14,6 @@ jobs:
     name: Deploy Function
     runs-on: ubuntu-latest
     environment: development
-    defaults:
-      run:
-        working-directory: ./sync-function
     env:
       SOKOSUMI_URL: ${{ vars.SOKOSUMI_URL }}
       ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
@@ -35,6 +32,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm i
+
+      - name: Change directory
+        run: cd sync-function
 
       - name: Build
         run: pnpm run build

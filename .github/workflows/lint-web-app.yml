@@ -6,9 +6,6 @@ jobs:
   eslint:
     name: ESLint
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./web-app
     permissions:
       # Need to add these 2 for eslint-annotate-action
       pull-requests: read
@@ -24,6 +21,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm i
+
+      - name: Change directory
+        run: cd web-app
 
       - name: Save Code Linting Report JSON
         run: pnpm run lint:report
