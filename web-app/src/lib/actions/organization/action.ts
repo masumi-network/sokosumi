@@ -119,23 +119,13 @@ export async function updateOrganizationInformation(
       };
     }
 
-    // check membership
+    // check membership and role
     const member = await findMyMemberInOrganization(organizationId);
-    if (!member) {
+    if (!member || member.role !== Role.ADMIN) {
       return {
         success: false,
         error: {
-          code: OrganizationActionErrorCode.NOT_MEMBER,
-        },
-      };
-    }
-
-    // check role is ADMIN
-    if (member.role !== Role.ADMIN) {
-      return {
-        success: false,
-        error: {
-          code: OrganizationActionErrorCode.NOT_ADMIN,
+          code: OrganizationActionErrorCode.UNAUTHORIZED,
         },
       };
     }
@@ -171,23 +161,13 @@ export async function changeMemberRole(
       };
     }
 
-    // check membership
+    // check membership and role
     const myMember = await findMyMemberInOrganization(organizationId);
-    if (!myMember) {
+    if (!myMember || myMember.role !== Role.ADMIN) {
       return {
         success: false,
         error: {
-          code: OrganizationActionErrorCode.NOT_MEMBER,
-        },
-      };
-    }
-
-    // check role is ADMIN
-    if (myMember.role !== Role.ADMIN) {
-      return {
-        success: false,
-        error: {
-          code: OrganizationActionErrorCode.NOT_ADMIN,
+          code: OrganizationActionErrorCode.UNAUTHORIZED,
         },
       };
     }
@@ -248,23 +228,13 @@ export async function kickMember(
       };
     }
 
-    // check membership
+    // check membership and role
     const myMember = await findMyMemberInOrganization(organizationId);
-    if (!myMember) {
+    if (!myMember || myMember.role !== Role.ADMIN) {
       return {
         success: false,
         error: {
-          code: OrganizationActionErrorCode.NOT_MEMBER,
-        },
-      };
-    }
-
-    // check role is ADMIN
-    if (myMember.role !== Role.ADMIN) {
-      return {
-        success: false,
-        error: {
-          code: OrganizationActionErrorCode.NOT_ADMIN,
+          code: OrganizationActionErrorCode.UNAUTHORIZED,
         },
       };
     }

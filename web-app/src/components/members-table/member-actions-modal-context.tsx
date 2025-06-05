@@ -121,11 +121,8 @@ export function MemberActionsModalContextProvider({
         case OrganizationActionErrorCode.NOT_AUTHENTICATED:
           toast.error(t("Errors.notAuthenticated"));
           break;
-        case OrganizationActionErrorCode.NOT_MEMBER:
-          toast.error(t("Errors.notMember"));
-          break;
-        case OrganizationActionErrorCode.NOT_ADMIN:
-          toast.error(t("Errors.notAdmin"));
+        case OrganizationActionErrorCode.UNAUTHORIZED:
+          toast.error(t("Errors.unauthorized"));
           break;
         case OrganizationActionErrorCode.MEMBER_NOT_FOUND:
           toast.error(t("Errors.memberNotFound"));
