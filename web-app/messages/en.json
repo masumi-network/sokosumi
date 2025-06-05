@@ -200,13 +200,30 @@
       "InviteMemberModal": {
         "title": "Invite Member",
         "Form": {
-          "submit": "Invite",
+          "submit": "Invite Member",
           "cancel": "Cancel",
           "success": "Member invited successfully",
           "error": "Failed to invite member",
           "Errors": {
             "notAuthenticated": "You must be logged in to invite members.",
             "unauthorized": "You must be an admin to invite members."
+          },
+          "Fields": {
+            "Email": {
+              "placeholder": "Email"
+            },
+            "Role": {
+              "label": "Role"
+            }
+          }
+        },
+        "Schema": {
+          "Email": {
+            "invalid": "Please enter a valid email address.",
+            "required": "Email is required"
+          },
+          "Role": {
+            "invalid": "Invalid role"
           }
         }
       },
@@ -704,7 +721,7 @@
           "description": "Manage your organization members"
         },
         "roleIndicator": "View as:",
-        "inviteMember": "Invite Member"
+        "invite": "Invite Member"
       }
     },
     "Agents": {

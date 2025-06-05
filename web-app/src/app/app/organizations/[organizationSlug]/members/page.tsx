@@ -4,12 +4,13 @@ import { getTranslations } from "next-intl/server";
 
 import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
-import { Button } from "@/components/ui/button";
 import { getOrganizationBySlug } from "@/lib/db";
 import {
   findMyMemberInOrganization,
   getOrganizationMembers,
 } from "@/lib/services";
+
+import OrganizationInviteButton from "./components/organization-invite-button";
 
 interface OrganizationMembersPageProps {
   params: Promise<{ organizationSlug: string }>;
@@ -49,7 +50,7 @@ export default async function OrganizationMembersPage({
           <p className="text-muted-foreground">{t("roleIndicator")}</p>
           <OrganizationRoleBadge role={member.role} />
         </div>
-        <Button>{t("inviteMember")}</Button>
+        <OrganizationInviteButton organizationId={organization.id} />
       </div>
       <MembersTable members={members} role={member.role} />
     </div>

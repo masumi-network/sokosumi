@@ -1,3 +1,5 @@
+"use client";
+
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { UseFormReturn } from "react-hook-form";

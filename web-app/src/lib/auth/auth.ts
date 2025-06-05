@@ -12,6 +12,7 @@ import { reactInviteUserEmail } from "@/lib/email/invitation";
 import { resend } from "@/lib/email/resend";
 import { reactResetPasswordEmail } from "@/lib/email/reset-password";
 import { reactVerificationEmail } from "@/lib/email/verification";
+import { Role } from "@/prisma/generated/client";
 
 export type Session = typeof auth.$Infer.Session;
 export type SessionUser = typeof auth.$Infer.Session.user;
@@ -127,6 +128,10 @@ export const auth = betterAuth({
           }),
         });
       },
+      async invitationLimit({ member }) {
+        return member.role === Role.ADMIN ? 100 : 0;
+      },
+      cancelPendingInvitationsOnReInvite: true,
     }),
     nextCookies(),
   ],
