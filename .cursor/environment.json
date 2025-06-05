@@ -1,0 +1,11 @@
+{
+  "agentCanUpdateSnapshot": true,
+  "terminals": [
+    {
+      "name": "Install PNPM",
+      "command": "npm install -g pnpm"
+    }
+  ],
+  "install": "pnpm install",
+  "start": "pnpm dev"
+}
