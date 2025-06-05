@@ -6,7 +6,10 @@
   "workspaces": [],
   "scripts": {
     "prepare": "husky",
-    "dev:web-app": "cd web-app && pnpm dev"
+    "dev": "pnpm -r dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test"
   },
   "devDependencies": {
     "@types/node": "^22.15.29",
