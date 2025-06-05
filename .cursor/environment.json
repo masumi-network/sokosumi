@@ -1,36 +1,5 @@
 {
   "name": "Sokosumi Monorepo",
   "agentCanUpdateSnapshot": true,
-  "terminals": [
-    {
-      "name": "Install PNPM",
-      "command": "npm install -g pnpm",
-      "description": "Install pnpm package manager globally"
-    },
-    {
-      "name": "Install Root Dependencies",
-      "command": "pnpm install",
-      "description": "Install all dependencies in the monorepo"
-    },
-    {
-      "name": "Install Web-App Dependencies",
-      "command": "cd web-app && pnpm install",
-      "description": "Install all dependencies in the web-app"
-    },
-    {
-      "name": "Install Sync-Function Dependencies",
-      "command": "cd sync-function && pnpm install",
-      "description": "Install all dependencies in the sync-function"
-    },
-    {
-      "name": "Generate Payment API Types",
-      "command": "cd web-app && pnpm generate:payment",
-      "description": "Generate TypeScript types from Payment OpenAPI schema"
-    },
-    {
-      "name": "Generate Registry API Types",
-      "command": "cd web-app && pnpm generate:registry",
-      "description": "Generate TypeScript types from Registry OpenAPI schema"
-    }
-  ]
+  "install": "pnpm install"
 }

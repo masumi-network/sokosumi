@@ -5,7 +5,8 @@
   "packageManager": "pnpm@10.11.1",
   "workspaces": [],
   "scripts": {
-    "prepare": "husky"
+    "prepare": "husky",
+    "dev:web-app": "cd web-app && pnpm dev"
   },
   "devDependencies": {
     "@types/node": "^22.15.29",
