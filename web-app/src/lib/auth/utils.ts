@@ -17,7 +17,13 @@ export async function getSession(): Promise<Session | null> {
 export async function getSessionOrThrow(): Promise<Session> {
   const session = await getSession();
   if (!session) {
-    throw new UnAuthorizedError();
+    // Get the current URL from headers for server-side redirect
+    const headersList = await headers();
+    const pathname = headersList.get("x-pathname") ?? "";
+    const searchParams = headersList.get("x-search-params") ?? "";
+    const currentUrl = pathname + searchParams;
+
+    throw new UnAuthorizedError(currentUrl);
   }
   return session;
 }

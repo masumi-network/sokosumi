@@ -1,7 +1,7 @@
-import { notFound, redirect } from "next/navigation";
+import { notFound } from "next/navigation";
 
 import { JobDetails } from "@/app/agents/[agentId]/jobs/@right/components/job-details";
-import { getSession } from "@/lib/auth/utils";
+import { getSessionOrThrow } from "@/lib/auth/utils";
 import { getAgentById, getJobById } from "@/lib/db";
 
 interface JobDetailsPageParams {
@@ -14,10 +14,7 @@ export default async function JobDetailsPage({
 }: {
   params: Promise<JobDetailsPageParams>;
 }) {
-  const session = await getSession();
-  if (!session) {
-    redirect("/login");
-  }
+  const session = await getSessionOrThrow();
   const { agentId, jobId } = await params;
 
   const agent = await getAgentById(agentId);

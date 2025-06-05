@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -12,6 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { useUnauthorizedErrorHandler } from "@/hooks/use-unauthorized-error-handler";
 
 export default function Error({
   error,
@@ -21,13 +21,9 @@ export default function Error({
   reset: () => void;
 }) {
   const t = useTranslations("App.Error");
+  const { renderIfAuthorized } = useUnauthorizedErrorHandler(error);
 
-  useEffect(() => {
-    // Log the error to an error reporting service
-    console.error(error);
-  }, [error]);
-
-  return (
+  return renderIfAuthorized(
     <div className="container mx-auto flex min-h-[80vh] items-center justify-center px-4">
       <Card className="w-full max-w-md">
         <CardHeader>
@@ -50,6 +46,6 @@ export default function Error({
           </Button>
         </CardFooter>
       </Card>
-    </div>
+    </div>,
   );
 }

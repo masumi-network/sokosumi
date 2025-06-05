@@ -1,8 +1,11 @@
 export class UnAuthorizedError extends Error {
-  constructor(message = "User is not authenticated") {
+  public readonly redirectUrl?: string;
+
+  constructor(redirectUrl?: string, message = "User is not authenticated") {
     super(message);
     this.name = "UnAuthorizedError";
     this.cause = "UNAUTHORIZED";
+    this.redirectUrl = redirectUrl;
   }
 }
 

@@ -13,13 +13,19 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function SignIn() {
+interface SignInPageProps {
+  searchParams: Promise<{ returnUrl?: string }>;
+}
+
+export default async function SignIn({ searchParams }: SignInPageProps) {
+  const { returnUrl } = await searchParams;
+
   return (
     <div className="flex flex-1 flex-col">
       <SignInHeader />
       <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
         {/* <SocialButtons /> */}
-        <SignInForm />
+        <SignInForm returnUrl={returnUrl} />
       </div>
     </div>
   );

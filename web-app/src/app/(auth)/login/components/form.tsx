@@ -15,7 +15,11 @@ import {
 } from "@/auth/login/data";
 import { authClient } from "@/lib/auth/auth.client";
 
-export default function SignInForm() {
+interface SignInFormProps {
+  returnUrl?: string;
+}
+
+export default function SignInForm({ returnUrl }: SignInFormProps) {
   const t = useTranslations("Auth.Pages.SignIn.Form");
 
   const router = useRouter();
@@ -51,7 +55,21 @@ export default function SignInForm() {
         },
         onSuccess: () => {
           toast.success(t("success"));
-          router.push("/app");
+          // Redirect to the original URL if provided, otherwise go to /app
+          // Validate returnUrl to prevent open redirect attacks
+          let redirectUrl = "/app";
+          if (returnUrl) {
+            try {
+              // Only allow relative URLs or URLs from the same origin
+              const url = new URL(returnUrl, window.location.origin);
+              if (url.origin === window.location.origin) {
+                redirectUrl = returnUrl;
+              }
+            } catch {
+              // Invalid URL, fallback to /app
+            }
+          }
+          router.push(redirectUrl);
         },
       },
     );

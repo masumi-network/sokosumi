@@ -1,10 +1,10 @@
 "use client"; // Error components must be Client Components
 
 import { useTranslations } from "next-intl"; // Import useTranslations
-import { useEffect } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useUnauthorizedErrorHandler } from "@/hooks/use-unauthorized-error-handler";
 
 export default function BillingError({
   error,
@@ -14,13 +14,9 @@ export default function BillingError({
   reset: () => void;
 }) {
   const t = useTranslations("App.Billing.Error"); // Initialize translations hook
+  const { renderIfAuthorized } = useUnauthorizedErrorHandler(error);
 
-  useEffect(() => {
-    // Log the error to an error reporting service or console
-    console.error("Billing Page Error:", error);
-  }, [error]);
-
-  return (
+  return renderIfAuthorized(
     <div className="flex h-full items-center justify-center p-6">
       <Card className="w-full max-w-md text-center">
         <CardHeader>
@@ -38,6 +34,6 @@ export default function BillingError({
           </Button>
         </CardContent>
       </Card>
-    </div>
+    </div>,
   );
 }
