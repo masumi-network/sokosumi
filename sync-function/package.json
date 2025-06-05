@@ -8,6 +8,7 @@
     "build": "tsc",
     "deploy": "doctl serverless deploy .",
     "lint": "eslint src",
+    "lint:report": "eslint src -f json -o lint-report.json",
     "format": "prettier --write src"
   },
   "devDependencies": {

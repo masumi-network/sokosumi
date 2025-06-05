@@ -22,15 +22,18 @@ jobs:
       - name: Install dependencies
         run: pnpm i
 
-      - name: Change directory
-        run: cd web-app
-
       - name: Save Code Linting Report JSON
-        run: pnpm run lint:report
+        run: pnpm lint:report
         continue-on-error: true
 
-      - name: Annotate Code Linting Results
+      - name: Annotate Web App Code Linting Results
         uses: ataylorme/eslint-annotate-action@v3
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          report-json: "lint_report.json"
+          report-json: "web-app/lint_report.json"
+      
+      - name: Annotate Sync Function Code Linting Results
+        uses: ataylorme/eslint-annotate-action@v3
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          report-json: "sync-function/lint_report.json"

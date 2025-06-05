@@ -12,8 +12,10 @@
     "dev": "pnpm -r dev",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
+    "lint:report": "pnpm -r lint:report",
     "test": "pnpm -r test",
-    "test:ci": "pnpm -r test:ci"
+    "test:ci": "pnpm -r test:ci",
+    "prisma:migrate": "pnpm -r prisma:migrate"
   },
   "devDependencies": {
     "@eslint/eslintrc": "3.3.1",
