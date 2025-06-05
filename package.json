@@ -12,7 +12,8 @@
     "dev": "pnpm -r dev",
     "build": "pnpm -r build",
     "lint": "pnpm -r lint",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "test:ci": "pnpm -r test:ci"
   },
   "devDependencies": {
     "@eslint/eslintrc": "3.3.1",

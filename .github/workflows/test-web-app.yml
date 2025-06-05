@@ -58,14 +58,11 @@ jobs:
       - name: Install Dependencies
         run: pnpm i
 
-      - name: Change directory
-        run: cd web-app
-
       - name: Run Tests
-        run: pnpm run test:ci
+        run: pnpm test:ci
 
       - name: Run Prisma Migrate
-        run: pnpm exec prisma migrate dev
+        run: pnpm prisma migrate dev
 
       - name: Run Build
         run: pnpm run build
