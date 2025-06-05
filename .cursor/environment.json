@@ -1,5 +1,6 @@
 {
   "name": "Sokosumi Monorepo",
   "agentCanUpdateSnapshot": true,
-  "install": "pnpm install"
+  "install": "pnpm install",
+  "start": "pnpm dev:web-app"
 }
