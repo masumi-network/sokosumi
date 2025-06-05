@@ -147,12 +147,12 @@
       "agents": "Gallery",
       "account": "Account"
     },
-    "Organization": {
+    "Organizations": {
       "Role": {
         "admin": "Admin",
         "member": "Member"
       },
-      "Edit": {
+      "EditInformationModal": {
         "title": "Edit Organization Information",
         "Form": {
           "submit": "Save",
@@ -160,9 +160,8 @@
           "success": "Organization information updated successfully",
           "error": "Failed to update organization information",
           "Errors": {
-            "notAuthenticated": "You must be logged in",
-            "notMember": "You are not a member of this organization",
-            "notAdmin": "You are not an admin of this organization"
+            "notAuthenticated": "You must be logged in to edit organization information.",
+            "unauthorized": "You must be an admin to edit organization information."
           },
           "Fields": {
             "Name": {
@@ -198,6 +197,31 @@
             "invalid": "Must be a valid domain"
           }
         }
+      },
+      "InviteMemberModal": {
+        "title": "Invite Member",
+        "Form": {
+          "submit": "Invite",
+          "cancel": "Cancel",
+          "success": "Member invited successfully",
+          "error": "Failed to invite member",
+          "Errors": {
+            "notAuthenticated": "You must be logged in to invite members.",
+            "unauthorized": "You must be an admin to invite members."
+          }
+        }
+      },
+      "LeaveOrganizationModal": {
+        "title": "Do you really want to leave the organization?",
+        "description": "Leave the organization \"{organization}\".",
+        "leave": "Leave",
+        "cancel": "Cancel",
+        "success": "You have left the organization",
+        "error": "Failed to leave organization",
+        "Errors": {
+          "notAuthenticated": "You must be logged in to leave the organization.",
+          "memberCountNotAllowed": "You must be member of at least one Organization."
+        }
       }
     },
     "Modals": {
@@ -213,18 +237,6 @@
         "logout": "Log out",
         "cancel": "Cancel",
         "error": "Failed to log out"
-      },
-      "LeaveOrganizationModal": {
-        "title": "Do you really want to leave the organization?",
-        "description": "Leave the organization \"{organization}\".",
-        "leave": "Leave",
-        "cancel": "Cancel",
-        "success": "You have left the organization",
-        "error": "Failed to leave organization",
-        "Errors": {
-          "notAuthenticated": "You must be logged in",
-          "memberCountNotAllowed": "You must be member of at least one Organization."
-        }
       }
     }
   },
@@ -670,7 +682,7 @@
       "title": "Organizations",
       "newOrganization": "New Organization",
       "membersNotAvailable": "No members found",
-      "OrganizationActions": {
+      "OrganizationRow": {
         "leave": "Leave"
       },
       "OrganizationDetail": {

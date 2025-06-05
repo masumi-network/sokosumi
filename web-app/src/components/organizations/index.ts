@@ -1,3 +1,4 @@
+export * from "./leave-organization-modal";
 export * from "./organization-information-edit";
 export * from "./organization-logo";
 export * from "./required-email-domains";

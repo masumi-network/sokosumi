@@ -10,7 +10,7 @@ export function isValidDomain(domain: string): boolean {
 }
 
 export const editFormSchema = (
-  t?: IntlTranslation<"Components.Organization.Edit.Schema">,
+  t?: IntlTranslation<"Components.Organizations.EditInformationModal.Schema">,
 ) =>
   z.object({
     name: z
@@ -46,7 +46,7 @@ export type EditFormSchemaType = z.infer<ReturnType<typeof editFormSchema>>;
 
 export const editFormData: FormData<
   EditFormSchemaType,
-  "Components.Organization.Edit.Form"
+  "Components.Organizations.EditInformationModal.Form"
 > = [
   {
     name: "name",

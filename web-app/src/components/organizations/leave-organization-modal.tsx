@@ -24,12 +24,12 @@ interface LeaveOrganizationModalProps {
   organization: Organization;
 }
 
-export default function LeaveOrganizationModal({
+export function LeaveOrganizationModal({
   open,
   onOpenChange,
   organization,
 }: LeaveOrganizationModalProps) {
-  const t = useTranslations("Components.Modals.LeaveOrganizationModal");
+  const t = useTranslations("Components.Organizations.LeaveOrganizationModal");
   const [loading, setLoading] = useState(false);
 
   const handleLeaveOrganization = async () => {

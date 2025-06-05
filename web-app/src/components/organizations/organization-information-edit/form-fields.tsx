@@ -19,7 +19,8 @@ import { FormData } from "@/lib/form";
 
 import RequiredEmailDomainsInput from "./required-email-domains-input";
 
-type OrganizationEditFormNamespace = "Components.Organization.Edit.Form";
+type OrganizationEditFormNamespace =
+  "Components.Organizations.EditInformationModal.Form";
 
 interface FormFieldsProps<T extends FieldValues> {
   form: UseFormReturn<T>;
@@ -30,7 +31,9 @@ export function FormFields<T extends FieldValues>({
   form,
   formData,
 }: FormFieldsProps<T>) {
-  const t = useTranslations("Components.Organization.Edit.Form");
+  const t = useTranslations(
+    "Components.Organizations.EditInformationModal.Form",
+  );
 
   return (
     <div className="flex flex-col gap-4">

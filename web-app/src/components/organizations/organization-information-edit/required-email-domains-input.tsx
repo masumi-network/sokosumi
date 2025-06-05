@@ -25,7 +25,7 @@ export default function RequiredEmailDomainsInput({
   placeholder,
 }: RequiredEmailDomainsInputProps) {
   const t = useTranslations(
-    "Components.Organization.Edit.Form.Fields.RequiredEmailDomains",
+    "Components.Organizations.EditInformationModal.Form.Fields.RequiredEmailDomains",
   );
   const [newDomain, setNewDomain] = useState("");
 

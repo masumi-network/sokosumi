@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 
-import LeaveOrganizationModal from "@/components/modals/leave-organization-modal";
+import { LeaveOrganizationModal } from "@/components/organizations";
 import { Button } from "@/components/ui/button";
 import useModal from "@/hooks/use-modal";
 import { Organization } from "@/prisma/generated/client";
@@ -14,7 +14,7 @@ interface OrganizationActionButtonsProps {
 export default function OrganizationActionButtons({
   organization,
 }: OrganizationActionButtonsProps) {
-  const t = useTranslations("App.Organizations.OrganizationActions");
+  const t = useTranslations("App.Organizations.OrganizationRow");
 
   const { Component, showModal } = useModal(({ open, onOpenChange }) => (
     <LeaveOrganizationModal

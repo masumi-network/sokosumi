@@ -24,7 +24,9 @@ export default function OrganizationInformationEditForm({
   form,
   onOpenChange,
 }: OrganizationInformationEditFormProps) {
-  const t = useTranslations("Components.Organization.Edit.Form");
+  const t = useTranslations(
+    "Components.Organizations.EditInformationModal.Form",
+  );
 
   const onSubmit = async (values: EditFormSchemaType) => {
     const result = await updateOrganizationInformation(organizationId, {
@@ -37,11 +39,8 @@ export default function OrganizationInformationEditForm({
         case OrganizationActionErrorCode.NOT_AUTHENTICATED:
           toast.error(t("Errors.notAuthenticated"));
           break;
-        case OrganizationActionErrorCode.NOT_MEMBER:
-          toast.error(t("Errors.notMember"));
-          break;
-        case OrganizationActionErrorCode.NOT_ADMIN:
-          toast.error(t("Errors.notAdmin"));
+        case OrganizationActionErrorCode.UNAUTHORIZED:
+          toast.error(t("Errors.unauthorized"));
           break;
         default:
           toast.error(t("error"));

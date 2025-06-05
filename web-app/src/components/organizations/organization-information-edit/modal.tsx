@@ -29,11 +29,13 @@ export default function OrganizationInformationEditModal({
   onOpenChange,
   organization,
 }: OrganizationInformationEditModalProps) {
-  const t = useTranslations("Components.Organization.Edit");
+  const t = useTranslations("Components.Organizations.EditInformationModal");
 
   const form = useForm<EditFormSchemaType>({
     resolver: zodResolver(
-      editFormSchema(useTranslations("Components.Organization.Edit.Schema")),
+      editFormSchema(
+        useTranslations("Components.Organizations.EditInformationModal.Schema"),
+      ),
     ),
     defaultValues: {
       name: "",
