@@ -8,30 +8,45 @@ importers:
 
   .:
     devDependencies:
-      '@types/node':
-        specifier: ^22.15.29
-        version: 22.15.29
-      husky:
-        specifier: ^9.1.7
-        version: 9.1.7
-
-  sync-function:
-    devDependencies:
       '@eslint/eslintrc':
         specifier: 3.3.1
         version: 3.3.1
-      '@types/node':
-        specifier: 18.19.110
-        version: 18.19.110
+      '@hey-api/openapi-ts':
+        specifier: 0.70.0
+        version: 0.70.0(typescript@5.8.3)
+      '@noble/hashes':
+        specifier: 1.8.0
+        version: 1.8.0
+      '@swc/core':
+        specifier: 1.11.29
+        version: 1.11.29(@swc/helpers@0.5.17)
+      '@swc/helpers':
+        specifier: 0.5.17
+        version: 0.5.17
+      '@tailwindcss/postcss':
+        specifier: 4.1.8
+        version: 4.1.8
+      '@tailwindcss/typography':
+        specifier: ^0.5.16
+        version: 0.5.16(tailwindcss@4.1.8)
+      '@testing-library/jest-dom':
+        specifier: 6.6.3
+        version: 6.6.3
+      '@testing-library/react':
+        specifier: 16.3.0
+        version: 16.3.0(@testing-library/dom@10.4.0)(@types/react-dom@19.1.6(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
+      '@types/jest':
+        specifier: 29.5.14
+        version: 29.5.14
       eslint:
         specifier: 9.28.0
         version: 9.28.0(jiti@2.4.2)
+      eslint-config-next:
+        specifier: 15.3.3
+        version: 15.3.3(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3)
       eslint-config-prettier:
         specifier: 10.1.5
         version: 10.1.5(eslint@9.28.0(jiti@2.4.2))
-      eslint-plugin-import:
-        specifier: 2.31.0
-        version: 2.31.0(@typescript-eslint/parser@8.33.1(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.28.0(jiti@2.4.2))
       eslint-plugin-no-relative-import-paths:
         specifier: 1.6.1
         version: 1.6.1
@@ -44,12 +59,39 @@ importers:
       eslint-plugin-unused-imports:
         specifier: 4.1.4
         version: 4.1.4(@typescript-eslint/eslint-plugin@8.33.1(@typescript-eslint/parser@8.33.1(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3))(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3))(eslint@9.28.0(jiti@2.4.2))
+      husky:
+        specifier: ^9.1.7
+        version: 9.1.7
+      jest:
+        specifier: 29.7.0
+        version: 29.7.0(@types/node@22.15.29)
+      jest-environment-jsdom:
+        specifier: 29.7.0
+        version: 29.7.0
+      postcss:
+        specifier: 8.5.4
+        version: 8.5.4
       prettier:
         specifier: 3.5.3
         version: 3.5.3
+      prettier-plugin-tailwindcss:
+        specifier: 0.6.12
+        version: 0.6.12(prettier@3.5.3)
+      tailwindcss:
+        specifier: 4.1.8
+        version: 4.1.8
+      tsx:
+        specifier: 4.19.4
+        version: 4.19.4
       typescript:
         specifier: 5.8.3
         version: 5.8.3
+
+  sync-function:
+    devDependencies:
+      '@types/node':
+        specifier: 18.19.110
+        version: 18.19.110
 
   web-app:
     dependencies:
@@ -288,36 +330,6 @@ importers:
         specifier: 3.25.51
         version: 3.25.51
     devDependencies:
-      '@eslint/eslintrc':
-        specifier: 3.3.1
-        version: 3.3.1
-      '@hey-api/openapi-ts':
-        specifier: 0.70.0
-        version: 0.70.0(typescript@5.8.3)
-      '@noble/hashes':
-        specifier: 1.8.0
-        version: 1.8.0
-      '@swc/core':
-        specifier: 1.11.29
-        version: 1.11.29(@swc/helpers@0.5.17)
-      '@swc/helpers':
-        specifier: 0.5.17
-        version: 0.5.17
-      '@tailwindcss/postcss':
-        specifier: 4.1.8
-        version: 4.1.8
-      '@tailwindcss/typography':
-        specifier: ^0.5.16
-        version: 0.5.16(tailwindcss@4.1.8)
-      '@testing-library/jest-dom':
-        specifier: 6.6.3
-        version: 6.6.3
-      '@testing-library/react':
-        specifier: 16.3.0
-        version: 16.3.0(@testing-library/dom@10.4.0)(@types/react-dom@19.1.6(@types/react@19.1.6))(@types/react@19.1.6)(react-dom@19.1.0(react@19.1.0))(react@19.1.0)
-      '@types/jest':
-        specifier: 29.5.14
-        version: 29.5.14
       '@types/node':
         specifier: 22.15.29
         version: 22.15.29
@@ -330,54 +342,9 @@ importers:
       '@types/react-window':
         specifier: 1.8.8
         version: 1.8.8
-      eslint:
-        specifier: 9.28.0
-        version: 9.28.0(jiti@2.4.2)
-      eslint-config-next:
-        specifier: 15.3.3
-        version: 15.3.3(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3)
-      eslint-config-prettier:
-        specifier: 10.1.5
-        version: 10.1.5(eslint@9.28.0(jiti@2.4.2))
-      eslint-plugin-no-relative-import-paths:
-        specifier: 1.6.1
-        version: 1.6.1
-      eslint-plugin-prettier:
-        specifier: 5.4.1
-        version: 5.4.1(@types/eslint@9.6.1)(eslint-config-prettier@10.1.5(eslint@9.28.0(jiti@2.4.2)))(eslint@9.28.0(jiti@2.4.2))(prettier@3.5.3)
-      eslint-plugin-simple-import-sort:
-        specifier: 12.1.1
-        version: 12.1.1(eslint@9.28.0(jiti@2.4.2))
-      eslint-plugin-unused-imports:
-        specifier: 4.1.4
-        version: 4.1.4(@typescript-eslint/eslint-plugin@8.33.1(@typescript-eslint/parser@8.33.1(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3))(eslint@9.28.0(jiti@2.4.2))(typescript@5.8.3))(eslint@9.28.0(jiti@2.4.2))
-      jest:
-        specifier: 29.7.0
-        version: 29.7.0(@types/node@22.15.29)
-      jest-environment-jsdom:
-        specifier: 29.7.0
-        version: 29.7.0
-      postcss:
-        specifier: 8.5.4
-        version: 8.5.4
-      prettier:
-        specifier: 3.5.3
-        version: 3.5.3
-      prettier-plugin-tailwindcss:
-        specifier: 0.6.12
-        version: 0.6.12(prettier@3.5.3)
       prisma:
         specifier: 6.9.0
         version: 6.9.0(typescript@5.8.3)
-      tailwindcss:
-        specifier: 4.1.8
-        version: 4.1.8
-      tsx:
-        specifier: 4.19.4
-        version: 4.19.4
-      typescript:
-        specifier: 5.8.3
-        version: 5.8.3
 
 packages:
 
