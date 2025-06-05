@@ -6,12 +6,16 @@
       "command": "npm install -g pnpm"
     },
     {
-      "name": "Install Dependencies",
+      "name": "Install Root Dependencies",
       "command": "pnpm install"
     },
     {
-      "name": "Start Development Server",
+      "name": "Install Web App Dependencies",
       "command": "cd web-app && pnpm install"
+    },
+    {
+      "name": "Install Sync Function Dependencies",
+      "command": "cd sync-function && pnpm install"
     }
   ]
 }
