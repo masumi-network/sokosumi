@@ -4,8 +4,14 @@
     {
       "name": "Install PNPM",
       "command": "npm install -g pnpm"
+    },
+    {
+      "name": "Install Dependencies",
+      "command": "pnpm install"
+    },
+    {
+      "name": "Start Development Server",
+      "command": "cd web-app && pnpm install"
     }
-  ],
-  "install": "pnpm install",
-  "start": "pnpm dev"
+  ]
 }
