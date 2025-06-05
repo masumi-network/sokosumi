@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 
-import { isUnAuthorizedError } from "@/lib/auth/errors";
 import { getSession } from "@/lib/auth/utils";
 import {
   createMember,
@@ -38,6 +37,8 @@ export async function createOrganizationFromName(name: string) {
   }
 }
 
+// used when user sign up
+// with organization
 export async function createOrganizationMember(
   userId: string,
   userEmail: string,
@@ -73,7 +74,7 @@ export async function leaveOrganization(
     if (!session) {
       return {
         success: false,
-        error: { code: OrganizationActionErrorCode.UNAUTHORIZED },
+        error: { code: OrganizationActionErrorCode.NOT_AUTHENTICATED },
       };
     }
     const userId = session.user.id;
@@ -110,6 +111,14 @@ export async function updateOrganizationInformation(
   data: Prisma.OrganizationUpdateInput,
 ): Promise<{ success: false; error: { code: string } } | { success: true }> {
   try {
+    const session = await getSession();
+    if (!session) {
+      return {
+        success: false,
+        error: { code: OrganizationActionErrorCode.NOT_AUTHENTICATED },
+      };
+    }
+
     // check membership
     const member = await findMyMemberInOrganization(organizationId);
     if (!member) {
@@ -138,14 +147,6 @@ export async function updateOrganizationInformation(
     revalidatePath(`/app/organizations/${updatedOrganization.slug}`);
     return { success: true };
   } catch (error) {
-    if (isUnAuthorizedError(error)) {
-      return {
-        success: false,
-        error: {
-          code: OrganizationActionErrorCode.UNAUTHORIZED,
-        },
-      };
-    }
     console.error("Error updating organization information", error);
     return {
       success: false,
@@ -162,6 +163,14 @@ export async function changeMemberRole(
   newRole: Role,
 ): Promise<{ success: false; error: { code: string } } | { success: true }> {
   try {
+    const session = await getSession();
+    if (!session) {
+      return {
+        success: false,
+        error: { code: OrganizationActionErrorCode.NOT_AUTHENTICATED },
+      };
+    }
+
     // check membership
     const myMember = await findMyMemberInOrganization(organizationId);
     if (!myMember) {
@@ -216,14 +225,6 @@ export async function changeMemberRole(
     revalidatePath(`/app/organizations/${member.organization.slug}/members`);
     return { success: true };
   } catch (error) {
-    if (isUnAuthorizedError(error)) {
-      return {
-        success: false,
-        error: {
-          code: OrganizationActionErrorCode.UNAUTHORIZED,
-        },
-      };
-    }
     console.error("Error updating organization information", error);
     return {
       success: false,
@@ -239,6 +240,14 @@ export async function kickMember(
   memberId: string,
 ): Promise<{ success: false; error: { code: string } } | { success: true }> {
   try {
+    const session = await getSession();
+    if (!session) {
+      return {
+        success: false,
+        error: { code: OrganizationActionErrorCode.NOT_AUTHENTICATED },
+      };
+    }
+
     // check membership
     const myMember = await findMyMemberInOrganization(organizationId);
     if (!myMember) {
@@ -293,15 +302,7 @@ export async function kickMember(
     revalidatePath(`/app/organizations/${member.organization.slug}/members`);
     return { success: true };
   } catch (error) {
-    if (isUnAuthorizedError(error)) {
-      return {
-        success: false,
-        error: {
-          code: OrganizationActionErrorCode.UNAUTHORIZED,
-        },
-      };
-    }
-    console.error("Error updating organization information", error);
+    console.error("Error kicking member", error);
     return {
       success: false,
       error: {

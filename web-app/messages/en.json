@@ -131,7 +131,7 @@
           "Errors": {
             "changeRoleError": "Failed to change role",
             "kickError": "Failed to kick member",
-            "unauthorized": "Unauthorized",
+            "notAuthenticated": "You must be logged in",
             "notMember": "You are not a member of this organization",
             "notAdmin": "You are not an admin of this organization",
             "memberNotFound": "Member not found",
@@ -160,7 +160,7 @@
           "success": "Organization information updated successfully",
           "error": "Failed to update organization information",
           "Errors": {
-            "unauthorized": "Unauthorized",
+            "notAuthenticated": "You must be logged in",
             "notMember": "You are not a member of this organization",
             "notAdmin": "You are not an admin of this organization"
           },
@@ -222,7 +222,7 @@
         "success": "You have left the organization",
         "error": "Failed to leave organization",
         "Errors": {
-          "unauthorized": "Unauthorized",
+          "notAuthenticated": "You must be logged in",
           "memberCountNotAllowed": "You must be member of at least one Organization."
         }
       }

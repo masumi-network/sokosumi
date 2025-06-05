@@ -5,7 +5,6 @@ import { getTranslations } from "next-intl/server";
 
 import { OrganizationRoleBadge } from "@/components/organizations";
 import { Button } from "@/components/ui/button";
-import { getSession } from "@/lib/auth/utils";
 import { getOrganizationBySlug } from "@/lib/db";
 import { findMyMemberInOrganization } from "@/lib/services";
 
@@ -41,12 +40,7 @@ export default async function OrganizationPage({
   params,
 }: OrganizationPageProps) {
   const t = await getTranslations("App.Organizations.OrganizationDetail");
-
   const { organizationSlug } = await params;
-  const session = await getSession();
-  if (!session) {
-    redirect("/login");
-  }
 
   const organization = await getOrganizationBySlug(organizationSlug);
   if (!organization) {

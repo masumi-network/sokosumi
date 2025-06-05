@@ -4,7 +4,6 @@ import { getTranslations } from "next-intl/server";
 
 import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
-import { getSession } from "@/lib/auth/utils";
 import { getOrganizationBySlug } from "@/lib/db";
 import {
   findMyMemberInOrganization,
@@ -28,12 +27,7 @@ export default async function OrganizationMembersPage({
   params,
 }: OrganizationMembersPageProps) {
   const t = await getTranslations("App.Organizations.Members");
-
   const { organizationSlug } = await params;
-  const session = await getSession();
-  if (!session) {
-    redirect("/login");
-  }
 
   const organization = await getOrganizationBySlug(organizationSlug);
   if (!organization) {
