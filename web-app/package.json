@@ -109,7 +109,7 @@
     "use-debounce": "10.0.4",
     "uuid": "11.1.0",
     "vaul": "1.1.2",
-    "zod": "3.25.51"
+    "zod": "3.25.53"
   },
   "devDependencies": {
     "@eslint/eslintrc": "3.3.1",
