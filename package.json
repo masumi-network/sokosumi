@@ -4,8 +4,8 @@
   "type": "module",
   "packageManager": "pnpm@10.11.1",
   "workspaces": [
-    "sokosumi-web",
-    "masumi-sync"
+    "web-app",
+    "sync-function"
   ],
   "scripts": {
     "prepare": "husky",
