@@ -6,12 +6,14 @@
   "packageManager": "pnpm@10.11.1",
   "scripts": {
     "build": "tsc",
-    "deploy": "doctl serverless deploy .",
     "lint": "eslint src",
     "lint:report": "eslint src -f json -o lint-report.json",
-    "format": "prettier --write src"
+    "format": "prettier --write src",
+    "doctl:install": "doctl serverless install",
+    "doctl:connect": "doctl serverless connect $namespace",
+    "doctl:deploy": "doctl serverless deploy ."
   },
   "devDependencies": {
-    "@types/node": "18.19.110"
+    "@types/node": "18.19.111"
   }
 }

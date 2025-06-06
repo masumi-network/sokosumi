@@ -4,24 +4,29 @@
   "type": "module",
   "packageManager": "pnpm@10.11.1",
   "workspaces": [
-    "web-app",
-    "sync-function"
+    "sokosumi-web",
+    "masumi-sync"
   ],
   "scripts": {
     "prepare": "husky",
     "dev": "pnpm -r dev",
     "build": "pnpm -r build",
+    "masumi-sync:build": "pnpm --filter masumi-sync build",
+    "sokosumi-web:build": "pnpm --filter sokosumi-web build",
     "lint": "pnpm -r lint",
     "lint:report": "pnpm -r lint:report",
     "test": "pnpm -r test",
     "test:ci": "pnpm -r test:ci",
-    "prisma:migrate": "pnpm -r prisma:migrate"
+    "sokosumi-web:prisma:migrate": "pnpm --filter sokosumi-web prisma:migrate",
+    "masumi-sync:doctl:install": "pnpm --filter masumi-sync doctl:install",
+    "masumi-sync:doctl:connect": "pnpm --filter masumi-sync doctl:connect",
+    "masumi-sync:doctl:deploy": "pnpm --filter masumi-sync doctl:deploy"
   },
   "devDependencies": {
     "@eslint/eslintrc": "3.3.1",
-    "@hey-api/openapi-ts": "0.70.0",
+    "@hey-api/openapi-ts": "0.71.0",
     "@noble/hashes": "1.8.0",
-    "@swc/core": "1.11.29",
+    "@swc/core": "1.11.31",
     "@swc/helpers": "0.5.17",
     "@tailwindcss/postcss": "4.1.8",
     "@tailwindcss/typography": "^0.5.16",
