@@ -22,7 +22,6 @@ import {
   OrganizationWithRelations,
 } from "@/lib/db";
 import { FormData } from "@/lib/form";
-import { Organization } from "@/prisma/generated/client";
 
 import { OrganizationInput } from "./organization-input";
 import { AuthNamespace } from "./types";
@@ -111,8 +110,8 @@ function FormInput<T extends FieldValues>({
     const organization = allowedOrganizations.find(
       (organization) => organization.id === field.value,
     );
-    const handleOrganizationChange = (organization: Organization) => {
-      field.onChange(organization.id);
+    const handleOrganizationChange = (organizationId: string) => {
+      field.onChange(organizationId);
     };
 
     return (

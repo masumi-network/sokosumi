@@ -31,7 +31,7 @@ interface OrganizationInputProps {
   email: string;
   organizations: OrganizationWithRelations[];
   value: Organization | undefined;
-  onChange: (organization: Organization) => void;
+  onChange: (organizationId: string) => void;
 }
 
 export default function OrganizationInput({
@@ -68,8 +68,8 @@ export default function OrganizationInput({
     setOpen(open);
   };
 
-  const handleSelectOrganization = (organization: Organization) => {
-    onChange(organization);
+  const handleSelectOrganization = (organizationId: string) => {
+    onChange(organizationId);
     setOpen(false);
   };
 
@@ -114,7 +114,7 @@ export default function OrganizationInput({
                   <CommandItem
                     key={organization.id}
                     value={organization.name}
-                    onSelect={() => handleSelectOrganization(organization)}
+                    onSelect={() => handleSelectOrganization(organization.id)}
                     className="flex items-center gap-2"
                   >
                     <Check
