@@ -6,7 +6,7 @@ import { getTranslations } from "next-intl/server";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import { Button } from "@/components/ui/button";
 import { getOrganizationBySlug } from "@/lib/db";
-import { findMyMemberInOrganization } from "@/lib/services";
+import { getMyMemberInOrganization } from "@/lib/services";
 
 import OrganizationInformation from "./components/organization-information";
 
@@ -47,7 +47,7 @@ export default async function OrganizationPage({
     return notFound();
   }
 
-  const member = await findMyMemberInOrganization(organization.id);
+  const member = await getMyMemberInOrganization(organization.id);
   if (!member) {
     redirect("/app/organizations");
   }

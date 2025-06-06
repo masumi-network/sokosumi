@@ -5,9 +5,9 @@ import slugify from "slugify";
 
 import { getSessionOrThrow } from "@/lib/auth/utils";
 import {
-  filterMembers,
   getMemberByUserIdAndOrganizationId,
   getMembersWithOrganizationByUserId,
+  getMembersWithUser,
   getOrganizationBySlug,
   MemberWithOrganization,
 } from "@/lib/db";
@@ -31,7 +31,7 @@ export async function listMyMembers(): Promise<MemberWithOrganization[]> {
   return await getMembersWithOrganizationByUserId(userId);
 }
 
-export async function findMyMemberInOrganization(
+export async function getMyMemberInOrganization(
   organizationId: string,
 ): Promise<Member | null> {
   const session = await getSessionOrThrow();
@@ -45,7 +45,7 @@ export async function findMyMemberInOrganization(
   return member;
 }
 
-export async function getOrganizationMembers(
+export async function getOrganizationMembersWithUser(
   organizationId: string,
   includeMe = false,
   params: {
@@ -59,7 +59,7 @@ export async function getOrganizationMembers(
   const session = await getSessionOrThrow();
   const userId = session.user.id;
 
-  const members = await filterMembers(
+  const members = await getMembersWithUser(
     {
       organizationId,
       ...(includeMe ? {} : { userId: { not: userId } }),

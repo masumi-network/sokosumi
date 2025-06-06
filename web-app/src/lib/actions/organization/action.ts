@@ -17,8 +17,8 @@ import {
   updateOrganization,
 } from "@/lib/db";
 import {
-  findMyMemberInOrganization,
   generateOrganizationSlugFromName,
+  getMyMemberInOrganization,
 } from "@/lib/services";
 import { Organization, Prisma } from "@/prisma/generated/client";
 
@@ -121,7 +121,7 @@ export async function updateOrganizationInformation(
     }
 
     // check membership and role
-    const member = await findMyMemberInOrganization(organizationId);
+    const member = await getMyMemberInOrganization(organizationId);
     if (!member || member.role !== MemberRole.ADMIN) {
       return {
         success: false,
@@ -163,7 +163,7 @@ export async function changeMemberRole(
     }
 
     // check membership and role
-    const myMember = await findMyMemberInOrganization(organizationId);
+    const myMember = await getMyMemberInOrganization(organizationId);
     if (!myMember || myMember.role !== MemberRole.ADMIN) {
       return {
         success: false,
@@ -230,7 +230,7 @@ export async function kickMember(
     }
 
     // check membership and role
-    const myMember = await findMyMemberInOrganization(organizationId);
+    const myMember = await getMyMemberInOrganization(organizationId);
     if (!myMember || myMember.role !== MemberRole.ADMIN) {
       return {
         success: false,

@@ -6,8 +6,8 @@ import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import { getOrganizationBySlug } from "@/lib/db";
 import {
-  findMyMemberInOrganization,
-  getOrganizationMembers,
+  getMyMemberInOrganization,
+  getOrganizationMembersWithUser,
 } from "@/lib/services";
 
 import OrganizationInviteButton from "./components/organization-invite-button";
@@ -36,12 +36,12 @@ export default async function OrganizationMembersPage({
     return notFound();
   }
 
-  const member = await findMyMemberInOrganization(organization.id);
+  const member = await getMyMemberInOrganization(organization.id);
   if (!member) {
     redirect("/app/organizations");
   }
 
-  const members = await getOrganizationMembers(organization.id);
+  const members = await getOrganizationMembersWithUser(organization.id);
 
   return (
     <div className="container flex flex-col gap-8 p-8">

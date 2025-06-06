@@ -24,7 +24,7 @@ export async function getMembersByOrganizationId(
   });
 }
 
-export async function filterMembers(
+export async function getMembersWithUser(
   where: Prisma.MemberWhereInput,
   params: {
     page: number;
