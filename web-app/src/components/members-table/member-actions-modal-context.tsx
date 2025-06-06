@@ -9,8 +9,7 @@ import {
   kickMember,
   OrganizationActionErrorCode,
 } from "@/lib/actions";
-import { MemberWithUser } from "@/lib/db";
-import { Role } from "@/prisma/generated/client";
+import { MemberRole, MemberWithUser } from "@/lib/db";
 
 export enum MemberAction {
   CHANGE_TO_ADMIN = "CHANGE_TO_ADMIN",
@@ -101,13 +100,13 @@ export function MemberActionsModalContextProvider({
       result = await changeMemberRole(
         selectedMember.organizationId,
         selectedMember.id,
-        Role.ADMIN,
+        MemberRole.ADMIN,
       );
     } else if (selectedAction === MemberAction.CHANGE_TO_MEMBER) {
       result = await changeMemberRole(
         selectedMember.organizationId,
         selectedMember.id,
-        Role.MEMBER,
+        MemberRole.MEMBER,
       );
     } else {
       result = await kickMember(

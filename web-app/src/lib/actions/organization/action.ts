@@ -12,6 +12,7 @@ import {
   getMembersByUserId,
   getMemberWithRelationsById,
   isEmailAllowedByOrganization,
+  MemberRole,
   updateMemberRole,
   updateOrganization,
 } from "@/lib/db";
@@ -19,7 +20,7 @@ import {
   findMyMemberInOrganization,
   generateOrganizationSlugFromName,
 } from "@/lib/services";
-import { Organization, Prisma, Role } from "@/prisma/generated/client";
+import { Organization, Prisma } from "@/prisma/generated/client";
 
 import { OrganizationActionErrorCode } from "./error";
 
@@ -57,7 +58,7 @@ export async function createOrganizationMember(
     const members = await getMembersByOrganizationId(organization.id);
 
     // if there are no members, the create as ADMIN
-    const role = members.length === 0 ? Role.ADMIN : Role.MEMBER;
+    const role = members.length === 0 ? MemberRole.ADMIN : MemberRole.MEMBER;
     await createMember(userId, organization.id, role);
     return { success: true };
   } catch (error) {
@@ -121,7 +122,7 @@ export async function updateOrganizationInformation(
 
     // check membership and role
     const member = await findMyMemberInOrganization(organizationId);
-    if (!member || member.role !== Role.ADMIN) {
+    if (!member || member.role !== MemberRole.ADMIN) {
       return {
         success: false,
         error: {
@@ -150,7 +151,7 @@ export async function updateOrganizationInformation(
 export async function changeMemberRole(
   organizationId: string,
   memberId: string,
-  newRole: Role,
+  newRole: MemberRole,
 ): Promise<{ success: false; error: { code: string } } | { success: true }> {
   try {
     const session = await getSession();
@@ -163,7 +164,7 @@ export async function changeMemberRole(
 
     // check membership and role
     const myMember = await findMyMemberInOrganization(organizationId);
-    if (!myMember || myMember.role !== Role.ADMIN) {
+    if (!myMember || myMember.role !== MemberRole.ADMIN) {
       return {
         success: false,
         error: {
@@ -230,7 +231,7 @@ export async function kickMember(
 
     // check membership and role
     const myMember = await findMyMemberInOrganization(organizationId);
-    if (!myMember || myMember.role !== Role.ADMIN) {
+    if (!myMember || myMember.role !== MemberRole.ADMIN) {
       return {
         success: false,
         error: {

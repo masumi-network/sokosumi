@@ -1,5 +1,11 @@
 import { Prisma } from "@/prisma/generated/client";
 
+export enum MemberRole {
+  ADMIN = "admin",
+  OWNER = "owner",
+  MEMBER = "member",
+}
+
 export const organizationMembersCountInclude = {
   _count: {
     select: {
