@@ -39,7 +39,9 @@ jobs:
         run: pnpm masumi-sync:doctl:install
 
       - name: Connect serverless
-        run: pnpm masumi-sync:doctl:connect --namespace ${{ vars.SOKOSUMI_FUNCTION_NAMESPACE }}
+        run: pnpm masumi-sync:doctl:connect
+        env:
+          namespace: ${{ vars.SOKOSUMI_FUNCTION_NAMESPACE }}
 
       - name: Deploy 
         run: pnpm masumi-sync:doctl:deploy
