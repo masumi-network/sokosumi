@@ -20,7 +20,7 @@
     "sokosumi-web:prisma:migrate:deploy": "pnpm --filter sokosumi-web prisma:migrate:deploy",
     "sokosumi-web:prisma:migrate:dev": "pnpm --filter sokosumi-web prisma:migrate:dev",
     "masumi-sync:doctl:install": "pnpm --filter masumi-sync doctl:install",
-    "masumi-sync:doctl:connect": "pnpm --filter masumi-sync doctl:connect $namespace",
+    "masumi-sync:doctl:connect": "pnpm --filter masumi-sync doctl:connect --",
     "masumi-sync:doctl:deploy": "pnpm --filter masumi-sync doctl:deploy"
   },
   "devDependencies": {
