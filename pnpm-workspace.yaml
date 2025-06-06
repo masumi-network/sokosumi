@@ -1,3 +1,7 @@
 packages:
   - web-app
   - sync-function
+
+publicHoistPattern:
+  - "*eslint*"
+  - "*prettier*"
