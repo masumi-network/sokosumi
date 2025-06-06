@@ -8,7 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MemberWithUser } from "@/lib/db";
+import { MemberRole, MemberWithUser } from "@/lib/db";
 
 import {
   MemberAction,
@@ -48,12 +48,12 @@ export default function MemberRowActionsDropdown({
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
-        {role === "MEMBER" && (
+        {role === MemberRole.MEMBER && (
           <DropdownMenuItem onClick={handleChangeToAdmin}>
             {t("changeToAdmin")}
           </DropdownMenuItem>
         )}
-        {role === "ADMIN" && (
+        {role === MemberRole.ADMIN && (
           <DropdownMenuItem onClick={handleChangeToMember}>
             {t("changeToMember")}
           </DropdownMenuItem>
