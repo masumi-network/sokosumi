@@ -1,22 +1,18 @@
-name: Main Sync Function Deployment
+name: Deploy Function
 
 on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: ['sync-function/**']
 
 permissions:
   contents: read
 
 jobs:
-  deploy-function:
+  deploy-functions:
     name: Deploy Function
     runs-on: ubuntu-latest
     environment: development
-    defaults:
-      run:
-        working-directory: ./sync-function
     env:
       SOKOSUMI_URL: ${{ vars.SOKOSUMI_URL }}
       ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
@@ -34,18 +30,20 @@ jobs:
         uses: pnpm/action-setup@v4
 
       - name: Install dependencies
-        run: pnpm i
+        run: pnpm install
 
       - name: Build
-        run: pnpm run build
+        run: pnpm masumi-sync:build
 
       - name: Install serverless
-        run: doctl serverless install
+        run: pnpm masumi-sync:doctl:install
 
-      - name: Configure serverless connect
-        run: doctl serverless connect ${{ env.SOKOSUMI_FUNCTION_NAMESPACE }}
+      - name: Connect serverless
+        run: pnpm masumi-sync:doctl:connect
+        env:
+          namespace: ${{ vars.SOKOSUMI_FUNCTION_NAMESPACE }}
 
-      - name: Deploy
-        run: pnpm run deploy
+      - name: Deploy 
+        run: pnpm masumi-sync:doctl:deploy
 
   

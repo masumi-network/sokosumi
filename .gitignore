@@ -22,5 +22,7 @@ yarn-error.log*
 # local env files
 .env*.local
 
+lint-report.json
+
 # builds
 **/packages

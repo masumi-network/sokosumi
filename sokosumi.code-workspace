@@ -12,10 +12,6 @@
             "name": "Masumi Sync Function",
             "path": "sync-function"
         },
-        {
-            "name": "GitHub",
-            "path": ".github"
-        }
     ],
     "settings": {}
 }

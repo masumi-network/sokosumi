@@ -6,18 +6,13 @@ jobs:
   eslint:
     name: ESLint
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: ./web-app
     permissions:
       # Need to add these 2 for eslint-annotate-action
       pull-requests: read
       checks: write
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Checkout repository
+        uses: actions/checkout@v4
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -26,11 +21,17 @@ jobs:
         run: pnpm i
 
       - name: Save Code Linting Report JSON
-        run: pnpm run lint:report
+        run: pnpm lint:report
         continue-on-error: true
 
-      - name: Annotate Code Linting Results
+      - name: Annotate Web App Code Linting Results
         uses: ataylorme/eslint-annotate-action@v3
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          report-json: "lint_report.json"
+          report-json: "web-app/lint-report.json"
+      
+      - name: Annotate Sync Function Code Linting Results
+        uses: ataylorme/eslint-annotate-action@v3
+        with:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          report-json: "sync-function/lint-report.json"

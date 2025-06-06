@@ -13,9 +13,6 @@ jobs:
     name: Deploy App
     runs-on: ubuntu-latest
     environment: production
-    defaults:
-      run:
-        working-directory: ./web-app
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -27,7 +24,7 @@ jobs:
         run: pnpm install
 
       - name: Migrate database
-        run: pnpm prisma migrate deploy
+        run: pnpm sokosumi-web:prisma:migrate:deploy
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
 
@@ -36,6 +33,7 @@ jobs:
         env:
           ADMIN_KEY: ${{ secrets.ADMIN_KEY }}
         with:
+          app_spec_location: ./web-app/.do/app.yaml
           app_name: ${{ vars.DIGITALOCEAN_APP_NAME }}
           project_id: ${{ secrets.DIGITALOCEAN_PROJECT_ID }}
           token: ${{ secrets.DIGITALOCEAN_ACCESS_TOKEN }}
