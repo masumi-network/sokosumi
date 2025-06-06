@@ -1,7 +1,17 @@
 packages:
   - web-app
   - sync-function
-
+ignoredBuiltDependencies:
+  - '@prisma/client'
+  - '@prisma/engines'
+  - '@swc/core'
+  - '@tailwindcss/oxide'
+  - esbuild
+  - sharp
+  - unrs-resolver
+onlyBuiltDependencies:
+  - '@sentry/cli'
+  - prisma
 publicHoistPattern:
-  - "*eslint*"
-  - "*prettier*"
+  - '*eslint*'
+  - '*prettier*'
