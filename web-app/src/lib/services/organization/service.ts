@@ -7,7 +7,7 @@ import { getSessionOrThrow } from "@/lib/auth/utils";
 import {
   filterMembers,
   getMemberByUserIdAndOrganizationId,
-  getMembersByUserId,
+  getMembersWithOrganizationByUserId,
   getOrganizationBySlug,
   MemberWithOrganization,
 } from "@/lib/db";
@@ -28,7 +28,7 @@ export async function listMyMembers(): Promise<MemberWithOrganization[]> {
   const session = await getSessionOrThrow();
   const userId = session.user.id;
 
-  return await getMembersByUserId(userId);
+  return await getMembersWithOrganizationByUserId(userId);
 }
 
 export async function findMyMemberInOrganization(

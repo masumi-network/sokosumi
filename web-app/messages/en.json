@@ -236,7 +236,7 @@
         "error": "Failed to leave organization",
         "Errors": {
           "notAuthenticated": "You must be logged in to leave the organization.",
-          "memberCountNotAllowed": "You must be member of at least one Organization."
+          "organizationsCountNotAllowed": "You must be member of at least one organization."
         }
       }
     },

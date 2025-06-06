@@ -1,7 +1,7 @@
 "use server";
 
 import { prisma } from "@/lib/db";
-import { Member, Prisma, Role } from "@/prisma/generated/client";
+import { Member, Prisma } from "@/prisma/generated/client";
 
 import {
   memberInclude,
@@ -59,7 +59,7 @@ export async function getMemberByUserIdAndOrganizationId(
   });
 }
 
-export async function getMembersByUserId(
+export async function getMembersWithOrganizationByUserId(
   userId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<MemberWithOrganization[]> {
@@ -75,7 +75,7 @@ export async function getMembersByUserId(
 export async function createMember(
   userId: string,
   organizationId: string,
-  role: Role,
+  role: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Member> {
   return await tx.member.create({
@@ -129,7 +129,7 @@ export async function getMemberWithRelationsById(
 
 export async function updateMemberRole(
   memberId: string,
-  newRole: Role,
+  newRole: string,
   tx: Prisma.TransactionClient = prisma,
 ) {
   return await tx.member.update({

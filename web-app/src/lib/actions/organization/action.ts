@@ -9,7 +9,7 @@ import {
   deleteMemberById,
   deleteMemberByUserIdAndOrganizationId,
   getMembersByOrganizationId,
-  getMembersByUserId,
+  getMembersWithOrganizationByUserId,
   getMemberWithRelationsById,
   isEmailAllowedByOrganization,
   MemberRole,
@@ -81,7 +81,7 @@ export async function leaveOrganization(
     const userId = session.user.id;
 
     // get all members for the user
-    const members = await getMembersByUserId(userId);
+    const members = await getMembersWithOrganizationByUserId(userId);
 
     // if user has less than 2 members, cannot leave
     if (members.length <= 1) {

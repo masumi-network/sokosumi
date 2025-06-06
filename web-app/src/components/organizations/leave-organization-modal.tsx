@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { leaveOrganization, OrganizationActionErrorCode } from "@/lib/actions";
+import { authClient } from "@/lib/auth/auth.client";
 import { Organization } from "@/prisma/generated/client";
 
 interface LeaveOrganizationModalProps {
@@ -34,24 +34,33 @@ export function LeaveOrganizationModal({
 
   const handleLeaveOrganization = async () => {
     setLoading(true);
-    const result = await leaveOrganization(organization.id);
-    if (!result.success) {
-      switch (result.error.code) {
-        case OrganizationActionErrorCode.NOT_AUTHENTICATED:
-          toast.error(t("Errors.notAuthenticated"));
-          break;
-        case OrganizationActionErrorCode.MEMBER_COUNT_NOT_ALLOWED:
-          toast.error(t("Errors.memberCountNotAllowed"));
-          break;
-        default:
-          toast.error(t("error"));
-          break;
+    try {
+      // list organizations
+      const organizationsResult = await authClient.organization.list();
+      if (!organizationsResult.data) {
+        toast.error(t("Errors.notAuthenticated"));
+        return;
       }
-    } else {
+      const organizations = organizationsResult.data;
+      if (organizations.length < 2) {
+        toast.error(t("Errors.organizationsCountNotAllowed"));
+        return;
+      }
+
+      const result = await authClient.organization.leave({
+        organizationId: organization.id,
+      });
+      if (result.error) {
+        console.error("Error leaving organization", result.error);
+        toast.error(t("error"));
+        return;
+      }
+
       toast.success(t("success"));
       onOpenChange(false);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
