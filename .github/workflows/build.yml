@@ -62,7 +62,7 @@ jobs:
         run: pnpm test:ci
 
       - name: Run Prisma Migrate
-        run: pnpm prisma:migrate
+        run: pnpm sokosumi-web:prisma:migrate:dev
 
       - name: Run Build
         run: pnpm build

@@ -17,7 +17,8 @@
     "lint:report": "pnpm -r lint:report",
     "test": "pnpm -r test",
     "test:ci": "pnpm -r test:ci",
-    "sokosumi-web:prisma:migrate": "pnpm --filter sokosumi-web prisma:migrate",
+    "sokosumi-web:prisma:migrate:deploy": "pnpm --filter sokosumi-web prisma:migrate:deploy",
+    "sokosumi-web:prisma:migrate:dev": "pnpm --filter sokosumi-web prisma:migrate:dev",
     "masumi-sync:doctl:install": "pnpm --filter masumi-sync doctl:install",
     "masumi-sync:doctl:connect": "pnpm --filter masumi-sync doctl:connect",
     "masumi-sync:doctl:deploy": "pnpm --filter masumi-sync doctl:deploy"
