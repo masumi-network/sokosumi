@@ -7,10 +7,10 @@ ignoredBuiltDependencies:
   - '@swc/core'
   - '@tailwindcss/oxide'
   - esbuild
+  - '@sentry/cli'
   - sharp
   - unrs-resolver
 onlyBuiltDependencies:
-  - '@sentry/cli'
   - prisma
 publicHoistPattern:
   - '*eslint*'
