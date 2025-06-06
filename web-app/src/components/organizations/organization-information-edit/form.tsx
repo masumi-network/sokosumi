@@ -1,6 +1,7 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { UseFormReturn } from "react-hook-form";
 import { toast } from "sonner";
@@ -29,6 +30,7 @@ export default function OrganizationInformationEditForm({
   const t = useTranslations(
     "Components.Organizations.EditInformationModal.Form",
   );
+  const router = useRouter();
 
   const onSubmit = async (values: EditFormSchemaType) => {
     const result = await updateOrganizationInformation(organizationId, {
@@ -40,6 +42,7 @@ export default function OrganizationInformationEditForm({
       switch (result.error.code) {
         case OrganizationActionErrorCode.NOT_AUTHENTICATED:
           toast.error(t("Errors.notAuthenticated"));
+          router.push("/login");
           break;
         case OrganizationActionErrorCode.UNAUTHORIZED:
           toast.error(t("Errors.unauthorized"));

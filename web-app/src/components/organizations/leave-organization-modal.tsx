@@ -1,6 +1,7 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -31,6 +32,7 @@ export function LeaveOrganizationModal({
 }: LeaveOrganizationModalProps) {
   const t = useTranslations("Components.Organizations.LeaveOrganizationModal");
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const handleLeaveOrganization = async () => {
     setLoading(true);
@@ -39,6 +41,7 @@ export function LeaveOrganizationModal({
       const organizationsResult = await authClient.organization.list();
       if (!organizationsResult.data) {
         toast.error(t("Errors.notAuthenticated"));
+        router.push("/login");
         return;
       }
       const organizations = organizationsResult.data;

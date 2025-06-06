@@ -1,5 +1,6 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { createContext, useContext, useState } from "react";
 import { toast } from "sonner";
@@ -57,6 +58,7 @@ export function MemberActionsModalContextProvider({
   children: React.ReactNode;
 }) {
   const t = useTranslations("Components.MembersTable.Actions.Modal");
+  const router = useRouter();
 
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -119,6 +121,7 @@ export function MemberActionsModalContextProvider({
       switch (result.error.code) {
         case OrganizationActionErrorCode.NOT_AUTHENTICATED:
           toast.error(t("Errors.notAuthenticated"));
+          router.push("/login");
           break;
         case OrganizationActionErrorCode.UNAUTHORIZED:
           toast.error(t("Errors.unauthorized"));
