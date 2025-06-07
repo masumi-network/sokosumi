@@ -77,7 +77,6 @@ export default function RequiredEmailDomainsInput({
         />
         <Button
           type="button"
-          variant="secondary"
           size="icon"
           disabled={!isValidDomain(newDomain)}
           onClick={handleAddDomain}

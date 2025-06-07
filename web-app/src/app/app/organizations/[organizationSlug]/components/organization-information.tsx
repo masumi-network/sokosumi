@@ -45,9 +45,14 @@ export default function OrganizationInformation({
           </div>
         )}
       </div>
-      <div className="flex flex-col gap-2">
-        <p className="text-muted-foreground">{t("requiredEmailDomains")}</p>
-        <RequiredEmailDomains requiredEmailDomains={requiredEmailDomains} />
+      <div>
+        <span className="text-muted-foreground mr-2 text-sm">
+          {t("requiredEmailDomains")}
+        </span>
+        <RequiredEmailDomains
+          requiredEmailDomains={requiredEmailDomains}
+          className="mt-2"
+        />
       </div>
     </div>
   );
