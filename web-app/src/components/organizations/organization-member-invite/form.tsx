@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { authClient } from "@/lib/auth/auth.client";
+import { MemberRole } from "@/lib/db";
 
 import { inviteFormData, InviteFormSchemaType } from "./data";
 import { FormFields } from "./form-fields";
@@ -30,12 +31,18 @@ export default function OrganizationMemberInviteForm({
       {
         email: values.email,
         organizationId,
-        role: "member",
+        role: MemberRole.MEMBER,
         resend: true,
       },
       {
-        onError: () => {
-          toast.error(t("error"));
+        onError: ({ error }) => {
+          switch (error.code) {
+            case "INVITATION_LIMIT_REACHED":
+              toast.error(t("Errors.invitationLimitReached"));
+              break;
+            default:
+              toast.error(t("error"));
+          }
         },
         onSuccess: () => {
           toast.success(t("success"));

@@ -41,7 +41,7 @@ export const InviteUserEmail = async ({
               {t("greeting")}
             </Text>
             <Text className="text-[14px] leading-[24px] text-black">
-              {t("message")}
+              {t("message", { organizationName })}
             </Text>
             <Section className="mt-[32px] mb-[32px] text-center">
               <Button

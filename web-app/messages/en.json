@@ -206,7 +206,8 @@
           "error": "Failed to invite member",
           "Errors": {
             "notAuthenticated": "You must be logged in to invite members.",
-            "unauthorized": "You must be an admin to invite members."
+            "unauthorized": "You must be an admin to invite members.",
+            "invitationLimitReached": "You have reached the invitation limit."
           },
           "Fields": {
             "Email": {
