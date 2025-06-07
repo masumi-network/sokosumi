@@ -1,9 +1,12 @@
 "use client";
 
 import { Invitation } from "better-auth/plugins";
-import { AlertCircle, CheckIcon, XIcon } from "lucide-react";
+import { AlertCircle, CheckIcon, Loader2, XIcon } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -15,6 +18,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { authClient } from "@/lib/auth/auth.client";
 
 interface InvitationCardProps {
   invitation: Invitation & {
@@ -26,11 +30,62 @@ interface InvitationCardProps {
 
 export default function InvitationCard({ invitation }: InvitationCardProps) {
   const t = useTranslations("App.AcceptInvitation.InvitationCard");
-  const { status, organizationName, inviterEmail, email } = invitation;
+  const {
+    id,
+    status,
+    organizationName,
+    organizationSlug,
+    inviterEmail,
+    email,
+  } = invitation;
+  const router = useRouter();
+  const [loading, setLoading] = useState(false);
 
-  const handleAccept = async () => {};
+  const handleAccept = async () => {
+    if (loading) {
+      return;
+    }
+    try {
+      setLoading(true);
+      const result = await authClient.organization.acceptInvitation({
+        invitationId: id,
+      });
 
-  const handleReject = async () => {};
+      if (result.error) {
+        console.error("Failed to accept invitation", result.error);
+        toast.error(t("Actions.Accept.error"));
+        return;
+      }
+
+      toast.success(t("Actions.Accept.success"));
+      router.push(`/app/organizations/${organizationSlug}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReject = async () => {
+    if (loading) {
+      return;
+    }
+    try {
+      setLoading(true);
+      const result = await authClient.organization.rejectInvitation({
+        invitationId: id,
+      });
+
+      if (result.error) {
+        console.error("Failed to accept invitation", result.error);
+        toast.error(t("Actions.Decline.error"));
+        return;
+      }
+
+      toast.success(t("Actions.Decline.success"));
+      router.push("/app/organizations");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <Card className="w-full max-w-md">
@@ -81,10 +136,14 @@ export default function InvitationCard({ invitation }: InvitationCardProps) {
       </CardContent>
       {status === "pending" && (
         <CardFooter className="flex justify-between">
-          <Button variant="outline" onClick={handleReject}>
+          <Button variant="outline" onClick={handleReject} disabled={loading}>
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
             {t("decline")}
           </Button>
-          <Button onClick={handleAccept}>{t("accept")}</Button>
+          <Button onClick={handleAccept} disabled={loading}>
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+            {t("accept")}
+          </Button>
         </CardFooter>
       )}
     </Card>
@@ -117,7 +176,7 @@ export function InvitationCardSkeleton() {
 }
 
 export function InvitationErrorCard() {
-  const t = useTranslations("App.AcceptInvitation.InvitationCard.Error");
+  const t = useTranslations("App.AcceptInvitation.InvitationErrorCard");
 
   return (
     <Card className="mx-auto w-full max-w-md">
