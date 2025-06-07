@@ -130,13 +130,7 @@
           },
           "Errors": {
             "changeRoleError": "Failed to change role",
-            "kickError": "Failed to kick member",
-            "notAuthenticated": "You must be logged in",
-            "unauthorized": "You must be admin to perform this action",
-            "memberNotFound": "Member not found",
-            "memberNotInOrganization": "Member is not in this organization",
-            "changeMyRoleNotAllowed": "You can not change your own role",
-            "kickMyselfNotAllowed": "You can not kick yourself"
+            "kickError": "Failed to kick member"
           }
         }
       }

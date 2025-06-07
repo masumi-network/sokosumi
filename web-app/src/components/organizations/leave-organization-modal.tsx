@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { revalidateOrganizationsPath } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
 import { Organization } from "@/prisma/generated/client";
 
@@ -59,6 +60,7 @@ export function LeaveOrganizationModal({
         return;
       }
 
+      await revalidateOrganizationsPath();
       toast.success(t("success"));
       onOpenChange(false);
     } finally {

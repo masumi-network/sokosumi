@@ -1,15 +1,11 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { createContext, useContext, useState } from "react";
 import { toast } from "sonner";
 
-import {
-  changeMemberRole,
-  kickMember,
-  OrganizationActionErrorCode,
-} from "@/lib/actions";
+import { revalidateOrganizationsPath } from "@/lib/actions";
+import { authClient } from "@/lib/auth/auth.client";
 import { MemberRole, MemberWithUser } from "@/lib/db";
 
 export enum MemberAction {
@@ -58,7 +54,6 @@ export function MemberActionsModalContextProvider({
   children: React.ReactNode;
 }) {
   const t = useTranslations("Components.MembersTable.Actions.Modal");
-  const router = useRouter();
 
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -99,54 +94,33 @@ export function MemberActionsModalContextProvider({
     setLoading(true);
 
     if (selectedAction === MemberAction.CHANGE_TO_ADMIN) {
-      result = await changeMemberRole(
-        selectedMember.organizationId,
-        selectedMember.id,
-        MemberRole.ADMIN,
-      );
+      result = await authClient.organization.updateMemberRole({
+        organizationId: selectedMember.organizationId,
+        memberId: selectedMember.id,
+        role: MemberRole.ADMIN,
+      });
     } else if (selectedAction === MemberAction.CHANGE_TO_MEMBER) {
-      result = await changeMemberRole(
-        selectedMember.organizationId,
-        selectedMember.id,
-        MemberRole.MEMBER,
-      );
+      result = await authClient.organization.updateMemberRole({
+        organizationId: selectedMember.organizationId,
+        memberId: selectedMember.id,
+        role: MemberRole.MEMBER,
+      });
     } else {
-      result = await kickMember(
-        selectedMember.organizationId,
-        selectedMember.id,
-      );
+      result = await authClient.organization.removeMember({
+        organizationId: selectedMember.organizationId,
+        memberIdOrEmail: selectedMember.id,
+      });
     }
 
-    if (!result.success) {
-      switch (result.error.code) {
-        case OrganizationActionErrorCode.NOT_AUTHENTICATED:
-          toast.error(t("Errors.notAuthenticated"));
-          router.push("/login");
-          break;
-        case OrganizationActionErrorCode.UNAUTHORIZED:
-          toast.error(t("Errors.unauthorized"));
-          break;
-        case OrganizationActionErrorCode.MEMBER_NOT_FOUND:
-          toast.error(t("Errors.memberNotFound"));
-          break;
-        case OrganizationActionErrorCode.MEMBER_NOT_IN_ORGANIZATION:
-          toast.error(t("Errors.memberNotInOrganization"));
-          break;
-        case OrganizationActionErrorCode.CHANGE_MY_ROLE_NOT_ALLOWED:
-          toast.error(t("Errors.changeMyRoleNotAllowed"));
-          break;
-        case OrganizationActionErrorCode.KICK_MYSELF_NOT_ALLOWED:
-          toast.error(t("Errors.kickMyselfNotAllowed"));
-          break;
-        default:
-          toast.error(
-            selectedAction === MemberAction.KICK
-              ? t("Errors.kickError")
-              : t("Errors.changeRoleError"),
-          );
-          break;
-      }
+    if (result.error) {
+      console.error(`Failed to "${selectedAction}" member`, result.error);
+      toast.error(
+        selectedAction === MemberAction.KICK
+          ? t("Errors.kickError")
+          : t("Errors.changeRoleError"),
+      );
     } else {
+      await revalidateOrganizationsPath();
       toast.success(
         selectedAction === MemberAction.KICK
           ? t("Successes.kickSuccess")
