@@ -725,6 +725,26 @@
         "invite": "Invite Member"
       }
     },
+    "AcceptInvitation": {
+      "InvitationCard": {
+        "title": "Organization Invitation",
+        "description": "You've been invited to join an organization",
+        "hasInvitedYouToJoin": "has invited you to join",
+        "thisInvitationWasSentTo": "This invitation was sent to",
+        "acceptedTitle": "Welcome to {organizationName}!",
+        "acceptedDescription": "You've successfully joined the organization. We're excited to have you on board!",
+        "declinedTitle": "Invitation Declined",
+        "declinedDescription": "You've declined the invitation to join {organizationName}.",
+        "accept": "Accept Invitation",
+        "decline": "Decline Invitation",
+        "Error": {
+          "title": "Invitation Error",
+          "description": "There was an issue with your invitation.",
+          "content": " The invitation you're trying to access is either invalid or you don't have the correct permissions. Please check your email for a valid invitation or contact the person who sent it.",
+          "footer": "Go back to home"
+        }
+      }
+    },
     "Agents": {
       "Metadata": {
         "title": "Agents Gallery",

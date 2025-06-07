@@ -113,7 +113,7 @@ export const auth = betterAuth({
   plugins: [
     organization({
       async sendInvitationEmail(data) {
-        const inviteLink = `${getEnvSecrets().BETTER_AUTH_URL}/accept-invitation/${data.id}`;
+        const inviteLink = `${getEnvSecrets().BETTER_AUTH_URL}/app/accept-invitation/${data.id}`;
         const t = await getTranslations("Library.Auth.Email.InviteUserEmail");
 
         await resend.emails.send({
