@@ -4,7 +4,7 @@ import { getTranslations } from "next-intl/server";
 
 import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
-import { getOrganizationBySlug } from "@/lib/db";
+import { getOrganizationBySlug, MemberRole } from "@/lib/db";
 import {
   getMyMemberInOrganization,
   getOrganizationMembersWithUser,
@@ -50,7 +50,9 @@ export default async function OrganizationMembersPage({
           <p className="text-muted-foreground">{t("roleIndicator")}</p>
           <OrganizationRoleBadge role={member.role} />
         </div>
-        <OrganizationInviteButton organizationId={organization.id} />
+        {member.role === MemberRole.ADMIN && (
+          <OrganizationInviteButton organizationId={organization.id} />
+        )}
       </div>
       <MembersTable members={members} role={member.role} />
     </div>
