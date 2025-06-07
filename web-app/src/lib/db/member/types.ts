@@ -10,7 +10,7 @@ export const memberUserInclude = {
 
 export const memberOrderBy = [
   {
-    role: "asc", // This will put ADMIN first since it's alphabetically after MEMBER
+    role: "asc", // This will put admin before member
   },
   {
     createdAt: "desc", // This will sort by creation date, newest first
