@@ -5,6 +5,7 @@
   "main": "packages/masumi-sync/main/main.js",
   "packageManager": "pnpm@10.11.1",
   "scripts": {
+    "start": "tsx src/main.ts",
     "build": "tsc",
     "lint": "eslint src",
     "lint:report": "eslint src -f json -o lint-report.json",

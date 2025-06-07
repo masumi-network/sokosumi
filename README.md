@@ -1,48 +1,83 @@
-# Sokosumi
+# Sokosumi Monorepo
 
-This is the monorepo of the Sokosumi Marketplace, the web-app is built with Next.js and TypeScript, with a strong focus on UX and security
+Sokosumi is a modern, secure, and user-focused marketplace platform. This monorepo contains all core services, including the main web application and backend sync functions.
 
 ## Project Structure
 
 ```
 sokosumi/
-├── web-app/           # Main Next.js web application
-├── .husky/            # Git hooks configuration
-├── node_modules/      # Root dependencies
-└── package.json       # Root package configuration
+├── web-app/         # Next.js 15 web application (TypeScript, Tailwind, Shadcn UI)
+├── sync-function/   # Backend sync/worker functions (TypeScript)
+├── package.json     # Monorepo root config
+├── pnpm-workspace.yaml # Monorepo workspace config
+└── ...              # Other config and shared files
 ```
 
-Please take a look into the individual folders for more information
+- **web-app/**: Main user-facing web application (Next.js, React 19, Tailwind CSS, Shadcn UI, next-intl, Prisma, etc.)
+- **sync-function/**: Background jobs, sync logic, and backend utilities (TypeScript)
 
 ## Getting Started
 
-1. Clone the repository:
+### Prerequisites
+- [Node.js](https://nodejs.org/) (v20+ recommended)
+- [pnpm](https://pnpm.io/) (monorepo package manager)
 
-   ```bash
-   git clone https://github.com/yourusername/sokosumi.git
-   cd sokosumi
-   ```
+### Clone and Install
 
-2. Navigate into the folder of interest and follow the instructions. As example
-   ```bash
-   cd web-app
-   ```
+```bash
+git clone https://github.com/yourusername/sokosumi.git
+cd sokosumi
+pnpm install
+```
 
-## Git Workflow
+### Setup Environment
+- Copy and configure environment variables for each package (see `web-app/.env.example` and `sync-function/.env.example` if present).
 
-We follow the [GitHub Flow](https://docs.github.com/en/get-started/using-github/github-flow) workflow, which is a lightweight, branch-based workflow. The main steps are:
+## Development
 
-1. Create a branch from `main`
-2. Add commits with your changes
-3. Open a Pull Request
-4. Review and discuss the changes
-5. Deploy and test (optional)
-6. Maintainers merge to `main`
+### Web App
+```bash
+cd web-app
+pnpm dev
+```
+- Runs the Next.js app at [http://localhost:3000](http://localhost:3000)
 
-All changes merged to `main` are automatically deployed to our staging environment for final testing and validation.
+### Sync Function
+You can trigger the sync function locally with:
 
-For production deployments, we use GitHub Releases. After significant changes are merged to `main`, maintainers create a new release with semantic versioning tags (e.g., v1.0.0) to trigger production deployments.
+```bash
+cd sync-function
+pnpm start
+```
+
+This runs `src/main.ts`.
+
+Other available scripts:
+- `pnpm build` — TypeScript build
+- `pnpm lint` — Lint source files
+- `pnpm format` — Format source files
+- `pnpm doctl:install` — Install DigitalOcean serverless tools
+- `pnpm doctl:connect` — Connect to DigitalOcean serverless namespace
+- `pnpm doctl:deploy` — Deploy to DigitalOcean serverless
+
+See the `sync-function/package.json` for more details.
+
+## Testing
+
+- Each package may have its own test scripts:
+  - `pnpm test` (from within `web-app/` or `sync-function/` if available)
+
+## Deployment
+
+- **Staging:** All changes merged to `main` are auto-deployed to staging.
+- **Production:** Maintainers create a GitHub Release (semantic versioning, e.g., `v1.0.0`) to trigger production deployment.
+
+## Contributing
+
+- We use [GitHub Flow](https://docs.github.com/en/get-started/using-github/github-flow) for branching and pull requests.
+- Follow [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) for commit messages and PR titles.
+- See code style and contribution guidelines in the respective package folders.
 
 ## License
 
-This project is licensed under the [MIT License] (/LICENSE)
+This project is licensed under the [MIT License](./LICENSE)

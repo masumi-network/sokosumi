@@ -1,4 +1,4 @@
-name: Deploy Function
+name: Main Sync Function Deployment
 
 on:
   workflow_dispatch:

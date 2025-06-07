@@ -1,4 +1,4 @@
-name: Sokosumi Web-App Deployment
+name: Main Web-App Deployment
 
 on:
   workflow_dispatch:

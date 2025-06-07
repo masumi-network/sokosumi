@@ -1,9 +1,22 @@
-# Sokosumi
+# Sokosumi Web App
 
-The web-app provides a user interface to interact with the agents. In the background it uses services such as
+The web-app provides a user interface to interact with the agents. In the background it uses services such as:
 
 - [Masumi Payment](https://github.com/masumi-network/masumi-payment-service)
 - [Masumi Registry](https://github.com/masumi-network/masumi-registry-service)
+
+## Monorepo Structure
+
+This project is part of the Sokosumi monorepo. The main packages are:
+
+- `web-app/` — This Next.js web application
+- `sync-function/` — Backend sync/worker functions (see that package for details)
+
+Install dependencies from the root of the monorepo:
+
+```bash
+pnpm install
+```
 
 ## Project Structure
 
@@ -31,7 +44,7 @@ web-app/
 ## Prerequisites
 
 - [Node.js](https://nodejs.org/en) (v20 or higher)
-- [npm](https://docs.npmjs.com/downloading-and-installing-node-js-and-npm)
+- [pnpm](https://pnpm.io/)
 
 ## URLs
 
@@ -40,10 +53,10 @@ web-app/
 
 ## Getting Started
 
-1. Install dependencies:
+1. Install dependencies (from the monorepo root):
 
    ```bash
-   npm install
+   pnpm install
    ```
 
 2. Set up environment variables:
@@ -56,7 +69,7 @@ web-app/
 3. Start the development server:
 
    ```bash
-   npm run dev
+   pnpm dev
    ```
 
    The application will be available at [http://localhost:3000](http://localhost:3000)
@@ -65,21 +78,24 @@ web-app/
 
 ### Available Scripts
 
-- `npm run dev` - Start the development server
-- `npm run build` - Build the application
-- `npm run start` - Start the production server
-- `npm run test` - Run tests
-- `npm run lint` - Run ESLint
+- `pnpm dev` - Start the development server
+- `pnpm build` - Build the application
+- `pnpm start` - Start the production server
+- `pnpm test` - Run tests
+- `pnpm lint` - Run ESLint
 
 ## Testing
 
 Run tests using Jest:
 
 ```bash
-npm run test
+pnpm test
 ```
 
 ### Seeding the database
 
-Copy the `.example.env` into `.env` and set an appropriate `DATABASE_URL`. Then run `npm run prisma:migrate` to deploy the migrations and seed the database (double check the console) or `npm run prisma:seed` to only seed the db if the migrations are applied already
+Copy the `.env.example` into `.env` and set an appropriate `DATABASE_URL`. Then run `pnpm prisma:migrate:dev` to deploy the migrations and seed the database (double check the console) or `pnpm prisma:seed` to only seed the db if the migrations are applied already.
 
+## Related Packages
+
+- See `../sync-function/README.md` for information about backend sync/worker functions.
