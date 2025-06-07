@@ -92,7 +92,8 @@ export function LeaveOrganizationModal({
             {t("leave")}
           </Button>
           <DialogClose asChild>
-            <Button variant="secondary" className="w-full">
+            <Button variant="secondary" className="w-full" disabled={loading}>
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {t("cancel")}
             </Button>
           </DialogClose>
