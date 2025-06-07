@@ -23,12 +23,12 @@ interface OrganizationInformationEditModalProps {
   organizationId: string;
 }
 
-export default function OrganizationInformationEditModal({
+export default function OrganizationMemberInviteModal({
   open,
   onOpenChange,
   organizationId,
 }: OrganizationInformationEditModalProps) {
-  const t = useTranslations("Components.Organizations.EditInformationModal");
+  const t = useTranslations("Components.Organizations.InviteMemberModal");
 
   const form = useForm<InviteFormSchemaType>({
     resolver: zodResolver(
