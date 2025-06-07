@@ -37,6 +37,15 @@ export default function OrganizationMemberInviteForm({
       {
         onError: ({ error }) => {
           switch (error.code) {
+            case "USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION":
+              toast.error(t("Errors.userAlreadyMember"));
+              break;
+            case "USER_IS_ALREADY_INVITED_TO_THIS_ORGANIZATION":
+              toast.error(t("Errors.userAlreadyInvited"));
+              break;
+            case "YOU_ARE_NOT_ALLOWED_TO_INVITE_USER_WITH_THIS_ROLE":
+              toast.error(t("Errors.unauthorized"));
+              break;
             case "INVITATION_LIMIT_REACHED":
               toast.error(t("Errors.invitationLimitReached"));
               break;
