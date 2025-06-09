@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
 import React from "react";
@@ -53,8 +54,8 @@ export default function BreadcrumbNavigationClient({
               {segment.isCurrent ? (
                 <BreadcrumbPage>{segment.label}</BreadcrumbPage>
               ) : (
-                <BreadcrumbLink href={segment.href}>
-                  {segment.label}
+                <BreadcrumbLink asChild>
+                  <Link href={segment.href}>{segment.label}</Link>
                 </BreadcrumbLink>
               )}
             </BreadcrumbItem>
