@@ -303,7 +303,7 @@
 }
 
 @utility agent-card-image-shadow {
-  box-shadow: 0px 0px 16px 8px
+  box-shadow: 0px 0px 16px 6px
     color-mix(in oklab, var(--foreground) 30%, transparent);
 }
 
