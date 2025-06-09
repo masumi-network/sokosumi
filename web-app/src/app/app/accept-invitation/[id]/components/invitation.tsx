@@ -75,7 +75,7 @@ export default function InvitationCard({ invitation }: InvitationCardProps) {
       });
 
       if (result.error) {
-        console.error("Failed to accept invitation", result.error);
+        console.error("Failed to decline invitation", result.error);
         toast.error(t("Actions.Decline.error"));
         return;
       }
