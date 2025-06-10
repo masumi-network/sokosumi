@@ -15,7 +15,6 @@
     "start": "next start",
     "lint": "next lint",
     "lint:report": "next lint --output-file=lint-report.json --format json",
-    "test": "jest --watch",
     "test:ci": "jest --ci",
     "prepare": "prisma generate",
     "prisma:generate": "prisma generate",
