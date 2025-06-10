@@ -26,6 +26,7 @@
     "data-migration:job-sync": "tsx ./prisma/migrations/20250519112751_job_sync/data-migration.ts",
     "data-migration:add-organization": "tsx ./prisma/migrations/20250520120625_add_organization/data-migration.ts",
     "data-migration:add-cents-to-fiat-transaction": "tsx ./prisma/migrations/20250528171822_add_cents_to_fiat_transaction/data-migration.ts",
+    "data-migration:set-member-role-to-member": "tsx ./prisma/migrations/20250610084837_set_member_role_to_member/data-migration.ts",
     "format": "prettier --log-level silent --write src/**/*.ts",
     "generate:payment": "openapi-ts -f openapi-ts.payment.config.ts",
     "generate:registry": "openapi-ts -f openapi-ts.registry.config.ts",
