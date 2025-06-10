@@ -302,6 +302,11 @@
   }
 }
 
+@utility agent-card-image-shadow {
+  box-shadow: 0px 0px 12px 4px
+    color-mix(in oklab, var(--muted-foreground) 30%, transparent);
+}
+
 @utility agent-detail-card {
   background: var(--material-thin, rgba(245, 245, 245, 0.48));
   border-radius: var(--border-radius-xl, 12px);

@@ -39,13 +39,13 @@ const agentCardVariants = cva("flex rounded-lg border-none p-1 shadow-none", {
 });
 
 const agentCardImageContainerVariants = cva(
-  "relative group overflow-hidden rounded-lg shrink-0 shadow-foreground/10 shadow-lg",
+  "relative group overflow-hidden rounded-lg shrink-0",
   {
     variants: {
       size: {
-        xs: "w-16 h-16 aspect-square",
-        sm: "w-24 h-24 aspect-square",
-        md: "w-full aspect-[1.6]",
+        xs: "w-16 h-16 aspect-square agent-card-image-shadow",
+        sm: "w-24 h-24 aspect-square agent-card-image-shadow",
+        md: "w-full aspect-[1.6] agent-card-image-shadow",
         lg: "w-xl aspect-[1.6]",
       },
     },
