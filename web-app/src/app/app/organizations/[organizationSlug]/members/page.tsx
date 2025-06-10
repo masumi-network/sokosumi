@@ -54,7 +54,7 @@ export default async function OrganizationMembersPage({
           <OrganizationInviteButton organizationId={organization.id} />
         )}
       </div>
-      <MembersTable members={members} role={member.role} />
+      <MembersTable members={members} role={member.role ?? MemberRole.MEMBER} />
     </div>
   );
 }
