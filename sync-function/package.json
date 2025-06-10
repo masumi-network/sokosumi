@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "DigitalOcean Function to sync Masumi services",
   "main": "packages/masumi-sync/main/main.js",
-  "packageManager": "pnpm@10.11.1",
+  "packageManager": "pnpm@10.12.1",
   "scripts": {
     "start": "tsx src/main.ts",
     "build": "tsc",
@@ -15,6 +15,6 @@
     "doctl:deploy": "doctl serverless deploy ."
   },
   "devDependencies": {
-    "@types/node": "22.15.30"
+    "@types/node": "18.19.111"
   }
 }
