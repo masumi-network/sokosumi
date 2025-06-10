@@ -1,9 +1,9 @@
 {
   "name": "sokosumi-web",
   "version": "0.1.0",
-  "packageManager": "pnpm@10.11.1",
+  "packageManager": "pnpm@10.12.1",
   "engines": {
-    "node": ">=20.0.0"
+    "node": ">=22.0.0 <23.0.0"
   },
   "private": true,
   "prisma": {
@@ -15,7 +15,6 @@
     "start": "next start",
     "lint": "next lint",
     "lint:report": "next lint --output-file=lint-report.json --format json",
-    "test": "jest --watch",
     "test:ci": "jest --ci",
     "prepare": "prisma generate",
     "prisma:generate": "prisma generate",
@@ -36,7 +35,7 @@
     "@better-auth/utils": "0.2.5",
     "@hey-api/client-fetch": "0.12.0",
     "@hey-api/client-next": "0.4.0",
-    "@hookform/resolvers": "5.1.0",
+    "@hookform/resolvers": "5.1.1",
     "@icons-pack/react-simple-icons": "13.1.0",
     "@prisma/client": "6.9.0",
     "@radix-ui/react-accordion": "1.2.11",
@@ -110,11 +109,11 @@
     "use-debounce": "10.0.5",
     "uuid": "11.1.0",
     "vaul": "1.1.2",
-    "zod": "3.25.56"
+    "zod": "3.25.57"
   },
   "devDependencies": {
-    "@types/node": "22.15.30",
-    "@types/react": "19.1.6",
+    "@types/node": "22.15.31",
+    "@types/react": "19.1.7",
     "@types/react-dom": "19.1.6",
     "@types/react-window": "1.8.8",
     "prisma": "6.9.0"
