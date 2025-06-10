@@ -114,24 +114,24 @@
       },
       "Actions": {
         "myself": "Myself",
-        "kick": "Kick",
+        "remove": "Remove",
         "changeToAdmin": "Change to Admin",
         "changeToMember": "Change to Member",
         "Modal": {
           "changeRoleTitle": "Change Role",
-          "kickTitle": "Kick Member",
+          "removeTitle": "Remove Member",
           "changeToAdminDescription": "Are you sure you want to change the role of {member} to Admin?",
           "changeToMemberDescription": "Are you sure you want to change the role of {member} to Member?",
-          "kickDescription": "Are you sure you want to kick {member} from the organization?",
+          "removeDescription": "Are you sure you want to remove {member} from the organization?",
           "confirm": "Confirm",
           "cancel": "Cancel",
           "Successes": {
             "changeRoleSuccess": "Role changed successfully",
-            "kickSuccess": "Member kicked successfully"
+            "removeSuccess": "Member removed successfully"
           },
           "Errors": {
             "changeRoleError": "Failed to change role",
-            "kickError": "Failed to kick member"
+            "removeError": "Failed to remove member"
           }
         }
       }

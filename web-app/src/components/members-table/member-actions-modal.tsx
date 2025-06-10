@@ -39,8 +39,8 @@ export default function MemberActionsModal() {
   };
 
   const getTitle = () => {
-    if (selectedAction === MemberAction.KICK) {
-      return t("kickTitle");
+    if (selectedAction === MemberAction.REMOVE) {
+      return t("removeTitle");
     }
     if (selectedAction === MemberAction.CHANGE_TO_ADMIN) {
       return t("changeRoleTitle");
@@ -54,8 +54,8 @@ export default function MemberActionsModal() {
   const getDescription = () => {
     if (!selectedMember) return "";
     const { name } = selectedMember.user;
-    if (selectedAction === MemberAction.KICK) {
-      return t("kickDescription", { member: name });
+    if (selectedAction === MemberAction.REMOVE) {
+      return t("removeDescription", { member: name });
     }
     if (selectedAction === MemberAction.CHANGE_TO_ADMIN) {
       return t("changeToAdminDescription", { member: name });

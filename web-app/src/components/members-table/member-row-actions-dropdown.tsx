@@ -36,8 +36,8 @@ export default function MemberRowActionsDropdown({
     openActionModal(member, MemberAction.CHANGE_TO_MEMBER);
   };
 
-  const handleKick = () => {
-    openActionModal(member, MemberAction.KICK);
+  const handleRemove = () => {
+    openActionModal(member, MemberAction.REMOVE);
   };
 
   return (
@@ -58,8 +58,8 @@ export default function MemberRowActionsDropdown({
             {t("changeToMember")}
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem variant="destructive" onClick={handleKick}>
-          {t("kick")}
+        <DropdownMenuItem variant="destructive" onClick={handleRemove}>
+          {t("remove")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

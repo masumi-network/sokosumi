@@ -11,7 +11,7 @@ import { MemberRole, MemberWithUser } from "@/lib/db";
 export enum MemberAction {
   CHANGE_TO_ADMIN = "CHANGE_TO_ADMIN",
   CHANGE_TO_MEMBER = "CHANGE_TO_MEMBER",
-  KICK = "KICK",
+  REMOVE = "REMOVE",
 }
 
 interface MemberActionsModalContextType {
@@ -115,15 +115,15 @@ export function MemberActionsModalContextProvider({
     if (result.error) {
       console.error(`Failed to "${selectedAction}" member`, result.error);
       toast.error(
-        selectedAction === MemberAction.KICK
-          ? t("Errors.kickError")
+        selectedAction === MemberAction.REMOVE
+          ? t("Errors.removeError")
           : t("Errors.changeRoleError"),
       );
     } else {
       await revalidateOrganizationsPath();
       toast.success(
-        selectedAction === MemberAction.KICK
-          ? t("Successes.kickSuccess")
+        selectedAction === MemberAction.REMOVE
+          ? t("Successes.removeSuccess")
           : t("Successes.changeRoleSuccess"),
       );
       setOpen(false);
