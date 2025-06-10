@@ -150,22 +150,22 @@
         "allowAll": "Allow all email domains"
       },
       "EditInformationModal": {
-        "title": "Edit Organization Information",
+        "title": "Edit Organization",
         "Form": {
           "submit": "Save",
           "cancel": "Cancel",
-          "success": "Organization information updated successfully",
-          "error": "Failed to update organization information",
+          "success": "Organization updated successfully",
+          "error": "Failed to update organization",
           "Errors": {
-            "notAuthenticated": "You must be logged in to edit organization information.",
-            "unauthorized": "You must be an admin to edit organization information."
+            "notAuthenticated": "You need to be logged in to edit an organization.",
+            "unauthorized": "You need to be an admin to edit an organization."
           },
           "Fields": {
             "Name": {
-              "placeholder": "Organization name"
+              "placeholder": "Name"
             },
             "Metadata": {
-              "placeholder": "Organization metadata"
+              "placeholder": "Metadata"
             },
             "RequiredEmailDomains": {
               "label": "Required email domains",
