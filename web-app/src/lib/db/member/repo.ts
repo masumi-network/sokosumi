@@ -1,6 +1,6 @@
 "use server";
 
-import { prisma } from "@/lib/db";
+import { MemberRole, prisma } from "@/lib/db";
 import { Member, Prisma } from "@/prisma/generated/client";
 
 import {
@@ -90,5 +90,16 @@ export async function createMember(
       },
       role,
     },
+  });
+}
+
+export async function updateRole(
+  memberId: string,
+  role: MemberRole,
+  tx: Prisma.TransactionClient = prisma,
+) {
+  return await tx.member.update({
+    where: { id: memberId },
+    data: { role },
   });
 }
