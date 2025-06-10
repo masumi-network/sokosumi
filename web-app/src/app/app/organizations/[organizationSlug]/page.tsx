@@ -1,14 +1,17 @@
 import { Metadata } from "next";
-import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
+import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
-import { Button } from "@/components/ui/button";
-import { getOrganizationBySlug } from "@/lib/db";
-import { getMyMemberInOrganization } from "@/lib/services";
+import { getOrganizationBySlug, MemberRole } from "@/lib/db";
+import {
+  getMyMemberInOrganization,
+  getOrganizationMembersWithUser,
+} from "@/lib/services";
 
 import OrganizationInformation from "./components/organization-information";
+import OrganizationInviteButton from "./components/organization-invite-button";
 
 interface OrganizationPageProps {
   params: Promise<{ organizationSlug: string }>;
@@ -52,6 +55,8 @@ export default async function OrganizationPage({
     redirect("/app/organizations");
   }
 
+  const members = await getOrganizationMembersWithUser(organization.id);
+
   return (
     <div className="container flex flex-col gap-8 p-8">
       <div className="flex items-center gap-2">
@@ -59,11 +64,13 @@ export default async function OrganizationPage({
         <OrganizationRoleBadge role={member.role} />
       </div>
       <OrganizationInformation organization={organization} member={member} />
-      <Button asChild variant="secondary">
-        <Link href={`/app/organizations/${organizationSlug}/members`}>
-          {t("members")}
-        </Link>
-      </Button>
+      <div className="flex items-center justify-between">
+        <h3 className="text-lg font-medium">{t("members")}</h3>
+        {member.role === MemberRole.ADMIN && (
+          <OrganizationInviteButton organizationId={organization.id} />
+        )}
+      </div>
+      <MembersTable members={members} role={member.role ?? MemberRole.MEMBER} />
     </div>
   );
 }
