@@ -105,8 +105,8 @@ importers:
         specifier: 0.4.0
         version: 0.4.0(@hey-api/openapi-ts@0.71.1(typescript@5.8.3))
       '@hookform/resolvers':
-        specifier: 5.1.0
-        version: 5.1.0(react-hook-form@7.57.0(react@19.1.0))
+        specifier: 5.1.1
+        version: 5.1.1(react-hook-form@7.57.0(react@19.1.0))
       '@icons-pack/react-simple-icons':
         specifier: 13.1.0
         version: 13.1.0(react@19.1.0)
@@ -784,8 +784,8 @@ packages:
     peerDependencies:
       typescript: ^5.5.3
 
-  '@hookform/resolvers@5.1.0':
-    resolution: {integrity: sha512-A5tY8gxqvvR0lFfropqpy/gUDOxjwT7LZCxJ8lNA9puK7nFNRl/O0egGKxzdF4JSz/pnnT1O8g76P/YMyTBEFw==}
+  '@hookform/resolvers@5.1.1':
+    resolution: {integrity: sha512-J/NVING3LMAEvexJkyTLjruSm7aOFx7QX21pzkiJfMoNG0wl5aFEjLTl7ay7IQb9EWY6AkrBy7tHL2Alijpdcg==}
     peerDependencies:
       react-hook-form: ^7.55.0
 
@@ -5643,8 +5643,8 @@ packages:
       uglify-js:
         optional: true
 
-  terser@5.41.0:
-    resolution: {integrity: sha512-H406eLPXpZbAX14+B8psIuvIr8+3c+2hkuYzpMkoE0ij+NdsVATbA78vb8neA/eqrj7rywa2pIkdmWRsXW6wmw==}
+  terser@5.42.0:
+    resolution: {integrity: sha512-UYCvU9YQW2f/Vwl+P0GfhxJxbUGLwd+5QrrGgLajzWAtC/23AX0vcise32kkP7Eu0Wu9VlzzHAXkLObgjQfFlQ==}
     engines: {node: '>=10'}
     hasBin: true
 
@@ -6411,7 +6411,7 @@ snapshots:
     transitivePeerDependencies:
       - magicast
 
-  '@hookform/resolvers@5.1.0(react-hook-form@7.57.0(react@19.1.0))':
+  '@hookform/resolvers@5.1.1(react-hook-form@7.57.0(react@19.1.0))':
     dependencies:
       '@standard-schema/utils': 0.3.0
       react-hook-form: 7.57.0(react@19.1.0)
@@ -11823,12 +11823,12 @@ snapshots:
       jest-worker: 27.5.1
       schema-utils: 4.3.2
       serialize-javascript: 6.0.2
-      terser: 5.41.0
+      terser: 5.42.0
       webpack: 5.99.9(@swc/core@1.11.31(@swc/helpers@0.5.17))
     optionalDependencies:
       '@swc/core': 1.11.31(@swc/helpers@0.5.17)
 
-  terser@5.41.0:
+  terser@5.42.0:
     dependencies:
       '@jridgewell/source-map': 0.3.6
       acorn: 8.15.0
