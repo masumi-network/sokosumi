@@ -42,7 +42,7 @@ export async function getMembersWithUser(
   });
 }
 
-export async function getMemberWithUserByUserIdAndOrganizationId(
+export async function getMemberByUserIdAndOrganizationId(
   userId: string,
   organizationId: string,
   tx: Prisma.TransactionClient = prisma,

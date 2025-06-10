@@ -6,12 +6,16 @@ import { useTranslations } from "next-intl";
 import { DataTableColumnHeader } from "@/components/data-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import { MemberWithUser } from "@/lib/db";
+import { Member } from "@/prisma/generated/client";
 
 import MemberRowActionsDropdown from "./member-row-actions-dropdown";
 
 const columnHelper = createColumnHelper<MemberWithUser>();
 
-export function getMemberColumns(t: ReturnType<typeof useTranslations>) {
+export function getMemberColumns(
+  t: ReturnType<typeof useTranslations>,
+  me: Member,
+) {
   return {
     nameColumn: columnHelper.accessor("user.name", {
       id: "name",
@@ -54,7 +58,12 @@ export function getMemberColumns(t: ReturnType<typeof useTranslations>) {
       id: "action",
       maxSize: 80,
       header: () => <div>{t("Header.action")}</div>,
-      cell: ({ row }) => <MemberRowActionsDropdown member={row.original} />,
+      cell: ({ row }) =>
+        row.original.id === me.id ? (
+          <p className="font-medium">{t("Actions.myself")}</p>
+        ) : (
+          <MemberRowActionsDropdown member={row.original} />
+        ),
     }) as ColumnDef<MemberWithUser>,
   };
 }

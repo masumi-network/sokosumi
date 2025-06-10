@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { DataTable } from "@/components/data-table";
 import { MemberRole, MemberWithUser } from "@/lib/db";
 import { cn } from "@/lib/utils";
+import { Member } from "@/prisma/generated/client";
 
 import MemberActionsModal from "./member-actions-modal";
 import { MemberActionsModalContextProvider } from "./member-actions-modal-context";
@@ -12,7 +13,7 @@ import { getMemberColumns } from "./member-columns";
 
 interface MembersTableProps {
   members: MemberWithUser[];
-  me: MemberWithUser;
+  me: Member;
 }
 
 export default function MembersTable({ members, me }: MembersTableProps) {
@@ -31,9 +32,9 @@ export default function MembersTable({ members, me }: MembersTableProps) {
   );
 }
 
-function getColumns(t: ReturnType<typeof useTranslations>, me: MemberWithUser) {
+function getColumns(t: ReturnType<typeof useTranslations>, me: Member) {
   const { nameColumn, emailColumn, roleColumn, actionColumn } =
-    getMemberColumns(t);
+    getMemberColumns(t, me);
   const isAdmin = me.role === MemberRole.ADMIN;
 
   return [nameColumn, emailColumn, roleColumn].concat(

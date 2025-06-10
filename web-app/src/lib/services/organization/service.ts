@@ -5,13 +5,13 @@ import slugify from "slugify";
 
 import { getSessionOrThrow } from "@/lib/auth/utils";
 import {
+  getMemberByUserIdAndOrganizationId,
   getMembersWithOrganizationByUserId,
   getMembersWithUser,
-  getMemberWithUserByUserIdAndOrganizationId,
   getOrganizationBySlug,
   MemberWithOrganization,
-  MemberWithUser,
 } from "@/lib/db";
+import { Member } from "@/prisma/generated/client";
 
 export async function generateOrganizationSlugFromName(name: string) {
   const slugedName = slugify(name, { lower: true, strict: true });
@@ -33,11 +33,11 @@ export async function listMyMembers(): Promise<MemberWithOrganization[]> {
 
 export async function getMyMemberInOrganization(
   organizationId: string,
-): Promise<MemberWithUser | null> {
+): Promise<Member | null> {
   const session = await getSessionOrThrow();
   const userId = session.user.id;
 
-  const member = await getMemberWithUserByUserIdAndOrganizationId(
+  const member = await getMemberByUserIdAndOrganizationId(
     userId,
     organizationId,
   );
