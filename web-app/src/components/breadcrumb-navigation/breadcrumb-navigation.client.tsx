@@ -41,9 +41,7 @@ export default function BreadcrumbNavigationClient({
   const pathname = usePathname();
   const t = useTranslations("Components.Breadcrumb");
 
-  const segments = generateSegments(pathname, segmentLabels, agents, t).filter(
-    (segment) => segment.href !== "/app",
-  );
+  const segments = generateSegments(pathname, segmentLabels, agents, t);
 
   return (
     <Breadcrumb className={className}>
@@ -76,25 +74,31 @@ function generateSegments(
   const pathSegments = pathname.split("/").filter(Boolean);
   if (!pathSegments.length) return [];
 
-  return pathSegments.map((segment, index) => {
-    const href = "/" + pathSegments.slice(0, index + 1).join("/");
-    const isCurrent = index === pathSegments.length - 1;
+  return pathSegments
+    .map((segment, index) => {
+      const href = "/" + pathSegments.slice(0, index + 1).join("/");
+      const isCurrent = index === pathSegments.length - 1;
 
-    // Try to resolve the segment label in the following order:
-    // 1. Custom segment labels map
-    // 2. Agent name resolution
-    // 3. Translation key
-    // 4. Fallback to the segment itself
-    const agent = agents.find((a) => a.id === segment);
-    const label =
-      segmentLabels[segment] ??
-      (agent && getAgentName(agent)) ??
-      (t && t.has(segment) ? t(segment) : segment);
+      // check for special cases
+      if (href === "/app") return;
+      if (href.startsWith("/app/accept-invitation")) return;
 
-    return {
-      label,
-      href,
-      isCurrent,
-    };
-  });
+      // Try to resolve the segment label in the following order:
+      // 1. Custom segment labels map
+      // 2. Agent name resolution
+      // 3. Translation key
+      // 4. Fallback to the segment itself
+      const agent = agents.find((a) => a.id === segment);
+      const label =
+        segmentLabels[segment] ??
+        (agent && getAgentName(agent)) ??
+        (t && t.has(segment) ? t(segment) : segment);
+
+      return {
+        label,
+        href,
+        isCurrent,
+      };
+    })
+    .filter(Boolean) as BreadcrumbSegment[];
 }
