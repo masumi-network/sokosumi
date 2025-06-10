@@ -138,7 +138,8 @@
     "Breadcrumb": {
       "jobs": "Jobs",
       "agents": "Gallery",
-      "account": "Account"
+      "account": "Account",
+      "organizations": "Organizations"
     },
     "Organizations": {
       "Role": {
