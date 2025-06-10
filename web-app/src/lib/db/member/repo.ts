@@ -73,7 +73,7 @@ export async function getMembersWithOrganizationByUserId(
 export async function createMember(
   userId: string,
   organizationId: string,
-  role: string,
+  role: MemberRole,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Member> {
   return await tx.member.create({
