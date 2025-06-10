@@ -6,6 +6,7 @@ import { Member, Prisma } from "@/prisma/generated/client";
 import {
   memberOrderBy,
   memberOrganizationInclude,
+  memberRoleOrderBy,
   memberUserInclude,
   MemberWithOrganization,
   MemberWithUser,
@@ -67,7 +68,7 @@ export async function getMembersWithOrganizationByUserId(
       userId,
     },
     include: memberOrganizationInclude,
-    orderBy: [...memberOrderBy],
+    orderBy: [{ ...memberRoleOrderBy }],
   });
 }
 

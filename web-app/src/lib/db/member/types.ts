@@ -8,13 +8,19 @@ export const memberUserInclude = {
   user: true,
 } as const;
 
+export const memberRoleOrderBy = {
+  role: "asc",
+} as const;
+
+export const memberUserNameOrderBy = {
+  user: {
+    name: "asc",
+  },
+} as const;
+
 export const memberOrderBy = [
-  {
-    role: "asc", // This will put admin before member
-  },
-  {
-    createdAt: "desc", // This will sort by creation date, newest first
-  },
+  { ...memberRoleOrderBy },
+  { ...memberUserNameOrderBy },
 ] as const;
 
 export const memberInclude = {
