@@ -113,6 +113,7 @@
         "action": "Action"
       },
       "Actions": {
+        "myself": "Myself",
         "kick": "Kick",
         "changeToAdmin": "Change to Admin",
         "changeToMember": "Change to Member",
@@ -714,15 +715,8 @@
         "title": "{name}",
         "requiredEmailDomains": "Required email domains:",
         "edit": "Edit",
-        "members": "View Members"
-      },
-      "Members": {
-        "Metadata": {
-          "title": "Members",
-          "description": "Manage your organization members"
-        },
-        "roleIndicator": "View as:",
-        "invite": "Invite Member"
+        "invite": "Invite Member",
+        "members": "Members"
       }
     },
     "AcceptInvitation": {

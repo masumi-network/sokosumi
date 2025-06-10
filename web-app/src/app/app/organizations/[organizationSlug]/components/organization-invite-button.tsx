@@ -13,7 +13,7 @@ interface OrganizationInviteButtonProps {
 export default function OrganizationInviteButton({
   organizationId,
 }: OrganizationInviteButtonProps) {
-  const t = useTranslations("App.Organizations.Members");
+  const t = useTranslations("App.Organizations.OrganizationDetail");
   const { Component, showModal } = useModal(({ open, onOpenChange }) => (
     <OrganizationMemberInviteModal
       open={open}
