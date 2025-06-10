@@ -42,11 +42,11 @@ export async function getMembersWithUser(
   });
 }
 
-export async function getMemberByUserIdAndOrganizationId(
+export async function getMemberWithUserByUserIdAndOrganizationId(
   userId: string,
   organizationId: string,
   tx: Prisma.TransactionClient = prisma,
-): Promise<Member | null> {
+): Promise<MemberWithUser | null> {
   return await tx.member.findUnique({
     where: {
       userId_organizationId: {
@@ -54,6 +54,7 @@ export async function getMemberByUserIdAndOrganizationId(
         organizationId,
       },
     },
+    include: memberUserInclude,
   });
 }
 

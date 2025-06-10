@@ -12,16 +12,16 @@ import { getMemberColumns } from "./member-columns";
 
 interface MembersTableProps {
   members: MemberWithUser[];
-  role: string;
+  me: MemberWithUser;
 }
 
-export default function MembersTable({ members, role }: MembersTableProps) {
+export default function MembersTable({ members, me }: MembersTableProps) {
   const t = useTranslations("Components.MembersTable");
 
   return (
     <MemberActionsModalContextProvider>
       <DataTable
-        columns={getColumns(t, role)}
+        columns={getColumns(t, me)}
         data={members}
         rowClassName={() => "text-foreground active:bg-muted hover:bg-muted"}
         containerClassName={cn("w-full rounded-xl bg-muted/50")}
@@ -31,10 +31,10 @@ export default function MembersTable({ members, role }: MembersTableProps) {
   );
 }
 
-function getColumns(t: ReturnType<typeof useTranslations>, role: string) {
+function getColumns(t: ReturnType<typeof useTranslations>, me: MemberWithUser) {
   const { nameColumn, emailColumn, roleColumn, actionColumn } =
     getMemberColumns(t);
-  const isAdmin = role === MemberRole.ADMIN;
+  const isAdmin = me.role === MemberRole.ADMIN;
 
   return [nameColumn, emailColumn, roleColumn].concat(
     isAdmin ? [actionColumn] : [],

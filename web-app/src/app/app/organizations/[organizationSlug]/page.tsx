@@ -55,7 +55,7 @@ export default async function OrganizationPage({
     redirect("/app/organizations");
   }
 
-  const members = await getOrganizationMembersWithUser(organization.id);
+  const members = await getOrganizationMembersWithUser(organization.id, true);
 
   return (
     <div className="container flex flex-col gap-8 p-8">
@@ -70,7 +70,7 @@ export default async function OrganizationPage({
           <OrganizationInviteButton organizationId={organization.id} />
         )}
       </div>
-      <MembersTable members={members} role={member.role ?? MemberRole.MEMBER} />
+      <MembersTable members={members} me={member} />
     </div>
   );
 }
