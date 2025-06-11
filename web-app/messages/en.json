@@ -67,8 +67,7 @@
         },
         "Section3": {
           "description": "Description",
-          "tags": "At a Glance",
-          "riskClassification": "EU AI Act Risk Classification"
+          "tags": "At a Glance"
         },
         "Section4": {
           "title": "Example Outputs",
@@ -79,6 +78,9 @@
           "privacyPolicy": "Privacy Policy",
           "terms": "Terms",
           "other": "Other"
+        },
+        "Section6": {
+          "title": "EU AI Act Risk Classification"
         }
       },
       "AgentModal": {

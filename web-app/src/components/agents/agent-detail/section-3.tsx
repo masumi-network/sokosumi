@@ -1,7 +1,6 @@
 import { useTranslations } from "next-intl";
 
 import { AgentBadgeCloud } from "@/components/agents/agent-badge-cloud";
-import { RiskClassificationBadge } from "@/components/agents/risk-classification-badge";
 import Markdown from "@/components/markdown";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -29,12 +28,6 @@ function AgentDetailSection3({ agent }: { agent: AgentWithRelations }) {
           <AgentBadgeCloud tags={tags} />
         </div>
       )}
-      <div>
-        <p className="mb-2 text-xs uppercase">{t("riskClassification")}</p>
-        <RiskClassificationBadge
-          riskClassification={agent.riskClassification}
-        />
-      </div>
     </div>
   );
 }

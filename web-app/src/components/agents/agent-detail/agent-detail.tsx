@@ -14,6 +14,7 @@ import { AgentDetailSection2, AgentDetailSection2Skeleton } from "./section-2";
 import { AgentDetailSection3, AgentDetailSection3Skeleton } from "./section-3";
 import { AgentDetailSection4, AgentDetailSection4Skeleton } from "./section-4";
 import { AgentDetailSection5, AgentDetailSection5Skeleton } from "./section-5";
+import { AgentDetailSection6, AgentDetailSection6Skeleton } from "./section-6";
 
 interface AgentDetailProps {
   agent: AgentWithRelations;
@@ -69,6 +70,9 @@ export function AgentDetail({
           <AgentDetailSection5 legal={legal} />
         </CardSection>
       )}
+      <CardSection className={cardClassName}>
+        <AgentDetailSection6 agent={agent} />
+      </CardSection>
     </div>
   );
 }
@@ -94,6 +98,9 @@ export function AgentDetailSkeleton({
       </CardSection>
       <CardSection>
         <AgentDetailSection5Skeleton />
+      </CardSection>
+      <CardSection>
+        <AgentDetailSection6Skeleton />
       </CardSection>
     </div>
   );
