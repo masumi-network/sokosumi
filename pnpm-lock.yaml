@@ -207,11 +207,11 @@ importers:
         specifier: ^1.0.2
         version: 1.0.2
       better-auth:
-        specifier: 1.2.8
-        version: 1.2.8
+        specifier: 1.2.9
+        version: 1.2.9
       better-auth-harmony:
         specifier: 1.2.5
-        version: 1.2.5(better-auth@1.2.8)
+        version: 1.2.5(better-auth@1.2.9)
       class-variance-authority:
         specifier: 0.7.1
         version: 0.7.1
@@ -3247,8 +3247,8 @@ packages:
     peerDependencies:
       better-auth: ^1.0.3
 
-  better-auth@1.2.8:
-    resolution: {integrity: sha512-y8ry7ZW3/3ZIr82Eo1zUDtMzdoQlFnwNuZ0+b0RxoNZgqmvgTIc/0tCDC7NDJerqSu4UCzer0dvYxBsv3WMIGg==}
+  better-auth@1.2.9:
+    resolution: {integrity: sha512-WLqBXDzuaCQetQctLGC5oTfGmL32zUvxnM4Y+LZkhwseMaZWq5EKI+c/ZATgz2YkFt7726q659PF8CfB9P1VuA==}
 
   better-call@1.0.9:
     resolution: {integrity: sha512-Qfm0gjk0XQz0oI7qvTK1hbqTsBY4xV2hsHAxF8LZfUYl3RaECCIifXuVqtPpZJWvlCCMlQSvkvhhyuApGUba6g==}
@@ -9262,14 +9262,14 @@ snapshots:
 
   balanced-match@1.0.2: {}
 
-  better-auth-harmony@1.2.5(better-auth@1.2.8):
+  better-auth-harmony@1.2.5(better-auth@1.2.9):
     dependencies:
-      better-auth: 1.2.8
+      better-auth: 1.2.9
       libphonenumber-js: 1.12.9
       mailchecker: 6.0.17
       validator: 13.15.15
 
-  better-auth@1.2.8:
+  better-auth@1.2.9:
     dependencies:
       '@better-auth/utils': 0.2.5
       '@better-fetch/fetch': 1.1.18
