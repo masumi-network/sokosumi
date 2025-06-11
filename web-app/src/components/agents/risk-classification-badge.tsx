@@ -17,7 +17,7 @@ export const RISK_CLASSIFICATION_MAP = {
   HIGH: {
     labelKey: "high",
     variant: "outline",
-    color: "bg-semantic-warning text-semantic-warning-foreground",
+    color: "bg-semantic-critical text-semantic-critical-foreground",
   },
   UNACCEPTABLE: {
     labelKey: "unacceptable",
