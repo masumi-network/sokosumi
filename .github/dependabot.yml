@@ -7,18 +7,6 @@ updates:
       interval: "daily"
       time: "06:00"
       timezone: "Europe/Berlin"
-
-    open-pull-requests-limit: 10
-    commit-message:
-      prefix: "chore(deps)"
-
-  # Enable version updates for npm in the web-app directory
-  - package-ecosystem: "npm"
-    directory: "/web-app"
-    schedule:
-      interval: "daily"
-      time: "06:00"
-      timezone: "Europe/Berlin"
     groups:
       hey-api:
         patterns:
@@ -49,16 +37,13 @@ updates:
     commit-message:
       prefix: "chore(deps)"
 
-  # Enable version updates for npm in the sync-function directory
+  # Add ignore for @types/node version updates in the sync-function directory
   - package-ecosystem: "npm"
     directory: "/sync-function"
-    ignore:
-      - dependency-name: "@types/node"
-        update-types: ["version-update:semver-major"]
     schedule:
       interval: "daily"
       time: "06:00"
       timezone: "Europe/Berlin"
-    open-pull-requests-limit: 10
-    commit-message:
-      prefix: "chore(deps)"
+    ignore:
+      - dependency-name: "@types/node"
+        update-types: ["version-update:semver-major"]
