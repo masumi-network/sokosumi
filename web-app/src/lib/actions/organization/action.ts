@@ -10,7 +10,6 @@ import {
   isEmailAllowedByOrganization,
   MemberRole,
   updateOrganization,
-  updatePendingInvitationsByEmailAndOrganizationId,
 } from "@/lib/db";
 import {
   generateOrganizationSlugFromName,
@@ -57,12 +56,6 @@ export async function createOrganizationMember(
     // if there are no members, the create as ADMIN
     const role = members.length === 0 ? MemberRole.ADMIN : MemberRole.MEMBER;
     await createMember(userId, organization.id, role);
-
-    // update all pending invitations
-    await updatePendingInvitationsByEmailAndOrganizationId(
-      userEmail,
-      organization.id,
-    );
     return { success: true };
   } catch (error) {
     console.error("Error creating organization member", error);

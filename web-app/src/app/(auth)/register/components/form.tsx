@@ -14,7 +14,10 @@ import {
   signUpFormSchema,
   SignUpFormSchemaType,
 } from "@/auth/register/data";
-import { createOrganizationMember } from "@/lib/actions";
+import {
+  createOrganizationMember,
+  updatePendingInvitations,
+} from "@/lib/actions";
 import { updateUserMarketingOptIn } from "@/lib/actions/user/action";
 import { authClient } from "@/lib/auth/auth.client";
 import {
@@ -131,6 +134,11 @@ export default function SignUpForm({
         toast.error(t("Errors.member"));
       }
     } else {
+      // update all pending invitations
+      await updatePendingInvitations(
+        userResult.data.user.email,
+        organization.id,
+      );
       toast.success(t("success"));
     }
     router.push("/login");
