@@ -39,9 +39,6 @@ const envSecretsSchema = z.object({
   SEED_USER_EMAIL: z.string().email().default("dev@sokosumi.com"),
   SEED_USER_PASSWORD: z.string().min(8).default("password"),
 
-  // Authentication
-  BETTER_AUTH_SECRET: z.string().min(1),
-
   // Resend
   RESEND_API_KEY: z.string().min(1),
   RESEND_FROM_EMAIL: z.string().email(),
@@ -54,7 +51,10 @@ const envSecretsSchema = z.object({
     .string()
     .url()
     .default("https://payment.masumi.network/api/v1"),
+
   // BetterAuth Settings
+  BETTER_AUTH_URL: z.string().url().default("http://localhost:3000"),
+  BETTER_AUTH_SECRET: z.string().min(1),
   BETTER_AUTH_SESSION_EXPIRES_IN: z
     .number({ coerce: true })
     .min(1)

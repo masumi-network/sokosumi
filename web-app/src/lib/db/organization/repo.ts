@@ -5,18 +5,19 @@ import { Organization, Prisma } from "@/prisma/generated/client";
 
 import {
   organizationInclude,
+  organizationMembersCountInclude,
   organizationOrderBy,
   OrganizationWithRelations,
 } from "./types";
 
-export async function getOrganizations(
+export async function getOrganizationsWithMembersCount(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<OrganizationWithRelations[]> {
   return await tx.organization.findMany({
-    orderBy: { ...organizationOrderBy },
     include: {
-      ...organizationInclude,
+      ...organizationMembersCountInclude,
     },
+    orderBy: { ...organizationOrderBy },
   });
 }
 
@@ -26,4 +27,25 @@ export async function createOrganization(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Organization> {
   return await tx.organization.create({ data: { name, slug } });
+}
+
+export async function getOrganizationBySlug(
+  slug: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<OrganizationWithRelations | null> {
+  return await tx.organization.findUnique({
+    where: { slug },
+    include: { ...organizationInclude },
+  });
+}
+
+export async function updateOrganization(
+  organizationId: string,
+  data: Prisma.OrganizationUpdateInput,
+  tx: Prisma.TransactionClient = prisma,
+) {
+  return await tx.organization.update({
+    where: { id: organizationId },
+    data,
+  });
 }

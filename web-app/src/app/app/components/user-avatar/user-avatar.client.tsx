@@ -2,6 +2,7 @@
 
 import gravatarUrl from "gravatar-url";
 import {
+  Building2,
   CircleHelp,
   CreditCardIcon,
   LogOut,
@@ -84,6 +85,15 @@ export default function UserAvatarClient({
               <Link href="/app/account" className="flex items-center gap-2">
                 <UserIcon className="text-muted-foreground" />
                 {t("account")}
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem className="cursor-pointer" asChild>
+              <Link
+                href="/app/organizations"
+                className="flex items-center gap-2"
+              >
+                <Building2 className="text-muted-foreground" />
+                {t("organizations")}
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem className="cursor-pointer" asChild>

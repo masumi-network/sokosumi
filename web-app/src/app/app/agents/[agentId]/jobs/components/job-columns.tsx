@@ -1,3 +1,5 @@
+"use client";
+
 import { ColumnDef, createColumnHelper } from "@tanstack/react-table";
 import { useFormatter, useTranslations } from "next-intl";
 

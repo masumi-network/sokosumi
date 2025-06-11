@@ -8,3 +8,9 @@ export class UnAuthorizedError extends Error {
     this.redirectUrl = redirectUrl;
   }
 }
+
+export function isUnAuthorizedError(
+  error: unknown,
+): error is UnAuthorizedError {
+  return error instanceof UnAuthorizedError;
+}

@@ -112,9 +112,10 @@ model Member {
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   organizationId String
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  role           String?
+  role           String       @default("member")
   createdAt      DateTime     @default(now())
 
+  @@unique([userId, organizationId])
   @@map("member")
 }
 

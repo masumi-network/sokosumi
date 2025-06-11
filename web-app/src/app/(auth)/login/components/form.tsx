@@ -16,10 +16,14 @@ import {
 import { authClient } from "@/lib/auth/auth.client";
 
 interface SignInFormProps {
-  returnUrl?: string;
+  returnUrl?: string | undefined;
+  prefilledEmail?: string | undefined;
 }
 
-export default function SignInForm({ returnUrl }: SignInFormProps) {
+export default function SignInForm({
+  returnUrl,
+  prefilledEmail,
+}: SignInFormProps) {
   const t = useTranslations("Auth.Pages.SignIn.Form");
 
   const router = useRouter();
@@ -29,7 +33,7 @@ export default function SignInForm({ returnUrl }: SignInFormProps) {
       signInFormSchema(useTranslations("Library.Auth.Schema")),
     ),
     defaultValues: {
-      email: "",
+      email: prefilledEmail ?? "",
       currentPassword: "",
       rememberMe: false,
     },
@@ -79,6 +83,7 @@ export default function SignInForm({ returnUrl }: SignInFormProps) {
     <AuthForm
       form={form}
       formData={signInFormData}
+      prefilledEmail={prefilledEmail}
       namespace="Auth.Pages.SignIn.Form"
       onSubmit={onSubmit}
     >

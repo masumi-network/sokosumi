@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
-import { getOrganizations } from "@/lib/db";
+import { getOrganizationsWithMembersCount } from "@/lib/db";
 
 import SignUpForm from "./components/form";
 import SignUpHeader from "./components/header";
@@ -15,15 +15,25 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function SignUp() {
-  const organizations = await getOrganizations();
+interface SignUpPageProps {
+  searchParams: Promise<{ email?: string; organizationId?: string }>;
+}
+
+export default async function SignUp({ searchParams }: SignUpPageProps) {
+  const { email, organizationId } = await searchParams;
+
+  const organizations = await getOrganizationsWithMembersCount();
 
   return (
     <div className="flex flex-1 flex-col">
       <SignUpHeader />
       <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
         {/* <SocialButtons /> */}
-        <SignUpForm organizations={organizations} />
+        <SignUpForm
+          organizations={organizations}
+          prefilledEmail={email}
+          prefilledOrganizationId={organizationId}
+        />
       </div>
     </div>
   );

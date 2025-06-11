@@ -70,7 +70,7 @@ export default function LogoutModal({
             {t("logout")}
           </Button>
           <DialogClose asChild>
-            <Button variant="secondary" className="w-full">
+            <Button variant="secondary" className="w-full" disabled={loading}>
               {t("cancel")}
             </Button>
           </DialogClose>

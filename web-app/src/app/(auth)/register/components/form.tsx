@@ -14,19 +14,29 @@ import {
   signUpFormSchema,
   SignUpFormSchemaType,
 } from "@/auth/register/data";
-import { createOrganizationMember } from "@/lib/actions";
+import {
+  createOrganizationMember,
+  updatePendingInvitations,
+} from "@/lib/actions";
 import { updateUserMarketingOptIn } from "@/lib/actions/user/action";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   isEmailAllowedByOrganization,
   OrganizationWithRelations,
 } from "@/lib/db";
+import { Organization } from "@/prisma/generated/client";
 
 interface SignUpFormProps {
   organizations: OrganizationWithRelations[];
+  prefilledEmail?: string | undefined;
+  prefilledOrganizationId?: string | undefined;
 }
 
-export default function SignUpForm({ organizations }: SignUpFormProps) {
+export default function SignUpForm({
+  organizations,
+  prefilledEmail,
+  prefilledOrganizationId,
+}: SignUpFormProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form");
 
   const router = useRouter();
@@ -35,19 +45,23 @@ export default function SignUpForm({ organizations }: SignUpFormProps) {
       signUpFormSchema(useTranslations("Library.Auth.Schema")),
     ),
     defaultValues: {
-      email: "",
+      email: prefilledEmail ?? "",
       name: "",
       password: "",
       confirmPassword: "",
-      organizationId: "",
+      organizationId: prefilledOrganizationId ?? "",
       marketingOptIn: false,
     },
   });
 
   const email = form.watch("email");
   useEffect(() => {
+    if (prefilledOrganizationId) {
+      form.setValue("organizationId", prefilledOrganizationId);
+      return;
+    }
     form.setValue("organizationId", "");
-  }, [email, form]);
+  }, [email, form, prefilledOrganizationId]);
 
   const onSubmit = async (values: SignUpFormSchemaType) => {
     const organizationResult = checkOrganizationAndEmail(
@@ -120,6 +134,11 @@ export default function SignUpForm({ organizations }: SignUpFormProps) {
         toast.error(t("Errors.member"));
       }
     } else {
+      // update all pending invitations
+      await updatePendingInvitations(
+        userResult.data.user.email,
+        organization.id,
+      );
       toast.success(t("success"));
     }
     router.push("/login");
@@ -129,6 +148,8 @@ export default function SignUpForm({ organizations }: SignUpFormProps) {
     <AuthForm
       form={form}
       formData={signUpFormData}
+      prefilledEmail={prefilledEmail}
+      prefilledOrganizationId={prefilledOrganizationId}
       namespace="Auth.Pages.SignUp.Form"
       onSubmit={onSubmit}
       organizations={organizations}
@@ -152,12 +173,12 @@ export default function SignUpForm({ organizations }: SignUpFormProps) {
 }
 
 function checkOrganizationAndEmail(
-  organizations: OrganizationWithRelations[],
+  organizations: Organization[],
   organizationId: string,
   email: string,
   t: IntlTranslation<"Auth.Pages.SignUp.Form">,
 ):
-  | { success: true; organization: OrganizationWithRelations }
+  | { success: true; organization: Organization }
   | { success: false; error: string } {
   const organization = organizations.find(
     (organization) => organization.id === organizationId,

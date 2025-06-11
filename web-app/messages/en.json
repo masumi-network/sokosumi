@@ -90,9 +90,10 @@
     },
     "UserAvatar": {
       "account": "Account",
-      "logout": "Log out",
+      "organizations": "Organizations",
       "billing": "Billing",
-      "support": "Support"
+      "support": "Support",
+      "logout": "Log out"
     },
     "DataTable": {
       "Data": {
@@ -113,10 +114,141 @@
         "lastPage": "Go to last page"
       }
     },
+    "MembersTable": {
+      "Header": {
+        "name": "Name",
+        "email": "Email",
+        "role": "Role",
+        "actions": "Actions"
+      },
+      "Actions": {
+        "remove": "Remove",
+        "changeToAdmin": "Change to Admin",
+        "changeToMember": "Change to Member",
+        "Modal": {
+          "changeRoleTitle": "Change Role",
+          "removeTitle": "Remove Member",
+          "changeToAdminDescription": "Are you sure you want to change the role of {member} to Admin?",
+          "changeToMemberDescription": "Are you sure you want to change the role of {member} to Member?",
+          "removeDescription": "Are you sure you want to remove {member} from the organization?",
+          "confirm": "Confirm",
+          "cancel": "Cancel",
+          "Successes": {
+            "changeRoleSuccess": "Role changed successfully",
+            "removeSuccess": "Member removed successfully"
+          },
+          "Errors": {
+            "changeRoleError": "Failed to change role",
+            "removeError": "Failed to remove member"
+          }
+        }
+      }
+    },
     "Breadcrumb": {
       "jobs": "Jobs",
       "agents": "Gallery",
-      "account": "Account"
+      "account": "Account",
+      "organizations": "Organizations"
+    },
+    "Organizations": {
+      "Role": {
+        "admin": "Admin",
+        "member": "Member"
+      },
+      "RequiredEmailDomains": {
+        "allowAll": "Allow all email domains"
+      },
+      "EditInformationModal": {
+        "title": "Edit Organization",
+        "Form": {
+          "submit": "Save",
+          "cancel": "Cancel",
+          "success": "Organization updated successfully",
+          "error": "Failed to update organization",
+          "Errors": {
+            "notAuthenticated": "You need to be logged in to edit an organization.",
+            "unauthorized": "You need to be an admin to edit an organization."
+          },
+          "Fields": {
+            "Name": {
+              "placeholder": "Name"
+            },
+            "Metadata": {
+              "placeholder": "Metadata"
+            },
+            "RequiredEmailDomains": {
+              "label": "Required email domains",
+              "placeholder": "Add domain",
+              "duplicate": "Domain already exists",
+              "invalid": "Invalid domain",
+              "noDomains": "Allow all email domains"
+            }
+          }
+        },
+        "Schema": {
+          "Name": {
+            "min": "Organization name must be at least 2 characters.",
+            "max": "Organization name must be at most 50 characters.",
+            "invalid": "Organization name must be a valid string.",
+            "required": "Organization name is required"
+          },
+          "Metadata": {
+            "min": "Organization metadata must be at least 10 characters.",
+            "max": "Organization metadata must be at most 500 characters.",
+            "invalid": "Organization metadata must be a valid string."
+          },
+          "RequiredEmailDomains": {
+            "max": "Organization must have at most 10 required email domains.",
+            "unique": "Must be unique domains",
+            "invalid": "Must be a valid domain"
+          }
+        }
+      },
+      "InviteMemberModal": {
+        "title": "Invite Member",
+        "Form": {
+          "submit": "Invite Member",
+          "cancel": "Cancel",
+          "success": "Member invited successfully",
+          "error": "Failed to invite member",
+          "Errors": {
+            "notAuthenticated": "You must be logged in to invite members.",
+            "unauthorized": "You must be an admin to invite members.",
+            "invitationLimitReached": "You have reached the invitation limit.",
+            "userAlreadyInvited": "User is already invited to this organization.",
+            "userAlreadyMember": "User is already a member of this organization."
+          },
+          "Fields": {
+            "Email": {
+              "placeholder": "Email"
+            },
+            "Role": {
+              "label": "Role"
+            }
+          }
+        },
+        "Schema": {
+          "Email": {
+            "invalid": "Please enter a valid email address.",
+            "required": "Email is required"
+          },
+          "Role": {
+            "invalid": "Invalid role"
+          }
+        }
+      },
+      "LeaveOrganizationModal": {
+        "title": "Do you really want to leave the organization?",
+        "description": "Leave the organization \"{organization}\".",
+        "leave": "Leave",
+        "cancel": "Cancel",
+        "success": "You have left the organization",
+        "error": "Failed to leave organization",
+        "Errors": {
+          "notAuthenticated": "You must be logged in to leave the organization.",
+          "organizationsCountNotAllowed": "You must be member of at least one organization."
+        }
+      }
     },
     "Modals": {
       "AuthenticationModal": {
@@ -131,6 +263,62 @@
         "logout": "Log out",
         "cancel": "Cancel",
         "error": "Failed to log out"
+      }
+    }
+  },
+  "AcceptInvitation": {
+    "InvitationCard": {
+      "title": "Organization Invitation",
+      "description": "You've been invited to join an organization",
+      "hasInvitedYouToJoin": "has invited you to join",
+      "thisInvitationWasSentTo": "This invitation was sent to",
+      "acceptedTitle": "Welcome to {organizationName}!",
+      "acceptedDescription": "You've successfully joined the organization. We're excited to have you on board!",
+      "goToOrganization": "Go to Organization",
+      "declinedTitle": "Invitation Declined",
+      "declinedDescription": "You've declined the invitation to join {organizationName}.",
+      "goToHome": "Go to Home",
+      "Actions": {
+        "accept": "Accept Invitation",
+        "decline": "Decline Invitation",
+        "WithoutSession": {
+          "ifYouAlreadyHaveAnAccount": "If you already have an account, you can log in to your account and accept the invitation.",
+          "ifYouDontHaveAnAccount": "If you don't have an account, you can register a new account and join the organization.",
+          "login": "Login",
+          "register": "Register"
+        },
+        "WithDifferentEmail": {
+          "youLoggedInWithDifferentEmail": "You logged in with a different email address. Logout and follow invitation link again.",
+          "logout": "Logout"
+        },
+        "Accept": {
+          "success": "Invitation accepted successfully",
+          "error": "Failed to accept invitation"
+        },
+        "Decline": {
+          "success": "Invitation declined successfully",
+          "error": "Failed to decline invitation"
+        }
+      }
+    },
+    "InvitationErrorCard": {
+      "NotFound": {
+        "title": "Invitation Not Found",
+        "description": "There was an issue with your invitation.",
+        "content": "There is no invitation with this ID.",
+        "footer": "Go back to home"
+      },
+      "Expired": {
+        "title": "Invitation Expired",
+        "description": "There was an issue with your invitation.",
+        "content": "The invitation you're trying to access has expired.",
+        "footer": "Go back to home"
+      },
+      "InviterNotFound": {
+        "title": "Inviter not found",
+        "description": "There was an issue with your invitation.",
+        "content": "The inviter of the invitation you're trying to access was not found.",
+        "footer": "Go back to home"
       }
     }
   },
@@ -568,6 +756,33 @@
         "error": "Failed to delete account"
       }
     },
+    "Organizations": {
+      "Metadata": {
+        "title": "Organizations",
+        "description": "Manage your organizations"
+      },
+      "title": "Organizations",
+      "newOrganization": "New Organization",
+      "membersNotAvailable": "No members found",
+      "OrganizationRow": {
+        "leave": "Leave"
+      },
+      "OrganizationDetail": {
+        "Metadata": {
+          "Title": {
+            "default": "{name}",
+            "template": "{name} - %"
+          },
+          "description": "Manage your organization"
+        },
+        "roleIndicator": "View as:",
+        "title": "{name}",
+        "requiredEmailDomains": "Required email domains:",
+        "edit": "Edit",
+        "invite": "Invite Member",
+        "members": "Members"
+      }
+    },
     "Agents": {
       "Metadata": {
         "title": "Agents Gallery",
@@ -746,6 +961,15 @@
           "button": "Verify Email Change",
           "linkInstructions": "Or copy and paste this URL into your browser:",
           "footer": "If you didn't request this email change, you can safely ignore this email."
+        },
+        "InviteUserEmail": {
+          "subject": "Sokosumi - Organization Invitation",
+          "title": "Join {invitorUsername} on {organizationName}",
+          "greeting": "Hello there",
+          "message": "You've been invited to join {organizationName} on Sokosumi. Click the button below to accept the invitation.",
+          "button": "Accept Invitation",
+          "linkInstructions": "Or copy and paste this URL into your browser:",
+          "footer": "If you didn't request this invitation, you can safely ignore this email."
         }
       }
     },

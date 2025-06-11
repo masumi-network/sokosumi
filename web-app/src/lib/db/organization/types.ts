@@ -1,5 +1,11 @@
 import { Prisma } from "@/prisma/generated/client";
 
+export enum MemberRole {
+  ADMIN = "admin",
+  OWNER = "owner",
+  MEMBER = "member",
+}
+
 export const organizationMembersCountInclude = {
   _count: {
     select: {
@@ -13,10 +19,6 @@ export const organizationOrderBy = {
     _count: "desc",
   },
 } as const;
-
-export type OrganizationWithMembersCount = Prisma.OrganizationGetPayload<{
-  include: typeof organizationMembersCountInclude;
-}>;
 
 export const organizationInclude = {
   ...organizationMembersCountInclude,

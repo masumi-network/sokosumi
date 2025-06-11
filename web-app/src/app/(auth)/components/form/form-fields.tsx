@@ -22,7 +22,6 @@ import {
   OrganizationWithRelations,
 } from "@/lib/db";
 import { FormData } from "@/lib/form";
-import { Organization } from "@/prisma/generated/client";
 
 import { OrganizationInput } from "./organization-input";
 import { AuthNamespace } from "./types";
@@ -30,6 +29,8 @@ import { AuthNamespace } from "./types";
 interface FormFieldsProps<T extends FieldValues> {
   form: UseFormReturn<T>;
   formData: FormData<T, AuthNamespace>;
+  prefilledEmail?: string | undefined;
+  prefilledOrganizationId?: string | undefined;
   namespace: AuthNamespace;
   organizations?: OrganizationWithRelations[] | undefined;
 }
@@ -37,6 +38,8 @@ interface FormFieldsProps<T extends FieldValues> {
 export function FormFields<T extends FieldValues>({
   form,
   formData,
+  prefilledEmail,
+  prefilledOrganizationId,
   namespace,
   organizations,
 }: FormFieldsProps<T>) {
@@ -58,6 +61,8 @@ export function FormFields<T extends FieldValues>({
                   formDataItem={formDataItem}
                   t={t}
                   organizations={organizations}
+                  prefilledEmail={prefilledEmail}
+                  prefilledOrganizationId={prefilledOrganizationId}
                 />
               </FormControl>
               <FormMessage />
@@ -75,6 +80,8 @@ interface FormInputProps<T extends FieldValues> {
   formDataItem: FormData<T, AuthNamespace>[number];
   t: IntlTranslation<AuthNamespace>;
   organizations?: OrganizationWithRelations[] | undefined;
+  prefilledEmail?: string | undefined;
+  prefilledOrganizationId?: string | undefined;
 }
 
 function FormInput<T extends FieldValues>({
@@ -83,8 +90,13 @@ function FormInput<T extends FieldValues>({
   formDataItem,
   t,
   organizations,
+  prefilledEmail,
+  prefilledOrganizationId,
 }: FormInputProps<T>) {
   const { type, labelKey, name, placeholderKey } = formDataItem;
+  const emailPrefilled = name === "email" && !!prefilledEmail;
+  const organizationIdPrefilled =
+    name === "organizationId" && !!prefilledOrganizationId;
 
   if (type === "checkbox") {
     return (
@@ -108,11 +120,15 @@ function FormInput<T extends FieldValues>({
       organizations,
     );
 
-    const organization = allowedOrganizations.find(
-      (organization) => organization.id === field.value,
-    );
-    const handleOrganizationChange = (organization: Organization) => {
-      field.onChange(organization.id);
+    const organization = organizationIdPrefilled
+      ? organizations.find(
+          (organization) => organization.id === prefilledOrganizationId,
+        )
+      : allowedOrganizations.find(
+          (organization) => organization.id === field.value,
+        );
+    const handleOrganizationChange = (organizationId: string) => {
+      field.onChange(organizationId);
     };
 
     return (
@@ -121,6 +137,7 @@ function FormInput<T extends FieldValues>({
         organizations={allowedOrganizations}
         value={organization}
         onChange={handleOrganizationChange}
+        disabled={organizationIdPrefilled}
       />
     );
   }
@@ -130,6 +147,8 @@ function FormInput<T extends FieldValues>({
       placeholder={placeholderKey && t(placeholderKey)}
       type={type ?? "text"}
       {...field}
+      disabled={emailPrefilled}
+      value={emailPrefilled ? prefilledEmail : field.value}
     />
   );
 }

@@ -13,8 +13,8 @@ export async function middleware(request: NextRequest) {
 
   const sessionCookie = getSessionCookie(request);
   if (!sessionCookie) {
-    const currentPath = pathname + searchParams;
-    const returnUrl = encodeURIComponent(currentPath);
+    const currentUrl = pathname + searchParams;
+    const returnUrl = encodeURIComponent(currentUrl);
     return NextResponse.redirect(
       new URL(`/login?returnUrl=${returnUrl}`, request.url),
     );
