@@ -5,7 +5,6 @@
  * - Creates a member with that created organization and connect it to the user
  */
 
-import { MemberRole } from "@/lib/db";
 import { PrismaClient } from "@/prisma/generated/client";
 
 const prisma = new PrismaClient();
@@ -36,16 +35,6 @@ async function main() {
         },
       });
 
-      // check if organization has any members
-      const members = await tx.member.findMany({
-        where: {
-          organizationId: organization.id,
-        },
-      });
-
-      // if there are no members, the create as ADMIN
-      const role = members.length === 0 ? MemberRole.ADMIN : MemberRole.MEMBER;
-
       // Create the member
       await tx.member.create({
         data: {
@@ -59,7 +48,6 @@ async function main() {
               id: organization.id,
             },
           },
-          role,
         },
       });
     });
