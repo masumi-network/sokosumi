@@ -55,13 +55,11 @@ export function getMemberColumns(
     }) as ColumnDef<MemberWithUser>,
 
     actionColumn: columnHelper.display({
-      id: "action",
+      id: "actions",
       maxSize: 80,
-      header: () => <div>{t("Header.action")}</div>,
+      header: () => <div>{t("Header.actions")}</div>,
       cell: ({ row }) =>
-        row.original.id === me.id ? (
-          <p className="font-medium">{t("Actions.myself")}</p>
-        ) : (
+        row.original.id === me.id ? null : (
           <MemberRowActionsDropdown member={row.original} />
         ),
     }) as ColumnDef<MemberWithUser>,
