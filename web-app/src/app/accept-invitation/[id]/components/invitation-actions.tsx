@@ -134,9 +134,9 @@ export default function InvitationActions({
     return (
       <>
         {Component}
-        <CardFooter className="flex justify-between">
+        <CardFooter className="flex flex-col gap-4">
           <p>{t("WithDifferentEmail.youLoggedInWithDifferentEmail")}</p>
-          <Button variant="outline" onClick={showModal}>
+          <Button variant="outline" onClick={showModal} className="w-full">
             {t("WithDifferentEmail.logout")}
           </Button>
         </CardFooter>
