@@ -52,14 +52,45 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
-  --color-semantic: var(--semantic);
-  --color-semantic-variant: var(--semantic-variant);
-  --color-semantic-tertiary: var(--semantic-tertiary);
-  --color-semantic-quaternary: var(--semantic-quaternary);
-  --color-semantic-quinary: var(--semantic-quinary);
-  --color-semantic-foreground: var(--semantic-foreground);
+
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
+
+  --color-semantic-destructive: var(--semantic-destructive);
+  --color-semantic-destructive-variant: var(--semantic-destructive-variant);
+  --color-semantic-destructive-tertiary: var(--semantic-destructive-tertiary);
+  --color-semantic-destructive-quaternary: var(
+    --semantic-destructive-quaternary
+  );
+  --color-semantic-destructive-quinary: var(--semantic-destructive-quinary);
+  --color-semantic-destructive-foreground: var(
+    --semantic-destructive-foreground
+  );
+  --color-semantic-destructive-ring: var(--semantic-destructive-ring);
+
+  --color-semantic-warning: var(--semantic-warning);
+  --color-semantic-warning-variant: var(--semantic-warning-variant);
+  --color-semantic-warning-tertiary: var(--semantic-warning-tertiary);
+  --color-semantic-warning-quaternary: var(--semantic-warning-quaternary);
+  --color-semantic-warning-quinary: var(--semantic-warning-quinary);
+  --color-semantic-warning-foreground: var(--semantic-warning-foreground);
+  --color-semantic-warning-ring: var(--semantic-warning-ring);
+
+  --color-semantic-success: var(--semantic-success);
+  --color-semantic-success-variant: var(--semantic-success-variant);
+  --color-semantic-success-tertiary: var(--semantic-success-tertiary);
+  --color-semantic-success-quaternary: var(--semantic-success-quaternary);
+  --color-semantic-success-quinary: var(--semantic-success-quinary);
+  --color-semantic-success-foreground: var(--semantic-success-foreground);
+  --color-semantic-success-ring: var(--semantic-success-ring);
+
+  --color-semantic-info: var(--semantic-info);
+  --color-semantic-info-variant: var(--semantic-info-variant);
+  --color-semantic-info-tertiary: var(--semantic-info-tertiary);
+  --color-semantic-info-quaternary: var(--semantic-info-quaternary);
+  --color-semantic-info-quinary: var(--semantic-info-quinary);
+  --color-semantic-info-foreground: var(--semantic-info-foreground);
+  --color-semantic-info-ring: var(--semantic-info-ring);
 
   /* Material */
   --color-material-ultrathin: var(--material-ultrathin);
@@ -154,12 +185,38 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
-  --semantic: hsla(0, 72%, 51%, 1);
-  --semantic-variant: hsla(0, 74%, 42%, 1);
-  --semantic-tertiary: hsla(0, 72%, 51%, 0.2);
-  --semantic-quaternary: hsla(0, 72%, 51%, 0.1);
-  --semantic-quinary: hsla(0, 72%, 51%, 0.05);
-  --semantic-foreground: hsla(0, 86%, 97%, 1);
+  /* Semantic */
+  --semantic-destructive: hsla(0, 72%, 51%, 1);
+  --semantic-destructive-variant: hsla(0, 74%, 42%, 1);
+  --semantic-destructive-tertiary: hsla(0, 72%, 51%, 0.2);
+  --semantic-destructive-quaternary: hsla(0, 72%, 51%, 0.1);
+  --semantic-destructive-quinary: hsla(0, 72%, 51%, 0.05);
+  --semantic-destructive-foreground: hsla(0, 86%, 97%, 1);
+  --semantic-destructive-ring: hsla(0, 96%, 89%, 1);
+
+  --semantic-warning: hsla(41, 96%, 40%, 1);
+  --semantic-warning-variant: hsla(35, 92%, 33%, 1);
+  --semantic-warning-tertiary: hsla(41, 96%, 40%, 0.2);
+  --semantic-warning-quaternary: hsla(41, 96%, 40%, 0.1);
+  --semantic-warning-quinary: hsla(41, 96%, 40%, 0.05);
+  --semantic-warning-foreground: hsla(55, 92%, 95%, 1);
+  --semantic-warning-ring: hsla(53, 98%, 77%, 1);
+
+  --semantic-success: hsla(142, 76%, 36%, 1);
+  --semantic-success-variant: hsla(142, 72%, 29%, 1);
+  --semantic-success-tertiary: hsla(142, 76%, 36%, 0.2);
+  --semantic-success-quaternary: hsla(142, 76%, 36%, 0.1);
+  --semantic-success-quinary: hsla(142, 76%, 36%, 0.05);
+  --semantic-success-foreground: hsla(138, 76%, 97%, 1);
+  --semantic-success-ring: hsla(141, 79%, 85%, 1);
+
+  --semantic-info: hsla(192, 91%, 36%, 1);
+  --semantic-info-variant: hsla(193, 82%, 31%, 1);
+  --semantic-info-tertiary: hsla(192, 91%, 36%, 0.1);
+  --semantic-info-quaternary: hsla(192, 91%, 36%, 0.1);
+  --semantic-info-quinary: hsla(192, 91%, 36%, 0.1);
+  --semantic-info-foreground: hsla(183, 100%, 96%, 1);
+  --semantic-info-ring: hsla(186, 94%, 82%, 1);
 
   /* Material */
   --material-ultrathin: hsla(0, 0%, 100%, 0.33);
@@ -232,12 +289,38 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
-  --semantic: hsla(0, 70%, 35%, 1);
-  --semantic-variant: hsla(0, 84%, 60%, 1);
-  --semantic-tertiary: hsla(0, 70%, 35%, 0.3);
-  --semantic-quaternary: hsla(0, 70%, 35%, 0.2);
-  --semantic-quinary: hsla(0, 70%, 35%, 0.1);
-  --semantic-foreground: hsla(0, 86%, 97%, 1);
+  /* Semantic */
+  --semantic-destructive: hsla(0, 70%, 35%, 1);
+  --semantic-destructive-variant: hsla(0, 84%, 60%, 1);
+  --semantic-destructive-tertiary: hsla(0, 70%, 35%, 0.3);
+  --semantic-destructive-quaternary: hsla(0, 70%, 35%, 0.2);
+  --semantic-destructive-quinary: hsla(0, 70%, 35%, 0.1);
+  --semantic-destructive-foreground: hsla(0, 86%, 97%, 1);
+  --semantic-destructive-ring: hsla(0, 75%, 15%, 1);
+
+  --semantic-warning: hsla(32, 81%, 29%, 1);
+  --semantic-warning-variant: hsla(45, 93%, 47%, 1);
+  --semantic-warning-tertiary: hsla(32, 81%, 29%, 0.3);
+  --semantic-warning-quaternary: hsla(32, 81%, 29%, 0.2);
+  --semantic-warning-quinary: hsla(32, 81%, 29%, 0.1);
+  --semantic-warning-foreground: hsla(55, 92%, 95%, 1);
+  --semantic-warning-ring: hsla(26, 83%, 14%, 1);
+
+  --semantic-success: hsla(143, 64%, 24%, 1);
+  --semantic-success-variant: hsla(142, 71%, 45%, 1);
+  --semantic-success-tertiary: hsla(143, 64%, 24%, 0.3);
+  --semantic-success-quaternary: hsla(143, 64%, 24%, 0.2);
+  --semantic-success-quinary: hsla(143, 64%, 24%, 0.1);
+  --semantic-success-foreground: hsla(138, 76%, 97%, 1);
+  --semantic-success-ring: hsla(145, 80%, 10%, 1);
+
+  --semantic-info: hsla(194, 70%, 27%, 1);
+  --semantic-info-variant: hsla(189, 94%, 43%, 1);
+  --semantic-info-tertiary: hsla(194, 70%, 27%, 0.2);
+  --semantic-info-quaternary: hsla(194, 70%, 27%, 0.2);
+  --semantic-info-quinary: hsla(194, 70%, 27%, 0.2);
+  --semantic-info-foreground: hsla(183, 100%, 96%, 1);
+  --semantic-info-ring: hsla(197, 79%, 15%, 1);
 
   /* Material */
   --material-ultrathin: hsla(0, 0%, 15%, 0.55);
