@@ -273,7 +273,8 @@ model Agent {
 
   status AgentStatus @default(ONLINE)
 
-  isShown Boolean
+  isShown            Boolean
+  riskClassification RiskClassification @default(MINIMAL)
 
   exampleOutput         ExampleOutput[] @relation("ExampleOutputAgent")
   overrideExampleOutput ExampleOutput[] @relation("ExampleOutputAgentOverride")
@@ -284,6 +285,13 @@ model Agent {
 
   tags         Tag[] @relation("AgentTag")
   overrideTags Tag[] @relation("AgentTagOverride")
+}
+
+enum RiskClassification {
+  MINIMAL // Freely allowed, no obligations (GREEN)
+  LIMITED // Allowed with transparency obligations (YELLOW)
+  HIGH // Allowed but heavily regulated (ORANGE/AMBER)
+  UNACCEPTABLE // Not allowed (RED)
 }
 
 model Lock {
