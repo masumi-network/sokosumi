@@ -41,6 +41,12 @@
       "error": "An unknown error occurred, please contact our support"
     },
     "Agents": {
+      "RiskClassification": {
+        "minimal": "Minimal Risk",
+        "limited": "Limited Risk",
+        "high": "High Risk",
+        "unacceptable": "Unacceptable Risk"
+      },
       "agentsNotAvailable": "No agents available",
       "agentsNotFound": "No Agents found",
       "hire": "Hire Agent",
