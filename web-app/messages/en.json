@@ -258,6 +258,62 @@
       }
     }
   },
+  "AcceptInvitation": {
+    "InvitationCard": {
+      "title": "Organization Invitation",
+      "description": "You've been invited to join an organization",
+      "hasInvitedYouToJoin": "has invited you to join",
+      "thisInvitationWasSentTo": "This invitation was sent to",
+      "acceptedTitle": "Welcome to {organizationName}!",
+      "acceptedDescription": "You've successfully joined the organization. We're excited to have you on board!",
+      "goToOrganization": "Go to Organization",
+      "declinedTitle": "Invitation Declined",
+      "declinedDescription": "You've declined the invitation to join {organizationName}.",
+      "goToHome": "Go to Home",
+      "Actions": {
+        "accept": "Accept Invitation",
+        "decline": "Decline Invitation",
+        "WithoutSession": {
+          "ifYouAlreadyHaveAnAccount": "If you already have an account, you can log in to your account and accept the invitation.",
+          "ifYouDontHaveAnAccount": "If you don't have an account, you can register a new account and join the organization.",
+          "login": "Login",
+          "register": "Register"
+        },
+        "WithDifferentEmail": {
+          "youLoggedInWithDifferentEmail": "You logged in with a different email address. Logout and follow invitation link again.",
+          "logout": "Logout"
+        },
+        "Accept": {
+          "success": "Invitation accepted successfully",
+          "error": "Failed to accept invitation"
+        },
+        "Decline": {
+          "success": "Invitation declined successfully",
+          "error": "Failed to decline invitation"
+        }
+      }
+    },
+    "InvitationErrorCard": {
+      "NotFound": {
+        "title": "Invitation Not Found",
+        "description": "There was an issue with your invitation.",
+        "content": "There is no invitation with this ID.",
+        "footer": "Go back to home"
+      },
+      "Expired": {
+        "title": "Invitation Expired",
+        "description": "There was an issue with your invitation.",
+        "content": "The invitation you're trying to access has expired.",
+        "footer": "Go back to home"
+      },
+      "InviterNotFound": {
+        "title": "Inviter not found",
+        "description": "There was an issue with your invitation.",
+        "content": "The inviter of the invitation you're trying to access was not found.",
+        "footer": "Go back to home"
+      }
+    }
+  },
   "Landing": {
     "Error": {
       "title": "Something went wrong",
@@ -717,36 +773,6 @@
         "edit": "Edit",
         "invite": "Invite Member",
         "members": "Members"
-      }
-    },
-    "AcceptInvitation": {
-      "InvitationCard": {
-        "title": "Organization Invitation",
-        "description": "You've been invited to join an organization",
-        "hasInvitedYouToJoin": "has invited you to join",
-        "thisInvitationWasSentTo": "This invitation was sent to",
-        "acceptedTitle": "Welcome to {organizationName}!",
-        "acceptedDescription": "You've successfully joined the organization. We're excited to have you on board!",
-        "declinedTitle": "Invitation Declined",
-        "declinedDescription": "You've declined the invitation to join {organizationName}.",
-        "accept": "Accept Invitation",
-        "decline": "Decline Invitation",
-        "Actions": {
-          "Accept": {
-            "success": "Invitation accepted successfully",
-            "error": "Failed to accept invitation"
-          },
-          "Decline": {
-            "success": "Invitation declined successfully",
-            "error": "Failed to decline invitation"
-          }
-        }
-      },
-      "InvitationErrorCard": {
-        "title": "Invitation Error",
-        "description": "There was an issue with your invitation.",
-        "content": " The invitation you're trying to access is either invalid or you don't have the correct permissions. Please check your email for a valid invitation or contact the person who sent it.",
-        "footer": "Go back to home"
       }
     },
     "Agents": {

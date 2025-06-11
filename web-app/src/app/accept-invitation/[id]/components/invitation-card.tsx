@@ -1,12 +1,7 @@
-"use client";
-
-import { Invitation } from "better-auth/plugins";
-import { AlertCircle, CheckIcon, Loader2, XIcon } from "lucide-react";
+import { User } from "better-auth";
+import { AlertCircle, CheckIcon, XIcon } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
-import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -18,77 +13,27 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { authClient } from "@/lib/auth/auth.client";
+import { InvitationWithRelations } from "@/lib/db";
+import { InvitationErrorCode } from "@/lib/services";
+
+import InvitationActions from "./invitation-actions";
 
 interface InvitationCardProps {
-  invitation: Invitation & {
-    organizationName: string;
-    organizationSlug: string;
-    inviterEmail: string;
-  };
+  invitation: InvitationWithRelations;
+  user?: User | undefined;
 }
 
-export default function InvitationCard({ invitation }: InvitationCardProps) {
-  const t = useTranslations("App.AcceptInvitation.InvitationCard");
-  const {
-    id,
-    status,
-    organizationName,
-    organizationSlug,
-    inviterEmail,
-    email,
-  } = invitation;
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
-
-  const handleAccept = async () => {
-    if (loading) {
-      return;
-    }
-    try {
-      setLoading(true);
-      const result = await authClient.organization.acceptInvitation({
-        invitationId: id,
-      });
-
-      if (result.error) {
-        console.error("Failed to accept invitation", result.error);
-        toast.error(t("Actions.Accept.error"));
-        return;
-      }
-
-      toast.success(t("Actions.Accept.success"));
-      router.push(`/app/organizations/${organizationSlug}`);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleReject = async () => {
-    if (loading) {
-      return;
-    }
-    try {
-      setLoading(true);
-      const result = await authClient.organization.rejectInvitation({
-        invitationId: id,
-      });
-
-      if (result.error) {
-        console.error("Failed to decline invitation", result.error);
-        toast.error(t("Actions.Decline.error"));
-        return;
-      }
-
-      toast.success(t("Actions.Decline.success"));
-      router.push("/app/organizations");
-    } finally {
-      setLoading(false);
-    }
-  };
+export default function InvitationCard({
+  invitation,
+  user,
+}: InvitationCardProps) {
+  const t = useTranslations("AcceptInvitation.InvitationCard");
+  const { status, email, organization, inviter } = invitation;
+  const { name: organizationName, slug: organizationSlug } = organization;
+  const { email: inviterEmail } = inviter;
 
   return (
-    <Card className="w-full max-w-md">
+    <Card className="w-full max-w-lg">
       <CardHeader>
         <CardTitle>{t("title")}</CardTitle>
         <CardDescription>{t("description")}</CardDescription>
@@ -112,10 +57,19 @@ export default function InvitationCard({ invitation }: InvitationCardProps) {
             </div>
             <h2 className="text-center text-2xl font-bold">
               {t("acceptedTitle", {
-                organizationName: invitation.organizationName,
+                organizationName,
               })}
             </h2>
-            <p className="text-center">{t("acceptedDescription")}</p>
+            <p className="text-center">
+              {t("acceptedDescription", {
+                organizationName,
+              })}
+            </p>
+            <Button variant="outline" asChild className="w-full">
+              <Link href={`/app/organizations/${organizationSlug}`}>
+                {t("goToOrganization")}
+              </Link>
+            </Button>
           </div>
         )}
         {status === "rejected" && (
@@ -128,23 +82,17 @@ export default function InvitationCard({ invitation }: InvitationCardProps) {
             </h2>
             <p className="text-center">
               {t("declinedDescription", {
-                organizationName: organizationName,
+                organizationName,
               })}
             </p>
+            <Button variant="outline" asChild className="w-full">
+              <Link href="/">{t("goToHome")}</Link>
+            </Button>
           </div>
         )}
       </CardContent>
       {status === "pending" && (
-        <CardFooter className="flex justify-between">
-          <Button variant="outline" onClick={handleReject} disabled={loading}>
-            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            {t("decline")}
-          </Button>
-          <Button onClick={handleAccept} disabled={loading}>
-            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-            {t("accept")}
-          </Button>
-        </CardFooter>
+        <InvitationActions invitation={invitation} user={user} />
       )}
     </Card>
   );
@@ -175,8 +123,14 @@ export function InvitationCardSkeleton() {
   );
 }
 
-export function InvitationErrorCard() {
-  const t = useTranslations("App.AcceptInvitation.InvitationErrorCard");
+export function InvitationErrorCard({
+  errorCode,
+}: {
+  errorCode: InvitationErrorCode;
+}) {
+  const t = useTranslations(
+    getTranslationPathForInvitationErrorCode(errorCode),
+  );
 
   return (
     <Card className="mx-auto w-full max-w-md">
@@ -193,7 +147,7 @@ export function InvitationErrorCard() {
         <p className="text-muted-foreground mb-4 text-sm">{t("content")}</p>
       </CardContent>
       <CardFooter>
-        <Link href="/app" className="w-full">
+        <Link href="/" className="w-full">
           <Button variant="outline" className="w-full">
             {t("footer")}
           </Button>
@@ -201,4 +155,17 @@ export function InvitationErrorCard() {
       </CardFooter>
     </Card>
   );
+}
+
+function getTranslationPathForInvitationErrorCode(
+  errorCode: InvitationErrorCode,
+) {
+  switch (errorCode) {
+    case InvitationErrorCode.NOT_FOUND:
+      return "AcceptInvitation.InvitationErrorCard.NotFound";
+    case InvitationErrorCode.EXPIRED:
+      return "AcceptInvitation.InvitationErrorCard.Expired";
+    case InvitationErrorCode.INVITER_NOT_FOUND:
+      return "AcceptInvitation.InvitationErrorCard.InviterNotFound";
+  }
 }

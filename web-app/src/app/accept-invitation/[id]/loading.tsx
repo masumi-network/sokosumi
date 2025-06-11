@@ -1,4 +1,4 @@
-import { InvitationCardSkeleton } from "./components/invitation";
+import { InvitationCardSkeleton } from "./components/invitation-card";
 
 export default function AcceptInvitationLoading() {
   return (
