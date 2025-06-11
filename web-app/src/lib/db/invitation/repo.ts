@@ -14,3 +14,14 @@ export async function getInvitationById(
     include: invitationInclude,
   });
 }
+
+export async function updatePendingInvitationsByEmailAndOrganizationId(
+  email: string,
+  organizationId: string,
+  tx: Prisma.TransactionClient = prisma,
+) {
+  return tx.invitation.updateMany({
+    where: { email, organizationId, status: "pending" },
+    data: { status: "accepted" },
+  });
+}
