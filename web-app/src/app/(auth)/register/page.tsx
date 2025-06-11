@@ -15,7 +15,13 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function SignUp() {
+interface SignUpPageProps {
+  searchParams: Promise<{ email?: string; organizationId?: string }>;
+}
+
+export default async function SignUp({ searchParams }: SignUpPageProps) {
+  const { email, organizationId } = await searchParams;
+
   const organizations = await getOrganizationsWithMembersCount();
 
   return (
@@ -23,7 +29,11 @@ export default async function SignUp() {
       <SignUpHeader />
       <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
         {/* <SocialButtons /> */}
-        <SignUpForm organizations={organizations} />
+        <SignUpForm
+          organizations={organizations}
+          prefilledEmail={email}
+          prefilledOrganizationId={organizationId}
+        />
       </div>
     </div>
   );

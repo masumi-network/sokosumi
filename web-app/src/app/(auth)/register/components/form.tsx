@@ -25,9 +25,15 @@ import { Organization } from "@/prisma/generated/client";
 
 interface SignUpFormProps {
   organizations: OrganizationWithRelations[];
+  prefilledEmail?: string | undefined;
+  prefilledOrganizationId?: string | undefined;
 }
 
-export default function SignUpForm({ organizations }: SignUpFormProps) {
+export default function SignUpForm({
+  organizations,
+  prefilledEmail,
+  prefilledOrganizationId,
+}: SignUpFormProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form");
 
   const router = useRouter();
@@ -36,19 +42,23 @@ export default function SignUpForm({ organizations }: SignUpFormProps) {
       signUpFormSchema(useTranslations("Library.Auth.Schema")),
     ),
     defaultValues: {
-      email: "",
+      email: prefilledEmail ?? "",
       name: "",
       password: "",
       confirmPassword: "",
-      organizationId: "",
+      organizationId: prefilledOrganizationId ?? "",
       marketingOptIn: false,
     },
   });
 
   const email = form.watch("email");
   useEffect(() => {
+    if (prefilledOrganizationId) {
+      form.setValue("organizationId", prefilledOrganizationId);
+      return;
+    }
     form.setValue("organizationId", "");
-  }, [email, form]);
+  }, [email, form, prefilledOrganizationId]);
 
   const onSubmit = async (values: SignUpFormSchemaType) => {
     const organizationResult = checkOrganizationAndEmail(
@@ -130,6 +140,8 @@ export default function SignUpForm({ organizations }: SignUpFormProps) {
     <AuthForm
       form={form}
       formData={signUpFormData}
+      prefilledEmail={prefilledEmail}
+      prefilledOrganizationId={prefilledOrganizationId}
       namespace="Auth.Pages.SignUp.Form"
       onSubmit={onSubmit}
       organizations={organizations}
