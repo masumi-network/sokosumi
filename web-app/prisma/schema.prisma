@@ -324,7 +324,7 @@ enum AgentStatus {
 
 model AgentList {
   id     String        @id @default(cuid())
-  user   User          @relation(fields: [userId], references: [id])
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId String
   type   AgentListType
   agents Agent[]
