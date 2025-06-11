@@ -7,22 +7,22 @@ export const RISK_CLASSIFICATION_MAP = {
   MINIMAL: {
     labelKey: "minimal",
     variant: "default",
-    color: "bg-green-600 text-white dark:bg-green-500",
+    color: "bg-semantic-success text-semantic-success-foreground",
   },
   LIMITED: {
     labelKey: "limited",
     variant: "secondary",
-    color: "bg-yellow-500 text-white dark:bg-yellow-400",
+    color: "bg-semantic-warning text-semantic-warning-foreground",
   },
   HIGH: {
     labelKey: "high",
     variant: "outline",
-    color: "bg-orange-500 text-white dark:bg-orange-400",
+    color: "bg-semantic-warning text-semantic-warning-foreground",
   },
   UNACCEPTABLE: {
     labelKey: "unacceptable",
     variant: "destructive",
-    color: "bg-red-600 text-white dark:bg-red-500",
+    color: "bg-semantic-destructive text-semantic-destructive-foreground",
   },
 } as const;
 
