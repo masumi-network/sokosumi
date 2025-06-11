@@ -7,7 +7,6 @@ import {
 } from "@/components/agents/agent-action-buttons";
 import { AgentHireButton } from "@/components/agents/agent-hire-button";
 import { AgentVerifiedBadge } from "@/components/agents/agent-verified-badge";
-import { RiskClassificationBadge } from "@/components/agents/risk-classification-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AgentListWithAgent,
@@ -64,9 +63,6 @@ function AgentDetailSection1({
             <div className="flex items-center gap-4">
               <h2 className="text-3xl font-light">{getAgentName(agent)}</h2>
               <AgentVerifiedBadge />
-              <RiskClassificationBadge
-                riskClassification={agent.riskClassification}
-              />
             </div>
             <div className="flex items-center gap-3">
               <div className="relative h-8 w-8">

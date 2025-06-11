@@ -66,8 +66,9 @@
           "unknownExecutedJobs": "Unknown"
         },
         "Section3": {
-          "title1": "Description",
-          "title2": "At a Glance"
+          "description": "Description",
+          "tags": "At a Glance",
+          "riskClassification": "EU AI Act Risk Classification"
         },
         "Section4": {
           "title": "Example Outputs",
