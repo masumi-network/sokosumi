@@ -17,6 +17,12 @@ interface JobDetailsProps {
 
 export default function JobDetails({ job, className }: JobDetailsProps) {
   const t = useTranslations("App.Agents.Jobs.JobDetails");
+
+  const hasCompletedOutput = job.status === JobStatus.COMPLETED && !!job.output;
+  const defaultAccordionValue = hasCompletedOutput
+    ? ["output"]
+    : ["input", "output"];
+
   return (
     <div
       className={cn(
@@ -27,7 +33,7 @@ export default function JobDetails({ job, className }: JobDetailsProps) {
       <ScrollArea className="h-full [&_[data-slot=scroll-area-viewport]>div]:block!">
         <Accordion
           type="multiple"
-          defaultValue={["input", "output"]}
+          defaultValue={defaultAccordionValue}
           className="w-full space-y-1.5"
         >
           <JobDetailsHeader createdAt={job.createdAt} status={job.status} />
