@@ -3266,8 +3266,8 @@ packages:
   brace-expansion@1.1.11:
     resolution: {integrity: sha512-iCuPHDFgrHX7H2vEI/5xpz07zSHB00TpugqhmYtVmMO6518mCuRMoOYFldEBl0g187ufozdaHgWKcYFb61qGiA==}
 
-  brace-expansion@2.0.2:
-    resolution: {integrity: sha512-Jt0vHyM+jmUBqojB7E1NIYadt0vI0Qxjxd2TErW94wDz+E2LAm5vKMXXwg6ZZBTHPuUlDgQHKXvjGBdfcF1ZDQ==}
+  brace-expansion@2.0.1:
+    resolution: {integrity: sha512-XnAIvQ8eM+kC6aULx6wuQiwVsnzsi9d3WxzV3FpWTGA19F621kwdbsAcFKXgKUHZWsy+mY6iL1sHTxWEFCytDA==}
 
   braces@3.0.3:
     resolution: {integrity: sha512-yQbXgO/OSZVD2IsiLlro+7Hf6Q18EJrKSEsdoMzKePKXct3gvD8oLcOQdIzGupr5Fj+EDe8gO/lxc1BzfMpxvA==}
@@ -3326,9 +3326,6 @@ packages:
 
   caniuse-lite@1.0.30001721:
     resolution: {integrity: sha512-cOuvmUVtKrtEaoKiO0rSc29jcjwMwX5tOHDy4MgVFEWiUXj4uBMJkwI8MDySkgXidpMiHUcviogAvFi4pA2hDQ==}
-
-  caniuse-lite@1.0.30001722:
-    resolution: {integrity: sha512-DCQHBBZtiK6JVkAGw7drvAMK0Q0POD/xZvEmDp6baiMMP6QXXk9HpD6mNYBZWhOPG6LvIDb82ITqtWjhDckHCA==}
 
   chalk@3.0.0:
     resolution: {integrity: sha512-4D3B6Wf41KOYRFdszmDqMCGq5VV/uMAB273JILmO+3jAlh8X4qDtdtgCR3fxtbLEMzSx22QdhnDcJvu2u1fVwg==}
@@ -5843,9 +5840,6 @@ packages:
 
   tailwindcss@4.1.10:
     resolution: {integrity: sha512-P3nr6WkvKV/ONsTzj6Gb57sWPMX29EPNPopo7+FcpkQaNsrNpZ1pv8QmrYI2RqEKD7mlGqLnGovlcYnBK0IqUA==}
-
-  tailwindcss@4.1.8:
-    resolution: {integrity: sha512-kjeW8gjdxasbmFKpVGrGd5T4i40mV5J2Rasw48QARfYeQ8YS9x02ON9SFWax3Qf616rt4Cp3nVNIj6Hd1mP3og==}
 
   tapable@2.2.2:
     resolution: {integrity: sha512-Re10+NauLTMCudc7T5WLFLAwDhQ0JWdrMK+9B2M8zR5hRExKmsRDCBA7/aV/pNJFltmBFO5BAMlQFi/vq3nKOg==}
@@ -9353,7 +9347,7 @@ snapshots:
       balanced-match: 1.0.2
       concat-map: 0.0.1
 
-  brace-expansion@2.0.2:
+  brace-expansion@2.0.1:
     dependencies:
       balanced-match: 1.0.2
 
@@ -9363,7 +9357,7 @@ snapshots:
 
   browserslist@4.25.0:
     dependencies:
-      caniuse-lite: 1.0.30001722
+      caniuse-lite: 1.0.30001721
       electron-to-chromium: 1.5.166
       node-releases: 2.0.19
       update-browserslist-db: 1.1.3(browserslist@4.25.0)
@@ -9421,8 +9415,6 @@ snapshots:
   camelcase@6.3.0: {}
 
   caniuse-lite@1.0.30001721: {}
-
-  caniuse-lite@1.0.30001722: {}
 
   chalk@3.0.0:
     dependencies:
@@ -11282,11 +11274,11 @@ snapshots:
 
   minimatch@8.0.4:
     dependencies:
-      brace-expansion: 2.0.2
+      brace-expansion: 2.0.1
 
   minimatch@9.0.5:
     dependencies:
-      brace-expansion: 2.0.2
+      brace-expansion: 2.0.1
 
   minimist@1.2.8: {}
 
@@ -12240,10 +12232,6 @@ snapshots:
       tailwindcss: 4.1.10
 
   tailwindcss@4.1.10: {}
-
-  tailwindcss@4.1.10: {}
-
-  tailwindcss@4.1.8: {}
 
   tapable@2.2.2: {}
 
