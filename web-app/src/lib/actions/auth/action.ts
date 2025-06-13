@@ -1,5 +1,7 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
+
 import { auth } from "@/lib/auth/auth";
 
 export async function signInSocial(
@@ -15,4 +17,8 @@ export async function signInSocial(
   } catch {
     return { success: false };
   }
+}
+
+export async function revalidateAppPath() {
+  revalidatePath("/app");
 }
