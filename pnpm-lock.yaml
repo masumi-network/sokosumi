@@ -12,8 +12,8 @@ importers:
         specifier: 3.3.1
         version: 3.3.1
       '@hey-api/openapi-ts':
-        specifier: 0.72.1
-        version: 0.72.1(typescript@5.8.3)
+        specifier: 0.72.2
+        version: 0.72.2(typescript@5.8.3)
       '@noble/hashes':
         specifier: 1.8.0
         version: 1.8.0
@@ -99,11 +99,11 @@ importers:
         specifier: 0.2.5
         version: 0.2.5
       '@hey-api/client-fetch':
-        specifier: 0.13.0
-        version: 0.13.0(@hey-api/openapi-ts@0.72.1(typescript@5.8.3))
+        specifier: 0.13.1
+        version: 0.13.1(@hey-api/openapi-ts@0.72.2(typescript@5.8.3))
       '@hey-api/client-next':
-        specifier: 0.5.0
-        version: 0.5.0(@hey-api/openapi-ts@0.72.1(typescript@5.8.3))
+        specifier: 0.5.1
+        version: 0.5.1(@hey-api/openapi-ts@0.72.2(typescript@5.8.3))
       '@hookform/resolvers':
         specifier: 5.1.1
         version: 5.1.1(react-hook-form@7.57.0(react@19.1.0))
@@ -800,13 +800,13 @@ packages:
   '@hexagon/base64@1.1.28':
     resolution: {integrity: sha512-lhqDEAvWixy3bZ+UOYbPwUbBkwBq5C1LAJ/xPC8Oi+lL54oyakv/npbA0aU2hgCsx/1NUd4IBvV03+aUBWxerw==}
 
-  '@hey-api/client-fetch@0.13.0':
-    resolution: {integrity: sha512-3QinoH6ZMDonYlVN7akdTwym4cNwN3FVln71pofjbAOwDDUUcRIhVVb/rxXpVbZKVEqeJ4nClhMUWlcVPojNTQ==}
+  '@hey-api/client-fetch@0.13.1':
+    resolution: {integrity: sha512-29jBRYNdxVGlx5oewFgOrkulZckpIpBIRHth3uHFn1PrL2ucMy52FvWOY3U3dVx2go1Z3kUmMi6lr07iOpUqqA==}
     peerDependencies:
       '@hey-api/openapi-ts': < 2
 
-  '@hey-api/client-next@0.5.0':
-    resolution: {integrity: sha512-iRmf8qjBTTD+i7FagYa4JDM4DD0C8qYzM7ezJYBV2hl7KYsDlaukHtO9gmDKkolzY5EQ6T4QlYMauiPAuzR3HA==}
+  '@hey-api/client-next@0.5.1':
+    resolution: {integrity: sha512-eVMPIfDMBCkPsktrwMbvdjXyPHXvVkbrzxxgj+zdTFILxIQCSGQ8vjzqm4byBYQkqxAM18wqMTxmp3EwE3R66g==}
     peerDependencies:
       '@hey-api/openapi-ts': < 2
 
@@ -814,8 +814,8 @@ packages:
     resolution: {integrity: sha512-yktiFZoWPtEW8QKS65eqKwA5MTKp88CyiL8q72WynrBs/73SAaxlSWlA2zW/DZlywZ5hX1OYzrCC0wFdvO9c2w==}
     engines: {node: '>= 16'}
 
-  '@hey-api/openapi-ts@0.72.1':
-    resolution: {integrity: sha512-PR0w9IJ5Zft9RM9jNDn7NZCX2juDetvs+n6c8wiNw2nC7os8LCowXZDS/yP2rfb9mruQlr9GFGDEWMY1Ie1tpQ==}
+  '@hey-api/openapi-ts@0.72.2':
+    resolution: {integrity: sha512-b3LbxALDvDo3vulesHbVJ5KbeC+fRw8mQA/8WzYfe0hDmJk6JHy/6xhP626ay3oTrvP+KHMsCQPGPSMh/cydCg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=22.10.0}
     hasBin: true
     peerDependencies:
@@ -6650,13 +6650,13 @@ snapshots:
 
   '@hexagon/base64@1.1.28': {}
 
-  '@hey-api/client-fetch@0.13.0(@hey-api/openapi-ts@0.72.1(typescript@5.8.3))':
+  '@hey-api/client-fetch@0.13.1(@hey-api/openapi-ts@0.72.2(typescript@5.8.3))':
     dependencies:
-      '@hey-api/openapi-ts': 0.72.1(typescript@5.8.3)
+      '@hey-api/openapi-ts': 0.72.2(typescript@5.8.3)
 
-  '@hey-api/client-next@0.5.0(@hey-api/openapi-ts@0.72.1(typescript@5.8.3))':
+  '@hey-api/client-next@0.5.1(@hey-api/openapi-ts@0.72.2(typescript@5.8.3))':
     dependencies:
-      '@hey-api/openapi-ts': 0.72.1(typescript@5.8.3)
+      '@hey-api/openapi-ts': 0.72.2(typescript@5.8.3)
 
   '@hey-api/json-schema-ref-parser@1.0.6':
     dependencies:
@@ -6665,7 +6665,7 @@ snapshots:
       js-yaml: 4.1.0
       lodash: 4.17.21
 
-  '@hey-api/openapi-ts@0.72.1(typescript@5.8.3)':
+  '@hey-api/openapi-ts@0.72.2(typescript@5.8.3)':
     dependencies:
       '@hey-api/json-schema-ref-parser': 1.0.6
       ansi-colors: 4.1.3
