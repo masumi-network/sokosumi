@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -27,6 +28,7 @@ export default function SignInForm({
   const t = useTranslations("Auth.Pages.SignIn.Form");
 
   const router = useRouter();
+  const [hasNavigated, setHasNavigated] = useState(false);
 
   const form = useForm<SignInFormSchemaType>({
     resolver: zodResolver(
@@ -74,11 +76,17 @@ export default function SignInForm({
             }
           }
           router.push(redirectUrl);
-          router.refresh();
+          setHasNavigated(true);
         },
       },
     );
   };
+
+  useEffect(() => {
+    if (hasNavigated) {
+      router.refresh();
+    }
+  }, [hasNavigated, router]);
 
   return (
     <AuthForm
