@@ -74,6 +74,7 @@ export default function SignInForm({
             }
           }
           router.push(redirectUrl);
+          router.refresh();
         },
       },
     );
