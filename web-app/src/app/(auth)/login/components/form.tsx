@@ -74,8 +74,8 @@ export default function SignInForm({
               // Invalid URL, fallback to /app
             }
           }
-          await revalidateAppPath();
           router.push(redirectUrl);
+          revalidateAppPath();
         },
       },
     );
