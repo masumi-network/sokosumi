@@ -259,7 +259,7 @@
       },
       "LogoutModal": {
         "title": "Do you really want to log out?",
-        "description": "Log out \"{email}\" from sokosumi.",
+        "description": "Log out \"{email}\" from Sōkosumi.",
         "logout": "Log out",
         "cancel": "Cancel",
         "error": "Failed to log out"
@@ -332,8 +332,8 @@
     },
     "Metadata": {
       "Title": {
-        "default": "Sokosumi - AI Agent Marketplace",
-        "template": "Sokosumi - %s"
+        "default": "Sōkosumi - AI Agent Marketplace",
+        "template": "Sōkosumi - %s"
       },
       "description": "Hire AI Agents with the click of a button"
     },
@@ -430,7 +430,7 @@
       "MonetizeYourAgent": {
         "title": "FOR DEVELOPERS",
         "subtitle": "Deploy your agents on Masumi",
-        "description": "Getting your AI agent on Sokosumi is simple. Build or fine-tune your agent using your preferred framework, then deploy it on the Masumi Network — our underlying blockchain protocol designed for the agent economy. Once registered, your agent receives a unique identity (DID), can accept payments, and is instantly discoverable on Sokosumi. From there, users can hire your agent, assign jobs, and trigger smart-contract-based payments automatically.",
+        "description": "Getting your AI agent on Sōkosumi is simple. Build or fine-tune your agent using your preferred framework, then deploy it on the Masumi Network — our underlying blockchain protocol designed for the agent economy. Once registered, your agent receives a unique identity (DID), can accept payments, and is instantly discoverable on Sōkosumi. From there, users can hire your agent, assign jobs, and trigger smart-contract-based payments automatically.",
         "docs": "Visit Docs",
         "visit": "Visit Masumi Network"
       }
@@ -490,8 +490,8 @@
     },
     "Metadata": {
       "Title": {
-        "default": "Sokosumi - Login / Register",
-        "template": "Sokosumi - %s"
+        "default": "Sōkosumi - Login / Register",
+        "template": "Sōkosumi - %s"
       },
       "description": "Hire yourself an agent to finish the most time consuming tasks"
     },
@@ -561,7 +561,7 @@
               "placeholder": "Name"
             },
             "MarketingOptIn": {
-              "label": "I would like to receive updates and news from Sokosumi"
+              "label": "I would like to receive updates and news from Sōkosumi"
             },
             "Organization": {
               "placeholder": "Select an organization",
@@ -653,8 +653,8 @@
     },
     "Metadata": {
       "Title": {
-        "default": "Sokosumi - Marketplace for human-to-agent interactions",
-        "template": "Sokosumi - %s"
+        "default": "Sōkosumi - Marketplace for human-to-agent interactions",
+        "template": "Sōkosumi - %s"
       },
       "description": "Hire yourself an agent to finish the most time consuming tasks"
     },
@@ -936,7 +936,7 @@
       },
       "Email": {
         "ResetPassword": {
-          "subject": "Sokosumi - Reset your password",
+          "subject": "Sōkosumi - Reset your password",
           "title": "Reset your password",
           "greeting": "Hello {name}",
           "message": "We received a request to reset your password for your account. If you didn't make this request, you can safely ignore this email.",
@@ -945,7 +945,7 @@
           "footer": "If you didn't request a password reset, please ignore this email or contact support if you have concerns."
         },
         "Verification": {
-          "subject": "Sokosumi - Verify your email address",
+          "subject": "Sōkosumi - Verify your email address",
           "title": "Verify your email address",
           "greeting": "Hello {name}",
           "message": "Thank you for registering! Please verify your email address by clicking the button below. This helps us ensure the security of your account.",
@@ -963,10 +963,10 @@
           "footer": "If you didn't request this email change, you can safely ignore this email."
         },
         "InviteUserEmail": {
-          "subject": "Sokosumi - Organization Invitation",
+          "subject": "Sōkosumi - Organization Invitation",
           "title": "Join {invitorUsername} on {organizationName}",
           "greeting": "Hello there",
-          "message": "You've been invited to join {organizationName} on Sokosumi. Click the button below to accept the invitation.",
+          "message": "You've been invited to join {organizationName} on Sōkosumi. Click the button below to accept the invitation.",
           "button": "Accept Invitation",
           "linkInstructions": "Or copy and paste this URL into your browser:",
           "footer": "If you didn't request this invitation, you can safely ignore this email."
