@@ -24,6 +24,7 @@ const eslintConfig = [
       "src/components/ui/**",
       "src/lib/api/generated/**",
       "public/js/**/*.js",
+      "*.config.mjs",
     ],
     rules: {
       "simple-import-sort/imports": "error",
