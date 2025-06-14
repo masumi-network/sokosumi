@@ -5,7 +5,6 @@
     "dbaeumer.vscode-eslint",
     "streetsidesoftware.code-spell-checker",
     "prisma.prisma",
-    "lokalise.i18n-ally",
-    "bradlc.vscode-tailwindcss"
+    "lokalise.i18n-ally"
   ]
 }
