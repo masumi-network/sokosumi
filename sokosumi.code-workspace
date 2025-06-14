@@ -1,17 +1,47 @@
-{ 
-    "folders": [
-        {
-            "name": "Root",
-            "path": ".",
-        },
-        {
-            "name": "Web Application",
-            "path": "web-app"
-        },
-        {
-            "name": "Masumi Sync Function",
-            "path": "sync-function"
-        },
+{
+  "folders": [
+    {
+      "name": "Root",
+      "path": ".",
+    },
+    {
+      "name": "Web Application",
+      "path": "web-app",
+    },
+    {
+      "name": "Masumi Sync Function",
+      "path": "sync-function",
+    },
+  ],
+  "settings": {
+    "editor.formatOnSave": true,
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "[prisma]": {
+      "editor.defaultFormatter": "Prisma.prisma",
+    },
+    "editor.wordWrap": "on",
+    "editor.tabSize": 2,
+    "editor.codeActionsOnSave": {
+      "source.fixAll": "explicit",
+    },
+    "files.associations": {
+      "*.css": "tailwindcss",
+    },
+    "i18n-ally.localesPaths": ["/web-app/messages", "/web-app/src/i18n"],
+    "i18n-ally.keystyle": "nested",
+    "[typescriptreact]": {
+      "editor.defaultFormatter": "esbenp.prettier-vscode",
+    },
+  },
+  "extensions": {
+    "recommendations": [
+      "bradlc.vscode-tailwindcss",
+      "esbenp.prettier-vscode",
+      "dbaeumer.vscode-eslint",
+      "streetsidesoftware.code-spell-checker",
+      "prisma.prisma",
+      "lokalise.i18n-ally",
+      "bradlc.vscode-tailwindcss",
     ],
-    "settings": {}
+  },
 }
