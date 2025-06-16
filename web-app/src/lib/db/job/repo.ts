@@ -1,6 +1,7 @@
 "use server";
 
 import { CreditsPrice, getCreditTransactionByJobId, prisma } from "@/lib/db";
+import { JobInputSchemaType } from "@/lib/job-input";
 import {
   AgentJobStatus,
   Job,
@@ -108,7 +109,7 @@ interface CreateJobData {
   agentJobId: string;
   agentId: string;
   userId: string;
-  inputSchema: string;
+  inputSchema: JobInputSchemaType[];
   input: string;
   paymentId: string;
   creditsPrice: CreditsPrice;
