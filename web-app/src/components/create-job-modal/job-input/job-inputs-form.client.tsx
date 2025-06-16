@@ -75,7 +75,7 @@ export default function JobInputsFormClient({
       const result = await startJobWithInputData({
         agentId: agentId,
         maxAcceptedCents: agentCreditsPrice.cents,
-        inputSchema: JSON.stringify(input_data),
+        inputSchema: input_data,
         inputData: transformedInputData,
       });
 

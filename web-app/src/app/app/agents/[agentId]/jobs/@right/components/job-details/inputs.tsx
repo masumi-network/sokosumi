@@ -29,11 +29,10 @@ function JobDetailsInputsInner({
   const input = rawInput ? JSON.parse(rawInput) : {};
 
   let idNameMap: Record<string, string> = {};
-  if (typeof inputSchema === "string") {
-    const inputSchemaObject = JSON.parse(inputSchema);
+  if (Array.isArray(inputSchema)) {
     idNameMap = z
       .array(jobInputSchema())
-      .parse(inputSchemaObject)
+      .parse(inputSchema)
       .reduce(
         (acc, item) => {
           acc[item.id] = item.name;
