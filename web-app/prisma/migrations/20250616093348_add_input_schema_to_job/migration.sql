@@ -1,2 +1,2 @@
 -- AlterTable
-ALTER TABLE "Job" ADD COLUMN     "inputSchema" JSONB;
+ALTER TABLE "Job" ADD COLUMN "inputSchema" JSONB DEFAULT '{}';
