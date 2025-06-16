@@ -159,8 +159,8 @@ importers:
         specifier: 0.514.0
         version: 0.514.0(react@19.1.0)
       markdown-to-jsx:
-        specifier: 7.7.6
-        version: 7.7.6(react@19.1.0)
+        specifier: 7.7.7
+        version: 7.7.7(react@19.1.0)
       nanoid:
         specifier: ^5.1.5
         version: 5.1.5
@@ -731,6 +731,7 @@ packages:
 
   '@hey-api/client-fetch@0.13.1':
     resolution: {integrity: sha512-29jBRYNdxVGlx5oewFgOrkulZckpIpBIRHth3uHFn1PrL2ucMy52FvWOY3U3dVx2go1Z3kUmMi6lr07iOpUqqA==}
+    deprecated: Starting with v0.73.0, this package is bundled directly inside @hey-api/openapi-ts.
     peerDependencies:
       '@hey-api/openapi-ts': < 2
 
@@ -4731,8 +4732,8 @@ packages:
   makeerror@1.0.12:
     resolution: {integrity: sha512-JmqCvUhmt43madlpFzG4BQzG2Z3m6tvQDNKdClZnO3VbIudJYmxsT0FNJMeiB2+JTSlTQTSbU8QdesVmwJcmLg==}
 
-  markdown-to-jsx@7.7.6:
-    resolution: {integrity: sha512-/PWFFoKKMidk4Ut06F5hs5sluq1aJ0CGvUJWsnCK6hx/LPM8vlhvKAxtGHJ+U+V2Il2wmnfO6r81ICD3xZRVaw==}
+  markdown-to-jsx@7.7.7:
+    resolution: {integrity: sha512-yimKkImZQ8ZYJzfi44Cr78q0vlEph0r8mPUmPX0VVcmDOrDFsMUiXvQ/f+db1kAdKR8Sgg8eVA+R7wqC5ILQDQ==}
     engines: {node: '>= 10'}
     peerDependencies:
       react: '>= 0.14.0'
@@ -11207,7 +11208,7 @@ snapshots:
     dependencies:
       tmpl: 1.0.5
 
-  markdown-to-jsx@7.7.6(react@19.1.0):
+  markdown-to-jsx@7.7.7(react@19.1.0):
     dependencies:
       react: 19.1.0
 
