@@ -16,7 +16,8 @@ import {
   updateJobWithAgentJobStatus,
   updateJobWithPurchase,
 } from "@/lib/db";
-import { calculateInputHash } from "@/lib/utils";
+import { JobInputData } from "@/lib/job-input";
+import { getInputHash, getInputHashDeprecated } from "@/lib/utils";
 import { Job, NextJobAction, Prisma } from "@/prisma/generated/client";
 import { getAgentPricing } from "@/services/agent";
 import { getCreditsPrice, validateCreditsBalance } from "@/services/credit";
@@ -29,6 +30,25 @@ import {
   postPaymentClientRequestRefund,
   startAgentJob,
 } from "./third-party";
+
+function getMatchedInputHash(
+  inputData: JobInputData,
+  identifierFromPurchaser: string,
+  inputHashToMatch: string,
+): string {
+  const inputHash = getInputHash(inputData, identifierFromPurchaser);
+  if (inputHashToMatch === inputHash) {
+    return inputHash;
+  }
+  const inputHashDeprecated = getInputHashDeprecated(
+    inputData,
+    identifierFromPurchaser,
+  );
+  if (inputHashToMatch === inputHashDeprecated) {
+    return inputHashDeprecated;
+  }
+  throw new Error("Input data hash mismatch");
+}
 
 export async function getMyJobsByAgentId(
   agentId: string,
@@ -65,7 +85,6 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
       const identifierFromPurchaser = uuidv4()
         .replace(/-/g, "")
         .substring(0, 25);
-      const inputHash = calculateInputHash(inputData, identifierFromPurchaser);
 
       const startJobResult = await startAgentJob(
         agent,
@@ -76,15 +95,17 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
         throw new Error(startJobResult.error);
       }
       const startJobResponse = startJobResult.data;
-      if (startJobResponse.input_hash !== inputHash) {
-        throw new Error("Input data hash mismatch");
-      }
+      const matchedInputHash = getMatchedInputHash(
+        inputData,
+        identifierFromPurchaser,
+        startJobResponse.input_hash,
+      );
 
       const createPurchaseResult = await createPurchase(
         agent,
         startJobResponse,
         inputData,
-        inputHash,
+        matchedInputHash,
         identifierFromPurchaser,
       );
       if (!createPurchaseResult.ok) {
