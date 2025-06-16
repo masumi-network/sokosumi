@@ -3,7 +3,6 @@ import { ipfsUrlResolver } from "@/lib/ipfs";
 import { Agent, ExampleOutput } from "@/prisma/generated/client";
 
 import {
-  AgentAuthor,
   AgentLegal,
   AgentWithExampleOutput,
   AgentWithRating,
@@ -90,16 +89,30 @@ export function getAgentLegalOther(agent: Agent): string | null {
   return agent.overrideLegalOther ?? agent.legalOther;
 }
 
-export function getAgentAuthor(agent: Agent): AgentAuthor {
-  return {
-    name: agent.overrideAuthorName ?? agent.authorName,
-    email: agent.overrideAuthorContactEmail ?? agent.authorContactEmail,
-    other: agent.overrideAuthorContactOther ?? agent.authorContactOther,
-  };
+export function getAgentAuthorOrganization(agent: Agent): string | null {
+  return agent.overrideAuthorOrganization ?? agent.authorOrganization;
 }
 
-export function getAgentAuthorName(agent: Agent): string {
+export function getShortAgentAuthorName(agent: Agent): string {
+  // Prioritize organization over name
+  const organization = getAgentAuthorOrganization(agent);
+  if (organization) {
+    return organization;
+  }
   return agent.overrideAuthorName ?? agent.authorName;
+}
+
+export function getFullAgentAuthorName(agent: Agent): string {
+  // For detail pages, show both organization and name
+  const organization = getAgentAuthorOrganization(agent);
+  const name = agent.overrideAuthorName ?? agent.authorName;
+
+  if (organization && name) {
+    return `${organization} (${name})`;
+  } else if (organization) {
+    return organization;
+  }
+  return name;
 }
 
 export function getAgentAuthorEmail(agent: Agent): string | null {

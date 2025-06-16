@@ -11,10 +11,10 @@ import {
   AgentWithRelations,
   convertCentsToCredits,
   CreditsPrice,
-  getAgentAuthorName,
   getAgentName,
   getAgentResolvedImage,
   getAgentTags,
+  getShortAgentAuthorName,
 } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
@@ -243,7 +243,7 @@ function AgentCard({
               <AgentVerifiedBadge />
             </div>
             <p className="text-muted-foreground truncate text-sm">
-              {getAgentAuthorName(agent)}
+              {getShortAgentAuthorName(agent)}
             </p>
           </div>
           {/* View Button */}
