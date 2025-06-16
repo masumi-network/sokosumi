@@ -400,6 +400,7 @@ model Job {
   agentJobStatus AgentJobStatus?
 
   paymentId         String
+  inputSchema       Json
   input             String
   inputHash         String? // On-Chain hash of the input data
   output            String?

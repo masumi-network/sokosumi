@@ -69,13 +69,13 @@ export default function JobInputsFormClient({
   ) => {
     try {
       setLoading(true);
-
       // Transform input data to match expected type
       // Filter out null values and ensure arrays are of correct type
       const transformedInputData = filterOutNullValues(values);
       const result = await startJobWithInputData({
         agentId: agentId,
         maxAcceptedCents: agentCreditsPrice.cents,
+        inputSchema: input_data,
         inputData: transformedInputData,
       });
 

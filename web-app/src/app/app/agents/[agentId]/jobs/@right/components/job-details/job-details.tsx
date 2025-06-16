@@ -38,7 +38,10 @@ export default function JobDetails({ job, className }: JobDetailsProps) {
         >
           <JobDetailsHeader createdAt={job.createdAt} status={job.status} />
           <AccordionItemWrapper value="input" title={t("Input.title")}>
-            <JobDetailsInputs rawInput={job.input} />
+            <JobDetailsInputs
+              rawInput={job.input}
+              inputSchema={job.inputSchema}
+            />
           </AccordionItemWrapper>
           <AccordionItemWrapper value="output" title={t("Output.title")}>
             <JobDetailsOutputs job={job} />

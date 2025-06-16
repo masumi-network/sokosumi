@@ -61,7 +61,8 @@ export async function getMyJobsByAgentId(
 export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
   return await prisma.$transaction(
     async (tx) => {
-      const { userId, agentId, maxAcceptedCents, inputData } = input;
+      const { userId, agentId, maxAcceptedCents, inputData, inputSchema } =
+        input;
 
       const agent = await getAgentById(agentId, tx);
       if (!agent) {
@@ -119,6 +120,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
           agentId,
           userId,
           input: JSON.stringify(Object.fromEntries(inputData)),
+          inputSchema: inputSchema,
           paymentId: purchaseResponse.data.id,
           creditsPrice,
           identifierFromPurchaser,
