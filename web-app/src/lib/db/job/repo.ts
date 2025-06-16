@@ -108,6 +108,7 @@ interface CreateJobData {
   agentJobId: string;
   agentId: string;
   userId: string;
+  inputSchema: string;
   input: string;
   paymentId: string;
   creditsPrice: CreditsPrice;
@@ -143,6 +144,7 @@ export async function createJob(
         },
       },
       paymentId: data.paymentId,
+      inputSchema: data.inputSchema,
       input: data.input,
       identifierFromPurchaser: data.identifierFromPurchaser,
       externalDisputeUnlockTime: data.externalDisputeUnlockTime,
