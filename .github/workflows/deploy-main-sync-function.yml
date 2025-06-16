@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: staging-deployment
+  cancel-in-progress: false
+
 jobs:
   deploy-functions:
     name: Deploy Function
@@ -28,7 +32,7 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-      
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -47,7 +51,5 @@ jobs:
         env:
           namespace: ${{ vars.SOKOSUMI_FUNCTION_NAMESPACE }}
 
-      - name: Deploy 
+      - name: Deploy
         run: pnpm masumi-sync:doctl:deploy
-
-  
