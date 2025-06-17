@@ -33,7 +33,10 @@ export async function GET(req: NextRequest) {
       // Subscribe this client
       const unsubscribe = await subscribeConnection(send);
 
-      req.signal.addEventListener("abort", unsubscribe);
+      req.signal.addEventListener("abort", () => {
+        unsubscribe();
+        controller.close();
+      });
     },
   });
 
