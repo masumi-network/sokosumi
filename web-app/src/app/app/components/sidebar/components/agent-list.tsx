@@ -15,12 +15,15 @@ import {
 } from "@/components/ui/sidebar";
 import { getAgentName } from "@/lib/db";
 import { cn } from "@/lib/utils";
-import { Agent } from "@/prisma/generated/client";
+import { Agent, Job } from "@/prisma/generated/client";
+
+import AgentJobStatusIndicator from "./agent-job-status-indicator";
 
 interface AgentListProps {
   groupKey: string;
   title: string;
   agents: Agent[];
+  latestJobs: (Job | null)[];
   noAgentsType: string;
 }
 
@@ -28,6 +31,7 @@ export default function AgentList({
   groupKey,
   title,
   agents,
+  latestJobs,
   noAgentsType,
 }: AgentListProps) {
   const t = useTranslations("App.Sidebar.Content.AgentsList");
@@ -41,7 +45,7 @@ export default function AgentList({
       <SidebarGroupContent className="mt-2">
         {agents.length > 0 ? (
           <SidebarMenu>
-            {agents.map((agent) => (
+            {agents.map((agent, index) => (
               <SidebarMenuItem key={agent.id}>
                 <SidebarMenuButton
                   asChild
@@ -56,6 +60,17 @@ export default function AgentList({
                     <div className="group/agent-menu flex w-full items-center gap-2">
                       <SquareTerminal className="h-4 w-4" />
                       <span className="truncate">{getAgentName(agent)}</span>
+                      {latestJobs[index] && (
+                        <span className="text-muted-foreground text-xs">
+                          <AgentJobStatusIndicator
+                            job={latestJobs[index]}
+                            className={cn("h-4 w-4", {
+                              "text-foreground": agentId === agent.id,
+                              "text-primary": agentId !== agent.id,
+                            })}
+                          />
+                        </span>
+                      )}
                     </div>
                   </Link>
                 </SidebarMenuButton>

@@ -8,6 +8,7 @@ import {
   createJob,
   getAgentById,
   getJobsByAgentIdAndUserId,
+  getLatestJobByAgentIdAndUserId,
   JobStatus,
   JobWithStatus,
   prisma,
@@ -289,4 +290,17 @@ export async function requestRefundJob(
     NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
   );
   return job;
+}
+
+export async function getLatestJobsByAgentIds(
+  agentIds: string[],
+  tx: Prisma.TransactionClient = prisma,
+): Promise<(Job | null)[]> {
+  const session = await getSessionOrThrow();
+  const userId = session.user.id;
+  return await Promise.all(
+    agentIds.map((agentId) =>
+      getLatestJobByAgentIdAndUserId(agentId, userId, tx),
+    ),
+  );
 }

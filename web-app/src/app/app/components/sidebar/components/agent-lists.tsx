@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   getFavoriteAgents,
   getHiredAgentsOrderedByLatestJob,
+  getLatestJobsByAgentIds,
 } from "@/lib/services";
 import { Agent } from "@/prisma/generated/client";
 
@@ -62,12 +63,18 @@ async function AgentListsContent() {
     favoriteAgents,
   );
 
+  const [favoriteAgentsLatestJobs, hiredAgentsLatestJobs] = await Promise.all([
+    getLatestJobsByAgentIds(favoriteAgents.map((agent) => agent.id)),
+    getLatestJobsByAgentIds(hiredAgents.map((agent) => agent.id)),
+  ]);
+
   return (
     <ScrollArea className="h-full">
       <AgentList
         groupKey="favorite-agents"
         title={t("pinnedTitle")}
         agents={favoriteAgents}
+        latestJobs={favoriteAgentsLatestJobs}
         noAgentsType={t("pinnedType")}
       />
 
@@ -75,6 +82,7 @@ async function AgentListsContent() {
         groupKey="hired-agents"
         title={t("hiredTitle")}
         agents={hiredAgents}
+        latestJobs={hiredAgentsLatestJobs}
         noAgentsType={t("hiredType")}
       />
     </ScrollArea>

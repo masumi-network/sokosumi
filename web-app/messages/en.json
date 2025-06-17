@@ -665,7 +665,14 @@
           "hiredTitle": "Your Hired Agents",
           "noAgents": "No {type} agents yet",
           "pinnedType": "pinned",
-          "hiredType": "hired"
+          "hiredType": "hired",
+          "Statuses": {
+            "completed": "Completed",
+            "failed": "Failed",
+            "awaitingInput": "Awaiting Input",
+            "awaitingPayment": "Awaiting Payment",
+            "running": "Running"
+          }
         }
       },
       "Footer": {
