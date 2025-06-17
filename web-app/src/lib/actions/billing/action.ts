@@ -47,7 +47,7 @@ export async function claimFreeCredits(): Promise<{
 export async function purchaseCredits(
   priceId: string,
   credits: number,
-  coupon?: string,
+  couponId?: string,
 ): Promise<{
   success: boolean;
   url?: string;
@@ -65,9 +65,9 @@ export async function purchaseCredits(
     const session = await getSessionOrThrow();
 
     let promotionCodeId: string | null = null;
-    if (coupon) {
-      // Validate and get the promotion code for this user and coupon
-      const promo = await getPromotionCode(coupon, 1);
+    if (couponId) {
+      // Validate and get the promotion code for this user and couponId
+      const promo = await getPromotionCode(session.user.id, couponId, 1);
       if (promo && promo.active) {
         promotionCodeId = promo.id;
       }
