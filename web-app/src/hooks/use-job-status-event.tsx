@@ -6,9 +6,10 @@ export default function useJobStatusEvent(
   onEvent: (payload: PayloadSchemaType) => void,
 ) {
   useEffect(() => {
-    const eventSource = new EventSource("/api/job-status-events");
+    const eventSource = new EventSource("/api/stream/job-status");
 
     eventSource.onmessage = (payload) => {
+      console.log("🔔 Job Status Event", { payload, type: typeof payload });
       if (typeof payload !== "string") return;
       try {
         const parsed = payloadSchema.parse(JSON.parse(payload));

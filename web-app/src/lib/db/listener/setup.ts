@@ -38,9 +38,9 @@ export async function initJobStatusListener() {
 
 export async function subscribeConnection(send: Send): Promise<() => void> {
   connections.add(send);
-  console.log("🔔 Subscribed connection");
+  console.log("🔔 Subscribed connection", connections.size);
   return () => {
     connections.delete(send);
-    console.log("🔔 Unsubscribed connection");
+    console.log("🔔 Unsubscribed connection", connections.size);
   };
 }

@@ -6,8 +6,8 @@ export const payloadSchema = z.object({
   jobId: z.string().min(1),
   userId: z.string().min(1),
   agentId: z.string().min(1),
-  agentJobStatus: z.nativeEnum(AgentJobStatus),
-  onChainStatus: z.nativeEnum(OnChainJobStatus),
+  agentJobStatus: z.nativeEnum(AgentJobStatus).nullish(),
+  onChainStatus: z.nativeEnum(OnChainJobStatus).nullish(),
 });
 
 export type PayloadSchemaType = z.infer<typeof payloadSchema>;

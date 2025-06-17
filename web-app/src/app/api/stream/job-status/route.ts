@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
             // only notify when user id matches
             return;
           }
+          console.log("Sending payload", { payload });
           controller.enqueue(new TextEncoder().encode(payload));
         } catch (error) {
           console.error("🔔 Invalid Job Status notification payload", error);
