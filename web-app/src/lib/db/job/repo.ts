@@ -302,7 +302,7 @@ export async function getLatestJobByAgentIdAndUserId(
         },
       ],
     },
-    orderBy: { updatedAt: "desc" },
+    orderBy: { startedAt: "desc" },
   });
   return job;
 }

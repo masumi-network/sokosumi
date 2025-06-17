@@ -19,11 +19,10 @@ export async function initJobStatusListener() {
   await pgClient.query("LISTEN job_status_updated");
 
   pgClient.on("notification", (msg) => {
-    if (msg.channel === "job_status_updated") {
+    const { channel, payload } = msg;
+    if (channel === "job_status_updated" && !!payload) {
       connections.forEach((connection) => {
-        if (msg.payload) {
-          connection(msg.payload);
-        }
+        connection(payload);
       });
     }
   });
