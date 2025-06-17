@@ -713,7 +713,10 @@
       "FreeClaim": {
         "button": "Get 100 free credits",
         "error": "Failed to claim free credits"
-      }
+      },
+      "invalidCredits": "Invalid credit amount",
+      "invalidCoupon": "Invalid or inactive coupon code",
+      "checkoutFailed": "Failed to create checkout"
     },
     "Account": {
       "title": "Account Settings",

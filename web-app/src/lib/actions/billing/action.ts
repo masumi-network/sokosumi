@@ -1,5 +1,7 @@
 "use server";
 
+import { getTranslations } from "next-intl/server";
+
 import { getEnvSecrets } from "@/config/env.config";
 import { getSessionOrThrow } from "@/lib/auth/utils";
 import {
@@ -53,12 +55,13 @@ export async function purchaseCredits(
   url?: string;
   error?: string;
 }> {
+  const t = await getTranslations("App.Billing");
   try {
     // Validate input
     if (!credits || credits <= 0) {
       return {
         success: false,
-        error: "Invalid credit amount",
+        error: t("invalidCredits"),
       };
     }
 
@@ -68,9 +71,13 @@ export async function purchaseCredits(
     if (couponId) {
       // Validate and get the promotion code for this user and couponId
       const promo = await getPromotionCode(session.user.id, couponId, 1);
-      if (promo && promo.active) {
-        promotionCodeId = promo.id;
+      if (!promo || !promo.active) {
+        return {
+          success: false,
+          error: t("invalidCoupon"),
+        };
       }
+      promotionCodeId = promo.id;
     }
 
     // Create the checkout session
@@ -85,11 +92,10 @@ export async function purchaseCredits(
       success: true,
       url,
     };
-  } catch (error) {
-    console.error("Failed to create checkout session:", error);
+  } catch {
     return {
       success: false,
-      error: error instanceof Error ? error.message : "Unknown error occurred",
+      error: t("checkoutFailed"),
     };
   }
 }
