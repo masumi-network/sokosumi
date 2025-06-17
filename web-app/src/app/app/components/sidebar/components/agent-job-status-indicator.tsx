@@ -68,8 +68,6 @@ function AgentJobStatusIndicatorContent({
       return <p>{t("failed")}</p>;
     case AgentJobStatus.AWAITING_INPUT:
       return <p>{t("awaitingInput")}</p>;
-    case AgentJobStatus.AWAITING_PAYMENT:
-      return <p>{t("awaitingPayment")}</p>;
     default:
       return <p>{t("running")}</p>;
   }
