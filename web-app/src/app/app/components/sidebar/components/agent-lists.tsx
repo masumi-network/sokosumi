@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   getFavoriteAgents,
   getHiredAgentsOrderedByLatestJob,
-  getLatestJobsByAgentIds,
+  getNotFinalizedLatestJobsByAgentIds,
 } from "@/lib/services";
 import { Agent } from "@/prisma/generated/client";
 
@@ -64,8 +64,10 @@ async function AgentListsContent() {
   );
 
   const [favoriteAgentsLatestJobs, hiredAgentsLatestJobs] = await Promise.all([
-    getLatestJobsByAgentIds(favoriteAgents.map((agent) => agent.id)),
-    getLatestJobsByAgentIds(hiredAgents.map((agent) => agent.id)),
+    getNotFinalizedLatestJobsByAgentIds(
+      favoriteAgents.map((agent) => agent.id),
+    ),
+    getNotFinalizedLatestJobsByAgentIds(hiredAgents.map((agent) => agent.id)),
   ]);
 
   const agentLists = [

@@ -4,6 +4,7 @@ import { SquareTerminal } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useCallback } from "react";
 
 import {
   SidebarGroup,
@@ -39,9 +40,11 @@ export default function AgentListsClient({
   // [agentId] in params
   const { agentId } = useParams();
 
-  useJobStatusEvent((_event) => {
+  const handleJobStatusEvent = useCallback(() => {
     revalidateAppPath();
-  });
+  }, []);
+
+  useJobStatusEvent(handleJobStatusEvent);
 
   return (
     <>

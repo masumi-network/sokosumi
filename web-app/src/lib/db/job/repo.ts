@@ -282,7 +282,7 @@ export async function setNextActionToJob(
   return mapJobWithStatus(job);
 }
 
-export async function getLatestJobByAgentIdAndUserId(
+export async function getNotFinalizedLatestJobByAgentIdAndUserId(
   agentId: string,
   userId: string,
   tx: Prisma.TransactionClient = prisma,
