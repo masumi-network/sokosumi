@@ -61,15 +61,13 @@ export default function AgentList({
                       <SquareTerminal className="h-4 w-4" />
                       <span className="truncate">{getAgentName(agent)}</span>
                       {latestJobs[index] && (
-                        <span className="text-muted-foreground text-xs">
-                          <AgentJobStatusIndicator
-                            job={latestJobs[index]}
-                            className={cn("h-4 w-4", {
-                              "text-foreground": agentId === agent.id,
-                              "text-primary": agentId !== agent.id,
-                            })}
-                          />
-                        </span>
+                        <AgentJobStatusIndicator
+                          job={latestJobs[index]}
+                          className={cn("h-4 w-4", {
+                            "text-foreground": agentId === agent.id,
+                            "text-primary": agentId !== agent.id,
+                          })}
+                        />
                       )}
                     </div>
                   </Link>
