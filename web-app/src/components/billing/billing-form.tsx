@@ -29,7 +29,7 @@ import { purchaseCredits } from "@/lib/actions";
 import { getPromotionCode } from "@/lib/services/stripe/service";
 
 const billingFormSchema = z.object({
-  customAmount: z.number().min(1, "Amount must be at least 1 credit"),
+  credits: z.number().min(1, "Amount must be at least 1 credit"),
   coupon: z.string().optional(),
 });
 
@@ -52,13 +52,13 @@ export default function BillingForm({
   const form = useForm<BillingFormData>({
     resolver: zodResolver(billingFormSchema),
     defaultValues: {
-      customAmount: 0,
+      credits: 0,
       coupon: "",
     },
   });
 
   const { watch, setValue } = form;
-  const customAmount = watch("customAmount");
+  const credits = watch("credits");
 
   const onSubmit = async (data: BillingFormData) => {
     try {
@@ -70,7 +70,7 @@ export default function BillingForm({
         }
       }
       const result = await purchaseCredits(
-        data.customAmount,
+        data.credits,
         priceId,
         promotionCodeId,
       );
@@ -87,7 +87,7 @@ export default function BillingForm({
   };
 
   const handleQuickAmount = (amount: number) => {
-    setValue("customAmount", amount);
+    setValue("credits", amount);
   };
 
   return (
@@ -114,14 +114,14 @@ export default function BillingForm({
             </div>
             <FormField
               control={form.control}
-              name="customAmount"
+              name="credits"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>{t("amountToTopUpLabel")}</FormLabel>
+                  <FormLabel>{t("creditsLabel")}</FormLabel>
                   <FormControl>
                     <Input
                       type="number"
-                      placeholder={t("customAmountPlaceholder")}
+                      placeholder={t("creditsPlaceholder")}
                       min="1"
                       disabled={form.formState.isSubmitting}
                       {...field}
@@ -156,11 +156,7 @@ export default function BillingForm({
           <CardFooter className="flex items-center justify-between pt-6">
             <Button
               type="submit"
-              disabled={
-                !customAmount ||
-                customAmount <= 0 ||
-                form.formState.isSubmitting
-              }
+              disabled={!credits || credits <= 0 || form.formState.isSubmitting}
             >
               {form.formState.isSubmitting && (
                 <Loader2 className="mr-2 size-4 animate-spin" />
