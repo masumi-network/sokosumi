@@ -3,7 +3,7 @@
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.config";
-import { verifyUserId } from "@/lib/auth/utils";
+import { getSessionOrThrow, verifyUserId } from "@/lib/auth/utils";
 import {
   convertCreditsToCents,
   createFiatTransaction,
@@ -61,24 +61,21 @@ export async function createStripeCheckoutSession(
   });
 }
 
-export async function getWelcomePromotionCode(
-  userId: string,
-): Promise<Stripe.PromotionCode | null> {
+export async function getWelcomePromotionCode(): Promise<Stripe.PromotionCode | null> {
   const couponId = getEnvSecrets().STRIPE_WELCOME_COUPON;
   if (!couponId) {
     return null;
   }
-  return await getPromotionCode(userId, couponId, 1);
+  return await getPromotionCode(couponId, 1);
 }
 
-async function getPromotionCode(
-  userId: string,
+export async function getPromotionCode(
   couponId: string,
   maxRedemptions: number = 1,
   metadata?: Record<string, string>,
 ): Promise<Stripe.PromotionCode | null> {
-  await verifyUserId(userId);
-  const user = await getUserById(userId);
+  const session = await getSessionOrThrow();
+  const user = await getUserById(session.user.id);
   if (!user) {
     throw new Error("User not found");
   }

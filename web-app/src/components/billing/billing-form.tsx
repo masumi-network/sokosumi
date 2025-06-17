@@ -17,6 +17,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { purchaseCredits } from "@/lib/actions";
+import { getPromotionCode } from "@/lib/services/stripe/service";
 
 interface BillingFormProps {
   priceId: string;
@@ -32,6 +33,7 @@ export default function BillingForm({
   const t = useTranslations("App.Billing");
   const formatter = useFormatter();
   const [customAmount, setCustomAmount] = useState<number | null>(null);
+  const [coupon, setCoupon] = useState("");
   const [loading, setLoading] = useState(false);
 
   const handleTopUp = async (credits: number | null) => {
@@ -40,7 +42,14 @@ export default function BillingForm({
     }
     setLoading(true);
     try {
-      const result = await purchaseCredits(credits, priceId);
+      let promotionCodeId: string | null = null;
+      if (coupon) {
+        const promo = await getPromotionCode(coupon, 1);
+        if (promo && promo.active) {
+          promotionCodeId = promo.id;
+        }
+      }
+      const result = await purchaseCredits(credits, priceId, promotionCodeId);
 
       if (result.success && result.url) {
         window.location.href = result.url;
@@ -84,6 +93,18 @@ export default function BillingForm({
             onChange={(e) => setCustomAmount(Number(e.target.value))}
             min="1"
             disabled={loading}
+          />
+        </div>
+        <div className="space-y-2">
+          <Label htmlFor="coupon">{t("couponLabel")}</Label>
+          <Input
+            id="coupon"
+            type="text"
+            placeholder={t("couponPlaceholder")}
+            value={coupon}
+            onChange={(e) => setCoupon(e.target.value)}
+            disabled={loading}
+            autoComplete="off"
           />
         </div>
       </CardContent>

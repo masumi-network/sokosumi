@@ -692,6 +692,8 @@
       "amountToTopUpLabel": "Amount to Top Up",
       "customAmountPlaceholder": "Enter amount",
       "topUpButton": "Top Up",
+      "couponLabel": "Coupon Code",
+      "couponPlaceholder": "Enter coupon code",
       "Error": {
         "title": "Something Went Wrong",
         "message": "We encountered an error loading the billing information.",

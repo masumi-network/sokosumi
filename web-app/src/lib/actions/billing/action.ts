@@ -13,10 +13,8 @@ export async function claimFreeCredits(): Promise<{
   error?: string;
 }> {
   try {
-    // Get the current user session
     const session = await getSessionOrThrow();
-
-    const promotionCode = await getWelcomePromotionCode(session.user.id);
+    const promotionCode = await getWelcomePromotionCode();
     if (!promotionCode) {
       return {
         success: false,
@@ -48,6 +46,7 @@ export async function claimFreeCredits(): Promise<{
 export async function purchaseCredits(
   credits: number,
   priceId: string,
+  promotionCode: string | null = null,
 ): Promise<{
   success: boolean;
   url?: string;
@@ -62,7 +61,6 @@ export async function purchaseCredits(
       };
     }
 
-    // Get the current user session
     const session = await getSessionOrThrow();
 
     // Create the checkout session
@@ -70,6 +68,7 @@ export async function purchaseCredits(
       session.user.id,
       credits,
       priceId,
+      promotionCode,
     );
 
     return {
