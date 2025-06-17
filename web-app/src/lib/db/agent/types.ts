@@ -20,7 +20,7 @@ export const agentExampleOutputInclude = {
   overrideExampleOutput: true,
 } as const;
 
-export const agentJobInclude = {
+export const agentJobsInclude = {
   jobs: true,
 } as const;
 
@@ -53,7 +53,7 @@ export type AgentWithExampleOutput = Prisma.AgentGetPayload<{
 }>;
 
 export type AgentWithJobs = Prisma.AgentGetPayload<{
-  include: typeof agentJobInclude;
+  include: typeof agentJobsInclude;
 }>;
 
 export interface AgentLegal {

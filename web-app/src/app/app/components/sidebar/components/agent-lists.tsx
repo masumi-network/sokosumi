@@ -19,15 +19,15 @@ import { Agent } from "@/prisma/generated/client";
 
 import AgentList from "./agent-list";
 
-export default function AgentsList() {
+export default function AgentLists() {
   return (
-    <Suspense fallback={<AgentsListSkeleton />}>
-      <AgentsListContent />
+    <Suspense fallback={<AgentListsSkeleton />}>
+      <AgentListsContent />
     </Suspense>
   );
 }
 
-function AgentsListSkeleton() {
+function AgentListsSkeleton() {
   return (
     <ScrollArea className="h-full">
       {[1, 2].map((groupIndex) => (
@@ -53,7 +53,7 @@ function AgentsListSkeleton() {
   );
 }
 
-async function AgentsListContent() {
+async function AgentListsContent() {
   const t = await getTranslations("App.Sidebar.Content.AgentsList");
 
   const favoriteAgents = await getFavoriteAgents();
