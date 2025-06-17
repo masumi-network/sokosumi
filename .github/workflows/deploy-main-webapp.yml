@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: staging-deployment
+  cancel-in-progress: false
+
 jobs:
   deploy-app:
     name: Deploy App
@@ -19,7 +23,7 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
