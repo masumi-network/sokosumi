@@ -6,6 +6,7 @@ export const startJobInputSchema = z.object({
   userId: z.string(),
   agentId: z.string(),
   maxAcceptedCents: z.bigint(),
+  inputSchema: z.array(jobInputSchema()),
   inputData: z.map(
     z.string(),
     z.union([z.number(), z.string(), z.boolean(), z.array(z.number())]),

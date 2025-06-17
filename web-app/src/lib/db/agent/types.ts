@@ -61,9 +61,3 @@ export interface AgentLegal {
   readonly terms: string | null;
   readonly other: string | null;
 }
-
-export interface AgentAuthor {
-  readonly name: string;
-  readonly email: string | null;
-  readonly other: string | null;
-}

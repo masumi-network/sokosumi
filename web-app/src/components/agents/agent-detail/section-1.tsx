@@ -13,9 +13,9 @@ import {
   AgentWithRelations,
   convertCentsToCredits,
   CreditsPrice,
-  getAgentAuthorName,
   getAgentName,
   getAgentResolvedImage,
+  getFullAgentAuthorName,
 } from "@/lib/db";
 
 interface AgentDetailSection1Props {
@@ -75,7 +75,7 @@ function AgentDetailSection1({
                 />
               </div>
               <p className="text-muted-foreground">
-                {getAgentAuthorName(agent)}
+                {getFullAgentAuthorName(agent)}
               </p>
             </div>
           </div>
