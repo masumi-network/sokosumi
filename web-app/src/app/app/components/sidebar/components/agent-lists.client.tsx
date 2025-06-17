@@ -16,7 +16,6 @@ import {
 import useJobStatusEvent from "@/hooks/use-job-status-event";
 import { revalidateAppPath } from "@/lib/actions";
 import { getAgentName } from "@/lib/db";
-import { PayloadSchemaType } from "@/lib/db/listener/schema";
 import { cn } from "@/lib/utils";
 import { Agent, Job } from "@/prisma/generated/client";
 
@@ -40,13 +39,9 @@ export default function AgentListsClient({
   // [agentId] in params
   const { agentId } = useParams();
 
-  useJobStatusEvent((event) => {
-    handleJobStatusEvent(event);
+  useJobStatusEvent((_event) => {
+    revalidateAppPath();
   });
-
-  const handleJobStatusEvent = async (_event: PayloadSchemaType) => {
-    await revalidateAppPath();
-  };
 
   return (
     <>
