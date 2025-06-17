@@ -4,6 +4,7 @@ import { getEnvSecrets } from "@/config/env.config";
 import { getSessionOrThrow } from "@/lib/auth/utils";
 import {
   createStripeCheckoutSession,
+  getPromotionCode,
   getWelcomePromotionCode,
 } from "@/lib/services";
 
@@ -44,9 +45,9 @@ export async function claimFreeCredits(): Promise<{
 }
 
 export async function purchaseCredits(
-  credits: number,
   priceId: string,
-  promotionCode: string | null = null,
+  credits: number,
+  coupon?: string,
 ): Promise<{
   success: boolean;
   url?: string;
@@ -63,12 +64,21 @@ export async function purchaseCredits(
 
     const session = await getSessionOrThrow();
 
+    let promotionCodeId: string | null = null;
+    if (coupon) {
+      // Validate and get the promotion code for this user and coupon
+      const promo = await getPromotionCode(coupon, 1);
+      if (promo && promo.active) {
+        promotionCodeId = promo.id;
+      }
+    }
+
     // Create the checkout session
     const { url } = await createStripeCheckoutSession(
       session.user.id,
       credits,
       priceId,
-      promotionCode,
+      promotionCodeId,
     );
 
     return {

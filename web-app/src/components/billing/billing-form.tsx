@@ -26,7 +26,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { purchaseCredits } from "@/lib/actions";
-import { getPromotionCode } from "@/lib/services/stripe/service";
 
 const billingFormSchema = z.object({
   credits: z.number().min(1, "Amount must be at least 1 credit"),
@@ -62,18 +61,7 @@ export default function BillingForm({
 
   const onSubmit = async (data: BillingFormData) => {
     try {
-      let promotionCodeId: string | null = null;
-      if (data.coupon) {
-        const promo = await getPromotionCode(data.coupon, 1);
-        if (promo && promo.active) {
-          promotionCodeId = promo.id;
-        }
-      }
-      const result = await purchaseCredits(
-        data.credits,
-        priceId,
-        promotionCodeId,
-      );
+      const result = await purchaseCredits(priceId, data.credits, data.coupon);
 
       if (result.success && result.url) {
         window.location.href = result.url;
