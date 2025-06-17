@@ -24,6 +24,11 @@
           text: "Feedback and Feature Requests",
           url: "https://sokosumi.featurebase.app/",
         },
+        {
+          icon: "error",
+          text: "Report an Agentic Service",
+          url: "https://forms.gle/fKSjmnySXQFB9X749",
+        },
       ],
     });
   };
