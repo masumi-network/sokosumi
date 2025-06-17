@@ -61,12 +61,14 @@ export async function createStripeCheckoutSession(
   });
 }
 
-export async function getWelcomePromotionCode(): Promise<Stripe.PromotionCode | null> {
+export async function getWelcomePromotionCode(
+  userId: string,
+): Promise<Stripe.PromotionCode | null> {
   const couponId = getEnvSecrets().STRIPE_WELCOME_COUPON;
   if (!couponId) {
     return null;
   }
-  return await getPromotionCode(couponId, 1);
+  return await getPromotionCode(userId, couponId, 1);
 }
 
 export async function getPromotionCode(
@@ -75,6 +77,7 @@ export async function getPromotionCode(
   maxRedemptions: number = 1,
   metadata?: Record<string, string>,
 ): Promise<Stripe.PromotionCode | null> {
+  await verifyUserId(userId);
   const user = await getUserById(userId);
   if (!user) {
     throw new Error("User not found");

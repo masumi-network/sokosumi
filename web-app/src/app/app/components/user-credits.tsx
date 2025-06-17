@@ -26,7 +26,7 @@ export default async function UserCredits() {
   }
 
   const credits = await getCredits(session.user.id);
-  const promotionCode = await getWelcomePromotionCode();
+  const promotionCode = await getWelcomePromotionCode(session.user.id);
 
   return (
     <div className="flex items-center gap-4">

@@ -15,7 +15,7 @@ export async function claimFreeCredits(): Promise<{
 }> {
   try {
     const session = await getSessionOrThrow();
-    const promotionCode = await getWelcomePromotionCode();
+    const promotionCode = await getWelcomePromotionCode(session.user.id);
     if (!promotionCode) {
       return {
         success: false,
