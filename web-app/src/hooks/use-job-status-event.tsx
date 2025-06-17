@@ -9,10 +9,10 @@ export default function useJobStatusEvent(
     const eventSource = new EventSource("/api/stream/job-status");
 
     eventSource.onmessage = (payload) => {
-      console.log("🔔 Job Status Event", { payload, type: typeof payload });
-      if (typeof payload !== "string") return;
+      const { data } = payload;
+      if (typeof data !== "string") return;
       try {
-        const parsed = payloadSchema.parse(JSON.parse(payload));
+        const parsed = payloadSchema.parse(JSON.parse(data));
         onEvent(parsed);
       } catch (error) {
         console.error("Failed to parse Job Status Event", error);

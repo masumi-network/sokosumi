@@ -1,5 +1,3 @@
-"use server";
-
 import { Client } from "pg";
 
 import { getEnvSecrets } from "@/config/env.config";
@@ -36,7 +34,7 @@ export async function initJobStatusListener() {
   return;
 }
 
-export async function subscribeConnection(send: Send): Promise<() => void> {
+export function subscribeConnection(send: Send): () => void {
   connections.add(send);
   console.log("🔔 Subscribed connection", connections.size);
   return () => {

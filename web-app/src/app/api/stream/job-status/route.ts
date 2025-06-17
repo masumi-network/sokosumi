@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   const user = session.user;
 
   const stream = new ReadableStream({
-    async start(controller) {
+    start(controller) {
       const send = (payload: string) => {
         // parse data
         try {
@@ -24,14 +24,14 @@ export async function GET(req: NextRequest) {
             return;
           }
           console.log("Sending payload", { payload });
-          controller.enqueue(new TextEncoder().encode(payload));
+          controller.enqueue(new TextEncoder().encode(`data: ${payload}\n\n`));
         } catch (error) {
           console.error("🔔 Invalid Job Status notification payload", error);
         }
       };
 
       // Subscribe this client
-      const unsubscribe = await subscribeConnection(send);
+      const unsubscribe = subscribeConnection(send);
 
       req.signal.addEventListener("abort", () => {
         unsubscribe();
