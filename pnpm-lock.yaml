@@ -90,8 +90,8 @@ importers:
   sync-function:
     devDependencies:
       '@types/node':
-        specifier: 18.19.111
-        version: 18.19.111
+        specifier: 18.19.112
+        version: 18.19.112
 
   web-app:
     dependencies:
@@ -2729,8 +2729,8 @@ packages:
   '@types/mysql@2.15.26':
     resolution: {integrity: sha512-DSLCOXhkvfS5WNNPbfn2KdICAmk8lLc+/PNvnPnF7gOdMZCxopXduqv0OQ13y/yA/zXTSikZZqVgybUxOEg6YQ==}
 
-  '@types/node@18.19.111':
-    resolution: {integrity: sha512-90sGdgA+QLJr1F9X79tQuEut0gEYIfkX9pydI4XGRgvFo9g2JWswefI+WUSUHPYVBHYSEfTEqBxA5hQvAZB3Mw==}
+  '@types/node@18.19.112':
+    resolution: {integrity: sha512-i+Vukt9POdS/MBI7YrrkkI5fMfwFtOjphSmt4WXYLfwqsfr6z/HdCx7LqT9M7JktGob8WNgj8nFB4TbGNE4Cog==}
 
   '@types/node@22.15.31':
     resolution: {integrity: sha512-jnVe5ULKl6tijxUhvQeNbQG/84fHfg+yMak02cT8QVhBx/F05rAVxCGBYYTh2EKz22D6JF5ktXuNwdx7b9iEGw==}
@@ -8715,7 +8715,7 @@ snapshots:
     dependencies:
       '@types/node': 22.15.31
 
-  '@types/node@18.19.111':
+  '@types/node@18.19.112':
     dependencies:
       undici-types: 5.26.5
 
