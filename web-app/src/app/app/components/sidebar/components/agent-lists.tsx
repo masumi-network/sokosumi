@@ -18,7 +18,7 @@ import {
 } from "@/lib/services";
 import { Agent } from "@/prisma/generated/client";
 
-import AgentList from "./agent-list";
+import AgentListsClient from "./agent-lists.client";
 
 export default function AgentLists() {
   return (
@@ -68,23 +68,26 @@ async function AgentListsContent() {
     getLatestJobsByAgentIds(hiredAgents.map((agent) => agent.id)),
   ]);
 
+  const agentLists = [
+    {
+      groupKey: "favorite-agents",
+      title: t("pinnedTitle"),
+      agents: favoriteAgents,
+      latestJobs: favoriteAgentsLatestJobs,
+      noAgentsType: t("pinnedType"),
+    },
+    {
+      groupKey: "hired-agents",
+      title: t("hiredTitle"),
+      agents: hiredAgents,
+      latestJobs: hiredAgentsLatestJobs,
+      noAgentsType: t("hiredType"),
+    },
+  ];
+
   return (
     <ScrollArea className="h-full">
-      <AgentList
-        groupKey="favorite-agents"
-        title={t("pinnedTitle")}
-        agents={favoriteAgents}
-        latestJobs={favoriteAgentsLatestJobs}
-        noAgentsType={t("pinnedType")}
-      />
-
-      <AgentList
-        groupKey="hired-agents"
-        title={t("hiredTitle")}
-        agents={hiredAgents}
-        latestJobs={hiredAgentsLatestJobs}
-        noAgentsType={t("hiredType")}
-      />
+      <AgentListsClient agentLists={agentLists} />
     </ScrollArea>
   );
 }
