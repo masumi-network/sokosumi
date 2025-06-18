@@ -84,14 +84,14 @@ export async function getHiredAgents(
     where: {
       jobs: {
         some: {
-          userId: userId,
+          userId,
         },
       },
     },
     include: {
       jobs: {
         where: {
-          userId: userId,
+          userId,
         },
         orderBy: {
           startedAt: "desc",

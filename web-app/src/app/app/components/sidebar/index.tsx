@@ -8,7 +8,7 @@ import {
   SidebarHeader,
 } from "@/components/ui/sidebar";
 
-import AgentsList from "./components/agents-list";
+import AgentLists from "./components/agent-lists";
 import CustomTrigger from "./components/custom-trigger";
 import GalleryButton from "./components/gallery-button";
 
@@ -29,7 +29,7 @@ export default function Sidebar() {
         </div>
       </SidebarHeader>
       <SidebarContent className="w-full">
-        <AgentsList />
+        <AgentLists />
       </SidebarContent>
       <SidebarFooter>
         <GalleryButton />

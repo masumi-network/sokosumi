@@ -10,7 +10,13 @@ import {
   Prisma,
 } from "@/prisma/generated/client";
 
-import { jobInclude, jobOrderBy, JobStatus, JobWithRelations } from "./types";
+import {
+  finalizedOnChainJobStatuses,
+  jobInclude,
+  jobOrderBy,
+  JobStatus,
+  JobWithRelations,
+} from "./types";
 import {
   computeJobStatus,
   jobStatusToAgentJobStatus,
@@ -274,4 +280,29 @@ export async function setNextActionToJob(
     include: jobInclude,
   });
   return mapJobWithStatus(job);
+}
+
+export async function getNotFinalizedLatestJobByAgentIdAndUserId(
+  agentId: string,
+  userId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Job | null> {
+  const job = await tx.job.findFirst({
+    where: {
+      agentId,
+      userId,
+      OR: [
+        {
+          onChainStatus: {
+            notIn: finalizedOnChainJobStatuses,
+          },
+        },
+        {
+          onChainStatus: null,
+        },
+      ],
+    },
+    orderBy: { startedAt: "desc" },
+  });
+  return job;
 }

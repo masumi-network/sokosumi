@@ -34,7 +34,7 @@ export const auth = betterAuth({
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
       switch (ctx.path) {
-        case "/sign-up/email":
+        case "/sign-up/email": {
           const allowedEmailDomains = getEnvSecrets().ALLOWED_EMAIL_DOMAINS;
           if (
             allowedEmailDomains.length !== 0 &&
@@ -46,6 +46,7 @@ export const auth = betterAuth({
             });
           }
           break;
+        }
       }
     }),
   },

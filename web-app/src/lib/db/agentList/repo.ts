@@ -3,25 +3,6 @@
 import { agentListInclude, AgentListWithAgent, prisma } from "@/lib/db";
 import { AgentList, AgentListType, Prisma } from "@/prisma/generated/client";
 
-export async function getAgentLists(
-  userId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<AgentListWithAgent[]> {
-  const agentLists = await tx.agentList.findMany({
-    where: { userId },
-    include: agentListInclude,
-    orderBy: {
-      type: "asc",
-    },
-  });
-
-  if (!agentLists) {
-    return [];
-  }
-
-  return agentLists;
-}
-
 export async function createAgentList(
   userId: string,
   type: AgentListType,

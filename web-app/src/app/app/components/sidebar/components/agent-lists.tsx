@@ -14,20 +14,21 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   getFavoriteAgents,
   getHiredAgentsOrderedByLatestJob,
+  getNotFinalizedLatestJobsByAgentIds,
 } from "@/lib/services";
 import { Agent } from "@/prisma/generated/client";
 
-import AgentList from "./agent-list";
+import AgentListsClient from "./agent-lists.client";
 
-export default function AgentsList() {
+export default function AgentLists() {
   return (
-    <Suspense fallback={<AgentsListSkeleton />}>
-      <AgentsListContent />
+    <Suspense fallback={<AgentListsSkeleton />}>
+      <AgentListsContent />
     </Suspense>
   );
 }
 
-function AgentsListSkeleton() {
+function AgentListsSkeleton() {
   return (
     <ScrollArea className="h-full">
       {[1, 2].map((groupIndex) => (
@@ -53,8 +54,8 @@ function AgentsListSkeleton() {
   );
 }
 
-async function AgentsListContent() {
-  const t = await getTranslations("App.Sidebar.Content.AgentsList");
+async function AgentListsContent() {
+  const t = await getTranslations("App.Sidebar.Content.AgentLists");
 
   const favoriteAgents = await getFavoriteAgents();
   const hiredAgents = filterDuplicatedAgents(
@@ -62,21 +63,33 @@ async function AgentsListContent() {
     favoriteAgents,
   );
 
+  const [favoriteAgentsLatestJobs, hiredAgentsLatestJobs] = await Promise.all([
+    getNotFinalizedLatestJobsByAgentIds(
+      favoriteAgents.map((agent) => agent.id),
+    ),
+    getNotFinalizedLatestJobsByAgentIds(hiredAgents.map((agent) => agent.id)),
+  ]);
+
+  const agentLists = [
+    {
+      groupKey: "favorite-agents",
+      title: t("pinnedTitle"),
+      agents: favoriteAgents,
+      latestJobs: favoriteAgentsLatestJobs,
+      noAgentsType: t("pinnedType"),
+    },
+    {
+      groupKey: "hired-agents",
+      title: t("hiredTitle"),
+      agents: hiredAgents,
+      latestJobs: hiredAgentsLatestJobs,
+      noAgentsType: t("hiredType"),
+    },
+  ];
+
   return (
     <ScrollArea className="h-full">
-      <AgentList
-        groupKey="favorite-agents"
-        title={t("pinnedTitle")}
-        agents={favoriteAgents}
-        noAgentsType={t("pinnedType")}
-      />
-
-      <AgentList
-        groupKey="hired-agents"
-        title={t("hiredTitle")}
-        agents={hiredAgents}
-        noAgentsType={t("hiredType")}
-      />
+      <AgentListsClient agentLists={agentLists} />
     </ScrollArea>
   );
 }

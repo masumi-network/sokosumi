@@ -13,7 +13,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "next lint --max-warnings=0",
     "lint:report": "next lint --output-file=lint-report.json --format json",
     "test:ci": "jest --ci",
     "prepare": "prisma generate",
@@ -63,6 +63,8 @@
     "nuqs": "2.4.3",
     "p-limit": "^6.2.0",
     "p-timeout": "6.1.4",
+    "pg": "^8.16.0",
+    "radix-ui": "1.4.2",
     "react": "19.1.0",
     "react-day-picker": "9.7.0",
     "react-dom": "19.1.0",
@@ -85,11 +87,11 @@
     "use-debounce": "10.0.5",
     "uuid": "11.1.0",
     "vaul": "1.1.2",
-    "zod": "3.25.67",
-    "radix-ui": "1.4.2"
+    "zod": "3.25.67"
   },
   "devDependencies": {
     "@types/node": "22.15.31",
+    "@types/pg": "^8.15.4",
     "@types/react": "19.1.8",
     "@types/react-dom": "19.1.6",
     "@types/react-window": "1.8.8",

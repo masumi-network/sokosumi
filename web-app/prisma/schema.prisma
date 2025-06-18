@@ -328,6 +328,8 @@ model AgentList {
   userId String
   type   AgentListType
   agents Agent[]
+
+  @@unique([userId, type])
 }
 
 enum AgentListType {
