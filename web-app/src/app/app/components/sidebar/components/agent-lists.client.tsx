@@ -77,7 +77,7 @@ export default function AgentListsClient({
                         <Link href={`/app/agents/${agent.id}/jobs`}>
                           <div className="group/agent-menu flex w-full items-center gap-2">
                             <SquareTerminal className="h-4 w-4" />
-                            <span className="truncate">
+                            <span className="flex-1 truncate">
                               {getAgentName(agent)}
                             </span>
                             {latestJobs[index] && (
