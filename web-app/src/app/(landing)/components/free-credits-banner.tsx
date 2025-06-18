@@ -16,7 +16,7 @@ export function FreeCreditsBanner() {
       <span className="bg-primary shadow-primary/30 absolute -top-6 left-1/2 flex -translate-x-1/2 items-center justify-center rounded-full p-2 shadow-lg">
         <Gift className="text-primary-foreground h-7 w-7" aria-hidden="true" />
       </span>
-      <span className="text-primary mt-4 flex items-center gap-2 text-lg font-semibold">
+      <span className="text-primary dark:text-primary-foreground mt-4 flex items-center gap-2 text-lg font-semibold">
         {t("title")}
       </span>
       <a
