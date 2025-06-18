@@ -1,4 +1,5 @@
 import { Gift } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -19,20 +20,21 @@ export function FreeCreditsBanner() {
       <span className="text-primary dark:text-primary-foreground mt-4 flex items-center gap-2 text-lg font-semibold">
         {t("title")}
       </span>
-      <a
-        href="/register"
-        tabIndex={0}
-        aria-label={t("button") + " – " + t("title")}
-        className="w-full max-w-xs"
+      <Button
+        asChild
+        variant="primary"
+        size="lg"
+        className="shadow-primary/30 hover:shadow-primary/50 mt-2 w-full max-w-xs shadow-md transition-shadow duration-200 hover:shadow-lg"
       >
-        <Button
-          variant="primary"
-          size="lg"
-          className="shadow-primary/30 hover:shadow-primary/50 mt-2 w-full max-w-xs shadow-md transition-shadow duration-200 hover:shadow-lg"
+        <Link
+          href="/register"
+          tabIndex={0}
+          aria-label={t("button") + " – " + t("title")}
+          className="w-full max-w-xs"
         >
           {t("button")}
-        </Button>
-      </a>
+        </Link>
+      </Button>
     </div>
   );
 }
