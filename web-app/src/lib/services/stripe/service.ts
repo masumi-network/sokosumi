@@ -71,7 +71,7 @@ export async function getWelcomePromotionCode(
   return await getPromotionCode(userId, couponId, 1);
 }
 
-async function getPromotionCode(
+export async function getPromotionCode(
   userId: string,
   couponId: string,
   maxRedemptions: number = 1,

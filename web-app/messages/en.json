@@ -696,9 +696,11 @@
       "topUpDescription": "Add credits to your account balance.",
       "costPerCredit": "1 Credit = {cost}",
       "creditAmount": "{count, plural, =1 {# credit} other {# credits}}",
-      "amountToTopUpLabel": "Amount to Top Up",
-      "customAmountPlaceholder": "Enter amount",
+      "creditsLabel": "Credits",
+      "creditsPlaceholder": "Enter credits",
       "topUpButton": "Top Up",
+      "couponLabel": "Coupon Code",
+      "couponPlaceholder": "Enter coupon code",
       "Error": {
         "title": "Something Went Wrong",
         "message": "We encountered an error loading the billing information.",
@@ -718,7 +720,10 @@
       "FreeClaim": {
         "button": "Get 100 free credits",
         "error": "Failed to claim free credits"
-      }
+      },
+      "invalidCredits": "Invalid credit amount",
+      "invalidCoupon": "Invalid or inactive coupon code",
+      "checkoutFailed": "Failed to create checkout"
     },
     "Account": {
       "title": "Account Settings",
