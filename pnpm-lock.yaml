@@ -51,8 +51,8 @@ importers:
         specifier: 1.6.1
         version: 1.6.1
       eslint-plugin-prettier:
-        specifier: 5.4.1
-        version: 5.4.1(@types/eslint@9.6.1)(eslint-config-prettier@10.1.5(eslint@9.29.0(jiti@2.4.2)))(eslint@9.29.0(jiti@2.4.2))(prettier@3.5.3)
+        specifier: 5.5.0
+        version: 5.5.0(@types/eslint@9.6.1)(eslint-config-prettier@10.1.5(eslint@9.29.0(jiti@2.4.2)))(eslint@9.29.0(jiti@2.4.2))(prettier@3.5.3)
       eslint-plugin-simple-import-sort:
         specifier: 12.1.1
         version: 12.1.1(eslint@9.29.0(jiti@2.4.2))
@@ -3719,8 +3719,8 @@ packages:
   eslint-plugin-no-relative-import-paths@1.6.1:
     resolution: {integrity: sha512-YZNeOnsOrJcwhFw0X29MXjIzu2P/f5X2BZDPWw1R3VUYBRFxNIh77lyoL/XrMU9ewZNQPcEvAgL/cBOT1P330A==}
 
-  eslint-plugin-prettier@5.4.1:
-    resolution: {integrity: sha512-9dF+KuU/Ilkq27A8idRP7N2DH8iUR6qXcjF3FR2wETY21PZdBrIjwCau8oboyGj9b7etWmTGEeM8e7oOed6ZWg==}
+  eslint-plugin-prettier@5.5.0:
+    resolution: {integrity: sha512-8qsOYwkkGrahrgoUv76NZi23koqXOGiiEzXMrT8Q7VcYaUISR+5MorIUxfWqYXN0fN/31WbSrxCxFkVQ43wwrA==}
     engines: {node: ^14.18.0 || >=16.0.0}
     peerDependencies:
       '@types/eslint': '>=8.0.0'
@@ -5757,8 +5757,8 @@ packages:
       uglify-js:
         optional: true
 
-  terser@5.42.0:
-    resolution: {integrity: sha512-UYCvU9YQW2f/Vwl+P0GfhxJxbUGLwd+5QrrGgLajzWAtC/23AX0vcise32kkP7Eu0Wu9VlzzHAXkLObgjQfFlQ==}
+  terser@5.43.0:
+    resolution: {integrity: sha512-CqNNxKSGKSZCunSvwKLTs8u8sGGlp27sxNZ4quGh0QeNuyHM0JSEM/clM9Mf4zUp6J+tO2gUXhgXT2YMMkwfKQ==}
     engines: {node: '>=10'}
     hasBin: true
 
@@ -9886,7 +9886,7 @@ snapshots:
 
   eslint-plugin-no-relative-import-paths@1.6.1: {}
 
-  eslint-plugin-prettier@5.4.1(@types/eslint@9.6.1)(eslint-config-prettier@10.1.5(eslint@9.29.0(jiti@2.4.2)))(eslint@9.29.0(jiti@2.4.2))(prettier@3.5.3):
+  eslint-plugin-prettier@5.5.0(@types/eslint@9.6.1)(eslint-config-prettier@10.1.5(eslint@9.29.0(jiti@2.4.2)))(eslint@9.29.0(jiti@2.4.2))(prettier@3.5.3):
     dependencies:
       eslint: 9.29.0(jiti@2.4.2)
       prettier: 3.5.3
@@ -12175,12 +12175,12 @@ snapshots:
       jest-worker: 27.5.1
       schema-utils: 4.3.2
       serialize-javascript: 6.0.2
-      terser: 5.42.0
+      terser: 5.43.0
       webpack: 5.99.9(@swc/core@1.12.1(@swc/helpers@0.5.17))
     optionalDependencies:
       '@swc/core': 1.12.1(@swc/helpers@0.5.17)
 
-  terser@5.42.0:
+  terser@5.43.0:
     dependencies:
       '@jridgewell/source-map': 0.3.6
       acorn: 8.15.0
