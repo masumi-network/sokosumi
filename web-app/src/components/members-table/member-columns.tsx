@@ -7,6 +7,7 @@ import { DataTableColumnHeader } from "@/components/data-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import { Member } from "@/prisma/generated/client";
 
+import InvitationActionsDropdown from "./invitation-actions-dropdown";
 import MemberActionsDropdown from "./member-actions-dropdown";
 import { MemberRowData } from "./types";
 
@@ -59,9 +60,14 @@ export function getMemberColumns(
       maxSize: 80,
       header: () => <div>{t("Header.actions")}</div>,
       cell: ({ row }) => {
-        if (row.original.member) {
+        if (!!row.original.member) {
           return row.original.member.id === me.id ? null : (
             <MemberActionsDropdown member={row.original.member} />
+          );
+        }
+        if (!!row.original.invitation) {
+          return (
+            <InvitationActionsDropdown invitation={row.original.invitation} />
           );
         }
         return null;

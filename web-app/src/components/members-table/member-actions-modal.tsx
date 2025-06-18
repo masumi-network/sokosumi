@@ -20,7 +20,7 @@ import {
 } from "./member-actions-modal-context";
 
 export default function MemberActionsModal() {
-  const t = useTranslations("Components.MembersTable.Actions.Modal");
+  const t = useTranslations("Components.MembersTable.MemberActions.Modal");
 
   const {
     open,

@@ -74,5 +74,6 @@ function convertInvitationToMemberRowData(
   return {
     email: invitation.email,
     role: MemberRole.PENDING,
+    invitation,
   };
 }

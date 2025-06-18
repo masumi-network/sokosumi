@@ -53,7 +53,7 @@ export function MemberActionsModalContextProvider({
 }: {
   children: React.ReactNode;
 }) {
-  const t = useTranslations("Components.MembersTable.Actions.Modal");
+  const t = useTranslations("Components.MembersTable.MemberActions.Modal");
 
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
