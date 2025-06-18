@@ -59,7 +59,7 @@ function AgentJobStatusIndicatorContent({
 }: {
   status: AgentJobStatus | null;
 }) {
-  const t = useTranslations("App.Sidebar.Content.AgentsList.Statuses");
+  const t = useTranslations("App.Sidebar.Content.AgentLists.Statuses");
 
   switch (status) {
     case AgentJobStatus.COMPLETED:
@@ -67,8 +67,10 @@ function AgentJobStatusIndicatorContent({
     case AgentJobStatus.FAILED:
       return <p>{t("failed")}</p>;
     case AgentJobStatus.AWAITING_INPUT:
-      return <p>{t("awaitingInput")}</p>;
+      return <p>{t("inputRequired")}</p>;
+    case AgentJobStatus.AWAITING_PAYMENT:
+      return <p>{t("paymentProcessing")}</p>;
     default:
-      return <p>{t("running")}</p>;
+      return <p>{t("processing")}</p>;
   }
 }

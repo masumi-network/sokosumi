@@ -55,7 +55,7 @@ function AgentListsSkeleton() {
 }
 
 async function AgentListsContent() {
-  const t = await getTranslations("App.Sidebar.Content.AgentsList");
+  const t = await getTranslations("App.Sidebar.Content.AgentLists");
 
   const favoriteAgents = await getFavoriteAgents();
   const hiredAgents = filterDuplicatedAgents(

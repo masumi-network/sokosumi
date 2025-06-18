@@ -35,7 +35,7 @@ interface AgentListsClientProps {
 export default function AgentListsClient({
   agentLists,
 }: AgentListsClientProps) {
-  const t = useTranslations("App.Sidebar.Content.AgentsList");
+  const t = useTranslations("App.Sidebar.Content.AgentLists");
 
   // [agentId] in params
   const { agentId } = useParams();
