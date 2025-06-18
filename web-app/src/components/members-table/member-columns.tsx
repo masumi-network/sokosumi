@@ -5,39 +5,39 @@ import { useTranslations } from "next-intl";
 
 import { DataTableColumnHeader } from "@/components/data-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
-import { MemberWithUser } from "@/lib/db";
 import { Member } from "@/prisma/generated/client";
 
 import MemberRowActionsDropdown from "./member-row-actions-dropdown";
+import { MemberRowData } from "./types";
 
-const columnHelper = createColumnHelper<MemberWithUser>();
+const columnHelper = createColumnHelper<MemberRowData>();
 
 export function getMemberColumns(
   t: ReturnType<typeof useTranslations>,
   me: Member,
 ) {
   return {
-    nameColumn: columnHelper.accessor("user.name", {
+    nameColumn: columnHelper.accessor("name", {
       id: "name",
       minSize: 160,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("Header.name")} />
       ),
-      cell: ({ row }) => <div className="p-2">{row.original.user.name}</div>,
+      cell: ({ row }) => <div className="p-2">{row.original.name}</div>,
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<MemberWithUser>,
+    }) as ColumnDef<MemberRowData>,
 
-    emailColumn: columnHelper.accessor("user.email", {
+    emailColumn: columnHelper.accessor("email", {
       id: "email",
       minSize: 240,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("Header.email")} />
       ),
-      cell: ({ row }) => <div>{row.original.user.email}</div>,
+      cell: ({ row }) => <div className="p-2">{row.original.email}</div>,
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<MemberWithUser>,
+    }) as ColumnDef<MemberRowData>,
 
     roleColumn: columnHelper.accessor("role", {
       id: "role",
@@ -46,22 +46,26 @@ export function getMemberColumns(
         <DataTableColumnHeader column={column} title={t("Header.role")} />
       ),
       cell: ({ row }) => (
-        <div>
+        <div className="p-2">
           <OrganizationRoleBadge role={row.original.role} />
         </div>
       ),
       enableSorting: true,
       enableHiding: false,
-    }) as ColumnDef<MemberWithUser>,
+    }) as ColumnDef<MemberRowData>,
 
     actionColumn: columnHelper.display({
       id: "actions",
       maxSize: 80,
       header: () => <div>{t("Header.actions")}</div>,
-      cell: ({ row }) =>
-        row.original.id === me.id ? null : (
-          <MemberRowActionsDropdown member={row.original} />
-        ),
-    }) as ColumnDef<MemberWithUser>,
+      cell: ({ row }) => {
+        if (row.original.member) {
+          return row.original.member.id === me.id ? null : (
+            <MemberRowActionsDropdown member={row.original.member} />
+          );
+        }
+        return null;
+      },
+    }) as ColumnDef<MemberRowData>,
   };
 }

@@ -4,6 +4,7 @@ export enum MemberRole {
   ADMIN = "admin",
   OWNER = "owner",
   MEMBER = "member",
+  PENDING = "pending",
 }
 
 export const organizationMembersCountInclude = {

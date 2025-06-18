@@ -153,7 +153,8 @@
     "Organizations": {
       "Role": {
         "admin": "Admin",
-        "member": "Member"
+        "member": "Member",
+        "pending": "Pending"
       },
       "RequiredEmailDomains": {
         "allowAll": "Allow all email domains"

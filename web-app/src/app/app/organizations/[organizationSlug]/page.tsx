@@ -8,6 +8,7 @@ import { getOrganizationBySlug, MemberRole } from "@/lib/db";
 import {
   getMyMemberInOrganization,
   getOrganizationMembersWithUser,
+  getOrganizationPendingInvitations,
 } from "@/lib/services";
 
 import OrganizationInformation from "./components/organization-information";
@@ -56,6 +57,9 @@ export default async function OrganizationPage({
   }
 
   const members = await getOrganizationMembersWithUser(organization.id, true);
+  const pendingInvitations = await getOrganizationPendingInvitations(
+    organization.id,
+  );
 
   return (
     <div className="container flex flex-col gap-8 p-8">
@@ -70,7 +74,11 @@ export default async function OrganizationPage({
           <OrganizationInviteButton organizationId={organization.id} />
         )}
       </div>
-      <MembersTable members={members} me={member} />
+      <MembersTable
+        me={member}
+        members={members}
+        pendingInvitations={pendingInvitations}
+      />
     </div>
   );
 }

@@ -9,9 +9,10 @@ import {
   getMembersWithOrganizationByUserId,
   getMembersWithUser,
   getOrganizationBySlug,
+  getPendingInvitationsByOrganizationId,
   MemberWithOrganization,
 } from "@/lib/db";
-import { Member } from "@/prisma/generated/client";
+import { Invitation, Member } from "@/prisma/generated/client";
 
 /**
  * Generates a unique, URL-friendly slug for an organization based on its name.
@@ -119,4 +120,22 @@ export async function getOrganizationMembersWithUser(
   );
 
   return members;
+}
+
+export async function getOrganizationPendingInvitations(
+  organizationId: string,
+): Promise<Invitation[]> {
+  const session = await getSessionOrThrow();
+  const userId = session.user.id;
+
+  const myMemberInOrganization = await getMemberByUserIdAndOrganizationId(
+    userId,
+    organizationId,
+  );
+  if (!myMemberInOrganization) {
+    console.error("You are not the member of the organization");
+    throw new Error("NOT_AUTHORIZED");
+  }
+
+  return await getPendingInvitationsByOrganizationId(organizationId);
 }

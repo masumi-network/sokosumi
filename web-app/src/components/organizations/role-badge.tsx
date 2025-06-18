@@ -14,5 +14,9 @@ export function OrganizationRoleBadge({ role }: { role: string | null }) {
     return <Badge variant="outline">{t("member")}</Badge>;
   }
 
+  if (role === MemberRole.PENDING) {
+    return <Badge variant="outline">{t("pending")}</Badge>;
+  }
+
   return null;
 }

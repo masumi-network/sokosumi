@@ -25,3 +25,12 @@ export async function updatePendingInvitationsByEmailAndOrganizationId(
     data: { status: "accepted" },
   });
 }
+
+export async function getPendingInvitationsByOrganizationId(
+  organizationId: string,
+  tx: Prisma.TransactionClient = prisma,
+) {
+  return tx.invitation.findMany({
+    where: { organizationId, status: "pending" },
+  });
+}
