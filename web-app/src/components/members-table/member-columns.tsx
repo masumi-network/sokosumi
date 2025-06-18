@@ -60,15 +60,14 @@ export function getMemberColumns(
       maxSize: 80,
       header: () => <div>{t("Header.actions")}</div>,
       cell: ({ row }) => {
-        if (!!row.original.member) {
-          return row.original.member.id === me.id ? null : (
-            <MemberActionsDropdown member={row.original.member} />
+        const { member, invitation } = row.original;
+        if (member) {
+          return member.id === me.id ? null : (
+            <MemberActionsDropdown member={member} />
           );
         }
-        if (!!row.original.invitation) {
-          return (
-            <InvitationActionsDropdown invitation={row.original.invitation} />
-          );
+        if (invitation) {
+          return <InvitationActionsDropdown invitation={invitation} />;
         }
         return null;
       },
