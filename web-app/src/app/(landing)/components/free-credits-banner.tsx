@@ -7,7 +7,7 @@ export function FreeCreditsBanner() {
   const t = useTranslations("Landing.Page.FreeCreditsBanner");
   return (
     <div
-      className="border-primary from-primary/10 via-background to-primary/5 group relative mt-4 flex w-full max-w-md flex-col items-center gap-3 rounded-2xl border-2 bg-gradient-to-br px-8 py-6 shadow-xl transition-transform duration-200 focus-within:scale-[1.025] hover:scale-[1.025]"
+      className="border-primary from-primary/10 via-background/70 to-primary/5 group relative mt-4 flex w-full max-w-md flex-col items-center gap-3 rounded-2xl border-2 bg-gradient-to-br px-8 py-6 shadow-xl transition-transform duration-200 focus-within:scale-[1.025] hover:scale-[1.025]"
       role="region"
       aria-label={t("title")}
       tabIndex={-1}
@@ -20,7 +20,7 @@ export function FreeCreditsBanner() {
         {t("title")}
       </span>
       <a
-        href="/auth/sign-up"
+        href="/register"
         tabIndex={0}
         aria-label={t("button") + " – " + t("title")}
         className="w-full max-w-xs"
