@@ -17,6 +17,7 @@ import {
 import useJobStatusEvent from "@/hooks/use-job-status-event";
 import { revalidateAppPath } from "@/lib/actions";
 import { getAgentName } from "@/lib/db";
+import { PayloadSchemaType } from "@/lib/db/listener/schema";
 import { cn } from "@/lib/utils";
 import { Agent, Job } from "@/prisma/generated/client";
 
@@ -40,7 +41,10 @@ export default function AgentListsClient({
   // [agentId] in params
   const { agentId } = useParams();
 
-  const handleJobStatusEvent = useCallback(() => {
+  const handleJobStatusEvent = useCallback((_event: PayloadSchemaType) => {
+    // NOTE:
+    // for now just revalidate the app path
+    // this will re-fetch all agent lists with latest jobs
     revalidateAppPath();
   }, []);
 
