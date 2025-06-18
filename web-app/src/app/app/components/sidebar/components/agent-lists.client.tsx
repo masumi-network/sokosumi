@@ -2,7 +2,7 @@
 
 import { SquareTerminal } from "lucide-react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useCallback } from "react";
 
@@ -15,7 +15,6 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import useJobStatusEvent from "@/hooks/use-job-status-event";
-import { revalidateAppPath } from "@/lib/actions";
 import { getAgentName } from "@/lib/db";
 import { PayloadSchemaType } from "@/lib/db/listener/schema";
 import { cn } from "@/lib/utils";
@@ -38,15 +37,20 @@ export default function AgentListsClient({
 }: AgentListsClientProps) {
   const t = useTranslations("App.Sidebar.Content.AgentLists");
 
+  const router = useRouter();
+
   // [agentId] in params
   const { agentId } = useParams();
 
-  const handleJobStatusEvent = useCallback((_event: PayloadSchemaType) => {
-    // NOTE:
-    // for now just revalidate the app path
-    // this will re-fetch all agent lists with latest jobs
-    revalidateAppPath();
-  }, []);
+  const handleJobStatusEvent = useCallback(
+    (_event: PayloadSchemaType) => {
+      // NOTE:
+      // for now just revalidate the app path
+      // this will re-fetch all agent lists with latest jobs
+      router.refresh();
+    },
+    [router],
+  );
 
   useJobStatusEvent(handleJobStatusEvent);
 
