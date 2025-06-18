@@ -13,7 +13,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Invitation } from "@/prisma/generated/client";
 
 import { useInvitationActionsModalContext } from "./invitation-actions-modal-context";
 
@@ -34,7 +33,7 @@ export default function InvitationActionsModal() {
 
   const getDescription = () => {
     if (!selectedItem) return "";
-    const { email } = selectedItem as Invitation;
+    const { email } = selectedItem;
     return t("description", { email });
   };
 

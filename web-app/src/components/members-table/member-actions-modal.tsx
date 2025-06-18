@@ -22,14 +22,8 @@ import {
 export default function MemberActionsModal() {
   const t = useTranslations("Components.MembersTable.MemberActions.Modal");
 
-  const {
-    open,
-    setOpen,
-    loading,
-    selectedMember,
-    selectedAction,
-    startAction,
-  } = useMemberActionsModalContext();
+  const { open, setOpen, loading, selectedItem, selectedAction, startAction } =
+    useMemberActionsModalContext();
 
   const handleOnOpenChange = (open: boolean) => {
     if (loading) {
@@ -52,8 +46,8 @@ export default function MemberActionsModal() {
   };
 
   const getDescription = () => {
-    if (!selectedMember) return "";
-    const { name } = selectedMember.user;
+    if (!selectedItem) return "";
+    const { name } = selectedItem.user;
     if (selectedAction === MemberAction.REMOVE) {
       return t("removeDescription", { member: name });
     }
