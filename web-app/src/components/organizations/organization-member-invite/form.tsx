@@ -1,6 +1,7 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { UseFormReturn } from "react-hook-form";
 import { toast } from "sonner";
@@ -25,6 +26,8 @@ export default function OrganizationMemberInviteForm({
   onOpenChange,
 }: OrganizationMemberInviteFormProps) {
   const t = useTranslations("Components.Organizations.InviteMemberModal.Form");
+
+  const router = useRouter();
 
   const onSubmit = async (values: InviteFormSchemaType) => {
     await authClient.organization.inviteMember(
@@ -53,6 +56,7 @@ export default function OrganizationMemberInviteForm({
         onSuccess: () => {
           toast.success(t("success"));
           onOpenChange(false);
+          router.refresh();
         },
       },
     );

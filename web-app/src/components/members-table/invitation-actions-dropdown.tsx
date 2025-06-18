@@ -15,6 +15,8 @@ import { authClient } from "@/lib/auth/auth.client";
 import { MemberRole } from "@/lib/db";
 import { Invitation } from "@/prisma/generated/client";
 
+import { useInvitationActionsModalContext } from "./invitation-actions-modal-context";
+
 interface InvitationActionsDropdownProps {
   invitation: Invitation;
 }
@@ -25,14 +27,14 @@ export default function InvitationActionsDropdown({
   const t = useTranslations("Components.MembersTable.InvitationActions");
   const { email, organizationId } = invitation;
 
+  const { openActionModal } = useInvitationActionsModalContext();
+
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const [action, setAction] = useState<"resend" | "cancel" | null>(null);
   const [loading, setLoading] = useState(false);
 
   const handleResend = async () => {
     setLoading(true);
-    setAction("resend");
     await authClient.organization.inviteMember(
       {
         email,
@@ -43,38 +45,20 @@ export default function InvitationActionsDropdown({
       {
         onError: ({ error }) => {
           console.error("Failed to resend invitation", error);
-          toast.error(t("Errors.resendError"));
+          toast.error(t("resendError"));
         },
         onSuccess: () => {
-          toast.success(t("Successes.resendSuccess"));
+          toast.success(t("resendSuccess"));
+          router.refresh();
         },
       },
     );
     setLoading(false);
     setOpen(false);
-    router.refresh();
   };
 
-  const handleCancel = async () => {
-    setLoading(true);
-    setAction("cancel");
-    await authClient.organization.cancelInvitation(
-      {
-        invitationId: invitation.id,
-      },
-      {
-        onError: ({ error }) => {
-          console.log("Failed to cancel invitation", error);
-          toast.error(t("Errors.resendError"));
-        },
-        onSuccess: () => {
-          toast.success(t("Successes.resendSuccess"));
-        },
-      },
-    );
-    setLoading(false);
-    setOpen(false);
-    router.refresh();
+  const handleCancel = () => {
+    openActionModal(invitation);
   };
 
   const handleOpenChange = (open: boolean) => {
@@ -93,9 +77,7 @@ export default function InvitationActionsDropdown({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
         <DropdownMenuItem onClick={handleResend} disabled={loading}>
-          {loading && action === "resend" && (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          )}
+          {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
           {t("resend")}
         </DropdownMenuItem>
         <DropdownMenuItem
@@ -103,9 +85,6 @@ export default function InvitationActionsDropdown({
           onClick={handleCancel}
           disabled={loading}
         >
-          {loading && action === "cancel" && (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          )}
           {t("cancel")}
         </DropdownMenuItem>
       </DropdownMenuContent>

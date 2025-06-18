@@ -146,14 +146,16 @@
       "InvitationActions": {
         "resend": "Resend Invitation",
         "cancel": "Cancel Invitation",
-        "Successes": {
-          "resendSuccess": "Invitation resent successfully",
-          "cancelSuccess": "Invitation canceled successfully"
+        "CancelModal": {
+          "title": "Cancel Invitation",
+          "description": "Are you sure you want to cancel the invitation of {email}?",
+          "confirm": "Confirm",
+          "cancel": "Cancel",
+          "success": "Invitation canceled successfully",
+          "error": "Failed to cancel invitation"
         },
-        "Errors": {
-          "resendError": "Failed to resend invitation",
-          "cancelError": "Failed to cancel invitation"
-        }
+        "resendSuccess": "Invitation resent successfully",
+        "resendError": "Failed to resend invitation"
       }
     },
     "Breadcrumb": {

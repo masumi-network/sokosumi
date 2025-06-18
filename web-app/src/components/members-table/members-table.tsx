@@ -7,6 +7,8 @@ import { MemberRole, MemberWithUser } from "@/lib/db";
 import { cn } from "@/lib/utils";
 import { Invitation, Member } from "@/prisma/generated/client";
 
+import InvitationActionsModal from "./invitation-actions-modal";
+import { InvitationActionsModalContextProvider } from "./invitation-actions-modal-context";
 import MemberActionsModal from "./member-actions-modal";
 import { MemberActionsModalContextProvider } from "./member-actions-modal-context";
 import { getMemberColumns } from "./member-columns";
@@ -27,13 +29,19 @@ export default function MembersTable({
 
   return (
     <MemberActionsModalContextProvider>
-      <DataTable
-        columns={getColumns(t, me)}
-        data={combineMembersAndPendingInvitations(members, pendingInvitations)}
-        rowClassName={() => "text-foreground active:bg-muted hover:bg-muted"}
-        containerClassName={cn("w-full rounded-xl bg-muted/50")}
-      />
-      <MemberActionsModal />
+      <InvitationActionsModalContextProvider>
+        <DataTable
+          columns={getColumns(t, me)}
+          data={combineMembersAndPendingInvitations(
+            members,
+            pendingInvitations,
+          )}
+          rowClassName={() => "text-foreground active:bg-muted hover:bg-muted"}
+          containerClassName={cn("w-full rounded-xl bg-muted/50")}
+        />
+        <MemberActionsModal />
+        <InvitationActionsModal />
+      </InvitationActionsModalContextProvider>
     </MemberActionsModalContextProvider>
   );
 }
