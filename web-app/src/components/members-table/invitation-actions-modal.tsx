@@ -13,6 +13,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Invitation } from "@/prisma/generated/client";
 
 import { useInvitationActionsModalContext } from "./invitation-actions-modal-context";
 
@@ -21,7 +22,7 @@ export default function InvitationActionsModal() {
     "Components.MembersTable.InvitationActions.CancelModal",
   );
 
-  const { open, setOpen, loading, selectedInvitation, startAction } =
+  const { open, setOpen, loading, selectedItem, startAction } =
     useInvitationActionsModalContext();
 
   const handleOnOpenChange = (open: boolean) => {
@@ -32,8 +33,8 @@ export default function InvitationActionsModal() {
   };
 
   const getDescription = () => {
-    if (!selectedInvitation) return "";
-    const { email } = selectedInvitation;
+    if (!selectedItem) return "";
+    const { email } = selectedItem as Invitation;
     return t("description", { email });
   };
 
