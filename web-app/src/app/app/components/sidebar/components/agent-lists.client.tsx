@@ -76,7 +76,8 @@ export default function AgentListsClient({
                               <AgentJobStatusIndicator
                                 job={latestJobs[index]}
                                 className={cn("h-4 w-4", {
-                                  "text-foreground": agentId === agent.id,
+                                  "text-primary-foreground":
+                                    agentId === agent.id,
                                   "text-primary": agentId !== agent.id,
                                 })}
                               />
