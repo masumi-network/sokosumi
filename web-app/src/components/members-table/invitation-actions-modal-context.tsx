@@ -2,126 +2,67 @@
 
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { createContext, useContext, useState } from "react";
+import { ReactNode } from "react";
 import { toast } from "sonner";
 
+import { createModalContext } from "@/components/common/modal-context";
 import { authClient } from "@/lib/auth/auth.client";
 import { Invitation } from "@/prisma/generated/client";
 
-interface InvitationActionsModalContextType {
-  // modal
-  open: boolean;
-  setOpen: (open: boolean) => void;
-
-  // loading
-  loading: boolean;
-  setLoading: (loading: boolean) => void;
-
-  // selected member and action
-  selectedInvitation: Invitation | null;
-
-  // functions
-  openActionModal: (invitation: Invitation) => void;
-  closeActionModal: () => void;
-  startAction: () => Promise<void>;
+export enum InvitationAction {
+  CANCEL = "CANCEL",
 }
 
-const initialState: InvitationActionsModalContextType = {
-  open: false,
-  setOpen: () => {},
-  loading: false,
-  setLoading: () => {},
-  selectedInvitation: null,
-  openActionModal: () => {},
-  closeActionModal: () => {},
-  startAction: async () => {},
-};
-
-export const InvitationActionsModalContext =
-  createContext<InvitationActionsModalContextType>(initialState);
+const {
+  Provider: InvitationActionsModalContextProviderBase,
+  useModalContext: useInvitationActionsModalContextBase,
+} = createModalContext<Invitation, InvitationAction>();
 
 export function InvitationActionsModalContextProvider({
   children,
 }: {
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   const t = useTranslations(
     "Components.MembersTable.InvitationActions.CancelModal",
   );
-
   const router = useRouter();
-  const [open, setOpen] = useState(false);
-  const [loading, setLoading] = useState(false);
 
-  const [selectedInvitation, setSelectedInvitation] =
-    useState<Invitation | null>(null);
-
-  const openActionModal = (invitation: Invitation) => {
-    if (open) {
-      return;
+  async function onAction(invitation: Invitation, action: InvitationAction) {
+    switch (action) {
+      case InvitationAction.CANCEL:
+        return await new Promise<{ error?: unknown }>((resolve) => {
+          authClient.organization.cancelInvitation(
+            { invitationId: invitation.id },
+            {
+              onError: ({ error }) => resolve({ error }),
+              onSuccess: () => resolve({}),
+            },
+          );
+        });
     }
+  }
 
-    setSelectedInvitation(invitation);
-    setOpen(true);
-  };
+  function onSuccess() {
+    toast.success(t("success"));
+    router.refresh();
+  }
 
-  const closeActionModal = () => {
-    if (loading) {
-      return;
-    }
-
-    setSelectedInvitation(null);
-    setOpen(false);
-  };
-
-  const startAction = async () => {
-    if (!selectedInvitation) {
-      return;
-    }
-    setLoading(true);
-    await authClient.organization.cancelInvitation(
-      {
-        invitationId: selectedInvitation.id,
-      },
-      {
-        onError: ({ error }) => {
-          console.log("Failed to cancel invitation", error);
-          toast.error(t("error"));
-        },
-        onSuccess: () => {
-          toast.success(t("success"));
-          router.refresh();
-          setOpen(false);
-        },
-      },
-    );
-    setLoading(false);
-  };
-
-  const value: InvitationActionsModalContextType = {
-    open,
-    setOpen,
-    loading,
-    setLoading,
-    selectedInvitation,
-    openActionModal,
-    closeActionModal,
-    startAction,
-  };
+  function onError(_action: InvitationAction, _error: unknown) {
+    toast.error(t("error"));
+  }
 
   return (
-    <InvitationActionsModalContext.Provider value={value}>
+    <InvitationActionsModalContextProviderBase
+      onAction={onAction}
+      onSuccess={onSuccess}
+      onError={onError}
+    >
       {children}
-    </InvitationActionsModalContext.Provider>
+    </InvitationActionsModalContextProviderBase>
   );
 }
 
 export function useInvitationActionsModalContext() {
-  const context = useContext(InvitationActionsModalContext);
-  if (!context) {
-    throw new Error(
-      "useInvitationActionsModal must be used within a InvitationActionsModalProvider",
-    );
-  }
-  return context;
+  return useInvitationActionsModalContextBase();
 }

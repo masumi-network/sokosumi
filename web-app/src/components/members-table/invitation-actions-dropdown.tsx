@@ -15,7 +15,10 @@ import { authClient } from "@/lib/auth/auth.client";
 import { MemberRole } from "@/lib/db";
 import { Invitation } from "@/prisma/generated/client";
 
-import { useInvitationActionsModalContext } from "./invitation-actions-modal-context";
+import {
+  InvitationAction,
+  useInvitationActionsModalContext,
+} from "./invitation-actions-modal-context";
 
 interface InvitationActionsDropdownProps {
   invitation: Invitation;
@@ -58,7 +61,7 @@ export default function InvitationActionsDropdown({
   };
 
   const handleCancel = () => {
-    openActionModal(invitation);
+    openActionModal(invitation, InvitationAction.CANCEL);
   };
 
   const handleOpenChange = (open: boolean) => {
