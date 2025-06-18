@@ -674,12 +674,19 @@
     },
     "Sidebar": {
       "Content": {
-        "AgentsList": {
+        "AgentLists": {
           "pinnedTitle": "Your Pinned Agents",
           "hiredTitle": "Your Hired Agents",
           "noAgents": "No {type} agents yet",
           "pinnedType": "pinned",
-          "hiredType": "hired"
+          "hiredType": "hired",
+          "Statuses": {
+            "completed": "Completed",
+            "failed": "Failed",
+            "inputRequired": "Input Required",
+            "paymentProcessing": "Payment Processing",
+            "processing": "Processing"
+          }
         }
       },
       "Footer": {
