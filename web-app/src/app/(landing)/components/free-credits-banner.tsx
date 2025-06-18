@@ -8,7 +8,7 @@ export function FreeCreditsBanner() {
   const t = useTranslations("Landing.Page.FreeCreditsBanner");
   return (
     <div
-      className="border-primary from-primary/10 via-background/70 to-primary/5 group relative mt-4 flex w-full max-w-md flex-col items-center gap-3 rounded-2xl border-2 bg-gradient-to-br px-8 py-6 shadow-xl transition-transform duration-200 focus-within:scale-[1.025] hover:scale-[1.025]"
+      className="border-primary from-primary/10 via-background/70 to-primary/5 group relative mt-4 flex w-full max-w-md flex-col items-center gap-3 rounded-2xl border-2 bg-gradient-to-br px-8 py-6 shadow-xl transition-transform duration-200 will-change-transform focus-within:scale-[1.025] hover:scale-[1.025]"
       role="region"
       aria-label={t("title")}
       tabIndex={-1}
@@ -20,12 +20,7 @@ export function FreeCreditsBanner() {
       <span className="text-primary dark:text-primary-foreground mt-4 flex items-center gap-2 text-lg font-semibold">
         {t("title")}
       </span>
-      <Button
-        asChild
-        variant="primary"
-        size="lg"
-        className="shadow-primary/30 hover:shadow-primary/50 mt-2 w-full max-w-xs shadow-md transition-shadow duration-200 hover:shadow-lg"
-      >
+      <Button asChild variant="primary" size="lg">
         <Link
           href="/register"
           tabIndex={0}
