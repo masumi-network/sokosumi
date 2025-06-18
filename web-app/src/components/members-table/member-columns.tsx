@@ -7,7 +7,7 @@ import { DataTableColumnHeader } from "@/components/data-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import { Member } from "@/prisma/generated/client";
 
-import MemberRowActionsDropdown from "./member-row-actions-dropdown";
+import MemberActionsDropdown from "./member-actions-dropdown";
 import { MemberRowData } from "./types";
 
 const columnHelper = createColumnHelper<MemberRowData>();
@@ -61,7 +61,7 @@ export function getMemberColumns(
       cell: ({ row }) => {
         if (row.original.member) {
           return row.original.member.id === me.id ? null : (
-            <MemberRowActionsDropdown member={row.original.member} />
+            <MemberActionsDropdown member={row.original.member} />
           );
         }
         return null;

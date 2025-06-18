@@ -15,14 +15,14 @@ import {
   useMemberActionsModalContext,
 } from "./member-actions-modal-context";
 
-interface MemberRowActionsDropdownProps {
+interface MemberActionsDropdownProps {
   member: MemberWithUser;
 }
 
-export default function MemberRowActionsDropdown({
+export default function MemberActionsDropdown({
   member,
-}: MemberRowActionsDropdownProps) {
-  const t = useTranslations("Components.MembersTable.Actions");
+}: MemberActionsDropdownProps) {
+  const t = useTranslations("Components.MembersTable.MemberActions");
 
   const { openActionModal } = useMemberActionsModalContext();
 
