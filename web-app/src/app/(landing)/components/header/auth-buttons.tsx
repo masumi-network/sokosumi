@@ -3,22 +3,19 @@
 import { usePathname } from "next/navigation";
 
 import { SignInButton, SignUpButton } from "@/auth/components/buttons";
-import { cn } from "@/lib/utils";
 
 interface AuthButtonsProps {
-  containerClassName?: string | undefined;
+  className?: string | undefined;
 }
 
-export default function AuthButtons({ containerClassName }: AuthButtonsProps) {
+export default function AuthButtons({ className }: AuthButtonsProps) {
   const pathname = usePathname();
 
-  if (pathname.startsWith("/login")) return <SignUpButton />;
+  if (pathname.startsWith("/login"))
+    return <SignUpButton className={className} />;
 
-  if (pathname.startsWith("/register")) return <SignInButton />;
+  if (pathname.startsWith("/register"))
+    return <SignInButton className={className} />;
 
-  return (
-    <div className={cn("flex items-center gap-4", containerClassName)}>
-      <SignInButton />
-    </div>
-  );
+  return <SignInButton className={className} />;
 }

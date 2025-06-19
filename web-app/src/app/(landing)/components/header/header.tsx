@@ -4,7 +4,8 @@ import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
 import { cn } from "@/lib/utils";
 
 import AppConnection from "./app-connection";
-import Navigation from "./navigation";
+import SheetNavigation from "./sheet-navigation";
+import StickyNavigation from "./sticky-navigation";
 
 interface HeaderProps {
   className?: string;
@@ -19,7 +20,7 @@ export default function Header({ className }: HeaderProps) {
         className,
       )}
     >
-      <div className="container mx-auto flex h-full items-center justify-between gap-4 px-0 sm:gap-6 sm:px-6 lg:px-0">
+      <div className="container mx-auto flex h-full items-center justify-between gap-4 lg:gap-6">
         {/* Left - Logo */}
         <Link href="/">
           <ThemedLogo LogoComponent={SokosumiLogo} priority />
@@ -27,12 +28,11 @@ export default function Header({ className }: HeaderProps) {
 
         {/* Middle - Navigation Links */}
         <div className="flex flex-1 items-center justify-center">
-          <Navigation />
-        </div>
-
-        {/* Right - Auth Buttons */}
-        <div className="ml-auto flex items-center gap-2">
-          <AppConnection />
+          <StickyNavigation />
+          <div className="ml-auto hidden md:block">
+            <AppConnection />
+          </div>
+          <SheetNavigation />
         </div>
       </div>
     </header>
