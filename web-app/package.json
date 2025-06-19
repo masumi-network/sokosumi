@@ -38,7 +38,7 @@
     "@hey-api/client-next": "0.5.1",
     "@hookform/resolvers": "5.1.1",
     "@icons-pack/react-simple-icons": "13.1.0",
-    "@prisma/client": "6.10.0",
+    "@prisma/client": "6.10.1",
     "@react-email/components": "0.1.0",
     "@sentry/nextjs": "9.30.0",
     "@tanstack/react-table": "8.21.3",
@@ -95,6 +95,6 @@
     "@types/react": "19.1.8",
     "@types/react-dom": "19.1.6",
     "@types/react-window": "1.8.8",
-    "prisma": "6.10.0"
+    "prisma": "6.10.1"
   }
 }
