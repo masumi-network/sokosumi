@@ -133,7 +133,7 @@ export default function RequestRefundButton({
     setError(null);
 
     try {
-      job = await requestRefundJob(job.blockchainIdentifier);
+      job = await requestRefundJob(job);
       setIsRefundRequested(
         job.nextAction === NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
       );

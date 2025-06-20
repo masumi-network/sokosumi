@@ -182,9 +182,7 @@ async function requestRefundIfNeeded(job: Job) {
 
   // Only make one refund request if either condition is met
   if (shouldRequestRefund) {
-    const refundResult = await postPaymentClientRequestRefund(
-      job.blockchainIdentifier,
-    );
+    const refundResult = await postPaymentClientRequestRefund(job);
     if (!refundResult.ok) {
       console.error(
         `Failed to request refund for job ${job.id}:`,
@@ -197,7 +195,7 @@ async function requestRefundIfNeeded(job: Job) {
 export async function syncJob(job: Job) {
   const [agentJobStatus, onChainPurchase] = await Promise.all([
     getAgentJobStatus(job),
-    getOnChainPurchase(job.paymentId),
+    getOnChainPurchase(job),
   ]);
 
   await prisma.$transaction(
@@ -254,10 +252,8 @@ async function syncAgentJobStatus(
   }
 }
 
-async function getOnChainPurchase(
-  jobPaymentId: string,
-): Promise<Purchase | null> {
-  const purchaseResult = await getPaymentClientPurchase(jobPaymentId);
+async function getOnChainPurchase(job: Job): Promise<Purchase | null> {
+  const purchaseResult = await getPaymentClientPurchase(job);
   if (!purchaseResult.ok) {
     return null;
   }
@@ -279,20 +275,16 @@ export async function getAgentJobStatus(
   return jobStatusResult.data;
 }
 
-export async function requestRefundJob(
-  jobBlockchainIdentifier: string,
-): Promise<JobWithStatus> {
-  const refundResult = await postPaymentClientRequestRefund(
-    jobBlockchainIdentifier,
-  );
+export async function requestRefundJob(job: Job): Promise<JobWithStatus> {
+  const refundResult = await postPaymentClientRequestRefund(job);
   if (!refundResult.ok) {
     throw new Error(refundResult.error);
   }
-  const job = await setNextActionToJob(
-    jobBlockchainIdentifier,
+  const jobWithStatus = await setNextActionToJob(
+    job.blockchainIdentifier,
     NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
   );
-  return job;
+  return jobWithStatus;
 }
 
 export async function getNotFinalizedLatestJobsByAgentIds(
