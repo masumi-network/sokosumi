@@ -20,7 +20,7 @@ export default async function FeaturedAgents() {
       </div>
 
       <ScrollArea className="w-full">
-        <div className="flex flex-row justify-between gap-2.5">
+        <div className="flex flex-row justify-between gap-2">
           {agentsWithPrice.map(({ agent, creditsPrice }) => (
             <div key={agent.id} className="flex-shrink-0">
               <AgentCard agent={agent} agentCreditsPrice={creditsPrice} />
