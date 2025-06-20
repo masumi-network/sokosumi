@@ -76,7 +76,7 @@ export default function BillingForm({
     resolver: zodResolver(billingFormSchema),
     defaultValues: {
       credits: undefined,
-      coupon: "",
+      coupon: undefined,
     },
   });
 
