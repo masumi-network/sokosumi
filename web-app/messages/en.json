@@ -581,9 +581,9 @@
             },
             "TermsAccepted": {
               "Label": {
-                "iAgreeTo": "I agree to the ",
+                "iAgreeTo": "I agree to the",
                 "termsOfService": "Terms of Service",
-                "and": " and ",
+                "and": "and",
                 "privacyPolicy": "Privacy Policy"
               }
             },
