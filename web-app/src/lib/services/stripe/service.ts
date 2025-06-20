@@ -110,6 +110,9 @@ export async function getCreditsForCoupon(
   if (coupon.percent_off) {
     throw new CouponTypeError("Only fixed-amount coupons are supported");
   }
+  if (!coupon.amount_off) {
+    throw new CouponTypeError("Coupon must have a fixed amount");
+  }
 
   const conversionFactors = await getConversionFactors(priceId);
 
@@ -122,8 +125,5 @@ export async function getCreditsForCoupon(
     );
   }
 
-  if (!coupon.amount_off) {
-    throw new CouponTypeError("Coupon must have a fixed amount");
-  }
-  return Math.floor(coupon.amount_off / conversionFactors.amountPerCredit);
+  return Math.ceil(coupon.amount_off / conversionFactors.amountPerCredit);
 }
