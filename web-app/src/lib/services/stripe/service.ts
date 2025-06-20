@@ -125,5 +125,5 @@ export async function getCreditsForCoupon(
   if (!coupon.amount_off) {
     throw new CouponTypeError("Coupon must have a fixed amount");
   }
-  return coupon.amount_off / conversionFactors.amountPerCredit;
+  return Math.floor(coupon.amount_off / conversionFactors.amountPerCredit);
 }
