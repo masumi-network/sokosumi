@@ -186,6 +186,7 @@ interface AgentCardProps {
   agentList?: AgentListWithAgent | undefined;
   agentCreditsPrice: CreditsPrice;
   className?: string | undefined;
+  showMobileHireButton?: boolean | undefined;
 }
 
 function AgentCard({
@@ -194,6 +195,7 @@ function AgentCard({
   agentCreditsPrice,
   className,
   size,
+  showMobileHireButton = true,
 }: AgentCardProps & VariantProps<typeof agentCardVariants>) {
   const t = useTranslations("Components.Agents.AgentCard");
 
@@ -284,7 +286,7 @@ function AgentCard({
           </div>
 
           {/* Mobile Hire Button */}
-          {isDefault && (
+          {isDefault && showMobileHireButton && (
             <AgentHireButton agentId={agent.id} className="w-full md:hidden" />
           )}
         </div>
