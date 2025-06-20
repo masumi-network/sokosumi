@@ -16,6 +16,7 @@ import {
   createCheckoutSession,
   createCustomer,
   getConversionFactors,
+  getCouponById,
   getOrCreatePromotionCode,
 } from "./third-party";
 
@@ -91,4 +92,21 @@ export async function getPromotionCode(
     maxRedemptions,
     metadata,
   );
+}
+
+export async function getCreditsForCoupon(couponId: string): Promise<number> {
+  const coupon = await getCouponById(couponId);
+  if (!coupon) {
+    throw new Error("Coupon not found");
+  }
+  if (coupon.percent_off) {
+    throw new Error("Coupon is a percentage off");
+  }
+  if (coupon.currency !== "usd") {
+    throw new Error("Coupon currency is not USD");
+  }
+  if (!coupon.amount_off) {
+    throw new Error("Coupon amount off is not set");
+  }
+  return coupon.amount_off / 100;
 }

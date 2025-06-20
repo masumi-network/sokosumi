@@ -131,3 +131,9 @@ export async function getOrCreatePromotionCode(
     return null;
   }
 }
+
+export async function getCouponById(
+  couponId: string,
+): Promise<Stripe.Coupon | null> {
+  return await stripe.coupons.retrieve(couponId);
+}
