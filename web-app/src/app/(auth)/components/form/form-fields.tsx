@@ -101,7 +101,10 @@ function FormInput<T extends FieldValues>({
 
   if (type === "checkbox") {
     const TermsAcceptedLabel = t.has("Fields.TermsAccepted.Label") ? (
-      <Label htmlFor={labelKey?.toString() ?? name.toString()}>
+      <Label
+        htmlFor={labelKey?.toString() ?? name.toString()}
+        className="gap-1"
+      >
         {t("Fields.TermsAccepted.Label.iAgreeTo")}
         <Link target="_blank" href="/terms-of-service" className="underline">
           {t("Fields.TermsAccepted.Label.termsOfService")}
