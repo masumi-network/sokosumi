@@ -67,8 +67,8 @@ interface FooterProps {
 
 export default function Footer({ className }: FooterProps) {
   return (
-    <footer className={className}>
-      <FooterSections className="container mx-auto px-12 py-12" />
+    <footer className={cn("space-y-6", className)}>
+      <FooterSections className="container mx-auto px-4 pt-14 md:px-12 md:pt-12" />
 
       {/* Footer image */}
       <div className="flex aspect-3/1 w-full justify-center">
@@ -96,14 +96,17 @@ export function FooterSections({ className }: FooterSectionsProps) {
       <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
         {sectionsData.map(({ name, items }) => (
           <div className="border-t pt-8" key={name}>
-            <h3 className="mb-4 font-medium uppercase">{t(`${name}.title`)}</h3>
+            <h3 className="mb-4 text-sm font-medium uppercase md:text-base">
+              {t(`${name}.title`)}
+            </h3>
             <ul className="space-y-2">
               {items.map(({ key, href, showExternalLinkIcon }) => (
                 <li key={key}>
                   <Link
                     href={href}
                     className={cn({
-                      "flex items-center gap-1": showExternalLinkIcon,
+                      "flex items-center gap-1 text-sm md:text-base":
+                        showExternalLinkIcon,
                     })}
                   >
                     {t(`${name}.${key}`)}
@@ -120,24 +123,31 @@ export function FooterSections({ className }: FooterSectionsProps) {
 
       {/* Bottom section */}
       <div className="flex flex-col items-center justify-between pt-8 md:flex-row">
-        <div className="mb-4 flex items-center gap-4 md:mb-0">
-          <ThemeToggle />
-          <Button variant="secondary">
-            <Languages className="h-4 w-4" />
-            <span>{"English"}</span>
-          </Button>
-          <Link href="/imprint" className="text-sm hover:text-gray-300">
-            {t("imprint")}
-          </Link>
-          <Link href="/privacy-policy" className="text-sm hover:text-gray-300">
-            {t("privacyPolicy")}
-          </Link>
-          <Link
-            href="/terms-of-service"
-            className="text-sm hover:text-gray-300"
-          >
-            {t("termsOfServices")}
-          </Link>
+        <div className="mb-4 flex flex-wrap items-center gap-4 md:mb-0">
+          <div className="flex w-full items-center justify-between gap-4 md:w-auto">
+            <ThemeToggle />
+            <Button variant="secondary">
+              <Languages className="h-4 w-4" />
+              <span>{"English"}</span>
+            </Button>
+          </div>
+          <div className="flex items-center gap-4">
+            <Link href="/imprint" className="text-sm hover:text-gray-300">
+              {t("imprint")}
+            </Link>
+            <Link
+              href="/privacy-policy"
+              className="text-sm hover:text-gray-300"
+            >
+              {t("privacyPolicy")}
+            </Link>
+            <Link
+              href="/terms-of-service"
+              className="text-sm hover:text-gray-300"
+            >
+              {t("termsOfServices")}
+            </Link>
+          </div>
         </div>
       </div>
     </div>
