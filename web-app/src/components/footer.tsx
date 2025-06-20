@@ -92,7 +92,7 @@ export function FooterSections({ className }: FooterSectionsProps) {
   const t = useTranslations("Footer");
 
   return (
-    <div className={cn("space-y-20", className)}>
+    <div className={cn("space-y-16 md:space-y-24", className)}>
       <div className="grid grid-cols-1 gap-8 md:grid-cols-4">
         {sectionsData.map(({ name, items }) => (
           <div className="border-t pt-8" key={name}>
@@ -122,32 +122,27 @@ export function FooterSections({ className }: FooterSectionsProps) {
       </div>
 
       {/* Bottom section */}
-      <div className="flex flex-col items-center justify-between pt-8 md:flex-row">
-        <div className="mb-4 flex flex-wrap items-center gap-4 md:mb-0">
-          <div className="flex w-full items-center justify-between gap-4 md:w-auto">
-            <ThemeToggle />
-            <Button variant="secondary">
-              <Languages className="h-4 w-4" />
-              <span>{"English"}</span>
-            </Button>
-          </div>
-          <div className="flex items-center gap-4">
-            <Link href="/imprint" className="text-sm hover:text-gray-300">
-              {t("imprint")}
-            </Link>
-            <Link
-              href="/privacy-policy"
-              className="text-sm hover:text-gray-300"
-            >
-              {t("privacyPolicy")}
-            </Link>
-            <Link
-              href="/terms-of-service"
-              className="text-sm hover:text-gray-300"
-            >
-              {t("termsOfServices")}
-            </Link>
-          </div>
+      <div className="flex flex-wrap items-center gap-4">
+        <div className="flex w-full items-center justify-between gap-4 md:w-auto">
+          <ThemeToggle />
+          <Button variant="secondary">
+            <Languages className="h-4 w-4" />
+            <span>{"English"}</span>
+          </Button>
+        </div>
+        <div className="flex w-full items-center justify-between gap-4 md:w-auto md:justify-start">
+          <Link href="/imprint" className="text-sm hover:text-gray-300">
+            {t("imprint")}
+          </Link>
+          <Link href="/privacy-policy" className="text-sm hover:text-gray-300">
+            {t("privacyPolicy")}
+          </Link>
+          <Link
+            href="/terms-of-service"
+            className="text-sm hover:text-gray-300"
+          >
+            {t("termsOfServices")}
+          </Link>
         </div>
       </div>
     </div>
