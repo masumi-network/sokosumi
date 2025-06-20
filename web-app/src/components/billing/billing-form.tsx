@@ -85,13 +85,13 @@ export default function BillingForm({
   const coupon = watch("coupon");
 
   const handleFieldChange = useCallback(
-    (field: "credits" | "coupon", value: number | string) => {
+    (field: "credits" | "coupon", value: number | string | undefined) => {
       if (field === "credits") {
-        const numValue = typeof value === "string" ? Number(value) : value;
+        const numValue = value as number | undefined;
         setValue("credits", numValue);
 
         // Only clear coupon if we have a valid credit amount and coupon exists
-        if (numValue > 0) {
+        if (numValue && numValue > 0) {
           const currentCoupon = form.getValues("coupon");
           if (currentCoupon) {
             setValue("coupon", "");
@@ -99,7 +99,7 @@ export default function BillingForm({
           }
         }
       } else if (field === "coupon") {
-        const strValue = String(value);
+        const strValue = String(value ?? "");
         setValue("coupon", strValue);
 
         // Only clear credits if we have a valid coupon and credits exist
@@ -203,7 +203,7 @@ export default function BillingForm({
                         // Prevent negative values and validate range
                         const numValue =
                           value === "" ? undefined : Math.max(1, Number(value));
-                        handleFieldChange("credits", numValue ?? 0);
+                        handleFieldChange("credits", numValue);
                       }}
                       value={field.value ?? ""}
                     />
