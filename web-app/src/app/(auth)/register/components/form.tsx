@@ -50,6 +50,7 @@ export default function SignUpForm({
       password: "",
       confirmPassword: "",
       organizationId: prefilledOrganizationId ?? "",
+      termsAccepted: false,
       marketingOptIn: false,
     },
   });
@@ -144,6 +145,8 @@ export default function SignUpForm({
     router.push("/login");
   };
 
+  const termsAccepted = form.watch("termsAccepted");
+
   return (
     <AuthForm
       form={form}
@@ -155,7 +158,12 @@ export default function SignUpForm({
       organizations={organizations}
     >
       <div className="flex flex-col gap-4">
-        <SubmitButton form={form} label={t("submit")} className="w-full" />
+        <SubmitButton
+          form={form}
+          label={t("submit")}
+          className="w-full"
+          disabled={!termsAccepted}
+        />
         <div className="flex flex-col items-center gap-2 sm:flex-row">
           <span className="text-muted-foreground text-sm">
             {t("Login.message")}

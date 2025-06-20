@@ -578,6 +578,14 @@
             "Name": {
               "placeholder": "Name"
             },
+            "TermsAccepted": {
+              "Label": {
+                "iAgreeTo": "I agree to the",
+                "termsOfService": "Terms of Service",
+                "and": "and",
+                "privacyPolicy": "Privacy Policy"
+              }
+            },
             "MarketingOptIn": {
               "label": "I would like to receive updates and news from Sōkosumi"
             },
