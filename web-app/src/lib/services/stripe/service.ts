@@ -99,7 +99,10 @@ export async function getPromotionCode(
   );
 }
 
-export async function getCreditsForCoupon(couponId: string): Promise<number> {
+export async function getCreditsForCoupon(
+  couponId: string,
+  priceId: string,
+): Promise<number> {
   const coupon = await getCouponById(couponId);
   if (!coupon) {
     throw new CouponNotFoundError(couponId);
@@ -107,11 +110,20 @@ export async function getCreditsForCoupon(couponId: string): Promise<number> {
   if (coupon.percent_off) {
     throw new CouponTypeError("Only fixed-amount coupons are supported");
   }
-  if (coupon.currency !== "usd") {
-    throw new CouponCurrencyError(coupon.currency ?? "null");
+
+  const conversionFactors = await getConversionFactors(priceId);
+
+  if (
+    coupon.currency?.toLowerCase() !== conversionFactors.currency.toLowerCase()
+  ) {
+    throw new CouponCurrencyError(
+      coupon.currency ?? "unknown",
+      conversionFactors.currency,
+    );
   }
+
   if (!coupon.amount_off) {
     throw new CouponTypeError("Coupon must have a fixed amount");
   }
-  return coupon.amount_off / 100;
+  return coupon.amount_off / conversionFactors.amountPerCredit;
 }

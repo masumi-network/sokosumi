@@ -55,7 +55,7 @@ export async function getFreeCreditsWithCoupon(
   try {
     const session = await getSessionOrThrow();
 
-    const credits = await getCreditsForCoupon(couponId);
+    const credits = await getCreditsForCoupon(couponId, priceId);
     // Validate and get the promotion code for this user and couponId
     const promo = await getPromotionCode(session.user.id, couponId, 1);
     if (!promo || !promo.active) {
