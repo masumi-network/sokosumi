@@ -82,6 +82,7 @@ export default function SignUpForm({
         email: values.email,
         name: values.name,
         password: values.password,
+        termsAccepted: values.termsAccepted,
         callbackURL: "/app",
       },
       {
