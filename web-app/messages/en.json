@@ -720,6 +720,8 @@
       "couponLabel": "Coupon Code",
       "couponPlaceholder": "Enter coupon code",
       "couponOrCreditsError": "Please enter either a credit amount or a coupon code",
+      "couponCleared": "Coupon cleared - purchasing credits instead",
+      "creditsCleared": "Credits cleared - using coupon instead",
       "Error": {
         "title": "Something Went Wrong",
         "message": "We encountered an error loading the billing information.",

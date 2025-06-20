@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
+import { useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -61,6 +62,9 @@ export default function BillingForm({
 }: BillingFormProps) {
   const t = useTranslations("App.Billing");
   const formatter = useFormatter();
+  const [clearedField, setClearedField] = useState<"credits" | "coupon" | null>(
+    null,
+  );
 
   const form = useForm<BillingFormData>({
     resolver: zodResolver(billingFormSchema),
@@ -73,6 +77,29 @@ export default function BillingForm({
   const { watch, setValue } = form;
   const credits = watch("credits");
   const coupon = watch("coupon");
+
+  const handleFieldChange = useCallback(
+    (field: "credits" | "coupon", value: number | string) => {
+      if (field === "credits") {
+        const numValue = typeof value === "string" ? Number(value) : value;
+        setValue("credits", numValue);
+        if (numValue > 0 && coupon) {
+          setValue("coupon", "");
+          setClearedField("coupon");
+          setTimeout(() => setClearedField(null), 2000);
+        }
+      } else if (field === "coupon") {
+        const strValue = String(value);
+        setValue("coupon", strValue);
+        if (strValue.length > 0 && (credits ?? 0) > 0) {
+          setValue("credits", undefined);
+          setClearedField("credits");
+          setTimeout(() => setClearedField(null), 2000);
+        }
+      }
+    },
+    [setValue, coupon, credits],
+  );
 
   const onSubmit = async (data: BillingFormData) => {
     try {
@@ -101,16 +128,25 @@ export default function BillingForm({
     }
   };
 
-  const handleQuickAmount = (amount: number) => {
-    setValue("credits", amount);
-    setValue("coupon", ""); // Clear coupon when selecting credits
-  };
+  const handleQuickAmount = useCallback(
+    (amount: number) => {
+      handleFieldChange("credits", amount);
+    },
+    [handleFieldChange],
+  );
 
-  const handleCouponChange = (value: string) => {
-    if (value.trim().length > 0) {
-      setValue("credits", undefined); // Clear credits when entering coupon
-    }
-  };
+  const FieldClearedIndicator = ({
+    show,
+    message,
+  }: {
+    show: boolean;
+    message: string;
+  }) =>
+    show ? (
+      <div className="text-muted-foreground mt-1 text-xs transition-opacity duration-200">
+        {message}
+      </div>
+    ) : null;
 
   return (
     <Card>
@@ -148,15 +184,18 @@ export default function BillingForm({
                       disabled={form.formState.isSubmitting}
                       {...field}
                       onChange={(e) => {
-                        const value = Number(e.target.value);
-                        field.onChange(value);
-                        if (value > 0) {
-                          setValue("coupon", ""); // Clear coupon when entering credits
-                        }
+                        const value = e.target.value;
+                        const numValue =
+                          value === "" ? undefined : Number(value);
+                        handleFieldChange("credits", numValue ?? 0);
                       }}
                       value={field.value ?? ""}
                     />
                   </FormControl>
+                  <FieldClearedIndicator
+                    show={clearedField === "credits"}
+                    message={t("creditsCleared")}
+                  />
                   <FormMessage />
                 </FormItem>
               )}
@@ -175,11 +214,15 @@ export default function BillingForm({
                       autoComplete="off"
                       {...field}
                       onChange={(e) => {
-                        field.onChange(e.target.value);
-                        handleCouponChange(e.target.value);
+                        const value = e.target.value;
+                        handleFieldChange("coupon", value);
                       }}
                     />
                   </FormControl>
+                  <FieldClearedIndicator
+                    show={clearedField === "coupon"}
+                    message={t("couponCleared")}
+                  />
                   <FormMessage />
                 </FormItem>
               )}
