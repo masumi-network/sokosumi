@@ -6,6 +6,7 @@ import { useTranslations } from "next-intl";
 import AccordionItemWrapper from "@/app/agents/[agentId]/jobs/components/accordion-wrapper";
 import Markdown from "@/components/markdown";
 import { Accordion } from "@/components/ui/accordion";
+import useAgentInputSchemaPromise from "@/hooks/use-agent-input-schema-promise";
 import {
   AgentWithRelations,
   CreditsPrice,
@@ -19,20 +20,21 @@ import { JobInputsDataSchemaType } from "@/lib/job-input";
 import { useCreateJobModalContext } from "./create-job-modal-context";
 import CreateJobModalHeader from "./create-job-modal-header";
 import { JobInputsForm } from "./job-input";
+import { JobInputsFormSkeleton } from "./job-input/job-inputs-form";
 
 interface CreateJobSectionProps {
   agent: AgentWithRelations;
   agentCreditsPrice: CreditsPrice;
-  inputSchemaPromise: Promise<JobInputsDataSchemaType>;
 }
 
 export default function CreateJobSection({
   agent,
   agentCreditsPrice,
-  inputSchemaPromise,
 }: CreateJobSectionProps) {
   const { accordionValue, setAccordionValue, loading } =
     useCreateJobModalContext();
+
+  const inputSchemaPromise = useAgentInputSchemaPromise(agent.id);
 
   const handleAccordionValueChange = (value: string[]) => {
     setAccordionValue(value);
@@ -104,7 +106,7 @@ function InputAccordionItem({
 }: {
   agent: AgentWithRelations;
   agentCreditsPrice: CreditsPrice;
-  inputSchemaPromise: Promise<JobInputsDataSchemaType>;
+  inputSchemaPromise: Promise<JobInputsDataSchemaType> | null;
   disabled?: boolean | undefined;
 }) {
   const t = useTranslations("App.Agents.Jobs.CreateJob.Input");
@@ -113,12 +115,16 @@ function InputAccordionItem({
     <AccordionItemWrapper value="input" title={t("title")} disabled={disabled}>
       <div className="flex flex-col gap-6">
         <p className="text-sm">{t("description")}</p>
-        <JobInputsForm
-          agentId={agent.id}
-          agentCreditsPrice={agentCreditsPrice}
-          legal={getAgentLegal(agent)}
-          inputSchemaPromise={inputSchemaPromise}
-        />
+        {inputSchemaPromise ? (
+          <JobInputsForm
+            agentId={agent.id}
+            agentCreditsPrice={agentCreditsPrice}
+            legal={getAgentLegal(agent)}
+            inputSchemaPromise={inputSchemaPromise}
+          />
+        ) : (
+          <JobInputsFormSkeleton />
+        )}
       </div>
     </AccordionItemWrapper>
   );

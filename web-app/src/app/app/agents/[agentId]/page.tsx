@@ -8,7 +8,6 @@ import {
 import { getAgentById, getJobsByAgentId } from "@/lib/db";
 import {
   getAgentCreditsPrice,
-  getAgentInputSchema,
   getOrCreateFavoriteAgentList,
 } from "@/lib/services";
 
@@ -32,10 +31,10 @@ export default async function AgentDetailPage({
   const agentList = await getOrCreateFavoriteAgentList();
   const jobs = await getJobsByAgentId(agentId);
 
-  const agentInputSchemaPromise = getAgentInputSchema(agentId);
-
   return (
-    <CreateJobModalContextProvider>
+    <CreateJobModalContextProvider
+      agentsWithPrice={[{ agent, creditsPrice: agentCreditsPrice }]}
+    >
       <div className="mx-auto flex justify-center px-4 py-8">
         <AgentDetail
           agent={agent}
@@ -45,11 +44,7 @@ export default async function AgentDetailPage({
         />
       </div>
       {/* Create Job Modal */}
-      <CreateJobModal
-        agent={agent}
-        agentCreditsPrice={agentCreditsPrice}
-        inputSchemaPromise={agentInputSchemaPromise}
-      />
+      <CreateJobModal />
     </CreateJobModalContextProvider>
   );
 }

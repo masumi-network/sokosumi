@@ -60,7 +60,7 @@ function JobInputsFormInner({
   );
 }
 
-function JobInputsFormSkeleton() {
+export function JobInputsFormSkeleton() {
   return (
     <div className="flex w-full flex-col gap-2">
       {Array.from({ length: 3 }).map((_, index) => (

@@ -9,20 +9,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { AgentWithRelations, CreditsPrice } from "@/lib/db";
-import { JobInputsDataSchemaType } from "@/lib/job-input";
 
 import { useCreateJobModalContext } from "./create-job-modal-context";
 import CreateJobSection from "./create-job-section";
 
-interface CreateJobModalProps {
-  agent: AgentWithRelations;
-  agentCreditsPrice: CreditsPrice;
-  inputSchemaPromise: Promise<JobInputsDataSchemaType>;
-}
-
-export default function CreateJobModal(props: CreateJobModalProps) {
-  const { open, setOpen, loading } = useCreateJobModalContext();
+export default function CreateJobModal() {
+  const { open, setOpen, loading, agentWithPrice } = useCreateJobModalContext();
 
   const handleOnOpenChange = (open: boolean) => {
     if (loading) {
@@ -39,7 +31,12 @@ export default function CreateJobModal(props: CreateJobModalProps) {
           <DialogTitle className="hidden" />
           <DialogDescription className="hidden" />
           <ScrollArea className="max-h-[90svh]">
-            <CreateJobSection {...props} />
+            {agentWithPrice && (
+              <CreateJobSection
+                agent={agentWithPrice.agent}
+                agentCreditsPrice={agentWithPrice.creditsPrice}
+              />
+            )}
           </ScrollArea>
         </DialogContent>
       </DialogPortal>

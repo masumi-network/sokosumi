@@ -91,7 +91,7 @@ export default function Header({
             price: convertCentsToCredits(agentCreditsPrice.cents),
           })}
         </div>
-        <CreateJobModalTrigger />
+        <CreateJobModalTrigger agentId={agent.id} />
       </div>
       {/* Agent Modal */}
       <AgentModal open={detailOpen}>

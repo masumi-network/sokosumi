@@ -70,13 +70,13 @@ const agentCardTagsVariants = cva("absolute top-3 left-3 z-20", {
 });
 
 const agentCardImageHoverVariants = cva(
-  "absolute inset-0 z-20 opacity-0 transition-opacity group-hover:opacity-100",
+  "absolute inset-0 z-20 opacity-100 md:opacity-0 transition-opacity group-hover:opacity-100",
   {
     variants: {
       size: {
         xs: "hidden",
         sm: "hidden",
-        md: "block backdrop-blur-md",
+        md: "block md:backdrop-blur-md",
         lg: "hidden",
       },
     },
@@ -197,10 +197,10 @@ function AgentCard({
 }: AgentCardProps & VariantProps<typeof agentCardVariants>) {
   const t = useTranslations("Components.Agents.AgentCard");
 
-  const isLink = !size || size === "md";
+  const isDefault = !size || size === "md";
 
   return (
-    <AgentCardWrapper agentId={agent.id} isLink={isLink}>
+    <AgentCardWrapper agentId={agent.id} isDefault={isDefault}>
       <Card className={cn(agentCardVariants({ size }), className)}>
         {/* Image */}
         <div className={cn(agentCardImageContainerVariants({ size }))}>
@@ -223,7 +223,9 @@ function AgentCard({
                   />
                 </ClickBlocker>
               )}
-              <Button variant="primary">{t("view")}</Button>
+              <Button className="hidden md:block" variant="primary">
+                {t("view")}
+              </Button>
             </div>
           </div>
 
@@ -246,9 +248,10 @@ function AgentCard({
               {getShortAgentAuthorName(agent)}
             </p>
           </div>
+
           {/* View Button */}
           <div className={cn(agentCardViewButtonContainerVariants({ size }))}>
-            {!isLink && (
+            {!isDefault && (
               <Button variant="secondary" size="sm" asChild>
                 <AgentDetailLink agentId={agent.id} className="text-xs">
                   {t("view")}
@@ -256,6 +259,7 @@ function AgentCard({
               </Button>
             )}
           </div>
+
           {/* Pricing and Buttons */}
           <div
             className={cn(agentCardPricingAndButtonsContentVariants({ size }))}
@@ -268,16 +272,21 @@ function AgentCard({
               </p>
             </div>
             <div className="flex items-center gap-1.5">
-              {!isLink && (
+              {!isDefault && (
                 <Button variant="secondary" size="lg" asChild>
                   <AgentDetailLink agentId={agent.id}>
                     {t("view")}
                   </AgentDetailLink>
                 </Button>
               )}
-              {size === "lg" && <AgentHireButton />}
+              {size === "lg" && <AgentHireButton agentId={agent.id} />}
             </div>
           </div>
+
+          {/* Mobile Hire Button */}
+          {isDefault && (
+            <AgentHireButton agentId={agent.id} className="w-full md:hidden" />
+          )}
         </div>
       </Card>
     </AgentCardWrapper>
@@ -285,15 +294,15 @@ function AgentCard({
 }
 
 function AgentCardWrapper({
-  isLink,
+  isDefault,
   agentId,
   children,
 }: {
-  isLink: boolean;
+  isDefault: boolean;
   agentId: string;
   children: React.ReactNode;
 } & VariantProps<typeof agentCardVariants>) {
-  if (isLink) {
+  if (isDefault) {
     return <AgentDetailLink agentId={agentId}>{children}</AgentDetailLink>;
   }
 
