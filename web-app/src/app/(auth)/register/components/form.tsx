@@ -79,10 +79,7 @@ export default function SignUpForm({
 
     const userResult = await authClient.signUp.email(
       {
-        email: values.email,
-        name: values.name,
-        password: values.password,
-        termsAccepted: values.termsAccepted,
+        ...values,
         callbackURL: "/app",
       },
       {
