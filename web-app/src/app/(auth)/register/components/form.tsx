@@ -76,10 +76,16 @@ export default function SignUpForm({
       return;
     }
     const { organization } = organizationResult;
+    const signUpData = {
+      email: values.email,
+      name: values.name,
+      password: values.password,
+      termsAccepted: values.termsAccepted,
+    };
 
     const userResult = await authClient.signUp.email(
       {
-        ...values,
+        ...signUpData,
         callbackURL: "/app",
       },
       {
