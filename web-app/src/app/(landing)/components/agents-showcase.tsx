@@ -54,7 +54,7 @@ const AgentShowcaseCard = ({
 };
 
 const AgentCardSkeleton = () => {
-  return <Skeleton className="h-[90px] w-[90px] rounded-md" />;
+  return <Skeleton className="h-[90px] w-[300px] rounded-md md:w-[90px]" />;
 };
 
 async function AgentsShowcaseList() {
