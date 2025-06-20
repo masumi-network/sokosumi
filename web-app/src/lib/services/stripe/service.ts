@@ -11,6 +11,11 @@ import {
   prisma,
   updateFiatTransactionServicePaymentId,
 } from "@/lib/db";
+import {
+  CouponCurrencyError,
+  CouponNotFoundError,
+  CouponTypeError,
+} from "@/lib/errors/coupon-errors";
 
 import {
   createCheckoutSession,
@@ -97,16 +102,16 @@ export async function getPromotionCode(
 export async function getCreditsForCoupon(couponId: string): Promise<number> {
   const coupon = await getCouponById(couponId);
   if (!coupon) {
-    throw new Error("Coupon not found");
+    throw new CouponNotFoundError(couponId);
   }
   if (coupon.percent_off) {
-    throw new Error("Coupon is a percentage off");
+    throw new CouponTypeError("Only fixed-amount coupons are supported");
   }
   if (coupon.currency !== "usd") {
-    throw new Error("Coupon currency is not USD");
+    throw new CouponCurrencyError(coupon.currency ?? "null");
   }
   if (!coupon.amount_off) {
-    throw new Error("Coupon amount off is not set");
+    throw new CouponTypeError("Coupon must have a fixed amount");
   }
   return coupon.amount_off / 100;
 }

@@ -744,6 +744,9 @@
       },
       "invalidCredits": "Invalid credit amount",
       "invalidCoupon": "Invalid or inactive coupon code",
+      "couponNotFound": "Coupon code not found",
+      "couponTypeError": "This coupon type is not supported",
+      "couponCurrencyError": "Coupon currency is not supported",
       "checkoutFailed": "Failed to create checkout"
     },
     "Account": {

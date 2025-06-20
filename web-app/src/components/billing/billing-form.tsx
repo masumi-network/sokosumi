@@ -35,15 +35,21 @@ const billingFormSchema = z
   })
   .refine(
     (data) => {
-      // Either credits must be provided and > 0, OR coupon must be provided and not empty
       const hasValidCredits = data.credits != null && data.credits > 0;
       const hasValidCoupon =
         data.coupon != null && data.coupon.trim().length > 0;
       return hasValidCredits || hasValidCoupon;
     },
-    {
-      message: "Please enter either a credit amount or a coupon code",
-      path: ["credits"], // This will show the error on the credits field
+    (data) => {
+      // Show error on the field that makes more sense contextually
+      const hasCreditsAttempt = data.credits != null;
+      const hasCouponAttempt =
+        data.coupon != null && data.coupon.trim().length > 0;
+
+      return {
+        message: "Please enter either a credit amount or a coupon code",
+        path: hasCreditsAttempt && !hasCouponAttempt ? ["credits"] : ["coupon"],
+      };
     },
   );
 
@@ -83,22 +89,30 @@ export default function BillingForm({
       if (field === "credits") {
         const numValue = typeof value === "string" ? Number(value) : value;
         setValue("credits", numValue);
-        if (numValue > 0 && coupon) {
-          setValue("coupon", "");
-          setClearedField("coupon");
-          setTimeout(() => setClearedField(null), 2000);
+
+        // Only clear coupon if we have a valid credit amount and coupon exists
+        if (numValue > 0) {
+          const currentCoupon = form.getValues("coupon");
+          if (currentCoupon) {
+            setValue("coupon", "");
+            setClearedField("coupon");
+          }
         }
       } else if (field === "coupon") {
         const strValue = String(value);
         setValue("coupon", strValue);
-        if (strValue.length > 0 && (credits ?? 0) > 0) {
-          setValue("credits", undefined);
-          setClearedField("credits");
-          setTimeout(() => setClearedField(null), 2000);
+
+        // Only clear credits if we have a valid coupon and credits exist
+        if (strValue.length > 0) {
+          const currentCredits = form.getValues("credits");
+          if (currentCredits && currentCredits > 0) {
+            setValue("credits", undefined);
+            setClearedField("credits");
+          }
         }
       }
     },
-    [setValue, coupon, credits],
+    [setValue, form],
   );
 
   const onSubmit = async (data: BillingFormData) => {
@@ -181,12 +195,14 @@ export default function BillingForm({
                       type="number"
                       placeholder={t("creditsPlaceholder")}
                       min="1"
+                      max="10000"
                       disabled={form.formState.isSubmitting}
                       {...field}
                       onChange={(e) => {
                         const value = e.target.value;
+                        // Prevent negative values and validate range
                         const numValue =
-                          value === "" ? undefined : Number(value);
+                          value === "" ? undefined : Math.max(1, Number(value));
                         handleFieldChange("credits", numValue ?? 0);
                       }}
                       value={field.value ?? ""}

@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 
 import { getEnvSecrets } from "@/config/env.config";
 import { getSessionOrThrow } from "@/lib/auth/utils";
+import { CouponError } from "@/lib/errors/coupon-errors";
 import {
   createStripeCheckoutSession,
   getCreditsForCoupon,
@@ -76,6 +77,19 @@ export async function getFreeCreditsWithCoupon(
     };
   } catch (error) {
     console.error("Failed to create checkout session:", error);
+
+    // Handle specific coupon errors
+    if (error instanceof CouponError) {
+      const t = await getTranslations("App.Billing");
+      return {
+        success: false,
+        error:
+          error.code === "COUPON_NOT_FOUND"
+            ? t("couponNotFound")
+            : t("invalidCoupon"),
+      };
+    }
+
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error occurred",
