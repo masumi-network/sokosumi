@@ -16,15 +16,15 @@ export default function LandingPage() {
       </section>
 
       {/* Endorsements Section */}
-      <section id="endorsements" className="border-b py-24">
-        <div className="container mx-auto px-12">
+      <section id="endorsements" className="border-b py-14 md:py-24">
+        <div className="container mx-auto px-4 md:px-12">
           <Endorsements />
         </div>
       </section>
 
       {/* Featured Agents Section */}
-      <section id="featured-agents" className="py-24">
-        <div className="container mx-auto px-12">
+      <section id="featured-agents" className="py-14 md:py-24">
+        <div className="container mx-auto px-4 md:px-12">
           <FeaturedAgents />
         </div>
       </section>
