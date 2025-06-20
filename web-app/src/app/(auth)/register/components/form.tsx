@@ -75,6 +75,7 @@ export default function SignUpForm({
       return;
     }
     const { organization } = organizationResult;
+
     const signUpData = {
       email: values.email,
       name: values.name,
@@ -83,7 +84,6 @@ export default function SignUpForm({
       marketingOptIn: values.marketingOptIn,
       callbackURL: "/app",
     };
-
     const userResult = await authClient.signUp.email(
       {
         ...signUpData,
