@@ -51,6 +51,7 @@ const envSecretsSchema = z.object({
     .string()
     .url()
     .default("https://payment.masumi.network/api/v1"),
+  PAYMENT_SMART_CONTRACT_ADDRESS: z.string().optional(),
 
   // BetterAuth Settings
   BETTER_AUTH_URL: z.string().url().default("http://localhost:3000"),

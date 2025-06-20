@@ -2,7 +2,7 @@
 
 import { Err, Ok, Result } from "ts-res";
 
-import { getEnvPublicConfig } from "@/config/env.config";
+import { getEnvPublicConfig, getEnvSecrets } from "@/config/env.config";
 import {
   getPurchase,
   postPurchase,
@@ -165,6 +165,7 @@ export async function createPurchase(
           startJobResponse.externalDisputeUnlockTime.toString(),
         submitResultTime: startJobResponse.submitResultTime.toString(),
         unlockTime: startJobResponse.unlockTime.toString(),
+        smartContractAddress: getEnvSecrets().PAYMENT_SMART_CONTRACT_ADDRESS,
         metadata: JSON.stringify({
           inputData: Object.fromEntries(inputData),
           jobId: startJobResponse.job_id,
@@ -175,7 +176,6 @@ export async function createPurchase(
     if (postPurchaseResponse.error || !postPurchaseResponse.data) {
       return Err("Failed to create purchase request");
     }
-
     return Ok(postPurchaseResponse.data);
   } catch (err) {
     return Err(String(err));
