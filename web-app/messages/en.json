@@ -618,7 +618,8 @@
             "organization": "Organization not found",
             "emailDomainNotAllowedByOrganization": "Email domain not allowed to join organization",
             "userExists": "User already exists",
-            "emailDomainNotAllowed": "Email must end with {allowedEmailDomains}"
+            "emailDomainNotAllowed": "Email must end with {allowedEmailDomains}",
+            "termsNotAccepted": "You must accept the terms and conditions to register"
           },
           "Login": {
             "message": "Already have an account?",

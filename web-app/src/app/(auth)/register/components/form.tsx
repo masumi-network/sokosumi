@@ -97,6 +97,9 @@ export default function SignUpForm({
                 }),
               );
               break;
+            case "TERMS_NOT_ACCEPTED":
+              toast.error(t("Errors.termsNotAccepted"));
+              break;
             default:
               toast.error(t("error"));
               break;
