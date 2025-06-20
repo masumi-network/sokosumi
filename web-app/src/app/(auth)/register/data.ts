@@ -17,6 +17,7 @@ const signUpFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
       password: passwordSchema(t),
       confirmPassword: confirmPasswordSchema(t),
       organizationId: organizationIdSchema(t),
+      termsAccepted: z.boolean(),
       marketingOptIn: z.boolean().optional(),
     })
     .refine(({ password, confirmPassword }) => password === confirmPassword, {
@@ -48,6 +49,10 @@ const signUpFormData: FormData<SignUpFormSchemaType, "Auth.Pages.SignUp.Form"> =
       name: "confirmPassword",
       placeholderKey: "Fields.ConfirmPassword.placeholder",
       type: "password",
+    },
+    {
+      name: "termsAccepted",
+      type: "checkbox",
     },
     {
       name: "marketingOptIn",

@@ -45,7 +45,24 @@ export const auth = betterAuth({
               message: allowedEmailDomains.join(", "),
             });
           }
+
+          if (!ctx.body?.termsAccepted) {
+            throw new APIError("BAD_REQUEST", {
+              code: "TERMS_NOT_ACCEPTED",
+            });
+          }
+
           break;
+        }
+      }
+    }),
+    after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path.startsWith("/sign-in")) {
+        const user = ctx.context.newSession?.user;
+        if (user && !user.termsAccepted) {
+          throw new APIError("BAD_REQUEST", {
+            code: "TERMS_NOT_ACCEPTED",
+          });
         }
       }
     }),
@@ -106,6 +123,16 @@ export const auth = betterAuth({
     },
     deleteUser: {
       enabled: true,
+    },
+    additionalFields: {
+      termsAccepted: {
+        type: "boolean",
+        required: true,
+      },
+      marketingOptIn: {
+        type: "boolean",
+        required: false,
+      },
     },
   },
   rateLimit: {

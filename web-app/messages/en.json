@@ -554,7 +554,8 @@
             "link": "Register"
           },
           "Errors": {
-            "verifyEmail": "Please verify your email address"
+            "verifyEmail": "Please verify your email address",
+            "termsNotAccepted": "You must accept the terms and conditions to login"
           }
         }
       },
@@ -577,6 +578,14 @@
             },
             "Name": {
               "placeholder": "Name"
+            },
+            "TermsAccepted": {
+              "Label": {
+                "iAgreeTo": "I agree to the",
+                "termsOfService": "Terms of Service",
+                "and": "and",
+                "privacyPolicy": "Privacy Policy"
+              }
             },
             "MarketingOptIn": {
               "label": "I would like to receive updates and news from Sōkosumi"
@@ -610,7 +619,8 @@
             "organization": "Organization not found",
             "emailDomainNotAllowedByOrganization": "Email domain not allowed to join organization",
             "userExists": "User already exists",
-            "emailDomainNotAllowed": "Email must end with {allowedEmailDomains}"
+            "emailDomainNotAllowed": "Email must end with {allowedEmailDomains}",
+            "termsNotAccepted": "You must accept the terms and conditions to register"
           },
           "Login": {
             "message": "Already have an account?",
@@ -719,6 +729,9 @@
       "topUpButton": "Top Up",
       "couponLabel": "Coupon Code",
       "couponPlaceholder": "Enter coupon code",
+      "couponOrCreditsError": "Please enter either a credit amount or a coupon code",
+      "couponCleared": "Coupon cleared - purchasing credits instead",
+      "creditsCleared": "Credits cleared - using coupon instead",
       "Error": {
         "title": "Something Went Wrong",
         "message": "We encountered an error loading the billing information.",
@@ -741,6 +754,9 @@
       },
       "invalidCredits": "Invalid credit amount",
       "invalidCoupon": "Invalid or inactive coupon code",
+      "couponNotFound": "Coupon code not found",
+      "couponTypeError": "This coupon type is not supported",
+      "couponCurrencyError": "Coupon currency is not supported",
       "checkoutFailed": "Failed to create checkout"
     },
     "Account": {

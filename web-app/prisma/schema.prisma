@@ -38,6 +38,9 @@ model User {
 
   marketingOptIn Boolean @default(false)
 
+  // terms
+  termsAccepted Boolean @default(false)
+
   @@unique([email])
   @@map("user")
 }

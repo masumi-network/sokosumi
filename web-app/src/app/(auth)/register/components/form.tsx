@@ -18,7 +18,6 @@ import {
   createOrganizationMember,
   updatePendingInvitations,
 } from "@/lib/actions";
-import { updateUserMarketingOptIn } from "@/lib/actions/user/action";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   isEmailAllowedByOrganization,
@@ -50,6 +49,7 @@ export default function SignUpForm({
       password: "",
       confirmPassword: "",
       organizationId: prefilledOrganizationId ?? "",
+      termsAccepted: false,
       marketingOptIn: false,
     },
   });
@@ -76,12 +76,17 @@ export default function SignUpForm({
     }
     const { organization } = organizationResult;
 
+    const signUpData = {
+      email: values.email,
+      name: values.name,
+      password: values.password,
+      termsAccepted: values.termsAccepted,
+      marketingOptIn: values.marketingOptIn,
+      callbackURL: "/app",
+    };
     const userResult = await authClient.signUp.email(
       {
-        email: values.email,
-        name: values.name,
-        password: values.password,
-        callbackURL: "/app",
+        ...signUpData,
       },
       {
         onError: (ctx) => {
@@ -96,6 +101,9 @@ export default function SignUpForm({
                 }),
               );
               break;
+            case "TERMS_NOT_ACCEPTED":
+              toast.error(t("Errors.termsNotAccepted"));
+              break;
             default:
               toast.error(t("error"));
               break;
@@ -105,20 +113,6 @@ export default function SignUpForm({
     );
     if (!userResult.data?.user) {
       return;
-    }
-
-    // Update marketing opt-in status
-    if (values.marketingOptIn) {
-      const marketingOptInResult = await updateUserMarketingOptIn(
-        userResult.data.user.id,
-        values.marketingOptIn,
-      );
-      if (!marketingOptInResult.success) {
-        console.error(
-          "Failed to update marketing opt-in:",
-          marketingOptInResult.error,
-        );
-      }
     }
 
     // create member using organization
@@ -144,6 +138,8 @@ export default function SignUpForm({
     router.push("/login");
   };
 
+  const termsAccepted = form.watch("termsAccepted");
+
   return (
     <AuthForm
       form={form}
@@ -155,7 +151,12 @@ export default function SignUpForm({
       organizations={organizations}
     >
       <div className="flex flex-col gap-4">
-        <SubmitButton form={form} label={t("submit")} className="w-full" />
+        <SubmitButton
+          form={form}
+          label={t("submit")}
+          className="w-full"
+          disabled={!termsAccepted}
+        />
         <div className="flex flex-col items-center gap-2 sm:flex-row">
           <span className="text-muted-foreground text-sm">
             {t("Login.message")}

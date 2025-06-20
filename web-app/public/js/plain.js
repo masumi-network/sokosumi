@@ -27,7 +27,7 @@
         {
           icon: "error",
           text: "Report an Agentic Service",
-          url: "https://forms.gle/fKSjmnySXQFB9X749",
+          url: "https://tally.so/r/mJbVEY",
         },
       ],
     });

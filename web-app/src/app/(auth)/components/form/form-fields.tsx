@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import {
   ControllerRenderProps,
@@ -99,6 +100,40 @@ function FormInput<T extends FieldValues>({
     name === "organizationId" && !!prefilledOrganizationId;
 
   if (type === "checkbox") {
+    const iAgreeToText = t.has("Fields.TermsAccepted.Label.iAgreeTo")
+      ? t("Fields.TermsAccepted.Label.iAgreeTo")
+      : null;
+    const termsOfServiceText = t.has(
+      "Fields.TermsAccepted.Label.termsOfService",
+    )
+      ? t("Fields.TermsAccepted.Label.termsOfService")
+      : null;
+    const andText = t.has("Fields.TermsAccepted.Label.and")
+      ? t("Fields.TermsAccepted.Label.and")
+      : null;
+    const privacyPolicyText = t.has("Fields.TermsAccepted.Label.privacyPolicy")
+      ? t("Fields.TermsAccepted.Label.privacyPolicy")
+      : null;
+
+    const allTranslationsExist =
+      iAgreeToText && termsOfServiceText && andText && privacyPolicyText;
+
+    const TermsAcceptedLabel = allTranslationsExist ? (
+      <Label
+        htmlFor={labelKey?.toString() ?? name.toString()}
+        className="flex flex-wrap items-center gap-1"
+      >
+        <span>{iAgreeToText}</span>
+        <Link target="_blank" href="/terms-of-service" className="underline">
+          {termsOfServiceText}
+        </Link>
+        <span>{andText}</span>
+        <Link target="_blank" href="/privacy-policy" className="underline">
+          {privacyPolicyText}
+        </Link>
+      </Label>
+    ) : null;
+
     return (
       <div className="flex items-center gap-2">
         <Checkbox
@@ -106,9 +141,13 @@ function FormInput<T extends FieldValues>({
           checked={field.value}
           onCheckedChange={field.onChange}
         />
-        <Label htmlFor={labelKey?.toString() ?? name.toString()}>
-          {labelKey && t(labelKey)}
-        </Label>
+        {name === "termsAccepted" ? (
+          TermsAcceptedLabel
+        ) : (
+          <Label htmlFor={labelKey?.toString() ?? name.toString()}>
+            {labelKey && t(labelKey)}
+          </Label>
+        )}
       </div>
     );
   }
