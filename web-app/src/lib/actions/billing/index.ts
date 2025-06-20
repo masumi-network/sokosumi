@@ -1,1 +1,5 @@
-export { claimFreeCredits, purchaseCredits } from "./action";
+export {
+  claimFreeCredits,
+  getFreeCreditsWithCoupon,
+  purchaseCredits,
+} from "./action";

@@ -25,12 +25,26 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { purchaseCredits } from "@/lib/actions";
+import { getFreeCreditsWithCoupon, purchaseCredits } from "@/lib/actions";
 
-const billingFormSchema = z.object({
-  credits: z.number().min(1, "Amount must be at least 1 credit"),
-  coupon: z.string().optional(),
-});
+const billingFormSchema = z
+  .object({
+    credits: z.number().optional(),
+    coupon: z.string().optional(),
+  })
+  .refine(
+    (data) => {
+      // Either credits must be provided and > 0, OR coupon must be provided and not empty
+      const hasValidCredits = data.credits != null && data.credits > 0;
+      const hasValidCoupon =
+        data.coupon != null && data.coupon.trim().length > 0;
+      return hasValidCredits || hasValidCoupon;
+    },
+    {
+      message: "Please enter either a credit amount or a coupon code",
+      path: ["credits"], // This will show the error on the credits field
+    },
+  );
 
 type BillingFormData = z.infer<typeof billingFormSchema>;
 
@@ -51,17 +65,30 @@ export default function BillingForm({
   const form = useForm<BillingFormData>({
     resolver: zodResolver(billingFormSchema),
     defaultValues: {
-      credits: 0,
+      credits: undefined,
       coupon: "",
     },
   });
 
   const { watch, setValue } = form;
   const credits = watch("credits");
+  const coupon = watch("coupon");
 
   const onSubmit = async (data: BillingFormData) => {
     try {
-      const result = await purchaseCredits(priceId, data.credits, data.coupon);
+      let result;
+
+      // If coupon is provided, use coupon redemption flow
+      if (data.coupon && data.coupon.trim().length > 0) {
+        result = await getFreeCreditsWithCoupon(priceId, data.coupon.trim());
+      }
+      // Otherwise, use credit purchase flow
+      else if (data.credits && data.credits > 0) {
+        result = await purchaseCredits(priceId, data.credits);
+      } else {
+        toast.error(t("couponOrCreditsError"));
+        return;
+      }
 
       if (result.success && result.url) {
         window.location.href = result.url;
@@ -70,12 +97,19 @@ export default function BillingForm({
       }
     } catch (error) {
       console.error("Failed to create checkout session:", error);
-      toast.error("An unexpected error occurred");
+      toast.error(t("Error.title"));
     }
   };
 
   const handleQuickAmount = (amount: number) => {
     setValue("credits", amount);
+    setValue("coupon", ""); // Clear coupon when selecting credits
+  };
+
+  const handleCouponChange = (value: string) => {
+    if (value.trim().length > 0) {
+      setValue("credits", undefined); // Clear credits when entering coupon
+    }
   };
 
   return (
@@ -113,8 +147,14 @@ export default function BillingForm({
                       min="1"
                       disabled={form.formState.isSubmitting}
                       {...field}
-                      onChange={(e) => field.onChange(Number(e.target.value))}
-                      value={field.value || ""}
+                      onChange={(e) => {
+                        const value = Number(e.target.value);
+                        field.onChange(value);
+                        if (value > 0) {
+                          setValue("coupon", ""); // Clear coupon when entering credits
+                        }
+                      }}
+                      value={field.value ?? ""}
                     />
                   </FormControl>
                   <FormMessage />
@@ -134,6 +174,10 @@ export default function BillingForm({
                       disabled={form.formState.isSubmitting}
                       autoComplete="off"
                       {...field}
+                      onChange={(e) => {
+                        field.onChange(e.target.value);
+                        handleCouponChange(e.target.value);
+                      }}
                     />
                   </FormControl>
                   <FormMessage />
@@ -144,7 +188,11 @@ export default function BillingForm({
           <CardFooter className="flex items-center justify-between pt-6">
             <Button
               type="submit"
-              disabled={!credits || credits <= 0 || form.formState.isSubmitting}
+              disabled={
+                form.formState.isSubmitting ||
+                ((!credits || credits <= 0) &&
+                  (!coupon || coupon.trim().length === 0))
+              }
             >
               {form.formState.isSubmitting && (
                 <Loader2 className="mr-2 size-4 animate-spin" />
