@@ -66,7 +66,11 @@ export function CreateJobModalContextProvider({
     if (!agentId) {
       return;
     }
-    return agentsWithPrice.find(({ agent }) => agent.id === agentId);
+    const result = agentsWithPrice.find(({ agent }) => agent.id === agentId);
+    if (!result) {
+      console.error("agent not found in agentsWithPrice", agentId);
+    }
+    return result;
   }, [agentsWithPrice, agentId]);
 
   const handleExpand = () => {
