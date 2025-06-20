@@ -100,18 +100,36 @@ function FormInput<T extends FieldValues>({
     name === "organizationId" && !!prefilledOrganizationId;
 
   if (type === "checkbox") {
-    const TermsAcceptedLabel = t.has("Fields.TermsAccepted.Label") ? (
+    const iAgreeToText = t.has("Fields.TermsAccepted.Label.iAgreeTo")
+      ? t("Fields.TermsAccepted.Label.iAgreeTo")
+      : null;
+    const termsOfServiceText = t.has(
+      "Fields.TermsAccepted.Label.termsOfService",
+    )
+      ? t("Fields.TermsAccepted.Label.termsOfService")
+      : null;
+    const andText = t.has("Fields.TermsAccepted.Label.and")
+      ? t("Fields.TermsAccepted.Label.and")
+      : null;
+    const privacyPolicyText = t.has("Fields.TermsAccepted.Label.privacyPolicy")
+      ? t("Fields.TermsAccepted.Label.privacyPolicy")
+      : null;
+
+    const allTranslationsExist =
+      iAgreeToText && termsOfServiceText && andText && privacyPolicyText;
+
+    const TermsAcceptedLabel = allTranslationsExist ? (
       <Label
         htmlFor={labelKey?.toString() ?? name.toString()}
-        className="gap-1"
+        className="flex flex-wrap items-center gap-1"
       >
-        {t("Fields.TermsAccepted.Label.iAgreeTo")}
+        <span>{iAgreeToText}</span>
         <Link target="_blank" href="/terms-of-service" className="underline">
-          {t("Fields.TermsAccepted.Label.termsOfService")}
+          {termsOfServiceText}
         </Link>
-        {t("Fields.TermsAccepted.Label.and")}
+        <span>{andText}</span>
         <Link target="_blank" href="/privacy-policy" className="underline">
-          {t("Fields.TermsAccepted.Label.privacyPolicy")}
+          {privacyPolicyText}
         </Link>
       </Label>
     ) : null;
