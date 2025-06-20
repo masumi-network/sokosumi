@@ -199,11 +199,15 @@ export default function BillingForm({
                       disabled={form.formState.isSubmitting}
                       {...field}
                       onChange={(e) => {
-                        const value = e.target.value;
-                        // Prevent negative values and validate range
-                        const numValue =
-                          value === "" ? undefined : Math.max(1, Number(value));
-                        handleFieldChange("credits", numValue);
+                        const { value } = e.target;
+                        if (value === "") {
+                          handleFieldChange("credits", undefined);
+                        } else {
+                          const numValue = Number(value);
+                          if (Number.isFinite(numValue) && numValue >= 0) {
+                            handleFieldChange("credits", numValue);
+                          }
+                        }
                       }}
                       value={field.value ?? ""}
                     />
