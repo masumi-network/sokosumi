@@ -52,6 +52,9 @@ export default function SignInForm({
             case "EMAIL_NOT_VERIFIED":
               toast.error(t("Errors.verifyEmail"));
               break;
+            case "TERMS_NOT_ACCEPTED":
+              toast.error(t("Errors.termsNotAccepted"));
+              break;
             default:
               toast.error(t("error"));
               break;

@@ -554,7 +554,8 @@
             "link": "Register"
           },
           "Errors": {
-            "verifyEmail": "Please verify your email address"
+            "verifyEmail": "Please verify your email address",
+            "termsNotAccepted": "You must accept the terms and conditions to login"
           }
         }
       },

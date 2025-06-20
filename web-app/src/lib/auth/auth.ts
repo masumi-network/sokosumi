@@ -56,6 +56,16 @@ export const auth = betterAuth({
         }
       }
     }),
+    after: createAuthMiddleware(async (ctx) => {
+      if (ctx.path.startsWith("/sign-in")) {
+        const user = ctx.context.newSession?.user;
+        if (user && !user.termsAccepted) {
+          throw new APIError("BAD_REQUEST", {
+            code: "TERMS_NOT_ACCEPTED",
+          });
+        }
+      }
+    }),
   },
   emailAndPassword: {
     enabled: true,
