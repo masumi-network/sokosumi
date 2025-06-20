@@ -125,5 +125,11 @@ export async function getCreditsForCoupon(
     );
   }
 
-  return Math.ceil(coupon.amount_off / conversionFactors.amountPerCredit);
+  const credits = Math.floor(
+    coupon.amount_off / conversionFactors.amountPerCredit,
+  );
+  if (credits < 1) {
+    throw new CouponTypeError("Coupon amount is too low");
+  }
+  return credits;
 }
