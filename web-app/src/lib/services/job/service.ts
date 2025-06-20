@@ -123,11 +123,14 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
           input: JSON.stringify(Object.fromEntries(inputData)),
           inputSchema: inputSchema,
           paymentId: purchaseResponse.data.id,
+          smartContractAddress:
+            purchaseResponse.data.PaymentSource.smartContractAddress,
           creditsPrice,
           identifierFromPurchaser,
           externalDisputeUnlockTime: new Date(
             startJobResponse.externalDisputeUnlockTime,
           ),
+
           submitResultTime: new Date(startJobResponse.submitResultTime),
           unlockTime: new Date(startJobResponse.unlockTime),
           blockchainIdentifier: startJobResponse.blockchainIdentifier,

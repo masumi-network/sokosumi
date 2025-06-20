@@ -118,6 +118,7 @@ interface CreateJobData {
   inputSchema: JobInputSchemaType[];
   input: string;
   paymentId: string;
+  smartContractAddress: string;
   creditsPrice: CreditsPrice;
   identifierFromPurchaser: string;
   externalDisputeUnlockTime: Date;
@@ -151,6 +152,7 @@ export async function createJob(
         },
       },
       paymentId: data.paymentId,
+      smartContractAddress: data.smartContractAddress,
       inputSchema: data.inputSchema,
       input: data.input,
       identifierFromPurchaser: data.identifierFromPurchaser,
