@@ -81,12 +81,25 @@ export async function getFreeCreditsWithCoupon(
     // Handle specific coupon errors
     if (error instanceof CouponError) {
       const t = await getTranslations("App.Billing");
+      let errorMessage = t("invalidCoupon"); // Default message
+
+      switch (error.code) {
+        case "COUPON_NOT_FOUND":
+          errorMessage = t("couponNotFound");
+          break;
+        case "COUPON_TYPE_ERROR":
+          errorMessage = t("couponTypeError");
+          break;
+        case "COUPON_CURRENCY_ERROR":
+          errorMessage = t("couponCurrencyError");
+          break;
+        default:
+          break;
+      }
+
       return {
         success: false,
-        error:
-          error.code === "COUPON_NOT_FOUND"
-            ? t("couponNotFound")
-            : t("invalidCoupon"),
+        error: errorMessage,
       };
     }
 
