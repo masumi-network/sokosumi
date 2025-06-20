@@ -21,17 +21,6 @@ export async function getUserById(
   });
 }
 
-export async function setUserMarketingOptIn(
-  userId: string,
-  marketingOptIn: boolean,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<User> {
-  return await tx.user.update({
-    where: { id: userId },
-    data: { marketingOptIn },
-  });
-}
-
 export async function setStripeCustomerId(
   userId: string,
   stripeCustomerId: string,
