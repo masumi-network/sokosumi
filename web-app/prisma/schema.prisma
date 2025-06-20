@@ -39,9 +39,7 @@ model User {
   marketingOptIn Boolean @default(false)
 
   // terms
-  termsAccepted   Boolean   @default(false)
-  termsAcceptedAt DateTime?
-  termsVersion    String?   @default("1.0")
+  termsAccepted Boolean @default(false)
 
   @@unique([email])
   @@map("user")
