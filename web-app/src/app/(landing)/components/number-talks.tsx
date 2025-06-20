@@ -41,7 +41,7 @@ export default async function NumberTalks() {
   return (
     <div className="flex flex-col gap-8 md:gap-12">
       <h2 className="text-2xl font-light md:text-5xl">{t("title")}</h2>
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-3 md:gap-4">
+      <div className="grid grid-cols-1 gap-6 md:gap-4 lg:grid-cols-3">
         <NumberTalkSection
           icon={<Clock className="h-4 w-4" />}
           title={t("Numbers.Duration.title")}
