@@ -81,12 +81,12 @@ export default function SignUpForm({
       password: values.password,
       termsAccepted: values.termsAccepted,
       marketingOptIn: values.marketingOptIn,
+      callbackURL: "/app",
     };
 
     const userResult = await authClient.signUp.email(
       {
         ...signUpData,
-        callbackURL: "/app",
       },
       {
         onError: (ctx) => {
