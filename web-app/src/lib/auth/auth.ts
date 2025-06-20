@@ -129,6 +129,10 @@ export const auth = betterAuth({
         type: "boolean",
         required: true,
       },
+      marketingOptIn: {
+        type: "boolean",
+        required: false,
+      },
     },
   },
   rateLimit: {

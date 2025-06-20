@@ -18,7 +18,6 @@ import {
   createOrganizationMember,
   updatePendingInvitations,
 } from "@/lib/actions";
-import { updateUserMarketingOptIn } from "@/lib/actions/user/action";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   isEmailAllowedByOrganization,
@@ -81,6 +80,7 @@ export default function SignUpForm({
       name: values.name,
       password: values.password,
       termsAccepted: values.termsAccepted,
+      marketingOptIn: values.marketingOptIn,
     };
 
     const userResult = await authClient.signUp.email(
@@ -113,20 +113,6 @@ export default function SignUpForm({
     );
     if (!userResult.data?.user) {
       return;
-    }
-
-    // Update marketing opt-in status
-    if (values.marketingOptIn) {
-      const marketingOptInResult = await updateUserMarketingOptIn(
-        userResult.data.user.id,
-        values.marketingOptIn,
-      );
-      if (!marketingOptInResult.success) {
-        console.error(
-          "Failed to update marketing opt-in:",
-          marketingOptInResult.error,
-        );
-      }
     }
 
     // create member using organization
