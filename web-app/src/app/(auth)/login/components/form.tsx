@@ -94,7 +94,7 @@ export default function SignInForm({
       <div className="flex flex-col gap-4">
         <SubmitButton form={form} label={t("submit")} className="w-full" />
         <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+          <div className="flex flex-row items-center gap-2">
             <span className="text-muted-foreground text-sm">
               {t("Register.message")}
             </span>
