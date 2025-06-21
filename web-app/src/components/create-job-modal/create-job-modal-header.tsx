@@ -32,7 +32,9 @@ export default function CreateJobModalHeader({
       >
         {isExpanded ? <ChevronUp /> : <ChevronDown />}
       </Button>
-      <h3 className="text-lg font-medium">{t("title", { name })}</h3>
+      <h3 className="truncate text-base font-medium md:text-lg">
+        {t("title", { name })}
+      </h3>
       <Button
         variant="ghost"
         onClick={handleClose}

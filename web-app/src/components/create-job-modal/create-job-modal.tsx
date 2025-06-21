@@ -26,11 +26,11 @@ export default function CreateJobModal() {
   return (
     <Dialog open={open} onOpenChange={handleOnOpenChange}>
       <DialogPortal>
-        <DialogOverlay className="backdrop-blur-lg" />
-        <DialogContent className="w-[80vw] max-w-3xl! border-none bg-transparent p-0 focus:ring-0 focus:outline-none [&>button]:hidden">
+        <DialogOverlay className="bg-background/50 backdrop-blur-lg md:bg-auto" />
+        <DialogContent className="w-svw max-w-3xl! border-none bg-transparent p-0 focus:ring-0 focus:outline-none md:w-[80vw] [&>button]:hidden">
           <DialogTitle className="hidden" />
           <DialogDescription className="hidden" />
-          <ScrollArea className="max-h-[90svh]">
+          <ScrollArea className="max-h-svh md:max-h-[90svh]">
             {agentWithPrice && (
               <CreateJobSection
                 agent={agentWithPrice.agent}

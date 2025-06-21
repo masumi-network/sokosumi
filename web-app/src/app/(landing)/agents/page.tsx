@@ -7,7 +7,6 @@ import {
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
 import { getOnlineAgentsWithCreditsPrice } from "@/lib/services";
-import { sleep } from "@/lib/utils";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Landing.Agents.Metadata");
@@ -26,8 +25,6 @@ export default async function GalleryPage() {
   }
 
   const featuredAgentWithPrice = agentsWithPrice[0];
-
-  await sleep(10000);
 
   return (
     <div className="container mx-auto px-4 pt-4 pb-8 md:px-12">

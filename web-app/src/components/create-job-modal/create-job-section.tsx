@@ -41,7 +41,7 @@ export default function CreateJobSection({
   };
 
   return (
-    <div className="bg-background flex flex-col rounded-xl p-6 pt-0">
+    <div className="bg-background flex w-svw flex-col rounded-xl p-4 pt-0 md:w-auto md:p-6">
       <CreateJobModalHeader agent={agent} />
       <Accordion
         type="multiple"
@@ -80,7 +80,7 @@ function InformationAccordionItem({
       disabled={disabled}
     >
       <div className="flex flex-wrap gap-6">
-        <div className="h-24 w-24">
+        <div className="h-16 w-16 md:h-24 md:w-24">
           <Image
             src={image}
             alt={name}
@@ -90,7 +90,7 @@ function InformationAccordionItem({
           />
         </div>
         <div className="flex flex-1 flex-col justify-center gap-0.5">
-          <h3 className="text-lg font-bold">{name}</h3>
+          <h3 className="text-base font-bold md:text-lg">{name}</h3>
           {description && <Markdown>{description}</Markdown>}
         </div>
       </div>
