@@ -8,11 +8,10 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import LogoutModal from "@/components/modals/logout-modal";
+import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { Button } from "@/components/ui/button";
 import { CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import useModal from "@/hooks/use-modal";
 import { authClient } from "@/lib/auth/auth.client";
 import { InvitationWithRelations } from "@/lib/db";
 
@@ -40,13 +39,7 @@ export default function InvitationActions({
     string | null
   >(null);
 
-  const { Component, showModal } = useModal(({ open, onOpenChange }) => (
-    <LogoutModal
-      open={open}
-      onOpenChange={onOpenChange}
-      email={user?.email ?? ""}
-    />
-  ));
+  const { showLogoutModal } = useGlobalModalsContext();
 
   useEffect(() => {
     const currentUrl = location.pathname + location.search;
@@ -132,15 +125,16 @@ export default function InvitationActions({
     }
 
     return (
-      <>
-        {Component}
-        <CardFooter className="flex flex-col gap-4">
-          <p>{t("WithDifferentEmail.youLoggedInWithDifferentEmail")}</p>
-          <Button variant="outline" onClick={showModal} className="w-full">
-            {t("WithDifferentEmail.logout")}
-          </Button>
-        </CardFooter>
-      </>
+      <CardFooter className="flex flex-col gap-4">
+        <p>{t("WithDifferentEmail.youLoggedInWithDifferentEmail")}</p>
+        <Button
+          variant="outline"
+          onClick={() => showLogoutModal(user.email)}
+          className="w-full"
+        >
+          {t("WithDifferentEmail.logout")}
+        </Button>
+      </CardFooter>
     );
   }
 

@@ -21,8 +21,7 @@ function AgentHireButton({
   className,
 }: AgentHireButtonProps) {
   const t = useTranslations("Components.Agents");
-  const { isPending, ModalComponent, withAuthentication } =
-    useWithAuthentication();
+  const { isPending, withAuthentication } = useWithAuthentication();
 
   const { handleOpen } = useCreateJobModalContext();
 
@@ -31,23 +30,20 @@ function AgentHireButton({
   };
 
   return (
-    <>
-      {ModalComponent}
-      <Button
-        size={size}
-        variant="primary"
-        onClick={(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          withAuthentication(handleHire)();
-        }}
-        disabled={isPending}
-        className={cn("cursor-pointer", className)}
-      >
-        {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        {t("hire")}
-      </Button>
-    </>
+    <Button
+      size={size}
+      variant="primary"
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        withAuthentication(handleHire)();
+      }}
+      disabled={isPending}
+      className={cn("cursor-pointer", className)}
+    >
+      {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+      {t("hire")}
+    </Button>
   );
 }
 

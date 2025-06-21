@@ -2,11 +2,10 @@
 
 import { useCallback } from "react";
 
-import AuthenticationModal from "@/components/modals/authentication-modal";
+import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { useSession } from "@/lib/auth/auth.client";
 
 import useIsClient from "./use-is-client";
-import useModal from "./use-modal";
 
 type Callback =
   | ((...args: unknown[]) => void)
@@ -15,8 +14,7 @@ type Callback =
 export default function useWithAuthentication() {
   const isClient = useIsClient();
   const { data: session, isPending: isSessionPending } = useSession();
-  const { Component, showModal } = useModal(AuthenticationModal);
-
+  const { showAuthenticationModal } = useGlobalModalsContext();
   const isPending = isClient ? isSessionPending : true;
 
   const withAuthentication = useCallback(
@@ -26,17 +24,16 @@ export default function useWithAuthentication() {
       }
 
       if (!session) {
-        return showModal;
+        return showAuthenticationModal;
       }
 
       return callback;
     },
-    [isPending, session, showModal],
+    [isPending, session, showAuthenticationModal],
   );
 
   return {
     isPending,
     withAuthentication,
-    ModalComponent: Component,
   };
 }
