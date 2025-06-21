@@ -37,7 +37,7 @@ export function AgentDetail({
   showCloseButton,
   onClose,
   className,
-  cardClassName = "agent-detail-card",
+  cardClassName = "agent-detail-card p-3 md:p-6",
 }: AgentDetailProps) {
   const exampleOutputs = getAgentExampleOutput(agent);
   const legal = getAgentLegal(agent);

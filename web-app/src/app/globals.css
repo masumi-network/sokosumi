@@ -425,13 +425,11 @@
   background: var(--material-thin, rgba(245, 245, 245, 0.48));
   border-radius: var(--border-radius-xl, 12px);
   border: 1px solid var(--base-senary, rgba(10, 10, 10, 0.03));
-  padding: var(--spacing-6, 24px);
 
   @variant dark {
     background: var(--material-thin, rgba(38, 38, 38, 0.7));
     border-radius: var(--border-radius-xl, 12px);
     border: 1px solid var(--base-senary, rgba(255, 255, 255, 0.05));
-    padding: var(--spacing-6, 24px);
   }
 }
 
@@ -439,13 +437,11 @@
   background: var(--material-regular, rgba(255, 255, 255, 0.85));
   border-radius: var(--border-radius-xl, 12px);
   border: 1px solid var(--base-senary, rgba(10, 10, 10, 0.03));
-  padding: var(--spacing-6, 24px);
 
   @variant dark {
     background: var(--material-regular, rgba(38, 38, 38, 0.8));
     border-radius: var(--border-radius-xl, 12px);
     border: 1px solid var(--base-senary, rgba(255, 255, 255, 0.05));
-    padding: var(--spacing-6, 24px);
   }
 }
 

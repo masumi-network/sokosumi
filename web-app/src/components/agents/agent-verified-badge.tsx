@@ -15,7 +15,7 @@ function AgentVerifiedBadge({ className }: AgentVerifiedBadgeProps) {
       )}
     >
       <CheckCheck className="text-agent-verified-foreground h-4 w-4" />
-      <span className="text-agent-verified-foreground text-xs uppercase">
+      <span className="text-agent-verified-foreground hidden text-xs uppercase md:block">
         {"Verified"}
       </span>
     </div>
