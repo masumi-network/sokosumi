@@ -6,7 +6,6 @@ import { useTranslations } from "next-intl";
 import AccordionItemWrapper from "@/app/agents/[agentId]/jobs/components/accordion-wrapper";
 import Markdown from "@/components/markdown";
 import { Accordion } from "@/components/ui/accordion";
-import useAgentInputSchemaPromise from "@/hooks/use-agent-input-schema-promise";
 import {
   AgentWithRelations,
   CreditsPrice,
@@ -15,12 +14,10 @@ import {
   getAgentName,
   getAgentResolvedImage,
 } from "@/lib/db";
-import { JobInputsDataSchemaType } from "@/lib/job-input";
 
 import { useCreateJobModalContext } from "./create-job-modal-context";
 import CreateJobModalHeader from "./create-job-modal-header";
 import { JobInputsForm } from "./job-input";
-import { JobInputsFormSkeleton } from "./job-input/job-inputs-form";
 
 interface CreateJobSectionProps {
   agent: AgentWithRelations;
@@ -33,8 +30,6 @@ export default function CreateJobSection({
 }: CreateJobSectionProps) {
   const { accordionValue, setAccordionValue, loading } =
     useCreateJobModalContext();
-
-  const inputSchemaPromise = useAgentInputSchemaPromise(agent.id);
 
   const handleAccordionValueChange = (value: string[]) => {
     setAccordionValue(value);
@@ -53,7 +48,6 @@ export default function CreateJobSection({
         <InputAccordionItem
           agent={agent}
           agentCreditsPrice={agentCreditsPrice}
-          inputSchemaPromise={inputSchemaPromise}
           disabled={loading}
         />
       </Accordion>
@@ -101,12 +95,10 @@ function InformationAccordionItem({
 function InputAccordionItem({
   agent,
   agentCreditsPrice,
-  inputSchemaPromise,
   disabled,
 }: {
   agent: AgentWithRelations;
   agentCreditsPrice: CreditsPrice;
-  inputSchemaPromise: Promise<JobInputsDataSchemaType> | null;
   disabled?: boolean | undefined;
 }) {
   const t = useTranslations("App.Agents.Jobs.CreateJob.Input");
@@ -115,16 +107,11 @@ function InputAccordionItem({
     <AccordionItemWrapper value="input" title={t("title")} disabled={disabled}>
       <div className="flex flex-col gap-6">
         <p className="text-sm">{t("description")}</p>
-        {inputSchemaPromise ? (
-          <JobInputsForm
-            agentId={agent.id}
-            agentCreditsPrice={agentCreditsPrice}
-            legal={getAgentLegal(agent)}
-            inputSchemaPromise={inputSchemaPromise}
-          />
-        ) : (
-          <JobInputsFormSkeleton />
-        )}
+        <JobInputsForm
+          agentId={agent.id}
+          agentCreditsPrice={agentCreditsPrice}
+          legal={getAgentLegal(agent)}
+        />
       </div>
     </AccordionItemWrapper>
   );

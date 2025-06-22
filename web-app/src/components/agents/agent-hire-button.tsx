@@ -33,11 +33,7 @@ function AgentHireButton({
     <Button
       size={size}
       variant="primary"
-      onClick={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        withAuthentication(handleHire)();
-      }}
+      onClick={withAuthentication(handleHire)}
       disabled={isPending}
       className={cn("cursor-pointer", className)}
     >

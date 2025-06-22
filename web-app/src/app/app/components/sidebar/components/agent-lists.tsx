@@ -32,7 +32,7 @@ function AgentListsSkeleton() {
   return (
     <ScrollArea className="h-full">
       {[1, 2].map((groupIndex) => (
-        <SidebarGroup key={groupIndex}>
+        <SidebarGroup key={groupIndex} className="w-full">
           <SidebarGroupLabel className="text-base">
             <Skeleton className="h-5 w-24" />
           </SidebarGroupLabel>

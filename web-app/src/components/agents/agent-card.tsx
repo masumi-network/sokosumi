@@ -357,12 +357,12 @@ function AgentCard({
                   </Button>
                 </div>
               )}
-              <div className={cn(agentHireButtonVariants({ size }))}>
+              <ClickBlocker className={cn(agentHireButtonVariants({ size }))}>
                 <AgentHireButton
                   agentId={agent.id}
                   className="w-full md:w-auto"
                 />
-              </div>
+              </ClickBlocker>
             </div>
           </div>
         </div>

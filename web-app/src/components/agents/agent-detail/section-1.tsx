@@ -60,7 +60,7 @@ function AgentDetailSection1({
         </div>
         <div className="flex flex-1 flex-col gap-8 md:gap-1.5">
           <div className="flex flex-1 flex-col gap-2">
-            <div className="flex items-center gap-4">
+            <div className="flex items-start gap-4 md:items-center">
               <h2 className="text-2xl font-light md:text-3xl">
                 {getAgentName(agent)}
               </h2>
@@ -105,7 +105,7 @@ function AgentDetailSection1Skeleton() {
         <Skeleton className="aspect-square w-full rounded-lg md:h-48 md:w-48" />
         <div className="flex flex-1 flex-col gap-8 md:gap-1.5">
           <div className="flex flex-1 flex-col gap-2">
-            <div className="flex items-center gap-4">
+            <div className="flex items-start gap-4 md:items-center">
               <Skeleton className="h-8 w-40" />
               <Skeleton className="h-8 w-16" />
             </div>
