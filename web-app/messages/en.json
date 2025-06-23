@@ -35,7 +35,8 @@
   "Components": {
     "AppLayoutRestrictor": {
       "title": "Mobile Not Supported",
-      "description": "This page is only supported on Desktop devices. Please switch to large screen."
+      "description": "This page is only supported on Desktop devices. Please switch to large screen.",
+      "reload": "Reload"
     },
     "ShareButton": {
       "linkCopied": "Link copied to clipboard",
