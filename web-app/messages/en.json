@@ -872,7 +872,7 @@
           "Header": {
             "started": "Started",
             "status": "Status",
-            "id": "ID"
+            "name": "Name"
           }
         },
         "StatusBadge": {
