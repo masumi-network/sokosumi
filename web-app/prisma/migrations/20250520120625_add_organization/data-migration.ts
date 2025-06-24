@@ -22,34 +22,39 @@ async function main() {
 
   for (const user of users) {
     await prisma.$transaction(async (tx) => {
-      const { email } = user;
-      const domain = email.split("@")[1];
+      try {
+        const { email } = user;
+        const domain = email.split("@")[1];
 
-      // Create the organization if it doesn't exist
-      const organization = await tx.organization.upsert({
-        where: { slug: domain },
-        update: {},
-        create: {
-          slug: domain,
-          name: domain,
-        },
-      });
+        // Create the organization if it doesn't exist
+        const organization = await tx.organization.upsert({
+          where: { slug: domain },
+          update: {},
+          create: {
+            slug: domain,
+            name: domain,
+          },
+        });
 
-      // Create the member
-      await tx.member.create({
-        data: {
-          user: {
-            connect: {
-              id: user.id,
+        // Create the member
+        await tx.member.create({
+          data: {
+            user: {
+              connect: {
+                id: user.id,
+              },
+            },
+            organization: {
+              connect: {
+                id: organization.id,
+              },
             },
           },
-          organization: {
-            connect: {
-              id: organization.id,
-            },
-          },
-        },
-      });
+        });
+      } catch (error) {
+        console.log("Error adding organization", error);
+        throw error;
+      }
     });
   }
 }

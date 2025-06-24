@@ -64,79 +64,83 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
     async (tx) => {
       const { userId, agentId, maxAcceptedCents, inputData, inputSchema } =
         input;
+      try {
+        const agent = await getAgentById(agentId, tx);
+        if (!agent) {
+          throw new Error("Agent not found");
+        }
+        const pricing = await getAgentPricing(agentId, tx);
+        const creditsPrice = await getCreditsPrice(
+          pricing.FixedPricing.Amounts.map((amount) => ({
+            unit: amount.unit,
+            amount: Number(amount.amount),
+          })),
+          tx,
+        );
+        if (creditsPrice.cents > maxAcceptedCents) {
+          throw new Error("Credit cost is too high");
+        }
+        if (creditsPrice.cents > 0) {
+          await validateCreditsBalance(userId, creditsPrice.cents, tx);
+        }
 
-      const agent = await getAgentById(agentId, tx);
-      if (!agent) {
-        throw new Error("Agent not found");
-      }
-      const pricing = await getAgentPricing(agentId, tx);
-      const creditsPrice = await getCreditsPrice(
-        pricing.FixedPricing.Amounts.map((amount) => ({
-          unit: amount.unit,
-          amount: Number(amount.amount),
-        })),
-        tx,
-      );
-      if (creditsPrice.cents > maxAcceptedCents) {
-        throw new Error("Credit cost is too high");
-      }
-      if (creditsPrice.cents > 0) {
-        await validateCreditsBalance(userId, creditsPrice.cents, tx);
-      }
+        const identifierFromPurchaser = uuidv4()
+          .replace(/-/g, "")
+          .substring(0, 20);
 
-      const identifierFromPurchaser = uuidv4()
-        .replace(/-/g, "")
-        .substring(0, 20);
-
-      const startJobResult = await startAgentJob(
-        agent,
-        identifierFromPurchaser,
-        inputData,
-      );
-      if (!startJobResult.ok) {
-        throw new Error(startJobResult.error);
-      }
-      const startJobResponse = startJobResult.data;
-      const matchedInputHash = getMatchedInputHash(
-        inputData,
-        identifierFromPurchaser,
-        startJobResponse.input_hash,
-      );
-
-      const createPurchaseResult = await createPurchase(
-        agent,
-        startJobResponse,
-        inputData,
-        matchedInputHash,
-        identifierFromPurchaser,
-      );
-      if (!createPurchaseResult.ok) {
-        throw new Error(createPurchaseResult.error);
-      }
-      const purchaseResponse = createPurchaseResult.data;
-
-      const job = await createJob(
-        {
-          agentJobId: startJobResponse.job_id,
-          agentId,
-          userId,
-          input: JSON.stringify(Object.fromEntries(inputData)),
-          inputSchema: inputSchema,
-          paymentId: purchaseResponse.data.id,
-          creditsPrice,
+        const startJobResult = await startAgentJob(
+          agent,
           identifierFromPurchaser,
-          externalDisputeUnlockTime: new Date(
-            startJobResponse.externalDisputeUnlockTime,
-          ),
-          payByTime: new Date(startJobResponse.payByTime),
-          submitResultTime: new Date(startJobResponse.submitResultTime),
-          unlockTime: new Date(startJobResponse.unlockTime),
-          blockchainIdentifier: startJobResponse.blockchainIdentifier,
-          sellerVkey: startJobResponse.sellerVkey,
-        },
-        tx,
-      );
-      return job;
+          inputData,
+        );
+        if (!startJobResult.ok) {
+          throw new Error(startJobResult.error);
+        }
+        const startJobResponse = startJobResult.data;
+        const matchedInputHash = getMatchedInputHash(
+          inputData,
+          identifierFromPurchaser,
+          startJobResponse.input_hash,
+        );
+
+        const createPurchaseResult = await createPurchase(
+          agent,
+          startJobResponse,
+          inputData,
+          matchedInputHash,
+          identifierFromPurchaser,
+        );
+        if (!createPurchaseResult.ok) {
+          throw new Error(createPurchaseResult.error);
+        }
+        const purchaseResponse = createPurchaseResult.data;
+
+        const job = await createJob(
+          {
+            agentJobId: startJobResponse.job_id,
+            agentId,
+            userId,
+            input: JSON.stringify(Object.fromEntries(inputData)),
+            inputSchema: inputSchema,
+            paymentId: purchaseResponse.data.id,
+            creditsPrice,
+            identifierFromPurchaser,
+            externalDisputeUnlockTime: new Date(
+              startJobResponse.externalDisputeUnlockTime,
+            ),
+            payByTime: new Date(startJobResponse.payByTime),
+            submitResultTime: new Date(startJobResponse.submitResultTime),
+            unlockTime: new Date(startJobResponse.unlockTime),
+            blockchainIdentifier: startJobResponse.blockchainIdentifier,
+            sellerVkey: startJobResponse.sellerVkey,
+          },
+          tx,
+        );
+        return job;
+      } catch (error) {
+        console.log("Error starting job", error);
+        throw error;
+      }
     },
     {
       maxWait: 5000, // default: 2000

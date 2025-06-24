@@ -36,34 +36,39 @@ export async function createStripeCheckoutSession(
 
   // Create the fiat transaction and the checkout session
   return await prisma.$transaction(async (tx) => {
-    const user = await getUserById(userId, tx);
-    if (!user) {
-      throw new Error("User not found");
-    }
-    const conversionFactorsPerCredit = await getConversionFactors(priceId);
-    const amount = credits * conversionFactorsPerCredit.amountPerCredit;
-    const fiatTransaction = await createFiatTransaction(
-      userId,
-      convertCreditsToCents(credits),
-      amount,
-      conversionFactorsPerCredit.currency,
-      tx,
-    );
-    const { id: stripeSessionId, url } = await createCheckoutSession(
-      user,
-      fiatTransaction.id,
-      priceId,
-      Number(fiatTransaction.amount) /
-        conversionFactorsPerCredit.amountPerCredit,
-      promotionCode,
-    );
+    try {
+      const user = await getUserById(userId, tx);
+      if (!user) {
+        throw new Error("User not found");
+      }
+      const conversionFactorsPerCredit = await getConversionFactors(priceId);
+      const amount = credits * conversionFactorsPerCredit.amountPerCredit;
+      const fiatTransaction = await createFiatTransaction(
+        userId,
+        convertCreditsToCents(credits),
+        amount,
+        conversionFactorsPerCredit.currency,
+        tx,
+      );
+      const { id: stripeSessionId, url } = await createCheckoutSession(
+        user,
+        fiatTransaction.id,
+        priceId,
+        Number(fiatTransaction.amount) /
+          conversionFactorsPerCredit.amountPerCredit,
+        promotionCode,
+      );
 
-    await updateFiatTransactionServicePaymentId(
-      fiatTransaction.id,
-      stripeSessionId,
-      tx,
-    );
-    return { stripeSessionId, url };
+      await updateFiatTransactionServicePaymentId(
+        fiatTransaction.id,
+        stripeSessionId,
+        tx,
+      );
+      return { stripeSessionId, url };
+    } catch (error) {
+      console.log("Error creating stripe checkout session", error);
+      throw error;
+    }
   });
 }
 

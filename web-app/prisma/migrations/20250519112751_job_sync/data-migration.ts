@@ -6,30 +6,35 @@ const prisma = new PrismaClient();
 async function main() {
   await prisma.$transaction(
     async (tx) => {
-      const jobs = await tx.job.findMany({
-        where: {
-          agentJobStatus: null,
-          output: {
-            not: null,
-          },
-        },
-      });
-      for (const job of jobs) {
-        const output = job.output;
-        if (output) {
-          const outputJson = JSON.parse(output);
-          const agentJobStatus = jobStatusToAgentJobStatus(outputJson.status);
-          await tx.job.update({
-            where: { id: job.id },
-            data: {
-              agentJobStatus: agentJobStatus,
-              completedAt:
-                agentJobStatus === AgentJobStatus.COMPLETED
-                  ? new Date()
-                  : undefined,
+      try {
+        const jobs = await tx.job.findMany({
+          where: {
+            agentJobStatus: null,
+            output: {
+              not: null,
             },
-          });
+          },
+        });
+        for (const job of jobs) {
+          const output = job.output;
+          if (output) {
+            const outputJson = JSON.parse(output);
+            const agentJobStatus = jobStatusToAgentJobStatus(outputJson.status);
+            await tx.job.update({
+              where: { id: job.id },
+              data: {
+                agentJobStatus: agentJobStatus,
+                completedAt:
+                  agentJobStatus === AgentJobStatus.COMPLETED
+                    ? new Date()
+                    : undefined,
+              },
+            });
+          }
         }
+      } catch (error) {
+        console.log("Error syncing job", error);
+        throw error;
       }
     },
     {

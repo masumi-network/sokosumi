@@ -162,67 +162,72 @@ const updateFiatTransactionStatus = async (
     );
   }
   return await prisma.$transaction(async (tx) => {
-    const fiatTransaction = await getFiatTransactionByServicePaymentId(
-      session.id,
-      tx,
-    );
-    if (!fiatTransaction) {
-      return NextResponse.json(
-        { message: `Fiat transaction for session ${session.id} not found` },
-        { status: status === "FAILED" ? 200 : 500 },
-      );
-    }
-
-    if (session.client_reference_id !== fiatTransaction.id) {
-      return NextResponse.json(
-        {
-          message: `Session client reference id ${session.client_reference_id} does not match fiat transaction id ${fiatTransaction.id}`,
-        },
-        { status: status === "FAILED" ? 200 : 500 },
-      );
-    }
-
-    if (fiatTransaction.status !== FiatTransactionStatus.PENDING) {
-      return NextResponse.json(
-        { message: "Fiat transaction is not pending" },
-        { status: 200 },
-      );
-    }
-
     try {
-      switch (status) {
-        case "SUCCEEDED":
-          await setFiatTransactionStatusToSucceeded(
-            fiatTransaction,
-            BigInt(amountTotal),
-            currency,
-            tx,
-          );
-          return NextResponse.json(
-            {
-              message: `Fiat transaction ${fiatTransaction.id} status changed to SUCCEEDED`,
-            },
-            { status: 200 },
-          );
-        case "FAILED":
-          await setFiatTransactionStatusToFailed(
-            fiatTransaction,
-            BigInt(amountTotal),
-            currency,
-            tx,
-          );
-          return NextResponse.json(
-            {
-              message: `Fiat transaction ${fiatTransaction.id} status changed to FAILED`,
-            },
-            { status: 200 },
-          );
-      }
-    } catch {
-      return NextResponse.json(
-        { message: "Failed to update fiat transaction status" },
-        { status: 500 },
+      const fiatTransaction = await getFiatTransactionByServicePaymentId(
+        session.id,
+        tx,
       );
+      if (!fiatTransaction) {
+        return NextResponse.json(
+          { message: `Fiat transaction for session ${session.id} not found` },
+          { status: status === "FAILED" ? 200 : 500 },
+        );
+      }
+
+      if (session.client_reference_id !== fiatTransaction.id) {
+        return NextResponse.json(
+          {
+            message: `Session client reference id ${session.client_reference_id} does not match fiat transaction id ${fiatTransaction.id}`,
+          },
+          { status: status === "FAILED" ? 200 : 500 },
+        );
+      }
+
+      if (fiatTransaction.status !== FiatTransactionStatus.PENDING) {
+        return NextResponse.json(
+          { message: "Fiat transaction is not pending" },
+          { status: 200 },
+        );
+      }
+
+      try {
+        switch (status) {
+          case "SUCCEEDED":
+            await setFiatTransactionStatusToSucceeded(
+              fiatTransaction,
+              BigInt(amountTotal),
+              currency,
+              tx,
+            );
+            return NextResponse.json(
+              {
+                message: `Fiat transaction ${fiatTransaction.id} status changed to SUCCEEDED`,
+              },
+              { status: 200 },
+            );
+          case "FAILED":
+            await setFiatTransactionStatusToFailed(
+              fiatTransaction,
+              BigInt(amountTotal),
+              currency,
+              tx,
+            );
+            return NextResponse.json(
+              {
+                message: `Fiat transaction ${fiatTransaction.id} status changed to FAILED`,
+              },
+              { status: 200 },
+            );
+        }
+      } catch {
+        return NextResponse.json(
+          { message: "Failed to update fiat transaction status" },
+          { status: 500 },
+        );
+      }
+    } catch (error) {
+      console.log("Error updating fiat transaction status", error);
+      throw error;
     }
   });
 };
