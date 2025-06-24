@@ -31,13 +31,7 @@ export function getAgentApiBaseUrl(agent: Agent): URL {
   if (apiBaseUrl.protocol !== "https:" && apiBaseUrl.protocol !== "http:") {
     throw new Error("Agent API base URL must be HTTP or HTTPS");
   }
-  if (
-    apiBaseUrl.port !== "80" &&
-    apiBaseUrl.port !== "443" &&
-    apiBaseUrl.port !== ""
-  ) {
-    throw new Error("Agent API base URL must be HTTP or HTTPS");
-  }
+
   if (apiBaseUrl.search !== "") {
     throw new Error("Agent API base URL must not have a query string");
   }
