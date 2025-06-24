@@ -29,7 +29,7 @@ export const getHealth = <ThrowOnError extends boolean = false>(options?: Option
 };
 
 /**
- * REQUIRES API KEY Authentication (+READ)
+ * Get information about your current API key.
  * Gets api key status
  */
 export const getApiKeyStatus = <ThrowOnError extends boolean = false>(options?: Options<GetApiKeyStatusData, ThrowOnError>) => {
@@ -46,7 +46,7 @@ export const getApiKeyStatus = <ThrowOnError extends boolean = false>(options?: 
 };
 
 /**
- * REQUIRES API KEY Authentication (+ADMIN)
+ * Get information about a wallet. (admin access required)
  * Gets wallet status
  */
 export const getWallet = <ThrowOnError extends boolean = false>(options: Options<GetWalletData, ThrowOnError>) => {
@@ -63,7 +63,7 @@ export const getWallet = <ThrowOnError extends boolean = false>(options: Options
 };
 
 /**
- * REQUIRES API KEY Authentication (+ADMIN)
+ * Create a new wallet. (admin access required)
  * Creates a wallet, it will not be saved in the database, please ensure to remember the mnemonic
  */
 export const postWallet = <ThrowOnError extends boolean = false>(options?: Options<PostWalletData, ThrowOnError>) => {
@@ -84,7 +84,7 @@ export const postWallet = <ThrowOnError extends boolean = false>(options?: Optio
 };
 
 /**
- * REQUIRES API KEY Authentication (+admin)
+ * Delete an existing API key. (admin access required)
  * Removes a API key
  */
 export const deleteApiKey = <ThrowOnError extends boolean = false>(options?: Options<DeleteApiKeyData, ThrowOnError>) => {
@@ -105,7 +105,7 @@ export const deleteApiKey = <ThrowOnError extends boolean = false>(options?: Opt
 };
 
 /**
- * REQUIRES API KEY Authentication (+admin)
+ * Get information about all API keys. (admin access required)
  * Gets api key status
  */
 export const getApiKey = <ThrowOnError extends boolean = false>(options?: Options<GetApiKeyData, ThrowOnError>) => {
@@ -122,7 +122,7 @@ export const getApiKey = <ThrowOnError extends boolean = false>(options?: Option
 };
 
 /**
- * REQUIRES API KEY Authentication (+admin)
+ * Update an existing API key. (admin access required)
  * Creates a API key
  */
 export const patchApiKey = <ThrowOnError extends boolean = false>(options?: Options<PatchApiKeyData, ThrowOnError>) => {
@@ -143,7 +143,7 @@ export const patchApiKey = <ThrowOnError extends boolean = false>(options?: Opti
 };
 
 /**
- * REQUIRES API KEY Authentication (+admin)
+ * Create a new API key. (admin access required)
  * Creates a API key
  */
 export const postApiKey = <ThrowOnError extends boolean = false>(options?: Options<PostApiKeyData, ThrowOnError>) => {
@@ -164,7 +164,7 @@ export const postApiKey = <ThrowOnError extends boolean = false>(options?: Optio
 };
 
 /**
- * REQUIRES API KEY Authentication (+READ)
+ * Get information about a payment request. (admin access required)
  * Gets the payment status. It needs to be created first with a POST request.
  */
 export const getPayment = <ThrowOnError extends boolean = false>(options: Options<GetPaymentData, ThrowOnError>) => {
@@ -181,7 +181,7 @@ export const getPayment = <ThrowOnError extends boolean = false>(options: Option
 };
 
 /**
- * REQUIRES API KEY Authentication (+PAY)
+ * Create a new payment request. (admin access required +PAY)
  * Creates a payment request and identifier. This will check incoming payments in the background.
  */
 export const postPayment = <ThrowOnError extends boolean = false>(options?: Options<PostPaymentData, ThrowOnError>) => {
@@ -202,8 +202,8 @@ export const postPayment = <ThrowOnError extends boolean = false>(options?: Opti
 };
 
 /**
- * REQUIRES API KEY Authentication (+PAY)
- * Completes a payment request. This will collect the funds after the unlock time.
+ * Completes a payment request. This will collect the funds after the unlock time. (admin access required +PAY)
+ * Submit the hash of their completed job for a payment request, which triggers the fund unlock process so the seller can collect payment after the unlock time expires. (admin access required +PAY)
  */
 export const postPaymentSubmitResult = <ThrowOnError extends boolean = false>(options?: Options<PostPaymentSubmitResultData, ThrowOnError>) => {
     return (options?.client ?? _heyApiClient).post<PostPaymentSubmitResultResponses, PostPaymentSubmitResultErrors, ThrowOnError>({
@@ -223,7 +223,7 @@ export const postPaymentSubmitResult = <ThrowOnError extends boolean = false>(op
 };
 
 /**
- * REQUIRES API KEY Authentication (+PAY)
+ * Authorizes a refund for a payment request. This will stop the right to receive a payment and initiate a refund for the other party. (admin access required +PAY)
  * Authorizes a refund for a payment request. This will stop the right to receive a payment and initiate a refund for the other party.
  */
 export const postPaymentAuthorizeRefund = <ThrowOnError extends boolean = false>(options?: Options<PostPaymentAuthorizeRefundData, ThrowOnError>) => {
@@ -244,7 +244,7 @@ export const postPaymentAuthorizeRefund = <ThrowOnError extends boolean = false>
 };
 
 /**
- * REQUIRES API KEY Authentication (+READ)
+ * Get information about an existing purchase request. (READ access required)
  * Gets the purchase status. It needs to be created first with a POST request.
  */
 export const getPurchase = <ThrowOnError extends boolean = false>(options: Options<GetPurchaseData, ThrowOnError>) => {
@@ -261,7 +261,7 @@ export const getPurchase = <ThrowOnError extends boolean = false>(options: Optio
 };
 
 /**
- * REQUIRES API KEY Authentication (+PAY)
+ * Create a new purchase request and pay. (access required +PAY)
  * Creates a purchase and pays the seller. This requires funds to be available.
  */
 export const postPurchase = <ThrowOnError extends boolean = false>(options?: Options<PostPurchaseData, ThrowOnError>) => {
@@ -282,7 +282,7 @@ export const postPurchase = <ThrowOnError extends boolean = false>(options?: Opt
 };
 
 /**
- * REQUIRES API KEY Authentication (+PAY)
+ * Request a refund for a completed purchase, which will be automatically collected after the refund time period expires. (+PAY access required)
  * Requests a refund for a completed purchase. This will collect the refund after the refund time.
  */
 export const postPurchaseRequestRefund = <ThrowOnError extends boolean = false>(options?: Options<PostPurchaseRequestRefundData, ThrowOnError>) => {
@@ -303,7 +303,7 @@ export const postPurchaseRequestRefund = <ThrowOnError extends boolean = false>(
 };
 
 /**
- * REQUIRES API KEY Authentication (+PAY)
+ * Cancel a previously requested refund for a purchase, reverting the transaction back to its normal processing state. (+PAY access required)
  * Requests a refund for a completed purchase. This will collect the refund after the refund time.
  */
 export const postPurchaseCancelRefundRequest = <ThrowOnError extends boolean = false>(options?: Options<PostPurchaseCancelRefundRequestData, ThrowOnError>) => {
@@ -324,7 +324,7 @@ export const postPurchaseCancelRefundRequest = <ThrowOnError extends boolean = f
 };
 
 /**
- * REQUIRES API KEY Authentication (+READ)
+ * Fetch all agents (and their full metadata) that are registered to a specified wallet. (READ access required)
  * Gets the agent metadata.
  */
 export const getRegistryWallet = <ThrowOnError extends boolean = false>(options: Options<GetRegistryWalletData, ThrowOnError>) => {
@@ -341,11 +341,11 @@ export const getRegistryWallet = <ThrowOnError extends boolean = false>(options:
 };
 
 /**
- * REQUIRES API KEY Authentication (+PAY)
+ * Deregisters an agent from the specified registry. (admin access required +PAY)
  * Deregisters a agent from the specified registry (Please note that while the command is put on-chain, the transaction is not yet finalized by the blockchain, as designed finality is only eventually reached. If you need certainty, please check status via the registry(GET) or if you require custom logic, the transaction directly using the txHash)
  */
-export const deleteRegistry = <ThrowOnError extends boolean = false>(options: Options<DeleteRegistryData, ThrowOnError>) => {
-    return (options.client ?? _heyApiClient).delete<DeleteRegistryResponses, unknown, ThrowOnError>({
+export const deleteRegistry = <ThrowOnError extends boolean = false>(options?: Options<DeleteRegistryData, ThrowOnError>) => {
+    return (options?.client ?? _heyApiClient).delete<DeleteRegistryResponses, unknown, ThrowOnError>({
         security: [
             {
                 name: 'token',
@@ -353,12 +353,16 @@ export const deleteRegistry = <ThrowOnError extends boolean = false>(options: Op
             }
         ],
         url: '/registry/',
-        ...options
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options?.headers
+        }
     });
 };
 
 /**
- * REQUIRES API KEY Authentication (+READ)
+ * List every agent that is recorded in the Masumi Registry. (READ access required)
  * Gets the agent metadata.
  */
 export const getRegistry = <ThrowOnError extends boolean = false>(options: Options<GetRegistryData, ThrowOnError>) => {
@@ -375,7 +379,7 @@ export const getRegistry = <ThrowOnError extends boolean = false>(options: Optio
 };
 
 /**
- * REQUIRES API KEY Authentication (+PAY)
+ * Registers an agent to the registry (+PAY access required)
  * Registers an agent to the registry (Please note that while it it is put on-chain, the transaction is not yet finalized by the blockchain, as designed finality is only eventually reached. If you need certainty, please check status via the registry(GET) or if you require custom logic, the transaction directly using the txHash)
  */
 export const postRegistry = <ThrowOnError extends boolean = false>(options?: Options<PostRegistryData, ThrowOnError>) => {
@@ -396,7 +400,7 @@ export const postRegistry = <ThrowOnError extends boolean = false>(options?: Opt
 };
 
 /**
- * REQUIRES API KEY Authentication (+READ)
+ * List payment sources with their public details. (READ access required)
  * Gets the payment source.
  */
 export const getPaymentSource = <ThrowOnError extends boolean = false>(options?: Options<GetPaymentSourceData, ThrowOnError>) => {
@@ -413,11 +417,11 @@ export const getPaymentSource = <ThrowOnError extends boolean = false>(options?:
 };
 
 /**
- * REQUIRES API KEY Authentication (+ADMIN)
+ * Delete an existing payment source. (+ADMIN access required)
  * Deletes a payment source. WARNING will also delete all associated wallets and transactions.
  */
-export const deletePaymentSourceExtended = <ThrowOnError extends boolean = false>(options: Options<DeletePaymentSourceExtendedData, ThrowOnError>) => {
-    return (options.client ?? _heyApiClient).delete<DeletePaymentSourceExtendedResponses, unknown, ThrowOnError>({
+export const deletePaymentSourceExtended = <ThrowOnError extends boolean = false>(options?: Options<DeletePaymentSourceExtendedData, ThrowOnError>) => {
+    return (options?.client ?? _heyApiClient).delete<DeletePaymentSourceExtendedResponses, unknown, ThrowOnError>({
         security: [
             {
                 name: 'token',
@@ -425,12 +429,16 @@ export const deletePaymentSourceExtended = <ThrowOnError extends boolean = false
             }
         ],
         url: '/payment-source-extended/',
-        ...options
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options?.headers
+        }
     });
 };
 
 /**
- * REQUIRES API KEY Authentication (+ADMIN)
+ * List payment sources with their public details augmented with internal configuration and sync status infromation. (admin access required)
  * Gets the payment contracts including the status.
  */
 export const getPaymentSourceExtended = <ThrowOnError extends boolean = false>(options?: Options<GetPaymentSourceExtendedData, ThrowOnError>) => {
@@ -447,7 +455,7 @@ export const getPaymentSourceExtended = <ThrowOnError extends boolean = false>(o
 };
 
 /**
- * REQUIRES API KEY Authentication (+ADMIN)
+ * Update an existing payment source. (+ADMIN access required)
  * Updates a payment source.
  */
 export const patchPaymentSourceExtended = <ThrowOnError extends boolean = false>(options?: Options<PatchPaymentSourceExtendedData, ThrowOnError>) => {
@@ -468,7 +476,7 @@ export const patchPaymentSourceExtended = <ThrowOnError extends boolean = false>
 };
 
 /**
- * REQUIRES API KEY Authentication (+ADMIN)
+ * Create a new payment source. (+ADMIN access required)
  * Creates a payment source.
  */
 export const postPaymentSourceExtended = <ThrowOnError extends boolean = false>(options?: Options<PostPaymentSourceExtendedData, ThrowOnError>) => {
@@ -489,7 +497,7 @@ export const postPaymentSourceExtended = <ThrowOnError extends boolean = false>(
 };
 
 /**
- * REQUIRES API KEY Authentication (+READ)
+ * Helper endpoint that lets you ask the payment service for the current UTXOs sitting at a particular Cardano address. (READ access required)
  * Gets UTXOs (internal)
  */
 export const getUtxos = <ThrowOnError extends boolean = false>(options: Options<GetUtxosData, ThrowOnError>) => {
@@ -506,7 +514,7 @@ export const getUtxos = <ThrowOnError extends boolean = false>(options: Options<
 };
 
 /**
- * REQUIRES API KEY Authentication (+ADMIN)
+ * List Blockfrost API keys. (admin access required)
  * Gets rpc api keys, currently only blockfrost is supported (internal)
  */
 export const getRpcApiKeys = <ThrowOnError extends boolean = false>(options?: Options<GetRpcApiKeysData, ThrowOnError>) => {

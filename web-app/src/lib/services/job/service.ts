@@ -128,6 +128,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
           externalDisputeUnlockTime: new Date(
             startJobResponse.externalDisputeUnlockTime,
           ),
+          payByTime: new Date(startJobResponse.payByTime),
           submitResultTime: new Date(startJobResponse.submitResultTime),
           unlockTime: new Date(startJobResponse.unlockTime),
           blockchainIdentifier: startJobResponse.blockchainIdentifier,

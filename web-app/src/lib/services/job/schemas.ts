@@ -17,6 +17,7 @@ export const startJobResponseSchema = z.object({
   status: z.enum(["success", "error"]),
   job_id: z.string().min(1),
   blockchainIdentifier: z.string().min(1),
+  payByTime: z.number({ coerce: true }).int(),
   submitResultTime: z.number({ coerce: true }).int(),
   unlockTime: z.number({ coerce: true }).int(),
   externalDisputeUnlockTime: z.number({ coerce: true }).int(),

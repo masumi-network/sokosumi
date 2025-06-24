@@ -120,6 +120,7 @@ interface CreateJobData {
   paymentId: string;
   creditsPrice: CreditsPrice;
   identifierFromPurchaser: string;
+  payByTime: Date;
   externalDisputeUnlockTime: Date;
   submitResultTime: Date;
   unlockTime: Date;
@@ -154,6 +155,7 @@ export async function createJob(
       inputSchema: data.inputSchema,
       input: data.input,
       identifierFromPurchaser: data.identifierFromPurchaser,
+      payByTime: data.payByTime,
       externalDisputeUnlockTime: data.externalDisputeUnlockTime,
       submitResultTime: data.submitResultTime,
       unlockTime: data.unlockTime,

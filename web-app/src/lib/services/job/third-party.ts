@@ -161,6 +161,7 @@ export async function createPurchase(
         sellerVkey: startJobResponse.sellerVkey,
         paymentType: "Web3CardanoV1",
         identifierFromPurchaser,
+        payByTime: startJobResponse.payByTime.toString(),
         externalDisputeUnlockTime:
           startJobResponse.externalDisputeUnlockTime.toString(),
         submitResultTime: startJobResponse.submitResultTime.toString(),
