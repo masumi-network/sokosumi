@@ -33,6 +33,11 @@
     "UnknownError": "An unknown error occurred, please contact our support"
   },
   "Components": {
+    "AppLayoutRestrictor": {
+      "title": "Mobile Not Supported",
+      "description": "This page is only supported on Desktop devices. Please switch to large screen.",
+      "reload": "Reload"
+    },
     "ShareButton": {
       "linkCopied": "Link copied to clipboard",
       "copyError": "Failed to copy link"
