@@ -36,7 +36,7 @@ export default function CreateJobSection({
   };
 
   return (
-    <div className="bg-background rounded-non flex min-h-svh w-svw flex-col p-4 pt-0 md:min-h-auto md:w-auto md:rounded-xl md:p-6">
+    <div className="bg-background flex min-h-svh w-svw flex-col rounded-none p-4 pt-0 md:min-h-auto md:w-auto md:rounded-xl md:p-6">
       <CreateJobModalHeader agent={agent} />
       <Accordion
         type="multiple"
