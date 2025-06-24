@@ -1,4 +1,3 @@
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { Skeleton } from "@/components/ui/skeleton";
@@ -12,31 +11,31 @@ function AgentDetailSection5({ legal }: { legal: AgentLegal }) {
       <p className="text-xs uppercase">{t("title")}</p>
       <div className="flex flex-wrap gap-4">
         {legal?.privacyPolicy && (
-          <Link
+          <a
             target="_blank"
             href={legal.privacyPolicy}
             className="hover:text-foreground underline underline-offset-4 transition-colors"
           >
             {t("privacyPolicy")}
-          </Link>
+          </a>
         )}
         {legal?.terms && (
-          <Link
+          <a
             target="_blank"
             href={legal.terms}
             className="hover:text-foreground underline underline-offset-4 transition-colors"
           >
             {t("terms")}
-          </Link>
+          </a>
         )}
         {legal?.other && (
-          <Link
+          <a
             target="_blank"
             href={legal.other}
             className="hover:text-foreground underline underline-offset-4 transition-colors"
           >
             {t("other")}
-          </Link>
+          </a>
         )}
       </div>
     </div>
