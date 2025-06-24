@@ -11,23 +11,23 @@ interface UserProps {
 }
 
 const User = ({ image, quote, name, position, company, index }: UserProps) => (
-  <div className="flex-start stretch border-foreground/10 flex gap-12 border-t py-4">
+  <div className="flex-start stretch border-foreground/10 flex gap-6 border-t py-4 md:gap-12">
     <div className="relative flex w-[77px] min-w-[77px] flex-col justify-between">
       <Image
         src={image}
         alt={name}
-        className="h-[96px] w-[77px] rounded-lg object-cover"
+        className="h-[66px] w-[53px] rounded-lg object-cover md:h-[96px] md:w-[77px]"
         width={77}
         height={96}
       />
-      <span className="text-muted-foreground text-sm">
+      <span className="text-muted-foreground text-xs md:text-sm">
         {index < 10 ? "0" : ""}
         {index + 1}
       </span>
     </div>
-    <div className="flex w-full flex-col gap-16">
-      <p className="text-3xl">{`"${quote}"`}</p>
-      <div className="text-sm">
+    <div className="flex w-full flex-col gap-8 md:gap-16">
+      <p className="text-xl md:text-3xl">{`"${quote}"`}</p>
+      <div className="text-xs md:text-sm">
         <div>{name}</div>
         <div className="text-muted-foreground">
           {position} {"at"} {company}
@@ -59,9 +59,11 @@ export default function Testimonials() {
   });
 
   return (
-    <div className="relative flex w-full flex-col gap-12">
-      <h2 className="text-left text-5xl font-light">{t("title")}</h2>
-      <div className="grid gap-4 md:grid-cols-2">
+    <div className="flex flex-col gap-8 md:gap-12">
+      <h2 className="text-left text-2xl font-light md:text-5xl">
+        {t("title")}
+      </h2>
+      <div className="grid gap-12 md:grid-cols-2 md:gap-4">
         {usersMap.map((user, index) => (
           <User key={index} {...user} index={index} />
         ))}

@@ -1,10 +1,9 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { Suspense, use } from "react";
 
-import DefaultErrorBoundary from "@/components/default-error-boundary";
 import { Skeleton } from "@/components/ui/skeleton";
+import useAgentInputSchema from "@/hooks/use-agent-input-schema";
 import { AgentLegal, CreditsPrice } from "@/lib/db";
 import { JobInputsDataSchemaType } from "@/lib/job-input";
 
@@ -13,42 +12,48 @@ import JobInputsFormClient from "./job-inputs-form.client";
 interface JobInputsFormProps {
   agentId: string;
   agentCreditsPrice: CreditsPrice;
-  inputSchemaPromise: Promise<JobInputsDataSchemaType>;
   legal?: AgentLegal | null | undefined;
   className?: string | undefined;
+}
+
+interface JobInputsFormInnerProps extends JobInputsFormProps {
+  inputSchema: JobInputsDataSchemaType;
 }
 
 export default function JobInputsForm({
   agentId,
   agentCreditsPrice,
-  inputSchemaPromise,
   legal,
   className,
 }: JobInputsFormProps) {
+  const { data: inputSchema, loading, error } = useAgentInputSchema(agentId);
+
+  if (loading) {
+    return <JobInputsFormSkeleton />;
+  }
+
+  if (error || !inputSchema) {
+    return <JobInputsFormError />;
+  }
+
   return (
-    <DefaultErrorBoundary fallback={<JobInputsFormError />}>
-      <Suspense fallback={<JobInputsFormSkeleton />}>
-        <JobInputsFormInner
-          agentId={agentId}
-          agentCreditsPrice={agentCreditsPrice}
-          inputSchemaPromise={inputSchemaPromise}
-          legal={legal}
-          className={className}
-        />
-      </Suspense>
-    </DefaultErrorBoundary>
+    <JobInputsFormInner
+      agentId={agentId}
+      agentCreditsPrice={agentCreditsPrice}
+      inputSchema={inputSchema}
+      legal={legal}
+      className={className}
+    />
   );
 }
 
 function JobInputsFormInner({
   agentId,
   agentCreditsPrice,
-  inputSchemaPromise,
+  inputSchema,
   legal,
   className,
-}: JobInputsFormProps) {
-  const inputSchema = use(inputSchemaPromise);
-
+}: JobInputsFormInnerProps) {
   return (
     <JobInputsFormClient
       agentId={agentId}
@@ -60,7 +65,7 @@ function JobInputsFormInner({
   );
 }
 
-function JobInputsFormSkeleton() {
+export function JobInputsFormSkeleton() {
   return (
     <div className="flex w-full flex-col gap-2">
       {Array.from({ length: 3 }).map((_, index) => (

@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 
 import Footer from "@/components/footer";
 
-import Header from "./components/header";
+import { Header } from "./components/header";
 
 interface LandingLayoutProps {
   children: React.ReactNode;

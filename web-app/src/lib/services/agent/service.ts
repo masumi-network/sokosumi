@@ -97,7 +97,7 @@ export async function getAgentPricing(
   return agentPricingResult.data;
 }
 
-interface AgentWithCreditPrice {
+export interface AgentWithCreditPrice {
   agent: AgentWithRelations;
   creditsPrice: Awaited<ReturnType<typeof getAgentCreditsPrice>>;
 }

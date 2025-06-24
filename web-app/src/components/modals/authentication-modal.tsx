@@ -4,6 +4,7 @@ import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -34,12 +35,16 @@ export default function AuthenticationModal({
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="block space-y-1.5">
-          <Button variant="primary" className="w-full" asChild>
-            <Link href="/login">{t("login")}</Link>
-          </Button>
-          <Button variant="secondary" className="w-full" asChild>
-            <Link href="/register">{t("register")}</Link>
-          </Button>
+          <DialogClose asChild>
+            <Button variant="primary" className="w-full" asChild>
+              <Link href="/login">{t("login")}</Link>
+            </Button>
+          </DialogClose>
+          <DialogClose asChild>
+            <Button variant="secondary" className="w-full" asChild>
+              <Link href="/register">{t("register")}</Link>
+            </Button>
+          </DialogClose>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -4,6 +4,7 @@ import React, { Suspense } from "react";
 
 import { AgentDetailLink } from "@/components/agents";
 import { Button } from "@/components/ui/button";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getAgentResolvedImage } from "@/lib/db";
 import { getOnlineAgentsWithValidPricing } from "@/lib/services";
@@ -27,7 +28,7 @@ const AgentShowcaseCard = ({
   return (
     <div
       className={cn(
-        "bg-background/20 group flex h-[90px] w-[90px] items-center overflow-hidden rounded-lg shadow-md transition-all duration-300 hover:w-[300px]",
+        "bg-background/20 group flex h-[90px] w-[300px] items-center overflow-hidden rounded-lg shadow-md transition-all duration-300 hover:w-[300px] md:w-[90px]",
       )}
     >
       <Image
@@ -53,7 +54,7 @@ const AgentShowcaseCard = ({
 };
 
 const AgentCardSkeleton = () => {
-  return <Skeleton className="h-[90px] w-[90px] rounded-md" />;
+  return <Skeleton className="h-[90px] w-[300px] rounded-md md:w-[90px]" />;
 };
 
 async function AgentsShowcaseList() {
@@ -61,17 +62,20 @@ async function AgentsShowcaseList() {
   const firstFiveAgents = agents.slice(0, 5);
 
   return (
-    <div className="flex items-center gap-4">
-      {firstFiveAgents.map((agent) => (
-        <AgentShowcaseCard
-          key={agent.id}
-          agentId={agent.id}
-          name={agent.name}
-          description={agent.description}
-          image={getAgentResolvedImage(agent)}
-        />
-      ))}
-    </div>
+    <ScrollArea className="w-full">
+      <div className="flex items-center justify-center gap-4">
+        {firstFiveAgents.map((agent) => (
+          <AgentShowcaseCard
+            key={agent.id}
+            agentId={agent.id}
+            name={agent.name}
+            description={agent.description}
+            image={getAgentResolvedImage(agent)}
+          />
+        ))}
+      </div>
+      <ScrollBar orientation="horizontal" />
+    </ScrollArea>
   );
 }
 
@@ -87,7 +91,7 @@ function AgentsShowcaseSkeleton() {
 
 export default function AgentsShowcase() {
   return (
-    <div className="absolute bottom-0 left-0 z-10 flex w-full items-center justify-center gap-4 px-12 py-6">
+    <div className="absolute bottom-0 left-0 z-10 flex w-full items-center justify-center gap-4 px-4 py-6 md:px-12">
       <Suspense fallback={<AgentsShowcaseSkeleton />}>
         <AgentsShowcaseList />
       </Suspense>

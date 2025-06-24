@@ -42,31 +42,29 @@ export default function Endorsements() {
   ];
 
   return (
-    <div className="w-full">
-      <h2 className="text-foreground mb-12 text-sm font-semibold tracking-wider uppercase">
+    <div className="flex flex-col gap-6">
+      <h2 className="text-foreground text-sm font-normal tracking-wider uppercase">
         {t("title")}
       </h2>
 
-      <div className={`w-full pt-10`}>
-        <Marquee direction="left" pauseOnHover={false}>
-          {logos.map((logo) => (
-            <div key={logo.key} className="mx-10 xl:mx-16">
-              <ThemedImage
-                srcLight={logo.srcLight}
-                srcDark={logo.srcDark}
-                alt={logo.alt}
-                width={logo.width}
-                height={logo.height}
-                style={{
-                  display: "inline-block",
-                  width: logo.width,
-                  height: logo.height,
-                }}
-              />
-            </div>
-          ))}
-        </Marquee>
-      </div>
+      <Marquee direction="left" pauseOnHover={false}>
+        {logos.map((logo) => (
+          <div key={logo.key} className="mx-10 my-4 xl:mx-16">
+            <ThemedImage
+              srcLight={logo.srcLight}
+              srcDark={logo.srcDark}
+              alt={logo.alt}
+              width={logo.width}
+              height={logo.height}
+              style={{
+                display: "inline-block",
+                width: logo.width,
+                height: logo.height,
+              }}
+            />
+          </div>
+        ))}
+      </Marquee>
     </div>
   );
 }

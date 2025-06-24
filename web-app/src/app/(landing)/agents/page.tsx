@@ -6,10 +6,7 @@ import {
   CreateJobModal,
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
-import {
-  getAgentInputSchema,
-  getOnlineAgentsWithCreditsPrice,
-} from "@/lib/services";
+import { getOnlineAgentsWithCreditsPrice } from "@/lib/services";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Landing.Agents.Metadata");
@@ -28,14 +25,11 @@ export default async function GalleryPage() {
   }
 
   const featuredAgentWithPrice = agentsWithPrice[0];
-  const featuredAgentInputSchemaPromise = getAgentInputSchema(
-    featuredAgentWithPrice.agent.id,
-  );
 
   return (
-    <div className="container mx-auto px-12 pt-4 pb-8">
+    <div className="container mx-auto px-4 pt-4 pb-8 md:px-12">
       <div className="space-y-24">
-        <CreateJobModalContextProvider>
+        <CreateJobModalContextProvider agentsWithPrice={agentsWithPrice}>
           {/* Featured Agent Section */}
           <AgentCard
             agent={featuredAgentWithPrice.agent}
@@ -43,21 +37,18 @@ export default async function GalleryPage() {
             className="w-full"
             size="lg"
           />
-          {/* Create Job Modal */}
-          <CreateJobModal
-            agent={featuredAgentWithPrice.agent}
-            agentCreditsPrice={featuredAgentWithPrice.creditsPrice}
-            inputSchemaPromise={featuredAgentInputSchemaPromise}
-          />
-        </CreateJobModalContextProvider>
 
-        {/* Agent Cards Grid */}
-        <Agents
-          agents={agentsWithPrice.map((item) => item.agent)}
-          agentCreditsPriceList={agentsWithPrice.map(
-            (item) => item.creditsPrice,
-          )}
-        />
+          {/* Agent Cards Grid */}
+          <Agents
+            agents={agentsWithPrice.map((item) => item.agent)}
+            agentCreditsPriceList={agentsWithPrice.map(
+              (item) => item.creditsPrice,
+            )}
+          />
+
+          {/* Create Job Modal */}
+          <CreateJobModal />
+        </CreateJobModalContextProvider>
       </div>
     </div>
   );

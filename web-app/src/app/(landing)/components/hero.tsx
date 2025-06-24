@@ -15,15 +15,15 @@ export default function Hero() {
       <div className="pointer-events-none absolute right-0 items-center justify-end pr-4">
         <ThemedLogo LogoComponent={KanjiLogo} />
       </div>
-      <div className="z-10 container flex flex-col items-center gap-6 px-12 text-center md:px-6">
-        <h1 className="w-full text-center text-7xl font-bold whitespace-pre-line">
+      <div className="z-10 container flex flex-col items-center gap-4 px-4 text-center md:gap-6 md:px-6">
+        <h1 className="w-full text-center text-4xl font-bold whitespace-pre-line md:text-7xl">
           {t("title")}
         </h1>
-        <p className="text-foreground/80 w-full text-xl font-normal md:whitespace-pre-line">
+        <p className="text-foreground/80 w-full text-base font-normal md:text-xl md:whitespace-pre-line">
           {t("caption")}
         </p>
         <FreeCreditsBanner />
-        <AgentSearchInput className="mt-12" />
+        <AgentSearchInput className="mt-4 md:mt-12" />
       </div>
       <AgentsShowcase />
     </>

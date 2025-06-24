@@ -7,36 +7,39 @@ import { ComponentProps } from "react";
 import { useCreateJobModalContext } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";
 import useWithAuthentication from "@/hooks/use-with-authentication";
+import { cn } from "@/lib/utils";
 
 interface AgentHireButtonProps {
+  agentId: string;
   size?: ComponentProps<typeof Button>["size"] | undefined;
+  className?: string | undefined;
 }
 
-function AgentHireButton({ size = "lg" }: AgentHireButtonProps) {
+function AgentHireButton({
+  agentId,
+  size = "lg",
+  className,
+}: AgentHireButtonProps) {
   const t = useTranslations("Components.Agents");
-  const { isPending, ModalComponent, withAuthentication } =
-    useWithAuthentication();
+  const { isPending, withAuthentication } = useWithAuthentication();
 
-  const { setOpen } = useCreateJobModalContext();
+  const { handleOpen } = useCreateJobModalContext();
 
   const handleHire = () => {
-    setOpen(true);
+    handleOpen(agentId);
   };
 
   return (
-    <>
-      {ModalComponent}
-      <Button
-        size={size}
-        variant="primary"
-        onClick={withAuthentication(handleHire)}
-        disabled={isPending}
-        className="cursor-pointer"
-      >
-        {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-        {t("hire")}
-      </Button>
-    </>
+    <Button
+      size={size}
+      variant="primary"
+      onClick={withAuthentication(handleHire)}
+      disabled={isPending}
+      className={cn("cursor-pointer", className)}
+    >
+      {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+      {t("hire")}
+    </Button>
   );
 }
 

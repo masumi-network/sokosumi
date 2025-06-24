@@ -18,16 +18,18 @@ export function NumberTalkSection({
   caption,
 }: NumberTalkSectionProps) {
   return (
-    <div className="border-quinary space-y-4 border-t pt-8">
-      <div className="text-muted-foreground flex items-center gap-2 text-sm font-medium tracking-wider uppercase">
+    <div className="border-quinary space-y-4 border-t py-4">
+      <div className="text-muted-foreground flex items-center gap-2 text-xs font-medium tracking-wider uppercase md:text-sm">
         {icon}
         <span>{title}</span>
       </div>
       <div>
-        <h3 className="mb-10 text-2xl">{description}</h3>
+        <h3 className="mb-10 text-xl md:text-2xl">{description}</h3>
         <div className="flex items-start gap-2">
-          <span className="text-7xl font-light">{number}</span>
-          <span className="text-muted-foreground pt-2">{caption}</span>
+          <span className="text-6xl font-light md:text-7xl">{number}</span>
+          <span className="text-muted-foreground text-xs md:text-base">
+            {caption}
+          </span>
         </div>
       </div>
     </div>
@@ -37,9 +39,9 @@ export function NumberTalkSection({
 export default async function NumberTalks() {
   const t = await getTranslations("Landing.Page.NumberTalks");
   return (
-    <div className="mx-auto w-full">
-      <h2 className="mb-16 text-5xl font-light">{t("title")}</h2>
-      <div className="grid grid-cols-1 gap-8 md:grid-cols-3 md:gap-16">
+    <div className="flex flex-col gap-8 md:gap-12">
+      <h2 className="text-2xl font-light md:text-5xl">{t("title")}</h2>
+      <div className="grid grid-cols-1 gap-6 md:gap-4 lg:grid-cols-3">
         <NumberTalkSection
           icon={<Clock className="h-4 w-4" />}
           title={t("Numbers.Duration.title")}
