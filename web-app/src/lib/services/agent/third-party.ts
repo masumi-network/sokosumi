@@ -13,7 +13,7 @@ export async function fetchAgentInputSchema(
 ): Promise<Result<JobInputsDataSchemaType, string>> {
   try {
     const baseUrl = getAgentApiBaseUrl(agent);
-    const inputSchemaUrl = new URL(`/input_schema`, baseUrl);
+    const inputSchemaUrl = new URL(`${baseUrl.href}/input_schema`);
     console.log("fetching input schema for", inputSchemaUrl.href);
     const response = await fetch(inputSchemaUrl);
 

@@ -38,7 +38,10 @@ export function getAgentApiBaseUrl(agent: Agent): URL {
   if (apiBaseUrl.hash !== "") {
     throw new Error("Agent API base URL must not have a hash");
   }
-  return new URL(agent.overrideApiBaseUrl ?? agent.apiBaseUrl);
+
+  const usedUrl = agent.overrideApiBaseUrl ?? agent.apiBaseUrl;
+  const cleanedUrl = usedUrl.endsWith("/") ? usedUrl.slice(0, -1) : usedUrl;
+  return new URL(cleanedUrl);
 }
 
 export function getAgentAverageStars(agent: AgentWithRating): number | null {
