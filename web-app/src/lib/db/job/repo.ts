@@ -306,3 +306,14 @@ export async function getNotFinalizedLatestJobByAgentIdAndUserId(
   });
   return job;
 }
+
+export async function updateJobNameById(
+  jobId: string,
+  name: string | null,
+  tx: Prisma.TransactionClient = prisma,
+) {
+  return await tx.job.update({
+    where: { id: jobId },
+    data: { name },
+  });
+}

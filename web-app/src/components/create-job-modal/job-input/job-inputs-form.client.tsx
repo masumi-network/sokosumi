@@ -13,7 +13,7 @@ import { useCreateJobModalContext } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { useAsyncRouterPush } from "@/hooks/use-async-router";
-import { StartJobErrorCodes, startJobWithInputData } from "@/lib/actions";
+import { JobActionErrorCode, startJobWithInputData } from "@/lib/actions";
 import { AgentLegal, convertCentsToCredits, CreditsPrice } from "@/lib/db";
 import {
   defaultValues,
@@ -87,7 +87,7 @@ export default function JobInputsFormClient({
         );
       } else {
         switch (result.error?.code) {
-          case StartJobErrorCodes.INSUFFICIENT_BALANCE:
+          case JobActionErrorCode.INSUFFICIENT_BALANCE:
             toast.error(t("Error.insufficientBalance"), {
               action: {
                 label: t("Error.insufficientBalanceAction"),
@@ -97,10 +97,10 @@ export default function JobInputsFormClient({
               },
             });
             break;
-          case StartJobErrorCodes.INVALID_INPUT:
+          case JobActionErrorCode.INVALID_INPUT:
             toast.error(t("Error.invalidInput"));
             break;
-          case StartJobErrorCodes.NOT_AUTHENTICATED:
+          case JobActionErrorCode.NOT_AUTHENTICATED:
             toast.error(t("Error.notAuthenticated"), {
               action: {
                 label: t("Error.notAuthenticatedAction"),

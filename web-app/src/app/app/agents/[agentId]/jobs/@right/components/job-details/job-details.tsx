@@ -8,6 +8,7 @@ import { JobStatus, JobWithStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 import JobDetailsInputs from "./inputs";
+import JobDetailsName from "./job-details-name";
 import JobDetailsOutputs from "./outputs";
 
 interface JobDetailsProps {
@@ -36,7 +37,7 @@ export default function JobDetails({ job, className }: JobDetailsProps) {
           defaultValue={defaultAccordionValue}
           className="w-full space-y-1.5"
         >
-          <JobDetailsHeader createdAt={job.createdAt} status={job.status} />
+          <JobDetailsHeader job={job} />
           <AccordionItemWrapper value="input" title={t("Input.title")}>
             <JobDetailsInputs
               rawInput={job.input}
@@ -52,23 +53,20 @@ export default function JobDetails({ job, className }: JobDetailsProps) {
   );
 }
 
-function JobDetailsHeader({
-  createdAt,
-  status,
-}: {
-  createdAt: Date;
-  status: JobStatus;
-}) {
+function JobDetailsHeader({ job }: { job: JobWithStatus }) {
   const formatter = useFormatter();
+  const { createdAt, status } = job;
+
   return (
-    <div className="bg-muted/50 flex items-center rounded-xl p-4">
-      <div className="flex w-full items-center justify-between">
-        <span>
+    <div className="flex flex-col gap-2">
+      <JobDetailsName job={job} />
+      <div className="bg-muted/50 flex items-center justify-between gap-2 rounded-xl p-4">
+        <p>
           {formatter.dateTime(createdAt, {
             dateStyle: "full",
             timeStyle: "short",
           })}
-        </span>
+        </p>
         <JobStatusBadge status={status} />
       </div>
     </div>
