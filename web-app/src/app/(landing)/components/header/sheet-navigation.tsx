@@ -24,17 +24,17 @@ export default function SheetNavigation() {
         </div>
       </SheetTrigger>
       <SheetContent
-        className="bg-material-thin flex h-svh min-w-svw flex-col backdrop-blur-3xl [&>button]:hidden"
+        className="bg-material-thin flex h-svh min-w-svw flex-col p-4 backdrop-blur-3xl [&>button]:hidden"
         side="right"
       >
-        <SheetHeader className="p-4">
+        <SheetHeader className="p-0">
           <SheetTitle className="flex items-center justify-between">
             <SheetClose asChild>
               <Link href="/">
                 <ThemedLogo LogoComponent={SokosumiLogo} priority />
               </Link>
             </SheetClose>
-            <SheetClose>
+            <SheetClose asChild>
               <X size={24} />
             </SheetClose>
           </SheetTitle>
@@ -48,9 +48,7 @@ export default function SheetNavigation() {
             )}
           />
         </nav>
-        <div className="p-4">
-          <AppConnection className="w-full" />
-        </div>
+        <AppConnection className="w-full" />
       </SheetContent>
     </Sheet>
   );
