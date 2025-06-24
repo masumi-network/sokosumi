@@ -132,7 +132,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
             submitResultTime: new Date(startJobResponse.submitResultTime),
             unlockTime: new Date(startJobResponse.unlockTime),
             blockchainIdentifier: startJobResponse.blockchainIdentifier,
-            sellerVkey: startJobResponse.sellerVkey,
+            sellerVkey: startJobResponse.sellerVKey,
           },
           tx,
         );

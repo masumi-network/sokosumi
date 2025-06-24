@@ -22,7 +22,7 @@ export const startJobResponseSchema = z.object({
   unlockTime: z.number({ coerce: true }).int(),
   externalDisputeUnlockTime: z.number({ coerce: true }).int(),
   agentIdentifier: z.string().min(1),
-  sellerVkey: z.string().min(1),
+  sellerVKey: z.string().min(1),
   identifierFromPurchaser: z.string().min(1),
   amounts: z.array(
     z.object({
