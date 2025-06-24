@@ -57,6 +57,7 @@ export async function startJobWithInputData(
           };
       }
     }
+    console.log("Error starting job", error);
     return {
       success: false,
       error: { code: JobActionErrorCode.INTERNAL_SERVER_ERROR },
