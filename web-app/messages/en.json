@@ -872,7 +872,7 @@
           "Header": {
             "started": "Started",
             "status": "Status",
-            "id": "ID"
+            "name": "Name"
           }
         },
         "StatusBadge": {
@@ -892,6 +892,26 @@
           "unknown": "Unknown"
         },
         "JobDetails": {
+          "Header": {
+            "Schema": {
+              "Name": {
+                "invalid": "Name must be a valid string",
+                "min": "Name must be at least 2 characters",
+                "max": "Name must be at most 80 characters"
+              }
+            },
+            "Form": {
+              "Name": {
+                "placeholder": "Please input Job Name"
+              }
+            },
+            "edit": "Edit",
+            "save": "Save",
+            "cancel": "Cancel",
+            "noName": "No name",
+            "success": "Job name updated successfully",
+            "error": "Failed to update job name"
+          },
           "Input": {
             "title": "Input",
             "failedToParseInput": "Failed to parse input",

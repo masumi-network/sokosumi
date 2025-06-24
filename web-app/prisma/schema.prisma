@@ -437,6 +437,8 @@ model Job {
   creditTransactionId         String             @unique
   refundedCreditTransaction   CreditTransaction? @relation("RefundedCreditTransactionJob", fields: [refundedCreditTransactionId], references: [id])
   refundedCreditTransactionId String?            @unique
+
+  name String? // user-defined job name
 }
 
 enum OnChainTransactionStatus {

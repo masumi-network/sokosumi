@@ -62,10 +62,10 @@ function getColumns(
   t: ReturnType<typeof useTranslations>,
   dateFormatter: ReturnType<typeof useFormatter>,
 ) {
-  const { startedAtColumn, statusColumn, idColumn } = getJobColumns(
+  const { startedAtColumn, statusColumn, nameColumn } = getJobColumns(
     t,
     dateFormatter,
   );
 
-  return [startedAtColumn, statusColumn, idColumn];
+  return [startedAtColumn, statusColumn, nameColumn];
 }

@@ -37,12 +37,12 @@ export function getJobColumns(
 
     statusColumn: columnHelper.accessor("status", {
       id: "status",
-      minSize: 175,
+      minSize: 160,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("Header.status")} />
       ),
       cell: ({ row }) => (
-        <div>
+        <div className="p-2">
           <JobStatusBadge status={row.original.status} />
         </div>
       ),
@@ -50,18 +50,22 @@ export function getJobColumns(
       enableHiding: false,
     }) as ColumnDef<JobWithStatus>,
 
-    idColumn: columnHelper.accessor("id", {
-      id: "id",
-      minSize: 100,
+    nameColumn: columnHelper.accessor("name", {
+      id: "name",
+      minSize: 180,
       header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t("Header.id")} />
+        <DataTableColumnHeader column={column} title={t("Header.name")} />
       ),
       cell: ({ row }) => (
-        <div>
-          <MiddleTruncate
-            text={row.original.id}
-            className="font-mono text-xs"
-          />
+        <div className="p-2">
+          {!!row.original.name ? (
+            <p className="max-w-40 truncate">{row.original.name}</p>
+          ) : (
+            <MiddleTruncate
+              text={row.original.name ?? row.original.id}
+              className="font-mono text-xs"
+            />
+          )}
         </div>
       ),
       enableSorting: true,
