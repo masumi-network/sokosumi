@@ -40,7 +40,7 @@
     "@icons-pack/react-simple-icons": "13.1.0",
     "@prisma/client": "6.10.1",
     "@react-email/components": "0.1.0",
-    "@sentry/nextjs": "9.30.0",
+    "@sentry/nextjs": "9.31.0",
     "@tanstack/react-table": "8.21.3",
     "@tufjs/canonical-json": "2.0.0",
     "@usersnap/browser": "^1.0.2",
