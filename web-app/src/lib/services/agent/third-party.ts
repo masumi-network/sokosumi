@@ -12,19 +12,17 @@ export async function fetchAgentInputSchema(
   agent: AgentWithRelations,
 ): Promise<Result<JobInputsDataSchemaType, string>> {
   try {
-    console.log("fetchAgentInputSchema", agent);
     const baseUrl = getAgentApiBaseUrl(agent);
     const inputSchemaUrl = new URL(`/input_schema`, baseUrl);
-    console.log("inputSchemaUrl", inputSchemaUrl);
+    console.log("fetching input schema for", inputSchemaUrl.href);
     const response = await fetch(inputSchemaUrl);
-    console.log("response", response);
+
     if (!response.ok) {
       return Err(response.statusText);
     }
-    console.log("response.json()", await response.json());
 
     const parsedResult = jobInputsDataSchema().safeParse(await response.json());
-    console.log("parsedResult", parsedResult);
+
     if (!parsedResult.success) {
       return Err("Failed to parse input schema");
     }
