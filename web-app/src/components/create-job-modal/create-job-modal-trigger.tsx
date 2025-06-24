@@ -9,17 +9,19 @@ import { cn } from "@/lib/utils";
 import { useCreateJobModalContext } from "./create-job-modal-context";
 
 interface CreateJobModalTriggerProps {
+  agentId: string;
   className?: string | undefined;
 }
 
 export default function CreateJobModalTrigger({
+  agentId,
   className,
 }: CreateJobModalTriggerProps) {
   const t = useTranslations("App.Agents.Jobs");
-  const { setOpen } = useCreateJobModalContext();
+  const { handleOpen } = useCreateJobModalContext();
 
   const handleClick = () => {
-    setOpen(true);
+    handleOpen(agentId);
   };
 
   return (

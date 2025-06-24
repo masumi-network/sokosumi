@@ -1,11 +1,14 @@
 "use client";
 
-import { createContext, useContext, useState } from "react";
+import { createContext, useContext, useMemo, useState } from "react";
+
+import { AgentWithCreditPrice } from "@/lib/services";
 
 interface CreateJobModalContextType {
   // modal open
   open: boolean;
   setOpen: (open: boolean) => void;
+  handleOpen: (agentId: string) => void;
   handleClose: () => void;
   // create job form loading
   loading: boolean;
@@ -16,11 +19,18 @@ interface CreateJobModalContextType {
   setAccordionValue: (accordionValue: string[]) => void;
   handleExpand: () => void;
   handleCollapse: () => void;
+  // agents with price
+  agentsWithPrice: AgentWithCreditPrice[];
+  // selected agent
+  agentId?: string | undefined;
+  setAgentId: (agentId: string) => void;
+  agentWithPrice?: AgentWithCreditPrice | undefined;
 }
 
 const initialState: CreateJobModalContextType = {
   open: false,
   setOpen: () => {},
+  handleOpen: () => {},
   handleClose: () => {},
   loading: false,
   setLoading: () => {},
@@ -29,14 +39,19 @@ const initialState: CreateJobModalContextType = {
   setAccordionValue: () => {},
   handleExpand: () => {},
   handleCollapse: () => {},
+  agentsWithPrice: [],
+  agentId: undefined,
+  setAgentId: () => {},
 };
 
 export const CreateJobModalContext =
   createContext<CreateJobModalContextType>(initialState);
 
 export function CreateJobModalContextProvider({
+  agentsWithPrice,
   children,
 }: {
+  agentsWithPrice: AgentWithCreditPrice[];
   children: React.ReactNode;
 }) {
   const [open, setOpen] = useState(false);
@@ -46,6 +61,18 @@ export function CreateJobModalContextProvider({
     "input",
   ]);
 
+  const [agentId, setAgentId] = useState<string | undefined>(undefined);
+  const agentWithPrice = useMemo(() => {
+    if (!agentId) {
+      return;
+    }
+    const result = agentsWithPrice.find(({ agent }) => agent.id === agentId);
+    if (!result) {
+      console.error("agent not found in agentsWithPrice", agentId);
+    }
+    return result;
+  }, [agentsWithPrice, agentId]);
+
   const handleExpand = () => {
     setAccordionValue(["information", "input"]);
   };
@@ -54,13 +81,20 @@ export function CreateJobModalContextProvider({
     setAccordionValue([]);
   };
 
+  const handleOpen = (agentId: string) => {
+    setOpen(true);
+    setAgentId(agentId);
+  };
+
   const handleClose = () => {
     setOpen(false);
+    setAgentId(undefined);
   };
 
   const value: CreateJobModalContextType = {
     open,
     setOpen,
+    handleOpen,
     handleClose,
     loading,
     setLoading,
@@ -69,6 +103,10 @@ export function CreateJobModalContextProvider({
     setAccordionValue,
     handleExpand,
     handleCollapse,
+    agentsWithPrice,
+    agentId,
+    setAgentId,
+    agentWithPrice,
   };
 
   return (

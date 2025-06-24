@@ -58,7 +58,7 @@ export default function AgentListsClient({
     <>
       {agentLists.map(
         ({ groupKey, title, agents, latestJobs, noAgentsType }) => (
-          <SidebarGroup key={groupKey} className="w-64">
+          <SidebarGroup key={groupKey} className="w-72 md:w-64">
             <SidebarGroupLabel className="text-base">{title}</SidebarGroupLabel>
             <SidebarGroupContent className="mt-2">
               {agents.length > 0 ? (

@@ -9,20 +9,12 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { AgentWithRelations, CreditsPrice } from "@/lib/db";
-import { JobInputsDataSchemaType } from "@/lib/job-input";
 
 import { useCreateJobModalContext } from "./create-job-modal-context";
 import CreateJobSection from "./create-job-section";
 
-interface CreateJobModalProps {
-  agent: AgentWithRelations;
-  agentCreditsPrice: CreditsPrice;
-  inputSchemaPromise: Promise<JobInputsDataSchemaType>;
-}
-
-export default function CreateJobModal(props: CreateJobModalProps) {
-  const { open, setOpen, loading } = useCreateJobModalContext();
+export default function CreateJobModal() {
+  const { open, setOpen, loading, agentWithPrice } = useCreateJobModalContext();
 
   const handleOnOpenChange = (open: boolean) => {
     if (loading) {
@@ -34,12 +26,17 @@ export default function CreateJobModal(props: CreateJobModalProps) {
   return (
     <Dialog open={open} onOpenChange={handleOnOpenChange}>
       <DialogPortal>
-        <DialogOverlay className="backdrop-blur-lg" />
-        <DialogContent className="w-[80vw] max-w-3xl! border-none bg-transparent p-0 focus:ring-0 focus:outline-none [&>button]:hidden">
+        <DialogOverlay className="bg-background/50 backdrop-blur-lg md:bg-auto" />
+        <DialogContent className="w-svw max-w-3xl! border-none bg-transparent p-0 focus:ring-0 focus:outline-none md:w-[80vw] [&>button]:hidden">
           <DialogTitle className="hidden" />
           <DialogDescription className="hidden" />
-          <ScrollArea className="max-h-[90svh]">
-            <CreateJobSection {...props} />
+          <ScrollArea className="max-h-svh md:max-h-[90svh]">
+            {agentWithPrice && (
+              <CreateJobSection
+                agent={agentWithPrice.agent}
+                agentCreditsPrice={agentWithPrice.creditsPrice}
+              />
+            )}
           </ScrollArea>
         </DialogContent>
       </DialogPortal>

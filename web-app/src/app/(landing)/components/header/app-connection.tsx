@@ -16,24 +16,28 @@ function AppConnectionLoading() {
   );
 }
 
-export default function AppConnection() {
+interface AppConnectionProps {
+  className?: string | undefined;
+}
+
+export default function AppConnection({ className }: AppConnectionProps) {
   return (
     <Suspense fallback={<AppConnectionLoading />}>
-      <AppConnectionContent />
+      <AppConnectionContent className={className} />
     </Suspense>
   );
 }
 
-async function AppConnectionContent() {
+async function AppConnectionContent({ className }: AppConnectionProps) {
   const t = await getTranslations("Landing.Header.Connection");
   const session = await getSession();
 
   if (!session) {
-    return <AuthButtons />;
+    return <AuthButtons className={className} />;
   }
 
   return (
-    <Button variant="primary" asChild>
+    <Button variant="primary" asChild className={className}>
       <Link href="/app">
         <UserRoundIcon className="size-4" />
         {t("app")}

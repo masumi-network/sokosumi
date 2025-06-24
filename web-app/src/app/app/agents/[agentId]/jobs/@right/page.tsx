@@ -36,7 +36,7 @@ export default async function RightSectionPage({
     <div className="bg-muted/50 flex h-full w-full flex-1 items-center justify-center rounded-xl border-none">
       <div className="flex flex-col gap-4">
         <p>{t("noExecutedJobs")}</p>
-        <CreateJobModalTrigger />
+        <CreateJobModalTrigger agentId={agentId} />
       </div>
     </div>
   );

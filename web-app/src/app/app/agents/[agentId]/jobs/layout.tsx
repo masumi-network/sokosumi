@@ -16,7 +16,6 @@ import {
 } from "@/lib/db";
 import {
   getAgentCreditsPrice,
-  getAgentInputSchema,
   getOrCreateFavoriteAgentList,
 } from "@/lib/services";
 
@@ -72,10 +71,10 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
   const favoriteAgentList = await getOrCreateFavoriteAgentList();
   const jobs = await getJobsByAgentId(agentId);
 
-  const agentInputSchemaPromise = getAgentInputSchema(agentId);
-
   return (
-    <CreateJobModalContextProvider>
+    <CreateJobModalContextProvider
+      agentsWithPrice={[{ agent, creditsPrice: agentCreditsPrice }]}
+    >
       <div className="flex h-full flex-col p-4 lg:h-[calc(100svh-64px)] lg:p-6 xl:p-8">
         <Header
           agent={agent}
@@ -89,11 +88,7 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
         </div>
         <Footer legal={getAgentLegal(agent)} />
         {/* Create Job Modal */}
-        <CreateJobModal
-          agent={agent}
-          agentCreditsPrice={agentCreditsPrice}
-          inputSchemaPromise={agentInputSchemaPromise}
-        />
+        <CreateJobModal />
       </div>
     </CreateJobModalContextProvider>
   );

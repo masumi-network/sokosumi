@@ -7,6 +7,7 @@ import { getLocale, getMessages } from "next-intl/server";
 import PlausibleProvider from "next-plausible";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
+import { GlobalModalsContextProvider } from "@/components/modals/global-modals-context";
 import { Toaster } from "@/components/ui/sonner";
 import { UsersnapProvider } from "@/components/usersnap/usersnap-provider";
 import { getEnvSecrets } from "@/config/env.config";
@@ -53,7 +54,9 @@ export default async function RootLayout({
           <NuqsAdapter>
             <ThemeProvider>
               <NextIntlClientProvider messages={messages}>
-                <div className="bg-background">{children}</div>
+                <GlobalModalsContextProvider>
+                  <div className="bg-background">{children}</div>
+                </GlobalModalsContextProvider>
                 {/* Toaster */}
                 <Toaster />
               </NextIntlClientProvider>

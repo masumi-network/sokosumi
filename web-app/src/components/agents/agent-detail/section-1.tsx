@@ -46,8 +46,8 @@ function AgentDetailSection1({
         showCloseButton={showCloseButton}
         onClose={onClose}
       />
-      <div className="flex gap-6">
-        <div className="relative h-48 w-48 shrink-0">
+      <div className="flex flex-col gap-6 md:flex-row">
+        <div className="relative aspect-square w-full shrink-0 md:h-48 md:w-48">
           <div className="absolute inset-0 rounded-lg blur-sm" />
           <Image
             src={getAgentResolvedImage(agent)}
@@ -58,10 +58,12 @@ function AgentDetailSection1({
             priority
           />
         </div>
-        <div className="flex flex-1 flex-col gap-1.5">
+        <div className="flex flex-1 flex-col gap-8 md:gap-1.5">
           <div className="flex flex-1 flex-col gap-2">
-            <div className="flex items-center gap-4">
-              <h2 className="text-3xl font-light">{getAgentName(agent)}</h2>
+            <div className="flex items-start gap-4 md:items-center">
+              <h2 className="text-2xl font-light md:text-3xl">
+                {getAgentName(agent)}
+              </h2>
               <AgentVerifiedBadge />
             </div>
             <div className="flex items-center gap-3">
@@ -74,20 +76,20 @@ function AgentDetailSection1({
                   className="rounded-full object-cover"
                 />
               </div>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground text-sm md:text-base">
                 {getFullAgentAuthorName(agent)}
               </p>
             </div>
           </div>
           <div className="flex items-center justify-between">
-            <div className="text-base">
+            <div className="text-sm md:text-base">
               <span className="font-medium">
                 {t("pricing", {
                   credits: convertCentsToCredits(agentCreditsPrice.cents),
                 })}
               </span>
             </div>
-            <AgentHireButton />
+            <AgentHireButton agentId={agent.id} />
           </div>
         </div>
       </div>
@@ -99,11 +101,11 @@ function AgentDetailSection1Skeleton() {
   return (
     <div className="flex flex-col gap-6">
       <AgentActionButtonsSkeleton />
-      <div className="flex gap-6">
-        <Skeleton className="h-56 w-56 rounded-lg" />
-        <div className="flex flex-1 flex-col gap-1.5">
+      <div className="flex flex-col gap-6 md:flex-row">
+        <Skeleton className="aspect-square w-full rounded-lg md:h-48 md:w-48" />
+        <div className="flex flex-1 flex-col gap-8 md:gap-1.5">
           <div className="flex flex-1 flex-col gap-2">
-            <div className="flex items-center gap-4">
+            <div className="flex items-start gap-4 md:items-center">
               <Skeleton className="h-8 w-40" />
               <Skeleton className="h-8 w-16" />
             </div>
