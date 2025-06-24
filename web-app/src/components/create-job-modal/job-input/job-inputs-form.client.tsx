@@ -190,7 +190,11 @@ function AcceptTermsOfService({
       <span>{t("acceptByClickingSubmit")}</span>
       {legalLinks.map((legalLink, index) => (
         <React.Fragment key={index}>
-          <Link href={legalLink.href} className="text-foreground">
+          <Link
+            target="_blank"
+            href={legalLink.href}
+            className="text-foreground"
+          >
             <span>{legalLink.label}</span>
           </Link>
           {index < legalLinks.length - 1 && ", "}

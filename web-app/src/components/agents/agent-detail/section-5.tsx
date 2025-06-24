@@ -13,6 +13,7 @@ function AgentDetailSection5({ legal }: { legal: AgentLegal }) {
       <div className="flex flex-wrap gap-4">
         {legal?.privacyPolicy && (
           <Link
+            target="_blank"
             href={legal.privacyPolicy}
             className="hover:text-foreground underline underline-offset-4 transition-colors"
           >
@@ -21,6 +22,7 @@ function AgentDetailSection5({ legal }: { legal: AgentLegal }) {
         )}
         {legal?.terms && (
           <Link
+            target="_blank"
             href={legal.terms}
             className="hover:text-foreground underline underline-offset-4 transition-colors"
           >
@@ -29,6 +31,7 @@ function AgentDetailSection5({ legal }: { legal: AgentLegal }) {
         )}
         {legal?.other && (
           <Link
+            target="_blank"
             href={legal.other}
             className="hover:text-foreground underline underline-offset-4 transition-colors"
           >
