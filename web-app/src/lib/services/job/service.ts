@@ -86,7 +86,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
 
       const identifierFromPurchaser = uuidv4()
         .replace(/-/g, "")
-        .substring(0, 26);
+        .substring(0, 20);
 
       const startJobResult = await startAgentJob(
         agent,
