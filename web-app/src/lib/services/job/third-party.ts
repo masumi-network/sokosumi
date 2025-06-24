@@ -26,7 +26,7 @@ export async function fetchAgentJobStatus(
 ): Promise<Result<JobStatusResponseSchemaType, string>> {
   try {
     const baseUrl = getAgentApiBaseUrl(agent);
-    const jobStatusUrl = new URL(`/status`, baseUrl);
+    const jobStatusUrl = new URL(`${baseUrl.href}/status`);
     jobStatusUrl.searchParams.set("job_id", jobId);
     const jobStatusResponse = await fetch(jobStatusUrl, {
       method: "GET",
@@ -55,7 +55,7 @@ export async function startAgentJob(
 ): Promise<Result<StartJobResponseSchemaType, string>> {
   try {
     const baseUrl = getAgentApiBaseUrl(agent);
-    const startJobUrl = new URL(`/start_job`, baseUrl);
+    const startJobUrl = new URL(`${baseUrl.href}/start_job`);
 
     const startJobResponse = await fetch(startJobUrl, {
       method: "POST",
