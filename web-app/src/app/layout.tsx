@@ -7,6 +7,7 @@ import { getLocale, getMessages } from "next-intl/server";
 import PlausibleProvider from "next-plausible";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
+import CookieConsent from "@/components/cookie-consent";
 import { GlobalModalsContextProvider } from "@/components/modals/global-modals-context";
 import { Toaster } from "@/components/ui/sonner";
 import { UsersnapProvider } from "@/components/usersnap/usersnap-provider";
@@ -56,6 +57,7 @@ export default async function RootLayout({
               <NextIntlClientProvider messages={messages}>
                 <GlobalModalsContextProvider>
                   <div className="bg-background">{children}</div>
+                  <CookieConsent />
                 </GlobalModalsContextProvider>
                 {/* Toaster */}
                 <Toaster />

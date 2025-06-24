@@ -38,6 +38,14 @@
       "description": "This page is only supported on Desktop devices. Please switch to large screen.",
       "reload": "Reload"
     },
+    "CookieConsent": {
+      "title": "We use cookies",
+      "description": "We use cookies to ensure you get the best experience on our website. For more information on how we use cookies, please see our ",
+      "cookiePolicy": "cookie policy",
+      "period": ".",
+      "accept": "Accept",
+      "reject": "Reject"
+    },
     "ShareButton": {
       "linkCopied": "Link copied to clipboard",
       "copyError": "Failed to copy link"
