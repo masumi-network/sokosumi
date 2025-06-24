@@ -22,15 +22,10 @@ const readWindowSize = () => {
   };
 };
 
-const initialValue: WindowSize = {
-  innerWidth: 0,
-  outerWidth: 0,
-  innerHeight: 0,
-  outerHeight: 0,
-};
-
-export default function useWindowSize(): WindowSize {
-  const [windowSize, setWindowSize] = useState<WindowSize>(initialValue);
+export default function useWindowSize(): WindowSize | undefined {
+  const [windowSize, setWindowSize] = useState<WindowSize | undefined>(
+    undefined,
+  );
 
   const handleSize = useCallback(() => {
     const newWindowSize = readWindowSize();
@@ -45,7 +40,6 @@ export default function useWindowSize(): WindowSize {
     handleSize();
 
     return () => {
-      console.log("unmounting");
       window.removeEventListener("resize", handleSize);
     };
   }, [handleSize]);
