@@ -176,6 +176,12 @@ export async function createPurchase(
     });
 
     if (postPurchaseResponse.error || !postPurchaseResponse.data) {
+      const responseJson = await postPurchaseResponse.response?.json();
+      console.log(
+        "Failed to create purchase request",
+        postPurchaseResponse.error,
+        responseJson,
+      );
       return Err("Failed to create purchase request");
     }
 
