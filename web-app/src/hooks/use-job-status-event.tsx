@@ -31,7 +31,9 @@ export default function useJobStatusEvent(
         if (typeof data !== "string") return;
         try {
           const parsed = payloadSchema.parse(JSON.parse(data));
-          onEvent(parsed);
+          if ("userId" in parsed) {
+            onEvent(parsed);
+          }
         } catch (error) {
           console.error("Failed to parse Job Status Event", error);
         }

@@ -4,6 +4,8 @@ import { auth } from "@/lib/auth/auth";
 import { initJobStatusListener, subscribeConnection } from "@/lib/db/listener";
 import { payloadSchema } from "@/lib/db/listener/schema";
 
+const KEEP_ALIVE_INTERVAL = 10000;
+
 export async function GET(req: NextRequest) {
   await initJobStatusListener();
 
@@ -19,7 +21,7 @@ export async function GET(req: NextRequest) {
         // parse data
         try {
           const parsed = payloadSchema.parse(JSON.parse(payload));
-          if (parsed.userId !== user.id) {
+          if ("userId" in parsed && parsed.userId !== user.id) {
             // only notify when user id matches
             return;
           }
@@ -32,9 +34,16 @@ export async function GET(req: NextRequest) {
       // Subscribe this client
       const unsubscribe = subscribeConnection(send);
 
+      // send date string to keep connection alive
+      const intervalId = setInterval(
+        () => send(JSON.stringify({ now: new Date().toISOString() })),
+        KEEP_ALIVE_INTERVAL,
+      );
+
       req.signal.addEventListener("abort", () => {
         unsubscribe();
         controller.close();
+        clearInterval(intervalId);
       });
     },
   });

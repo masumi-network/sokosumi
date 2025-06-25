@@ -57,10 +57,8 @@ export default function CookieConsent({
   return (
     <div
       className={cn(
-        "fixed right-0 bottom-0 left-0 z-[999999] p-2 duration-700 sm:max-w-md sm:p-4",
-        visible
-          ? "translate-y-0 opacity-100 transition-[opacity,transform]"
-          : "translate-y-[100%] opacity-0 transition-[opacity,transform]",
+        "fixed right-0 bottom-0 left-0 z-[999999] p-2 transition-all duration-700 sm:max-w-md sm:p-4",
+        visible ? "translate-y-0 opacity-100" : "translate-y-[100%] opacity-0",
       )}
     >
       <div className="bg-background space-y-2 rounded-lg border p-4">
