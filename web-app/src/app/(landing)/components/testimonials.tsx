@@ -25,7 +25,7 @@ const User = ({ image, quote, name, position, company, index }: UserProps) => (
         {index + 1}
       </span>
     </div>
-    <div className="flex w-full flex-col gap-8 md:gap-16">
+    <div className="flex w-full flex-col justify-between gap-8 md:gap-16">
       <p className="text-xl md:text-3xl">{`"${quote}"`}</p>
       <div className="text-xs md:text-sm">
         <div>{name}</div>
@@ -44,7 +44,7 @@ export default function Testimonials() {
       image: "/testimonials/frederik-gregaard.jpeg",
     },
     {
-      image: "/testimonials/mock-user.png",
+      image: "/testimonials/florian-haller.png",
     },
   ];
 
