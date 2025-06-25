@@ -711,7 +711,6 @@
             "completed": "Completed",
             "failed": "Failed",
             "inputRequired": "Input Required",
-            "paymentProcessing": "Payment Processing",
             "processing": "Processing"
           }
         }
@@ -891,7 +890,6 @@
         "StatusBadge": {
           "completed": "Completed",
           "failed": "Failed",
-          "paymentProcessing": "Payment Processing",
           "paymentFailed": "Payment Failed",
           "processing": "Processing",
           "agentConnectionFailed": "Agent Connection Failed",

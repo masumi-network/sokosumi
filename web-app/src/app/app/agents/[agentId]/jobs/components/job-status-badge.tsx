@@ -35,15 +35,6 @@ export default function JobStatusBadge({
           {t("failed")}
         </Badge>
       );
-    case JobStatus.PAYMENT_PENDING:
-      return (
-        <Badge
-          variant="default"
-          className={cn("bg-yellow-100 text-yellow-800", className)}
-        >
-          {t("paymentProcessing")}
-        </Badge>
-      );
     case JobStatus.PAYMENT_FAILED:
       return (
         <Badge
@@ -53,6 +44,7 @@ export default function JobStatusBadge({
           {t("paymentFailed")}
         </Badge>
       );
+    case JobStatus.PAYMENT_PENDING:
     case JobStatus.PROCESSING:
       return (
         <Badge

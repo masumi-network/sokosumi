@@ -49,9 +49,6 @@ function AgentJobStatusIndicatorIcon({
       return <X className={cn(className)} />;
     case AgentJobStatus.AWAITING_INPUT:
       return <Circle className={cn(className)} fill="currentColor" />;
-    case null:
-    case AgentJobStatus.AWAITING_PAYMENT:
-      return <Loader2 className={cn("animate-spin", className)} />;
     default:
       return <Loader2 className={cn("animate-spin", className)} />;
   }
@@ -71,9 +68,6 @@ function AgentJobStatusIndicatorContent({
       return <p>{t("failed")}</p>;
     case AgentJobStatus.AWAITING_INPUT:
       return <p>{t("inputRequired")}</p>;
-    case null:
-    case AgentJobStatus.AWAITING_PAYMENT:
-      return <p>{t("paymentProcessing")}</p>;
     default:
       return <p>{t("processing")}</p>;
   }
