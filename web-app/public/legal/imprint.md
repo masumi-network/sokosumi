@@ -22,8 +22,8 @@ Munich Local Court (Amtsgericht München): HRA 79530
 
 **Managing Directors Authorized to Represent the Company:**  
 Florian Haller  
-Wolf Ingomar Faecks  
-Marcus Ambrus
+Sebastian Kuepers  
+Dr. Ingo Stein
 
 **Responsible for Content according to § 55 (2) RStV:**  
 Florian Haller  
