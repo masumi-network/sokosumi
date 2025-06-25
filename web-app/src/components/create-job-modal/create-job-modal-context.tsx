@@ -56,10 +56,7 @@ export function CreateJobModalContextProvider({
 }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [accordionValue, setAccordionValue] = useState<string[]>([
-    "information",
-    "input",
-  ]);
+  const [accordionValue, setAccordionValue] = useState<string[]>(["input"]);
 
   const [agentId, setAgentId] = useState<string | undefined>(undefined);
   const agentWithPrice = useMemo(() => {
