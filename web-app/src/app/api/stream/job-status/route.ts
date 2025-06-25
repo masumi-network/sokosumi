@@ -42,8 +42,8 @@ export async function GET(req: NextRequest) {
 
       req.signal.addEventListener("abort", () => {
         unsubscribe();
-        controller.close();
         clearInterval(intervalId);
+        controller.close();
       });
     },
   });
