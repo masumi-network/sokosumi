@@ -44,6 +44,7 @@ export default function OrganizationInput({
 }: OrganizationInputProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form.Fields.Organization");
   const [open, setOpen] = useState(false);
+  const [creating, setCreating] = useState(false);
 
   const createOrganizationForm = useForm<CreateOrganizationSchemaType>({
     resolver: zodResolver(
@@ -57,9 +58,14 @@ export default function OrganizationInput({
       name: "",
     },
   });
-  const organizationName = createOrganizationForm.watch("name");
+
   const handleOrganizationNameChange = (name: string) => {
     createOrganizationForm.setValue("name", name);
+  };
+
+  const handleNewOrganization = () => {
+    handleOrganizationNameChange("");
+    setCreating(true);
   };
 
   const handleOpenChange = (open: boolean) => {
@@ -73,6 +79,62 @@ export default function OrganizationInput({
   const handleSelectOrganization = (organizationId: string) => {
     onChange(organizationId);
     setOpen(false);
+  };
+
+  const isEmailValid = isValidEmail(email);
+
+  const EmptySection = () => {
+    return (
+      <CommandEmpty className="p-0">
+        {!isEmailValid && (
+          <div className="text-muted-foreground p-2 text-center text-sm">
+            {t("invalidEmail")}
+          </div>
+        )}
+      </CommandEmpty>
+    );
+  };
+
+  const NewOrganizationSection = () => {
+    if (!isEmailValid) return null;
+    return (
+      <div className="p-2">
+        <Button
+          size="sm"
+          variant="primary"
+          className="w-full"
+          onClick={handleNewOrganization}
+        >
+          {t("new")}
+        </Button>
+      </div>
+    );
+  };
+
+  const OrganizationsSection = () => {
+    if (!isEmailValid) return null;
+    return (
+      <CommandGroup className={organizations.length === 0 ? "p-0" : "p-2"}>
+        {organizations.map((organization) => (
+          <CommandItem
+            key={organization.id}
+            value={organization.name}
+            onSelect={() => handleSelectOrganization(organization.id)}
+            className="flex items-center gap-2"
+          >
+            <Check
+              className={
+                value?.id === organization.id ? "opacity-100" : "opacity-0"
+              }
+            />
+            <span className="flex-1">{organization.name}</span>
+            <span className="text-muted-foreground text-sm">
+              {organization._count.members}
+            </span>
+          </CommandItem>
+        ))}
+      </CommandGroup>
+    );
   };
 
   return (
@@ -92,51 +154,26 @@ export default function OrganizationInput({
           </Button>
         </PopoverTrigger>
         <PopoverContent align="end" className="p-0">
-          <Command
-            value={organizationName}
-            onValueChange={handleOrganizationNameChange}
-          >
-            <CommandInput placeholder={t("search")} />
-            <CommandList>
-              <CommandEmpty className="p-2">
-                {isValidEmail(email) ? (
-                  <CreateOrganization
-                    email={email}
-                    form={createOrganizationForm}
-                    onAfterCreate={handleSelectOrganization}
-                  />
-                ) : (
-                  <div className="text-muted-foreground p-2 text-center text-sm">
-                    {t("invalidEmail")}
-                  </div>
-                )}
-              </CommandEmpty>
-              <CommandGroup
-                className={organizations.length === 0 ? "p-0" : "p-2"}
-              >
-                {organizations.map((organization) => (
-                  <CommandItem
-                    key={organization.id}
-                    value={organization.name}
-                    onSelect={() => handleSelectOrganization(organization.id)}
-                    className="flex items-center gap-2"
-                  >
-                    <Check
-                      className={
-                        value?.id === organization.id
-                          ? "opacity-100"
-                          : "opacity-0"
-                      }
-                    />
-                    <span className="flex-1">{organization.name}</span>
-                    <span className="text-muted-foreground text-sm">
-                      {organization._count.members}
-                    </span>
-                  </CommandItem>
-                ))}
-              </CommandGroup>
-            </CommandList>
-          </Command>
+          {creating && (
+            <div className="p-2">
+              <CreateOrganization
+                email={email}
+                form={createOrganizationForm}
+                onAfterCreate={handleSelectOrganization}
+                onBack={() => setCreating(false)}
+              />
+            </div>
+          )}
+          {!creating && (
+            <Command>
+              <CommandInput placeholder={t("search")} />
+              <NewOrganizationSection />
+              <CommandList>
+                <EmptySection />
+                <OrganizationsSection />
+              </CommandList>
+            </Command>
+          )}
         </PopoverContent>
       </Popover>
     </div>

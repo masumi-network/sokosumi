@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { memo } from "react";
 import { UseFormReturn } from "react-hook-form";
@@ -17,12 +17,14 @@ interface CreateOrganizationProps {
   email: string;
   form: UseFormReturn<CreateOrganizationSchemaType>;
   onAfterCreate: (organizationId: string) => void;
+  onBack: () => void;
 }
 
 function CreateOrganization({
   email,
   form,
   onAfterCreate,
+  onBack,
 }: CreateOrganizationProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form.Fields.Organization");
 
@@ -55,6 +57,9 @@ function CreateOrganization({
         disabled={form.formState.isSubmitting}
         className="flex flex-col gap-3"
       >
+        <Button size="icon" variant="outline" onClick={onBack}>
+          <ArrowLeft />
+        </Button>
         <Input
           {...form.register("name")}
           placeholder={t("createPlaceholder")}

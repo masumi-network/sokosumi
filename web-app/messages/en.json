@@ -607,6 +607,7 @@
               "placeholder": "Select an organization",
               "search": "Search organizations",
               "create": "Create {organization}",
+              "new": "New Organization",
               "createPlaceholder": "New organization name",
               "success": "Organization created successfully",
               "error": "Failed to create organization",
