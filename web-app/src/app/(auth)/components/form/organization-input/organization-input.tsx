@@ -59,26 +59,27 @@ export default function OrganizationInput({
     },
   });
 
-  const handleOrganizationNameChange = (name: string) => {
-    createOrganizationForm.setValue("name", name);
-  };
-
-  const handleNewOrganization = () => {
-    handleOrganizationNameChange("");
-    setCreating(true);
-  };
-
   const handleOpenChange = (open: boolean) => {
     if (createOrganizationForm.formState.isSubmitting) {
       return;
     }
-    handleOrganizationNameChange("");
+    createOrganizationForm.setValue("name", "");
     setOpen(open);
   };
 
+  const handleNewOrganization = () => {
+    setCreating(true);
+  };
+
+  const handleCommandInputChange = (value: string) => {
+    createOrganizationForm.setValue("name", value.trim());
+  };
+
   const handleSelectOrganization = (organizationId: string) => {
-    onChange(organizationId);
+    setCreating(false);
     setOpen(false);
+    createOrganizationForm.setValue("name", "");
+    onChange(organizationId);
   };
 
   const isEmailValid = isValidEmail(email);
@@ -166,7 +167,10 @@ export default function OrganizationInput({
           )}
           {!creating && (
             <Command>
-              <CommandInput placeholder={t("search")} />
+              <CommandInput
+                onValueChange={handleCommandInputChange}
+                placeholder={t("search")}
+              />
               <NewOrganizationSection />
               <CommandList>
                 <EmptySection />
