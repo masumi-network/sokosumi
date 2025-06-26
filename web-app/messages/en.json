@@ -610,7 +610,7 @@
               "createPlaceholder": "New organization name",
               "success": "Organization created successfully",
               "error": "Failed to create organization",
-              "invalidEmail": "Input valid email to see organizations",
+              "invalidEmail": "Input valid email to see or create organizations",
               "Schema": {
                 "Name": {
                   "min": "Organization name must be at least 2 characters.",

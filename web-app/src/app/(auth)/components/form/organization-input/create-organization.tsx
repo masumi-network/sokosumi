@@ -9,20 +9,36 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { createOrganizationFromName } from "@/lib/actions";
+import { getEmailDomain } from "@/lib/utils";
 
 import { CreateOrganizationSchemaType } from "./data";
 
 interface CreateOrganizationProps {
+  email: string;
   form: UseFormReturn<CreateOrganizationSchemaType>;
   onAfterCreate: (organizationId: string) => void;
 }
 
-function CreateOrganization({ form, onAfterCreate }: CreateOrganizationProps) {
+function CreateOrganization({
+  email,
+  form,
+  onAfterCreate,
+}: CreateOrganizationProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form.Fields.Organization");
 
   const onSubmit = async (values: CreateOrganizationSchemaType) => {
     const { name } = values;
-    const organizationResult = await createOrganizationFromName(name);
+
+    // get email domain to set default required email domains
+    const emailDomain = getEmailDomain(email);
+    if (!emailDomain) {
+      toast.error(t("invalidEmail"));
+      return;
+    }
+
+    const organizationResult = await createOrganizationFromName(name, [
+      emailDomain,
+    ]);
     if (organizationResult.success && organizationResult.organization) {
       toast.success(t("success"));
       onAfterCreate(organizationResult.organization.id);

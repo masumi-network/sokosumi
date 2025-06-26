@@ -22,11 +22,14 @@ export async function getOrganizationsWithMembersCount(
 }
 
 export async function createOrganization(
-  name: string,
   slug: string,
+  name: string,
+  requiredEmailDomains: string[],
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Organization> {
-  return await tx.organization.create({ data: { name, slug } });
+  return await tx.organization.create({
+    data: { slug, name, requiredEmailDomains },
+  });
 }
 
 export async function getOrganizationBySlug(

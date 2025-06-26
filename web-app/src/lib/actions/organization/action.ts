@@ -19,11 +19,18 @@ import { Organization, Prisma } from "@/prisma/generated/client";
 
 import { OrganizationActionErrorCode } from "./error";
 
-export async function createOrganizationFromName(name: string) {
+export async function createOrganizationFromName(
+  name: string,
+  requiredEmailDomains: string[],
+) {
   try {
     const slug = await generateOrganizationSlugFromName(name);
 
-    const organization = await createOrganization(name, slug);
+    const organization = await createOrganization(
+      slug,
+      name,
+      requiredEmailDomains,
+    );
     // Revalidate the register page to update the UI
     revalidatePath("/register");
     return { organization, success: true };

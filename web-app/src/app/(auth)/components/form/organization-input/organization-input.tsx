@@ -101,6 +101,7 @@ export default function OrganizationInput({
               <CommandEmpty className="p-2">
                 {isValidEmail(email) ? (
                   <CreateOrganization
+                    email={email}
                     form={createOrganizationForm}
                     onAfterCreate={handleSelectOrganization}
                   />
