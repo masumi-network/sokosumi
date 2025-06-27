@@ -4,8 +4,9 @@ import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
 import { getSession } from "@/lib/auth/utils";
-import { getUserById } from "@/lib/db";
-import { getCredits, getWelcomePromotionCode } from "@/lib/services";
+import { getUserById } from "@/lib/db/user/repo";
+import { getCredits } from "@/lib/services/credit/service";
+import { getWelcomePromotionCode } from "@/lib/services/stripe/service";
 
 import FreeCreditsButton from "./free-credits-button";
 

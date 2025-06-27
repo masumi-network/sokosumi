@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 
-import { getOnlineAgentsWithValidPricing } from "@/lib/services";
+import { getOnlineAgentsWithValidPricing } from "@/lib/services/agent/service";
 
 import BreadcrumbNavigationClient from "./breadcrumb-navigation.client";
 import BreadcrumbNavigationSkeleton from "./breadcrumb-navigation.skeleton";

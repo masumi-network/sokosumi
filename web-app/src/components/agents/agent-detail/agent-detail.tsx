@@ -1,11 +1,8 @@
-import {
-  AgentListWithAgent,
-  AgentWithRelations,
-  CreditsPrice,
-  getAgentExampleOutput,
-  getAgentLegal,
-  JobWithRelations,
-} from "@/lib/db";
+import { AgentWithRelations } from "@/lib/db/agent/types";
+import { getAgentExampleOutput, getAgentLegal } from "@/lib/db/agent/utils";
+import { AgentListWithAgent } from "@/lib/db/agentList/types";
+import { CreditsPrice } from "@/lib/db/credit/types";
+import { JobWithRelations } from "@/lib/db/job/types";
 import { cn } from "@/lib/utils";
 
 import { CardSection } from "./card-section";

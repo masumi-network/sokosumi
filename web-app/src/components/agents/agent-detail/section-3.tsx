@@ -3,11 +3,8 @@ import { useTranslations } from "next-intl";
 import { AgentBadgeCloud } from "@/components/agents/agent-badge-cloud";
 import Markdown from "@/components/markdown";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  AgentWithRelations,
-  getAgentDescription,
-  getAgentTags,
-} from "@/lib/db";
+import { AgentWithRelations } from "@/lib/db/agent/types";
+import { getAgentDescription, getAgentTags } from "@/lib/db/agent/utils";
 
 function AgentDetailSection3({ agent }: { agent: AgentWithRelations }) {
   const t = useTranslations("Components.Agents.AgentDetail.Section3");

@@ -1,6 +1,6 @@
-"use server";
+import "server-only";
 
-import { prisma } from "@/lib/db";
+import prisma from "@/lib/db/prisma";
 import { CreditCost, Prisma } from "@/prisma/generated/client";
 
 export async function getCreditCostByUnit(

@@ -1,17 +1,17 @@
-"use server";
+import "server-only";
 
 import { nanoid } from "nanoid";
 import slugify from "slugify";
 
 import { getSessionOrThrow } from "@/lib/auth/utils";
+import { getPendingInvitationsByOrganizationId } from "@/lib/db/invitation/repo";
 import {
   getMemberByUserIdAndOrganizationId,
   getMembersWithOrganizationByUserId,
   getMembersWithUser,
-  getOrganizationBySlug,
-  getPendingInvitationsByOrganizationId,
-  MemberWithOrganization,
-} from "@/lib/db";
+} from "@/lib/db/member/repo";
+import { MemberWithOrganization } from "@/lib/db/member/types";
+import { getOrganizationBySlug } from "@/lib/db/organization/repo";
 import { Invitation, Member } from "@/prisma/generated/client";
 
 /**

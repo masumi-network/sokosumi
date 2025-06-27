@@ -15,7 +15,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import useJobStatusEvent from "@/hooks/use-job-status-event";
-import { getAgentName } from "@/lib/db";
+import { getAgentName } from "@/lib/db/agent/utils";
 import { PayloadSchemaType } from "@/lib/db/listener/schema";
 import { cn } from "@/lib/utils";
 import { Agent, Job } from "@/prisma/generated/client";

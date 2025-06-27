@@ -12,14 +12,12 @@ import {
 import { CreateJobModalTrigger } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  AgentListWithAgent,
-  AgentWithRelations,
-  convertCentsToCredits,
-  CreditsPrice,
-  getAgentName,
-  JobWithRelations,
-} from "@/lib/db";
+import { AgentWithRelations } from "@/lib/db/agent/types";
+import { getAgentName } from "@/lib/db/agent/utils";
+import { AgentListWithAgent } from "@/lib/db/agentList/types";
+import { CreditsPrice } from "@/lib/db/credit/types";
+import { convertCentsToCredits } from "@/lib/db/credit/utils";
+import { JobWithRelations } from "@/lib/db/job/types";
 
 export function HeaderSkeleton() {
   const t = useTranslations("App.Agents.Jobs.Header");

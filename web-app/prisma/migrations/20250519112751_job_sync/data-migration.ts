@@ -1,4 +1,4 @@
-import { jobStatusToAgentJobStatus } from "@/lib/db";
+import { jobStatusToAgentJobStatus } from "@/lib/db/job/utils";
 import { AgentJobStatus, PrismaClient } from "@/prisma/generated/client";
 
 const prisma = new PrismaClient();

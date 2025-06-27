@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 
 import { JobInputsDataSchemaType } from "@/lib/job-input";
-import { getAgentInputSchema } from "@/lib/services";
+import { getAgentInputSchema } from "@/lib/services/agent/service";
 
 export default function useAgentInputSchema(agentId: string) {
   const [data, setData] = useState<JobInputsDataSchemaType | null>(null);

@@ -1,4 +1,4 @@
-import { MemberWithUser } from "@/lib/db";
+import { MemberWithUser } from "@/lib/db/member/types";
 import { Invitation } from "@/prisma/generated/client";
 
 export interface MemberRowData {

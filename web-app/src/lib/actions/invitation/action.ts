@@ -1,6 +1,4 @@
-"use server";
-
-import { updatePendingInvitationsByEmailAndOrganizationId } from "@/lib/db";
+import { updatePendingInvitationsByEmailAndOrganizationId } from "@/lib/db/invitation/repo";
 
 export async function updatePendingInvitations(
   email: string,

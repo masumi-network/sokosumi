@@ -19,10 +19,8 @@ import {
   updatePendingInvitations,
 } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
-import {
-  isEmailAllowedByOrganization,
-  OrganizationWithRelations,
-} from "@/lib/db";
+import { OrganizationWithRelations } from "@/lib/db/organization/types";
+import { isEmailAllowedByOrganization } from "@/lib/db/organization/utils";
 import { Organization } from "@/prisma/generated/client";
 
 interface SignUpFormProps {

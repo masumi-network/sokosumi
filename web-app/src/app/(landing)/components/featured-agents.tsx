@@ -8,7 +8,7 @@ import {
 } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { getOnlineAgentsWithCreditsPrice } from "@/lib/services";
+import { getOnlineAgentsWithCreditsPrice } from "@/lib/services/agent/service";
 
 export default async function FeaturedAgents() {
   const t = await getTranslations("Landing.Page.FeaturedAgents");

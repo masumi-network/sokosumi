@@ -1,6 +1,6 @@
-"use server";
+import "server-only";
 
-import { prisma } from "@/lib/db";
+import prisma from "@/lib/db/prisma";
 import { Prisma, User } from "@/prisma/generated/client";
 
 export async function getUserByEmail(

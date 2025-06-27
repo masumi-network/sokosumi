@@ -7,7 +7,8 @@ import { toast } from "sonner";
 import { createModalContext } from "@/components/common/modal-context";
 import { revalidateOrganizationsPath } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
-import { MemberRole, MemberWithUser } from "@/lib/db";
+import { MemberWithUser } from "@/lib/db/member/types";
+import { MemberRole } from "@/lib/db/organization/types";
 
 export enum MemberAction {
   CHANGE_TO_ADMIN = "CHANGE_TO_ADMIN",

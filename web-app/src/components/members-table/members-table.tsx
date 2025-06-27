@@ -3,7 +3,8 @@
 import { useTranslations } from "next-intl";
 
 import { DataTable } from "@/components/data-table";
-import { MemberRole, MemberWithUser } from "@/lib/db";
+import { MemberWithUser } from "@/lib/db/member/types";
+import { MemberRole } from "@/lib/db/organization/types";
 import { cn } from "@/lib/utils";
 import { Invitation, Member } from "@/prisma/generated/client";
 

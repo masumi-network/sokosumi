@@ -3,7 +3,7 @@
 import { ReactNode } from "react";
 import { FieldValues, UseFormReturn } from "react-hook-form";
 
-import { OrganizationWithRelations } from "@/lib/db";
+import { OrganizationWithRelations } from "@/lib/db/organization/types";
 import { FormData } from "@/lib/form";
 
 import { BaseForm } from "./base-form";

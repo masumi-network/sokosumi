@@ -1,7 +1,7 @@
 import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
-import { MemberRole } from "@/lib/db";
+import { MemberRole } from "@/lib/db/organization/types";
 
 export function OrganizationRoleBadge({ role }: { role: string | null }) {
   const t = useTranslations("Components.Organizations.Role");

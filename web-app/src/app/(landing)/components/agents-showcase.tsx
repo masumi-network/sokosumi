@@ -6,8 +6,8 @@ import { AgentDetailLink } from "@/components/agents";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getAgentResolvedImage } from "@/lib/db";
-import { getOnlineAgentsWithValidPricing } from "@/lib/services";
+import { getAgentResolvedImage } from "@/lib/db/agent/utils";
+import { getOnlineAgentsWithValidPricing } from "@/lib/services/agent/service";
 import { cn } from "@/lib/utils";
 
 interface AgentCardProps {

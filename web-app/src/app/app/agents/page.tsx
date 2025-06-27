@@ -2,11 +2,9 @@ import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { AgentsNotAvailable } from "@/components/agents";
-import { getTags } from "@/lib/db";
-import {
-  getOnlineAgentsWithCreditsPrice,
-  getOrCreateFavoriteAgentList,
-} from "@/lib/services";
+import { getTags } from "@/lib/db/tag/repo";
+import { getOnlineAgentsWithCreditsPrice } from "@/lib/services/agent/service";
+import { getOrCreateFavoriteAgentList } from "@/lib/services/agentList/service";
 import { Tag } from "@/prisma/generated/client";
 
 import FilterSection from "./components/filter-section";

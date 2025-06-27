@@ -2,7 +2,10 @@ import { CircleCheck } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { finalizedOnChainJobStatuses, JobWithRelations } from "@/lib/db";
+import {
+  finalizedOnChainJobStatuses,
+  JobWithRelations,
+} from "@/lib/db/job/types";
 
 function AgentDetailSection2({ jobs }: { jobs: JobWithRelations[] }) {
   const t = useTranslations("Components.Agents.AgentDetail.Section2");

@@ -2,7 +2,7 @@ import { useTranslations } from "next-intl";
 
 import { RiskClassificationBadge } from "@/components/agents/risk-classification-badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AgentWithRelations } from "@/lib/db";
+import { AgentWithRelations } from "@/lib/db/agent/types";
 
 function AgentDetailSection6({ agent }: { agent: AgentWithRelations }) {
   const t = useTranslations("Components.Agents.AgentDetail.Section6");

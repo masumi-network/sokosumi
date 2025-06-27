@@ -1,17 +1,19 @@
 "use server";
 
-import { auth } from "@/lib/auth/auth";
-
 export async function signInSocial(
-  provider: "google" | "microsoft" | "apple" | "linkedin",
+  _provider: "google" | "microsoft" | "apple" | "linkedin",
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    return { success: false };
+    //as it is unuesed for now we will just fail
+    /*
     await auth.api.signInSocial({
       body: {
         provider: provider,
       },
     });
-    return { success: true };
+
+    return { success: true };*/
   } catch {
     return { success: false };
   }

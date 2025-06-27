@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 
-import { AgentLegal } from "@/lib/db";
+import { AgentLegal } from "@/lib/db/agent/types";
 
 interface FooterProps {
   legal?: AgentLegal | null;

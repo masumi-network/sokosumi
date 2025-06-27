@@ -14,7 +14,9 @@ import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { useAsyncRouterPush } from "@/hooks/use-async-router";
 import { JobActionErrorCode, startJobWithInputData } from "@/lib/actions";
-import { AgentLegal, convertCentsToCredits, CreditsPrice } from "@/lib/db";
+import { AgentLegal } from "@/lib/db/agent/types";
+import { CreditsPrice } from "@/lib/db/credit/types";
+import { convertCentsToCredits } from "@/lib/db/credit/utils";
 import {
   defaultValues,
   JobInputData,

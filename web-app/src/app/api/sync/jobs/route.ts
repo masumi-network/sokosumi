@@ -4,13 +4,10 @@ import pTimeout from "p-timeout";
 
 import { getEnvSecrets } from "@/config/env.config";
 import { compareApiKeys } from "@/lib/api/utils";
-import {
-  acquireLock,
-  finalizedOnChainJobStatuses,
-  prisma,
-  unlockLock,
-} from "@/lib/db";
-import { syncJob } from "@/lib/services";
+import { finalizedOnChainJobStatuses } from "@/lib/db/job/types";
+import { acquireLock, unlockLock } from "@/lib/db/lock/repo";
+import prisma from "@/lib/db/prisma";
+import { syncJob } from "@/lib/services/job/service";
 import {
   AgentJobStatus,
   Lock,

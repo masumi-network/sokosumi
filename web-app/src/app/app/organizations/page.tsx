@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
-import { listMyMembers } from "@/lib/services";
+import { listMyMembers } from "@/lib/services/organization/service";
 
 import Organizations from "./components/organizations";
 

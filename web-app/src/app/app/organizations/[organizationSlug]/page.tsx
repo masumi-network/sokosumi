@@ -4,12 +4,13 @@ import { getTranslations } from "next-intl/server";
 
 import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
-import { getOrganizationBySlug, MemberRole } from "@/lib/db";
+import { getOrganizationBySlug } from "@/lib/db/organization/repo";
+import { MemberRole } from "@/lib/db/organization/types";
 import {
   getMyMemberInOrganization,
   getOrganizationMembersWithUser,
   getOrganizationPendingInvitations,
-} from "@/lib/services";
+} from "@/lib/services/organization/service";
 
 import OrganizationInformation from "./components/organization-information";
 import OrganizationInviteButton from "./components/organization-invite-button";

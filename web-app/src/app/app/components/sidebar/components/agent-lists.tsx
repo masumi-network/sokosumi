@@ -11,11 +11,9 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  getFavoriteAgents,
-  getHiredAgentsOrderedByLatestJob,
-  getNotFinalizedLatestJobsByAgentIds,
-} from "@/lib/services";
+import { getHiredAgentsOrderedByLatestJob } from "@/lib/services/agent/service";
+import { getFavoriteAgents } from "@/lib/services/agentList/service";
+import { getNotFinalizedLatestJobsByAgentIds } from "@/lib/services/job/service";
 import { Agent } from "@/prisma/generated/client";
 
 import AgentListsClient from "./agent-lists.client";

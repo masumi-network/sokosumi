@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
-import { JobStatus } from "@/lib/db";
+import { JobStatus } from "@/lib/db/job/types";
 import { cn } from "@/lib/utils";
 
 interface JobStatusBadgeProps {

@@ -6,7 +6,7 @@ import {
   CreateJobModal,
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
-import { getOnlineAgentsWithCreditsPrice } from "@/lib/services";
+import { getOnlineAgentsWithCreditsPrice } from "@/lib/services/agent/service";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Landing.Agents.Metadata");

@@ -4,7 +4,8 @@ import AccordionItemWrapper from "@/app/agents/[agentId]/jobs/components/accordi
 import JobStatusBadge from "@/app/agents/[agentId]/jobs/components/job-status-badge";
 import { Accordion } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { JobStatus, JobWithStatus } from "@/lib/db";
+import { JobWithStatus } from "@/lib/db/job/repo";
+import { JobStatus } from "@/lib/db/job/types";
 import { cn } from "@/lib/utils";
 
 import JobDetailsInputs from "./inputs";

@@ -6,7 +6,7 @@ import {
   OrganizationRoleBadge,
 } from "@/components/organizations";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MemberWithOrganization } from "@/lib/db";
+import { MemberWithOrganization } from "@/lib/db/member/types";
 
 import OrganizationActionButtons from "./organization-action-buttons";
 

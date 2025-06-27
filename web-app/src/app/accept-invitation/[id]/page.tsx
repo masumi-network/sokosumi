@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { getSession } from "@/lib/auth/utils";
-import { getInvitation } from "@/lib/services";
+import { getInvitation } from "@/lib/services/invitation/service";
 
 import InvitationCard, {
   InvitationErrorCard,

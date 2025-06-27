@@ -1,22 +1,22 @@
-"use server";
+import "server-only";
 
 import { v4 as uuidv4 } from "uuid";
 
 import { getSessionOrThrow } from "@/lib/auth/utils";
+import { getAgentById } from "@/lib/db/agent/repo";
 import {
-  computeJobStatus,
   createJob,
-  getAgentById,
   getJobsByAgentIdAndUserId,
   getNotFinalizedLatestJobByAgentIdAndUserId,
-  JobStatus,
   JobWithStatus,
-  prisma,
   refundJob,
   setNextActionToJob,
   updateJobWithAgentJobStatus,
   updateJobWithPurchase,
-} from "@/lib/db";
+} from "@/lib/db/job/repo";
+import { JobStatus } from "@/lib/db/job/types";
+import { computeJobStatus } from "@/lib/db/job/utils";
+import prisma from "@/lib/db/prisma";
 import { JobInputData } from "@/lib/job-input";
 import { getInputHash, getInputHashDeprecated } from "@/lib/utils";
 import { Job, NextJobAction, Prisma } from "@/prisma/generated/client";

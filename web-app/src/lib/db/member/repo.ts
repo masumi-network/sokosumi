@@ -1,6 +1,7 @@
-"use server";
+import "server-only";
 
-import { MemberRole, prisma } from "@/lib/db";
+import { MemberRole } from "@/lib/db/organization/types";
+import prisma from "@/lib/db/prisma";
 import { Member, Prisma } from "@/prisma/generated/client";
 
 import {

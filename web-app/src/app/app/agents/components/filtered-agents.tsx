@@ -8,12 +8,10 @@ import {
   AgentsNotAvailable,
   AgentsNotFound,
 } from "@/components/agents";
-import {
-  AgentListWithAgent,
-  AgentWithRelations,
-  CreditsPrice,
-  getAgentTags,
-} from "@/lib/db";
+import { AgentWithRelations } from "@/lib/db/agent/types";
+import { getAgentTags } from "@/lib/db/agent/utils";
+import { AgentListWithAgent } from "@/lib/db/agentList/types";
+import { CreditsPrice } from "@/lib/db/credit/types";
 
 import { GalleryFilterState } from "./use-gallery-filter";
 

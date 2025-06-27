@@ -1,20 +1,19 @@
 "use server";
-
+//TODO: This needs to be restructured
 import { revalidatePath } from "next/cache";
 
 import { getSession } from "@/lib/auth/utils";
+import { createMember, getMembersByOrganizationId } from "@/lib/db/member/repo";
 import {
-  createMember,
   createOrganization,
-  getMembersByOrganizationId,
-  isEmailAllowedByOrganization,
-  MemberRole,
   updateOrganization,
-} from "@/lib/db";
+} from "@/lib/db/organization/repo";
+import { MemberRole } from "@/lib/db/organization/types";
+import { isEmailAllowedByOrganization } from "@/lib/db/organization/utils";
 import {
   generateOrganizationSlugFromName,
   getMyMemberInOrganization,
-} from "@/lib/services";
+} from "@/lib/services/organization/service";
 import { Organization, Prisma } from "@/prisma/generated/client";
 
 import { OrganizationActionErrorCode } from "./error";
@@ -44,11 +43,17 @@ export async function createOrganizationFromName(
 // with organization
 // and update all pending invitations
 export async function createOrganizationMember(
-  userId: string,
   userEmail: string,
   organization: Organization,
 ) {
   try {
+    const session = await getSession();
+    if (!session) {
+      return {
+        success: false,
+        error: { code: OrganizationActionErrorCode.NOT_AUTHENTICATED },
+      };
+    }
     // check user email's domain
     if (!isEmailAllowedByOrganization(userEmail, organization)) {
       return {
@@ -62,7 +67,7 @@ export async function createOrganizationMember(
 
     // if there are no members, the create as ADMIN
     const role = members.length === 0 ? MemberRole.ADMIN : MemberRole.MEMBER;
-    await createMember(userId, organization.id, role);
+    await createMember(session.user.id, organization.id, role);
     return { success: true };
   } catch (error) {
     console.error("Error creating organization member", error);

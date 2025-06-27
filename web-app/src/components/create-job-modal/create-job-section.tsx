@@ -6,14 +6,14 @@ import { useTranslations } from "next-intl";
 import AccordionItemWrapper from "@/app/agents/[agentId]/jobs/components/accordion-wrapper";
 import Markdown from "@/components/markdown";
 import { Accordion } from "@/components/ui/accordion";
+import { AgentWithRelations } from "@/lib/db/agent/types";
 import {
-  AgentWithRelations,
-  CreditsPrice,
   getAgentDescription,
   getAgentLegal,
   getAgentName,
   getAgentResolvedImage,
-} from "@/lib/db";
+} from "@/lib/db/agent/utils";
+import { CreditsPrice } from "@/lib/db/credit/types";
 
 import { useCreateJobModalContext } from "./create-job-modal-context";
 import CreateJobModalHeader from "./create-job-modal-header";

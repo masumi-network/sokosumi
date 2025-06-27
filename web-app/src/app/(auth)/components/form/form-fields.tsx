@@ -18,10 +18,8 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  filterAllowedOrganizations,
-  OrganizationWithRelations,
-} from "@/lib/db";
+import { OrganizationWithRelations } from "@/lib/db/organization/types";
+import { filterAllowedOrganizations } from "@/lib/db/organization/utils";
 import { FormData } from "@/lib/form";
 
 import { OrganizationInput } from "./organization-input";

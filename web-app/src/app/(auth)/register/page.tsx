@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
-import { getOrganizationsWithMembersCount } from "@/lib/db";
+import { getOrganizationsWithMembersCount } from "@/lib/db/organization/repo";
 
 import SignUpForm from "./components/form";
 import SignUpHeader from "./components/header";

@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { authClient } from "@/lib/auth/auth.client";
-import { MemberRole } from "@/lib/db";
+import { MemberRole } from "@/lib/db/organization/types";
 
 import { inviteFormData, InviteFormSchemaType } from "./data";
 import { FormFields } from "./form-fields";

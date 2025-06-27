@@ -1,15 +1,16 @@
-"use server";
+import "server-only";
 
-import { getEnvPublicConfig, getEnvSecrets } from "@/config/env.config";
+import { getEnvSecrets } from "@/config/env.config";
+import { getEnvPublicConfig } from "@/config/env.config.public";
+import { AgentWithFixedPricing } from "@/lib/db/agent/types";
+import { getCentsByUserId } from "@/lib/db/credit/repo";
+import { CreditsPrice } from "@/lib/db/credit/types";
 import {
-  AgentWithFixedPricing,
   convertCentsToCredits,
   convertCreditsToCents,
-  CreditsPrice,
-  getCentsByUserId,
-  getCreditCostByUnit,
-  prisma,
-} from "@/lib/db";
+} from "@/lib/db/credit/utils";
+import { getCreditCostByUnit } from "@/lib/db/creditCost/repo";
+import prisma from "@/lib/db/prisma";
 import { Prisma } from "@/prisma/generated/client";
 
 import { pricingAmountsSchema, PricingAmountsSchemaType } from "./schema";

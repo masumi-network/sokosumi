@@ -7,17 +7,15 @@ import {
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
 import DefaultLoading from "@/components/default-loading";
+import { getAgentById } from "@/lib/db/agent/repo";
 import {
-  getAgentById,
   getAgentDescription,
   getAgentLegal,
   getAgentName,
-  getJobsByAgentId,
-} from "@/lib/db";
-import {
-  getAgentCreditsPrice,
-  getOrCreateFavoriteAgentList,
-} from "@/lib/services";
+} from "@/lib/db/agent/utils";
+import { getJobsByAgentId } from "@/lib/db/job/repo";
+import { getOrCreateFavoriteAgentList } from "@/lib/services/agentList/service";
+import { getAgentCreditsPrice } from "@/lib/services/credit/service";
 
 import Footer from "./components/footer";
 import Header, { HeaderSkeleton } from "./components/header";

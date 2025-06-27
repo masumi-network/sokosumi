@@ -10,7 +10,7 @@ import {
   getCreditsForCoupon,
   getPromotionCode,
   getWelcomePromotionCode,
-} from "@/lib/services";
+} from "@/lib/services/stripe/service";
 
 export async function claimFreeCredits(): Promise<{
   success: boolean;

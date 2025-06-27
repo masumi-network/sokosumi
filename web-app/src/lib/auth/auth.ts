@@ -5,8 +5,10 @@ import { nextCookies } from "better-auth/next-js";
 import { organization } from "better-auth/plugins";
 import { getTranslations } from "next-intl/server";
 
-import { getEnvPublicConfig, getEnvSecrets } from "@/config/env.config";
-import { MemberRole, prisma } from "@/lib/db";
+import { getEnvSecrets } from "@/config/env.config";
+import { getEnvPublicConfig } from "@/config/env.config.public";
+import { MemberRole } from "@/lib/db/organization/types";
+import prisma from "@/lib/db/prisma";
 import { reactChangeEmailVerificationEmail } from "@/lib/email/change-email";
 import { reactInviteUserEmail } from "@/lib/email/invitation";
 import { resend } from "@/lib/email/resend";

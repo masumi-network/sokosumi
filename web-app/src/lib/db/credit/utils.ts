@@ -1,4 +1,4 @@
-import { getEnvPublicConfig } from "@/config/env.config";
+import { getEnvPublicConfig } from "@/config/env.config.public";
 
 export function convertCentsToCredits(cents: bigint): number {
   return Number(cents) / 10 ** getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BASE;

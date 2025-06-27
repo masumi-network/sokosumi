@@ -5,8 +5,9 @@ import {
   CreateJobModal,
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
-import { getAgentById, getJobsByAgentId } from "@/lib/db";
-import { getAgentCreditsPrice } from "@/lib/services";
+import { getAgentById } from "@/lib/db/agent/repo";
+import { getJobsByAgentId } from "@/lib/db/job/repo";
+import { getAgentCreditsPrice } from "@/lib/services/credit/service";
 
 export default async function AgentDetailPage({
   params,

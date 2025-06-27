@@ -12,7 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { authClient } from "@/lib/auth/auth.client";
-import { MemberRole } from "@/lib/db";
+import { MemberRole } from "@/lib/db/organization/types";
 import { Invitation } from "@/prisma/generated/client";
 
 import {

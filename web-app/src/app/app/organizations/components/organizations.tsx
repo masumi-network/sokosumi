@@ -1,6 +1,6 @@
 import { useTranslations } from "next-intl";
 
-import { MemberWithOrganization } from "@/lib/db";
+import { MemberWithOrganization } from "@/lib/db/member/types";
 
 import OrganizationRow, { OrganizationRowSkeleton } from "./organization-row";
 

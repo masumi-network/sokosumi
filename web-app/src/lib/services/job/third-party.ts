@@ -1,8 +1,8 @@
-"use server";
+import "server-only";
 
 import { Err, Ok, Result } from "ts-res";
 
-import { getEnvPublicConfig } from "@/config/env.config";
+import { getEnvPublicConfig } from "@/config/env.config.public";
 import {
   getPurchase,
   postPurchase,
@@ -10,7 +10,8 @@ import {
   PostPurchaseResponse,
 } from "@/lib/api/generated/payment";
 import { getPaymentClient } from "@/lib/api/payment-service.client";
-import { AgentWithRelations, getAgentApiBaseUrl } from "@/lib/db";
+import { getAgentApiBaseUrl } from "@/lib/db/agent/action";
+import { AgentWithRelations } from "@/lib/db/agent/types";
 import { JobInputData } from "@/lib/job-input";
 
 import {

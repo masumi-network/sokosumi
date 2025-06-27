@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
-import { getAgentById } from "@/lib/db";
-import { getMyJobsByAgentId } from "@/lib/services";
+import { getAgentById } from "@/lib/db/agent/repo";
+import { getMyJobsByAgentId } from "@/lib/services/job/service";
 
 import JobsTable from "./components/jobs-table";
 

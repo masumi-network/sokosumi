@@ -1,18 +1,17 @@
-"use server";
+import "server-only";
 
 import { getSessionOrThrow } from "@/lib/auth/utils";
 import {
-  AgentWithJobs,
-  AgentWithRelations,
   getAgentById,
   getAgentByIdWithPricing,
-  getAllCreditCosts,
   getHiredAgents,
   getOnlineAgentsWithValidCreditCostUnits,
-  prisma,
-} from "@/lib/db";
+} from "@/lib/db/agent/repo";
+import { AgentWithJobs, AgentWithRelations } from "@/lib/db/agent/types";
+import { getAllCreditCosts } from "@/lib/db/creditCost/repo";
+import prisma from "@/lib/db/prisma";
 import { JobInputsDataSchemaType } from "@/lib/job-input";
-import { getAgentCreditsPrice } from "@/lib/services/";
+import { getAgentCreditsPrice } from "@/lib/services/credit/service";
 import { Prisma } from "@/prisma/generated/client";
 
 import {

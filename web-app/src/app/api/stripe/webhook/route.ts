@@ -3,10 +3,10 @@ import Stripe from "stripe";
 
 import {
   getFiatTransactionByServicePaymentId,
-  prisma,
   setFiatTransactionStatusToFailed,
   setFiatTransactionStatusToSucceeded,
-} from "@/lib/db";
+} from "@/lib/db/fiatTransaction/repo";
+import prisma from "@/lib/db/prisma";
 import { constructEvent } from "@/lib/services";
 import { FiatTransactionStatus } from "@/prisma/generated/client";
 

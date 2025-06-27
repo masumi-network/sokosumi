@@ -4,7 +4,8 @@ import { useTranslations } from "next-intl";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import useAgentInputSchema from "@/hooks/use-agent-input-schema";
-import { AgentLegal, CreditsPrice } from "@/lib/db";
+import { AgentLegal } from "@/lib/db/agent/types";
+import { CreditsPrice } from "@/lib/db/credit/types";
 import { JobInputsDataSchemaType } from "@/lib/job-input";
 
 import JobInputsFormClient from "./job-inputs-form.client";

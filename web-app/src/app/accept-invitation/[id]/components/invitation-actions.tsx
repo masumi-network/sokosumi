@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { authClient } from "@/lib/auth/auth.client";
-import { InvitationWithRelations } from "@/lib/db";
+import { InvitationWithRelations } from "@/lib/db/invitation/types";
 
 interface InvitationActionsProps {
   invitation: InvitationWithRelations;

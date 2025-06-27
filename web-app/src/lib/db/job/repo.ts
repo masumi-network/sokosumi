@@ -1,6 +1,8 @@
-"use server";
+import "server-only";
 
-import { CreditsPrice, getCreditTransactionByJobId, prisma } from "@/lib/db";
+import { getCreditTransactionByJobId } from "@/lib/db/credit/repo";
+import { CreditsPrice } from "@/lib/db/credit/types";
+import prisma from "@/lib/db/prisma";
 import { JobInputSchemaType } from "@/lib/job-input";
 import {
   AgentJobStatus,

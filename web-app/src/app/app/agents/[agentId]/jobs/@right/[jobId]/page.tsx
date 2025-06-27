@@ -2,7 +2,8 @@ import { notFound } from "next/navigation";
 
 import { JobDetails } from "@/app/agents/[agentId]/jobs/@right/components/job-details";
 import { getSessionOrThrow } from "@/lib/auth/utils";
-import { getAgentById, getJobById } from "@/lib/db";
+import { getAgentById } from "@/lib/db/agent/repo";
+import { getJobById } from "@/lib/db/job/repo";
 
 interface JobDetailsPageParams {
   agentId: string;

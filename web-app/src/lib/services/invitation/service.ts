@@ -1,10 +1,8 @@
-"use server";
+import "server-only";
 
-import {
-  getInvitationById,
-  getMemberByUserIdAndOrganizationId,
-  InvitationWithRelations,
-} from "@/lib/db";
+import { getInvitationById } from "@/lib/db/invitation/repo";
+import { InvitationWithRelations } from "@/lib/db/invitation/types";
+import { getMemberByUserIdAndOrganizationId } from "@/lib/db/member/repo";
 
 import { InvitationErrorCode } from "./types";
 

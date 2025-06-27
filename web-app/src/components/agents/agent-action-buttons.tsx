@@ -8,7 +8,8 @@ import { AgentBookmarkButton } from "@/components/agents/agent-bookmark-button";
 import { ShareButton } from "@/components/share-button";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AgentListWithAgent, AgentWithRelations } from "@/lib/db";
+import { AgentWithRelations } from "@/lib/db/agent/types";
+import { AgentListWithAgent } from "@/lib/db/agentList/types";
 import { cn } from "@/lib/utils";
 
 interface AgentActionButtonsProps {

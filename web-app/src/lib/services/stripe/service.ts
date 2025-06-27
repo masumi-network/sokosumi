@@ -1,16 +1,16 @@
-"use server";
+import "server-only";
 
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.config";
 import { verifyUserId } from "@/lib/auth/utils";
+import { convertCreditsToCents } from "@/lib/db/credit/utils";
 import {
-  convertCreditsToCents,
   createFiatTransaction,
-  getUserById,
-  prisma,
   updateFiatTransactionServicePaymentId,
-} from "@/lib/db";
+} from "@/lib/db/fiatTransaction/repo";
+import prisma from "@/lib/db/prisma";
+import { getUserById } from "@/lib/db/user/repo";
 import {
   CouponCurrencyError,
   CouponNotFoundError,

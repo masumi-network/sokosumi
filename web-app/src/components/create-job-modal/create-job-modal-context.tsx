@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useMemo, useState } from "react";
 
-import { AgentWithCreditPrice } from "@/lib/services";
+import { AgentWithCreditPrice } from "@/lib/services/agent/service";
 
 interface CreateJobModalContextType {
   // modal open

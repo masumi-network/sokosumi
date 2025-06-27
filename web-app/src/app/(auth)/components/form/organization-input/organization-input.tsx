@@ -20,7 +20,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { OrganizationWithRelations } from "@/lib/db";
+import { OrganizationWithRelations } from "@/lib/db/organization/types";
 import { cn, isValidEmail } from "@/lib/utils";
 import { Organization } from "@/prisma/generated/client";
 

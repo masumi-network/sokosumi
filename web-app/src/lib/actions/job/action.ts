@@ -1,12 +1,12 @@
 "use server";
 
 import { getSession } from "@/lib/auth/utils";
-import { getJobById, updateJobNameById } from "@/lib/db";
+import { getJobById, updateJobNameById } from "@/lib/db/job/repo";
 import {
-  startJob,
   startJobInputSchema,
   StartJobInputSchemaType,
-} from "@/lib/services";
+} from "@/lib/services/job/schemas";
+import { startJob } from "@/lib/services/job/service";
 
 import { JobActionErrorCode } from "./error";
 

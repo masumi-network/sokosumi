@@ -4,7 +4,8 @@ import { ChevronDown, ChevronUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
-import { AgentWithRelations, getAgentName } from "@/lib/db";
+import { AgentWithRelations } from "@/lib/db/agent/types";
+import { getAgentName } from "@/lib/db/agent/utils";
 
 import { useCreateJobModalContext } from "./create-job-modal-context";
 

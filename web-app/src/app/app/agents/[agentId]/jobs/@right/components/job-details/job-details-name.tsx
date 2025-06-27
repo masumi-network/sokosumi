@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { updateJobName } from "@/lib/actions";
-import { JobWithStatus } from "@/lib/db";
+import { JobWithStatus } from "@/lib/db/job/repo";
 
 const jobDetailsNameFormSchema = (
   t: IntlTranslation<"App.Agents.Jobs.JobDetails.Header">,

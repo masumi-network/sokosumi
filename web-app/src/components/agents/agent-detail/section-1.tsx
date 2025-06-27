@@ -8,15 +8,15 @@ import {
 import { AgentHireButton } from "@/components/agents/agent-hire-button";
 import { AgentVerifiedBadge } from "@/components/agents/agent-verified-badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AgentWithRelations } from "@/lib/db/agent/types";
 import {
-  AgentListWithAgent,
-  AgentWithRelations,
-  convertCentsToCredits,
-  CreditsPrice,
   getAgentName,
   getAgentResolvedImage,
   getFullAgentAuthorName,
-} from "@/lib/db";
+} from "@/lib/db/agent/utils";
+import { AgentListWithAgent } from "@/lib/db/agentList/types";
+import { CreditsPrice } from "@/lib/db/credit/types";
+import { convertCentsToCredits } from "@/lib/db/credit/utils";
 
 interface AgentDetailSection1Props {
   agent: AgentWithRelations;

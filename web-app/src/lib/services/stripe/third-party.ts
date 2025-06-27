@@ -1,10 +1,10 @@
-"use server";
+import "server-only";
 
 import { headers } from "next/headers";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.config"; // Ensure this path is correct
-import { setStripeCustomerId } from "@/lib/db";
+import { setStripeCustomerId } from "@/lib/db/user/repo";
 import { User } from "@/prisma/generated/client";
 
 const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
