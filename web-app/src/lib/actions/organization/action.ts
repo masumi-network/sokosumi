@@ -3,14 +3,13 @@
 import { revalidatePath } from "next/cache";
 
 import { getSession } from "@/lib/auth/utils";
+import { isEmailAllowedByOrganization, MemberRole } from "@/lib/db";
 import {
   createMember,
   createOrganization,
-  getMembersByOrganizationId,
-  isEmailAllowedByOrganization,
-  MemberRole,
-  updateOrganization,
-} from "@/lib/db";
+  retrieveMembersByOrganizationId,
+  updateOrganizationById,
+} from "@/lib/db/repositories";
 import {
   generateOrganizationSlugFromName,
   getMyMemberInOrganization,
@@ -58,7 +57,7 @@ export async function createOrganizationMember(
     }
 
     // check if organization has any members
-    const members = await getMembersByOrganizationId(organization.id);
+    const members = await retrieveMembersByOrganizationId(organization.id);
 
     // if there are no members, the create as ADMIN
     const role = members.length === 0 ? MemberRole.ADMIN : MemberRole.MEMBER;
@@ -95,7 +94,10 @@ export async function updateOrganizationInformation(
     }
 
     // update organization information
-    const updatedOrganization = await updateOrganization(organizationId, data);
+    const updatedOrganization = await updateOrganizationById(
+      organizationId,
+      data,
+    );
 
     // revalidate the organization page
     revalidatePath(`/app/organizations/${updatedOrganization.slug}`);

@@ -1,8 +1,10 @@
 "use server";
 
 import { getSession } from "@/lib/auth/utils";
-import { getJobById, updateJobNameById } from "@/lib/db";
+import { JobWithStatus } from "@/lib/db";
+import { retrieveJobById, updateJobNameById } from "@/lib/db/repositories";
 import {
+  requestRefundJob,
   startJob,
   startJobInputSchema,
   StartJobInputSchemaType,
@@ -83,7 +85,7 @@ export async function updateJobName(
     }
     const userId = session.user.id;
 
-    const job = await getJobById(jobId);
+    const job = await retrieveJobById(jobId);
     if (!job) {
       return {
         success: false,
@@ -107,6 +109,23 @@ export async function updateJobName(
     return {
       success: false,
       error: { code: JobActionErrorCode.INTERNAL_SERVER_ERROR },
+    };
+  }
+}
+
+export async function requestRefundJobByBlockchainIdentifier(
+  blockchainIdentifier: string,
+): Promise<
+  { success: true; job: JobWithStatus } | { success: false; error: Error }
+> {
+  try {
+    const job = await requestRefundJob(blockchainIdentifier);
+    return { success: true, job };
+  } catch (error) {
+    console.error("Failed to request refund job", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error : new Error("Unknown error"),
     };
   }
 }

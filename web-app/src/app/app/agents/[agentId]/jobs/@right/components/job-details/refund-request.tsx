@@ -22,8 +22,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { requestRefundJobByBlockchainIdentifier } from "@/lib/actions";
 import { JobWithStatus } from "@/lib/db";
-import { requestRefundJob } from "@/lib/services/job/service";
 import { cn } from "@/lib/utils";
 import { NextJobAction, OnChainJobStatus } from "@/prisma/generated/client";
 
@@ -92,7 +92,7 @@ export default function RequestRefundButton({
 }: RequestRefundButtonProps) {
   const t = useTranslations("App.Agents.Jobs.JobDetails.Output.Refund");
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Error | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isRefundRequested, setIsRefundRequested] = useState(
     job.onChainStatus === OnChainJobStatus.REFUND_REQUESTED ||
@@ -132,17 +132,18 @@ export default function RequestRefundButton({
     setIsLoading(true);
     setError(null);
 
-    try {
-      job = await requestRefundJob(job.blockchainIdentifier);
+    const result = await requestRefundJobByBlockchainIdentifier(
+      job.blockchainIdentifier,
+    );
+    if (result.success) {
       setIsRefundRequested(
         job.nextAction === NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
       );
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setIsLoading(false);
-      setIsDialogOpen(false);
+    } else {
+      setError(result.error);
     }
+    setIsLoading(false);
+    setIsDialogOpen(false);
   };
 
   const buttonElement = (

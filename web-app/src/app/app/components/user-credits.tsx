@@ -3,20 +3,20 @@ import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
-import { getSession } from "@/lib/auth/utils";
-import { getUserById } from "@/lib/db";
-import { getCredits, getWelcomePromotionCode } from "@/lib/services";
+import {
+  getAuthenticatedUser,
+  getCredits,
+  getWelcomePromotionCode,
+} from "@/lib/services";
 
 import FreeCreditsButton from "./free-credits-button";
 
 export default async function UserCredits() {
-  const session = await getSession();
-
-  if (!session) {
+  const user = await getAuthenticatedUser();
+  if (!user) {
     redirect("/login");
   }
 
-  const user = await getUserById(session.user.id);
   const t = await getTranslations("App.Header.Credit");
 
   if (!user) {
@@ -25,8 +25,8 @@ export default async function UserCredits() {
     );
   }
 
-  const credits = await getCredits(session.user.id);
-  const promotionCode = await getWelcomePromotionCode(session.user.id);
+  const credits = await getCredits(user.id);
+  const promotionCode = await getWelcomePromotionCode(user.id);
 
   return (
     <div className="flex items-center gap-4">

@@ -1,19 +1,18 @@
-"use server";
+import "server-only";
 
 import { getSessionOrThrow } from "@/lib/auth/utils";
+import { AgentWithJobs, AgentWithRelations } from "@/lib/db";
 import {
-  AgentWithJobs,
-  AgentWithRelations,
-  getAgentById,
-  getAgentByIdWithPricing,
-  getAllCreditCosts,
-  getHiredAgents,
-  getOnlineAgentsWithValidCreditCostUnits,
   prisma,
-} from "@/lib/db";
+  retrieveAgentWithFixedPricingById,
+  retrieveAgentWithRelationsById,
+  retrieveAllCreditCosts,
+  retrieveHiredAgentsWithJobsByUserId,
+  retrieveShownAgentsWithRelationsByStatus,
+} from "@/lib/db/repositories";
 import { JobInputsDataSchemaType } from "@/lib/job-input";
 import { getAgentCreditsPrice } from "@/lib/services/";
-import { Prisma } from "@/prisma/generated/client";
+import { AgentStatus, Prisma } from "@/prisma/generated/client";
 
 import {
   fetchAgentInputSchema,
@@ -35,20 +34,33 @@ export async function getOnlineAgentsWithValidPricing(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithRelations[]> {
   // get all credit costs
-  const creditCosts = await getAllCreditCosts(tx);
+  const creditCosts = await retrieveAllCreditCosts(tx);
   const validCreditCostUnits = creditCosts.map(({ unit }) => unit);
 
-  return await getOnlineAgentsWithValidCreditCostUnits(
+  const onlineAgents = await retrieveShownAgentsWithRelationsByStatus(
+    AgentStatus.ONLINE,
     tx,
-    validCreditCostUnits,
   );
+  return onlineAgents.filter((agent) => {
+    const amounts = agent.pricing.fixedPricing?.amounts?.map((amount) => ({
+      unit: amount.unit,
+      amount: Number(amount.amount),
+    }));
+    if (!amounts) {
+      return true;
+    }
+    return amounts.every(({ unit }) => validCreditCostUnits.includes(unit));
+  });
 }
 
 export async function getHiredAgentsOrderedByLatestJob(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithJobs[]> {
   const session = await getSessionOrThrow();
-  const hiredAgentsWithJobs = await getHiredAgents(session.user.id, tx);
+  const hiredAgentsWithJobs = await retrieveHiredAgentsWithJobsByUserId(
+    session.user.id,
+    tx,
+  );
 
   // Then sort them manually by the startedAt of the most recent job
   return hiredAgentsWithJobs.sort((a, b) => {
@@ -68,7 +80,7 @@ export async function getAgentInputSchema(
   agentId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<JobInputsDataSchemaType> {
-  const agent = await getAgentById(agentId, tx);
+  const agent = await retrieveAgentWithRelationsById(agentId, tx);
 
   if (!agent) {
     throw new Error(`Agent with ID ${agentId} not found`);
@@ -85,7 +97,7 @@ export async function getAgentPricing(
   id: string,
   tx: Prisma.TransactionClient = prisma,
 ) {
-  const agent = await getAgentByIdWithPricing(id, tx);
+  const agent = await retrieveAgentWithFixedPricingById(id, tx);
 
   if (!agent) {
     throw new Error("Agent not found");

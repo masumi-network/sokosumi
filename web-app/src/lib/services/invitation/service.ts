@@ -1,10 +1,10 @@
-"use server";
+import "server-only";
 
+import { InvitationWithRelations } from "@/lib/db";
 import {
-  getInvitationById,
-  getMemberByUserIdAndOrganizationId,
-  InvitationWithRelations,
-} from "@/lib/db";
+  retrieveInvitationById,
+  retrieveMemberByUserIdAndOrganizationId,
+} from "@/lib/db/repositories";
 
 import { InvitationErrorCode } from "./types";
 
@@ -17,7 +17,7 @@ export async function getInvitation(id: string): Promise<
       invitation: InvitationWithRelations;
     }
 > {
-  const invitation = await getInvitationById(id);
+  const invitation = await retrieveInvitationById(id);
 
   if (!invitation) {
     return {
@@ -31,7 +31,7 @@ export async function getInvitation(id: string): Promise<
     };
   }
 
-  const inviterMember = await getMemberByUserIdAndOrganizationId(
+  const inviterMember = await retrieveMemberByUserIdAndOrganizationId(
     invitation.inviterId,
     invitation.organizationId,
   );

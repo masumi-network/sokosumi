@@ -1,4 +1,5 @@
-import { getEnvPublicConfig, getEnvSecrets } from "@/config/env.config";
+import { getEnvPublicConfig } from "@/config/env.public";
+import { getEnvSecrets } from "@/config/env.secrets";
 import { usdmUnit } from "@/lib/utils";
 import { PrismaClient } from "@/prisma/generated/client";
 

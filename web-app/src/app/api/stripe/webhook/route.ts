@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
 import {
-  getFiatTransactionByServicePaymentId,
   prisma,
-  setFiatTransactionStatusToFailed,
-  setFiatTransactionStatusToSucceeded,
-} from "@/lib/db";
+  retrieveFiatTransactionByServicePaymentId,
+  updateFiatTransactionStatusToFailed,
+  updateFiatTransactionStatusToSucceeded,
+} from "@/lib/db/repositories";
 import { constructEvent } from "@/lib/services";
 import { FiatTransactionStatus } from "@/prisma/generated/client";
 
@@ -163,7 +163,7 @@ const updateFiatTransactionStatus = async (
   }
   return await prisma.$transaction(async (tx) => {
     try {
-      const fiatTransaction = await getFiatTransactionByServicePaymentId(
+      const fiatTransaction = await retrieveFiatTransactionByServicePaymentId(
         session.id,
         tx,
       );
@@ -193,7 +193,7 @@ const updateFiatTransactionStatus = async (
       try {
         switch (status) {
           case "SUCCEEDED":
-            await setFiatTransactionStatusToSucceeded(
+            await updateFiatTransactionStatusToSucceeded(
               fiatTransaction,
               BigInt(amountTotal),
               currency,
@@ -206,7 +206,7 @@ const updateFiatTransactionStatus = async (
               { status: 200 },
             );
           case "FAILED":
-            await setFiatTransactionStatusToFailed(
+            await updateFiatTransactionStatusToFailed(
               fiatTransaction,
               BigInt(amountTotal),
               currency,

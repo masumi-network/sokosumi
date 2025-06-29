@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { JobInputsDataSchemaType } from "@/lib/job-input";
-import { getAgentInputSchema } from "@/lib/services";
+import { jobInputsDataSchema, JobInputsDataSchemaType } from "@/lib/job-input";
 
 export default function useAgentInputSchema(agentId: string) {
   const [data, setData] = useState<JobInputsDataSchemaType | null>(null);
@@ -13,9 +12,20 @@ export default function useAgentInputSchema(agentId: string) {
   useEffect(() => {
     if (agentId) {
       setLoading(true);
-      getAgentInputSchema(agentId)
+      fetch(`/api/agent/input-schema?agentId=${agentId}`)
+        .then((response) => {
+          if (!response.ok) {
+            setError(new Error("Failed to get agent input schema"));
+          }
+          return response.json();
+        })
         .then((schema) => {
-          setData(schema);
+          const parsedResult = jobInputsDataSchema().safeParse(schema);
+          if (!parsedResult.success) {
+            setError(new Error("Failed to parse agent input schema"));
+          } else {
+            setData(parsedResult.data);
+          }
         })
         .catch((error) => {
           setError(error);

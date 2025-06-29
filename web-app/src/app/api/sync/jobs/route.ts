@@ -2,14 +2,10 @@ import { after, NextResponse } from "next/server";
 import pLimit from "p-limit";
 import pTimeout from "p-timeout";
 
-import { getEnvSecrets } from "@/config/env.config";
+import { getEnvSecrets } from "@/config/env.secrets";
 import { compareApiKeys } from "@/lib/api/utils";
-import {
-  acquireLock,
-  finalizedOnChainJobStatuses,
-  prisma,
-  unlockLock,
-} from "@/lib/db";
+import { finalizedOnChainJobStatuses } from "@/lib/db";
+import { acquireLock, prisma, unlockLock } from "@/lib/db/repositories";
 import { syncJob } from "@/lib/services";
 import {
   AgentJobStatus,

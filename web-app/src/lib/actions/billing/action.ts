@@ -2,7 +2,7 @@
 
 import { getTranslations } from "next-intl/server";
 
-import { getEnvSecrets } from "@/config/env.config";
+import { getEnvSecrets } from "@/config/env.secrets";
 import { getSessionOrThrow } from "@/lib/auth/utils";
 import { CouponError } from "@/lib/errors/coupon-errors";
 import {

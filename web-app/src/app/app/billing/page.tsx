@@ -1,5 +1,5 @@
 import BillingForm from "@/components/billing/billing-form";
-import { getEnvSecrets } from "@/config/env.config";
+import { getEnvSecrets } from "@/config/env.secrets";
 import { getConversionFactors } from "@/lib/services";
 
 export default async function BillingPage() {

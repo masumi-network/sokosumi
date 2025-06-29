@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { getEnvPublicConfig } from "@/config/env.config";
+import { getEnvPublicConfig } from "@/config/env.public";
 
 export const nameSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z

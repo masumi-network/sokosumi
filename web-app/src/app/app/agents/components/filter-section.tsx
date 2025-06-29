@@ -7,7 +7,7 @@ import { useDebouncedCallback } from "use-debounce";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { getEnvPublicConfig } from "@/config/env.config";
+import { getEnvPublicConfig } from "@/config/env.public";
 
 import Tags from "./tags";
 import useGalleryFilter from "./use-gallery-filter";

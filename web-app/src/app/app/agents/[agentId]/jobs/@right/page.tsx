@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { CreateJobModalTrigger } from "@/components/create-job-modal";
-import { getAgentById } from "@/lib/db";
+import { retrieveAgentWithRelationsById } from "@/lib/db/repositories";
 import { getMyJobsByAgentId } from "@/lib/services";
 
 import JobDetailRedirect from "./components/job-detail-redirect";
@@ -20,7 +20,7 @@ export default async function RightSectionPage({
 
   const { agentId } = await params;
 
-  const agent = await getAgentById(agentId);
+  const agent = await retrieveAgentWithRelationsById(agentId);
   if (!agent) {
     console.warn("agent not found in right page");
     notFound();
