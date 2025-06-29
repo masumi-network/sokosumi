@@ -14,10 +14,9 @@ interface AuthFormProps<T extends FieldValues> {
   form: UseFormReturn<T>;
   formData: FormData<T, AuthNamespace>;
   prefilledEmail?: string | undefined;
-  prefilledOrganizationId?: string | undefined;
+  prefilledOrganization?: OrganizationWithRelations | null;
   namespace: AuthNamespace;
   onSubmit: (values: T) => Promise<void>;
-  organizations?: OrganizationWithRelations[] | undefined;
   children: ReactNode;
 }
 
@@ -25,10 +24,9 @@ export function AuthForm<T extends FieldValues>({
   form,
   formData,
   prefilledEmail,
-  prefilledOrganizationId,
+  prefilledOrganization,
   namespace,
   onSubmit,
-  organizations,
   children,
 }: AuthFormProps<T>) {
   return (
@@ -37,9 +35,8 @@ export function AuthForm<T extends FieldValues>({
         form={form}
         formData={formData}
         prefilledEmail={prefilledEmail}
-        prefilledOrganizationId={prefilledOrganizationId}
+        prefilledOrganization={prefilledOrganization}
         namespace={namespace}
-        organizations={organizations}
       />
       {children}
     </BaseForm>

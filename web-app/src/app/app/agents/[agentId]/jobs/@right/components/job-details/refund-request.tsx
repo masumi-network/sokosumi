@@ -22,8 +22,8 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { JobWithStatus } from "@/lib/db/job/repo";
-import { requestRefundJob } from "@/lib/services/job/service";
+import { JobWithStatus } from "@/lib/db/job/types";
+import { requestRefundJob } from "@/lib/services/job/actions";
 import { cn } from "@/lib/utils";
 import { NextJobAction, OnChainJobStatus } from "@/prisma/generated/client";
 

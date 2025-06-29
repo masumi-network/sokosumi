@@ -5,7 +5,7 @@ import { ReactNode } from "react";
 import { toast } from "sonner";
 
 import { createModalContext } from "@/components/common/modal-context";
-import { revalidateOrganizationsPath } from "@/lib/actions";
+import { revalidateOrganizationsPath } from "@/lib/actions/organization/action";
 import { authClient } from "@/lib/auth/auth.client";
 import { MemberWithUser } from "@/lib/db/member/types";
 import { MemberRole } from "@/lib/db/organization/types";

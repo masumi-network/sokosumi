@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getHiredAgentsOrderedByLatestJob } from "@/lib/services/agent/service";
-import { getFavoriteAgents } from "@/lib/services/agentList/service";
+import { getFavoriteAgentsIfLoggedIn } from "@/lib/services/agentList/service";
 import { getNotFinalizedLatestJobsByAgentIds } from "@/lib/services/job/service";
 import { Agent } from "@/prisma/generated/client";
 
@@ -55,7 +55,7 @@ function AgentListsSkeleton() {
 async function AgentListsContent() {
   const t = await getTranslations("App.Sidebar.Content.AgentLists");
 
-  const favoriteAgents = await getFavoriteAgents();
+  const favoriteAgents = await getFavoriteAgentsIfLoggedIn();
   const hiredAgents = filterDuplicatedAgents(
     await getHiredAgentsOrderedByLatestJob(),
     favoriteAgents,

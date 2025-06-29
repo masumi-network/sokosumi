@@ -1,78 +1,59 @@
 "use server";
 //TODO: This needs to be restructured
 import { revalidatePath } from "next/cache";
+import { z } from "zod";
 
 import { getSession } from "@/lib/auth/utils";
-import { createMember, getMembersByOrganizationId } from "@/lib/db/member/repo";
 import {
-  createOrganization,
+  getOrganizationById,
+  getOrganizationsAllowedBySpecificEmailDomain,
   updateOrganization,
 } from "@/lib/db/organization/repo";
-import { MemberRole } from "@/lib/db/organization/types";
-import { isEmailAllowedByOrganization } from "@/lib/db/organization/utils";
 import {
-  generateOrganizationSlugFromName,
-  getMyMemberInOrganization,
-} from "@/lib/services/organization/service";
-import { Organization, Prisma } from "@/prisma/generated/client";
+  MemberRole,
+  OrganizationWithRelations,
+} from "@/lib/db/organization/types";
+import { getMyMemberInOrganization } from "@/lib/services/organization/service";
+import { getEmailDomain } from "@/lib/utils";
+import { Prisma } from "@/prisma/generated/client";
 
 import { OrganizationActionErrorCode } from "./error";
 
-export async function createOrganizationFromName(
-  name: string,
-  requiredEmailDomains: string[],
+const getAllowedOrganizationsSchema = z.object({
+  email: z.string().min(1).max(250),
+  organizationId: z.string().max(250).nullable(),
+});
+export async function getAllowedOrganizations(
+  email: string,
+  organizationId: string | null,
 ) {
-  try {
-    const slug = await generateOrganizationSlugFromName(name);
-
-    const organization = await createOrganization(
-      slug,
-      name,
-      requiredEmailDomains,
-    );
-    // Revalidate the register page to update the UI
-    revalidatePath("/register");
-    return { organization, success: true };
-  } catch (error) {
-    console.error("Error creating organization", error);
-    return { organization: null, success: false };
+  const validated = getAllowedOrganizationsSchema.safeParse({
+    email,
+    organizationId,
+  });
+  if (!validated.success) {
+    return [];
   }
+  if (organizationId) {
+    const organization = await getOrganizationById(organizationId);
+    if (!organization) {
+      return [];
+    }
+    return [organization];
+  }
+
+  const emailDomain = getEmailDomain(email);
+  if (!emailDomain) {
+    return [];
+  }
+  const allowedOrganizations =
+    await getOrganizationsAllowedBySpecificEmailDomain(emailDomain);
+  return allowedOrganizations;
 }
-
-// used when user sign up
-// with organization
-// and update all pending invitations
-export async function createOrganizationMember(
-  userEmail: string,
-  organization: Organization,
-) {
-  try {
-    const session = await getSession();
-    if (!session) {
-      return {
-        success: false,
-        error: { code: OrganizationActionErrorCode.NOT_AUTHENTICATED },
-      };
-    }
-    // check user email's domain
-    if (!isEmailAllowedByOrganization(userEmail, organization)) {
-      return {
-        success: false,
-        code: "EMAIL_DOMAIN_NOT_ALLOWED_BY_ORGANIZATION",
-      };
-    }
-
-    // check if organization has any members
-    const members = await getMembersByOrganizationId(organization.id);
-
-    // if there are no members, the create as ADMIN
-    const role = members.length === 0 ? MemberRole.ADMIN : MemberRole.MEMBER;
-    await createMember(session.user.id, organization.id, role);
-    return { success: true };
-  } catch (error) {
-    console.error("Error creating organization member", error);
-    return { success: false };
-  }
+export async function getOrganizationWithRelationsById(
+  id: string,
+): Promise<OrganizationWithRelations | null> {
+  return await getOrganizationById(id);
 }
 
 export async function updateOrganizationInformation(

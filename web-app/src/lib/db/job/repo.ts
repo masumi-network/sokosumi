@@ -16,8 +16,8 @@ import {
   finalizedOnChainJobStatuses,
   jobInclude,
   jobOrderBy,
-  JobStatus,
   JobWithRelations,
+  JobWithStatus,
 } from "./types";
 import {
   computeJobStatus,
@@ -26,8 +26,6 @@ import {
   onChainStateToOnChainJobStatus,
   transactionStatusToOnChainTransactionStatus,
 } from "./utils";
-
-export type JobWithStatus = JobWithRelations & { status: JobStatus };
 
 function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
   return {

@@ -2,7 +2,7 @@
 import { getEnvSecrets } from "@/config/env.config";
 import { Agent } from "@/prisma/generated/client";
 
-export function getAgentApiBaseUrl(agent: Agent): URL {
+export async function getAgentApiBaseUrl(agent: Agent): Promise<URL> {
   // Validate the API base URL
   const blacklistedHostnames = getEnvSecrets().BLACKLISTED_AGENT_HOSTNAMES;
   const apiBaseUrl = new URL(agent.apiBaseUrl);

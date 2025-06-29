@@ -5,23 +5,24 @@ import { useTranslations } from "next-intl";
 import { memo } from "react";
 import { UseFormReturn } from "react-hook-form";
 import { toast } from "sonner";
+import z from "zod";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createOrganizationFromName } from "@/lib/actions";
-import { getEmailDomain } from "@/lib/utils";
 
 import { CreateOrganizationSchemaType } from "./data";
 
 interface CreateOrganizationProps {
   email: string;
   form: UseFormReturn<CreateOrganizationSchemaType>;
-  onAfterCreate: (organizationId: string) => void;
+  onAfterCreate: (organizationName: string) => void;
   onBack: () => void;
 }
+const createOrganizationSchema = z.object({
+  name: z.string().min(1).max(250),
+});
 
 function CreateOrganization({
-  email,
   form,
   onAfterCreate,
   onBack,
@@ -29,24 +30,13 @@ function CreateOrganization({
   const t = useTranslations("Auth.Pages.SignUp.Form.Fields.Organization");
 
   const onSubmit = async (values: CreateOrganizationSchemaType) => {
-    const { name } = values;
-
-    // get email domain to set default required email domains
-    const emailDomain = getEmailDomain(email);
-    if (!emailDomain) {
-      toast.error(t("invalidEmail"));
+    const organizationResult = createOrganizationSchema.safeParse(values);
+    if (!organizationResult.success) {
+      toast.error(t("error"));
       return;
     }
 
-    const organizationResult = await createOrganizationFromName(name, [
-      emailDomain,
-    ]);
-    if (organizationResult.success && organizationResult.organization) {
-      toast.success(t("success"));
-      onAfterCreate(organizationResult.organization.id);
-    } else {
-      toast.error(t("error"));
-    }
+    onAfterCreate(organizationResult.data.name);
   };
 
   const name = form.watch("name");

@@ -3,7 +3,7 @@ import { useTranslations } from "next-intl";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import Markdown from "@/components/markdown";
-import { JobWithStatus } from "@/lib/db/job/repo";
+import { JobWithStatus } from "@/lib/db/job/types";
 import {
   jobStatusResponseSchema,
   JobStatusResponseSchemaType,

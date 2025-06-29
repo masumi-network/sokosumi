@@ -62,7 +62,6 @@ export async function getHiredAgentsOrderedByLatestJob(
     return bLatestJob.startedAt.getTime() - aLatestJob.startedAt.getTime();
   });
 }
-
 export async function getAgentInputSchema(
   agentId: string,
   tx: Prisma.TransactionClient = prisma,

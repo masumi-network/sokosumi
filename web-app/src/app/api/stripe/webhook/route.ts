@@ -7,7 +7,7 @@ import {
   setFiatTransactionStatusToSucceeded,
 } from "@/lib/db/fiatTransaction/repo";
 import prisma from "@/lib/db/prisma";
-import { constructEvent } from "@/lib/services";
+import { constructEvent } from "@/lib/services/stripe/third-party";
 import { FiatTransactionStatus } from "@/prisma/generated/client";
 
 export async function POST(req: Request) {

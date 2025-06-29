@@ -5,7 +5,7 @@ import { useFormatter, useTranslations } from "next-intl";
 
 import { DataTableColumnHeader } from "@/components/data-table";
 import { MiddleTruncate } from "@/components/middle-truncate";
-import { JobWithStatus } from "@/lib/db/job/repo";
+import { JobWithStatus } from "@/lib/db/job/types";
 
 import JobStatusBadge from "./job-status-badge";
 

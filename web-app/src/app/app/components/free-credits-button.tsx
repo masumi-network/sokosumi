@@ -6,7 +6,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { claimFreeCredits } from "@/lib/actions";
+import { claimFreeCredits } from "@/lib/actions/billing/action";
 
 export default function FreeCreditsButton() {
   const [loading, setLoading] = useState(false);

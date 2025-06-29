@@ -21,7 +21,7 @@ export enum JobErrorNoteKeys {
   StatusMismatch = "Job.StatusMismatch",
   Unknown = "Job.UnknownState",
 }
-
+export type JobWithStatus = JobWithRelations & { status: JobStatus };
 export enum JobStatus {
   COMPLETED = "completed",
   PROCESSING = "processing",

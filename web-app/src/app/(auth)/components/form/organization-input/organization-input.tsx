@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -22,7 +22,6 @@ import {
 } from "@/components/ui/popover";
 import { OrganizationWithRelations } from "@/lib/db/organization/types";
 import { cn, isValidEmail } from "@/lib/utils";
-import { Organization } from "@/prisma/generated/client";
 
 import CreateOrganization from "./create-organization";
 import { createOrganizationSchema, CreateOrganizationSchemaType } from "./data";
@@ -30,13 +29,17 @@ import { createOrganizationSchema, CreateOrganizationSchemaType } from "./data";
 interface OrganizationInputProps {
   email: string;
   organizations: OrganizationWithRelations[];
-  value: Organization | undefined;
-  onChange: (organizationId: string) => void;
+  value: OrganizationWithRelations | { name: string } | undefined;
+  isLoading: boolean;
+  onChange: (
+    organization: OrganizationWithRelations | { name: string },
+  ) => void;
   disabled?: boolean | undefined;
 }
 
 export default function OrganizationInput({
   email,
+  isLoading,
   organizations,
   value,
   onChange,
@@ -75,11 +78,24 @@ export default function OrganizationInput({
     createOrganizationForm.setValue("name", value.trim());
   };
 
-  const handleSelectOrganization = (organizationId: string) => {
+  const handleSelectOrganization = (
+    organizationId: string | null,
+    organizationName: string | null,
+  ) => {
     setCreating(false);
     setOpen(false);
     createOrganizationForm.setValue("name", "");
-    onChange(organizationId);
+    const organization = organizations.find(
+      (organization) => organization.id === organizationId,
+    );
+    console.log("handleSelectOrganization", organizationId, organization);
+    if (!organization) {
+      if (organizationName) {
+        onChange({ name: organizationName });
+      }
+      return;
+    }
+    onChange(organization);
   };
 
   const isEmailValid = isValidEmail(email);
@@ -115,17 +131,26 @@ export default function OrganizationInput({
   const OrganizationsSection = () => {
     if (!isEmailValid) return null;
     return (
-      <CommandGroup className={organizations.length === 0 ? "p-0" : "p-2"}>
+      <CommandGroup className={organizations.length === 0 ? "p-0" : "p-2 pb-4"}>
+        {isLoading == true && (
+          <div className="flex items-center justify-center p-1 pt-3">
+            <Loader2 className="h-4 w-4 animate-spin" />
+          </div>
+        )}
         {organizations.map((organization) => (
           <CommandItem
             key={organization.id}
             value={organization.name}
-            onSelect={() => handleSelectOrganization(organization.id)}
+            onSelect={() =>
+              handleSelectOrganization(organization.id, organization.name)
+            }
             className="flex items-center gap-2"
           >
             <Check
               className={
-                value?.id === organization.id ? "opacity-100" : "opacity-0"
+                value && "id" in value && value.id === organization.id
+                  ? "opacity-100"
+                  : "opacity-0"
               }
             />
             <span className="flex-1">{organization.name}</span>
@@ -160,7 +185,9 @@ export default function OrganizationInput({
               <CreateOrganization
                 email={email}
                 form={createOrganizationForm}
-                onAfterCreate={handleSelectOrganization}
+                onAfterCreate={(organizationName) =>
+                  handleSelectOrganization(null, organizationName)
+                }
                 onBack={() => setCreating(false)}
               />
             </div>

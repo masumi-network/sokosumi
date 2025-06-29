@@ -1,7 +1,8 @@
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { getAgentById, getAgentDescription, getAgentName } from "@/lib/db/";
+import { getAgentById } from "@/lib/db/agent/repo";
+import { getAgentDescription, getAgentName } from "@/lib/db/agent/utils";
 
 export async function generateMetadata({
   params,

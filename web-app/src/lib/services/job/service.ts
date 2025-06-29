@@ -8,18 +8,16 @@ import {
   createJob,
   getJobsByAgentIdAndUserId,
   getNotFinalizedLatestJobByAgentIdAndUserId,
-  JobWithStatus,
   refundJob,
-  setNextActionToJob,
   updateJobWithAgentJobStatus,
   updateJobWithPurchase,
 } from "@/lib/db/job/repo";
-import { JobStatus } from "@/lib/db/job/types";
+import { JobStatus, JobWithStatus } from "@/lib/db/job/types";
 import { computeJobStatus } from "@/lib/db/job/utils";
 import prisma from "@/lib/db/prisma";
 import { JobInputData } from "@/lib/job-input";
 import { getInputHash, getInputHashDeprecated } from "@/lib/utils";
-import { Job, NextJobAction, Prisma } from "@/prisma/generated/client";
+import { Job, Prisma } from "@/prisma/generated/client";
 import { getAgentPricing } from "@/services/agent";
 import { getCreditsPrice, validateCreditsBalance } from "@/services/credit";
 
@@ -279,22 +277,6 @@ export async function getAgentJobStatus(
     return null;
   }
   return jobStatusResult.data;
-}
-
-export async function requestRefundJob(
-  jobBlockchainIdentifier: string,
-): Promise<JobWithStatus> {
-  const refundResult = await postPaymentClientRequestRefund(
-    jobBlockchainIdentifier,
-  );
-  if (!refundResult.ok) {
-    throw new Error(refundResult.error);
-  }
-  const job = await setNextActionToJob(
-    jobBlockchainIdentifier,
-    NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
-  );
-  return job;
 }
 
 export async function getNotFinalizedLatestJobsByAgentIds(

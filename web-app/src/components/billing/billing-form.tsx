@@ -26,7 +26,10 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { getFreeCreditsWithCoupon, purchaseCredits } from "@/lib/actions";
+import {
+  getFreeCreditsWithCoupon,
+  purchaseCredits,
+} from "@/lib/actions/billing/action";
 
 const billingFormSchema = z
   .object({

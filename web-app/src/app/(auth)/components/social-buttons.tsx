@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { ComponentProps } from "react";
 import {
@@ -11,7 +10,8 @@ import {
 } from "react-social-login-buttons";
 import { toast } from "sonner";
 
-import { signInSocial } from "@/lib/actions";
+import { useAsyncRouterPush } from "@/hooks/use-async-router";
+import { signInSocial } from "@/lib/actions/auth/action";
 
 import Divider from "./divider";
 
@@ -40,13 +40,13 @@ const socialButtons: Array<{
 
 export default function SocialButtons() {
   const t = useTranslations("Auth.SocialButtons");
-  const router = useRouter();
+  const router = useAsyncRouterPush();
 
   const handleClick = async (key: SocialKey) => {
     const { success } = await signInSocial(key);
     if (success) {
       toast.success(t("success"));
-      router.push("/app");
+      await router.push("/app");
     } else {
       toast.error(t("error"));
     }

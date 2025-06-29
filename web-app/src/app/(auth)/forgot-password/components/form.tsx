@@ -1,7 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -12,6 +11,7 @@ import {
   forgotPasswordFormSchema,
   ForgotPasswordFormSchemaType,
 } from "@/auth/forgot-password/data";
+import { useAsyncRouterPush } from "@/hooks/use-async-router";
 import { authClient } from "@/lib/auth/auth.client";
 
 interface ForgotPasswordFormProps {
@@ -22,7 +22,7 @@ export default function ForgotPasswordForm({
   initialEmail,
 }: ForgotPasswordFormProps) {
   const t = useTranslations("Auth.Pages.ForgotPassword.Form");
-  const router = useRouter();
+  const router = useAsyncRouterPush();
 
   const form = useForm<ForgotPasswordFormSchemaType>({
     resolver: zodResolver(
@@ -43,9 +43,9 @@ export default function ForgotPasswordForm({
         onError: () => {
           toast.error(t("error"));
         },
-        onSuccess: () => {
+        onSuccess: async () => {
           toast.success(t("success"));
-          router.push("/login");
+          await router.push("/login");
         },
       },
     );

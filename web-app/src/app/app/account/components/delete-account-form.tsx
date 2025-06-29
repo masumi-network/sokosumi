@@ -1,7 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -33,11 +32,12 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { useAsyncRouterPush } from "@/hooks/use-async-router";
 import { authClient } from "@/lib/auth/auth.client";
 
 export function DeleteAccountForm() {
   const t = useTranslations("App.Account.Delete");
-  const router = useRouter();
+  const router = useAsyncRouterPush();
 
   const form = useForm<DeleteAccountFormType>({
     resolver: zodResolver(
@@ -57,9 +57,9 @@ export function DeleteAccountForm() {
         onError: () => {
           toast.error(t("error"));
         },
-        onSuccess: () => {
+        onSuccess: async () => {
           toast.success(t("success"));
-          router.push("/");
+          await router.push("/");
         },
       },
     );

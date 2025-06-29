@@ -34,6 +34,7 @@ export const auth = betterAuth({
     provider: "postgresql",
   }),
   trustedOrigins: getEnvSecrets().BETTER_AUTH_TRUSTED_ORIGINS,
+  disabledPaths: ["/sign-up", "/sign-up/email"],
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
       switch (ctx.path) {
