@@ -116,29 +116,24 @@ export default function BillingForm({
   );
 
   const onSubmit = async (data: BillingFormData) => {
-    try {
-      let result;
+    let result;
 
-      // If coupon is provided, use coupon redemption flow
-      if (data.coupon && data.coupon.trim().length > 0) {
-        result = await getFreeCreditsWithCoupon(priceId, data.coupon.trim());
-      }
-      // Otherwise, use credit purchase flow
-      else if (data.credits && data.credits > 0) {
-        result = await purchaseCredits(priceId, data.credits);
-      } else {
-        toast.error(t("couponOrCreditsError"));
-        return;
-      }
+    // If coupon is provided, use coupon redemption flow
+    if (data.coupon && data.coupon.trim().length > 0) {
+      result = await getFreeCreditsWithCoupon(priceId, data.coupon.trim());
+    }
+    // Otherwise, use credit purchase flow
+    else if (data.credits && data.credits > 0) {
+      result = await purchaseCredits(priceId, data.credits);
+    } else {
+      toast.error(t("couponOrCreditsError"));
+      return;
+    }
 
-      if (result.success && result.url) {
-        window.location.href = result.url;
-      } else {
-        toast.error(result.error ?? "Failed to create checkout");
-      }
-    } catch (error) {
-      console.error("Failed to create checkout session:", error);
-      toast.error(t("Error.title"));
+    if (result.isOk()) {
+      window.location.href = result.value.url;
+    } else {
+      toast.error(result.error.message);
     }
   };
 

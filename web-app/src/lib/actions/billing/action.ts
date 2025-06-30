@@ -1,8 +1,14 @@
 "use server";
 
+import { err, ok, Result } from "neverthrow";
 import { getTranslations } from "next-intl/server";
 
 import { getEnvSecrets } from "@/config/env.secrets";
+import {
+  ActionError,
+  BillingErrorCode,
+  CommonErrorCode,
+} from "@/lib/actions/types";
 import { getSessionOrThrow } from "@/lib/auth/utils";
 import { CouponError } from "@/lib/errors/coupon-errors";
 import {
@@ -12,19 +18,20 @@ import {
   getWelcomePromotionCode,
 } from "@/lib/services";
 
-export async function claimFreeCredits(): Promise<{
-  success: boolean;
-  url?: string;
-  error?: string;
-}> {
+export async function claimFreeCredits(): Promise<
+  Result<{ url: string }, ActionError>
+> {
+  const t = await getTranslations("App.Billing");
   try {
     const session = await getSessionOrThrow();
     const promotionCode = await getWelcomePromotionCode(session.user.id);
     if (!promotionCode) {
-      return {
-        success: false,
-        error: "Promotion code not found",
-      };
+      return err(
+        new ActionError(
+          t("Errors.promotionCodeNotFound"),
+          BillingErrorCode.PROMOTION_CODE_NOT_FOUND,
+        ),
+      );
     }
 
     // Create the checkout session
@@ -35,23 +42,24 @@ export async function claimFreeCredits(): Promise<{
       promotionCode.id,
     );
 
-    return {
-      success: true,
-      url,
-    };
+    return ok({ url });
   } catch (error) {
-    console.error("Failed to create checkout session:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error occurred",
-    };
+    console.error("Failed to claim free credits:", error);
+    return err(
+      new ActionError(
+        t("Errors.freeClaimError"),
+        CommonErrorCode.INTERNAL_SERVER_ERROR,
+      ),
+    );
   }
 }
 
 export async function getFreeCreditsWithCoupon(
   priceId: string,
   couponId: string,
-) {
+): Promise<Result<{ url: string }, ActionError>> {
+  const t = await getTranslations("App.Billing");
+
   try {
     const session = await getSessionOrThrow();
 
@@ -59,11 +67,12 @@ export async function getFreeCreditsWithCoupon(
     // Validate and get the promotion code for this user and couponId
     const promo = await getPromotionCode(session.user.id, couponId, 1);
     if (!promo || !promo.active) {
-      const t = await getTranslations("App.Billing");
-      return {
-        success: false,
-        error: t("invalidCoupon"),
-      };
+      return err(
+        new ActionError(
+          t("Errors.invalidCoupon"),
+          BillingErrorCode.INVALID_COUPON,
+        ),
+      );
     }
     const { url } = await createStripeCheckoutSession(
       session.user.id,
@@ -71,60 +80,53 @@ export async function getFreeCreditsWithCoupon(
       priceId,
       promo.id,
     );
-    return {
-      success: true,
-      url,
-    };
+    return ok({ url });
   } catch (error) {
-    console.error("Failed to create checkout session:", error);
+    console.error("Failed to get free credits with coupon:", error);
 
     // Handle specific coupon errors
     if (error instanceof CouponError) {
       const t = await getTranslations("App.Billing");
-      let errorMessage = t("invalidCoupon"); // Default message
+      let errorMessage = t("Errors.invalidCoupon"); // Default message
 
       switch (error.code) {
         case "COUPON_NOT_FOUND":
-          errorMessage = t("couponNotFound");
+          errorMessage = t("Errors.couponNotFound");
           break;
         case "COUPON_TYPE_ERROR":
-          errorMessage = t("couponTypeError");
+          errorMessage = t("Errors.couponTypeError");
           break;
         case "COUPON_CURRENCY_ERROR":
-          errorMessage = t("couponCurrencyError");
+          errorMessage = t("Errors.couponCurrencyError");
           break;
         default:
           break;
       }
 
-      return {
-        success: false,
-        error: errorMessage,
-      };
+      return err(
+        new ActionError(errorMessage, BillingErrorCode.INVALID_COUPON),
+      );
     }
 
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Unknown error occurred",
-    };
+    return err(
+      new ActionError(t("Error.title"), CommonErrorCode.INTERNAL_SERVER_ERROR),
+    );
   }
 }
 export async function purchaseCredits(
   priceId: string,
   credits: number,
-): Promise<{
-  success: boolean;
-  url?: string;
-  error?: string;
-}> {
+): Promise<Result<{ url: string }, ActionError>> {
   const t = await getTranslations("App.Billing");
   try {
     // Validate input
     if (!credits || credits <= 0) {
-      return {
-        success: false,
-        error: t("invalidCredits"),
-      };
+      return err(
+        new ActionError(
+          t("Errors.invalidCredits"),
+          BillingErrorCode.INVALID_CREDITS,
+        ),
+      );
     }
 
     const session = await getSessionOrThrow();
@@ -136,14 +138,11 @@ export async function purchaseCredits(
       priceId,
     );
 
-    return {
-      success: true,
-      url,
-    };
-  } catch {
-    return {
-      success: false,
-      error: t("checkoutFailed"),
-    };
+    return ok({ url });
+  } catch (error) {
+    console.error("Failed to purchase credits:", error);
+    return err(
+      new ActionError(t("Error.title"), CommonErrorCode.INTERNAL_SERVER_ERROR),
+    );
   }
 }

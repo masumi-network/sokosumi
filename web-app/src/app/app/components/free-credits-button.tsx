@@ -14,20 +14,14 @@ export default function FreeCreditsButton() {
 
   const handleFreeClaim = async () => {
     setLoading(true);
-    try {
-      const result = await claimFreeCredits();
+    const result = await claimFreeCredits();
 
-      if (result.success && result.url) {
-        window.location.href = result.url;
-      } else {
-        toast.error(t("error"));
-      }
-    } catch (error) {
-      console.error("Failed to claim free credits:", error);
-      toast.error(t("error"));
-    } finally {
-      setLoading(false);
+    if (result.isOk()) {
+      window.location.href = result.value.url;
+    } else {
+      toast.error(result.error.message);
     }
+    setLoading(false);
   };
 
   return (
