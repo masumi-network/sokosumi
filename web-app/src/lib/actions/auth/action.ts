@@ -6,6 +6,7 @@ import { signUpFormSchema, SignUpFormSchemaType } from "@/auth/register/data";
 import {
   ActionError,
   AuthErrorCode,
+  betterAuthApiErrorSchema,
   CommonErrorCode,
 } from "@/lib/actions/types";
 import { auth } from "@/lib/auth/auth";
@@ -175,9 +176,23 @@ export async function signUpEmail(
     return result ? Ok(result) : Err(actionError);
   } catch (error) {
     console.error("Failed to sign up email", error);
-    return Err({
-      message: "Internal server error",
+    let actionError: ActionError = {
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-    });
+      message: "Internal server error",
+    };
+
+    const parsedBetterAuthApiErrorResult =
+      betterAuthApiErrorSchema.safeParse(error);
+    if (parsedBetterAuthApiErrorResult.success) {
+      switch (parsedBetterAuthApiErrorResult.data.body.code) {
+        case AuthErrorCode.USER_ALREADY_EXISTS:
+          actionError = {
+            code: AuthErrorCode.USER_ALREADY_EXISTS,
+            message: "User already exists",
+          };
+          break;
+      }
+    }
+    return Err(actionError);
   }
 }
