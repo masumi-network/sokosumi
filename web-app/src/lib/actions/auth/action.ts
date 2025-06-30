@@ -1,9 +1,8 @@
 "use server";
 
-import { err, ok, Result } from "neverthrow";
-
 import { ActionError, CommonErrorCode } from "@/lib/actions/types";
 import { auth } from "@/lib/auth/auth";
+import { Err, Ok, Result } from "@/lib/ts-res";
 
 export async function signInSocial(
   provider: "google" | "microsoft" | "apple" | "linkedin",
@@ -14,14 +13,12 @@ export async function signInSocial(
         provider: provider,
       },
     });
-    return ok();
+    return Ok();
   } catch (error) {
     console.error("Error signing in with social provider", error);
-    return err(
-      new ActionError(
-        "Internal server error",
-        CommonErrorCode.INTERNAL_SERVER_ERROR,
-      ),
-    );
+    return Err({
+      message: "Internal server error",
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+    });
   }
 }

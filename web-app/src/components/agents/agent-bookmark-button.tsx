@@ -33,28 +33,27 @@ export function AgentBookmarkButton({
 
   const handleBookmarkToggle = async () => {
     setIsLoading(true);
-    try {
-      const result = await toggleAgentInAgentList(
-        agentId,
-        agentList.id,
-        isBookmarked,
-      );
+    const result = await toggleAgentInAgentList(
+      agentId,
+      agentList.id,
+      isBookmarked,
+    );
+    console.log(result);
 
-      if (result.isOk()) {
-        setIsBookmarked(!isBookmarked);
-        if (isBookmarked) {
-          toast.success(t("removedFromBookmarks"));
-        } else {
-          toast.success(t("addedToBookmarks"));
-        }
+    if (result.ok) {
+      setIsBookmarked(!isBookmarked);
+      if (isBookmarked) {
+        toast.success(t("removedFromBookmarks"));
       } else {
-        toast.error(t("bookmarkError"));
+        toast.success(t("addedToBookmarks"));
       }
-    } catch {
+    } else {
+      console.log({
+        type: typeof result.error,
+      });
       toast.error(t("bookmarkError"));
-    } finally {
-      setIsLoading(false);
     }
+    setIsLoading(false);
   };
 
   return (

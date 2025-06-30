@@ -1,6 +1,5 @@
 "use server";
 
-import { err, ok, Result } from "neverthrow";
 import { revalidatePath } from "next/cache";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions/types";
@@ -9,6 +8,7 @@ import {
   addAgentToAgentListByIdAndUserId,
   removeAgentFromAgentListByIdAndUserId,
 } from "@/lib/db/repositories";
+import { Err, Ok, Result } from "@/lib/ts-res";
 
 export async function toggleAgentInAgentList(
   agentId: string,
@@ -18,9 +18,10 @@ export async function toggleAgentInAgentList(
   try {
     const session = await getSession();
     if (!session) {
-      return err(
-        new ActionError("Unauthenticated", CommonErrorCode.UNAUTHENTICATED),
-      );
+      return Err({
+        message: "Unauthenticated",
+        code: CommonErrorCode.UNAUTHENTICATED,
+      });
     }
     const userId = session.user.id;
 
@@ -32,14 +33,12 @@ export async function toggleAgentInAgentList(
 
     // Revalidate the app to update the UI
     revalidatePath("/app");
-    return ok();
+    return Ok();
   } catch (error) {
     console.error("Error toggling agent in list", error);
-    return err(
-      new ActionError(
-        "Internal server error",
-        CommonErrorCode.INTERNAL_SERVER_ERROR,
-      ),
-    );
+    return Err({
+      message: "Internal server error",
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+    });
   }
 }
