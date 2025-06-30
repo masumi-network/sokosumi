@@ -97,7 +97,7 @@ function FormInput<T extends FieldValues>({
   const { type, labelKey, name, placeholderKey } = formDataItem;
   const emailPrefilled = name === "email" && !!prefilledEmail;
   const organizationIdPrefilled =
-    name === "organizationId" && !!prefilledOrganizationId;
+    name === "organization" && !!prefilledOrganizationId;
 
   if (type === "checkbox") {
     const iAgreeToText = t.has("Fields.TermsAccepted.Label.iAgreeTo")
