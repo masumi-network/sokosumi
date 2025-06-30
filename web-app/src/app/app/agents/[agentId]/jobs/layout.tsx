@@ -10,7 +10,7 @@ import DefaultLoading from "@/components/default-loading";
 import { getAgentDescription, getAgentLegal, getAgentName } from "@/lib/db";
 import {
   retrieveAgentWithRelationsById,
-  retrieveJobsByAgentId,
+  retrieveJobsWithLimitedInformationByAgentId,
 } from "@/lib/db/repositories";
 import {
   getAgentCreditsPrice,
@@ -67,7 +67,7 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
 
   const agentCreditsPrice = await getAgentCreditsPrice(agent);
   const favoriteAgentList = await getOrCreateFavoriteAgentList();
-  const jobs = await retrieveJobsByAgentId(agentId);
+  const jobs = await retrieveJobsWithLimitedInformationByAgentId(agentId);
 
   return (
     <CreateJobModalContextProvider

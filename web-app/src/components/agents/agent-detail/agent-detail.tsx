@@ -4,7 +4,7 @@ import {
   CreditsPrice,
   getAgentExampleOutput,
   getAgentLegal,
-  JobWithRelations,
+  JobWithLimitedInformation,
 } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
@@ -19,7 +19,7 @@ import { AgentDetailSection6, AgentDetailSection6Skeleton } from "./section-6";
 interface AgentDetailProps {
   agent: AgentWithRelations;
   agentCreditsPrice: CreditsPrice;
-  jobs: JobWithRelations[];
+  jobs: JobWithLimitedInformation[];
   agentList?: AgentListWithAgent | undefined;
   showBackButton?: boolean | undefined;
   showCloseButton?: boolean | undefined;

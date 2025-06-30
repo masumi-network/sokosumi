@@ -50,3 +50,16 @@ export const finalizedAgentJobStatuses: AgentJobStatus[] = [
 ];
 
 export type JobWithStatus = JobWithRelations & { status: JobStatus };
+
+export const jobLimitedInclude = {
+  id: true,
+  createdAt: true,
+  startedAt: true,
+  completedAt: true,
+  agentJobStatus: true,
+  onChainStatus: true,
+} as const;
+
+export type JobWithLimitedInformation = Prisma.JobGetPayload<{
+  select: typeof jobLimitedInclude;
+}>;

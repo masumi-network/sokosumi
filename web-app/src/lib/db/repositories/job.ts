@@ -11,7 +11,9 @@ import {
   CreditsPrice,
   finalizedOnChainJobStatuses,
   jobInclude,
+  jobLimitedInclude,
   jobOrderBy,
+  JobWithLimitedInformation,
   JobWithRelations,
   JobWithStatus,
 } from "@/lib/db/types";
@@ -56,21 +58,17 @@ export async function retrieveJobsByUserId(
  * @param agentId - The unique identifier of the agent
  * @returns Promise containing an array of jobs with their relations
  */
-export async function retrieveJobsByAgentId(
+export async function retrieveJobsWithLimitedInformationByAgentId(
   agentId: string,
   tx: Prisma.TransactionClient = prisma,
-): Promise<JobWithStatus[]> {
+): Promise<JobWithLimitedInformation[]> {
   const jobs = await tx.job.findMany({
     where: { agentId },
-    include: jobInclude,
+    select: jobLimitedInclude,
     orderBy: jobOrderBy,
   });
 
-  if (!jobs) {
-    return [];
-  }
-
-  return jobs.map(mapJobWithStatus);
+  return jobs;
 }
 
 /**
