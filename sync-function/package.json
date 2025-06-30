@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "description": "DigitalOcean Function to sync Masumi services",
   "main": "packages/masumi-sync/main/main.js",
-  "packageManager": "pnpm@10.12.3",
+  "packageManager": "pnpm@10.12.4",
   "scripts": {
     "start": "tsx src/main.ts",
     "build": "tsc",
