@@ -1,14 +1,12 @@
 "use server";
 
-import { getTranslations } from "next-intl/server";
-
 import { getEnvSecrets } from "@/config/env.secrets";
 import {
   ActionError,
   BillingErrorCode,
   CommonErrorCode,
 } from "@/lib/actions/types";
-import { getSessionOrThrow } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/utils";
 import { CouponError } from "@/lib/errors/coupon-errors";
 import {
   createStripeCheckoutSession,
@@ -21,13 +19,19 @@ import { Err, Ok, Result } from "@/lib/ts-res";
 export async function claimFreeCredits(): Promise<
   Result<{ url: string }, ActionError>
 > {
-  const t = await getTranslations("App.Billing");
   try {
-    const session = await getSessionOrThrow();
+    const session = await getSession();
+    if (!session) {
+      return Err({
+        message: "Unauthenticated",
+        code: CommonErrorCode.UNAUTHENTICATED,
+      });
+    }
+
     const promotionCode = await getWelcomePromotionCode(session.user.id);
     if (!promotionCode) {
       return Err({
-        message: t("Errors.promotionCodeNotFound"),
+        message: "Promotion code not found",
         code: BillingErrorCode.PROMOTION_CODE_NOT_FOUND,
       });
     }
@@ -44,8 +48,8 @@ export async function claimFreeCredits(): Promise<
   } catch (error) {
     console.error("Failed to claim free credits:", error);
     return Err({
-      message: t("Errors.freeClaimError"),
-      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+      message: "Failed to claim free credits",
+      code: BillingErrorCode.CLAIM_FREE_CREDITS_ERROR,
     });
   }
 }
@@ -54,17 +58,21 @@ export async function getFreeCreditsWithCoupon(
   priceId: string,
   couponId: string,
 ): Promise<Result<{ url: string }, ActionError>> {
-  const t = await getTranslations("App.Billing");
-
   try {
-    const session = await getSessionOrThrow();
+    const session = await getSession();
+    if (!session) {
+      return Err({
+        message: "Unauthenticated",
+        code: CommonErrorCode.UNAUTHENTICATED,
+      });
+    }
 
     const credits = await getCreditsForCoupon(couponId, priceId);
     // Validate and get the promotion code for this user and couponId
     const promo = await getPromotionCode(session.user.id, couponId, 1);
     if (!promo || !promo.active) {
       return Err({
-        message: t("Errors.invalidCoupon"),
+        message: "Invalid coupon",
         code: BillingErrorCode.INVALID_COUPON,
       });
     }
@@ -80,32 +88,31 @@ export async function getFreeCreditsWithCoupon(
 
     // Handle specific coupon errors
     if (error instanceof CouponError) {
-      const t = await getTranslations("App.Billing");
-      let errorMessage = t("Errors.invalidCoupon"); // Default message
+      let errorCode = BillingErrorCode.INVALID_COUPON;
 
       switch (error.code) {
         case "COUPON_NOT_FOUND":
-          errorMessage = t("Errors.couponNotFound");
+          errorCode = BillingErrorCode.COUPON_NOT_FOUND;
           break;
         case "COUPON_TYPE_ERROR":
-          errorMessage = t("Errors.couponTypeError");
+          errorCode = BillingErrorCode.COUPON_TYPE_ERROR;
           break;
         case "COUPON_CURRENCY_ERROR":
-          errorMessage = t("Errors.couponCurrencyError");
+          errorCode = BillingErrorCode.COUPON_CURRENCY_ERROR;
           break;
         default:
           break;
       }
 
       return Err({
-        message: errorMessage,
-        code: BillingErrorCode.INVALID_COUPON,
+        message: error.message,
+        code: errorCode,
       });
     }
 
     return Err({
-      message: t("Error.title"),
-      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+      message: "Failed to get free credits with coupon",
+      code: BillingErrorCode.GET_FREE_CREDITS_WITH_COUPON_ERROR,
     });
   }
 }
@@ -113,17 +120,22 @@ export async function purchaseCredits(
   priceId: string,
   credits: number,
 ): Promise<Result<{ url: string }, ActionError>> {
-  const t = await getTranslations("App.Billing");
   try {
-    // Validate input
-    if (!credits || credits <= 0) {
+    const session = await getSession();
+    if (!session) {
       return Err({
-        message: t("Errors.invalidCredits"),
-        code: BillingErrorCode.INVALID_CREDITS,
+        message: "Unauthenticated",
+        code: CommonErrorCode.UNAUTHENTICATED,
       });
     }
 
-    const session = await getSessionOrThrow();
+    // Validate input
+    if (!credits || credits <= 0) {
+      return Err({
+        message: "Invalid credits",
+        code: BillingErrorCode.INVALID_CREDITS,
+      });
+    }
 
     // Create the checkout session
     const { url } = await createStripeCheckoutSession(
@@ -136,8 +148,8 @@ export async function purchaseCredits(
   } catch (error) {
     console.error("Failed to purchase credits:", error);
     return Err({
-      message: t("Error.title"),
-      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+      message: "Failed to purchase credits",
+      code: BillingErrorCode.PURCHASE_CREDITS_ERROR,
     });
   }
 }

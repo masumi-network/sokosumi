@@ -26,7 +26,12 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { getFreeCreditsWithCoupon, purchaseCredits } from "@/lib/actions";
+import {
+  BillingErrorCode,
+  CommonErrorCode,
+  getFreeCreditsWithCoupon,
+  purchaseCredits,
+} from "@/lib/actions";
 
 const billingFormSchema = z
   .object({
@@ -130,10 +135,40 @@ export default function BillingForm({
       return;
     }
 
-    if (result.isOk()) {
-      window.location.href = result.value.url;
+    if (result.ok) {
+      window.location.href = result.data.url;
     } else {
-      toast.error(result.error.message);
+      switch (result.error.code) {
+        case CommonErrorCode.UNAUTHENTICATED:
+          toast.error(t("Errors.unauthenticated"));
+          break;
+        case BillingErrorCode.INVALID_CREDITS:
+          toast.error(t("Errors.invalidCredits"));
+          break;
+        case BillingErrorCode.INVALID_COUPON:
+          toast.error(t("Errors.invalidCoupon"));
+          break;
+        case BillingErrorCode.COUPON_NOT_FOUND:
+          toast.error(t("Errors.couponNotFound"));
+          break;
+        case BillingErrorCode.COUPON_TYPE_ERROR:
+          toast.error(t("Errors.couponTypeError"));
+          break;
+        case BillingErrorCode.COUPON_CURRENCY_ERROR:
+          toast.error(t("Errors.couponCurrencyError"));
+          break;
+        case BillingErrorCode.PROMOTION_CODE_NOT_FOUND:
+          toast.error(t("Errors.promotionCodeNotFound"));
+          break;
+        case BillingErrorCode.GET_FREE_CREDITS_WITH_COUPON_ERROR:
+          toast.error(t("Errors.getFreeCreditsWithCouponError"));
+          break;
+        case BillingErrorCode.PURCHASE_CREDITS_ERROR:
+          toast.error(t("Errors.purchaseCreditsError"));
+          break;
+        default:
+          toast.error(t("Error.title"));
+      }
     }
   };
 

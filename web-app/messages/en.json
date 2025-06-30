@@ -762,17 +762,23 @@
         "backToBilling": "Back to Billing"
       },
       "FreeClaim": {
-        "button": "Get 100 free credits"
+        "button": "Get 100 free credits",
+        "error": "Failed to claim free credits",
+        "Errors": {
+          "unauthenticated": "You must log in to claim free credits.",
+          "promotionCodeNotFound": "Promotion code not found"
+        }
       },
       "Errors": {
+        "unauthenticated": "You must log in.",
         "invalidCredits": "Invalid credit amount",
         "invalidCoupon": "Invalid or inactive coupon code",
         "couponNotFound": "Coupon code not found",
         "couponTypeError": "This coupon type is not supported",
         "couponCurrencyError": "Coupon currency is not supported",
-        "checkoutFailed": "Failed to create checkout",
         "promotionCodeNotFound": "Promotion code not found",
-        "freeClaimError": "Failed to claim free credits"
+        "getFreeCreditsWithCouponError": "Failed to get free credits with coupon",
+        "purchaseCreditsError": "Failed to purchase credits"
       }
     },
     "Account": {

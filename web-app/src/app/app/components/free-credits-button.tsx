@@ -1,25 +1,41 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { claimFreeCredits } from "@/lib/actions";
+import {
+  BillingErrorCode,
+  claimFreeCredits,
+  CommonErrorCode,
+} from "@/lib/actions";
 
 export default function FreeCreditsButton() {
   const [loading, setLoading] = useState(false);
+  const router = useRouter();
   const t = useTranslations("App.Billing.FreeClaim");
 
   const handleFreeClaim = async () => {
     setLoading(true);
     const result = await claimFreeCredits();
 
-    if (result.isOk()) {
-      window.location.href = result.value.url;
+    if (result.ok) {
+      window.location.href = result.data.url;
     } else {
-      toast.error(result.error.message);
+      switch (result.error.code) {
+        case CommonErrorCode.UNAUTHENTICATED:
+          toast.error(t("Errors.unauthenticated"));
+          router.push("/login");
+          break;
+        case BillingErrorCode.PROMOTION_CODE_NOT_FOUND:
+          toast.error(t("Errors.promotionCodeNotFound"));
+          break;
+        default:
+          toast.error(t("error"));
+      }
     }
     setLoading(false);
   };
