@@ -40,7 +40,7 @@
     "@noble/hashes": "1.8.0",
     "@swc/core": "1.12.7",
     "@swc/helpers": "0.5.17",
-    "@tailwindcss/postcss": "4.1.10",
+    "@tailwindcss/postcss": "4.1.11",
     "@tailwindcss/typography": "^0.5.16",
     "@testing-library/jest-dom": "6.6.3",
     "@testing-library/react": "16.3.0",
@@ -56,9 +56,9 @@
     "jest": "30.0.3",
     "jest-environment-jsdom": "30.0.2",
     "postcss": "8.5.6",
-    "prettier": "3.6.1",
+    "prettier": "3.6.2",
     "prettier-plugin-tailwindcss": "0.6.13",
-    "tailwindcss": "4.1.10",
+    "tailwindcss": "4.1.11",
     "tsx": "4.20.3",
     "typescript": "5.8.3"
   }
