@@ -159,8 +159,8 @@ importers:
         specifier: 0.525.0
         version: 0.525.0(react@19.1.0)
       markdown-to-jsx:
-        specifier: 7.7.8
-        version: 7.7.8(react@19.1.0)
+        specifier: 7.7.10
+        version: 7.7.10(react@19.1.0)
       nanoid:
         specifier: ^5.1.5
         version: 5.1.5
@@ -4877,8 +4877,8 @@ packages:
   makeerror@1.0.12:
     resolution: {integrity: sha512-JmqCvUhmt43madlpFzG4BQzG2Z3m6tvQDNKdClZnO3VbIudJYmxsT0FNJMeiB2+JTSlTQTSbU8QdesVmwJcmLg==}
 
-  markdown-to-jsx@7.7.8:
-    resolution: {integrity: sha512-e+5bQJ30iIyJUV4tH/3wuBjpE5muLXsuBBi30N9t3B9O+UomC1Ocdqu7uD3X4YqtPrNLz+6QwHJaD7CXURBi+w==}
+  markdown-to-jsx@7.7.10:
+    resolution: {integrity: sha512-au62yyLyJukhC2P1TYi3uBi/RScGYai69uT72D8a048QH8rRj+yhND3C21GdZHE+6emtsf6Yqemcf//K+EIWDg==}
     engines: {node: '>= 10'}
     peerDependencies:
       react: '>= 0.14.0'
@@ -11504,7 +11504,7 @@ snapshots:
     dependencies:
       tmpl: 1.0.5
 
-  markdown-to-jsx@7.7.8(react@19.1.0):
+  markdown-to-jsx@7.7.10(react@19.1.0):
     dependencies:
       react: 19.1.0
 
