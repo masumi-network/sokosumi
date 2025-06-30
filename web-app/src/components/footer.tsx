@@ -43,6 +43,11 @@ const sectionsData = [
         showExternalLinkIcon: false,
       },
       {
+        key: "listYourAgent",
+        href: "https://tally.so/r/nPLBaV",
+        showExternalLinkIcon: true,
+      },
+      {
         key: "requestDataDeletion",
         href: "https://tally.so/r/3EejKX",
         showExternalLinkIcon: true,
