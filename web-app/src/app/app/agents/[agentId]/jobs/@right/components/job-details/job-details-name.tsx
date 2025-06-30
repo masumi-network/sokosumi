@@ -18,7 +18,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { updateJobName } from "@/lib/actions";
+import { CommonErrorCode, JobErrorCode, updateJobName } from "@/lib/actions";
 import { JobWithStatus } from "@/lib/db";
 
 const jobDetailsNameFormSchema = (
@@ -37,7 +37,7 @@ type JobDetailsNameFormSchemaType = z.infer<
 >;
 
 export default function JobDetailsName({ job }: { job: JobWithStatus }) {
-  const t = useTranslations("App.Agents.Jobs.JobDetails.Header");
+  const t = useTranslations("App.Agents.Jobs.JobDetails.Header.JobName");
   const { name } = job;
 
   const router = useRouter();
@@ -61,12 +61,32 @@ export default function JobDetailsName({ job }: { job: JobWithStatus }) {
 
   const onSubmit = async (data: JobDetailsNameFormSchemaType) => {
     const result = await updateJobName(job.id, !!data.name ? data.name : null);
-    if (result.success) {
+    if (result.ok) {
       setEditing(false);
       toast.success(t("success"));
       router.refresh();
     } else {
-      toast.error(t("error"));
+      switch (result.error.code) {
+        case CommonErrorCode.UNAUTHENTICATED:
+          toast.error(t("Errors.unauthenticated"), {
+            action: {
+              label: t("Errors.unauthenticatedAction"),
+              onClick: () => {
+                router.push(`/login`);
+              },
+            },
+          });
+          break;
+        case JobErrorCode.JOB_NOT_FOUND:
+          toast.error(t("Errors.jobNotFound"));
+          break;
+        case CommonErrorCode.UNAUTHORIZED:
+          toast.error(t("Errors.unauthorized"));
+          break;
+        default:
+          toast.error(t("error"));
+          break;
+      }
     }
   };
 

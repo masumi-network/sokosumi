@@ -1,5 +1,10 @@
 "use server";
 
+import {
+  ActionError,
+  CommonErrorCode,
+  JobErrorCode,
+} from "@/lib/actions/types";
 import { getSession } from "@/lib/auth/utils";
 import { JobWithStatus } from "@/lib/db";
 import { retrieveJobById, updateJobNameById } from "@/lib/db/repositories";
@@ -9,24 +14,19 @@ import {
   startJobInputSchema,
   StartJobInputSchemaType,
 } from "@/lib/services";
-
-import { JobActionErrorCode } from "./error";
+import { Err, Ok, Result } from "@/lib/ts-res";
 
 export async function startJobWithInputData(
   input: Omit<StartJobInputSchemaType, "userId">,
-): Promise<{
-  success: boolean;
-  data?: { jobId: string };
-  error?: { code: string };
-}> {
+): Promise<Result<{ jobId: string }, ActionError>> {
   try {
     // Authentication
     const session = await getSession();
     if (!session) {
-      return {
-        success: false,
-        error: { code: JobActionErrorCode.NOT_AUTHENTICATED },
-      };
+      return Err({
+        message: "Unauthenticated",
+        code: CommonErrorCode.UNAUTHENTICATED,
+      });
     }
     const userId = session.user.id;
     const inputDataForService: StartJobInputSchemaType = { ...input, userId };
@@ -34,98 +34,93 @@ export async function startJobWithInputData(
     // Validation
     const parsedResult = startJobInputSchema.safeParse(inputDataForService);
     if (!parsedResult.success) {
-      return {
-        success: false,
-        error: { code: JobActionErrorCode.INVALID_INPUT },
-      };
+      return Err({
+        message: "Invalid input",
+        code: JobErrorCode.INVALID_INPUT,
+      });
     }
 
     const data = parsedResult.data;
 
     const job = await startJob(data);
-    return { success: true, data: { jobId: job.id } };
+    return Ok({ jobId: job.id });
   } catch (error) {
+    console.error("Error starting job", error);
     if (error instanceof Error) {
       switch (error.message) {
         case "Insufficient balance":
-          return {
-            success: false,
-            error: { code: JobActionErrorCode.INSUFFICIENT_BALANCE },
-          };
+          return Err({
+            message: "Insufficient balance",
+            code: JobErrorCode.INSUFFICIENT_BALANCE,
+          });
         default:
-          return {
-            success: false,
-            error: { code: JobActionErrorCode.INTERNAL_SERVER_ERROR },
-          };
+          return Err({
+            message: "Internal server error",
+            code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+          });
       }
     }
-    console.log("Error starting job", error);
-    return {
-      success: false,
-      error: { code: JobActionErrorCode.INTERNAL_SERVER_ERROR },
-    };
+    return Err({
+      message: "Internal server error",
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+    });
   }
 }
 
 export async function updateJobName(
   jobId: string,
   name: string | null,
-): Promise<{
-  success: boolean;
-  error?: { code: string };
-}> {
+): Promise<Result<void, ActionError>> {
   try {
     // Authentication
     const session = await getSession();
     if (!session) {
-      return {
-        success: false,
-        error: { code: JobActionErrorCode.NOT_AUTHENTICATED },
-      };
+      return Err({
+        message: "Unauthenticated",
+        code: CommonErrorCode.UNAUTHENTICATED,
+      });
     }
     const userId = session.user.id;
 
     const job = await retrieveJobById(jobId);
     if (!job) {
-      return {
-        success: false,
-        error: { code: JobActionErrorCode.JOB_NOT_FOUND },
-      };
+      return Err({
+        message: "Job not found",
+        code: JobErrorCode.JOB_NOT_FOUND,
+      });
     }
 
     // check job user id is same as authenticated user
     if (job.userId !== userId) {
-      return {
-        success: false,
-        error: { code: JobActionErrorCode.UNAUTHORIZED },
-      };
+      return Err({
+        message: "Unauthorized",
+        code: CommonErrorCode.UNAUTHORIZED,
+      });
     }
 
     // update job name
     await updateJobNameById(jobId, name);
-    return { success: true };
+    return Ok();
   } catch (error) {
     console.error("Error updating job name", error);
-    return {
-      success: false,
-      error: { code: JobActionErrorCode.INTERNAL_SERVER_ERROR },
-    };
+    return Err({
+      message: "Internal server error",
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+    });
   }
 }
 
 export async function requestRefundJobByBlockchainIdentifier(
   blockchainIdentifier: string,
-): Promise<
-  { success: true; job: JobWithStatus } | { success: false; error: Error }
-> {
+): Promise<Result<{ job: JobWithStatus }, ActionError>> {
   try {
     const job = await requestRefundJob(blockchainIdentifier);
-    return { success: true, job };
+    return Ok({ job });
   } catch (error) {
     console.error("Failed to request refund job", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error : new Error("Unknown error"),
-    };
+    return Err({
+      message: "Internal server error",
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+    });
   }
 }

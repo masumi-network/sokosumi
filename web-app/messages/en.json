@@ -914,24 +914,32 @@
         },
         "JobDetails": {
           "Header": {
-            "Schema": {
-              "Name": {
-                "invalid": "Name must be a valid string",
-                "min": "Name must be at least 2 characters",
-                "max": "Name must be at most 80 characters"
+            "JobName": {
+              "Schema": {
+                "Name": {
+                  "invalid": "Name must be a valid string",
+                  "min": "Name must be at least 2 characters",
+                  "max": "Name must be at most 80 characters"
+                }
+              },
+              "Form": {
+                "Name": {
+                  "placeholder": "Please input Job Name"
+                }
+              },
+              "edit": "Edit",
+              "save": "Save",
+              "cancel": "Cancel",
+              "noName": "No name",
+              "success": "Job name updated successfully",
+              "error": "Failed to update job name",
+              "Errors": {
+                "unauthenticated": "You must be logged in to update job name.",
+                "unauthenticatedAction": "Login",
+                "jobNotFound": "Job not found",
+                "unauthorized": "You are not the owner of this job."
               }
-            },
-            "Form": {
-              "Name": {
-                "placeholder": "Please input Job Name"
-              }
-            },
-            "edit": "Edit",
-            "save": "Save",
-            "cancel": "Cancel",
-            "noName": "No name",
-            "success": "Job name updated successfully",
-            "error": "Failed to update job name"
+            }
           },
           "Input": {
             "title": "Input",
@@ -1109,8 +1117,8 @@
           "insufficientBalance": "Your credit balance is insufficient to start this job.",
           "insufficientBalanceAction": "Buy credits",
           "invalidInput": "Your input data is invalid.",
-          "notAuthenticated": "You must be logged in to start a job.",
-          "notAuthenticatedAction": "Login",
+          "unauthenticated": "You must be logged in to start a job.",
+          "unauthenticatedAction": "Login",
           "default": "Failed to start the job."
         },
         "String": {

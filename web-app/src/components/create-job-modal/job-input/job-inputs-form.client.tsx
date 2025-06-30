@@ -13,7 +13,11 @@ import { useCreateJobModalContext } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { useAsyncRouterPush } from "@/hooks/use-async-router";
-import { JobActionErrorCode, startJobWithInputData } from "@/lib/actions";
+import {
+  CommonErrorCode,
+  JobErrorCode,
+  startJobWithInputData,
+} from "@/lib/actions";
 import { AgentLegal, convertCentsToCredits, CreditsPrice } from "@/lib/db";
 import {
   defaultValues,
@@ -67,59 +71,54 @@ export default function JobInputsFormClient({
   const handleSubmit: SubmitHandler<JobInputsFormSchemaType> = async (
     values,
   ) => {
-    try {
-      setLoading(true);
-      // Transform input data to match expected type
-      // Filter out null values and ensure arrays are of correct type
-      const transformedInputData = filterOutNullValues(values);
-      const result = await startJobWithInputData({
-        agentId: agentId,
-        maxAcceptedCents: agentCreditsPrice.cents,
-        inputSchema: input_data,
-        inputData: transformedInputData,
-      });
+    setLoading(true);
+    // Transform input data to match expected type
+    // Filter out null values and ensure arrays are of correct type
+    const transformedInputData = filterOutNullValues(values);
+    const result = await startJobWithInputData({
+      agentId: agentId,
+      maxAcceptedCents: agentCreditsPrice.cents,
+      inputSchema: input_data,
+      inputData: transformedInputData,
+    });
 
-      if (result.success && result.data?.jobId) {
-        form.reset();
-        handleClose();
-        await asyncRouter.push(
-          `/app/agents/${agentId}/jobs/${result.data.jobId}`,
-        );
-      } else {
-        switch (result.error?.code) {
-          case JobActionErrorCode.INSUFFICIENT_BALANCE:
-            toast.error(t("Error.insufficientBalance"), {
-              action: {
-                label: t("Error.insufficientBalanceAction"),
-                onClick: () => {
-                  router.push(`/app/billing`);
-                },
+    if (result.ok) {
+      form.reset();
+      handleClose();
+      await asyncRouter.push(
+        `/app/agents/${agentId}/jobs/${result.data.jobId}`,
+      );
+    } else {
+      switch (result.error.code) {
+        case CommonErrorCode.UNAUTHENTICATED:
+          toast.error(t("Error.unauthenticated"), {
+            action: {
+              label: t("Error.unauthenticatedAction"),
+              onClick: () => {
+                router.push(`/login`);
               },
-            });
-            break;
-          case JobActionErrorCode.INVALID_INPUT:
-            toast.error(t("Error.invalidInput"));
-            break;
-          case JobActionErrorCode.NOT_AUTHENTICATED:
-            toast.error(t("Error.notAuthenticated"), {
-              action: {
-                label: t("Error.notAuthenticatedAction"),
-                onClick: () => {
-                  router.push(`/login`);
-                },
+            },
+          });
+          break;
+        case JobErrorCode.INVALID_INPUT:
+          toast.error(t("Error.invalidInput"));
+          break;
+        case JobErrorCode.INSUFFICIENT_BALANCE:
+          toast.error(t("Error.insufficientBalance"), {
+            action: {
+              label: t("Error.insufficientBalanceAction"),
+              onClick: () => {
+                router.push(`/app/billing`);
               },
-            });
-            break;
-          default:
-            toast.error(t("Error.default"));
-            break;
-        }
+            },
+          });
+          break;
+        default:
+          toast.error(t("Error.default"));
+          break;
       }
-    } catch {
-      toast.error(t("Error.default"));
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   };
 
   const handleClear = () => {

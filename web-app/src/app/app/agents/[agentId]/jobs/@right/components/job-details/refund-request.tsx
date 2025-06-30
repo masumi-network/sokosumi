@@ -22,7 +22,10 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { requestRefundJobByBlockchainIdentifier } from "@/lib/actions";
+import {
+  ActionError,
+  requestRefundJobByBlockchainIdentifier,
+} from "@/lib/actions";
 import { JobWithStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
 import { NextJobAction, OnChainJobStatus } from "@/prisma/generated/client";
@@ -92,7 +95,7 @@ export default function RequestRefundButton({
 }: RequestRefundButtonProps) {
   const t = useTranslations("App.Agents.Jobs.JobDetails.Output.Refund");
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<Error | null>(null);
+  const [error, setError] = useState<ActionError | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isRefundRequested, setIsRefundRequested] = useState(
     job.onChainStatus === OnChainJobStatus.REFUND_REQUESTED ||
@@ -135,7 +138,7 @@ export default function RequestRefundButton({
     const result = await requestRefundJobByBlockchainIdentifier(
       job.blockchainIdentifier,
     );
-    if (result.success) {
+    if (result.ok) {
       setIsRefundRequested(
         job.nextAction === NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
       );
