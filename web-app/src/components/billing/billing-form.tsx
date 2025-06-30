@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -73,6 +74,8 @@ export default function BillingForm({
 }: BillingFormProps) {
   const t = useTranslations("App.Billing");
   const formatter = useFormatter();
+  const router = useRouter();
+
   const [clearedField, setClearedField] = useState<"credits" | "coupon" | null>(
     null,
   );
@@ -140,7 +143,14 @@ export default function BillingForm({
     } else {
       switch (result.error.code) {
         case CommonErrorCode.UNAUTHENTICATED:
-          toast.error(t("Errors.unauthenticated"));
+          toast.error(t("Errors.unauthenticated"), {
+            action: {
+              label: t("Errors.unauthenticatedAction"),
+              onClick: () => {
+                router.push(`/login`);
+              },
+            },
+          });
           break;
         case BillingErrorCode.INVALID_CREDITS:
           toast.error(t("Errors.invalidCredits"));

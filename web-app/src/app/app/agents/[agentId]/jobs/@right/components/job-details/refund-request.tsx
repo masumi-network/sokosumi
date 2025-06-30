@@ -1,6 +1,7 @@
 "use client";
 
 import { ExternalLink, HandCoins, LoaderCircle } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -97,6 +98,8 @@ export default function RequestRefundButton({
   className,
 }: RequestRefundButtonProps) {
   const t = useTranslations("App.Agents.Jobs.JobDetails.Output.Refund");
+  const router = useRouter();
+
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<ActionError | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -148,13 +151,20 @@ export default function RequestRefundButton({
     } else {
       switch (result.error.code) {
         case CommonErrorCode.UNAUTHENTICATED:
-          toast.error(t("Errors.unauthenticated"));
+          toast.error(t("Errors.unauthenticated"), {
+            action: {
+              label: t("Errors.unauthenticatedAction"),
+              onClick: () => {
+                router.push(`/login`);
+              },
+            },
+          });
           break;
         case JobErrorCode.JOB_NOT_FOUND:
           toast.error(t("Errors.jobNotFound"));
           break;
         case CommonErrorCode.UNAUTHORIZED:
-          toast.error(t("Errors.unauthenticated"));
+          toast.error(t("Errors.unauthorized"));
           break;
         case CommonErrorCode.INTERNAL_SERVER_ERROR:
           toast.error(t("error"));

@@ -27,8 +27,14 @@ export default function FreeCreditsButton() {
     } else {
       switch (result.error.code) {
         case CommonErrorCode.UNAUTHENTICATED:
-          toast.error(t("Errors.unauthenticated"));
-          router.push("/login");
+          toast.error(t("Errors.unauthenticated"), {
+            action: {
+              label: t("Errors.unauthenticatedAction"),
+              onClick: () => {
+                router.push(`/login`);
+              },
+            },
+          });
           break;
         case BillingErrorCode.PROMOTION_CODE_NOT_FOUND:
           toast.error(t("Errors.promotionCodeNotFound"));

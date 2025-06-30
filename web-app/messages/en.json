@@ -769,11 +769,13 @@
         "error": "Failed to claim free credits",
         "Errors": {
           "unauthenticated": "You must log in to claim free credits.",
+          "unauthenticatedAction": "Login",
           "promotionCodeNotFound": "Promotion code not found"
         }
       },
       "Errors": {
         "unauthenticated": "You must log in.",
+        "unauthenticatedAction": "Login",
         "invalidCredits": "Invalid credit amount",
         "invalidCoupon": "Invalid or inactive coupon code",
         "couponNotFound": "Coupon code not found",
@@ -980,6 +982,7 @@
               },
               "Errors": {
                 "unauthenticated": "You must be logged in to request a refund.",
+                "unauthenticatedAction": "Login",
                 "jobNotFound": "Job not found",
                 "unauthorized": "You must be job owner to reqeust a refund"
               }
