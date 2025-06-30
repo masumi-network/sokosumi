@@ -4,7 +4,7 @@ import { Err, Ok, Result } from "ts-res";
 
 import { getPaymentInformation } from "@/lib/api/generated/registry";
 import { getRegistryClient } from "@/lib/api/registry-service.client";
-import { getAgentApiBaseUrl } from "@/lib/db/agent/action";
+import { getAgentApiBaseUrl } from "@/lib/db/agent/repo";
 import { AgentWithRelations } from "@/lib/db/agent/types";
 import { jobInputsDataSchema, JobInputsDataSchemaType } from "@/lib/job-input";
 import { Agent } from "@/prisma/generated/client";

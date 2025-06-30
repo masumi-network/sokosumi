@@ -10,7 +10,7 @@ import {
   PostPurchaseResponse,
 } from "@/lib/api/generated/payment";
 import { getPaymentClient } from "@/lib/api/payment-service.client";
-import { getAgentApiBaseUrl } from "@/lib/db/agent/action";
+import { getAgentApiBaseUrl } from "@/lib/db/agent/repo";
 import { AgentWithRelations } from "@/lib/db/agent/types";
 import { JobInputData } from "@/lib/job-input";
 
