@@ -45,7 +45,7 @@
     "@testing-library/jest-dom": "6.6.3",
     "@testing-library/react": "16.3.0",
     "@types/jest": "30.0.0",
-    "eslint": "9.29.0",
+    "eslint": "9.30.0",
     "eslint-config-next": "15.3.4",
     "eslint-config-prettier": "10.1.5",
     "eslint-plugin-no-relative-import-paths": "1.6.1",
