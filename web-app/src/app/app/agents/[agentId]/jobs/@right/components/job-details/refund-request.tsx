@@ -3,6 +3,7 @@
 import { ExternalLink, HandCoins, LoaderCircle } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import {
   AlertDialog,
@@ -24,6 +25,8 @@ import {
 } from "@/components/ui/tooltip";
 import {
   ActionError,
+  CommonErrorCode,
+  JobErrorCode,
   requestRefundJobByBlockchainIdentifier,
 } from "@/lib/actions";
 import { JobWithStatus } from "@/lib/db";
@@ -143,6 +146,21 @@ export default function RequestRefundButton({
         job.nextAction === NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
       );
     } else {
+      switch (result.error.code) {
+        case CommonErrorCode.UNAUTHENTICATED:
+          toast.error(t("Errors.unauthenticated"));
+          break;
+        case JobErrorCode.JOB_NOT_FOUND:
+          toast.error(t("Errors.jobNotFound"));
+          break;
+        case CommonErrorCode.UNAUTHORIZED:
+          toast.error(t("Errors.unauthenticated"));
+          break;
+        case CommonErrorCode.INTERNAL_SERVER_ERROR:
+          toast.error(t("error"));
+          break;
+        default:
+      }
       setError(result.error);
     }
     setIsLoading(false);

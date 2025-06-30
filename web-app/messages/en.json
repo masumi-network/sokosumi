@@ -975,6 +975,11 @@
                   "title": "Refund no longer available",
                   "description": "You could have requested a refund until {unlockAt}."
                 }
+              },
+              "Errors": {
+                "unauthenticated": "You must be logged in to request a refund.",
+                "jobNotFound": "Job not found",
+                "unauthorized": "You must be job owner to reqeust a refund"
               }
             }
           }

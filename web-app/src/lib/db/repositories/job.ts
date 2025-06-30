@@ -111,6 +111,17 @@ export async function retrieveJobById(
   return mapJobWithStatus(job);
 }
 
+export async function retrieveJobByBlockchainIdentifier(
+  blockchainIdentifier: string,
+  tx: Prisma.TransactionClient = prisma,
+) {
+  const job = await tx.job.findUnique({
+    where: { blockchainIdentifier },
+    include: jobInclude,
+  });
+  return job;
+}
+
 interface CreateJobData {
   agentJobId: string;
   agentId: string;

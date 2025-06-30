@@ -7,7 +7,11 @@ import {
 } from "@/lib/actions/types";
 import { getSession } from "@/lib/auth/utils";
 import { JobWithStatus } from "@/lib/db";
-import { retrieveJobById, updateJobNameById } from "@/lib/db/repositories";
+import {
+  retrieveJobByBlockchainIdentifier,
+  retrieveJobById,
+  updateJobNameById,
+} from "@/lib/db/repositories";
 import {
   requestRefundJob,
   startJob,
@@ -114,6 +118,31 @@ export async function requestRefundJobByBlockchainIdentifier(
   blockchainIdentifier: string,
 ): Promise<Result<{ job: JobWithStatus }, ActionError>> {
   try {
+    const session = await getSession();
+    if (!session) {
+      return Err({
+        message: "Unauthenticated",
+        code: CommonErrorCode.UNAUTHENTICATED,
+      });
+    }
+
+    const foundJob =
+      await retrieveJobByBlockchainIdentifier(blockchainIdentifier);
+    if (!foundJob) {
+      return Err({
+        message: "Job not found",
+        code: JobErrorCode.JOB_NOT_FOUND,
+      });
+    }
+
+    // check user is owner of job
+    if (foundJob.userId !== session.user.id) {
+      return Err({
+        message: "Unauthorized",
+        code: CommonErrorCode.UNAUTHORIZED,
+      });
+    }
+
     const job = await requestRefundJob(blockchainIdentifier);
     return Ok({ job });
   } catch (error) {
