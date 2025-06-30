@@ -38,12 +38,10 @@ function CreateOrganization({
       return;
     }
 
-    const organizationResult = await createOrganizationFromName(name, [
-      emailDomain,
-    ]);
-    if (organizationResult.success && organizationResult.organization) {
+    const result = await createOrganizationFromName(name, [emailDomain]);
+    if (result.ok) {
       toast.success(t("success"));
-      onAfterCreate(organizationResult.organization.id);
+      onAfterCreate(result.data.organization.id);
     } else {
       toast.error(t("error"));
     }

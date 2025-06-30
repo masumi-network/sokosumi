@@ -194,8 +194,9 @@
           "success": "Organization updated successfully",
           "error": "Failed to update organization",
           "Errors": {
-            "notAuthenticated": "You need to be logged in to edit an organization.",
-            "unauthorized": "You need to be an admin to edit an organization."
+            "unauthenticated": "You must be logged in to edit an organization.",
+            "unauthenticatedAction": "Login",
+            "unauthorized": "You must be an admin to edit an organization."
           },
           "Fields": {
             "Name": {

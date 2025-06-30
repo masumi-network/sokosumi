@@ -16,6 +16,7 @@ import {
 } from "@/auth/register/data";
 import {
   createOrganizationMember,
+  OrganizationErrorCode,
   updatePendingInvitations,
 } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
@@ -121,19 +122,21 @@ export default function SignUpForm({
       userResult.data.user.email,
       organization,
     );
-    if (!memberResult.success) {
-      if (memberResult.code === "EMAIL_DOMAIN_NOT_ALLOWED_BY_ORGANIZATION") {
-        toast.error(t("Errors.emailDomainNotAllowedByOrganization"));
-      } else {
-        toast.error(t("Errors.member"));
-      }
-    } else {
+    if (memberResult.ok) {
       // update all pending invitations
       await updatePendingInvitations(
         userResult.data.user.email,
         organization.id,
       );
       toast.success(t("success"));
+    } else {
+      switch (memberResult.error.code) {
+        case OrganizationErrorCode.EMAIL_DOMAIN_NOT_ALLOWED_BY_ORGANIZATION:
+          toast.error(t("Errors.emailDomainNotAllowedByOrganization"));
+          break;
+        default:
+          toast.error(t("error"));
+      }
     }
     router.push("/login");
   };

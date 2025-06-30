@@ -2,6 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 
+import {
+  ActionError,
+  CommonErrorCode,
+  OrganizationErrorCode,
+} from "@/lib/actions/types";
 import { getSession } from "@/lib/auth/utils";
 import { isEmailAllowedByOrganization, MemberRole } from "@/lib/db";
 import {
@@ -14,14 +19,13 @@ import {
   generateOrganizationSlugFromName,
   getMyMemberInOrganization,
 } from "@/lib/services";
+import { Err, Ok, Result } from "@/lib/ts-res";
 import { Organization, Prisma } from "@/prisma/generated/client";
-
-import { OrganizationActionErrorCode } from "./error";
 
 export async function createOrganizationFromName(
   name: string,
   requiredEmailDomains: string[],
-) {
+): Promise<Result<{ organization: Organization }, ActionError>> {
   try {
     const slug = await generateOrganizationSlugFromName(name);
 
@@ -32,10 +36,13 @@ export async function createOrganizationFromName(
     );
     // Revalidate the register page to update the UI
     revalidatePath("/register");
-    return { organization, success: true };
+    return Ok({ organization });
   } catch (error) {
     console.error("Error creating organization", error);
-    return { organization: null, success: false };
+    return Err({
+      message: "Internal server error",
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+    });
   }
 }
 
@@ -46,14 +53,14 @@ export async function createOrganizationMember(
   userId: string,
   userEmail: string,
   organization: Organization,
-) {
+): Promise<Result<void, ActionError>> {
   try {
     // check user email's domain
     if (!isEmailAllowedByOrganization(userEmail, organization)) {
-      return {
-        success: false,
-        code: "EMAIL_DOMAIN_NOT_ALLOWED_BY_ORGANIZATION",
-      };
+      return Err({
+        message: "Email domain not allowed by organization",
+        code: OrganizationErrorCode.EMAIL_DOMAIN_NOT_ALLOWED_BY_ORGANIZATION,
+      });
     }
 
     // check if organization has any members
@@ -62,35 +69,36 @@ export async function createOrganizationMember(
     // if there are no members, the create as ADMIN
     const role = members.length === 0 ? MemberRole.ADMIN : MemberRole.MEMBER;
     await createMember(userId, organization.id, role);
-    return { success: true };
+    return Ok();
   } catch (error) {
     console.error("Error creating organization member", error);
-    return { success: false };
+    return Err({
+      message: "Internal server error",
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+    });
   }
 }
 
 export async function updateOrganizationInformation(
   organizationId: string,
   data: Prisma.OrganizationUpdateInput,
-): Promise<{ success: false; error: { code: string } } | { success: true }> {
+): Promise<Result<void, ActionError>> {
   try {
     const session = await getSession();
     if (!session) {
-      return {
-        success: false,
-        error: { code: OrganizationActionErrorCode.NOT_AUTHENTICATED },
-      };
+      return Err({
+        message: "Unauthenticated",
+        code: CommonErrorCode.UNAUTHENTICATED,
+      });
     }
 
     // check membership and role
     const member = await getMyMemberInOrganization(organizationId);
     if (!member || member.role !== MemberRole.ADMIN) {
-      return {
-        success: false,
-        error: {
-          code: OrganizationActionErrorCode.UNAUTHORIZED,
-        },
-      };
+      return Err({
+        message: "Unauthorized",
+        code: CommonErrorCode.UNAUTHORIZED,
+      });
     }
 
     // update organization information
@@ -101,15 +109,13 @@ export async function updateOrganizationInformation(
 
     // revalidate the organization page
     revalidatePath(`/app/organizations/${updatedOrganization.slug}`);
-    return { success: true };
+    return Ok();
   } catch (error) {
     console.error("Error updating organization information", error);
-    return {
-      success: false,
-      error: {
-        code: OrganizationActionErrorCode.INTERNAL_SERVER_ERROR,
-      },
-    };
+    return Err({
+      message: "Internal server error",
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+    });
   }
 }
 

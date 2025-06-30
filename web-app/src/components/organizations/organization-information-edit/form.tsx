@@ -8,10 +8,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
-import {
-  OrganizationActionErrorCode,
-  updateOrganizationInformation,
-} from "@/lib/actions";
+import { CommonErrorCode, updateOrganizationInformation } from "@/lib/actions";
 
 import { editFormData, EditFormSchemaType } from "./data";
 import { FormFields } from "./form-fields";
@@ -38,13 +35,20 @@ export default function OrganizationInformationEditForm({
       metadata: values.metadata === "" ? undefined : values.metadata,
       requiredEmailDomains: values.requiredEmailDomains,
     });
-    if (!result.success) {
+    if (result.ok) {
+      toast.success(t("success"));
+      onOpenChange(false);
+    } else {
       switch (result.error.code) {
-        case OrganizationActionErrorCode.NOT_AUTHENTICATED:
-          toast.error(t("Errors.notAuthenticated"));
-          router.push("/login");
+        case CommonErrorCode.UNAUTHENTICATED:
+          toast.error(t("Errors.unauthenticated"), {
+            action: {
+              label: t("Errors.unauthenticatedAction"),
+              onClick: () => router.push("/login"),
+            },
+          });
           break;
-        case OrganizationActionErrorCode.UNAUTHORIZED:
+        case CommonErrorCode.UNAUTHORIZED:
           toast.error(t("Errors.unauthorized"));
           break;
         default:
@@ -52,9 +56,6 @@ export default function OrganizationInformationEditForm({
       }
       return;
     }
-
-    toast.success(t("success"));
-    onOpenChange(false);
   };
 
   const isLoading = form.formState.isSubmitting;
