@@ -43,8 +43,8 @@ export default function SocialButtons() {
   const router = useRouter();
 
   const handleClick = async (key: SocialKey) => {
-    const { success } = await signInSocial(key);
-    if (success) {
+    const result = await signInSocial(key);
+    if (result.isOk()) {
       toast.success(t("success"));
       router.push("/app");
     } else {
