@@ -48,26 +48,28 @@ export async function retrieveAgentListsByUserIdAndTypes(
   });
 }
 
-export async function addAgentToAgentList(
+export async function addAgentToAgentListByIdAndUserId(
   agentId: string,
-  listId: string,
+  id: string,
+  userId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentList> {
   return await tx.agentList.update({
-    where: { id: listId },
+    where: { id, userId },
     data: {
       agents: { connect: { id: agentId } },
     },
   });
 }
 
-export async function removeAgentFromAgentList(
+export async function removeAgentFromAgentListByIdAndUserId(
   agentId: string,
-  listId: string,
+  id: string,
+  userId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentList> {
   return await tx.agentList.update({
-    where: { id: listId },
+    where: { id, userId },
     data: {
       agents: { disconnect: { id: agentId } },
     },
