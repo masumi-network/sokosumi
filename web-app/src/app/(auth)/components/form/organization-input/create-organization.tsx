@@ -7,6 +7,13 @@ import { UseFormReturn } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormMessage,
+} from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { getEmailDomain } from "@/lib/utils";
 
@@ -42,7 +49,7 @@ function CreateOrganization({
   const name = form.watch("name");
 
   return (
-    <div>
+    <Form {...form}>
       <fieldset
         disabled={form.formState.isSubmitting}
         className="flex flex-col gap-3"
@@ -50,9 +57,18 @@ function CreateOrganization({
         <Button size="icon" variant="outline" onClick={onBack}>
           <ArrowLeft />
         </Button>
-        <Input
-          {...form.register("name")}
-          placeholder={t("createPlaceholder")}
+        <FormField
+          key="name"
+          control={form.control}
+          name="name"
+          render={({ field }) => (
+            <FormItem>
+              <FormControl>
+                <Input placeholder={t("createPlaceholder")} {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
         <Button
           disabled={!name || form.formState.isSubmitting}
@@ -68,7 +84,7 @@ function CreateOrganization({
           {t("create", { organization: name })}
         </Button>
       </fieldset>
-    </div>
+    </Form>
   );
 }
 
