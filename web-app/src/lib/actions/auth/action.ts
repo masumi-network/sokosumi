@@ -73,9 +73,9 @@ export async function signUpEmail(
     try {
       await prisma.$transaction(async (tx) => {
         let organization: Organization;
-        if ("id" in data.organization) {
+        if (typeof data.organization === "string") {
           const retrievedOrganization = await retrieveOrganizationById(
-            data.organization.id,
+            data.organization,
             tx,
           );
           if (!retrievedOrganization) {
