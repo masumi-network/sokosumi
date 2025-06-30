@@ -12,7 +12,8 @@
     },
     "GetInTouch": {
       "title": "Get In Touch",
-      "contact": "Contact"
+      "contact": "Contact",
+      "requestDataDeletion": "Request Data Deletion"
     },
     "AgenticServices": {
       "title": "Agentic Services",
