@@ -1,13 +1,7 @@
 import { z } from "zod";
 
 import { FormData } from "@/lib/form";
-
-const domainRegex =
-  /^(?!:\/\/)([a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$/;
-
-export function isValidDomain(domain: string): boolean {
-  return domainRegex.test(domain);
-}
+import { isValidDomain } from "@/lib/utils";
 
 export const editFormSchema = (
   t?: IntlTranslation<"Components.Organizations.EditInformationModal.Schema">,
@@ -25,9 +19,9 @@ export const editFormSchema = (
       .or(z.literal("")),
     requiredEmailDomains: z
       .array(
-        z
-          .string()
-          .regex(domainRegex, { message: t?.("RequiredEmailDomains.invalid") }),
+        z.string().refine(isValidDomain, {
+          message: t?.("RequiredEmailDomains.invalid"),
+        }),
       )
       .max(10, t?.("RequiredEmailDomains.max"))
       .refine(

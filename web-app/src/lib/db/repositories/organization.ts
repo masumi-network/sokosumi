@@ -32,13 +32,23 @@ export async function createOrganization(
   });
 }
 
+export async function retrieveOrganizationById(
+  id: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<OrganizationWithRelations | null> {
+  return await tx.organization.findUnique({
+    where: { id },
+    include: organizationInclude,
+  });
+}
+
 export async function retrieveOrganizationBySlug(
   slug: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<OrganizationWithRelations | null> {
   return await tx.organization.findUnique({
     where: { slug },
-    include: { ...organizationInclude },
+    include: organizationInclude,
   });
 }
 

@@ -4,7 +4,7 @@ import {
   confirmPasswordSchema,
   emailSchema,
   nameSchema,
-  organizationIdSchema,
+  organizationSchema,
   passwordSchema,
 } from "@/lib/auth/data";
 import { FormData } from "@/lib/form";
@@ -16,7 +16,7 @@ const signUpFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
       email: emailSchema(t),
       password: passwordSchema(t),
       confirmPassword: confirmPasswordSchema(t),
-      organizationId: organizationIdSchema(t),
+      organization: organizationSchema(t),
       termsAccepted: z.boolean(),
       marketingOptIn: z.boolean().optional(),
     })
@@ -38,7 +38,7 @@ const signUpFormData: FormData<SignUpFormSchemaType, "Auth.Pages.SignUp.Form"> =
       placeholderKey: "Fields.Email.placeholder",
     },
     {
-      name: "organizationId",
+      name: "organization",
     },
     {
       name: "password",

@@ -8,7 +8,6 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { createOrganizationFromName } from "@/lib/actions";
 import { getEmailDomain } from "@/lib/utils";
 
 import { CreateOrganizationSchemaType } from "./data";
@@ -16,7 +15,7 @@ import { CreateOrganizationSchemaType } from "./data";
 interface CreateOrganizationProps {
   email: string;
   form: UseFormReturn<CreateOrganizationSchemaType>;
-  onAfterCreate: (organizationId: string) => void;
+  onAfterCreate: (data: string | { name: string }) => void;
   onBack: () => void;
 }
 
@@ -37,14 +36,7 @@ function CreateOrganization({
       toast.error(t("invalidEmail"));
       return;
     }
-
-    const result = await createOrganizationFromName(name, [emailDomain]);
-    if (result.ok) {
-      toast.success(t("success"));
-      onAfterCreate(result.data.organization.id);
-    } else {
-      toast.error(t("error"));
-    }
+    onAfterCreate({ name });
   };
 
   const name = form.watch("name");

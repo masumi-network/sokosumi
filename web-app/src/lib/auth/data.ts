@@ -37,12 +37,21 @@ export const passwordSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
       message: t?.("Password.number"),
     });
 
-export const organizationIdSchema = (
+export const organizationSchema = (
   t?: IntlTranslation<"Library.Auth.Schema">,
 ) =>
   z
     .string({ message: t?.("Organization.invalid") })
-    .min(1, { message: t?.("Organization.required") });
+    .min(1, {
+      message: t?.("Organization.required"),
+    })
+    .or(
+      z.object({
+        name: z.string({ message: t?.("Organization.invalid") }).min(1, {
+          message: t?.("Organization.required"),
+        }),
+      }),
+    );
 
 export const confirmPasswordSchema = (
   t?: IntlTranslation<"Library.Auth.Schema">,

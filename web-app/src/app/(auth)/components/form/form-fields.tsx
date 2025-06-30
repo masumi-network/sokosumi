@@ -152,7 +152,7 @@ function FormInput<T extends FieldValues>({
     );
   }
 
-  if (name === "organizationId" && !!organizations) {
+  if (name === "organization" && !!organizations) {
     const email = form.watch("email" as unknown as Path<T>);
     const allowedOrganizations = filterAllowedOrganizations(
       email,
@@ -163,11 +163,13 @@ function FormInput<T extends FieldValues>({
       ? organizations.find(
           (organization) => organization.id === prefilledOrganizationId,
         )
-      : allowedOrganizations.find(
-          (organization) => organization.id === field.value,
-        );
-    const handleOrganizationChange = (organizationId: string) => {
-      field.onChange(organizationId);
+      : typeof field.value === "string"
+        ? allowedOrganizations.find(
+            (organization) => organization.id === field.value.id,
+          )
+        : { name: field.value.name };
+    const handleOrganizationChange = (data: string | { name: string }) => {
+      field.onChange(data);
     };
 
     return (

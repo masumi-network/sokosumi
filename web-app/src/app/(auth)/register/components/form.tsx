@@ -14,17 +14,8 @@ import {
   signUpFormSchema,
   SignUpFormSchemaType,
 } from "@/auth/register/data";
-import {
-  createOrganizationMember,
-  OrganizationErrorCode,
-  updatePendingInvitations,
-} from "@/lib/actions";
-import { authClient } from "@/lib/auth/auth.client";
-import {
-  isEmailAllowedByOrganization,
-  OrganizationWithRelations,
-} from "@/lib/db";
-import { Organization } from "@/prisma/generated/client";
+import { AuthErrorCode, signUpEmail } from "@/lib/actions";
+import { OrganizationWithRelations } from "@/lib/db";
 
 interface SignUpFormProps {
   organizations: OrganizationWithRelations[];
@@ -49,7 +40,7 @@ export default function SignUpForm({
       name: "",
       password: "",
       confirmPassword: "",
-      organizationId: prefilledOrganizationId ?? "",
+      organization: prefilledOrganizationId ?? "",
       termsAccepted: false,
       marketingOptIn: false,
     },
@@ -58,87 +49,54 @@ export default function SignUpForm({
   const email = form.watch("email");
   useEffect(() => {
     if (prefilledOrganizationId) {
-      form.setValue("organizationId", prefilledOrganizationId);
+      form.setValue("organization", prefilledOrganizationId);
       return;
     }
-    form.setValue("organizationId", "");
+    form.setValue("organization", "");
   }, [email, form, prefilledOrganizationId]);
 
   const onSubmit = async (values: SignUpFormSchemaType) => {
-    const organizationResult = checkOrganizationAndEmail(
-      organizations,
-      values.organizationId,
-      values.email,
-      t,
-    );
-    if (!organizationResult.success) {
-      toast.error(organizationResult.error);
-      return;
-    }
-    const { organization } = organizationResult;
-
-    const signUpData = {
+    const result = await signUpEmail({
       email: values.email,
       name: values.name,
       password: values.password,
+      confirmPassword: values.confirmPassword,
       termsAccepted: values.termsAccepted,
       marketingOptIn: values.marketingOptIn,
-      callbackURL: "/app",
-    };
-    const userResult = await authClient.signUp.email(
-      {
-        ...signUpData,
-      },
-      {
-        onError: (ctx) => {
-          switch (ctx.error.code) {
-            case "USER_ALREADY_EXISTS":
-              toast.error(t("Errors.userExists"));
-              break;
-            case "EMAIL_DOMAIN_NOT_ALLOWED":
-              toast.error(
-                t("Errors.emailDomainNotAllowed", {
-                  allowedEmailDomains: ctx.error.message,
-                }),
-              );
-              break;
-            case "TERMS_NOT_ACCEPTED":
-              toast.error(t("Errors.termsNotAccepted"));
-              break;
-            default:
-              toast.error(t("error"));
-              break;
-          }
-        },
-      },
-    );
-    if (!userResult.data?.user) {
-      return;
-    }
+      organization: values.organization,
+    });
 
-    // create member using organization
-    const memberResult = await createOrganizationMember(
-      userResult.data.user.id,
-      userResult.data.user.email,
-      organization,
-    );
-    if (memberResult.ok) {
-      // update all pending invitations
-      await updatePendingInvitations(
-        userResult.data.user.email,
-        organization.id,
-      );
+    if (result.ok) {
       toast.success(t("success"));
+      router.push("/login");
     } else {
-      switch (memberResult.error.code) {
-        case OrganizationErrorCode.EMAIL_DOMAIN_NOT_ALLOWED_BY_ORGANIZATION:
-          toast.error(t("Errors.emailDomainNotAllowedByOrganization"));
+      switch (result.error.code) {
+        case AuthErrorCode.BAD_INPUT:
+          toast.error(t("Errors.badInput"));
+          break;
+        case AuthErrorCode.ORGANIZATION_NOT_FOUND:
+          toast.error(t("Errors.organizationNotFound"));
+          break;
+        case AuthErrorCode.ORGANIZATION_CREATE_FAILED:
+          toast.error(t("Errors.organizationCreateFailed"));
+          break;
+        case AuthErrorCode.EMAIL_NOT_ALLOWED_BY_ORGANIZATION:
+          toast.error(t("Errors.emailNotAllowedByOrganization"));
+          break;
+        case AuthErrorCode.MEMBER_CREATE_FAILED:
+          toast.error(t("Errors.memberCreateFailed"));
+          break;
+        case AuthErrorCode.USER_ALREADY_EXISTS:
+          toast.error(t("Errors.userExists"));
+          break;
+        case AuthErrorCode.TERMS_NOT_ACCEPTED:
+          toast.error(t("Errors.termsNotAccepted"));
           break;
         default:
           toast.error(t("error"));
+          break;
       }
     }
-    router.push("/login");
   };
 
   const termsAccepted = form.watch("termsAccepted");
@@ -174,29 +132,4 @@ export default function SignUpForm({
       </div>
     </AuthForm>
   );
-}
-
-function checkOrganizationAndEmail(
-  organizations: Organization[],
-  organizationId: string,
-  email: string,
-  t: IntlTranslation<"Auth.Pages.SignUp.Form">,
-):
-  | { success: true; organization: Organization }
-  | { success: false; error: string } {
-  const organization = organizations.find(
-    (organization) => organization.id === organizationId,
-  );
-  if (!organization) {
-    return { success: false, error: t("Errors.organization") };
-  }
-
-  if (!isEmailAllowedByOrganization(email, organization)) {
-    return {
-      success: false,
-      error: t("Errors.emailDomainNotAllowedByOrganization"),
-    };
-  }
-
-  return { success: true, organization };
 }

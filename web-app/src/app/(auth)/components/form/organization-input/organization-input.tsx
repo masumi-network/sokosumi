@@ -30,8 +30,8 @@ import { createOrganizationSchema, CreateOrganizationSchemaType } from "./data";
 interface OrganizationInputProps {
   email: string;
   organizations: OrganizationWithRelations[];
-  value: Organization | undefined;
-  onChange: (organizationId: string) => void;
+  value: Organization | { name: string } | undefined;
+  onChange: (data: string | { name: string }) => void;
   disabled?: boolean | undefined;
 }
 
@@ -75,11 +75,11 @@ export default function OrganizationInput({
     createOrganizationForm.setValue("name", value.trim());
   };
 
-  const handleSelectOrganization = (organizationId: string) => {
+  const handleSelectOrganization = (data: string | { name: string }) => {
     setCreating(false);
     setOpen(false);
     createOrganizationForm.setValue("name", "");
-    onChange(organizationId);
+    onChange(data);
   };
 
   const isEmailValid = isValidEmail(email);
@@ -125,7 +125,9 @@ export default function OrganizationInput({
           >
             <Check
               className={
-                value?.id === organization.id ? "opacity-100" : "opacity-0"
+                value && "id" in value && value.id === organization.id
+                  ? "opacity-100"
+                  : "opacity-0"
               }
             />
             <span className="flex-1">{organization.name}</span>

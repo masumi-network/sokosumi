@@ -617,8 +617,8 @@
                 "Name": {
                   "min": "Organization name must be at least 2 characters.",
                   "max": "Organization name must be at most 50 characters.",
-                  "invalid": "Organization name must be a valid string.",
-                  "required": "Organization name is required"
+                  "invalid": "Organization name is required.",
+                  "required": "Organization name is required."
                 }
               }
             },
@@ -630,11 +630,11 @@
             }
           },
           "Errors": {
-            "member": "Failed to create organization member",
-            "organization": "Organization not found",
-            "emailDomainNotAllowedByOrganization": "Email domain not allowed to join organization",
+            "badInput": "Please input form correctly.",
+            "organizationNotFound": "Organization not found",
+            "memberCreateFailed": "Failed to create organization member",
+            "emailNotAllowedByOrganization": "Email not allowed to join organization",
             "userExists": "User already exists",
-            "emailDomainNotAllowed": "Email must end with {allowedEmailDomains}",
             "termsNotAccepted": "You must accept the terms and conditions to register"
           },
           "Login": {
