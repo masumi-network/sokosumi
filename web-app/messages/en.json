@@ -12,7 +12,9 @@
     },
     "GetInTouch": {
       "title": "Get In Touch",
-      "contact": "Contact"
+      "contact": "Contact",
+      "listYourAgent": "List Your Agent",
+      "requestDataDeletion": "Request Data Deletion"
     },
     "AgenticServices": {
       "title": "Agentic Services",
