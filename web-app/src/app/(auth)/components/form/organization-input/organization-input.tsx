@@ -88,7 +88,7 @@ export default function OrganizationInput({
     const organization = organizations.find(
       (organization) => organization.id === organizationId,
     );
-    console.log("handleSelectOrganization", organizationId, organization);
+
     if (!organization) {
       if (organizationName) {
         onChange({ name: organizationName });

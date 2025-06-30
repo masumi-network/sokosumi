@@ -15,7 +15,7 @@ export async function fetchAgentInputSchema(
   try {
     const baseUrl = await getAgentApiBaseUrl(agent);
     const inputSchemaUrl = new URL(`${baseUrl.href}/input_schema`);
-    console.log("fetching input schema for", inputSchemaUrl.href);
+
     const response = await fetch(inputSchemaUrl);
 
     if (!response.ok) {

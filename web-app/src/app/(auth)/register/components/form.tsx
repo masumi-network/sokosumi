@@ -84,7 +84,6 @@ export default function SignUpForm({
         toast.success(t("success"));
         await router.push("/login");
       } else {
-        console.log(signUpResult.error);
         if (signUpResult.error === "EMAIL_NOT_ALLOWED_BY_ORGANIZATION") {
           toast.error(t("Errors.emailDomainNotAllowedByOrganization"));
         } else if (signUpResult.error === "User already exists") {

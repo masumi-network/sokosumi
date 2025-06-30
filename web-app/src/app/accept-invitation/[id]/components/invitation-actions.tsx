@@ -66,7 +66,6 @@ export default function InvitationActions({
       });
 
       if (result.error) {
-        console.error("Failed to accept invitation", result.error);
         toast.error(t("Accept.error"));
         return;
       }
@@ -91,7 +90,6 @@ export default function InvitationActions({
       });
 
       if (result.error) {
-        console.error("Failed to decline invitation", result.error);
         toast.error(t("Decline.error"));
         return;
       }
