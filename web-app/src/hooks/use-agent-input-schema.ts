@@ -11,29 +11,42 @@ export default function useAgentInputSchema(agentId: string) {
 
   useEffect(() => {
     if (agentId) {
-      setLoading(true);
-      fetch(`/api/agent/input-schema?agentId=${agentId}`)
-        .then((response) => {
+      const fetchAgentInputSchema = async () => {
+        try {
+          setLoading(true);
+          const response = await fetch(
+            `/api/agent/input-schema?agentId=${agentId}`,
+          );
           if (!response.ok) {
-            setError(new Error("Failed to get agent input schema"));
-          }
-          return response.json();
-        })
-        .then((schema) => {
-          const parsedResult = jobInputsDataSchema().safeParse(schema);
-          if (!parsedResult.success) {
-            setError(new Error("Failed to parse agent input schema"));
+            setError(new Error("Failed to fetch agent input schema"));
+            const error = await response.json();
+            console.error("Failed to fetch agent input schema", error);
           } else {
-            setData(parsedResult.data);
+            const data = await response.json();
+            const parsedResult = jobInputsDataSchema().safeParse(data);
+            if (!parsedResult.success) {
+              setError(new Error("Failed to parse agent input schema"));
+            } else {
+              setData(parsedResult.data);
+            }
           }
-        })
-        .catch((error) => {
-          setError(error);
-        })
-        .finally(() => {
+        } catch (error) {
+          console.error("Failed to fetch agent input schema", error);
+          setError(
+            new Error(
+              error instanceof Error
+                ? error.message
+                : "Failed to fetch agent input schema",
+            ),
+          );
+        } finally {
           setLoading(false);
-        });
+        }
+      };
+
+      fetchAgentInputSchema();
     }
+
     return () => {
       setData(null);
       setError(null);
