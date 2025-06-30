@@ -160,12 +160,6 @@ export default function BillingForm({
         case BillingErrorCode.PROMOTION_CODE_NOT_FOUND:
           toast.error(t("Errors.promotionCodeNotFound"));
           break;
-        case BillingErrorCode.GET_FREE_CREDITS_WITH_COUPON_ERROR:
-          toast.error(t("Errors.getFreeCreditsWithCouponError"));
-          break;
-        case BillingErrorCode.PURCHASE_CREDITS_ERROR:
-          toast.error(t("Errors.purchaseCreditsError"));
-          break;
         default:
           toast.error(t("Error.title"));
       }

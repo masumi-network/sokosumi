@@ -48,8 +48,8 @@ export async function claimFreeCredits(): Promise<
   } catch (error) {
     console.error("Failed to claim free credits:", error);
     return Err({
-      message: "Failed to claim free credits",
-      code: BillingErrorCode.CLAIM_FREE_CREDITS_ERROR,
+      message: "Internal server error",
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
     });
   }
 }
@@ -111,8 +111,8 @@ export async function getFreeCreditsWithCoupon(
     }
 
     return Err({
-      message: "Failed to get free credits with coupon",
-      code: BillingErrorCode.GET_FREE_CREDITS_WITH_COUPON_ERROR,
+      message: "Internal server error",
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
     });
   }
 }
@@ -148,8 +148,8 @@ export async function purchaseCredits(
   } catch (error) {
     console.error("Failed to purchase credits:", error);
     return Err({
-      message: "Failed to purchase credits",
-      code: BillingErrorCode.PURCHASE_CREDITS_ERROR,
+      message: "Internal server error",
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
     });
   }
 }

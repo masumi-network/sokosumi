@@ -776,9 +776,7 @@
         "couponNotFound": "Coupon code not found",
         "couponTypeError": "This coupon type is not supported",
         "couponCurrencyError": "Coupon currency is not supported",
-        "promotionCodeNotFound": "Promotion code not found",
-        "getFreeCreditsWithCouponError": "Failed to get free credits with coupon",
-        "purchaseCreditsError": "Failed to purchase credits"
+        "promotionCodeNotFound": "Promotion code not found"
       }
     },
     "Account": {
