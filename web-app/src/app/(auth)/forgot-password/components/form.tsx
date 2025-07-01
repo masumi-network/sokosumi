@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { forgotPasswordFormData } from "@/auth/forgot-password/data";
 import { useAsyncRouterPush } from "@/hooks/use-async-router";
-import { authClient } from "@/lib/auth/auth.client";
+import { forgetPassword } from "@/lib/auth/auth.client";
 import {
   forgotPasswordFormSchema,
   ForgotPasswordFormSchemaType,
@@ -34,21 +34,18 @@ export default function ForgotPasswordForm({
   });
 
   async function onSubmit(values: ForgotPasswordFormSchemaType) {
-    await authClient.forgetPassword(
-      {
-        email: values.email,
-        redirectTo: "/reset-password",
-      },
-      {
-        onError: () => {
-          toast.error(t("error"));
-        },
-        onSuccess: async () => {
-          toast.success(t("success"));
-          await router.push("/login");
-        },
-      },
-    );
+    const forgetPasswordResult = await forgetPassword({
+      email: values.email,
+      redirectTo: "/reset-password",
+    });
+
+    if (forgetPasswordResult.error) {
+      toast.error(t("error"));
+      return;
+    }
+
+    toast.success(t("success"));
+    await router.push("/login");
   }
 
   return (

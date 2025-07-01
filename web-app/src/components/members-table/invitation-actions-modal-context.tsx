@@ -31,14 +31,16 @@ export function InvitationActionsModalContextProvider({
   async function onAction(invitation: Invitation, action: InvitationAction) {
     switch (action) {
       case InvitationAction.CANCEL:
-        return await new Promise<{ error?: unknown }>((resolve) => {
-          authClient.organization.cancelInvitation(
-            { invitationId: invitation.id },
-            {
-              onError: ({ error }) => resolve({ error }),
-              onSuccess: () => resolve({}),
-            },
-          );
+        return await new Promise<{ error?: unknown }>(async (resolve) => {
+          const result = await authClient.organization.cancelInvitation({
+            invitationId: invitation.id,
+          });
+
+          if (result.error) {
+            resolve({ error: result.error });
+          }
+
+          resolve({});
         });
     }
   }

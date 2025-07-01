@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { signInFormData } from "@/auth/login/data";
 import { useAsyncRouterPush } from "@/hooks/use-async-router";
-import { authClient } from "@/lib/auth/auth.client";
+import { signIn } from "@/lib/auth/auth.client";
 import { signInFormSchema, SignInFormSchemaType } from "@/lib/schemas";
 
 interface SignInFormProps {
@@ -37,47 +37,44 @@ export default function SignInForm({
   });
 
   const onSubmit = async (values: SignInFormSchemaType) => {
-    await authClient.signIn.email(
-      {
-        email: values.email,
-        password: values.currentPassword,
-        rememberMe: values.rememberMe,
-      },
-      {
-        onError: (ctx) => {
-          switch (ctx.error.code) {
-            case "EMAIL_NOT_VERIFIED":
-              toast.error(t("Errors.verifyEmail"));
-              break;
-            case "TERMS_NOT_ACCEPTED":
-              toast.error(t("Errors.termsNotAccepted"));
-              break;
-            default:
-              toast.error(t("error"));
-              break;
-          }
-        },
-        onSuccess: async () => {
-          toast.success(t("success"));
-          // Redirect to the original URL if provided, otherwise go to /app
-          // Validate returnUrl to prevent open redirect attacks
-          let redirectUrl = "/app";
-          if (returnUrl) {
-            try {
-              // Only allow relative URLs or URLs from the same origin
-              const url = new URL(returnUrl, window.location.origin);
-              if (url.origin === window.location.origin) {
-                redirectUrl = returnUrl;
-              }
-            } catch {
-              // Invalid URL, fallback to /app
-            }
-          }
-          await router.push(redirectUrl);
-          router.refresh();
-        },
-      },
-    );
+    const singInResult = await signIn.email({
+      email: values.email,
+      password: values.currentPassword,
+      rememberMe: values.rememberMe,
+    });
+
+    if (singInResult.error) {
+      switch (singInResult.error.code) {
+        case "EMAIL_NOT_VERIFIED":
+          toast.error(t("Errors.verifyEmail"));
+          break;
+        case "TERMS_NOT_ACCEPTED":
+          toast.error(t("Errors.termsNotAccepted"));
+          break;
+        default:
+          toast.error(t("error"));
+          break;
+      }
+      return;
+    }
+
+    toast.success(t("success"));
+    // Redirect to the original URL if provided, otherwise go to /app
+    // Validate returnUrl to prevent open redirect attacks
+    let redirectUrl = "/app";
+    if (returnUrl) {
+      try {
+        // Only allow relative URLs or URLs from the same origin
+        const url = new URL(returnUrl, window.location.origin);
+        if (url.origin === window.location.origin) {
+          redirectUrl = returnUrl;
+        }
+      } catch {
+        // Invalid URL, fallback to /app
+      }
+    }
+    await router.push(redirectUrl);
+    router.refresh();
   };
 
   return (

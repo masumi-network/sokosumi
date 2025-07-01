@@ -38,20 +38,17 @@ export function NameForm() {
   });
 
   const onSubmit = async (values: NameFormType) => {
-    await authClient.updateUser(
-      {
-        name: values.name,
-      },
-      {
-        onError: () => {
-          toast.error(t("error"));
-        },
-        onSuccess: () => {
-          toast.success(t("success"));
-          form.reset();
-        },
-      },
-    );
+    const updateUserResult = await authClient.updateUser({
+      name: values.name,
+    });
+
+    if (updateUserResult.error) {
+      toast.error(t("error"));
+      return;
+    }
+
+    toast.success(t("success"));
+    form.reset();
   };
 
   return (

@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { resetPasswordFormData } from "@/auth/reset-password/data";
 import { useAsyncRouterPush } from "@/hooks/use-async-router";
-import { authClient } from "@/lib/auth/auth.client";
+import { resetPassword } from "@/lib/auth/auth.client";
 import {
   resetPasswordFormSchema,
   ResetPasswordFormSchemaType,
@@ -34,21 +34,18 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
   });
 
   async function onSubmit(values: ResetPasswordFormSchemaType) {
-    await authClient.resetPassword(
-      {
-        newPassword: values.password,
-        token: values.token,
-      },
-      {
-        onError: () => {
-          toast.error(t("error"));
-        },
-        onSuccess: async () => {
-          toast.success(t("success"));
-          await router.push("/login");
-        },
-      },
-    );
+    const resetPasswordResult = await resetPassword({
+      newPassword: values.password,
+      token: values.token,
+    });
+
+    if (resetPasswordResult.error) {
+      toast.error(t("error"));
+      return;
+    }
+
+    toast.success(t("success"));
+    await router.push("/login");
   }
 
   return (

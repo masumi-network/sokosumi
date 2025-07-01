@@ -23,7 +23,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { authClient } from "@/lib/auth/auth.client";
+import { changePassword } from "@/lib/auth/auth.client";
 import { passwordFormSchema, PasswordFormType } from "@/lib/schemas";
 
 export function PasswordForm() {
@@ -41,22 +41,19 @@ export function PasswordForm() {
   });
 
   const onSubmit = async (values: PasswordFormType) => {
-    await authClient.changePassword(
-      {
-        currentPassword: values.currentPassword,
-        newPassword: values.newPassword,
-        revokeOtherSessions: true,
-      },
-      {
-        onError: () => {
-          toast.error(t("error"));
-        },
-        onSuccess: () => {
-          toast.success(t("success"));
-          form.reset();
-        },
-      },
-    );
+    const changePasswordResult = await changePassword({
+      currentPassword: values.currentPassword,
+      newPassword: values.newPassword,
+      revokeOtherSessions: true,
+    });
+
+    if (changePasswordResult.error) {
+      toast.error(t("error"));
+      return;
+    }
+
+    toast.success(t("success"));
+    form.reset();
   };
 
   return (

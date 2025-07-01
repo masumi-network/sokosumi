@@ -32,7 +32,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { useAsyncRouterPush } from "@/hooks/use-async-router";
-import { authClient } from "@/lib/auth/auth.client";
+import { deleteUser } from "@/lib/auth/auth.client";
 import { DeleteAccountFormType, deleteAccountSchema } from "@/lib/schemas";
 
 export function DeleteAccountForm() {
@@ -49,20 +49,17 @@ export function DeleteAccountForm() {
   });
 
   const onSubmit = async (values: DeleteAccountFormType) => {
-    await authClient.deleteUser(
-      {
-        password: values.currentPassword,
-      },
-      {
-        onError: () => {
-          toast.error(t("error"));
-        },
-        onSuccess: async () => {
-          toast.success(t("success"));
-          await router.push("/");
-        },
-      },
-    );
+    const deleteUserResult = await deleteUser({
+      password: values.currentPassword,
+    });
+
+    if (deleteUserResult.error) {
+      toast.error(t("error"));
+      return;
+    }
+
+    toast.success(t("success"));
+    await router.push("/");
   };
 
   return (
