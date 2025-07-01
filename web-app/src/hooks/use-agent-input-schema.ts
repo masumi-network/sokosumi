@@ -15,20 +15,20 @@ export default function useAgentInputSchema(agentId: string) {
         try {
           setLoading(true);
           const response = await fetch(
-            `/api/agent/input-schema?agentId=${agentId}`,
+            `/api/agent/input-schema?agentId=${encodeURIComponent(agentId)}`,
           );
           if (!response.ok) {
             setError(new Error("Failed to fetch agent input schema"));
             const error = await response.json();
             console.error("Failed to fetch agent input schema", error);
+            return;
+          }
+          const data = await response.json();
+          const parsedResult = jobInputsDataSchema().safeParse(data);
+          if (!parsedResult.success) {
+            setError(new Error("Failed to parse agent input schema"));
           } else {
-            const data = await response.json();
-            const parsedResult = jobInputsDataSchema().safeParse(data);
-            if (!parsedResult.success) {
-              setError(new Error("Failed to parse agent input schema"));
-            } else {
-              setData(parsedResult.data);
-            }
+            setData(parsedResult.data);
           }
         } catch (error) {
           console.error("Failed to fetch agent input schema", error);
