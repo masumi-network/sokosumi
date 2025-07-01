@@ -52,7 +52,7 @@ export const createOrganizationSchema = (
   z.object({
     name: z
       .string()
-      .min(3, { message: t?.("Organization.min") })
+      .min(2, { message: t?.("Organization.min") })
       .max(50, { message: t?.("Organization.max") }),
   });
 
