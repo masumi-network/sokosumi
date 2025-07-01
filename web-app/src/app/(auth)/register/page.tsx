@@ -1,4 +1,5 @@
 import { Metadata } from "next";
+import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { retrieveOrganizationsWithRelations } from "@/lib/db/repositories";
@@ -24,6 +25,13 @@ export default async function SignUp({ searchParams }: SignUpPageProps) {
 
   const organizations = await retrieveOrganizationsWithRelations();
 
+  const prefilledOrganization = organizationId
+    ? organizations.find((organization) => organization.id === organizationId)
+    : null;
+  if (!!organizationId && !prefilledOrganization) {
+    notFound();
+  }
+
   return (
     <div className="flex flex-1 flex-col">
       <SignUpHeader />
@@ -32,7 +40,7 @@ export default async function SignUp({ searchParams }: SignUpPageProps) {
         <SignUpForm
           organizations={organizations}
           prefilledEmail={email}
-          prefilledOrganizationId={organizationId}
+          prefilledOrganizationId={prefilledOrganization?.id}
         />
       </div>
     </div>
