@@ -15,9 +15,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { CreateOrganizationSchemaType } from "@/lib/schemas";
 import { getEmailDomain } from "@/lib/utils";
-
-import { CreateOrganizationSchemaType } from "./data";
 
 interface CreateOrganizationProps {
   email: string;

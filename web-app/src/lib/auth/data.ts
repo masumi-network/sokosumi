@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { getEnvPublicConfig } from "@/config/env.public";
+import { createOrganizationSchema } from "@/lib/schemas";
 
 export const nameSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z
@@ -45,13 +46,7 @@ export const organizationSchema = (
     .min(1, {
       message: t?.("Organization.required"),
     })
-    .or(
-      z.object({
-        name: z.string({ message: t?.("Organization.invalid") }).min(1, {
-          message: t?.("Organization.required"),
-        }),
-      }),
-    );
+    .or(createOrganizationSchema(t));
 
 export const confirmPasswordSchema = (
   t?: IntlTranslation<"Library.Auth.Schema">,

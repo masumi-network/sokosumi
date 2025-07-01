@@ -21,11 +21,14 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { OrganizationWithRelations } from "@/lib/db";
+import {
+  createOrganizationSchema,
+  CreateOrganizationSchemaType,
+} from "@/lib/schemas";
 import { cn, isValidEmail } from "@/lib/utils";
 import { Organization } from "@/prisma/generated/client";
 
 import CreateOrganization from "./create-organization";
-import { createOrganizationSchema, CreateOrganizationSchemaType } from "./data";
 
 interface OrganizationInputProps {
   email: string;
@@ -48,11 +51,7 @@ export default function OrganizationInput({
 
   const createOrganizationForm = useForm<CreateOrganizationSchemaType>({
     resolver: zodResolver(
-      createOrganizationSchema(
-        useTranslations(
-          "Auth.Pages.SignUp.Form.Fields.Organization.Schema.Name",
-        ),
-      ),
+      createOrganizationSchema(useTranslations("Library.Auth.Schema")),
     ),
     defaultValues: {
       name: "",

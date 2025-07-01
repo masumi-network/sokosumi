@@ -614,15 +614,7 @@
               "createPlaceholder": "New organization name",
               "success": "Organization created successfully",
               "error": "Failed to create organization",
-              "invalidEmail": "Input valid email to see or create organizations",
-              "Schema": {
-                "Name": {
-                  "min": "Organization name must be at least 2 characters.",
-                  "max": "Organization name must be at most 50 characters.",
-                  "invalid": "Organization name is required.",
-                  "required": "Organization name is required."
-                }
-              }
+              "invalidEmail": "Input valid email to see or create organizations"
             },
             "Password": {
               "placeholder": "Password"
@@ -1013,7 +1005,9 @@
         },
         "Organization": {
           "invalid": "Organization must be a valid string.",
-          "required": "Organization is required"
+          "required": "Organization is required",
+          "min": "Organization name must be at least 2 characters.",
+          "max": "Organization name must be at most 50 characters."
         },
         "Password": {
           "invalid": "Password must be a valid string.",
