@@ -2,8 +2,8 @@ import "server-only";
 
 import { InvitationWithRelations } from "@/lib/db";
 import {
-  retrieveInvitationById,
   retrieveMemberByUserIdAndOrganizationId,
+  retrievePendingInvitationById,
 } from "@/lib/db/repositories";
 
 import { InvitationErrorCode } from "./types";
@@ -17,7 +17,7 @@ export async function getInvitation(id: string): Promise<
       invitation: InvitationWithRelations;
     }
 > {
-  const invitation = await retrieveInvitationById(id);
+  const invitation = await retrievePendingInvitationById(id);
 
   if (!invitation) {
     return {

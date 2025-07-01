@@ -5,12 +5,12 @@ import { Prisma } from "@/prisma/generated/client";
 
 import prisma from "./prisma";
 
-export async function retrieveInvitationById(
+export async function retrievePendingInvitationById(
   id: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<InvitationWithRelations | null> {
   return tx.invitation.findUnique({
-    where: { id },
+    where: { id, status: "pending" },
     include: invitationInclude,
   });
 }
