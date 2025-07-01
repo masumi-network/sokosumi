@@ -55,8 +55,8 @@ export async function signUpEmail(
     const parsed = await signUpFormSchema().safeParseAsync(data);
     if (!parsed.success) {
       return Err({
-        message: "Bad Request",
-        code: CommonErrorCode.BAD_REQUEST,
+        message: "Bad Input",
+        code: CommonErrorCode.BAD_INPUT,
       });
     }
 

@@ -100,8 +100,8 @@ export default function JobInputsFormClient({
             },
           });
           break;
-        case JobErrorCode.INVALID_INPUT:
-          toast.error(t("Error.invalidInput"));
+        case CommonErrorCode.BAD_INPUT:
+          toast.error(t("Error.badInput"));
           break;
         case JobErrorCode.INSUFFICIENT_BALANCE:
           toast.error(t("Error.insufficientBalance"), {

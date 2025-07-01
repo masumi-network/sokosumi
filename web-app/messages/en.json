@@ -632,7 +632,7 @@
             }
           },
           "Errors": {
-            "badRequest": "Please input form correctly.",
+            "badInput": "Please input form correctly.",
             "organizationNotFound": "Organization not found",
             "memberCreateFailed": "Failed to create organization member",
             "emailNotAllowedByOrganization": "Email not allowed to join organization",
@@ -1125,7 +1125,7 @@
         "Error": {
           "insufficientBalance": "Your credit balance is insufficient to start this job.",
           "insufficientBalanceAction": "Buy credits",
-          "invalidInput": "Your input data is invalid.",
+          "badInput": "Your input data is invalid.",
           "unauthenticated": "You must be logged in to start a job.",
           "unauthenticatedAction": "Login",
           "default": "Failed to start the job."

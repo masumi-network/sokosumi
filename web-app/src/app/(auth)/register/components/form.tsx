@@ -71,8 +71,8 @@ export default function SignUpForm({
       router.push("/login");
     } else {
       switch (result.error.code) {
-        case CommonErrorCode.BAD_REQUEST:
-          toast.error(t("Errors.badRequest"));
+        case CommonErrorCode.BAD_INPUT:
+          toast.error(t("Errors.badInput"));
           break;
         case AuthErrorCode.ORGANIZATION_NOT_FOUND:
           toast.error(t("Errors.organizationNotFound"));

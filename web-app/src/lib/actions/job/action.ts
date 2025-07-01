@@ -39,8 +39,8 @@ export async function startJobWithInputData(
     const parsedResult = startJobInputSchema.safeParse(inputDataForService);
     if (!parsedResult.success) {
       return Err({
-        message: "Invalid input",
-        code: JobErrorCode.INVALID_INPUT,
+        message: "Bad Input",
+        code: CommonErrorCode.BAD_INPUT,
       });
     }
 
