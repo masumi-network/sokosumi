@@ -51,6 +51,16 @@ export async function signUpEmail(
     ActionError
   >
 > {
+  let actionError: ActionError = {
+    code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+    message: "Internal server error",
+  };
+  let result: {
+    organization: Organization;
+    user: User;
+    member: Member;
+  };
+
   try {
     const parsedResult = signUpFormSchema().safeParse(data);
     if (!parsedResult.success) {
@@ -61,127 +71,100 @@ export async function signUpEmail(
     }
     const parsed = parsedResult.data;
 
-    let actionError: ActionError = {
-      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-      message: "Internal server error",
-    };
-    let result:
-      | {
-          organization: Organization;
-          user: User;
-          member: Member;
+    result = await prisma.$transaction(async (tx) => {
+      let organization: Organization;
+      if (typeof parsed.organization === "string") {
+        const retrievedOrganization =
+          await retrieveOrganizationWithRelationsById(parsed.organization, tx);
+        if (!retrievedOrganization) {
+          actionError = {
+            code: AuthErrorCode.ORGANIZATION_NOT_FOUND,
+            message: "Organization not found",
+          };
+          throw new Error("Organization not found");
         }
-      | undefined;
-    try {
-      await prisma.$transaction(async (tx) => {
-        let organization: Organization;
-        if (typeof parsed.organization === "string") {
-          const retrievedOrganization =
-            await retrieveOrganizationWithRelationsById(
-              parsed.organization,
-              tx,
-            );
-          if (!retrievedOrganization) {
-            actionError = {
-              code: AuthErrorCode.ORGANIZATION_NOT_FOUND,
-              message: "Organization not found",
-            };
-            throw new Error("Organization not found");
-          }
-          organization = retrievedOrganization;
+        organization = retrievedOrganization;
 
-          // check whether user has invitation or his email domain is allowed by organization
-          const updatedInvitations =
-            await acceptPendingInvitationsByEmailAndOrganizationId(
-              parsed.email,
-              organization.id,
-              tx,
-            );
-          const userEmailDomain = getEmailDomain(parsed.email);
-          if (
-            updatedInvitations.count === 0 &&
-            (!userEmailDomain ||
-              !organization.requiredEmailDomains.includes(userEmailDomain))
-          ) {
-            actionError = {
-              code: AuthErrorCode.EMAIL_NOT_ALLOWED_BY_ORGANIZATION,
-              message: "Email not allowed by organization",
-            };
-            throw new Error("Email not allowed by organization");
-          }
-        } else {
-          const emailDomain = getEmailDomain(parsed.email);
-          const requiredEmailDomains = removePublicDomains([emailDomain]);
-          const slug = await generateOrganizationSlugFromName(
-            parsed.organization.name,
-          );
-
-          const createdOrganization = await createOrganization(
-            slug,
-            parsed.organization.name,
-            requiredEmailDomains,
+        // check whether user has invitation or his email domain is allowed by organization
+        const updatedInvitations =
+          await acceptPendingInvitationsByEmailAndOrganizationId(
+            parsed.email,
+            organization.id,
             tx,
           );
-          if (!createdOrganization) {
-            actionError = {
-              code: AuthErrorCode.ORGANIZATION_CREATE_FAILED,
-              message: "Organization creation failed",
-            };
-            throw new Error("Organization creation failed");
-          }
-          organization = createdOrganization;
-        }
-
-        const signUpResult = await auth.api.signUpEmail({
-          body: {
-            email: parsed.email,
-            name: parsed.name,
-            password: parsed.password,
-            callbackURL: "/app",
-            termsAccepted: parsed.termsAccepted,
-          },
-        });
-        const user = signUpResult.user;
-        if (!user) {
-          console.error("Sign up email returned no user");
+        const userEmailDomain = getEmailDomain(parsed.email);
+        if (
+          updatedInvitations.count === 0 &&
+          (!userEmailDomain ||
+            !organization.requiredEmailDomains.includes(userEmailDomain))
+        ) {
           actionError = {
-            code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-            message: "Internal server error",
+            code: AuthErrorCode.EMAIL_NOT_ALLOWED_BY_ORGANIZATION,
+            message: "Email not allowed by organization",
           };
-          throw new Error("Internal server error");
+          throw new Error("Email not allowed by organization");
         }
+      } else {
+        const emailDomain = getEmailDomain(parsed.email);
+        const requiredEmailDomains = removePublicDomains([emailDomain]);
+        const slug = await generateOrganizationSlugFromName(
+          parsed.organization.name,
+        );
 
-        // check if organization has any members
-        // if there are no members, the create as ADMIN
-        actionError = {
-          code: AuthErrorCode.MEMBER_CREATE_FAILED,
-          message: "Member creation failed",
-        };
-        const members = await retrieveMembersByOrganizationId(
-          organization.id,
+        const createdOrganization = await createOrganization(
+          slug,
+          parsed.organization.name,
+          requiredEmailDomains,
           tx,
         );
-        const role =
-          members.length === 0 ? MemberRole.ADMIN : MemberRole.MEMBER;
-        const member = await createMember(user.id, organization.id, role, tx);
+        if (!createdOrganization) {
+          actionError = {
+            code: AuthErrorCode.ORGANIZATION_CREATE_FAILED,
+            message: "Organization creation failed",
+          };
+          throw new Error("Organization creation failed");
+        }
+        organization = createdOrganization;
+      }
 
-        result = { organization, user, member };
+      const signUpResult = await auth.api.signUpEmail({
+        body: {
+          email: parsed.email,
+          name: parsed.name,
+          password: parsed.password,
+          callbackURL: "/app",
+          termsAccepted: parsed.termsAccepted,
+        },
       });
-    } catch (error) {
-      actionError = {
-        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-        message: "Internal server error",
-      };
-      throw error;
-    }
+      const user = signUpResult.user;
+      if (!user) {
+        console.error("Sign up email returned no user");
+        actionError = {
+          code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+          message: "Internal server error",
+        };
+        throw new Error("Internal server error");
+      }
 
-    return result ? Ok(result) : Err(actionError);
+      // check if organization has any members
+      // if there are no members, the create as ADMIN
+      actionError = {
+        code: AuthErrorCode.MEMBER_CREATE_FAILED,
+        message: "Member creation failed",
+      };
+      const members = await retrieveMembersByOrganizationId(
+        organization.id,
+        tx,
+      );
+      const role = members.length === 0 ? MemberRole.ADMIN : MemberRole.MEMBER;
+      const member = await createMember(user.id, organization.id, role, tx);
+
+      return { organization, user, member };
+    });
+
+    return Ok(result);
   } catch (error) {
     console.error("Failed to sign up email", error);
-    let actionError: ActionError = {
-      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-      message: "Internal server error",
-    };
 
     const parsedBetterAuthApiErrorResult =
       betterAuthApiErrorSchema.safeParse(error);
