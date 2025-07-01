@@ -10,8 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { authClient } from "@/lib/auth/auth.client";
 import { MemberRole } from "@/lib/db";
+import { inviteFormData, InviteFormSchemaType } from "@/lib/schemas";
 
-import { inviteFormData, InviteFormSchemaType } from "./data";
 import { FormFields } from "./form-fields";
 
 interface OrganizationMemberInviteFormProps {
