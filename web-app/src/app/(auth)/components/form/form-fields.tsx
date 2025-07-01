@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ControllerRenderProps,
   FieldValues,
@@ -104,6 +104,8 @@ export function FormInput<T extends FieldValues>({
     prefilledOrganization ??
       allowedOrganizations.find((org) => org.id === field.value?.id),
   );
+  const abortControllerRef = useRef<AbortController | null>(null);
+
   useEffect(() => {
     if (name != "selectedOrganization") return;
     if (prefilledOrganization) {
@@ -115,20 +117,43 @@ export function FormInput<T extends FieldValues>({
 
   const debouncedGetAllowedOrganizations = useDebouncedCallback(
     async (email: string, organizationId: string | null) => {
-      const encodedEmail = encodeURIComponent(email);
-      const encodedOrganizationId = organizationId
-        ? encodeURIComponent(organizationId)
-        : "";
-      const result = await fetch(
-        `/api/organization/allowed-to-join?email=${encodedEmail}&organizationId=${encodedOrganizationId}`,
-      );
-      if (!result.ok) {
-        return [];
+      // Cancel any ongoing request
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
       }
-      const data = await result.json();
-      setAllowedOrganizations(data.allowedOrganizations);
-      if (email === form.getValues("email" as unknown as Path<T>)) {
-        setIsLoading(false);
+
+      const abortController = new AbortController();
+      abortControllerRef.current = abortController;
+
+      try {
+        const encodedEmail = encodeURIComponent(email);
+        const encodedOrganizationId = organizationId
+          ? encodeURIComponent(organizationId)
+          : "";
+        const result = await fetch(
+          `/api/organization/allowed-to-join?email=${encodedEmail}&organizationId=${encodedOrganizationId}`,
+          {
+            signal: abortController.signal,
+          },
+        );
+        console.log("result", result);
+        if (!result.ok) {
+          return [];
+        }
+
+        const data = await result.json();
+        if (email === form.getValues("email" as unknown as Path<T>)) {
+          setAllowedOrganizations(data.allowedOrganizations);
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.log("error", error);
+        // Only handle errors that aren't from aborting
+        if (error instanceof Error && error.name !== "AbortError") {
+          console.error(error);
+          setIsLoading(false);
+          setAllowedOrganizations([]);
+        }
       }
     },
     350,
@@ -140,6 +165,13 @@ export function FormInput<T extends FieldValues>({
     try {
       setIsLoading(true);
       debouncedGetAllowedOrganizations.cancel();
+
+      // Cancel any ongoing request when email changes
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+
       if (!isValidEmail(email)) {
         setIsLoading(false);
         setAllowedOrganizations([]);
