@@ -2,21 +2,6 @@ import { z } from "zod";
 
 import { isValidDomain } from "@/lib/utils";
 
-export const getAllowedOrganizationsSchema = (
-  t?: IntlTranslation<"Library.Auth.Schema">,
-) =>
-  z.object({
-    email: z
-      .string({ message: t?.("Email.invalid") })
-      .min(1, t?.("Email.min"))
-      .max(250, t?.("Email.max")),
-    organizationId: z
-      .string({ message: t?.("Organization.invalid") })
-      .min(1, t?.("Organization.min"))
-      .max(250, t?.("Organization.max"))
-      .nullable(),
-  });
-
 export const updateOrganizationInformationFormSchema = (
   t?: IntlTranslation<"Components.Organizations.EditInformationModal.Schema">,
 ) =>
