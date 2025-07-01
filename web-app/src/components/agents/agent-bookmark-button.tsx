@@ -38,7 +38,6 @@ export function AgentBookmarkButton({
       agentList.id,
       isBookmarked,
     );
-    console.log(result);
 
     if (result.ok) {
       setIsBookmarked(!isBookmarked);
@@ -48,9 +47,6 @@ export function AgentBookmarkButton({
         toast.success(t("addedToBookmarks"));
       }
     } else {
-      console.log({
-        type: typeof result.error,
-      });
       toast.error(t("bookmarkError"));
     }
     setIsLoading(false);
