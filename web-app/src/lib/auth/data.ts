@@ -50,7 +50,10 @@ export const createOrganizationSchema = (
   t?: IntlTranslation<"Library.Auth.Schema">,
 ) =>
   z.object({
-    name: z.string().min(3, { message: t?.("Organization.min") }),
+    name: z
+      .string()
+      .min(3, { message: t?.("Organization.min") })
+      .max(50, { message: t?.("Organization.max") }),
   });
 
 export const confirmPasswordSchema = (
