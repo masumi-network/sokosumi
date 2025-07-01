@@ -2,13 +2,13 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { signInFormData } from "@/auth/login/data";
+import { useAsyncRouterPush } from "@/hooks/use-async-router";
 import { authClient } from "@/lib/auth/auth.client";
 import { signInFormSchema, SignInFormSchemaType } from "@/lib/schemas";
 
@@ -23,7 +23,7 @@ export default function SignInForm({
 }: SignInFormProps) {
   const t = useTranslations("Auth.Pages.SignIn.Form");
 
-  const router = useRouter();
+  const router = useAsyncRouterPush();
 
   const form = useForm<SignInFormSchemaType>({
     resolver: zodResolver(
@@ -57,7 +57,7 @@ export default function SignInForm({
               break;
           }
         },
-        onSuccess: () => {
+        onSuccess: async () => {
           toast.success(t("success"));
           // Redirect to the original URL if provided, otherwise go to /app
           // Validate returnUrl to prevent open redirect attacks
@@ -73,7 +73,7 @@ export default function SignInForm({
               // Invalid URL, fallback to /app
             }
           }
-          router.push(redirectUrl);
+          await router.push(redirectUrl);
           router.refresh();
         },
       },

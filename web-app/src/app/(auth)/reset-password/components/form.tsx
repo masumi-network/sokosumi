@@ -1,13 +1,13 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { resetPasswordFormData } from "@/auth/reset-password/data";
+import { useAsyncRouterPush } from "@/hooks/use-async-router";
 import { authClient } from "@/lib/auth/auth.client";
 import {
   resetPasswordFormSchema,
@@ -20,7 +20,7 @@ interface ResetPasswordFormProps {
 
 export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
   const t = useTranslations("Auth.Pages.ResetPassword.Form");
-  const router = useRouter();
+  const router = useAsyncRouterPush();
 
   const form = useForm<ResetPasswordFormSchemaType>({
     resolver: zodResolver(
@@ -43,9 +43,9 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
         onError: () => {
           toast.error(t("error"));
         },
-        onSuccess: () => {
+        onSuccess: async () => {
           toast.success(t("success"));
-          router.push("/login");
+          await router.push("/login");
         },
       },
     );

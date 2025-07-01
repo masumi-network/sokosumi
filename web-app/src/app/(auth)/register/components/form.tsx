@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
@@ -10,6 +9,7 @@ import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { signUpFormData } from "@/auth/register/data";
+import { useAsyncRouterPush } from "@/hooks/use-async-router";
 import { AuthErrorCode, CommonErrorCode, signUpEmail } from "@/lib/actions";
 import { OrganizationWithRelations } from "@/lib/db";
 import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
@@ -27,7 +27,7 @@ export default function SignUpForm({
 }: SignUpFormProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form");
 
-  const router = useRouter();
+  const router = useAsyncRouterPush();
   const form = useForm<SignUpFormSchemaType>({
     resolver: zodResolver(
       signUpFormSchema(useTranslations("Library.Auth.Schema")),
@@ -65,7 +65,7 @@ export default function SignUpForm({
 
     if (result.ok) {
       toast.success(t("success"));
-      router.push("/login");
+      await router.push("/login");
     } else {
       switch (result.error.code) {
         case CommonErrorCode.BAD_INPUT:

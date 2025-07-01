@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -27,6 +26,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { useAsyncRouterPush } from "@/hooks/use-async-router";
 import {
   BillingErrorCode,
   CommonErrorCode,
@@ -74,7 +74,7 @@ export default function BillingForm({
 }: BillingFormProps) {
   const t = useTranslations("App.Billing");
   const formatter = useFormatter();
-  const router = useRouter();
+  const router = useAsyncRouterPush();
 
   const [clearedField, setClearedField] = useState<"credits" | "coupon" | null>(
     null,
@@ -146,8 +146,8 @@ export default function BillingForm({
           toast.error(t("Errors.unauthenticated"), {
             action: {
               label: t("Errors.unauthenticatedAction"),
-              onClick: () => {
-                router.push(`/login`);
+              onClick: async () => {
+                await router.push(`/login`);
               },
             },
           });

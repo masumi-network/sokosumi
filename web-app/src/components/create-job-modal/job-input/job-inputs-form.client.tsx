@@ -3,7 +3,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import React from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
@@ -62,7 +61,6 @@ export default function JobInputsFormClient({
     mode: "onChange",
   });
   const asyncRouter = useAsyncRouterPush();
-  const router = useRouter();
 
   // create job modal context
   const { setLoading, handleClose } = useCreateJobModalContext();
@@ -94,8 +92,8 @@ export default function JobInputsFormClient({
           toast.error(t("Error.unauthenticated"), {
             action: {
               label: t("Error.unauthenticatedAction"),
-              onClick: () => {
-                router.push(`/login`);
+              onClick: async () => {
+                await asyncRouter.push(`/login`);
               },
             },
           });
@@ -107,8 +105,8 @@ export default function JobInputsFormClient({
           toast.error(t("Error.insufficientBalance"), {
             action: {
               label: t("Error.insufficientBalanceAction"),
-              onClick: () => {
-                router.push(`/app/billing`);
+              onClick: async () => {
+                await asyncRouter.push(`/app/billing`);
               },
             },
           });

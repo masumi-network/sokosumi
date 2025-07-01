@@ -1,12 +1,12 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { useAsyncRouterPush } from "@/hooks/use-async-router";
 import {
   BillingErrorCode,
   claimFreeCredits,
@@ -15,7 +15,7 @@ import {
 
 export default function FreeCreditsButton() {
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  const router = useAsyncRouterPush();
   const t = useTranslations("App.Billing.FreeClaim");
 
   const handleFreeClaim = async () => {
@@ -30,8 +30,8 @@ export default function FreeCreditsButton() {
           toast.error(t("Errors.unauthenticated"), {
             action: {
               label: t("Errors.unauthenticatedAction"),
-              onClick: () => {
-                router.push(`/login`);
+              onClick: async () => {
+                await router.push(`/login`);
               },
             },
           });
