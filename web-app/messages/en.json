@@ -1006,7 +1006,7 @@
         "Organization": {
           "invalid": "Organization must be a valid string.",
           "required": "Organization is required",
-          "min": "Organization name must be at least 3 characters.",
+          "min": "Organization name must be at least 2 characters.",
           "max": "Organization name must be at most 50 characters."
         },
         "Password": {
