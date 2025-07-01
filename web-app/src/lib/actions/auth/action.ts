@@ -106,6 +106,13 @@ export async function signUpEmail(
         }
       } else {
         const emailDomain = getEmailDomain(parsed.email);
+        if (!emailDomain) {
+          actionError = {
+            code: AuthErrorCode.EMAIL_DOMAIN_INVALID,
+            message: "Email domain is invalid",
+          };
+          throw new Error("Email domain is invalid");
+        }
         const requiredEmailDomains = removePublicDomains([emailDomain]);
         const slug = await generateOrganizationSlugFromName(
           parsed.organization.name,
