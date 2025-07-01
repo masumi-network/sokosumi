@@ -167,7 +167,12 @@ function FormInput<T extends FieldValues>({
         ? allowedOrganizations.find(
             (organization) => organization.id === field.value,
           )
-        : { name: field.value.name };
+        : field.value &&
+            typeof field.value === "object" &&
+            "name" in field.value &&
+            field.value.name
+          ? { name: field.value.name }
+          : undefined;
     const handleOrganizationChange = (data: string | { name: string }) => {
       field.onChange(data);
     };
