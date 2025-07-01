@@ -2,6 +2,7 @@ import "server-only";
 
 import {
   organizationInclude,
+  organizationMembersCountInclude,
   organizationOrderBy,
   OrganizationWithRelations,
 } from "@/lib/db/types";
@@ -26,6 +27,18 @@ export async function createOrganization(
 ): Promise<Organization> {
   return await tx.organization.create({
     data: { slug, name, requiredEmailDomains },
+  });
+}
+
+export async function retrieveOrganizationsAllowedBySpecificEmailDomain(
+  emailDomain: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<OrganizationWithRelations[]> {
+  return await tx.organization.findMany({
+    where: {
+      requiredEmailDomains: { has: emailDomain },
+    },
+    include: { ...organizationMembersCountInclude },
   });
 }
 

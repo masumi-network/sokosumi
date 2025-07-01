@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
-import { retrieveOrganizationsWithRelations } from "@/lib/db/repositories";
+import { retrieveOrganizationWithRelationsById } from "@/lib/db/repositories/organization";
 
 import SignUpForm from "./components/form";
 import SignUpHeader from "./components/header";
@@ -22,14 +22,11 @@ interface SignUpPageProps {
 
 export default async function SignUp({ searchParams }: SignUpPageProps) {
   const { email, organizationId } = await searchParams;
-
-  const organizations = await retrieveOrganizationsWithRelations();
-
   const prefilledOrganization = organizationId
-    ? organizations.find((organization) => organization.id === organizationId)
+    ? await retrieveOrganizationWithRelationsById(organizationId)
     : null;
   if (!!organizationId && !prefilledOrganization) {
-    notFound();
+    return notFound();
   }
 
   return (
@@ -38,9 +35,8 @@ export default async function SignUp({ searchParams }: SignUpPageProps) {
       <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
         {/* <SocialButtons /> */}
         <SignUpForm
-          organizations={organizations}
           prefilledEmail={email}
-          prefilledOrganizationId={prefilledOrganization?.id}
+          prefilledOrganization={prefilledOrganization}
         />
       </div>
     </div>

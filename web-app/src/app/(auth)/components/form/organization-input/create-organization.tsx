@@ -21,7 +21,7 @@ import { getEmailDomain } from "@/lib/utils";
 interface CreateOrganizationProps {
   email: string;
   form: UseFormReturn<CreateOrganizationSchemaType>;
-  onAfterCreate: (data: string | { name: string }) => void;
+  onAfterCreate: (data: { name: string }) => void;
   onBack: () => void;
 }
 

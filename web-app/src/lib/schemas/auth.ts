@@ -5,8 +5,8 @@ import {
   emailSchema,
   inputPasswordSchema,
   nameSchema,
-  organizationSchema,
   passwordSchema,
+  selectedOrganizationSchema,
 } from "@/lib/auth/data";
 
 export const signInFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
@@ -25,7 +25,7 @@ export const signUpFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
       email: emailSchema(t),
       password: passwordSchema(t),
       confirmPassword: confirmPasswordSchema(t),
-      organization: organizationSchema(t),
+      selectedOrganization: selectedOrganizationSchema(t),
       termsAccepted: z.boolean(),
       marketingOptIn: z.boolean().optional(),
     })

@@ -73,9 +73,12 @@ export async function signUpEmail(
 
     result = await prisma.$transaction(async (tx) => {
       let organization: Organization;
-      if (typeof parsed.organization === "string") {
+      if ("id" in parsed.selectedOrganization) {
         const retrievedOrganization =
-          await retrieveOrganizationWithRelationsById(parsed.organization, tx);
+          await retrieveOrganizationWithRelationsById(
+            parsed.selectedOrganization.id,
+            tx,
+          );
         if (!retrievedOrganization) {
           actionError = {
             code: AuthErrorCode.ORGANIZATION_NOT_FOUND,
@@ -115,12 +118,12 @@ export async function signUpEmail(
         }
         const requiredEmailDomains = removePublicDomains([emailDomain]);
         const slug = await generateOrganizationSlugFromName(
-          parsed.organization.name,
+          parsed.selectedOrganization.name,
         );
 
         const createdOrganization = await createOrganization(
           slug,
-          parsed.organization.name,
+          parsed.selectedOrganization.name,
           requiredEmailDomains,
           tx,
         );

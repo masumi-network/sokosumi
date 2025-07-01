@@ -14,7 +14,7 @@ export const signUpFormData: FormData<
     placeholderKey: "Fields.Email.placeholder",
   },
   {
-    name: "organization",
+    name: "selectedOrganization",
   },
   {
     name: "password",

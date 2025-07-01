@@ -15,15 +15,13 @@ import { OrganizationWithRelations } from "@/lib/db";
 import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
 
 interface SignUpFormProps {
-  organizations: OrganizationWithRelations[];
   prefilledEmail?: string | undefined;
-  prefilledOrganizationId?: string | undefined;
+  prefilledOrganization?: OrganizationWithRelations | null;
 }
 
 export default function SignUpForm({
-  organizations,
   prefilledEmail,
-  prefilledOrganizationId,
+  prefilledOrganization,
 }: SignUpFormProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form");
 
@@ -37,7 +35,7 @@ export default function SignUpForm({
       name: "",
       password: "",
       confirmPassword: "",
-      organization: prefilledOrganizationId ?? "",
+      selectedOrganization: prefilledOrganization ?? undefined,
       termsAccepted: false,
       marketingOptIn: false,
     },
@@ -45,12 +43,15 @@ export default function SignUpForm({
 
   const email = form.watch("email");
   useEffect(() => {
-    if (prefilledOrganizationId) {
-      form.setValue("organization", prefilledOrganizationId);
+    if (prefilledOrganization) {
+      form.setValue("selectedOrganization", prefilledOrganization);
       return;
     }
-    form.setValue("organization", "");
-  }, [email, form, prefilledOrganizationId]);
+    form.setValue("selectedOrganization", {
+      id: "",
+      name: "",
+    });
+  }, [email, form, prefilledOrganization]);
 
   const onSubmit = async (values: SignUpFormSchemaType) => {
     const result = await signUpEmail({
@@ -60,7 +61,7 @@ export default function SignUpForm({
       confirmPassword: values.confirmPassword,
       termsAccepted: values.termsAccepted,
       marketingOptIn: values.marketingOptIn,
-      organization: values.organization,
+      selectedOrganization: values.selectedOrganization,
     });
 
     if (result.ok) {
@@ -103,10 +104,9 @@ export default function SignUpForm({
       form={form}
       formData={signUpFormData}
       prefilledEmail={prefilledEmail}
-      prefilledOrganizationId={prefilledOrganizationId}
+      prefilledOrganization={prefilledOrganization}
       namespace="Auth.Pages.SignUp.Form"
       onSubmit={onSubmit}
-      organizations={organizations}
     >
       <div className="flex flex-col gap-4">
         <SubmitButton

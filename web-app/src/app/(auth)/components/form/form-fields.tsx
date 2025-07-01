@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
 import {
   ControllerRenderProps,
   FieldValues,
   Path,
   UseFormReturn,
 } from "react-hook-form";
-import z from "zod";
+import { useDebouncedCallback } from "use-debounce";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -19,11 +20,10 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  filterAllowedOrganizations,
-  OrganizationWithRelations,
-} from "@/lib/db";
+import { getAllowedOrganizationsByEmailPartial } from "@/lib/actions/organization/action";
+import { OrganizationWithRelations } from "@/lib/db/types/organization";
 import { FormData } from "@/lib/form";
+import { isValidEmail } from "@/lib/utils";
 
 import { OrganizationInput } from "./organization-input";
 import { AuthNamespace } from "./types";
@@ -32,18 +32,16 @@ interface FormFieldsProps<T extends FieldValues> {
   form: UseFormReturn<T>;
   formData: FormData<T, AuthNamespace>;
   prefilledEmail?: string | undefined;
-  prefilledOrganizationId?: string | undefined;
+  prefilledOrganization?: OrganizationWithRelations | null;
   namespace: AuthNamespace;
-  organizations?: OrganizationWithRelations[] | undefined;
 }
 
 export function FormFields<T extends FieldValues>({
   form,
   formData,
   prefilledEmail,
-  prefilledOrganizationId,
+  prefilledOrganization,
   namespace,
-  organizations,
 }: FormFieldsProps<T>) {
   const t = useTranslations(namespace);
 
@@ -62,9 +60,8 @@ export function FormFields<T extends FieldValues>({
                   field={field}
                   formDataItem={formDataItem}
                   t={t}
-                  organizations={organizations}
                   prefilledEmail={prefilledEmail}
-                  prefilledOrganizationId={prefilledOrganizationId}
+                  prefilledOrganization={prefilledOrganization}
                 />
               </FormControl>
               <FormMessage />
@@ -81,24 +78,82 @@ interface FormInputProps<T extends FieldValues> {
   field: ControllerRenderProps<T, Path<T>>;
   formDataItem: FormData<T, AuthNamespace>[number];
   t: IntlTranslation<AuthNamespace>;
-  organizations?: OrganizationWithRelations[] | undefined;
   prefilledEmail?: string | undefined;
-  prefilledOrganizationId?: string | undefined;
+  prefilledOrganization?: OrganizationWithRelations | null;
 }
 
-function FormInput<T extends FieldValues>({
+export function FormInput<T extends FieldValues>({
   form,
   field,
   formDataItem,
   t,
-  organizations,
   prefilledEmail,
-  prefilledOrganizationId,
+  prefilledOrganization,
 }: FormInputProps<T>) {
   const { type, labelKey, name, placeholderKey } = formDataItem;
   const emailPrefilled = name === "email" && !!prefilledEmail;
   const organizationIdPrefilled =
-    name === "organization" && !!prefilledOrganizationId;
+    name === "selectedOrganization" && !!prefilledOrganization;
+  const [allowedOrganizations, setAllowedOrganizations] = useState<
+    OrganizationWithRelations[]
+  >(prefilledOrganization ? [prefilledOrganization] : []);
+  const [isLoading, setIsLoading] = useState(false);
+  const email = form.watch("email" as unknown as Path<T>);
+  const [selectedOrganization, setSelectedOrganization] = useState<
+    OrganizationWithRelations | { name: string } | undefined
+  >(
+    prefilledOrganization ??
+      allowedOrganizations.find((org) => org.id === field.value?.id),
+  );
+  useEffect(() => {
+    if (name != "selectedOrganization") return;
+    if (prefilledOrganization) {
+      setSelectedOrganization(prefilledOrganization);
+      return;
+    }
+    setSelectedOrganization(undefined);
+  }, [prefilledOrganization, email, name]);
+
+  const debouncedGetAllowedOrganizations = useDebouncedCallback(
+    async (email: string, organizationId: string | null) => {
+      const result = await getAllowedOrganizationsByEmailPartial(
+        email,
+        organizationId,
+      );
+      setAllowedOrganizations(result);
+      if (email === form.getValues("email" as unknown as Path<T>)) {
+        setIsLoading(false);
+      }
+    },
+    350,
+    { trailing: true, leading: true },
+  );
+
+  useEffect(() => {
+    if (name != "selectedOrganization") return;
+    try {
+      setIsLoading(true);
+      debouncedGetAllowedOrganizations.cancel();
+      if (!isValidEmail(email)) {
+        setIsLoading(false);
+        setAllowedOrganizations([]);
+        return;
+      }
+      const debouncedResult = debouncedGetAllowedOrganizations(
+        email,
+        prefilledOrganization?.id ?? null,
+      );
+      if (!debouncedResult) {
+        setIsLoading(false);
+        setAllowedOrganizations([]);
+        return;
+      }
+    } catch (error) {
+      console.error(error);
+      setIsLoading(false);
+      setAllowedOrganizations([]);
+    }
+  }, [email, debouncedGetAllowedOrganizations, prefilledOrganization, name]);
 
   if (type === "checkbox") {
     const iAgreeToText = t.has("Fields.TermsAccepted.Label.iAgreeTo")
@@ -153,36 +208,24 @@ function FormInput<T extends FieldValues>({
     );
   }
 
-  if (name === "organization" && !!organizations) {
-    const email = form.watch("email" as unknown as Path<T>);
-    const allowedOrganizations = filterAllowedOrganizations(
-      email,
-      organizations,
-    );
-
-    const parsedResult = organizationFormValueSchema.safeParse(field.value);
-    const parsed = parsedResult.success ? parsedResult.data : undefined;
-
-    const organization = organizationIdPrefilled
-      ? organizations.find(
-          (organization) => organization.id === prefilledOrganizationId,
-        )
-      : typeof parsed === "string"
-        ? allowedOrganizations.find(
-            (organization) => organization.id === parsed,
-          )
-        : !!parsed
-          ? { name: parsed.name }
-          : undefined;
-    const handleOrganizationChange = (data: string | { name: string }) => {
-      field.onChange(data);
+  if (name === "selectedOrganization") {
+    const handleOrganizationChange = (
+      organization: OrganizationWithRelations | { name: string },
+    ) => {
+      setSelectedOrganization(organization);
+      // Set the full organization object with id and name properties
+      field.onChange({
+        id: "id" in organization ? organization.id : null,
+        name: organization?.name,
+      });
     };
 
     return (
       <OrganizationInput
         email={email}
+        isLoading={isLoading}
         organizations={allowedOrganizations}
-        value={organization}
+        value={selectedOrganization}
         onChange={handleOrganizationChange}
         disabled={organizationIdPrefilled}
       />
@@ -199,7 +242,3 @@ function FormInput<T extends FieldValues>({
     />
   );
 }
-
-const organizationFormValueSchema = z
-  .string()
-  .or(z.object({ name: z.string() }));

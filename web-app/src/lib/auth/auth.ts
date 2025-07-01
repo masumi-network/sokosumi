@@ -1,3 +1,5 @@
+import "server-only";
+
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware } from "better-auth/api";
@@ -70,6 +72,7 @@ export const auth = betterAuth({
       }
     }),
   },
+  disabledPaths: ["/sign-up/email", "/sign-in"],
   emailAndPassword: {
     enabled: true,
     maxPasswordLength: getEnvPublicConfig().NEXT_PUBLIC_PASSWORD_MAX_LENGTH,
