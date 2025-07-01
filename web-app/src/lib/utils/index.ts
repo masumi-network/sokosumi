@@ -4,7 +4,7 @@ import crypto from "crypto";
 import { twMerge } from "tailwind-merge";
 
 import { JobInputData } from "@/lib/job-input";
-import { JobStatusResponseSchemaType } from "@/lib/services/job/schemas";
+import { JobStatusResponseSchemaType } from "@/lib/schemas";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));

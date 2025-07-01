@@ -13,6 +13,9 @@ export const startJobInputSchema = z.object({
   ),
 });
 
+export type StartJobInputSchemaType = z.infer<typeof startJobInputSchema>;
+
+// there aren't for user's use, only for internal use
 export const startJobResponseSchema = z.object({
   status: z.enum(["success", "error"]),
   job_id: z.string().min(1),
@@ -32,6 +35,7 @@ export const startJobResponseSchema = z.object({
   ),
   input_hash: z.string().min(1),
 });
+export type StartJobResponseSchemaType = z.infer<typeof startJobResponseSchema>;
 
 export const jobStatusResponseSchema = z.object({
   job_id: z.string(),
@@ -48,8 +52,6 @@ export const jobStatusResponseSchema = z.object({
   result: z.string().nullish(),
 });
 
-export type StartJobInputSchemaType = z.infer<typeof startJobInputSchema>;
-export type StartJobResponseSchemaType = z.infer<typeof startJobResponseSchema>;
 export type JobStatusResponseSchemaType = z.infer<
   typeof jobStatusResponseSchema
 >;

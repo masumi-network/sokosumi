@@ -2,13 +2,12 @@
 
 import { User } from "better-auth";
 
-import { signUpFormSchema, SignUpFormSchemaType } from "@/auth/register/data";
 import {
   ActionError,
   AuthErrorCode,
   betterAuthApiErrorSchema,
   CommonErrorCode,
-} from "@/lib/actions/types";
+} from "@/lib/actions";
 import { auth } from "@/lib/auth/auth";
 import { MemberRole } from "@/lib/db";
 import {
@@ -19,6 +18,7 @@ import {
   retrieveMembersByOrganizationId,
   retrieveOrganizationWithRelationsById,
 } from "@/lib/db/repositories";
+import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
 import { generateOrganizationSlugFromName } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import { getEmailDomain, removePublicDomains } from "@/lib/utils";
@@ -52,13 +52,14 @@ export async function signUpEmail(
   >
 > {
   try {
-    const parsed = await signUpFormSchema().safeParseAsync(data);
-    if (!parsed.success) {
+    const parsedResult = signUpFormSchema().safeParse(data);
+    if (!parsedResult.success) {
       return Err({
         message: "Bad Input",
         code: CommonErrorCode.BAD_INPUT,
       });
     }
+    const parsed = parsedResult.data;
 
     let actionError: ActionError = {
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,
@@ -74,9 +75,12 @@ export async function signUpEmail(
     try {
       await prisma.$transaction(async (tx) => {
         let organization: Organization;
-        if (typeof data.organization === "string") {
+        if (typeof parsed.organization === "string") {
           const retrievedOrganization =
-            await retrieveOrganizationWithRelationsById(data.organization, tx);
+            await retrieveOrganizationWithRelationsById(
+              parsed.organization,
+              tx,
+            );
           if (!retrievedOrganization) {
             actionError = {
               code: AuthErrorCode.ORGANIZATION_NOT_FOUND,
@@ -89,11 +93,11 @@ export async function signUpEmail(
           // check whether user has invitation or his email domain is allowed by organization
           const updatedInvitations =
             await acceptPendingInvitationsByEmailAndOrganizationId(
-              data.email,
+              parsed.email,
               organization.id,
               tx,
             );
-          const userEmailDomain = getEmailDomain(data.email);
+          const userEmailDomain = getEmailDomain(parsed.email);
           if (
             updatedInvitations.count === 0 &&
             (!userEmailDomain ||
@@ -106,15 +110,15 @@ export async function signUpEmail(
             throw new Error("Email not allowed by organization");
           }
         } else {
-          const emailDomain = getEmailDomain(data.email);
+          const emailDomain = getEmailDomain(parsed.email);
           const requiredEmailDomains = removePublicDomains([emailDomain]);
           const slug = await generateOrganizationSlugFromName(
-            data.organization.name,
+            parsed.organization.name,
           );
 
           const createdOrganization = await createOrganization(
             slug,
-            data.organization.name,
+            parsed.organization.name,
             requiredEmailDomains,
             tx,
           );
@@ -130,11 +134,11 @@ export async function signUpEmail(
 
         const signUpResult = await auth.api.signUpEmail({
           body: {
-            email: data.email,
-            name: data.name,
-            password: data.password,
+            email: parsed.email,
+            name: parsed.name,
+            password: parsed.password,
             callbackURL: "/app",
-            termsAccepted: data.termsAccepted,
+            termsAccepted: parsed.termsAccepted,
           },
         });
         const user = signUpResult.user;

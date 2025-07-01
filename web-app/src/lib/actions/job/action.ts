@@ -1,10 +1,6 @@
 "use server";
 
-import {
-  ActionError,
-  CommonErrorCode,
-  JobErrorCode,
-} from "@/lib/actions/types";
+import { ActionError, CommonErrorCode, JobErrorCode } from "@/lib/actions";
 import { getSession } from "@/lib/auth/utils";
 import { JobWithStatus } from "@/lib/db";
 import {
@@ -12,12 +8,8 @@ import {
   retrieveJobById,
   updateJobNameById,
 } from "@/lib/db/repositories";
-import {
-  requestRefundJob,
-  startJob,
-  startJobInputSchema,
-  StartJobInputSchemaType,
-} from "@/lib/services";
+import { startJobInputSchema, StartJobInputSchemaType } from "@/lib/schemas";
+import { requestRefundJob, startJob } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
 
 export async function startJobWithInputData(
@@ -43,10 +35,9 @@ export async function startJobWithInputData(
         code: CommonErrorCode.BAD_INPUT,
       });
     }
+    const parsed = parsedResult.data;
 
-    const data = parsedResult.data;
-
-    const job = await startJob(data);
+    const job = await startJob(parsed);
     return Ok({ jobId: job.id });
   } catch (error) {
     console.error("Error starting job", error);

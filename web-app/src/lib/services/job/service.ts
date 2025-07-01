@@ -16,12 +16,12 @@ import {
   updateJobWithPurchase,
 } from "@/lib/db/repositories";
 import { JobInputData } from "@/lib/job-input";
+import { StartJobInputSchemaType } from "@/lib/schemas";
 import { getInputHash, getInputHashDeprecated } from "@/lib/utils";
 import { Job, NextJobAction, Prisma } from "@/prisma/generated/client";
 import { getAgentPricing } from "@/services/agent";
 import { getCreditsPrice, validateCreditsBalance } from "@/services/credit";
 
-import { StartJobInputSchemaType } from "./schemas";
 import {
   createPurchase,
   fetchAgentJobStatus,

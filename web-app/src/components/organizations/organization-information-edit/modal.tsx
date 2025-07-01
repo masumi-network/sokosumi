@@ -13,9 +13,12 @@ import {
   DialogPortal,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  updateOrganizationInformationFormSchema,
+  UpdateOrganizationInformationFormSchemaType,
+} from "@/lib/schemas";
 import { Organization } from "@/prisma/generated/client";
 
-import { editFormSchema, EditFormSchemaType } from "./data";
 import OrganizationInformationEditForm from "./form";
 
 interface OrganizationInformationEditModalProps {
@@ -31,9 +34,9 @@ export default function OrganizationInformationEditModal({
 }: OrganizationInformationEditModalProps) {
   const t = useTranslations("Components.Organizations.EditInformationModal");
 
-  const form = useForm<EditFormSchemaType>({
+  const form = useForm<UpdateOrganizationInformationFormSchemaType>({
     resolver: zodResolver(
-      editFormSchema(
+      updateOrganizationInformationFormSchema(
         useTranslations("Components.Organizations.EditInformationModal.Schema"),
       ),
     ),

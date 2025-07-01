@@ -8,12 +8,9 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/auth/components/form";
-import {
-  signInFormData,
-  signInFormSchema,
-  SignInFormSchemaType,
-} from "@/auth/login/data";
+import { signInFormData } from "@/auth/login/data";
 import { authClient } from "@/lib/auth/auth.client";
+import { signInFormSchema, SignInFormSchemaType } from "@/lib/schemas";
 
 interface SignInFormProps {
   returnUrl?: string | undefined;

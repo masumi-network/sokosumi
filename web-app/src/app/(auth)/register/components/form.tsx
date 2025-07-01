@@ -9,13 +9,10 @@ import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/auth/components/form";
-import {
-  signUpFormData,
-  signUpFormSchema,
-  SignUpFormSchemaType,
-} from "@/auth/register/data";
+import { signUpFormData } from "@/auth/register/data";
 import { AuthErrorCode, CommonErrorCode, signUpEmail } from "@/lib/actions";
 import { OrganizationWithRelations } from "@/lib/db";
+import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
 
 interface SignUpFormProps {
   organizations: OrganizationWithRelations[];

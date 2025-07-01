@@ -9,13 +9,14 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { CommonErrorCode, updateOrganizationInformation } from "@/lib/actions";
+import { UpdateOrganizationInformationFormSchemaType } from "@/lib/schemas";
 
-import { editFormData, EditFormSchemaType } from "./data";
+import { updateOrganizationInformationFormData } from "./data";
 import { FormFields } from "./form-fields";
 
 interface OrganizationInformationEditFormProps {
   organizationId: string;
-  form: UseFormReturn<EditFormSchemaType>;
+  form: UseFormReturn<UpdateOrganizationInformationFormSchemaType>;
   onOpenChange: (open: boolean) => void;
 }
 
@@ -29,7 +30,9 @@ export default function OrganizationInformationEditForm({
   );
   const router = useRouter();
 
-  const onSubmit = async (values: EditFormSchemaType) => {
+  const onSubmit = async (
+    values: UpdateOrganizationInformationFormSchemaType,
+  ) => {
     const result = await updateOrganizationInformation(organizationId, {
       name: values.name,
       metadata: values.metadata === "" ? undefined : values.metadata,
@@ -64,7 +67,10 @@ export default function OrganizationInformationEditForm({
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <fieldset disabled={isLoading} className="flex flex-col gap-8">
-          <FormFields form={form} formData={editFormData} />
+          <FormFields
+            form={form}
+            formData={updateOrganizationInformationFormData}
+          />
           <Button type="submit" disabled={isLoading} className="w-full">
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {t("submit")}

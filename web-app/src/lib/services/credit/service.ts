@@ -13,9 +13,8 @@ import {
   retrieveCentsByUserId,
   retrieveCreditCostByUnit,
 } from "@/lib/db/repositories";
+import { pricingAmountsSchema, PricingAmountsSchemaType } from "@/lib/schemas";
 import { Prisma } from "@/prisma/generated/client";
-
-import { pricingAmountsSchema, PricingAmountsSchemaType } from "./schema";
 
 /**
  * Retrieves the total credit balance for a given user, expressed in credits.

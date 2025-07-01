@@ -2,10 +2,11 @@
 
 import { revalidatePath } from "next/cache";
 
-import { ActionError, CommonErrorCode } from "@/lib/actions/types";
+import { ActionError, CommonErrorCode } from "@/lib/actions";
 import { getSession } from "@/lib/auth/utils";
 import { MemberRole } from "@/lib/db";
 import { updateOrganizationById } from "@/lib/db/repositories";
+import { updateOrganizationInformationFormSchema } from "@/lib/schemas";
 import { getMyMemberInOrganization } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import { Prisma } from "@/prisma/generated/client";
@@ -23,6 +24,15 @@ export async function updateOrganizationInformation(
       });
     }
 
+    const parsedResult =
+      updateOrganizationInformationFormSchema().safeParse(data);
+    if (!parsedResult.success) {
+      return Err({
+        message: "Bad Input",
+        code: CommonErrorCode.BAD_INPUT,
+      });
+    }
+
     // check membership and role
     const member = await getMyMemberInOrganization(organizationId);
     if (!member || member.role !== MemberRole.ADMIN) {
@@ -35,7 +45,7 @@ export async function updateOrganizationInformation(
     // update organization information
     const updatedOrganization = await updateOrganizationById(
       organizationId,
-      data,
+      parsedResult.data,
     );
 
     // revalidate the organization page

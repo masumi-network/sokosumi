@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 
-import { ActionError, CommonErrorCode } from "@/lib/actions/types";
+import { ActionError, CommonErrorCode } from "@/lib/actions";
 import { getSession } from "@/lib/auth/utils";
 import {
   addAgentToAgentListByIdAndUserId,

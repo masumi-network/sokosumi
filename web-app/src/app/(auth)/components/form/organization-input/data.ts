@@ -6,9 +6,9 @@ export const createOrganizationSchema = (
   z.object({
     name: z
       .string({ message: t?.("invalid") })
-      .min(1, t?.("required"))
-      .min(2, t?.("min"))
-      .max(50, t?.("max")),
+      .min(1, { message: t?.("required") })
+      .min(2, { message: t?.("min") })
+      .max(50, { message: t?.("max") }),
   });
 
 export type CreateOrganizationSchemaType = z.infer<

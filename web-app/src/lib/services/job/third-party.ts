@@ -10,15 +10,14 @@ import {
 import { getPaymentClient } from "@/lib/api/payment-service.client";
 import { AgentWithRelations } from "@/lib/db";
 import { JobInputData } from "@/lib/job-input";
-import { getAgentApiBaseUrl } from "@/lib/services";
-import { Err, Ok, Result } from "@/lib/ts-res";
-
 import {
   jobStatusResponseSchema,
   JobStatusResponseSchemaType,
   startJobResponseSchema,
   StartJobResponseSchemaType,
-} from "./schemas";
+} from "@/lib/schemas";
+import { getAgentApiBaseUrl } from "@/lib/services";
+import { Err, Ok, Result } from "@/lib/ts-res";
 
 export async function fetchAgentJobStatus(
   agent: AgentWithRelations,

@@ -1,11 +1,7 @@
 "use server";
 
 import { getEnvSecrets } from "@/config/env.secrets";
-import {
-  ActionError,
-  BillingErrorCode,
-  CommonErrorCode,
-} from "@/lib/actions/types";
+import { ActionError, BillingErrorCode, CommonErrorCode } from "@/lib/actions";
 import { getSession } from "@/lib/auth/utils";
 import { CouponError } from "@/lib/errors/coupon-errors";
 import {
