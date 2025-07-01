@@ -5,18 +5,10 @@ import { revalidatePath } from "next/cache";
 import { ActionError, CommonErrorCode } from "@/lib/actions";
 import { getSession } from "@/lib/auth/utils";
 import { MemberRole } from "@/lib/db";
-import {
-  retrieveOrganizationsAllowedBySpecificEmailDomain,
-  retrieveOrganizationWithRelationsById,
-  updateOrganizationById,
-} from "@/lib/db/repositories";
-import {
-  getAllowedOrganizationsSchema,
-  updateOrganizationInformationFormSchema,
-} from "@/lib/schemas";
+import { updateOrganizationById } from "@/lib/db/repositories";
+import { updateOrganizationInformationFormSchema } from "@/lib/schemas";
 import { getMyMemberInOrganization } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
-import { getEmailDomain } from "@/lib/utils/email";
 import { Prisma } from "@/prisma/generated/client";
 
 export async function updateOrganizationInformation(
@@ -68,36 +60,6 @@ export async function updateOrganizationInformation(
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,
     });
   }
-}
-
-export async function getAllowedOrganizationsByEmailPartial(
-  email: string,
-  organizationId: string | null,
-) {
-  const validated = getAllowedOrganizationsSchema().safeParse({
-    email,
-    organizationId,
-  });
-  if (!validated.success) {
-    return [];
-  }
-  if (organizationId) {
-    const organization =
-      await retrieveOrganizationWithRelationsById(organizationId);
-    if (!organization) {
-      return [];
-    }
-    return [organization];
-  }
-
-  const emailDomain = getEmailDomain(email);
-  if (!emailDomain) {
-    return [];
-  }
-
-  const allowedOrganizations =
-    await retrieveOrganizationsAllowedBySpecificEmailDomain(emailDomain);
-  return allowedOrganizations;
 }
 
 export async function revalidateOrganizationsPath() {

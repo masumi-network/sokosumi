@@ -20,7 +20,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { getAllowedOrganizationsByEmailPartial } from "@/lib/actions/organization/action";
 import { OrganizationWithRelations } from "@/lib/db/types/organization";
 import { FormData } from "@/lib/form";
 import { isValidEmail } from "@/lib/utils";
@@ -116,11 +115,15 @@ export function FormInput<T extends FieldValues>({
 
   const debouncedGetAllowedOrganizations = useDebouncedCallback(
     async (email: string, organizationId: string | null) => {
-      const result = await getAllowedOrganizationsByEmailPartial(
-        email,
-        organizationId,
+      // TODO: encode the email and organizationId
+      const result = await fetch(
+        `/api/organization/allowed-to-join?email=${encodeURIComponent(email)}&organizationId=${organizationId ? encodeURIComponent(organizationId) : ""}`,
       );
-      setAllowedOrganizations(result);
+      if (!result.ok) {
+        return [];
+      }
+      const data = await result.json();
+      setAllowedOrganizations(data.allowedOrganizations);
       if (email === form.getValues("email" as unknown as Path<T>)) {
         setIsLoading(false);
       }
