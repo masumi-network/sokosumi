@@ -39,6 +39,14 @@ export default function Endorsements() {
       width: 220,
       height: 40,
     },
+    {
+      key: "bvg",
+      srcLight: "/endorsement/bvg-black.svg",
+      srcDark: "/endorsement/bvg-white.svg",
+      alt: "BVG",
+      width: 75,
+      height: 67,
+    },
   ];
 
   return (
