@@ -5,7 +5,7 @@ import { getTranslations } from "next-intl/server";
 import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import { MemberRole } from "@/lib/db";
-import { retrieveOrganizationBySlug } from "@/lib/db/repositories";
+import { retrieveOrganizationWithRelationsBySlug } from "@/lib/db/repositories";
 import {
   getMyMemberInOrganization,
   getOrganizationMembersWithUser,
@@ -27,7 +27,8 @@ export async function generateMetadata({
   );
 
   const { organizationSlug } = await params;
-  const organization = await retrieveOrganizationBySlug(organizationSlug);
+  const organization =
+    await retrieveOrganizationWithRelationsBySlug(organizationSlug);
   if (!organization) {
     return notFound();
   }
@@ -47,7 +48,8 @@ export default async function OrganizationPage({
   const t = await getTranslations("App.Organizations.OrganizationDetail");
   const { organizationSlug } = await params;
 
-  const organization = await retrieveOrganizationBySlug(organizationSlug);
+  const organization =
+    await retrieveOrganizationWithRelationsBySlug(organizationSlug);
   if (!organization) {
     return notFound();
   }

@@ -17,7 +17,7 @@ import {
   createOrganization,
   prisma,
   retrieveMembersByOrganizationId,
-  retrieveOrganizationById,
+  retrieveOrganizationWithRelationsById,
 } from "@/lib/db/repositories";
 import { generateOrganizationSlugFromName } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
@@ -75,10 +75,8 @@ export async function signUpEmail(
       await prisma.$transaction(async (tx) => {
         let organization: Organization;
         if (typeof data.organization === "string") {
-          const retrievedOrganization = await retrieveOrganizationById(
-            data.organization,
-            tx,
-          );
+          const retrievedOrganization =
+            await retrieveOrganizationWithRelationsById(data.organization, tx);
           if (!retrievedOrganization) {
             actionError = {
               code: AuthErrorCode.ORGANIZATION_NOT_FOUND,

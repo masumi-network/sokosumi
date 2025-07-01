@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
-import { retrieveOrganizationsWithMembersCount } from "@/lib/db/repositories";
+import { retrieveOrganizationsWithRelations } from "@/lib/db/repositories";
 
 import SignUpForm from "./components/form";
 import SignUpHeader from "./components/header";
@@ -22,7 +22,7 @@ interface SignUpPageProps {
 export default async function SignUp({ searchParams }: SignUpPageProps) {
   const { email, organizationId } = await searchParams;
 
-  const organizations = await retrieveOrganizationsWithMembersCount();
+  const organizations = await retrieveOrganizationsWithRelations();
 
   return (
     <div className="flex flex-1 flex-col">

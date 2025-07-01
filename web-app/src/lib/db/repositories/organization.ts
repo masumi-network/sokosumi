@@ -2,7 +2,6 @@ import "server-only";
 
 import {
   organizationInclude,
-  organizationMembersCountInclude,
   organizationOrderBy,
   OrganizationWithRelations,
 } from "@/lib/db/types";
@@ -10,14 +9,12 @@ import { Organization, Prisma } from "@/prisma/generated/client";
 
 import prisma from "./prisma";
 
-export async function retrieveOrganizationsWithMembersCount(
+export async function retrieveOrganizationsWithRelations(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<OrganizationWithRelations[]> {
   return await tx.organization.findMany({
-    include: {
-      ...organizationMembersCountInclude,
-    },
-    orderBy: { ...organizationOrderBy },
+    include: organizationInclude,
+    orderBy: organizationOrderBy,
   });
 }
 
@@ -32,7 +29,7 @@ export async function createOrganization(
   });
 }
 
-export async function retrieveOrganizationById(
+export async function retrieveOrganizationWithRelationsById(
   id: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<OrganizationWithRelations | null> {
@@ -42,7 +39,7 @@ export async function retrieveOrganizationById(
   });
 }
 
-export async function retrieveOrganizationBySlug(
+export async function retrieveOrganizationWithRelationsBySlug(
   slug: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<OrganizationWithRelations | null> {
