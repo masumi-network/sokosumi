@@ -115,9 +115,12 @@ export function FormInput<T extends FieldValues>({
 
   const debouncedGetAllowedOrganizations = useDebouncedCallback(
     async (email: string, organizationId: string | null) => {
-      // TODO: encode the email and organizationId
+      const encodedEmail = encodeURIComponent(email);
+      const encodedOrganizationId = organizationId
+        ? encodeURIComponent(organizationId)
+        : "";
       const result = await fetch(
-        `/api/organization/allowed-to-join?email=${encodeURIComponent(email)}&organizationId=${organizationId ? encodeURIComponent(organizationId) : ""}`,
+        `/api/organization/allowed-to-join?email=${encodedEmail}&organizationId=${encodedOrganizationId}`,
       );
       if (!result.ok) {
         return [];
