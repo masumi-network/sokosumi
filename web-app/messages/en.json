@@ -632,7 +632,7 @@
             }
           },
           "Errors": {
-            "badInput": "Please input form correctly.",
+            "badRequest": "Please input form correctly.",
             "organizationNotFound": "Organization not found",
             "memberCreateFailed": "Failed to create organization member",
             "emailNotAllowedByOrganization": "Email not allowed to join organization",

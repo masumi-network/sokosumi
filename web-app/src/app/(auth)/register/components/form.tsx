@@ -14,7 +14,7 @@ import {
   signUpFormSchema,
   SignUpFormSchemaType,
 } from "@/auth/register/data";
-import { AuthErrorCode, signUpEmail } from "@/lib/actions";
+import { AuthErrorCode, CommonErrorCode, signUpEmail } from "@/lib/actions";
 import { OrganizationWithRelations } from "@/lib/db";
 
 interface SignUpFormProps {
@@ -71,8 +71,8 @@ export default function SignUpForm({
       router.push("/login");
     } else {
       switch (result.error.code) {
-        case AuthErrorCode.BAD_INPUT:
-          toast.error(t("Errors.badInput"));
+        case CommonErrorCode.BAD_REQUEST:
+          toast.error(t("Errors.badRequest"));
           break;
         case AuthErrorCode.ORGANIZATION_NOT_FOUND:
           toast.error(t("Errors.organizationNotFound"));
