@@ -1,25 +1,5 @@
 import { OrganizationWithRelations } from "@/lib/db/types";
 import { getEmailDomain } from "@/lib/utils";
-import { Organization } from "@/prisma/generated/client";
-
-export function isEmailAllowedByOrganization(
-  email: string,
-  organization: Organization,
-) {
-  const emailDomain = getEmailDomain(email);
-  if (!emailDomain) {
-    return false;
-  }
-
-  const { requiredEmailDomains } = organization;
-  if (requiredEmailDomains.length === 0) {
-    return true;
-  }
-
-  return requiredEmailDomains.some(
-    (domain) => domain.toLowerCase() === emailDomain.toLowerCase(),
-  );
-}
 
 export function filterAllowedOrganizations(
   email: string,
@@ -31,11 +11,9 @@ export function filterAllowedOrganizations(
     return [];
   }
 
-  return organizations.filter(
-    ({ requiredEmailDomains }) =>
-      requiredEmailDomains.length === 0 ||
-      requiredEmailDomains.some(
-        (domain) => domain.toLowerCase() === emailDomain.toLowerCase(),
-      ),
+  return organizations.filter(({ requiredEmailDomains }) =>
+    requiredEmailDomains.some(
+      (domain) => domain.toLowerCase() === emailDomain.toLowerCase(),
+    ),
   );
 }

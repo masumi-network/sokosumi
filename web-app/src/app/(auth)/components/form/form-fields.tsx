@@ -8,6 +8,7 @@ import {
   Path,
   UseFormReturn,
 } from "react-hook-form";
+import z from "zod";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -159,19 +160,19 @@ function FormInput<T extends FieldValues>({
       organizations,
     );
 
+    const parsedResult = organizationFormValueSchema.safeParse(field.value);
+    const parsed = parsedResult.success ? parsedResult.data : undefined;
+
     const organization = organizationIdPrefilled
       ? organizations.find(
           (organization) => organization.id === prefilledOrganizationId,
         )
-      : typeof field.value === "string"
+      : typeof parsed === "string"
         ? allowedOrganizations.find(
-            (organization) => organization.id === field.value,
+            (organization) => organization.id === parsed,
           )
-        : field.value &&
-            typeof field.value === "object" &&
-            "name" in field.value &&
-            field.value.name
-          ? { name: field.value.name }
+        : !!parsed
+          ? { name: parsed.name }
           : undefined;
     const handleOrganizationChange = (data: string | { name: string }) => {
       field.onChange(data);
@@ -198,3 +199,7 @@ function FormInput<T extends FieldValues>({
     />
   );
 }
+
+const organizationFormValueSchema = z
+  .string()
+  .or(z.object({ name: z.string() }));
