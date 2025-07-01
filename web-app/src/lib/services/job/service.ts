@@ -298,7 +298,7 @@ export async function requestRefundJob(
 export async function getNotFinalizedLatestJobsByAgentIds(
   agentIds: string[],
   tx: Prisma.TransactionClient = prisma,
-): Promise<(Job | null)[]> {
+): Promise<(JobWithStatus | null)[]> {
   const session = await getSessionOrThrow();
   const userId = session.user.id;
   return await Promise.all(

@@ -297,7 +297,7 @@ export async function retrieveNotFinalizedLatestJobByAgentIdAndUserId(
   agentId: string,
   userId: string,
   tx: Prisma.TransactionClient = prisma,
-): Promise<Job | null> {
+): Promise<JobWithStatus | null> {
   const job = await tx.job.findFirst({
     where: {
       agentId,
@@ -314,8 +314,9 @@ export async function retrieveNotFinalizedLatestJobByAgentIdAndUserId(
       ],
     },
     orderBy: { startedAt: "desc" },
+    include: jobInclude,
   });
-  return job;
+  return job ? mapJobWithStatus(job) : null;
 }
 
 export async function updateJobNameById(

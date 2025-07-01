@@ -15,10 +15,10 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import useJobStatusEvent from "@/hooks/use-job-status-event";
-import { getAgentName } from "@/lib/db";
+import { getAgentName, JobWithStatus } from "@/lib/db";
 import { PayloadSchemaType } from "@/lib/db/listener/schema";
 import { cn } from "@/lib/utils";
-import { Agent, Job } from "@/prisma/generated/client";
+import { Agent } from "@/prisma/generated/client";
 
 import AgentJobStatusIndicator from "./agent-job-status-indicator";
 
@@ -27,7 +27,7 @@ interface AgentListsClientProps {
     groupKey: string;
     title: string;
     agents: Agent[];
-    latestJobs: (Job | null)[];
+    latestJobs: (JobWithStatus | null)[];
     noAgentsType: string;
   }[];
 }

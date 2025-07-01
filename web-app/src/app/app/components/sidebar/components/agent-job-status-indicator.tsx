@@ -6,11 +6,11 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { JobStatus, JobWithStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
-import { AgentJobStatus, Job } from "@/prisma/generated/client";
 
 interface AgentJobStatusIndicatorProps {
-  job: Job;
+  job: JobWithStatus;
   className?: string | undefined;
 }
 
@@ -18,18 +18,16 @@ export default function AgentJobStatusIndicator({
   job,
   className,
 }: AgentJobStatusIndicatorProps) {
-  const { agentJobStatus } = job;
-
   return (
     <Tooltip>
       <TooltipTrigger>
         <AgentJobStatusIndicatorIcon
-          status={agentJobStatus}
+          status={job.status}
           className={className}
         />
       </TooltipTrigger>
       <TooltipContent>
-        <AgentJobStatusIndicatorContent status={agentJobStatus} />
+        <AgentJobStatusIndicatorContent status={job.status} />
       </TooltipContent>
     </Tooltip>
   );
@@ -39,34 +37,30 @@ function AgentJobStatusIndicatorIcon({
   status,
   className,
 }: {
-  status: AgentJobStatus | null;
+  status: JobStatus;
   className?: string | undefined;
 }) {
   switch (status) {
-    case AgentJobStatus.COMPLETED:
+    case JobStatus.COMPLETED:
       return <Check className={cn(className)} />;
-    case AgentJobStatus.FAILED:
+    case JobStatus.FAILED:
       return <X className={cn(className)} />;
-    case AgentJobStatus.AWAITING_INPUT:
+    case JobStatus.INPUT_REQUIRED:
       return <Circle className={cn(className)} fill="currentColor" />;
     default:
       return <Loader2 className={cn("animate-spin", className)} />;
   }
 }
 
-function AgentJobStatusIndicatorContent({
-  status,
-}: {
-  status: AgentJobStatus | null;
-}) {
+function AgentJobStatusIndicatorContent({ status }: { status: JobStatus }) {
   const t = useTranslations("App.Sidebar.Content.AgentLists.Statuses");
 
   switch (status) {
-    case AgentJobStatus.COMPLETED:
+    case JobStatus.COMPLETED:
       return <p>{t("completed")}</p>;
-    case AgentJobStatus.FAILED:
+    case JobStatus.FAILED:
       return <p>{t("failed")}</p>;
-    case AgentJobStatus.AWAITING_INPUT:
+    case JobStatus.INPUT_REQUIRED:
       return <p>{t("inputRequired")}</p>;
     default:
       return <p>{t("processing")}</p>;
