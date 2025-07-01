@@ -146,7 +146,8 @@ export default function RequestRefundButton({
     );
     if (result.ok) {
       setIsRefundRequested(
-        job.nextAction === NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
+        result.data.job.nextAction ===
+          NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
       );
     } else {
       switch (result.error.code) {
