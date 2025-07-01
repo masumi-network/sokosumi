@@ -13,8 +13,8 @@ import {
   DialogPortal,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { inviteFormSchema, InviteFormSchemaType } from "@/lib/schemas";
 
-import { inviteFormSchema, InviteFormSchemaType } from "./data";
 import OrganizationMemberInviteForm from "./form";
 
 interface OrganizationInformationEditModalProps {

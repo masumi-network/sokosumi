@@ -8,7 +8,12 @@ import {
   retrieveJobById,
   updateJobNameById,
 } from "@/lib/db/repositories";
-import { startJobInputSchema, StartJobInputSchemaType } from "@/lib/schemas";
+import {
+  jobDetailsNameFormSchema,
+  JobDetailsNameFormSchemaType,
+  startJobInputSchema,
+  StartJobInputSchemaType,
+} from "@/lib/schemas";
 import { requestRefundJob, startJob } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
 
@@ -64,7 +69,7 @@ export async function startJobWithInputData(
 
 export async function updateJobName(
   jobId: string,
-  name: string | null,
+  data: JobDetailsNameFormSchemaType,
 ): Promise<Result<void, ActionError>> {
   try {
     // Authentication
@@ -76,6 +81,15 @@ export async function updateJobName(
       });
     }
     const userId = session.user.id;
+
+    const parsedResult = jobDetailsNameFormSchema().safeParse(data);
+    if (!parsedResult.success) {
+      return Err({
+        message: "Bad Input",
+        code: CommonErrorCode.BAD_INPUT,
+      });
+    }
+    const parsed = parsedResult.data;
 
     const job = await retrieveJobById(jobId);
     if (!job) {
@@ -94,7 +108,7 @@ export async function updateJobName(
     }
 
     // update job name
-    await updateJobNameById(jobId, name);
+    await updateJobNameById(jobId, parsed.name === "" ? null : parsed.name);
     return Ok();
   } catch (error) {
     console.error("Error updating job name", error);

@@ -1,4 +1,4 @@
-import { z } from "zod";
+import z from "zod";
 
 import {
   confirmPasswordSchema,
@@ -13,10 +13,14 @@ export const nameFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
     name: nameSchema(t),
   });
 
+export type NameFormType = z.infer<ReturnType<typeof nameFormSchema>>;
+
 export const emailFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z.object({
     email: emailSchema(t),
   });
+
+export type EmailFormType = z.infer<ReturnType<typeof emailFormSchema>>;
 
 export const passwordFormSchema = (
   t?: IntlTranslation<"Library.Auth.Schema">,
@@ -32,6 +36,8 @@ export const passwordFormSchema = (
       message: t?.("ConfirmPassword.match"),
     });
 
+export type PasswordFormType = z.infer<ReturnType<typeof passwordFormSchema>>;
+
 export const deleteAccountSchema = (
   t?: IntlTranslation<"Library.Auth.Schema">,
 ) =>
@@ -39,9 +45,6 @@ export const deleteAccountSchema = (
     currentPassword: currentPasswordSchema(t),
   });
 
-export type NameFormType = z.infer<ReturnType<typeof nameFormSchema>>;
-export type EmailFormType = z.infer<ReturnType<typeof emailFormSchema>>;
-export type PasswordFormType = z.infer<ReturnType<typeof passwordFormSchema>>;
 export type DeleteAccountFormType = z.infer<
   ReturnType<typeof deleteAccountSchema>
 >;

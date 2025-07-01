@@ -43,10 +43,12 @@ export async function updateOrganizationInformation(
     }
 
     // update organization information
-    const updatedOrganization = await updateOrganizationById(
-      organizationId,
-      parsedResult.data,
-    );
+    const updatedOrganization = await updateOrganizationById(organizationId, {
+      name: parsedResult.data.name,
+      metadata:
+        parsedResult.data.metadata === "" ? null : parsedResult.data.metadata,
+      requiredEmailDomains: parsedResult.data.requiredEmailDomains,
+    });
 
     // revalidate the organization page
     revalidatePath(`/app/organizations/${updatedOrganization.slug}`);

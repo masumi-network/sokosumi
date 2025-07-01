@@ -5,7 +5,6 @@ import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import { nameFormSchema, NameFormType } from "@/app/account/data";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -25,6 +24,7 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth/auth.client";
+import { nameFormSchema, NameFormType } from "@/lib/schemas";
 
 export function NameForm() {
   const t = useTranslations("App.Account.Name");

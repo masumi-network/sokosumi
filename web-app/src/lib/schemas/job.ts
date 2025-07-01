@@ -15,6 +15,21 @@ export const startJobInputSchema = z.object({
 
 export type StartJobInputSchemaType = z.infer<typeof startJobInputSchema>;
 
+export const jobDetailsNameFormSchema = (
+  t?: IntlTranslation<"App.Agents.Jobs.JobDetails.Header.JobName.Schema">,
+) =>
+  z.object({
+    name: z
+      .string({ message: t?.("Name.invalid") })
+      .min(2, { message: t?.("Name.min") })
+      .max(80, { message: t?.("Name.max") })
+      .or(z.literal("")),
+  });
+
+export type JobDetailsNameFormSchemaType = z.infer<
+  ReturnType<typeof jobDetailsNameFormSchema>
+>;
+
 // there aren't for user's use, only for internal use
 export const startJobResponseSchema = z.object({
   status: z.enum(["success", "error"]),

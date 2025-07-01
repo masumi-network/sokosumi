@@ -33,11 +33,7 @@ export default function OrganizationInformationEditForm({
   const onSubmit = async (
     values: UpdateOrganizationInformationFormSchemaType,
   ) => {
-    const result = await updateOrganizationInformation(organizationId, {
-      name: values.name,
-      metadata: values.metadata === "" ? undefined : values.metadata,
-      requiredEmailDomains: values.requiredEmailDomains,
-    });
+    const result = await updateOrganizationInformation(organizationId, values);
     if (result.ok) {
       toast.success(t("success"));
       onOpenChange(false);

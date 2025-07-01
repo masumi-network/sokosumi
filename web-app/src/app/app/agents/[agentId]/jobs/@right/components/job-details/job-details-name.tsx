@@ -7,7 +7,6 @@ import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -20,21 +19,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { CommonErrorCode, JobErrorCode, updateJobName } from "@/lib/actions";
 import { JobWithStatus } from "@/lib/db";
-
-const jobDetailsNameFormSchema = (
-  t: IntlTranslation<"App.Agents.Jobs.JobDetails.Header">,
-) =>
-  z.object({
-    name: z
-      .string({ message: t("Schema.Name.invalid") })
-      .min(2, { message: t("Schema.Name.min") })
-      .max(80, { message: t("Schema.Name.max") })
-      .or(z.literal("")),
-  });
-
-type JobDetailsNameFormSchemaType = z.infer<
-  ReturnType<typeof jobDetailsNameFormSchema>
->;
+import {
+  jobDetailsNameFormSchema,
+  JobDetailsNameFormSchemaType,
+} from "@/lib/schemas";
 
 export default function JobDetailsName({ job }: { job: JobWithStatus }) {
   const t = useTranslations("App.Agents.Jobs.JobDetails.Header.JobName");
@@ -44,7 +32,11 @@ export default function JobDetailsName({ job }: { job: JobWithStatus }) {
   const [editing, setEditing] = useState(false);
 
   const form = useForm<JobDetailsNameFormSchemaType>({
-    resolver: zodResolver(jobDetailsNameFormSchema(t)),
+    resolver: zodResolver(
+      jobDetailsNameFormSchema(
+        useTranslations("App.Agents.Jobs.JobDetails.Header.JobName.Schema"),
+      ),
+    ),
     defaultValues: {
       name: name ?? "",
     },
@@ -60,7 +52,7 @@ export default function JobDetailsName({ job }: { job: JobWithStatus }) {
   };
 
   const onSubmit = async (data: JobDetailsNameFormSchemaType) => {
-    const result = await updateJobName(job.id, !!data.name ? data.name : null);
+    const result = await updateJobName(job.id, data);
     if (result.ok) {
       setEditing(false);
       toast.success(t("success"));
