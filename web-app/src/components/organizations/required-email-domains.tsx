@@ -18,7 +18,7 @@ export function RequiredEmailDomains({
   if (requiredEmailDomains.length === 0) {
     return (
       <span className={cn("text-base font-medium", className)}>
-        {t("allowAll")}
+        {t("restrictAll")}
       </span>
     );
   }

@@ -186,7 +186,7 @@
         "pending": "Pending"
       },
       "RequiredEmailDomains": {
-        "allowAll": "Allow all email domains"
+        "restrictAll": "Restrict all email domains"
       },
       "EditInformationModal": {
         "title": "Edit Organization",
@@ -212,7 +212,7 @@
               "placeholder": "Add domain",
               "duplicate": "Domain already exists",
               "invalid": "Invalid domain",
-              "noDomains": "Allow all email domains"
+              "noDomains": "Restrict all email domains"
             }
           }
         },
