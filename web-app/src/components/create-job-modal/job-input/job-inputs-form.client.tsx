@@ -125,7 +125,7 @@ export default function JobInputsFormClient({
     }
   };
 
-  const { onKeyDown, onSubmit } = usePreventEnterSubmit(form, handleSubmit);
+  const { formRef, onSubmit } = usePreventEnterSubmit(form, handleSubmit);
 
   const handleClear = () => {
     form.reset();
@@ -133,7 +133,7 @@ export default function JobInputsFormClient({
 
   return (
     <Form {...form}>
-      <form onSubmit={onSubmit} onKeyDown={onKeyDown}>
+      <form ref={formRef} onSubmit={onSubmit}>
         <fieldset
           disabled={form.formState.isSubmitting}
           className={cn("flex flex-1 flex-col gap-6", className)}

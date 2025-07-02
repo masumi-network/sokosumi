@@ -1,4 +1,4 @@
-import React, { useCallback, useRef } from "react";
+import React, { useCallback, useEffect, useRef } from "react";
 import { FieldValues, SubmitHandler, UseFormReturn } from "react-hook-form";
 
 export default function usePreventEnterSubmit<T extends FieldValues>(
@@ -6,19 +6,28 @@ export default function usePreventEnterSubmit<T extends FieldValues>(
   handleSubmit: SubmitHandler<T>,
 ) {
   const preventEnterSubmit = useRef(false);
+  const formRef = useRef<HTMLFormElement | null>(null);
 
-  const onKeyDown = useCallback((e: React.KeyboardEvent<HTMLFormElement>) => {
-    const pressedEnter = e.key === "Enter";
-    const ctrlOrCmd = e.metaKey || e.ctrlKey;
-    const isTextArea = e.target instanceof HTMLTextAreaElement;
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const pressedEnter = e.key === "Enter";
+      const ctrlOrCmd = e.metaKey || e.ctrlKey;
+      const isTextArea = e.target instanceof HTMLTextAreaElement;
 
-    preventEnterSubmit.current = pressedEnter && !isTextArea && !ctrlOrCmd;
+      preventEnterSubmit.current = pressedEnter && !isTextArea && !ctrlOrCmd;
 
-    if (pressedEnter && ctrlOrCmd) {
-      if (e.currentTarget instanceof HTMLFormElement) {
-        e.currentTarget.requestSubmit();
+      if (pressedEnter && ctrlOrCmd) {
+        if (formRef && formRef.current) {
+          formRef.current.requestSubmit();
+        }
       }
-    }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      console.log("Unmount");
+      document.removeEventListener("keydown", handleKeyDown);
+    };
   }, []);
 
   const onSubmit = useCallback(
@@ -33,5 +42,5 @@ export default function usePreventEnterSubmit<T extends FieldValues>(
     [form, handleSubmit],
   );
 
-  return { onKeyDown, onSubmit };
+  return { formRef, onSubmit };
 }
