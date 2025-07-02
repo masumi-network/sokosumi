@@ -8,7 +8,7 @@ export type OS =
   | "Unknown";
 
 export function getOSFromUserAgent(): { os: OS; isMobile: boolean } {
-  const ua = navigator.userAgent;
+  const ua = navigator?.userAgent || "";
 
   if (/windows phone/i.test(ua)) {
     return {
