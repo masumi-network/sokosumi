@@ -1093,6 +1093,7 @@
         "clear": "Clear",
         "price": "{price, plural, =0 {Free} =1 {1 credit} other {# credits}} per run",
         "submit": "Hire",
+        "ctrl": "Ctrl",
         "acceptByClickingSubmit": "By clicking on \"Hire\" you're accepting the ",
         "termsOfService": "Terms of Service",
         "privacyPolicy": "Privacy Policy",

@@ -78,3 +78,4 @@ export const createHash = (input: string) => {
 
 export * from "./email";
 export * from "./usdm-unit";
+export * from "./user-agent";

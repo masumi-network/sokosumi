@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
+import { Command, CornerDownLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -23,7 +23,7 @@ import {
   jobInputsFormSchema,
   JobInputsFormSchemaType,
 } from "@/lib/job-input";
-import { cn } from "@/lib/utils";
+import { cn, getOSFromUserAgent } from "@/lib/utils";
 
 import JobInput from "./job-input";
 
@@ -60,6 +60,8 @@ export default function JobInputsFormClient({
   });
   const asyncRouter = useAsyncRouterPush();
   const router = useRouter();
+
+  const { os, isMobile } = getOSFromUserAgent();
 
   // create job modal context
   const { setLoading, handleClose } = useCreateJobModalContext();
@@ -160,11 +162,20 @@ export default function JobInputsFormClient({
                   disabled={
                     form.formState.isSubmitting || !form.formState.isValid
                   }
+                  className="items-center justify-between gap-2"
                 >
-                  {form.formState.isSubmitting && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <div className="flex items-center gap-1">
+                    {form.formState.isSubmitting && (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    )}
+                    {t("submit")}
+                  </div>
+                  {!isMobile && (
+                    <div className="mr-auto flex items-center gap-1">
+                      {os === "MacOS" ? <Command /> : t("ctrl")}
+                      <CornerDownLeft />
+                    </div>
                   )}
-                  {t("submit")}
                 </Button>
               </div>
             </div>
