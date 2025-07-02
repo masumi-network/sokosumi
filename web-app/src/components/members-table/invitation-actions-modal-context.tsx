@@ -38,9 +38,9 @@ export function InvitationActionsModalContextProvider({
 
           if (result.error) {
             resolve({ error: result.error });
+          } else {
+            resolve({});
           }
-
-          resolve({});
         });
     }
   }
