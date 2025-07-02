@@ -53,7 +53,6 @@ export async function startAgentJob(
 ): Promise<Result<StartJobResponseSchemaType, string>> {
   try {
     const startJobUrl = getAgentUrlWithPathComponent(agent, "start_job");
-    console.log("startJobUrl", startJobUrl.href);
     const startJobResponse = await fetch(startJobUrl, {
       method: "POST",
       headers: {
