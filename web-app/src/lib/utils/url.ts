@@ -4,14 +4,16 @@ export function safeAddPathComponent(url: URL, pathComponent: string): URL {
     const cleanPath = pathComponent.trim().replace(/^\/+|\/+$/g, "");
 
     if (!cleanPath) {
-      return url; // Return original URL if nothing to add
+      return new URL(url.href); // Return a new URL if nothing to add
     }
 
     // Preserve existing pathname and append new component
     const currentPath = url.pathname.replace(/\/+$/, ""); // Remove trailing slashes
-    url.pathname = currentPath + "/" + encodeURIComponent(cleanPath);
+    const newPath = currentPath + "/" + encodeURI(cleanPath);
+    const newUrl = new URL(url.href);
+    newUrl.pathname = newPath;
 
-    return url;
+    return newUrl;
   } catch {
     throw new Error(`Invalid URL: ${url.href}`);
   }
