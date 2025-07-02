@@ -136,7 +136,6 @@ export function FormInput<T extends FieldValues>({
             signal: abortController.signal,
           },
         );
-        console.log("result", result);
         if (!result.ok) {
           return [];
         }
@@ -147,10 +146,8 @@ export function FormInput<T extends FieldValues>({
           setIsLoading(false);
         }
       } catch (error) {
-        console.log("error", error);
         // Only handle errors that aren't from aborting
         if (error instanceof Error && error.name !== "AbortError") {
-          console.error(error);
           setIsLoading(false);
           setAllowedOrganizations([]);
         }
