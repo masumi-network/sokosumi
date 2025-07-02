@@ -28,7 +28,10 @@ export function InvitationActionsModalContextProvider({
   );
   const router = useRouter();
 
-  async function onAction(invitation: Invitation, action: InvitationAction) {
+  async function onAction(
+    invitation: Invitation,
+    action: InvitationAction,
+  ): Promise<{ error?: unknown }> {
     switch (action) {
       case InvitationAction.CANCEL:
         return await new Promise<{ error?: unknown }>(async (resolve) => {
