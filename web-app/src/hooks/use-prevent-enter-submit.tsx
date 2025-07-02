@@ -18,6 +18,7 @@ export default function usePreventEnterSubmit<T extends FieldValues>(
       // submit form directly with ctrl/cmd + enter
       if (pressedEnter && ctrlOrCmd) {
         form.handleSubmit(handleSubmit)(e);
+        preventEnterSubmit.current = false;
       }
     },
     [form, handleSubmit],
