@@ -12,12 +12,7 @@ export default function usePreventEnterSubmit<T extends FieldValues>(
       const pressedEnter = e.key === "Enter";
       const ctrlOrCmd = e.metaKey || e.ctrlKey;
 
-      if (pressedEnter && !ctrlOrCmd) {
-        enterPressed.current = true;
-      } else {
-        enterPressed.current = false;
-      }
-
+      enterPressed.current = pressedEnter;
       if (pressedEnter && ctrlOrCmd) {
         form.handleSubmit(handleSubmit)(e);
       }
@@ -29,6 +24,7 @@ export default function usePreventEnterSubmit<T extends FieldValues>(
     (e: React.FormEvent) => {
       if (enterPressed.current) {
         form.handleSubmit(() => {})(e);
+        enterPressed.current = false;
       } else {
         form.handleSubmit(handleSubmit)(e);
       }
