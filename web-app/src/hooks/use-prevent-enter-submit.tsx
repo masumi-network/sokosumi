@@ -5,14 +5,15 @@ export default function usePreventEnterSubmit<T extends FieldValues>(
   form: UseFormReturn<T>,
   handleSubmit: SubmitHandler<T>,
 ) {
-  const enterPressed = useRef(false);
+  const preventEnterSubmit = useRef(false);
 
   const onKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLFormElement>) => {
       const pressedEnter = e.key === "Enter";
       const ctrlOrCmd = e.metaKey || e.ctrlKey;
+      const isTextArea = e.target instanceof HTMLTextAreaElement;
 
-      enterPressed.current = pressedEnter;
+      preventEnterSubmit.current = pressedEnter && !isTextArea;
       if (pressedEnter && ctrlOrCmd) {
         form.handleSubmit(handleSubmit)(e);
       }
@@ -22,9 +23,9 @@ export default function usePreventEnterSubmit<T extends FieldValues>(
 
   const onSubmit = useCallback(
     (e: React.FormEvent) => {
-      if (enterPressed.current) {
+      if (preventEnterSubmit.current) {
         form.handleSubmit(() => {})(e);
-        enterPressed.current = false;
+        preventEnterSubmit.current = false;
       } else {
         form.handleSubmit(handleSubmit)(e);
       }
