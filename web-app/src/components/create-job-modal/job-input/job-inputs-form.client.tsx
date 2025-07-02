@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import React from "react";
+import React, { useRef } from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -57,6 +57,7 @@ export default function JobInputsFormClient({
     defaultValues: defaultValues(input_data),
     mode: "onChange",
   });
+  const enterPressed = useRef(false);
   const asyncRouter = useAsyncRouterPush();
   const router = useRouter();
 
@@ -129,15 +130,19 @@ export default function JobInputsFormClient({
   return (
     <Form {...form}>
       <form
-        onSubmit={form.handleSubmit(handleSubmit)}
+        onSubmit={(e) => {
+          if (enterPressed.current) {
+            form.handleSubmit(() => {})(e);
+            enterPressed.current = false;
+          } else {
+            form.handleSubmit(handleSubmit)(e);
+          }
+        }}
         onKeyDown={(e) => {
           if (e.key === "Enter") {
-            if (
-              e.target instanceof HTMLElement &&
-              e.target.tagName !== "TEXTAREA"
-            ) {
-              e.preventDefault();
-            }
+            enterPressed.current = true;
+          } else {
+            enterPressed.current = false;
           }
         }}
       >
