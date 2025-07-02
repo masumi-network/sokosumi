@@ -14,6 +14,8 @@ export default function usePreventEnterSubmit<T extends FieldValues>(
       const isTextArea = e.target instanceof HTMLTextAreaElement;
 
       preventEnterSubmit.current = pressedEnter && !isTextArea;
+
+      // submit form directly with ctrl/cmd + enter
       if (pressedEnter && ctrlOrCmd) {
         form.handleSubmit(handleSubmit)(e);
       }
