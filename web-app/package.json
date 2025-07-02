@@ -90,7 +90,7 @@
     "zod": "3.25.67"
   },
   "devDependencies": {
-    "@types/node": "22.15.31",
+    "@types/node": "22.16.0",
     "@types/pg": "8.15.4",
     "@types/react": "19.1.8",
     "@types/react-dom": "19.1.6",
