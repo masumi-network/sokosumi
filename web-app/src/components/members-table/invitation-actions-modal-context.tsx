@@ -34,17 +34,10 @@ export function InvitationActionsModalContextProvider({
   ): Promise<{ error?: unknown }> {
     switch (action) {
       case InvitationAction.CANCEL:
-        return await new Promise<{ error?: unknown }>(async (resolve) => {
-          const result = await authClient.organization.cancelInvitation({
-            invitationId: invitation.id,
-          });
-
-          if (result.error) {
-            resolve({ error: result.error });
-          } else {
-            resolve({});
-          }
+        const result = await authClient.organization.cancelInvitation({
+          invitationId: invitation.id,
         });
+        return { error: result.error };
     }
   }
 
