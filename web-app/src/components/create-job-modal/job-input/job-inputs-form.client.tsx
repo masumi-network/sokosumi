@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import React, { useRef } from "react";
+import React from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -13,6 +13,7 @@ import { useCreateJobModalContext } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { useAsyncRouterPush } from "@/hooks/use-async-router";
+import usePreventEnterSubmit from "@/hooks/use-prevent-enter-submit";
 import { JobActionErrorCode, startJobWithInputData } from "@/lib/actions";
 import { AgentLegal, convertCentsToCredits, CreditsPrice } from "@/lib/db";
 import {
@@ -57,7 +58,6 @@ export default function JobInputsFormClient({
     defaultValues: defaultValues(input_data),
     mode: "onChange",
   });
-  const enterPressed = useRef(false);
   const asyncRouter = useAsyncRouterPush();
   const router = useRouter();
 
@@ -123,29 +123,15 @@ export default function JobInputsFormClient({
     }
   };
 
+  const { onKeyDown, onSubmit } = usePreventEnterSubmit(form, handleSubmit);
+
   const handleClear = () => {
     form.reset();
   };
 
   return (
     <Form {...form}>
-      <form
-        onSubmit={(e) => {
-          if (enterPressed.current) {
-            form.handleSubmit(() => {})(e);
-            enterPressed.current = false;
-          } else {
-            form.handleSubmit(handleSubmit)(e);
-          }
-        }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            enterPressed.current = true;
-          } else {
-            enterPressed.current = false;
-          }
-        }}
-      >
+      <form onSubmit={onSubmit} onKeyDown={onKeyDown}>
         <fieldset
           disabled={form.formState.isSubmitting}
           className={cn("flex flex-1 flex-col gap-6", className)}
