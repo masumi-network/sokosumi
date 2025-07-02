@@ -6,9 +6,10 @@ import { getRegistryClient } from "@/lib/api/registry-service.client";
 import { AgentWithRelations } from "@/lib/db";
 import { jobInputsDataSchema, JobInputsDataSchemaType } from "@/lib/job-input";
 import { Err, Ok, Result } from "@/lib/ts-res";
+import { safeAddPathComponent } from "@/lib/utils/url";
 import { Agent } from "@/prisma/generated/client";
 
-export function getAgentApiBaseUrl(agent: Agent): URL {
+function getAgentApiBaseUrl(agent: Agent): URL {
   // Validate the API base URL
   const blacklistedHostnames = getEnvSecrets().BLACKLISTED_AGENT_HOSTNAMES;
   const apiBaseUrl = new URL(agent.apiBaseUrl);
@@ -27,17 +28,22 @@ export function getAgentApiBaseUrl(agent: Agent): URL {
   }
 
   const usedUrl = agent.overrideApiBaseUrl ?? agent.apiBaseUrl;
-  const cleanedUrl = usedUrl.endsWith("/") ? usedUrl.slice(0, -1) : usedUrl;
-  return new URL(cleanedUrl);
+  return new URL(usedUrl);
+}
+
+export function getAgentUrlWithPathComponent(
+  agent: Agent,
+  pathComponent: string,
+): URL {
+  const baseUrl = getAgentApiBaseUrl(agent);
+  return safeAddPathComponent(baseUrl, pathComponent);
 }
 
 export async function fetchAgentInputSchema(
   agent: AgentWithRelations,
 ): Promise<Result<JobInputsDataSchemaType, string>> {
   try {
-    const baseUrl = getAgentApiBaseUrl(agent);
-    const inputSchemaUrl = new URL(`input_schema`, baseUrl);
-    console.log("fetching input schema for", inputSchemaUrl.href);
+    const inputSchemaUrl = getAgentUrlWithPathComponent(agent, "input_schema");
     const response = await fetch(inputSchemaUrl);
 
     if (!response.ok) {
@@ -77,7 +83,6 @@ export async function getAgentPaymentInformation(
         agentIdentifier: agent.blockchainIdentifier,
       },
     });
-
     if (
       !paymentInformation ||
       !paymentInformation.data ||

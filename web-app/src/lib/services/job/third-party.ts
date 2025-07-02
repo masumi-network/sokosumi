@@ -16,7 +16,7 @@ import {
   startJobResponseSchema,
   StartJobResponseSchemaType,
 } from "@/lib/schemas";
-import { getAgentApiBaseUrl } from "@/lib/services";
+import { getAgentUrlWithPathComponent } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
 
 export async function fetchAgentJobStatus(
@@ -24,8 +24,7 @@ export async function fetchAgentJobStatus(
   jobId: string,
 ): Promise<Result<JobStatusResponseSchemaType, string>> {
   try {
-    const baseUrl = getAgentApiBaseUrl(agent);
-    const jobStatusUrl = new URL(`${baseUrl.href}/status`);
+    const jobStatusUrl = getAgentUrlWithPathComponent(agent, "status");
     jobStatusUrl.searchParams.set("job_id", jobId);
     const jobStatusResponse = await fetch(jobStatusUrl, {
       method: "GET",
@@ -53,9 +52,8 @@ export async function startAgentJob(
   inputData: JobInputData,
 ): Promise<Result<StartJobResponseSchemaType, string>> {
   try {
-    const baseUrl = getAgentApiBaseUrl(agent);
-    const startJobUrl = new URL(`${baseUrl.href}/start_job`);
-
+    const startJobUrl = getAgentUrlWithPathComponent(agent, "start_job");
+    console.log("startJobUrl", startJobUrl.href);
     const startJobResponse = await fetch(startJobUrl, {
       method: "POST",
       headers: {
