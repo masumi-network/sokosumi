@@ -171,7 +171,7 @@ export default function JobInputsFormClient({
                     {t("submit")}
                   </div>
                   {!isMobile && (
-                    <div className="mr-auto flex items-center gap-1">
+                    <div className="flex items-center gap-1">
                       {os === "MacOS" ? <Command /> : t("ctrl")}
                       <CornerDownLeft />
                     </div>
