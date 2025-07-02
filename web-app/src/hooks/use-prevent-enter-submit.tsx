@@ -29,7 +29,6 @@ export default function usePreventEnterSubmit<T extends FieldValues>(
     (e: React.FormEvent) => {
       if (enterPressed.current) {
         form.handleSubmit(() => {})(e);
-        enterPressed.current = false;
       } else {
         form.handleSubmit(handleSubmit)(e);
       }
