@@ -4,11 +4,16 @@ import { FieldValues, SubmitHandler, UseFormReturn } from "react-hook-form";
 export default function usePreventEnterSubmit<T extends FieldValues>(
   form: UseFormReturn<T>,
   handleSubmit: SubmitHandler<T>,
+  isActive: boolean,
 ) {
   const preventEnterSubmit = useRef(false);
   const formRef = useRef<HTMLFormElement | null>(null);
 
   useEffect(() => {
+    if (!isActive) {
+      return;
+    }
+
     const handleKeyDown = (e: KeyboardEvent) => {
       const pressedEnter = e.key === "Enter";
       const ctrlOrCmd = e.metaKey || e.ctrlKey;
@@ -27,7 +32,7 @@ export default function usePreventEnterSubmit<T extends FieldValues>(
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, []);
+  }, [isActive]);
 
   const onSubmit = useCallback(
     (e: React.FormEvent) => {

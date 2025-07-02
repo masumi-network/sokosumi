@@ -64,7 +64,7 @@ export default function JobInputsFormClient({
   const { os, isMobile } = getOSFromUserAgent();
 
   // create job modal context
-  const { setLoading, handleClose } = useCreateJobModalContext();
+  const { open, setLoading, handleClose } = useCreateJobModalContext();
 
   // Then replace your existing handleSubmit function with this:
   const handleSubmit: SubmitHandler<JobInputsFormSchemaType> = async (
@@ -125,7 +125,7 @@ export default function JobInputsFormClient({
     }
   };
 
-  const { formRef, onSubmit } = usePreventEnterSubmit(form, handleSubmit);
+  const { formRef, onSubmit } = usePreventEnterSubmit(form, handleSubmit, open);
 
   const handleClear = () => {
     form.reset();
