@@ -128,7 +128,19 @@ export default function JobInputsFormClient({
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)}>
+      <form
+        onSubmit={form.handleSubmit(handleSubmit)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            if (
+              e.target instanceof HTMLElement &&
+              e.target.tagName !== "TEXTAREA"
+            ) {
+              e.preventDefault();
+            }
+          }
+        }}
+      >
         <fieldset
           disabled={form.formState.isSubmitting}
           className={cn("flex flex-1 flex-col gap-6", className)}
