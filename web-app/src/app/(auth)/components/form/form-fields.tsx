@@ -174,15 +174,10 @@ export function FormInput<T extends FieldValues>({
         setAllowedOrganizations([]);
         return;
       }
-      const debouncedResult = debouncedGetAllowedOrganizations(
+      debouncedGetAllowedOrganizations(
         email,
         prefilledOrganization?.id ?? null,
       );
-      if (!debouncedResult) {
-        setIsLoading(false);
-        setAllowedOrganizations([]);
-        return;
-      }
     } catch (error) {
       console.error(error);
       setIsLoading(false);
