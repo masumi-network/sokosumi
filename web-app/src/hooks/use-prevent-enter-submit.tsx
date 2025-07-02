@@ -25,7 +25,6 @@ export default function usePreventEnterSubmit<T extends FieldValues>(
 
     document.addEventListener("keydown", handleKeyDown);
     return () => {
-      console.log("Unmount");
       document.removeEventListener("keydown", handleKeyDown);
     };
   }, []);
