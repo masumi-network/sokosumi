@@ -33,14 +33,14 @@ import {
  * - Private: Restricted to specific organizations (only accessible to members)
  *
  * @param agent - The agent with organization data to check access for
- * @param memberOrganizationIds - Array of organization IDs that the user is a member of
+ * @param userOrganizationIds - Array of organization IDs that the user is a member of
  * @returns A Promise that resolves to true if the user has access, false otherwise
  *
  * @example
  * ```typescript
  * const agent = await retrieveAgentWithOrganizationsById("agent456");
- * const memberOrgs = await retrieveMembersOrganizationIdsByUserId("user123");
- * const hasAccess = await canUserAccessAgent(agent, memberOrgs);
+ * const userOrganizationIds = await retrieveMembersOrganizationIdsByUserId("user123");
+ * const hasAccess = await canUserAccessAgent(agent, userOrganizationIds);
  * if (hasAccess) {
  *   // User can access the agent
  * }
@@ -48,16 +48,16 @@ import {
  */
 function canUserAccessAgent(
   agent: AgentWithOrganizations,
-  memberOrganizationIds: string[],
+  userOrganizationIds: string[],
 ): boolean {
   // If agent has no organization restrictions, it's public
   if (agent.organizations.length === 0) return true;
 
   // If memberOrganizationIds is empty, return false
-  if (memberOrganizationIds.length === 0) return false;
+  if (userOrganizationIds.length === 0) return false;
 
   return agent.organizations.some((agentOrg) =>
-    memberOrganizationIds.includes(agentOrg.id),
+    userOrganizationIds.includes(agentOrg.id),
   );
 }
 
@@ -86,12 +86,12 @@ export async function getOnlineAgentsWithValidPricing(
   );
 
   // First, filter agents asynchronously by access
-  const memberOrganizationIds =
+  const userOrganizationIds =
     session?.user.id && session.user.id !== ""
       ? await retrieveMembersOrganizationIdsByUserId(session.user.id, tx)
       : [];
   return onlineAgents
-    .filter((agent) => canUserAccessAgent(agent, memberOrganizationIds))
+    .filter((agent) => canUserAccessAgent(agent, userOrganizationIds))
     .filter((agent) => {
       const amounts = agent.pricing.fixedPricing?.amounts?.map((amount) => ({
         unit: amount.unit,
