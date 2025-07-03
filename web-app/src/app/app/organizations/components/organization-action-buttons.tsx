@@ -12,7 +12,7 @@ import { Organization } from "@/prisma/generated/client";
 
 interface OrganizationActionButtonsProps {
   organization: Organization;
-  activeOrganizationId?: string;
+  activeOrganizationId: string | null | undefined;
 }
 
 export default function OrganizationActionButtons({
