@@ -46,10 +46,10 @@ import {
  * }
  * ```
  */
-async function canUserAccessAgent(
+function canUserAccessAgent(
   agent: AgentWithOrganizations,
   memberOrganizationIds: string[],
-): Promise<boolean> {
+): boolean {
   // If agent has no organization restrictions, it's public
   if (agent.organizations.length === 0) return true;
 
@@ -86,16 +86,12 @@ export async function getOnlineAgentsWithValidPricing(
   );
 
   // First, filter agents asynchronously by access
-  const memberOrganizationIds = session?.user.id
-    ? await retrieveMembersOrganizationIdsByUserId(session.user.id, tx)
-    : [];
-  const accessResults = await Promise.all(
-    onlineAgents.map((agent) =>
-      canUserAccessAgent(agent, memberOrganizationIds),
-    ),
-  );
+  const memberOrganizationIds =
+    session?.user.id && session.user.id !== ""
+      ? await retrieveMembersOrganizationIdsByUserId(session.user.id, tx)
+      : [];
   return onlineAgents
-    .filter((_, index) => accessResults[index] === true)
+    .filter((agent) => canUserAccessAgent(agent, memberOrganizationIds))
     .filter((agent) => {
       const amounts = agent.pricing.fixedPricing?.amounts?.map((amount) => ({
         unit: amount.unit,
