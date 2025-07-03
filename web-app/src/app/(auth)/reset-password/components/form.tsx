@@ -33,7 +33,7 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
     },
   });
 
-  async function onSubmit(values: ResetPasswordFormSchemaType) {
+  async function handleSubmit(values: ResetPasswordFormSchemaType) {
     const resetPasswordResult = await resetPassword({
       newPassword: values.password,
       token: values.token,
@@ -53,7 +53,7 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
       form={form}
       formData={resetPasswordFormData}
       namespace="Auth.Pages.ResetPassword.Form"
-      onSubmit={onSubmit}
+      onSubmit={handleSubmit}
     >
       <SubmitButton form={form} label={t("submit")} />
     </AuthForm>

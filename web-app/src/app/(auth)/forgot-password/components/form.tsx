@@ -33,7 +33,7 @@ export default function ForgotPasswordForm({
     },
   });
 
-  async function onSubmit(values: ForgotPasswordFormSchemaType) {
+  async function handleSubmit(values: ForgotPasswordFormSchemaType) {
     const forgetPasswordResult = await forgetPassword({
       email: values.email,
       redirectTo: "/reset-password",
@@ -53,7 +53,7 @@ export default function ForgotPasswordForm({
       form={form}
       formData={forgotPasswordFormData}
       namespace="Auth.Pages.ForgotPassword.Form"
-      onSubmit={onSubmit}
+      onSubmit={handleSubmit}
     >
       <SubmitButton form={form} label={t("reset_password")} />
     </AuthForm>

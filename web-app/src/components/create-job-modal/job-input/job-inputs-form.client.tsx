@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
+import { Command, CornerDownLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import React from "react";
@@ -12,6 +12,7 @@ import { useCreateJobModalContext } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { useAsyncRouterPush } from "@/hooks/use-async-router";
+import usePreventEnterSubmit from "@/hooks/use-prevent-enter-submit";
 import {
   CommonErrorCode,
   JobErrorCode,
@@ -25,7 +26,7 @@ import {
   jobInputsFormSchema,
   JobInputsFormSchemaType,
 } from "@/lib/job-input";
-import { cn } from "@/lib/utils";
+import { cn, getOSFromUserAgent } from "@/lib/utils";
 
 import JobInput from "./job-input";
 
@@ -62,8 +63,10 @@ export default function JobInputsFormClient({
   });
   const asyncRouter = useAsyncRouterPush();
 
+  const { os, isMobile } = getOSFromUserAgent();
+
   // create job modal context
-  const { setLoading, handleClose } = useCreateJobModalContext();
+  const { open, setLoading, handleClose } = useCreateJobModalContext();
 
   // Then replace your existing handleSubmit function with this:
   const handleSubmit: SubmitHandler<JobInputsFormSchemaType> = async (
@@ -119,13 +122,16 @@ export default function JobInputsFormClient({
     setLoading(false);
   };
 
+  const { formRef, handleSubmit: enterPreventedHandleSubmit } =
+    usePreventEnterSubmit(form, handleSubmit, open);
+
   const handleClear = () => {
     form.reset();
   };
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)}>
+      <form ref={formRef} onSubmit={enterPreventedHandleSubmit}>
         <fieldset
           disabled={form.formState.isSubmitting}
           className={cn("flex flex-1 flex-col gap-6", className)}
@@ -154,11 +160,20 @@ export default function JobInputsFormClient({
                   disabled={
                     form.formState.isSubmitting || !form.formState.isValid
                   }
+                  className="items-center justify-between gap-2"
                 >
-                  {form.formState.isSubmitting && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <div className="flex items-center gap-1">
+                    {form.formState.isSubmitting && (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    )}
+                    {t("submit")}
+                  </div>
+                  {!isMobile && (
+                    <div className="flex items-center gap-1">
+                      {os === "MacOS" ? <Command /> : t("ctrl")}
+                      <CornerDownLeft />
+                    </div>
                   )}
-                  {t("submit")}
                 </Button>
               </div>
             </div>
