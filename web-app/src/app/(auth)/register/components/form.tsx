@@ -63,7 +63,7 @@ export default function SignUpForm({
     form.setValue("organizationId", "");
   }, [email, form, prefilledOrganizationId]);
 
-  const onSubmit = async (values: SignUpFormSchemaType) => {
+  const handleSubmit = async (values: SignUpFormSchemaType) => {
     const organizationResult = checkOrganizationAndEmail(
       organizations,
       values.organizationId,
@@ -147,7 +147,7 @@ export default function SignUpForm({
       prefilledEmail={prefilledEmail}
       prefilledOrganizationId={prefilledOrganizationId}
       namespace="Auth.Pages.SignUp.Form"
-      onSubmit={onSubmit}
+      onSubmit={handleSubmit}
       organizations={organizations}
     >
       <div className="flex flex-col gap-4">

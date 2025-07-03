@@ -18,11 +18,34 @@ export default function usePreventEnterSubmit<T extends FieldValues>(
       const pressedEnter = e.key === "Enter";
       const ctrlOrCmd = e.metaKey || e.ctrlKey;
       const isTextArea = e.target instanceof HTMLTextAreaElement;
+      const isInput = e.target instanceof HTMLInputElement;
+      const isContentEditable =
+        e.target instanceof HTMLElement && e.target.isContentEditable;
 
-      preventEnterSubmit.current = pressedEnter && !isTextArea && !ctrlOrCmd;
+      // Only prevent Enter submission for non-textarea, non-contenteditable elements
+      // and when not using Ctrl/Cmd+Enter (which should always submit)
+      if (pressedEnter && !isTextArea && !isContentEditable && !ctrlOrCmd) {
+        // For input elements, only prevent if it's not a submit button
+        if (
+          isInput &&
+          e.target instanceof HTMLInputElement &&
+          e.target.type === "submit"
+        ) {
+          return; // Allow Enter on submit buttons
+        }
 
+        // Set the flag to prevent form submission
+        preventEnterSubmit.current = true;
+
+        // Reset the flag after a short delay to handle race conditions
+        setTimeout(() => {
+          preventEnterSubmit.current = false;
+        }, 100);
+      }
+
+      // Handle Ctrl/Cmd+Enter submission
       if (pressedEnter && ctrlOrCmd) {
-        if (formRef && formRef.current) {
+        if (formRef.current) {
           formRef.current.requestSubmit();
         }
       }
@@ -34,17 +57,21 @@ export default function usePreventEnterSubmit<T extends FieldValues>(
     };
   }, [isActive]);
 
-  const onSubmit = useCallback(
+  const enterPreventedHandleSubmit = useCallback(
     (e: React.FormEvent) => {
       if (preventEnterSubmit.current) {
+        // only don't run handleSubmit
         form.handleSubmit(() => {})(e);
+        // Reset the flag immediately
         preventEnterSubmit.current = false;
-      } else {
-        form.handleSubmit(handleSubmit)(e);
+        return;
       }
+
+      // Normal form submission
+      form.handleSubmit(handleSubmit)(e);
     },
     [form, handleSubmit],
   );
 
-  return { formRef, onSubmit };
+  return { formRef, handleSubmit: enterPreventedHandleSubmit };
 }

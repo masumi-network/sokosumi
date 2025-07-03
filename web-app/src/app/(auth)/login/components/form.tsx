@@ -39,7 +39,7 @@ export default function SignInForm({
     },
   });
 
-  const onSubmit = async (values: SignInFormSchemaType) => {
+  const handleSubmit = async (values: SignInFormSchemaType) => {
     await authClient.signIn.email(
       {
         email: values.email,
@@ -89,7 +89,7 @@ export default function SignInForm({
       formData={signInFormData}
       prefilledEmail={prefilledEmail}
       namespace="Auth.Pages.SignIn.Form"
-      onSubmit={onSubmit}
+      onSubmit={handleSubmit}
     >
       <div className="flex flex-col gap-4">
         <SubmitButton form={form} label={t("submit")} className="w-full" />

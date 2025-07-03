@@ -59,7 +59,7 @@ export default function JobDetailsName({ job }: { job: JobWithStatus }) {
     form.reset({ name: name ?? "" });
   };
 
-  const onSubmit = async (data: JobDetailsNameFormSchemaType) => {
+  const handleSubmit = async (data: JobDetailsNameFormSchemaType) => {
     const result = await updateJobName(job.id, !!data.name ? data.name : null);
     if (result.success) {
       setEditing(false);
@@ -76,7 +76,7 @@ export default function JobDetailsName({ job }: { job: JobWithStatus }) {
         <>
           <Form {...form}>
             <form
-              onSubmit={form.handleSubmit(onSubmit)}
+              onSubmit={form.handleSubmit(handleSubmit)}
               className="flex w-full items-start gap-2"
             >
               <FormField
