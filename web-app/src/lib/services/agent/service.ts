@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getSessionOrThrow } from "@/lib/auth/utils";
+import { getSession, getSessionOrThrow } from "@/lib/auth/utils";
 import { AgentWithJobs, AgentWithRelations } from "@/lib/db";
 import {
   prisma,
@@ -77,10 +77,10 @@ async function canUserAccessAgent(
  * @returns An array of `AgentWithRelations`
  */
 export async function getOnlineAgentsWithValidPricing(
-  userId?: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithRelations[]> {
   // get all credit costs
+  const session = await getSession();
   const creditCosts = await retrieveAllCreditCosts(tx);
   const validCreditCostUnits = creditCosts.map(({ unit }) => unit);
 
@@ -90,7 +90,7 @@ export async function getOnlineAgentsWithValidPricing(
   );
 
   return onlineAgents
-    .filter((agent) => canUserAccessAgent(agent.id, userId))
+    .filter((agent) => canUserAccessAgent(agent.id, session?.user.id))
     .filter((agent) => {
       const amounts = agent.pricing.fixedPricing?.amounts?.map((amount) => ({
         unit: amount.unit,
@@ -277,10 +277,9 @@ export interface AgentWithCreditPrice {
  * ```
  */
 export async function getOnlineAgentsWithCreditsPrice(
-  userId?: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithCreditPrice[]> {
-  const agents = await getOnlineAgentsWithValidPricing(userId, tx);
+  const agents = await getOnlineAgentsWithValidPricing(tx);
   const results = await Promise.allSettled(
     agents.map(async (agent) => {
       const creditsPrice = await getAgentCreditsPrice(agent, tx);
