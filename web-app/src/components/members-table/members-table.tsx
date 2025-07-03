@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 
 import { DataTable } from "@/components/data-table";
-import { MemberRole, MemberWithUser } from "@/lib/db";
+import { InvitationStatus, MemberRole, MemberWithUser } from "@/lib/db";
 import { cn } from "@/lib/utils";
 import { Invitation, Member } from "@/prisma/generated/client";
 
@@ -81,7 +81,10 @@ function convertInvitationToMemberRowData(
 ): MemberRowData {
   return {
     email: invitation.email,
-    role: MemberRole.PENDING,
+    role:
+      invitation.expiresAt > new Date()
+        ? InvitationStatus.PENDING
+        : InvitationStatus.EXPIRED,
     invitation,
   };
 }

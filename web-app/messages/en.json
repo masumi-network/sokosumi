@@ -183,7 +183,8 @@
       "Role": {
         "admin": "Admin",
         "member": "Member",
-        "pending": "Pending"
+        "pending": "Pending",
+        "expired": "Expired"
       },
       "RequiredEmailDomains": {
         "restrictAll": "Restrict all email domains"
