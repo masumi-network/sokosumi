@@ -17,27 +17,25 @@ export function useAllowedOrganizations({
     OrganizationWithRelations[]
   >(prefilledOrganization ? [prefilledOrganization] : []);
   const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
+
   const abortControllerRef = useRef<AbortController | null>(null);
 
   const debouncedFetchAllowedOrganizations = useDebouncedCallback(
-    async (email: string, organizationId: string | null) => {
-      setIsLoading(true);
-
-      // Cancel any ongoing request
+    async (email: string) => {
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
-
       const abortController = new AbortController();
       abortControllerRef.current = abortController;
 
+      setIsLoading(true);
+      setError(null);
+
       try {
         const encodedEmail = encodeURIComponent(email);
-        const encodedOrganizationId = organizationId
-          ? encodeURIComponent(organizationId)
-          : "";
         const result = await fetch(
-          `/api/organization/allowed-to-join?email=${encodedEmail}&organizationId=${encodedOrganizationId}`,
+          `/api/organization/allowed-by-email-domain?email=${encodedEmail}`,
           {
             signal: abortController.signal,
           },
@@ -48,13 +46,14 @@ export function useAllowedOrganizations({
 
         const data = await result.json();
         setAllowedOrganizations(data.allowedOrganizations);
-        setIsLoading(false);
       } catch (error) {
-        // Only handle errors that aren't from aborting
-        if (error instanceof Error && error.name !== "AbortError") {
-          setIsLoading(false);
-          setAllowedOrganizations([]);
+        if (!(error instanceof Error && error.name === "AbortError")) {
+          console.error("Error fetching allowed organizations", error);
+          setError(error instanceof Error ? error : new Error("Unknown error"));
         }
+        setAllowedOrganizations([]);
+      } finally {
+        setIsLoading(false);
       }
     },
     350,
@@ -63,11 +62,14 @@ export function useAllowedOrganizations({
 
   useEffect(() => {
     debouncedFetchAllowedOrganizations.cancel();
-
-    // Cancel any ongoing request when email changes
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
+    }
+
+    if (prefilledOrganization) {
+      setAllowedOrganizations([prefilledOrganization]);
+      return;
     }
 
     if (!isValidEmail(email)) {
@@ -75,14 +77,12 @@ export function useAllowedOrganizations({
       return;
     }
 
-    debouncedFetchAllowedOrganizations(
-      email,
-      prefilledOrganization?.id ?? null,
-    );
+    debouncedFetchAllowedOrganizations(email);
   }, [email, debouncedFetchAllowedOrganizations, prefilledOrganization]);
 
   return {
     allowedOrganizations,
     isLoading,
+    error,
   };
 }

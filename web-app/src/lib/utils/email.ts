@@ -12,5 +12,5 @@ export function getEmailDomain(email: string): string | null {
   if (!result.success) {
     return null;
   }
-  return result.data.split("@")[1];
+  return result.data.split("@")[1].toLowerCase();
 }
