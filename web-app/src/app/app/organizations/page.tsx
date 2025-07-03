@@ -4,8 +4,6 @@ import { getTranslations } from "next-intl/server";
 import { listMyMembers } from "@/lib/services";
 import { getMyValidPendingInvitations } from "@/lib/services/invitation";
 
-import InvitationRowActionsModal from "./components/invitation-row-actions-modal";
-import { InvitationRowActionsModalContextProvider } from "./components/invitation-row-actions-modal-context";
 import Organizations from "./components/organizations";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -27,10 +25,7 @@ export default async function OrganizationsPage() {
       <div className="flex w-full items-center justify-between">
         <h1 className="text-2xl font-bold">{t("title")}</h1>
       </div>
-      <InvitationRowActionsModalContextProvider>
-        <Organizations members={members} invitations={invitations} />
-        <InvitationRowActionsModal />
-      </InvitationRowActionsModalContextProvider>
+      <Organizations members={members} invitations={invitations} />
     </div>
   );
 }

@@ -33,15 +33,13 @@ export function InvitationRowActionsModalContextProvider({
   ): Promise<{ error?: unknown }> {
     switch (action) {
       case InvitationRowAction.ACCEPT:
-        const acceptResult = await authClient.organization.acceptInvitation({
+        return await authClient.organization.acceptInvitation({
           invitationId: invitation.id,
         });
-        return { error: acceptResult.error };
       case InvitationRowAction.REJECT:
-        const rejectResult = await authClient.organization.rejectInvitation({
+        return await authClient.organization.rejectInvitation({
           invitationId: invitation.id,
         });
-        return { error: rejectResult.error };
     }
   }
 
@@ -57,15 +55,13 @@ export function InvitationRowActionsModalContextProvider({
     router.refresh();
   }
 
-  function onError(action: InvitationRowAction, _error: unknown) {
-    switch (action) {
-      case InvitationRowAction.ACCEPT:
-        toast.error(t("acceptError"));
-        break;
-      case InvitationRowAction.REJECT:
-        toast.error(t("rejectError"));
-        break;
-    }
+  function onError(action: InvitationRowAction, error: unknown) {
+    console.error(`Failed to "${action}" invitation`, error);
+    toast.error(
+      action === InvitationRowAction.ACCEPT
+        ? t("acceptError")
+        : t("rejectError"),
+    );
   }
 
   return (

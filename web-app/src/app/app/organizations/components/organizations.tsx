@@ -3,6 +3,8 @@ import { useTranslations } from "next-intl";
 import { InvitationWithRelations, MemberWithOrganization } from "@/lib/db";
 
 import InvitationRow from "./invitation-row";
+import InvitationRowActionsModal from "./invitation-row-actions-modal";
+import { InvitationRowActionsModalContextProvider } from "./invitation-row-actions-modal-context";
 import OrganizationRow, { OrganizationRowSkeleton } from "./organization-row";
 
 interface OrganizationsProps {
@@ -19,14 +21,17 @@ export default function Organizations({
   }
 
   return (
-    <div className="flex w-full flex-col divide-y rounded-lg border">
-      {members.map((member) => (
-        <OrganizationRow key={member.id} member={member} />
-      ))}
-      {invitations.map((invitation) => (
-        <InvitationRow key={invitation.id} invitation={invitation} />
-      ))}
-    </div>
+    <InvitationRowActionsModalContextProvider>
+      <div className="flex w-full flex-col divide-y rounded-lg border">
+        {members.map((member) => (
+          <OrganizationRow key={member.id} member={member} />
+        ))}
+        {invitations.map((invitation) => (
+          <InvitationRow key={invitation.id} invitation={invitation} />
+        ))}
+      </div>
+      <InvitationRowActionsModal />
+    </InvitationRowActionsModalContextProvider>
   );
 }
 
