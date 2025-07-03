@@ -1,20 +1,28 @@
 import { useTranslations } from "next-intl";
 
-import { MemberWithOrganization } from "@/lib/db";
+import { InvitationWithRelations, MemberWithOrganization } from "@/lib/db";
 
+import InvitationRow from "./invitation-row";
 import OrganizationRow, { OrganizationRowSkeleton } from "./organization-row";
 
 interface OrganizationsProps {
   members: MemberWithOrganization[];
+  invitations: InvitationWithRelations[];
 }
 
-export default function Organizations({ members }: OrganizationsProps) {
-  if (members.length === 0) {
+export default function Organizations({
+  members,
+  invitations,
+}: OrganizationsProps) {
+  if (members.length === 0 && invitations.length === 0) {
     return <OrganizationsNotAvailable />;
   }
 
   return (
     <div className="flex w-full flex-col divide-y rounded-lg border">
+      {invitations.map((invitation) => (
+        <InvitationRow key={invitation.id} invitation={invitation} />
+      ))}
       {members.map((member) => (
         <OrganizationRow key={member.id} member={member} />
       ))}

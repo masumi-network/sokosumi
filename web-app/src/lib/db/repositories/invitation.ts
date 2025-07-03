@@ -41,3 +41,19 @@ export async function retrievePendingInvitationsByOrganizationId(
     where: { organizationId, status: "pending" },
   });
 }
+
+export async function retrieveValidPendingInvitationsByEmail(
+  email: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<InvitationWithRelations[]> {
+  return tx.invitation.findMany({
+    where: {
+      email,
+      status: "pending",
+      expiresAt: {
+        gt: new Date(),
+      },
+    },
+    include: invitationInclude,
+  });
+}

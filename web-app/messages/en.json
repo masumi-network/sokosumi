@@ -827,8 +827,17 @@
       "title": "Organizations",
       "newOrganization": "New Organization",
       "membersNotAvailable": "No members found",
+      "invitationPending": "Invitation pending",
       "OrganizationRow": {
         "leave": "Leave"
+      },
+      "InvitationActions": {
+        "accept": "Accept",
+        "reject": "Reject",
+        "acceptSuccess": "Invitation accepted successfully",
+        "acceptError": "Failed to accept invitation",
+        "rejectSuccess": "Invitation rejected successfully",
+        "rejectError": "Failed to reject invitation"
       },
       "OrganizationDetail": {
         "Metadata": {
