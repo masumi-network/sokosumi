@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: production-deployment
+  group: release-webapp-deployment
   cancel-in-progress: false
 
 jobs:
