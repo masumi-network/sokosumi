@@ -100,8 +100,10 @@ model Organization {
   metadata  String?
   createdAt DateTime @default(now())
 
-  members     Member[]
-  invitations Invitation[]
+  members            Member[]
+  invitations        Invitation[]
+  creditTransactions CreditTransaction[]
+  fiatTransactions   FiatTransaction[]
 
   requiredEmailDomains String[] @default([])
 
@@ -352,13 +354,19 @@ model CreditTransaction {
   errorNote    String?
   errorNoteKey String?
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   fiatTransaction FiatTransaction?
 
   job         Job? @relation("CreditTransactionJob")
   refundedJob Job? @relation("RefundedCreditTransactionJob")
+
+  @@index([userId])
+  @@index([organizationId])
 }
 
 model FiatTransaction {
@@ -373,11 +381,17 @@ model FiatTransaction {
   service          FiatService           @default(STRIPE)
   status           FiatTransactionStatus @default(PENDING)
 
-  userId String
-  user   User   @relation(fields: [userId], references: [id])
+  userId String?
+  user   User?   @relation(fields: [userId], references: [id])
+
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id])
 
   creditTransaction   CreditTransaction? @relation(fields: [creditTransactionId], references: [id])
   creditTransactionId String?            @unique
+
+  @@index([userId])
+  @@index([organizationId])
 }
 
 enum FiatTransactionStatus {

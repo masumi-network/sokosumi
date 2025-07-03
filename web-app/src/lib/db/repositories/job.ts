@@ -124,6 +124,7 @@ interface CreateJobData {
   agentJobId: string;
   agentId: string;
   userId: string;
+  organizationId?: string;
   inputSchema: JobInputSchemaType[];
   input: string;
   paymentId: string;
@@ -141,6 +142,27 @@ export async function createJob(
   data: CreateJobData,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Job> {
+  // Build the credit transaction data based on whether it's for a user or organization
+  const creditTransactionData = data.organizationId
+    ? {
+        amount: -data.creditsPrice.cents,
+        includedFee: data.creditsPrice.includedFee,
+        organization: {
+          connect: {
+            id: data.organizationId,
+          },
+        },
+      }
+    : {
+        amount: -data.creditsPrice.cents,
+        includedFee: data.creditsPrice.includedFee,
+        user: {
+          connect: {
+            id: data.userId,
+          },
+        },
+      };
+
   return await tx.job.create({
     data: {
       agentJobId: data.agentJobId,
@@ -150,15 +172,7 @@ export async function createJob(
         },
       },
       creditTransaction: {
-        create: {
-          amount: -data.creditsPrice.cents,
-          includedFee: data.creditsPrice.includedFee,
-          user: {
-            connect: {
-              id: data.userId,
-            },
-          },
-        },
+        create: creditTransactionData,
       },
       paymentId: data.paymentId,
       inputSchema: data.inputSchema,
@@ -196,19 +210,32 @@ export async function refundJob(
     throw new Error("Credit transaction not found");
   }
 
+  // Build refund transaction data based on whether it's for a user or organization
+  const refundTransactionData = creditTransaction.organizationId
+    ? {
+        amount: creditTransaction.amount * BigInt(-1),
+        includedFee: creditTransaction.includedFee,
+        organization: {
+          connect: {
+            id: creditTransaction.organizationId,
+          },
+        },
+      }
+    : {
+        amount: creditTransaction.amount * BigInt(-1),
+        includedFee: creditTransaction.includedFee,
+        user: {
+          connect: {
+            id: creditTransaction.userId!,
+          },
+        },
+      };
+
   await tx.job.update({
     where: { id: jobId },
     data: {
       refundedCreditTransaction: {
-        create: {
-          amount: creditTransaction.amount * BigInt(-1),
-          includedFee: creditTransaction.includedFee,
-          user: {
-            connect: {
-              id: creditTransaction.userId,
-            },
-          },
-        },
+        create: refundTransactionData,
       },
     },
   });

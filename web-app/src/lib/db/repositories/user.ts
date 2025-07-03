@@ -19,6 +19,13 @@ export async function retrieveUserById(
 ) {
   return await tx.user.findUnique({
     where: { id },
+    include: {
+      members: {
+        include: {
+          organization: true,
+        },
+      },
+    },
   });
 }
 

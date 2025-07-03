@@ -72,6 +72,61 @@ export async function createStripeCheckoutSession(
   });
 }
 
+export async function createOrganizationStripeCheckoutSession(
+  userId: string,
+  organizationId: string,
+  credits: number,
+  priceId: string,
+  promotionCode: string | null = null,
+): Promise<{ stripeSessionId: string; url: string }> {
+  // Verify that the user is the one initiating the transaction
+  await verifyUserId(userId);
+
+  // Create the fiat transaction and the checkout session
+  return await prisma.$transaction(async (tx) => {
+    try {
+      const user = await retrieveUserById(userId, tx);
+      if (!user) {
+        throw new Error("User not found");
+      }
+      const conversionFactorsPerCredit = await getConversionFactors(priceId);
+      const amount = credits * conversionFactorsPerCredit.amountPerCredit;
+
+      // Import the organization version of createFiatTransaction
+      const { createOrganizationFiatTransaction } = await import(
+        "@/lib/db/repositories"
+      );
+
+      const fiatTransaction = await createOrganizationFiatTransaction(
+        userId,
+        organizationId,
+        convertCreditsToCents(credits),
+        amount,
+        conversionFactorsPerCredit.currency,
+        tx,
+      );
+      const { id: stripeSessionId, url } = await createCheckoutSession(
+        user,
+        fiatTransaction.id,
+        priceId,
+        Number(fiatTransaction.amount) /
+          conversionFactorsPerCredit.amountPerCredit,
+        promotionCode,
+      );
+
+      await updateFiatTransactionServicePaymentId(
+        fiatTransaction.id,
+        stripeSessionId,
+        tx,
+      );
+      return { stripeSessionId, url };
+    } catch (error) {
+      console.log("Error creating organization stripe checkout session", error);
+      throw error;
+    }
+  });
+}
+
 export async function getWelcomePromotionCode(
   userId: string,
 ): Promise<Stripe.PromotionCode | null> {

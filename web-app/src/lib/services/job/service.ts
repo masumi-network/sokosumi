@@ -20,7 +20,12 @@ import { StartJobInputSchemaType } from "@/lib/schemas";
 import { getInputHash, getInputHashDeprecated } from "@/lib/utils";
 import { Job, NextJobAction, Prisma } from "@/prisma/generated/client";
 import { getAgentPricing } from "@/services/agent";
-import { getCreditsPrice, validateCreditsBalance } from "@/services/credit";
+import {
+  getCreditsPrice,
+  validateCreditsBalance,
+  validateOrganizationCreditsBalance,
+} from "@/services/credit";
+import { getActiveOrganization } from "@/services/organization";
 
 import {
   createPurchase,
@@ -78,8 +83,21 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
         if (creditsPrice.cents > maxAcceptedCents) {
           throw new Error("Credit cost is too high");
         }
+
+        // Check for active organization and validate appropriate credit balance
+        const activeOrganization = await getActiveOrganization();
+        const organizationId = activeOrganization?.id;
+
         if (creditsPrice.cents > 0) {
-          await validateCreditsBalance(userId, creditsPrice.cents, tx);
+          if (organizationId) {
+            await validateOrganizationCreditsBalance(
+              organizationId,
+              creditsPrice.cents,
+              tx,
+            );
+          } else {
+            await validateCreditsBalance(userId, creditsPrice.cents, tx);
+          }
         }
 
         const identifierFromPurchaser = uuidv4()
@@ -118,6 +136,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
             agentJobId: startJobResponse.job_id,
             agentId,
             userId,
+            organizationId,
             input: JSON.stringify(Object.fromEntries(inputData)),
             inputSchema: inputSchema,
             paymentId: purchaseResponse.data.id,

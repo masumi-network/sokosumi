@@ -8,10 +8,12 @@ import { MemberRole } from "@/lib/db";
 import { retrieveOrganizationWithRelationsBySlug } from "@/lib/db/repositories";
 import {
   getMyMemberInOrganization,
+  getOrganizationCredits,
   getOrganizationMembersWithUser,
   getOrganizationPendingInvitations,
 } from "@/lib/services";
 
+import OrganizationCredits from "./components/organization-credits";
 import OrganizationInformation from "./components/organization-information";
 import OrganizationInviteButton from "./components/organization-invite-button";
 
@@ -63,6 +65,7 @@ export default async function OrganizationPage({
   const pendingInvitations = await getOrganizationPendingInvitations(
     organization.id,
   );
+  const organizationCredits = await getOrganizationCredits(organization.id);
 
   return (
     <div className="container flex flex-col gap-8 p-8">
@@ -71,6 +74,12 @@ export default async function OrganizationPage({
         <OrganizationRoleBadge role={member.role} />
       </div>
       <OrganizationInformation organization={organization} member={member} />
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        <OrganizationCredits
+          credits={organizationCredits}
+          organizationName={organization.name}
+        />
+      </div>
       <div className="flex items-center justify-between">
         <h3 className="text-lg font-medium">{t("members")}</h3>
         {member.role === MemberRole.ADMIN && (
