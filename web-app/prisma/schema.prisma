@@ -102,6 +102,7 @@ model Organization {
 
   members     Member[]
   invitations Invitation[]
+  agents      Agent[]
 
   requiredEmailDomains String[] @default([])
 
@@ -286,6 +287,7 @@ model Agent {
   userAgentRating UserAgentRating[]
   agentLists      AgentList[]
   jobs            Job[]
+  organizations   Organization[]
 
   tags         Tag[] @relation("AgentTag")
   overrideTags Tag[] @relation("AgentTagOverride")
