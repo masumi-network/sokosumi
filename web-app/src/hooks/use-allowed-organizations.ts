@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 
 import { OrganizationWithRelations } from "@/lib/db/types/organization";
@@ -7,6 +7,10 @@ import { isValidEmail } from "@/lib/utils";
 interface UseAllowedOrganizationsProps {
   email: string;
   prefilledOrganization?: OrganizationWithRelations | null;
+}
+
+interface AllowedOrganizationsResponse {
+  allowedOrganizations: OrganizationWithRelations[];
 }
 
 export function useAllowedOrganizations({
@@ -20,6 +24,15 @@ export function useAllowedOrganizations({
   const [error, setError] = useState<Error | null>(null);
 
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  const resetState = useCallback(() => {
+    setIsLoading(false);
+    setError(null);
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+      abortControllerRef.current = null;
+    }
+  }, []);
 
   const debouncedFetchAllowedOrganizations = useDebouncedCallback(
     async (email: string) => {
@@ -41,10 +54,11 @@ export function useAllowedOrganizations({
           },
         );
         if (!result.ok) {
-          return [];
+          setAllowedOrganizations([]);
+          return;
         }
 
-        const data = await result.json();
+        const data: AllowedOrganizationsResponse = await result.json();
         setAllowedOrganizations(data.allowedOrganizations);
       } catch (error) {
         if (!(error instanceof Error && error.name === "AbortError")) {
@@ -62,10 +76,7 @@ export function useAllowedOrganizations({
 
   useEffect(() => {
     debouncedFetchAllowedOrganizations.cancel();
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      abortControllerRef.current = null;
-    }
+    resetState();
 
     if (prefilledOrganization) {
       setAllowedOrganizations([prefilledOrganization]);
@@ -78,7 +89,12 @@ export function useAllowedOrganizations({
     }
 
     debouncedFetchAllowedOrganizations(email);
-  }, [email, debouncedFetchAllowedOrganizations, prefilledOrganization]);
+  }, [
+    email,
+    prefilledOrganization,
+    debouncedFetchAllowedOrganizations,
+    resetState,
+  ]);
 
   return {
     allowedOrganizations,
