@@ -17,11 +17,10 @@ export default async function Organizations({
   members,
   invitations,
 }: OrganizationsProps) {
-  const session = await getSession();
   if (members.length === 0 && invitations.length === 0) {
     return <OrganizationsNotAvailable />;
   }
-
+  const session = await getSession();
   return (
     <InvitationRowActionsModalContextProvider>
       <div className="flex w-full flex-col divide-y rounded-lg border">
