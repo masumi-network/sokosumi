@@ -21,7 +21,14 @@ export async function acceptPendingInvitationsByEmailAndOrganizationId(
   tx: Prisma.TransactionClient = prisma,
 ) {
   return tx.invitation.updateMany({
-    where: { email, organizationId, status: "pending" },
+    where: {
+      email,
+      organizationId,
+      status: "pending",
+      expiresAt: {
+        gt: new Date(),
+      },
+    },
     data: { status: "accepted" },
   });
 }
