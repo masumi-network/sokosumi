@@ -15,7 +15,7 @@ export default function OrganizationRow({
   activeOrganizationId,
 }: {
   member: MemberWithOrganization;
-  activeOrganizationId?: string | null;
+  activeOrganizationId: string | null | undefined;
 }) {
   const { organization, role } = member;
   const { slug, name } = organization;
