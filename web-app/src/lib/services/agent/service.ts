@@ -41,9 +41,9 @@ import {
  * }
  * ```
  */
-export async function canUserAccessAgent(
-  userId: string,
+async function canUserAccessAgent(
   agentId: string,
+  userId?: string,
 ): Promise<boolean> {
   const agent = await retrieveAgentWithOrganizationsById(agentId);
 
@@ -52,6 +52,9 @@ export async function canUserAccessAgent(
 
   // If agent has no organization restrictions, it's public
   if (agent.organizations.length === 0) return true;
+
+  // If user is not provided, return false
+  if (!userId) return false;
 
   // Check if user is a member of any organization that has access to this agent
   const userOrganizationIds =
@@ -74,6 +77,7 @@ export async function canUserAccessAgent(
  * @returns An array of `AgentWithRelations`
  */
 export async function getOnlineAgentsWithValidPricing(
+  userId?: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithRelations[]> {
   // get all credit costs
@@ -84,16 +88,19 @@ export async function getOnlineAgentsWithValidPricing(
     AgentStatus.ONLINE,
     tx,
   );
-  return onlineAgents.filter((agent) => {
-    const amounts = agent.pricing.fixedPricing?.amounts?.map((amount) => ({
-      unit: amount.unit,
-      amount: Number(amount.amount),
-    }));
-    if (!amounts) {
-      return true;
-    }
-    return amounts.every(({ unit }) => validCreditCostUnits.includes(unit));
-  });
+
+  return onlineAgents
+    .filter((agent) => canUserAccessAgent(agent.id, userId))
+    .filter((agent) => {
+      const amounts = agent.pricing.fixedPricing?.amounts?.map((amount) => ({
+        unit: amount.unit,
+        amount: Number(amount.amount),
+      }));
+      if (!amounts) {
+        return true;
+      }
+      return amounts.every(({ unit }) => validCreditCostUnits.includes(unit));
+    });
 }
 
 export async function getHiredAgentsOrderedByLatestJob(
@@ -161,7 +168,7 @@ export async function getOnlineAgentsWithCreditsPrice(
   userId?: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithCreditPrice[]> {
-  const agents = await getOnlineAgentsWithValidPricing(tx);
+  const agents = await getOnlineAgentsWithValidPricing(userId, tx);
   const results = await Promise.allSettled(
     agents.map(async (agent) => {
       const creditsPrice = await getAgentCreditsPrice(agent, tx);
