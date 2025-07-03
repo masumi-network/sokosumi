@@ -15,7 +15,7 @@ export async function retrievePendingInvitationById(
   });
 }
 
-export async function acceptPendingInvitationsByEmailAndOrganizationId(
+export async function acceptValidPendingInvitationsByEmailAndOrganizationId(
   email: string,
   organizationId: string,
   tx: Prisma.TransactionClient = prisma,

@@ -11,7 +11,7 @@ import {
 import { auth } from "@/lib/auth/auth";
 import { MemberRole } from "@/lib/db";
 import {
-  acceptPendingInvitationsByEmailAndOrganizationId,
+  acceptValidPendingInvitationsByEmailAndOrganizationId,
   createMember,
   createOrganization,
   prisma,
@@ -90,7 +90,7 @@ export async function signUpEmail(
 
         // check whether user has invitation or his email domain is allowed by organization
         const updatedInvitations =
-          await acceptPendingInvitationsByEmailAndOrganizationId(
+          await acceptValidPendingInvitationsByEmailAndOrganizationId(
             parsed.email,
             organization.id,
             tx,
