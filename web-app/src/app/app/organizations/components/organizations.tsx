@@ -11,8 +11,6 @@ interface OrganizationsProps {
 
 export default async function Organizations({ members }: OrganizationsProps) {
   const session = await getSession();
-  const activeOrganizationId =
-    session?.session.activeOrganizationId ?? undefined;
   if (members.length === 0) {
     return <OrganizationsNotAvailable />;
   }
@@ -23,7 +21,7 @@ export default async function Organizations({ members }: OrganizationsProps) {
         <OrganizationRow
           key={member.id}
           member={member}
-          activeOrganizationId={activeOrganizationId}
+          activeOrganizationId={session?.session.activeOrganizationId}
         />
       ))}
     </div>
