@@ -186,7 +186,7 @@
         "pending": "Pending"
       },
       "RequiredEmailDomains": {
-        "allowAll": "Allow all email domains"
+        "restrictAll": "Restrict all email domains"
       },
       "EditInformationModal": {
         "title": "Edit Organization",
@@ -196,8 +196,9 @@
           "success": "Organization updated successfully",
           "error": "Failed to update organization",
           "Errors": {
-            "notAuthenticated": "You need to be logged in to edit an organization.",
-            "unauthorized": "You need to be an admin to edit an organization."
+            "unauthenticated": "You must be logged in to edit an organization.",
+            "unauthenticatedAction": "Login",
+            "unauthorized": "You must be an admin to edit an organization."
           },
           "Fields": {
             "Name": {
@@ -211,7 +212,7 @@
               "placeholder": "Add domain",
               "duplicate": "Domain already exists",
               "invalid": "Invalid domain",
-              "noDomains": "Allow all email domains"
+              "noDomains": "Restrict all email domains"
             }
           }
         },
@@ -613,15 +614,7 @@
               "createPlaceholder": "New organization name",
               "success": "Organization created successfully",
               "error": "Failed to create organization",
-              "invalidEmail": "Input valid email to see or create organizations",
-              "Schema": {
-                "Name": {
-                  "min": "Organization name must be at least 2 characters.",
-                  "max": "Organization name must be at most 50 characters.",
-                  "invalid": "Organization name must be a valid string.",
-                  "required": "Organization name is required"
-                }
-              }
+              "invalidEmail": "Input valid email to see or create organizations"
             },
             "Password": {
               "placeholder": "Password"
@@ -631,11 +624,11 @@
             }
           },
           "Errors": {
-            "member": "Failed to create organization member",
-            "organization": "Organization not found",
-            "emailDomainNotAllowedByOrganization": "Email domain not allowed to join organization",
+            "badInput": "Please input form correctly.",
+            "organizationNotFound": "Organization not found",
+            "memberCreateFailed": "Failed to create organization member",
+            "emailNotAllowedByOrganization": "Email not allowed to join organization",
             "userExists": "User already exists",
-            "emailDomainNotAllowed": "Email must end with {allowedEmailDomains}",
             "termsNotAccepted": "You must accept the terms and conditions to register"
           },
           "Login": {
@@ -765,14 +758,23 @@
       },
       "FreeClaim": {
         "button": "Get 100 free credits",
-        "error": "Failed to claim free credits"
+        "error": "Failed to claim free credits",
+        "Errors": {
+          "unauthenticated": "You must log in to claim free credits.",
+          "unauthenticatedAction": "Login",
+          "promotionCodeNotFound": "Promotion code not found"
+        }
       },
-      "invalidCredits": "Invalid credit amount",
-      "invalidCoupon": "Invalid or inactive coupon code",
-      "couponNotFound": "Coupon code not found",
-      "couponTypeError": "This coupon type is not supported",
-      "couponCurrencyError": "Coupon currency is not supported",
-      "checkoutFailed": "Failed to create checkout"
+      "Errors": {
+        "unauthenticated": "You must log in.",
+        "unauthenticatedAction": "Login",
+        "invalidCredits": "Invalid credit amount",
+        "invalidCoupon": "Invalid or inactive coupon code",
+        "couponNotFound": "Coupon code not found",
+        "couponTypeError": "This coupon type is not supported",
+        "couponCurrencyError": "Coupon currency is not supported",
+        "promotionCodeNotFound": "Promotion code not found"
+      }
     },
     "Account": {
       "title": "Account Settings",
@@ -907,24 +909,32 @@
         },
         "JobDetails": {
           "Header": {
-            "Schema": {
-              "Name": {
-                "invalid": "Name must be a valid string",
-                "min": "Name must be at least 2 characters",
-                "max": "Name must be at most 80 characters"
+            "JobName": {
+              "Schema": {
+                "Name": {
+                  "invalid": "Name must be a valid string",
+                  "min": "Name must be at least 2 characters",
+                  "max": "Name must be at most 80 characters"
+                }
+              },
+              "Form": {
+                "Name": {
+                  "placeholder": "Please input Job Name"
+                }
+              },
+              "edit": "Edit",
+              "save": "Save",
+              "cancel": "Cancel",
+              "noName": "No name",
+              "success": "Job name updated successfully",
+              "error": "Failed to update job name",
+              "Errors": {
+                "unauthenticated": "You must be logged in to update job name.",
+                "unauthenticatedAction": "Login",
+                "jobNotFound": "Job not found",
+                "unauthorized": "You are not the owner of this job."
               }
-            },
-            "Form": {
-              "Name": {
-                "placeholder": "Please input Job Name"
-              }
-            },
-            "edit": "Edit",
-            "save": "Save",
-            "cancel": "Cancel",
-            "noName": "No name",
-            "success": "Job name updated successfully",
-            "error": "Failed to update job name"
+            }
           },
           "Input": {
             "title": "Input",
@@ -961,6 +971,12 @@
                   "title": "Refund no longer available",
                   "description": "You could have requested a refund until {unlockAt}."
                 }
+              },
+              "Errors": {
+                "unauthenticated": "You must be logged in to request a refund.",
+                "unauthenticatedAction": "Login",
+                "jobNotFound": "Job not found",
+                "unauthorized": "You must be job owner to reqeust a refund"
               }
             }
           }
@@ -989,7 +1005,9 @@
         },
         "Organization": {
           "invalid": "Organization must be a valid string.",
-          "required": "Organization is required"
+          "required": "Organization is required",
+          "min": "Organization name must be at least 2 characters.",
+          "max": "Organization name must be at most 50 characters."
         },
         "Password": {
           "invalid": "Password must be a valid string.",
@@ -1093,6 +1111,7 @@
         "clear": "Clear",
         "price": "{price, plural, =0 {Free} =1 {1 credit} other {# credits}} per run",
         "submit": "Hire",
+        "ctrl": "Ctrl",
         "acceptByClickingSubmit": "By clicking on \"Hire\" you're accepting the ",
         "termsOfService": "Terms of Service",
         "privacyPolicy": "Privacy Policy",
@@ -1101,9 +1120,9 @@
         "Error": {
           "insufficientBalance": "Your credit balance is insufficient to start this job.",
           "insufficientBalanceAction": "Buy credits",
-          "invalidInput": "Your input data is invalid.",
-          "notAuthenticated": "You must be logged in to start a job.",
-          "notAuthenticatedAction": "Login",
+          "badInput": "Your input data is invalid.",
+          "unauthenticated": "You must be logged in to start a job.",
+          "unauthenticatedAction": "Login",
           "default": "Failed to start the job."
         },
         "String": {

@@ -18,7 +18,7 @@ import {
   convertCentsToCredits,
   CreditsPrice,
   getAgentName,
-  JobWithRelations,
+  JobWithLimitedInformation,
 } from "@/lib/db";
 
 export function HeaderSkeleton() {
@@ -50,7 +50,7 @@ interface HeaderProps {
   agent: AgentWithRelations;
   agentCreditsPrice: CreditsPrice;
   favoriteAgentList: AgentListWithAgent;
-  jobs: JobWithRelations[];
+  jobs: JobWithLimitedInformation[];
 }
 
 export default function Header({

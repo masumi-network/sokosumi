@@ -1,3 +1,5 @@
+import "server-only";
+
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware } from "better-auth/api";
@@ -5,8 +7,10 @@ import { nextCookies } from "better-auth/next-js";
 import { organization } from "better-auth/plugins";
 import { getTranslations } from "next-intl/server";
 
-import { getEnvPublicConfig, getEnvSecrets } from "@/config/env.config";
-import { MemberRole, prisma } from "@/lib/db";
+import { getEnvPublicConfig } from "@/config/env.public";
+import { getEnvSecrets } from "@/config/env.secrets";
+import { MemberRole } from "@/lib/db";
+import { prisma } from "@/lib/db/repositories";
 import { reactChangeEmailVerificationEmail } from "@/lib/email/change-email";
 import { reactInviteUserEmail } from "@/lib/email/invitation";
 import { resend } from "@/lib/email/resend";
@@ -68,6 +72,7 @@ export const auth = betterAuth({
       }
     }),
   },
+  disabledPaths: ["/sign-up/email", "/sign-in"],
   emailAndPassword: {
     enabled: true,
     maxPasswordLength: getEnvPublicConfig().NEXT_PUBLIC_PASSWORD_MAX_LENGTH,

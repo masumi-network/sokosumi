@@ -1,29 +1,27 @@
-"use server";
+import "server-only";
 
 import { v4 as uuidv4 } from "uuid";
 
 import { getSessionOrThrow } from "@/lib/auth/utils";
+import { computeJobStatus, JobStatus, JobWithStatus } from "@/lib/db";
 import {
-  computeJobStatus,
   createJob,
-  getAgentById,
-  getJobsByAgentIdAndUserId,
-  getNotFinalizedLatestJobByAgentIdAndUserId,
-  JobStatus,
-  JobWithStatus,
   prisma,
   refundJob,
-  setNextActionToJob,
+  retrieveAgentWithRelationsById,
+  retrieveJobsByAgentIdAndUserId,
+  retrieveNotFinalizedLatestJobByAgentIdAndUserId,
+  updateJobNextActionByBlockchainIdentifier,
   updateJobWithAgentJobStatus,
   updateJobWithPurchase,
-} from "@/lib/db";
+} from "@/lib/db/repositories";
 import { JobInputData } from "@/lib/job-input";
+import { StartJobInputSchemaType } from "@/lib/schemas";
 import { getInputHash, getInputHashDeprecated } from "@/lib/utils";
 import { Job, NextJobAction, Prisma } from "@/prisma/generated/client";
 import { getAgentPricing } from "@/services/agent";
 import { getCreditsPrice, validateCreditsBalance } from "@/services/credit";
 
-import { StartJobInputSchemaType } from "./schemas";
 import {
   createPurchase,
   fetchAgentJobStatus,
@@ -56,7 +54,7 @@ export async function getMyJobsByAgentId(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<JobWithStatus[]> {
   const session = await getSessionOrThrow();
-  return await getJobsByAgentIdAndUserId(agentId, session.user.id, tx);
+  return await retrieveJobsByAgentIdAndUserId(agentId, session.user.id, tx);
 }
 
 export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
@@ -65,7 +63,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
       const { userId, agentId, maxAcceptedCents, inputData, inputSchema } =
         input;
       try {
-        const agent = await getAgentById(agentId, tx);
+        const agent = await retrieveAgentWithRelationsById(agentId, tx);
         if (!agent) {
           throw new Error("Agent not found");
         }
@@ -270,7 +268,7 @@ export async function getAgentJobStatus(
   job: Job,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<JobStatusResponse | null> {
-  const agent = await getAgentById(job.agentId, tx);
+  const agent = await retrieveAgentWithRelationsById(job.agentId, tx);
   if (!agent) {
     return null;
   }
@@ -290,7 +288,7 @@ export async function requestRefundJob(
   if (!refundResult.ok) {
     throw new Error(refundResult.error);
   }
-  const job = await setNextActionToJob(
+  const job = await updateJobNextActionByBlockchainIdentifier(
     jobBlockchainIdentifier,
     NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
   );
@@ -300,12 +298,12 @@ export async function requestRefundJob(
 export async function getNotFinalizedLatestJobsByAgentIds(
   agentIds: string[],
   tx: Prisma.TransactionClient = prisma,
-): Promise<(Job | null)[]> {
+): Promise<(JobWithStatus | null)[]> {
   const session = await getSessionOrThrow();
   const userId = session.user.id;
   return await Promise.all(
     agentIds.map((agentId) =>
-      getNotFinalizedLatestJobByAgentIdAndUserId(agentId, userId, tx),
+      retrieveNotFinalizedLatestJobByAgentIdAndUserId(agentId, userId, tx),
     ),
   );
 }

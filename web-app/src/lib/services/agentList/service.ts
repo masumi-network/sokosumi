@@ -1,12 +1,12 @@
-"use server";
+import "server-only";
 
 import { getSessionOrThrow } from "@/lib/auth/utils";
+import { AgentListWithAgent } from "@/lib/db";
 import {
-  AgentListWithAgent,
-  createAgentList,
-  getAgentListByType,
+  createAgentListByUserIdAndType,
   prisma,
-} from "@/lib/db";
+  retrieveAgentListByUserIdAndType,
+} from "@/lib/db/repositories";
 import { Agent, AgentListType, Prisma } from "@/prisma/generated/client";
 
 export async function getFavoriteAgents(
@@ -27,11 +27,15 @@ export async function getOrCreateAgentListByType(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentListWithAgent> {
   const session = await getSessionOrThrow();
-  const existingList = await getAgentListByType(session.user.id, type, tx);
+  const existingList = await retrieveAgentListByUserIdAndType(
+    session.user.id,
+    type,
+    tx,
+  );
 
   if (existingList) {
     return existingList;
   }
 
-  return await createAgentList(session.user.id, type, tx);
+  return await createAgentListByUserIdAndType(session.user.id, type, tx);
 }

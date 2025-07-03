@@ -5,4 +5,14 @@ export const authClient = createAuthClient({
   plugins: [organizationClient()],
 });
 
-export const { signUp, signIn, signOut, useSession } = authClient;
+export const {
+  signUp,
+  signIn,
+  signOut,
+  forgetPassword,
+  resetPassword,
+  deleteUser,
+  useSession,
+  changeEmail,
+  changePassword,
+} = authClient;

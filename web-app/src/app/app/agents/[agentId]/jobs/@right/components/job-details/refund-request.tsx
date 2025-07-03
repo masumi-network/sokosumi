@@ -3,6 +3,7 @@
 import { ExternalLink, HandCoins, LoaderCircle } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import {
   AlertDialog,
@@ -22,8 +23,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { useAsyncRouter } from "@/hooks/use-async-router";
+import {
+  ActionError,
+  CommonErrorCode,
+  JobErrorCode,
+  requestRefundJobByBlockchainIdentifier,
+} from "@/lib/actions";
 import { JobWithStatus } from "@/lib/db";
-import { requestRefundJob } from "@/lib/services/job/service";
 import { cn } from "@/lib/utils";
 import { NextJobAction, OnChainJobStatus } from "@/prisma/generated/client";
 
@@ -91,8 +98,10 @@ export default function RequestRefundButton({
   className,
 }: RequestRefundButtonProps) {
   const t = useTranslations("App.Agents.Jobs.JobDetails.Output.Refund");
+  const router = useAsyncRouter();
+
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<ActionError | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isRefundRequested, setIsRefundRequested] = useState(
     job.onChainStatus === OnChainJobStatus.REFUND_REQUESTED ||
@@ -132,17 +141,41 @@ export default function RequestRefundButton({
     setIsLoading(true);
     setError(null);
 
-    try {
-      job = await requestRefundJob(job.blockchainIdentifier);
+    const result = await requestRefundJobByBlockchainIdentifier(
+      job.blockchainIdentifier,
+    );
+    if (result.ok) {
       setIsRefundRequested(
-        job.nextAction === NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
+        result.data.job.nextAction ===
+          NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
       );
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "An error occurred");
-    } finally {
-      setIsLoading(false);
-      setIsDialogOpen(false);
+    } else {
+      switch (result.error.code) {
+        case CommonErrorCode.UNAUTHENTICATED:
+          toast.error(t("Errors.unauthenticated"), {
+            action: {
+              label: t("Errors.unauthenticatedAction"),
+              onClick: async () => {
+                await router.push(`/login`);
+              },
+            },
+          });
+          break;
+        case JobErrorCode.JOB_NOT_FOUND:
+          toast.error(t("Errors.jobNotFound"));
+          break;
+        case CommonErrorCode.UNAUTHORIZED:
+          toast.error(t("Errors.unauthorized"));
+          break;
+        case CommonErrorCode.INTERNAL_SERVER_ERROR:
+          toast.error(t("error"));
+          break;
+        default:
+      }
+      setError(result.error);
     }
+    setIsLoading(false);
+    setIsDialogOpen(false);
   };
 
   const buttonElement = (

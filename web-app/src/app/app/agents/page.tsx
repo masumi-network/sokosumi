@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { AgentsNotAvailable } from "@/components/agents";
-import { getTags } from "@/lib/db";
+import { retrieveTags } from "@/lib/db/repositories";
 import {
   getOnlineAgentsWithCreditsPrice,
   getOrCreateFavoriteAgentList,
@@ -28,7 +28,7 @@ export default async function GalleryPage() {
     return <AgentsNotAvailable />;
   }
 
-  const tags: Tag[] = await getTags();
+  const tags: Tag[] = await retrieveTags();
   const tagNames = tags.map((tag) => tag.name);
 
   const favoriteAgentList = await getOrCreateFavoriteAgentList();

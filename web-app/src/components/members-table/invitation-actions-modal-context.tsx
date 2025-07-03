@@ -28,18 +28,16 @@ export function InvitationActionsModalContextProvider({
   );
   const router = useRouter();
 
-  async function onAction(invitation: Invitation, action: InvitationAction) {
+  async function onAction(
+    invitation: Invitation,
+    action: InvitationAction,
+  ): Promise<{ error?: unknown }> {
     switch (action) {
       case InvitationAction.CANCEL:
-        return await new Promise<{ error?: unknown }>((resolve) => {
-          authClient.organization.cancelInvitation(
-            { invitationId: invitation.id },
-            {
-              onError: ({ error }) => resolve({ error }),
-              onSuccess: () => resolve({}),
-            },
-          );
+        const result = await authClient.organization.cancelInvitation({
+          invitationId: invitation.id,
         });
+        return { error: result.error };
     }
   }
 

@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, useTransition } from "react";
 
-export function useAsyncRouterPush() {
+export function useAsyncRouter() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 

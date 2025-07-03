@@ -11,8 +11,8 @@ import CookieConsent from "@/components/cookie-consent";
 import { GlobalModalsContextProvider } from "@/components/modals/global-modals-context";
 import { Toaster } from "@/components/ui/sonner";
 import { UsersnapProvider } from "@/components/usersnap/usersnap-provider";
-import { getEnvSecrets } from "@/config/env.config";
-import { ThemeProvider } from "@/lib/context/theme-context";
+import { getEnvSecrets } from "@/config/env.secrets";
+import { ThemeProvider } from "@/contexts/theme-context";
 import { cn } from "@/lib/utils";
 
 const geistSans = Geist({

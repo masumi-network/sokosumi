@@ -2,8 +2,7 @@
 
 import { useEffect, useState } from "react";
 
-import { JobInputsDataSchemaType } from "@/lib/job-input";
-import { getAgentInputSchema } from "@/lib/services";
+import { jobInputsDataSchema, JobInputsDataSchemaType } from "@/lib/job-input";
 
 export default function useAgentInputSchema(agentId: string) {
   const [data, setData] = useState<JobInputsDataSchemaType | null>(null);
@@ -12,18 +11,52 @@ export default function useAgentInputSchema(agentId: string) {
 
   useEffect(() => {
     if (agentId) {
-      setLoading(true);
-      getAgentInputSchema(agentId)
-        .then((schema) => {
-          setData(schema);
-        })
-        .catch((error) => {
-          setError(error);
-        })
-        .finally(() => {
+      const fetchAgentInputSchema = async () => {
+        try {
+          setLoading(true);
+          setError(null);
+          const response = await fetch(
+            `/api/agent/input-schema?agentId=${encodeURIComponent(agentId)}`,
+          );
+
+          if (!response.ok) {
+            try {
+              const errorData = await response.json();
+              console.error("Failed to fetch agent input schema:", errorData);
+            } catch (jsonError) {
+              console.error(
+                "Could not parse fetch input schema error response as JSON:",
+                jsonError,
+              );
+            }
+            setError(new Error("Failed to fetch agent input schema"));
+            return;
+          }
+
+          const data = await response.json();
+          const parsedResult = jobInputsDataSchema().safeParse(data);
+          if (!parsedResult.success) {
+            setError(new Error("Failed to parse agent input schema"));
+          } else {
+            setData(parsedResult.data);
+          }
+        } catch (error) {
+          console.error("Failed to fetch agent input schema", error);
+          setError(
+            new Error(
+              error instanceof Error
+                ? error.message
+                : "Failed to fetch agent input schema",
+            ),
+          );
+        } finally {
           setLoading(false);
-        });
+        }
+      };
+
+      fetchAgentInputSchema();
     }
+
     return () => {
       setData(null);
       setError(null);

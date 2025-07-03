@@ -7,7 +7,7 @@ import { JobWithStatus } from "@/lib/db";
 import {
   jobStatusResponseSchema,
   JobStatusResponseSchemaType,
-} from "@/lib/services/job/schemas";
+} from "@/lib/schemas";
 
 import CopyMarkdown from "./copy-markdown";
 import DownloadMarkdown from "./download-markdown";

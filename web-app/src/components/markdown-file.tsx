@@ -1,17 +1,13 @@
-"use server";
-
-import { readFile } from "fs/promises";
+import { MarkdownFileType, readMarkdownFileContent } from "@/lib/data/markdown";
 
 import Markdown from "./markdown";
 
 export interface MarkdownFileProps {
-  fileSystemPath: string;
+  fileType: MarkdownFileType;
 }
 
-export default async function MarkdownFile({
-  fileSystemPath,
-}: MarkdownFileProps) {
-  const markdownContent = await readFile(fileSystemPath, "utf8");
+export default async function MarkdownFile({ fileType }: MarkdownFileProps) {
+  const markdownContent = await readMarkdownFileContent(fileType);
 
   return (
     <section className="max-w-full p-4 pt-8 md:mx-auto md:max-w-2/3 xl:max-w-1/2">

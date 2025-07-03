@@ -10,8 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { authClient } from "@/lib/auth/auth.client";
 import { MemberRole } from "@/lib/db";
+import { inviteFormData, InviteFormSchemaType } from "@/lib/schemas";
 
-import { inviteFormData, InviteFormSchemaType } from "./data";
 import { FormFields } from "./form-fields";
 
 interface OrganizationMemberInviteFormProps {
@@ -30,36 +30,32 @@ export default function OrganizationMemberInviteForm({
   const router = useRouter();
 
   const onSubmit = async (values: InviteFormSchemaType) => {
-    await authClient.organization.inviteMember(
-      {
-        email: values.email,
-        organizationId,
-        role: MemberRole.MEMBER,
-        resend: true,
-      },
-      {
-        onError: ({ error }) => {
-          switch (error.code) {
-            case "USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION":
-              toast.error(t("Errors.userAlreadyMember"));
-              break;
-            case "YOU_ARE_NOT_ALLOWED_TO_INVITE_USER_WITH_THIS_ROLE":
-              toast.error(t("Errors.unauthorized"));
-              break;
-            case "INVITATION_LIMIT_REACHED":
-              toast.error(t("Errors.invitationLimitReached"));
-              break;
-            default:
-              toast.error(t("error"));
-          }
-        },
-        onSuccess: () => {
-          toast.success(t("success"));
-          onOpenChange(false);
-          router.refresh();
-        },
-      },
-    );
+    const result = await authClient.organization.inviteMember({
+      email: values.email,
+      organizationId,
+      role: MemberRole.MEMBER,
+      resend: true,
+    });
+    if (result.error) {
+      switch (result.error.code) {
+        case "USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION":
+          toast.error(t("Errors.userAlreadyMember"));
+          break;
+        case "YOU_ARE_NOT_ALLOWED_TO_INVITE_USER_WITH_THIS_ROLE":
+          toast.error(t("Errors.unauthorized"));
+          break;
+        case "INVITATION_LIMIT_REACHED":
+          toast.error(t("Errors.invitationLimitReached"));
+          break;
+        default:
+          toast.error(t("error"));
+      }
+      return;
+    }
+
+    toast.success(t("success"));
+    onOpenChange(false);
+    router.refresh();
   };
 
   const isLoading = form.formState.isSubmitting;

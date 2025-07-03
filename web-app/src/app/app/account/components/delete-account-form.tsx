@@ -1,12 +1,10 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
-import { DeleteAccountFormType, deleteAccountSchema } from "@/app/account/data";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -33,11 +31,13 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { authClient } from "@/lib/auth/auth.client";
+import { useAsyncRouter } from "@/hooks/use-async-router";
+import { deleteUser } from "@/lib/auth/auth.client";
+import { DeleteAccountFormType, deleteAccountSchema } from "@/lib/schemas";
 
 export function DeleteAccountForm() {
   const t = useTranslations("App.Account.Delete");
-  const router = useRouter();
+  const router = useAsyncRouter();
 
   const form = useForm<DeleteAccountFormType>({
     resolver: zodResolver(
@@ -49,20 +49,17 @@ export function DeleteAccountForm() {
   });
 
   const onSubmit = async (values: DeleteAccountFormType) => {
-    await authClient.deleteUser(
-      {
-        password: values.currentPassword,
-      },
-      {
-        onError: () => {
-          toast.error(t("error"));
-        },
-        onSuccess: () => {
-          toast.success(t("success"));
-          router.push("/");
-        },
-      },
-    );
+    const deleteUserResult = await deleteUser({
+      password: values.currentPassword,
+    });
+
+    if (deleteUserResult.error) {
+      toast.error(t("error"));
+      return;
+    }
+
+    toast.success(t("success"));
+    await router.push("/");
   };
 
   return (

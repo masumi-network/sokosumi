@@ -1,16 +1,16 @@
-"use server";
+import "server-only";
 
 import Stripe from "stripe";
 
-import { getEnvSecrets } from "@/config/env.config";
+import { getEnvSecrets } from "@/config/env.secrets";
 import { verifyUserId } from "@/lib/auth/utils";
+import { convertCreditsToCents } from "@/lib/db";
 import {
-  convertCreditsToCents,
   createFiatTransaction,
-  getUserById,
   prisma,
+  retrieveUserById,
   updateFiatTransactionServicePaymentId,
-} from "@/lib/db";
+} from "@/lib/db/repositories";
 import {
   CouponCurrencyError,
   CouponNotFoundError,
@@ -37,7 +37,7 @@ export async function createStripeCheckoutSession(
   // Create the fiat transaction and the checkout session
   return await prisma.$transaction(async (tx) => {
     try {
-      const user = await getUserById(userId, tx);
+      const user = await retrieveUserById(userId, tx);
       if (!user) {
         throw new Error("User not found");
       }
@@ -89,7 +89,7 @@ export async function getPromotionCode(
   metadata?: Record<string, string>,
 ): Promise<Stripe.PromotionCode | null> {
   await verifyUserId(userId);
-  const user = await getUserById(userId);
+  const user = await retrieveUserById(userId);
   if (!user) {
     throw new Error("User not found");
   }

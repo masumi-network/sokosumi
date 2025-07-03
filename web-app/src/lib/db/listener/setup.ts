@@ -1,6 +1,8 @@
+import "server-only";
+
 import { Client } from "pg";
 
-import { getEnvSecrets } from "@/config/env.config";
+import { getEnvSecrets } from "@/config/env.secrets";
 
 let pgClient: Client | null = null;
 type Send = (data: string) => void;

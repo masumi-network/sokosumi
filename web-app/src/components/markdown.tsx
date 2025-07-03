@@ -12,6 +12,15 @@ const defaultOptions: MarkdownToJSX.Options = {
     <article className="prose dark:prose-invert max-w-none">{children}</article>
   ),
   forceWrapper: true,
+  overrides: {
+    a: {
+      component: ({ children, ...props }) => (
+        <a {...props} target="_blank" rel="noopener noreferrer">
+          {children}
+        </a>
+      ),
+    },
+  },
 };
 
 export default function Markdown({

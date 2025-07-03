@@ -1,18 +1,20 @@
-"use server";
+import "server-only";
 
-import { getEnvPublicConfig, getEnvSecrets } from "@/config/env.config";
+import { getEnvPublicConfig } from "@/config/env.public";
+import { getEnvSecrets } from "@/config/env.secrets";
 import {
   AgentWithFixedPricing,
   convertCentsToCredits,
   convertCreditsToCents,
   CreditsPrice,
-  getCentsByUserId,
-  getCreditCostByUnit,
-  prisma,
 } from "@/lib/db";
+import {
+  prisma,
+  retrieveCentsByUserId,
+  retrieveCreditCostByUnit,
+} from "@/lib/db/repositories";
+import { pricingAmountsSchema, PricingAmountsSchemaType } from "@/lib/schemas";
 import { Prisma } from "@/prisma/generated/client";
-
-import { pricingAmountsSchema, PricingAmountsSchemaType } from "./schema";
 
 /**
  * Retrieves the total credit balance for a given user, expressed in credits.
@@ -28,7 +30,7 @@ export async function getCredits(
   userId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<number> {
-  const creditsBalance = await getCentsByUserId(userId, tx);
+  const creditsBalance = await retrieveCentsByUserId(userId, tx);
   return convertCentsToCredits(creditsBalance);
 }
 
@@ -48,7 +50,7 @@ export async function validateCreditsBalance(
   cents: bigint,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<void> {
-  const centsBalance = await getCentsByUserId(userId, tx);
+  const centsBalance = await retrieveCentsByUserId(userId, tx);
   if (centsBalance - cents < BigInt(0)) {
     throw new Error("Insufficient balance");
   }
@@ -112,7 +114,7 @@ export async function getCreditsPrice(
   let totalFee = BigInt(0);
   const minFeeCents = convertCreditsToCents(getEnvSecrets().MIN_FEE_CREDITS);
   for (const amount of amountsParsed) {
-    const creditCost = await getCreditCostByUnit(amount.unit, tx);
+    const creditCost = await retrieveCreditCostByUnit(amount.unit, tx);
     if (!creditCost) {
       throw new Error(`Credit cost not found for unit ${amount.unit}`);
     }

@@ -1,7 +1,6 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -16,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useAsyncRouter } from "@/hooks/use-async-router";
 import { revalidateOrganizationsPath } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
 import { Organization } from "@/prisma/generated/client";
@@ -33,7 +33,7 @@ export function LeaveOrganizationModal({
 }: LeaveOrganizationModalProps) {
   const t = useTranslations("Components.Organizations.LeaveOrganizationModal");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  const router = useAsyncRouter();
 
   const handleLeaveOrganization = async () => {
     setLoading(true);
@@ -42,7 +42,7 @@ export function LeaveOrganizationModal({
       const organizationsResult = await authClient.organization.list();
       if (!organizationsResult.data) {
         toast.error(t("Errors.notAuthenticated"));
-        router.push("/login");
+        await router.push("/login");
         return;
       }
       const organizations = organizationsResult.data;

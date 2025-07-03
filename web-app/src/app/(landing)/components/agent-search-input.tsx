@@ -1,11 +1,11 @@
 "use client";
 
 import { ArrowUp } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type React from "react";
 
 import { Input } from "@/components/ui/input";
+import { useAsyncRouter } from "@/hooks/use-async-router";
 import { cn } from "@/lib/utils";
 
 interface AgentSearchInputProps {
@@ -14,10 +14,10 @@ interface AgentSearchInputProps {
 
 export default function AgentSearchInput({ className }: AgentSearchInputProps) {
   const t = useTranslations("Landing.Page.Hero.AgentSearchInput");
-  const router = useRouter();
-  const handleSubmit = (e: React.FormEvent | React.MouseEvent) => {
+  const router = useAsyncRouter();
+  const handleSubmit = async (e: React.FormEvent | React.MouseEvent) => {
     e.preventDefault();
-    router.push(`/agents`);
+    await router.push(`/agents`);
   };
 
   return (

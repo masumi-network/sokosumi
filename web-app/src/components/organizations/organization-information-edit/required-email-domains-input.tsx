@@ -8,8 +8,7 @@ import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-import { isValidDomain } from "./data";
+import { isValidDomain } from "@/lib/utils";
 
 interface RequiredEmailDomainsInputProps {
   id: string;

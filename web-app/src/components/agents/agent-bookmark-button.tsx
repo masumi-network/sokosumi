@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { toggleAgentInList } from "@/lib/actions";
+import { toggleAgentInAgentList } from "@/lib/actions";
 import { AgentListWithAgent } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
@@ -33,28 +33,23 @@ export function AgentBookmarkButton({
 
   const handleBookmarkToggle = async () => {
     setIsLoading(true);
-    try {
-      const result = await toggleAgentInList(
-        agentId,
-        agentList.id,
-        isBookmarked,
-      );
+    const result = await toggleAgentInAgentList(
+      agentId,
+      agentList.id,
+      isBookmarked,
+    );
 
-      if (result.success) {
-        setIsBookmarked(!isBookmarked);
-        if (isBookmarked) {
-          toast.success(t("removedFromBookmarks"));
-        } else {
-          toast.success(t("addedToBookmarks"));
-        }
+    if (result.ok) {
+      setIsBookmarked(!isBookmarked);
+      if (isBookmarked) {
+        toast.success(t("removedFromBookmarks"));
       } else {
-        toast.error(t("bookmarkError"));
+        toast.success(t("addedToBookmarks"));
       }
-    } catch {
+    } else {
       toast.error(t("bookmarkError"));
-    } finally {
-      setIsLoading(false);
     }
+    setIsLoading(false);
   };
 
   return (

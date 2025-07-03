@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { getEnvPublicConfig } from "@/config/env.config";
+import { getEnvPublicConfig } from "@/config/env.public";
 
 export const nameSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z
@@ -37,12 +37,48 @@ export const passwordSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
       message: t?.("Password.number"),
     });
 
-export const organizationIdSchema = (
+export const selectedOrganizationSchema = (
   t?: IntlTranslation<"Library.Auth.Schema">,
 ) =>
   z
-    .string({ message: t?.("Organization.invalid") })
-    .min(1, { message: t?.("Organization.required") });
+    .object({
+      id: z.string().nullish(),
+      name: z.string().nullish(),
+    })
+    .superRefine((value, ctx) => {
+      if (!value.id && !value.name) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: t?.("Organization.required"),
+        });
+      } else if (value.name && value.name.length < 2) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.too_small,
+          minimum: 2,
+          type: "string",
+          inclusive: true,
+          message: t?.("Organization.min"),
+        });
+      } else if (value.name && value.name.length > 50) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.too_big,
+          maximum: 50,
+          type: "string",
+          inclusive: true,
+          message: t?.("Organization.max"),
+        });
+      }
+    });
+
+export const createOrganizationSchema = (
+  t?: IntlTranslation<"Library.Auth.Schema">,
+) =>
+  z.object({
+    name: z
+      .string()
+      .min(2, { message: t?.("Organization.min") })
+      .max(50, { message: t?.("Organization.max") }),
+  });
 
 export const confirmPasswordSchema = (
   t?: IntlTranslation<"Library.Auth.Schema">,

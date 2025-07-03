@@ -1,4 +1,4 @@
-import { getEnvSecrets } from "@/config/env.config";
+import { getEnvSecrets } from "@/config/env.secrets";
 import { createHash } from "@/lib/utils";
 
 export const compareApiKeys = (apiKey: string) => {

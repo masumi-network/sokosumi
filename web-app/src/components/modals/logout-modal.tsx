@@ -1,7 +1,6 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -16,6 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { useAsyncRouter } from "@/hooks/use-async-router";
 import { signOut } from "@/lib/auth/auth.client";
 
 interface LogoutModalProps {
@@ -31,7 +31,7 @@ export default function LogoutModal({
 }: LogoutModalProps) {
   const t = useTranslations("Components.Modals.LogoutModal");
   const [loading, setLoading] = useState(false);
-  const router = useRouter();
+  const router = useAsyncRouter();
 
   const handleLogout = async () => {
     setLoading(true);
@@ -40,8 +40,8 @@ export default function LogoutModal({
         onError: () => {
           toast.error(t("error"));
         },
-        onSuccess: () => {
-          router.push("/login");
+        onSuccess: async () => {
+          await router.push("/login");
         },
       },
     });

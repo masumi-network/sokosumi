@@ -1,10 +1,10 @@
-"use server";
+import "server-only";
 
 import { headers } from "next/headers";
 import Stripe from "stripe";
 
-import { getEnvSecrets } from "@/config/env.config"; // Ensure this path is correct
-import { setStripeCustomerId } from "@/lib/db";
+import { getEnvSecrets } from "@/config/env.secrets";
+import { updateUserStripeCustomerId } from "@/lib/db/repositories";
 import { User } from "@/prisma/generated/client";
 
 const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
@@ -101,7 +101,7 @@ export async function constructEvent(req: Request, stripeSignature: string) {
 
 export async function createCustomer(user: User): Promise<string> {
   const customer = await stripe.customers.create({ email: user.email });
-  await setStripeCustomerId(user.id, customer.id);
+  await updateUserStripeCustomerId(user.id, customer.id);
   return customer.id;
 }
 

@@ -38,26 +38,25 @@ export default function InvitationActionsDropdown({
 
   const handleResend = async () => {
     setLoading(true);
-    await authClient.organization.inviteMember(
-      {
+    try {
+      const result = await authClient.organization.inviteMember({
         email,
         organizationId,
         role: MemberRole.MEMBER,
         resend: true,
-      },
-      {
-        onError: ({ error }) => {
-          console.error("Failed to resend invitation", error);
-          toast.error(t("resendError"));
-        },
-        onSuccess: () => {
-          toast.success(t("resendSuccess"));
-          router.refresh();
-        },
-      },
-    );
-    setLoading(false);
-    setOpen(false);
+      });
+
+      if (result.error) {
+        console.error("Failed to resend invitation", result.error);
+        toast.error(t("resendError"));
+      }
+
+      toast.success(t("resendSuccess"));
+      router.refresh();
+    } finally {
+      setLoading(false);
+      setOpen(false);
+    }
   };
 
   const handleCancel = () => {

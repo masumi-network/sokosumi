@@ -5,7 +5,10 @@ import {
   CreateJobModal,
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
-import { getAgentById, getJobsByAgentId } from "@/lib/db";
+import {
+  retrieveAgentWithRelationsById,
+  retrieveJobsWithLimitedInformationByAgentId,
+} from "@/lib/db/repositories";
 import { getAgentCreditsPrice } from "@/lib/services";
 
 export default async function AgentDetailPage({
@@ -15,7 +18,7 @@ export default async function AgentDetailPage({
 }) {
   const { agentId } = await params;
 
-  const agent = await getAgentById(agentId);
+  const agent = await retrieveAgentWithRelationsById(agentId);
   if (!agent) {
     return notFound();
   }
@@ -25,7 +28,7 @@ export default async function AgentDetailPage({
     return notFound();
   }
 
-  const jobs = await getJobsByAgentId(agentId);
+  const jobs = await retrieveJobsWithLimitedInformationByAgentId(agentId);
 
   return (
     <CreateJobModalContextProvider

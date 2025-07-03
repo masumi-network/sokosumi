@@ -26,7 +26,13 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { getFreeCreditsWithCoupon, purchaseCredits } from "@/lib/actions";
+import { useAsyncRouter } from "@/hooks/use-async-router";
+import {
+  BillingErrorCode,
+  CommonErrorCode,
+  getFreeCreditsWithCoupon,
+  purchaseCredits,
+} from "@/lib/actions";
 
 const billingFormSchema = z
   .object({
@@ -68,6 +74,8 @@ export default function BillingForm({
 }: BillingFormProps) {
   const t = useTranslations("App.Billing");
   const formatter = useFormatter();
+  const router = useAsyncRouter();
+
   const [clearedField, setClearedField] = useState<"credits" | "coupon" | null>(
     null,
   );
@@ -116,29 +124,55 @@ export default function BillingForm({
   );
 
   const onSubmit = async (data: BillingFormData) => {
-    try {
-      let result;
+    let result;
 
-      // If coupon is provided, use coupon redemption flow
-      if (data.coupon && data.coupon.trim().length > 0) {
-        result = await getFreeCreditsWithCoupon(priceId, data.coupon.trim());
-      }
-      // Otherwise, use credit purchase flow
-      else if (data.credits && data.credits > 0) {
-        result = await purchaseCredits(priceId, data.credits);
-      } else {
-        toast.error(t("couponOrCreditsError"));
-        return;
-      }
+    // If coupon is provided, use coupon redemption flow
+    if (data.coupon && data.coupon.trim().length > 0) {
+      result = await getFreeCreditsWithCoupon(priceId, data.coupon.trim());
+    }
+    // Otherwise, use credit purchase flow
+    else if (data.credits && data.credits > 0) {
+      result = await purchaseCredits(priceId, data.credits);
+    } else {
+      toast.error(t("couponOrCreditsError"));
+      return;
+    }
 
-      if (result.success && result.url) {
-        window.location.href = result.url;
-      } else {
-        toast.error(result.error ?? "Failed to create checkout");
+    if (result.ok) {
+      window.location.href = result.data.url;
+    } else {
+      switch (result.error.code) {
+        case CommonErrorCode.UNAUTHENTICATED:
+          toast.error(t("Errors.unauthenticated"), {
+            action: {
+              label: t("Errors.unauthenticatedAction"),
+              onClick: async () => {
+                await router.push(`/login`);
+              },
+            },
+          });
+          break;
+        case BillingErrorCode.INVALID_CREDITS:
+          toast.error(t("Errors.invalidCredits"));
+          break;
+        case BillingErrorCode.INVALID_COUPON:
+          toast.error(t("Errors.invalidCoupon"));
+          break;
+        case BillingErrorCode.COUPON_NOT_FOUND:
+          toast.error(t("Errors.couponNotFound"));
+          break;
+        case BillingErrorCode.COUPON_TYPE_ERROR:
+          toast.error(t("Errors.couponTypeError"));
+          break;
+        case BillingErrorCode.COUPON_CURRENCY_ERROR:
+          toast.error(t("Errors.couponCurrencyError"));
+          break;
+        case BillingErrorCode.PROMOTION_CODE_NOT_FOUND:
+          toast.error(t("Errors.promotionCodeNotFound"));
+          break;
+        default:
+          toast.error(t("Error.title"));
       }
-    } catch (error) {
-      console.error("Failed to create checkout session:", error);
-      toast.error(t("Error.title"));
     }
   };
 

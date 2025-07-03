@@ -2,12 +2,10 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -18,33 +16,27 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { updateJobName } from "@/lib/actions";
+import { useAsyncRouter } from "@/hooks/use-async-router";
+import { CommonErrorCode, JobErrorCode, updateJobName } from "@/lib/actions";
 import { JobWithStatus } from "@/lib/db";
-
-const jobDetailsNameFormSchema = (
-  t: IntlTranslation<"App.Agents.Jobs.JobDetails.Header">,
-) =>
-  z.object({
-    name: z
-      .string({ message: t("Schema.Name.invalid") })
-      .min(2, { message: t("Schema.Name.min") })
-      .max(80, { message: t("Schema.Name.max") })
-      .or(z.literal("")),
-  });
-
-type JobDetailsNameFormSchemaType = z.infer<
-  ReturnType<typeof jobDetailsNameFormSchema>
->;
+import {
+  jobDetailsNameFormSchema,
+  JobDetailsNameFormSchemaType,
+} from "@/lib/schemas";
 
 export default function JobDetailsName({ job }: { job: JobWithStatus }) {
-  const t = useTranslations("App.Agents.Jobs.JobDetails.Header");
+  const t = useTranslations("App.Agents.Jobs.JobDetails.Header.JobName");
   const { name } = job;
 
-  const router = useRouter();
+  const router = useAsyncRouter();
   const [editing, setEditing] = useState(false);
 
   const form = useForm<JobDetailsNameFormSchemaType>({
-    resolver: zodResolver(jobDetailsNameFormSchema(t)),
+    resolver: zodResolver(
+      jobDetailsNameFormSchema(
+        useTranslations("App.Agents.Jobs.JobDetails.Header.JobName.Schema"),
+      ),
+    ),
     defaultValues: {
       name: name ?? "",
     },
@@ -59,14 +51,34 @@ export default function JobDetailsName({ job }: { job: JobWithStatus }) {
     form.reset({ name: name ?? "" });
   };
 
-  const onSubmit = async (data: JobDetailsNameFormSchemaType) => {
-    const result = await updateJobName(job.id, !!data.name ? data.name : null);
-    if (result.success) {
+  const handleSubmit = async (data: JobDetailsNameFormSchemaType) => {
+    const result = await updateJobName(job.id, data);
+    if (result.ok) {
       setEditing(false);
       toast.success(t("success"));
       router.refresh();
     } else {
-      toast.error(t("error"));
+      switch (result.error.code) {
+        case CommonErrorCode.UNAUTHENTICATED:
+          toast.error(t("Errors.unauthenticated"), {
+            action: {
+              label: t("Errors.unauthenticatedAction"),
+              onClick: async () => {
+                await router.push(`/login`);
+              },
+            },
+          });
+          break;
+        case JobErrorCode.JOB_NOT_FOUND:
+          toast.error(t("Errors.jobNotFound"));
+          break;
+        case CommonErrorCode.UNAUTHORIZED:
+          toast.error(t("Errors.unauthorized"));
+          break;
+        default:
+          toast.error(t("error"));
+          break;
+      }
     }
   };
 
@@ -76,7 +88,7 @@ export default function JobDetailsName({ job }: { job: JobWithStatus }) {
         <>
           <Form {...form}>
             <form
-              onSubmit={form.handleSubmit(onSubmit)}
+              onSubmit={form.handleSubmit(handleSubmit)}
               className="flex w-full items-start gap-2"
             >
               <FormField

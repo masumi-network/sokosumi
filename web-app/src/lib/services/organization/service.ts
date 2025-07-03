@@ -1,17 +1,17 @@
-"use server";
+import "server-only";
 
 import { nanoid } from "nanoid";
 import slugify from "slugify";
 
 import { getSessionOrThrow } from "@/lib/auth/utils";
+import { MemberWithOrganization } from "@/lib/db";
 import {
-  getMemberByUserIdAndOrganizationId,
-  getMembersWithOrganizationByUserId,
-  getMembersWithUser,
-  getOrganizationBySlug,
-  getPendingInvitationsByOrganizationId,
-  MemberWithOrganization,
-} from "@/lib/db";
+  retrieveMemberByUserIdAndOrganizationId,
+  retrieveMembersWithOrganizationByUserId,
+  retrieveMembersWithUser,
+  retrieveOrganizationWithRelationsBySlug,
+  retrievePendingInvitationsByOrganizationId,
+} from "@/lib/db/repositories";
 import { Invitation, Member } from "@/prisma/generated/client";
 
 /**
@@ -27,7 +27,8 @@ import { Invitation, Member } from "@/prisma/generated/client";
  */
 export async function generateOrganizationSlugFromName(name: string) {
   const slugedName = slugify(name, { lower: true, strict: true });
-  const existingOrganization = await getOrganizationBySlug(slugedName);
+  const existingOrganization =
+    await retrieveOrganizationWithRelationsBySlug(slugedName);
   if (!existingOrganization) {
     return slugedName;
   }
@@ -48,7 +49,7 @@ export async function listMyMembers(): Promise<MemberWithOrganization[]> {
   const session = await getSessionOrThrow();
   const userId = session.user.id;
 
-  return await getMembersWithOrganizationByUserId(userId);
+  return await retrieveMembersWithOrganizationByUserId(userId);
 }
 
 /**
@@ -66,7 +67,7 @@ export async function getMyMemberInOrganization(
   const session = await getSessionOrThrow();
   const userId = session.user.id;
 
-  const member = await getMemberByUserIdAndOrganizationId(
+  const member = await retrieveMemberByUserIdAndOrganizationId(
     userId,
     organizationId,
   );
@@ -102,7 +103,7 @@ export async function getOrganizationMembersWithUser(
   const userId = session.user.id;
 
   // check if the user is a member of the organization
-  const myMemberInOrganization = await getMemberByUserIdAndOrganizationId(
+  const myMemberInOrganization = await retrieveMemberByUserIdAndOrganizationId(
     userId,
     organizationId,
   );
@@ -111,7 +112,7 @@ export async function getOrganizationMembersWithUser(
     throw new Error("NOT_AUTHORIZED");
   }
 
-  const members = await getMembersWithUser(
+  const members = await retrieveMembersWithUser(
     {
       organizationId,
       ...(includeMe ? {} : { userId: { not: userId } }),
@@ -128,7 +129,7 @@ export async function getOrganizationPendingInvitations(
   const session = await getSessionOrThrow();
   const userId = session.user.id;
 
-  const myMemberInOrganization = await getMemberByUserIdAndOrganizationId(
+  const myMemberInOrganization = await retrieveMemberByUserIdAndOrganizationId(
     userId,
     organizationId,
   );
@@ -137,5 +138,5 @@ export async function getOrganizationPendingInvitations(
     throw new Error("NOT_AUTHORIZED");
   }
 
-  return await getPendingInvitationsByOrganizationId(organizationId);
+  return await retrievePendingInvitationsByOrganizationId(organizationId);
 }

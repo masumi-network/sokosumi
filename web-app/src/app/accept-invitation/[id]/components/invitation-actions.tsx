@@ -3,7 +3,6 @@
 import { User } from "better-auth";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -12,6 +11,7 @@ import { useGlobalModalsContext } from "@/components/modals/global-modals-contex
 import { Button } from "@/components/ui/button";
 import { CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAsyncRouter } from "@/hooks/use-async-router";
 import { authClient } from "@/lib/auth/auth.client";
 import { InvitationWithRelations } from "@/lib/db";
 
@@ -28,7 +28,7 @@ export default function InvitationActions({
   const { id, email, organization } = invitation;
   const { id: organizationId, slug: organizationSlug } = organization;
 
-  const router = useRouter();
+  const router = useAsyncRouter();
   const [loading, setLoading] = useState(false);
   const [action, setAction] = useState<"accept" | "reject" | null>(null);
 
@@ -72,7 +72,7 @@ export default function InvitationActions({
       }
 
       toast.success(t("Accept.success"));
-      router.push(`/app/organizations/${organizationSlug}`);
+      await router.push(`/app/organizations/${organizationSlug}`);
     } finally {
       setLoading(false);
       setAction(null);
@@ -97,7 +97,7 @@ export default function InvitationActions({
       }
 
       toast.success(t("Decline.success"));
-      router.push("/app/organizations");
+      await router.push("/app/organizations");
     } finally {
       setLoading(false);
       setAction(null);

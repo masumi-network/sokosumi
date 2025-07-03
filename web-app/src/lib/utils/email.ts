@@ -6,11 +6,11 @@ export function isValidEmail(email: string): boolean {
   return result.success;
 }
 
-export function getEmailDomain(email: string): string {
+export function getEmailDomain(email: string): string | null {
   const emailSchema = z.string().email();
   const result = emailSchema.safeParse(email);
   if (!result.success) {
-    return "";
+    return null;
   }
-  return result.data.split("@")[1];
+  return result.data.split("@")[1].toLowerCase();
 }

@@ -2,43 +2,30 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/auth/components/form";
-import {
-  signUpFormData,
-  signUpFormSchema,
-  SignUpFormSchemaType,
-} from "@/auth/register/data";
-import {
-  createOrganizationMember,
-  updatePendingInvitations,
-} from "@/lib/actions";
-import { authClient } from "@/lib/auth/auth.client";
-import {
-  isEmailAllowedByOrganization,
-  OrganizationWithRelations,
-} from "@/lib/db";
-import { Organization } from "@/prisma/generated/client";
+import { signUpFormData } from "@/auth/register/data";
+import { useAsyncRouter } from "@/hooks/use-async-router";
+import { AuthErrorCode, CommonErrorCode, signUpEmail } from "@/lib/actions";
+import { OrganizationWithRelations } from "@/lib/db";
+import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
 
 interface SignUpFormProps {
-  organizations: OrganizationWithRelations[];
   prefilledEmail?: string | undefined;
-  prefilledOrganizationId?: string | undefined;
+  prefilledOrganization?: OrganizationWithRelations | null;
 }
 
 export default function SignUpForm({
-  organizations,
   prefilledEmail,
-  prefilledOrganizationId,
+  prefilledOrganization,
 }: SignUpFormProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form");
 
-  const router = useRouter();
+  const router = useAsyncRouter();
   const form = useForm<SignUpFormSchemaType>({
     resolver: zodResolver(
       signUpFormSchema(useTranslations("Library.Auth.Schema")),
@@ -48,7 +35,7 @@ export default function SignUpForm({
       name: "",
       password: "",
       confirmPassword: "",
-      organizationId: prefilledOrganizationId ?? "",
+      selectedOrganization: prefilledOrganization ?? undefined,
       termsAccepted: false,
       marketingOptIn: false,
     },
@@ -56,86 +43,57 @@ export default function SignUpForm({
 
   const email = form.watch("email");
   useEffect(() => {
-    if (prefilledOrganizationId) {
-      form.setValue("organizationId", prefilledOrganizationId);
+    if (prefilledOrganization) {
+      form.setValue("selectedOrganization", { id: prefilledOrganization.id });
       return;
     }
-    form.setValue("organizationId", "");
-  }, [email, form, prefilledOrganizationId]);
+    form.setValue("selectedOrganization", {
+      name: "",
+    });
+  }, [email, form, prefilledOrganization]);
 
-  const onSubmit = async (values: SignUpFormSchemaType) => {
-    const organizationResult = checkOrganizationAndEmail(
-      organizations,
-      values.organizationId,
-      values.email,
-      t,
-    );
-    if (!organizationResult.success) {
-      toast.error(organizationResult.error);
-      return;
-    }
-    const { organization } = organizationResult;
-
-    const signUpData = {
+  const handleSubmit = async (values: SignUpFormSchemaType) => {
+    const result = await signUpEmail({
       email: values.email,
       name: values.name,
       password: values.password,
+      confirmPassword: values.confirmPassword,
       termsAccepted: values.termsAccepted,
       marketingOptIn: values.marketingOptIn,
-      callbackURL: "/app",
-    };
-    const userResult = await authClient.signUp.email(
-      {
-        ...signUpData,
-      },
-      {
-        onError: (ctx) => {
-          switch (ctx.error.code) {
-            case "USER_ALREADY_EXISTS":
-              toast.error(t("Errors.userExists"));
-              break;
-            case "EMAIL_DOMAIN_NOT_ALLOWED":
-              toast.error(
-                t("Errors.emailDomainNotAllowed", {
-                  allowedEmailDomains: ctx.error.message,
-                }),
-              );
-              break;
-            case "TERMS_NOT_ACCEPTED":
-              toast.error(t("Errors.termsNotAccepted"));
-              break;
-            default:
-              toast.error(t("error"));
-              break;
-          }
-        },
-      },
-    );
-    if (!userResult.data?.user) {
-      return;
-    }
+      selectedOrganization: values.selectedOrganization,
+    });
 
-    // create member using organization
-    const memberResult = await createOrganizationMember(
-      userResult.data.user.id,
-      userResult.data.user.email,
-      organization,
-    );
-    if (!memberResult.success) {
-      if (memberResult.code === "EMAIL_DOMAIN_NOT_ALLOWED_BY_ORGANIZATION") {
-        toast.error(t("Errors.emailDomainNotAllowedByOrganization"));
-      } else {
-        toast.error(t("Errors.member"));
-      }
-    } else {
-      // update all pending invitations
-      await updatePendingInvitations(
-        userResult.data.user.email,
-        organization.id,
-      );
+    if (result.ok) {
       toast.success(t("success"));
+      await router.push("/login");
+    } else {
+      switch (result.error.code) {
+        case CommonErrorCode.BAD_INPUT:
+          toast.error(t("Errors.badInput"));
+          break;
+        case AuthErrorCode.ORGANIZATION_NOT_FOUND:
+          toast.error(t("Errors.organizationNotFound"));
+          break;
+        case AuthErrorCode.ORGANIZATION_CREATE_FAILED:
+          toast.error(t("Errors.organizationCreateFailed"));
+          break;
+        case AuthErrorCode.EMAIL_NOT_ALLOWED_BY_ORGANIZATION:
+          toast.error(t("Errors.emailNotAllowedByOrganization"));
+          break;
+        case AuthErrorCode.MEMBER_CREATE_FAILED:
+          toast.error(t("Errors.memberCreateFailed"));
+          break;
+        case AuthErrorCode.USER_ALREADY_EXISTS:
+          toast.error(t("Errors.userExists"));
+          break;
+        case AuthErrorCode.TERMS_NOT_ACCEPTED:
+          toast.error(t("Errors.termsNotAccepted"));
+          break;
+        default:
+          toast.error(t("error"));
+          break;
+      }
     }
-    router.push("/login");
   };
 
   const termsAccepted = form.watch("termsAccepted");
@@ -145,10 +103,9 @@ export default function SignUpForm({
       form={form}
       formData={signUpFormData}
       prefilledEmail={prefilledEmail}
-      prefilledOrganizationId={prefilledOrganizationId}
+      prefilledOrganization={prefilledOrganization}
       namespace="Auth.Pages.SignUp.Form"
-      onSubmit={onSubmit}
-      organizations={organizations}
+      onSubmit={handleSubmit}
     >
       <div className="flex flex-col gap-4">
         <SubmitButton
@@ -171,29 +128,4 @@ export default function SignUpForm({
       </div>
     </AuthForm>
   );
-}
-
-function checkOrganizationAndEmail(
-  organizations: Organization[],
-  organizationId: string,
-  email: string,
-  t: IntlTranslation<"Auth.Pages.SignUp.Form">,
-):
-  | { success: true; organization: Organization }
-  | { success: false; error: string } {
-  const organization = organizations.find(
-    (organization) => organization.id === organizationId,
-  );
-  if (!organization) {
-    return { success: false, error: t("Errors.organization") };
-  }
-
-  if (!isEmailAllowedByOrganization(email, organization)) {
-    return {
-      success: false,
-      error: t("Errors.emailDomainNotAllowedByOrganization"),
-    };
-  }
-
-  return { success: true, organization };
 }

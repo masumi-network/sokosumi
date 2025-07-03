@@ -1,25 +1,5 @@
-import { z } from "zod";
-
-import { confirmPasswordSchema, passwordSchema } from "@/lib/auth/data";
 import { FormData } from "@/lib/form";
-
-export const resetPasswordFormSchema = (
-  t?: IntlTranslation<"Library.Auth.Schema">,
-) =>
-  z
-    .object({
-      password: passwordSchema(t),
-      confirmPassword: confirmPasswordSchema(t),
-      token: z.string(),
-    })
-    .refine(({ password, confirmPassword }) => password === confirmPassword, {
-      path: ["confirmPassword"],
-      message: t?.("ConfirmPassword.match"),
-    });
-
-export type ResetPasswordFormSchemaType = z.infer<
-  ReturnType<typeof resetPasswordFormSchema>
->;
+import { ResetPasswordFormSchemaType } from "@/lib/schemas";
 
 export const resetPasswordFormData: FormData<
   ResetPasswordFormSchemaType,

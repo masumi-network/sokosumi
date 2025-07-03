@@ -1,18 +1,7 @@
-import { z } from "zod";
-
-import { emailSchema } from "@/lib/auth/data";
 import { FormData } from "@/lib/form";
+import { ForgotPasswordFormSchemaType } from "@/lib/schemas";
 
-const forgotPasswordFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
-  z.object({
-    email: emailSchema(t),
-  });
-
-type ForgotPasswordFormSchemaType = z.infer<
-  ReturnType<typeof forgotPasswordFormSchema>
->;
-
-const forgotPasswordFormData: FormData<
+export const forgotPasswordFormData: FormData<
   ForgotPasswordFormSchemaType,
   "Auth.Pages.ForgotPassword.Form"
 > = [
@@ -21,6 +10,3 @@ const forgotPasswordFormData: FormData<
     placeholderKey: "Fields.Email.placeholder",
   },
 ];
-
-export { forgotPasswordFormData, forgotPasswordFormSchema };
-export type { ForgotPasswordFormSchemaType };

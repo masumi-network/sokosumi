@@ -7,13 +7,11 @@ import {
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
 import DefaultLoading from "@/components/default-loading";
+import { getAgentDescription, getAgentLegal, getAgentName } from "@/lib/db";
 import {
-  getAgentById,
-  getAgentDescription,
-  getAgentLegal,
-  getAgentName,
-  getJobsByAgentId,
-} from "@/lib/db";
+  retrieveAgentWithRelationsById,
+  retrieveJobsWithLimitedInformationByAgentId,
+} from "@/lib/db/repositories";
 import {
   getAgentCreditsPrice,
   getOrCreateFavoriteAgentList,
@@ -28,7 +26,7 @@ export async function generateMetadata({
   params: Promise<{ agentId: string }>;
 }): Promise<Metadata> {
   const { agentId } = await params;
-  const agent = await getAgentById(agentId);
+  const agent = await retrieveAgentWithRelationsById(agentId);
   if (!agent) {
     notFound();
   }
@@ -61,7 +59,7 @@ export default async function JobLayout({
 
 async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
   const { agentId } = await params;
-  const agent = await getAgentById(agentId);
+  const agent = await retrieveAgentWithRelationsById(agentId);
   if (!agent) {
     console.warn("agent not found in job layout");
     return notFound();
@@ -69,7 +67,7 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
 
   const agentCreditsPrice = await getAgentCreditsPrice(agent);
   const favoriteAgentList = await getOrCreateFavoriteAgentList();
-  const jobs = await getJobsByAgentId(agentId);
+  const jobs = await retrieveJobsWithLimitedInformationByAgentId(agentId);
 
   return (
     <CreateJobModalContextProvider

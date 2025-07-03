@@ -1,6 +1,0 @@
-export enum OrganizationActionErrorCode {
-  // common
-  NOT_AUTHENTICATED = "NOT_AUTHENTICATED",
-  UNAUTHORIZED = "UNAUTHORIZED",
-  INTERNAL_SERVER_ERROR = "INTERNAL_SERVER_ERROR",
-}

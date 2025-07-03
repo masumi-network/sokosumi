@@ -9,7 +9,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: staging-deployment
+  group: main-sync-function-deployment
   cancel-in-progress: false
 
 jobs:

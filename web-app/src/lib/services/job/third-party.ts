@@ -1,8 +1,6 @@
-"use server";
+import "server-only";
 
-import { Err, Ok, Result } from "ts-res";
-
-import { getEnvPublicConfig } from "@/config/env.config";
+import { getEnvPublicConfig } from "@/config/env.public";
 import {
   getPurchase,
   postPurchase,
@@ -10,23 +8,23 @@ import {
   PostPurchaseResponse,
 } from "@/lib/api/generated/payment";
 import { getPaymentClient } from "@/lib/api/payment-service.client";
-import { AgentWithRelations, getAgentApiBaseUrl } from "@/lib/db";
+import { AgentWithRelations } from "@/lib/db";
 import { JobInputData } from "@/lib/job-input";
-
 import {
   jobStatusResponseSchema,
   JobStatusResponseSchemaType,
   startJobResponseSchema,
   StartJobResponseSchemaType,
-} from "./schemas";
+} from "@/lib/schemas";
+import { getAgentUrlWithPathComponent } from "@/lib/services";
+import { Err, Ok, Result } from "@/lib/ts-res";
 
 export async function fetchAgentJobStatus(
   agent: AgentWithRelations,
   jobId: string,
 ): Promise<Result<JobStatusResponseSchemaType, string>> {
   try {
-    const baseUrl = getAgentApiBaseUrl(agent);
-    const jobStatusUrl = new URL(`${baseUrl.href}/status`);
+    const jobStatusUrl = getAgentUrlWithPathComponent(agent, "status");
     jobStatusUrl.searchParams.set("job_id", jobId);
     const jobStatusResponse = await fetch(jobStatusUrl, {
       method: "GET",
@@ -54,9 +52,7 @@ export async function startAgentJob(
   inputData: JobInputData,
 ): Promise<Result<StartJobResponseSchemaType, string>> {
   try {
-    const baseUrl = getAgentApiBaseUrl(agent);
-    const startJobUrl = new URL(`${baseUrl.href}/start_job`);
-
+    const startJobUrl = getAgentUrlWithPathComponent(agent, "start_job");
     const startJobResponse = await fetch(startJobUrl, {
       method: "POST",
       headers: {

@@ -1,20 +1,49 @@
-"use server";
+import "server-only";
 
-import { Err, Ok, Result } from "ts-res";
-
+import { getEnvSecrets } from "@/config/env.secrets";
 import { getPaymentInformation } from "@/lib/api/generated/registry";
 import { getRegistryClient } from "@/lib/api/registry-service.client";
-import { AgentWithRelations, getAgentApiBaseUrl } from "@/lib/db";
+import { AgentWithRelations } from "@/lib/db";
 import { jobInputsDataSchema, JobInputsDataSchemaType } from "@/lib/job-input";
+import { Err, Ok, Result } from "@/lib/ts-res";
+import { safeAddPathComponent } from "@/lib/utils/url";
 import { Agent } from "@/prisma/generated/client";
+
+function getAgentApiBaseUrl(agent: Agent): URL {
+  // Validate the API base URL
+  const blacklistedHostnames = getEnvSecrets().BLACKLISTED_AGENT_HOSTNAMES;
+  const apiBaseUrl = new URL(agent.apiBaseUrl);
+  if (blacklistedHostnames.includes(apiBaseUrl.hostname)) {
+    throw new Error("Agent API base URL is not allowed");
+  }
+  if (apiBaseUrl.protocol !== "https:" && apiBaseUrl.protocol !== "http:") {
+    throw new Error("Agent API base URL must be HTTP or HTTPS");
+  }
+
+  if (apiBaseUrl.search !== "") {
+    throw new Error("Agent API base URL must not have a query string");
+  }
+  if (apiBaseUrl.hash !== "") {
+    throw new Error("Agent API base URL must not have a hash");
+  }
+
+  const usedUrl = agent.overrideApiBaseUrl ?? agent.apiBaseUrl;
+  return new URL(usedUrl);
+}
+
+export function getAgentUrlWithPathComponent(
+  agent: Agent,
+  pathComponent: string,
+): URL {
+  const baseUrl = getAgentApiBaseUrl(agent);
+  return safeAddPathComponent(baseUrl, pathComponent);
+}
 
 export async function fetchAgentInputSchema(
   agent: AgentWithRelations,
 ): Promise<Result<JobInputsDataSchemaType, string>> {
   try {
-    const baseUrl = getAgentApiBaseUrl(agent);
-    const inputSchemaUrl = new URL(`${baseUrl.href}/input_schema`);
-    console.log("fetching input schema for", inputSchemaUrl.href);
+    const inputSchemaUrl = getAgentUrlWithPathComponent(agent, "input_schema");
     const response = await fetch(inputSchemaUrl);
 
     if (!response.ok) {
@@ -54,7 +83,6 @@ export async function getAgentPaymentInformation(
         agentIdentifier: agent.blockchainIdentifier,
       },
     });
-
     if (
       !paymentInformation ||
       !paymentInformation.data ||
