@@ -25,20 +25,22 @@ import {
 } from "./third-party";
 
 /**
- * Check if a user has access to a specific agent
+ * Check if a user has access to a specific agent based on organization membership
  *
  * This function determines whether a user can access an agent based on
  * organization membership. Agents can be either:
  * - Public: No organization restrictions (accessible to all users)
  * - Private: Restricted to specific organizations (only accessible to members)
  *
- * @param userId - The unique identifier of the user requesting access
- * @param agentId - The unique identifier of the agent to check access for
+ * @param agent - The agent with organization data to check access for
+ * @param memberOrganizationIds - Array of organization IDs that the user is a member of
  * @returns A Promise that resolves to true if the user has access, false otherwise
  *
  * @example
  * ```typescript
- * const hasAccess = await canUserAccessAgent("user123", "agent456");
+ * const agent = await retrieveAgentWithOrganizationsById("agent456");
+ * const memberOrgs = await retrieveMembersOrganizationIdsByUserId("user123");
+ * const hasAccess = await canUserAccessAgent(agent, memberOrgs);
  * if (hasAccess) {
  *   // User can access the agent
  * }
@@ -250,32 +252,25 @@ export interface AgentWithCreditPrice {
 }
 
 /**
- * Retrieve all online agents with their calculated credit pricing information
+ * Get online agents with their calculated credit pricing
  *
- * This function fetches all agents that are currently online and have valid pricing
- * configurations, then calculates the credit price for each agent. It uses Promise.allSettled
- * to handle potential failures gracefully, returning only the agents for which credit
- * pricing could be successfully calculated.
+ * This function retrieves all online agents with valid pricing and calculates
+ * their credit costs. It combines the functionality of getting online agents
+ * with valid pricing and computing their credit prices in a single operation.
  *
- * The function is optimized for scenarios where you need to display a list of available
- * agents with their pricing information, such as in an agent marketplace or selection interface.
+ * The function uses Promise.allSettled to handle potential failures gracefully
+ * when calculating credit prices for individual agents. If credit price calculation
+ * fails for any agent, that agent is excluded from the results rather than
+ * causing the entire operation to fail.
  *
- * @param userId - (Optional) The unique identifier of the user requesting the agents. Used for filtering agents based on user permissions or organization membership.
  * @param tx - (Optional) Prisma transaction client for DB operations. Defaults to the main Prisma client.
- * @returns A Promise that resolves to an array of agents with their calculated credit prices. Only agents with successfully calculated pricing are included.
+ * @returns A Promise that resolves to an array of agents with their calculated credit prices
  *
  * @example
  * ```typescript
- * // Get all online agents with pricing for any user
  * const agentsWithPricing = await getOnlineAgentsWithCreditsPrice();
- *
- * // Get online agents with pricing for a specific user
- * const userAgentsWithPricing = await getOnlineAgentsWithCreditsPrice("user123");
- *
- * // Use within a transaction
- * await prisma.$transaction(async (tx) => {
- *   const agents = await getOnlineAgentsWithCreditsPrice("user123", tx);
- *   // Process agents...
+ * agentsWithPricing.forEach(({ agent, creditsPrice }) => {
+ *   console.log(`${agent.name}: ${creditsPrice} credits`);
  * });
  * ```
  */
