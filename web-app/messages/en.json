@@ -833,6 +833,12 @@
       "InvitationActions": {
         "accept": "Accept",
         "reject": "Reject",
+        "acceptTitle": "Accept Invitation",
+        "rejectTitle": "Reject Invitation",
+        "acceptDescription": "Are you sure you want to accept the invitation for {email}?",
+        "rejectDescription": "Are you sure you want to reject the invitation for {email}?",
+        "confirm": "Confirm",
+        "cancel": "Cancel",
         "acceptSuccess": "Invitation accepted successfully",
         "acceptError": "Failed to accept invitation",
         "rejectSuccess": "Invitation rejected successfully",
