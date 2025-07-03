@@ -834,7 +834,9 @@
       "newOrganization": "New Organization",
       "membersNotAvailable": "No members found",
       "OrganizationRow": {
-        "leave": "Leave"
+        "leave": "Leave",
+        "activate": "Activate",
+        "deactivate": "Deactivate"
       },
       "Credits": {
         "title": "Organization Credits",
