@@ -26,7 +26,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useAsyncRouterPush } from "@/hooks/use-async-router";
+import { useAsyncRouter } from "@/hooks/use-async-router";
 import {
   BillingErrorCode,
   CommonErrorCode,
@@ -74,7 +74,7 @@ export default function BillingForm({
 }: BillingFormProps) {
   const t = useTranslations("App.Billing");
   const formatter = useFormatter();
-  const router = useAsyncRouterPush();
+  const router = useAsyncRouter();
 
   const [clearedField, setClearedField] = useState<"credits" | "coupon" | null>(
     null,

@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
-import { useAsyncRouterPush } from "@/hooks/use-async-router";
+import { useAsyncRouter } from "@/hooks/use-async-router";
 import { CommonErrorCode, updateOrganizationInformation } from "@/lib/actions";
 import { UpdateOrganizationInformationFormSchemaType } from "@/lib/schemas";
 
@@ -28,7 +28,7 @@ export default function OrganizationInformationEditForm({
   const t = useTranslations(
     "Components.Organizations.EditInformationModal.Form",
   );
-  const router = useAsyncRouterPush();
+  const router = useAsyncRouter();
 
   const onSubmit = async (
     values: UpdateOrganizationInformationFormSchemaType,

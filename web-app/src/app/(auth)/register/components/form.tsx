@@ -9,7 +9,7 @@ import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { signUpFormData } from "@/auth/register/data";
-import { useAsyncRouterPush } from "@/hooks/use-async-router";
+import { useAsyncRouter } from "@/hooks/use-async-router";
 import { AuthErrorCode, CommonErrorCode, signUpEmail } from "@/lib/actions";
 import { OrganizationWithRelations } from "@/lib/db";
 import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
@@ -25,7 +25,7 @@ export default function SignUpForm({
 }: SignUpFormProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form");
 
-  const router = useAsyncRouterPush();
+  const router = useAsyncRouter();
   const form = useForm<SignUpFormSchemaType>({
     resolver: zodResolver(
       signUpFormSchema(useTranslations("Library.Auth.Schema")),

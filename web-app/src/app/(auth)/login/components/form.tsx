@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { signInFormData } from "@/auth/login/data";
-import { useAsyncRouterPush } from "@/hooks/use-async-router";
+import { useAsyncRouter } from "@/hooks/use-async-router";
 import { signIn } from "@/lib/auth/auth.client";
 import { signInFormSchema, SignInFormSchemaType } from "@/lib/schemas";
 
@@ -23,7 +23,7 @@ export default function SignInForm({
 }: SignInFormProps) {
   const t = useTranslations("Auth.Pages.SignIn.Form");
 
-  const router = useAsyncRouterPush();
+  const router = useAsyncRouter();
 
   const form = useForm<SignInFormSchemaType>({
     resolver: zodResolver(

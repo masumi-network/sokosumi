@@ -23,7 +23,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useAsyncRouterPush } from "@/hooks/use-async-router";
+import { useAsyncRouter } from "@/hooks/use-async-router";
 import {
   ActionError,
   CommonErrorCode,
@@ -98,7 +98,7 @@ export default function RequestRefundButton({
   className,
 }: RequestRefundButtonProps) {
   const t = useTranslations("App.Agents.Jobs.JobDetails.Output.Refund");
-  const router = useAsyncRouterPush();
+  const router = useAsyncRouter();
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<ActionError | null>(null);

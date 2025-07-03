@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { forgotPasswordFormData } from "@/auth/forgot-password/data";
-import { useAsyncRouterPush } from "@/hooks/use-async-router";
+import { useAsyncRouter } from "@/hooks/use-async-router";
 import { forgetPassword } from "@/lib/auth/auth.client";
 import {
   forgotPasswordFormSchema,
@@ -22,7 +22,7 @@ export default function ForgotPasswordForm({
   initialEmail,
 }: ForgotPasswordFormProps) {
   const t = useTranslations("Auth.Pages.ForgotPassword.Form");
-  const router = useAsyncRouterPush();
+  const router = useAsyncRouter();
 
   const form = useForm<ForgotPasswordFormSchemaType>({
     resolver: zodResolver(

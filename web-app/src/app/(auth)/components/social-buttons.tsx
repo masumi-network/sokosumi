@@ -10,7 +10,7 @@ import {
 } from "react-social-login-buttons";
 import { toast } from "sonner";
 
-import { useAsyncRouterPush } from "@/hooks/use-async-router";
+import { useAsyncRouter } from "@/hooks/use-async-router";
 import { signInSocial } from "@/lib/actions";
 
 import Divider from "./divider";
@@ -40,7 +40,7 @@ const socialButtons: Array<{
 
 export default function SocialButtons() {
   const t = useTranslations("Auth.SocialButtons");
-  const router = useAsyncRouterPush();
+  const router = useAsyncRouter();
 
   const handleClick = async (key: SocialKey) => {
     const result = await signInSocial(key);

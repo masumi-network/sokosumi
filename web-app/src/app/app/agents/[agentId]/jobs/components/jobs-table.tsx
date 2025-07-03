@@ -5,7 +5,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { DataTable } from "@/components/data-table";
-import { useAsyncRouterPush } from "@/hooks/use-async-router";
+import { useAsyncRouter } from "@/hooks/use-async-router";
 import { JobWithStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +20,7 @@ export default function JobsTable({ jobs }: JobsTableProps) {
   const dateFormatter = useFormatter();
   const params = useParams<{ jobId?: string | undefined }>();
 
-  const asyncRouter = useAsyncRouterPush();
+  const asyncRouter = useAsyncRouter();
   const [routerLoading, setRouterLoading] = useState(false);
 
   const handleRowClick = async (row: JobWithStatus) => {

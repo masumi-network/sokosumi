@@ -31,13 +31,13 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useAsyncRouterPush } from "@/hooks/use-async-router";
+import { useAsyncRouter } from "@/hooks/use-async-router";
 import { deleteUser } from "@/lib/auth/auth.client";
 import { DeleteAccountFormType, deleteAccountSchema } from "@/lib/schemas";
 
 export function DeleteAccountForm() {
   const t = useTranslations("App.Account.Delete");
-  const router = useAsyncRouterPush();
+  const router = useAsyncRouter();
 
   const form = useForm<DeleteAccountFormType>({
     resolver: zodResolver(

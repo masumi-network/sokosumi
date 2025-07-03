@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useAsyncRouterPush } from "@/hooks/use-async-router";
+import { useAsyncRouter } from "@/hooks/use-async-router";
 import { revalidateOrganizationsPath } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
 import { Organization } from "@/prisma/generated/client";
@@ -33,7 +33,7 @@ export function LeaveOrganizationModal({
 }: LeaveOrganizationModalProps) {
   const t = useTranslations("Components.Organizations.LeaveOrganizationModal");
   const [loading, setLoading] = useState(false);
-  const router = useAsyncRouterPush();
+  const router = useAsyncRouter();
 
   const handleLeaveOrganization = async () => {
     setLoading(true);

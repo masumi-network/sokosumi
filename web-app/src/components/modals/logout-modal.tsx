@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useAsyncRouterPush } from "@/hooks/use-async-router";
+import { useAsyncRouter } from "@/hooks/use-async-router";
 import { signOut } from "@/lib/auth/auth.client";
 
 interface LogoutModalProps {
@@ -31,7 +31,7 @@ export default function LogoutModal({
 }: LogoutModalProps) {
   const t = useTranslations("Components.Modals.LogoutModal");
   const [loading, setLoading] = useState(false);
-  const router = useAsyncRouterPush();
+  const router = useAsyncRouter();
 
   const handleLogout = async () => {
     setLoading(true);

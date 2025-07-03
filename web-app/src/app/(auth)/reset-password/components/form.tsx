@@ -7,7 +7,7 @@ import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { resetPasswordFormData } from "@/auth/reset-password/data";
-import { useAsyncRouterPush } from "@/hooks/use-async-router";
+import { useAsyncRouter } from "@/hooks/use-async-router";
 import { resetPassword } from "@/lib/auth/auth.client";
 import {
   resetPasswordFormSchema,
@@ -20,7 +20,7 @@ interface ResetPasswordFormProps {
 
 export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
   const t = useTranslations("Auth.Pages.ResetPassword.Form");
-  const router = useAsyncRouterPush();
+  const router = useAsyncRouter();
 
   const form = useForm<ResetPasswordFormSchemaType>({
     resolver: zodResolver(

@@ -11,7 +11,7 @@ import { toast } from "sonner";
 import { useCreateJobModalContext } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
-import { useAsyncRouterPush } from "@/hooks/use-async-router";
+import { useAsyncRouter } from "@/hooks/use-async-router";
 import usePreventEnterSubmit from "@/hooks/use-prevent-enter-submit";
 import {
   CommonErrorCode,
@@ -61,7 +61,7 @@ export default function JobInputsFormClient({
     defaultValues: defaultValues(input_data),
     mode: "onChange",
   });
-  const asyncRouter = useAsyncRouterPush();
+  const asyncRouter = useAsyncRouter();
 
   const { os, isMobile } = getOSFromUserAgent();
 

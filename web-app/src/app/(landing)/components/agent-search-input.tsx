@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import type React from "react";
 
 import { Input } from "@/components/ui/input";
-import { useAsyncRouterPush } from "@/hooks/use-async-router";
+import { useAsyncRouter } from "@/hooks/use-async-router";
 import { cn } from "@/lib/utils";
 
 interface AgentSearchInputProps {
@@ -14,7 +14,7 @@ interface AgentSearchInputProps {
 
 export default function AgentSearchInput({ className }: AgentSearchInputProps) {
   const t = useTranslations("Landing.Page.Hero.AgentSearchInput");
-  const router = useAsyncRouterPush();
+  const router = useAsyncRouter();
   const handleSubmit = async (e: React.FormEvent | React.MouseEvent) => {
     e.preventDefault();
     await router.push(`/agents`);

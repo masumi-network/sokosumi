@@ -16,7 +16,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useAsyncRouterPush } from "@/hooks/use-async-router";
+import { useAsyncRouter } from "@/hooks/use-async-router";
 import { CommonErrorCode, JobErrorCode, updateJobName } from "@/lib/actions";
 import { JobWithStatus } from "@/lib/db";
 import {
@@ -28,7 +28,7 @@ export default function JobDetailsName({ job }: { job: JobWithStatus }) {
   const t = useTranslations("App.Agents.Jobs.JobDetails.Header.JobName");
   const { name } = job;
 
-  const router = useAsyncRouterPush();
+  const router = useAsyncRouter();
   const [editing, setEditing] = useState(false);
 
   const form = useForm<JobDetailsNameFormSchemaType>({

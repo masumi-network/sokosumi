@@ -6,7 +6,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import { useAsyncRouterPush } from "@/hooks/use-async-router";
+import { useAsyncRouter } from "@/hooks/use-async-router";
 import {
   BillingErrorCode,
   claimFreeCredits,
@@ -15,7 +15,7 @@ import {
 
 export default function FreeCreditsButton() {
   const [loading, setLoading] = useState(false);
-  const router = useAsyncRouterPush();
+  const router = useAsyncRouter();
   const t = useTranslations("App.Billing.FreeClaim");
 
   const handleFreeClaim = async () => {
