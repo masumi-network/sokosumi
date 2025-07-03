@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 
 import { DataTable } from "@/components/data-table";
-import { MemberRole, MemberWithUser } from "@/lib/db";
+import { InvitationStatus, MemberRole, MemberWithUser } from "@/lib/db";
 import { cn } from "@/lib/utils";
 import { Invitation, Member } from "@/prisma/generated/client";
 
@@ -11,7 +11,7 @@ import InvitationActionsModal from "./invitation-actions-modal";
 import { InvitationActionsModalContextProvider } from "./invitation-actions-modal-context";
 import MemberActionsModal from "./member-actions-modal";
 import { MemberActionsModalContextProvider } from "./member-actions-modal-context";
-import { getMemberColumns } from "./member-columns";
+import { getMembersTableColumns } from "./members-table-columns";
 import { MemberRowData } from "./types";
 
 interface MembersTableProps {
@@ -48,7 +48,7 @@ export default function MembersTable({
 
 function getColumns(t: ReturnType<typeof useTranslations>, me: Member) {
   const { nameColumn, emailColumn, roleColumn, actionColumn } =
-    getMemberColumns(t, me);
+    getMembersTableColumns(t, me);
   const isAdmin = me.role === MemberRole.ADMIN;
 
   return [nameColumn, emailColumn, roleColumn].concat(
@@ -81,7 +81,10 @@ function convertInvitationToMemberRowData(
 ): MemberRowData {
   return {
     email: invitation.email,
-    role: MemberRole.PENDING,
+    role:
+      invitation.expiresAt > new Date()
+        ? InvitationStatus.PENDING
+        : InvitationStatus.EXPIRED,
     invitation,
   };
 }

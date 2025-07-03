@@ -13,7 +13,7 @@ import { MemberRowData } from "./types";
 
 const columnHelper = createColumnHelper<MemberRowData>();
 
-export function getMemberColumns(
+export function getMembersTableColumns(
   t: ReturnType<typeof useTranslations>,
   me: Member,
 ) {

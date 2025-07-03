@@ -1,5 +1,14 @@
 import { Prisma } from "@/prisma/generated/client";
 
+export enum InvitationStatus {
+  PENDING = "pending",
+  ACCEPTED = "accepted",
+  REJECTED = "rejected",
+  CANCELED = "canceled",
+  // This option is not used in the database, but it is used in the frontend to indicate that the invitation has expired
+  EXPIRED = "expired",
+}
+
 export const invitationOrganizationInclude = {
   organization: true,
 } as const;

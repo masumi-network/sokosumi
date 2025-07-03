@@ -1,30 +1,43 @@
 import { useTranslations } from "next-intl";
 
 import { getSession } from "@/lib/auth/utils";
-import { MemberWithOrganization } from "@/lib/db";
+import { InvitationWithRelations, MemberWithOrganization } from "@/lib/db";
 
+import InvitationRow from "./invitation-row";
+import InvitationRowActionsModal from "./invitation-row-actions-modal";
+import { InvitationRowActionsModalContextProvider } from "./invitation-row-actions-modal-context";
 import OrganizationRow, { OrganizationRowSkeleton } from "./organization-row";
 
 interface OrganizationsProps {
   members: MemberWithOrganization[];
+  invitations: InvitationWithRelations[];
 }
 
-export default async function Organizations({ members }: OrganizationsProps) {
+export default async function Organizations({
+  members,
+  invitations,
+}: OrganizationsProps) {
   const session = await getSession();
-  if (members.length === 0) {
+  if (members.length === 0 && invitations.length === 0) {
     return <OrganizationsNotAvailable />;
   }
 
   return (
-    <div className="flex w-full flex-col divide-y rounded-lg border">
-      {members.map((member) => (
-        <OrganizationRow
-          key={member.id}
-          member={member}
-          activeOrganizationId={session?.session.activeOrganizationId}
-        />
-      ))}
-    </div>
+    <InvitationRowActionsModalContextProvider>
+      <div className="flex w-full flex-col divide-y rounded-lg border">
+        {members.map((member) => (
+          <OrganizationRow
+            key={member.id}
+            member={member}
+            activeOrganizationId={session?.session.activeOrganizationId}
+          />
+        ))}
+        {invitations.map((invitation) => (
+          <InvitationRow key={invitation.id} invitation={invitation} />
+        ))}
+      </div>
+      <InvitationRowActionsModal />
+    </InvitationRowActionsModalContextProvider>
   );
 }
 

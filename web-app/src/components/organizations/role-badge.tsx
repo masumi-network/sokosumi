@@ -1,7 +1,7 @@
 import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
-import { MemberRole } from "@/lib/db";
+import { InvitationStatus, MemberRole } from "@/lib/db";
 
 export function OrganizationRoleBadge({ role }: { role: string | null }) {
   const t = useTranslations("Components.Organizations.Role");
@@ -14,8 +14,12 @@ export function OrganizationRoleBadge({ role }: { role: string | null }) {
     return <Badge variant="outline">{t("member")}</Badge>;
   }
 
-  if (role === MemberRole.PENDING) {
+  if (role === InvitationStatus.PENDING) {
     return <Badge variant="outline">{t("pending")}</Badge>;
+  }
+
+  if (role === InvitationStatus.EXPIRED) {
+    return <Badge variant="destructive">{t("expired")}</Badge>;
   }
 
   return null;

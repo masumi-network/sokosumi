@@ -184,7 +184,8 @@
       "Role": {
         "admin": "Admin",
         "member": "Member",
-        "pending": "Pending"
+        "pending": "Pending",
+        "expired": "Expired"
       },
       "RequiredEmailDomains": {
         "restrictAll": "Restrict all email domains"
@@ -842,6 +843,20 @@
         "title": "Organization Credits",
         "description": "Available for {organization} members",
         "buy": "Buy Credits"
+      },
+      "InvitationActions": {
+        "accept": "Accept",
+        "reject": "Reject",
+        "acceptTitle": "Accept Invitation",
+        "rejectTitle": "Reject Invitation",
+        "acceptDescription": "Are you sure you want to accept the invitation for {email}?",
+        "rejectDescription": "Are you sure you want to reject the invitation for {email}?",
+        "confirm": "Confirm",
+        "cancel": "Cancel",
+        "acceptSuccess": "Invitation accepted successfully",
+        "acceptError": "Failed to accept invitation",
+        "rejectSuccess": "Invitation rejected successfully",
+        "rejectError": "Failed to reject invitation"
       },
       "OrganizationDetail": {
         "Metadata": {
