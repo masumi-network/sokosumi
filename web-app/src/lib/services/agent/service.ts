@@ -87,8 +87,12 @@ export async function getOnlineAgentsWithValidPricing(
     tx,
   );
 
+  // First, filter agents asynchronously by access
+  const accessResults = await Promise.all(
+    onlineAgents.map((agent) => canUserAccessAgent(agent, session?.user.id)),
+  );
   return onlineAgents
-    .filter((agent) => canUserAccessAgent(agent, session?.user.id))
+    .filter((_, index) => accessResults[index] === true)
     .filter((agent) => {
       const amounts = agent.pricing.fixedPricing?.amounts?.map((amount) => ({
         unit: amount.unit,
