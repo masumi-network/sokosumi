@@ -8,6 +8,7 @@ export const agentPricingInclude = {
 
 export const agentRatingInclude = {
   rating: true,
+  userAgentRating: true,
 } as const;
 
 export const agentTagsInclude = {
@@ -24,12 +25,16 @@ export const agentJobsInclude = {
   jobs: true,
 } as const;
 
+export const agentOrganizationsInclude = {
+  organizations: true,
+} as const;
+
 export const agentInclude = {
   ...agentPricingInclude,
   ...agentExampleOutputInclude,
   ...agentTagsInclude,
   ...agentRatingInclude,
-  userAgentRating: true,
+  ...agentOrganizationsInclude,
 } as const;
 
 export type AgentWithRelations = Prisma.AgentGetPayload<{
@@ -54,6 +59,10 @@ export type AgentWithExampleOutput = Prisma.AgentGetPayload<{
 
 export type AgentWithJobs = Prisma.AgentGetPayload<{
   include: typeof agentJobsInclude;
+}>;
+
+export type AgentWithOrganizations = Prisma.AgentGetPayload<{
+  include: typeof agentOrganizationsInclude;
 }>;
 
 export interface AgentLegal {

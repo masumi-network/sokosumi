@@ -5,9 +5,11 @@ import { AgentWithJobs, AgentWithRelations } from "@/lib/db";
 import {
   prisma,
   retrieveAgentWithFixedPricingById,
+  retrieveAgentWithOrganizationsById,
   retrieveAgentWithRelationsById,
   retrieveAllCreditCosts,
   retrieveHiredAgentsWithJobsByUserId,
+  retrieveMembersOrganizationIdsByUserId,
   retrieveShownAgentsWithRelationsByStatus,
 } from "@/lib/db/repositories";
 import { JobInputsDataSchemaType } from "@/lib/job-input";
@@ -18,6 +20,47 @@ import {
   fetchAgentInputSchema,
   getAgentPaymentInformation,
 } from "./third-party";
+
+/**
+ * Check if a user has access to a specific agent
+ *
+ * This function determines whether a user can access an agent based on
+ * organization membership. Agents can be either:
+ * - Public: No organization restrictions (accessible to all users)
+ * - Private: Restricted to specific organizations (only accessible to members)
+ *
+ * @param userId - The unique identifier of the user requesting access
+ * @param agentId - The unique identifier of the agent to check access for
+ * @returns A Promise that resolves to true if the user has access, false otherwise
+ *
+ * @example
+ * ```typescript
+ * const hasAccess = await canUserAccessAgent("user123", "agent456");
+ * if (hasAccess) {
+ *   // User can access the agent
+ * }
+ * ```
+ */
+export async function canUserAccessAgent(
+  userId: string,
+  agentId: string,
+): Promise<boolean> {
+  const agent = await retrieveAgentWithOrganizationsById(agentId);
+
+  // If agent not found, return false
+  if (!agent) return false;
+
+  // If agent has no organization restrictions, it's public
+  if (agent.organizations.length === 0) return true;
+
+  // Check if user is a member of any organization that has access to this agent
+  const userOrganizationIds =
+    await retrieveMembersOrganizationIdsByUserId(userId);
+
+  return agent.organizations.some((agentOrg) =>
+    userOrganizationIds.includes(agentOrg.id),
+  );
+}
 
 /**
  * Get online agents with valid fixed pricing
@@ -115,6 +158,7 @@ export interface AgentWithCreditPrice {
 }
 
 export async function getOnlineAgentsWithCreditsPrice(
+  userId?: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithCreditPrice[]> {
   const agents = await getOnlineAgentsWithValidPricing(tx);
