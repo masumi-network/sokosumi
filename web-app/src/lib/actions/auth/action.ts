@@ -73,7 +73,7 @@ export async function signUpEmail(
 
     result = await prisma.$transaction(async (tx) => {
       let organization: Organization;
-      if ("id" in parsed.selectedOrganization) {
+      if (!!parsed.selectedOrganization.id) {
         const retrievedOrganization =
           await retrieveOrganizationWithRelationsById(
             parsed.selectedOrganization.id,
@@ -107,7 +107,7 @@ export async function signUpEmail(
           };
           throw new Error("Email not allowed by organization");
         }
-      } else {
+      } else if (!!parsed.selectedOrganization.name) {
         const emailDomain = getEmailDomain(parsed.email);
         if (!emailDomain) {
           actionError = {
@@ -135,6 +135,12 @@ export async function signUpEmail(
           throw new Error("Organization creation failed");
         }
         organization = createdOrganization;
+      } else {
+        actionError = {
+          code: CommonErrorCode.BAD_INPUT,
+          message: "Bad Input",
+        };
+        throw new Error("Bad Input");
       }
 
       const signUpResult = await auth.api.signUpEmail({
