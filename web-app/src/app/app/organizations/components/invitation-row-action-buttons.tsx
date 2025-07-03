@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Loader2, X } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -78,26 +78,22 @@ export default function InvitationRowActionButtons({
 
   return (
     <div className="flex items-center gap-2">
+      <Button size="sm" onClick={handleAccept} disabled={loading}>
+        {loading && action === "accept" && (
+          <Loader2 className="h-4 w-4 animate-spin" />
+        )}
+        {t("accept")}
+      </Button>
       <Button
         size="sm"
         variant="outline"
         onClick={handleReject}
         disabled={loading}
       >
-        {loading && action === "reject" ? (
+        {loading && action === "reject" && (
           <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <X className="h-4 w-4" />
         )}
         {t("reject")}
-      </Button>
-      <Button size="sm" onClick={handleAccept} disabled={loading}>
-        {loading && action === "accept" ? (
-          <Loader2 className="h-4 w-4 animate-spin" />
-        ) : (
-          <Check className="h-4 w-4" />
-        )}
-        {t("accept")}
       </Button>
     </div>
   );

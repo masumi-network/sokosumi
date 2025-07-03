@@ -20,11 +20,11 @@ export default function Organizations({
 
   return (
     <div className="flex w-full flex-col divide-y rounded-lg border">
-      {invitations.map((invitation) => (
-        <InvitationRow key={invitation.id} invitation={invitation} />
-      ))}
       {members.map((member) => (
         <OrganizationRow key={member.id} member={member} />
+      ))}
+      {invitations.map((invitation) => (
+        <InvitationRow key={invitation.id} invitation={invitation} />
       ))}
     </div>
   );

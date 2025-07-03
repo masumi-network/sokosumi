@@ -827,7 +827,6 @@
       "title": "Organizations",
       "newOrganization": "New Organization",
       "membersNotAvailable": "No members found",
-      "invitationPending": "Invitation pending",
       "OrganizationRow": {
         "leave": "Leave"
       },

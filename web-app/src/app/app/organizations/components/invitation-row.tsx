@@ -1,5 +1,5 @@
 import { Building2 } from "lucide-react";
-import { useTranslations } from "next-intl";
+import Link from "next/link";
 
 import {
   OrganizationLogo,
@@ -15,20 +15,18 @@ export default function InvitationRow({
 }: {
   invitation: InvitationWithRelations;
 }) {
-  const t = useTranslations("App.Organizations");
   const { organization, role } = invitation;
-  const { name } = organization;
+  const { slug, name } = organization;
 
   return (
     <div className="flex items-center justify-between p-4">
       <div className="flex items-center gap-4">
         <OrganizationLogo organization={organization} size={24} />
-        <div>
-          <p className="text-primary text-lg font-medium">{name}</p>
-          <p className="text-muted-foreground text-sm">
-            {t("invitationPending")}
+        <Link href={`/app/organizations/${slug}`}>
+          <p className="text-primary text-lg font-medium hover:underline">
+            {name}
           </p>
-        </div>
+        </Link>
         <OrganizationRoleBadge role={role} />
       </div>
       <InvitationRowActionButtons invitation={invitation} />
