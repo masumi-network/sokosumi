@@ -1,11 +1,14 @@
 import "server-only";
 
 import { getSession, getSessionOrThrow } from "@/lib/auth/utils";
-import { AgentWithJobs, AgentWithRelations } from "@/lib/db";
+import {
+  AgentWithJobs,
+  AgentWithOrganizations,
+  AgentWithRelations,
+} from "@/lib/db";
 import {
   prisma,
   retrieveAgentWithFixedPricingById,
-  retrieveAgentWithOrganizationsById,
   retrieveAgentWithRelationsById,
   retrieveAllCreditCosts,
   retrieveHiredAgentsWithJobsByUserId,
@@ -42,14 +45,9 @@ import {
  * ```
  */
 async function canUserAccessAgent(
-  agentId: string,
+  agent: AgentWithOrganizations,
   userId?: string,
 ): Promise<boolean> {
-  const agent = await retrieveAgentWithOrganizationsById(agentId);
-
-  // If agent not found, return false
-  if (!agent) return false;
-
   // If agent has no organization restrictions, it's public
   if (agent.organizations.length === 0) return true;
 
@@ -90,7 +88,7 @@ export async function getOnlineAgentsWithValidPricing(
   );
 
   return onlineAgents
-    .filter((agent) => canUserAccessAgent(agent.id, session?.user.id))
+    .filter((agent) => canUserAccessAgent(agent, session?.user.id))
     .filter((agent) => {
       const amounts = agent.pricing.fixedPricing?.amounts?.map((amount) => ({
         unit: amount.unit,
