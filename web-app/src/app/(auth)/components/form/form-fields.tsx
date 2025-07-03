@@ -2,14 +2,13 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ControllerRenderProps,
   FieldValues,
   Path,
   UseFormReturn,
 } from "react-hook-form";
-import { useDebouncedCallback } from "use-debounce";
 
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -20,9 +19,9 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { useAllowedOrganizations } from "@/hooks/use-allowed-organizations";
 import { OrganizationWithRelations } from "@/lib/db/types/organization";
 import { FormData } from "@/lib/form";
-import { isValidEmail } from "@/lib/utils";
 
 import { OrganizationInput } from "./organization-input";
 import { AuthNamespace } from "./types";
@@ -81,7 +80,7 @@ interface FormInputProps<T extends FieldValues> {
   prefilledOrganization?: OrganizationWithRelations | null;
 }
 
-export function FormInput<T extends FieldValues>({
+function FormInput<T extends FieldValues>({
   form,
   field,
   formDataItem,
@@ -91,99 +90,7 @@ export function FormInput<T extends FieldValues>({
 }: FormInputProps<T>) {
   const { type, labelKey, name, placeholderKey } = formDataItem;
   const emailPrefilled = name === "email" && !!prefilledEmail;
-  const organizationIdPrefilled =
-    name === "selectedOrganization" && !!prefilledOrganization;
-  const [allowedOrganizations, setAllowedOrganizations] = useState<
-    OrganizationWithRelations[]
-  >(prefilledOrganization ? [prefilledOrganization] : []);
-  const [isLoading, setIsLoading] = useState(false);
   const email = form.watch("email" as unknown as Path<T>);
-  const [selectedOrganization, setSelectedOrganization] = useState<
-    OrganizationWithRelations | { name: string } | undefined
-  >(
-    prefilledOrganization ??
-      allowedOrganizations.find((org) => org.id === field.value?.id),
-  );
-  const abortControllerRef = useRef<AbortController | null>(null);
-
-  useEffect(() => {
-    if (name != "selectedOrganization") return;
-    if (prefilledOrganization) {
-      setSelectedOrganization(prefilledOrganization);
-      return;
-    }
-    setSelectedOrganization(undefined);
-  }, [prefilledOrganization, email, name]);
-
-  const debouncedGetAllowedOrganizations = useDebouncedCallback(
-    async (email: string, organizationId: string | null) => {
-      // Cancel any ongoing request
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-
-      const abortController = new AbortController();
-      abortControllerRef.current = abortController;
-
-      try {
-        const encodedEmail = encodeURIComponent(email);
-        const encodedOrganizationId = organizationId
-          ? encodeURIComponent(organizationId)
-          : "";
-        const result = await fetch(
-          `/api/organization/allowed-to-join?email=${encodedEmail}&organizationId=${encodedOrganizationId}`,
-          {
-            signal: abortController.signal,
-          },
-        );
-        if (!result.ok) {
-          return [];
-        }
-
-        const data = await result.json();
-        if (email === form.getValues("email" as unknown as Path<T>)) {
-          setAllowedOrganizations(data.allowedOrganizations);
-          setIsLoading(false);
-        }
-      } catch (error) {
-        // Only handle errors that aren't from aborting
-        if (error instanceof Error && error.name !== "AbortError") {
-          setIsLoading(false);
-          setAllowedOrganizations([]);
-        }
-      }
-    },
-    350,
-    { trailing: true, leading: true },
-  );
-
-  useEffect(() => {
-    if (name != "selectedOrganization") return;
-    try {
-      setIsLoading(true);
-      debouncedGetAllowedOrganizations.cancel();
-
-      // Cancel any ongoing request when email changes
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-        abortControllerRef.current = null;
-      }
-
-      if (!isValidEmail(email)) {
-        setIsLoading(false);
-        setAllowedOrganizations([]);
-        return;
-      }
-      debouncedGetAllowedOrganizations(
-        email,
-        prefilledOrganization?.id ?? null,
-      );
-    } catch (error) {
-      console.error(error);
-      setIsLoading(false);
-      setAllowedOrganizations([]);
-    }
-  }, [email, debouncedGetAllowedOrganizations, prefilledOrganization, name]);
 
   if (type === "checkbox") {
     const iAgreeToText = t.has("Fields.TermsAccepted.Label.iAgreeTo")
@@ -239,25 +146,11 @@ export function FormInput<T extends FieldValues>({
   }
 
   if (name === "selectedOrganization") {
-    const handleOrganizationChange = (
-      organization: OrganizationWithRelations | { name: string },
-    ) => {
-      setSelectedOrganization(organization);
-      // Set the full organization object with id and name properties
-      field.onChange({
-        id: "id" in organization ? organization.id : null,
-        name: organization?.name,
-      });
-    };
-
     return (
-      <OrganizationInput
+      <OrganizationFormInput
         email={email}
-        isLoading={isLoading}
-        organizations={allowedOrganizations}
-        value={selectedOrganization}
-        onChange={handleOrganizationChange}
-        disabled={organizationIdPrefilled}
+        field={field}
+        prefilledOrganization={prefilledOrganization}
       />
     );
   }
@@ -269,6 +162,61 @@ export function FormInput<T extends FieldValues>({
       {...field}
       disabled={emailPrefilled}
       value={emailPrefilled ? prefilledEmail : field.value}
+    />
+  );
+}
+
+interface OrganizationFormInputProps<T extends FieldValues> {
+  email: string;
+  field: ControllerRenderProps<T, Path<T>>;
+  prefilledOrganization?: OrganizationWithRelations | null;
+}
+
+function OrganizationFormInput<T extends FieldValues>({
+  email,
+  field,
+  prefilledOrganization,
+}: OrganizationFormInputProps<T>) {
+  const { allowedOrganizations, isLoading } = useAllowedOrganizations({
+    email,
+    prefilledOrganization,
+  });
+  const [selectedOrganization, setSelectedOrganization] = useState<
+    OrganizationWithRelations | { name: string } | undefined
+  >(
+    prefilledOrganization ??
+      allowedOrganizations.find(
+        (org: OrganizationWithRelations) => org.id === field.value?.id,
+      ),
+  );
+
+  useEffect(() => {
+    if (prefilledOrganization) {
+      setSelectedOrganization(prefilledOrganization);
+      return;
+    }
+    setSelectedOrganization(undefined);
+  }, [prefilledOrganization, email]);
+
+  const handleOrganizationChange = (
+    organization: OrganizationWithRelations | { name: string },
+  ) => {
+    setSelectedOrganization(organization);
+    // Set the full organization object with id and name properties
+    field.onChange({
+      id: "id" in organization ? organization.id : null,
+      name: organization?.name,
+    });
+  };
+
+  return (
+    <OrganizationInput
+      email={email}
+      isLoading={isLoading}
+      organizations={allowedOrganizations}
+      value={selectedOrganization}
+      onChange={handleOrganizationChange}
+      disabled={!!prefilledOrganization}
     />
   );
 }

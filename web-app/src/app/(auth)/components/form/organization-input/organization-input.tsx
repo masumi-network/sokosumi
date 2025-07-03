@@ -130,9 +130,9 @@ export default function OrganizationInput({
   const OrganizationsSection = () => {
     if (!isEmailValid) return null;
     return (
-      <CommandGroup className={organizations.length === 0 ? "p-0" : "p-2 pb-4"}>
+      <CommandGroup className={organizations.length === 0 ? "p-0" : "p-2"}>
         {isLoading == true && (
-          <div className="flex items-center justify-center p-1 pt-3">
+          <div className="flex items-center justify-center p-2">
             <Loader2 className="h-4 w-4 animate-spin" />
           </div>
         )}

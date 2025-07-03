@@ -44,16 +44,15 @@ export default function SignUpForm({
   const email = form.watch("email");
   useEffect(() => {
     if (prefilledOrganization) {
-      form.setValue("selectedOrganization", prefilledOrganization);
+      form.setValue("selectedOrganization", { id: prefilledOrganization.id });
       return;
     }
     form.setValue("selectedOrganization", {
-      id: "",
       name: "",
     });
   }, [email, form, prefilledOrganization]);
 
-  const onSubmit = async (values: SignUpFormSchemaType) => {
+  const handleSubmit = async (values: SignUpFormSchemaType) => {
     const result = await signUpEmail({
       email: values.email,
       name: values.name,
@@ -106,7 +105,7 @@ export default function SignUpForm({
       prefilledEmail={prefilledEmail}
       prefilledOrganization={prefilledOrganization}
       namespace="Auth.Pages.SignUp.Form"
-      onSubmit={onSubmit}
+      onSubmit={handleSubmit}
     >
       <div className="flex flex-col gap-4">
         <SubmitButton

@@ -30,7 +30,7 @@ export async function createOrganization(
   });
 }
 
-export async function retrieveOrganizationsAllowedBySpecificEmailDomain(
+export async function retrieveOrganizationsByEmailDomain(
   emailDomain: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<OrganizationWithRelations[]> {

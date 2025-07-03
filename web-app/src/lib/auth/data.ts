@@ -42,9 +42,33 @@ export const selectedOrganizationSchema = (
 ) =>
   z
     .object({
-      id: z.string().min(1, { message: t?.("Organization.required") }),
+      id: z.string().nullish(),
+      name: z.string().nullish(),
     })
-    .or(createOrganizationSchema(t));
+    .superRefine((value, ctx) => {
+      if (!value.id && !value.name) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: t?.("Organization.required"),
+        });
+      } else if (value.name && value.name.length < 2) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.too_small,
+          minimum: 2,
+          type: "string",
+          inclusive: true,
+          message: t?.("Organization.min"),
+        });
+      } else if (value.name && value.name.length > 50) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.too_big,
+          maximum: 50,
+          type: "string",
+          inclusive: true,
+          message: t?.("Organization.max"),
+        });
+      }
+    });
 
 export const createOrganizationSchema = (
   t?: IntlTranslation<"Library.Auth.Schema">,
