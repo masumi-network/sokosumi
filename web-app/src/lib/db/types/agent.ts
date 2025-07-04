@@ -1,5 +1,7 @@
 import { Prisma } from "@/prisma/generated/client";
 
+import { finalizedOnChainJobStatuses } from "./job";
+
 export const agentPricingInclude = {
   pricing: {
     include: { fixedPricing: { include: { amounts: true } } },
@@ -29,12 +31,27 @@ export const agentOrganizationsInclude = {
   organizations: true,
 } as const;
 
+export const agentExecutedJobsCountInclude = {
+  _count: {
+    select: {
+      jobs: {
+        where: {
+          onChainStatus: {
+            in: finalizedOnChainJobStatuses,
+          },
+        },
+      },
+    },
+  },
+} as const;
+
 export const agentInclude = {
   ...agentPricingInclude,
   ...agentExampleOutputInclude,
   ...agentTagsInclude,
   ...agentRatingInclude,
   ...agentOrganizationsInclude,
+  ...agentExecutedJobsCountInclude,
 } as const;
 
 export type AgentWithRelations = Prisma.AgentGetPayload<{

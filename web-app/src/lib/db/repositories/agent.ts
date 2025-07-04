@@ -92,12 +92,19 @@ export async function retrieveShownAgentsWithRelationsByStatus(
   status: AgentStatus,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithRelations[]> {
-  return await tx.agent.findMany({
+  const agents = await tx.agent.findMany({
     include: agentInclude,
     where: {
       status,
       isShown: true,
     },
+  });
+
+  // Sort by executed jobs count in descending order
+  return agents.sort((a, b) => {
+    const aExecutedCount = a._count?.jobs || 0;
+    const bExecutedCount = b._count?.jobs || 0;
+    return bExecutedCount - aExecutedCount;
   });
 }
 
