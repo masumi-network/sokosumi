@@ -12,7 +12,7 @@ interface OrganizationsProps {
   invitations: InvitationWithRelations[];
 }
 
-export default async function Organizations({
+export default function Organizations({
   members,
   invitations,
 }: OrganizationsProps) {
