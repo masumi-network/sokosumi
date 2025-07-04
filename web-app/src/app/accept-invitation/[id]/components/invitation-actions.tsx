@@ -52,8 +52,9 @@ export default function InvitationActions({
     const registerSearchParams = new URLSearchParams();
     registerSearchParams.set("email", email);
     registerSearchParams.set("organizationId", organizationId);
+    registerSearchParams.set("invitationId", id);
     setRegisterSearchParamsString(registerSearchParams.toString());
-  }, [email, organizationId]);
+  }, [email, organizationId, id]);
 
   const handleAccept = async () => {
     if (loading) {

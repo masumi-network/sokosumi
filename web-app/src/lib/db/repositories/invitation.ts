@@ -19,21 +19,17 @@ export async function retrievePendingInvitationById(
   });
 }
 
-export async function acceptValidPendingInvitationsByEmailAndOrganizationId(
-  email: string,
-  organizationId: string,
+export async function retrieveValidPendingInvitationById(
+  id: string,
   tx: Prisma.TransactionClient = prisma,
-) {
-  return tx.invitation.updateMany({
+): Promise<InvitationWithRelations | null> {
+  return tx.invitation.findUnique({
     where: {
-      email,
-      organizationId,
+      id,
       status: InvitationStatus.PENDING,
-      expiresAt: {
-        gt: new Date(),
-      },
+      expiresAt: { gt: new Date() },
     },
-    data: { status: InvitationStatus.ACCEPTED },
+    include: invitationInclude,
   });
 }
 

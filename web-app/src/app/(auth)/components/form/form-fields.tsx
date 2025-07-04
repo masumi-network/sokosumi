@@ -29,7 +29,6 @@ import { AuthNamespace } from "./types";
 interface FormFieldsProps<T extends FieldValues> {
   form: UseFormReturn<T>;
   formData: FormData<T, AuthNamespace>;
-  prefilledEmail?: string | undefined;
   prefilledOrganization?: OrganizationWithRelations | null;
   namespace: AuthNamespace;
 }
@@ -37,7 +36,6 @@ interface FormFieldsProps<T extends FieldValues> {
 export function FormFields<T extends FieldValues>({
   form,
   formData,
-  prefilledEmail,
   prefilledOrganization,
   namespace,
 }: FormFieldsProps<T>) {
@@ -58,7 +56,6 @@ export function FormFields<T extends FieldValues>({
                   field={field}
                   formDataItem={formDataItem}
                   t={t}
-                  prefilledEmail={prefilledEmail}
                   prefilledOrganization={prefilledOrganization}
                 />
               </FormControl>
@@ -76,7 +73,6 @@ interface FormInputProps<T extends FieldValues> {
   field: ControllerRenderProps<T, Path<T>>;
   formDataItem: FormData<T, AuthNamespace>[number];
   t: IntlTranslation<AuthNamespace>;
-  prefilledEmail?: string | undefined;
   prefilledOrganization?: OrganizationWithRelations | null;
 }
 
@@ -85,11 +81,9 @@ function FormInput<T extends FieldValues>({
   field,
   formDataItem,
   t,
-  prefilledEmail,
   prefilledOrganization,
 }: FormInputProps<T>) {
   const { type, labelKey, name, placeholderKey } = formDataItem;
-  const emailPrefilled = name === "email" && !!prefilledEmail;
   const email = form.watch("email" as unknown as Path<T>);
 
   if (type === "checkbox") {
@@ -160,8 +154,7 @@ function FormInput<T extends FieldValues>({
       placeholder={placeholderKey && t(placeholderKey)}
       type={type ?? "text"}
       {...field}
-      disabled={emailPrefilled}
-      value={emailPrefilled ? prefilledEmail : field.value}
+      value={field.value}
     />
   );
 }

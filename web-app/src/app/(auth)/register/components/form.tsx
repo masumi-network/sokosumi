@@ -17,11 +17,13 @@ import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
 interface SignUpFormProps {
   prefilledEmail?: string | undefined;
   prefilledOrganization?: OrganizationWithRelations | null;
+  invitationId?: string | undefined;
 }
 
 export default function SignUpForm({
   prefilledEmail,
   prefilledOrganization,
+  invitationId,
 }: SignUpFormProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form");
 
@@ -53,15 +55,18 @@ export default function SignUpForm({
   }, [email, form, prefilledOrganization]);
 
   const handleSubmit = async (values: SignUpFormSchemaType) => {
-    const result = await signUpEmail({
-      email: values.email,
-      name: values.name,
-      password: values.password,
-      confirmPassword: values.confirmPassword,
-      termsAccepted: values.termsAccepted,
-      marketingOptIn: values.marketingOptIn,
-      selectedOrganization: values.selectedOrganization,
-    });
+    const result = await signUpEmail(
+      {
+        email: values.email,
+        name: values.name,
+        password: values.password,
+        confirmPassword: values.confirmPassword,
+        termsAccepted: values.termsAccepted,
+        marketingOptIn: values.marketingOptIn,
+        selectedOrganization: values.selectedOrganization,
+      },
+      invitationId,
+    );
 
     if (result.ok) {
       toast.success(t("success"));
@@ -102,7 +107,6 @@ export default function SignUpForm({
     <AuthForm
       form={form}
       formData={signUpFormData}
-      prefilledEmail={prefilledEmail}
       prefilledOrganization={prefilledOrganization}
       namespace="Auth.Pages.SignUp.Form"
       onSubmit={handleSubmit}

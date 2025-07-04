@@ -13,7 +13,6 @@ import { AuthNamespace } from "./types";
 interface AuthFormProps<T extends FieldValues> {
   form: UseFormReturn<T>;
   formData: FormData<T, AuthNamespace>;
-  prefilledEmail?: string | undefined;
   prefilledOrganization?: OrganizationWithRelations | null;
   namespace: AuthNamespace;
   onSubmit: (values: T) => Promise<void>;
@@ -24,7 +23,6 @@ interface AuthFormProps<T extends FieldValues> {
 export function AuthForm<T extends FieldValues>({
   form,
   formData,
-  prefilledEmail,
   prefilledOrganization,
   namespace,
   onSubmit,
@@ -35,7 +33,6 @@ export function AuthForm<T extends FieldValues>({
       <FormFields
         form={form}
         formData={formData}
-        prefilledEmail={prefilledEmail}
         prefilledOrganization={prefilledOrganization}
         namespace={namespace}
       />

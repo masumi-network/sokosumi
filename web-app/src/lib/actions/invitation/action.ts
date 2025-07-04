@@ -9,7 +9,6 @@ import { getSession } from "@/lib/auth/utils";
 import { MemberRole } from "@/lib/db";
 import {
   acceptValidPendingInvitationById,
-  acceptValidPendingInvitationsByEmailAndOrganizationId,
   createMember,
   prisma,
   rejectValidPendingInvitationById,
@@ -45,7 +44,7 @@ export async function acceptInvitation(
         };
         throw new Error("Invitation not found");
       }
-      const { organizationId, inviterId, role, email } = invitation;
+      const { organizationId, inviterId, role } = invitation;
 
       // check inviter member
       const inviterMember = await retrieveMemberByUserIdAndOrganizationId(
@@ -80,13 +79,6 @@ export async function acceptInvitation(
 
       // create organization member
       await createMember(userId, organizationId, role ?? MemberRole.MEMBER, tx);
-
-      // accept all valid pending invitations by email and organization id
-      await acceptValidPendingInvitationsByEmailAndOrganizationId(
-        email,
-        organizationId,
-        tx,
-      );
     });
 
     return Ok();
