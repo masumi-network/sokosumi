@@ -76,14 +76,12 @@ export default function UserAvatarClient({
         </Tooltip>
       </TooltipProvider>
 
-      <DropdownMenuContent className="w-56" align="end" forceMount>
-        <div className="px-2 py-1.5">
-          <OrganizationSwitcher
-            members={members}
-            activeOrganizationId={activeOrganizationId}
-            sessionUserName={sessionUser.name}
-          />
-        </div>
+      <DropdownMenuContent className="w-60" align="end" forceMount>
+        <OrganizationSwitcher
+          members={members}
+          activeOrganizationId={activeOrganizationId}
+          sessionUserName={sessionUser.name}
+        />
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem className="cursor-pointer" asChild>

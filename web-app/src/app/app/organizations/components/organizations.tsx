@@ -1,6 +1,5 @@
 import { useTranslations } from "next-intl";
 
-import { getSession } from "@/lib/auth/utils";
 import { InvitationWithRelations, MemberWithOrganization } from "@/lib/db";
 
 import InvitationRow from "./invitation-row";
@@ -20,16 +19,11 @@ export default async function Organizations({
   if (members.length === 0 && invitations.length === 0) {
     return <OrganizationsNotAvailable />;
   }
-  const session = await getSession();
   return (
     <InvitationRowActionsModalContextProvider>
       <div className="flex w-full flex-col divide-y rounded-lg border">
         {members.map((member) => (
-          <OrganizationRow
-            key={member.id}
-            member={member}
-            activeOrganizationId={session?.session.activeOrganizationId}
-          />
+          <OrganizationRow key={member.id} member={member} />
         ))}
         {invitations.map((invitation) => (
           <InvitationRow key={invitation.id} invitation={invitation} />

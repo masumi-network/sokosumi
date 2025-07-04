@@ -68,21 +68,16 @@ export function OrganizationSwitcher({
           role="combobox"
           aria-expanded={open}
           aria-label="Select organization"
-          className={cn(
-            "w-full justify-between px-3",
-            isPending && "opacity-50",
-          )}
+          className={cn("w-full justify-between", isPending && "opacity-50")}
           disabled={isPending}
         >
-          <div className="flex items-center gap-2 truncate">
+          <div className="flex items-center truncate">
             {activeOrganization ? (
               <>
-                <OrganizationLogo organization={activeOrganization} size={16} />
                 <span className="truncate">{activeOrganization.name}</span>
               </>
             ) : (
               <>
-                <User className="h-4 w-4" />
                 <span className="truncate">
                   {sessionUserName ?? t("personalAccount")}
                 </span>

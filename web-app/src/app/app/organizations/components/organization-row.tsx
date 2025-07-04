@@ -12,10 +12,8 @@ import OrganizationActionButtons from "./organization-action-buttons";
 
 export default function OrganizationRow({
   member,
-  activeOrganizationId,
 }: {
   member: MemberWithOrganization;
-  activeOrganizationId: string | null | undefined;
 }) {
   const { organization, role } = member;
   const { slug, name } = organization;
@@ -31,10 +29,7 @@ export default function OrganizationRow({
         </Link>
         <OrganizationRoleBadge role={role} />
       </div>
-      <OrganizationActionButtons
-        organization={organization}
-        activeOrganizationId={activeOrganizationId}
-      />
+      <OrganizationActionButtons organization={organization} />
     </div>
   );
 }
