@@ -361,7 +361,7 @@ model CreditTransaction {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   organizationId String?
-  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
   fiatTransaction FiatTransaction?
 
