@@ -42,7 +42,7 @@ export default async function UserCredits() {
     });
   } else {
     credits = await getUserCredits(user.id);
-    creditLabel = t("balance", { credits: credits });
+    creditLabel = t("userBalance", { credits: credits });
   }
 
   const promotionCode = await getWelcomePromotionCode(user.id);

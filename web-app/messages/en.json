@@ -730,8 +730,8 @@
     "Header": {
       "Credit": {
         "buy": "Buy credits",
-        "balance": "{credits} credits",
-        "organizationBalance": "{credits} credits ({organization})",
+        "userBalance": "{credits, plural, =0 {No credits} =1 {1 credit} other {# credits}}",
+        "organizationBalance": "{credits, plural, =0 {No credits} =1 {1 credit} other {# credits}} ({organization})",
         "unavailable": "Credits unavailable"
       }
     },
