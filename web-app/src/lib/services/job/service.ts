@@ -2,7 +2,7 @@ import "server-only";
 
 import { v4 as uuidv4 } from "uuid";
 
-import { getSessionOrThrow } from "@/lib/auth/utils";
+import { getActiveOrganizationId, getSessionOrThrow } from "@/lib/auth/utils";
 import { computeJobStatus, JobStatus, JobWithStatus } from "@/lib/db";
 import {
   createJob,
@@ -26,7 +26,6 @@ import {
   validateCreditsBalance,
   validateOrganizationCreditsBalance,
 } from "@/services/credit";
-import { getActiveOrganization } from "@/services/organization";
 
 import {
   createPurchase,
@@ -98,11 +97,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
         if (creditsPrice.cents > maxAcceptedCents) {
           throw new Error("Credit cost is too high");
         }
-
-        // Check for active organization and validate appropriate credit balance
-        const activeOrganization = await getActiveOrganization();
-        const organizationId = activeOrganization?.id;
-
+        const organizationId = await getActiveOrganizationId();
         if (creditsPrice.cents > 0) {
           if (organizationId) {
             await validateOrganizationCreditsBalance(
