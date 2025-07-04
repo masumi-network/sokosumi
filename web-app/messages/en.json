@@ -849,7 +849,12 @@
         "acceptSuccess": "Invitation accepted successfully",
         "acceptError": "Failed to accept invitation",
         "rejectSuccess": "Invitation rejected successfully",
-        "rejectError": "Failed to reject invitation"
+        "rejectError": "Failed to reject invitation",
+        "Errors": {
+          "invitationNotFound": "Invitation not found",
+          "inviterNotFound": "Inviter not found",
+          "alreadyMember": "You are already member of this organization."
+        }
       },
       "OrganizationDetail": {
         "Metadata": {
