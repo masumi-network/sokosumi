@@ -19,7 +19,7 @@ export async function retrieveCentsByUserId(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<bigint> {
   const centsBalance = await tx.creditTransaction.aggregate({
-    where: { userId },
+    where: { userId, organizationId: null },
     _sum: {
       amount: true,
     },
