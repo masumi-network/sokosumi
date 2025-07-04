@@ -65,3 +65,7 @@ export async function updateOrganizationInformation(
 export async function revalidateOrganizationsPath() {
   revalidatePath("/app/organizations");
 }
+
+export async function revalidateAppPath() {
+  revalidatePath("/app");
+}

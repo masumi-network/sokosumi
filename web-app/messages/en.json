@@ -110,6 +110,13 @@
       "support": "Support",
       "logout": "Log out"
     },
+    "OrganizationSwitcher": {
+      "personalAccount": "Personal Account",
+      "noOrganizationsFound": "No organizations found",
+      "personalAccountHeading": "Personal",
+      "organizationsHeading": "Organizations",
+      "createOrJoinOrganization": "Create or Join Organization"
+    },
     "DataTable": {
       "Data": {
         "noResults": "No results."
