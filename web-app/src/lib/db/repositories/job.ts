@@ -218,6 +218,11 @@ export async function createJob(
           id: data.agentId,
         },
       },
+      user: {
+        connect: {
+          id: data.userId,
+        },
+      },
       ...(data.organizationId && {
         organization: {
           connect: {
@@ -238,11 +243,6 @@ export async function createJob(
       unlockTime: data.unlockTime,
       blockchainIdentifier: data.blockchainIdentifier,
       sellerVkey: data.sellerVkey,
-      user: {
-        connect: {
-          id: data.userId,
-        },
-      },
     },
   });
 }
