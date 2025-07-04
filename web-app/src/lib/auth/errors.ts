@@ -1,16 +1,16 @@
-export class UnAuthorizedError extends Error {
+export class UnAuthenticatedError extends Error {
   public readonly redirectUrl?: string;
 
   constructor(redirectUrl?: string, message = "User is not authenticated") {
     super(message);
-    this.name = "UnAuthorizedError";
-    this.cause = "UNAUTHORIZED";
+    this.name = "UnAuthenticatedError";
+    this.cause = "UNAUTHENTICATED";
     this.redirectUrl = redirectUrl;
   }
 }
 
-export function isUnAuthorizedError(
+export function isUnAuthenticatedError(
   error: unknown,
-): error is UnAuthorizedError {
-  return error instanceof UnAuthorizedError;
+): error is UnAuthenticatedError {
+  return error instanceof UnAuthenticatedError;
 }

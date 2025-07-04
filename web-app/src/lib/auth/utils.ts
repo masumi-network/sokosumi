@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 
 import { auth, Session } from "@/lib/auth/auth";
 
-import { UnAuthorizedError } from "./errors";
+import { UnAuthenticatedError } from "./errors";
 
 export async function getSession(): Promise<Session | null> {
   const session = await auth.api.getSession({
@@ -23,7 +23,7 @@ export async function getSessionOrThrow(): Promise<Session> {
     const searchParams = headersList.get("x-search-params") ?? "";
     const currentUrl = pathname + searchParams;
 
-    throw new UnAuthorizedError(currentUrl);
+    throw new UnAuthenticatedError(currentUrl);
   }
   return session;
 }

@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl"; // Import useTranslations
 
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { useUnauthorizedErrorHandler } from "@/hooks/use-unauthorized-error-handler";
+import { useUnAuthenticatedErrorHandler } from "@/hooks/use-unauthenticated-error-handler";
 
 export default function BillingError({
   error,
@@ -14,9 +14,9 @@ export default function BillingError({
   reset: () => void;
 }) {
   const t = useTranslations("App.Billing.Error"); // Initialize translations hook
-  const { renderIfAuthorized } = useUnauthorizedErrorHandler(error);
+  const { renderIfAuthenticated } = useUnAuthenticatedErrorHandler(error);
 
-  return renderIfAuthorized(
+  return renderIfAuthenticated(
     <div className="flex h-full items-center justify-center p-6">
       <Card className="w-full max-w-md text-center">
         <CardHeader>

@@ -11,7 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { useUnauthorizedErrorHandler } from "@/hooks/use-unauthorized-error-handler";
+import { useUnAuthenticatedErrorHandler } from "@/hooks/use-unauthenticated-error-handler";
 
 export default function Error({
   error,
@@ -21,9 +21,9 @@ export default function Error({
   reset: () => void;
 }) {
   const t = useTranslations("App.Error");
-  const { renderIfAuthorized } = useUnauthorizedErrorHandler(error);
+  const { renderIfAuthenticated } = useUnAuthenticatedErrorHandler(error);
 
-  return renderIfAuthorized(
+  return renderIfAuthenticated(
     <div className="container mx-auto flex min-h-[80vh] items-center justify-center px-4">
       <Card className="w-full max-w-md">
         <CardHeader>
