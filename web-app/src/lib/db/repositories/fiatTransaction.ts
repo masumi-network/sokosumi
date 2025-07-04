@@ -8,7 +8,7 @@ import {
 
 import prisma from "./prisma";
 
-export async function createFiatTransaction(
+export async function createUserFiatTransaction(
   userId: string,
   cents: bigint,
   amount: number,

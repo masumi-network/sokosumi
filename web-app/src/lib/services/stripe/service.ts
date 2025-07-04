@@ -6,7 +6,7 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import { verifyUserId } from "@/lib/auth/utils";
 import { convertCreditsToCents } from "@/lib/db";
 import {
-  createFiatTransaction,
+  createUserFiatTransaction,
   prisma,
   retrieveUserById,
   updateFiatTransactionServicePaymentId,
@@ -43,7 +43,7 @@ export async function createStripeCheckoutSession(
       }
       const conversionFactorsPerCredit = await getConversionFactors(priceId);
       const amount = credits * conversionFactorsPerCredit.amountPerCredit;
-      const fiatTransaction = await createFiatTransaction(
+      const fiatTransaction = await createUserFiatTransaction(
         userId,
         convertCreditsToCents(credits),
         amount,
