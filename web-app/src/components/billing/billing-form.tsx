@@ -189,7 +189,9 @@ export default function BillingForm({
           break;
         case CommonErrorCode.UNAUTHORIZED:
           if (organization) {
-            toast.error(t("Errors.unauthorized"));
+            toast.error(t("Errors.unauthorizedOrganization"));
+          } else {
+            toast.error(t("Errors.unauthorizedPersonal"));
           }
           break;
         default:

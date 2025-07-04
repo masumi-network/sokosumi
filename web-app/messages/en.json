@@ -786,7 +786,8 @@
         "promotionCodeNotFound": "Promotion code not found",
         "unauthenticated": "Please sign in to continue",
         "unauthenticatedAction": "Sign In",
-        "unauthorized": "You are not authorized to purchase credits for this organization",
+        "unauthorizedOrganization": "You are not authorized to purchase credits for this organization",
+        "unauthorizedPersonal": "You are not authorized to purchase credits",
         "unknownError": "Something went wrong"
       }
     },
