@@ -61,37 +61,3 @@ export async function retrieveCreditTransactionByJobId(
     },
   });
 }
-
-export async function createCreditTransactionByUserId(
-  userId: string,
-  cents: bigint,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<CreditTransaction> {
-  return tx.creditTransaction.create({
-    data: {
-      amount: cents,
-      user: {
-        connect: {
-          id: userId,
-        },
-      },
-    },
-  });
-}
-
-export async function createCreditTransactionByOrganizationId(
-  organizationId: string,
-  cents: bigint,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<CreditTransaction> {
-  return tx.creditTransaction.create({
-    data: {
-      amount: cents,
-      organization: {
-        connect: {
-          id: organizationId,
-        },
-      },
-    },
-  });
-}
