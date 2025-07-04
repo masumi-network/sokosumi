@@ -634,7 +634,9 @@
             "badInput": "Please input form correctly.",
             "organizationNotFound": "Organization not found",
             "memberCreateFailed": "Failed to create organization member",
+            "emailDomainInvalid": "Email domain is invalid",
             "emailNotAllowedByOrganization": "Email not allowed to join organization",
+            "invitationNotFound": "Invitation not found",
             "userExists": "User already exists",
             "termsNotAccepted": "You must accept the terms and conditions to register"
           },

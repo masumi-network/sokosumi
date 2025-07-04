@@ -82,8 +82,14 @@ export default function SignUpForm({
         case AuthErrorCode.ORGANIZATION_CREATE_FAILED:
           toast.error(t("Errors.organizationCreateFailed"));
           break;
+        case AuthErrorCode.EMAIL_DOMAIN_INVALID:
+          toast.error(t("Errors.emailDomainInvalid"));
+          break;
         case AuthErrorCode.EMAIL_NOT_ALLOWED_BY_ORGANIZATION:
           toast.error(t("Errors.emailNotAllowedByOrganization"));
+          break;
+        case AuthErrorCode.INVITATION_NOT_FOUND:
+          toast.error(t("Errors.invitationNotFound"));
           break;
         case AuthErrorCode.MEMBER_CREATE_FAILED:
           toast.error(t("Errors.memberCreateFailed"));
