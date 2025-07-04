@@ -193,25 +193,22 @@ export async function createJob(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Job> {
   // Build the credit transaction data based on whether it's for a user or organization
-  const creditTransactionData = data.organizationId
-    ? {
-        amount: -data.creditsPrice.cents,
-        includedFee: data.creditsPrice.includedFee,
-        organization: {
-          connect: {
-            id: data.organizationId,
-          },
+  const creditTransactionData = {
+    amount: -data.creditsPrice.cents,
+    includedFee: data.creditsPrice.includedFee,
+    user: {
+      connect: {
+        id: data.userId,
+      },
+    },
+    ...(data.organizationId && {
+      organization: {
+        connect: {
+          id: data.organizationId,
         },
-      }
-    : {
-        amount: -data.creditsPrice.cents,
-        includedFee: data.creditsPrice.includedFee,
-        user: {
-          connect: {
-            id: data.userId,
-          },
-        },
-      };
+      },
+    }),
+  };
 
   return await tx.job.create({
     data: {
@@ -268,25 +265,22 @@ export async function refundJob(
   }
 
   // Build refund transaction data based on whether it's for a user or organization
-  const refundTransactionData = creditTransaction.organizationId
-    ? {
-        amount: creditTransaction.amount * BigInt(-1),
-        includedFee: creditTransaction.includedFee,
-        organization: {
-          connect: {
-            id: creditTransaction.organizationId,
-          },
+  const refundTransactionData = {
+    amount: creditTransaction.amount * BigInt(-1),
+    includedFee: creditTransaction.includedFee,
+    user: {
+      connect: {
+        id: creditTransaction.userId,
+      },
+    },
+    ...(creditTransaction.organizationId && {
+      organization: {
+        connect: {
+          id: creditTransaction.organizationId,
         },
-      }
-    : {
-        amount: creditTransaction.amount * BigInt(-1),
-        includedFee: creditTransaction.includedFee,
-        user: {
-          connect: {
-            id: creditTransaction.userId!,
-          },
-        },
-      };
+      },
+    }),
+  };
 
   await tx.job.update({
     where: { id: jobId },
