@@ -72,17 +72,11 @@ export function OrganizationSwitcher({
           disabled={isPending}
         >
           <div className="flex items-center truncate">
-            {activeOrganization ? (
-              <>
-                <span className="truncate">{activeOrganization.name}</span>
-              </>
-            ) : (
-              <>
-                <span className="truncate">
-                  {sessionUserName ?? t("personalAccount")}
-                </span>
-              </>
-            )}
+            <span className="truncate">
+              {activeOrganization
+                ? activeOrganization.name
+                : (sessionUserName ?? t("personalAccount"))}
+            </span>
           </div>
           <ChevronsUpDown className="ml-auto h-4 w-4 shrink-0 opacity-50" />
         </Button>
