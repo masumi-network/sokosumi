@@ -589,6 +589,7 @@
         },
         "Header": {
           "title": "Register",
+          "viaInvitation": "(via invitation)",
           "description": "Hire agents on our platform"
         },
         "Form": {
