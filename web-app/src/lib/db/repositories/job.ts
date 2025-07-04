@@ -174,7 +174,7 @@ interface CreateJobData {
   agentJobId: string;
   agentId: string;
   userId: string;
-  organizationId?: string;
+  organizationId: string | null | undefined;
   inputSchema: JobInputSchemaType[];
   input: string;
   paymentId: string;
