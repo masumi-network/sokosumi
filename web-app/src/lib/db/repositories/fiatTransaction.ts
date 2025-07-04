@@ -70,31 +70,14 @@ export async function updateFiatTransactionStatusToSucceeded(
   currency: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<FiatTransaction> {
-  // Ensure at least one of organizationId or userId is present
-  if (!fiatTransaction.organizationId && !fiatTransaction.userId) {
-    throw new Error(
-      "FiatTransaction must have either an organizationId or userId to create a credit transaction.",
-    );
-  }
-
   // Build credit transaction data based on whether it's for a user or organization
-  const creditTransactionData = fiatTransaction.organizationId
-    ? {
-        amount: fiatTransaction.cents,
-        organization: {
-          connect: {
-            id: fiatTransaction.organizationId,
-          },
-        },
-      }
-    : {
-        amount: fiatTransaction.cents,
-        user: {
-          connect: {
-            id: fiatTransaction.userId as string,
-          },
-        },
-      };
+  const creditTransactionData = {
+    amount: fiatTransaction.cents,
+    user: { connect: { id: fiatTransaction.userId } },
+    ...(fiatTransaction.organizationId && {
+      organization: { connect: { id: fiatTransaction.organizationId } },
+    }),
+  };
 
   return await tx.fiatTransaction.update({
     where: { id: fiatTransaction.id },
