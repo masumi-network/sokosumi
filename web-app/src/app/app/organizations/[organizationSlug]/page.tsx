@@ -60,9 +60,10 @@ export default async function OrganizationPage({
   }
 
   const members = await getOrganizationMembersWithUser(organization.id, true);
-  const pendingInvitations = await getOrganizationPendingInvitations(
-    organization.id,
-  );
+  const pendingInvitations =
+    member.role === MemberRole.ADMIN
+      ? await getOrganizationPendingInvitations(organization.id)
+      : [];
 
   return (
     <div className="container flex flex-col gap-8 p-8">
