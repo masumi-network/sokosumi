@@ -138,7 +138,7 @@ export async function getOrganizationPendingInvitations(
     myMemberInOrganization.role !== MemberRole.ADMIN
   ) {
     console.error("You are not the admin of the organization");
-    throw new Error("NOT_AUTHORIZED");
+    throw new Error("UNAUTHORIZED");
   }
 
   return await retrievePendingInvitationsByOrganizationId(organizationId);

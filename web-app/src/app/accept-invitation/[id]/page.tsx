@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 
 import { getSession } from "@/lib/auth/utils";
-import { getInvitation } from "@/lib/services";
+import { getPendingInvitation } from "@/lib/services";
 
 import InvitationCard, {
   InvitationErrorCard,
@@ -14,7 +14,7 @@ export default async function AcceptInvitationPage({
 }) {
   const { id } = await params;
 
-  const invitationResult = await getInvitation(id);
+  const invitationResult = await getPendingInvitation(id);
 
   if (invitationResult.error) {
     return (
