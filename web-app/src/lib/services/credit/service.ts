@@ -27,7 +27,7 @@ import { Prisma } from "@/prisma/generated/client";
  * @param tx - (Optional) The Prisma transaction client to use for database operations. Defaults to the main Prisma client.
  * @returns The total credit balance as a number of credits.
  */
-export async function getCredits(
+export async function getUserCredits(
   userId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<number> {

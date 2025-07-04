@@ -6,8 +6,8 @@ import { Button } from "@/components/ui/button";
 import {
   getActiveOrganization,
   getAuthenticatedUser,
-  getCredits,
   getOrganizationCredits,
+  getUserCredits,
   getWelcomePromotionCode,
 } from "@/lib/services";
 
@@ -41,7 +41,7 @@ export default async function UserCredits() {
       organization: activeOrganization.name,
     });
   } else {
-    credits = await getCredits(user.id);
+    credits = await getUserCredits(user.id);
     creditLabel = t("balance", { credits: credits });
   }
 
