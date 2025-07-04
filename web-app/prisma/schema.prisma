@@ -103,6 +103,7 @@ model Organization {
   members            Member[]
   invitations        Invitation[]
   agents             Agent[]
+  jobs               Job[]
   creditTransactions CreditTransaction[]
   fiatTransactions   FiatTransaction[]
 
@@ -413,6 +414,9 @@ model Job {
 
   userId String
   user   User   @relation(fields: [userId], references: [id])
+
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
   agentId String
   agent   Agent  @relation(fields: [agentId], references: [id])

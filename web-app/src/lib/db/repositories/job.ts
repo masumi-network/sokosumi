@@ -95,6 +95,56 @@ export async function retrieveJobsByAgentIdAndUserId(
   return jobs.map(mapJobWithStatus);
 }
 
+/**
+ * Retrieves jobs associated with a specific agent, user, and organization
+ * @param agentId - The unique identifier of the agent
+ * @param userId - The unique identifier of the user
+ * @param organizationId - The unique identifier of the organization
+ * @returns Promise containing an array of jobs with their relations
+ */
+export async function retrieveJobsByAgentIdUserIdAndOrganizationId(
+  agentId: string,
+  userId: string,
+  organizationId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<JobWithStatus[]> {
+  const jobs = await tx.job.findMany({
+    where: {
+      agentId,
+      userId,
+      organizationId,
+    },
+    include: jobInclude,
+    orderBy: jobOrderBy,
+  });
+
+  return jobs.map(mapJobWithStatus);
+}
+
+/**
+ * Retrieves personal jobs (without organization context) for a specific agent and user
+ * @param agentId - The unique identifier of the agent
+ * @param userId - The unique identifier of the user
+ * @returns Promise containing an array of jobs with their relations
+ */
+export async function retrievePersonalJobsByAgentIdAndUserId(
+  agentId: string,
+  userId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<JobWithStatus[]> {
+  const jobs = await tx.job.findMany({
+    where: {
+      agentId,
+      userId,
+      organizationId: null,
+    },
+    include: jobInclude,
+    orderBy: jobOrderBy,
+  });
+
+  return jobs.map(mapJobWithStatus);
+}
+
 export async function retrieveJobById(
   jobId: string,
   tx: Prisma.TransactionClient = prisma,
@@ -171,6 +221,13 @@ export async function createJob(
           id: data.agentId,
         },
       },
+      ...(data.organizationId && {
+        organization: {
+          connect: {
+            id: data.organizationId,
+          },
+        },
+      }),
       creditTransaction: {
         create: creditTransactionData,
       },
@@ -329,6 +386,41 @@ export async function retrieveNotFinalizedLatestJobByAgentIdAndUserId(
     where: {
       agentId,
       userId,
+      OR: [
+        {
+          onChainStatus: {
+            notIn: finalizedOnChainJobStatuses,
+          },
+        },
+        {
+          onChainStatus: null,
+        },
+      ],
+    },
+    orderBy: { startedAt: "desc" },
+    include: jobInclude,
+  });
+  return job ? mapJobWithStatus(job) : null;
+}
+
+/**
+ * Retrieves the latest non-finalized job for a specific agent, user, and organization
+ * @param agentId - The unique identifier of the agent
+ * @param userId - The unique identifier of the user
+ * @param organizationId - The unique identifier of the organization (null for personal jobs)
+ * @returns Promise containing the latest non-finalized job or null
+ */
+export async function retrieveNotFinalizedLatestJobByAgentIdUserIdAndOrganization(
+  agentId: string,
+  userId: string,
+  organizationId: string | null | undefined,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<JobWithStatus | null> {
+  const job = await tx.job.findFirst({
+    where: {
+      agentId,
+      userId,
+      organizationId,
       OR: [
         {
           onChainStatus: {

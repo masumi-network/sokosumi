@@ -11,7 +11,7 @@ import {
   retrieveAgentWithFixedPricingById,
   retrieveAgentWithRelationsById,
   retrieveAllCreditCosts,
-  retrieveHiredAgentsWithJobsByUserId,
+  retrieveHiredAgentsWithJobsByUserIdAndOrganization,
   retrieveMembersOrganizationIdsByUserId,
   retrieveShownAgentsWithRelationsByStatus,
 } from "@/lib/db/repositories";
@@ -129,10 +129,15 @@ export async function getHiredAgentsOrderedByLatestJob(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithJobs[]> {
   const session = await getSessionOrThrow();
-  const hiredAgentsWithJobs = await retrieveHiredAgentsWithJobsByUserId(
-    session.user.id,
-    tx,
-  );
+  const userId = session.user.id;
+  const activeOrganizationId = session.session.activeOrganizationId;
+
+  const hiredAgentsWithJobs =
+    await retrieveHiredAgentsWithJobsByUserIdAndOrganization(
+      userId,
+      activeOrganizationId,
+      tx,
+    );
 
   // Then sort them manually by the startedAt of the most recent job
   return hiredAgentsWithJobs.sort((a, b) => {

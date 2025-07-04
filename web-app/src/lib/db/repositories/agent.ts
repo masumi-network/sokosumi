@@ -132,3 +132,38 @@ export async function retrieveHiredAgentsWithJobsByUserId(
     },
   });
 }
+
+/**
+ * Retrieves agents that have jobs for a specific user and organization context
+ * @param userId - The unique identifier of the user
+ * @param organizationId - The unique identifier of the organization (null for personal jobs)
+ * @returns Promise containing an array of agents with their latest job
+ */
+export async function retrieveHiredAgentsWithJobsByUserIdAndOrganization(
+  userId: string,
+  organizationId: string | null | undefined,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<AgentWithJobs[]> {
+  return await tx.agent.findMany({
+    where: {
+      jobs: {
+        some: {
+          userId,
+          organizationId,
+        },
+      },
+    },
+    include: {
+      jobs: {
+        where: {
+          userId,
+          organizationId,
+        },
+        orderBy: {
+          startedAt: "desc",
+        },
+        take: 1,
+      },
+    },
+  });
+}

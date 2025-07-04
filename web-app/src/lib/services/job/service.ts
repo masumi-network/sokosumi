@@ -9,8 +9,9 @@ import {
   prisma,
   refundJob,
   retrieveAgentWithRelationsById,
-  retrieveJobsByAgentIdAndUserId,
-  retrieveNotFinalizedLatestJobByAgentIdAndUserId,
+  retrieveJobsByAgentIdUserIdAndOrganizationId,
+  retrieveNotFinalizedLatestJobByAgentIdUserIdAndOrganization,
+  retrievePersonalJobsByAgentIdAndUserId,
   updateJobNextActionByBlockchainIdentifier,
   updateJobWithAgentJobStatus,
   updateJobWithPurchase,
@@ -59,7 +60,21 @@ export async function getMyJobsByAgentId(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<JobWithStatus[]> {
   const session = await getSessionOrThrow();
-  return await retrieveJobsByAgentIdAndUserId(agentId, session.user.id, tx);
+  const userId = session.user.id;
+  const activeOrganizationId = session.session.activeOrganizationId;
+
+  if (activeOrganizationId) {
+    // Show jobs for the specific organization
+    return await retrieveJobsByAgentIdUserIdAndOrganizationId(
+      agentId,
+      userId,
+      activeOrganizationId,
+      tx,
+    );
+  } else {
+    // Show personal jobs only (without organization context)
+    return await retrievePersonalJobsByAgentIdAndUserId(agentId, userId, tx);
+  }
 }
 
 export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
@@ -320,9 +335,16 @@ export async function getNotFinalizedLatestJobsByAgentIds(
 ): Promise<(JobWithStatus | null)[]> {
   const session = await getSessionOrThrow();
   const userId = session.user.id;
+  const activeOrganizationId = session.session.activeOrganizationId;
+
   return await Promise.all(
     agentIds.map((agentId) =>
-      retrieveNotFinalizedLatestJobByAgentIdAndUserId(agentId, userId, tx),
+      retrieveNotFinalizedLatestJobByAgentIdUserIdAndOrganization(
+        agentId,
+        userId,
+        activeOrganizationId,
+        tx,
+      ),
     ),
   );
 }
