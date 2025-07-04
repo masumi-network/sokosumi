@@ -144,12 +144,13 @@ export async function retrieveHiredAgentsWithJobsByUserIdAndOrganization(
   organizationId: string | null | undefined,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithJobs[]> {
+  const normalizedOrganizationId = organizationId ?? null;
   return await tx.agent.findMany({
     where: {
       jobs: {
         some: {
           userId,
-          organizationId,
+          organizationId: normalizedOrganizationId,
         },
       },
     },
@@ -157,7 +158,7 @@ export async function retrieveHiredAgentsWithJobsByUserIdAndOrganization(
       jobs: {
         where: {
           userId,
-          organizationId,
+          organizationId: normalizedOrganizationId,
         },
         orderBy: {
           startedAt: "desc",
