@@ -20,7 +20,6 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { revalidateAppPath } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
 import { MemberWithOrganization } from "@/lib/db";
 import { cn } from "@/lib/utils";
@@ -51,7 +50,6 @@ export function OrganizationSwitcher({
         await authClient.organization.setActive({
           organizationId,
         });
-        await revalidateAppPath();
         setOpen(false);
         router.refresh();
       } catch (error) {
