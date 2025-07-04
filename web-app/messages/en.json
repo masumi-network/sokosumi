@@ -318,17 +318,23 @@
           "login": "Login",
           "register": "Register"
         },
-        "WithDifferentEmail": {
-          "youLoggedInWithDifferentEmail": "You logged in with a different email address. Logout and follow invitation link again.",
-          "logout": "Logout"
-        },
         "Accept": {
           "success": "Invitation accepted successfully",
-          "error": "Failed to accept invitation"
+          "error": "Failed to accept invitation",
+          "Errors": {
+            "invitationNotFound": "Invitation not found",
+            "inviterNotFound": "Inviter not found",
+            "alreadyMember": "You are already member of this organization.",
+            "alreadyMemberAction": "Go to Organization"
+          }
         },
         "Decline": {
           "success": "Invitation declined successfully",
-          "error": "Failed to decline invitation"
+          "error": "Failed to decline invitation",
+          "Errors": {
+            "invitationNotFound": "Invitation not found",
+            "inviterNotFound": "Inviter not found"
+          }
         }
       }
     },

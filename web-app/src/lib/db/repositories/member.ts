@@ -3,7 +3,6 @@ import "server-only";
 import {
   memberOrderBy,
   memberOrganizationInclude,
-  MemberRole,
   memberRoleOrderBy,
   memberUserInclude,
   MemberWithOrganization,
@@ -104,7 +103,7 @@ export async function retrieveMembersWithOrganizationByUserId(
 export async function createMember(
   userId: string,
   organizationId: string,
-  role: MemberRole,
+  role: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Member> {
   return await tx.member.create({
@@ -126,7 +125,7 @@ export async function createMember(
 
 export async function updateMemberRole(
   memberId: string,
-  role: MemberRole,
+  role: string,
   tx: Prisma.TransactionClient = prisma,
 ) {
   return await tx.member.update({

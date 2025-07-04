@@ -55,11 +55,6 @@ export async function signUpEmail(
     code: CommonErrorCode.INTERNAL_SERVER_ERROR,
     message: "Internal server error",
   };
-  let result: {
-    organization: Organization;
-    user: User;
-    member: Member;
-  };
 
   try {
     const parsedResult = signUpFormSchema().safeParse(data);
@@ -71,7 +66,7 @@ export async function signUpEmail(
     }
     const parsed = parsedResult.data;
 
-    result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
       let organization: Organization;
       if (!!parsed.selectedOrganization.id) {
         const retrievedOrganization =

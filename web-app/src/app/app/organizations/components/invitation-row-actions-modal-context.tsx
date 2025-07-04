@@ -6,7 +6,7 @@ import { ReactNode } from "react";
 import { toast } from "sonner";
 
 import { createModalContext } from "@/components/common/modal-context";
-import { authClient } from "@/lib/auth/auth.client";
+import { acceptInvitation, rejectInvitation } from "@/lib/actions";
 import { InvitationWithRelations } from "@/lib/db";
 
 export enum InvitationRowAction {
@@ -32,14 +32,14 @@ export function InvitationRowActionsModalContextProvider({
     action: InvitationRowAction,
   ): Promise<{ error?: unknown }> {
     switch (action) {
-      case InvitationRowAction.ACCEPT:
-        return await authClient.organization.acceptInvitation({
-          invitationId: invitation.id,
-        });
-      case InvitationRowAction.REJECT:
-        return await authClient.organization.rejectInvitation({
-          invitationId: invitation.id,
-        });
+      case InvitationRowAction.ACCEPT: {
+        const result = await acceptInvitation(invitation.id);
+        return { error: result.ok ? undefined : result.error };
+      }
+      case InvitationRowAction.REJECT: {
+        const result = await rejectInvitation(invitation.id);
+        return { error: result.ok ? undefined : result.error };
+      }
     }
   }
 
