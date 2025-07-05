@@ -410,12 +410,11 @@ export async function retrieveNotFinalizedLatestJobByAgentIdUserIdAndOrganizatio
   organizationId: string | null | undefined,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<JobWithStatus | null> {
-  const normalizedOrganizationId = organizationId ?? null;
   const job = await tx.job.findFirst({
     where: {
       agentId,
       userId,
-      organizationId: normalizedOrganizationId,
+      organizationId,
       OR: [
         {
           onChainStatus: {
