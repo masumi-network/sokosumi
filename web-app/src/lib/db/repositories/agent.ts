@@ -94,18 +94,18 @@ export async function retrieveShownAgentsWithRelationsByStatus(
 ): Promise<AgentWithRelations[]> {
   const agents = await tx.agent.findMany({
     include: agentInclude,
+    orderBy: {
+      jobs: {
+        _count: "desc",
+      },
+    },
     where: {
       status,
       isShown: true,
     },
   });
 
-  // Sort by executed jobs count in descending order
-  return agents.sort((a, b) => {
-    const aExecutedCount = a._count?.jobs || 0;
-    const bExecutedCount = b._count?.jobs || 0;
-    return bExecutedCount - aExecutedCount;
-  });
+  return agents;
 }
 
 /**
