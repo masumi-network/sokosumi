@@ -82,7 +82,8 @@ export async function retrieveAgentWithFixedPricingById(
  *
  * This function fetches all agents from the database that are marked as shown
  * and have a specific status. It returns an array of agents with their related
- * entities such as pricing, tags, example outputs, ratings, etc.
+ * entities such as pricing, tags, example outputs, ratings, executed jobs count, etc.
+ * And sort by executed jobs count in descending order.
  *
  * @param status - The status of the agents to retrieve
  * @param tx - (Optional) Prisma transaction client for DB operations. Defaults to the main Prisma client.
