@@ -6,7 +6,7 @@ import { getSession } from "@/lib/auth/utils";
 import { CouponError } from "@/lib/errors/coupon-errors";
 import {
   createOrganizationStripeCheckoutSession,
-  createStripeCheckoutSession,
+  createUserStripeCheckoutSession,
   getCreditsForCoupon,
   getMyMemberInOrganization,
   getPromotionCode,
@@ -35,7 +35,7 @@ export async function claimFreeCredits(): Promise<
     }
 
     // Create the checkout session
-    const { url } = await createStripeCheckoutSession(
+    const { url } = await createUserStripeCheckoutSession(
       session.user.id,
       100,
       getEnvSecrets().STRIPE_PRICE_ID,
@@ -74,7 +74,7 @@ export async function getFreeCreditsWithCoupon(
         code: BillingErrorCode.INVALID_COUPON,
       });
     }
-    const { url } = await createStripeCheckoutSession(
+    const { url } = await createUserStripeCheckoutSession(
       session.user.id,
       credits,
       priceId,
@@ -137,7 +137,7 @@ export async function purchaseCredits(
     }
 
     // Create the checkout session
-    const { url } = await createStripeCheckoutSession(
+    const { url } = await createUserStripeCheckoutSession(
       session.user.id,
       credits,
       priceId,

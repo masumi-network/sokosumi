@@ -26,7 +26,7 @@ import {
   getOrCreatePromotionCode,
 } from "./third-party";
 
-export async function createStripeCheckoutSession(
+export async function createUserStripeCheckoutSession(
   userId: string,
   credits: number,
   priceId: string,
