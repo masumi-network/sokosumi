@@ -44,7 +44,7 @@ export async function acceptInvitation(
         };
         throw new Error("Invitation not found");
       }
-      const { organizationId, inviterId, role } = invitation;
+      const { organizationId, inviterId } = invitation;
 
       // check inviter member
       const inviterMember = await retrieveMemberByUserIdAndOrganizationId(
@@ -78,7 +78,7 @@ export async function acceptInvitation(
       }
 
       // create organization member
-      await createMember(userId, organizationId, role ?? MemberRole.MEMBER, tx);
+      await createMember(userId, organizationId, MemberRole.MEMBER, tx);
     });
 
     return Ok();
