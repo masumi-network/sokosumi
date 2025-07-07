@@ -47,8 +47,7 @@ export default function InvitationCard({
             </p>
             {user && (
               <p>
-                <strong>{t("youAreAcceptingWith")}</strong>{" "}
-                <strong>{user.email}</strong>
+                {t("youAreAcceptingWith")} <strong>{user.email}</strong>
               </p>
             )}
           </div>
