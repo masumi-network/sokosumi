@@ -25,22 +25,27 @@ const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
  * ```
  */
 export async function getPrice(productId: string): Promise<Stripe.Price> {
-  const product = await stripe.products.retrieve(productId, {
-    expand: ["default_price"],
-  });
-  if (
-    typeof product.default_price !== "object" ||
-    product.default_price === null
-  ) {
-    throw new Error("Product default price is not expanded");
+  try {
+    const product = await stripe.products.retrieve(productId, {
+      expand: ["default_price"],
+    });
+    if (
+      typeof product.default_price !== "object" ||
+      product.default_price === null
+    ) {
+      throw new Error("Product default price is not expanded");
+    }
+    if (product.default_price.currency !== "usd") {
+      throw new Error("Product default price is not in USD");
+    }
+    if (product.default_price.unit_amount === null) {
+      throw new Error("Product default price is missing unit_amount");
+    }
+    return product.default_price as Stripe.Price;
+  } catch (error) {
+    console.error("Error retrieving price", error);
+    throw error;
   }
-  if (product.default_price.currency !== "usd") {
-    throw new Error("Product default price is not in USD");
-  }
-  if (product.default_price.unit_amount === null) {
-    throw new Error("Product default price is missing unit_amount");
-  }
-  return product.default_price as Stripe.Price;
 }
 
 /**
