@@ -14,8 +14,7 @@ const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
  *
  * @param priceId - The Stripe price ID to fetch (defaults to STRIPE_PRICE_ID from environment).
  * @returns An object containing:
- *   - centsPerUnitAmount: The price per credit in cents, adjusted for the app's credit base.
- *   - unitAmountPerCredit: The Stripe unit amount per credit (in the currency's smallest unit).
+ *   - amountPerCredit: The Stripe unit amount per credit (in the currency's smallest unit).
  *   - currency: The currency code (e.g., 'usd').
  * @throws If the Stripe price cannot be retrieved, is missing unit_amount, or is not in USD.
  */
