@@ -102,20 +102,23 @@ export async function retrieveShownAgentsWithRelationsByStatus(
 }
 
 /**
- * NOTE:
- * this function filters the agents by the jobs that the user has hired
- * so agent.jobs must be non-empty array
- * and take one of that (latest one)
+ * Retrieves agents that have jobs for a specific user and organization context
+ * @param userId - The unique identifier of the user
+ * @param organizationId - The unique identifier of the organization (null for personal jobs)
+ * @returns Promise containing an array of agents with their latest job
  */
-export async function retrieveHiredAgentsWithJobsByUserId(
+export async function retrieveHiredAgentsWithJobsByUserIdAndOrganization(
   userId: string,
+  organizationId: string | null | undefined,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithJobs[]> {
+  const normalizedOrganizationId = organizationId ?? null;
   return await tx.agent.findMany({
     where: {
       jobs: {
         some: {
           userId,
+          organizationId: normalizedOrganizationId,
         },
       },
     },
@@ -123,6 +126,7 @@ export async function retrieveHiredAgentsWithJobsByUserId(
       jobs: {
         where: {
           userId,
+          organizationId: normalizedOrganizationId,
         },
         orderBy: {
           startedAt: "desc",

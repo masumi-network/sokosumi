@@ -28,15 +28,21 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { SessionUser } from "@/lib/auth/auth";
+import { MemberWithOrganization } from "@/lib/db";
 
+import { OrganizationSwitcher } from "./organization-switcher";
 import UserAvatarContent from "./user-avatar-content";
 
 interface UserAvatarClientProps {
   sessionUser: SessionUser;
+  members: MemberWithOrganization[];
+  activeOrganizationId: string | null;
 }
 
 export default function UserAvatarClient({
   sessionUser,
+  members,
+  activeOrganizationId,
 }: UserAvatarClientProps) {
   const t = useTranslations("Components.UserAvatar");
 
@@ -70,7 +76,13 @@ export default function UserAvatarClient({
         </Tooltip>
       </TooltipProvider>
 
-      <DropdownMenuContent className="w-56" align="end" forceMount>
+      <DropdownMenuContent className="w-60" align="end" forceMount>
+        <OrganizationSwitcher
+          members={members}
+          activeOrganizationId={activeOrganizationId}
+          sessionUserName={sessionUser.name}
+        />
+        <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem className="cursor-pointer" asChild>
             <Link href="/app/account" className="flex items-center gap-2">

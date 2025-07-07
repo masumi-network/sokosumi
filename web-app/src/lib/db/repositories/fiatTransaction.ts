@@ -8,7 +8,7 @@ import {
 
 import prisma from "./prisma";
 
-export async function createFiatTransaction(
+export async function createUserFiatTransaction(
   userId: string,
   cents: bigint,
   amount: number,
@@ -18,6 +18,25 @@ export async function createFiatTransaction(
   return await tx.fiatTransaction.create({
     data: {
       userId,
+      cents,
+      amount,
+      currency,
+    },
+  });
+}
+
+export async function createOrganizationFiatTransaction(
+  userId: string,
+  organizationId: string,
+  cents: bigint,
+  amount: number,
+  currency: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<FiatTransaction> {
+  return await tx.fiatTransaction.create({
+    data: {
+      userId, // Keep track of who initiated the transaction
+      organizationId,
       cents,
       amount,
       currency,
@@ -51,6 +70,15 @@ export async function updateFiatTransactionStatusToSucceeded(
   currency: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<FiatTransaction> {
+  // Build credit transaction data based on whether it's for a user or organization
+  const creditTransactionData = {
+    amount: fiatTransaction.cents,
+    user: { connect: { id: fiatTransaction.userId } },
+    ...(fiatTransaction.organizationId && {
+      organization: { connect: { id: fiatTransaction.organizationId } },
+    }),
+  };
+
   return await tx.fiatTransaction.update({
     where: { id: fiatTransaction.id },
     data: {
@@ -58,10 +86,7 @@ export async function updateFiatTransactionStatusToSucceeded(
       amount,
       currency,
       creditTransaction: {
-        create: {
-          userId: fiatTransaction.userId,
-          amount: fiatTransaction.cents,
-        },
+        create: creditTransactionData,
       },
     },
   });

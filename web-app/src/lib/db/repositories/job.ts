@@ -95,6 +95,56 @@ export async function retrieveJobsByAgentIdAndUserId(
   return jobs.map(mapJobWithStatus);
 }
 
+/**
+ * Retrieves jobs associated with a specific agent, user, and organization
+ * @param agentId - The unique identifier of the agent
+ * @param userId - The unique identifier of the user
+ * @param organizationId - The unique identifier of the organization
+ * @returns Promise containing an array of jobs with their relations
+ */
+export async function retrieveJobsByAgentIdUserIdAndOrganizationId(
+  agentId: string,
+  userId: string,
+  organizationId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<JobWithStatus[]> {
+  const jobs = await tx.job.findMany({
+    where: {
+      agentId,
+      userId,
+      organizationId,
+    },
+    include: jobInclude,
+    orderBy: jobOrderBy,
+  });
+
+  return jobs.map(mapJobWithStatus);
+}
+
+/**
+ * Retrieves personal jobs (without organization context) for a specific agent and user
+ * @param agentId - The unique identifier of the agent
+ * @param userId - The unique identifier of the user
+ * @returns Promise containing an array of jobs with their relations
+ */
+export async function retrievePersonalJobsByAgentIdAndUserId(
+  agentId: string,
+  userId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<JobWithStatus[]> {
+  const jobs = await tx.job.findMany({
+    where: {
+      agentId,
+      userId,
+      organizationId: null,
+    },
+    include: jobInclude,
+    orderBy: jobOrderBy,
+  });
+
+  return jobs.map(mapJobWithStatus);
+}
+
 export async function retrieveJobById(
   jobId: string,
   tx: Prisma.TransactionClient = prisma,
@@ -124,6 +174,7 @@ interface CreateJobData {
   agentJobId: string;
   agentId: string;
   userId: string;
+  organizationId: string | null | undefined;
   inputSchema: JobInputSchemaType[];
   input: string;
   paymentId: string;
@@ -141,6 +192,24 @@ export async function createJob(
   data: CreateJobData,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Job> {
+  // Build the credit transaction data based on whether it's for a user or organization
+  const creditTransactionData: Prisma.CreditTransactionCreateInput = {
+    amount: -data.creditsPrice.cents,
+    includedFee: data.creditsPrice.includedFee,
+    user: {
+      connect: {
+        id: data.userId,
+      },
+    },
+    ...(data.organizationId && {
+      organization: {
+        connect: {
+          id: data.organizationId,
+        },
+      },
+    }),
+  };
+
   return await tx.job.create({
     data: {
       agentJobId: data.agentJobId,
@@ -149,16 +218,20 @@ export async function createJob(
           id: data.agentId,
         },
       },
-      creditTransaction: {
-        create: {
-          amount: -data.creditsPrice.cents,
-          includedFee: data.creditsPrice.includedFee,
-          user: {
-            connect: {
-              id: data.userId,
-            },
+      user: {
+        connect: {
+          id: data.userId,
+        },
+      },
+      ...(data.organizationId && {
+        organization: {
+          connect: {
+            id: data.organizationId,
           },
         },
+      }),
+      creditTransaction: {
+        create: creditTransactionData,
       },
       paymentId: data.paymentId,
       inputSchema: data.inputSchema,
@@ -170,11 +243,6 @@ export async function createJob(
       unlockTime: data.unlockTime,
       blockchainIdentifier: data.blockchainIdentifier,
       sellerVkey: data.sellerVkey,
-      user: {
-        connect: {
-          id: data.userId,
-        },
-      },
     },
   });
 }
@@ -196,19 +264,29 @@ export async function refundJob(
     throw new Error("Credit transaction not found");
   }
 
+  // Build refund transaction data based on whether it's for a user or organization
+  const refundTransactionData: Prisma.CreditTransactionCreateInput = {
+    amount: creditTransaction.amount * BigInt(-1),
+    includedFee: creditTransaction.includedFee,
+    user: {
+      connect: {
+        id: creditTransaction.userId,
+      },
+    },
+    ...(creditTransaction.organizationId && {
+      organization: {
+        connect: {
+          id: creditTransaction.organizationId,
+        },
+      },
+    }),
+  };
+
   await tx.job.update({
     where: { id: jobId },
     data: {
       refundedCreditTransaction: {
-        create: {
-          amount: creditTransaction.amount * BigInt(-1),
-          includedFee: creditTransaction.includedFee,
-          user: {
-            connect: {
-              id: creditTransaction.userId,
-            },
-          },
-        },
+        create: refundTransactionData,
       },
     },
   });
@@ -302,6 +380,43 @@ export async function retrieveNotFinalizedLatestJobByAgentIdAndUserId(
     where: {
       agentId,
       userId,
+      OR: [
+        {
+          onChainStatus: {
+            notIn: finalizedOnChainJobStatuses,
+          },
+        },
+        {
+          onChainStatus: null,
+        },
+      ],
+    },
+    orderBy: { startedAt: "desc" },
+    include: jobInclude,
+  });
+  return job ? mapJobWithStatus(job) : null;
+}
+
+/**
+ * Retrieves the latest non-finalized job for a specific agent, user, and organization
+ * @param agentId - The unique identifier of the agent
+ * @param userId - The unique identifier of the user
+ * @param organizationId - The unique identifier of the organization (null for personal jobs)
+ * @returns Promise containing the latest non-finalized job or null
+ */
+export async function retrieveNotFinalizedLatestJobByAgentIdUserIdAndOrganization(
+  agentId: string,
+  userId: string,
+  organizationId: string | null | undefined,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<JobWithStatus | null> {
+  // Normalize undefined to null for organizationId to ensure correct filtering (Prisma ignores undefined)
+  const normalizedOrganizationId = organizationId ?? null;
+  const job = await tx.job.findFirst({
+    where: {
+      agentId,
+      userId,
+      organizationId: normalizedOrganizationId,
       OR: [
         {
           onChainStatus: {

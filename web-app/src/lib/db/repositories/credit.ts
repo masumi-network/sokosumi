@@ -19,7 +19,30 @@ export async function retrieveCentsByUserId(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<bigint> {
   const centsBalance = await tx.creditTransaction.aggregate({
-    where: { userId },
+    where: { userId, organizationId: null },
+    _sum: {
+      amount: true,
+    },
+  });
+  return centsBalance._sum.amount ?? BigInt(0);
+}
+
+/**
+ * Retrieves the total credit balance (in cents) for a given organization.
+ *
+ * This function aggregates all credit transactions for the specified organization and sums the 'amount' field.
+ * If the organization has no credit transactions, it returns 0n (bigint zero).
+ *
+ * @param organizationId - The ID of the organization whose credit balance is being retrieved.
+ * @param tx - (Optional) The Prisma transaction client to use for database operations. Defaults to the main Prisma client.
+ * @returns The total credit balance in cents as a bigint.
+ */
+export async function retrieveCentsByOrganizationId(
+  organizationId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<bigint> {
+  const centsBalance = await tx.creditTransaction.aggregate({
+    where: { organizationId },
     _sum: {
       amount: true,
     },
@@ -35,23 +58,6 @@ export async function retrieveCreditTransactionByJobId(
     where: { job: { id: jobId } },
     include: {
       job: true,
-    },
-  });
-}
-
-export async function createCreditTransactionByUserId(
-  userId: string,
-  cents: bigint,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<CreditTransaction> {
-  return tx.creditTransaction.create({
-    data: {
-      amount: cents,
-      user: {
-        connect: {
-          id: userId,
-        },
-      },
     },
   });
 }

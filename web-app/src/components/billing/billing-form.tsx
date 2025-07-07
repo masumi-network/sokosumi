@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
+import { Building2, Loader2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -31,8 +31,11 @@ import {
   BillingErrorCode,
   CommonErrorCode,
   getFreeCreditsWithCoupon,
+  getFreeOrganizationCreditsWithCoupon,
   purchaseCredits,
+  purchaseOrganizationCredits,
 } from "@/lib/actions";
+import { Organization } from "@/prisma/generated/client";
 
 const billingFormSchema = z
   .object({
@@ -65,12 +68,14 @@ interface BillingFormProps {
   priceId: string;
   amountPerCredit: number;
   currency: string;
+  organization?: Organization;
 }
 
 export default function BillingForm({
   priceId,
   amountPerCredit,
   currency,
+  organization,
 }: BillingFormProps) {
   const t = useTranslations("App.Billing");
   const formatter = useFormatter();
@@ -128,11 +133,23 @@ export default function BillingForm({
 
     // If coupon is provided, use coupon redemption flow
     if (data.coupon && data.coupon.trim().length > 0) {
-      result = await getFreeCreditsWithCoupon(priceId, data.coupon.trim());
+      result = organization
+        ? await getFreeOrganizationCreditsWithCoupon(
+            priceId,
+            data.coupon.trim(),
+            organization.id,
+          )
+        : await getFreeCreditsWithCoupon(priceId, data.coupon.trim());
     }
     // Otherwise, use credit purchase flow
     else if (data.credits && data.credits > 0) {
-      result = await purchaseCredits(priceId, data.credits);
+      result = organization
+        ? await purchaseOrganizationCredits(
+            priceId,
+            data.credits,
+            organization.id,
+          )
+        : await purchaseCredits(priceId, data.credits);
     } else {
       toast.error(t("couponOrCreditsError"));
       return;
@@ -170,6 +187,13 @@ export default function BillingForm({
         case BillingErrorCode.PROMOTION_CODE_NOT_FOUND:
           toast.error(t("Errors.promotionCodeNotFound"));
           break;
+        case CommonErrorCode.UNAUTHORIZED:
+          if (organization) {
+            toast.error(t("Errors.unauthorizedOrganization"));
+          } else {
+            toast.error(t("Errors.unauthorizedPersonal"));
+          }
+          break;
         default:
           toast.error(t("Error.title"));
       }
@@ -200,7 +224,18 @@ export default function BillingForm({
     <Card>
       <CardHeader>
         <CardTitle>{t("topUpTitle")}</CardTitle>
-        <CardDescription>{t("topUpDescription")}</CardDescription>
+        <CardDescription>
+          {organization ? (
+            <div className="flex items-center gap-2">
+              <Building2 className="h-4 w-4" />
+              {t("purchaseForOrganization", {
+                organization: organization.name,
+              })}
+            </div>
+          ) : (
+            t("topUpDescription")
+          )}
+        </CardDescription>
       </CardHeader>
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)}>
@@ -294,7 +329,7 @@ export default function BillingForm({
               {form.formState.isSubmitting && (
                 <Loader2 className="mr-2 size-4 animate-spin" />
               )}
-              {t("topUpButton")}
+              {organization ? t("topUpButtonOrganization") : t("topUpButton")}
             </Button>
             <p className="text-muted-foreground text-sm">
               {t("costPerCredit", {

@@ -37,3 +37,10 @@ export async function verifyUserId(userId: string): Promise<void> {
     throw new Error("UserId does not match session user id");
   }
 }
+
+export async function getActiveOrganizationId(): Promise<
+  string | null | undefined
+> {
+  const session = await getSession();
+  return session?.session.activeOrganizationId;
+}
