@@ -22,6 +22,7 @@ import {
   createCustomer,
   getCouponById,
   getOrCreatePromotionCode,
+  Price,
 } from "./third-party";
 
 // Unified private helper for creating Stripe checkout sessions
@@ -29,7 +30,7 @@ export async function createStripeCheckoutSession(
   userId: string,
   organizationId: string | null,
   credits: number,
-  price: Stripe.Price,
+  price: Price,
   promotionCode: string | null = null,
 ): Promise<{ stripeSessionId: string; url: string }> {
   await verifyUserId(userId);
@@ -37,7 +38,7 @@ export async function createStripeCheckoutSession(
     try {
       const user = await retrieveUserById(userId, tx);
       if (!user) throw new Error("User not found");
-      const amount = credits * (price.unit_amount ?? 0);
+      const amount = credits * price.amountPerCredit;
       const fiatTransaction = await createFiatTransaction(
         userId,
         organizationId,
@@ -99,7 +100,7 @@ export async function getPromotionCode(
 
 export async function getCreditsForCoupon(
   couponId: string,
-  price: Stripe.Price,
+  price: Price,
 ): Promise<number> {
   const coupon = await getCouponById(couponId);
   if (!coupon) {
@@ -117,12 +118,12 @@ export async function getCreditsForCoupon(
   }
 
   // Prevent division by zero for price.unit_amount
-  if (!price.unit_amount || price.unit_amount === 0) {
+  if (price.amountPerCredit === 0) {
     throw new CouponTypeError(
-      "Stripe price unit_amount is 0 – cannot calculate credits for free product",
+      "Price amountPerCredit is 0 – cannot calculate credits for free product",
     );
   }
-  const credits = Math.floor(coupon.amount_off / price.unit_amount);
+  const credits = Math.floor(coupon.amount_off / price.amountPerCredit);
   if (credits < 1) {
     throw new CouponTypeError("Coupon amount is too low");
   }

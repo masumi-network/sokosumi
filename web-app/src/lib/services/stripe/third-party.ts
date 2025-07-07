@@ -9,6 +9,12 @@ import { FiatTransaction, User } from "@/prisma/generated/client";
 
 const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
+export interface Price {
+  id: string;
+  amountPerCredit: number;
+  currency: string;
+}
+
 function validatePrice(price: Stripe.Price) {
   if (price.currency !== "usd") {
     throw new Error("Price is not in USD");
@@ -24,13 +30,15 @@ function validatePrice(price: Stripe.Price) {
   return price;
 }
 
-export async function getPriceFromPriceId(
-  priceId: string,
-): Promise<Stripe.Price> {
+export async function getPriceFromPriceId(priceId: string): Promise<Price> {
   try {
     const price = await stripe.prices.retrieve(priceId);
     validatePrice(price);
-    return price;
+    return {
+      id: price.id,
+      amountPerCredit: price.unit_amount!,
+      currency: price.currency,
+    };
   } catch (error) {
     console.error("Error retrieving price", error);
     throw error;
@@ -52,9 +60,7 @@ export async function getPriceFromPriceId(
  * console.log(price.currency); // Currency code (e.g., "usd")
  * ```
  */
-export async function getPriceFromProductId(
-  productId: string,
-): Promise<Stripe.Price> {
+export async function getPriceFromProductId(productId: string): Promise<Price> {
   try {
     const product = await stripe.products.retrieve(productId, {
       expand: ["default_price"],
@@ -66,7 +72,11 @@ export async function getPriceFromProductId(
       throw new Error("Product default price is not expanded");
     }
     validatePrice(product.default_price);
-    return product.default_price;
+    return {
+      id: product.default_price.id,
+      amountPerCredit: product.default_price.unit_amount!,
+      currency: product.default_price.currency,
+    };
   } catch (error) {
     console.error("Error retrieving price", error);
     throw error;
@@ -83,7 +93,7 @@ export async function getPriceFromProductId(
 export async function createCheckoutSession(
   user: User,
   fiatTransaction: FiatTransaction,
-  price: Stripe.Price,
+  price: Price,
   promotionCode: string | null = null,
 ): Promise<{
   id: string;
@@ -92,9 +102,9 @@ export async function createCheckoutSession(
   const headerList = await headers();
   const origin = headerList.get("origin");
   // Prevent division by zero for price.unit_amount
-  if (!price.unit_amount || price.unit_amount === 0) {
+  if (price.amountPerCredit === 0) {
     throw new Error(
-      "Stripe price unit_amount is 0 – cannot create checkout session for free product",
+      "Price amountPerCredit is 0 – cannot create checkout session for free product",
     );
   }
   const session = await stripe.checkout.sessions.create({
@@ -102,7 +112,7 @@ export async function createCheckoutSession(
     line_items: [
       {
         price: price.id,
-        quantity: Number(fiatTransaction.amount) / price.unit_amount,
+        quantity: Number(fiatTransaction.amount) / price.amountPerCredit,
       },
     ],
     ...(promotionCode

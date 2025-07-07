@@ -9,12 +9,7 @@ export default async function BillingPage() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-6">
-      <BillingForm
-        priceId={price.id}
-        organization={activeOrganization}
-        amountPerCredit={price.unit_amount ?? 0}
-        currency={price.currency}
-      />
+      <BillingForm price={price} organization={activeOrganization} />
     </div>
   );
 }

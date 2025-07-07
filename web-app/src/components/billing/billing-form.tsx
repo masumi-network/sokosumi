@@ -33,6 +33,7 @@ import {
   getFreeCreditsWithCoupon,
   purchaseCredits,
 } from "@/lib/actions";
+import { Price } from "@/lib/services/stripe/third-party";
 import { Organization } from "@/prisma/generated/client";
 
 const billingFormSchema = z
@@ -63,18 +64,11 @@ const billingFormSchema = z
 type BillingFormData = z.infer<typeof billingFormSchema>;
 
 interface BillingFormProps {
-  priceId: string;
+  price: Price;
   organization: Organization | null;
-  amountPerCredit?: number;
-  currency?: string;
 }
 
-export default function BillingForm({
-  priceId,
-  organization,
-  amountPerCredit = 0,
-  currency = "USD",
-}: BillingFormProps) {
+export default function BillingForm({ price, organization }: BillingFormProps) {
   const t = useTranslations("App.Billing");
   const formatter = useFormatter();
   const router = useAsyncRouter();
@@ -132,13 +126,13 @@ export default function BillingForm({
       if (data.coupon && data.coupon.trim().length > 0) {
         result = await getFreeCreditsWithCoupon(
           organization?.id ?? null,
-          priceId,
+          price.id,
           data.coupon.trim(),
         );
       } else if (data.credits && data.credits > 0) {
         result = await purchaseCredits(
           organization?.id ?? null,
-          priceId,
+          price.id,
           data.credits,
         );
       } else {
@@ -190,7 +184,7 @@ export default function BillingForm({
         }
       }
     },
-    [router, t, priceId, organization],
+    [router, t, price, organization],
   );
 
   const handleQuickAmount = useCallback(
@@ -326,9 +320,9 @@ export default function BillingForm({
             </Button>
             <p className="text-muted-foreground text-sm">
               {t("costPerCredit", {
-                cost: formatter.number((amountPerCredit ?? 0) / 100, {
+                cost: formatter.number(price.amountPerCredit / 100, {
                   style: "currency",
-                  currency,
+                  currency: price.currency,
                 }),
               })}
             </p>
