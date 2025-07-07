@@ -1,11 +1,11 @@
+/* eslint-disable no-restricted-properties */
 import { getEnvPublicConfig } from "@/config/env.public";
-import { getEnvSecrets } from "@/config/env.secrets";
 import { usdmUnit } from "@/lib/utils";
 import { PrismaClient } from "@/prisma/generated/client";
 
 const prisma = new PrismaClient();
 
-const seedDatabase = getEnvSecrets().SEED_DATABASE;
+const seedDatabase = process.env.SEED_DATABASE;
 
 const seedUSDMCreditCost = async () => {
   console.log("Seeding USDM credit cost...");
