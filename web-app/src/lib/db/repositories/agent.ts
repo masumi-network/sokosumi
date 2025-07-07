@@ -2,6 +2,7 @@ import "server-only";
 
 import {
   agentInclude,
+  agentOrderBy,
   agentOrganizationsInclude,
   agentPricingInclude,
   AgentWithFixedPricing,
@@ -83,6 +84,7 @@ export async function retrieveAgentWithFixedPricingById(
  * This function fetches all agents from the database that are marked as shown
  * and have a specific status. It returns an array of agents with their related
  * entities such as pricing, tags, example outputs, ratings, etc.
+ * And sort by jobs count in descending order.
  *
  * @param status - The status of the agents to retrieve
  * @param tx - (Optional) Prisma transaction client for DB operations. Defaults to the main Prisma client.
@@ -94,6 +96,7 @@ export async function retrieveShownAgentsWithRelationsByStatus(
 ): Promise<AgentWithRelations[]> {
   return await tx.agent.findMany({
     include: agentInclude,
+    orderBy: [...agentOrderBy],
     where: {
       status,
       isShown: true,

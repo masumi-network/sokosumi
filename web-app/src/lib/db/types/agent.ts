@@ -37,6 +37,21 @@ export const agentInclude = {
   ...agentOrganizationsInclude,
 } as const;
 
+export const agentJobsCountOrderBy = {
+  jobs: {
+    _count: "desc",
+  },
+} as const;
+
+export const agentCreatedAtOrderBy = {
+  createdAt: "desc",
+} as const;
+
+export const agentOrderBy = [
+  { ...agentJobsCountOrderBy },
+  { ...agentCreatedAtOrderBy },
+] as const;
+
 export type AgentWithRelations = Prisma.AgentGetPayload<{
   include: typeof agentInclude;
 }>;
