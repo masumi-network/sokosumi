@@ -112,8 +112,6 @@ export async function getCreditsForCoupon(
     throw new CouponTypeError("Coupon must have a fixed amount");
   }
 
-  // const conversionFactors = await getConversionFactors(priceId);
-
   if (coupon.currency?.toLowerCase() !== price.currency.toLowerCase()) {
     throw new CouponCurrencyError(coupon.currency ?? "unknown", price.currency);
   }
