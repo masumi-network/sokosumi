@@ -115,7 +115,7 @@ export async function getFreeCreditsWithCoupon(
   }
 }
 
-export async function purchaseCredits(
+export async function purchaseUserCredits(
   priceId: string,
   credits: number,
 ): Promise<Result<{ url: string }, ActionError>> {
