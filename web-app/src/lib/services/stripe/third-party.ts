@@ -5,45 +5,33 @@ import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { updateUserStripeCustomerId } from "@/lib/db/repositories";
-import { User } from "@/prisma/generated/client";
+import { FiatTransaction, User } from "@/prisma/generated/client";
 
 const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
 /**
- * Retrieves the cost per credit for a given Stripe price.
+ * Retrieves the default price for a Stripe product.
  *
- * @param priceId - The Stripe price ID to fetch (defaults to STRIPE_PRICE_ID from environment).
- * @returns An object containing:
- *   - amountPerCredit: The Stripe unit amount per credit (in the currency's smallest unit).
- *   - currency: The currency code (e.g., 'usd').
- * @throws If the Stripe price cannot be retrieved, is missing unit_amount, or is not in USD.
+ * @param productId - The ID of the Stripe product to retrieve the price for
+ * @returns A promise that resolves to the default Stripe.Price object for the product
+ * @throws Will throw an error if the product does not have a default price configured
+ *
+ * @example
+ * ```typescript
+ * const productId = "prod_1234567890";
+ * const price = await getPriceId(productId);
+ * console.log(price.unit_amount); // Price in cents
+ * console.log(price.currency); // Currency code (e.g., "usd")
+ * ```
  */
-export async function getConversionFactors(
-  priceId: string = getEnvSecrets().STRIPE_PRICE_ID,
-): Promise<{
-  amountPerCredit: number;
-  currency: string;
-}> {
-  try {
-    const price = await stripe.prices.retrieve(priceId);
-
-    if (price.unit_amount === null) {
-      console.error("ACTION: Stripe price is missing unit_amount.");
-      throw new Error("Stripe price does not have a unit_amount.");
-    }
-
-    if (price.currency !== "usd") {
-      throw new Error("Stripe price currency is not USD.");
-    }
-    const result = {
-      amountPerCredit: price.unit_amount,
-      currency: price.currency,
-    };
-    return result;
-  } catch (error) {
-    console.error("ACTION: Failed to fetch Stripe price:", error);
-    throw error;
+export async function getPrice(productId: string): Promise<Stripe.Price> {
+  const product = await stripe.products.retrieve(productId, {
+    expand: ["default_price"],
+  });
+  if (!product.default_price) {
+    throw new Error("Product does not have a default price");
   }
+  return product.default_price as Stripe.Price;
 }
 
 /**
@@ -55,10 +43,9 @@ export async function getConversionFactors(
  */
 export async function createCheckoutSession(
   user: User,
-  fiatTransactionId: string,
-  priceId: string,
-  quantity: number,
-  promotionCode: string | null,
+  fiatTransaction: FiatTransaction,
+  price: Stripe.Price,
+  promotionCode: string | null = null,
 ): Promise<{
   id: string;
   url: string;
@@ -69,14 +56,14 @@ export async function createCheckoutSession(
     mode: "payment",
     line_items: [
       {
-        price: priceId,
-        quantity: quantity,
+        price: price.id,
+        quantity: Number(fiatTransaction.amount) / (price.unit_amount ?? 0),
       },
     ],
     ...(promotionCode
       ? { discounts: [{ promotion_code: promotionCode }] }
       : { allow_promotion_codes: false }),
-    client_reference_id: fiatTransactionId,
+    client_reference_id: fiatTransaction.id,
     ...(user.stripeCustomerId
       ? { customer: user.stripeCustomerId }
       : { customer_email: user.email, customer_creation: "always" }),

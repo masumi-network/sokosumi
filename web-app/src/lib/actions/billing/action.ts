@@ -1,5 +1,7 @@
 "use server";
 
+import Stripe from "stripe";
+
 import { getEnvSecrets } from "@/config/env.secrets";
 import { ActionError, BillingErrorCode, CommonErrorCode } from "@/lib/actions";
 import { getSession } from "@/lib/auth/utils";
@@ -8,6 +10,7 @@ import {
   createStripeCheckoutSession,
   getCreditsForCoupon,
   getMyMemberInOrganization,
+  getPrice,
   getPromotionCode,
   getWelcomePromotionCode,
 } from "@/lib/services";
@@ -33,12 +36,14 @@ export async function claimFreeCredits(): Promise<
       });
     }
 
+    const price = await getPrice(getEnvSecrets().STRIPE_PRODUCT_ID);
+
     // Create the checkout session
     const { url } = await createStripeCheckoutSession(
       session.user.id,
       null,
       100,
-      getEnvSecrets().STRIPE_PRICE_ID,
+      price,
       promotionCode.id,
     );
 
@@ -54,7 +59,7 @@ export async function claimFreeCredits(): Promise<
 
 export async function purchaseCredits(
   organizationId: string | null,
-  priceId: string,
+  price: Stripe.Price,
   credits: number,
 ): Promise<Result<{ url: string }, ActionError>> {
   try {
@@ -90,7 +95,7 @@ export async function purchaseCredits(
       session.user.id,
       organizationId,
       credits,
-      priceId,
+      price,
     );
 
     return Ok({ url });
@@ -105,7 +110,7 @@ export async function purchaseCredits(
 
 export async function getFreeCreditsWithCoupon(
   organizationId: string | null,
-  priceId: string,
+  price: Stripe.Price,
   couponId: string,
 ): Promise<Result<{ url: string }, ActionError>> {
   try {
@@ -128,7 +133,7 @@ export async function getFreeCreditsWithCoupon(
       }
     }
 
-    const credits = await getCreditsForCoupon(couponId, priceId);
+    const credits = await getCreditsForCoupon(couponId, price);
 
     // Validate and get the promotion code for this user and couponId
     const promo = await getPromotionCode(session.user.id, couponId, 1);
@@ -144,7 +149,7 @@ export async function getFreeCreditsWithCoupon(
       session.user.id,
       organizationId ?? null,
       credits,
-      priceId,
+      price,
       promo.id,
     );
     return Ok({ url });
