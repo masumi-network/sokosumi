@@ -2,15 +2,16 @@ import "server-only";
 
 import { v4 as uuidv4 } from "uuid";
 
-import { getSessionOrThrow } from "@/lib/auth/utils";
+import { getActiveOrganizationId, getSessionOrThrow } from "@/lib/auth/utils";
 import { computeJobStatus, JobStatus, JobWithStatus } from "@/lib/db";
 import {
   createJob,
   prisma,
   refundJob,
   retrieveAgentWithRelationsById,
-  retrieveJobsByAgentIdAndUserId,
-  retrieveNotFinalizedLatestJobByAgentIdAndUserId,
+  retrieveJobsByAgentIdUserIdAndOrganizationId,
+  retrieveNotFinalizedLatestJobByAgentIdUserIdAndOrganization,
+  retrievePersonalJobsByAgentIdAndUserId,
   updateJobNextActionByBlockchainIdentifier,
   updateJobWithAgentJobStatus,
   updateJobWithPurchase,
@@ -20,7 +21,11 @@ import { StartJobInputSchemaType } from "@/lib/schemas";
 import { getInputHash, getInputHashDeprecated } from "@/lib/utils";
 import { Job, NextJobAction, Prisma } from "@/prisma/generated/client";
 import { getAgentPricing } from "@/services/agent";
-import { getCreditsPrice, validateCreditsBalance } from "@/services/credit";
+import {
+  getCreditsPrice,
+  validateCreditsBalance,
+  validateOrganizationCreditsBalance,
+} from "@/services/credit";
 
 import {
   createPurchase,
@@ -54,7 +59,21 @@ export async function getMyJobsByAgentId(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<JobWithStatus[]> {
   const session = await getSessionOrThrow();
-  return await retrieveJobsByAgentIdAndUserId(agentId, session.user.id, tx);
+  const userId = session.user.id;
+  const activeOrganizationId = session.session.activeOrganizationId;
+
+  if (activeOrganizationId) {
+    // Show jobs for the specific organization
+    return await retrieveJobsByAgentIdUserIdAndOrganizationId(
+      agentId,
+      userId,
+      activeOrganizationId,
+      tx,
+    );
+  } else {
+    // Show personal jobs only (without organization context)
+    return await retrievePersonalJobsByAgentIdAndUserId(agentId, userId, tx);
+  }
 }
 
 export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
@@ -78,8 +97,17 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
         if (creditsPrice.cents > maxAcceptedCents) {
           throw new Error("Credit cost is too high");
         }
+        const organizationId = await getActiveOrganizationId();
         if (creditsPrice.cents > 0) {
-          await validateCreditsBalance(userId, creditsPrice.cents, tx);
+          if (organizationId) {
+            await validateOrganizationCreditsBalance(
+              organizationId,
+              creditsPrice.cents,
+              tx,
+            );
+          } else {
+            await validateCreditsBalance(userId, creditsPrice.cents, tx);
+          }
         }
 
         const identifierFromPurchaser = uuidv4()
@@ -118,6 +146,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
             agentJobId: startJobResponse.job_id,
             agentId,
             userId,
+            organizationId,
             input: JSON.stringify(Object.fromEntries(inputData)),
             inputSchema: inputSchema,
             paymentId: purchaseResponse.data.id,
@@ -301,9 +330,16 @@ export async function getNotFinalizedLatestJobsByAgentIds(
 ): Promise<(JobWithStatus | null)[]> {
   const session = await getSessionOrThrow();
   const userId = session.user.id;
+  const activeOrganizationId = session.session.activeOrganizationId;
+
   return await Promise.all(
     agentIds.map((agentId) =>
-      retrieveNotFinalizedLatestJobByAgentIdAndUserId(agentId, userId, tx),
+      retrieveNotFinalizedLatestJobByAgentIdUserIdAndOrganization(
+        agentId,
+        userId,
+        activeOrganizationId,
+        tx,
+      ),
     ),
   );
 }

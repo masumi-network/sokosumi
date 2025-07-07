@@ -6,7 +6,8 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import { verifyUserId } from "@/lib/auth/utils";
 import { convertCreditsToCents } from "@/lib/db";
 import {
-  createFiatTransaction,
+  createOrganizationFiatTransaction,
+  createUserFiatTransaction,
   prisma,
   retrieveUserById,
   updateFiatTransactionServicePaymentId,
@@ -25,27 +26,41 @@ import {
   getOrCreatePromotionCode,
 } from "./third-party";
 
-export async function createStripeCheckoutSession(
-  userId: string,
-  credits: number,
-  priceId: string,
-  promotionCode: string | null = null,
-): Promise<{ stripeSessionId: string; url: string }> {
-  // Verify that the user is the one initiating the transaction
-  await verifyUserId(userId);
+interface FiatTransaction {
+  id: string;
+  amount: bigint;
+}
 
-  // Create the fiat transaction and the checkout session
+// Unified private helper for creating Stripe checkout sessions
+async function createStripeCheckoutSession({
+  userId,
+  credits,
+  priceId,
+  promotionCode,
+  createFiatTransaction,
+}: {
+  userId: string;
+  credits: number;
+  priceId: string;
+  promotionCode?: string | null;
+  createFiatTransaction: (
+    userId: string,
+    credits: number,
+    amount: number,
+    currency: string,
+    tx: Parameters<typeof retrieveUserById>[1],
+  ) => Promise<FiatTransaction>;
+}): Promise<{ stripeSessionId: string; url: string }> {
+  await verifyUserId(userId);
   return await prisma.$transaction(async (tx) => {
     try {
       const user = await retrieveUserById(userId, tx);
-      if (!user) {
-        throw new Error("User not found");
-      }
+      if (!user) throw new Error("User not found");
       const conversionFactorsPerCredit = await getConversionFactors(priceId);
       const amount = credits * conversionFactorsPerCredit.amountPerCredit;
       const fiatTransaction = await createFiatTransaction(
         userId,
-        convertCreditsToCents(credits),
+        credits,
         amount,
         conversionFactorsPerCredit.currency,
         tx,
@@ -56,9 +71,8 @@ export async function createStripeCheckoutSession(
         priceId,
         Number(fiatTransaction.amount) /
           conversionFactorsPerCredit.amountPerCredit,
-        promotionCode,
+        promotionCode ?? null,
       );
-
       await updateFiatTransactionServicePaymentId(
         fiatTransaction.id,
         stripeSessionId,
@@ -69,6 +83,52 @@ export async function createStripeCheckoutSession(
       console.log("Error creating stripe checkout session", error);
       throw error;
     }
+  });
+}
+
+export async function createUserStripeCheckoutSession(
+  userId: string,
+  credits: number,
+  priceId: string,
+  promotionCode: string | null = null,
+): Promise<{ stripeSessionId: string; url: string }> {
+  return createStripeCheckoutSession({
+    userId,
+    credits,
+    priceId,
+    promotionCode,
+    createFiatTransaction: async (userId, credits, amount, currency, tx) =>
+      createUserFiatTransaction(
+        userId,
+        convertCreditsToCents(credits),
+        amount,
+        currency,
+        tx,
+      ),
+  });
+}
+
+export async function createOrganizationStripeCheckoutSession(
+  userId: string,
+  organizationId: string,
+  credits: number,
+  priceId: string,
+  promotionCode: string | null = null,
+): Promise<{ stripeSessionId: string; url: string }> {
+  return createStripeCheckoutSession({
+    userId,
+    credits,
+    priceId,
+    promotionCode,
+    createFiatTransaction: async (userId, credits, amount, currency, tx) =>
+      createOrganizationFiatTransaction(
+        userId,
+        organizationId,
+        convertCreditsToCents(credits),
+        amount,
+        currency,
+        tx,
+      ),
   });
 }
 

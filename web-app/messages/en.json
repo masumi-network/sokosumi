@@ -110,6 +110,13 @@
       "support": "Support",
       "logout": "Log out"
     },
+    "OrganizationSwitcher": {
+      "personalAccount": "Personal Account",
+      "noOrganizationsFound": "No organizations found",
+      "personalAccountHeading": "Personal",
+      "organizationsHeading": "Organizations",
+      "createOrJoinOrganization": "Create or Join Organization"
+    },
     "DataTable": {
       "Data": {
         "noResults": "No results."
@@ -176,6 +183,7 @@
     "Breadcrumb": {
       "jobs": "Jobs",
       "agents": "Gallery",
+      "billing": "Billing",
       "account": "Account",
       "organizations": "Organizations"
     },
@@ -721,30 +729,33 @@
     },
     "Header": {
       "Credit": {
-        "unavailable": "Credits unavailable",
-        "balance": "{credits, plural, =0 {No credits} =1 {1 credit} other {# credits}}",
-        "buy": "Buy Credits"
+        "buy": "Buy credits",
+        "userBalance": "{credits, plural, =0 {No credits} =1 {1 credit} other {# credits}}",
+        "organizationBalance": "{credits, plural, =0 {No credits} =1 {1 credit} other {# credits}} ({organization})",
+        "unavailable": "Credits unavailable"
       }
     },
     "Billing": {
       "title": "Billing",
       "description": "Manage your billing settings and preferences",
-      "topUpTitle": "Top-up Credits",
-      "topUpDescription": "Add credits to your account balance.",
-      "costPerCredit": "1 Credit = {cost}",
-      "creditAmount": "{count, plural, =1 {# credit} other {# credits}}",
-      "creditsLabel": "Credits",
-      "creditsPlaceholder": "Enter credits",
-      "topUpButton": "Top Up",
-      "couponLabel": "Coupon Code",
-      "couponPlaceholder": "Enter coupon code",
-      "couponOrCreditsError": "Please enter either a credit amount or a coupon code",
-      "couponCleared": "Coupon cleared - purchasing credits instead",
-      "creditsCleared": "Credits cleared - using coupon instead",
+      "topUpTitle": "Top up your credits",
+      "topUpDescription": "Choose an amount or enter a custom value",
+      "costPerCredit": "{cost} per credit",
+      "creditAmount": "{count, plural, one {# credit} other {# credits}}",
+      "creditsLabel": "Number of credits",
+      "creditsPlaceholder": "Enter amount",
+      "topUpButton": "Continue to payment",
+      "topUpButtonOrganization": "Continue to payment",
+      "purchaseForOrganization": "{organization} (Organization)",
+      "couponLabel": "Coupon code",
+      "couponPlaceholder": "Enter coupon",
+      "creditsCleared": "Credits cleared for coupon entry",
+      "couponCleared": "Coupon cleared for credit entry",
+      "couponOrCreditsError": "Please enter either credits or a coupon code",
       "Error": {
         "title": "Something Went Wrong",
-        "message": "We encountered an error loading the billing information.",
-        "retryButton": "Try again"
+        "message": "We encountered an issue processing your request. Please try again later.",
+        "retryButton": "Try Again"
       },
       "Success": {
         "title": "Payment Successful!",
@@ -767,14 +778,17 @@
         }
       },
       "Errors": {
-        "unauthenticated": "You must log in.",
-        "unauthenticatedAction": "Login",
         "invalidCredits": "Invalid credit amount",
-        "invalidCoupon": "Invalid or inactive coupon code",
-        "couponNotFound": "Coupon code not found",
-        "couponTypeError": "This coupon type is not supported",
-        "couponCurrencyError": "Coupon currency is not supported",
-        "promotionCodeNotFound": "Promotion code not found"
+        "invalidCoupon": "Invalid coupon",
+        "couponNotFound": "Coupon not found",
+        "couponTypeError": "Coupon type not supported",
+        "couponCurrencyError": "Coupon currency mismatch",
+        "promotionCodeNotFound": "Promotion code not found",
+        "unauthenticated": "Please sign in to continue",
+        "unauthenticatedAction": "Sign In",
+        "unauthorizedOrganization": "You are not authorized to purchase credits for this organization",
+        "unauthorizedPersonal": "You are not authorized to purchase credits",
+        "unknownError": "Something went wrong"
       }
     },
     "Account": {
@@ -829,7 +843,14 @@
       "newOrganization": "New Organization",
       "membersNotAvailable": "No members found",
       "OrganizationRow": {
-        "leave": "Leave"
+        "leave": "Leave",
+        "activate": "Activate",
+        "deactivate": "Deactivate"
+      },
+      "Credits": {
+        "title": "Organization Credits",
+        "description": "Available for {organization} members",
+        "buy": "Buy Credits"
       },
       "InvitationActions": {
         "accept": "Accept",

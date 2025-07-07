@@ -4,8 +4,10 @@ import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
 import {
+  getActiveOrganization,
   getAuthenticatedUser,
-  getCredits,
+  getOrganizationCredits,
+  getUserCredits,
   getWelcomePromotionCode,
 } from "@/lib/services";
 
@@ -25,12 +27,29 @@ export default async function UserCredits() {
     );
   }
 
-  const credits = await getCredits(user.id);
+  // Check for active organization
+  const activeOrganization = await getActiveOrganization();
+
+  // Get appropriate credits based on context
+  let credits: number;
+  let creditLabel: string;
+
+  if (activeOrganization) {
+    credits = await getOrganizationCredits(activeOrganization.id);
+    creditLabel = t("organizationBalance", {
+      credits: credits,
+      organization: activeOrganization.name,
+    });
+  } else {
+    credits = await getUserCredits(user.id);
+    creditLabel = t("userBalance", { credits: credits });
+  }
+
   const promotionCode = await getWelcomePromotionCode(user.id);
 
   return (
     <div className="flex items-center gap-4">
-      {promotionCode?.active ? (
+      {promotionCode?.active && !activeOrganization ? (
         <FreeCreditsButton />
       ) : (
         credits <= 50.0 && (
@@ -41,9 +60,7 @@ export default async function UserCredits() {
       )}
       <div className="flex flex-col items-end gap-0.5">
         <div className="text-sm font-semibold">{user.name}</div>
-        <div className="text-muted-foreground text-xs">
-          {t("balance", { credits: credits })}
-        </div>
+        <div className="text-muted-foreground text-xs">{creditLabel}</div>
       </div>
     </div>
   );

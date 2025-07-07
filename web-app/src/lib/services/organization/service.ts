@@ -9,6 +9,7 @@ import {
   retrieveMemberByUserIdAndOrganizationId,
   retrieveMembersWithOrganizationByUserId,
   retrieveMembersWithUser,
+  retrieveOrganizationWithRelationsById,
   retrieveOrganizationWithRelationsBySlug,
   retrievePendingInvitationsByOrganizationId,
 } from "@/lib/db/repositories";
@@ -139,4 +140,27 @@ export async function getOrganizationPendingInvitations(
   }
 
   return await retrievePendingInvitationsByOrganizationId(organizationId);
+}
+
+/**
+ * Retrieves the active organization for the current user from their session.
+ *
+ * - Fetches the current session and extracts the activeOrganizationId.
+ * - If no active organization is set, returns null.
+ * - Otherwise, retrieves and returns the full organization data.
+ *
+ * @returns A promise that resolves to the Organization object if found, or null if not set.
+ */
+export async function getActiveOrganization() {
+  const session = await getSessionOrThrow();
+
+  if (!session.session.activeOrganizationId) {
+    return null;
+  }
+
+  const organization = await retrieveOrganizationWithRelationsById(
+    session.session.activeOrganizationId,
+  );
+
+  return organization;
 }

@@ -100,9 +100,12 @@ model Organization {
   metadata  String?
   createdAt DateTime @default(now())
 
-  members     Member[]
-  invitations Invitation[]
-  agents      Agent[]
+  members            Member[]
+  invitations        Invitation[]
+  agents             Agent[]
+  jobs               Job[]
+  creditTransactions CreditTransaction[]
+  fiatTransactions   FiatTransaction[]
 
   requiredEmailDomains String[] @default([])
 
@@ -357,10 +360,15 @@ model CreditTransaction {
   userId String
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
   fiatTransaction FiatTransaction?
 
   job         Job? @relation("CreditTransactionJob")
   refundedJob Job? @relation("RefundedCreditTransactionJob")
+
+  @@index([userId, organizationId])
 }
 
 model FiatTransaction {
@@ -376,10 +384,15 @@ model FiatTransaction {
   status           FiatTransactionStatus @default(PENDING)
 
   userId String
-  user   User   @relation(fields: [userId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  creditTransaction   CreditTransaction? @relation(fields: [creditTransactionId], references: [id])
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  creditTransaction   CreditTransaction? @relation(fields: [creditTransactionId], references: [id], onDelete: Cascade)
   creditTransactionId String?            @unique
+
+  @@index([userId, organizationId])
 }
 
 enum FiatTransactionStatus {
@@ -398,7 +411,10 @@ model Job {
   updatedAt DateTime @updatedAt
 
   userId String
-  user   User   @relation(fields: [userId], references: [id])
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
   agentId String
   agent   Agent  @relation(fields: [agentId], references: [id])
