@@ -26,7 +26,7 @@ import {
   Prisma,
 } from "@/prisma/generated/client";
 
-import { retrieveCreditTransactionByJobId } from "./credit";
+import { retrieveCreditTransactionByJobId } from "./creditTransaction";
 import prisma from "./prisma";
 
 function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
