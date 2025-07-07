@@ -19,6 +19,7 @@ export default function Organizations({
   if (members.length === 0 && invitations.length === 0) {
     return <OrganizationsNotAvailable />;
   }
+
   return (
     <InvitationRowActionsModalContextProvider>
       <div className="flex w-full flex-col divide-y rounded-lg border">
