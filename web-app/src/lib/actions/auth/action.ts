@@ -71,6 +71,7 @@ export async function signUpEmail(
     const result = await prisma.$transaction(async (tx) => {
       // organization check
       let organization: Organization;
+      let organizationCreated: boolean = false;
       if (!!parsed.selectedOrganization.id) {
         const retrievedOrganization =
           await retrieveOrganizationWithRelationsById(
@@ -113,6 +114,7 @@ export async function signUpEmail(
           throw new Error("Organization creation failed");
         }
         organization = createdOrganization;
+        organizationCreated = true;
       } else {
         actionError = {
           code: CommonErrorCode.BAD_INPUT,
@@ -126,8 +128,9 @@ export async function signUpEmail(
       // or invited to organization
       const userEmailDomain = getEmailDomain(parsed.email);
       const isUserEmailAllowed =
-        userEmailDomain &&
-        organization.requiredEmailDomains.includes(userEmailDomain);
+        organizationCreated ||
+        (userEmailDomain &&
+          organization.requiredEmailDomains.includes(userEmailDomain));
 
       const invitation = invitationId
         ? await retrieveValidPendingInvitationById(invitationId, tx)
