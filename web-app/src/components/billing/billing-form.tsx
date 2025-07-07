@@ -321,7 +321,7 @@ export default function BillingForm({ price, organization }: BillingFormProps) {
             </Button>
             <p className="text-muted-foreground text-sm">
               {t("costPerCredit", {
-                cost: formatter.number(price.unit_amount ?? 0 / 100, {
+                cost: formatter.number((price.unit_amount ?? 0) / 100, {
                   style: "currency",
                   currency: price.currency,
                 }),
