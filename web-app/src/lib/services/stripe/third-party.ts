@@ -106,7 +106,9 @@ export async function createCheckoutSession(
     line_items: [
       {
         price: price.id,
-        quantity: Number(fiatTransaction.amount) / price.amountPerCredit,
+        quantity: Math.floor(
+          Number(fiatTransaction.amount) / price.amountPerCredit,
+        ),
       },
     ],
     ...(promotionCode
