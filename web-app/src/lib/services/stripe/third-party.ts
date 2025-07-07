@@ -9,10 +9,7 @@ import { FiatTransaction, User } from "@/prisma/generated/client";
 
 const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
-export async function getPriceFromPriceId(
-  priceId: string,
-): Promise<Stripe.Price> {
-  const price = await stripe.prices.retrieve(priceId);
+function validatePrice(price: Stripe.Price) {
   if (price.currency !== "usd") {
     throw new Error("Price is not in USD");
   }
@@ -25,6 +22,19 @@ export async function getPriceFromPriceId(
     );
   }
   return price;
+}
+
+export async function getPriceFromPriceId(
+  priceId: string,
+): Promise<Stripe.Price> {
+  try {
+    const price = await stripe.prices.retrieve(priceId);
+    validatePrice(price);
+    return price;
+  } catch (error) {
+    console.error("Error retrieving price", error);
+    throw error;
+  }
 }
 
 /**
@@ -55,19 +65,8 @@ export async function getPriceFromProductId(
     ) {
       throw new Error("Product default price is not expanded");
     }
-    if (product.default_price.currency !== "usd") {
-      throw new Error("Product default price is not in USD");
-    }
-    if (product.default_price.unit_amount === null) {
-      throw new Error("Product default price is missing unit_amount");
-    }
-    if (product.default_price.unit_amount === 0) {
-      // Stripe allows free products, but our logic does not support them for credit purchases
-      throw new Error(
-        "Product default price unit_amount is 0 (free product) – cannot use for credit purchase",
-      );
-    }
-    return product.default_price as Stripe.Price;
+    validatePrice(product.default_price);
+    return product.default_price;
   } catch (error) {
     console.error("Error retrieving price", error);
     throw error;
