@@ -310,6 +310,7 @@
       "title": "Organization Invitation",
       "description": "You've been invited to join an organization",
       "hasInvitedYouToJoin": "has invited you to join",
+      "youAreAcceptingWith": "You are accepting with",
       "acceptedTitle": "Welcome to {organizationName}!",
       "acceptedDescription": "You've successfully joined the organization. We're excited to have you on board!",
       "goToOrganization": "Go to Organization",

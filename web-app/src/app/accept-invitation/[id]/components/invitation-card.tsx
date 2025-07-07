@@ -40,10 +40,18 @@ export default function InvitationCard({
       </CardHeader>
       <CardContent>
         {status === "pending" && (
-          <p>
-            <strong>{inviterEmail}</strong> {t("hasInvitedYouToJoin")}{" "}
-            <strong>{organizationName}</strong>
-          </p>
+          <div className="space-y-4">
+            <p>
+              <strong>{inviterEmail}</strong> {t("hasInvitedYouToJoin")}{" "}
+              <strong>{organizationName}</strong>
+            </p>
+            {user && (
+              <p>
+                <strong>{t("youAreAcceptingWith")}</strong>{" "}
+                <strong>{user.email}</strong>
+              </p>
+            )}
+          </div>
         )}
         {status === "accepted" && (
           <div className="space-y-4">
