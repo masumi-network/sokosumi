@@ -116,49 +116,10 @@ export async function getFreeCreditsWithCoupon(
   }
 }
 
-export async function purchaseUserCredits(
+export async function purchaseCredits(
   priceId: string,
   credits: number,
-): Promise<Result<{ url: string }, ActionError>> {
-  try {
-    const session = await getSession();
-    if (!session) {
-      return Err({
-        message: "Unauthenticated",
-        code: CommonErrorCode.UNAUTHENTICATED,
-      });
-    }
-
-    // Validate input
-    if (!credits || credits <= 0) {
-      return Err({
-        message: "Invalid credits",
-        code: BillingErrorCode.INVALID_CREDITS,
-      });
-    }
-
-    // Create the checkout session
-    const { url } = await createStripeCheckoutSession(
-      session.user.id,
-      null,
-      credits,
-      priceId,
-    );
-
-    return Ok({ url });
-  } catch (error) {
-    console.error("Failed to purchase credits:", error);
-    return Err({
-      message: "Internal server error",
-      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-    });
-  }
-}
-
-export async function purchaseOrganizationCredits(
-  priceId: string,
-  credits: number,
-  organizationId: string,
+  organizationId: string | null = null,
 ): Promise<Result<{ url: string }, ActionError>> {
   try {
     const session = await getSession();
@@ -178,15 +139,17 @@ export async function purchaseOrganizationCredits(
     }
 
     // Verify user is member of the organization
-    const member = await getMyMemberInOrganization(organizationId);
-    if (!member) {
-      return Err({
-        message: "Unauthorized",
-        code: CommonErrorCode.UNAUTHORIZED,
-      });
+    if (organizationId) {
+      const member = await getMyMemberInOrganization(organizationId);
+      if (!member) {
+        return Err({
+          message: "Unauthorized",
+          code: CommonErrorCode.UNAUTHORIZED,
+        });
+      }
     }
 
-    // Create the checkout session for organization
+    // Create the checkout session
     const { url } = await createStripeCheckoutSession(
       session.user.id,
       organizationId,
@@ -196,7 +159,7 @@ export async function purchaseOrganizationCredits(
 
     return Ok({ url });
   } catch (error) {
-    console.error("Failed to purchase organization credits:", error);
+    console.error("Failed to purchase credits:", error);
     return Err({
       message: "Internal server error",
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,

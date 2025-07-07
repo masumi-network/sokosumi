@@ -32,8 +32,7 @@ import {
   CommonErrorCode,
   getFreeCreditsWithCoupon,
   getFreeOrganizationCreditsWithCoupon,
-  purchaseOrganizationCredits,
-  purchaseUserCredits,
+  purchaseCredits,
 } from "@/lib/actions";
 import { Organization } from "@/prisma/generated/client";
 
@@ -143,13 +142,7 @@ export default function BillingForm({
     }
     // Otherwise, use credit purchase flow
     else if (data.credits && data.credits > 0) {
-      result = organization
-        ? await purchaseOrganizationCredits(
-            priceId,
-            data.credits,
-            organization.id,
-          )
-        : await purchaseUserCredits(priceId, data.credits);
+      result = await purchaseCredits(priceId, data.credits, organization?.id);
     } else {
       toast.error(t("couponOrCreditsError"));
       return;
