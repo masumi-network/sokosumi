@@ -96,7 +96,7 @@ export async function retrieveShownAgentsWithRelationsByStatus(
 ): Promise<AgentWithRelations[]> {
   return await tx.agent.findMany({
     include: agentInclude,
-    orderBy: agentOrderBy,
+    orderBy: [...agentOrderBy],
     where: {
       status,
       isShown: true,
