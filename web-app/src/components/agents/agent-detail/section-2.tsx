@@ -2,20 +2,11 @@ import { CircleCheck } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  finalizedOnChainJobStatuses,
-  JobWithLimitedInformation,
-} from "@/lib/db";
+import { JobWithLimitedInformation } from "@/lib/db";
 
 function AgentDetailSection2({ jobs }: { jobs: JobWithLimitedInformation[] }) {
   const t = useTranslations("Components.Agents.AgentDetail.Section2");
   const formatter = useFormatter();
-
-  const executedJobs = jobs.filter(
-    (job) =>
-      job.onChainStatus !== null &&
-      finalizedOnChainJobStatuses.includes(job.onChainStatus),
-  );
 
   return (
     <div className="flex flex-col gap-0.5">
@@ -24,7 +15,7 @@ function AgentDetailSection2({ jobs }: { jobs: JobWithLimitedInformation[] }) {
         <span className="text-upper text-xs">{t("executedJobs")}</span>
       </div>
       <p className="text-base font-medium">
-        {formatter.number(executedJobs.length, {
+        {formatter.number(jobs.length, {
           notation: "compact",
         })}
       </p>
