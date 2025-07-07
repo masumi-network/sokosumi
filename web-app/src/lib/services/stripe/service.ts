@@ -118,7 +118,13 @@ export async function getCreditsForCoupon(
     throw new CouponCurrencyError(coupon.currency ?? "unknown", price.currency);
   }
 
-  const credits = Math.floor(coupon.amount_off / (price.unit_amount ?? 0));
+  // Prevent division by zero for price.unit_amount
+  if (!price.unit_amount || price.unit_amount === 0) {
+    throw new CouponTypeError(
+      "Stripe price unit_amount is 0 – cannot calculate credits for free product",
+    );
+  }
+  const credits = Math.floor(coupon.amount_off / price.unit_amount);
   if (credits < 1) {
     throw new CouponTypeError("Coupon amount is too low");
   }

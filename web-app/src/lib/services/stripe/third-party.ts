@@ -41,6 +41,12 @@ export async function getPrice(productId: string): Promise<Stripe.Price> {
     if (product.default_price.unit_amount === null) {
       throw new Error("Product default price is missing unit_amount");
     }
+    if (product.default_price.unit_amount === 0) {
+      // Stripe allows free products, but our logic does not support them for credit purchases
+      throw new Error(
+        "Product default price unit_amount is 0 (free product) – cannot use for credit purchase",
+      );
+    }
     return product.default_price as Stripe.Price;
   } catch (error) {
     console.error("Error retrieving price", error);
@@ -66,12 +72,18 @@ export async function createCheckoutSession(
 }> {
   const headerList = await headers();
   const origin = headerList.get("origin");
+  // Prevent division by zero for price.unit_amount
+  if (!price.unit_amount || price.unit_amount === 0) {
+    throw new Error(
+      "Stripe price unit_amount is 0 – cannot create checkout session for free product",
+    );
+  }
   const session = await stripe.checkout.sessions.create({
     mode: "payment",
     line_items: [
       {
         price: price.id,
-        quantity: Number(fiatTransaction.amount) / (price.unit_amount ?? 0),
+        quantity: Number(fiatTransaction.amount) / price.unit_amount,
       },
     ],
     ...(promotionCode
