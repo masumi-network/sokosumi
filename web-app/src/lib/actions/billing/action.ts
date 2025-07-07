@@ -1,7 +1,5 @@
 "use server";
 
-import Stripe from "stripe";
-
 import { getEnvSecrets } from "@/config/env.secrets";
 import { ActionError, BillingErrorCode, CommonErrorCode } from "@/lib/actions";
 import { getSession } from "@/lib/auth/utils";
@@ -10,7 +8,8 @@ import {
   createStripeCheckoutSession,
   getCreditsForCoupon,
   getMyMemberInOrganization,
-  getPrice,
+  getPriceFromPriceId,
+  getPriceFromProductId,
   getPromotionCode,
   getWelcomePromotionCode,
 } from "@/lib/services";
@@ -36,7 +35,9 @@ export async function claimFreeCredits(): Promise<
       });
     }
 
-    const price = await getPrice(getEnvSecrets().STRIPE_PRODUCT_ID);
+    const price = await getPriceFromProductId(
+      getEnvSecrets().STRIPE_PRODUCT_ID,
+    );
 
     // Create the checkout session
     const { url } = await createStripeCheckoutSession(
@@ -59,7 +60,7 @@ export async function claimFreeCredits(): Promise<
 
 export async function purchaseCredits(
   organizationId: string | null,
-  price: Stripe.Price,
+  priceId: string,
   credits: number,
 ): Promise<Result<{ url: string }, ActionError>> {
   try {
@@ -90,6 +91,9 @@ export async function purchaseCredits(
       }
     }
 
+    // Fetch price server-side
+    const price = await getPriceFromPriceId(priceId);
+
     // Create the checkout session
     const { url } = await createStripeCheckoutSession(
       session.user.id,
@@ -110,7 +114,7 @@ export async function purchaseCredits(
 
 export async function getFreeCreditsWithCoupon(
   organizationId: string | null,
-  price: Stripe.Price,
+  priceId: string,
   couponId: string,
 ): Promise<Result<{ url: string }, ActionError>> {
   try {
@@ -133,6 +137,8 @@ export async function getFreeCreditsWithCoupon(
       }
     }
 
+    // Fetch price server-side
+    const price = await getPriceFromPriceId(priceId);
     const credits = await getCreditsForCoupon(couponId, price);
 
     // Validate and get the promotion code for this user and couponId

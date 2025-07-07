@@ -6,7 +6,6 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
-import Stripe from "stripe";
 import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
@@ -64,11 +63,18 @@ const billingFormSchema = z
 type BillingFormData = z.infer<typeof billingFormSchema>;
 
 interface BillingFormProps {
-  price: Stripe.Price;
+  priceId: string;
   organization: Organization | null;
+  amountPerCredit?: number;
+  currency?: string;
 }
 
-export default function BillingForm({ price, organization }: BillingFormProps) {
+export default function BillingForm({
+  priceId,
+  organization,
+  amountPerCredit = 0,
+  currency = "USD",
+}: BillingFormProps) {
   const t = useTranslations("App.Billing");
   const formatter = useFormatter();
   const router = useAsyncRouter();
@@ -120,73 +126,72 @@ export default function BillingForm({ price, organization }: BillingFormProps) {
     [setValue, form],
   );
 
-  const onSubmit = async (data: BillingFormData) => {
-    let result;
-
-    // If coupon is provided, use coupon redemption flow
-    if (data.coupon && data.coupon.trim().length > 0) {
-      result = await getFreeCreditsWithCoupon(
-        organization?.id ?? null,
-        price,
-        data.coupon.trim(),
-      );
-    }
-    // Otherwise, use credit purchase flow
-    else if (data.credits && data.credits > 0) {
-      result = await purchaseCredits(
-        organization?.id ?? null,
-        price,
-        data.credits,
-      );
-    } else {
-      toast.error(t("couponOrCreditsError"));
-      return;
-    }
-
-    if (result.ok) {
-      window.location.href = result.data.url;
-    } else {
-      switch (result.error.code) {
-        case CommonErrorCode.UNAUTHENTICATED:
-          toast.error(t("Errors.unauthenticated"), {
-            action: {
-              label: t("Errors.unauthenticatedAction"),
-              onClick: async () => {
-                await router.push(`/login`);
-              },
-            },
-          });
-          break;
-        case BillingErrorCode.INVALID_CREDITS:
-          toast.error(t("Errors.invalidCredits"));
-          break;
-        case BillingErrorCode.INVALID_COUPON:
-          toast.error(t("Errors.invalidCoupon"));
-          break;
-        case BillingErrorCode.COUPON_NOT_FOUND:
-          toast.error(t("Errors.couponNotFound"));
-          break;
-        case BillingErrorCode.COUPON_TYPE_ERROR:
-          toast.error(t("Errors.couponTypeError"));
-          break;
-        case BillingErrorCode.COUPON_CURRENCY_ERROR:
-          toast.error(t("Errors.couponCurrencyError"));
-          break;
-        case BillingErrorCode.PROMOTION_CODE_NOT_FOUND:
-          toast.error(t("Errors.promotionCodeNotFound"));
-          break;
-        case CommonErrorCode.UNAUTHORIZED:
-          if (organization) {
-            toast.error(t("Errors.unauthorizedOrganization"));
-          } else {
-            toast.error(t("Errors.unauthorizedPersonal"));
-          }
-          break;
-        default:
-          toast.error(t("Error.title"));
+  const handleSubmit = useCallback(
+    async (data: BillingFormData) => {
+      let result;
+      if (data.coupon && data.coupon.trim().length > 0) {
+        result = await getFreeCreditsWithCoupon(
+          organization?.id ?? null,
+          priceId,
+          data.coupon.trim(),
+        );
+      } else if (data.credits && data.credits > 0) {
+        result = await purchaseCredits(
+          organization?.id ?? null,
+          priceId,
+          data.credits,
+        );
+      } else {
+        toast.error(t("invalidInput"));
+        return;
       }
-    }
-  };
+
+      if (result.ok) {
+        window.location.href = result.data.url;
+      } else {
+        switch (result.error.code) {
+          case CommonErrorCode.UNAUTHENTICATED:
+            toast.error(t("Errors.unauthenticated"), {
+              action: {
+                label: t("Errors.unauthenticatedAction"),
+                onClick: async () => {
+                  await router.push(`/login`);
+                },
+              },
+            });
+            break;
+          case BillingErrorCode.INVALID_CREDITS:
+            toast.error(t("Errors.invalidCredits"));
+            break;
+          case BillingErrorCode.INVALID_COUPON:
+            toast.error(t("Errors.invalidCoupon"));
+            break;
+          case BillingErrorCode.COUPON_NOT_FOUND:
+            toast.error(t("Errors.couponNotFound"));
+            break;
+          case BillingErrorCode.COUPON_TYPE_ERROR:
+            toast.error(t("Errors.couponTypeError"));
+            break;
+          case BillingErrorCode.COUPON_CURRENCY_ERROR:
+            toast.error(t("Errors.couponCurrencyError"));
+            break;
+          case BillingErrorCode.PROMOTION_CODE_NOT_FOUND:
+            toast.error(t("Errors.promotionCodeNotFound"));
+            break;
+          case CommonErrorCode.UNAUTHORIZED:
+            if (organization) {
+              toast.error(t("Errors.unauthorizedOrganization"));
+            } else {
+              toast.error(t("Errors.unauthorizedPersonal"));
+            }
+            break;
+          default:
+            toast.error(t("Error.title"));
+        }
+      }
+    },
+    [router, t, priceId, organization],
+  );
 
   const handleQuickAmount = useCallback(
     (amount: number) => {
@@ -226,7 +231,7 @@ export default function BillingForm({ price, organization }: BillingFormProps) {
         </CardDescription>
       </CardHeader>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)}>
+        <form onSubmit={form.handleSubmit(handleSubmit)}>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               {[10, 25, 50, 100].map((amount) => (
@@ -321,9 +326,9 @@ export default function BillingForm({ price, organization }: BillingFormProps) {
             </Button>
             <p className="text-muted-foreground text-sm">
               {t("costPerCredit", {
-                cost: formatter.number((price.unit_amount ?? 0) / 100, {
+                cost: formatter.number((amountPerCredit ?? 0) / 100, {
                   style: "currency",
-                  currency: price.currency,
+                  currency,
                 }),
               })}
             </p>

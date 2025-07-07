@@ -9,6 +9,24 @@ import { FiatTransaction, User } from "@/prisma/generated/client";
 
 const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
+export async function getPriceFromPriceId(
+  priceId: string,
+): Promise<Stripe.Price> {
+  const price = await stripe.prices.retrieve(priceId);
+  if (price.currency !== "usd") {
+    throw new Error("Price is not in USD");
+  }
+  if (price.unit_amount === null) {
+    throw new Error("Price unit_amount is null");
+  }
+  if (price.unit_amount === 0) {
+    throw new Error(
+      "Price unit_amount is 0 (free product) – cannot use for credit purchase",
+    );
+  }
+  return price;
+}
+
 /**
  * Retrieves the default price for a Stripe product.
  *
@@ -24,7 +42,9 @@ const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
  * console.log(price.currency); // Currency code (e.g., "usd")
  * ```
  */
-export async function getPrice(productId: string): Promise<Stripe.Price> {
+export async function getPriceFromProductId(
+  productId: string,
+): Promise<Stripe.Price> {
   try {
     const product = await stripe.products.retrieve(productId, {
       expand: ["default_price"],
