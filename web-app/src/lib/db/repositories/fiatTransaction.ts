@@ -8,8 +8,9 @@ import {
 
 import prisma from "./prisma";
 
-export async function createUserFiatTransaction(
+export async function createFiatTransaction(
   userId: string,
+  organizationId: string | null,
   cents: bigint,
   amount: number,
   currency: string,
@@ -18,25 +19,7 @@ export async function createUserFiatTransaction(
   return await tx.fiatTransaction.create({
     data: {
       userId,
-      cents,
-      amount,
-      currency,
-    },
-  });
-}
-
-export async function createOrganizationFiatTransaction(
-  userId: string,
-  organizationId: string,
-  cents: bigint,
-  amount: number,
-  currency: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<FiatTransaction> {
-  return await tx.fiatTransaction.create({
-    data: {
-      userId, // Keep track of who initiated the transaction
-      organizationId,
+      ...(organizationId && { organizationId }),
       cents,
       amount,
       currency,

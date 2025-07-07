@@ -5,8 +5,7 @@ import { ActionError, BillingErrorCode, CommonErrorCode } from "@/lib/actions";
 import { getSession } from "@/lib/auth/utils";
 import { CouponError } from "@/lib/errors/coupon-errors";
 import {
-  createOrganizationStripeCheckoutSession,
-  createUserStripeCheckoutSession,
+  createStripeCheckoutSession,
   getCreditsForCoupon,
   getMyMemberInOrganization,
   getPromotionCode,
@@ -35,8 +34,9 @@ export async function claimFreeCredits(): Promise<
     }
 
     // Create the checkout session
-    const { url } = await createUserStripeCheckoutSession(
+    const { url } = await createStripeCheckoutSession(
       session.user.id,
+      null,
       100,
       getEnvSecrets().STRIPE_PRICE_ID,
       promotionCode.id,
@@ -74,8 +74,9 @@ export async function getFreeCreditsWithCoupon(
         code: BillingErrorCode.INVALID_COUPON,
       });
     }
-    const { url } = await createUserStripeCheckoutSession(
+    const { url } = await createStripeCheckoutSession(
       session.user.id,
+      null,
       credits,
       priceId,
       promo.id,
@@ -137,8 +138,9 @@ export async function purchaseUserCredits(
     }
 
     // Create the checkout session
-    const { url } = await createUserStripeCheckoutSession(
+    const { url } = await createStripeCheckoutSession(
       session.user.id,
+      null,
       credits,
       priceId,
     );
@@ -185,7 +187,7 @@ export async function purchaseOrganizationCredits(
     }
 
     // Create the checkout session for organization
-    const { url } = await createOrganizationStripeCheckoutSession(
+    const { url } = await createStripeCheckoutSession(
       session.user.id,
       organizationId,
       credits,
@@ -236,7 +238,7 @@ export async function getFreeOrganizationCreditsWithCoupon(
     }
 
     // Create the checkout session for organization with promotion code
-    const { url } = await createOrganizationStripeCheckoutSession(
+    const { url } = await createStripeCheckoutSession(
       session.user.id,
       organizationId,
       credits,
