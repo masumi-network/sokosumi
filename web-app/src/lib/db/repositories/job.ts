@@ -265,7 +265,7 @@ export async function refundJob(
   }
 
   // Build refund transaction data based on whether it's for a user or organization
-  const refundTransactionData = {
+  const refundTransactionData: Prisma.CreditTransactionCreateInput = {
     amount: creditTransaction.amount * BigInt(-1),
     includedFee: creditTransaction.includedFee,
     user: {
