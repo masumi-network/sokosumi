@@ -7,12 +7,15 @@ import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
-import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { Button } from "@/components/ui/button";
 import { CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAsyncRouter } from "@/hooks/use-async-router";
-import { authClient } from "@/lib/auth/auth.client";
+import {
+  acceptInvitation,
+  InvitationErrorCode,
+  rejectInvitation,
+} from "@/lib/actions";
 import { InvitationWithRelations } from "@/lib/db";
 
 interface InvitationActionsProps {
@@ -39,8 +42,6 @@ export default function InvitationActions({
     string | null
   >(null);
 
-  const { showLogoutModal } = useGlobalModalsContext();
-
   useEffect(() => {
     const currentUrl = location.pathname + location.search;
     const loginSearchParams = new URLSearchParams();
@@ -51,8 +52,9 @@ export default function InvitationActions({
     const registerSearchParams = new URLSearchParams();
     registerSearchParams.set("email", email);
     registerSearchParams.set("organizationId", organizationId);
+    registerSearchParams.set("invitationId", id);
     setRegisterSearchParamsString(registerSearchParams.toString());
-  }, [email, organizationId]);
+  }, [email, organizationId, id]);
 
   const handleAccept = async () => {
     if (loading) {
@@ -61,18 +63,32 @@ export default function InvitationActions({
     try {
       setLoading(true);
       setAction("accept");
-      const result = await authClient.organization.acceptInvitation({
-        invitationId: id,
-      });
+      const result = await acceptInvitation(id);
 
-      if (result.error) {
-        console.error("Failed to accept invitation", result.error);
-        toast.error(t("Accept.error"));
-        return;
+      if (result.ok) {
+        toast.success(t("Accept.success"));
+        await router.push(`/app/organizations/${organizationSlug}`);
+      } else {
+        switch (result.error.code) {
+          case InvitationErrorCode.INVITATION_NOT_FOUND:
+            toast.error(t("Accept.Errors.invitationNotFound"));
+            break;
+          case InvitationErrorCode.INVITER_NOT_FOUND:
+            toast.error(t("Accept.Errors.inviterNotFound"));
+            break;
+          case InvitationErrorCode.ALREADY_MEMBER:
+            toast.error(t("Accept.Errors.alreadyMember"), {
+              action: {
+                label: t("Accept.Errors.alreadyMemberAction"),
+                onClick: () =>
+                  router.push(`/app/organizations/${organizationSlug}`),
+              },
+            });
+            break;
+          default:
+            toast.error(t("Accept.error"));
+        }
       }
-
-      toast.success(t("Accept.success"));
-      await router.push(`/app/organizations/${organizationSlug}`);
     } finally {
       setLoading(false);
       setAction(null);
@@ -86,18 +102,23 @@ export default function InvitationActions({
     try {
       setLoading(true);
       setAction("reject");
-      const result = await authClient.organization.rejectInvitation({
-        invitationId: id,
-      });
+      const result = await rejectInvitation(id);
 
-      if (result.error) {
-        console.error("Failed to decline invitation", result.error);
-        toast.error(t("Decline.error"));
-        return;
+      if (result.ok) {
+        toast.success(t("Decline.success"));
+        await router.push("/app/organizations");
+      } else {
+        switch (result.error.code) {
+          case InvitationErrorCode.INVITATION_NOT_FOUND:
+            toast.error(t("Decline.Errors.invitationNotFound"));
+            break;
+          case InvitationErrorCode.INVITER_NOT_FOUND:
+            toast.error(t("Decline.Errors.inviterNotFound"));
+            break;
+          default:
+            toast.error(t("Decline.error"));
+        }
       }
-
-      toast.success(t("Decline.success"));
-      await router.push("/app/organizations");
     } finally {
       setLoading(false);
       setAction(null);
@@ -105,34 +126,19 @@ export default function InvitationActions({
   };
 
   if (user) {
-    if (user.email === email) {
-      return (
-        <CardFooter className="flex justify-between">
-          <Button variant="outline" onClick={handleReject} disabled={loading}>
-            {loading && action === "reject" && (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            )}
-            {t("decline")}
-          </Button>
-          <Button onClick={handleAccept} disabled={loading}>
-            {loading && action === "accept" && (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            )}
-            {t("accept")}
-          </Button>
-        </CardFooter>
-      );
-    }
-
     return (
-      <CardFooter className="flex flex-col gap-4">
-        <p>{t("WithDifferentEmail.youLoggedInWithDifferentEmail")}</p>
-        <Button
-          variant="outline"
-          onClick={() => showLogoutModal(user.email)}
-          className="w-full"
-        >
-          {t("WithDifferentEmail.logout")}
+      <CardFooter className="flex justify-between">
+        <Button variant="outline" onClick={handleReject} disabled={loading}>
+          {loading && action === "reject" && (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          )}
+          {t("decline")}
+        </Button>
+        <Button onClick={handleAccept} disabled={loading}>
+          {loading && action === "accept" && (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          )}
+          {t("accept")}
         </Button>
       </CardFooter>
     );

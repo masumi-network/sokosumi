@@ -1,6 +1,10 @@
 import "server-only";
 
-import { invitationInclude, InvitationWithRelations } from "@/lib/db/types";
+import {
+  invitationInclude,
+  InvitationStatus,
+  InvitationWithRelations,
+} from "@/lib/db/types";
 import { Prisma } from "@/prisma/generated/client";
 
 import prisma from "./prisma";
@@ -10,26 +14,50 @@ export async function retrievePendingInvitationById(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<InvitationWithRelations | null> {
   return tx.invitation.findUnique({
-    where: { id, status: "pending" },
+    where: { id, status: InvitationStatus.PENDING },
     include: invitationInclude,
   });
 }
 
-export async function acceptValidPendingInvitationsByEmailAndOrganizationId(
-  email: string,
-  organizationId: string,
+export async function retrieveValidPendingInvitationById(
+  id: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<InvitationWithRelations | null> {
+  return tx.invitation.findUnique({
+    where: {
+      id,
+      status: InvitationStatus.PENDING,
+      expiresAt: { gt: new Date() },
+    },
+    include: invitationInclude,
+  });
+}
+
+export async function acceptValidPendingInvitationById(
+  id: string,
   tx: Prisma.TransactionClient = prisma,
 ) {
-  return tx.invitation.updateMany({
+  return tx.invitation.update({
     where: {
-      email,
-      organizationId,
-      status: "pending",
-      expiresAt: {
-        gt: new Date(),
-      },
+      id,
+      status: InvitationStatus.PENDING,
+      expiresAt: { gt: new Date() },
     },
-    data: { status: "accepted" },
+    data: { status: InvitationStatus.ACCEPTED },
+  });
+}
+
+export async function rejectValidPendingInvitationById(
+  id: string,
+  tx: Prisma.TransactionClient = prisma,
+) {
+  return tx.invitation.update({
+    where: {
+      id,
+      status: InvitationStatus.PENDING,
+      expiresAt: { gt: new Date() },
+    },
+    data: { status: InvitationStatus.REJECTED },
   });
 }
 
@@ -38,7 +66,7 @@ export async function retrievePendingInvitationsByOrganizationId(
   tx: Prisma.TransactionClient = prisma,
 ) {
   return tx.invitation.findMany({
-    where: { organizationId, status: "pending" },
+    where: { organizationId, status: InvitationStatus.PENDING },
   });
 }
 
@@ -49,7 +77,7 @@ export async function retrieveValidPendingInvitationsByEmail(
   return tx.invitation.findMany({
     where: {
       email,
-      status: "pending",
+      status: InvitationStatus.PENDING,
       expiresAt: {
         gt: new Date(),
       },

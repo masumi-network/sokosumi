@@ -11,12 +11,13 @@ import {
 import { auth } from "@/lib/auth/auth";
 import { MemberRole } from "@/lib/db";
 import {
-  acceptValidPendingInvitationsByEmailAndOrganizationId,
+  acceptValidPendingInvitationById,
   createMember,
   createOrganization,
   prisma,
   retrieveMembersByOrganizationId,
   retrieveOrganizationWithRelationsById,
+  retrieveValidPendingInvitationById,
 } from "@/lib/db/repositories";
 import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
 import { generateOrganizationSlugFromName } from "@/lib/services";
@@ -45,6 +46,7 @@ export async function signInSocial(
 
 export async function signUpEmail(
   data: SignUpFormSchemaType,
+  invitationId?: string | undefined,
 ): Promise<
   Result<
     { organization: Organization; member: Member; user: User },
@@ -54,11 +56,6 @@ export async function signUpEmail(
   let actionError: ActionError = {
     code: CommonErrorCode.INTERNAL_SERVER_ERROR,
     message: "Internal server error",
-  };
-  let result: {
-    organization: Organization;
-    user: User;
-    member: Member;
   };
 
   try {
@@ -71,8 +68,10 @@ export async function signUpEmail(
     }
     const parsed = parsedResult.data;
 
-    result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx) => {
+      // organization check
       let organization: Organization;
+      let organizationCreated: boolean = false;
       if (!!parsed.selectedOrganization.id) {
         const retrievedOrganization =
           await retrieveOrganizationWithRelationsById(
@@ -87,26 +86,6 @@ export async function signUpEmail(
           throw new Error("Organization not found");
         }
         organization = retrievedOrganization;
-
-        // check whether user has invitation or his email domain is allowed by organization
-        const updatedInvitations =
-          await acceptValidPendingInvitationsByEmailAndOrganizationId(
-            parsed.email,
-            organization.id,
-            tx,
-          );
-        const userEmailDomain = getEmailDomain(parsed.email);
-        if (
-          updatedInvitations.count === 0 &&
-          (!userEmailDomain ||
-            !organization.requiredEmailDomains.includes(userEmailDomain))
-        ) {
-          actionError = {
-            code: AuthErrorCode.EMAIL_NOT_ALLOWED_BY_ORGANIZATION,
-            message: "Email not allowed by organization",
-          };
-          throw new Error("Email not allowed by organization");
-        }
       } else if (!!parsed.selectedOrganization.name) {
         const emailDomain = getEmailDomain(parsed.email);
         if (!emailDomain) {
@@ -135,12 +114,48 @@ export async function signUpEmail(
           throw new Error("Organization creation failed");
         }
         organization = createdOrganization;
+        organizationCreated = true;
       } else {
         actionError = {
           code: CommonErrorCode.BAD_INPUT,
           message: "Bad Input",
         };
         throw new Error("Bad Input");
+      }
+
+      // check user can join organization
+      // whether his email domain is allowed by organization
+      // or invited to organization
+      const userEmailDomain = getEmailDomain(parsed.email);
+      const isUserEmailAllowed =
+        organizationCreated ||
+        (userEmailDomain &&
+          organization.requiredEmailDomains.includes(userEmailDomain));
+
+      const invitation = invitationId
+        ? await retrieveValidPendingInvitationById(invitationId, tx)
+        : undefined;
+      const isValidInvitationUsed =
+        invitation && invitation.organizationId === organization.id;
+
+      if (!isUserEmailAllowed && !isValidInvitationUsed) {
+        if (invitationId) {
+          actionError = {
+            code: AuthErrorCode.INVITATION_NOT_FOUND,
+            message: "Invitation not found",
+          };
+          throw new Error("Invitation not found");
+        } else {
+          actionError = {
+            code: AuthErrorCode.EMAIL_NOT_ALLOWED_BY_ORGANIZATION,
+            message: "Email not allowed by organization",
+          };
+          throw new Error("Email not allowed by organization");
+        }
+      }
+
+      if (invitation) {
+        await acceptValidPendingInvitationById(invitation.id, tx);
       }
 
       const signUpResult = await auth.api.signUpEmail({

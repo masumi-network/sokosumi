@@ -126,7 +126,7 @@ export async function createMember(
 
 export async function updateMemberRole(
   memberId: string,
-  role: MemberRole,
+  role: string,
   tx: Prisma.TransactionClient = prisma,
 ) {
   return await tx.member.update({

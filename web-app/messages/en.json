@@ -310,7 +310,7 @@
       "title": "Organization Invitation",
       "description": "You've been invited to join an organization",
       "hasInvitedYouToJoin": "has invited you to join",
-      "thisInvitationWasSentTo": "This invitation was sent to",
+      "youAreAcceptingWith": "You are accepting with",
       "acceptedTitle": "Welcome to {organizationName}!",
       "acceptedDescription": "You've successfully joined the organization. We're excited to have you on board!",
       "goToOrganization": "Go to Organization",
@@ -326,17 +326,23 @@
           "login": "Login",
           "register": "Register"
         },
-        "WithDifferentEmail": {
-          "youLoggedInWithDifferentEmail": "You logged in with a different email address. Logout and follow invitation link again.",
-          "logout": "Logout"
-        },
         "Accept": {
           "success": "Invitation accepted successfully",
-          "error": "Failed to accept invitation"
+          "error": "Failed to accept invitation",
+          "Errors": {
+            "invitationNotFound": "Invitation not found",
+            "inviterNotFound": "Inviter not found",
+            "alreadyMember": "You are already member of this organization.",
+            "alreadyMemberAction": "Go to Organization"
+          }
         },
         "Decline": {
           "success": "Invitation declined successfully",
-          "error": "Failed to decline invitation"
+          "error": "Failed to decline invitation",
+          "Errors": {
+            "invitationNotFound": "Invitation not found",
+            "inviterNotFound": "Inviter not found"
+          }
         }
       }
     },
@@ -591,6 +597,7 @@
         },
         "Header": {
           "title": "Register",
+          "viaInvitation": "(via invitation)",
           "description": "Hire agents on our platform"
         },
         "Form": {
@@ -636,7 +643,9 @@
             "badInput": "Please input form correctly.",
             "organizationNotFound": "Organization not found",
             "memberCreateFailed": "Failed to create organization member",
+            "emailDomainInvalid": "Email domain is invalid",
             "emailNotAllowedByOrganization": "Email not allowed to join organization",
+            "invitationNotFound": "Invitation not found",
             "userExists": "User already exists",
             "termsNotAccepted": "You must accept the terms and conditions to register"
           },
@@ -864,7 +873,12 @@
         "acceptSuccess": "Invitation accepted successfully",
         "acceptError": "Failed to accept invitation",
         "rejectSuccess": "Invitation rejected successfully",
-        "rejectError": "Failed to reject invitation"
+        "rejectError": "Failed to reject invitation",
+        "Errors": {
+          "invitationNotFound": "Invitation not found",
+          "inviterNotFound": "Inviter not found",
+          "alreadyMember": "You are already member of this organization."
+        }
       },
       "OrganizationDetail": {
         "Metadata": {

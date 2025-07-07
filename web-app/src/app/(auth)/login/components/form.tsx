@@ -81,7 +81,6 @@ export default function SignInForm({
     <AuthForm
       form={form}
       formData={signInFormData}
-      prefilledEmail={prefilledEmail}
       namespace="Auth.Pages.SignIn.Form"
       onSubmit={handleSubmit}
     >

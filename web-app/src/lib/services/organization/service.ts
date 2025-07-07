@@ -4,7 +4,7 @@ import { nanoid } from "nanoid";
 import slugify from "slugify";
 
 import { getSessionOrThrow } from "@/lib/auth/utils";
-import { MemberWithOrganization } from "@/lib/db";
+import { MemberRole, MemberWithOrganization } from "@/lib/db";
 import {
   retrieveMemberByUserIdAndOrganizationId,
   retrieveMembersWithOrganizationByUserId,
@@ -134,9 +134,12 @@ export async function getOrganizationPendingInvitations(
     userId,
     organizationId,
   );
-  if (!myMemberInOrganization) {
-    console.error("You are not the member of the organization");
-    throw new Error("NOT_AUTHORIZED");
+  if (
+    !myMemberInOrganization ||
+    myMemberInOrganization.role !== MemberRole.ADMIN
+  ) {
+    console.error("You are not the admin of the organization");
+    throw new Error("UNAUTHORIZED");
   }
 
   return await retrievePendingInvitationsByOrganizationId(organizationId);

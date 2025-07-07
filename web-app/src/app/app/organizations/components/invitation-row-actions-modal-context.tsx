@@ -6,7 +6,11 @@ import { ReactNode } from "react";
 import { toast } from "sonner";
 
 import { createModalContext } from "@/components/common/modal-context";
-import { authClient } from "@/lib/auth/auth.client";
+import {
+  acceptInvitation,
+  InvitationErrorCode,
+  rejectInvitation,
+} from "@/lib/actions";
 import { InvitationWithRelations } from "@/lib/db";
 
 export enum InvitationRowAction {
@@ -32,14 +36,14 @@ export function InvitationRowActionsModalContextProvider({
     action: InvitationRowAction,
   ): Promise<{ error?: unknown }> {
     switch (action) {
-      case InvitationRowAction.ACCEPT:
-        return await authClient.organization.acceptInvitation({
-          invitationId: invitation.id,
-        });
-      case InvitationRowAction.REJECT:
-        return await authClient.organization.rejectInvitation({
-          invitationId: invitation.id,
-        });
+      case InvitationRowAction.ACCEPT: {
+        const result = await acceptInvitation(invitation.id);
+        return { error: result.ok ? undefined : result.error };
+      }
+      case InvitationRowAction.REJECT: {
+        const result = await rejectInvitation(invitation.id);
+        return { error: result.ok ? undefined : result.error };
+      }
     }
   }
 
@@ -57,11 +61,37 @@ export function InvitationRowActionsModalContextProvider({
 
   function onError(action: InvitationRowAction, error: unknown) {
     console.error(`Failed to "${action}" invitation`, error);
-    toast.error(
-      action === InvitationRowAction.ACCEPT
-        ? t("acceptError")
-        : t("rejectError"),
-    );
+
+    if (
+      typeof error === "object" &&
+      error &&
+      "code" in error &&
+      typeof error.code === "string"
+    ) {
+      switch (error.code) {
+        case InvitationErrorCode.INVITATION_NOT_FOUND:
+          toast.error(t("Errors.invitationNotFound"));
+          break;
+        case InvitationErrorCode.INVITER_NOT_FOUND:
+          toast.error(t("Errors.inviterNotFound"));
+          break;
+        case InvitationErrorCode.ALREADY_MEMBER:
+          toast.error(t("Errors.alreadyMember"));
+          break;
+        default:
+          toast.error(
+            action === InvitationRowAction.ACCEPT
+              ? t("acceptError")
+              : t("rejectError"),
+          );
+      }
+    } else {
+      toast.error(
+        action === InvitationRowAction.ACCEPT
+          ? t("acceptError")
+          : t("rejectError"),
+      );
+    }
   }
 
   return (

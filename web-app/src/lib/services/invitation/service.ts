@@ -10,7 +10,7 @@ import {
 
 import { InvitationErrorCode } from "./types";
 
-export async function getInvitation(id: string): Promise<
+export async function getPendingInvitation(id: string): Promise<
   | {
       error: InvitationErrorCode;
     }

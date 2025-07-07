@@ -11,6 +11,7 @@ import {
   getOrganizationMembersWithUser,
   getOrganizationPendingInvitations,
 } from "@/lib/services";
+import { Invitation } from "@/prisma/generated/client";
 
 import OrganizationInformation from "./components/organization-information";
 import OrganizationInviteButton from "./components/organization-invite-button";
@@ -60,9 +61,17 @@ export default async function OrganizationPage({
   }
 
   const members = await getOrganizationMembersWithUser(organization.id, true);
-  const pendingInvitations = await getOrganizationPendingInvitations(
-    organization.id,
-  );
+
+  let pendingInvitations: Invitation[] = [];
+  if (member.role === MemberRole.ADMIN) {
+    try {
+      pendingInvitations = await getOrganizationPendingInvitations(
+        organization.id,
+      );
+    } catch (error) {
+      console.error("Failed to get pending invitations", error);
+    }
+  }
 
   return (
     <div className="container flex flex-col gap-8 p-8">
