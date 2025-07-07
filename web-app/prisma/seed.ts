@@ -5,7 +5,7 @@ import { PrismaClient } from "@/prisma/generated/client";
 
 const prisma = new PrismaClient();
 
-const seedDatabase = process.env.SEED_DATABASE;
+const seedDatabase = process.env.SEED_DATABASE === "true";
 
 const seedUSDMCreditCost = async () => {
   console.log("Seeding USDM credit cost...");
