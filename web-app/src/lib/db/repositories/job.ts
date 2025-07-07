@@ -193,7 +193,7 @@ export async function createJob(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Job> {
   // Build the credit transaction data based on whether it's for a user or organization
-  const creditTransactionData = {
+  const creditTransactionData: Prisma.CreditTransactionCreateInput = {
     amount: -data.creditsPrice.cents,
     includedFee: data.creditsPrice.includedFee,
     user: {
