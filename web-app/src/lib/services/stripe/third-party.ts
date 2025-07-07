@@ -15,7 +15,7 @@ export interface Price {
   currency: string;
 }
 
-function validatePrice(price: Stripe.Price) {
+function validatePrice(price: Stripe.Price): Price {
   if (price.currency !== "usd") {
     throw new Error("Price is not in USD");
   }
@@ -27,18 +27,17 @@ function validatePrice(price: Stripe.Price) {
       "Price unit_amount is 0 (free product) – cannot use for credit purchase",
     );
   }
-  return price;
+  return {
+    id: price.id,
+    amountPerCredit: price.unit_amount!,
+    currency: price.currency,
+  };
 }
 
 export async function getPriceFromPriceId(priceId: string): Promise<Price> {
   try {
     const price = await stripe.prices.retrieve(priceId);
-    validatePrice(price);
-    return {
-      id: price.id,
-      amountPerCredit: price.unit_amount!,
-      currency: price.currency,
-    };
+    return validatePrice(price);
   } catch (error) {
     console.error("Error retrieving price", error);
     throw error;
@@ -71,12 +70,7 @@ export async function getPriceFromProductId(productId: string): Promise<Price> {
     ) {
       throw new Error("Product default price is not expanded");
     }
-    validatePrice(product.default_price);
-    return {
-      id: product.default_price.id,
-      amountPerCredit: product.default_price.unit_amount!,
-      currency: product.default_price.currency,
-    };
+    return validatePrice(product.default_price);
   } catch (error) {
     console.error("Error retrieving price", error);
     throw error;
