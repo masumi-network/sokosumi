@@ -199,11 +199,13 @@ export async function signUpEmail(
       const utmData = await getUTMDataFromCookie();
       if (utmData) {
         await createUTMAttribution(user.id, utmData, new Date(), tx);
-        await removeUTMCookie();
       }
 
       return { organization, user, member };
     });
+
+    // remove utm cookie (whether it is set or not)
+    await removeUTMCookie();
 
     return Ok(result);
   } catch (error) {
