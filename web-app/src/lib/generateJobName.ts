@@ -22,13 +22,20 @@ export async function generateJobName(
   const userPrompt = `Agent: ${agent.name} ${agent.description ? ` - ${agent.description}` : ""}\nInput: ${inputSummary}`;
 
   try {
-    const message: Anthropic.Message = await anthropic.messages.create({
-      model: "claude-3-5-haiku-latest",
-      max_tokens: 80,
-      temperature: 0.9,
-      system: systemPrompt,
-      messages: [{ role: "user", content: userPrompt }],
-    });
+    const message: Anthropic.Message = await anthropic.messages.create(
+      {
+        model: "claude-3-5-haiku-latest",
+        max_tokens: 80,
+        temperature: 0.9,
+        system: systemPrompt,
+        messages: [{ role: "user", content: userPrompt }],
+        stream: false,
+      },
+      {
+        maxRetries: 0,
+        timeout: 2000,
+      },
+    );
 
     const textBlocks = message.content
       .filter((c) => c.type === "text")
