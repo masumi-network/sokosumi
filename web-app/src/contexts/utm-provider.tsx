@@ -1,7 +1,13 @@
 "use client";
 
 import { usePathname, useSearchParams } from "next/navigation";
-import { createContext, useContext, useEffect } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 
 import { setUTMCookieIfNotExists } from "@/lib/actions/utm/action";
 import { extractUTMParams, type UTMData } from "@/lib/utils/utm";
@@ -10,7 +16,7 @@ interface UTMContextValue {
   utmData: UTMData | null;
 }
 
-const UTMContext = createContext<UTMContextValue | undefined>(undefined);
+const UTMContext = createContext<UTMContextValue>({ utmData: null });
 
 interface UTMProviderProps {
   children: React.ReactNode;
@@ -19,8 +25,23 @@ interface UTMProviderProps {
 export function UTMProvider({ children }: UTMProviderProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const [utmData, setUTMData] = useState<UTMData | null>(null);
+
+  const setUTMCoookie = useCallback(
+    async (data: UTMData) => {
+      const result = await setUTMCookieIfNotExists(data);
+      if (result.ok) {
+        setUTMData(data);
+      }
+    },
+    [setUTMData],
+  );
 
   useEffect(() => {
+    if (utmData) {
+      return;
+    }
+
     const utmParams = extractUTMParams(searchParams);
 
     if (utmParams) {
@@ -32,14 +53,12 @@ export function UTMProvider({ children }: UTMProviderProps) {
       };
 
       // Set UTM cookie
-      setUTMCookieIfNotExists(utmData);
+      setUTMCoookie(utmData);
     }
-  }, [pathname, searchParams]);
+  }, [pathname, searchParams, utmData, setUTMCoookie]);
 
   return (
-    <UTMContext.Provider value={{ utmData: null }}>
-      {children}
-    </UTMContext.Provider>
+    <UTMContext.Provider value={{ utmData }}>{children}</UTMContext.Provider>
   );
 }
 
