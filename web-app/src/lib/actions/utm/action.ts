@@ -45,3 +45,8 @@ export async function setUTMCookieIfNotExists(utmData: UTMData): Promise<void> {
     path: "/",
   });
 }
+
+export async function removeUTMCookie(): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.delete(UTM_COOKIE_NAME);
+}

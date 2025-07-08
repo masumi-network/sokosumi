@@ -7,6 +7,7 @@ import {
   AuthErrorCode,
   betterAuthApiErrorSchema,
   CommonErrorCode,
+  removeUTMCookie,
 } from "@/lib/actions";
 import { auth } from "@/lib/auth/auth";
 import { MemberRole } from "@/lib/db";
@@ -198,6 +199,7 @@ export async function signUpEmail(
       const utmData = await getUTMDataFromCookie();
       if (utmData) {
         await createUTMAttribution(user.id, utmData, new Date(), tx);
+        await removeUTMCookie();
       }
 
       return { organization, user, member };
