@@ -15,13 +15,13 @@ export interface UTMData extends UTMParams {
 }
 
 export const utmDataSchema = z.object({
-  utmSource: z.string().optional(),
-  utmMedium: z.string().optional(),
-  utmCampaign: z.string().optional(),
-  utmTerm: z.string().optional(),
-  utmContent: z.string().optional(),
-  referrer: z.string().optional(),
-  landingPage: z.string().optional(),
+  utmSource: z.string().max(255).optional(),
+  utmMedium: z.string().max(255).optional(),
+  utmCampaign: z.string().max(255).optional(),
+  utmTerm: z.string().max(255).optional(),
+  utmContent: z.string().max(255).optional(),
+  referrer: z.string().max(255).optional(),
+  landingPage: z.string().max(255).optional(),
   capturedAt: z.string().datetime(),
 });
 

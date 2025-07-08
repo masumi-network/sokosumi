@@ -14,13 +14,17 @@ import {
   acceptValidPendingInvitationById,
   createMember,
   createOrganization,
+  createUTMAttribution,
   prisma,
   retrieveMembersByOrganizationId,
   retrieveOrganizationWithRelationsById,
   retrieveValidPendingInvitationById,
 } from "@/lib/db/repositories";
 import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
-import { generateOrganizationSlugFromName } from "@/lib/services";
+import {
+  generateOrganizationSlugFromName,
+  getUTMDataFromCookie,
+} from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import { getEmailDomain, removePublicDomains } from "@/lib/utils";
 import { Member, Organization } from "@/prisma/generated/client";
@@ -189,6 +193,12 @@ export async function signUpEmail(
       );
       const role = members.length === 0 ? MemberRole.ADMIN : MemberRole.MEMBER;
       const member = await createMember(user.id, organization.id, role, tx);
+
+      // create utm attribution
+      const utmData = await getUTMDataFromCookie();
+      if (utmData) {
+        await createUTMAttribution(user.id, utmData, new Date(), tx);
+      }
 
       return { organization, user, member };
     });
