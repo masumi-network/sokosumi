@@ -13,6 +13,10 @@ export async function generateJobName(
   agent: AgentInfo,
   inputData: Map<string, unknown>,
 ): Promise<string | null> {
+  if (!getEnvSecrets().ANTHROPIC_API_KEY) {
+    return null;
+  }
+
   const inputSummary = Array.from(inputData.entries())
     .map(([key, value]) => `${key} => ${JSON.stringify(value)}`)
     .join(", ");
