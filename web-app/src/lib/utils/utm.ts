@@ -1,9 +1,7 @@
 import "server-only";
 
-import { cookies, headers } from "next/headers";
+import { cookies } from "next/headers";
 import z from "zod";
-
-import { getEnvSecrets } from "@/config/env.secrets";
 
 export interface UTMParams {
   utmSource?: string;
@@ -19,7 +17,7 @@ export interface UTMData extends UTMParams {
   capturedAt: string; // ISO Date string
 }
 
-const utmDataSchema = z.object({
+export const utmDataSchema = z.object({
   utmSource: z.string().optional(),
   utmMedium: z.string().optional(),
   utmCampaign: z.string().optional(),
@@ -30,13 +28,15 @@ const utmDataSchema = z.object({
   capturedAt: z.string().datetime(),
 });
 
-const UTM_COOKIE_NAME = "sokosumi_utm";
-const UTM_COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 days in seconds
+export const UTM_COOKIE_NAME = "sokosumi_utm";
+export const UTM_COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 days in seconds
 
 /**
  * Extract UTM parameters from URL search params
  */
-function extractUTMParams(searchParams: URLSearchParams): UTMParams | null {
+export function extractUTMParams(
+  searchParams: URLSearchParams,
+): UTMParams | null {
   let hasUTMParams = false;
   const utmParams: UTMParams = {
     utmSource: searchParams.get("utm_source") ?? undefined,
@@ -53,22 +53,6 @@ function extractUTMParams(searchParams: URLSearchParams): UTMParams | null {
   }
 
   return hasUTMParams ? utmParams : null;
-}
-
-/**
- * Store UTM data in cookie
- */
-async function setUTMCookie(utmData: UTMData): Promise<void> {
-  const cookieStore = await cookies();
-  const cookieValue = JSON.stringify(utmData);
-
-  cookieStore.set(UTM_COOKIE_NAME, cookieValue, {
-    maxAge: UTM_COOKIE_MAX_AGE,
-    httpOnly: false,
-    secure: getEnvSecrets().NODE_ENV === "production",
-    sameSite: "lax",
-    path: "/",
-  });
 }
 
 /**
@@ -91,47 +75,4 @@ export async function getUTMCookie(): Promise<UTMData | null> {
     console.error("Failed to parse UTM cookie as JSON:", error);
     return null;
   }
-}
-
-/**
- * Process UTM parameters in server components using headers
- */
-export async function processUTMParams(): Promise<UTMData | null> {
-  const headersList = await headers();
-  const pathname = headersList.get("x-pathname");
-  const searchParamsString = headersList.get("x-search-params");
-  const referer = headersList.get("referer");
-
-  if (!pathname || !searchParamsString) {
-    return null;
-  }
-
-  const searchParams = new URLSearchParams(searchParamsString);
-  const utmParams = extractUTMParams(searchParams);
-
-  if (!utmParams) {
-    return null;
-  }
-
-  // check if utm params are already in the cookie
-  const utmCookie = await getUTMCookie();
-  if (
-    utmCookie &&
-    new Date(utmCookie.capturedAt) >
-      new Date(Date.now() - UTM_COOKIE_MAX_AGE * 1000)
-  ) {
-    return utmCookie;
-  }
-
-  const utmData: UTMData = {
-    ...utmParams,
-    referrer: referer ?? undefined,
-    landingPage: pathname,
-    capturedAt: new Date().toISOString(),
-  };
-
-  // Store in cookie
-  await setUTMCookie(utmData);
-
-  return utmData;
 }
