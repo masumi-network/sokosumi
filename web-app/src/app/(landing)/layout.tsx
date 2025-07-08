@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import Footer from "@/components/footer";
+import { processUTMParams } from "@/lib/utils/utm";
 
 import { Header } from "./components/header";
 
@@ -21,7 +22,10 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function LandingLayout({ children }: LandingLayoutProps) {
+export default async function LandingLayout({ children }: LandingLayoutProps) {
+  // Process UTM parameters if present
+  await processUTMParams();
+
   return (
     <div className="flex flex-col">
       <Header className="h-16 lg:h-20" />
