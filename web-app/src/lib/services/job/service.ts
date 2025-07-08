@@ -147,7 +147,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
           { name: agent.name, description: agent.description },
           inputData,
         );
-        console.log("generatedName", generatedName);
+
         const job = await createJob(
           {
             agentJobId: startJobResponse.job_id,
