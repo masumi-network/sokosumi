@@ -186,6 +186,7 @@ interface CreateJobData {
   unlockTime: Date;
   blockchainIdentifier: string;
   sellerVkey: string;
+  name: string | null;
 }
 
 export async function createJob(
@@ -243,6 +244,7 @@ export async function createJob(
       unlockTime: data.unlockTime,
       blockchainIdentifier: data.blockchainIdentifier,
       sellerVkey: data.sellerVkey,
+      name: data.name,
     },
   });
 }

@@ -33,6 +33,9 @@ const envSecretsSchema = z.object({
   STRIPE_PRODUCT_ID: z.string().min(1),
   STRIPE_WELCOME_COUPON: z.string().min(1).optional(),
 
+  // Anthropic
+  ANTHROPIC_API_KEY: z.string().min(1).startsWith("sk-"),
+
   // Seed
   SEED_DATABASE: z
     .string()

@@ -16,6 +16,7 @@ import {
   updateJobWithAgentJobStatus,
   updateJobWithPurchase,
 } from "@/lib/db/repositories";
+import { generateJobName } from "@/lib/generateJobName";
 import { JobInputData } from "@/lib/job-input";
 import { StartJobInputSchemaType } from "@/lib/schemas";
 import { getInputHash, getInputHashDeprecated } from "@/lib/utils";
@@ -141,6 +142,12 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
         }
         const purchaseResponse = createPurchaseResult.data;
 
+        // Generate job name if not provided
+        const generatedName = await generateJobName(
+          { name: agent.name, description: agent.description },
+          inputData,
+        );
+        console.log("generatedName", generatedName);
         const job = await createJob(
           {
             agentJobId: startJobResponse.job_id,
@@ -160,6 +167,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
             unlockTime: new Date(startJobResponse.unlockTime),
             blockchainIdentifier: startJobResponse.blockchainIdentifier,
             sellerVkey: startJobResponse.sellerVKey,
+            name: generatedName,
           },
           tx,
         );

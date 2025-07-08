@@ -1,0 +1,40 @@
+import Anthropic from "@anthropic-ai/sdk";
+
+import { getEnvSecrets } from "@/config/env.secrets";
+
+const anthropic = new Anthropic({ apiKey: getEnvSecrets().ANTHROPIC_API_KEY });
+
+export type AgentInfo = {
+  name: string;
+  description?: string | null;
+};
+
+export async function generateJobName(
+  agent: AgentInfo,
+  inputData: Map<string, unknown>,
+): Promise<string | null> {
+  const inputSummary = Array.from(inputData.entries())
+    .map(([key, value]) => `${key} => ${JSON.stringify(value)}`)
+    .join(", ");
+
+  const systemPrompt =
+    "You are an assistant that generates concise, descriptive job names. The name shouldn't be longer than 80 characters. The name should be in the same language as the input data. The input data has a much higher priority than the agent name and description. Try to generate unique names based on the input data.";
+  const userPrompt = `Agent: ${agent.name} ${agent.description ? ` - ${agent.description}` : ""}\nInput: ${inputSummary}`;
+
+  const message: Anthropic.Message = await anthropic.messages.create({
+    model: "claude-3-haiku-20240307",
+    max_tokens: 12,
+    temperature: 0.7,
+    system: systemPrompt,
+    messages: [{ role: "user", content: userPrompt }],
+  });
+
+  const textBlocks = message.content
+    .filter((c) => c.type === "text")
+    .map((c) => c.text);
+
+  if (textBlocks.length > 0) {
+    return textBlocks[0];
+  }
+  return null;
+}
