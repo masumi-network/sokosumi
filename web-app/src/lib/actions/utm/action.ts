@@ -17,12 +17,11 @@ import {
  */
 export async function setUTMCookieIfNotExists(
   utmData: UTMData,
-): Promise<Result<void, ActionError>> {
+): Promise<Result<UTMData, ActionError>> {
   try {
     const cookieStore = await cookies();
-    const cookieValue = JSON.stringify(utmData);
 
-    let utmCookieExists: boolean = false;
+    let oldUTMData: UTMData | null = null;
     const utmCookie = cookieStore.get(UTM_COOKIE_NAME)?.value;
     if (utmCookie) {
       try {
@@ -31,17 +30,18 @@ export async function setUTMCookieIfNotExists(
           new Date(parsed.capturedAt) >
           new Date(Date.now() - UTM_COOKIE_MAX_AGE * 1000)
         ) {
-          utmCookieExists = true;
+          oldUTMData = parsed;
         }
       } catch (error) {
         console.error("Failed to parse UTM cookie", error);
       }
     }
 
-    if (utmCookieExists) {
-      return Ok();
+    if (oldUTMData) {
+      return Ok(oldUTMData);
     }
 
+    const cookieValue = JSON.stringify(utmData);
     cookieStore.set(UTM_COOKIE_NAME, cookieValue, {
       maxAge: UTM_COOKIE_MAX_AGE,
       httpOnly: false,
@@ -50,7 +50,7 @@ export async function setUTMCookieIfNotExists(
       path: "/",
     });
 
-    return Ok();
+    return Ok(utmData);
   } catch (error) {
     console.error("Failed to set UTM cookie", error);
     return Err({

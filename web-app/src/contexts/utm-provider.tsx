@@ -38,7 +38,7 @@ export function UTMProviderInner({ children }: UTMProviderProps) {
     async (data: UTMData) => {
       const result = await setUTMCookieIfNotExists(data);
       if (result.ok) {
-        setUTMData(data);
+        setUTMData(result.data);
       }
     },
     [setUTMData],
