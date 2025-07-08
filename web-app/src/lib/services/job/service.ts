@@ -158,29 +158,26 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
   }
 
   // Create job
-  const job = await createJob(
-    {
-      agentJobId: startJobResponse.job_id,
-      agentId,
-      userId,
-      organizationId,
-      input: JSON.stringify(Object.fromEntries(inputData)),
-      inputSchema: inputSchema,
-      paymentId: purchaseResponse.data.id,
-      creditsPrice,
-      identifierFromPurchaser,
-      externalDisputeUnlockTime: new Date(
-        startJobResponse.externalDisputeUnlockTime,
-      ),
-      payByTime: new Date(startJobResponse.payByTime),
-      submitResultTime: new Date(startJobResponse.submitResultTime),
-      unlockTime: new Date(startJobResponse.unlockTime),
-      blockchainIdentifier: startJobResponse.blockchainIdentifier,
-      sellerVkey: startJobResponse.sellerVKey,
-      name: generatedName,
-    },
-    prisma,
-  );
+  const job = await createJob({
+    agentJobId: startJobResponse.job_id,
+    agentId,
+    userId,
+    organizationId,
+    input: JSON.stringify(Object.fromEntries(inputData)),
+    inputSchema: inputSchema,
+    paymentId: purchaseResponse.data.id,
+    creditsPrice,
+    identifierFromPurchaser,
+    externalDisputeUnlockTime: new Date(
+      startJobResponse.externalDisputeUnlockTime,
+    ),
+    payByTime: new Date(startJobResponse.payByTime),
+    submitResultTime: new Date(startJobResponse.submitResultTime),
+    unlockTime: new Date(startJobResponse.unlockTime),
+    blockchainIdentifier: startJobResponse.blockchainIdentifier,
+    sellerVkey: startJobResponse.sellerVKey,
+    name: generatedName,
+  });
   return job;
 }
 
