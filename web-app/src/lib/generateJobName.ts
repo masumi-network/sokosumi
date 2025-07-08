@@ -18,7 +18,7 @@ export async function generateJobName(
     .join(", ");
 
   const systemPrompt =
-    "You are an assistant that generates concise, descriptive job names. The name shouldn't be longer than 80 characters. The name should be in the same language as the input data. The input data has a much higher priority than the agent name and description. Try to generate unique names based on the input data.";
+    "You are an assistant that generates concise, descriptive job names. The name shouldn't be longer than 80 characters. The name should be in the same language as the input data. The input data has a much higher priority than the agent name and description. Try to generate unique names based on the input data. Please only answer with the name, no other text.";
   const userPrompt = `Agent: ${agent.name} ${agent.description ? ` - ${agent.description}` : ""}\nInput: ${inputSummary}`;
 
   try {
@@ -29,14 +29,13 @@ export async function generateJobName(
         temperature: 0.9,
         system: systemPrompt,
         messages: [{ role: "user", content: userPrompt }],
-        stream: false,
       },
       {
         maxRetries: 1,
         timeout: 4000,
       },
     );
-
+    console.log("Anthropic job name generation response:", message);
     const textBlocks = message.content
       .filter((c) => c.type === "text")
       .map((c) => c.text);
