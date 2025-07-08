@@ -3,9 +3,11 @@
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   createContext,
+  Suspense,
   useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
@@ -27,6 +29,11 @@ export function UTMProvider({ children }: UTMProviderProps) {
   const searchParams = useSearchParams();
   const [utmData, setUTMData] = useState<UTMData | null>(null);
 
+  const utmParams = useMemo(
+    () => extractUTMParams(searchParams),
+    [searchParams],
+  );
+
   const setUTMCoookie = useCallback(
     async (data: UTMData) => {
       const result = await setUTMCookieIfNotExists(data);
@@ -42,8 +49,6 @@ export function UTMProvider({ children }: UTMProviderProps) {
       return;
     }
 
-    const utmParams = extractUTMParams(searchParams);
-
     if (utmParams) {
       const utmData: UTMData = {
         ...utmParams,
@@ -55,10 +60,12 @@ export function UTMProvider({ children }: UTMProviderProps) {
       // Set UTM cookie
       setUTMCoookie(utmData);
     }
-  }, [pathname, searchParams, utmData, setUTMCoookie]);
+  }, [pathname, utmParams, utmData, setUTMCoookie]);
 
   return (
-    <UTMContext.Provider value={{ utmData }}>{children}</UTMContext.Provider>
+    <Suspense>
+      <UTMContext.Provider value={{ utmData }}>{children}</UTMContext.Provider>
+    </Suspense>
   );
 }
 
