@@ -78,110 +78,110 @@ export async function getMyJobsByAgentId(
 }
 
 export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
-  return await prisma.$transaction(
-    async (tx) => {
-      const { userId, agentId, maxAcceptedCents, inputData, inputSchema } =
-        input;
-      try {
-        const agent = await retrieveAgentWithRelationsById(agentId, tx);
-        if (!agent) {
-          throw new Error("Agent not found");
-        }
-        const pricing = await getAgentPricing(agentId, tx);
-        const creditsPrice = await getCreditsPrice(
-          pricing.FixedPricing.Amounts.map((amount) => ({
-            unit: amount.unit,
-            amount: Number(amount.amount),
-          })),
+  const { userId, agentId, maxAcceptedCents, inputData, inputSchema } = input;
+  const organizationId = await getActiveOrganizationId();
+  const [agent, creditsPrice] = await prisma.$transaction(async (tx) => {
+    const agent = await retrieveAgentWithRelationsById(agentId, tx);
+    if (!agent) {
+      throw new Error("Agent not found");
+    }
+    const pricing = await getAgentPricing(agentId, tx);
+    const creditsPrice = await getCreditsPrice(
+      pricing.FixedPricing.Amounts.map((amount) => ({
+        unit: amount.unit,
+        amount: Number(amount.amount),
+      })),
+      tx,
+    );
+    if (creditsPrice.cents > maxAcceptedCents) {
+      throw new Error("Credit cost is too high");
+    }
+
+    if (creditsPrice.cents > 0) {
+      if (organizationId) {
+        await validateOrganizationCreditsBalance(
+          organizationId,
+          creditsPrice.cents,
           tx,
         );
-        if (creditsPrice.cents > maxAcceptedCents) {
-          throw new Error("Credit cost is too high");
-        }
-        const organizationId = await getActiveOrganizationId();
-        if (creditsPrice.cents > 0) {
-          if (organizationId) {
-            await validateOrganizationCreditsBalance(
-              organizationId,
-              creditsPrice.cents,
-              tx,
-            );
-          } else {
-            await validateCreditsBalance(userId, creditsPrice.cents, tx);
-          }
-        }
-
-        const identifierFromPurchaser = uuidv4()
-          .replace(/-/g, "")
-          .substring(0, 20);
-
-        const startJobResult = await startAgentJob(
-          agent,
-          identifierFromPurchaser,
-          inputData,
-        );
-        if (!startJobResult.ok) {
-          throw new Error(startJobResult.error);
-        }
-        const startJobResponse = startJobResult.data;
-        const matchedInputHash = getMatchedInputHash(
-          inputData,
-          identifierFromPurchaser,
-          startJobResponse.input_hash,
-        );
-
-        const createPurchaseResult = await createPurchase(
-          agent,
-          startJobResponse,
-          inputData,
-          matchedInputHash,
-          identifierFromPurchaser,
-        );
-        if (!createPurchaseResult.ok) {
-          throw new Error(createPurchaseResult.error);
-        }
-        const purchaseResponse = createPurchaseResult.data;
-
-        // Generate job name if not provided
-        const generatedName = await generateJobName(
-          { name: agent.name, description: agent.description },
-          inputData,
-        );
-
-        const job = await createJob(
-          {
-            agentJobId: startJobResponse.job_id,
-            agentId,
-            userId,
-            organizationId,
-            input: JSON.stringify(Object.fromEntries(inputData)),
-            inputSchema: inputSchema,
-            paymentId: purchaseResponse.data.id,
-            creditsPrice,
-            identifierFromPurchaser,
-            externalDisputeUnlockTime: new Date(
-              startJobResponse.externalDisputeUnlockTime,
-            ),
-            payByTime: new Date(startJobResponse.payByTime),
-            submitResultTime: new Date(startJobResponse.submitResultTime),
-            unlockTime: new Date(startJobResponse.unlockTime),
-            blockchainIdentifier: startJobResponse.blockchainIdentifier,
-            sellerVkey: startJobResponse.sellerVKey,
-            name: generatedName,
-          },
-          tx,
-        );
-        return job;
-      } catch (error) {
-        console.log("Error starting job", error);
-        throw error;
+      } else {
+        await validateCreditsBalance(userId, creditsPrice.cents, tx);
       }
-    },
-    {
-      maxWait: 5000, // default: 2000
-      timeout: 10000, // default: 5000
-    },
+    }
+    return [agent, creditsPrice];
+  });
+
+  // Start job
+  const identifierFromPurchaser = uuidv4().replace(/-/g, "").substring(0, 20);
+
+  const startJobResult = await startAgentJob(
+    agent,
+    identifierFromPurchaser,
+    inputData,
   );
+  if (!startJobResult.ok) {
+    throw new Error(startJobResult.error);
+  }
+  const startJobResponse = startJobResult.data;
+  const matchedInputHash = getMatchedInputHash(
+    inputData,
+    identifierFromPurchaser,
+    startJobResponse.input_hash,
+  );
+
+  // Create purchase
+  const createPurchaseResult = await createPurchase(
+    agent,
+    startJobResponse,
+    inputData,
+    matchedInputHash,
+    identifierFromPurchaser,
+  );
+  if (!createPurchaseResult.ok) {
+    throw new Error(createPurchaseResult.error);
+  }
+  const purchaseResponse = createPurchaseResult.data;
+
+  // Generate job name
+  let generatedName: string | null;
+  try {
+    generatedName = await generateJobName(
+      {
+        name: agent.name,
+        description: agent.description,
+      },
+      inputData,
+    );
+  } catch (error) {
+    console.error("Failed to generate job name via Anthropic API:", error);
+    generatedName = null;
+  }
+
+  // Create job
+  const job = await createJob(
+    {
+      agentJobId: startJobResponse.job_id,
+      agentId,
+      userId,
+      organizationId,
+      input: JSON.stringify(Object.fromEntries(inputData)),
+      inputSchema: inputSchema,
+      paymentId: purchaseResponse.data.id,
+      creditsPrice,
+      identifierFromPurchaser,
+      externalDisputeUnlockTime: new Date(
+        startJobResponse.externalDisputeUnlockTime,
+      ),
+      payByTime: new Date(startJobResponse.payByTime),
+      submitResultTime: new Date(startJobResponse.submitResultTime),
+      unlockTime: new Date(startJobResponse.unlockTime),
+      blockchainIdentifier: startJobResponse.blockchainIdentifier,
+      sellerVkey: startJobResponse.sellerVKey,
+      name: generatedName,
+    },
+    prisma,
+  );
+  return job;
 }
 
 /**

@@ -32,8 +32,8 @@ export async function generateJobName(
         stream: false,
       },
       {
-        maxRetries: 0,
-        timeout: 2000,
+        maxRetries: 1,
+        timeout: 4000,
       },
     );
 
