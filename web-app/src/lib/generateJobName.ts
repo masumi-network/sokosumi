@@ -21,8 +21,6 @@ export async function generateJobName(
     "You are an assistant that generates concise, descriptive job names. The name shouldn't be longer than 80 characters. The name should be in the same language as the input data. The input data has a much higher priority than the agent name and description. Try to generate unique names based on the input data.";
   const userPrompt = `Agent: ${agent.name} ${agent.description ? ` - ${agent.description}` : ""}\nInput: ${inputSummary}`;
 
-  // Increased max_tokens to 80 to allow descriptive names up to 80 characters as per system prompt.
-  // Wrapped API call in try/catch to prevent non-critical failures from breaking job creation.
   try {
     const message: Anthropic.Message = await anthropic.messages.create({
       model: "claude-3-5-haiku-latest",
