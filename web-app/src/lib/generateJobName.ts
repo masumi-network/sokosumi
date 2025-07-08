@@ -26,7 +26,7 @@ export async function generateJobName(
   const userPrompt = `Agent: ${agent.name} ${agent.description ? ` - ${agent.description}` : ""}\nInput: ${inputSummary}`;
 
   const message: Anthropic.Message = await anthropic.messages.create({
-    model: "claude-3-haiku-20240307",
+    model: "claude-3-5-haiku-latest",
     max_tokens: 12,
     temperature: 0.7,
     system: systemPrompt,
