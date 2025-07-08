@@ -24,7 +24,7 @@ interface UTMProviderProps {
   children: React.ReactNode;
 }
 
-export function UTMProvider({ children }: UTMProviderProps) {
+export function UTMProviderInner({ children }: UTMProviderProps) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const [utmData, setUTMData] = useState<UTMData | null>(null);
@@ -63,8 +63,14 @@ export function UTMProvider({ children }: UTMProviderProps) {
   }, [pathname, utmParams, utmData, setUTMCoookie]);
 
   return (
+    <UTMContext.Provider value={{ utmData }}>{children}</UTMContext.Provider>
+  );
+}
+
+export function UTMProvider({ children }: UTMProviderProps) {
+  return (
     <Suspense>
-      <UTMContext.Provider value={{ utmData }}>{children}</UTMContext.Provider>
+      <UTMProviderInner>{children}</UTMProviderInner>
     </Suspense>
   );
 }
