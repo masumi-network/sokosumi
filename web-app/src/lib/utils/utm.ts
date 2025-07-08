@@ -1,6 +1,3 @@
-import "server-only";
-
-import { cookies } from "next/headers";
 import z from "zod";
 
 export interface UTMParams {
@@ -53,26 +50,4 @@ export function extractUTMParams(
   }
 
   return hasUTMParams ? utmParams : null;
-}
-
-/**
- * Get UTM data from cookie
- */
-export async function getUTMCookie(): Promise<UTMData | null> {
-  const cookieStore = await cookies();
-  const cookieValue = cookieStore.get(UTM_COOKIE_NAME)?.value;
-
-  if (!cookieValue) return null;
-
-  try {
-    const utmData = utmDataSchema.safeParse(JSON.parse(cookieValue));
-    if (!utmData.success) {
-      console.error("Failed to parse UTM cookie:", utmData.error);
-      return null;
-    }
-    return utmData.data;
-  } catch (error) {
-    console.error("Failed to parse UTM cookie as JSON:", error);
-    return null;
-  }
 }

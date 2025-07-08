@@ -2,6 +2,7 @@ import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import Footer from "@/components/footer";
+import { UTMProvider } from "@/contexts/utm-provider";
 
 import { Header } from "./components/header";
 
@@ -23,10 +24,12 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function LandingLayout({ children }: LandingLayoutProps) {
   return (
-    <div className="flex flex-col">
-      <Header className="h-16 lg:h-20" />
-      <main className="min-h-svh flex-1 pt-16 lg:pt-20">{children}</main>
-      <Footer />
-    </div>
+    <UTMProvider>
+      <div className="flex flex-col">
+        <Header className="h-16 lg:h-20" />
+        <main className="min-h-svh flex-1 pt-16 lg:pt-20">{children}</main>
+        <Footer />
+      </div>
+    </UTMProvider>
   );
 }
