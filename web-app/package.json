@@ -33,7 +33,7 @@
     "generate:api": "pnpm run generate:registry && pnpm run generate:payment"
   },
   "dependencies": {
-    "@better-auth/utils": "0.2.5",
+    "@better-auth/utils": "0.2.6",
     "@hey-api/client-fetch": "0.13.1",
     "@hey-api/client-next": "0.5.1",
     "@hookform/resolvers": "5.1.1",
@@ -87,7 +87,7 @@
     "use-debounce": "10.0.5",
     "uuid": "11.1.0",
     "vaul": "1.1.2",
-    "zod": "3.25.74"
+    "zod": "3.25.75"
   },
   "devDependencies": {
     "@types/node": "22.16.0",
