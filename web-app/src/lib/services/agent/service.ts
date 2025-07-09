@@ -62,27 +62,6 @@ function canUserAccessAgent(
 }
 
 /**
- * Check if an agent is publicly accessible
- *
- * This function checks if an agent is publicly accessible by verifying
- * that it has no organization restrictions.
- *
- * @param agent - The agent with organization data to check access for
- * @returns A boolean indicating whether the agent is publicly accessible
- *
- * @example
- * ```typescript
- * const isPublic = canAccessPublicly(agent);
- * if (isPublic) {
- *   // Agent is publicly accessible
- * }
- * ```
- */
-function canAccessPublicly(agent: AgentWithOrganizations): boolean {
-  return agent.organizations.length === 0;
-}
-
-/**
  * Get online agents with valid fixed pricing
  * (valid amount unit)
  *
@@ -345,7 +324,7 @@ export async function getPublicOnlineAgentsWithValidPricing(
   );
 
   return onlineAgents
-    .filter((agent) => canAccessPublicly(agent))
+    .filter((agent) => canUserAccessAgent(agent, [])) // any user can access agent
     .filter((agent) => {
       const amounts = agent.pricing.fixedPricing?.amounts?.map((amount) => ({
         unit: amount.unit,
