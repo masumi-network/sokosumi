@@ -1,7 +1,7 @@
 import z from "zod";
 
 export interface UTMParams {
-  utmSource?: string;
+  utmSource: string;
   utmMedium?: string;
   utmCampaign?: string;
   utmTerm?: string;
@@ -15,7 +15,7 @@ export interface UTMData extends UTMParams {
 }
 
 export const utmDataSchema = z.object({
-  utmSource: z.string().max(255).optional(),
+  utmSource: z.string().min(1).max(255),
   utmMedium: z.string().max(255).optional(),
   utmCampaign: z.string().max(255).optional(),
   utmTerm: z.string().max(255).optional(),
@@ -34,20 +34,18 @@ export const UTM_COOKIE_MAX_AGE = 30 * 24 * 60 * 60; // 30 days in seconds
 export function extractUTMParams(
   searchParams: URLSearchParams,
 ): UTMParams | null {
-  let hasUTMParams = false;
   const utmParams: UTMParams = {
-    utmSource: searchParams.get("utm_source") ?? undefined,
+    utmSource: searchParams.get("utm_source") ?? "",
     utmMedium: searchParams.get("utm_medium") ?? undefined,
     utmCampaign: searchParams.get("utm_campaign") ?? undefined,
     utmTerm: searchParams.get("utm_term") ?? undefined,
     utmContent: searchParams.get("utm_content") ?? undefined,
   };
 
-  for (const value of Object.values(utmParams)) {
-    if (value) {
-      hasUTMParams = true;
-    }
+  // check if utmSource is not empty
+  if (!!utmParams.utmSource) {
+    return utmParams;
   }
 
-  return hasUTMParams ? utmParams : null;
+  return null;
 }
