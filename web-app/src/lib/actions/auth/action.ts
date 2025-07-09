@@ -199,13 +199,18 @@ export async function signUpEmail(
     });
 
     // create utm attribution (after main db transaction is committed)
-    const utmData = await getUTMDataFromCookie();
-    if (utmData) {
-      await createUTMAttribution(result.user.id, utmData, new Date());
-    }
+    // without throwing error if it fails
+    try {
+      const utmData = await getUTMDataFromCookie();
+      if (utmData) {
+        await createUTMAttribution(result.user.id, utmData, new Date());
+      }
 
-    // remove utm cookie (whether it is set or not)
-    await removeUTMCookie();
+      // remove utm cookie (whether it is set or not)
+      await removeUTMCookie();
+    } catch (error) {
+      console.error("Failed to create utm attribution", error);
+    }
 
     return Ok(result);
   } catch (error) {
