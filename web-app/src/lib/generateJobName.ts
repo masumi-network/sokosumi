@@ -35,7 +35,6 @@ export async function generateJobName(
         timeout: 4000,
       },
     );
-    console.log("Anthropic job name generation response:", message);
     const textBlocks = message.content
       .filter((c) => c.type === "text")
       .map((c) => c.text);
