@@ -18,13 +18,13 @@ export async function getFavoriteAgents(
   return list.agents;
 }
 
-export async function getOrCreateFavoriteAgentList(
+async function getOrCreateFavoriteAgentList(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentListWithAgent> {
   return await getOrCreateAgentListByType(AgentListType.FAVORITE, tx);
 }
 
-export async function getOrCreateAgentListByType(
+async function getOrCreateAgentListByType(
   type: AgentListType,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentListWithAgent> {
