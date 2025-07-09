@@ -229,9 +229,14 @@ async function requestRefundIfNeeded(job: Job) {
 }
 
 export async function syncJob(job: Job) {
+  if (!job.purchaseId) {
+    await refundJob(job.id);
+    return;
+  }
+
   const [agentJobStatus, onChainPurchase] = await Promise.all([
     getAgentJobStatus(job),
-    job.purchaseId ? getOnChainPurchase(job.purchaseId) : Promise.resolve(null),
+    getOnChainPurchase(job.purchaseId),
   ]);
 
   await prisma.$transaction(
