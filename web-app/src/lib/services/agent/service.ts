@@ -121,6 +121,76 @@ export async function getAvailableAgents(
 }
 
 /**
+ * Interface representing an agent with its calculated credit pricing information
+ *
+ * This interface combines an agent's complete data (including all relations like
+ * pricing, tags, ratings, etc.) with its calculated credit price. The credit price
+ * is computed based on the agent's fixed pricing structure and represents the cost
+ * in credits required to use the agent for a job.
+ *
+ * @interface AgentWithCreditPrice
+ * @property agent - The complete agent data including all related entities
+ * @property creditsPrice - The calculated credit price for using this agent, derived from the agent's pricing configuration
+ *
+ * @example
+ * ```typescript
+ * const agentWithPrice: AgentWithCreditPrice = {
+ *   agent: {
+ *     id: "agent123",
+ *     name: "My Agent",
+ *     // ... other agent properties and relations
+ *   },
+ *   creditsPrice: 100 // Cost in credits to use this agent
+ * };
+ * ```
+ */
+export interface AgentWithCreditPrice {
+  agent: AgentWithRelations;
+  creditsPrice: Awaited<ReturnType<typeof getAgentCreditsPrice>>;
+}
+
+/**
+ * Get online agents with their calculated credit pricing
+ *
+ * This function retrieves all online agents with valid pricing and calculates
+ * their credit costs. It combines the functionality of getting online agents
+ * with valid pricing and computing their credit prices in a single operation.
+ *
+ * The function uses Promise.allSettled to handle potential failures gracefully
+ * when calculating credit prices for individual agents. If credit price calculation
+ * fails for any agent, that agent is excluded from the results rather than
+ * causing the entire operation to fail.
+ *
+ * @param tx - (Optional) Prisma transaction client for DB operations. Defaults to the main Prisma client.
+ * @returns A Promise that resolves to an array of agents with their calculated credit prices
+ *
+ * @example
+ * ```typescript
+ * const agentsWithPricing = await getOnlineAgentsWithCreditsPrice();
+ * agentsWithPricing.forEach(({ agent, creditsPrice }) => {
+ *   console.log(`${agent.name}: ${creditsPrice} credits`);
+ * });
+ * ```
+ */
+export async function getAvailableAgentsWithCreditsPrice(
+  tx: Prisma.TransactionClient = prisma,
+): Promise<AgentWithCreditPrice[]> {
+  const agents = await getAvailableAgents(tx);
+  const results = await Promise.allSettled(
+    agents.map(async (agent) => {
+      const creditsPrice = await getAgentCreditsPrice(agent, tx);
+      return { agent, creditsPrice };
+    }),
+  );
+  return results
+    .filter(
+      (result): result is PromiseFulfilledResult<AgentWithCreditPrice> =>
+        result.status === "fulfilled",
+    )
+    .map((result) => result.value);
+}
+
+/**
  * Retrieve hired agents ordered by their most recent job
  *
  * This function fetches all agents that have been hired by the current user
@@ -238,108 +308,3 @@ export async function getAgentPricing(
   }
   return agentPricingResult.data;
 }
-
-/**
- * Interface representing an agent with its calculated credit pricing information
- *
- * This interface combines an agent's complete data (including all relations like
- * pricing, tags, ratings, etc.) with its calculated credit price. The credit price
- * is computed based on the agent's fixed pricing structure and represents the cost
- * in credits required to use the agent for a job.
- *
- * @interface AgentWithCreditPrice
- * @property agent - The complete agent data including all related entities
- * @property creditsPrice - The calculated credit price for using this agent, derived from the agent's pricing configuration
- *
- * @example
- * ```typescript
- * const agentWithPrice: AgentWithCreditPrice = {
- *   agent: {
- *     id: "agent123",
- *     name: "My Agent",
- *     // ... other agent properties and relations
- *   },
- *   creditsPrice: 100 // Cost in credits to use this agent
- * };
- * ```
- */
-export interface AgentWithCreditPrice {
-  agent: AgentWithRelations;
-  creditsPrice: Awaited<ReturnType<typeof getAgentCreditsPrice>>;
-}
-
-/**
- * Get online agents with their calculated credit pricing
- *
- * This function retrieves all online agents with valid pricing and calculates
- * their credit costs. It combines the functionality of getting online agents
- * with valid pricing and computing their credit prices in a single operation.
- *
- * The function uses Promise.allSettled to handle potential failures gracefully
- * when calculating credit prices for individual agents. If credit price calculation
- * fails for any agent, that agent is excluded from the results rather than
- * causing the entire operation to fail.
- *
- * @param tx - (Optional) Prisma transaction client for DB operations. Defaults to the main Prisma client.
- * @returns A Promise that resolves to an array of agents with their calculated credit prices
- *
- * @example
- * ```typescript
- * const agentsWithPricing = await getOnlineAgentsWithCreditsPrice();
- * agentsWithPricing.forEach(({ agent, creditsPrice }) => {
- *   console.log(`${agent.name}: ${creditsPrice} credits`);
- * });
- * ```
- */
-export async function getAvailableAgentsWithCreditsPrice(
-  tx: Prisma.TransactionClient = prisma,
-): Promise<AgentWithCreditPrice[]> {
-  const agents = await getAvailableAgents(tx);
-  const results = await Promise.allSettled(
-    agents.map(async (agent) => {
-      const creditsPrice = await getAgentCreditsPrice(agent, tx);
-      return { agent, creditsPrice };
-    }),
-  );
-  return results
-    .filter(
-      (result): result is PromiseFulfilledResult<AgentWithCreditPrice> =>
-        result.status === "fulfilled",
-    )
-    .map((result) => result.value);
-}
-
-// /**
-//  * Get public online agents with valid pricing
-//  *
-//  * This function retrieves all online agents that are publicly accessible
-//  * and have valid pricing. It combines the functionality of getting online
-//  * agents with valid pricing and filtering out agents that are not publicly
-//  * accessible.
-//  *
-//  * @param tx - (Optional) Prisma transaction client for DB operations. Defaults to the main Prisma client.
-//  * @returns A Promise that resolves to an array of agents with their calculated credit prices
-//  *
-//  * @example
-//  * ```typescript
-//  * const publicOnlineAgents = await getPublicOnlineAgentsWithValidPricing();
-//  * publicOnlineAgents.forEach((agent) => {
-//  *   console.log(`${agent.name}`);
-//  * });
-//  * ```
-//  */
-// export async function getPublicOnlineAgentsWithValidPricing(
-//   tx: Prisma.TransactionClient = prisma,
-// ): Promise<AgentWithRelations[]> {
-//   const creditCosts = await retrieveAllCreditCosts(tx);
-//   const validCreditCostUnits = creditCosts.map(({ unit }) => unit);
-
-//   const onlineAgents = await retrieveShownAgentsWithRelationsByStatus(
-//     AgentStatus.ONLINE,
-//     tx,
-//   );
-
-//   return onlineAgents
-//     .filter((agent) => canUserAccessAgent(agent, [])) // any user can access agent
-//     .filter((agent) => hasValidPricingUnits(agent, validCreditCostUnits));
-// }
