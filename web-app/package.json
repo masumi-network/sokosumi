@@ -39,7 +39,7 @@
     "@hookform/resolvers": "5.1.1",
     "@icons-pack/react-simple-icons": "13.4.0",
     "@prisma/client": "6.11.1",
-    "@react-email/components": "0.1.1",
+    "@react-email/components": "0.2.0",
     "@sentry/nextjs": "9.35.0",
     "@tanstack/react-table": "8.21.3",
     "@tufjs/canonical-json": "2.0.0",
