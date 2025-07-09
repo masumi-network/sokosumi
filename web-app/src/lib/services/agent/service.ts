@@ -20,7 +20,7 @@ import {
   retrieveShownAgentsWithRelationsByStatus,
 } from "@/lib/db/repositories";
 import { JobInputsDataSchemaType } from "@/lib/job-input";
-import { canUserAccessAgent, getAgentCreditsPrice } from "@/lib/services";
+import { getAgentCreditsPrice } from "@/lib/services";
 import {
   Agent,
   AgentListType,
