@@ -41,7 +41,7 @@ model User {
   // terms
   termsAccepted Boolean @default(false)
 
-  // UTM attribution
+  // UTM Attribution
   utmAttribution UTMAttribution?
 
   @@unique([email])
@@ -151,7 +151,7 @@ model UTMAttribution {
   user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // UTM parameters
-  utmSource   String?
+  utmSource   String
   utmMedium   String?
   utmCampaign String?
   utmTerm     String?
@@ -167,8 +167,8 @@ model UTMAttribution {
   capturedAt  DateTime // when the UTM attribution was captured
   convertedAt DateTime // when the User actually signed up
 
-  @@index([utmSource, utmCampaign])
-  @@index([utmSource, utmMedium])
+  @@index([utmSource, utmMedium, utmCampaign])
+  @@index([capturedAt])
   @@index([convertedAt])
   @@map("utmAttribution")
 }

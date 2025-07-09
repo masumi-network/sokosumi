@@ -2,7 +2,7 @@
 CREATE TABLE "utmAttribution" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
-    "utmSource" TEXT,
+    "utmSource" TEXT NOT NULL,
     "utmMedium" TEXT,
     "utmCampaign" TEXT,
     "utmTerm" TEXT,
@@ -21,10 +21,10 @@ CREATE TABLE "utmAttribution" (
 CREATE UNIQUE INDEX "utmAttribution_userId_key" ON "utmAttribution"("userId");
 
 -- CreateIndex
-CREATE INDEX "utmAttribution_utmSource_utmCampaign_idx" ON "utmAttribution"("utmSource", "utmCampaign");
+CREATE INDEX "utmAttribution_utmSource_utmMedium_utmCampaign_idx" ON "utmAttribution"("utmSource", "utmMedium", "utmCampaign");
 
 -- CreateIndex
-CREATE INDEX "utmAttribution_utmSource_utmMedium_idx" ON "utmAttribution"("utmSource", "utmMedium");
+CREATE INDEX "utmAttribution_capturedAt_idx" ON "utmAttribution"("capturedAt");
 
 -- CreateIndex
 CREATE INDEX "utmAttribution_convertedAt_idx" ON "utmAttribution"("convertedAt");
