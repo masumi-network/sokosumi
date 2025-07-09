@@ -62,6 +62,27 @@ function canUserAccessAgent(
 }
 
 /**
+ * Check if an agent is publicly accessible
+ *
+ * This function checks if an agent is publicly accessible by verifying
+ * that it has no organization restrictions.
+ *
+ * @param agent - The agent with organization data to check access for
+ * @returns A boolean indicating whether the agent is publicly accessible
+ *
+ * @example
+ * ```typescript
+ * const isPublic = canAccessPublicly(agent);
+ * if (isPublic) {
+ *   // Agent is publicly accessible
+ * }
+ * ```
+ */
+function canAccessPublicly(agent: AgentWithOrganizations): boolean {
+  return agent.organizations.length === 0;
+}
+
+/**
  * Get online agents with valid fixed pricing
  * (valid amount unit)
  *
@@ -291,4 +312,48 @@ export async function getOnlineAgentsWithCreditsPrice(
         result.status === "fulfilled",
     )
     .map((result) => result.value);
+}
+
+/**
+ * Get public online agents with valid pricing
+ *
+ * This function retrieves all online agents that are publicly accessible
+ * and have valid pricing. It combines the functionality of getting online
+ * agents with valid pricing and filtering out agents that are not publicly
+ * accessible.
+ *
+ * @param tx - (Optional) Prisma transaction client for DB operations. Defaults to the main Prisma client.
+ * @returns A Promise that resolves to an array of agents with their calculated credit prices
+ *
+ * @example
+ * ```typescript
+ * const publicOnlineAgents = await getPublicOnlineAgentsWithValidPricing();
+ * publicOnlineAgents.forEach((agent) => {
+ *   console.log(`${agent.name}`);
+ * });
+ * ```
+ */
+export async function getPublicOnlineAgentsWithValidPricing(
+  tx: Prisma.TransactionClient = prisma,
+): Promise<AgentWithRelations[]> {
+  const creditCosts = await retrieveAllCreditCosts(tx);
+  const validCreditCostUnits = creditCosts.map(({ unit }) => unit);
+
+  const onlineAgents = await retrieveShownAgentsWithRelationsByStatus(
+    AgentStatus.ONLINE,
+    tx,
+  );
+
+  return onlineAgents
+    .filter((agent) => canAccessPublicly(agent))
+    .filter((agent) => {
+      const amounts = agent.pricing.fixedPricing?.amounts?.map((amount) => ({
+        unit: amount.unit,
+        amount: Number(amount.amount),
+      }));
+      if (!amounts) {
+        return true;
+      }
+      return amounts.every(({ unit }) => validCreditCostUnits.includes(unit));
+    });
 }
