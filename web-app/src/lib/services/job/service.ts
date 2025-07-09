@@ -297,9 +297,9 @@ async function syncAgentJobStatus(
 }
 
 async function getOnChainPurchase(
-  jobPaymentId: string,
+  jobPurchaseId: string,
 ): Promise<Purchase | null> {
-  const purchaseResult = await getPaymentClientPurchase(jobPaymentId);
+  const purchaseResult = await getPaymentClientPurchase(jobPurchaseId);
   if (!purchaseResult.ok) {
     return null;
   }
