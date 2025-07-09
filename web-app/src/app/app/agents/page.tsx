@@ -4,7 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { AgentsNotAvailable } from "@/components/agents";
 import { retrieveTags } from "@/lib/db/repositories";
 import {
-  getOnlineAgentsWithCreditsPrice,
+  getAvailableAgentsWithCreditsPrice,
   getOrCreateFavoriteAgentList,
 } from "@/lib/services";
 import { Tag } from "@/prisma/generated/client";
@@ -22,7 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function GalleryPage() {
-  const agentsWithPrice = await getOnlineAgentsWithCreditsPrice();
+  const agentsWithPrice = await getAvailableAgentsWithCreditsPrice();
 
   if (!agentsWithPrice.length) {
     return <AgentsNotAvailable />;

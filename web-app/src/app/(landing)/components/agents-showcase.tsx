@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getAgentResolvedImage } from "@/lib/db";
-import { getOnlineAgentsWithValidPricing } from "@/lib/services";
+import { getAvailableAgents } from "@/lib/services";
 import { cn } from "@/lib/utils";
 
 interface AgentCardProps {
@@ -58,7 +58,7 @@ const AgentCardSkeleton = () => {
 };
 
 async function AgentsShowcaseList() {
-  const agents = await getOnlineAgentsWithValidPricing();
+  const agents = await getAvailableAgents();
   const firstFiveAgents = agents.slice(0, 5);
 
   return (

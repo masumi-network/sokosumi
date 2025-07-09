@@ -6,7 +6,7 @@ import {
   CreateJobModal,
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
-import { getOnlineAgentsWithCreditsPrice } from "@/lib/services";
+import { getAvailableAgentsWithCreditsPrice } from "@/lib/services";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Landing.Agents.Metadata");
@@ -18,7 +18,7 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function GalleryPage() {
-  const agentsWithPrice = await getOnlineAgentsWithCreditsPrice();
+  const agentsWithPrice = await getAvailableAgentsWithCreditsPrice();
 
   if (!agentsWithPrice.length) {
     return <AgentsNotAvailable />;

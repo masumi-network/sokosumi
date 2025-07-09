@@ -8,11 +8,14 @@ import {
 } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { getOnlineAgentsWithCreditsPrice } from "@/lib/services";
+import { getAvailableAgentsWithCreditsPrice } from "@/lib/services";
 
 export default async function FeaturedAgents() {
   const t = await getTranslations("Landing.Page.FeaturedAgents");
-  const agentsWithPrice = (await getOnlineAgentsWithCreditsPrice()).slice(0, 4);
+  const agentsWithPrice = (await getAvailableAgentsWithCreditsPrice()).slice(
+    0,
+    4,
+  );
 
   return (
     <CreateJobModalContextProvider agentsWithPrice={agentsWithPrice}>

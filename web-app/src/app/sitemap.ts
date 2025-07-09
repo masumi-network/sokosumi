@@ -1,14 +1,14 @@
 import type { MetadataRoute } from "next";
 
 import { getEnvPublicConfig } from "@/config/env.public";
-import { getPublicOnlineAgentsWithValidPricing } from "@/lib/services";
+import { getAvailableAgents } from "@/lib/services/agent/service";
 
 const baseUrl = getEnvPublicConfig().NEXT_PUBLIC_SOKOSUMI_URL;
 const staticPagesLastModified = new Date("2025-07-08T14:47:50+00:00");
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Fetch agents from database to get real lastModified dates
-  const publicOnlineAgents = await getPublicOnlineAgentsWithValidPricing();
+  const publicOnlineAgents = await getAvailableAgents();
 
   // Static pages with appropriate lastModified dates
   const staticPages = [
