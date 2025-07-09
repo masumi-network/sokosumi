@@ -1,8 +1,9 @@
 import type { MetadataRoute } from "next";
 
+import { getEnvPublicConfig } from "@/config/env.public";
 import { getOnlineAgentsWithCreditsPrice } from "@/lib/services";
 
-const baseUrl = "https://sokosumi.com";
+const baseUrl = getEnvPublicConfig().NEXT_PUBLIC_SOKOSUMI_URL;
 const staticPagesLastModified = new Date("2025-07-08T14:47:50+00:00");
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
@@ -12,49 +13,49 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Static pages with appropriate lastModified dates
   const staticPages = [
     {
-      url: `${baseUrl}/`,
+      url: new URL("/", baseUrl).toString(),
       lastModified: staticPagesLastModified,
       changeFrequency: "yearly" as const,
       priority: 1,
     },
     {
-      url: `${baseUrl}/agents`,
+      url: new URL("/agents", baseUrl).toString(),
       lastModified: staticPagesLastModified,
       changeFrequency: "weekly" as const,
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/login`,
+      url: new URL("/login", baseUrl).toString(),
       lastModified: staticPagesLastModified,
       changeFrequency: "monthly" as const,
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/register`,
+      url: new URL("/register", baseUrl).toString(),
       lastModified: staticPagesLastModified,
       changeFrequency: "monthly" as const,
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/forgot-password`,
+      url: new URL("/forgot-password", baseUrl).toString(),
       lastModified: staticPagesLastModified,
       changeFrequency: "monthly" as const,
       priority: 0.64,
     },
     {
-      url: `${baseUrl}/imprint`,
+      url: new URL("/imprint", baseUrl).toString(),
       lastModified: staticPagesLastModified,
       changeFrequency: "yearly" as const,
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/privacy-policy`,
+      url: new URL("/privacy-policy", baseUrl).toString(),
       lastModified: staticPagesLastModified,
       changeFrequency: "yearly" as const,
       priority: 0.8,
     },
     {
-      url: `${baseUrl}/terms-of-service`,
+      url: new URL("/terms-of-service", baseUrl).toString(),
       lastModified: staticPagesLastModified,
       changeFrequency: "yearly" as const,
       priority: 0.8,
@@ -63,7 +64,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Dynamic agent pages with real lastModified dates
   const agentPages = agentsWithPrice.map(({ agent }) => ({
-    url: `${baseUrl}/agents/${agent.id}`,
+    url: new URL(`/agents/${agent.id}`, baseUrl).toString(),
     lastModified: agent.updatedAt,
     changeFrequency: "weekly" as const,
     priority: 0.64,
