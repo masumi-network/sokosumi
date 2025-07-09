@@ -34,7 +34,7 @@ export function UTMProviderInner({ children }: UTMProviderProps) {
     [searchParams],
   );
 
-  const setUTMCoookie = useCallback(
+  const setUTMCookie = useCallback(
     async (data: UTMData) => {
       const result = await setUTMCookieIfNotExists(data);
       if (result.ok) {
@@ -58,9 +58,9 @@ export function UTMProviderInner({ children }: UTMProviderProps) {
       };
 
       // Set UTM cookie
-      setUTMCoookie(utmData);
+      setUTMCookie(utmData);
     }
-  }, [pathname, utmParams, utmData, setUTMCoookie]);
+  }, [pathname, utmParams, utmData, setUTMCookie]);
 
   return (
     <UTMContext.Provider value={{ utmData }}>{children}</UTMContext.Provider>
