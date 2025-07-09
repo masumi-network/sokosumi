@@ -177,7 +177,7 @@ interface CreateJobData {
   organizationId: string | null | undefined;
   inputSchema: JobInputSchemaType[];
   input: string;
-  paymentId: string;
+  paymentId?: string;
   creditsPrice: CreditsPrice;
   identifierFromPurchaser: string;
   payByTime: Date;
@@ -234,7 +234,9 @@ export async function createJob(
       creditTransaction: {
         create: creditTransactionData,
       },
-      paymentId: data.paymentId,
+      ...(data.paymentId && {
+        paymentId: data.paymentId,
+      }),
       inputSchema: data.inputSchema,
       input: data.input,
       identifierFromPurchaser: data.identifierFromPurchaser,
