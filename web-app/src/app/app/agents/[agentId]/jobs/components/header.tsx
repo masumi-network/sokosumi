@@ -51,6 +51,7 @@ interface HeaderProps {
   agentCreditsPrice: CreditsPrice;
   favoriteAgentList: AgentListWithAgent;
   jobs: JobWithLimitedInformation[];
+  isAgentAvailable: boolean;
 }
 
 export default function Header({
@@ -58,6 +59,7 @@ export default function Header({
   agentCreditsPrice,
   favoriteAgentList,
   jobs,
+  isAgentAvailable,
 }: HeaderProps) {
   const t = useTranslations("App.Agents.Jobs.Header");
   const [detailOpen, setDetailOpen] = useState(false);
@@ -83,7 +85,11 @@ export default function Header({
         >
           {t("details")}
         </Button>
-        <AgentBookmarkButton agentId={agent.id} agentList={favoriteAgentList} />
+        <AgentBookmarkButton
+          agentId={agent.id}
+          agentList={favoriteAgentList}
+          isAgentAvailable={isAgentAvailable}
+        />
       </div>
       <div className="flex flex-1 flex-row items-center justify-end gap-4">
         <div className="w-full text-end text-sm font-semibold">
@@ -91,7 +97,10 @@ export default function Header({
             price: convertCentsToCredits(agentCreditsPrice.cents),
           })}
         </div>
-        <CreateJobModalTrigger agentId={agent.id} />
+        <CreateJobModalTrigger
+          agentId={agent.id}
+          isAgentAvailable={isAgentAvailable}
+        />
       </div>
       {/* Agent Modal */}
       <AgentModal open={detailOpen}>

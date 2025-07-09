@@ -14,12 +14,14 @@ interface AgentBookmarkButtonProps {
   agentId: string;
   agentList: AgentListWithAgent;
   className?: string;
+  isAgentAvailable?: boolean;
 }
 
 export function AgentBookmarkButton({
   agentId,
   agentList,
   className,
+  isAgentAvailable = true,
 }: AgentBookmarkButtonProps) {
   const t = useTranslations("Components.Agents.AgentCard");
   const [isBookmarked, setIsBookmarked] = useState<boolean>(
@@ -32,6 +34,8 @@ export function AgentBookmarkButton({
   }, [agentList, agentId]);
 
   const handleBookmarkToggle = async () => {
+    if (!isAgentAvailable) return;
+
     setIsLoading(true);
     const result = await toggleAgentInAgentList(
       agentId,
@@ -58,7 +62,7 @@ export function AgentBookmarkButton({
       size="icon"
       className={cn(className)}
       onClick={handleBookmarkToggle}
-      disabled={isLoading}
+      disabled={isLoading || !isAgentAvailable}
     >
       <Bookmark
         fill={isBookmarked ? "currentColor" : "none"}

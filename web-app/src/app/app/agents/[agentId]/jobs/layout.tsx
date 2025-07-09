@@ -15,6 +15,7 @@ import {
 import {
   getAgentCreditsPrice,
   getOrCreateFavoriteAgentList,
+  isAgentAvailable,
 } from "@/lib/services";
 
 import Footer from "./components/footer";
@@ -68,6 +69,7 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
   const agentCreditsPrice = await getAgentCreditsPrice(agent);
   const favoriteAgentList = await getOrCreateFavoriteAgentList();
   const jobs = await retrieveJobsWithLimitedInformationByAgentId(agentId);
+  const isAvailable = await isAgentAvailable(agentId);
 
   return (
     <CreateJobModalContextProvider
@@ -79,6 +81,7 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
           agentCreditsPrice={agentCreditsPrice}
           favoriteAgentList={favoriteAgentList}
           jobs={jobs}
+          isAgentAvailable={isAvailable}
         />
         <div className="mt-6 flex flex-1 flex-col justify-center gap-4 lg:flex-row lg:overflow-hidden">
           {children}

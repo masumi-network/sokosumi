@@ -35,6 +35,40 @@ import {
 } from "./third-party";
 
 /**
+ * Check if an agent is available to the current user
+ *
+ * This function determines whether a specific agent is available to the current user
+ * by checking if the agent exists and if the user has access to it based on their
+ * organization membership. The function handles both authenticated and unauthenticated users.
+ *
+ * @param agentId - The unique identifier of the agent to check availability for
+ * @returns A Promise that resolves to true if the agent is available to the user, false otherwise
+ *
+ * @example
+ * ```typescript
+ * const isAvailable = await isAgentAvailable("agent123");
+ * if (isAvailable) {
+ *   // User can access this agent
+ * } else {
+ *   // Agent is not available to this user
+ * }
+ * ```
+ */
+export async function isAgentAvailable(agentId: string): Promise<boolean> {
+  return await prisma.$transaction(async (tx) => {
+    const agent = await retrieveAgentWithRelationsById(agentId, tx);
+    if (!agent) return false;
+
+    const session = await getSession();
+    const userOrganizationIds =
+      session?.user.id && session.user.id !== ""
+        ? await retrieveMembersOrganizationIdsByUserId(session.user.id, tx)
+        : [];
+    return canUserAccessAgent(agent, userOrganizationIds);
+  });
+}
+
+/**
  * Check if a user has access to a specific agent based on organization membership
  *
  * This function determines whether a user can access an agent based on
