@@ -177,7 +177,7 @@ interface CreateJobData {
   organizationId: string | null | undefined;
   inputSchema: JobInputSchemaType[];
   input: string;
-  paymentId?: string;
+  purchaseId?: string;
   creditsPrice: CreditsPrice;
   identifierFromPurchaser: string;
   payByTime: Date;
@@ -234,8 +234,8 @@ export async function createJob(
       creditTransaction: {
         create: creditTransactionData,
       },
-      ...(data.paymentId && {
-        paymentId: data.paymentId,
+      ...(data.purchaseId && {
+        purchaseId: data.purchaseId,
       }),
       inputSchema: data.inputSchema,
       input: data.input,
@@ -327,6 +327,7 @@ export async function updateJobWithPurchase(
 ) {
   const onChainStatus = onChainStateToOnChainJobStatus(purchase.onChainState);
   let data: Prisma.JobUpdateInput = {
+    purchaseId: purchase.id,
     onChainStatus,
     inputHash: purchase.inputHash,
     outputHash: purchase.resultHash,

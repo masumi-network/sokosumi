@@ -144,19 +144,6 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
     generatedName = null;
   }
 
-  // Create purchase
-  const createPurchaseResult = await createPurchase(
-    agent,
-    startJobResponse,
-    inputData,
-    matchedInputHash,
-    identifierFromPurchaser,
-  );
-  if (!createPurchaseResult.ok) {
-    throw new Error(createPurchaseResult.error);
-  }
-  const purchaseResponse = createPurchaseResult.data.data;
-
   // Create job
   const job = await createJob({
     agentJobId: startJobResponse.job_id,
@@ -165,7 +152,6 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
     organizationId,
     input: JSON.stringify(Object.fromEntries(inputData)),
     inputSchema: inputSchema,
-    paymentId: purchaseResponse.id,
     creditsPrice,
     identifierFromPurchaser,
     externalDisputeUnlockTime: new Date(
@@ -178,6 +164,19 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
     sellerVkey: startJobResponse.sellerVKey,
     name: generatedName,
   });
+
+  // Create purchase
+  const createPurchaseResult = await createPurchase(
+    agent,
+    startJobResponse,
+    inputData,
+    matchedInputHash,
+    identifierFromPurchaser,
+  );
+  if (createPurchaseResult.ok) {
+    const purchase = createPurchaseResult.data.data as Purchase;
+    await updateJobWithPurchase(job.id, purchase);
+  }
 
   return job;
 }
@@ -232,7 +231,7 @@ async function requestRefundIfNeeded(job: Job) {
 export async function syncJob(job: Job) {
   const [agentJobStatus, onChainPurchase] = await Promise.all([
     getAgentJobStatus(job),
-    getOnChainPurchase(job.paymentId),
+    job.purchaseId ? getOnChainPurchase(job.purchaseId) : Promise.resolve(null),
   ]);
 
   await prisma.$transaction(

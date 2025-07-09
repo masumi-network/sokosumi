@@ -107,14 +107,14 @@ export async function postPaymentClientRequestRefund(
 }
 
 export async function getPaymentClientPurchase(
-  paymentId: string,
+  purchaseId: string,
 ): Promise<Result<Purchase, string>> {
   try {
     const paymentClient = getPaymentClient();
     const purchaseResponse = await getPurchase({
       client: paymentClient,
       query: {
-        cursorId: paymentId,
+        cursorId: purchaseId,
         network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
         limit: 1,
       },
