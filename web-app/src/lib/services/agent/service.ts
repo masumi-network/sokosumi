@@ -354,29 +354,6 @@ export async function getAgentPricing(
 }
 
 /**
- * Retrieve the user's favorite agents
- *
- * This function fetches the current user's favorite agents list. If the list doesn't exist,
- * it creates a new one. The returned agents are filtered to ensure the user has access
- * to them based on organization membership.
- *
- * @param tx - (Optional) Prisma transaction client for DB operations. Defaults to the main Prisma client.
- * @returns A Promise that resolves to an array of Agent objects that are in the user's favorites
- *
- * @example
- * ```typescript
- * const favoriteAgents = await getFavoriteAgents();
- * // Returns array of agents the user has marked as favorites
- * ```
- */
-// export async function getFavoriteAgents(
-//   tx: Prisma.TransactionClient = prisma,
-// ): Promise<Agent[]> {
-//   const list = await getOrCreateFavoriteAgentList(tx);
-//   return list.agents;
-// }
-
-/**
  * Get or create the user's favorite agents list
  *
  * This function retrieves the current user's favorite agents list. If the list doesn't exist,
@@ -434,6 +411,7 @@ async function getAgentsByListType(
       tx,
     );
 
+    // Filter agents to ensure the user has access to them
     return existingList.agents.filter((agent) =>
       canUserAccessAgent(agent, userOrganizationIds),
     );
