@@ -340,8 +340,14 @@ export async function getAgentPricing(
 export async function getFavoriteAgents(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<Agent[]> {
-  const list = await getOrCreateAgentListByType(AgentListType.FAVORITE, tx);
+  const list = await getOrCreateFavoriteAgentList(tx);
   return list.agents;
+}
+
+export async function getOrCreateFavoriteAgentList(
+  tx: Prisma.TransactionClient = prisma,
+): Promise<AgentListWithAgent> {
+  return await getOrCreateAgentListByType(AgentListType.FAVORITE, tx);
 }
 
 /**
