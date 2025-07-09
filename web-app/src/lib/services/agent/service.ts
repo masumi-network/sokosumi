@@ -344,6 +344,23 @@ export async function getFavoriteAgents(
   return list.agents;
 }
 
+/**
+ * Get or create the user's favorite agents list
+ *
+ * This function retrieves the current user's favorite agents list. If the list doesn't exist,
+ * it creates a new one. The returned list contains agents that are filtered to ensure the user
+ * has access to them based on organization membership.
+ *
+ * @param tx - (Optional) Prisma transaction client for DB operations. Defaults to the main Prisma client.
+ * @returns A Promise that resolves to an AgentListWithAgent object containing the favorite list and its agents
+ * @throws Error if the user session is not found
+ *
+ * @example
+ * ```typescript
+ * const favoriteList = await getOrCreateFavoriteAgentList();
+ * // Returns the user's favorite agents list with filtered agents
+ * ```
+ */
 export async function getOrCreateFavoriteAgentList(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentListWithAgent> {
