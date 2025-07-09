@@ -723,6 +723,8 @@
           "hiredType": "hired",
           "Statuses": {
             "completed": "Completed",
+            "refunded": "Refunded",
+            "disputeResolved": "Dispute Resolved",
             "failed": "Failed",
             "inputRequired": "Input Required",
             "processing": "Processing"
