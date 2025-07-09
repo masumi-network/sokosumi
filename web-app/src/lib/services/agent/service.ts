@@ -2,6 +2,7 @@ import "server-only";
 
 import { getSession, getSessionOrThrow } from "@/lib/auth/utils";
 import {
+  AgentWithFixedPricing,
   AgentWithJobs,
   AgentWithOrganizations,
   AgentWithRelations,
@@ -50,6 +51,8 @@ function canUserAccessAgent(
   agent: AgentWithOrganizations,
   userOrganizationIds: string[],
 ): boolean {
+  if (!agent.isShown) return false;
+
   // If agent has no organization restrictions, it's public
   if (agent.organizations.length === 0) return true;
 
@@ -72,8 +75,8 @@ function canUserAccessAgent(
  * @param creditCosts - Array of credit cost objects containing valid units
  * @returns True if all units are valid or if there are no amounts, false otherwise
  */
-function hasValidPricing(
-  agent: AgentWithRelations,
+export function hasValidPricing(
+  agent: AgentWithFixedPricing,
   creditCosts: CreditCost[],
 ): boolean {
   const units = creditCosts.map(({ unit }) => unit);
