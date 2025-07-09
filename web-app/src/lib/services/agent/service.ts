@@ -2,13 +2,16 @@ import "server-only";
 
 import { getSession, getSessionOrThrow } from "@/lib/auth/utils";
 import {
+  AgentListWithAgent,
   AgentWithFixedPricing,
   AgentWithJobs,
   AgentWithOrganizations,
   AgentWithRelations,
 } from "@/lib/db";
 import {
+  createAgentListByUserIdAndType,
   prisma,
+  retrieveAgentListByUserIdAndType,
   retrieveAgentWithFixedPricingById,
   retrieveAgentWithRelationsById,
   retrieveAllCreditCosts,
@@ -17,8 +20,14 @@ import {
   retrieveShownAgentsWithRelationsByStatus,
 } from "@/lib/db/repositories";
 import { JobInputsDataSchemaType } from "@/lib/job-input";
-import { getAgentCreditsPrice } from "@/lib/services/";
-import { AgentStatus, CreditCost, Prisma } from "@/prisma/generated/client";
+import { canUserAccessAgent, getAgentCreditsPrice } from "@/lib/services";
+import {
+  Agent,
+  AgentListType,
+  AgentStatus,
+  CreditCost,
+  Prisma,
+} from "@/prisma/generated/client";
 
 import {
   fetchAgentInputSchema,
@@ -47,7 +56,7 @@ import {
  * }
  * ```
  */
-export function canUserAccessAgent(
+function canUserAccessAgent(
   agent: AgentWithOrganizations,
   userOrganizationIds: string[],
 ): boolean {
@@ -310,4 +319,71 @@ export async function getAgentPricing(
     throw new Error(agentPricingResult.error);
   }
   return agentPricingResult.data;
+}
+
+/**
+ * Retrieve the user's favorite agents
+ *
+ * This function fetches the current user's favorite agents list. If the list doesn't exist,
+ * it creates a new one. The returned agents are filtered to ensure the user has access
+ * to them based on organization membership.
+ *
+ * @param tx - (Optional) Prisma transaction client for DB operations. Defaults to the main Prisma client.
+ * @returns A Promise that resolves to an array of Agent objects that are in the user's favorites
+ *
+ * @example
+ * ```typescript
+ * const favoriteAgents = await getFavoriteAgents();
+ * // Returns array of agents the user has marked as favorites
+ * ```
+ */
+export async function getFavoriteAgents(
+  tx: Prisma.TransactionClient = prisma,
+): Promise<Agent[]> {
+  const list = await getOrCreateAgentListByType(AgentListType.FAVORITE, tx);
+  return list.agents;
+}
+
+/**
+ * Get or create an agent list by type for the current user
+ *
+ * This function retrieves an existing agent list of the specified type for the current user,
+ * or creates a new one if it doesn't exist. When an existing list is found, it filters
+ * the agents to ensure the user has access to them based on organization membership.
+ *
+ * @param type - The type of agent list to retrieve or create (e.g., FAVORITE)
+ * @param tx - (Optional) Prisma transaction client for DB operations. Defaults to the main Prisma client.
+ * @returns A Promise that resolves to an AgentListWithAgent object containing the list and its agents
+ * @throws Error if the user session is not found
+ *
+ * @example
+ * ```typescript
+ * const favoriteList = await getOrCreateAgentListByType(AgentListType.FAVORITE);
+ * // Returns the user's favorite agents list, creating it if it doesn't exist
+ * ```
+ */
+async function getOrCreateAgentListByType(
+  type: AgentListType,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<AgentListWithAgent> {
+  const session = await getSessionOrThrow();
+  const existingList = await retrieveAgentListByUserIdAndType(
+    session.user.id,
+    type,
+    tx,
+  );
+
+  if (existingList) {
+    const userOrganizationIds = await retrieveMembersOrganizationIdsByUserId(
+      session.user.id,
+      tx,
+    );
+
+    existingList.agents = existingList.agents.filter((agent) =>
+      canUserAccessAgent(agent, userOrganizationIds),
+    );
+    return existingList;
+  }
+
+  return await createAgentListByUserIdAndType(session.user.id, type, tx);
 }
