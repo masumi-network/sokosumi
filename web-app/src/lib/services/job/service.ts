@@ -129,19 +129,6 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
     startJobResponse.input_hash,
   );
 
-  // Create purchase
-  const createPurchaseResult = await createPurchase(
-    agent,
-    startJobResponse,
-    inputData,
-    matchedInputHash,
-    identifierFromPurchaser,
-  );
-  if (!createPurchaseResult.ok) {
-    throw new Error(createPurchaseResult.error);
-  }
-  const purchaseResponse = createPurchaseResult.data;
-
   // Generate job name
   let generatedName: string | null;
   try {
@@ -157,6 +144,19 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
     generatedName = null;
   }
 
+  // Create purchase
+  const createPurchaseResult = await createPurchase(
+    agent,
+    startJobResponse,
+    inputData,
+    matchedInputHash,
+    identifierFromPurchaser,
+  );
+  if (!createPurchaseResult.ok) {
+    throw new Error(createPurchaseResult.error);
+  }
+  const purchaseResponse = createPurchaseResult.data.data;
+
   // Create job
   const job = await createJob({
     agentJobId: startJobResponse.job_id,
@@ -165,7 +165,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
     organizationId,
     input: JSON.stringify(Object.fromEntries(inputData)),
     inputSchema: inputSchema,
-    paymentId: purchaseResponse.data.id,
+    paymentId: purchaseResponse.id,
     creditsPrice,
     identifierFromPurchaser,
     externalDisputeUnlockTime: new Date(
@@ -178,6 +178,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
     sellerVkey: startJobResponse.sellerVKey,
     name: generatedName,
   });
+
   return job;
 }
 
