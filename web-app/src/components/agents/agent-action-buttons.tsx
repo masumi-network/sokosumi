@@ -18,6 +18,7 @@ interface AgentActionButtonsProps {
   showCloseButton?: boolean | undefined;
   onClose?: (() => void) | undefined;
   className?: string | undefined;
+  isAgentAvailable?: boolean;
 }
 
 function AgentActionButtons({
@@ -27,6 +28,7 @@ function AgentActionButtons({
   showCloseButton = false,
   onClose,
   className,
+  isAgentAvailable,
 }: AgentActionButtonsProps) {
   const router = useRouter();
   const [url, setUrl] = useState<URL | undefined>(undefined);
@@ -55,9 +57,13 @@ function AgentActionButtons({
       </div>
       <div className="flex items-center gap-2">
         {agentList && (
-          <AgentBookmarkButton agentId={agent.id} agentList={agentList} />
+          <AgentBookmarkButton
+            agentId={agent.id}
+            agentList={agentList}
+            disabled={!isAgentAvailable}
+          />
         )}
-        {url && <ShareButton url={url} />}
+        {url && <ShareButton url={url} disabled={!isAgentAvailable} />}
       </div>
     </div>
   );

@@ -266,6 +266,7 @@ interface AgentCardProps {
   agentList?: AgentListWithAgent | undefined;
   agentCreditsPrice: CreditsPrice;
   className?: string | undefined;
+  isAgentAvailable?: boolean;
 }
 
 function AgentCard({
@@ -274,6 +275,7 @@ function AgentCard({
   agentCreditsPrice,
   className,
   size,
+  isAgentAvailable = true,
 }: AgentCardProps & VariantProps<typeof agentCardVariants>) {
   const t = useTranslations("Components.Agents.AgentCard");
 
@@ -361,6 +363,7 @@ function AgentCard({
                 <AgentHireButton
                   agentId={agent.id}
                   className="w-full md:w-auto"
+                  disabled={!isAgentAvailable}
                 />
               </ClickBlocker>
             </div>

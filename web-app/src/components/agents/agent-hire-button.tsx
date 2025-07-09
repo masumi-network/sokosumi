@@ -13,12 +13,14 @@ interface AgentHireButtonProps {
   agentId: string;
   size?: ComponentProps<typeof Button>["size"] | undefined;
   className?: string | undefined;
+  disabled?: boolean;
 }
 
 function AgentHireButton({
   agentId,
   size = "lg",
   className,
+  disabled,
 }: AgentHireButtonProps) {
   const t = useTranslations("Components.Agents");
   const { isPending, withAuthentication } = useWithAuthentication();
@@ -34,7 +36,7 @@ function AgentHireButton({
       size={size}
       variant="primary"
       onClick={withAuthentication(handleHire)}
-      disabled={isPending}
+      disabled={isPending || disabled}
       className={cn("cursor-pointer", className)}
     >
       {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

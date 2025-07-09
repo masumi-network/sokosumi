@@ -11,9 +11,10 @@ import { cn } from "@/lib/utils";
 interface ShareButtonProps {
   url: URL;
   className?: string;
+  disabled?: boolean;
 }
 
-export function ShareButton({ url, className }: ShareButtonProps) {
+export function ShareButton({ url, className, disabled }: ShareButtonProps) {
   const t = useTranslations("Components.ShareButton");
 
   const handleShare = async () => {
@@ -31,6 +32,7 @@ export function ShareButton({ url, className }: ShareButtonProps) {
       size="icon"
       onClick={handleShare}
       className={cn(className)}
+      disabled={disabled}
     >
       <Share />
     </Button>

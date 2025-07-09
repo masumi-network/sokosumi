@@ -88,7 +88,7 @@ export default function Header({
         <AgentBookmarkButton
           agentId={agent.id}
           agentList={favoriteAgentList}
-          isAgentAvailable={isAgentAvailable}
+          disabled={!isAgentAvailable}
         />
       </div>
       <div className="flex flex-1 flex-row items-center justify-end gap-4">
@@ -106,6 +106,7 @@ export default function Header({
       <AgentModal open={detailOpen}>
         <AgentDetail
           agent={agent}
+          isAgentAvailable={isAgentAvailable}
           agentCreditsPrice={agentCreditsPrice}
           agentList={favoriteAgentList}
           jobs={jobs}

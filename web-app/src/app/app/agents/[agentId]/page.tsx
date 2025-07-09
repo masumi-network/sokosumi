@@ -12,6 +12,7 @@ import {
 import {
   getAgentCreditsPrice,
   getOrCreateFavoriteAgentList,
+  isAgentAvailable,
 } from "@/lib/services";
 
 export default async function AgentDetailPage({
@@ -25,6 +26,7 @@ export default async function AgentDetailPage({
   if (!agent) {
     return notFound();
   }
+  const isAvailable = await isAgentAvailable(agentId);
 
   const agentCreditsPrice = await getAgentCreditsPrice(agent);
   if (!agentCreditsPrice) {
@@ -41,6 +43,7 @@ export default async function AgentDetailPage({
       <div className="mx-auto flex justify-center px-4 py-8">
         <AgentDetail
           agent={agent}
+          isAgentAvailable={isAvailable}
           agentCreditsPrice={agentCreditsPrice}
           agentList={agentList}
           jobs={jobs}

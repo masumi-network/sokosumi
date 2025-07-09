@@ -9,7 +9,7 @@ import {
   retrieveAgentWithRelationsById,
   retrieveJobsWithLimitedInformationByAgentId,
 } from "@/lib/db/repositories";
-import { getAgentCreditsPrice } from "@/lib/services";
+import { getAgentCreditsPrice, isAgentAvailable } from "@/lib/services";
 
 export default async function AgentDetailPage({
   params,
@@ -22,6 +22,7 @@ export default async function AgentDetailPage({
   if (!agent) {
     return notFound();
   }
+  const isAvailable = await isAgentAvailable(agentId);
 
   const agentCreditsPrice = await getAgentCreditsPrice(agent);
   if (!agentCreditsPrice) {
@@ -36,6 +37,7 @@ export default async function AgentDetailPage({
     >
       <AgentDetail
         agent={agent}
+        isAgentAvailable={isAvailable}
         agentCreditsPrice={agentCreditsPrice}
         jobs={jobs}
       />
