@@ -422,7 +422,7 @@ model Job {
   agentJobId     String
   agentJobStatus AgentJobStatus?
 
-  paymentId         String
+  paymentId         String?
   inputSchema       Json
   input             String
   inputHash         String? // On-Chain hash of the input data
