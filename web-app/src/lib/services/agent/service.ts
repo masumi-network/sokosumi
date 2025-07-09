@@ -292,3 +292,47 @@ export async function getOnlineAgentsWithCreditsPrice(
     )
     .map((result) => result.value);
 }
+
+/**
+ * Get public online agents with valid pricing
+ *
+ * This function retrieves all online agents that are publicly accessible
+ * and have valid pricing. It combines the functionality of getting online
+ * agents with valid pricing and filtering out agents that are not publicly
+ * accessible.
+ *
+ * @param tx - (Optional) Prisma transaction client for DB operations. Defaults to the main Prisma client.
+ * @returns A Promise that resolves to an array of agents with their calculated credit prices
+ *
+ * @example
+ * ```typescript
+ * const publicOnlineAgents = await getPublicOnlineAgentsWithValidPricing();
+ * publicOnlineAgents.forEach((agent) => {
+ *   console.log(`${agent.name}`);
+ * });
+ * ```
+ */
+export async function getPublicOnlineAgentsWithValidPricing(
+  tx: Prisma.TransactionClient = prisma,
+): Promise<AgentWithRelations[]> {
+  const creditCosts = await retrieveAllCreditCosts(tx);
+  const validCreditCostUnits = creditCosts.map(({ unit }) => unit);
+
+  const onlineAgents = await retrieveShownAgentsWithRelationsByStatus(
+    AgentStatus.ONLINE,
+    tx,
+  );
+
+  return onlineAgents
+    .filter((agent) => canUserAccessAgent(agent, [])) // any user can access agent
+    .filter((agent) => {
+      const amounts = agent.pricing.fixedPricing?.amounts?.map((amount) => ({
+        unit: amount.unit,
+        amount: Number(amount.amount),
+      }));
+      if (!amounts) {
+        return true;
+      }
+      return amounts.every(({ unit }) => validCreditCostUnits.includes(unit));
+    });
+}
