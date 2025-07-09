@@ -195,14 +195,14 @@ export async function signUpEmail(
       const role = members.length === 0 ? MemberRole.ADMIN : MemberRole.MEMBER;
       const member = await createMember(user.id, organization.id, role, tx);
 
-      // create utm attribution
-      const utmData = await getUTMDataFromCookie();
-      if (utmData) {
-        await createUTMAttribution(user.id, utmData, new Date(), tx);
-      }
-
       return { organization, user, member };
     });
+
+    // create utm attribution (after main db transaction is committed)
+    const utmData = await getUTMDataFromCookie();
+    if (utmData) {
+      await createUTMAttribution(result.user.id, utmData, new Date());
+    }
 
     // remove utm cookie (whether it is set or not)
     await removeUTMCookie();
