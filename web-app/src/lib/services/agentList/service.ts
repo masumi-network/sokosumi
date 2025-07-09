@@ -6,7 +6,9 @@ import {
   createAgentListByUserIdAndType,
   prisma,
   retrieveAgentListByUserIdAndType,
+  retrieveMembersOrganizationIdsByUserId,
 } from "@/lib/db/repositories";
+import { canUserAccessAgent } from "@/lib/services";
 import { Agent, AgentListType, Prisma } from "@/prisma/generated/client";
 
 export async function getFavoriteAgents(
@@ -34,6 +36,14 @@ export async function getOrCreateAgentListByType(
   );
 
   if (existingList) {
+    const userOrganizationIds = await retrieveMembersOrganizationIdsByUserId(
+      session.user.id,
+      tx,
+    );
+
+    existingList.agents = existingList.agents.filter((agent) =>
+      canUserAccessAgent(agent, userOrganizationIds),
+    );
     return existingList;
   }
 

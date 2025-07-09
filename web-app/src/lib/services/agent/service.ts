@@ -47,7 +47,7 @@ import {
  * }
  * ```
  */
-function canUserAccessAgent(
+export function canUserAccessAgent(
   agent: AgentWithOrganizations,
   userOrganizationIds: string[],
 ): boolean {
@@ -75,7 +75,7 @@ function canUserAccessAgent(
  * @param creditCosts - Array of credit cost objects containing valid units
  * @returns True if all units are valid or if there are no amounts, false otherwise
  */
-export function hasValidPricing(
+function hasValidPricing(
   agent: AgentWithFixedPricing,
   creditCosts: CreditCost[],
 ): boolean {
