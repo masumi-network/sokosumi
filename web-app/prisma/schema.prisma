@@ -41,6 +41,9 @@ model User {
   // terms
   termsAccepted Boolean @default(false)
 
+  // UTM Attribution
+  utmAttribution UTMAttribution?
+
   @@unique([email])
   @@map("user")
 }
@@ -138,6 +141,36 @@ model Invitation {
   inviter        User         @relation(fields: [inviterId], references: [id], onDelete: Cascade)
 
   @@map("invitation")
+}
+
+model UTMAttribution {
+  id String @id @default(cuid())
+
+  // User
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // UTM parameters
+  utmSource   String
+  utmMedium   String?
+  utmCampaign String?
+  utmTerm     String?
+  utmContent  String?
+
+  // Referral
+  referrer    String?
+  landingPage String?
+
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  capturedAt  DateTime // when the UTM attribution was captured
+  convertedAt DateTime // when the User actually signed up
+
+  @@index([utmSource, utmMedium, utmCampaign])
+  @@index([capturedAt])
+  @@index([convertedAt])
+  @@map("utmAttribution")
 }
 
 model RateLimit {

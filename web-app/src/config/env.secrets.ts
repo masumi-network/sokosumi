@@ -9,6 +9,11 @@ import z from "zod";
  * This way you can ensure the app isn't built with invalid env vars.
  */
 const envSecretsSchema = z.object({
+  // Environment
+  NODE_ENV: z
+    .enum(["development", "staging", "production"])
+    .default("development"),
+
   // Database
   DATABASE_URL: z.string().url(),
   MIN_FEE_CREDITS: z.number({ coerce: true }).min(0).default(1),
