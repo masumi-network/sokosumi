@@ -230,7 +230,10 @@ async function requestRefundIfNeeded(job: Job) {
 
 export async function syncJob(job: Job) {
   if (!job.purchaseId) {
-    await refundJob(job.id);
+    if (job.createdAt < new Date(Date.now() - 1000 * 60 * 1)) {
+      // 1min grace period for jobs that don't have a purchase id
+      await refundJob(job.id);
+    }
     return;
   }
 
