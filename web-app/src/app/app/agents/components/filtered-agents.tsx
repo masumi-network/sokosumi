@@ -8,12 +8,7 @@ import {
   AgentsNotAvailable,
   AgentsNotFound,
 } from "@/components/agents";
-import {
-  AgentListWithAgent,
-  AgentWithRelations,
-  CreditsPrice,
-  getAgentTags,
-} from "@/lib/db";
+import { AgentWithRelations, CreditsPrice, getAgentTags } from "@/lib/db";
 
 import { GalleryFilterState } from "./use-gallery-filter";
 
@@ -46,7 +41,7 @@ const filterAgents = (
 
 interface FilteredAgentsProps {
   agents: AgentWithRelations[];
-  agentList?: AgentListWithAgent | undefined;
+  favoriteAgents?: AgentWithRelations[] | undefined;
   agentCreditsPriceList: CreditsPrice[];
 }
 
@@ -60,7 +55,7 @@ export default function FilteredAgents(props: FilteredAgentsProps) {
 
 function FilteredAgentsInner({
   agents,
-  agentList,
+  favoriteAgents,
   agentCreditsPriceList,
 }: FilteredAgentsProps) {
   const searchParams = useSearchParams();
@@ -85,7 +80,7 @@ function FilteredAgentsInner({
   return (
     <Agents
       agents={filteredAgents}
-      agentList={agentList}
+      favoriteAgents={favoriteAgents}
       agentCreditsPriceList={agentCreditsPriceList}
     />
   );

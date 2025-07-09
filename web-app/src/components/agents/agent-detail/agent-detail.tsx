@@ -1,5 +1,4 @@
 import {
-  AgentListWithAgent,
   AgentWithRelations,
   CreditsPrice,
   getAgentExampleOutput,
@@ -21,7 +20,7 @@ interface AgentDetailProps {
   isAgentAvailable: boolean;
   agentCreditsPrice: CreditsPrice;
   jobs: JobWithLimitedInformation[];
-  agentList?: AgentListWithAgent | undefined;
+  favoriteAgents?: AgentWithRelations[] | undefined;
   showBackButton?: boolean | undefined;
   showCloseButton?: boolean | undefined;
   onClose?: (() => void) | undefined;
@@ -34,7 +33,7 @@ export function AgentDetail({
   isAgentAvailable,
   agentCreditsPrice,
   jobs,
-  agentList,
+  favoriteAgents,
   showBackButton,
   showCloseButton,
   onClose,
@@ -50,7 +49,7 @@ export function AgentDetail({
         <AgentDetailSection1
           agent={agent}
           isAgentAvailable={isAgentAvailable}
-          agentList={agentList}
+          favoriteAgents={favoriteAgents}
           agentCreditsPrice={agentCreditsPrice}
           showBackButton={showBackButton}
           showCloseButton={showCloseButton}

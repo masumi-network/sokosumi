@@ -11,7 +11,7 @@ import {
 } from "@/lib/db/repositories";
 import {
   getAgentCreditsPrice,
-  getOrCreateFavoriteAgentList,
+  getFavoriteAgents,
   isAgentAvailable,
 } from "@/lib/services";
 
@@ -33,7 +33,7 @@ export default async function AgentDetailPage({
     return notFound();
   }
 
-  const agentList = await getOrCreateFavoriteAgentList();
+  const favoriteAgents = await getFavoriteAgents();
   const jobs = await retrieveJobsWithLimitedInformationByAgentId(agentId);
 
   return (
@@ -45,7 +45,7 @@ export default async function AgentDetailPage({
           agent={agent}
           isAgentAvailable={isAvailable}
           agentCreditsPrice={agentCreditsPrice}
-          agentList={agentList}
+          favoriteAgents={favoriteAgents}
           jobs={jobs}
         />
       </div>

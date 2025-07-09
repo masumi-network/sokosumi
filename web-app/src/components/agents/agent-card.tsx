@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  AgentListWithAgent,
   AgentWithRelations,
   convertCentsToCredits,
   CreditsPrice,
@@ -263,7 +262,7 @@ function AgentCardSkeleton({
 
 interface AgentCardProps {
   agent: AgentWithRelations;
-  agentList?: AgentListWithAgent | undefined;
+  favoriteAgents?: AgentWithRelations[] | undefined;
   agentCreditsPrice: CreditsPrice;
   className?: string | undefined;
   isAgentAvailable?: boolean;
@@ -271,7 +270,7 @@ interface AgentCardProps {
 
 function AgentCard({
   agent,
-  agentList,
+  favoriteAgents,
   agentCreditsPrice,
   className,
   size,
@@ -300,11 +299,11 @@ function AgentCard({
           {/* Bookmark Button (hover only) */}
           <div className={cn(agentCardImageHoverVariants({ size }))}>
             <div className="relative flex h-full w-full items-center justify-center">
-              {agentList && (
+              {favoriteAgents && (
                 <ClickBlocker className="absolute top-3 right-3">
                   <AgentBookmarkButton
                     agentId={agent.id}
-                    agentList={agentList}
+                    favoriteAgents={favoriteAgents}
                   />
                 </ClickBlocker>
               )}

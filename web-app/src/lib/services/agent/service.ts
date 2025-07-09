@@ -2,7 +2,6 @@ import "server-only";
 
 import { getSession, getSessionOrThrow } from "@/lib/auth/utils";
 import {
-  AgentListWithAgent,
   AgentWithFixedPricing,
   AgentWithJobs,
   AgentWithOrganizations,
@@ -22,7 +21,6 @@ import {
 import { JobInputsDataSchemaType } from "@/lib/job-input";
 import { getAgentCreditsPrice } from "@/lib/services";
 import {
-  Agent,
   AgentListType,
   AgentStatus,
   CreditCost,
@@ -371,12 +369,12 @@ export async function getAgentPricing(
  * // Returns array of agents the user has marked as favorites
  * ```
  */
-export async function getFavoriteAgents(
-  tx: Prisma.TransactionClient = prisma,
-): Promise<Agent[]> {
-  const list = await getOrCreateFavoriteAgentList(tx);
-  return list.agents;
-}
+// export async function getFavoriteAgents(
+//   tx: Prisma.TransactionClient = prisma,
+// ): Promise<Agent[]> {
+//   const list = await getOrCreateFavoriteAgentList(tx);
+//   return list.agents;
+// }
 
 /**
  * Get or create the user's favorite agents list
@@ -395,10 +393,10 @@ export async function getFavoriteAgents(
  * // Returns the user's favorite agents list with filtered agents
  * ```
  */
-export async function getOrCreateFavoriteAgentList(
+export async function getFavoriteAgents(
   tx: Prisma.TransactionClient = prisma,
-): Promise<AgentListWithAgent> {
-  return await getOrCreateAgentListByType(AgentListType.FAVORITE, tx);
+): Promise<AgentWithRelations[]> {
+  return await getAgentsByListType(AgentListType.FAVORITE, tx);
 }
 
 /**
@@ -419,10 +417,10 @@ export async function getOrCreateFavoriteAgentList(
  * // Returns the user's favorite agents list, creating it if it doesn't exist
  * ```
  */
-async function getOrCreateAgentListByType(
+async function getAgentsByListType(
   type: AgentListType,
   tx: Prisma.TransactionClient = prisma,
-): Promise<AgentListWithAgent> {
+): Promise<AgentWithRelations[]> {
   const session = await getSessionOrThrow();
   const existingList = await retrieveAgentListByUserIdAndType(
     session.user.id,
@@ -436,11 +434,11 @@ async function getOrCreateAgentListByType(
       tx,
     );
 
-    existingList.agents = existingList.agents.filter((agent) =>
+    return existingList.agents.filter((agent) =>
       canUserAccessAgent(agent, userOrganizationIds),
     );
-    return existingList;
   }
 
-  return await createAgentListByUserIdAndType(session.user.id, type, tx);
+  const list = await createAgentListByUserIdAndType(session.user.id, type, tx);
+  return list.agents;
 }

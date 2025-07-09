@@ -1,13 +1,10 @@
 import { Prisma } from "@/prisma/generated/client";
 
-import { agentOrganizationsInclude, agentPricingInclude } from "./agent";
+import { agentInclude } from "./agent";
 
 export const agentListInclude = {
   agents: {
-    include: {
-      ...agentOrganizationsInclude,
-      ...agentPricingInclude,
-    },
+    include: agentInclude,
   },
 } as const;
 

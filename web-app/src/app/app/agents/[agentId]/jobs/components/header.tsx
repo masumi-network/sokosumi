@@ -13,7 +13,6 @@ import { CreateJobModalTrigger } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  AgentListWithAgent,
   AgentWithRelations,
   convertCentsToCredits,
   CreditsPrice,
@@ -49,7 +48,7 @@ export function HeaderSkeleton() {
 interface HeaderProps {
   agent: AgentWithRelations;
   agentCreditsPrice: CreditsPrice;
-  favoriteAgentList: AgentListWithAgent;
+  favoriteAgents: AgentWithRelations[];
   jobs: JobWithLimitedInformation[];
   isAgentAvailable: boolean;
 }
@@ -57,7 +56,7 @@ interface HeaderProps {
 export default function Header({
   agent,
   agentCreditsPrice,
-  favoriteAgentList,
+  favoriteAgents,
   jobs,
   isAgentAvailable,
 }: HeaderProps) {
@@ -87,7 +86,7 @@ export default function Header({
         </Button>
         <AgentBookmarkButton
           agentId={agent.id}
-          agentList={favoriteAgentList}
+          favoriteAgents={favoriteAgents}
           disabled={!isAgentAvailable}
         />
       </div>
@@ -108,7 +107,7 @@ export default function Header({
           agent={agent}
           isAgentAvailable={isAgentAvailable}
           agentCreditsPrice={agentCreditsPrice}
-          agentList={favoriteAgentList}
+          favoriteAgents={favoriteAgents}
           jobs={jobs}
           showBackButton={false}
           showCloseButton

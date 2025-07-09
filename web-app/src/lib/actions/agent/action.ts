@@ -9,10 +9,11 @@ import {
   removeAgentFromAgentListByIdAndUserId,
 } from "@/lib/db/repositories";
 import { Err, Ok, Result } from "@/lib/ts-res";
+import { AgentListType } from "@/prisma/generated/client";
 
 export async function toggleAgentInAgentList(
   agentId: string,
-  agentListId: string,
+  listType: AgentListType,
   isBookmarked: boolean,
 ): Promise<Result<void, ActionError>> {
   try {
@@ -26,9 +27,9 @@ export async function toggleAgentInAgentList(
     const userId = session.user.id;
 
     if (isBookmarked) {
-      await removeAgentFromAgentListByIdAndUserId(agentId, agentListId, userId);
+      await removeAgentFromAgentListByIdAndUserId(agentId, listType, userId);
     } else {
-      await addAgentToAgentListByIdAndUserId(agentId, agentListId, userId);
+      await addAgentToAgentListByIdAndUserId(agentId, listType, userId);
     }
 
     // Revalidate the app to update the UI

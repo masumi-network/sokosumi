@@ -5,7 +5,7 @@ import { AgentsNotAvailable } from "@/components/agents";
 import { retrieveTags } from "@/lib/db/repositories";
 import {
   getAvailableAgentsWithCreditsPrice,
-  getOrCreateFavoriteAgentList,
+  getFavoriteAgents,
 } from "@/lib/services";
 import { Tag } from "@/prisma/generated/client";
 
@@ -31,7 +31,7 @@ export default async function GalleryPage() {
   const tags: Tag[] = await retrieveTags();
   const tagNames = tags.map((tag) => tag.name);
 
-  const favoriteAgentList = await getOrCreateFavoriteAgentList();
+  const favoriteAgents = await getFavoriteAgents();
 
   return (
     <div className="w-full px-4 py-4 sm:px-8 xl:px-16">
@@ -40,7 +40,7 @@ export default async function GalleryPage() {
         {/* Agent Cards Grid */}
         <FilteredAgents
           agents={agentsWithPrice.map((item) => item.agent)}
-          agentList={favoriteAgentList}
+          favoriteAgents={favoriteAgents}
           agentCreditsPriceList={agentsWithPrice.map(
             (item) => item.creditsPrice,
           )}

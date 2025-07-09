@@ -7,31 +7,32 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { toggleAgentInAgentList } from "@/lib/actions";
-import { AgentListWithAgent } from "@/lib/db";
+import { AgentWithRelations } from "@/lib/db";
 import { cn } from "@/lib/utils";
+import { AgentListType } from "@/prisma/generated/client";
 
 interface AgentBookmarkButtonProps {
   agentId: string;
-  agentList: AgentListWithAgent;
+  favoriteAgents: AgentWithRelations[];
   className?: string;
   disabled?: boolean;
 }
 
 export function AgentBookmarkButton({
   agentId,
-  agentList,
+  favoriteAgents,
   className,
   disabled = false,
 }: AgentBookmarkButtonProps) {
   const t = useTranslations("Components.Agents.AgentCard");
   const [isBookmarked, setIsBookmarked] = useState<boolean>(
-    agentList.agents.some((agent) => agent.id === agentId),
+    favoriteAgents.some((agent) => agent.id === agentId),
   );
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    setIsBookmarked(agentList.agents.some((agent) => agent.id === agentId));
-  }, [agentList, agentId]);
+    setIsBookmarked(favoriteAgents.some((agent) => agent.id === agentId));
+  }, [favoriteAgents, agentId]);
 
   const handleBookmarkToggle = async () => {
     if (disabled) return;
@@ -39,7 +40,7 @@ export function AgentBookmarkButton({
     setIsLoading(true);
     const result = await toggleAgentInAgentList(
       agentId,
-      agentList.id,
+      AgentListType.FAVORITE,
       isBookmarked,
     );
 

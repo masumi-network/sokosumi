@@ -8,12 +8,12 @@ import { AgentBookmarkButton } from "@/components/agents/agent-bookmark-button";
 import { ShareButton } from "@/components/share-button";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AgentListWithAgent, AgentWithRelations } from "@/lib/db";
+import { AgentWithRelations } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 interface AgentActionButtonsProps {
   agent: AgentWithRelations;
-  agentList?: AgentListWithAgent | undefined;
+  favoriteAgents?: AgentWithRelations[] | undefined;
   showBackButton?: boolean | undefined;
   showCloseButton?: boolean | undefined;
   onClose?: (() => void) | undefined;
@@ -23,7 +23,7 @@ interface AgentActionButtonsProps {
 
 function AgentActionButtons({
   agent,
-  agentList,
+  favoriteAgents,
   showBackButton = true,
   showCloseButton = false,
   onClose,
@@ -56,10 +56,10 @@ function AgentActionButtons({
         )}
       </div>
       <div className="flex items-center gap-2">
-        {agentList && (
+        {favoriteAgents && (
           <AgentBookmarkButton
             agentId={agent.id}
-            agentList={agentList}
+            favoriteAgents={favoriteAgents}
             disabled={!isAgentAvailable}
           />
         )}

@@ -50,12 +50,12 @@ export async function retrieveAgentListsByUserIdAndTypes(
 
 export async function addAgentToAgentListByIdAndUserId(
   agentId: string,
-  id: string,
+  listType: AgentListType,
   userId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentList> {
   return await tx.agentList.update({
-    where: { id, userId },
+    where: { userId_type: { userId, type: listType } },
     data: {
       agents: { connect: { id: agentId } },
     },
@@ -64,12 +64,12 @@ export async function addAgentToAgentListByIdAndUserId(
 
 export async function removeAgentFromAgentListByIdAndUserId(
   agentId: string,
-  id: string,
+  listType: AgentListType,
   userId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentList> {
   return await tx.agentList.update({
-    where: { id, userId },
+    where: { userId_type: { userId, type: listType } },
     data: {
       agents: { disconnect: { id: agentId } },
     },

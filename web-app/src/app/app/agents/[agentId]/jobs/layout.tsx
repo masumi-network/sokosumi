@@ -14,7 +14,7 @@ import {
 } from "@/lib/db/repositories";
 import {
   getAgentCreditsPrice,
-  getOrCreateFavoriteAgentList,
+  getFavoriteAgents,
   isAgentAvailable,
 } from "@/lib/services";
 
@@ -67,7 +67,7 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
   }
 
   const agentCreditsPrice = await getAgentCreditsPrice(agent);
-  const favoriteAgentList = await getOrCreateFavoriteAgentList();
+  const favoriteAgents = await getFavoriteAgents();
   const jobs = await retrieveJobsWithLimitedInformationByAgentId(agentId);
   const isAvailable = await isAgentAvailable(agentId);
 
@@ -79,7 +79,7 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
         <Header
           agent={agent}
           agentCreditsPrice={agentCreditsPrice}
-          favoriteAgentList={favoriteAgentList}
+          favoriteAgents={favoriteAgents}
           jobs={jobs}
           isAgentAvailable={isAvailable}
         />
