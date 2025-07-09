@@ -33,24 +33,20 @@ import {
 } from "./third-party";
 
 /**
- * Check if an agent is available to the current user
+ * Determines if an agent is available to the current user based on organization membership and agent visibility.
  *
- * This function determines whether a specific agent is available to the current user
- * by checking if the agent exists and if the user has access to it based on their
- * organization membership. The function handles both authenticated and unauthenticated users.
+ * - Checks if the agent exists and is visible (`isShown`).
+ * - For authenticated users, verifies if the user belongs to any organization allowed to access the agent.
+ * - For unauthenticated users, only public agents (no organization restrictions) are available.
  *
- * @param agentId - The unique identifier of the agent to check availability for
- * @returns A Promise that resolves to true if the agent is available to the user, false otherwise
+ * @param agentId - The unique identifier of the agent to check.
+ * @returns Promise<boolean> - Resolves to true if the agent is available to the user, false otherwise.
  *
  * @example
- * ```typescript
  * const isAvailable = await isAgentAvailable("agent123");
  * if (isAvailable) {
  *   // User can access this agent
- * } else {
- *   // Agent is not available to this user
  * }
- * ```
  */
 export async function isAgentAvailable(agentId: string): Promise<boolean> {
   return await prisma.$transaction(async (tx) => {
@@ -67,26 +63,22 @@ export async function isAgentAvailable(agentId: string): Promise<boolean> {
 }
 
 /**
- * Check if a user has access to a specific agent based on organization membership
+ * Checks if a user has access to a specific agent based on organization membership and agent visibility.
  *
- * This function determines whether a user can access an agent based on
- * organization membership. Agents can be either:
- * - Public: No organization restrictions (accessible to all users)
- * - Private: Restricted to specific organizations (only accessible to members)
+ * - Returns false if the agent is not shown (`isShown`).
+ * - Returns true if the agent is public (no organization restrictions).
+ * - Returns false if the user is not a member of any organization and the agent is restricted.
+ * - Returns true if the user is a member of at least one allowed organization.
  *
- * @param agent - The agent with organization data to check access for
- * @param userOrganizationIds - Array of organization IDs that the user is a member of
- * @returns A Promise that resolves to true if the user has access, false otherwise
+ * @param agent - The agent object with organization data.
+ * @param userOrganizationIds - Array of organization IDs the user is a member of.
+ * @returns boolean - True if the user can access the agent, false otherwise.
  *
  * @example
- * ```typescript
- * const agent = await retrieveAgentWithOrganizationsById("agent456");
- * const userOrganizationIds = await retrieveMembersOrganizationIdsByUserId("user123");
- * const hasAccess = await canUserAccessAgent(agent, userOrganizationIds);
+ * const hasAccess = canUserAccessAgent(agent, userOrganizationIds);
  * if (hasAccess) {
  *   // User can access the agent
  * }
- * ```
  */
 function canUserAccessAgent(
   agent: AgentWithOrganizations,
@@ -106,15 +98,14 @@ function canUserAccessAgent(
 }
 
 /**
- * Check if an agent has only valid pricing units
+ * Checks if an agent's fixed pricing units are all valid according to the provided credit costs.
  *
- * This function determines whether all units in the agent's fixed pricing amounts
- * are included in the provided credit costs. If the agent has no amounts,
- * it is considered valid (returns true).
+ * - If the agent has no fixed pricing amounts, returns true.
+ * - Otherwise, ensures every pricing unit is present in the list of valid credit cost units.
  *
- * @param agent - The agent with relations to check pricing for
- * @param creditCosts - Array of credit cost objects containing valid units
- * @returns True if all units are valid or if there are no amounts, false otherwise
+ * @param agent - The agent with fixed pricing information.
+ * @param creditCosts - Array of valid credit cost objects.
+ * @returns boolean - True if all pricing units are valid or if there are no amounts, false otherwise.
  */
 function hasValidPricing(
   agent: AgentWithFixedPricing,
@@ -132,15 +123,13 @@ function hasValidPricing(
 }
 
 /**
- * Get online agents with valid fixed pricing
- * (valid amount unit)
+ * Retrieves all online agents that are available to the current user and have valid fixed pricing units.
  *
- * This function:
- * - Finds all valid unit from creditCost model
- * - Filter online agents using these valid units
+ * - Filters agents by online status and user access (organization membership and visibility).
+ * - Ensures each agent's pricing units are valid.
  *
  * @param tx - (Optional) Prisma transaction client for DB operations. Defaults to the main Prisma client.
- * @returns An array of `AgentWithRelations`
+ * @returns Promise<AgentWithRelations[]> - Array of available agents with valid pricing.
  */
 export async function getAvailableAgents(
   tx: Prisma.TransactionClient = prisma,
@@ -165,28 +154,10 @@ export async function getAvailableAgents(
 }
 
 /**
- * Interface representing an agent with its calculated credit pricing information
+ * Represents an agent with its calculated credit pricing information.
  *
- * This interface combines an agent's complete data (including all relations like
- * pricing, tags, ratings, etc.) with its calculated credit price. The credit price
- * is computed based on the agent's fixed pricing structure and represents the cost
- * in credits required to use the agent for a job.
- *
- * @interface AgentWithCreditPrice
- * @property agent - The complete agent data including all related entities
- * @property creditsPrice - The calculated credit price for using this agent, derived from the agent's pricing configuration
- *
- * @example
- * ```typescript
- * const agentWithPrice: AgentWithCreditPrice = {
- *   agent: {
- *     id: "agent123",
- *     name: "My Agent",
- *     // ... other agent properties and relations
- *   },
- *   creditsPrice: 100 // Cost in credits to use this agent
- * };
- * ```
+ * @property agent - The complete agent data including all related entities.
+ * @property creditsPrice - The calculated credit price for using this agent, derived from the agent's pricing configuration.
  */
 export interface AgentWithCreditPrice {
   agent: AgentWithRelations;
@@ -194,27 +165,20 @@ export interface AgentWithCreditPrice {
 }
 
 /**
- * Get online agents with their calculated credit pricing
+ * Retrieves all online agents available to the user, each with its calculated credit price.
  *
- * This function retrieves all online agents with valid pricing and calculates
- * their credit costs. It combines the functionality of getting online agents
- * with valid pricing and computing their credit prices in a single operation.
- *
- * The function uses Promise.allSettled to handle potential failures gracefully
- * when calculating credit prices for individual agents. If credit price calculation
- * fails for any agent, that agent is excluded from the results rather than
- * causing the entire operation to fail.
+ * - Filters agents by availability and valid pricing.
+ * - Calculates the credit price for each agent.
+ * - Excludes agents for which credit price calculation fails.
  *
  * @param tx - (Optional) Prisma transaction client for DB operations. Defaults to the main Prisma client.
- * @returns A Promise that resolves to an array of agents with their calculated credit prices
+ * @returns Promise<AgentWithCreditPrice[]> - Array of agents with their calculated credit prices.
  *
  * @example
- * ```typescript
- * const agentsWithPricing = await getOnlineAgentsWithCreditsPrice();
+ * const agentsWithPricing = await getAvailableAgentsWithCreditsPrice();
  * agentsWithPricing.forEach(({ agent, creditsPrice }) => {
  *   console.log(`${agent.name}: ${creditsPrice} credits`);
  * });
- * ```
  */
 export async function getAvailableAgentsWithCreditsPrice(
   tx: Prisma.TransactionClient = prisma,
@@ -235,25 +199,19 @@ export async function getAvailableAgentsWithCreditsPrice(
 }
 
 /**
- * Retrieve hired agents ordered by their most recent job
+ * Retrieves all agents hired by the current user, ordered by the most recent job activity (newest first).
  *
- * This function fetches all agents that have been hired by the current user
- * and sorts them by the start date of their most recent job in descending order
- * (newest jobs first). Agents without any jobs are placed at the end of the list.
- *
- * The function requires an active user session and will throw an error if no
- * session is found. It's useful for displaying a user's hired agents in order
- * of recent activity.
+ * - Requires an active user session.
+ * - Fetches agents hired by the user in the active organization.
+ * - Sorts agents by the start date of their most recent job (descending).
+ * - Agents without jobs are placed at the end of the list.
  *
  * @param tx - (Optional) Prisma transaction client for DB operations. Defaults to the main Prisma client.
- * @returns A Promise that resolves to an array of agents with their jobs, sorted by most recent job activity
- * @throws Error if no active session is found
+ * @returns Promise<AgentWithJobs[]> - Array of hired agents with their jobs, sorted by recent activity.
+ * @throws Error if no active session is found.
  *
  * @example
- * ```typescript
  * const hiredAgents = await getHiredAgentsOrderedByLatestJob();
- * // Returns agents sorted by most recent job startedAt date
- * ```
  */
 export async function getHiredAgentsOrderedByLatestJob(
   tx: Prisma.TransactionClient = prisma,
@@ -284,23 +242,19 @@ export async function getHiredAgentsOrderedByLatestJob(
 }
 
 /**
- * Retrieve the input schema for a specific agent
+ * Retrieves the input schema definition for a specific agent, used to validate job inputs.
  *
- * This function fetches an agent by ID and retrieves its input schema definition,
- * which describes the structure and validation rules for data that can be submitted
- * to the agent for processing. The schema is used to validate job inputs before
- * they are sent to the agent.
+ * - Fetches the agent by ID.
+ * - Retrieves the input schema from the agent's configuration or third-party source.
+ * - Throws an error if the agent or schema cannot be found.
  *
- * @param agentId - The unique identifier of the agent whose input schema to retrieve
+ * @param agentId - The unique identifier of the agent.
  * @param tx - (Optional) Prisma transaction client for DB operations. Defaults to the main Prisma client.
- * @returns A Promise that resolves to the agent's input schema definition
- * @throws Error if the agent is not found or if the schema cannot be fetched
+ * @returns Promise<JobInputsDataSchemaType> - The agent's input schema definition.
+ * @throws Error if the agent is not found or if the schema cannot be fetched.
  *
  * @example
- * ```typescript
  * const schema = await getAgentInputSchema("agent123");
- * // Returns the input schema for validating job inputs
- * ```
  */
 export async function getAgentInputSchema(
   agentId: string,
@@ -320,22 +274,19 @@ export async function getAgentInputSchema(
 }
 
 /**
- * Retrieve pricing information for a specific agent
+ * Retrieves the pricing information for a specific agent, including fixed pricing and payment structure.
  *
- * This function fetches an agent by ID and retrieves its pricing information,
- * including fixed pricing details and payment structure. The pricing data is
- * used to calculate costs for jobs and display pricing information to users.
+ * - Fetches the agent by ID.
+ * - Retrieves the agent's payment information from a third-party source.
+ * - Throws an error if the agent or pricing cannot be found.
  *
- * @param id - The unique identifier of the agent whose pricing to retrieve
+ * @param id - The unique identifier of the agent.
  * @param tx - (Optional) Prisma transaction client for DB operations. Defaults to the main Prisma client.
- * @returns A Promise that resolves to the agent's pricing information
- * @throws Error if the agent is not found or if the pricing cannot be fetched
+ * @returns Promise<any> - The agent's pricing information.
+ * @throws Error if the agent is not found or if the pricing cannot be fetched.
  *
  * @example
- * ```typescript
  * const pricing = await getAgentPricing("agent123");
- * // Returns the pricing information for the agent
- * ```
  */
 export async function getAgentPricing(
   id: string,
@@ -354,21 +305,17 @@ export async function getAgentPricing(
 }
 
 /**
- * Get or create the user's favorite agents list
+ * Retrieves the current user's favorite agents list, filtered by access (organization membership and visibility).
  *
- * This function retrieves the current user's favorite agents list. If the list doesn't exist,
- * it creates a new one. The returned list contains agents that are filtered to ensure the user
- * has access to them based on organization membership.
+ * - Returns only agents the user can access.
+ * - Throws an error if the user session is not found.
  *
  * @param tx - (Optional) Prisma transaction client for DB operations. Defaults to the main Prisma client.
- * @returns A Promise that resolves to an AgentListWithAgent object containing the favorite list and its agents
- * @throws Error if the user session is not found
+ * @returns Promise<AgentWithRelations[]> - The user's favorite agents.
+ * @throws Error if the user session is not found.
  *
  * @example
- * ```typescript
- * const favoriteList = await getOrCreateFavoriteAgentList();
- * // Returns the user's favorite agents list with filtered agents
- * ```
+ * const favoriteList = await getFavoriteAgents();
  */
 export async function getFavoriteAgents(
   tx: Prisma.TransactionClient = prisma,
@@ -377,22 +324,19 @@ export async function getFavoriteAgents(
 }
 
 /**
- * Get or create an agent list by type for the current user
+ * Retrieves or creates an agent list of the specified type for the current user, filtered by access.
  *
- * This function retrieves an existing agent list of the specified type for the current user,
- * or creates a new one if it doesn't exist. When an existing list is found, it filters
- * the agents to ensure the user has access to them based on organization membership.
+ * - If the list exists, filters agents by user access (organization membership and visibility).
+ * - If the list does not exist, creates a new one.
+ * - Throws an error if the user session is not found.
  *
- * @param type - The type of agent list to retrieve or create (e.g., FAVORITE)
+ * @param type - The type of agent list to retrieve or create (e.g., FAVORITE).
  * @param tx - (Optional) Prisma transaction client for DB operations. Defaults to the main Prisma client.
- * @returns A Promise that resolves to an AgentListWithAgent object containing the list and its agents
- * @throws Error if the user session is not found
+ * @returns Promise<AgentWithRelations[]> - The agent list with accessible agents.
+ * @throws Error if the user session is not found.
  *
  * @example
- * ```typescript
- * const favoriteList = await getOrCreateAgentListByType(AgentListType.FAVORITE);
- * // Returns the user's favorite agents list, creating it if it doesn't exist
- * ```
+ * const favoriteList = await getAgentsByListType(AgentListType.FAVORITE);
  */
 async function getAgentsByListType(
   type: AgentListType,
