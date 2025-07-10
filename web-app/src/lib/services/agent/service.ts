@@ -8,7 +8,6 @@ import {
 } from "@/lib/db";
 import {
   prisma,
-  retrieveAgentWithFixedPricingById,
   retrieveAgentWithRelationsById,
   retrieveAllCreditCosts,
   retrieveHiredAgentsWithJobsByUserIdAndOrganization,
@@ -19,10 +18,7 @@ import { JobInputsDataSchemaType } from "@/lib/job-input";
 import { getAgentCreditsPrice } from "@/lib/services/";
 import { AgentStatus, Prisma } from "@/prisma/generated/client";
 
-import {
-  fetchAgentInputSchema,
-  getAgentPaymentInformation,
-} from "./third-party";
+import { fetchAgentInputSchema } from "./third-party";
 
 /**
  * Check if a user has access to a specific agent based on organization membership
@@ -187,40 +183,6 @@ export async function getAgentInputSchema(
     throw new Error(inputSchemaResult.error);
   }
   return inputSchemaResult.data;
-}
-
-/**
- * Retrieve pricing information for a specific agent
- *
- * This function fetches an agent by ID and retrieves its pricing information,
- * including fixed pricing details and payment structure. The pricing data is
- * used to calculate costs for jobs and display pricing information to users.
- *
- * @param id - The unique identifier of the agent whose pricing to retrieve
- * @param tx - (Optional) Prisma transaction client for DB operations. Defaults to the main Prisma client.
- * @returns A Promise that resolves to the agent's pricing information
- * @throws Error if the agent is not found or if the pricing cannot be fetched
- *
- * @example
- * ```typescript
- * const pricing = await getAgentPricing("agent123");
- * // Returns the pricing information for the agent
- * ```
- */
-export async function getAgentPricing(
-  id: string,
-  tx: Prisma.TransactionClient = prisma,
-) {
-  const agent = await retrieveAgentWithFixedPricingById(id, tx);
-
-  if (!agent) {
-    throw new Error("Agent not found");
-  }
-  const agentPricingResult = await getAgentPaymentInformation(agent);
-  if (!agentPricingResult.ok) {
-    throw new Error(agentPricingResult.error);
-  }
-  return agentPricingResult.data;
 }
 
 /**
