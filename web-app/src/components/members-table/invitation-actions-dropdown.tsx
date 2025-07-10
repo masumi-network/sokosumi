@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { authClient } from "@/lib/auth/auth.client";
 import { MemberRole } from "@/lib/db";
+import { cn } from "@/lib/utils";
 import { Invitation } from "@/prisma/generated/client";
 
 import {
@@ -22,10 +23,12 @@ import {
 
 interface InvitationActionsDropdownProps {
   invitation: Invitation;
+  className?: string;
 }
 
 export default function InvitationActionsDropdown({
   invitation,
+  className,
 }: InvitationActionsDropdownProps) {
   const t = useTranslations("Components.MembersTable.InvitationActions");
   const { email, organizationId } = invitation;
@@ -73,7 +76,12 @@ export default function InvitationActionsDropdown({
   return (
     <DropdownMenu open={open} onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="icon" onClick={() => setOpen(true)}>
+        <Button
+          variant="outline"
+          size="icon"
+          className={cn("p-2!", className)}
+          onClick={() => setOpen(true)}
+        >
           <Ellipsis />
         </Button>
       </DropdownMenuTrigger>

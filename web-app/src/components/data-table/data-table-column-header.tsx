@@ -32,44 +32,42 @@ export default function DataTableColumnHeader<TData, TValue>({
   }
 
   return (
-    <div className={cn("flex items-center gap-x-2", className)}>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button
-            variant="ghost"
-            size="sm"
-            className="data-[state=open]:bg-accent h-8 p-2"
-          >
-            <span>{title}</span>
-            {column.getIsSorted() === "desc" ? (
-              <ArrowDown />
-            ) : column.getIsSorted() === "asc" ? (
-              <ArrowUp />
-            ) : (
-              <ChevronsUpDown />
-            )}
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="start">
-          <DropdownMenuItem onClick={() => column.toggleSorting(false)}>
-            <ArrowUp className="text-muted-foreground/70 h-4 w-4" />
-            {t("ascending")}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => column.toggleSorting(true)}>
-            <ArrowDown className="text-muted-foreground/70 h-4 w-4" />
-            {t("descending")}
-          </DropdownMenuItem>
-          {column.getCanHide() && (
-            <>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => column.toggleVisibility(false)}>
-                <EyeOff className="text-muted-foreground/70 h-4 w-4" />
-                {t("hide")}
-              </DropdownMenuItem>
-            </>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className={cn("data-[state=open]:bg-accent h-8 p-2!", className)}
+        >
+          <span>{title}</span>
+          {column.getIsSorted() === "desc" ? (
+            <ArrowDown />
+          ) : column.getIsSorted() === "asc" ? (
+            <ArrowUp />
+          ) : (
+            <ChevronsUpDown />
           )}
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start">
+        <DropdownMenuItem onClick={() => column.toggleSorting(false)}>
+          <ArrowUp className="text-muted-foreground/70 h-4 w-4" />
+          {t("ascending")}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => column.toggleSorting(true)}>
+          <ArrowDown className="text-muted-foreground/70 h-4 w-4" />
+          {t("descending")}
+        </DropdownMenuItem>
+        {column.getCanHide() && (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onClick={() => column.toggleVisibility(false)}>
+              <EyeOff className="text-muted-foreground/70 h-4 w-4" />
+              {t("hide")}
+            </DropdownMenuItem>
+          </>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
