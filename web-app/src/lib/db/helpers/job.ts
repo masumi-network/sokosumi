@@ -23,6 +23,7 @@ export function computeJobStatus(job: Job): JobStatus {
   if (job.refundedCreditTransactionId) {
     return JobStatus.REFUND_RESOLVED;
   }
+
   // If the job has no purchase, it means the job is not yet started
   if (job.purchaseId === null) {
     if (isPaymentFailed(job)) {
@@ -31,6 +32,7 @@ export function computeJobStatus(job: Job): JobStatus {
       return JobStatus.PAYMENT_PENDING;
     }
   }
+
   // If the job has a purchase, it means the job is started
   switch (onChainStatus) {
     case null:
