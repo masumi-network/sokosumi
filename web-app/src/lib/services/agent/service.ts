@@ -68,14 +68,16 @@ export async function getAvailableAgentById(
     const agent = await retrieveAgentWithRelationsById(agentId, tx);
     if (!agent) return null;
 
+    // get all credit costs
+    const creditCosts = await retrieveAllCreditCosts(tx);
+
     const session = await getSession();
     const userOrganizationIds =
       session?.user.id && session.user.id !== ""
         ? await retrieveMembersOrganizationIdsByUserId(session.user.id, tx)
         : [];
 
-    const canAccess = canUserAccessAgent(agent, userOrganizationIds);
-    if (!canAccess) return null;
+    if (!isAgentAvailable(agent, userOrganizationIds, creditCosts)) return null;
 
     return agent;
   });
@@ -112,6 +114,34 @@ export async function isAgentFavorite(agentId: string): Promise<boolean> {
     AgentListType.FAVORITE,
   );
   return favoriteList?.agents.some((agent) => agent.id === agentId) ?? false;
+}
+
+/**
+ * Determines if an agent is available to the user based on access permissions and pricing validity.
+ *
+ * - Checks if the user has access to the agent based on organization membership and visibility.
+ * - Validates that the agent's pricing configuration is valid according to current credit costs.
+ * - Returns true only if both access and pricing checks pass.
+ *
+ * @param agent - The agent object with relations including organization and pricing data.
+ * @param organizationIds - Array of organization IDs the user is a member of.
+ * @param creditCosts - Array of valid credit cost objects for pricing validation.
+ * @returns boolean - True if the agent is available to the user, false otherwise.
+ *
+ * @example
+ * const isAvailable = isAgentAvailable(agent, userOrganizationIds, creditCosts);
+ * if (isAvailable) {
+ *   // Agent can be accessed and used by the user
+ * }
+ */
+function isAgentAvailable(
+  agent: AgentWithRelations,
+  organizationIds: string[],
+  creditCosts: CreditCost[],
+): boolean {
+  if (!canUserAccessAgent(agent, organizationIds)) return false;
+  if (!hasValidPricing(agent, creditCosts)) return false;
+  return true;
 }
 
 /**
@@ -204,9 +234,9 @@ export async function getAvailableAgents(
       : [];
 
   // filter agents by access and pricing
-  return onlineAgents
-    .filter((agent) => canUserAccessAgent(agent, userOrganizationIds))
-    .filter((agent) => hasValidPricing(agent, creditCosts));
+  return onlineAgents.filter((agent) =>
+    isAgentAvailable(agent, userOrganizationIds, creditCosts),
+  );
 }
 
 /**

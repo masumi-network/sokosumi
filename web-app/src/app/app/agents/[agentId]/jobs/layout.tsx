@@ -59,7 +59,6 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
   const { agentId } = await params;
   const agent = await getAgentById(agentId);
   if (!agent) {
-    console.warn("agent not found in job layout");
     return notFound();
   }
 
