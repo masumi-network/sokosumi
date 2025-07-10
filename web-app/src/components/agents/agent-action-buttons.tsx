@@ -59,11 +59,13 @@ function AgentActionButtons({
         )}
       </div>
       <div className="flex items-center gap-2">
-        <AgentBookmarkButton
-          agentId={agent.id}
-          isFavorite={isFavorite ?? false}
-          disabled={!isAgentAvailable}
-        />
+        {favoriteAgents && (
+          <AgentBookmarkButton
+            agentId={agent.id}
+            isFavorite={isFavorite ?? false}
+            disabled={!isAgentAvailable}
+          />
+        )}
         {url && <ShareButton url={url} disabled={!isAgentAvailable} />}
       </div>
     </div>
