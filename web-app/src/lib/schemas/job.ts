@@ -30,7 +30,7 @@ export type JobDetailsNameFormSchemaType = z.infer<
   ReturnType<typeof jobDetailsNameFormSchema>
 >;
 
-// there aren't for user's use, only for internal use
+// this isn't for user's use, only for internal use
 export const startJobResponseSchema = z.object({
   status: z.enum(["success", "error"]),
   job_id: z.string().min(1),
