@@ -62,6 +62,9 @@ export default function Header({
 }: HeaderProps) {
   const t = useTranslations("App.Agents.Jobs.Header");
   const [detailOpen, setDetailOpen] = useState(false);
+  const isFavorite = favoriteAgents.some(
+    (favoriteAgent) => favoriteAgent.id === agent.id,
+  );
 
   const handleDetailsClick = () => {
     setDetailOpen(true);
@@ -86,7 +89,7 @@ export default function Header({
         </Button>
         <AgentBookmarkButton
           agentId={agent.id}
-          favoriteAgents={favoriteAgents}
+          isFavorite={isFavorite}
           disabled={!isAgentAvailable}
         />
       </div>
