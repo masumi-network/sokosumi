@@ -302,12 +302,15 @@ function AgentCard({
           {/* Bookmark Button (hover only) */}
           <div className={cn(agentCardImageHoverVariants({ size }))}>
             <div className="relative flex h-full w-full items-center justify-center">
-              <ClickBlocker className="absolute top-3 right-3">
-                <AgentBookmarkButton
-                  agentId={agent.id}
-                  isFavorite={isFavorite ?? false}
-                />
-              </ClickBlocker>
+              {favoriteAgents && (
+                <ClickBlocker className="absolute top-3 right-3">
+                  <AgentBookmarkButton
+                    agentId={agent.id}
+                    isFavorite={isFavorite ?? false}
+                    disabled={!isAgentAvailable}
+                  />
+                </ClickBlocker>
+              )}
               <Button className="hidden md:block" variant="primary">
                 {t("view")}
               </Button>
@@ -366,6 +369,15 @@ function AgentCard({
                   disabled={!isAgentAvailable}
                 />
               </ClickBlocker>
+              {favoriteAgents && (
+                <ClickBlocker className="ml-2">
+                  <AgentBookmarkButton
+                    agentId={agent.id}
+                    isFavorite={isFavorite ?? false}
+                    disabled={!isAgentAvailable}
+                  />
+                </ClickBlocker>
+              )}
             </div>
           </div>
         </div>
