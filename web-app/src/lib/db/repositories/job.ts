@@ -259,6 +259,8 @@ export async function refundJob(
     where: { id: jobId },
     select: { refundedCreditTransaction: true },
   });
+
+  // If the job has already been refunded, do nothing
   if (job?.refundedCreditTransaction) {
     return;
   }

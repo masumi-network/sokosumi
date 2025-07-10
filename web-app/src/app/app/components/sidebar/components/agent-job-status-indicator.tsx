@@ -65,20 +65,25 @@ function AgentJobStatusIndicatorContent({ status }: { status: JobStatus }) {
   switch (status) {
     case JobStatus.COMPLETED:
       return <p>{t("completed")}</p>;
-    case JobStatus.REFUND_RESOLVED:
-      return <p>{t("refunded")}</p>;
-    case JobStatus.DISPUTE_RESOLVED:
-      return <p>{t("disputeResolved")}</p>;
     case JobStatus.FAILED:
-    case JobStatus.PAYMENT_FAILED:
       return <p>{t("failed")}</p>;
+    case JobStatus.PAYMENT_FAILED:
+      return <p>{t("paymentFailed")}</p>;
+    case JobStatus.PAYMENT_PENDING:
+      return <p>{t("paymentPending")}</p>;
+    case JobStatus.PROCESSING:
+      return <p>{t("processing")}</p>;
     case JobStatus.INPUT_REQUIRED:
       return <p>{t("inputRequired")}</p>;
-    case JobStatus.PAYMENT_PENDING:
-    case JobStatus.PROCESSING:
-    case JobStatus.OUTPUT_PENDING:
     case JobStatus.REFUND_PENDING:
+      return <p>{t("refundRequested")}</p>;
+    case JobStatus.REFUND_RESOLVED:
+      return <p>{t("refundResolved")}</p>;
     case JobStatus.DISPUTE_PENDING:
-      return <p>{t("processing")}</p>;
+      return <p>{t("disputeRequested")}</p>;
+    case JobStatus.DISPUTE_RESOLVED:
+      return <p>{t("disputeResolved")}</p>;
+    case JobStatus.OUTPUT_PENDING:
+      return <p>{t("outputPending")}</p>;
   }
 }

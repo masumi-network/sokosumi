@@ -23,7 +23,13 @@ import {
   StartJobInputSchemaType,
 } from "@/lib/schemas";
 import { getInputHash, getInputHashDeprecated } from "@/lib/utils";
-import { Job, NextJobAction, Prisma } from "@/prisma/generated/client";
+import {
+  AgentJobStatus,
+  Job,
+  NextJobAction,
+  OnChainJobStatus,
+  Prisma,
+} from "@/prisma/generated/client";
 import {
   getCreditsPrice,
   validateCreditsBalance,
@@ -265,18 +271,27 @@ async function requestRefundIfNeeded(job: Job) {
   }
 }
 
-export async function syncJob(job: Job) {
-  if (!job.purchaseId) {
-    if (job.createdAt < new Date(Date.now() - 1000 * 60 * 1)) {
-      // 1min grace period for jobs that don't have a purchase id
-      await refundJob(job.id);
-    }
-    return;
+function shouldSyncAgentStatus(job: Job): boolean {
+  if (job.refundedCreditTransactionId) {
+    return false;
   }
+  if (
+    job.onChainStatus === OnChainJobStatus.RESULT_SUBMITTED &&
+    job.agentJobStatus === AgentJobStatus.COMPLETED
+  ) {
+    return false;
+  }
+  return true;
+}
 
+function shouldSyncMasumiStatus(job: Job): boolean {
+  return job.refundedCreditTransactionId === null;
+}
+
+export async function syncJob(job: Job) {
   const [agentJobStatus, onChainPurchase] = await Promise.all([
-    getAgentJobStatus(job),
-    getOnChainPurchase(job.purchaseId),
+    shouldSyncAgentStatus(job) ? getAgentJobStatus(job) : null,
+    shouldSyncMasumiStatus(job) ? getOnChainPurchase(job.purchaseId) : null,
   ]);
 
   await prisma.$transaction(
@@ -334,8 +349,11 @@ async function syncAgentJobStatus(
 }
 
 async function getOnChainPurchase(
-  jobPurchaseId: string,
+  jobPurchaseId: string | null,
 ): Promise<Purchase | null> {
+  if (jobPurchaseId === null) {
+    return null;
+  }
   const purchaseResult = await getPaymentClientPurchase(jobPurchaseId);
   if (!purchaseResult.ok) {
     return null;

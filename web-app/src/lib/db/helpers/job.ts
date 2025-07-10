@@ -8,19 +8,38 @@ import {
   OnChainTransactionStatus,
 } from "@/prisma/generated/client";
 
+const PAYMENT_FAILED_GRACE_PERIOD = 1000 * 60 * 5; // 5min
+
+function isPaymentFailed(job: Job): boolean {
+  return job.createdAt < new Date(Date.now() - PAYMENT_FAILED_GRACE_PERIOD);
+}
+
 /**
  * Compute the overall job status by combining the on-chain and agent statuses.
  */
 export function computeJobStatus(job: Job): JobStatus {
   const { onChainStatus, agentJobStatus, nextActionErrorType } = job;
+  // If the job has already been refunded, return the refund resolved status
+  if (job.refundedCreditTransactionId) {
+    return JobStatus.REFUND_RESOLVED;
+  }
 
+  // If the job has no purchase, it means the job is not yet started
+  if (job.purchaseId === null) {
+    if (isPaymentFailed(job)) {
+      return JobStatus.PAYMENT_FAILED;
+    } else {
+      return JobStatus.PAYMENT_PENDING;
+    }
+  }
+
+  // If the job has a purchase, it means the job is started
   switch (onChainStatus) {
     case null:
       if (nextActionErrorType === null) {
         return JobStatus.PAYMENT_PENDING;
-      } else {
-        return JobStatus.PAYMENT_FAILED;
       }
+      return JobStatus.PAYMENT_FAILED;
     case OnChainJobStatus.FUNDS_LOCKED:
       switch (agentJobStatus) {
         case AgentJobStatus.AWAITING_INPUT:

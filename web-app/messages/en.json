@@ -723,11 +723,18 @@
           "hiredType": "hired",
           "Statuses": {
             "completed": "Completed",
-            "refunded": "Refunded",
-            "disputeResolved": "Dispute Resolved",
             "failed": "Failed",
+            "paymentPending": "Payment Processing",
+            "paymentFailed": "Payment Failed",
+            "processing": "Processing",
+            "agentConnectionFailed": "Agent Connection Failed",
+            "paymentNodeConnectionFailed": "Node Connection Failed",
             "inputRequired": "Input Required",
-            "processing": "Processing"
+            "disputeRequested": "Dispute Requested",
+            "disputeResolved": "Dispute Resolved",
+            "refundRequested": "Refund Requested",
+            "refundResolved": "Refunded",
+            "outputPending": "Output Missing"
           }
         }
       },
@@ -947,6 +954,7 @@
         "StatusBadge": {
           "completed": "Completed",
           "failed": "Failed",
+          "paymentPending": "Payment Processing",
           "paymentFailed": "Payment Failed",
           "processing": "Processing",
           "agentConnectionFailed": "Agent Connection Failed",

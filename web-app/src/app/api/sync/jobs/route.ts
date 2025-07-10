@@ -87,13 +87,20 @@ async function syncAllJobs() {
           },
         },
       ],
-      NOT: {
-        onChainStatus: OnChainJobStatus.RESULT_SUBMITTED,
-        agentJobStatus: AgentJobStatus.COMPLETED,
-        externalDisputeUnlockTime: {
-          lt: new Date(Date.now() - 1000 * 60 * 10), // 10min grace period
+      NOT: [
+        {
+          onChainStatus: OnChainJobStatus.RESULT_SUBMITTED,
+          agentJobStatus: AgentJobStatus.COMPLETED,
+          externalDisputeUnlockTime: {
+            lt: new Date(Date.now() - 1000 * 60 * 10), // 10min grace period
+          },
         },
-      },
+        {
+          refundedCreditTransactionId: {
+            not: null,
+          },
+        },
+      ],
     },
   });
 
