@@ -12,8 +12,8 @@ import { retrieveJobsWithLimitedInformationByAgentId } from "@/lib/db/repositori
 import {
   getAgentById,
   getAgentCreditsPrice,
+  getAvailableAgentById,
   getFavoriteAgents,
-  isAgentAvailable,
 } from "@/lib/services";
 
 import Footer from "./components/footer";
@@ -66,7 +66,7 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
   const agentCreditsPrice = await getAgentCreditsPrice(agent);
   const favoriteAgents = await getFavoriteAgents();
   const jobs = await retrieveJobsWithLimitedInformationByAgentId(agentId);
-  const isAvailable = await isAgentAvailable(agentId);
+  const availableAgent = await getAvailableAgentById(agentId);
 
   return (
     <CreateJobModalContextProvider
@@ -75,7 +75,7 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
       <div className="flex h-full flex-col p-4 lg:h-[calc(100svh-64px)] lg:p-6 xl:p-8">
         <Header
           agent={agent}
-          isAvailable={isAvailable}
+          isAvailable={!!availableAgent}
           agentCreditsPrice={agentCreditsPrice}
           favoriteAgents={favoriteAgents}
           jobs={jobs}
