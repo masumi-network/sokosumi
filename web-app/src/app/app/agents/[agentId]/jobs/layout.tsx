@@ -75,10 +75,10 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
       <div className="flex h-full flex-col p-4 lg:h-[calc(100svh-64px)] lg:p-6 xl:p-8">
         <Header
           agent={agent}
-          isAvailable={!!availableAgent}
           agentCreditsPrice={agentCreditsPrice}
           favoriteAgents={favoriteAgents}
           jobs={jobs}
+          disabled={!availableAgent}
         />
         <div className="mt-6 flex flex-1 flex-col justify-center gap-4 lg:flex-row lg:overflow-hidden">
           {children}
