@@ -330,12 +330,10 @@ async function getAgentsByListType(
     tx,
   );
   if (existingList) {
-    const userOrganizationIds = await retrieveMembersOrganizationIdsByUserId(
-      session.user.id,
-      tx,
-    );
+    const { userOrganizationIds, creditCosts } =
+      await getAgentAccessContext(tx);
     return existingList.agents.filter((agent) =>
-      canUserAccessAgent(agent, userOrganizationIds),
+      isAgentAvailable(agent, userOrganizationIds, creditCosts),
     );
   }
   const list = await createAgentListByUserIdAndType(session.user.id, type, tx);
