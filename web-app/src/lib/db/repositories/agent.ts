@@ -34,6 +34,14 @@ export async function retrieveAgentWithRelationsById(
   });
 }
 
+export async function retrieveAgentsWithRelations(
+  tx: Prisma.TransactionClient = prisma,
+): Promise<AgentWithRelations[]> {
+  return await tx.agent.findMany({
+    include: agentInclude,
+  });
+}
+
 /**
  * Retrieve an agent by ID with organization information
  *

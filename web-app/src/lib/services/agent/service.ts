@@ -11,6 +11,7 @@ import {
   createAgentListByUserIdAndType,
   prisma,
   retrieveAgentListByUserIdAndType,
+  retrieveAgentsWithRelations,
   retrieveAgentWithFixedPricingById,
   retrieveAgentWithRelationsById,
   retrieveAllCreditCosts,
@@ -243,6 +244,12 @@ export async function getAvailableAgents(
   return onlineAgents.filter((agent) =>
     isAgentAvailable(agent, userOrganizationIds, creditCosts),
   );
+}
+
+export async function getAgents(
+  tx: Prisma.TransactionClient = prisma,
+): Promise<AgentWithRelations[]> {
+  return await retrieveAgentsWithRelations(tx);
 }
 
 /**

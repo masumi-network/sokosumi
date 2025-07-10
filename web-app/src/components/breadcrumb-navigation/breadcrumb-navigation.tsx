@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 
-import { getAvailableAgents } from "@/lib/services";
+import { getAgents } from "@/lib/services";
 
 import BreadcrumbNavigationClient from "./breadcrumb-navigation.client";
 import BreadcrumbNavigationSkeleton from "./breadcrumb-navigation.skeleton";
@@ -34,7 +34,7 @@ async function BreadcrumbNavigationInner({
   className?: string | undefined;
   segmentLabels?: Record<string, string>;
 }) {
-  const agents = await getAvailableAgents();
+  const agents = await getAgents();
 
   return (
     <BreadcrumbNavigationClient
