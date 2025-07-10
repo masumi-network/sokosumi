@@ -19,17 +19,19 @@ function isPaymentFailed(job: Job): boolean {
  */
 export function computeJobStatus(job: Job): JobStatus {
   const { onChainStatus, agentJobStatus, nextActionErrorType } = job;
+  // If the job has already been refunded, return the refund resolved status
+  if (job.refundedCreditTransactionId) {
+    return JobStatus.REFUND_RESOLVED;
+  }
+  // If the job has no purchase, it means the job is not yet started
   if (job.purchaseId === null) {
     if (isPaymentFailed(job)) {
-      if (job.refundedCreditTransactionId) {
-        return JobStatus.REFUND_RESOLVED;
-      } else {
-        return JobStatus.PAYMENT_FAILED;
-      }
+      return JobStatus.PAYMENT_FAILED;
     } else {
       return JobStatus.PAYMENT_PENDING;
     }
   }
+  // If the job has a purchase, it means the job is started
   switch (onChainStatus) {
     case null:
       if (nextActionErrorType === null) {
