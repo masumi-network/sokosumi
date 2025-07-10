@@ -95,6 +95,11 @@ async function syncAllJobs() {
             lt: new Date(Date.now() - 1000 * 60 * 10), // 10min grace period
           },
         },
+        {
+          refundedCreditTransactionId: {
+            not: null,
+          },
+        },
       ],
     },
   });
