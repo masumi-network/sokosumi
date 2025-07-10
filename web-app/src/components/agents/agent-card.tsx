@@ -265,7 +265,6 @@ interface AgentCardProps {
   favoriteAgents?: AgentWithRelations[] | undefined;
   agentCreditsPrice: CreditsPrice;
   className?: string | undefined;
-  isAgentAvailable?: boolean;
 }
 
 function AgentCard({
@@ -274,7 +273,6 @@ function AgentCard({
   agentCreditsPrice,
   className,
   size,
-  isAgentAvailable = true,
 }: AgentCardProps & VariantProps<typeof agentCardVariants>) {
   const t = useTranslations("Components.Agents.AgentCard");
   const isFavorite = favoriteAgents?.some(
@@ -307,7 +305,6 @@ function AgentCard({
                   <AgentBookmarkButton
                     agentId={agent.id}
                     isFavorite={isFavorite ?? false}
-                    disabled={!isAgentAvailable}
                   />
                 </ClickBlocker>
               )}
@@ -366,7 +363,6 @@ function AgentCard({
                 <AgentHireButton
                   agentId={agent.id}
                   className="w-full md:w-auto"
-                  disabled={!isAgentAvailable}
                 />
               </ClickBlocker>
               {favoriteAgents && (
@@ -374,7 +370,6 @@ function AgentCard({
                   <AgentBookmarkButton
                     agentId={agent.id}
                     isFavorite={isFavorite ?? false}
-                    disabled={!isAgentAvailable}
                   />
                 </ClickBlocker>
               )}

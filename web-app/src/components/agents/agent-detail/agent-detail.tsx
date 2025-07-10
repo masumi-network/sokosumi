@@ -17,7 +17,6 @@ import { AgentDetailSection6, AgentDetailSection6Skeleton } from "./section-6";
 
 interface AgentDetailProps {
   agent: AgentWithRelations;
-  isAgentAvailable: boolean;
   agentCreditsPrice: CreditsPrice;
   jobs: JobWithLimitedInformation[];
   favoriteAgents?: AgentWithRelations[] | undefined;
@@ -30,7 +29,6 @@ interface AgentDetailProps {
 
 export function AgentDetail({
   agent,
-  isAgentAvailable,
   agentCreditsPrice,
   jobs,
   favoriteAgents,
@@ -48,7 +46,6 @@ export function AgentDetail({
       <CardSection className={cardClassName}>
         <AgentDetailSection1
           agent={agent}
-          isAgentAvailable={isAgentAvailable}
           favoriteAgents={favoriteAgents}
           agentCreditsPrice={agentCreditsPrice}
           showBackButton={showBackButton}

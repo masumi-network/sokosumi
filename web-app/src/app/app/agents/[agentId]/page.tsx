@@ -5,14 +5,11 @@ import {
   CreateJobModal,
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
-import {
-  retrieveAgentWithRelationsById,
-  retrieveJobsWithLimitedInformationByAgentId,
-} from "@/lib/db/repositories";
+import { retrieveJobsWithLimitedInformationByAgentId } from "@/lib/db/repositories";
 import {
   getAgentCreditsPrice,
+  getAvailableAgentById,
   getFavoriteAgents,
-  isAgentAvailable,
 } from "@/lib/services";
 
 export default async function AgentDetailPage({
@@ -22,11 +19,10 @@ export default async function AgentDetailPage({
 }) {
   const { agentId } = await params;
 
-  const agent = await retrieveAgentWithRelationsById(agentId);
+  const agent = await getAvailableAgentById(agentId);
   if (!agent) {
     return notFound();
   }
-  const isAvailable = await isAgentAvailable(agentId);
 
   const agentCreditsPrice = await getAgentCreditsPrice(agent);
   if (!agentCreditsPrice) {
@@ -43,7 +39,6 @@ export default async function AgentDetailPage({
       <div className="mx-auto flex justify-center px-4 py-8">
         <AgentDetail
           agent={agent}
-          isAgentAvailable={isAvailable}
           agentCreditsPrice={agentCreditsPrice}
           favoriteAgents={favoriteAgents}
           jobs={jobs}

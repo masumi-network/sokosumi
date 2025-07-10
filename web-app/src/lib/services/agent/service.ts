@@ -33,33 +33,59 @@ import {
 } from "./third-party";
 
 /**
- * Determines if an agent is available to the current user based on organization membership and agent visibility.
+ * Retrieves an available agent by ID with access control validation.
  *
- * - Checks if the agent exists and is visible (`isShown`).
- * - For authenticated users, verifies if the user belongs to any organization allowed to access the agent.
- * - For unauthenticated users, only public agents (no organization restrictions) are available.
+ * This function fetches an agent with all its related data and validates whether
+ * the current user (if authenticated) has access to it based on organization
+ * membership and agent visibility settings. The function uses a database
+ * transaction to ensure data consistency.
  *
- * @param agentId - The unique identifier of the agent to check.
- * @returns Promise<boolean> - Resolves to true if the agent is available to the user, false otherwise.
+ * Access Control Logic:
+ * - Returns null if the agent doesn't exist
+ * - Returns null if the agent is not shown (`isShown` is false)
+ * - Returns the agent if it's public (no organization restrictions)
+ * - For organization-restricted agents:
+ *   - Returns null if user is not authenticated or not a member of any allowed organization
+ *   - Returns the agent if user is a member of at least one allowed organization
+ *
+ * @param agentId - The unique identifier of the agent to retrieve
+ * @returns Promise<AgentWithRelations | null> - The agent with all relations if accessible, null otherwise
  *
  * @example
- * const isAvailable = await isAgentAvailable("agent123");
- * if (isAvailable) {
- *   // User can access this agent
+ * // Get an agent that the current user can access
+ * const agent = await getAvailableAgentById("agent123");
+ * if (agent) {
+ *   // User has access to this agent
+ *   console.log(agent.name);
+ * } else {
+ *   // Agent doesn't exist or user doesn't have access
  * }
  */
-export async function isAgentAvailable(agentId: string): Promise<boolean> {
+export async function getAvailableAgentById(
+  agentId: string,
+): Promise<AgentWithRelations | null> {
   return await prisma.$transaction(async (tx) => {
     const agent = await retrieveAgentWithRelationsById(agentId, tx);
-    if (!agent) return false;
+    if (!agent) return null;
 
     const session = await getSession();
     const userOrganizationIds =
       session?.user.id && session.user.id !== ""
         ? await retrieveMembersOrganizationIdsByUserId(session.user.id, tx)
         : [];
-    return canUserAccessAgent(agent, userOrganizationIds);
+
+    const canAccess = canUserAccessAgent(agent, userOrganizationIds);
+    if (!canAccess) return null;
+
+    return agent;
   });
+}
+
+export async function getAgentById(
+  agentId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<AgentWithRelations | null> {
+  return await retrieveAgentWithRelationsById(agentId, tx);
 }
 
 /**

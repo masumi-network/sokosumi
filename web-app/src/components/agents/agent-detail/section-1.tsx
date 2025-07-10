@@ -19,7 +19,6 @@ import {
 
 interface AgentDetailSection1Props {
   agent: AgentWithRelations;
-  isAgentAvailable: boolean;
   favoriteAgents: AgentWithRelations[] | undefined;
   agentCreditsPrice: CreditsPrice;
   showBackButton?: boolean | undefined;
@@ -29,7 +28,6 @@ interface AgentDetailSection1Props {
 
 function AgentDetailSection1({
   agent,
-  isAgentAvailable,
   favoriteAgents,
   agentCreditsPrice,
   showBackButton,
@@ -46,7 +44,6 @@ function AgentDetailSection1({
         showBackButton={showBackButton}
         showCloseButton={showCloseButton}
         onClose={onClose}
-        isAgentAvailable={isAgentAvailable}
       />
       <div className="flex flex-col gap-6 md:flex-row">
         <div className="relative aspect-square w-full shrink-0 md:h-48 md:w-48">
@@ -91,7 +88,7 @@ function AgentDetailSection1({
                 })}
               </span>
             </div>
-            <AgentHireButton agentId={agent.id} disabled={!isAgentAvailable} />
+            <AgentHireButton agentId={agent.id} />
           </div>
         </div>
       </div>

@@ -31,11 +31,7 @@ export default async function FeaturedAgents() {
           <div className="flex flex-row justify-between gap-2">
             {agentsWithPrice.map(({ agent, creditsPrice }) => (
               <div key={agent.id} className="flex-shrink-0">
-                <AgentCard
-                  agent={agent}
-                  agentCreditsPrice={creditsPrice}
-                  isAgentAvailable={true}
-                />
+                <AgentCard agent={agent} agentCreditsPrice={creditsPrice} />
               </div>
             ))}
           </div>

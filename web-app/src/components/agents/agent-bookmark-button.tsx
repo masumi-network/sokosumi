@@ -21,7 +21,6 @@ export function AgentBookmarkButton({
   agentId,
   isFavorite,
   className,
-  disabled = false,
 }: AgentBookmarkButtonProps) {
   const t = useTranslations("Components.Agents.AgentCard");
   const [isBookmarked, setIsBookmarked] = useState<boolean>(isFavorite);
@@ -32,8 +31,6 @@ export function AgentBookmarkButton({
   }, [isFavorite]);
 
   const handleBookmarkToggle = async () => {
-    if (disabled) return;
-
     setIsLoading(true);
     const result = await toggleAgentInAgentList(
       agentId,
@@ -60,7 +57,7 @@ export function AgentBookmarkButton({
       size="icon"
       className={cn(className)}
       onClick={handleBookmarkToggle}
-      disabled={isLoading || disabled}
+      disabled={isLoading}
     >
       <Bookmark
         fill={isBookmarked ? "currentColor" : "none"}
