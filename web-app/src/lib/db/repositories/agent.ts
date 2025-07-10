@@ -15,14 +15,11 @@ import { AgentStatus, Prisma } from "@/prisma/generated/client";
 import prisma from "./prisma";
 
 /**
- * Retrieve an agent by ID with all related data
+ * Fetch a single agent by ID with all related entities (pricing, tags, outputs, ratings, etc).
  *
- * This function fetches a single agent from the database including all its
- * related entities such as pricing, tags, example outputs, ratings, etc.
- *
- * @param id - The unique identifier of the agent to retrieve
- * @param tx - (Optional) Prisma transaction client for DB operations. Defaults to the main Prisma client.
- * @returns A Promise that resolves to the agent with relations, or null if not found
+ * @param id - Agent unique identifier
+ * @param tx - Optional Prisma transaction client (defaults to main Prisma client)
+ * @returns Agent with all relations, or null if not found
  */
 export async function retrieveAgentWithRelationsById(
   id: string,
@@ -34,25 +31,13 @@ export async function retrieveAgentWithRelationsById(
   });
 }
 
-export async function retrieveAgentsWithRelations(
-  tx: Prisma.TransactionClient = prisma,
-): Promise<AgentWithRelations[]> {
-  return await tx.agent.findMany({
-    include: agentInclude,
-  });
-}
-
 /**
- * Retrieve an agent by ID with organization information
+ * Fetch a single agent by ID with only organization-related data.
+ * Optimized for access control scenarios.
  *
- * This function fetches a single agent from the database including only
- * its organization-related data. This is optimized for scenarios where only
- * organization access control information is needed, such as checking if a
- * user has permission to access an agent based on their organization membership.
- *
- * @param id - The unique identifier of the agent to retrieve
- * @param tx - (Optional) Prisma transaction client for DB operations. Defaults to the main Prisma client.
- * @returns A Promise that resolves to the agent with organization data, or null if not found
+ * @param id - Agent unique identifier
+ * @param tx - Optional Prisma transaction client (defaults to main Prisma client)
+ * @returns Agent with organization data, or null if not found
  */
 export async function retrieveAgentWithOrganizationsById(
   id: string,
@@ -65,16 +50,12 @@ export async function retrieveAgentWithOrganizationsById(
 }
 
 /**
- * Retrieve an agent by ID with fixed pricing information
+ * Fetch a single agent by ID with only fixed pricing information.
+ * Optimized for pricing-only queries.
  *
- * This function fetches a single agent from the database including only
- * its pricing-related data. This is optimized for scenarios where only
- * pricing information is needed, avoiding the overhead of fetching all
- * related entities.
- *
- * @param id - The unique identifier of the agent to retrieve
- * @param tx - (Optional) Prisma transaction client for DB operations. Defaults to the main Prisma client.
- * @returns A Promise that resolves to the agent with fixed pricing data, or null if not found
+ * @param id - Agent unique identifier
+ * @param tx - Optional Prisma transaction client (defaults to main Prisma client)
+ * @returns Agent with fixed pricing data, or null if not found
  */
 export async function retrieveAgentWithFixedPricingById(
   id: string,
@@ -87,16 +68,46 @@ export async function retrieveAgentWithFixedPricingById(
 }
 
 /**
- * Retrieve all shown agents with relations by status
+ * Fetch a single agent by ID, only if it is shown and matches the given status.
+ * Includes all related entities.
  *
- * This function fetches all agents from the database that are marked as shown
- * and have a specific status. It returns an array of agents with their related
- * entities such as pricing, tags, example outputs, ratings, etc.
- * And sort by jobs count in descending order.
+ * @param agentId - Agent unique identifier
+ * @param status - Required agent status
+ * @param tx - Optional Prisma transaction client (defaults to main Prisma client)
+ * @returns Agent with relations, or null if not found
+ */
+export async function retrieveShownAgentWithRelationById(
+  agentId: string,
+  status: AgentStatus,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<AgentWithRelations | null> {
+  return await tx.agent.findUnique({
+    where: { id: agentId, isShown: true, status },
+    include: agentInclude,
+  });
+}
+
+/**
+ * Fetch all agents with all related entities.
  *
- * @param status - The status of the agents to retrieve
- * @param tx - (Optional) Prisma transaction client for DB operations. Defaults to the main Prisma client.
- * @returns A Promise that resolves to an array of agents with relations
+ * @param tx - Optional Prisma transaction client (defaults to main Prisma client)
+ * @returns Array of agents with relations
+ */
+export async function retrieveAgentsWithRelations(
+  tx: Prisma.TransactionClient = prisma,
+): Promise<AgentWithRelations[]> {
+  return await tx.agent.findMany({
+    include: agentInclude,
+  });
+}
+
+/**
+ * Fetch all agents that are marked as shown and have a specific status.
+ * Results are sorted by jobs count (descending) and include all related entities.
+ *
+ * @param status - Required agent status
+ * @param tx - Optional Prisma transaction client (defaults to main Prisma client)
+ * @returns Array of shown agents with relations
  */
 export async function retrieveShownAgentsWithRelationsByStatus(
   status: AgentStatus,
@@ -112,22 +123,14 @@ export async function retrieveShownAgentsWithRelationsByStatus(
   });
 }
 
-export async function retrieveShownAgentWithRelationById(
-  agentId: string,
-  status: AgentStatus,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<AgentWithRelations | null> {
-  return await tx.agent.findUnique({
-    where: { id: agentId, isShown: true, status },
-    include: agentInclude,
-  });
-}
-
 /**
- * Retrieves agents that have jobs for a specific user and organization context
- * @param userId - The unique identifier of the user
- * @param organizationId - The unique identifier of the organization (null for personal jobs)
- * @returns Promise containing an array of agents with their latest job
+ * Fetch all agents that have jobs for a specific user and organization context.
+ * Each agent includes only the latest job for that user/org.
+ *
+ * @param userId - User unique identifier
+ * @param organizationId - Organization unique identifier (null for personal jobs)
+ * @param tx - Optional Prisma transaction client (defaults to main Prisma client)
+ * @returns Array of agents with their latest job for the user/org
  */
 export async function retrieveHiredAgentsWithJobsByUserIdAndOrganization(
   userId: string,
