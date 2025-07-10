@@ -18,10 +18,12 @@ import {
 } from "@/lib/db/repositories";
 import { generateJobName } from "@/lib/generateJobName";
 import { JobInputData } from "@/lib/job-input";
-import { StartJobInputSchemaType } from "@/lib/schemas";
+import {
+  PricingAmountsSchemaType,
+  StartJobInputSchemaType,
+} from "@/lib/schemas";
 import { getInputHash, getInputHashDeprecated } from "@/lib/utils";
 import { Job, NextJobAction, Prisma } from "@/prisma/generated/client";
-import { getAgentPricing } from "@/services/agent";
 import {
   getCreditsPrice,
   validateCreditsBalance,
@@ -77,39 +79,66 @@ export async function getMyJobsByAgentId(
   }
 }
 
+function tryValidatePricing(
+  agentPricing: PricingAmountsSchemaType,
+  jobPricing: PricingAmountsSchemaType,
+): void {
+  const agentPricingMap = new Map(
+    agentPricing.map((amount) => [amount.unit, amount.amount]),
+  );
+  const jobPricingMap = new Map(
+    jobPricing.map((amount) => [amount.unit, amount.amount]),
+  );
+  if (agentPricingMap.size !== jobPricingMap.size) {
+    throw new Error("Pricing schemas have different lengths");
+  }
+  // verify that the pricing schemas are identical
+  for (const [unit, amount] of jobPricingMap) {
+    if (!agentPricingMap.has(unit)) {
+      throw new Error(`Agent pricing not found for unit ${unit}`);
+    }
+    if (agentPricingMap.get(unit) !== amount) {
+      throw new Error(`Agent pricing for unit ${unit} is incorrect`);
+    }
+  }
+}
+
 export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
   const { userId, agentId, maxAcceptedCents, inputData, inputSchema } = input;
   const organizationId = await getActiveOrganizationId();
-  const [agent, creditsPrice] = await prisma.$transaction(async (tx) => {
-    const agent = await retrieveAgentWithRelationsById(agentId, tx);
-    if (!agent) {
-      throw new Error("Agent not found");
-    }
-    const pricing = await getAgentPricing(agentId, tx);
-    const creditsPrice = await getCreditsPrice(
-      pricing.FixedPricing.Amounts.map((amount) => ({
-        unit: amount.unit,
-        amount: Number(amount.amount),
-      })),
-      tx,
-    );
-    if (creditsPrice.cents > maxAcceptedCents) {
-      throw new Error("Credit cost is too high");
-    }
-
-    if (creditsPrice.cents > 0) {
-      if (organizationId) {
-        await validateOrganizationCreditsBalance(
-          organizationId,
-          creditsPrice.cents,
-          tx,
-        );
-      } else {
-        await validateCreditsBalance(userId, creditsPrice.cents, tx);
+  const [agent, creditsPrice, amountsPrice] = await prisma.$transaction(
+    async (tx) => {
+      const agent = await retrieveAgentWithRelationsById(agentId, tx);
+      if (!agent) {
+        throw new Error("Agent not found");
       }
-    }
-    return [agent, creditsPrice];
-  });
+      const amountsPrice: PricingAmountsSchemaType =
+        agent.pricing.fixedPricing?.amounts.map((amount) => ({
+          unit: amount.unit,
+          amount: Number(amount.amount),
+        })) ?? [];
+      if (amountsPrice.length === 0) {
+        throw new Error("Agent pricing not found");
+      }
+      const creditsPrice = await getCreditsPrice(amountsPrice, tx);
+      if (creditsPrice.cents > maxAcceptedCents) {
+        throw new Error("Credit cost is too high");
+      }
+
+      if (creditsPrice.cents > 0) {
+        if (organizationId) {
+          await validateOrganizationCreditsBalance(
+            organizationId,
+            creditsPrice.cents,
+            tx,
+          );
+        } else {
+          await validateCreditsBalance(userId, creditsPrice.cents, tx);
+        }
+      }
+      return [agent, creditsPrice, amountsPrice];
+    },
+  );
 
   // Start job
   const identifierFromPurchaser = uuidv4().replace(/-/g, "").substring(0, 20);
@@ -128,6 +157,14 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
     identifierFromPurchaser,
     startJobResponse.input_hash,
   );
+
+  // Check if amounts are correct
+  const jobAmountsPrice: PricingAmountsSchemaType =
+    startJobResponse.amounts.map((amount) => ({
+      unit: amount.unit,
+      amount: Number(amount.amount),
+    }));
+  tryValidatePricing(amountsPrice, jobAmountsPrice);
 
   // Generate job name
   let generatedName: string | null;
