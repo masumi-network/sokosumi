@@ -108,6 +108,7 @@ export default function DataTable<TData, TValue>({
                     <TableHead
                       key={header.id}
                       colSpan={header.colSpan}
+                      className="p-2"
                       style={{
                         width: header.getSize(),
                       }}
@@ -145,6 +146,7 @@ export default function DataTable<TData, TValue>({
                         {row.getVisibleCells().map((cell) => (
                           <TableCell
                             key={cell.id}
+                            className="p-2"
                             style={{
                               width: cell.column.getSize(),
                             }}
@@ -162,7 +164,7 @@ export default function DataTable<TData, TValue>({
                   <TableRow>
                     <TableCell
                       colSpan={columns.length}
-                      className="h-24 text-center"
+                      className="h-24 p-2 text-center"
                     >
                       {t("noResults")}
                     </TableCell>

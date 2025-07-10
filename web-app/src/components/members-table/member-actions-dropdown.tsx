@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { MemberRole, MemberWithUser } from "@/lib/db";
+import { cn } from "@/lib/utils";
 
 import {
   MemberAction,
@@ -17,10 +18,12 @@ import {
 
 interface MemberActionsDropdownProps {
   member: MemberWithUser;
+  className?: string;
 }
 
 export default function MemberActionsDropdown({
   member,
+  className,
 }: MemberActionsDropdownProps) {
   const t = useTranslations("Components.MembersTable.MemberActions");
 
@@ -43,7 +46,7 @@ export default function MemberActionsDropdown({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="icon">
+        <Button variant="outline" size="icon" className={cn("p-2!", className)}>
           <Ellipsis />
         </Button>
       </DropdownMenuTrigger>
