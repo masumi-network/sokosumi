@@ -16,11 +16,13 @@ export function computeJobStatus(job: Job): JobStatus {
 
   switch (onChainStatus) {
     case null:
-      if (nextActionErrorType === null) {
-        return JobStatus.PAYMENT_PENDING;
-      } else {
+      if (job.purchaseId === null) {
         return JobStatus.PAYMENT_FAILED;
       }
+      if (nextActionErrorType === null) {
+        return JobStatus.PAYMENT_PENDING;
+      }
+      return JobStatus.PAYMENT_FAILED;
     case OnChainJobStatus.FUNDS_LOCKED:
       switch (agentJobStatus) {
         case AgentJobStatus.AWAITING_INPUT:

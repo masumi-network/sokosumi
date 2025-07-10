@@ -229,17 +229,9 @@ async function requestRefundIfNeeded(job: Job) {
 }
 
 export async function syncJob(job: Job) {
-  if (!job.purchaseId) {
-    if (job.createdAt < new Date(Date.now() - 1000 * 60 * 1)) {
-      // 1min grace period for jobs that don't have a purchase id
-      await refundJob(job.id);
-    }
-    return;
-  }
-
   const [agentJobStatus, onChainPurchase] = await Promise.all([
     getAgentJobStatus(job),
-    getOnChainPurchase(job.purchaseId),
+    job.purchaseId ? getOnChainPurchase(job.purchaseId) : null,
   ]);
 
   await prisma.$transaction(
