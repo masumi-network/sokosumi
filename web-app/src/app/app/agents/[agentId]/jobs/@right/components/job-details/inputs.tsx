@@ -48,11 +48,13 @@ function JobDetailsInputsInner({
         <div>
           {Object.entries(input).map(([key, value]) => (
             <div
-              className="flex flex-row items-start gap-4 text-base"
+              className="grid grid-cols-3 items-start gap-4 text-base"
               key={key}
             >
-              <span className="font-bold">{idNameMap[key] || key}</span>
-              <span className="break-words">
+              <span className="col-span-1 font-bold break-all">
+                {idNameMap[key] || key}
+              </span>
+              <span className="col-span-2 break-all">
                 {typeof value === "object"
                   ? JSON.stringify(value)
                   : String(value)}
