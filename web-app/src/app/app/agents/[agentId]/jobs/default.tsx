@@ -1,7 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { retrieveAgentWithRelationsById } from "@/lib/db/repositories";
-import { getMyJobsByAgentId } from "@/lib/services";
+import { getAgentById, getMyJobsByAgentId } from "@/lib/services";
 
 import JobsTable from "./components/jobs-table";
 
@@ -11,7 +10,7 @@ interface JobsPageProps {
 
 export default async function JobsPage({ params }: JobsPageProps) {
   const { agentId } = await params;
-  const agent = await retrieveAgentWithRelationsById(agentId);
+  const agent = await getAgentById(agentId);
   if (!agent) {
     console.warn("agent not found in job layout");
     return notFound();

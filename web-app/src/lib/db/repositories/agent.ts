@@ -104,6 +104,17 @@ export async function retrieveShownAgentsWithRelationsByStatus(
   });
 }
 
+export async function retrieveShownAgentWithRelationById(
+  agentId: string,
+  status: AgentStatus,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<AgentWithRelations | null> {
+  return await tx.agent.findUnique({
+    where: { id: agentId, isShown: true, status },
+    include: agentInclude,
+  });
+}
+
 /**
  * Retrieves agents that have jobs for a specific user and organization context
  * @param userId - The unique identifier of the user

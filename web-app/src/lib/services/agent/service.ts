@@ -17,6 +17,7 @@ import {
   retrieveHiredAgentsWithJobsByUserIdAndOrganization,
   retrieveMembersOrganizationIdsByUserId,
   retrieveShownAgentsWithRelationsByStatus,
+  retrieveShownAgentWithRelationById,
 } from "@/lib/db/repositories";
 import { JobInputsDataSchemaType } from "@/lib/job-input";
 import { getAgentCreditsPrice } from "@/lib/services";
@@ -31,6 +32,27 @@ import {
   fetchAgentInputSchema,
   getAgentPaymentInformation,
 } from "./third-party";
+
+/**
+ * Retrieves the current session, user organization IDs, and all credit costs for agent access checks.
+ *
+ * @param tx - (Optional) Prisma transaction client for DB operations. Defaults to the main Prisma client.
+ * @returns Promise<{ session: Session | null, userOrganizationIds: string[], creditCosts: CreditCost[] }>
+ */
+async function getAgentAccessContext(
+  tx: Prisma.TransactionClient = prisma,
+): Promise<{
+  userOrganizationIds: string[];
+  creditCosts: CreditCost[];
+}> {
+  const session = await getSession();
+  const creditCosts = await retrieveAllCreditCosts(tx);
+  const userOrganizationIds =
+    session?.user.id && session.user.id !== ""
+      ? await retrieveMembersOrganizationIdsByUserId(session.user.id, tx)
+      : [];
+  return { userOrganizationIds, creditCosts };
+}
 
 /**
  * Retrieves an available agent by ID with access control validation.
@@ -65,18 +87,15 @@ export async function getAvailableAgentById(
   agentId: string,
 ): Promise<AgentWithRelations | null> {
   return await prisma.$transaction(async (tx) => {
-    const agent = await retrieveAgentWithRelationsById(agentId, tx);
+    const agent = await retrieveShownAgentWithRelationById(
+      agentId,
+      AgentStatus.ONLINE,
+      tx,
+    );
     if (!agent) return null;
 
-    // get all credit costs
-    const creditCosts = await retrieveAllCreditCosts(tx);
-
-    const session = await getSession();
-    const userOrganizationIds =
-      session?.user.id && session.user.id !== ""
-        ? await retrieveMembersOrganizationIdsByUserId(session.user.id, tx)
-        : [];
-
+    const { userOrganizationIds, creditCosts } =
+      await getAgentAccessContext(tx);
     if (!isAgentAvailable(agent, userOrganizationIds, creditCosts)) return null;
 
     return agent;
@@ -216,24 +235,11 @@ function hasValidPricing(
 export async function getAvailableAgents(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithRelations[]> {
-  const session = await getSession();
-
-  // get all credit costs
-  const creditCosts = await retrieveAllCreditCosts(tx);
-
-  // get all online agents
+  const { userOrganizationIds, creditCosts } = await getAgentAccessContext(tx);
   const onlineAgents = await retrieveShownAgentsWithRelationsByStatus(
     AgentStatus.ONLINE,
     tx,
   );
-
-  // First, filter agents asynchronously by access
-  const userOrganizationIds =
-    session?.user.id && session.user.id !== ""
-      ? await retrieveMembersOrganizationIdsByUserId(session.user.id, tx)
-      : [];
-
-  // filter agents by access and pricing
   return onlineAgents.filter((agent) =>
     isAgentAvailable(agent, userOrganizationIds, creditCosts),
   );

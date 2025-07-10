@@ -2,10 +2,8 @@ import { notFound } from "next/navigation";
 
 import { JobDetails } from "@/app/agents/[agentId]/jobs/@right/components/job-details";
 import { getSessionOrThrow } from "@/lib/auth/utils";
-import {
-  retrieveAgentWithRelationsById,
-  retrieveJobById,
-} from "@/lib/db/repositories";
+import { retrieveJobById } from "@/lib/db/repositories";
+import { getAgentById } from "@/lib/services";
 
 interface JobDetailsPageParams {
   agentId: string;
@@ -20,9 +18,8 @@ export default async function JobDetailsPage({
   const session = await getSessionOrThrow();
   const { agentId, jobId } = await params;
 
-  const agent = await retrieveAgentWithRelationsById(agentId);
+  const agent = await getAgentById(agentId);
   if (!agent) {
-    console.warn("agent not found in job detail page");
     notFound();
   }
 
