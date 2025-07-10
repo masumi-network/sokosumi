@@ -31,13 +31,15 @@ const AgentShowcaseCard = ({
         "bg-background/20 group flex h-[90px] w-[300px] items-center overflow-hidden rounded-lg shadow-md transition-all duration-300 hover:w-[300px] md:w-[90px]",
       )}
     >
-      <Image
-        src={image ?? "/placeholder.svg"}
-        alt={name}
-        width={90}
-        height={90}
-        className="shrink-0 object-cover"
-      />
+      <div className="relative h-[90px] w-[90px] shrink-0">
+        <Image
+          src={image ?? "/placeholder.svg"}
+          alt={name}
+          className="object-cover"
+          fill
+          sizes="90px"
+        />
+      </div>
       <div className="w-[210px] px-3 opacity-100 transition-opacity duration-300 group-hover:opacity-100">
         <h3 className="mb-1 truncate text-sm font-bold">{name}</h3>
         {description && (
