@@ -74,12 +74,12 @@ function InformationAccordionItem({
       disabled={disabled}
     >
       <div className="flex flex-wrap gap-6">
-        <div className="h-16 w-16 md:h-24 md:w-24">
+        <div className="relative aspect-square w-16 md:w-24">
           <Image
             src={image}
             alt={name}
-            width={96}
-            height={96}
+            fill
+            sizes="(max-width: 768px) 50vw, 33vw"
             className="rounded-md object-cover"
           />
         </div>
