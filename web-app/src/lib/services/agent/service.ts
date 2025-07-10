@@ -97,7 +97,8 @@ export async function getAvailableAgentById(
 
     const { userOrganizationIds, creditCosts } =
       await getAgentAccessContext(tx);
-    if (!isAgentAvailable(agent, userOrganizationIds, creditCosts)) return null;
+    if (!_isAgentAvailable(agent, userOrganizationIds, creditCosts))
+      return null;
 
     return agent;
   });
@@ -127,7 +128,7 @@ export async function getAgentById(
  *   // Agent is in user's favorites
  * }
  */
-export async function isAgentFavorite(agentId: string): Promise<boolean> {
+export async function _isAgentFavorite(agentId: string): Promise<boolean> {
   const session = await getSessionOrThrow();
   const favoriteList = await retrieveAgentListByUserIdAndType(
     session.user.id,
@@ -154,13 +155,20 @@ export async function isAgentFavorite(agentId: string): Promise<boolean> {
  *   // Agent can be accessed and used by the user
  * }
  */
-function isAgentAvailable(
+function _isAgentAvailable(
   agent: AgentWithRelations,
   organizationIds: string[],
   creditCosts: CreditCost[],
 ): boolean {
   if (!canUserAccessAgent(agent, organizationIds)) return false;
   if (!hasValidPricing(agent, creditCosts)) return false;
+  return true;
+}
+
+export async function isAgentAvailable(agentId: string): Promise<boolean> {
+  const agent = await getAvailableAgentById(agentId);
+  if (!agent) return false;
+
   return true;
 }
 
@@ -242,7 +250,7 @@ export async function getAvailableAgents(
     tx,
   );
   return onlineAgents.filter((agent) =>
-    isAgentAvailable(agent, userOrganizationIds, creditCosts),
+    _isAgentAvailable(agent, userOrganizationIds, creditCosts),
   );
 }
 

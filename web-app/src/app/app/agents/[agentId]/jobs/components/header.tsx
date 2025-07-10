@@ -47,6 +47,7 @@ export function HeaderSkeleton() {
 
 interface HeaderProps {
   agent: AgentWithRelations;
+  isAvailable: boolean;
   agentCreditsPrice: CreditsPrice;
   favoriteAgents: AgentWithRelations[];
   jobs: JobWithLimitedInformation[];
@@ -54,6 +55,7 @@ interface HeaderProps {
 
 export default function Header({
   agent,
+  isAvailable,
   agentCreditsPrice,
   favoriteAgents,
   jobs,
@@ -81,11 +83,16 @@ export default function Header({
         <Button
           className="text-sm leading-tight font-medium"
           variant="ghost"
+          disabled={!isAvailable}
           onClick={handleDetailsClick}
         >
           {t("details")}
         </Button>
-        <AgentBookmarkButton agentId={agent.id} isFavorite={isFavorite} />
+        <AgentBookmarkButton
+          agentId={agent.id}
+          isFavorite={isFavorite}
+          disabled={!isAvailable}
+        />
       </div>
       <div className="flex flex-1 flex-row items-center justify-end gap-4">
         <div className="w-full text-end text-sm font-semibold">
@@ -93,7 +100,7 @@ export default function Header({
             price: convertCentsToCredits(agentCreditsPrice.cents),
           })}
         </div>
-        <CreateJobModalTrigger agentId={agent.id} />
+        <CreateJobModalTrigger agentId={agent.id} disabled={!isAvailable} />
       </div>
       {/* Agent Modal */}
       <AgentModal open={detailOpen}>
