@@ -1,4 +1,5 @@
 import { JobStatus } from "@/lib/db/types";
+import { PAYMENT_FAILED_GRACE_PERIOD } from "@/lib/services";
 import {
   AgentJobStatus,
   Job,
@@ -13,12 +14,14 @@ import {
  */
 export function computeJobStatus(job: Job): JobStatus {
   const { onChainStatus, agentJobStatus, nextActionErrorType } = job;
-
+  if (job.purchaseId === null) {
+    if (job.createdAt < new Date(Date.now() - PAYMENT_FAILED_GRACE_PERIOD)) {
+      return JobStatus.PAYMENT_FAILED;
+    }
+    return JobStatus.PAYMENT_PENDING;
+  }
   switch (onChainStatus) {
     case null:
-      if (job.purchaseId === null) {
-        return JobStatus.PAYMENT_FAILED;
-      }
       if (nextActionErrorType === null) {
         return JobStatus.PAYMENT_PENDING;
       }

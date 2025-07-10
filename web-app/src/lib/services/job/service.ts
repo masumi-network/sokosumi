@@ -36,6 +36,8 @@ import {
   startAgentJob,
 } from "./third-party";
 
+export const PAYMENT_FAILED_GRACE_PERIOD = 1000 * 60 * 5; // 5min
+
 function getMatchedInputHash(
   inputData: JobInputData,
   identifierFromPurchaser: string,

@@ -95,12 +95,6 @@ async function syncAllJobs() {
             lt: new Date(Date.now() - 1000 * 60 * 10), // 10min grace period
           },
         },
-        {
-          purchaseId: null,
-          createdAt: {
-            gt: new Date(Date.now() - 1000 * 60 * 5), // 5min grace period
-          },
-        },
       ],
     },
   });

@@ -357,7 +357,9 @@ export async function updateJobWithPurchase(
 
   const job = await tx.job.update({
     where: { id: jobId },
-    data,
+    data: {
+      ...data,
+    },
     include: jobInclude,
   });
   return mapJobWithStatus(job);
