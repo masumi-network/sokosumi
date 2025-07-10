@@ -22,6 +22,7 @@ import {
   PricingAmountsSchemaType,
   StartJobInputSchemaType,
 } from "@/lib/schemas";
+import { getAvailableAgentById } from "@/lib/services";
 import { getInputHash, getInputHashDeprecated } from "@/lib/utils";
 import {
   AgentJobStatus,
@@ -114,7 +115,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
   const organizationId = await getActiveOrganizationId();
   const [agent, creditsPrice, amountsPrice] = await prisma.$transaction(
     async (tx) => {
-      const agent = await retrieveAgentWithRelationsById(agentId, tx);
+      const agent = await getAvailableAgentById(agentId, tx);
       if (!agent) {
         throw new Error("Agent not found");
       }

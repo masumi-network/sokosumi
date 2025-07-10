@@ -122,19 +122,17 @@ async function getAgentAccessContext(
  */
 export async function getAvailableAgentById(
   agentId: string,
+  tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithRelations | null> {
-  return await prisma.$transaction(async (tx) => {
-    const agent = await retrieveShownAgentWithRelationById(
-      agentId,
-      AgentStatus.ONLINE,
-      tx,
-    );
-    if (!agent) return null;
-    const { userOrganizationIds, creditCosts } =
-      await getAgentAccessContext(tx);
-    if (!isAgentAvailable(agent, userOrganizationIds, creditCosts)) return null;
-    return agent;
-  });
+  const agent = await retrieveShownAgentWithRelationById(
+    agentId,
+    AgentStatus.ONLINE,
+    tx,
+  );
+  if (!agent) return null;
+  const { userOrganizationIds, creditCosts } = await getAgentAccessContext(tx);
+  if (!isAgentAvailable(agent, userOrganizationIds, creditCosts)) return null;
+  return agent;
 }
 
 /**
