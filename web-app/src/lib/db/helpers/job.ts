@@ -21,7 +21,11 @@ export function computeJobStatus(job: Job): JobStatus {
   const { onChainStatus, agentJobStatus, nextActionErrorType } = job;
   if (job.purchaseId === null) {
     if (isPaymentFailed(job)) {
-      return JobStatus.PAYMENT_FAILED;
+      if (job.refundedCreditTransactionId) {
+        return JobStatus.REFUND_RESOLVED;
+      } else {
+        return JobStatus.PAYMENT_FAILED;
+      }
     } else {
       return JobStatus.PAYMENT_PENDING;
     }
