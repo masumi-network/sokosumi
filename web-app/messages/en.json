@@ -947,6 +947,7 @@
         "StatusBadge": {
           "completed": "Completed",
           "failed": "Failed",
+          "paymentPending": "Payment Processing",
           "paymentFailed": "Payment Failed",
           "processing": "Processing",
           "agentConnectionFailed": "Agent Connection Failed",

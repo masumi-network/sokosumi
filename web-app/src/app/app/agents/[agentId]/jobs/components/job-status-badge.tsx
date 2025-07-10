@@ -45,6 +45,14 @@ export default function JobStatusBadge({
         </Badge>
       );
     case JobStatus.PAYMENT_PENDING:
+      return (
+        <Badge
+          variant="default"
+          className={cn("bg-sky-100 text-sky-800", className)}
+        >
+          {t("paymentPending")}
+        </Badge>
+      );
     case JobStatus.PROCESSING:
       return (
         <Badge

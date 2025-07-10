@@ -1,5 +1,4 @@
 import { JobStatus } from "@/lib/db/types";
-import { PAYMENT_FAILED_GRACE_PERIOD } from "@/lib/services";
 import {
   AgentJobStatus,
   Job,
@@ -9,16 +8,23 @@ import {
   OnChainTransactionStatus,
 } from "@/prisma/generated/client";
 
+const PAYMENT_FAILED_GRACE_PERIOD = 1000 * 60 * 5; // 5min
+
+function isPaymentFailed(job: Job): boolean {
+  return job.createdAt < new Date(Date.now() - PAYMENT_FAILED_GRACE_PERIOD);
+}
+
 /**
  * Compute the overall job status by combining the on-chain and agent statuses.
  */
 export function computeJobStatus(job: Job): JobStatus {
   const { onChainStatus, agentJobStatus, nextActionErrorType } = job;
   if (job.purchaseId === null) {
-    if (job.createdAt < new Date(Date.now() - PAYMENT_FAILED_GRACE_PERIOD)) {
+    if (isPaymentFailed(job)) {
       return JobStatus.PAYMENT_FAILED;
+    } else {
+      return JobStatus.PAYMENT_PENDING;
     }
-    return JobStatus.PAYMENT_PENDING;
   }
   switch (onChainStatus) {
     case null:
