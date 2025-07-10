@@ -37,7 +37,7 @@ const AgentShowcaseCard = ({
           alt={name}
           className="object-cover"
           fill
-          sizes="(max-width: 768px) 90px, 90px"
+          sizes="90px"
         />
       </div>
       <div className="w-[210px] px-3 opacity-100 transition-opacity duration-300 group-hover:opacity-100">
