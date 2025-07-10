@@ -160,10 +160,12 @@ function hasValidPricing(
 export async function getAvailableAgents(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithRelations[]> {
-  // get all credit costs
   const session = await getSession();
+
+  // get all credit costs
   const creditCosts = await retrieveAllCreditCosts(tx);
 
+  // get all online agents
   const onlineAgents = await retrieveShownAgentsWithRelationsByStatus(
     AgentStatus.ONLINE,
     tx,
@@ -174,6 +176,8 @@ export async function getAvailableAgents(
     session?.user.id && session.user.id !== ""
       ? await retrieveMembersOrganizationIdsByUserId(session.user.id, tx)
       : [];
+
+  // filter agents by access and pricing
   return onlineAgents
     .filter((agent) => canUserAccessAgent(agent, userOrganizationIds))
     .filter((agent) => hasValidPricing(agent, creditCosts));
