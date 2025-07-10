@@ -18,10 +18,12 @@ import {
 } from "@/lib/db/repositories";
 import { generateJobName } from "@/lib/generateJobName";
 import { JobInputData } from "@/lib/job-input";
-import { StartJobInputSchemaType } from "@/lib/schemas";
+import {
+  PricingAmountsSchemaType,
+  StartJobInputSchemaType,
+} from "@/lib/schemas";
 import { getInputHash, getInputHashDeprecated } from "@/lib/utils";
 import { Job, NextJobAction, Prisma } from "@/prisma/generated/client";
-import { getAgentPricing } from "@/services/agent";
 import {
   getCreditsPrice,
   validateCreditsBalance,
@@ -85,14 +87,12 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
     if (!agent) {
       throw new Error("Agent not found");
     }
-    const pricing = await getAgentPricing(agentId, tx);
-    const creditsPrice = await getCreditsPrice(
-      pricing.FixedPricing.Amounts.map((amount) => ({
+    const agentAmounts: PricingAmountsSchemaType =
+      agent.pricing.fixedPricing?.amounts.map((amount) => ({
         unit: amount.unit,
         amount: Number(amount.amount),
-      })),
-      tx,
-    );
+      })) ?? [];
+    const creditsPrice = await getCreditsPrice(agentAmounts, tx);
     if (creditsPrice.cents > maxAcceptedCents) {
       throw new Error("Credit cost is too high");
     }

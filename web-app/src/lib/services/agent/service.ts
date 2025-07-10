@@ -12,7 +12,6 @@ import {
   prisma,
   retrieveAgentListByUserIdAndType,
   retrieveAgentsWithRelations,
-  retrieveAgentWithFixedPricingById,
   retrieveAgentWithRelationsById,
   retrieveAllCreditCosts,
   retrieveHiredAgentsWithJobsByUserIdAndOrganization,
@@ -29,10 +28,7 @@ import {
   Prisma,
 } from "@/prisma/generated/client";
 
-import {
-  fetchAgentInputSchema,
-  getAgentPaymentInformation,
-} from "./third-party";
+import { fetchAgentInputSchema } from "./third-party";
 
 /**
  * Utility: Checks if a user can access an agent based on organization membership and agent visibility.
@@ -293,31 +289,6 @@ export async function getAgentInputSchema(
     throw new Error(inputSchemaResult.error);
   }
   return inputSchemaResult.data;
-}
-
-/**
- * Retrieves the pricing information for a specific agent, including fixed pricing and payment structure.
- *
- * - Throws an error if the agent or pricing cannot be found.
- *
- * @param id - Unique agent identifier.
- * @param tx - Optional Prisma transaction client.
- * @returns The agent's pricing information.
- * @throws If the agent is not found or if the pricing cannot be fetched.
- */
-export async function getAgentPricing(
-  id: string,
-  tx: Prisma.TransactionClient = prisma,
-) {
-  const agent = await retrieveAgentWithFixedPricingById(id, tx);
-  if (!agent) {
-    throw new Error("Agent not found");
-  }
-  const agentPricingResult = await getAgentPaymentInformation(agent);
-  if (!agentPricingResult.ok) {
-    throw new Error(agentPricingResult.error);
-  }
-  return agentPricingResult.data;
 }
 
 /**
