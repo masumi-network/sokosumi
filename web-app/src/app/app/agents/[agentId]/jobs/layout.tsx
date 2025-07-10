@@ -86,7 +86,7 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
         </div>
         <Footer legal={getAgentLegal(agent)} />
         {/* Create Job Modal */}
-        <CreateJobModal />
+        {!!availableAgent && <CreateJobModal />}
       </div>
     </CreateJobModalContextProvider>
   );
