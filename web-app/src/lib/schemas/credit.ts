@@ -1,10 +1,10 @@
 import { z } from "zod";
 
-// there aren't for user's use, only for internal use
+// this isn't for user's use, only for internal use
 export const pricingAmountsSchema = z.array(
   z.object({
     unit: z.string(),
-    amount: z.number().positive(),
+    amount: z.number({ coerce: true }).int().positive(),
   }),
 );
 
