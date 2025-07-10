@@ -44,7 +44,7 @@ export const startJobResponseSchema = z.object({
   identifierFromPurchaser: z.string().min(1),
   amounts: z.array(
     z.object({
-      amount: z.number({ coerce: true }),
+      amount: z.number({ coerce: true }).int().positive(),
       unit: z.string(),
     }),
   ),
