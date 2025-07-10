@@ -32,6 +32,9 @@ function AgentActionButtons({
 }: AgentActionButtonsProps) {
   const router = useRouter();
   const [url, setUrl] = useState<URL | undefined>(undefined);
+  const isFavorite = favoriteAgents?.some(
+    (favoriteAgent) => favoriteAgent.id === agent.id,
+  );
 
   useEffect(() => {
     setUrl(new URL(`${window.location.origin}/agents/${agent.id}`));
@@ -56,13 +59,11 @@ function AgentActionButtons({
         )}
       </div>
       <div className="flex items-center gap-2">
-        {favoriteAgents && (
-          <AgentBookmarkButton
-            agentId={agent.id}
-            favoriteAgents={favoriteAgents}
-            disabled={!isAgentAvailable}
-          />
-        )}
+        <AgentBookmarkButton
+          agentId={agent.id}
+          isFavorite={isFavorite ?? false}
+          disabled={!isAgentAvailable}
+        />
         {url && <ShareButton url={url} disabled={!isAgentAvailable} />}
       </div>
     </div>
