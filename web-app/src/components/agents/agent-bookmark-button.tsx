@@ -7,32 +7,29 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { toggleAgentInAgentList } from "@/lib/actions";
-import { AgentWithRelations } from "@/lib/db";
 import { cn } from "@/lib/utils";
 import { AgentListType } from "@/prisma/generated/client";
 
 interface AgentBookmarkButtonProps {
   agentId: string;
-  favoriteAgents: AgentWithRelations[];
+  isFavorite: boolean;
   className?: string;
   disabled?: boolean;
 }
 
 export function AgentBookmarkButton({
   agentId,
-  favoriteAgents,
+  isFavorite,
   className,
   disabled = false,
 }: AgentBookmarkButtonProps) {
   const t = useTranslations("Components.Agents.AgentCard");
-  const [isBookmarked, setIsBookmarked] = useState<boolean>(
-    favoriteAgents.some((agent) => agent.id === agentId),
-  );
+  const [isBookmarked, setIsBookmarked] = useState<boolean>(isFavorite);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    setIsBookmarked(favoriteAgents.some((agent) => agent.id === agentId));
-  }, [favoriteAgents, agentId]);
+    setIsBookmarked(isFavorite);
+  }, [isFavorite]);
 
   const handleBookmarkToggle = async () => {
     if (disabled) return;

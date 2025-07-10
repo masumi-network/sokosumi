@@ -277,6 +277,9 @@ function AgentCard({
   isAgentAvailable = true,
 }: AgentCardProps & VariantProps<typeof agentCardVariants>) {
   const t = useTranslations("Components.Agents.AgentCard");
+  const isFavorite = favoriteAgents?.some(
+    (favoriteAgent) => favoriteAgent.id === agent.id,
+  );
 
   const isDefault = !size || size === "md";
   const buttonSize = size === "xs" || size === "sm" ? "sm" : "lg";
@@ -299,14 +302,12 @@ function AgentCard({
           {/* Bookmark Button (hover only) */}
           <div className={cn(agentCardImageHoverVariants({ size }))}>
             <div className="relative flex h-full w-full items-center justify-center">
-              {favoriteAgents && (
-                <ClickBlocker className="absolute top-3 right-3">
-                  <AgentBookmarkButton
-                    agentId={agent.id}
-                    favoriteAgents={favoriteAgents}
-                  />
-                </ClickBlocker>
-              )}
+              <ClickBlocker className="absolute top-3 right-3">
+                <AgentBookmarkButton
+                  agentId={agent.id}
+                  isFavorite={isFavorite ?? false}
+                />
+              </ClickBlocker>
               <Button className="hidden md:block" variant="primary">
                 {t("view")}
               </Button>

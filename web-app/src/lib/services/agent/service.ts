@@ -63,6 +63,32 @@ export async function isAgentAvailable(agentId: string): Promise<boolean> {
 }
 
 /**
+ * Checks if a specific agent is marked as favorite by the current authenticated user.
+ *
+ * - Requires an authenticated user session (throws if not authenticated).
+ * - Retrieves the user's favorite agent list and checks if the specified agent is included.
+ * - Returns false if the user has no favorite list or the agent is not in the list.
+ *
+ * @param agentId - The unique identifier of the agent to check.
+ * @returns Promise<boolean> - Resolves to true if the agent is in the user's favorites, false otherwise.
+ * @throws Will throw an error if the user is not authenticated.
+ *
+ * @example
+ * const isFavorite = await isAgentFavorite("agent123");
+ * if (isFavorite) {
+ *   // Agent is in user's favorites
+ * }
+ */
+export async function isAgentFavorite(agentId: string): Promise<boolean> {
+  const session = await getSessionOrThrow();
+  const favoriteList = await retrieveAgentListByUserIdAndType(
+    session.user.id,
+    AgentListType.FAVORITE,
+  );
+  return favoriteList?.agents.some((agent) => agent.id === agentId) ?? false;
+}
+
+/**
  * Checks if a user has access to a specific agent based on organization membership and agent visibility.
  *
  * - Returns false if the agent is not shown (`isShown`).
