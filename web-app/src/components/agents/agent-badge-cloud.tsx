@@ -6,13 +6,15 @@ interface AgentBadgeCloudProps {
 }
 
 function AgentBadgeCloud({ tags }: AgentBadgeCloudProps) {
+  const refinedTags = tags.slice(0, 3);
+
   return (
     <>
-      {tags.length > 0 && (
+      {refinedTags.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {tags.map((tag) => (
+          {refinedTags.map((tag) => (
             <Badge key={tag} variant="secondary">
-              {tag}
+              <p className="max-w-32 truncate uppercase">{tag}</p>
             </Badge>
           ))}
         </div>

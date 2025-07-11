@@ -71,19 +71,22 @@ const agentCardImageHoverVariants = cva(
   },
 );
 
-const agentCardTagsVariants = cva("absolute top-3 left-3 z-20", {
-  variants: {
-    size: {
-      xs: "hidden",
-      sm: "hidden",
-      md: "block",
-      lg: "block",
+const agentCardTagsVariants = cva(
+  "absolute right-12 bottom-0 left-0 z-20 p-3",
+  {
+    variants: {
+      size: {
+        xs: "hidden",
+        sm: "hidden",
+        md: "block",
+        lg: "block",
+      },
+    },
+    defaultVariants: {
+      size: "md",
     },
   },
-  defaultVariants: {
-    size: "md",
-  },
-});
+);
 
 const agentCardContentVariants = cva("w-full flex flex-col", {
   variants: {
