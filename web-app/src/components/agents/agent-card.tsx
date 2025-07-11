@@ -332,7 +332,7 @@ function AgentCard({
             </div>
             {/* Bookmark Button */}
             {favoriteAgents && (
-              <ClickBlocker>
+              <ClickBlocker className="opacity-0 transition-opacity group-hover:opacity-100">
                 <AgentBookmarkButton
                   agentId={agent.id}
                   isFavorite={isFavorite ?? false}
