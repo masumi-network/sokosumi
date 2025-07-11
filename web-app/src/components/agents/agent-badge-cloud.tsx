@@ -22,14 +22,14 @@ function AgentBadgeCloud({
       {refinedTags.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {refinedTags.map((tag) => (
-            <Badge key={tag} variant="secondary">
-              <p
-                className={cn("uppercase", {
-                  "max-w-32 truncate": truncate,
-                })}
-              >
-                {tag}
-              </p>
+            <Badge
+              key={tag}
+              variant="secondary"
+              className={cn("uppercase", {
+                "max-w-32 truncate": truncate,
+              })}
+            >
+              {tag}
             </Badge>
           ))}
         </div>
