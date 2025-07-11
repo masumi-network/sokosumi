@@ -22,14 +22,14 @@ function AgentBadgeCloud({
       {refinedTags.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {refinedTags.map((tag) => (
-            <Badge
-              key={tag}
-              variant="secondary"
-              className={cn("uppercase", {
-                "max-w-32 truncate": truncate,
-              })}
-            >
-              {tag}
+            <Badge key={tag} variant="secondary">
+              <p
+                className={cn("uppercase", {
+                  "max-w-32 truncate": truncate,
+                })}
+              >
+                {tag}
+              </p>
             </Badge>
           ))}
         </div>
@@ -41,8 +41,8 @@ function AgentBadgeCloud({
 function AgentNewBadge() {
   const t = useTranslations("Components.Agents.AgentBadgeCloud");
   return (
-    <Badge className="bg-background text-foreground uppercase">
-      {t("new")}
+    <Badge className="bg-background text-foreground">
+      <p className="uppercase">{t("new")}</p>
     </Badge>
   );
 }
