@@ -319,7 +319,7 @@ function AgentCard({
 
           {/* Tags */}
           <div className={cn(agentCardTagsVariants({ size }))}>
-            <AgentBadgeCloud tags={getAgentTags(agent)} />
+            <AgentBadgeCloud tags={getAgentTags(agent)} limit={3} truncate />
           </div>
         </div>
 

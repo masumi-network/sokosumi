@@ -1,12 +1,19 @@
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 interface AgentBadgeCloudProps {
   tags: string[];
+  limit?: number;
+  truncate?: boolean;
 }
 
-function AgentBadgeCloud({ tags }: AgentBadgeCloudProps) {
-  const refinedTags = tags.slice(0, 3);
+function AgentBadgeCloud({
+  tags,
+  limit = undefined,
+  truncate = false,
+}: AgentBadgeCloudProps) {
+  const refinedTags = tags.slice(0, limit);
 
   return (
     <>
@@ -14,7 +21,13 @@ function AgentBadgeCloud({ tags }: AgentBadgeCloudProps) {
         <div className="flex flex-wrap gap-2">
           {refinedTags.map((tag) => (
             <Badge key={tag} variant="secondary">
-              <p className="max-w-32 truncate uppercase">{tag}</p>
+              <p
+                className={cn("uppercase", {
+                  "max-w-32 truncate": truncate,
+                })}
+              >
+                {tag}
+              </p>
             </Badge>
           ))}
         </div>
