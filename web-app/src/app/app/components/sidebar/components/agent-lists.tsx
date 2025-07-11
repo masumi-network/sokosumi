@@ -11,7 +11,9 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AgentWithAvailability } from "@/lib/db";
 import {
+  getAvailableAgents,
   getFavoriteAgents,
   getHiredAgentsOrderedByLatestJob,
   getNotFinalizedLatestJobsByAgentIds,
@@ -57,9 +59,15 @@ function AgentListsSkeleton() {
 async function AgentListsContent() {
   const t = await getTranslations("App.Sidebar.Content.AgentLists");
 
-  const favoriteAgents = await getFavoriteAgents();
+  const [favoriteAgents, hiredAgentsWithJobs, availableAgents] =
+    await Promise.all([
+      getFavoriteAgents(),
+      getHiredAgentsOrderedByLatestJob(),
+      getAvailableAgents(),
+    ]);
+
   const hiredAgents = filterDuplicatedAgents(
-    await getHiredAgentsOrderedByLatestJob(),
+    hiredAgentsWithJobs,
     favoriteAgents,
   );
 
@@ -70,18 +78,36 @@ async function AgentListsContent() {
     getNotFinalizedLatestJobsByAgentIds(hiredAgents.map((agent) => agent.id)),
   ]);
 
+  // Determine availability for each agent
+  const availableAgentIds = new Set(availableAgents.map((agent) => agent.id));
+  const isAgentAvailable = (agentId: string) => availableAgentIds.has(agentId);
+
+  // Transform agents to include availability information
+  const favoriteAgentsWithAvailability: AgentWithAvailability[] =
+    favoriteAgents.map((agent) => ({
+      agent,
+      isAvailable: isAgentAvailable(agent.id),
+    }));
+
+  const hiredAgentsWithAvailability: AgentWithAvailability[] = hiredAgents.map(
+    (agent) => ({
+      agent,
+      isAvailable: isAgentAvailable(agent.id),
+    }),
+  );
+
   const agentLists = [
     {
       groupKey: "favorite-agents",
       title: t("pinnedTitle"),
-      agents: favoriteAgents,
+      agents: favoriteAgentsWithAvailability,
       latestJobs: favoriteAgentsLatestJobs,
       noAgentsType: t("pinnedType"),
     },
     {
       groupKey: "hired-agents",
       title: t("hiredTitle"),
-      agents: hiredAgents,
+      agents: hiredAgentsWithAvailability,
       latestJobs: hiredAgentsLatestJobs,
       noAgentsType: t("hiredType"),
     },

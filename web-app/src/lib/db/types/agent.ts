@@ -1,4 +1,9 @@
-import { Prisma } from "@/prisma/generated/client";
+import { Agent, Prisma } from "@/prisma/generated/client";
+
+export type AgentWithAvailability = {
+  agent: Agent;
+  isAvailable: boolean;
+};
 
 export const agentPricingInclude = {
   pricing: {
