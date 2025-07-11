@@ -47,7 +47,6 @@ function AgentDetailSection1({
       />
       <div className="flex flex-col gap-6 md:flex-row">
         <div className="relative aspect-square w-full shrink-0 md:h-48 md:w-48">
-          <div className="absolute inset-0 rounded-lg blur-sm" />
           <Image
             src={getAgentResolvedImage(agent)}
             alt={getAgentName(agent)}

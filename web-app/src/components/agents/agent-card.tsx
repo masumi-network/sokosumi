@@ -42,8 +42,8 @@ const agentCardImageContainerVariants = cva(
   {
     variants: {
       size: {
-        xs: "w-16 h-16 aspect-square agent-card-image-shadow",
-        sm: "w-24 h-24 aspect-square agent-card-image-shadow",
+        xs: "w-16 h-16 agent-card-image-shadow",
+        sm: "w-24 h-24 agent-card-image-shadow",
         md: "w-full aspect-[1.6] agent-card-image-shadow",
         lg: "w-full md:w-1/2 aspect-[1.6]",
       },
