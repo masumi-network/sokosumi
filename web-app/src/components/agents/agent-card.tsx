@@ -324,15 +324,7 @@ function AgentCard({
               agentCardBadgesAndBookmarkButtonContainerVariants({ size }),
             )}
           >
-            <div
-              className={cn(
-                "flex flex-1 flex-col transition-opacity group-hover:opacity-0",
-                {
-                  "justify-between": agent.isNew,
-                  "justify-end": !agent.isNew,
-                },
-              )}
-            >
+            <div className="flex flex-1 flex-col justify-between transition-opacity group-hover:opacity-0">
               {/* New Badge */}
               {agent.isNew && <AgentNewBadge />}
               {/* Tags */}
