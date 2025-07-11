@@ -79,7 +79,7 @@ export default function AgentListsClient({
                               agentId === agent.id,
                             "text-tertiary-foreground hover:text-foreground":
                               agentId !== agent.id && isAvailable,
-                            "text-gray-500 hover:text-gray-400":
+                            "text-muted-foreground hover:text-foreground":
                               agentId !== agent.id && !isAvailable,
                           })}
                         >
