@@ -17,7 +17,11 @@ import {
 } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
-import { AgentBadgeCloud, AgentBadgeCloudSkeleton } from "./agent-badge-cloud";
+import {
+  AgentBadgeCloud,
+  AgentBadgeCloudSkeleton,
+  AgentNewBadge,
+} from "./agent-badge-cloud";
 import { AgentBookmarkButton } from "./agent-bookmark-button";
 import { AgentDetailLink } from "./agent-detail-link";
 import { AgentHireButton } from "./agent-hire-button";
@@ -55,13 +59,13 @@ const agentCardImageContainerVariants = cva(
 );
 
 const agentCardImageHoverVariants = cva(
-  "absolute inset-0 z-20 opacity-100 md:opacity-0 transition-opacity group-hover:opacity-100",
+  "absolute inset-0 z-20 opacity-100 md:opacity-0 transition-opacity group-hover:opacity-100 items-center justify-center",
   {
     variants: {
       size: {
         xs: "hidden",
         sm: "hidden",
-        md: "block md:backdrop-blur-md",
+        md: "flex md:backdrop-blur-md",
         lg: "hidden",
       },
     },
@@ -71,19 +75,22 @@ const agentCardImageHoverVariants = cva(
   },
 );
 
-const agentCardTagsVariants = cva("absolute top-3 left-3 z-20", {
-  variants: {
-    size: {
-      xs: "hidden",
-      sm: "hidden",
-      md: "block",
-      lg: "block",
+const agentCardBadgesAndBookmarkButtonContainerVariants = cva(
+  "absolute inset-0 z-20 p-3 gap-4",
+  {
+    variants: {
+      size: {
+        xs: "hidden",
+        sm: "hidden",
+        md: "flex",
+        lg: "flex",
+      },
+    },
+    defaultVariants: {
+      size: "md",
     },
   },
-  defaultVariants: {
-    size: "md",
-  },
-});
+);
 
 const agentCardContentVariants = cva("w-full flex flex-col", {
   variants: {
@@ -219,9 +226,16 @@ function AgentCardSkeleton({
       <div className={cn(agentCardImageContainerVariants({ size }))}>
         <Skeleton className="h-full w-full" />
 
-        {/* Tags */}
-        <div className={cn(agentCardTagsVariants({ size }))}>
-          <AgentBadgeCloudSkeleton />
+        {/* Badges and Bookmark Button */}
+        <div
+          className={cn(
+            agentCardBadgesAndBookmarkButtonContainerVariants({ size }),
+          )}
+        >
+          <div className="flex flex-1 flex-col justify-end">
+            {/* Tags */}
+            <AgentBadgeCloudSkeleton />
+          </div>
         </div>
       </div>
 
@@ -297,26 +311,42 @@ function AgentCard({
             />
           </AgentCardWrapper>
 
-          {/* Bookmark Button (hover only) */}
+          {/* Hover blur and Show Details Button */}
           <div className={cn(agentCardImageHoverVariants({ size }))}>
-            <div className="relative flex h-full w-full items-center justify-center">
-              {favoriteAgents && (
-                <ClickBlocker className="absolute top-3 right-3">
-                  <AgentBookmarkButton
-                    agentId={agent.id}
-                    isFavorite={isFavorite ?? false}
-                  />
-                </ClickBlocker>
-              )}
-              <Button className="hidden md:block" variant="primary">
-                {t("view")}
-              </Button>
-            </div>
+            <Button className="hidden md:block" variant="primary">
+              {t("view")}
+            </Button>
           </div>
 
-          {/* Tags */}
-          <div className={cn(agentCardTagsVariants({ size }))}>
-            <AgentBadgeCloud tags={getAgentTags(agent)} />
+          {/* Badges and Bookmark Button */}
+          <div
+            className={cn(
+              agentCardBadgesAndBookmarkButtonContainerVariants({ size }),
+            )}
+          >
+            <div
+              className={cn(
+                "flex flex-1 flex-col transition-opacity group-hover:opacity-0",
+                {
+                  "justify-between": agent.isNew,
+                  "justify-end": !agent.isNew,
+                },
+              )}
+            >
+              {/* New Badge */}
+              {agent.isNew && <AgentNewBadge />}
+              {/* Tags */}
+              <AgentBadgeCloud tags={getAgentTags(agent)} limit={3} truncate />
+            </div>
+            {/* Bookmark Button */}
+            {favoriteAgents && (
+              <ClickBlocker className="opacity-0 transition-opacity group-hover:opacity-100">
+                <AgentBookmarkButton
+                  agentId={agent.id}
+                  isFavorite={isFavorite ?? false}
+                />
+              </ClickBlocker>
+            )}
           </div>
         </div>
 

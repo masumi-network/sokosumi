@@ -1,5 +1,6 @@
 import "server-only";
 
+import { getEnvPublicConfig } from "@/config/env.public";
 import {
   agentInclude,
   agentOrderBy,
@@ -25,10 +26,16 @@ export async function retrieveAgentWithRelationsById(
   id: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithRelations | null> {
-  return await tx.agent.findUnique({
+  const agent = await tx.agent.findUnique({
     where: { id },
     include: agentInclude,
   });
+
+  if (!agent) {
+    return null;
+  }
+
+  return mapAgentWithIsNew(agent);
 }
 
 /**
@@ -81,10 +88,16 @@ export async function retrieveShownAgentWithRelationById(
   status: AgentStatus,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithRelations | null> {
-  return await tx.agent.findUnique({
+  const agent = await tx.agent.findUnique({
     where: { id: agentId, isShown: true, status },
     include: agentInclude,
   });
+
+  if (!agent) {
+    return null;
+  }
+
+  return mapAgentWithIsNew(agent);
 }
 
 /**
@@ -96,9 +109,11 @@ export async function retrieveShownAgentWithRelationById(
 export async function retrieveAgentsWithRelations(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithRelations[]> {
-  return await tx.agent.findMany({
+  const agents = await tx.agent.findMany({
     include: agentInclude,
   });
+
+  return agents.map(mapAgentWithIsNew);
 }
 
 /**
@@ -113,7 +128,7 @@ export async function retrieveShownAgentsWithRelationsByStatus(
   status: AgentStatus,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithRelations[]> {
-  return await tx.agent.findMany({
+  const agents = await tx.agent.findMany({
     include: agentInclude,
     orderBy: [...agentOrderBy],
     where: {
@@ -121,6 +136,8 @@ export async function retrieveShownAgentsWithRelationsByStatus(
       isShown: true,
     },
   });
+
+  return agents.map(mapAgentWithIsNew);
 }
 
 /**
@@ -160,4 +177,17 @@ export async function retrieveHiredAgentsWithJobsByUserIdAndOrganization(
       },
     },
   });
+}
+
+const thresholdDays = getEnvPublicConfig().NEXT_PUBLIC_AGENT_NEW_THRESHOLD_DAYS;
+
+export function mapAgentWithIsNew(
+  agent: Omit<AgentWithRelations, "isNew">,
+): AgentWithRelations {
+  const thresholdMilliseconds = 86_400_000 * thresholdDays;
+
+  return {
+    ...agent,
+    isNew: agent.createdAt > new Date(Date.now() - thresholdMilliseconds),
+  };
 }

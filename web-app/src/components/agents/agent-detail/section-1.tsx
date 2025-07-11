@@ -5,6 +5,7 @@ import {
   AgentActionButtons,
   AgentActionButtonsSkeleton,
 } from "@/components/agents/agent-action-buttons";
+import { AgentNewBadge } from "@/components/agents/agent-badge-cloud";
 import { AgentHireButton } from "@/components/agents/agent-hire-button";
 import { AgentVerifiedBadge } from "@/components/agents/agent-verified-badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -55,6 +56,11 @@ function AgentDetailSection1({
             className="rounded-lg object-cover"
             priority
           />
+          {agent.isNew && (
+            <div className="absolute top-0 left-0 p-3">
+              <AgentNewBadge />
+            </div>
+          )}
         </div>
         <div className="flex flex-1 flex-col gap-8 md:gap-1.5">
           <div className="flex flex-1 flex-col gap-2">

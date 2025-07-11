@@ -98,6 +98,9 @@
           "title": "EU AI Act Risk Classification"
         }
       },
+      "AgentBadgeCloud": {
+        "new": "New"
+      },
       "AgentModal": {
         "error": "Failed to fetch agent detail",
         "backToAgents": "Back To Agents Gallery"

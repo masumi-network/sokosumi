@@ -8,6 +8,6 @@ export const agentListInclude = {
   },
 } as const;
 
-export type AgentListWithAgent = Prisma.AgentListGetPayload<{
+export type AgentListWithAgents = Prisma.AgentListGetPayload<{
   include: typeof agentListInclude;
 }>;
