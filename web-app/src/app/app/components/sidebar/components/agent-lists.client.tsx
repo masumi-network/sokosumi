@@ -29,6 +29,7 @@ interface AgentListsClientProps {
     agents: Agent[];
     latestJobs: (JobWithStatus | null)[];
     noAgentsType: string;
+    agentAvailability: boolean[];
   }[];
 }
 
@@ -57,44 +58,61 @@ export default function AgentListsClient({
   return (
     <>
       {agentLists.map(
-        ({ groupKey, title, agents, latestJobs, noAgentsType }) => (
+        ({
+          groupKey,
+          title,
+          agents,
+          latestJobs,
+          noAgentsType,
+          agentAvailability,
+        }) => (
           <SidebarGroup key={groupKey} className="w-72 md:w-64">
             <SidebarGroupLabel className="text-base">{title}</SidebarGroupLabel>
             <SidebarGroupContent className="mt-2">
               {agents.length > 0 ? (
                 <SidebarMenu>
-                  {agents.map((agent, index) => (
-                    <SidebarMenuItem key={agent.id}>
-                      <SidebarMenuButton
-                        asChild
-                        className={cn({
-                          "text-primary-foreground hover:text-primary-foreground active:text-primary-foreground bg-primary hover:bg-primary active:bg-primary":
-                            agentId === agent.id,
-                          "text-tertiary-foreground hover:text-foreground":
-                            agentId !== agent.id,
-                        })}
-                      >
-                        <Link href={`/app/agents/${agent.id}/jobs`}>
-                          <div className="group/agent-menu flex w-full items-center gap-2">
-                            <SquareTerminal className="h-4 w-4" />
-                            <span className="flex-1 truncate">
-                              {getAgentName(agent)}
-                            </span>
-                            {latestJobs[index] && (
-                              <AgentJobStatusIndicator
-                                job={latestJobs[index]}
+                  {agents.map((agent, index) => {
+                    const isAvailable = agentAvailability[index];
+                    return (
+                      <SidebarMenuItem key={agent.id}>
+                        <SidebarMenuButton
+                          asChild
+                          className={cn({
+                            "text-primary-foreground hover:text-primary-foreground active:text-primary-foreground bg-primary hover:bg-primary active:bg-primary":
+                              agentId === agent.id,
+                            "text-tertiary-foreground hover:text-foreground":
+                              agentId !== agent.id && isAvailable,
+                            "text-gray-500 hover:text-gray-400":
+                              agentId !== agent.id && !isAvailable,
+                          })}
+                        >
+                          <Link href={`/app/agents/${agent.id}/jobs`}>
+                            <div className="group/agent-menu flex w-full items-center gap-2">
+                              <SquareTerminal
                                 className={cn("h-4 w-4", {
-                                  "text-primary-foreground":
-                                    agentId === agent.id,
-                                  "text-primary": agentId !== agent.id,
+                                  "text-gray-500":
+                                    !isAvailable && agentId !== agent.id,
                                 })}
                               />
-                            )}
-                          </div>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
+                              <span className="flex-1 truncate">
+                                {getAgentName(agent)}
+                              </span>
+                              {latestJobs[index] && isAvailable && (
+                                <AgentJobStatusIndicator
+                                  job={latestJobs[index]}
+                                  className={cn("h-4 w-4", {
+                                    "text-primary-foreground":
+                                      agentId === agent.id,
+                                    "text-primary": agentId !== agent.id,
+                                  })}
+                                />
+                              )}
+                            </div>
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
                 </SidebarMenu>
               ) : (
                 <p className="text-muted-foreground px-3 text-sm">

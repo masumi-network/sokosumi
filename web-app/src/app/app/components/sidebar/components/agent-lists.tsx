@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  getAvailableAgents,
   getFavoriteAgents,
   getHiredAgentsOrderedByLatestJob,
   getNotFinalizedLatestJobsByAgentIds,
@@ -57,9 +58,15 @@ function AgentListsSkeleton() {
 async function AgentListsContent() {
   const t = await getTranslations("App.Sidebar.Content.AgentLists");
 
-  const favoriteAgents = await getFavoriteAgents();
+  const [favoriteAgents, hiredAgentsWithJobs, availableAgents] =
+    await Promise.all([
+      getFavoriteAgents(),
+      getHiredAgentsOrderedByLatestJob(),
+      getAvailableAgents(),
+    ]);
+
   const hiredAgents = filterDuplicatedAgents(
-    await getHiredAgentsOrderedByLatestJob(),
+    hiredAgentsWithJobs,
     favoriteAgents,
   );
 
@@ -70,6 +77,10 @@ async function AgentListsContent() {
     getNotFinalizedLatestJobsByAgentIds(hiredAgents.map((agent) => agent.id)),
   ]);
 
+  // Determine availability for each agent
+  const isAgentAvailable = (agentId: string) =>
+    availableAgents.some((availableAgent) => availableAgent.id === agentId);
+
   const agentLists = [
     {
       groupKey: "favorite-agents",
@@ -77,6 +88,9 @@ async function AgentListsContent() {
       agents: favoriteAgents,
       latestJobs: favoriteAgentsLatestJobs,
       noAgentsType: t("pinnedType"),
+      agentAvailability: favoriteAgents.map((agent) =>
+        isAgentAvailable(agent.id),
+      ),
     },
     {
       groupKey: "hired-agents",
@@ -84,6 +98,7 @@ async function AgentListsContent() {
       agents: hiredAgents,
       latestJobs: hiredAgentsLatestJobs,
       noAgentsType: t("hiredType"),
+      agentAvailability: hiredAgents.map((agent) => isAgentAvailable(agent.id)),
     },
   ];
 
