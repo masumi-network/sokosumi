@@ -1,3 +1,4 @@
+import { getEnvPublicConfig } from "@/config/env.public";
 import {
   AgentLegal,
   AgentWithExampleOutput,
@@ -91,4 +92,15 @@ export function getAgentResolvedExampleOutputUrl(
   exampleOutput: ExampleOutput,
 ): string {
   return ipfsUrlResolver(exampleOutput.url);
+}
+
+export function isAgentNew(agent: Agent): boolean {
+  const thresholdMilliseconds =
+    1000 *
+    60 *
+    60 *
+    24 *
+    getEnvPublicConfig().NEXT_PUBLIC_AGENT_NEW_THRESHOLD_DAYS;
+
+  return agent.createdAt > new Date(Date.now() - thresholdMilliseconds);
 }

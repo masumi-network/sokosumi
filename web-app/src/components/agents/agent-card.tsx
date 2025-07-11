@@ -14,10 +14,15 @@ import {
   getAgentResolvedImage,
   getAgentTags,
   getShortAgentAuthorName,
+  isAgentNew,
 } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
-import { AgentBadgeCloud, AgentBadgeCloudSkeleton } from "./agent-badge-cloud";
+import {
+  AgentBadgeCloud,
+  AgentBadgeCloudSkeleton,
+  AgentNewBadge,
+} from "./agent-badge-cloud";
 import { AgentBookmarkButton } from "./agent-bookmark-button";
 import { AgentDetailLink } from "./agent-detail-link";
 import { AgentHireButton } from "./agent-hire-button";
@@ -63,6 +68,23 @@ const agentCardImageHoverVariants = cva(
         sm: "hidden",
         md: "block md:backdrop-blur-md",
         lg: "hidden",
+      },
+    },
+    defaultVariants: {
+      size: "md",
+    },
+  },
+);
+
+const agentCardNewBadgeVariants = cva(
+  "absolute right-12 top-0 left-0 z-20 p-3",
+  {
+    variants: {
+      size: {
+        xs: "hidden",
+        sm: "hidden",
+        md: "block",
+        lg: "block",
       },
     },
     defaultVariants: {
@@ -316,6 +338,13 @@ function AgentCard({
               </Button>
             </div>
           </div>
+
+          {/* New Badge */}
+          {isAgentNew(agent) && (
+            <div className={cn(agentCardNewBadgeVariants({ size }))}>
+              <AgentNewBadge />
+            </div>
+          )}
 
           {/* Tags */}
           <div className={cn(agentCardTagsVariants({ size }))}>

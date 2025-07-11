@@ -23,6 +23,10 @@ const envPublicConfigSchema = z.object({
   NEXT_PUBLIC_NETWORK: z.literal("Preprod").or(z.literal("Mainnet")),
   NEXT_PUBLIC_FEE_PERCENTAGE: z.number({ coerce: true }).min(0).default(5),
   NEXT_PUBLIC_CREDITS_BASE: z.number({ coerce: true }).default(12),
+  NEXT_PUBLIC_AGENT_NEW_THRESHOLD_DAYS: z
+    .number({ coerce: true })
+    .min(0)
+    .default(7),
 });
 
 let envPublicConfig: z.infer<typeof envPublicConfigSchema>;
@@ -41,6 +45,8 @@ function validateEnv() {
     NEXT_PUBLIC_NETWORK: process.env.NEXT_PUBLIC_NETWORK,
     NEXT_PUBLIC_FEE_PERCENTAGE: process.env.NEXT_PUBLIC_FEE_PERCENTAGE,
     NEXT_PUBLIC_CREDITS_BASE: process.env.NEXT_PUBLIC_CREDITS_BASE,
+    NEXT_PUBLIC_AGENT_NEW_THRESHOLD_DAYS:
+      process.env.NEXT_PUBLIC_AGENT_NEW_THRESHOLD_DAYS,
   });
   if (!parsedConfig.success) {
     console.error(

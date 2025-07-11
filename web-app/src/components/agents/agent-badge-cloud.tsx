@@ -1,3 +1,5 @@
+import { useTranslations } from "next-intl";
+
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -36,6 +38,15 @@ function AgentBadgeCloud({
   );
 }
 
+function AgentNewBadge() {
+  const t = useTranslations("Components.Agents.AgentBadgeCloud");
+  return (
+    <Badge className="bg-background text-foreground uppercase">
+      {t("new")}
+    </Badge>
+  );
+}
+
 function AgentBadgeCloudSkeleton() {
   return (
     <div className="flex flex-wrap gap-2">
@@ -46,4 +57,4 @@ function AgentBadgeCloudSkeleton() {
   );
 }
 
-export { AgentBadgeCloud, AgentBadgeCloudSkeleton };
+export { AgentBadgeCloud, AgentBadgeCloudSkeleton, AgentNewBadge };
