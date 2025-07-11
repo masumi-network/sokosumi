@@ -232,7 +232,7 @@ function AgentCardSkeleton({
             agentCardBadgesAndBookmarkButtonContainerVariants({ size }),
           )}
         >
-          <div className="flex flex-1 flex-col justify-between">
+          <div className="flex flex-1 flex-col justify-end">
             {/* Tags */}
             <AgentBadgeCloudSkeleton />
           </div>
@@ -324,7 +324,15 @@ function AgentCard({
               agentCardBadgesAndBookmarkButtonContainerVariants({ size }),
             )}
           >
-            <div className="flex flex-1 flex-col justify-between transition-opacity group-hover:opacity-0">
+            <div
+              className={cn(
+                "flex flex-1 flex-col transition-opacity group-hover:opacity-0",
+                {
+                  "justify-between": agent.isNew,
+                  "justify-end": !agent.isNew,
+                },
+              )}
+            >
               {/* New Badge */}
               {agent.isNew && <AgentNewBadge />}
               {/* Tags */}
