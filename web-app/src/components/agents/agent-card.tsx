@@ -14,7 +14,6 @@ import {
   getAgentResolvedImage,
   getAgentTags,
   getShortAgentAuthorName,
-  isAgentNew,
 } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
@@ -340,7 +339,7 @@ function AgentCard({
           </div>
 
           {/* New Badge */}
-          {isAgentNew(agent) && (
+          {agent.isNew && (
             <div className={cn(agentCardNewBadgeVariants({ size }))}>
               <AgentNewBadge />
             </div>

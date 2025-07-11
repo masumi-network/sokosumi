@@ -9,6 +9,7 @@ import {
 } from "@/lib/db";
 import {
   createAgentListByUserIdAndType,
+  mapAgentWithIsNew,
   prisma,
   retrieveAgentListByUserIdAndType,
   retrieveAgentsWithRelations,
@@ -330,10 +331,12 @@ async function getAgentsByListType(
   if (existingList) {
     const { userOrganizationIds, creditCosts } =
       await getAgentAccessContext(tx);
-    return existingList.agents.filter((agent) =>
-      isAgentAvailable(agent, userOrganizationIds, creditCosts),
-    );
+    return existingList.agents
+      .map(mapAgentWithIsNew)
+      .filter((agent) =>
+        isAgentAvailable(agent, userOrganizationIds, creditCosts),
+      );
   }
   const list = await createAgentListByUserIdAndType(session.user.id, type, tx);
-  return list.agents;
+  return list.agents.map(mapAgentWithIsNew);
 }

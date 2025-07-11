@@ -16,7 +16,6 @@ import {
   getAgentName,
   getAgentResolvedImage,
   getFullAgentAuthorName,
-  isAgentNew,
 } from "@/lib/db";
 
 interface AgentDetailSection1Props {
@@ -57,7 +56,7 @@ function AgentDetailSection1({
             className="rounded-lg object-cover"
             priority
           />
-          {isAgentNew(agent) && (
+          {agent.isNew && (
             <div className="absolute top-0 left-0 p-3">
               <AgentNewBadge />
             </div>

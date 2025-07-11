@@ -54,7 +54,7 @@ export const agentOrderBy = [
 
 export type AgentWithRelations = Prisma.AgentGetPayload<{
   include: typeof agentInclude;
-}>;
+}> & { isNew: boolean };
 
 export type AgentWithFixedPricing = Prisma.AgentGetPayload<{
   include: typeof agentPricingInclude;
