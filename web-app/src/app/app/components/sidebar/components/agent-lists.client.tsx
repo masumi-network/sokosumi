@@ -15,17 +15,11 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import useJobStatusEvent from "@/hooks/use-job-status-event";
-import { getAgentName, JobWithStatus } from "@/lib/db";
+import { AgentWithAvailability, getAgentName, JobWithStatus } from "@/lib/db";
 import { PayloadSchemaType } from "@/lib/db/listener/schema";
 import { cn } from "@/lib/utils";
-import { Agent } from "@/prisma/generated/client";
 
 import AgentJobStatusIndicator from "./agent-job-status-indicator";
-
-type AgentWithAvailability = {
-  agent: Agent;
-  isAvailable: boolean;
-};
 
 interface AgentListsClientProps {
   agentLists: {

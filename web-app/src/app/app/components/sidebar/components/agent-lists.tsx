@@ -11,6 +11,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AgentWithAvailability } from "@/lib/db";
 import {
   getAvailableAgents,
   getFavoriteAgents,
@@ -20,11 +21,6 @@ import {
 import { Agent } from "@/prisma/generated/client";
 
 import AgentListsClient from "./agent-lists.client";
-
-type AgentWithAvailability = {
-  agent: Agent;
-  isAvailable: boolean;
-};
 
 export default function AgentLists() {
   return (
