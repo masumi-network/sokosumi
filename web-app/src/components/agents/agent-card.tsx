@@ -30,10 +30,10 @@ import { AgentVerifiedBadge } from "./agent-verified-badge";
 const agentCardVariants = cva("flex rounded-lg border-none p-1 shadow-none", {
   variants: {
     size: {
-      xs: "w-64 flex-row items-center gap-2.5 hover:bg-foreground/5 transition-colors",
-      sm: "w-80 flex-row items-center gap-4 hover:bg-foreground/5 transition-colors",
-      md: "w-80 flex-col gap-2 hover:bg-foreground/5 transition-colors",
-      lg: "flex-col md:flex-row w-[min(100%,theme(maxWidth.5xl))] items-center gap-6 md:gap-2",
+      xs: "hover:bg-foreground/5 w-64 flex-row items-center gap-2.5 transition-colors",
+      sm: "hover:bg-foreground/5 w-80 flex-row items-center gap-4 transition-colors",
+      md: "hover:bg-foreground/5 w-80 flex-col gap-2 transition-colors",
+      lg: "w-[min(100%,theme(maxWidth.5xl))] flex-col items-center gap-6 md:flex-row md:gap-2",
     },
   },
   defaultVariants: {
@@ -42,14 +42,14 @@ const agentCardVariants = cva("flex rounded-lg border-none p-1 shadow-none", {
 });
 
 const agentCardImageContainerVariants = cva(
-  "relative group overflow-hidden rounded-lg shrink-0",
+  "group relative shrink-0 overflow-hidden rounded-lg",
   {
     variants: {
       size: {
-        xs: "w-16 h-16 agent-card-image-shadow",
-        sm: "w-24 h-24 agent-card-image-shadow",
-        md: "w-full aspect-[1.6] agent-card-image-shadow",
-        lg: "w-full md:w-1/2 aspect-[1.6]",
+        xs: "agent-card-image-shadow h-16 w-16",
+        sm: "agent-card-image-shadow h-24 w-24",
+        md: "agent-card-image-shadow aspect-[1.6] w-full",
+        lg: "aspect-[1.6] w-full md:w-1/2",
       },
     },
     defaultVariants: {
@@ -59,7 +59,7 @@ const agentCardImageContainerVariants = cva(
 );
 
 const agentCardImageHoverVariants = cva(
-  "absolute inset-0 z-20 opacity-100 md:opacity-0 transition-opacity group-hover:opacity-100 items-center justify-center",
+  "absolute inset-0 z-20 items-center justify-center opacity-0 transition-opacity group-hover:opacity-100",
   {
     variants: {
       size: {
@@ -75,14 +75,14 @@ const agentCardImageHoverVariants = cva(
   },
 );
 
-const agentCardBadgesAndBookmarkButtonContainerVariants = cva(
-  "absolute inset-0 z-20 p-3 gap-4",
+const agentCardBadgesContainerVariants = cva(
+  "absolute inset-0 z-20 flex-col justify-between gap-4 p-3",
   {
     variants: {
       size: {
         xs: "hidden",
         sm: "hidden",
-        md: "flex",
+        md: "flex transition-opacity group-hover:opacity-0",
         lg: "flex",
       },
     },
@@ -92,13 +92,13 @@ const agentCardBadgesAndBookmarkButtonContainerVariants = cva(
   },
 );
 
-const agentCardContentVariants = cva("w-full flex flex-col", {
+const agentCardContentVariants = cva("flex w-full flex-col", {
   variants: {
     size: {
-      xs: "flex-1 gap-1 min-w-0",
-      sm: "flex-1 gap-2 min-w-0",
+      xs: "min-w-0 flex-1 gap-1",
+      sm: "min-w-0 flex-1 gap-2",
       md: "flex-1 gap-2 p-1",
-      lg: "flex-1 p-0 md:p-12 gap-8 md:gap-12 md:max-w-1/2",
+      lg: "flex-1 gap-8 p-0 md:max-w-1/2 md:gap-12 md:p-12",
     },
   },
   defaultVariants: {
@@ -112,7 +112,7 @@ const agentCardNameVariants = cva("text-foreground truncate font-medium", {
       xs: "text-xs leading-4",
       sm: "text-sm leading-4",
       md: "text-base leading-6",
-      lg: "text-2xl md:text-3xl leading-8",
+      lg: "text-2xl leading-8 md:text-3xl",
     },
   },
   defaultVariants: {
@@ -142,7 +142,7 @@ const agentCardPricingAndButtonsContainerVariants = cva(
         xs: "flex-col",
         sm: "flex-col",
         md: "flex-col",
-        lg: "flex-row md:flex-col items-center md:items-start justify-between",
+        lg: "flex-row items-center justify-between md:flex-col md:items-start",
       },
     },
     defaultVariants: {
@@ -156,8 +156,8 @@ const agentCardButtonsContainerVariants = cva(
   {
     variants: {
       size: {
-        xs: "hidden",
-        sm: "hidden",
+        xs: "block",
+        sm: "block",
         md: "block md:hidden",
         lg: "w-auto",
       },
@@ -226,16 +226,9 @@ function AgentCardSkeleton({
       <div className={cn(agentCardImageContainerVariants({ size }))}>
         <Skeleton className="h-full w-full" />
 
-        {/* Badges and Bookmark Button */}
-        <div
-          className={cn(
-            agentCardBadgesAndBookmarkButtonContainerVariants({ size }),
-          )}
-        >
-          <div className="flex flex-1 flex-col justify-end">
-            {/* Tags */}
-            <AgentBadgeCloudSkeleton />
-          </div>
+        {/* Badges */}
+        <div className={cn(agentCardBadgesContainerVariants({ size }))}>
+          <AgentBadgeCloudSkeleton />
         </div>
       </div>
 
@@ -313,32 +306,27 @@ function AgentCard({
 
           {/* Hover blur and Show Details Button */}
           <div className={cn(agentCardImageHoverVariants({ size }))}>
-            <Button className="hidden md:block" variant="primary">
-              {t("view")}
-            </Button>
+            <div className="relative flex h-full w-full items-center justify-center">
+              {favoriteAgents && (
+                <ClickBlocker className="absolute top-3 right-3">
+                  <AgentBookmarkButton
+                    agentId={agent.id}
+                    isFavorite={isFavorite ?? false}
+                  />
+                </ClickBlocker>
+              )}
+              <Button className="hidden md:block" variant="primary">
+                {t("view")}
+              </Button>
+            </div>
           </div>
 
-          {/* Badges and Bookmark Button */}
-          <div
-            className={cn(
-              agentCardBadgesAndBookmarkButtonContainerVariants({ size }),
-            )}
-          >
-            <div className="flex flex-1 flex-col justify-between transition-opacity group-hover:opacity-0">
-              {/* New Badge */}
-              {agent.isNew && <AgentNewBadge />}
-              {/* Tags */}
-              <AgentBadgeCloud tags={getAgentTags(agent)} limit={3} truncate />
-            </div>
-            {/* Bookmark Button */}
-            {favoriteAgents && (
-              <ClickBlocker className="opacity-0 transition-opacity group-hover:opacity-100">
-                <AgentBookmarkButton
-                  agentId={agent.id}
-                  isFavorite={isFavorite ?? false}
-                />
-              </ClickBlocker>
-            )}
+          {/* Badges */}
+          <div className={cn(agentCardBadgesContainerVariants({ size }))}>
+            {/* New Badge */}
+            {agent.isNew && <AgentNewBadge />}
+            {/* Tags */}
+            <AgentBadgeCloud tags={getAgentTags(agent)} limit={3} truncate />
           </div>
         </div>
 
