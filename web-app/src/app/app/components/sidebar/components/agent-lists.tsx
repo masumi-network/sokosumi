@@ -21,6 +21,11 @@ import { Agent } from "@/prisma/generated/client";
 
 import AgentListsClient from "./agent-lists.client";
 
+type AgentWithAvailability = {
+  agent: Agent;
+  isAvailable: boolean;
+};
+
 export default function AgentLists() {
   return (
     <Suspense fallback={<AgentListsSkeleton />}>
@@ -81,24 +86,34 @@ async function AgentListsContent() {
   const isAgentAvailable = (agentId: string) =>
     availableAgents.some((availableAgent) => availableAgent.id === agentId);
 
+  // Transform agents to include availability information
+  const favoriteAgentsWithAvailability: AgentWithAvailability[] =
+    favoriteAgents.map((agent) => ({
+      agent,
+      isAvailable: isAgentAvailable(agent.id),
+    }));
+
+  const hiredAgentsWithAvailability: AgentWithAvailability[] = hiredAgents.map(
+    (agent) => ({
+      agent,
+      isAvailable: isAgentAvailable(agent.id),
+    }),
+  );
+
   const agentLists = [
     {
       groupKey: "favorite-agents",
       title: t("pinnedTitle"),
-      agents: favoriteAgents,
+      agents: favoriteAgentsWithAvailability,
       latestJobs: favoriteAgentsLatestJobs,
       noAgentsType: t("pinnedType"),
-      agentAvailability: favoriteAgents.map((agent) =>
-        isAgentAvailable(agent.id),
-      ),
     },
     {
       groupKey: "hired-agents",
       title: t("hiredTitle"),
-      agents: hiredAgents,
+      agents: hiredAgentsWithAvailability,
       latestJobs: hiredAgentsLatestJobs,
       noAgentsType: t("hiredType"),
-      agentAvailability: hiredAgents.map((agent) => isAgentAvailable(agent.id)),
     },
   ];
 

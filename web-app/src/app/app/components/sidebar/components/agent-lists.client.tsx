@@ -22,14 +22,18 @@ import { Agent } from "@/prisma/generated/client";
 
 import AgentJobStatusIndicator from "./agent-job-status-indicator";
 
+type AgentWithAvailability = {
+  agent: Agent;
+  isAvailable: boolean;
+};
+
 interface AgentListsClientProps {
   agentLists: {
     groupKey: string;
     title: string;
-    agents: Agent[];
+    agents: AgentWithAvailability[];
     latestJobs: (JobWithStatus | null)[];
     noAgentsType: string;
-    agentAvailability: boolean[];
   }[];
 }
 
@@ -58,21 +62,14 @@ export default function AgentListsClient({
   return (
     <>
       {agentLists.map(
-        ({
-          groupKey,
-          title,
-          agents,
-          latestJobs,
-          noAgentsType,
-          agentAvailability,
-        }) => (
+        ({ groupKey, title, agents, latestJobs, noAgentsType }) => (
           <SidebarGroup key={groupKey} className="w-72 md:w-64">
             <SidebarGroupLabel className="text-base">{title}</SidebarGroupLabel>
             <SidebarGroupContent className="mt-2">
               {agents.length > 0 ? (
                 <SidebarMenu>
-                  {agents.map((agent, index) => {
-                    const isAvailable = agentAvailability[index];
+                  {agents.map((agentWithAvailability, index) => {
+                    const { agent, isAvailable } = agentWithAvailability;
                     return (
                       <SidebarMenuItem key={agent.id}>
                         <SidebarMenuButton
