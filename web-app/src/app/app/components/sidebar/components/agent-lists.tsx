@@ -79,8 +79,8 @@ async function AgentListsContent() {
   ]);
 
   // Determine availability for each agent
-  const isAgentAvailable = (agentId: string) =>
-    availableAgents.some((availableAgent) => availableAgent.id === agentId);
+  const availableAgentIds = new Set(availableAgents.map((agent) => agent.id));
+  const isAgentAvailable = (agentId: string) => availableAgentIds.has(agentId);
 
   // Transform agents to include availability information
   const favoriteAgentsWithAvailability: AgentWithAvailability[] =
