@@ -179,34 +179,15 @@ export async function retrieveHiredAgentsWithJobsByUserIdAndOrganization(
   });
 }
 
-// Cache the threshold calculation to avoid repeated environment config access
-let NEW_AGENT_THRESHOLD_MS: number | null = null;
-let LAST_CALCULATION_TIMESTAMP: number | null = null;
-const TWENTY_FOUR_HOURS_MS = 1000 * 60 * 60 * 24;
-
-function getNewAgentThresholdMs(now: number): number {
-  if (
-    NEW_AGENT_THRESHOLD_MS === null ||
-    LAST_CALCULATION_TIMESTAMP === null ||
-    now - LAST_CALCULATION_TIMESTAMP > TWENTY_FOUR_HOURS_MS
-  ) {
-    const thresholdDays =
-      getEnvPublicConfig().NEXT_PUBLIC_AGENT_NEW_THRESHOLD_DAYS;
-    NEW_AGENT_THRESHOLD_MS = 1000 * 60 * 60 * 24 * thresholdDays;
-    LAST_CALCULATION_TIMESTAMP = now;
-  }
-  return NEW_AGENT_THRESHOLD_MS;
-}
+const thresholdDays = getEnvPublicConfig().NEXT_PUBLIC_AGENT_NEW_THRESHOLD_DAYS;
 
 export function mapAgentWithIsNew(
   agent: Omit<AgentWithRelations, "isNew">,
 ): AgentWithRelations {
-  const now = Date.now();
-  const thresholdMs = getNewAgentThresholdMs(now);
-  const cutoffDate = new Date(now - thresholdMs);
+  const thresholdMilliseconds = 86_400_000 * thresholdDays;
 
   return {
     ...agent,
-    isNew: agent.createdAt > cutoffDate,
+    isNew: agent.createdAt > new Date(Date.now() - thresholdMilliseconds),
   };
 }
