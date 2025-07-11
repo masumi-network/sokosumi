@@ -59,13 +59,13 @@ const agentCardImageContainerVariants = cva(
 );
 
 const agentCardImageHoverVariants = cva(
-  "absolute inset-0 z-20 opacity-100 md:opacity-0 transition-opacity group-hover:opacity-100",
+  "absolute inset-0 z-20 opacity-100 md:opacity-0 transition-opacity group-hover:opacity-100 items-center justify-center",
   {
     variants: {
       size: {
         xs: "hidden",
         sm: "hidden",
-        md: "block md:backdrop-blur-md",
+        md: "flex md:backdrop-blur-md",
         lg: "hidden",
       },
     },
@@ -75,32 +75,15 @@ const agentCardImageHoverVariants = cva(
   },
 );
 
-const agentCardNewBadgeVariants = cva(
-  "absolute right-12 top-0 left-0 z-20 p-3",
+const agentCardBadgesAndBookmarkButtonContainerVariants = cva(
+  "absolute inset-0 z-20 p-3 gap-4",
   {
     variants: {
       size: {
         xs: "hidden",
         sm: "hidden",
-        md: "block",
-        lg: "block",
-      },
-    },
-    defaultVariants: {
-      size: "md",
-    },
-  },
-);
-
-const agentCardTagsVariants = cva(
-  "absolute right-12 bottom-0 left-0 z-20 p-3",
-  {
-    variants: {
-      size: {
-        xs: "hidden",
-        sm: "hidden",
-        md: "block",
-        lg: "block",
+        md: "flex",
+        lg: "flex",
       },
     },
     defaultVariants: {
@@ -243,9 +226,16 @@ function AgentCardSkeleton({
       <div className={cn(agentCardImageContainerVariants({ size }))}>
         <Skeleton className="h-full w-full" />
 
-        {/* Tags */}
-        <div className={cn(agentCardTagsVariants({ size }))}>
-          <AgentBadgeCloudSkeleton />
+        {/* Badges and Bookmark Button */}
+        <div
+          className={cn(
+            agentCardBadgesAndBookmarkButtonContainerVariants({ size }),
+          )}
+        >
+          <div className="flex flex-1 flex-col justify-between">
+            {/* Tags */}
+            <AgentBadgeCloudSkeleton />
+          </div>
         </div>
       </div>
 
@@ -321,33 +311,34 @@ function AgentCard({
             />
           </AgentCardWrapper>
 
-          {/* Bookmark Button (hover only) */}
+          {/* Hover blur and Show Details Button */}
           <div className={cn(agentCardImageHoverVariants({ size }))}>
-            <div className="relative flex h-full w-full items-center justify-center">
-              {favoriteAgents && (
-                <ClickBlocker className="absolute top-3 right-3">
-                  <AgentBookmarkButton
-                    agentId={agent.id}
-                    isFavorite={isFavorite ?? false}
-                  />
-                </ClickBlocker>
-              )}
-              <Button className="hidden md:block" variant="primary">
-                {t("view")}
-              </Button>
-            </div>
+            <Button className="hidden md:block" variant="primary">
+              {t("view")}
+            </Button>
           </div>
 
-          {/* New Badge */}
-          {agent.isNew && (
-            <div className={cn(agentCardNewBadgeVariants({ size }))}>
-              <AgentNewBadge />
+          {/* Badges and Bookmark Button */}
+          <div
+            className={cn(
+              agentCardBadgesAndBookmarkButtonContainerVariants({ size }),
+            )}
+          >
+            <div className="flex flex-1 flex-col justify-between transition-opacity group-hover:opacity-0">
+              {/* New Badge */}
+              {agent.isNew && <AgentNewBadge />}
+              {/* Tags */}
+              <AgentBadgeCloud tags={getAgentTags(agent)} limit={3} truncate />
             </div>
-          )}
-
-          {/* Tags */}
-          <div className={cn(agentCardTagsVariants({ size }))}>
-            <AgentBadgeCloud tags={getAgentTags(agent)} limit={3} truncate />
+            {/* Bookmark Button */}
+            {favoriteAgents && (
+              <ClickBlocker>
+                <AgentBookmarkButton
+                  agentId={agent.id}
+                  isFavorite={isFavorite ?? false}
+                />
+              </ClickBlocker>
+            )}
           </div>
         </div>
 
