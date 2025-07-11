@@ -724,7 +724,7 @@
           "Statuses": {
             "completed": "Completed",
             "failed": "Failed",
-            "paymentPending": "Payment Processing",
+            "paymentPending": "Processing",
             "paymentFailed": "Payment Failed",
             "processing": "Processing",
             "agentConnectionFailed": "Agent Connection Failed",
@@ -954,7 +954,7 @@
         "StatusBadge": {
           "completed": "Completed",
           "failed": "Failed",
-          "paymentPending": "Payment Processing",
+          "paymentPending": "Processing",
           "paymentFailed": "Payment Failed",
           "processing": "Processing",
           "agentConnectionFailed": "Agent Connection Failed",
