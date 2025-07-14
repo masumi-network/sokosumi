@@ -375,14 +375,6 @@ function AgentCard({
                   className="w-full md:w-auto"
                 />
               </ClickBlocker>
-              {favoriteAgents && (
-                <ClickBlocker className="ml-2">
-                  <AgentBookmarkButton
-                    agentId={agent.id}
-                    isFavorite={isFavorite ?? false}
-                  />
-                </ClickBlocker>
-              )}
             </div>
           </div>
         </div>
