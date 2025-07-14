@@ -133,7 +133,7 @@ export default function JobDetailsName({ job }: { job: JobWithStatus }) {
         </>
       ) : (
         <>
-          <p className="flex-1 truncate font-medium">{name ?? t("noName")}</p>
+          <p className="flex-1 truncate">{name ?? t("noName")}</p>
           <Button variant="outline" size="sm" onClick={handleEdit}>
             {t("edit")}
           </Button>

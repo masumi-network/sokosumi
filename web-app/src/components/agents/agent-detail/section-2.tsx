@@ -14,7 +14,7 @@ function AgentDetailSection2({ jobs }: { jobs: JobWithLimitedInformation[] }) {
         <CircleCheck size={16} />
         <span className="text-upper text-xs">{t("executedJobs")}</span>
       </div>
-      <p className="text-base font-medium">
+      <p className="text-base">
         {formatter.number(jobs.length, {
           notation: "compact",
         })}

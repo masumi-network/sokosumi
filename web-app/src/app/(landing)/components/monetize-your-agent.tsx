@@ -23,7 +23,7 @@ export function MonetizeYourAgent() {
       </div>
       <div className="border-muted-foreground/10 flex h-full flex-col justify-center space-y-6 border-l lg:pl-12">
         <div className="space-y-2">
-          <p className="text-muted-foreground text-xs font-medium tracking-wider uppercase md:text-sm">
+          <p className="text-muted-foreground text-xs tracking-wider uppercase md:text-sm">
             {t("title")}
           </p>
           <h2 className="text-2xl font-light md:text-5xl">{t("subtitle")}</h2>

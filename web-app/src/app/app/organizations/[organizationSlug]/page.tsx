@@ -81,7 +81,7 @@ export default async function OrganizationPage({
       </div>
       <OrganizationInformation organization={organization} member={member} />
       <div className="flex items-center justify-between">
-        <h3 className="text-lg font-medium">{t("members")}</h3>
+        <h1 className="text-xl font-light">{t("members")}</h1>
         {member.role === MemberRole.ADMIN && (
           <OrganizationInviteButton organizationId={organization.id} />
         )}

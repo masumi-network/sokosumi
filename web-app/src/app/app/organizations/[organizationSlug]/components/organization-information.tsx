@@ -32,7 +32,7 @@ export default function OrganizationInformation({
       <div className="flex items-center gap-8 lg:gap-12">
         <OrganizationLogo organization={organization} size={96} />
         <div className="flex flex-1 flex-col justify-center self-stretch">
-          <h1 className="text-xl font-bold">{t("title", { name: name })}</h1>
+          <h1 className="text-2xl font-light">{t("title", { name: name })}</h1>
           {metadata && (
             <p className="text-muted-foreground mt-auto line-clamp-2 text-sm">
               {metadata}

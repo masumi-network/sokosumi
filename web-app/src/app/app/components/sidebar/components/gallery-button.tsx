@@ -13,9 +13,9 @@ export default function GalleryButton() {
         <div className="flex items-center gap-2 p-4">
           <SokosumiIcon width={32} height={32} />
           <div className="flex flex-1 flex-col">
-            <h2 className="text-muted-foreground text-base font-bold">
+            <h3 className="text-muted-foreground text-base font-bold">
               {t("title")}
-            </h2>
+            </h3>
           </div>
         </div>
       </div>
