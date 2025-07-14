@@ -57,11 +57,11 @@ export default function InvitationCard({
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
               <CheckIcon className="h-8 w-8 text-green-600" />
             </div>
-            <h2 className="text-center text-2xl font-bold">
+            <h1 className="text-center text-2xl font-light">
               {t("acceptedTitle", {
                 organizationName,
               })}
-            </h2>
+            </h1>
             <p className="text-center">
               {t("acceptedDescription", {
                 organizationName,
@@ -79,9 +79,9 @@ export default function InvitationCard({
             <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-100">
               <XIcon className="h-8 w-8 text-red-600" />
             </div>
-            <h2 className="text-center text-2xl font-bold">
+            <h1 className="text-center text-2xl font-light">
               {t("declinedTitle")}
-            </h2>
+            </h1>
             <p className="text-center">
               {t("declinedDescription", {
                 organizationName,
