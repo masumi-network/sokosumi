@@ -13,7 +13,6 @@
   --color-background: var(--background);
   --color-background-platform: var(--background-platform);
   --color-foreground: var(--foreground);
-  --color-hero-foreground: var(--hero-foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
   --color-popover: var(--popover);
@@ -154,7 +153,6 @@
   --background: hsla(0, 0%, 100%, 1);
   --background-platform: hsla(0, 0%, 98%, 1);
   --foreground: hsla(0, 0%, 4%, 1);
-  --hero-foreground: hsla(0, 0%, 98%, 1);
   --card: oklch(1 0 0);
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
@@ -267,7 +265,6 @@
   --background: hsla(0, 0%, 4%, 1);
   --background-platform: hsla(0, 0%, 9%, 1);
   --foreground: hsla(0, 0%, 98%, 1);
-  --hero-foreground: hsla(0, 0%, 98%, 1);
   --card: oklch(0.145 0 0);
   --card-foreground: oklch(0.985 0 0);
   --popover: oklch(0.205 0 0);
