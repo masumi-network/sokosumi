@@ -34,7 +34,7 @@ export default async function GalleryPage() {
   const favoriteAgents = await getFavoriteAgents();
 
   return (
-    <div className="w-full px-4 py-4 sm:px-8 xl:px-16">
+    <div className="w-full">
       <div className="space-y-12">
         <FilterSection tags={tagNames} />
         {/* Agent Cards Grid */}
