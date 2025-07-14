@@ -38,7 +38,7 @@
     "@hey-api/client-fetch": "0.13.1",
     "@hey-api/client-next": "0.5.1",
     "@hookform/resolvers": "5.1.1",
-    "@icons-pack/react-simple-icons": "13.4.0",
+    "@icons-pack/react-simple-icons": "13.5.0",
     "@prisma/client": "6.11.1",
     "@react-email/components": "0.2.0",
     "@sentry/nextjs": "9.37.0",
