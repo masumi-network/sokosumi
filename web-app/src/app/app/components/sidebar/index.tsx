@@ -31,7 +31,7 @@ export default function Sidebar() {
       <SidebarContent className="w-full">
         <AgentLists />
       </SidebarContent>
-      <SidebarFooter>
+      <SidebarFooter className="px-0">
         <GalleryButton />
       </SidebarFooter>
     </ShadcnSidebar>
