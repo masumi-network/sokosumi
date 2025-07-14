@@ -305,6 +305,7 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+
   /* Semantic */
   --semantic-destructive: hsla(0, 70%, 35%, 1);
   --semantic-destructive-variant: hsla(0, 84%, 60%, 1);
@@ -393,20 +394,11 @@
 
 @utility landing-hero-bg {
   background:
-    linear-gradient(rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.2)),
+    linear-gradient(rgba(79, 0, 197, 0.62), rgba(0, 0, 0, 0)),
     url("/backgrounds/landing-hero.jpg");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
-
-  @variant dark {
-    background:
-      linear-gradient(rgba(23, 23, 23, 0.4), rgba(23, 23, 23, 0.4)),
-      url("/backgrounds/landing-hero.jpg");
-    background-size: cover;
-    background-position: center;
-    background-repeat: no-repeat;
-  }
 }
 
 @utility landing-join-our-community-bg {
