@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 import { SokosumiIcon } from "@/components/masumi-icons";
 
 export default function GalleryButton() {
-  const t = useTranslations("App.Sidebar.Footer.AgentAddButton");
+  const t = useTranslations("App.Sidebar.Footer.AgentButton");
 
   return (
     <Link href="/app/agents">
@@ -14,7 +14,6 @@ export default function GalleryButton() {
           <h2 className="text-muted-foreground text-base font-bold">
             {t("title")}
           </h2>
-          <p className="text-muted-foreground text-xs">{t("subtitle")}</p>
         </div>
       </div>
     </Link>
