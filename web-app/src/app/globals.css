@@ -393,7 +393,7 @@
 
 @utility landing-hero-bg {
   background:
-    linear-gradient(rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.2)),
+    linear-gradient(rgba(30.59% 0% 77.25% 0.62), rgba(0, 0, 0, 0)),
     url("/backgrounds/landing-hero.jpg");
   background-size: cover;
   background-position: center;
