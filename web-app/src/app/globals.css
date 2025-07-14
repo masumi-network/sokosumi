@@ -393,11 +393,20 @@
 
 @utility landing-hero-bg {
   background:
-    linear-gradient(rgba(30.59% 0% 77.25% 0.62), rgba(0, 0, 0, 0)),
+    linear-gradient(rgba(30.59%, 0%, 77.25%, 0.62), rgba(0, 0, 0, 0)),
     url("/backgrounds/landing-hero.jpg");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
+
+  @variant dark {
+    background:
+      linear-gradient(rgba(30.59%, 0%, 77.25%, 0.62), rgba(0, 0, 0, 0)),
+      url("/backgrounds/landing-hero.jpg");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
 }
 
 @utility landing-join-our-community-bg {
