@@ -128,7 +128,10 @@ export default function SignUpForm({
           <span className="text-muted-foreground text-sm">
             {t("Login.message")}
           </span>
-          <Link href="/login" className="text-primary text-sm hover:underline">
+          <Link
+            href="/login"
+            className="text-primary text-sm font-medium hover:underline"
+          >
             {t("Login.link")}
           </Link>
         </div>

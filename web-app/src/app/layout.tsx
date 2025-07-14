@@ -1,6 +1,6 @@
 import "./globals.css";
 
-import { Inter } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import Script from "next/script";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
@@ -13,11 +13,16 @@ import { Toaster } from "@/components/ui/sonner";
 import { UsersnapProvider } from "@/components/usersnap/usersnap-provider";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { ThemeProvider } from "@/contexts/theme-context";
+import { cn } from "@/lib/utils";
 
-const inter = Inter({
+const geistSans = Geist({
+  variable: "--font-geist-sans",
   subsets: ["latin"],
-  display: "swap",
-  fallback: ["sans-serif"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
 });
 
 export default async function RootLayout({
@@ -29,7 +34,7 @@ export default async function RootLayout({
   const messages = await getMessages();
 
   return (
-    <html lang={locale} suppressHydrationWarning className={inter.className}>
+    <html lang={locale} suppressHydrationWarning>
       <head>
         <PlausibleProvider
           domain={getEnvSecrets().PLAUSIBLE_DOMAIN}
@@ -38,7 +43,13 @@ export default async function RootLayout({
           hash={true}
         />
       </head>
-      <body className="bg-background min-h-svh max-w-dvw antialiased">
+      <body
+        className={cn(
+          geistSans.variable,
+          geistMono.variable,
+          "bg-background min-h-svh max-w-dvw antialiased",
+        )}
+      >
         <Script src="/js/plain.js" strategy="afterInteractive" />
         <UsersnapProvider>
           <NuqsAdapter>

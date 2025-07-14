@@ -9,7 +9,7 @@ export default function RegisterLoadingPage() {
   return (
     <div className="flex flex-1 flex-col">
       <div className="p-6">
-        <h1 className="text-2xl font-light">{t("Header.title")}</h1>
+        <h1 className="text-2xl font-bold">{t("Header.title")}</h1>
         <p className="text-sm text-gray-400">{t("Header.description")}</p>
       </div>
       <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
@@ -23,7 +23,10 @@ export default function RegisterLoadingPage() {
           <span className="text-muted-foreground text-sm">
             {t("Form.Login.message")}
           </span>
-          <Link href="/login" className="text-primary text-sm hover:underline">
+          <Link
+            href="/login"
+            className="text-primary text-sm font-medium hover:underline"
+          >
             {t("Form.Login.link")}
           </Link>
         </div>

@@ -51,7 +51,7 @@ export default function Endorsements() {
 
   return (
     <div className="flex flex-col gap-6">
-      <h2 className="text-foreground text-sm font-light tracking-wider uppercase">
+      <h2 className="text-foreground text-sm font-normal tracking-wider uppercase">
         {t("title")}
       </h2>
 
