@@ -8,12 +8,15 @@ export default function GalleryButton() {
 
   return (
     <Link href="/app/agents">
-      <div className="flex items-center gap-2 p-2">
-        <SokosumiIcon width={32} height={32} />
-        <div className="flex flex-1 flex-col">
-          <h2 className="text-muted-foreground text-base font-bold">
-            {t("title")}
-          </h2>
+      <div className="flex flex-col">
+        <div className="border-border mb-2 w-full border-t" />
+        <div className="flex items-center gap-2 p-4">
+          <SokosumiIcon width={32} height={32} />
+          <div className="flex flex-1 flex-col">
+            <h2 className="text-muted-foreground text-base font-bold">
+              {t("title")}
+            </h2>
+          </div>
         </div>
       </div>
     </Link>
