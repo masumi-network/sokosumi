@@ -11,7 +11,7 @@ export function AccountSettings() {
   return (
     <div className="mx-auto max-w-5xl space-y-8">
       <div className="space-y-2">
-        <h1 className="text-3xl font-semibold tracking-tight">{t("title")}</h1>
+        <h1 className="text-3xl font-light tracking-tight">{t("title")}</h1>
         <p className="text-muted-foreground text-sm leading-6">
           {t("description")}
         </p>
