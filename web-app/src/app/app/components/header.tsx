@@ -13,7 +13,7 @@ export default function Header({ className }: HeaderProps) {
   return (
     <header
       className={cn(
-        "border-grid bg-background/95 sticky top-0 z-50 flex w-full items-center gap-2 border-b py-3",
+        "border-grid bg-background/95 sticky top-0 z-50 flex w-full items-center gap-2 border-b",
         className,
       )}
     >
