@@ -59,7 +59,7 @@ const agentCardImageContainerVariants = cva(
 );
 
 const agentCardImageHoverVariants = cva(
-  "absolute inset-0 z-20 items-center justify-center opacity-0 transition-opacity group-hover:opacity-100",
+  "absolute inset-0 z-30 items-center justify-center opacity-0 transition-opacity group-hover:opacity-100",
   {
     variants: {
       size: {
