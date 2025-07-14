@@ -738,9 +738,8 @@
         }
       },
       "Footer": {
-        "AgentAddButton": {
-          "title": "Agents Gallery",
-          "subtitle": "browse agents"
+        "AgentButton": {
+          "title": "Explore Agents"
         }
       }
     },

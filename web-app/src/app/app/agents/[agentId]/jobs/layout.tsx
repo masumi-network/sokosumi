@@ -72,7 +72,7 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
     <CreateJobModalContextProvider
       agentsWithPrice={[{ agent, creditsPrice: agentCreditsPrice }]}
     >
-      <div className="flex h-full flex-col p-4 lg:h-[calc(100svh-64px)] lg:p-6 xl:p-8">
+      <div className="flex h-full flex-col lg:h-[calc(100svh-64px)]">
         <Header
           agent={agent}
           agentCreditsPrice={agentCreditsPrice}
