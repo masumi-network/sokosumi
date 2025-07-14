@@ -326,7 +326,7 @@ function AgentCard({
             {/* New Badge */}
             {agent.isNew && <AgentNewBadge />}
             {/* Tags */}
-            <AgentBadgeCloud tags={getAgentTags(agent)} limit={3} truncate />
+            <AgentBadgeCloud tags={getAgentTags(agent)} />
           </div>
         </div>
 

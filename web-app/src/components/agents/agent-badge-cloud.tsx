@@ -2,37 +2,24 @@ import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { cn } from "@/lib/utils";
 
 interface AgentBadgeCloudProps {
   tags: string[];
-  limit?: number;
-  truncate?: boolean;
 }
 
-function AgentBadgeCloud({
-  tags,
-  limit = undefined,
-  truncate = false,
-}: AgentBadgeCloudProps) {
-  const refinedTags = tags.slice(0, limit);
-
+function AgentBadgeCloud({ tags }: AgentBadgeCloudProps) {
   return (
     <>
-      {refinedTags.length > 0 && (
-        <div className="flex flex-wrap">
-          {refinedTags.map((tag) => (
-            <div key={tag} className="max-w-1/2 px-1">
-              <Badge variant="secondary" className="w-full">
-                <p
-                  className={cn("uppercase", {
-                    truncate: truncate,
-                  })}
-                >
-                  {tag}
-                </p>
-              </Badge>
-            </div>
+      {tags.length > 0 && (
+        <div className="flex h-[22px] flex-wrap gap-2 overflow-hidden">
+          {tags.map((tag) => (
+            <Badge
+              key={tag}
+              variant="secondary"
+              className="h-[22px] max-w-full"
+            >
+              <p className="truncate uppercase">{tag}</p>
+            </Badge>
           ))}
         </div>
       )}
@@ -43,7 +30,7 @@ function AgentBadgeCloud({
 function AgentNewBadge() {
   const t = useTranslations("Components.Agents.AgentBadgeCloud");
   return (
-    <Badge className="bg-background text-foreground">
+    <Badge className="bg-background text-foreground h-[22px]">
       <p className="uppercase">{t("new")}</p>
     </Badge>
   );
