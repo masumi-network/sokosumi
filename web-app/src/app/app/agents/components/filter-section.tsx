@@ -40,7 +40,7 @@ function FilterSectionInner({ tags }: FilterSectionProps) {
 
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-3xl font-bold">{t("header")}</h1>
+      <h1 className="text-3xl font-light">{t("header")}</h1>
 
       <div className="flex flex-col gap-4 sm:flex-row">
         <div className="flex gap-4">

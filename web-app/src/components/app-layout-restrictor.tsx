@@ -39,7 +39,7 @@ export default function AppLayoutRestrictor() {
       {showRestrictor && (
         <div className="flex flex-col gap-4">
           <div className="flex flex-col items-center justify-center gap-2 text-center">
-            <h1 className="text-xl font-bold">{t("title")}</h1>
+            <h1 className="text-xl font-light">{t("title")}</h1>
             <p className="text-muted-foreground text-sm">{t("description")}</p>
           </div>
           <Button onClick={() => window.location.reload()} size="sm">

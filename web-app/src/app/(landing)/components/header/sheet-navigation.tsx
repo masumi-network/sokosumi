@@ -42,7 +42,7 @@ export default function SheetNavigation() {
         </SheetHeader>
         <nav className="flex flex-1 flex-col items-center justify-center">
           <NavigationMenu
-            className="flex-col gap-4 text-center text-sm font-medium"
+            className="flex-col gap-4 text-center text-sm"
             NavigationLinkWrapper={({ children }) => (
               <SheetClose asChild>{children}</SheetClose>
             )}

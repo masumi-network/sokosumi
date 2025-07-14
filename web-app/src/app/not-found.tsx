@@ -28,7 +28,7 @@ export default function NotFound() {
     <div className="flex min-h-screen items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <CardTitle className="text-center text-4xl font-bold">
+          <CardTitle className="text-center text-4xl font-light">
             {t("title")}
           </CardTitle>
           <CardDescription className="text-center text-lg">

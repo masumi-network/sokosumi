@@ -19,14 +19,14 @@ export function NumberTalkSection({
 }: NumberTalkSectionProps) {
   return (
     <div className="border-quinary space-y-4 border-t py-4">
-      <div className="text-muted-foreground flex items-center gap-2 text-xs font-medium tracking-wider uppercase md:text-sm">
+      <div className="text-muted-foreground flex items-center gap-2 text-xs font-light tracking-wider uppercase md:text-sm">
         {icon}
         <span>{title}</span>
       </div>
       <div>
         <h3 className="mb-10 text-xl md:text-2xl">{description}</h3>
         <div className="flex items-start gap-2">
-          <span className="text-6xl font-light md:text-7xl">{number}</span>
+          <span className="text-6xl md:text-7xl">{number}</span>
           <span className="text-muted-foreground text-xs md:text-base">
             {caption}
           </span>

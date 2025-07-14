@@ -5,7 +5,7 @@ export default function SignInHeader() {
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold">{t("title")}</h1>
+      <h1 className="text-2xl font-light">{t("title")}</h1>
       <p className="text-sm text-gray-400">{t("description")}</p>
     </div>
   );
