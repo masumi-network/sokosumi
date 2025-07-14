@@ -84,7 +84,7 @@ export default function Footer({ className }: FooterProps) {
       <div className="flex aspect-3/1 w-full justify-center">
         <Image
           className="w-full"
-          src="/backgrounds/visuals/blurry-ink-wave-1.png"
+          src="/backgrounds/footer.jpg"
           alt="Footer"
           width={1024}
           height={1024}

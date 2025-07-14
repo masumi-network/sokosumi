@@ -7,7 +7,7 @@ export default function AuthBackground() {
     <div className="relative h-full w-full">
       <Image
         alt="auth-bg"
-        src="/backgrounds/visuals/ink-gradient-3.png"
+        src="/backgrounds/auth.jpg"
         fill
         className="rounded-xl object-cover"
         sizes="50vw"

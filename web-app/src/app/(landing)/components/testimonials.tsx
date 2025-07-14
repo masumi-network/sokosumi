@@ -41,10 +41,10 @@ export default function Testimonials() {
   const t = useTranslations("Landing.Page.Testimonials");
   const users = [
     {
-      image: "/testimonials/frederik-gregaard.jpeg",
+      image: "/testimonials/frederik-gregaard.jpg",
     },
     {
-      image: "/testimonials/florian-haller.png",
+      image: "/testimonials/florian-haller.jpg",
     },
   ];
 

@@ -394,7 +394,7 @@
 @utility landing-hero-bg {
   background:
     linear-gradient(rgba(255, 255, 255, 0.2), rgba(255, 255, 255, 0.2)),
-    url("/backgrounds/landing-hero-background.png");
+    url("/backgrounds/landing-hero.jpg");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
@@ -402,7 +402,7 @@
   @variant dark {
     background:
       linear-gradient(rgba(23, 23, 23, 0.4), rgba(23, 23, 23, 0.4)),
-      url("/backgrounds/landing-hero-background.png");
+      url("/backgrounds/landing-hero.jpg");
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -410,14 +410,14 @@
 }
 
 @utility landing-join-our-community-bg {
-  background: url("/backgrounds/visuals/blurry-ink-wave-1.png");
+  background: url("/backgrounds/join-our-community.jpg");
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
 }
 
 @utility agent-card-image-shadow {
-  box-shadow: 0px 0px 12px 4px
+  box-shadow: 0px 0px 8px 2px
     color-mix(in oklab, var(--muted-foreground) 30%, transparent);
 }
 

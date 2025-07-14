@@ -33,7 +33,7 @@ const AgentShowcaseCard = ({
     >
       <div className="relative h-[90px] w-[90px] shrink-0">
         <Image
-          src={image ?? "/placeholder.svg"}
+          src={image ?? "/images/placeholder.svg"}
           alt={name}
           className="object-cover"
           fill
