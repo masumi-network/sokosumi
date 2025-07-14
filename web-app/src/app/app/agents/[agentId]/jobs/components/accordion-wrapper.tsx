@@ -20,7 +20,7 @@ export default function AccordionItemWrapper({
   return (
     <AccordionItem value={value} className="bg-muted/50 rounded-xl border-none">
       <AccordionTrigger className="p-4" disabled={disabled}>
-        <p className="text-base font-semibold">{title}</p>
+        <p className="text-base">{title}</p>
       </AccordionTrigger>
       <AccordionContent className="p-4">{children}</AccordionContent>
     </AccordionItem>

@@ -18,7 +18,7 @@ export default function Hero() {
         <h1 className="w-full text-center text-4xl font-light whitespace-pre-line md:text-7xl">
           {t("title")}
         </h1>
-        <p className="text-foreground/80 w-full text-base font-normal md:text-xl md:whitespace-pre-line">
+        <p className="text-foreground/80 w-full text-base md:text-xl md:whitespace-pre-line">
           {t("caption")}
         </p>
         <AgentSearchInput className="mt-4 md:mt-12" />

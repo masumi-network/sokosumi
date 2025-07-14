@@ -72,7 +72,7 @@ function FormInput<T extends FieldValues>({
   if (name === "requiredEmailDomains") {
     return (
       <>
-        {labelKey && <p className="text-sm font-medium">{t(labelKey)}</p>}
+        {labelKey && <p className="text-sm">{t(labelKey)}</p>}
         <RequiredEmailDomainsInput
           id={name.toString()}
           domains={field.value}
