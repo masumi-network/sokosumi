@@ -73,7 +73,7 @@ function AgentDetailSection1({
             <div className="flex items-center gap-3">
               <div className="relative h-8 w-8">
                 <Image
-                  src="/backgrounds/visuals/blurry-ink-wave-1.png"
+                  src="/images/agent-detail-author.jpg"
                   alt="author"
                   fill
                   sizes="100px"

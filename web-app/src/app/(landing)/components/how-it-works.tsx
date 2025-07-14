@@ -45,7 +45,7 @@ export default function HowItWorks() {
         <div className="flex w-full justify-end">
           <div className="relative aspect-[3/2] h-fit w-full max-w-[834px] overflow-hidden rounded-lg drop-shadow-lg">
             <Image
-              src="/backgrounds/how-it-works.png"
+              src="/backgrounds/how-it-works.jpg"
               alt="Competitor Analysis Agent"
               className="h-auto rounded-lg object-cover"
               fill
