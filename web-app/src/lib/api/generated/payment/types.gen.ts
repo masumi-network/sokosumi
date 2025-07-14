@@ -369,6 +369,10 @@ export type GetPaymentData = {
          */
         network: 'Preprod' | 'Mainnet';
         /**
+         * The smart contract address of the payment source
+         */
+        filterSmartContractAddress?: string | null;
+        /**
          * Whether to include the full transaction and status history of the payments
          */
         includeHistory?: string;
@@ -404,6 +408,7 @@ export type GetPaymentResponses = {
                 updatedAt: string;
                 blockchainIdentifier: string;
                 lastCheckedAt: string | null;
+                payByTime: string | null;
                 submitResultTime: string;
                 unlockTime: string;
                 collateralReturnLovelace: string | null;
@@ -514,7 +519,7 @@ export type PostPaymentData = {
          */
         metadata?: string;
         /**
-         * The a unique nounce from the purchaser. Required to be in hex format
+         * The a unique nonce from the purchaser. Required to be in hex format
          */
         identifierFromPurchaser: string;
     };
@@ -548,8 +553,8 @@ export type PostPaymentResponses = {
             createdAt: string;
             updatedAt: string;
             blockchainIdentifier: string;
-            submitResultTime: string;
             payByTime: string;
+            submitResultTime: string;
             unlockTime: string;
             externalDisputeUnlockTime: string;
             lastCheckedAt: string | null;
@@ -644,6 +649,7 @@ export type PostPaymentSubmitResultResponses = {
             createdAt: string;
             updatedAt: string;
             blockchainIdentifier: string;
+            payByTime: string | null;
             submitResultTime: string;
             unlockTime: string;
             externalDisputeUnlockTime: string;
@@ -735,6 +741,7 @@ export type PostPaymentAuthorizeRefundResponses = {
             createdAt: string;
             updatedAt: string;
             blockchainIdentifier: string;
+            payByTime: string | null;
             submitResultTime: string;
             unlockTime: string;
             externalDisputeUnlockTime: string;
@@ -802,6 +809,10 @@ export type GetPurchaseData = {
          */
         network: 'Preprod' | 'Mainnet';
         /**
+         * The smart contract address of the payment source
+         */
+        filterSmartContractAddress?: string | null;
+        /**
          * Whether to include the full transaction and status history of the purchases
          */
         includeHistory?: string;
@@ -837,6 +848,7 @@ export type GetPurchaseResponses = {
                 updatedAt: string;
                 blockchainIdentifier: string;
                 lastCheckedAt: string | null;
+                payByTime: string | null;
                 submitResultTime: string;
                 unlockTime: string;
                 externalDisputeUnlockTime: string;
@@ -858,14 +870,14 @@ export type GetPurchaseResponses = {
                     createdAt: string;
                     updatedAt: string;
                     txHash: string;
-                    status: 'Pending' | 'Confirmed' | 'FailedViaTimeout';
+                    status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'RolledBack';
                 } | null;
                 TransactionHistory: Array<{
                     id: string;
                     createdAt: string;
                     updatedAt: string;
                     txHash: string;
-                    status: 'Pending' | 'Confirmed' | 'FailedViaTimeout';
+                    status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'RolledBack';
                 }>;
                 PaidFunds: Array<{
                     amount: string;
@@ -957,7 +969,7 @@ export type PostPurchaseData = {
          */
         metadata?: string;
         /**
-         * The nounce of the purchaser of the purchase, needs to be in hex format
+         * The nonce of the purchaser of the purchase, needs to be in hex format
          */
         identifierFromPurchaser: string;
     };
@@ -976,22 +988,21 @@ export type PostPurchaseErrors = {
      */
     401: unknown;
     /**
-     * Internal Server Error
+     * Conflict (purchase request already exists)
      */
-    500: unknown;
-};
-
-export type PostPurchaseResponses = {
-    /**
-     * Purchase request created
-     */
-    200: {
-        data: {
+    409: {
+        status: string;
+        error: {
+            message: string;
+        };
+        id: string;
+        object: {
             id: string;
             createdAt: string;
             updatedAt: string;
             blockchainIdentifier: string;
             lastCheckedAt: string | null;
+            payByTime: string | null;
             submitResultTime: string;
             unlockTime: string;
             externalDisputeUnlockTime: string;
@@ -1009,7 +1020,77 @@ export type PostPurchaseResponses = {
                 createdAt: string;
                 updatedAt: string;
                 txHash: string;
-                status: 'Pending' | 'Confirmed' | 'FailedViaTimeout';
+                status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'RolledBack';
+            } | null;
+            PaidFunds: Array<{
+                amount: string;
+                unit: string;
+            }>;
+            WithdrawnForSeller: Array<{
+                amount: string;
+                unit: string;
+            }>;
+            WithdrawnForBuyer: Array<{
+                amount: string;
+                unit: string;
+            }>;
+            PaymentSource: {
+                id: string;
+                network: 'Preprod' | 'Mainnet';
+                policyId: string | null;
+                smartContractAddress: string;
+                paymentType: 'Web3CardanoV1';
+            };
+            SellerWallet: {
+                id: string;
+                walletVkey: string;
+            } | null;
+            SmartContractWallet: {
+                id: string;
+                walletVkey: string;
+                walletAddress: string;
+            } | null;
+            metadata: string | null;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: unknown;
+};
+
+export type PostPurchaseError = PostPurchaseErrors[keyof PostPurchaseErrors];
+
+export type PostPurchaseResponses = {
+    /**
+     * Purchase request created
+     */
+    200: {
+        data: {
+            id: string;
+            createdAt: string;
+            updatedAt: string;
+            blockchainIdentifier: string;
+            lastCheckedAt: string | null;
+            payByTime: string | null;
+            submitResultTime: string;
+            unlockTime: string;
+            externalDisputeUnlockTime: string;
+            requestedById: string;
+            resultHash: string;
+            inputHash: string;
+            onChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn';
+            NextAction: {
+                requestedAction: 'None' | 'Ignore' | 'WaitingForManualAction' | 'WaitingForExternalAction' | 'FundsLockingRequested' | 'FundsLockingInitiated' | 'SetRefundRequestedRequested' | 'SetRefundRequestedInitiated' | 'UnSetRefundRequestedRequested' | 'UnSetRefundRequestedInitiated' | 'WithdrawRefundRequested' | 'WithdrawRefundInitiated';
+                errorType: 'NetworkError' | 'InsufficientFunds' | 'Unknown';
+                errorNote: string | null;
+            };
+            CurrentTransaction: {
+                id: string;
+                createdAt: string;
+                updatedAt: string;
+                txHash: string;
+                status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'RolledBack';
             } | null;
             PaidFunds: Array<{
                 amount: string;
@@ -1089,6 +1170,7 @@ export type PostPurchaseRequestRefundResponses = {
             updatedAt: string;
             blockchainIdentifier: string;
             lastCheckedAt: string | null;
+            payByTime: string | null;
             submitResultTime: string;
             unlockTime: string;
             externalDisputeUnlockTime: string;
@@ -1105,7 +1187,7 @@ export type PostPurchaseRequestRefundResponses = {
                 createdAt: string;
                 updatedAt: string;
                 txHash: string;
-                status: 'Pending' | 'Confirmed' | 'FailedViaTimeout';
+                status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'RolledBack';
             } | null;
             PaidFunds: Array<{
                 amount: string;
@@ -1185,6 +1267,7 @@ export type PostPurchaseCancelRefundRequestResponses = {
             updatedAt: string;
             blockchainIdentifier: string;
             lastCheckedAt: string | null;
+            payByTime: string | null;
             submitResultTime: string;
             unlockTime: string;
             externalDisputeUnlockTime: string;
@@ -1201,7 +1284,7 @@ export type PostPurchaseCancelRefundRequestResponses = {
                 createdAt: string;
                 updatedAt: string;
                 txHash: string;
-                status: 'Pending' | 'Confirmed' | 'FailedViaTimeout';
+                status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'RolledBack';
             } | null;
             PaidFunds: Array<{
                 amount: string;
@@ -1238,6 +1321,246 @@ export type PostPurchaseCancelRefundRequestResponses = {
 };
 
 export type PostPurchaseCancelRefundRequestResponse = PostPurchaseCancelRefundRequestResponses[keyof PostPurchaseCancelRefundRequestResponses];
+
+export type PostPaymentResolveBlockchainIdentifierData = {
+    body?: {
+        /**
+         * The blockchain identifier to resolve
+         */
+        blockchainIdentifier: string;
+        /**
+         * The network the purchases were made on
+         */
+        network: 'Preprod' | 'Mainnet';
+        /**
+         * The smart contract address of the payment source
+         */
+        filterSmartContractAddress?: string | null;
+        /**
+         * Whether to include the full transaction and status history of the purchases
+         */
+        includeHistory?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/payment/resolve-blockchain-identifier';
+};
+
+export type PostPaymentResolveBlockchainIdentifierErrors = {
+    /**
+     * Bad Request (possible parameters missing or invalid)
+     */
+    400: unknown;
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Payment request not found
+     */
+    404: unknown;
+    /**
+     * Internal Server Error
+     */
+    500: unknown;
+};
+
+export type PostPaymentResolveBlockchainIdentifierResponses = {
+    /**
+     * Payment request resolved
+     */
+    200: {
+        status: string;
+        data: {
+            id: string;
+            createdAt: string;
+            updatedAt: string;
+            blockchainIdentifier: string;
+            lastCheckedAt: string | null;
+            payByTime: string | null;
+            submitResultTime: string;
+            unlockTime: string;
+            collateralReturnLovelace: string | null;
+            externalDisputeUnlockTime: string;
+            requestedById: string;
+            resultHash: string;
+            inputHash: string;
+            cooldownTime: number;
+            cooldownTimeOtherParty: number;
+            onChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn';
+            NextAction: {
+                requestedAction: 'None' | 'Ignore' | 'WaitingForManualAction' | 'WaitingForExternalAction' | 'SubmitResultRequested' | 'SubmitResultInitiated' | 'WithdrawRequested' | 'WithdrawInitiated' | 'AuthorizeRefundRequested' | 'AuthorizeRefundInitiated';
+                errorType: 'NetworkError' | 'Unknown';
+                errorNote: string | null;
+                resultHash: string | null;
+            };
+            CurrentTransaction: {
+                id: string;
+                createdAt: string;
+                updatedAt: string;
+                txHash: string | null;
+            } | null;
+            TransactionHistory: Array<{
+                id: string;
+                createdAt: string;
+                updatedAt: string;
+                txHash: string | null;
+            }> | null;
+            RequestedFunds: Array<{
+                amount: string;
+                unit: string;
+            }>;
+            WithdrawnForSeller: Array<{
+                amount: string;
+                unit: string;
+            }>;
+            WithdrawnForBuyer: Array<{
+                amount: string;
+                unit: string;
+            }>;
+            PaymentSource: {
+                id: string;
+                network: 'Preprod' | 'Mainnet';
+                smartContractAddress: string;
+                policyId: string | null;
+                paymentType: 'Web3CardanoV1';
+            };
+            BuyerWallet: {
+                id: string;
+                walletVkey: string;
+            } | null;
+            SmartContractWallet: {
+                id: string;
+                walletVkey: string;
+                walletAddress: string;
+            } | null;
+            metadata: string | null;
+        };
+    };
+};
+
+export type PostPaymentResolveBlockchainIdentifierResponse = PostPaymentResolveBlockchainIdentifierResponses[keyof PostPaymentResolveBlockchainIdentifierResponses];
+
+export type PostPurchaseResolveBlockchainIdentifierData = {
+    body?: {
+        /**
+         * The blockchain identifier to resolve
+         */
+        blockchainIdentifier: string;
+        /**
+         * The network the purchases were made on
+         */
+        network: 'Preprod' | 'Mainnet';
+        /**
+         * The smart contract address of the payment source
+         */
+        filterSmartContractAddress?: string | null;
+        /**
+         * Whether to include the full transaction and status history of the purchases
+         */
+        includeHistory?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/purchase/resolve-blockchain-identifier';
+};
+
+export type PostPurchaseResolveBlockchainIdentifierErrors = {
+    /**
+     * Bad Request (possible parameters missing or invalid)
+     */
+    400: unknown;
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Purchase request not found
+     */
+    404: unknown;
+    /**
+     * Internal Server Error
+     */
+    500: unknown;
+};
+
+export type PostPurchaseResolveBlockchainIdentifierResponses = {
+    /**
+     * Purchase request resolved
+     */
+    200: {
+        status: string;
+        data: {
+            id: string;
+            createdAt: string;
+            updatedAt: string;
+            blockchainIdentifier: string;
+            lastCheckedAt: string | null;
+            payByTime: string | null;
+            submitResultTime: string;
+            unlockTime: string;
+            externalDisputeUnlockTime: string;
+            requestedById: string;
+            onChainState: 'FundsLocked' | 'FundsOrDatumInvalid' | 'ResultSubmitted' | 'RefundRequested' | 'Disputed' | 'Withdrawn' | 'RefundWithdrawn' | 'DisputedWithdrawn';
+            collateralReturnLovelace: string | null;
+            cooldownTime: number;
+            cooldownTimeOtherParty: number;
+            inputHash: string;
+            resultHash: string;
+            NextAction: {
+                inputHash: string;
+                requestedAction: 'None' | 'Ignore' | 'WaitingForManualAction' | 'WaitingForExternalAction' | 'FundsLockingRequested' | 'FundsLockingInitiated' | 'SetRefundRequestedRequested' | 'SetRefundRequestedInitiated' | 'UnSetRefundRequestedRequested' | 'UnSetRefundRequestedInitiated' | 'WithdrawRefundRequested' | 'WithdrawRefundInitiated';
+                errorType: 'NetworkError' | 'InsufficientFunds' | 'Unknown';
+                errorNote: string | null;
+            };
+            CurrentTransaction: {
+                id: string;
+                createdAt: string;
+                updatedAt: string;
+                txHash: string;
+                status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'RolledBack';
+            } | null;
+            TransactionHistory: Array<{
+                id: string;
+                createdAt: string;
+                updatedAt: string;
+                txHash: string;
+                status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'RolledBack';
+            }>;
+            PaidFunds: Array<{
+                amount: string;
+                unit: string;
+            }>;
+            WithdrawnForSeller: Array<{
+                amount: string;
+                unit: string;
+            }>;
+            WithdrawnForBuyer: Array<{
+                amount: string;
+                unit: string;
+            }>;
+            PaymentSource: {
+                id: string;
+                network: 'Preprod' | 'Mainnet';
+                smartContractAddress: string;
+                policyId: string | null;
+                paymentType: 'Web3CardanoV1';
+            };
+            SellerWallet: {
+                id: string;
+                walletVkey: string;
+            } | null;
+            SmartContractWallet: {
+                id: string;
+                walletVkey: string;
+                walletAddress: string;
+            } | null;
+            metadata: string | null;
+        };
+    };
+};
+
+export type PostPurchaseResolveBlockchainIdentifierResponse = PostPurchaseResolveBlockchainIdentifierResponses[keyof PostPurchaseResolveBlockchainIdentifierResponses];
 
 export type GetRegistryWalletData = {
     body?: never;
@@ -1394,6 +1717,10 @@ export type GetRegistryData = {
          * The Cardano network used to register the agent on
          */
         network: 'Preprod' | 'Mainnet';
+        /**
+         * The smart contract address of the payment source
+         */
+        filterSmartContractAddress?: string | null;
     };
     url: '/registry/';
 };
@@ -1450,7 +1777,7 @@ export type GetRegistryResponses = {
                 };
                 CurrentTransaction: {
                     txHash: string;
-                    status: 'Pending' | 'Confirmed' | 'FailedViaTimeout';
+                    status: 'Pending' | 'Confirmed' | 'FailedViaTimeout' | 'RolledBack';
                 } | null;
             }>;
         };
