@@ -307,7 +307,7 @@ async function resolvePurchaseOfJob(job: Job): Promise<Purchase | null> {
   return purchaseResponse.data.data;
 }
 
-export async function syncJob(job: Job): Promise<Job> {
+export async function syncJob(job: Job) {
   if (!job.purchaseId) {
     const purchase = await resolvePurchaseOfJob(job);
     if (purchase) {
