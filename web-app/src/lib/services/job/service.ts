@@ -158,6 +158,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
     identifierFromPurchaser,
     inputData,
   );
+  console.log("startJobResult", startJobResult);
   if (!startJobResult.ok) {
     throw new Error(startJobResult.error);
   }
@@ -307,11 +308,11 @@ async function resolvePurchaseOfJob(job: Job): Promise<Purchase | null> {
   return purchaseResponse.data.data;
 }
 
-export async function syncJob(job: Job) {
+export async function syncJob(job: Job): Promise<Job> {
   if (!job.purchaseId) {
     const purchase = await resolvePurchaseOfJob(job);
     if (purchase) {
-      await updateJobWithPurchase(job.id, purchase);
+      job = await updateJobWithPurchase(job.id, purchase);
     }
   }
   const [agentJobStatus, onChainPurchase] = await Promise.all([
