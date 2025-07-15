@@ -158,7 +158,6 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
     identifierFromPurchaser,
     inputData,
   );
-  console.log("startJobResult", startJobResult);
   if (!startJobResult.ok) {
     throw new Error(startJobResult.error);
   }
