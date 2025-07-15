@@ -8,7 +8,7 @@ import {
   OnChainTransactionStatus,
 } from "@/prisma/generated/client";
 
-const PAYMENT_FAILED_GRACE_PERIOD = 1000 * 60 * 5; // 5min
+const PAYMENT_FAILED_GRACE_PERIOD = 1000 * 60 * 10; // 10min
 
 function isPaymentFailed(job: Job): boolean {
   return job.createdAt < new Date(Date.now() - PAYMENT_FAILED_GRACE_PERIOD);
