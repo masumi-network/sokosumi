@@ -16,8 +16,10 @@ interface AuthFormProps<T extends FieldValues> {
   prefilledOrganization?: OrganizationWithRelations | null;
   namespace: AuthNamespace;
   onSubmit: (values: T) => Promise<void>;
+  submitEventName?: string;
   organizations?: OrganizationWithRelations[] | undefined;
   children: ReactNode;
+  className?: string;
 }
 
 export function AuthForm<T extends FieldValues>({
@@ -26,10 +28,18 @@ export function AuthForm<T extends FieldValues>({
   prefilledOrganization,
   namespace,
   onSubmit,
+  submitEventName,
   children,
+
+  className,
 }: AuthFormProps<T>) {
   return (
-    <BaseForm form={form} onSubmit={onSubmit}>
+    <BaseForm
+      form={form}
+      onSubmit={onSubmit}
+      submitEventName={submitEventName}
+      className={className}
+    >
       <FormFields
         form={form}
         formData={formData}

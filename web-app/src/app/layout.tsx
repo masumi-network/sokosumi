@@ -33,9 +33,11 @@ export default async function RootLayout({
       <head>
         <PlausibleProvider
           domain={getEnvSecrets().PLAUSIBLE_DOMAIN}
-          trackOutboundLinks={true}
           trackFileDownloads={true}
+          trackOutboundLinks={true}
           hash={true}
+          pageviewProps={true}
+          taggedEvents={true}
         />
       </head>
       <body className="bg-background min-h-svh max-w-dvw antialiased">
