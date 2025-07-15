@@ -143,30 +143,27 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
       const { userId, agentId, maxAcceptedCents, inputData, inputSchema } =
         input;
       const organizationId = await getActiveOrganizationId();
-
       // Set comprehensive context for the job start operation
-      Sentry.withScope((scope) => {
-        scope.setTag("service", "job");
-        scope.setTag("operation", "startJob");
-        scope.setContext("job_start_request", {
-          userId,
-          agentId,
-          maxAcceptedCents,
-          organizationId,
-          inputDataSize: JSON.stringify(inputData).length,
-        });
+      Sentry.setTag("service", "job");
+      Sentry.setTag("operation", "startJob");
+      Sentry.setContext("job_start_request", {
+        userId,
+        agentId,
+        maxAcceptedCents,
+        organizationId,
+        inputDataSize: JSON.stringify(inputData).length,
+      });
 
-        // Add breadcrumb for job start
-        Sentry.addBreadcrumb({
-          category: "Job Service",
-          message: "Starting job service operation",
-          level: "info",
-          data: {
-            agentId,
-            userId,
-            organizationId,
-          },
-        });
+      // Add breadcrumb for job start
+      Sentry.addBreadcrumb({
+        category: "Job Service",
+        message: "Starting job service operation",
+        level: "info",
+        data: {
+          agentId,
+          userId,
+          organizationId,
+        },
       });
 
       const [agent, creditsPrice, amountsPrice] = await prisma.$transaction(
@@ -181,19 +178,17 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
 
           const agent = await getAvailableAgentById(agentId, tx);
           if (!agent) {
-            Sentry.withScope((scope) => {
-              scope.setTag("error_type", "agent_not_found");
-              scope.setContext("agent_validation", {
-                agentId,
-                userId,
-                organizationId,
-              });
-
-              Sentry.captureMessage(
-                `Agent not found during job start: ${agentId}`,
-                "error",
-              );
+            Sentry.setTag("error_type", "agent_not_found");
+            Sentry.setContext("agent_validation", {
+              agentId,
+              userId,
+              organizationId,
             });
+
+            Sentry.captureMessage(
+              `Agent not found during job start: ${agentId}`,
+              "error",
+            );
             throw new JobError(JobErrorCode.AGENT_NOT_FOUND, "Agent not found");
           }
 
@@ -215,20 +210,18 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
               amount: Number(amount.amount),
             })) ?? [];
           if (amountsPrice.length === 0) {
-            Sentry.withScope((scope) => {
-              scope.setTag("error_type", "agent_pricing_not_found");
-              scope.setContext("agent_pricing", {
-                agentId,
-                agentName: agent.name,
-                hasPricing: !!agent.pricing.fixedPricing,
-                pricingAmountsLength: amountsPrice.length,
-              });
-
-              Sentry.captureMessage(
-                `Agent pricing not found: ${agentId}`,
-                "error",
-              );
+            Sentry.setTag("error_type", "agent_pricing_not_found");
+            Sentry.setContext("agent_pricing", {
+              agentId,
+              agentName: agent.name,
+              hasPricing: !!agent.pricing.fixedPricing,
+              pricingAmountsLength: amountsPrice.length,
             });
+
+            Sentry.captureMessage(
+              `Agent pricing not found: ${agentId}`,
+              "error",
+            );
             throw new JobError(
               JobErrorCode.AGENT_PRICING_NOT_FOUND,
               "Agent pricing not found",
@@ -237,20 +230,18 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
 
           const creditsPrice = await getCreditsPrice(amountsPrice, tx);
           if (creditsPrice.cents > maxAcceptedCents) {
-            Sentry.withScope((scope) => {
-              scope.setTag("error_type", "cost_too_high");
-              scope.setContext("cost_validation", {
-                agentId,
-                creditsCents: creditsPrice.cents,
-                maxAcceptedCents,
-                organizationId,
-              });
-
-              Sentry.captureMessage(
-                `Credit cost too high: ${creditsPrice.cents} > ${maxAcceptedCents}`,
-                "warning",
-              );
+            Sentry.setTag("error_type", "cost_too_high");
+            Sentry.setContext("cost_validation", {
+              agentId,
+              creditsCents: creditsPrice.cents,
+              maxAcceptedCents,
+              organizationId,
             });
+
+            Sentry.captureMessage(
+              `Credit cost too high: ${creditsPrice.cents} > ${maxAcceptedCents}`,
+              "warning",
+            );
             throw new JobError(
               JobErrorCode.COST_TOO_HIGH,
               "Credit cost is too high",
@@ -279,25 +270,13 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
               } else {
                 await validateCreditsBalance(userId, creditsPrice.cents, tx);
               }
-            } catch (error) {
-              Sentry.withScope((scope) => {
-                scope.setTag("error_type", "insufficient_balance");
-                scope.setContext("balance_validation", {
-                  userId,
-                  organizationId,
-                  creditsCents: creditsPrice.cents,
-                  isOrganization: !!organizationId,
-                });
-
-                Sentry.captureException(error, {
-                  contexts: {
-                    error_classification: {
-                      severity: "warning",
-                      domain: "credit_validation",
-                      category: "service_layer",
-                    },
-                  },
-                });
+            } catch {
+              Sentry.setTag("error_type", "insufficient_balance");
+              Sentry.setContext("balance_validation", {
+                userId,
+                organizationId,
+                creditsCents: creditsPrice.cents,
+                isOrganization: !!organizationId,
               });
               throw new JobError(
                 JobErrorCode.INSUFFICIENT_BALANCE,
@@ -344,20 +323,18 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
         inputData,
       );
       if (!startJobResult.ok) {
-        Sentry.withScope((scope) => {
-          scope.setTag("error_type", "agent_job_start_failed");
-          scope.setContext("agent_job_start", {
-            agentId,
-            agentName: agent.name,
-            identifierFromPurchaser,
-            error: startJobResult.error,
-          });
-
-          Sentry.captureMessage(
-            `Agent job start failed: ${startJobResult.error}`,
-            "error",
-          );
+        Sentry.setTag("error_type", "agent_job_start_failed");
+        Sentry.setContext("agent_job_start", {
+          agentId,
+          agentName: agent.name,
+          identifierFromPurchaser,
+          error: startJobResult.error,
         });
+
+        Sentry.captureMessage(
+          `Agent job start failed: ${startJobResult.error}`,
+          "error",
+        );
         throw new JobError(
           JobErrorCode.AGENT_JOB_START_FAILED,
           startJobResult.error,
@@ -383,25 +360,13 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
           identifierFromPurchaser,
           startJobResponse.input_hash,
         );
-      } catch (error) {
-        Sentry.withScope((scope) => {
-          scope.setTag("error_type", "input_hash_mismatch");
-          scope.setContext("input_hash_validation", {
-            agentId,
-            identifierFromPurchaser,
-            expectedHash: startJobResponse.input_hash,
-            agentJobId: startJobResponse.job_id,
-          });
-
-          Sentry.captureException(error, {
-            contexts: {
-              error_classification: {
-                severity: "error",
-                domain: "input_validation",
-                category: "service_layer",
-              },
-            },
-          });
+      } catch {
+        Sentry.setTag("error_type", "input_hash_mismatch");
+        Sentry.setContext("input_hash_validation", {
+          agentId,
+          identifierFromPurchaser,
+          expectedHash: startJobResponse.input_hash,
+          agentJobId: startJobResponse.job_id,
         });
         throw new JobError(
           JobErrorCode.INPUT_HASH_MISMATCH,
@@ -430,24 +395,12 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
       try {
         tryValidatePricing(amountsPrice, jobAmountsPrice);
       } catch (error) {
-        Sentry.withScope((scope) => {
-          scope.setTag("error_type", "pricing_schema_mismatch");
-          scope.setContext("pricing_validation", {
-            agentId,
-            agentAmounts: amountsPrice,
-            jobAmounts: jobAmountsPrice,
-            agentJobId: startJobResponse.job_id,
-          });
-
-          Sentry.captureException(error, {
-            contexts: {
-              error_classification: {
-                severity: "error",
-                domain: "pricing_validation",
-                category: "service_layer",
-              },
-            },
-          });
+        Sentry.setTag("error_type", "pricing_schema_mismatch");
+        Sentry.setContext("pricing_validation", {
+          agentId,
+          agentAmounts: amountsPrice,
+          jobAmounts: jobAmountsPrice,
+          agentJobId: startJobResponse.job_id,
         });
         throw new JobError(
           JobErrorCode.PRICING_SCHEMA_MISMATCH,
@@ -495,7 +448,6 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
           });
         });
         generatedName = null;
-        // Optionally, you could throw a JobError(JobErrorCode.JOB_NAME_GENERATION_FAILED, ...) if you want to treat this as a hard failure
       }
 
       // Create job
@@ -565,20 +517,18 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
           },
         });
       } else {
-        Sentry.withScope((scope) => {
-          scope.setTag("error_type", "purchase_creation_failed");
-          scope.setContext("purchase_creation", {
-            jobId: job.id,
-            agentId,
-            blockchainIdentifier: startJobResponse.blockchainIdentifier,
-            error: createPurchaseResult.error,
-          });
-
-          Sentry.captureMessage(
-            `Purchase creation failed: ${createPurchaseResult.error}`,
-            "warning",
-          );
+        Sentry.setTag("error_type", "purchase_creation_failed");
+        Sentry.setContext("purchase_creation", {
+          jobId: job.id,
+          agentId,
+          blockchainIdentifier: startJobResponse.blockchainIdentifier,
+          error: createPurchaseResult.error,
         });
+
+        Sentry.captureMessage(
+          `Purchase creation failed: ${createPurchaseResult.error}`,
+          "warning",
+        );
       }
 
       // Add final success breadcrumb
@@ -787,40 +737,36 @@ export async function requestRefundJob(
       },
     },
     async (_span) => {
-      Sentry.withScope((scope) => {
-        scope.setTag("service", "job");
-        scope.setTag("operation", "requestRefundJob");
-        scope.setContext("job_refund_request", {
-          blockchainIdentifier: jobBlockchainIdentifier,
-        });
+      Sentry.setTag("service", "job");
+      Sentry.setTag("operation", "requestRefundJob");
+      Sentry.setContext("job_refund_request", {
+        blockchainIdentifier: jobBlockchainIdentifier,
+      });
 
-        // Add breadcrumb for refund request
-        Sentry.addBreadcrumb({
-          category: "Job Service",
-          message: "Requesting job refund",
-          level: "info",
-          data: {
-            blockchainIdentifier: jobBlockchainIdentifier,
-          },
-        });
+      // Add breadcrumb for refund request
+      Sentry.addBreadcrumb({
+        category: "Job Service",
+        message: "Requesting job refund",
+        level: "info",
+        data: {
+          blockchainIdentifier: jobBlockchainIdentifier,
+        },
       });
 
       const refundResult = await postPaymentClientRequestRefund(
         jobBlockchainIdentifier,
       );
       if (!refundResult.ok) {
-        Sentry.withScope((scope) => {
-          scope.setTag("error_type", "refund_request_failed");
-          scope.setContext("refund_error", {
-            blockchainIdentifier: jobBlockchainIdentifier,
-            error: refundResult.error,
-          });
-
-          Sentry.captureMessage(
-            `Refund request failed: ${refundResult.error}`,
-            "error",
-          );
+        Sentry.setTag("error_type", "refund_request_failed");
+        Sentry.setContext("refund_error", {
+          blockchainIdentifier: jobBlockchainIdentifier,
+          error: refundResult.error,
         });
+
+        Sentry.captureMessage(
+          `Refund request failed: ${refundResult.error}`,
+          "error",
+        );
         throw new JobError(
           JobErrorCode.REFUND_REQUEST_FAILED,
           refundResult.error,
