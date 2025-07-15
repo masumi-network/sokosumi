@@ -3,7 +3,7 @@ import { useTranslations } from "next-intl";
 import { KanjiLogo, ThemedLogo } from "@/components/masumi-logos";
 
 import AgentSearchInput from "./agent-search-input";
-import AgentsShowcase from "./agents-showcase";
+import { AgentsShowcase } from "./agents-showcase";
 
 export default function Hero() {
   const t = useTranslations("Landing.Page.Hero");
