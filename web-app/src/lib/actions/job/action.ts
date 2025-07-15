@@ -136,91 +136,27 @@ export async function startJobWithInputData(
           message: error.message,
           code: error.code,
         });
-      } else if (error instanceof Error) {
-        // Fallback for legacy errors (message-based)
-        let errorCode: string;
-        let errorMessage: string;
-        let sentryLevel: "warning" | "error" | "fatal" = "error";
-        // Handle dynamic pricing error messages
-        if (
-          error.message === "Pricing schemas have different lengths" ||
-          error.message.startsWith("Agent pricing not found for unit") ||
-          error.message.startsWith("Agent pricing for unit")
-        ) {
-          errorCode = JobErrorCode.PRICING_SCHEMA_MISMATCH;
-          errorMessage = "Pricing schema mismatch";
-          sentryLevel = "error";
-        } else {
-          switch (error.message) {
-            case "Insufficient balance":
-              errorCode = JobErrorCode.INSUFFICIENT_BALANCE;
-              errorMessage = "Insufficient balance";
-              sentryLevel = "warning";
-              break;
-            case "Agent not found":
-              errorCode = JobErrorCode.AGENT_NOT_FOUND;
-              errorMessage = "Agent not found";
-              sentryLevel = "error";
-              break;
-            case "Agent pricing not found":
-              errorCode = JobErrorCode.AGENT_PRICING_NOT_FOUND;
-              errorMessage = "Agent pricing not found";
-              sentryLevel = "error";
-              break;
-            case "Credit cost is too high":
-              errorCode = JobErrorCode.COST_TOO_HIGH;
-              errorMessage = "Credit cost is too high";
-              sentryLevel = "warning";
-              break;
-            case "Input data hash mismatch":
-              errorCode = JobErrorCode.INPUT_HASH_MISMATCH;
-              errorMessage = "Input data hash mismatch";
-              sentryLevel = "error";
-              break;
-            default:
-              errorCode = CommonErrorCode.INTERNAL_SERVER_ERROR;
-              errorMessage = "Internal server error";
-              sentryLevel = "fatal";
-              break;
-          }
-        }
-        scope.setTag("error_code", errorCode);
+      } else {
+        // Generic fallback for unexpected errors
+        scope.setTag("error_code", CommonErrorCode.INTERNAL_SERVER_ERROR);
         scope.setContext("error_details", {
-          originalMessage: error.message,
-          mappedErrorCode: errorCode,
-          stack: error.stack,
+          errorType: typeof error,
+          errorValue: String(error),
         });
         Sentry.captureException(error, {
           contexts: {
             error_classification: {
-              severity: sentryLevel,
+              severity: "fatal",
               domain: "job_start",
               category: "action_layer",
             },
           },
         });
         return Err({
-          message: errorMessage,
-          code: errorCode,
+          message: "Internal server error",
+          code: CommonErrorCode.INTERNAL_SERVER_ERROR,
         });
       }
-
-      // Handle non-Error objects
-      scope.setTag("error_code", CommonErrorCode.INTERNAL_SERVER_ERROR);
-      scope.setContext("error_details", {
-        errorType: typeof error,
-        errorValue: String(error),
-      });
-
-      Sentry.captureMessage(
-        `Unknown error type in job start: ${String(error)}`,
-        "fatal",
-      );
-
-      return Err({
-        message: "Internal server error",
-        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-      });
     }
   });
 }
