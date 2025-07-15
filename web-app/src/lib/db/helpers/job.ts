@@ -10,8 +10,15 @@ import {
 
 const PAYMENT_FAILED_GRACE_PERIOD = 1000 * 60 * 10; // 10min
 
-function isPaymentFailed(job: Job): boolean {
-  return job.createdAt < new Date(Date.now() - PAYMENT_FAILED_GRACE_PERIOD);
+function checkPaymentStatus(job: Job): JobStatus | null {
+  if (job.purchaseId === null) {
+    if (job.createdAt < new Date(Date.now() - PAYMENT_FAILED_GRACE_PERIOD)) {
+      return JobStatus.PAYMENT_FAILED;
+    } else {
+      return JobStatus.PAYMENT_PENDING;
+    }
+  }
+  return null;
 }
 
 /**
@@ -25,12 +32,9 @@ export function computeJobStatus(job: Job): JobStatus {
   }
 
   // If the job has no purchase, it means the job is not yet started
-  if (job.purchaseId === null) {
-    if (isPaymentFailed(job)) {
-      return JobStatus.PAYMENT_FAILED;
-    } else {
-      return JobStatus.PAYMENT_PENDING;
-    }
+  const paymentStatus = checkPaymentStatus(job);
+  if (paymentStatus) {
+    return paymentStatus;
   }
 
   // If the job has a purchase, it means the job is started
