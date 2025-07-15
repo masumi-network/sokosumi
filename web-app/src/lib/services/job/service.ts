@@ -270,18 +270,34 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
               } else {
                 await validateCreditsBalance(userId, creditsPrice.cents, tx);
               }
-            } catch {
-              Sentry.setTag("error_type", "insufficient_balance");
-              Sentry.setContext("balance_validation", {
-                userId,
-                organizationId,
-                creditsCents: creditsPrice.cents,
-                isOrganization: !!organizationId,
-              });
-              throw new JobError(
-                JobErrorCode.INSUFFICIENT_BALANCE,
-                "Insufficient balance",
-              );
+            } catch (error) {
+              if (
+                error instanceof Error &&
+                error.message === "Insufficient balance"
+              ) {
+                Sentry.setTag("error_type", "insufficient_balance");
+                Sentry.setContext("balance_validation", {
+                  userId,
+                  organizationId,
+                  creditsCents: creditsPrice.cents,
+                  isOrganization: !!organizationId,
+                });
+                throw new JobError(
+                  JobErrorCode.INSUFFICIENT_BALANCE,
+                  "Insufficient balance",
+                );
+              } else {
+                Sentry.captureException(error, {
+                  contexts: {
+                    error_classification: {
+                      severity: "error",
+                      domain: "credit_validation",
+                      category: "service_layer",
+                    },
+                  },
+                });
+                throw error;
+              }
             }
           }
 
