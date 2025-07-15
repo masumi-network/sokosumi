@@ -287,15 +287,6 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
                   "Insufficient balance",
                 );
               } else {
-                Sentry.captureException(error, {
-                  contexts: {
-                    error_classification: {
-                      severity: "error",
-                      domain: "credit_validation",
-                      category: "service_layer",
-                    },
-                  },
-                });
                 throw error;
               }
             }
