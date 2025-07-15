@@ -10,4 +10,27 @@ export enum JobErrorCode {
   AGENT_JOB_START_FAILED = "AGENT_JOB_START_FAILED",
   PURCHASE_CREATION_FAILED = "PURCHASE_CREATION_FAILED",
   JOB_NAME_GENERATION_FAILED = "JOB_NAME_GENERATION_FAILED",
+  REFUND_REQUEST_FAILED = "REFUND_REQUEST_FAILED",
+}
+
+// Custom error class for job actions
+export class JobError extends Error {
+  code: JobErrorCode;
+  constructor(code: JobErrorCode, message?: string) {
+    super(message ?? code);
+    this.code = code;
+    this.name = "JobError";
+  }
+}
+
+// Type guard for JobError
+export function isJobError(error: unknown): error is JobError {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "code" in error &&
+    Object.values(JobErrorCode).includes(
+      (error as { code?: unknown }).code as JobErrorCode,
+    )
+  );
 }

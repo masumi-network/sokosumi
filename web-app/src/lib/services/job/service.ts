@@ -4,6 +4,7 @@ import * as Sentry from "@sentry/nextjs";
 import { v4 as uuidv4 } from "uuid";
 
 import { getEnvPublicConfig } from "@/config/env.public";
+import { JobError, JobErrorCode } from "@/lib/actions/types/error-codes/job";
 import { postPurchaseResolveBlockchainIdentifier } from "@/lib/api/generated/payment";
 import { getPaymentClient } from "@/lib/api/payment-service.client";
 import { getActiveOrganizationId, getSessionOrThrow } from "@/lib/auth/utils";
@@ -65,7 +66,10 @@ function getMatchedInputHash(
   if (inputHashToMatch === inputHashDeprecated) {
     return inputHashDeprecated;
   }
-  throw new Error("Input data hash mismatch");
+  throw new JobError(
+    JobErrorCode.INPUT_HASH_MISMATCH,
+    "Input data hash mismatch",
+  );
 }
 
 export async function getMyJobsByAgentId(
@@ -101,15 +105,24 @@ function tryValidatePricing(
     jobPricing.map((amount) => [amount.unit, amount.amount]),
   );
   if (agentPricingMap.size !== jobPricingMap.size) {
-    throw new Error("Pricing schemas have different lengths");
+    throw new JobError(
+      JobErrorCode.PRICING_SCHEMA_MISMATCH,
+      "Pricing schemas have different lengths",
+    );
   }
   // verify that the pricing schemas are identical
   for (const [unit, amount] of jobPricingMap) {
     if (!agentPricingMap.has(unit)) {
-      throw new Error(`Agent pricing not found for unit ${unit}`);
+      throw new JobError(
+        JobErrorCode.PRICING_SCHEMA_MISMATCH,
+        `Agent pricing not found for unit ${unit}`,
+      );
     }
     if (agentPricingMap.get(unit) !== amount) {
-      throw new Error(`Agent pricing for unit ${unit} is incorrect`);
+      throw new JobError(
+        JobErrorCode.PRICING_SCHEMA_MISMATCH,
+        `Agent pricing for unit ${unit} is incorrect`,
+      );
     }
   }
 }
@@ -181,7 +194,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
                 "error",
               );
             });
-            throw new Error("Agent not found");
+            throw new JobError(JobErrorCode.AGENT_NOT_FOUND, "Agent not found");
           }
 
           // Add breadcrumb for successful agent retrieval
@@ -216,7 +229,10 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
                 "error",
               );
             });
-            throw new Error("Agent pricing not found");
+            throw new JobError(
+              JobErrorCode.AGENT_PRICING_NOT_FOUND,
+              "Agent pricing not found",
+            );
           }
 
           const creditsPrice = await getCreditsPrice(amountsPrice, tx);
@@ -235,7 +251,10 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
                 "warning",
               );
             });
-            throw new Error("Credit cost is too high");
+            throw new JobError(
+              JobErrorCode.COST_TOO_HIGH,
+              "Credit cost is too high",
+            );
           }
 
           // Add breadcrumb for credit validation
@@ -280,7 +299,10 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
                   },
                 });
               });
-              throw error;
+              throw new JobError(
+                JobErrorCode.INSUFFICIENT_BALANCE,
+                "Insufficient balance",
+              );
             }
           }
 
@@ -336,7 +358,10 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
             "error",
           );
         });
-        throw new Error(startJobResult.error);
+        throw new JobError(
+          JobErrorCode.AGENT_JOB_START_FAILED,
+          startJobResult.error,
+        );
       }
       const startJobResponse = startJobResult.data;
 
@@ -378,7 +403,10 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
             },
           });
         });
-        throw error;
+        throw new JobError(
+          JobErrorCode.INPUT_HASH_MISMATCH,
+          "Input data hash mismatch",
+        );
       }
 
       // Check if amounts are correct
@@ -421,7 +449,10 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
             },
           });
         });
-        throw error;
+        throw new JobError(
+          JobErrorCode.PRICING_SCHEMA_MISMATCH,
+          error instanceof Error ? error.message : String(error),
+        );
       }
 
       // Generate job name
@@ -464,6 +495,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
           });
         });
         generatedName = null;
+        // Optionally, you could throw a JobError(JobErrorCode.JOB_NAME_GENERATION_FAILED, ...) if you want to treat this as a hard failure
       }
 
       // Create job
@@ -789,7 +821,10 @@ export async function requestRefundJob(
             "error",
           );
         });
-        throw new Error(refundResult.error);
+        throw new JobError(
+          JobErrorCode.REFUND_REQUEST_FAILED,
+          refundResult.error,
+        );
       }
 
       const job = await updateJobNextActionByBlockchainIdentifier(
