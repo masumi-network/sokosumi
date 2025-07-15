@@ -83,7 +83,7 @@ export default function SignInForm({
       formData={signInFormData}
       namespace="Auth.Pages.SignIn.Form"
       onSubmit={handleSubmit}
-      className="plausible-event-name=SignIn"
+      submitEventName="SignIn"
     >
       <div className="flex flex-col gap-4">
         <SubmitButton form={form} label={t("submit")} className="w-full" />

@@ -116,7 +116,7 @@ export default function SignUpForm({
       prefilledOrganization={prefilledOrganization}
       namespace="Auth.Pages.SignUp.Form"
       onSubmit={handleSubmit}
-      className="plausible-event-name=Signup"
+      submitEventName="Signup"
     >
       <div className="flex flex-col gap-4">
         <SubmitButton
