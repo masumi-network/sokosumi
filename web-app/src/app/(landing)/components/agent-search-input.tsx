@@ -26,8 +26,7 @@ export default function AgentSearchInput({ className }: AgentSearchInputProps) {
         id="search-input"
         type="text"
         placeholder={t("placeholder")}
-        className="bg-material-regular! text-muted-foreground! border-none shadow-none focus-visible:ring-0"
-        readOnly
+        className="text-muted-foreground border-none bg-transparent! shadow-none focus-visible:ring-0"
       />
       <Button variant="outline" size="icon">
         <ArrowUp className="text-muted-foreground h-4 w-4" />
