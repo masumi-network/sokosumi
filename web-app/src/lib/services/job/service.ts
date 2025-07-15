@@ -341,7 +341,11 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
         );
       }
       const startJobResponse = startJobResult.data;
-
+      _span.setAttribute("job.agent_job_id", startJobResponse.job_id);
+      _span.setAttribute(
+        "job.blockchain_identifier",
+        startJobResponse.blockchainIdentifier,
+      );
       // Add breadcrumb for successful agent job start
       Sentry.addBreadcrumb({
         category: "Job Service",
