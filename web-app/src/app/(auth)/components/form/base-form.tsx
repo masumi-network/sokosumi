@@ -9,16 +9,18 @@ interface BaseFormProps<T extends FieldValues> {
   form: UseFormReturn<T>;
   onSubmit: (values: T) => Promise<void>;
   children: ReactNode;
+  className?: string;
 }
 
 export function BaseForm<T extends FieldValues>({
   form,
   onSubmit,
   children,
+  className,
 }: BaseFormProps<T>) {
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className={className}>
         <fieldset
           disabled={form.formState.isSubmitting}
           className="flex flex-col gap-3"
