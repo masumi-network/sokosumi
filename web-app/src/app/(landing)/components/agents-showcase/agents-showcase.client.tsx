@@ -5,9 +5,9 @@ import { useMemo, useState } from "react";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
   AgentWithRelations,
-  getAgentDescription,
   getAgentName,
   getAgentResolvedImage,
+  getShortAgentAuthorName,
 } from "@/lib/db";
 
 import AgentShowcaseCard from "./agent-showcase-card";
@@ -28,7 +28,7 @@ export default function AgentsShowcaseClient({
     <AgentShowcaseCard
       agentId={firstAgent.id}
       name={getAgentName(firstAgent)}
-      description={getAgentDescription(firstAgent)}
+      description={getShortAgentAuthorName(firstAgent)}
       image={getAgentResolvedImage(firstAgent)}
       isExpanded={!focused}
     />
@@ -40,7 +40,7 @@ export default function AgentsShowcaseClient({
         key={agent.id}
         agentId={agent.id}
         name={getAgentName(agent)}
-        description={getAgentDescription(agent)}
+        description={getShortAgentAuthorName(agent)}
         image={getAgentResolvedImage(agent)}
       />
     ));
