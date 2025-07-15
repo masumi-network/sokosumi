@@ -2,6 +2,9 @@ import "server-only";
 
 import { v4 as uuidv4 } from "uuid";
 
+import { getEnvPublicConfig } from "@/config/env.public";
+import { postPurchaseResolveBlockchainIdentifier } from "@/lib/api/generated/payment";
+import { getPaymentClient } from "@/lib/api/payment-service.client";
 import { getActiveOrganizationId, getSessionOrThrow } from "@/lib/auth/utils";
 import { computeJobStatus, JobStatus, JobWithStatus } from "@/lib/db";
 import {
@@ -289,7 +292,28 @@ function shouldSyncMasumiStatus(job: Job): boolean {
   return job.refundedCreditTransactionId === null;
 }
 
+async function resolvePurchaseOfJob(job: Job): Promise<Purchase | null> {
+  const client = getPaymentClient();
+  const purchaseResponse = await postPurchaseResolveBlockchainIdentifier({
+    client: client,
+    body: {
+      blockchainIdentifier: job.blockchainIdentifier,
+      network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
+    },
+  });
+  if (!purchaseResponse.data) {
+    return null;
+  }
+  return purchaseResponse.data.data;
+}
+
 export async function syncJob(job: Job) {
+  if (!job.purchaseId) {
+    const purchase = await resolvePurchaseOfJob(job);
+    if (purchase) {
+      await updateJobWithPurchase(job.id, purchase);
+    }
+  }
   const [agentJobStatus, onChainPurchase] = await Promise.all([
     shouldSyncAgentStatus(job) ? getAgentJobStatus(job) : null,
     shouldSyncMasumiStatus(job) ? getOnChainPurchase(job.purchaseId) : null,
