@@ -1,11 +1,10 @@
-"use client";
-
 import { ArrowUp } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 import type React from "react";
 
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { useAsyncRouter } from "@/hooks/use-async-router";
 import { cn } from "@/lib/utils";
 
 interface AgentSearchInputProps {
@@ -14,35 +13,25 @@ interface AgentSearchInputProps {
 
 export default function AgentSearchInput({ className }: AgentSearchInputProps) {
   const t = useTranslations("Landing.Page.Hero.AgentSearchInput");
-  const router = useAsyncRouter();
-  const handleSubmit = async (e: React.FormEvent | React.MouseEvent) => {
-    e.preventDefault();
-    await router.push(`/agents`);
-  };
 
   return (
-    <>
-      <form
-        onClick={handleSubmit}
-        className={cn(
-          "bg-background hover:bg-background/80 max-w-sm cursor-pointer rounded-md transition-colors",
-          className,
-        )}
-      >
-        <div className="relative">
-          <Input
-            type="text"
-            placeholder={t("placeholder")}
-            className="border-border cursor-pointer pr-12"
-            readOnly
-          />
-          <div className="pointer-events-none absolute inset-y-0 right-2 flex items-center">
-            <div className="bg-border flex h-7 w-7 items-center justify-center rounded-md">
-              <ArrowUp className="text-muted-foreground h-4 w-4" />
-            </div>
-          </div>
-        </div>
-      </form>
-    </>
+    <Link
+      href="/agents"
+      className={cn(
+        "border-senary bg-material-regular relative flex max-w-sm items-center rounded-xl border p-2 transition-all hover:opacity-80",
+        className,
+      )}
+    >
+      <Input
+        id="search-input"
+        type="text"
+        placeholder={t("placeholder")}
+        className="bg-material-regular! text-muted-foreground! border-none shadow-none focus-visible:ring-0"
+        readOnly
+      />
+      <Button variant="outline" size="icon">
+        <ArrowUp className="text-muted-foreground h-4 w-4" />
+      </Button>
+    </Link>
   );
 }
