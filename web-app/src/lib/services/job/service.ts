@@ -294,17 +294,21 @@ function shouldSyncMasumiStatus(job: Job): boolean {
 
 async function resolvePurchaseOfJob(job: Job): Promise<Purchase | null> {
   const client = getPaymentClient();
-  const purchaseResponse = await postPurchaseResolveBlockchainIdentifier({
-    client: client,
-    body: {
-      blockchainIdentifier: job.blockchainIdentifier,
-      network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
-    },
-  });
-  if (!purchaseResponse.data) {
+  try {
+    const purchaseResponse = await postPurchaseResolveBlockchainIdentifier({
+      client: client,
+      body: {
+        blockchainIdentifier: job.blockchainIdentifier,
+        network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
+      },
+    });
+    if (!purchaseResponse.data) {
+      return null;
+    }
+    return purchaseResponse.data.data;
+  } catch {
     return null;
   }
-  return purchaseResponse.data.data;
 }
 
 export async function syncJob(job: Job) {
