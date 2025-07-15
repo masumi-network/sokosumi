@@ -371,7 +371,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
           identifierFromPurchaser,
           startJobResponse.input_hash,
         );
-      } catch {
+      } catch (error) {
         Sentry.setTag("error_type", "input_hash_mismatch");
         Sentry.setContext("input_hash_validation", {
           agentId,
@@ -379,10 +379,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
           expectedHash: startJobResponse.input_hash,
           agentJobId: startJobResponse.job_id,
         });
-        throw new JobError(
-          JobErrorCode.INPUT_HASH_MISMATCH,
-          "Input data hash mismatch",
-        );
+        throw error;
       }
 
       // Check if amounts are correct
@@ -413,10 +410,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
           jobAmounts: jobAmountsPrice,
           agentJobId: startJobResponse.job_id,
         });
-        throw new JobError(
-          JobErrorCode.PRICING_SCHEMA_MISMATCH,
-          error instanceof Error ? error.message : String(error),
-        );
+        throw error;
       }
 
       // Generate job name
