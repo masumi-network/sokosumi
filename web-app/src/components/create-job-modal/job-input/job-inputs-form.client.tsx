@@ -66,7 +66,7 @@ export default function JobInputsFormClient({
   const { os, isMobile } = getOSFromUserAgent();
 
   // create job modal context
-  const { open, setLoading } = useCreateJobModalContext();
+  const { open, loading, setLoading } = useCreateJobModalContext();
 
   // Then replace your existing handleSubmit function with this:
   const handleSubmit: SubmitHandler<JobInputsFormSchemaType> = async (
@@ -83,16 +83,15 @@ export default function JobInputsFormClient({
       inputData: transformedInputData,
     });
 
-    let path: string | null = null;
     if (result.ok) {
-      path = `/app/agents/${agentId}/jobs/${result.data.jobId}`;
+      router.push(`/app/agents/${agentId}/jobs/${result.data.jobId}`);
     } else {
       switch (result.error.code) {
         case CommonErrorCode.UNAUTHENTICATED:
           toast.error(t("Error.unauthenticated"), {
             action: {
               label: t("Error.unauthenticatedAction"),
-              onClick: () => (path = `/login`),
+              onClick: () => router.push(`/login`),
             },
           });
           break;
@@ -103,7 +102,7 @@ export default function JobInputsFormClient({
           toast.error(t("Error.insufficientBalance"), {
             action: {
               label: t("Error.insufficientBalanceAction"),
-              onClick: () => (path = `/app/billing`),
+              onClick: () => router.push(`/app/billing`),
             },
           });
           break;
@@ -111,10 +110,6 @@ export default function JobInputsFormClient({
           toast.error(t("Error.default"));
           break;
       }
-    }
-    if (path) {
-      router.push(path);
-    } else {
       setLoading(false);
     }
   };
@@ -134,7 +129,7 @@ export default function JobInputsFormClient({
         className="plausible-event-name=Hire"
       >
         <fieldset
-          disabled={form.formState.isSubmitting}
+          disabled={loading}
           className={cn("flex flex-1 flex-col gap-6", className)}
         >
           {input_data.map((jobInputSchema) => (
@@ -158,15 +153,11 @@ export default function JobInputsFormClient({
                 </div>
                 <Button
                   type="submit"
-                  disabled={
-                    form.formState.isSubmitting || !form.formState.isValid
-                  }
+                  disabled={loading}
                   className="items-center justify-between gap-2"
                 >
                   <div className="flex items-center gap-1">
-                    {form.formState.isSubmitting && (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    )}
+                    {loading && <Loader2 className="h-4 w-4 animate-spin" />}
                     {t("submit")}
                   </div>
                   {!isMobile && (
