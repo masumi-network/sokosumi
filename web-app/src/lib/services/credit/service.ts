@@ -2,6 +2,7 @@ import "server-only";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
+import { JobError, JobErrorCode } from "@/lib/actions/types/error-codes/job";
 import {
   AgentWithFixedPricing,
   convertCentsToCredits,
@@ -74,7 +75,10 @@ export async function validateCreditsBalance(
 ): Promise<void> {
   const centsBalance = await retrieveCentsByUserId(userId, tx);
   if (centsBalance - cents < BigInt(0)) {
-    throw new Error("Insufficient balance");
+    throw new JobError(
+      JobErrorCode.INSUFFICIENT_BALANCE,
+      "Insufficient balance",
+    );
   }
 }
 
@@ -96,7 +100,10 @@ export async function validateOrganizationCreditsBalance(
 ): Promise<void> {
   const centsBalance = await retrieveCentsByOrganizationId(organizationId, tx);
   if (centsBalance - cents < BigInt(0)) {
-    throw new Error("Insufficient balance");
+    throw new JobError(
+      JobErrorCode.INSUFFICIENT_BALANCE,
+      "Insufficient balance",
+    );
   }
 }
 
