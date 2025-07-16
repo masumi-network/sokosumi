@@ -13,7 +13,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { AgentWithAvailability, getAgentName, JobWithStatus } from "@/lib/db";
+import { AgentWithAvailability, getAgentName } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 interface AgentListsClientProps {
@@ -21,7 +21,6 @@ interface AgentListsClientProps {
     groupKey: string;
     title: string;
     agents: AgentWithAvailability[];
-    latestJobs: (JobWithStatus | null)[];
     noAgentsType: string;
   }[];
 }
