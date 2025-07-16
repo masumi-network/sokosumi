@@ -66,7 +66,7 @@ export default function JobInputsFormClient({
   const { os, isMobile } = getOSFromUserAgent();
 
   // create job modal context
-  const { open, setLoading, handleClose } = useCreateJobModalContext();
+  const { open, setLoading } = useCreateJobModalContext();
 
   // Then replace your existing handleSubmit function with this:
   const handleSubmit: SubmitHandler<JobInputsFormSchemaType> = async (
@@ -83,19 +83,16 @@ export default function JobInputsFormClient({
       inputData: transformedInputData,
     });
 
+    let path: string | null = null;
     if (result.ok) {
-      handleClose();
-      router.push(`/app/agents/${agentId}/jobs/${result.data.jobId}`);
+      path = `/app/agents/${agentId}/jobs/${result.data.jobId}`;
     } else {
       switch (result.error.code) {
         case CommonErrorCode.UNAUTHENTICATED:
           toast.error(t("Error.unauthenticated"), {
             action: {
               label: t("Error.unauthenticatedAction"),
-              onClick: () => {
-                handleClose();
-                router.push(`/login`);
-              },
+              onClick: () => (path = `/login`),
             },
           });
           break;
@@ -106,10 +103,7 @@ export default function JobInputsFormClient({
           toast.error(t("Error.insufficientBalance"), {
             action: {
               label: t("Error.insufficientBalanceAction"),
-              onClick: async () => {
-                handleClose();
-                router.push(`/app/billing`);
-              },
+              onClick: () => (path = `/app/billing`),
             },
           });
           break;
@@ -118,7 +112,11 @@ export default function JobInputsFormClient({
           break;
       }
     }
-    setLoading(false);
+    if (path) {
+      router.push(path);
+    } else {
+      setLoading(false);
+    }
   };
 
   const { formRef, handleSubmit: enterPreventedHandleSubmit } =
