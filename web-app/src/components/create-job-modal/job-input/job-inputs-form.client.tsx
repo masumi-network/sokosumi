@@ -129,7 +129,7 @@ export default function JobInputsFormClient({
         className="plausible-event-name=Hire"
       >
         <fieldset
-          disabled={loading}
+          disabled={loading || form.formState.isSubmitting}
           className={cn("flex flex-1 flex-col gap-6", className)}
         >
           {input_data.map((jobInputSchema) => (
@@ -153,11 +153,17 @@ export default function JobInputsFormClient({
                 </div>
                 <Button
                   type="submit"
-                  disabled={loading}
+                  disabled={
+                    loading ||
+                    form.formState.isSubmitting ||
+                    !form.formState.isValid
+                  }
                   className="items-center justify-between gap-2"
                 >
                   <div className="flex items-center gap-1">
-                    {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+                    {(loading || form.formState.isSubmitting) && (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    )}
                     {t("submit")}
                   </div>
                   {!isMobile && (
