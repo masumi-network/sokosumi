@@ -137,7 +137,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
         "job.input_data_size": JSON.stringify(input.inputData).length,
       },
     },
-    async (_span) => {
+    async (span) => {
       const { userId, agentId, maxAcceptedCents, inputData, inputSchema } =
         input;
       const organizationId = await getActiveOrganizationId();
@@ -336,8 +336,8 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
         );
       }
       const startJobResponse = startJobResult.data;
-      _span.setAttribute("job.agent_job_id", startJobResponse.job_id);
-      _span.setAttribute(
+      span.setAttribute("job.agent_job_id", startJobResponse.job_id);
+      span.setAttribute(
         "job.blockchain_identifier",
         startJobResponse.blockchainIdentifier,
       );
