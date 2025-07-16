@@ -14,6 +14,8 @@ import {
   prisma,
   refundJob,
   retrieveAgentWithRelationsById,
+  retrieveCentsByOrganizationId,
+  retrieveCentsByUserId,
   retrieveJobsByAgentIdUserIdAndOrganizationId,
   retrieveNotFinalizedLatestJobByAgentIdUserIdAndOrganization,
   retrievePersonalJobsByAgentIdAndUserId,
@@ -36,11 +38,7 @@ import {
   OnChainJobStatus,
   Prisma,
 } from "@/prisma/generated/client";
-import {
-  getCreditsPrice,
-  validateCreditsBalance,
-  validateOrganizationCreditsBalance,
-} from "@/services/credit";
+import { getCreditsPrice } from "@/services/credit";
 
 import {
   createPurchase,
@@ -541,6 +539,56 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
       return job;
     },
   );
+}
+
+/**
+ * Validates that a user has sufficient credit balance (in cents) to cover a specified amount.
+ *
+ * This function retrieves the user's current credit balance in cents and checks if it is
+ * greater than or equal to the required amount. If the balance is insufficient, it throws an error.
+ *
+ * @param userId - The ID of the user whose balance is being validated.
+ * @param cents - The amount (in cents) to validate against the user's balance.
+ * @param tx - (Optional) The Prisma transaction client to use for database operations. Defaults to the main Prisma client.
+ * @throws Error if the user's balance is insufficient to cover the specified amount.
+ */
+async function validateCreditsBalance(
+  userId: string,
+  cents: bigint,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<void> {
+  const centsBalance = await retrieveCentsByUserId(userId, tx);
+  if (centsBalance - cents < BigInt(0)) {
+    throw new JobError(
+      JobErrorCode.INSUFFICIENT_BALANCE,
+      "Insufficient balance",
+    );
+  }
+}
+
+/**
+ * Validates that an organization has sufficient credit balance (in cents) to cover a specified amount.
+ *
+ * This function retrieves the organization's current credit balance in cents and checks if it is
+ * greater than or equal to the required amount. If the balance is insufficient, it throws an error.
+ *
+ * @param organizationId - The ID of the organization whose balance is being validated.
+ * @param cents - The amount (in cents) to validate against the organization's balance.
+ * @param tx - (Optional) The Prisma transaction client to use for database operations. Defaults to the main Prisma client.
+ * @throws Error if the organization's balance is insufficient to cover the specified amount.
+ */
+async function validateOrganizationCreditsBalance(
+  organizationId: string,
+  cents: bigint,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<void> {
+  const centsBalance = await retrieveCentsByOrganizationId(organizationId, tx);
+  if (centsBalance - cents < BigInt(0)) {
+    throw new JobError(
+      JobErrorCode.INSUFFICIENT_BALANCE,
+      "Insufficient balance",
+    );
+  }
 }
 
 /**
