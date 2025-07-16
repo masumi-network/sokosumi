@@ -1,5 +1,7 @@
 import "./globals.css";
 
+import * as Sentry from "@sentry/nextjs";
+import { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Script from "next/script";
 import { NextIntlClientProvider } from "next-intl";
@@ -19,6 +21,14 @@ const inter = Inter({
   display: "swap",
   fallback: ["sans-serif"],
 });
+
+export function generateMetadata(): Metadata {
+  return {
+    other: {
+      ...Sentry.getTraceData(),
+    },
+  };
+}
 
 export default async function RootLayout({
   children,

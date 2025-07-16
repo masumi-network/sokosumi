@@ -26,23 +26,23 @@ export default withSentryConfig(
     // For all available options, see:
     // https://www.npmjs.com/package/@sentry/webpack-plugin#options
     org: "masumi",
-    project: "sokosumi",
+    // eslint-disable-next-line no-restricted-properties
+    project: process.env.SENTRY_PROJECT ?? "sokosumi",
+
+    // Pass the auth token
+    // eslint-disable-next-line no-restricted-properties
+    authToken: process.env.SENTRY_AUTH_TOKEN,
+    // Upload a larger set of source maps for prettier stack traces (increases build time)
+    widenClientFileUpload: true,
 
     // Only print logs for uploading source maps in CI
     // eslint-disable-next-line no-restricted-properties
     silent: !process.env.CI,
 
-    // For all available options, see:
-    // https://docs.sentry.io/platforms/javascript/guides/nextjs/manual-setup/
-
-    // Upload a larger set of source maps for prettier stack traces (increases build time)
-    widenClientFileUpload: true,
-
     // Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
     // This can increase your server load as well as your hosting bill.
-    // Note: Check that the configured route will not match with your Next.js middleware, otherwise reporting of client-
-    // side errors will fail.
-    tunnelRoute: "/monitoring",
+    // Note: Check that the configured route will not match with your Next.js middleware, otherwise reporting of client-side errors will fail.
+    tunnelRoute: true, // Generates a random route for each build (recommended)
 
     // Automatically tree-shake Sentry logger statements to reduce bundle size
     disableLogger: true,
@@ -51,5 +51,10 @@ export default withSentryConfig(
     // disable it on `dev mode` to reduce large middleware bundle size
     // eslint-disable-next-line no-restricted-properties
     autoInstrumentMiddleware: process.env.NODE_ENV === "production",
+
+    // Enable React component annotation for better error messages
+    reactComponentAnnotation: {
+      enabled: true,
+    },
   },
 );
