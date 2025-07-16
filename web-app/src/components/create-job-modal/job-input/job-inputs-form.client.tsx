@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Command, CornerDownLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import React from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
@@ -11,7 +12,6 @@ import { toast } from "sonner";
 import { useCreateJobModalContext } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
-import { useAsyncRouter } from "@/hooks/use-async-router";
 import usePreventEnterSubmit from "@/hooks/use-prevent-enter-submit";
 import {
   CommonErrorCode,
@@ -61,7 +61,7 @@ export default function JobInputsFormClient({
     defaultValues: defaultValues(input_data),
     mode: "onChange",
   });
-  const asyncRouter = useAsyncRouter();
+  const router = useRouter();
 
   const { os, isMobile } = getOSFromUserAgent();
 
@@ -84,19 +84,17 @@ export default function JobInputsFormClient({
     });
 
     if (result.ok) {
-      form.reset();
       handleClose();
-      await asyncRouter.push(
-        `/app/agents/${agentId}/jobs/${result.data.jobId}`,
-      );
+      router.push(`/app/agents/${agentId}/jobs/${result.data.jobId}`);
     } else {
       switch (result.error.code) {
         case CommonErrorCode.UNAUTHENTICATED:
           toast.error(t("Error.unauthenticated"), {
             action: {
               label: t("Error.unauthenticatedAction"),
-              onClick: async () => {
-                await asyncRouter.push(`/login`);
+              onClick: () => {
+                handleClose();
+                router.push(`/login`);
               },
             },
           });
@@ -109,7 +107,8 @@ export default function JobInputsFormClient({
             action: {
               label: t("Error.insufficientBalanceAction"),
               onClick: async () => {
-                await asyncRouter.push(`/app/billing`);
+                handleClose();
+                router.push(`/app/billing`);
               },
             },
           });
