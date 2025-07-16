@@ -7,11 +7,7 @@ Sentry.init({
   // Adds request headers and IP for users, for more info visit:
   // https://docs.sentry.io/platforms/javascript/guides/nextjs/configuration/options/#sendDefaultPii
   sendDefaultPii: true,
-  integrations: [
-    Sentry.replayIntegration({
-      maskAllText: true,
-    }),
-  ],
+  integrations: [Sentry.replayIntegration({})],
 
   // Capture Replay for 10% of all sessions,
   // plus for 100% of sessions with an error
