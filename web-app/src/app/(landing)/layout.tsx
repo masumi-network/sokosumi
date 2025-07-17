@@ -26,7 +26,7 @@ export default async function LandingLayout({ children }: LandingLayoutProps) {
   return (
     <UTMProvider>
       <div className="flex flex-col">
-        <Header className="h-16 lg:h-20" />
+        <Header className="h-30" />
         <main className="min-h-svh flex-1 pt-16 lg:pt-20">{children}</main>
         <Footer />
       </div>
