@@ -9,7 +9,13 @@ export const startJobInputSchema = z.object({
   inputSchema: z.array(jobInputSchema()),
   inputData: z.map(
     z.string(),
-    z.union([z.number(), z.string(), z.boolean(), z.array(z.number())]),
+    z.union([
+      z.number(),
+      z.string(),
+      z.boolean(),
+      z.array(z.number()),
+      z.undefined(),
+    ]),
   ),
 });
 
