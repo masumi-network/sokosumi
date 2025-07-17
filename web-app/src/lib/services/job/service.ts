@@ -133,8 +133,6 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
       attributes: {
         "job.agent_id": input.agentId,
         "job.user_id": input.userId,
-        "job.max_accepted_cents": Number(input.maxAcceptedCents),
-        "job.input_data_size": JSON.stringify(input.inputData).length,
       },
     },
     async (span) => {
@@ -147,9 +145,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
       Sentry.setContext("job_start_request", {
         userId,
         agentId,
-        maxAcceptedCents,
         organizationId,
-        inputDataSize: JSON.stringify(inputData).length,
       });
 
       // Add breadcrumb for job start
@@ -360,6 +356,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
           startJobResponse.input_hash,
         );
       } catch (error) {
+        console.log("error", error);
         Sentry.setTag("error_type", "input_hash_mismatch");
         Sentry.setContext("input_hash_validation", {
           agentId,
