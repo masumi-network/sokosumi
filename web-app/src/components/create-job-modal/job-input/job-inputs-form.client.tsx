@@ -83,6 +83,7 @@ export default function JobInputsFormClient({
       inputData: transformedInputData,
     });
 
+    setLoading(false);
     if (result.ok) {
       handleClose();
       await router.push(`/app/agents/${agentId}/jobs/${result.data.jobId}`);
@@ -111,7 +112,6 @@ export default function JobInputsFormClient({
           toast.error(t("Error.default"));
           break;
       }
-      setLoading(false);
     }
   };
 
