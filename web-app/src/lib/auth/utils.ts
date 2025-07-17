@@ -114,26 +114,3 @@ export function authenticateCronSecret(
   }
   return { ok: true };
 }
-
-/**
- * Authenticates an API route request using either the admin-api-key header or a Bearer token (CRON_SECRET).
- * Returns an object indicating the authentication result and type.
- * Usage: Call at the top of your route handler and handle the result accordingly.
- */
-export function authenticateApiRequest(
-  request: Request,
-): { ok: true; type: "admin" | "cron" } | { ok: false; response: Response } {
-  const adminResult = authenticateAdminApiKey(request);
-  if (adminResult.ok) return { ok: true, type: "admin" };
-  const cronResult = authenticateCronSecret(request);
-  if (cronResult.ok) return { ok: true, type: "cron" };
-
-  // Determine which authentication method was attempted
-  const hasAdminKey = !!request.headers.get("admin-api-key");
-  const hasAuthHeader = !!request.headers.get("authorization");
-
-  if (hasAdminKey) return adminResult;
-  if (hasAuthHeader) return cronResult;
-  // If neither header is present, default to admin error for backward compatibility
-  return adminResult;
-}
