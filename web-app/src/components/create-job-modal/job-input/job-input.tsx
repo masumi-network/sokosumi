@@ -20,6 +20,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import {
   JobInputSchemaType,
   JobInputsFormSchemaType,
@@ -73,6 +74,16 @@ function InputField({ id, field, jobInputSchema }: InputFieldProps) {
         id={id}
         placeholder={data?.placeholder}
         type="text"
+        {...field}
+        value={typeof field.value === "string" ? field.value : ""}
+      />
+    );
+
+  if (type === ValidJobInputTypes.TEXTAREA)
+    return (
+      <Textarea
+        id={id}
+        placeholder={data?.placeholder}
         {...field}
         value={typeof field.value === "string" ? field.value : ""}
       />

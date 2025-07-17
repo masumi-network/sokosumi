@@ -5,23 +5,28 @@ import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { postRegistryEntry } from "@/lib/api/generated/registry";
 import { getRegistryClient } from "@/lib/api/registry-service.client";
-import { compareApiKeys } from "@/lib/api/utils";
+import {
+  authenticateAdminApiKey,
+  authenticateCronSecret,
+} from "@/lib/auth/utils";
 import { acquireLock, prisma, unlockLock } from "@/lib/db/repositories";
 import { AgentStatus, Lock, PricingType } from "@/prisma/generated/client";
 
 const LOCK_KEY = "agents-sync";
 
+export async function GET(request: Request) {
+  const authResult = authenticateCronSecret(request);
+  if (!authResult.ok) return authResult.response;
+  return await agentSync();
+}
+
 export async function POST(request: Request) {
-  const headerApiKey = request.headers.get("admin-api-key");
-  if (!headerApiKey) {
-    return NextResponse.json(
-      { message: "No api key provided" },
-      { status: 401 },
-    );
-  }
-  if (compareApiKeys(headerApiKey) !== true) {
-    return NextResponse.json({ message: "Invalid api key" }, { status: 401 });
-  }
+  const authResult = authenticateAdminApiKey(request);
+  if (!authResult.ok) return authResult.response;
+  return await agentSync();
+}
+
+async function agentSync() {
   // Start a transaction to ensure atomicity
   let lock: Lock;
   try {
