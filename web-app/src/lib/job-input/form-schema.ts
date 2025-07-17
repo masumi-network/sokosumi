@@ -72,7 +72,7 @@ const makeZodSchemaFromJobInputTextareaSchema = (
     }
   }, defaultSchema);
 
-  return canBeOptional ? schema.nullable() : schema;
+  return canBeOptional ? schema.optional() : schema;
 };
 
 const makeZodSchemaFromJobInputStringSchema = (
@@ -120,7 +120,7 @@ const makeZodSchemaFromJobInputStringSchema = (
     }
   }, defaultSchema);
 
-  return canBeOptional ? schema.nullable() : schema;
+  return canBeOptional ? schema.optional() : schema;
 };
 
 const makeZodSchemaFromJobInputNumberSchema = (
@@ -163,7 +163,7 @@ const makeZodSchemaFromJobInputNumberSchema = (
     }
   }, defaultSchema);
 
-  return canBeOptional ? schema.nullable() : schema;
+  return canBeOptional ? schema.optional() : schema;
 };
 
 // For Boolean Schema we can ignore validations
@@ -223,5 +223,5 @@ const makeZodSchemaFromJobInputOptionSchema = (
     }
   }, defaultSchema);
 
-  return canBeOptional ? schema.nullable() : schema;
+  return canBeOptional ? schema.optional() : schema;
 };
