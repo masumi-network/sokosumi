@@ -750,7 +750,7 @@
     },
     "Header": {
       "Credit": {
-        "buy": "Buy credits",
+        "buy": "Add credits",
         "userBalance": "{credits, plural, =0 {No credits} =1 {1 credit} other {# credits}}",
         "organizationBalance": "{credits, plural, =0 {No credits} =1 {1 credit} other {# credits}} ({organization})",
         "unavailable": "Credits unavailable"
@@ -765,8 +765,8 @@
       "creditAmount": "{count, plural, one {# credit} other {# credits}}",
       "creditsLabel": "Number of credits",
       "creditsPlaceholder": "Enter amount",
-      "topUpButton": "Continue to payment",
-      "topUpButtonOrganization": "Continue to payment",
+      "topUpButton": "Continue",
+      "topUpButtonOrganization": "Continue",
       "purchaseForOrganization": "{organization} (Organization)",
       "couponLabel": "Coupon code",
       "couponPlaceholder": "Enter coupon",
@@ -869,9 +869,9 @@
         "deactivate": "Deactivate"
       },
       "Credits": {
-        "title": "Organization Credits",
+        "title": "Organization credits",
         "description": "Available for {organization} members",
-        "buy": "Buy Credits"
+        "buy": "Add credits"
       },
       "InvitationActions": {
         "accept": "Accept",
@@ -1182,7 +1182,7 @@
         "byCreator": " by the creator of the Agent",
         "Error": {
           "insufficientBalance": "Your credit balance is insufficient to start this job.",
-          "insufficientBalanceAction": "Buy credits",
+          "insufficientBalanceAction": "Add credits",
           "badInput": "Your input data is invalid.",
           "unauthenticated": "You must be logged in to start a job.",
           "unauthenticatedAction": "Login",
