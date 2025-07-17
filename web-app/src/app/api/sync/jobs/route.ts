@@ -18,13 +18,18 @@ const LOCK_KEY = "jobs-sync";
 export async function POST(request: Request) {
   const headerApiKey = request.headers.get("admin-api-key");
   if (!headerApiKey) {
-    return NextResponse.json(
-      { message: "No api key provided" },
-      { status: 401 },
-    );
-  }
-  if (compareApiKeys(headerApiKey) !== true) {
-    return NextResponse.json({ message: "Invalid api key" }, { status: 401 });
+    const authHeader = request.headers.get("authorization");
+    // eslint-disable-next-line no-restricted-properties
+    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
+      return NextResponse.json(
+        { message: "No api key provided" },
+        { status: 401 },
+      );
+    }
+  } else {
+    if (compareApiKeys(headerApiKey) !== true) {
+      return NextResponse.json({ message: "Invalid api key" }, { status: 401 });
+    }
   }
   // Start a transaction to ensure atomicity
   let lock: Lock;
