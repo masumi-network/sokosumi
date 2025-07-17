@@ -356,7 +356,6 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
           startJobResponse.input_hash,
         );
       } catch (error) {
-        console.log("error", error);
         Sentry.setTag("error_type", "input_hash_mismatch");
         Sentry.setContext("input_hash_validation", {
           agentId,
