@@ -35,7 +35,7 @@ async function agentSync() {
     if (error instanceof Error && error.message === "LOCK_IS_LOCKED") {
       return NextResponse.json(
         { message: "Syncing already in progress" },
-        { status: 429 },
+        { status: 409 },
       );
     }
     return NextResponse.json(
