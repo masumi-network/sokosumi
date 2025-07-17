@@ -3,7 +3,7 @@ import pLimit from "p-limit";
 import pTimeout from "p-timeout";
 
 import { getEnvSecrets } from "@/config/env.secrets";
-import { compareApiKeys } from "@/lib/api/utils";
+import { authenticateApiRequest } from "@/lib/auth/utils";
 import { finalizedOnChainJobStatuses } from "@/lib/db";
 import { acquireLock, prisma, unlockLock } from "@/lib/db/repositories";
 import { syncJob } from "@/lib/services";
@@ -16,21 +16,9 @@ import {
 const LOCK_KEY = "jobs-sync";
 
 export async function POST(request: Request) {
-  const headerApiKey = request.headers.get("admin-api-key");
-  if (!headerApiKey) {
-    const authHeader = request.headers.get("authorization");
-    // eslint-disable-next-line no-restricted-properties
-    if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-      return NextResponse.json(
-        { message: "No api key provided" },
-        { status: 401 },
-      );
-    }
-  } else {
-    if (compareApiKeys(headerApiKey) !== true) {
-      return NextResponse.json({ message: "Invalid api key" }, { status: 401 });
-    }
-  }
+  const authResult = authenticateApiRequest(request);
+  if (!authResult.ok) return authResult.response;
+
   // Start a transaction to ensure atomicity
   let lock: Lock;
   try {
