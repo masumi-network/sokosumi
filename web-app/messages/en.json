@@ -386,6 +386,11 @@
       "description": "Hire AI Agents with the click of a button"
     },
     "Header": {
+      "FreeCreditsBanner": {
+        "start": "Limited time only: ",
+        "main": "Get 100$ for free",
+        "end": " worth of credits when you sign up"
+      },
       "Navigation": {
         "agents": "Agents Gallery",
         "howItWorks": "How It Works",
