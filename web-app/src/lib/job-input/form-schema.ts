@@ -6,6 +6,7 @@ import {
   JobInputOptionSchemaType,
   JobInputSchemaType,
   JobInputStringSchemaType,
+  JobInputTextareaSchemaType,
 } from "./job-input";
 import {
   JobInputFormIntlPath,
@@ -21,6 +22,8 @@ export const makeZodSchemaFromJobInputSchema = (
   switch (jobInputSchema.type) {
     case ValidJobInputTypes.STRING:
       return makeZodSchemaFromJobInputStringSchema(jobInputSchema, t);
+    case ValidJobInputTypes.TEXTAREA:
+      return makeZodSchemaFromJobInputTextareaSchema(jobInputSchema, t);
     case ValidJobInputTypes.NUMBER:
       return makeZodSchemaFromJobInputNumberSchema(jobInputSchema, t);
     case ValidJobInputTypes.BOOLEAN:
@@ -30,6 +33,46 @@ export const makeZodSchemaFromJobInputSchema = (
     case ValidJobInputTypes.NONE:
       return z.never().nullable();
   }
+};
+
+const makeZodSchemaFromJobInputTextareaSchema = (
+  jobInputTextareaSchema: JobInputTextareaSchemaType,
+  t?: IntlTranslation<JobInputFormIntlPath>,
+) => {
+  const { name, validations } = jobInputTextareaSchema;
+  const defaultSchema = z.string({
+    message: t?.("String.required", { name }),
+  });
+  if (!validations) return defaultSchema;
+
+  let canBeOptional: boolean = false;
+  const schema = validations.reduce((acc, cur) => {
+    const { validation, value } = cur;
+    switch (validation) {
+      case ValidJobInputValidationTypes.MIN:
+        return acc.min(value, {
+          message: t?.("String.min", { name, value }),
+        });
+      case ValidJobInputValidationTypes.MAX:
+        return acc.max(value, {
+          message: t?.("String.max", { name, value }),
+        });
+      case ValidJobInputValidationTypes.FORMAT:
+        switch (value) {
+          case ValidJobInputFormatValues.NON_EMPTY:
+            return acc.min(1, {
+              message: t?.("String.format", { name, value }),
+            });
+          default:
+            return acc;
+        }
+      case ValidJobInputValidationTypes.OPTIONAL:
+        canBeOptional = value === "true";
+        return acc;
+    }
+  }, defaultSchema);
+
+  return canBeOptional ? schema.nullable() : schema;
 };
 
 const makeZodSchemaFromJobInputStringSchema = (
