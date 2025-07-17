@@ -28,7 +28,7 @@ async function createLockByKey(
 export async function unlockLock(
   key: string,
   tx: Prisma.TransactionClient = prisma,
-): Promise<Lock | null> {
+): Promise<boolean> {
   // Atomically unlock only if currently locked
   const result = await tx.lock.updateMany({
     where: {
@@ -42,11 +42,11 @@ export async function unlockLock(
     },
   });
   if (result.count === 1) {
-    // Successfully unlocked, return the updated lock
-    return await tx.lock.findFirst({ where: { key } });
+    // Successfully unlocked
+    return true;
   }
   // Failed to unlock (was not locked)
-  return null;
+  return false;
 }
 
 export async function acquireLock(
