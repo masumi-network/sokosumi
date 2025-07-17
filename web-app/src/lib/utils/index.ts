@@ -1,6 +1,6 @@
-import json from "@tufjs/canonical-json";
 import { type ClassValue, clsx } from "clsx";
 import crypto from "crypto";
+import { canonicalizeEx } from "json-canonicalize";
 import { twMerge } from "tailwind-merge";
 
 import { JobInputData } from "@/lib/job-input";
@@ -18,8 +18,16 @@ const calculateInputHash = (
   identifierFromPurchaser: string,
   delimiter: string = ";",
 ) => {
-  const inputString = json.canonicalize(Object.fromEntries(inputData));
-  return createHash(identifierFromPurchaser + delimiter + inputString);
+  try {
+    const object = Object.fromEntries(inputData);
+    const inputString = canonicalizeEx(object, {
+      filterUndefined: true,
+    });
+    return createHash(identifierFromPurchaser + delimiter + inputString);
+  } catch (error) {
+    console.log("error", error);
+    throw error; // Re-throw the error to handle it properly
+  }
 };
 
 /**
@@ -62,7 +70,9 @@ export const getOutputHash = (
   outputData: JobStatusResponseSchemaType,
   identifierFromPurchaser: string,
 ) => {
-  const outputString = json.canonicalize(outputData);
+  const outputString = canonicalizeEx(outputData, {
+    filterUndefined: true,
+  });
   return createHash(identifierFromPurchaser + ";" + outputString);
 };
 
