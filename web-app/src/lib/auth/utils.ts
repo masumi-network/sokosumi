@@ -127,6 +127,13 @@ export function authenticateApiRequest(
   if (adminResult.ok) return { ok: true, type: "admin" };
   const cronResult = authenticateCronSecret(request);
   if (cronResult.ok) return { ok: true, type: "cron" };
-  // Prefer admin error if both fail
+
+  // Determine which authentication method was attempted
+  const hasAdminKey = !!request.headers.get("admin-api-key");
+  const hasAuthHeader = !!request.headers.get("authorization");
+
+  if (hasAdminKey) return adminResult;
+  if (hasAuthHeader) return cronResult;
+  // If neither header is present, default to admin error for backward compatibility
   return adminResult;
 }
