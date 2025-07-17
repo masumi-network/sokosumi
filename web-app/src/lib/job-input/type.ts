@@ -27,4 +27,7 @@ export type JobInputFormatValue = ValidJobInputFormatValues;
 export type JobInputSchemaIntlPath = "Library.JobInput.Schema";
 export type JobInputFormIntlPath = "Library.JobInput.Form";
 
-export type JobInputData = Map<string, string | number | boolean | number[]>;
+export type JobInputData = Map<
+  string,
+  string | number | boolean | number[] | undefined
+>;
