@@ -44,8 +44,8 @@ function getFundsLockedJobStatus(
 
       // Check for OUTPUT_PENDING status
       if (
-        job.unlockTime &&
-        nowMs >= job.unlockTime.getTime() - TEN_MINUTES_TIMESTAMP * 6 // within 1 hour of unlock time
+        job.submitResultTime &&
+        nowMs >= job.submitResultTime.getTime() - TEN_MINUTES_TIMESTAMP
       ) {
         return JobStatus.OUTPUT_PENDING;
       }
