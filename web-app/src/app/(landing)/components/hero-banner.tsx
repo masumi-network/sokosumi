@@ -3,7 +3,11 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-export function HeroBanner(className?: string) {
+interface HeroBannerProps {
+  className?: string;
+}
+
+export function HeroBanner({ className }: HeroBannerProps) {
   return (
     <Button
       className={cn(
