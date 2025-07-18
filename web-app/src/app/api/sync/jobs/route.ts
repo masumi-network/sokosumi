@@ -98,6 +98,7 @@ async function syncAllJobs(): Promise<void> {
         },
       ],
       NOT: [
+        // Filter out jobs that are completed and have a result submitted
         {
           onChainStatus: OnChainJobStatus.RESULT_SUBMITTED,
           agentJobStatus: AgentJobStatus.COMPLETED,
@@ -105,11 +106,13 @@ async function syncAllJobs(): Promise<void> {
             lt: tenMinutesAgo,
           },
         },
+        // Filter out jobs that are refunded
         {
           refundedCreditTransactionId: {
             not: null,
           },
         },
+        // Filter out non-disputed jobs that have passed their external dispute grace period
         {
           onChainStatus: { not: OnChainJobStatus.DISPUTED },
           externalDisputeUnlockTime: {
