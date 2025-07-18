@@ -4,6 +4,7 @@ import { KanjiLogo, ThemedLogo } from "@/components/masumi-logos";
 
 import AgentSearchInput from "./agent-search-input";
 import { AgentsShowcase } from "./agents-showcase";
+import { HeroBanner } from "./hero-banner";
 
 export default function Hero() {
   const t = useTranslations("Landing.Page.Hero");
@@ -15,6 +16,7 @@ export default function Hero() {
         <ThemedLogo LogoComponent={KanjiLogo} />
       </div>
       <div className="z-10 container flex flex-col items-center gap-4 px-4 text-center md:gap-6 md:px-6">
+        <HeroBanner className="mb-2" />
         <h1 className="w-full text-center text-4xl font-light whitespace-pre-line md:text-7xl">
           {t("title")}
         </h1>
