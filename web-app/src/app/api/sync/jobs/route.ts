@@ -111,10 +111,10 @@ async function syncAllJobs(): Promise<void> {
           },
         },
         {
+          onChainStatus: OnChainJobStatus.DISPUTED,
           externalDisputeUnlockTime: {
             lt: tenMinutesAgo,
           },
-          onChainStatus: OnChainJobStatus.DISPUTED,
         },
       ],
     },
