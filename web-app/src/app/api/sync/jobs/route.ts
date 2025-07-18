@@ -111,7 +111,7 @@ async function syncAllJobs(): Promise<void> {
           },
         },
         {
-          onChainStatus: OnChainJobStatus.DISPUTED,
+          onChainStatus: { not: OnChainJobStatus.DISPUTED },
           externalDisputeUnlockTime: {
             lt: tenMinutesAgo,
           },
