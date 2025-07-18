@@ -45,7 +45,7 @@ function getFundsLockedJobStatus(
       // Check for OUTPUT_PENDING status (after submit result time with 10min grace period)
       if (
         job.submitResultTime &&
-        nowMs >= job.submitResultTime.getTime() - TEN_MINUTES_TIMESTAMP
+        nowMs >= job.submitResultTime.getTime() + TEN_MINUTES_TIMESTAMP
       ) {
         return JobStatus.OUTPUT_PENDING;
       }
