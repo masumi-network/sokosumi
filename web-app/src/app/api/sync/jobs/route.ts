@@ -10,11 +10,7 @@ import {
 import { finalizedOnChainJobStatuses } from "@/lib/db";
 import { acquireLock, prisma, unlockLock } from "@/lib/db/repositories";
 import { syncJob } from "@/lib/services";
-import {
-  AgentJobStatus,
-  Lock,
-  OnChainJobStatus,
-} from "@/prisma/generated/client";
+import { Lock, OnChainJobStatus } from "@/prisma/generated/client";
 
 const LOCK_KEY = "jobs-sync";
 
@@ -98,14 +94,6 @@ async function syncAllJobs(): Promise<void> {
         },
       ],
       NOT: [
-        // Filter out jobs that are completed and have a result submitted
-        {
-          onChainStatus: OnChainJobStatus.RESULT_SUBMITTED,
-          agentJobStatus: AgentJobStatus.COMPLETED,
-          externalDisputeUnlockTime: {
-            lt: tenMinutesAgo,
-          },
-        },
         // Filter out jobs that are refunded
         {
           refundedCreditTransactionId: {
