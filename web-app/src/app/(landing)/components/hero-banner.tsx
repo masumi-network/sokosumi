@@ -11,7 +11,7 @@ export function HeroBanner({ className }: HeroBannerProps) {
   return (
     <Button
       className={cn(
-        "bg-foreground text-background hover:bg-foreground/80 rounded-3xl px-6 py-3 font-medium uppercase transition-colors",
+        "text-background bg-foreground rounded-3xl px-6 py-3 font-medium uppercase transition-all hover:opacity-80",
         className,
       )}
       asChild
