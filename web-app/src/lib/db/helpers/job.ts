@@ -31,13 +31,14 @@ function getFundsLockedJobStatus(
     case AgentJobStatus.COMPLETED:
       return JobStatus.COMPLETED;
     default:
+      // Use timestamp for all calculations to ensure consistency
+      const nowMs = Date.now();
+
       // Check for FAILED status first (highest priority)
       if (
         job.externalDisputeUnlockTime &&
-        new Date() >=
-          new Date(
-            job.externalDisputeUnlockTime.getTime() + TEN_MINUTES_GRACE_PERIOD,
-          ) // 10 minutes grace period expired (external dispute unlock time is in the past)
+        nowMs >=
+          job.externalDisputeUnlockTime.getTime() + TEN_MINUTES_GRACE_PERIOD
       ) {
         return JobStatus.FAILED;
       }
@@ -45,8 +46,7 @@ function getFundsLockedJobStatus(
       // Check for OUTPUT_PENDING status
       if (
         job.unlockTime &&
-        new Date() >=
-          new Date(job.unlockTime.getTime() - TEN_MINUTES_GRACE_PERIOD * 6) // within 1 hour of unlock time
+        nowMs >= job.unlockTime.getTime() - TEN_MINUTES_GRACE_PERIOD * 6 // within 1 hour of unlock time
       ) {
         return JobStatus.OUTPUT_PENDING;
       }
