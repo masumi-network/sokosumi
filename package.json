@@ -38,7 +38,7 @@
     "@eslint/eslintrc": "3.3.1",
     "@hey-api/openapi-ts": "0.78.3",
     "@noble/hashes": "1.8.0",
-    "@swc/core": "1.12.14",
+    "@swc/core": "1.13.0",
     "@swc/helpers": "0.5.17",
     "@tailwindcss/postcss": "4.1.11",
     "@tailwindcss/typography": "0.5.16",
