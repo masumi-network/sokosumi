@@ -53,7 +53,7 @@ async function jobSync(): Promise<Response> {
       const timingStart = Date.now();
       await pTimeout(syncAllJobs(), {
         milliseconds:
-          //give some buffer to unlock the lock before the timeout
+          // give some buffer to unlock the lock before the timeout
           getEnvSecrets().LOCK_TIMEOUT - getEnvSecrets().LOCK_TIMEOUT_BUFFER,
       });
       const timingEnd = Date.now();
@@ -65,14 +65,17 @@ async function jobSync(): Promise<Response> {
     } catch (error) {
       console.error("Error in sync operation:", error);
     } finally {
-      unlockLock(lock.key);
+      const unlocked = await unlockLock(lock.key);
+      if (!unlocked) {
+        console.error("Failed to unlock lock");
+      }
     }
   });
 
   return NextResponse.json({ message: "Syncing started" }, { status: 200 });
 }
 
-async function syncAllJobs() {
+async function syncAllJobs(): Promise<void> {
   const runningDbUpdates: Promise<void>[] = [];
 
   const jobs = await prisma.job.findMany({
@@ -108,7 +111,7 @@ async function syncAllJobs() {
       ],
     },
   });
-
+  console.info("Syncing", jobs.length, "jobs");
   // Process 5 jobs at a time
   const limit = pLimit(5);
   for (const job of jobs) {

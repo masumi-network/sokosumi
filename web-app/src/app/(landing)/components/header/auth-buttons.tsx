@@ -17,5 +17,5 @@ export default function AuthButtons({ className }: AuthButtonsProps) {
   if (pathname.startsWith("/register"))
     return <SignInButton className={className} />;
 
-  return <SignInButton className={className} />;
+  return <SignUpButton className={className} />;
 }
