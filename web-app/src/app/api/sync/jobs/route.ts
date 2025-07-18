@@ -51,7 +51,7 @@ async function jobSync(): Promise<Response> {
   after(async () => {
     try {
       const timingStart = Date.now();
-      pTimeout(syncAllJobs(), {
+      await pTimeout(syncAllJobs(), {
         milliseconds:
           //give some buffer to unlock the lock before the timeout
           getEnvSecrets().LOCK_TIMEOUT - getEnvSecrets().LOCK_TIMEOUT_BUFFER,
