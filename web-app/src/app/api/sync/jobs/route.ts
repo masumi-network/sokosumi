@@ -112,9 +112,7 @@ async function syncAllJobs(): Promise<void> {
           externalDisputeUnlockTime: {
             lt: new Date(Date.now() - 1000 * 60 * 10), // 10min grace period
           },
-          onChainStatus: {
-            not: OnChainJobStatus.DISPUTED,
-          },
+          onChainStatus: OnChainJobStatus.DISPUTED,
         },
       ],
     },
