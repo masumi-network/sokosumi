@@ -78,7 +78,7 @@ async function jobSync(): Promise<Response> {
 async function syncAllJobs(): Promise<void> {
   const runningDbUpdates: Promise<void>[] = [];
 
-  const gracePeriod = new Date(Date.now() - 1000 * 60 * 10); // 10min grace period
+  const tenMinutesAgo = new Date(Date.now() - 1000 * 60 * 10); // 10min grace period
 
   const jobs = await prisma.job.findMany({
     where: {
@@ -93,7 +93,7 @@ async function syncAllJobs(): Promise<void> {
         {
           onChainStatus: null,
           submitResultTime: {
-            gt: gracePeriod,
+            gt: tenMinutesAgo,
           },
         },
       ],
@@ -102,7 +102,7 @@ async function syncAllJobs(): Promise<void> {
           onChainStatus: OnChainJobStatus.RESULT_SUBMITTED,
           agentJobStatus: AgentJobStatus.COMPLETED,
           externalDisputeUnlockTime: {
-            lt: gracePeriod,
+            lt: tenMinutesAgo,
           },
         },
         {
@@ -112,7 +112,7 @@ async function syncAllJobs(): Promise<void> {
         },
         {
           externalDisputeUnlockTime: {
-            lt: gracePeriod,
+            lt: tenMinutesAgo,
           },
           onChainStatus: OnChainJobStatus.DISPUTED,
         },
