@@ -8,11 +8,11 @@ import {
   OnChainTransactionStatus,
 } from "@/prisma/generated/client";
 
-const TEN_MINUTES_GRACE_PERIOD = 1000 * 60 * 10; // 10min
+const TEN_MINUTES_TIMESTAMP = 1000 * 60 * 10; // 10min
 
 function checkPaymentStatus(job: Job): JobStatus | null {
   if (job.purchaseId === null) {
-    if (job.createdAt < new Date(Date.now() - TEN_MINUTES_GRACE_PERIOD)) {
+    if (job.createdAt < new Date(Date.now() - TEN_MINUTES_TIMESTAMP)) {
       return JobStatus.PAYMENT_FAILED;
     } else {
       return JobStatus.PAYMENT_PENDING;
@@ -37,8 +37,7 @@ function getFundsLockedJobStatus(
       // Check for FAILED status first (highest priority)
       if (
         job.externalDisputeUnlockTime &&
-        nowMs >=
-          job.externalDisputeUnlockTime.getTime() + TEN_MINUTES_GRACE_PERIOD
+        nowMs >= job.externalDisputeUnlockTime.getTime() + TEN_MINUTES_TIMESTAMP
       ) {
         return JobStatus.FAILED;
       }
@@ -46,7 +45,7 @@ function getFundsLockedJobStatus(
       // Check for OUTPUT_PENDING status
       if (
         job.unlockTime &&
-        nowMs >= job.unlockTime.getTime() - TEN_MINUTES_GRACE_PERIOD * 6 // within 1 hour of unlock time
+        nowMs >= job.unlockTime.getTime() - TEN_MINUTES_TIMESTAMP * 6 // within 1 hour of unlock time
       ) {
         return JobStatus.OUTPUT_PENDING;
       }
