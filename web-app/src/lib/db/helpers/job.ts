@@ -21,6 +21,30 @@ function checkPaymentStatus(job: Job): JobStatus | null {
   return null;
 }
 
+function getFundsLockedJobStatus(
+  job: Job,
+  agentJobStatus: AgentJobStatus | null,
+): JobStatus {
+  switch (agentJobStatus) {
+    case AgentJobStatus.AWAITING_INPUT:
+      return JobStatus.INPUT_REQUIRED;
+    case AgentJobStatus.COMPLETED:
+      return JobStatus.COMPLETED;
+    default:
+      if (
+        new Date() >= new Date(job.unlockTime.getTime() - 60 * 60 * 1000) // within 1 hour of unlock time
+      ) {
+        return JobStatus.OUTPUT_PENDING;
+      } else if (
+        new Date() >=
+        new Date(job.externalDisputeUnlockTime.getTime() + 10 * 60 * 1000) // 10 minutes grace period expired (external dispute unlock time is in the past)
+      ) {
+        return JobStatus.FAILED;
+      }
+      return JobStatus.PROCESSING;
+  }
+}
+
 /**
  * Compute the overall job status by combining the on-chain and agent statuses.
  */
@@ -45,14 +69,7 @@ export function computeJobStatus(job: Job): JobStatus {
       }
       return JobStatus.PAYMENT_FAILED;
     case OnChainJobStatus.FUNDS_LOCKED:
-      switch (agentJobStatus) {
-        case AgentJobStatus.AWAITING_INPUT:
-          return JobStatus.INPUT_REQUIRED;
-        case AgentJobStatus.COMPLETED:
-          return JobStatus.COMPLETED;
-        default:
-          return JobStatus.PROCESSING;
-      }
+      return getFundsLockedJobStatus(job, agentJobStatus);
     case OnChainJobStatus.RESULT_SUBMITTED:
       switch (agentJobStatus) {
         case AgentJobStatus.COMPLETED:
