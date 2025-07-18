@@ -114,7 +114,7 @@ async function syncAllJobs(): Promise<void> {
         },
         // Filter out non-disputed jobs that have passed their external dispute grace period
         {
-          onChainStatus: { not: OnChainJobStatus.DISPUTED },
+          onChainStatus: OnChainJobStatus.DISPUTED,
           externalDisputeUnlockTime: {
             lt: tenMinutesAgo,
           },
