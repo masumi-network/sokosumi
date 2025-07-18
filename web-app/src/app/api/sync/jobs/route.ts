@@ -10,11 +10,7 @@ import {
 import { finalizedOnChainJobStatuses } from "@/lib/db";
 import { acquireLock, prisma, unlockLock } from "@/lib/db/repositories";
 import { syncJob } from "@/lib/services";
-import {
-  AgentJobStatus,
-  Lock,
-  OnChainJobStatus,
-} from "@/prisma/generated/client";
+import { Lock, OnChainJobStatus } from "@/prisma/generated/client";
 
 const LOCK_KEY = "jobs-sync";
 
@@ -78,6 +74,8 @@ async function jobSync(): Promise<Response> {
 async function syncAllJobs(): Promise<void> {
   const runningDbUpdates: Promise<void>[] = [];
 
+  const tenMinutesAgo = new Date(Date.now() - 1000 * 60 * 10); // 10min grace period
+
   const jobs = await prisma.job.findMany({
     where: {
       OR: [
@@ -91,21 +89,22 @@ async function syncAllJobs(): Promise<void> {
         {
           onChainStatus: null,
           submitResultTime: {
-            gt: new Date(Date.now() - 1000 * 60 * 10), // 10min grace period
+            gt: tenMinutesAgo,
           },
         },
       ],
       NOT: [
-        {
-          onChainStatus: OnChainJobStatus.RESULT_SUBMITTED,
-          agentJobStatus: AgentJobStatus.COMPLETED,
-          externalDisputeUnlockTime: {
-            lt: new Date(Date.now() - 1000 * 60 * 10), // 10min grace period
-          },
-        },
+        // Filter out jobs that are refunded
         {
           refundedCreditTransactionId: {
             not: null,
+          },
+        },
+        // Filter out non-disputed jobs that have passed their external dispute grace period
+        {
+          onChainStatus: { not: OnChainJobStatus.DISPUTED },
+          externalDisputeUnlockTime: {
+            lt: tenMinutesAgo,
           },
         },
       ],

@@ -8,17 +8,50 @@ import {
   OnChainTransactionStatus,
 } from "@/prisma/generated/client";
 
-const PAYMENT_FAILED_GRACE_PERIOD = 1000 * 60 * 10; // 10min
+const TEN_MINUTES_TIMESTAMP = 1000 * 60 * 10; // 10min
 
 function checkPaymentStatus(job: Job): JobStatus | null {
   if (job.purchaseId === null) {
-    if (job.createdAt < new Date(Date.now() - PAYMENT_FAILED_GRACE_PERIOD)) {
+    if (job.createdAt < new Date(Date.now() - TEN_MINUTES_TIMESTAMP)) {
       return JobStatus.PAYMENT_FAILED;
     } else {
       return JobStatus.PAYMENT_PENDING;
     }
   }
   return null;
+}
+
+function getFundsLockedJobStatus(
+  job: Job,
+  agentJobStatus: AgentJobStatus | null,
+): JobStatus {
+  switch (agentJobStatus) {
+    case AgentJobStatus.AWAITING_INPUT:
+      return JobStatus.INPUT_REQUIRED;
+    case AgentJobStatus.COMPLETED:
+      return JobStatus.COMPLETED;
+    default:
+      // Use timestamp for all calculations to ensure consistency
+      const nowMs = Date.now();
+
+      // Check for FAILED status first (highest priority)
+      if (
+        job.externalDisputeUnlockTime &&
+        nowMs >= job.externalDisputeUnlockTime.getTime() + TEN_MINUTES_TIMESTAMP
+      ) {
+        return JobStatus.FAILED;
+      }
+
+      // Check for OUTPUT_PENDING status (after submit result time with 10min grace period)
+      if (
+        job.submitResultTime &&
+        nowMs >= job.submitResultTime.getTime() + TEN_MINUTES_TIMESTAMP
+      ) {
+        return JobStatus.OUTPUT_PENDING;
+      }
+
+      return JobStatus.PROCESSING;
+  }
 }
 
 /**
@@ -45,14 +78,7 @@ export function computeJobStatus(job: Job): JobStatus {
       }
       return JobStatus.PAYMENT_FAILED;
     case OnChainJobStatus.FUNDS_LOCKED:
-      switch (agentJobStatus) {
-        case AgentJobStatus.AWAITING_INPUT:
-          return JobStatus.INPUT_REQUIRED;
-        case AgentJobStatus.COMPLETED:
-          return JobStatus.COMPLETED;
-        default:
-          return JobStatus.PROCESSING;
-      }
+      return getFundsLockedJobStatus(job, agentJobStatus);
     case OnChainJobStatus.RESULT_SUBMITTED:
       switch (agentJobStatus) {
         case AgentJobStatus.COMPLETED:
