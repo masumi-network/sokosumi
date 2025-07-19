@@ -31,8 +31,15 @@ export async function GET(req: NextRequest) {
         }
       };
 
-      // Subscribe this client
-      const unsubscribe = subscribeConnection(send);
+      // Subscribe this client with user ID for filtering
+      let unsubscribe: () => void;
+      try {
+        unsubscribe = subscribeConnection(send, user.id);
+      } catch (error) {
+        console.error("🔔 Failed to subscribe connection", error);
+        controller.close();
+        return;
+      }
 
       // send date string to keep connection alive
       const intervalId = setInterval(

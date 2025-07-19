@@ -22,7 +22,6 @@ export default function useJobStatusEvent(
       eventSourceRef.current = es;
 
       es.onopen = () => {
-        retryCountRef.current = 0;
         console.log("✅ SSE connected");
       };
 
@@ -47,10 +46,10 @@ export default function useJobStatusEvent(
 
         if (isUnmounted) return;
 
-        retryCountRef.current += 1;
+        retryCountRef.current = retryCountRef.current + 1;
         if (retryCountRef.current <= MAX_RETRY_COUNT) {
           console.log(
-            `🔄 Reconnecting SSE (attempt ${retryCountRef.current})...`,
+            `🔄 Reconnecting SSE (attempt ${retryCountRef.current}/${MAX_RETRY_COUNT})...`,
           );
           setTimeout(connect, 2000 * retryCountRef.current);
         } else {
