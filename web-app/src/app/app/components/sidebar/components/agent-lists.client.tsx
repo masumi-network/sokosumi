@@ -46,7 +46,6 @@ export default function AgentListsClient({
       // for now just revalidate the app path
       // this will re-fetch all agent lists with latest jobs
 
-      console.info("Router refreshed");
       router.refresh();
     },
     [router],
