@@ -2,7 +2,7 @@ import "server-only";
 
 import pLimit from "p-limit";
 import pTimeout from "p-timeout";
-import { Client } from "pg";
+import { Client, Notification } from "pg";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 
@@ -30,25 +30,31 @@ export async function initJobStatusListener() {
   await pgClient.connect();
   await pgClient.query("LISTEN job_status_updated");
 
-  pgClient.on("notification", async (msg) => {
-    const { channel, payload } = msg;
-    if (channel === "job_status_updated" && !!payload) {
-      await broadcastToConnections(payload);
-    }
-  });
+  pgClient.off("notification", onNotification);
+  pgClient.off("error", onError);
 
-  pgClient.on("error", (err) => {
-    console.error("PostgreSQL listener error:", err);
-    // Attempt to reconnect
-    setTimeout(() => {
-      pgClient = null;
-      initJobStatusListener();
-    }, PG_RECONNECT_INTERVAL);
-  });
+  pgClient.on("notification", onNotification);
+  pgClient.on("error", onError);
 
   console.log("🔔 Listening to job_status_updated channel");
 
   return;
+}
+
+async function onNotification(msg: Notification) {
+  const { channel, payload } = msg;
+  if (channel === "job_status_updated" && !!payload) {
+    await broadcastToConnections(payload);
+  }
+}
+
+async function onError(err: Error) {
+  console.error("PostgreSQL listener error:", err);
+  // Attempt to reconnect
+  setTimeout(() => {
+    pgClient = null;
+    initJobStatusListener();
+  }, PG_RECONNECT_INTERVAL);
 }
 
 async function broadcastToConnections(payload: string): Promise<void> {
