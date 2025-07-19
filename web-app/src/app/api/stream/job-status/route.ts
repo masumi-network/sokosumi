@@ -4,8 +4,6 @@ import { auth } from "@/lib/auth/auth";
 import { initJobStatusListener, subscribeConnection } from "@/lib/db/listener";
 import { payloadSchema } from "@/lib/db/listener/schema";
 
-const KEEP_ALIVE_INTERVAL = 10000;
-
 export async function GET(req: NextRequest) {
   await initJobStatusListener();
 
@@ -41,15 +39,8 @@ export async function GET(req: NextRequest) {
         return;
       }
 
-      // send date string to keep connection alive
-      const intervalId = setInterval(
-        () => send(JSON.stringify({ now: new Date().toISOString() })),
-        KEEP_ALIVE_INTERVAL,
-      );
-
       req.signal.addEventListener("abort", () => {
         unsubscribe();
-        clearInterval(intervalId);
         controller.close();
       });
     },

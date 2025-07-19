@@ -12,13 +12,14 @@ const SEND_TIMEOUT = 5000; // 5 seconds timeout for sending to each connection
 const BROADCAST_CONCURRENCY = 50; // Process 50 connections concurrently
 const PG_RECONNECT_INTERVAL = 5000; // 5 seconds
 
-interface ConnectionInfo {
-  send: (data: string) => void;
-  userId: string;
-}
+// keep alive interval for SSE connection
+let keepAliveInterval: NodeJS.Timeout | null = null;
+const KEEP_ALIVE_INTERVAL = 10000; // 10 seconds
+
+type Connection = (payload: string) => void;
 
 let pgClient: Client | null = null;
-const connections = new Map<string, ConnectionInfo>();
+const connections = new Map<string, Connection>();
 
 export async function initJobStatusListener() {
   if (pgClient) return;
@@ -35,6 +36,15 @@ export async function initJobStatusListener() {
 
   pgClient.on("notification", onNotification);
   pgClient.on("error", onError);
+
+  if (keepAliveInterval) {
+    clearInterval(keepAliveInterval);
+  }
+  keepAliveInterval = setInterval(
+    () =>
+      broadcastToConnections(JSON.stringify({ now: new Date().toISOString() })),
+    KEEP_ALIVE_INTERVAL,
+  );
 
   console.log("🔔 Listening to job_status_updated channel");
 
@@ -58,7 +68,6 @@ async function onError(err: Error) {
 }
 
 async function broadcastToConnections(payload: string): Promise<void> {
-  console.log("Start Broadcast", connections.size);
   const startTime = Date.now();
   const deadConnectionIds: string[] = [];
   const tasks: Promise<void>[] = [];
@@ -73,7 +82,7 @@ async function broadcastToConnections(payload: string): Promise<void> {
       limit(async () => {
         try {
           // Send payload with timeout
-          await pTimeout(sendToConnection(connection.send, payload), {
+          await pTimeout(sendToConnection(connection, payload), {
             milliseconds: SEND_TIMEOUT,
           });
         } catch (error) {
@@ -105,7 +114,7 @@ async function broadcastToConnections(payload: string): Promise<void> {
 }
 
 async function sendToConnection(
-  send: (data: string) => void,
+  send: Connection,
   payload: string,
 ): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -130,10 +139,7 @@ export function subscribeConnection(
   }
 
   const connectionId = `conn_${currentConnections}_${userId}_${Date.now()}`;
-  connections.set(connectionId, {
-    send,
-    userId,
-  });
+  connections.set(connectionId, send);
 
   console.log(
     `🔔 Subscribed connection ${connectionId} (${connections.size}/${MAX_CONNECTIONS})`,
