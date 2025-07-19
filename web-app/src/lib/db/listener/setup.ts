@@ -1,14 +1,12 @@
 import "server-only";
 
 import pLimit from "p-limit";
-import pTimeout from "p-timeout";
 import { Client, Notification } from "pg";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 
 // Connection management with limits and health checks
 const MAX_CONNECTIONS = 10000; // Adjust based on your server capacity
-const SEND_TIMEOUT = 5000; // 5 seconds timeout for sending to each connection
 const BROADCAST_CONCURRENCY = 50; // Process 50 connections concurrently
 const PG_RECONNECT_INTERVAL = 5000; // 5 seconds
 
@@ -16,7 +14,7 @@ const PG_RECONNECT_INTERVAL = 5000; // 5 seconds
 let keepAliveInterval: NodeJS.Timeout | null = null;
 const KEEP_ALIVE_INTERVAL = 10000; // 10 seconds
 
-type Connection = (payload: string) => void;
+type Connection = (payload: string, ping?: boolean) => void;
 
 let pgClient: Client | null = null;
 const connections = new Map<string, Connection>();
@@ -41,8 +39,7 @@ export async function initJobStatusListener() {
     clearInterval(keepAliveInterval);
   }
   keepAliveInterval = setInterval(
-    () =>
-      broadcastToConnections(JSON.stringify({ now: new Date().toISOString() })),
+    () => broadcastToConnections("", true),
     KEEP_ALIVE_INTERVAL,
   );
 
@@ -67,7 +64,10 @@ async function onError(err: Error) {
   }, PG_RECONNECT_INTERVAL);
 }
 
-async function broadcastToConnections(payload: string): Promise<void> {
+async function broadcastToConnections(
+  payload: string,
+  ping: boolean = false,
+): Promise<void> {
   const startTime = Date.now();
   const deadConnectionIds: string[] = [];
   const tasks: Promise<void>[] = [];
@@ -81,10 +81,7 @@ async function broadcastToConnections(payload: string): Promise<void> {
     tasks.push(
       limit(async () => {
         try {
-          // Send payload with timeout
-          await pTimeout(sendToConnection(connection, payload), {
-            milliseconds: SEND_TIMEOUT,
-          });
+          connection(payload, ping);
         } catch (error) {
           console.error(`Failed to send to connection ${connectionId}:`, error);
           deadConnectionIds.push(connectionId);
@@ -97,7 +94,7 @@ async function broadcastToConnections(payload: string): Promise<void> {
   try {
     results = await Promise.allSettled(tasks);
   } catch (error) {
-    console.error("Broadcast error:", error);
+    console.error(`${ping ? "Ping" : "Broadcast"} error:`, error);
   }
 
   const successfulConnections = results.filter(
@@ -109,26 +106,12 @@ async function broadcastToConnections(payload: string): Promise<void> {
 
   const duration = Date.now() - startTime;
   console.log(
-    `🔔 Broadcast to ${successfulConnections.length} connections in ${duration}ms (${deadConnectionIds.length} dead)`,
+    `🔔 ${ping ? "Ping" : "Broadcast"} to ${successfulConnections.length} connections in ${duration}ms (${deadConnectionIds.length} dead)`,
   );
 }
 
-async function sendToConnection(
-  send: Connection,
-  payload: string,
-): Promise<void> {
-  return new Promise((resolve, reject) => {
-    try {
-      send(payload);
-      resolve();
-    } catch (error) {
-      reject(error);
-    }
-  });
-}
-
 export function subscribeConnection(
-  send: (data: string) => void,
+  send: Connection,
   userId: string,
 ): () => void {
   const currentConnections = connections.size;

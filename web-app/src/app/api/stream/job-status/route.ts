@@ -15,18 +15,24 @@ export async function GET(req: NextRequest) {
 
   const stream = new ReadableStream({
     start(controller) {
-      const send = (payload: string) => {
-        // parse data
-        try {
-          const parsed = payloadSchema.parse(JSON.parse(payload));
-          if ("userId" in parsed && parsed.userId !== user.id) {
-            // only notify when user id matches
-            return;
-          }
-          controller.enqueue(new TextEncoder().encode(`data: ${payload}\n\n`));
-        } catch (error) {
-          console.error("🔔 Invalid Job Status notification payload", error);
+      const send = (payload: string, ping: boolean = false) => {
+        if (ping) {
+          controller.enqueue(new TextEncoder().encode(`: ping\n\n`));
+          return;
         }
+        const parsed = payloadSchema.safeParse(JSON.parse(payload));
+        if (!parsed.success) {
+          console.error(
+            "🔔 Invalid Job Status notification payload",
+            parsed.error,
+          );
+          return;
+        }
+        if ("userId" in parsed && parsed.userId !== user.id) {
+          // only notify when user id matches
+          return;
+        }
+        controller.enqueue(new TextEncoder().encode(`data: ${payload}\n\n`));
       };
 
       // Subscribe this client with user ID for filtering
