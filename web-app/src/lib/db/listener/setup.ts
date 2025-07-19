@@ -7,7 +7,7 @@ import { Client } from "pg";
 import { getEnvSecrets } from "@/config/env.secrets";
 
 // Connection management with limits and health checks
-const MAX_CONNECTIONS = 0; // Adjust based on your server capacity
+const MAX_CONNECTIONS = 10000; // Adjust based on your server capacity
 const CONNECTION_TIMEOUT = 30000; // 30 seconds
 const HEALTH_CHECK_INTERVAL = 60000; // 1 minute
 const SEND_TIMEOUT = 5000; // 5 seconds timeout for sending to each connection
