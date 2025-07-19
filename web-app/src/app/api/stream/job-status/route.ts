@@ -20,14 +20,15 @@ export async function GET(req: NextRequest) {
           controller.enqueue(new TextEncoder().encode(`: ping\n\n`));
           return;
         }
-        const parsed = payloadSchema.safeParse(JSON.parse(payload));
-        if (!parsed.success) {
+        const parsedResult = payloadSchema.safeParse(JSON.parse(payload));
+        if (!parsedResult.success) {
           console.error(
             "🔔 Invalid Job Status notification payload",
-            parsed.error,
+            parsedResult.error,
           );
           return;
         }
+        const parsed = parsedResult.data;
         if ("userId" in parsed && parsed.userId !== user.id) {
           // only notify when user id matches
           return;
