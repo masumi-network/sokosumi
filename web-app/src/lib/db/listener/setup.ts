@@ -8,23 +8,17 @@ import { getEnvSecrets } from "@/config/env.secrets";
 
 // Connection management with limits and health checks
 const MAX_CONNECTIONS = 10000; // Adjust based on your server capacity
-const CONNECTION_TIMEOUT = 30000; // 30 seconds
-const HEALTH_CHECK_INTERVAL = 60000; // 1 minute
 const SEND_TIMEOUT = 5000; // 5 seconds timeout for sending to each connection
 const BROADCAST_CONCURRENCY = 50; // Process 50 connections concurrently
-
 const PG_RECONNECT_INTERVAL = 5000; // 5 seconds
 
 interface ConnectionInfo {
   send: (data: string) => void;
-  lastActivity: number;
   userId: string;
-  isAlive: boolean;
 }
 
 let pgClient: Client | null = null;
 const connections = new Map<string, ConnectionInfo>();
-let healthCheckInterval: NodeJS.Timeout | null = null;
 
 export async function initJobStatusListener() {
   if (pgClient) return;
@@ -52,69 +46,56 @@ export async function initJobStatusListener() {
     }, PG_RECONNECT_INTERVAL);
   });
 
-  // Start health check interval
-  healthCheckInterval ??= setInterval(
-    cleanupDeadConnections,
-    HEALTH_CHECK_INTERVAL,
-  );
-
   console.log("🔔 Listening to job_status_updated channel");
 
   return;
 }
 
 async function broadcastToConnections(payload: string): Promise<void> {
+  console.log("Start Broadcast", connections.size);
   const startTime = Date.now();
   const deadConnectionIds: string[] = [];
+  const tasks: Promise<void>[] = [];
+  let results: PromiseSettledResult<void>[] = [];
 
   // Create a concurrency limiter
   const limit = pLimit(BROADCAST_CONCURRENCY);
 
-  // Get all active connections
-  const activeConnections = Array.from(connections.entries()).filter(
-    ([_, connection]) => connection.isAlive,
-  );
-
   // Create tasks for each connection with controlled concurrency
-  const tasks = activeConnections.map(([connectionId, connection]) =>
-    limit(async () => {
-      try {
-        // Update last activity
-        connection.lastActivity = Date.now();
-
-        // Send payload with timeout
-        await pTimeout(sendToConnection(connection.send, payload), {
-          milliseconds: SEND_TIMEOUT,
-        });
-      } catch (error) {
-        console.error(`Failed to send to connection ${connectionId}:`, error);
-        deadConnectionIds.push(connectionId);
-      }
-    }),
+  connections.forEach((connection, connectionId) =>
+    tasks.push(
+      limit(async () => {
+        try {
+          // Send payload with timeout
+          await pTimeout(sendToConnection(connection.send, payload), {
+            milliseconds: SEND_TIMEOUT,
+          });
+        } catch (error) {
+          console.error(`Failed to send to connection ${connectionId}:`, error);
+          deadConnectionIds.push(connectionId);
+        }
+      }),
+    ),
   );
 
   // Execute all tasks with controlled concurrency
   try {
-    await Promise.allSettled(tasks);
+    results = await Promise.allSettled(tasks);
   } catch (error) {
     console.error("Broadcast error:", error);
   }
 
+  const successfulConnections = results.filter(
+    (result) => result.status === "fulfilled",
+  );
+
   // Clean up dead connections
-  deadConnectionIds.forEach(connections.delete);
+  deadConnectionIds.forEach((id) => connections.delete(id));
 
   const duration = Date.now() - startTime;
-  if (activeConnections.length > 100) {
-    console.log(
-      `🔔 Broadcast to ${activeConnections.length} connections in ${duration}ms (${deadConnectionIds.length} dead, concurrency: ${BROADCAST_CONCURRENCY})`,
-    );
-  }
-
-  if (deadConnectionIds.length > 0) {
-    console.log(
-      `🔔 Cleaned up ${deadConnectionIds.length} dead connections during broadcast`,
-    );
-  }
+  console.log(
+    `🔔 Broadcast to ${successfulConnections.length} connections in ${duration}ms (${deadConnectionIds.length} dead)`,
+  );
 }
 
 async function sendToConnection(
@@ -131,26 +112,6 @@ async function sendToConnection(
   });
 }
 
-function cleanupDeadConnections(): void {
-  const now = Date.now();
-  const deadConnectionIds: string[] = [];
-
-  for (const [connectionId, connection] of connections) {
-    // Remove connections that haven't been active for too long
-    if (now - connection.lastActivity > CONNECTION_TIMEOUT) {
-      deadConnectionIds.push(connectionId);
-    }
-  }
-
-  deadConnectionIds.forEach(connections.delete);
-
-  if (deadConnectionIds.length > 0) {
-    console.log(
-      `🔔 Cleaned up ${deadConnectionIds.length} dead connections during health check`,
-    );
-  }
-}
-
 export function subscribeConnection(
   send: (data: string) => void,
   userId: string,
@@ -165,9 +126,7 @@ export function subscribeConnection(
   const connectionId = `conn_${currentConnections}_${userId}_${Date.now()}`;
   connections.set(connectionId, {
     send,
-    lastActivity: Date.now(),
     userId,
-    isAlive: true,
   });
 
   console.log(
