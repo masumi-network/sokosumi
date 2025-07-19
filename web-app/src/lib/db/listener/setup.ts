@@ -12,7 +12,7 @@ const PG_RECONNECT_INTERVAL = 5000; // 5 seconds
 
 // keep alive interval for SSE connection
 let keepAliveInterval: NodeJS.Timeout | null = null;
-const KEEP_ALIVE_INTERVAL = 10000; // 10 seconds
+const KEEP_ALIVE_INTERVAL = 30000; // 30 seconds
 
 type Connection = (payload: string, ping?: boolean) => void;
 
