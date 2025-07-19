@@ -10,9 +10,9 @@ import {
 
 const TEN_MINUTES_TIMESTAMP = 1000 * 60 * 10; // 10min
 
-function checkPaymentStatus(job: Job): JobStatus | null {
+function checkPaymentStatus(job: Job, now: Date): JobStatus | null {
   if (job.purchaseId === null) {
-    if (job.createdAt < new Date(Date.now() - TEN_MINUTES_TIMESTAMP)) {
+    if (job.createdAt.getTime() < now.getTime() - TEN_MINUTES_TIMESTAMP) {
       return JobStatus.PAYMENT_FAILED;
     } else {
       return JobStatus.PAYMENT_PENDING;
@@ -24,6 +24,7 @@ function checkPaymentStatus(job: Job): JobStatus | null {
 function getFundsLockedJobStatus(
   job: Job,
   agentJobStatus: AgentJobStatus | null,
+  now: Date,
 ): JobStatus {
   switch (agentJobStatus) {
     case AgentJobStatus.AWAITING_INPUT:
@@ -31,13 +32,11 @@ function getFundsLockedJobStatus(
     case AgentJobStatus.COMPLETED:
       return JobStatus.COMPLETED;
     default:
-      // Use timestamp for all calculations to ensure consistency
-      const nowMs = Date.now();
-
       // Check for FAILED status first (highest priority)
       if (
         job.externalDisputeUnlockTime &&
-        nowMs >= job.externalDisputeUnlockTime.getTime() + TEN_MINUTES_TIMESTAMP
+        job.externalDisputeUnlockTime.getTime() <
+          now.getTime() - TEN_MINUTES_TIMESTAMP
       ) {
         return JobStatus.FAILED;
       }
@@ -45,7 +44,7 @@ function getFundsLockedJobStatus(
       // Check for OUTPUT_PENDING status (after submit result time with 10min grace period)
       if (
         job.submitResultTime &&
-        nowMs >= job.submitResultTime.getTime() + TEN_MINUTES_TIMESTAMP
+        job.submitResultTime.getTime() < now.getTime() - TEN_MINUTES_TIMESTAMP
       ) {
         return JobStatus.OUTPUT_PENDING;
       }
@@ -64,8 +63,10 @@ export function computeJobStatus(job: Job): JobStatus {
     return JobStatus.REFUND_RESOLVED;
   }
 
+  const now = new Date();
+
   // If the job has no purchase, it means the job is not yet started
-  const paymentStatus = checkPaymentStatus(job);
+  const paymentStatus = checkPaymentStatus(job, now);
   if (paymentStatus) {
     return paymentStatus;
   }
@@ -73,12 +74,18 @@ export function computeJobStatus(job: Job): JobStatus {
   // If the job has a purchase, it means the job is started
   switch (onChainStatus) {
     case null:
-      if (nextActionErrorType === null) {
-        return JobStatus.PAYMENT_PENDING;
+      if (nextActionErrorType) {
+        return JobStatus.PAYMENT_FAILED;
       }
-      return JobStatus.PAYMENT_FAILED;
+      if (
+        job.submitResultTime &&
+        job.submitResultTime.getTime() < now.getTime() - TEN_MINUTES_TIMESTAMP
+      ) {
+        return JobStatus.FAILED;
+      }
+      return JobStatus.PAYMENT_PENDING;
     case OnChainJobStatus.FUNDS_LOCKED:
-      return getFundsLockedJobStatus(job, agentJobStatus);
+      return getFundsLockedJobStatus(job, agentJobStatus, now);
     case OnChainJobStatus.RESULT_SUBMITTED:
       switch (agentJobStatus) {
         case AgentJobStatus.COMPLETED:
