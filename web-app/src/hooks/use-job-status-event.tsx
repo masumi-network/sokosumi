@@ -27,11 +27,13 @@ export default function useJobStatusEvent(
       };
 
       es.onmessage = (payload) => {
+        console.log("🔄 SSE message received", payload);
         const { data } = payload;
         if (typeof data !== "string") return;
         try {
           const parsed = payloadSchema.parse(JSON.parse(data));
           if ("userId" in parsed) {
+            console.log("🔄 SSE message parsed", parsed);
             onEvent(parsed);
           }
         } catch (error) {

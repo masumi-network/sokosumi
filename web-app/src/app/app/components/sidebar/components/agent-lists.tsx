@@ -16,6 +16,7 @@ import {
   getAvailableAgents,
   getFavoriteAgents,
   getHiredAgentsOrderedByLatestJob,
+  getNotFinishedLatestJobsByAgentIds,
 } from "@/lib/services";
 import { Agent } from "@/prisma/generated/client";
 
@@ -70,6 +71,11 @@ async function AgentListsContent() {
     favoriteAgents,
   );
 
+  const [favoriteAgentsLatestJobs, hiredAgentsLatestJobs] = await Promise.all([
+    getNotFinishedLatestJobsByAgentIds(favoriteAgents.map((agent) => agent.id)),
+    getNotFinishedLatestJobsByAgentIds(hiredAgents.map((agent) => agent.id)),
+  ]);
+
   // Determine availability for each agent
   const availableAgentIds = new Set(availableAgents.map((agent) => agent.id));
   const isAgentAvailable = (agentId: string) => availableAgentIds.has(agentId);
@@ -93,12 +99,14 @@ async function AgentListsContent() {
       groupKey: "favorite-agents",
       title: t("pinnedTitle"),
       agents: favoriteAgentsWithAvailability,
+      latestJobs: favoriteAgentsLatestJobs,
       noAgentsType: t("pinnedType"),
     },
     {
       groupKey: "hired-agents",
       title: t("hiredTitle"),
       agents: hiredAgentsWithAvailability,
+      latestJobs: hiredAgentsLatestJobs,
       noAgentsType: t("hiredType"),
     },
   ];

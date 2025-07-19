@@ -13,6 +13,7 @@ import {
   jobInclude,
   jobLimitedInclude,
   jobOrderBy,
+  jobsNotFinishedWhereQuery,
   JobWithLimitedInformation,
   JobWithRelations,
   JobWithStatus,
@@ -405,13 +406,13 @@ export async function retrieveNotFinalizedLatestJobByAgentIdAndUserId(
 }
 
 /**
- * Retrieves the latest non-finalized job for a specific agent, user, and organization
+ * Retrieves the latest non-finished job for a specific agent, user, and organization
  * @param agentId - The unique identifier of the agent
  * @param userId - The unique identifier of the user
  * @param organizationId - The unique identifier of the organization (null for personal jobs)
- * @returns Promise containing the latest non-finalized job or null
+ * @returns Promise containing the latest not-finished job or null
  */
-export async function retrieveNotFinalizedLatestJobByAgentIdUserIdAndOrganization(
+export async function retrieveNotFinishedLatestJobByAgentIdUserIdAndOrganization(
   agentId: string,
   userId: string,
   organizationId: string | null | undefined,
@@ -419,21 +420,14 @@ export async function retrieveNotFinalizedLatestJobByAgentIdUserIdAndOrganizatio
 ): Promise<JobWithStatus | null> {
   // Normalize undefined to null for organizationId to ensure correct filtering (Prisma ignores undefined)
   const normalizedOrganizationId = organizationId ?? null;
+  const tenMinutesAgo = new Date(Date.now() - 1000 * 60 * 10); // 10min grace period
+
   const job = await tx.job.findFirst({
     where: {
       agentId,
       userId,
       organizationId: normalizedOrganizationId,
-      OR: [
-        {
-          onChainStatus: {
-            notIn: finalizedOnChainJobStatuses,
-          },
-        },
-        {
-          onChainStatus: null,
-        },
-      ],
+      ...jobsNotFinishedWhereQuery(tenMinutesAgo),
     },
     orderBy: { startedAt: "desc" },
     include: jobInclude,
