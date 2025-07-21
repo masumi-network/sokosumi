@@ -54,8 +54,8 @@ const envSecretsSchema = z.object({
   RESEND_FROM_EMAIL: z.string().email(),
 
   // Vercel
-  VERCEL_URL: z.string().url().default("http://localhost:3000"),
-  VERCEL_BRANCH_URL: z.string().url().default("http://localhost:3000"),
+  VERCEL_URL: z.string().url().optional(),
+  VERCEL_BRANCH_URL: z.string().url().optional(),
 
   // Admin
   ADMIN_KEY: z.string().min(8),

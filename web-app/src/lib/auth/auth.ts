@@ -36,10 +36,14 @@ export const auth = betterAuth({
     provider: "postgresql",
   }),
   trustedOrigins: [
-    ...getEnvSecrets().BETTER_AUTH_TRUSTED_ORIGINS,
-    getEnvSecrets().VERCEL_BRANCH_URL,
-    getEnvSecrets().VERCEL_URL,
-  ],
+    ...(getEnvSecrets().BETTER_AUTH_TRUSTED_ORIGINS ?? []),
+    ...(getEnvSecrets().VERCEL_BRANCH_URL
+      ? [`https://${getEnvSecrets().VERCEL_BRANCH_URL}`]
+      : []),
+    ...(getEnvSecrets().VERCEL_URL
+      ? [`https://${getEnvSecrets().VERCEL_URL}`]
+      : []),
+  ].filter(Boolean),
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
       switch (ctx.path) {
