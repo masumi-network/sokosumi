@@ -37,8 +37,8 @@ export const auth = betterAuth({
   }),
   trustedOrigins: [
     ...getEnvSecrets().BETTER_AUTH_TRUSTED_ORIGINS,
-    `https://${process.env.VERCEL_BRANCH_URL}`, // eslint-disable-line no-restricted-properties
-    `https://${process.env.VERCEL_URL}`, // eslint-disable-line no-restricted-properties
+    getEnvSecrets().VERCEL_BRANCH_URL,
+    getEnvSecrets().VERCEL_URL,
   ],
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
