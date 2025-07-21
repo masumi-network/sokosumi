@@ -35,24 +35,7 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
-  trustedOrigins: (request) => {
-    const url = new URL(request.url);
-    console.log("request origin", url.origin);
-    const origins = getEnvSecrets().BETTER_AUTH_TRUSTED_ORIGINS;
-    console.log("origins", origins);
-    const vercelBranchUrl = getEnvSecrets().VERCEL_BRANCH_URL;
-    console.log("vercelBranchUrl", vercelBranchUrl);
-    if (vercelBranchUrl) {
-      origins.push(vercelBranchUrl);
-    }
-    const vercelUrl = getEnvSecrets().VERCEL_URL;
-    console.log("vercelUrl", vercelUrl);
-    if (vercelUrl) {
-      origins.push(vercelUrl);
-    }
-    console.log("trustedOrigins", origins);
-    return origins;
-  },
+  trustedOrigins: getEnvSecrets().BETTER_AUTH_TRUSTED_ORIGINS,
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
       switch (ctx.path) {
