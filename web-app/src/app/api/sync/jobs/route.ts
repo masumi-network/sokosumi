@@ -3,10 +3,7 @@ import pLimit from "p-limit";
 import pTimeout from "p-timeout";
 
 import { getEnvSecrets } from "@/config/env.secrets";
-import {
-  authenticateAdminApiKey,
-  authenticateCronSecret,
-} from "@/lib/auth/utils";
+import { authenticateCronSecret } from "@/lib/auth/utils";
 import { finalizedOnChainJobStatuses } from "@/lib/db";
 import { acquireLock, prisma, unlockLock } from "@/lib/db/repositories";
 import { syncJob } from "@/lib/services";
@@ -16,12 +13,6 @@ const LOCK_KEY = "jobs-sync";
 
 export async function GET(request: Request) {
   const authResult = authenticateCronSecret(request);
-  if (!authResult.ok) return authResult.response;
-  return await jobSync();
-}
-
-export async function POST(request: Request) {
-  const authResult = authenticateAdminApiKey(request);
   if (!authResult.ok) return authResult.response;
   return await jobSync();
 }
