@@ -40,7 +40,18 @@ export const auth = betterAuth({
     console.log("trustedOrigins");
     console.log(url);
     console.log(url.origin);
-    return [url.origin];
+    const origins = getEnvSecrets().BETTER_AUTH_TRUSTED_ORIGINS;
+    const vercelBranchUrl = getEnvSecrets().VERCEL_BRANCH_URL;
+
+    if (vercelBranchUrl) {
+      origins.push(vercelBranchUrl);
+    }
+    const vercelUrl = getEnvSecrets().VERCEL_URL;
+    if (vercelUrl) {
+      origins.push(vercelUrl);
+    }
+    console.log("trustedOrigins", origins);
+    return origins;
   },
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
