@@ -40,6 +40,17 @@ export const auth = betterAuth({
     console.log("trustedOrigins urlOrigin", url.origin);
     const origins = getEnvSecrets().BETTER_AUTH_TRUSTED_ORIGINS;
     console.log("trustedOrigins envOrigins", origins);
+    const vercelBranchUrl = getEnvSecrets().VERCEL_BRANCH_URL;
+    if (vercelBranchUrl) {
+      origins.push(vercelBranchUrl);
+    }
+
+    const vercelUrl = getEnvSecrets().VERCEL_URL;
+    if (vercelUrl) {
+      origins.push(vercelUrl);
+    }
+
+    console.log("trustedOrigins origins", origins);
     return origins;
   },
   hooks: {
