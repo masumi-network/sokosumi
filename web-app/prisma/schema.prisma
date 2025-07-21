@@ -472,8 +472,8 @@ model Job {
   errorNote    String?
   errorNoteKey String?
 
-  blockchainIdentifier      String    @unique
-  payByTime                 DateTime?
+  blockchainIdentifier      String   @unique
+  payByTime                 DateTime
   submitResultTime          DateTime
   unlockTime                DateTime
   externalDisputeUnlockTime DateTime

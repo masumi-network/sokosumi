@@ -478,11 +478,6 @@ export const jobsNotFinishedWhereQuery = (
         lt: cutoffTime,
       },
     },
-    // Filter out jobs that have no on-chain status and no payByTime
-    {
-      onChainStatus: null,
-      payByTime: null,
-    },
     // Filter out jobs that have no on-chain status and have a payByTime that is less than the cutoff time
     {
       onChainStatus: null,
