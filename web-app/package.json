@@ -55,7 +55,7 @@
     "input-otp": "1.4.2",
     "json-canonicalize": "^2.0.0",
     "lucide-react": "0.525.0",
-    "markdown-to-jsx": "7.7.11",
+    "markdown-to-jsx": "7.7.12",
     "nanoid": "5.1.5",
     "next": "15.4.1",
     "next-intl": "4.3.4",
