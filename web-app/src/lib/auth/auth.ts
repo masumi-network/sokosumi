@@ -38,12 +38,10 @@ export const auth = betterAuth({
   trustedOrigins: [
     ...(getEnvSecrets().BETTER_AUTH_TRUSTED_ORIGINS ?? []),
     ...(getEnvSecrets().VERCEL_BRANCH_URL
-      ? [`https://${getEnvSecrets().VERCEL_BRANCH_URL}`]
+      ? [getEnvSecrets().VERCEL_BRANCH_URL!]
       : []),
-    ...(getEnvSecrets().VERCEL_URL
-      ? [`https://${getEnvSecrets().VERCEL_URL}`]
-      : []),
-  ].filter(Boolean),
+    ...(getEnvSecrets().VERCEL_URL ? [getEnvSecrets().VERCEL_URL!] : []),
+  ],
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
       switch (ctx.path) {
