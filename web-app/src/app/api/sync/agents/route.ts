@@ -5,10 +5,7 @@ import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { postRegistryEntry } from "@/lib/api/generated/registry";
 import { getRegistryClient } from "@/lib/api/registry-service.client";
-import {
-  authenticateAdminApiKey,
-  authenticateCronSecret,
-} from "@/lib/auth/utils";
+import { authenticateCronSecret } from "@/lib/auth/utils";
 import { acquireLock, prisma, unlockLock } from "@/lib/db/repositories";
 import { AgentStatus, Lock, PricingType } from "@/prisma/generated/client";
 
@@ -16,12 +13,6 @@ const LOCK_KEY = "agents-sync";
 
 export async function GET(request: Request) {
   const authResult = authenticateCronSecret(request);
-  if (!authResult.ok) return authResult.response;
-  return await agentSync();
-}
-
-export async function POST(request: Request) {
-  const authResult = authenticateAdminApiKey(request);
   if (!authResult.ok) return authResult.response;
   return await agentSync();
 }

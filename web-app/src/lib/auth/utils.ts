@@ -3,7 +3,6 @@ import "server-only";
 import { headers } from "next/headers";
 
 import { getEnvSecrets } from "@/config/env.secrets";
-import { compareApiKeys } from "@/lib/api/utils";
 import { auth, Session } from "@/lib/auth/auth";
 
 import { UnAuthenticatedError } from "./errors";
@@ -45,38 +44,6 @@ export async function getActiveOrganizationId(): Promise<
 > {
   const session = await getSession();
   return session?.session.activeOrganizationId;
-}
-
-/**
- * Checks the admin-api-key header for a valid admin API key.
- * Returns { ok: true } if valid, or { ok: false, response } if not.
- */
-export function authenticateAdminApiKey(
-  request: Request,
-): { ok: true } | { ok: false; response: Response } {
-  const headerApiKey = request.headers.get("admin-api-key");
-  if (!headerApiKey) {
-    return {
-      ok: false,
-      response: new Response(
-        JSON.stringify({ message: "No admin api key provided" }),
-        { status: 401, headers: { "Content-Type": "application/json" } },
-      ),
-    };
-  }
-  if (compareApiKeys(headerApiKey) !== true) {
-    return {
-      ok: false,
-      response: new Response(
-        JSON.stringify({ message: "Invalid admin api key" }),
-        {
-          status: 401,
-          headers: { "Content-Type": "application/json" },
-        },
-      ),
-    };
-  }
-  return { ok: true };
 }
 
 /**
