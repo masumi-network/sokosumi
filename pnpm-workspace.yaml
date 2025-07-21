@@ -1,6 +1,5 @@
 packages:
   - web-app
-  - sync-function
 
 ignoredBuiltDependencies:
   - "@prisma/client"
