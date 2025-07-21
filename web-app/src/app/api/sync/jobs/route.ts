@@ -4,10 +4,14 @@ import pTimeout from "p-timeout";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { authenticateCronSecret } from "@/lib/auth/utils";
-import { finalizedOnChainJobStatuses } from "@/lib/db";
-import { acquireLock, prisma, unlockLock } from "@/lib/db/repositories";
+import {
+  acquireLock,
+  jobsNotFinishedWhereQuery,
+  prisma,
+  unlockLock,
+} from "@/lib/db/repositories";
 import { syncJob } from "@/lib/services";
-import { Lock, OnChainJobStatus } from "@/prisma/generated/client";
+import { Lock } from "@/prisma/generated/client";
 
 const LOCK_KEY = "jobs-sync";
 
@@ -68,39 +72,9 @@ async function syncAllJobs(): Promise<void> {
   const tenMinutesAgo = new Date(Date.now() - 1000 * 60 * 10); // 10min grace period
 
   const jobs = await prisma.job.findMany({
-    where: {
-      OR: [
-        // Filter out jobs that are finalized
-        {
-          onChainStatus: {
-            notIn: finalizedOnChainJobStatuses,
-          },
-        },
-        // Filter out jobs with a failed payment and unable to submit result
-        {
-          onChainStatus: null,
-          submitResultTime: {
-            gt: tenMinutesAgo,
-          },
-        },
-      ],
-      NOT: [
-        // Filter out jobs that are refunded
-        {
-          refundedCreditTransactionId: {
-            not: null,
-          },
-        },
-        // Filter out non-disputed jobs that have passed their external dispute grace period
-        {
-          onChainStatus: { not: OnChainJobStatus.DISPUTED },
-          externalDisputeUnlockTime: {
-            lt: tenMinutesAgo,
-          },
-        },
-      ],
-    },
+    where: jobsNotFinishedWhereQuery(tenMinutesAgo),
   });
+
   console.info("Syncing", jobs.length, "jobs");
   // Process 5 jobs at a time
   const limit = pLimit(5);

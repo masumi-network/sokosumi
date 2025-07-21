@@ -378,25 +378,17 @@ export async function updateJobNextActionByBlockchainIdentifier(
   return mapJobWithStatus(job);
 }
 
-export async function retrieveNotFinalizedLatestJobByAgentIdAndUserId(
+export async function retrieveNotFinishedLatestJobByAgentIdAndUserId(
   agentId: string,
   userId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<JobWithStatus | null> {
+  const tenMinutesAgo = new Date(Date.now() - 1000 * 60 * 10);
   const job = await tx.job.findFirst({
     where: {
       agentId,
       userId,
-      OR: [
-        {
-          onChainStatus: {
-            notIn: finalizedOnChainJobStatuses,
-          },
-        },
-        {
-          onChainStatus: null,
-        },
-      ],
+      ...jobsNotFinishedWhereQuery(tenMinutesAgo),
     },
     orderBy: { startedAt: "desc" },
     include: jobInclude,
@@ -405,13 +397,13 @@ export async function retrieveNotFinalizedLatestJobByAgentIdAndUserId(
 }
 
 /**
- * Retrieves the latest non-finalized job for a specific agent, user, and organization
+ * Retrieves the latest non-finished job for a specific agent, user, and organization
  * @param agentId - The unique identifier of the agent
  * @param userId - The unique identifier of the user
  * @param organizationId - The unique identifier of the organization (null for personal jobs)
- * @returns Promise containing the latest non-finalized job or null
+ * @returns Promise containing the latest non-finished job or null
  */
-export async function retrieveNotFinalizedLatestJobByAgentIdUserIdAndOrganization(
+export async function retrieveNotFinishedLatestJobByAgentIdUserIdAndOrganization(
   agentId: string,
   userId: string,
   organizationId: string | null | undefined,
@@ -419,21 +411,13 @@ export async function retrieveNotFinalizedLatestJobByAgentIdUserIdAndOrganizatio
 ): Promise<JobWithStatus | null> {
   // Normalize undefined to null for organizationId to ensure correct filtering (Prisma ignores undefined)
   const normalizedOrganizationId = organizationId ?? null;
+  const tenMinutesAgo = new Date(Date.now() - 1000 * 60 * 10);
   const job = await tx.job.findFirst({
     where: {
       agentId,
       userId,
       organizationId: normalizedOrganizationId,
-      OR: [
-        {
-          onChainStatus: {
-            notIn: finalizedOnChainJobStatuses,
-          },
-        },
-        {
-          onChainStatus: null,
-        },
-      ],
+      ...jobsNotFinishedWhereQuery(tenMinutesAgo),
     },
     orderBy: { startedAt: "desc" },
     include: jobInclude,
@@ -451,3 +435,42 @@ export async function updateJobNameById(
     data: { name },
   });
 }
+
+export const jobsNotFinishedWhereQuery = (
+  tenMinutesAgo: Date,
+): Prisma.JobWhereInput => ({
+  OR: [
+    // Filter out jobs that are finalized
+    {
+      onChainStatus: {
+        notIn: finalizedOnChainJobStatuses,
+      },
+    },
+    // Filter out jobs with a failed payment and unable to submit result
+    {
+      onChainStatus: null,
+      payByTime: {
+        gt: tenMinutesAgo,
+      },
+    },
+  ],
+  NOT: [
+    // Filter out jobs that are refunded
+    {
+      refundedCreditTransactionId: {
+        not: null,
+      },
+    },
+    // Filter out non-disputed jobs that have passed their external dispute grace period
+    {
+      onChainStatus: { not: OnChainJobStatus.DISPUTED },
+      externalDisputeUnlockTime: {
+        lt: tenMinutesAgo,
+      },
+    },
+    {
+      onChainStatus: null,
+      payByTime: null,
+    },
+  ],
+});
