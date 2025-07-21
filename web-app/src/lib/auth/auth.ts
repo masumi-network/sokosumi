@@ -37,6 +37,9 @@ export const auth = betterAuth({
   }),
   trustedOrigins: (request) => {
     const url = new URL(request.url);
+    console.log("trustedOrigins");
+    console.log(url);
+    console.log(url.origin);
     return [url.origin];
   },
   hooks: {
