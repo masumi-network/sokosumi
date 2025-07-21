@@ -35,13 +35,10 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
-  trustedOrigins: [
-    ...(getEnvSecrets().BETTER_AUTH_TRUSTED_ORIGINS ?? []),
-    ...(getEnvSecrets().VERCEL_BRANCH_URL
-      ? [getEnvSecrets().VERCEL_BRANCH_URL!]
-      : []),
-    ...(getEnvSecrets().VERCEL_URL ? [getEnvSecrets().VERCEL_URL!] : []),
-  ],
+  trustedOrigins: (request) => {
+    const url = new URL(request.url);
+    return [url.origin];
+  },
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
       switch (ctx.path) {
