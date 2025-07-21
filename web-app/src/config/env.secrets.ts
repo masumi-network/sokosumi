@@ -54,8 +54,16 @@ const envSecretsSchema = z.object({
   RESEND_FROM_EMAIL: z.string().email(),
 
   // Vercel
-  VERCEL_URL: z.string().url().optional(),
-  VERCEL_BRANCH_URL: z.string().url().optional(),
+  VERCEL_URL: z
+    .string()
+    .transform((val) => (val.startsWith("https://") ? val : `https://${val}`))
+    .pipe(z.string().url())
+    .optional(),
+  VERCEL_BRANCH_URL: z
+    .string()
+    .transform((val) => (val.startsWith("https://") ? val : `https://${val}`))
+    .pipe(z.string().url())
+    .optional(),
 
   // Admin
   ADMIN_KEY: z.string().min(8),
