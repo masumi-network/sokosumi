@@ -459,12 +459,9 @@ export const jobsNotFinishedWhereQuery = (
         notIn: finalizedOnChainJobStatuses,
       },
     },
-    // Filter out jobs with a failed payment and unable to submit result
+    // Filter in jobs that have no on-chain status
     {
       onChainStatus: null,
-      payByTime: {
-        gt: cutoffTime,
-      },
     },
   ],
   NOT: [
@@ -474,7 +471,7 @@ export const jobsNotFinishedWhereQuery = (
         not: null,
       },
     },
-    // Filter out non-disputed jobs that have passed their external dispute grace period
+    // Filter out jobs that are non-disputed and have a externalDisputeUnlockTime that is less than the cutoff time
     {
       onChainStatus: { not: OnChainJobStatus.DISPUTED },
       externalDisputeUnlockTime: {
@@ -485,6 +482,13 @@ export const jobsNotFinishedWhereQuery = (
     {
       onChainStatus: null,
       payByTime: null,
+    },
+    // Filter out jobs that have no on-chain status and have a payByTime that is less than the cutoff time
+    {
+      onChainStatus: null,
+      payByTime: {
+        lt: cutoffTime,
+      },
     },
   ],
 });
