@@ -35,7 +35,13 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
-  trustedOrigins: getEnvSecrets().BETTER_AUTH_TRUSTED_ORIGINS,
+  trustedOrigins: (request) => {
+    const url = new URL(request.url);
+    console.log("trustedOrigins urlOrigin", url.origin);
+    const origins = getEnvSecrets().BETTER_AUTH_TRUSTED_ORIGINS;
+    console.log("trustedOrigins envOrigins", origins);
+    return origins;
+  },
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
       switch (ctx.path) {
