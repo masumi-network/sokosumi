@@ -383,12 +383,11 @@ export async function retrieveNotFinishedLatestJobByAgentIdAndUserId(
   userId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<JobWithStatus | null> {
-  const tenMinutesAgo = new Date(Date.now() - 1000 * 60 * 10);
   const job = await tx.job.findFirst({
     where: {
       agentId,
       userId,
-      ...jobsNotFinishedWhereQuery(tenMinutesAgo),
+      ...jobsNotFinishedWhereQuery(),
     },
     orderBy: { startedAt: "desc" },
     include: jobInclude,
@@ -411,13 +410,12 @@ export async function retrieveNotFinishedLatestJobByAgentIdUserIdAndOrganization
 ): Promise<JobWithStatus | null> {
   // Normalize undefined to null for organizationId to ensure correct filtering (Prisma ignores undefined)
   const normalizedOrganizationId = organizationId ?? null;
-  const tenMinutesAgo = new Date(Date.now() - 1000 * 60 * 10);
   const job = await tx.job.findFirst({
     where: {
       agentId,
       userId,
       organizationId: normalizedOrganizationId,
-      ...jobsNotFinishedWhereQuery(tenMinutesAgo),
+      ...jobsNotFinishedWhereQuery(),
     },
     orderBy: { startedAt: "desc" },
     include: jobInclude,
@@ -436,8 +434,23 @@ export async function updateJobNameById(
   });
 }
 
+/**
+ * Creates a Prisma where query to filter for jobs that are not finished.
+ *
+ * A job is considered "not finished" if it meets any of the following criteria:
+ * - Has an on-chain status that is not finalized (not in finalizedOnChainJobStatuses)
+ * - Has no on-chain status but has a payByTime that is greater than the cutoff time
+ *
+ * Jobs are excluded if they meet any of the following criteria:
+ * - Have been refunded (refundedCreditTransactionId is not null)
+ * - Are non-disputed and have passed their external dispute grace period
+ * - Have no on-chain status and no payByTime set
+ *
+ * @param cutoffTime - The time threshold for filtering jobs (defaults to 10 minutes ago)
+ * @returns Prisma where query object for filtering non-finished jobs
+ */
 export const jobsNotFinishedWhereQuery = (
-  tenMinutesAgo: Date,
+  cutoffTime: Date = new Date(Date.now() - 1000 * 60 * 10),
 ): Prisma.JobWhereInput => ({
   OR: [
     // Filter out jobs that are finalized
@@ -450,7 +463,7 @@ export const jobsNotFinishedWhereQuery = (
     {
       onChainStatus: null,
       payByTime: {
-        gt: tenMinutesAgo,
+        gt: cutoffTime,
       },
     },
   ],
@@ -465,7 +478,7 @@ export const jobsNotFinishedWhereQuery = (
     {
       onChainStatus: { not: OnChainJobStatus.DISPUTED },
       externalDisputeUnlockTime: {
-        lt: tenMinutesAgo,
+        lt: cutoffTime,
       },
     },
     {

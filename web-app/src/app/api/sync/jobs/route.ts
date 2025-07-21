@@ -69,10 +69,8 @@ async function jobSync(): Promise<Response> {
 async function syncAllJobs(): Promise<void> {
   const runningDbUpdates: Promise<void>[] = [];
 
-  const tenMinutesAgo = new Date(Date.now() - 1000 * 60 * 10); // 10min grace period
-
   const jobs = await prisma.job.findMany({
-    where: jobsNotFinishedWhereQuery(tenMinutesAgo),
+    where: jobsNotFinishedWhereQuery(),
   });
 
   console.info("Syncing", jobs.length, "jobs");
