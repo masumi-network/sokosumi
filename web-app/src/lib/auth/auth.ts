@@ -37,16 +37,16 @@ export const auth = betterAuth({
   }),
   trustedOrigins: (request) => {
     const url = new URL(request.url);
-    console.log("trustedOrigins");
-    console.log(url);
-    console.log(url.origin);
+    console.log("request origin", url.origin);
     const origins = getEnvSecrets().BETTER_AUTH_TRUSTED_ORIGINS;
+    console.log("origins", origins);
     const vercelBranchUrl = getEnvSecrets().VERCEL_BRANCH_URL;
-
+    console.log("vercelBranchUrl", vercelBranchUrl);
     if (vercelBranchUrl) {
       origins.push(vercelBranchUrl);
     }
     const vercelUrl = getEnvSecrets().VERCEL_URL;
+    console.log("vercelUrl", vercelUrl);
     if (vercelUrl) {
       origins.push(vercelUrl);
     }
