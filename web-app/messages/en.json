@@ -370,6 +370,15 @@
       }
     }
   },
+  "Root": {
+    "Error": {
+      "title": "Something went wrong",
+      "description": "We encountered an unexpected error. Our team has been notified and we're working to resolve it.",
+      "errorId": "Error ID: {errorId}",
+      "tryAgain": "Try Again",
+      "goHome": "Go to Homepage"
+    }
+  },
   "Landing": {
     "Error": {
       "title": "Something went wrong",
