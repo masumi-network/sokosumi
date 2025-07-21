@@ -65,9 +65,6 @@ const envSecretsSchema = z.object({
     .pipe(z.string().url())
     .optional(),
 
-  // Admin
-  ADMIN_KEY: z.string().min(8),
-
   CRON_SECRET: z.string().optional(),
 
   PAYMENT_API_KEY: z.string().min(1),
