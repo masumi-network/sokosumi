@@ -12,19 +12,20 @@ import {
   retrieveJobByIdUserIdAndOrganizationId,
   retrieveJobsByIds,
 } from "@/lib/db/repositories/job";
+import { startJobInputSchema } from "@/lib/schemas/job";
 import { startJob } from "@/lib/services/job";
 
 async function createJobHandler(request: NextRequest): Promise<NextResponse> {
   const session = await requireAuth();
   const body = await request.json();
-  const jobData = validateParams(CreateJobSchema, body);
+  const data = validateParams(startJobInputSchema, body);
 
   const { id: jobId } = await startJob({
     userId: session.user.id,
-    agentId: jobData.agentId,
-    inputData: new Map(Object.entries(jobData.inputData)),
-    inputSchema: jobData.inputSchema,
-    maxAcceptedCents: BigInt(jobData.maxAcceptedCents),
+    agentId: data.agentId,
+    inputData: data.inputData,
+    inputSchema: data.inputSchema,
+    maxAcceptedCents: data.maxAcceptedCents,
   });
 
   // Get the job with relations to return full response
