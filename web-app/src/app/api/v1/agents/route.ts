@@ -4,18 +4,13 @@ import { createApiRoute } from "@/lib/api/v1/middleware";
 import {
   createPaginatedResponse,
   extractPaginationParams,
-  requireAuth,
 } from "@/lib/api/v1/utils";
-import { prisma } from "@/lib/db/repositories";
 import { getAvailableAgents } from "@/lib/services/agent";
 
 async function getAgents(request: NextRequest): Promise<NextResponse> {
-  await requireAuth();
-
   const paginationParams = extractPaginationParams(request);
 
-  // Get all available agents (already filtered by access control)
-  const agents = await getAvailableAgents(prisma);
+  const agents = await getAvailableAgents();
 
   // Apply pagination
   const total = agents.length;
