@@ -18,7 +18,6 @@ import {
   retrieveCentsByUserId,
   retrieveJobsByAgentIdUserIdAndOrganizationId,
   retrieveNotFinishedLatestJobByAgentIdUserIdAndOrganization,
-  retrievePersonalJobsByAgentIdAndUserId,
   updateJobNextActionByBlockchainIdentifier,
   updateJobWithAgentJobStatus,
   updateJobWithPurchase,
@@ -78,18 +77,12 @@ export async function getMyJobsByAgentId(
   const userId = session.user.id;
   const activeOrganizationId = session.session.activeOrganizationId;
 
-  if (activeOrganizationId) {
-    // Show jobs for the specific organization
-    return await retrieveJobsByAgentIdUserIdAndOrganizationId(
-      agentId,
-      userId,
-      activeOrganizationId,
-      tx,
-    );
-  } else {
-    // Show personal jobs only (without organization context)
-    return await retrievePersonalJobsByAgentIdAndUserId(agentId, userId, tx);
-  }
+  return await retrieveJobsByAgentIdUserIdAndOrganizationId(
+    agentId,
+    userId,
+    activeOrganizationId ?? null,
+    tx,
+  );
 }
 
 function tryValidatePricing(

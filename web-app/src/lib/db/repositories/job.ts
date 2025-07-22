@@ -41,12 +41,25 @@ function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
  * @param userId - The unique identifier of the user
  * @returns Promise containing an array of jobs with their relations
  */
-export async function retrieveJobsByUserId(
+export async function retrieveJobsByIds(
   userId: string,
+  organizationId: string | null,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<JobWithStatus[]> {
   const jobs = await tx.job.findMany({
-    where: { userId },
+    where: { userId, ...(organizationId && { organizationId }) },
+    include: jobInclude,
+    orderBy: jobOrderBy,
+  });
+  return jobs.map(mapJobWithStatus);
+}
+
+export async function retrieveJobsByOrganizationId(
+  organizationId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<JobWithStatus[]> {
+  const jobs = await tx.job.findMany({
+    where: { organizationId },
     include: jobInclude,
     orderBy: jobOrderBy,
   });
@@ -105,7 +118,7 @@ export async function retrieveJobsByAgentIdAndUserId(
 export async function retrieveJobsByAgentIdUserIdAndOrganizationId(
   agentId: string,
   userId: string,
-  organizationId: string,
+  organizationId: string | null,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<JobWithStatus[]> {
   const jobs = await tx.job.findMany({
@@ -121,28 +134,22 @@ export async function retrieveJobsByAgentIdUserIdAndOrganizationId(
   return jobs.map(mapJobWithStatus);
 }
 
-/**
- * Retrieves personal jobs (without organization context) for a specific agent and user
- * @param agentId - The unique identifier of the agent
- * @param userId - The unique identifier of the user
- * @returns Promise containing an array of jobs with their relations
- */
-export async function retrievePersonalJobsByAgentIdAndUserId(
-  agentId: string,
+export async function retrieveJobByIdUserIdAndOrganizationId(
+  jobId: string,
   userId: string,
+  organizationId: string | null,
   tx: Prisma.TransactionClient = prisma,
-): Promise<JobWithStatus[]> {
-  const jobs = await tx.job.findMany({
+): Promise<JobWithStatus | null> {
+  const job = await tx.job.findUnique({
     where: {
-      agentId,
+      id: jobId,
       userId,
-      organizationId: null,
+      ...(organizationId && { organizationId }),
     },
     include: jobInclude,
-    orderBy: jobOrderBy,
   });
 
-  return jobs.map(mapJobWithStatus);
+  return job ? mapJobWithStatus(job) : null;
 }
 
 export async function retrieveJobById(
