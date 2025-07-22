@@ -27,7 +27,7 @@ async function main() {
                 completedAt:
                   agentJobStatus === AgentJobStatus.COMPLETED
                     ? new Date()
-                    : null,
+                    : undefined,
               },
             });
           }
