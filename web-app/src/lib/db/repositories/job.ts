@@ -13,7 +13,6 @@ import {
   jobInclude,
   jobLimitedInclude,
   jobOrderBy,
-  jobsNotFinishedWhereQuery,
   JobWithLimitedInformation,
   JobWithRelations,
   JobWithStatus,
@@ -379,7 +378,7 @@ export async function updateJobNextActionByBlockchainIdentifier(
   return mapJobWithStatus(job);
 }
 
-export async function retrieveNotFinalizedLatestJobByAgentIdAndUserId(
+export async function retrieveNotFinishedLatestJobByAgentIdAndUserId(
   agentId: string,
   userId: string,
   tx: Prisma.TransactionClient = prisma,
@@ -388,16 +387,7 @@ export async function retrieveNotFinalizedLatestJobByAgentIdAndUserId(
     where: {
       agentId,
       userId,
-      OR: [
-        {
-          onChainStatus: {
-            notIn: finalizedOnChainJobStatuses,
-          },
-        },
-        {
-          onChainStatus: null,
-        },
-      ],
+      ...jobsNotFinishedWhereQuery(),
     },
     orderBy: { startedAt: "desc" },
     include: jobInclude,
@@ -410,7 +400,7 @@ export async function retrieveNotFinalizedLatestJobByAgentIdAndUserId(
  * @param agentId - The unique identifier of the agent
  * @param userId - The unique identifier of the user
  * @param organizationId - The unique identifier of the organization (null for personal jobs)
- * @returns Promise containing the latest not-finished job or null
+ * @returns Promise containing the latest non-finished job or null
  */
 export async function retrieveNotFinishedLatestJobByAgentIdUserIdAndOrganization(
   agentId: string,
@@ -420,14 +410,12 @@ export async function retrieveNotFinishedLatestJobByAgentIdUserIdAndOrganization
 ): Promise<JobWithStatus | null> {
   // Normalize undefined to null for organizationId to ensure correct filtering (Prisma ignores undefined)
   const normalizedOrganizationId = organizationId ?? null;
-  const tenMinutesAgo = new Date(Date.now() - 1000 * 60 * 10); // 10min grace period
-
   const job = await tx.job.findFirst({
     where: {
       agentId,
       userId,
       organizationId: normalizedOrganizationId,
-      ...jobsNotFinishedWhereQuery(tenMinutesAgo),
+      ...jobsNotFinishedWhereQuery(),
     },
     orderBy: { startedAt: "desc" },
     include: jobInclude,
@@ -445,3 +433,57 @@ export async function updateJobNameById(
     data: { name },
   });
 }
+
+/**
+ * Creates a Prisma where query to filter for jobs that are not finished.
+ *
+ * A job is considered "not finished" if it meets any of the following criteria:
+ * - Has an on-chain status that is not finalized (not in finalizedOnChainJobStatuses)
+ * - Has no on-chain status but has a payByTime that is greater than the cutoff time
+ *
+ * Jobs are excluded if they meet any of the following criteria:
+ * - Have been refunded (refundedCreditTransactionId is not null)
+ * - Are non-disputed and have passed their external dispute grace period
+ * - Have no on-chain status and no payByTime set
+ *
+ * @param cutoffTime - The time threshold for filtering jobs (defaults to 10 minutes ago)
+ * @returns Prisma where query object for filtering non-finished jobs
+ */
+export const jobsNotFinishedWhereQuery = (
+  cutoffTime: Date = new Date(Date.now() - 1000 * 60 * 10),
+): Prisma.JobWhereInput => ({
+  OR: [
+    // Filter out jobs that are finalized
+    {
+      onChainStatus: {
+        notIn: finalizedOnChainJobStatuses,
+      },
+    },
+    // Filter in jobs that have no on-chain status
+    {
+      onChainStatus: null,
+    },
+  ],
+  NOT: [
+    // Filter out jobs that are refunded
+    {
+      refundedCreditTransactionId: {
+        not: null,
+      },
+    },
+    // Filter out jobs that are non-disputed and have a externalDisputeUnlockTime that is less than the cutoff time
+    {
+      onChainStatus: { not: OnChainJobStatus.DISPUTED },
+      externalDisputeUnlockTime: {
+        lt: cutoffTime,
+      },
+    },
+    // Filter out jobs that have no on-chain status and have a payByTime that is less than the cutoff time
+    {
+      onChainStatus: null,
+      payByTime: {
+        lt: cutoffTime,
+      },
+    },
+  ],
+});

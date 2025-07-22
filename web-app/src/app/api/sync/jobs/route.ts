@@ -4,8 +4,12 @@ import pTimeout from "p-timeout";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { authenticateCronSecret } from "@/lib/auth/utils";
-import { jobsNotFinishedWhereQuery } from "@/lib/db";
-import { acquireLock, prisma, unlockLock } from "@/lib/db/repositories";
+import {
+  acquireLock,
+  jobsNotFinishedWhereQuery,
+  prisma,
+  unlockLock,
+} from "@/lib/db/repositories";
 import { syncJob } from "@/lib/services";
 import { Lock } from "@/prisma/generated/client";
 
@@ -65,13 +69,10 @@ async function jobSync(): Promise<Response> {
 async function syncAllJobs(): Promise<void> {
   const runningDbUpdates: Promise<void>[] = [];
 
-  const tenMinutesAgo = new Date(Date.now() - 1000 * 60 * 10); // 10min grace period
-
   const jobs = await prisma.job.findMany({
-    where: {
-      ...jobsNotFinishedWhereQuery(tenMinutesAgo),
-    },
+    where: jobsNotFinishedWhereQuery(),
   });
+
   console.info("Syncing", jobs.length, "jobs");
   // Process 5 jobs at a time
   const limit = pLimit(5);

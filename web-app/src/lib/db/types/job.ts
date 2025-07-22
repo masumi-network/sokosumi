@@ -63,38 +63,3 @@ export const jobLimitedInclude = {
 export type JobWithLimitedInformation = Prisma.JobGetPayload<{
   select: typeof jobLimitedInclude;
 }>;
-
-export const jobsNotFinishedWhereQuery = (
-  tenMinutesAgo: Date,
-): Prisma.JobWhereInput => ({
-  OR: [
-    // Filter out jobs that are finalized
-    {
-      onChainStatus: {
-        notIn: finalizedOnChainJobStatuses,
-      },
-    },
-    // Filter out jobs with a failed payment and unable to submit result
-    {
-      onChainStatus: null,
-      submitResultTime: {
-        gt: tenMinutesAgo,
-      },
-    },
-  ],
-  NOT: [
-    // Filter out jobs that are refunded
-    {
-      refundedCreditTransactionId: {
-        not: null,
-      },
-    },
-    // Filter out non-disputed jobs that have passed their external dispute grace period
-    {
-      onChainStatus: { not: OnChainJobStatus.DISPUTED },
-      externalDisputeUnlockTime: {
-        lt: tenMinutesAgo,
-      },
-    },
-  ],
-});
