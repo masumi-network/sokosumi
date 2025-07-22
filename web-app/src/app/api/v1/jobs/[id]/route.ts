@@ -9,13 +9,20 @@ import {
 } from "@/lib/api/v1/utils";
 import { retrieveJobByIdUserIdAndOrganizationId } from "@/lib/db/repositories";
 
+interface RouteParams {
+  id: string;
+}
+
+interface RouteContext {
+  params: Promise<RouteParams>;
+}
+
 async function getJobById(
   request: NextRequest,
-  context: { params: { id: string } },
+  context: RouteContext,
 ): Promise<NextResponse> {
   const session = await requireAuth();
-
-  const jobId = context.params.id;
+  const { id: jobId } = await context.params;
   if (!jobId) {
     throw new ApiErrorClass(
       API_ERROR_CODES.BAD_REQUEST,

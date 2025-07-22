@@ -10,13 +10,21 @@ import {
 } from "@/lib/api/v1/utils";
 import { getOrganizationMembersWithUser } from "@/lib/services/organization";
 
+interface RouteParams {
+  id: string;
+}
+
+interface RouteContext {
+  params: Promise<RouteParams>;
+}
+
 async function getOrganizationMembers(
   request: NextRequest,
-  context: { params: { id: string } },
+  context: RouteContext,
 ): Promise<NextResponse> {
   await requireAuth();
 
-  const organizationId = context.params.id;
+  const { id: organizationId } = await context.params;
   if (!organizationId) {
     throw new ApiErrorClass(
       API_ERROR_CODES.BAD_REQUEST,
