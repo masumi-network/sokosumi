@@ -13,6 +13,10 @@ import {
   PaginationParams,
 } from "./types";
 
+export interface RouteContext<Params> {
+  params: Promise<Params>;
+}
+
 export function createApiResponse<T>(data: T): ApiResponse<T> {
   return {
     success: true,

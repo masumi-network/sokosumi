@@ -7,21 +7,14 @@ import {
   createPaginatedResponse,
   extractPaginationParams,
   requireAuth,
+  RouteContext,
 } from "@/lib/api/v1/utils";
 import { retrieveJobsByOrganizationId } from "@/lib/db/repositories";
 import { getMyMemberInOrganization } from "@/lib/services/organization";
 
-interface RouteParams {
-  id: string;
-}
-
-interface RouteContext {
-  params: Promise<RouteParams>;
-}
-
 async function getOrganizationJobs(
   request: NextRequest,
-  context: RouteContext,
+  context: RouteContext<{ id: string }>,
 ): Promise<NextResponse> {
   await requireAuth();
 

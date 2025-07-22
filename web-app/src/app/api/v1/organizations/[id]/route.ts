@@ -6,21 +6,14 @@ import {
   ApiErrorClass,
   createApiResponse,
   requireAuth,
+  RouteContext,
 } from "@/lib/api/v1/utils";
 import { retrieveOrganizationWithRelationsById } from "@/lib/db/repositories";
 import { getMyMemberInOrganization } from "@/lib/services/organization";
 
-interface RouteParams {
-  id: string;
-}
-
-interface RouteContext {
-  params: Promise<RouteParams>;
-}
-
 async function getOrganizationById(
   request: NextRequest,
-  context: RouteContext,
+  context: RouteContext<{ id: string }>,
 ): Promise<NextResponse> {
   await requireAuth();
 

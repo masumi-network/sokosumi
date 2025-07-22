@@ -6,20 +6,13 @@ import {
   ApiErrorClass,
   createApiResponse,
   requireAuth,
+  RouteContext,
 } from "@/lib/api/v1/utils";
 import { retrieveJobByIdUserIdAndOrganizationId } from "@/lib/db/repositories";
 
-interface RouteParams {
-  id: string;
-}
-
-interface RouteContext {
-  params: Promise<RouteParams>;
-}
-
 async function getJobById(
   request: NextRequest,
-  context: RouteContext,
+  context: RouteContext<{ id: string }>,
 ): Promise<NextResponse> {
   const session = await requireAuth();
   const { id: jobId } = await context.params;
