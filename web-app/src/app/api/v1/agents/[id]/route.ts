@@ -9,13 +9,21 @@ import {
 } from "@/lib/api/v1/utils";
 import { getAvailableAgentById } from "@/lib/services/agent";
 
+interface RouteParams {
+  id: string;
+}
+
+interface RouteContext {
+  params: Promise<RouteParams>;
+}
+
 async function getAgentById(
   request: NextRequest,
-  context: { params: { id: string } },
+  context: RouteContext,
 ): Promise<NextResponse> {
   await requireAuth();
 
-  const agentId = context.params.id;
+  const { id: agentId } = await context.params;
   if (!agentId) {
     throw new ApiErrorClass(
       API_ERROR_CODES.BAD_REQUEST,

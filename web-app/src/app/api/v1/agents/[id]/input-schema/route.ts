@@ -27,6 +27,7 @@ async function getAgentInputSchemaById(
   await requireAuth();
 
   const { id: agentId } = await context.params;
+  console.log("agentId", agentId);
   if (!agentId) {
     throw new ApiErrorClass(
       API_ERROR_CODES.BAD_REQUEST,
