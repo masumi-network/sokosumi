@@ -29,9 +29,6 @@ export default withSentryConfig(
     // eslint-disable-next-line no-restricted-properties
     project: process.env.SENTRY_PROJECT ?? "sokosumi",
 
-    // Pass the auth token
-    // eslint-disable-next-line no-restricted-properties
-    authToken: process.env.SENTRY_AUTH_TOKEN,
     // Upload a larger set of source maps for prettier stack traces (increases build time)
     widenClientFileUpload: true,
 
