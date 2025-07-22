@@ -12,11 +12,11 @@ import { getOrganizationMembersWithUser } from "@/lib/services/organization";
 
 async function getOrganizationMembers(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: { id: string } },
 ): Promise<NextResponse> {
   await requireAuth();
 
-  const organizationId = params.id;
+  const organizationId = context.params.id;
   if (!organizationId) {
     throw new ApiErrorClass(
       API_ERROR_CODES.BAD_REQUEST,

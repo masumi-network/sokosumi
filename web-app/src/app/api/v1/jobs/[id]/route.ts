@@ -11,11 +11,11 @@ import { retrieveJobByIdUserIdAndOrganizationId } from "@/lib/db/repositories";
 
 async function getJobById(
   request: NextRequest,
-  { params }: { params: { id: string } },
+  context: { params: { id: string } },
 ): Promise<NextResponse> {
   const session = await requireAuth();
 
-  const jobId = params.id;
+  const jobId = context.params.id;
   if (!jobId) {
     throw new ApiErrorClass(
       API_ERROR_CODES.BAD_REQUEST,

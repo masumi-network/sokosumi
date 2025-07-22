@@ -1,12 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { createApiRoute } from "@/lib/api/v1/middleware";
-import {
-  createApiResponse,
-  requireAuth,
-  validateParams,
-} from "@/lib/api/v1/utils";
-import { prisma } from "@/lib/db/repositories";
+import { createApiResponse, requireAuth } from "@/lib/api/v1/utils";
 import { retrieveUserById } from "@/lib/db/repositories/user";
 
 async function getUserProfile(_request: NextRequest): Promise<NextResponse> {
@@ -32,30 +27,4 @@ async function getUserProfile(_request: NextRequest): Promise<NextResponse> {
   return NextResponse.json(createApiResponse(userResponse));
 }
 
-async function updateUserProfile(request: NextRequest): Promise<NextResponse> {
-  const session = await requireAuth();
-  const body = await request.json();
-  const updateData = validateParams(UpdateUserSchema, body);
-
-  const updatedUser = await prisma.user.update({
-    where: { id: session.user.id },
-    data: updateData,
-  });
-
-  const userResponse = {
-    id: updatedUser.id,
-    name: updatedUser.name,
-    email: updatedUser.email,
-    emailVerified: updatedUser.emailVerified,
-    image: updatedUser.image,
-    marketingOptIn: updatedUser.marketingOptIn,
-    termsAccepted: updatedUser.termsAccepted,
-    createdAt: updatedUser.createdAt.toISOString(),
-    updatedAt: updatedUser.updatedAt.toISOString(),
-  };
-
-  return NextResponse.json(createApiResponse(userResponse));
-}
-
 export const GET = createApiRoute(getUserProfile);
-export const PATCH = createApiRoute(updateUserProfile);
