@@ -7,7 +7,6 @@
     "strict": true,
     // Enable it explicitly for the ESLint rule `typescript-eslint/prefer-nullish-coalescing`.
     "strictNullChecks": true,
-    "exactOptionalPropertyTypes": true,
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
