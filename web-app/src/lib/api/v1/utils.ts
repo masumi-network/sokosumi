@@ -148,30 +148,3 @@ export function extractPaginationParams(
 export function extractSearchParams(request: NextRequest): URLSearchParams {
   return new URL(request.url).searchParams;
 }
-
-/**
- * Recursively converts all bigint values to strings in an object
- */
-export function serializeBigInts<T>(obj: T): T {
-  if (obj === null || obj === undefined) {
-    return obj;
-  }
-
-  if (typeof obj === "bigint") {
-    return obj.toString() as T;
-  }
-
-  if (Array.isArray(obj)) {
-    return obj.map(serializeBigInts) as T;
-  }
-
-  if (typeof obj === "object") {
-    const result: Record<string, unknown> = {};
-    for (const [key, value] of Object.entries(obj)) {
-      result[key] = serializeBigInts(value);
-    }
-    return result as T;
-  }
-
-  return obj;
-}
