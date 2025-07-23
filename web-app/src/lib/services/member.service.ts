@@ -1,5 +1,4 @@
-import { getSession } from "src/lib/auth/utils";
-
+import { getSession } from "@/lib/auth/utils";
 import { MemberRole } from "@/lib/db";
 import {
   memberOrderBy,
