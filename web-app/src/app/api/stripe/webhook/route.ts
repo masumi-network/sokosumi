@@ -90,6 +90,7 @@ const handleCustomerCreatedEvent = async (customer: Stripe.Customer) => {
       { status: 500 },
     );
   }
+
   const userService = new UserService();
   let user = await userService.getUserByEmail(email);
   if (!user) {
@@ -98,6 +99,32 @@ const handleCustomerCreatedEvent = async (customer: Stripe.Customer) => {
       { status: 404 },
     );
   }
+
+  // If user already has a Stripe customer ID, this might be a duplicate
+  if (user.stripeCustomerId && user.stripeCustomerId !== customer.id) {
+    console.warn(
+      `User ${user.id} already has Stripe customer ${user.stripeCustomerId}, ` +
+        `but webhook received new customer ${customer.id}. This might indicate a race condition or duplicate customer creation.`,
+    );
+
+    // Still update metadata for the new customer for consistency
+    try {
+      await updateCustomerMetadata(customer.id, user.id);
+    } catch (metadataError) {
+      console.error(
+        `Failed to update metadata for customer ${customer.id}:`,
+        metadataError,
+      );
+    }
+
+    return NextResponse.json(
+      {
+        message: `User ${user.id} already has Stripe customer ${user.stripeCustomerId}. New customer ${customer.id} not associated but metadata updated.`,
+      },
+      { status: 200 },
+    );
+  }
+
   try {
     user = await userService.setUserStripeCustomerId(user.id, customer.id);
     await updateCustomerMetadata(customer.id, user.id);
@@ -107,10 +134,25 @@ const handleCustomerCreatedEvent = async (customer: Stripe.Customer) => {
       },
       { status: 200 },
     );
-  } catch {
+  } catch (error) {
+    console.error(
+      `Error updating user ${user.id} with customer ${customer.id}:`,
+      error,
+    );
+
+    // Try to update metadata even if the database update failed
+    try {
+      await updateCustomerMetadata(customer.id, user.id);
+    } catch (metadataError) {
+      console.error(
+        `Failed to update metadata for customer ${customer.id}:`,
+        metadataError,
+      );
+    }
+
     return NextResponse.json(
       {
-        message: `User with email ${email} not updated with stripe customer id: ${customer.id}`,
+        message: `User with email ${email} not updated with stripe customer id: ${customer.id}. This might be due to a unique constraint violation from concurrent customer creation.`,
       },
       { status: 500 },
     );
