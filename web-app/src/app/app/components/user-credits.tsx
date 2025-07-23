@@ -50,7 +50,7 @@ export default async function UserCredits() {
   return (
     <div className="flex items-center gap-4">
       {promotionCode?.active && !activeOrganization ? (
-        <FreeCreditsButton />
+        <FreeCreditsButton promotionCode={promotionCode.id} />
       ) : (
         credits <= 50.0 && (
           <Button variant="default" size="sm" asChild>
