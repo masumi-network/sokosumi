@@ -98,8 +98,15 @@ const handleCustomerCreatedEvent = async (customer: Stripe.Customer) => {
       { status: 404 },
     );
   }
-  user = await userService.setUserStripeCustomerId(user.id, customer.id);
-  if (!user) {
+  try {
+    user = await userService.setUserStripeCustomerId(user.id, customer.id);
+    return NextResponse.json(
+      {
+        message: `User ${user.id} / ${user.email} updated with stripe customer id: ${customer.id}`,
+      },
+      { status: 200 },
+    );
+  } catch {
     return NextResponse.json(
       {
         message: `User with email ${email} not updated with stripe customer id: ${customer.id}`,
@@ -107,12 +114,6 @@ const handleCustomerCreatedEvent = async (customer: Stripe.Customer) => {
       { status: 500 },
     );
   }
-  return NextResponse.json(
-    {
-      message: `User ${user.id} / ${user.email} updated with stripe customer id: ${customer.id}`,
-    },
-    { status: 200 },
-  );
 };
 
 const checkPaymentStatus = (session: Stripe.Checkout.Session) => {
