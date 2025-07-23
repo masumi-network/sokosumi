@@ -4,4 +4,3 @@ export * from "./invitation";
 export * from "./job";
 export * from "./organization";
 export * from "./stripe";
-export * from "./utm";
