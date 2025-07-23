@@ -20,7 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAllowedOrganizations } from "@/hooks/use-allowed-organizations";
-import { OrganizationWithRelations } from "@/lib/db/types/organization";
+import { OrganizationWithInclude } from "@/lib/db/types/organization";
 import { FormData } from "@/lib/form";
 
 import { OrganizationInput } from "./organization-input";
@@ -29,7 +29,7 @@ import { AuthNamespace } from "./types";
 interface FormFieldsProps<T extends FieldValues> {
   form: UseFormReturn<T>;
   formData: FormData<T, AuthNamespace>;
-  prefilledOrganization?: OrganizationWithRelations | null;
+  prefilledOrganization?: OrganizationWithInclude | null;
   namespace: AuthNamespace;
 }
 
@@ -73,7 +73,7 @@ interface FormInputProps<T extends FieldValues> {
   field: ControllerRenderProps<T, Path<T>>;
   formDataItem: FormData<T, AuthNamespace>[number];
   t: IntlTranslation<AuthNamespace>;
-  prefilledOrganization?: OrganizationWithRelations | null;
+  prefilledOrganization?: OrganizationWithInclude | null;
 }
 
 function FormInput<T extends FieldValues>({
@@ -162,7 +162,7 @@ function FormInput<T extends FieldValues>({
 interface OrganizationFormInputProps<T extends FieldValues> {
   email: string;
   field: ControllerRenderProps<T, Path<T>>;
-  prefilledOrganization?: OrganizationWithRelations | null;
+  prefilledOrganization?: OrganizationWithInclude | null;
 }
 
 function OrganizationFormInput<T extends FieldValues>({
@@ -175,11 +175,11 @@ function OrganizationFormInput<T extends FieldValues>({
     prefilledOrganization,
   });
   const [selectedOrganization, setSelectedOrganization] = useState<
-    OrganizationWithRelations | { name: string } | undefined
+    OrganizationWithInclude | { name: string } | undefined
   >(
     prefilledOrganization ??
       allowedOrganizations.find(
-        (org: OrganizationWithRelations) => org.id === field.value?.id,
+        (org: OrganizationWithInclude) => org.id === field.value?.id,
       ),
   );
 
@@ -192,7 +192,7 @@ function OrganizationFormInput<T extends FieldValues>({
   }, [prefilledOrganization, email]);
 
   const handleOrganizationChange = (
-    organization: OrganizationWithRelations | { name: string },
+    organization: OrganizationWithInclude | { name: string },
   ) => {
     setSelectedOrganization(organization);
     // Set the full organization object with id and name properties

@@ -3,7 +3,7 @@
 import { ReactNode } from "react";
 import { FieldValues, UseFormReturn } from "react-hook-form";
 
-import { OrganizationWithRelations } from "@/lib/db";
+import { OrganizationWithInclude } from "@/lib/db";
 import { FormData } from "@/lib/form";
 
 import { BaseForm } from "./base-form";
@@ -13,11 +13,11 @@ import { AuthNamespace } from "./types";
 interface AuthFormProps<T extends FieldValues> {
   form: UseFormReturn<T>;
   formData: FormData<T, AuthNamespace>;
-  prefilledOrganization?: OrganizationWithRelations | null;
+  prefilledOrganization?: OrganizationWithInclude | null;
   namespace: AuthNamespace;
   onSubmit: (values: T) => Promise<void>;
   submitEventName?: string;
-  organizations?: OrganizationWithRelations[] | undefined;
+  organizations?: OrganizationWithInclude[] | undefined;
   children: ReactNode;
   className?: string;
 }

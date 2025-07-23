@@ -20,7 +20,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { OrganizationWithRelations } from "@/lib/db/types/organization";
+import { OrganizationWithInclude } from "@/lib/db/types/organization";
 import {
   createOrganizationSchema,
   CreateOrganizationSchemaType,
@@ -31,12 +31,10 @@ import CreateOrganization from "./create-organization";
 
 interface OrganizationInputProps {
   email: string;
-  organizations: OrganizationWithRelations[];
-  value: OrganizationWithRelations | { name: string } | undefined;
+  organizations: OrganizationWithInclude[];
+  value: OrganizationWithInclude | { name: string } | undefined;
   isLoading: boolean;
-  onChange: (
-    organization: OrganizationWithRelations | { name: string },
-  ) => void;
+  onChange: (organization: OrganizationWithInclude | { name: string }) => void;
   disabled?: boolean | undefined;
 }
 

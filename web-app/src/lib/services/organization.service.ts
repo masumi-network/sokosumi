@@ -1,7 +1,7 @@
 import {
-  organizationMembersCountInclude,
+  organizationInclude,
   organizationOrderBy,
-  OrganizationWithRelations,
+  OrganizationWithInclude,
 } from "@/lib/db/types";
 import { Prisma } from "@/prisma/generated/client";
 
@@ -10,35 +10,35 @@ import { BaseService } from "./base.service";
 export class OrganizationService extends BaseService<OrganizationService> {
   async getOrganizationById(
     id: string,
-  ): Promise<OrganizationWithRelations | null> {
+  ): Promise<OrganizationWithInclude | null> {
     return this.client.organization.findUnique({
       where: { id },
-      include: { ...organizationMembersCountInclude },
+      include: organizationInclude,
     });
   }
 
   async getOrganizationBySlug(
     slug: string,
-  ): Promise<OrganizationWithRelations | null> {
+  ): Promise<OrganizationWithInclude | null> {
     return this.client.organization.findUnique({
       where: { slug },
-      include: { ...organizationMembersCountInclude },
+      include: organizationInclude,
     });
   }
 
   async getOrganizationsByEmailDomain(
     emailDomain: string,
-  ): Promise<OrganizationWithRelations[]> {
+  ): Promise<OrganizationWithInclude[]> {
     return this.client.organization.findMany({
       where: { requiredEmailDomains: { has: emailDomain } },
-      include: { ...organizationMembersCountInclude },
+      include: organizationInclude,
       orderBy: organizationOrderBy,
     });
   }
 
-  async getOrganizationsWithRelations(): Promise<OrganizationWithRelations[]> {
+  async getOrganizationsWithRelations(): Promise<OrganizationWithInclude[]> {
     return await this.client.organization.findMany({
-      include: { ...organizationMembersCountInclude },
+      include: organizationInclude,
       orderBy: organizationOrderBy,
     });
   }
@@ -47,21 +47,21 @@ export class OrganizationService extends BaseService<OrganizationService> {
     slug: string,
     name: string,
     requiredEmailDomains: string[],
-  ): Promise<OrganizationWithRelations> {
+  ): Promise<OrganizationWithInclude> {
     return await this.client.organization.create({
       data: { slug, name, requiredEmailDomains },
-      include: { ...organizationMembersCountInclude },
+      include: organizationInclude,
     });
   }
 
   async updateOrganizationById(
     organizationId: string,
     data: Prisma.OrganizationUpdateInput,
-  ): Promise<OrganizationWithRelations> {
+  ): Promise<OrganizationWithInclude> {
     return await this.client.organization.update({
       where: { id: organizationId },
       data,
-      include: { ...organizationMembersCountInclude },
+      include: organizationInclude,
     });
   }
 }

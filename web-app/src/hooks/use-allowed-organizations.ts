@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 
-import { OrganizationWithRelations } from "@/lib/db/types/organization";
+import { OrganizationWithInclude } from "@/lib/db/types/organization";
 import { isValidEmail } from "@/lib/utils";
 
 interface UseAllowedOrganizationsProps {
   email: string;
-  prefilledOrganization?: OrganizationWithRelations | null;
+  prefilledOrganization?: OrganizationWithInclude | null;
 }
 
 interface AllowedOrganizationsResponse {
-  allowedOrganizations: OrganizationWithRelations[];
+  allowedOrganizations: OrganizationWithInclude[];
 }
 
 export function useAllowedOrganizations({
@@ -18,7 +18,7 @@ export function useAllowedOrganizations({
   prefilledOrganization,
 }: UseAllowedOrganizationsProps) {
   const [allowedOrganizations, setAllowedOrganizations] = useState<
-    OrganizationWithRelations[]
+    OrganizationWithInclude[]
   >(prefilledOrganization ? [prefilledOrganization] : []);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);

@@ -1,10 +1,10 @@
-import { OrganizationWithRelations } from "@/lib/db/types";
+import { OrganizationWithInclude } from "@/lib/db/types";
 import { getEmailDomain } from "@/lib/utils";
 
 export function filterAllowedOrganizations(
   email: string,
-  organizations: OrganizationWithRelations[],
-): OrganizationWithRelations[] {
+  organizations: OrganizationWithInclude[],
+): OrganizationWithInclude[] {
   const emailDomain = getEmailDomain(email);
 
   if (!emailDomain) {

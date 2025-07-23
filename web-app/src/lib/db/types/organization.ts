@@ -24,6 +24,6 @@ export const organizationInclude = {
   ...organizationMembersCountInclude,
 } as const;
 
-export type OrganizationWithRelations = Prisma.OrganizationGetPayload<{
+export type OrganizationWithInclude = Prisma.OrganizationGetPayload<{
   include: typeof organizationInclude;
 }>;

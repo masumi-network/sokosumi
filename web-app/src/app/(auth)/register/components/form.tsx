@@ -11,12 +11,12 @@ import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { signUpFormData } from "@/auth/register/data";
 import { useAsyncRouter } from "@/hooks/use-async-router";
 import { AuthErrorCode, CommonErrorCode, signUpEmail } from "@/lib/actions";
-import { OrganizationWithRelations } from "@/lib/db";
+import { OrganizationWithInclude } from "@/lib/db";
 import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
 
 interface SignUpFormProps {
   prefilledEmail?: string | undefined;
-  prefilledOrganization?: OrganizationWithRelations | null;
+  prefilledOrganization?: OrganizationWithInclude | null;
   invitationId?: string | undefined;
 }
 

@@ -7,13 +7,13 @@ import {
   RequiredEmailDomainsSkeleton,
 } from "@/components/organizations";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MemberRole, OrganizationWithRelations } from "@/lib/db";
+import { MemberRole, OrganizationWithInclude } from "@/lib/db";
 import { Member } from "@/prisma/generated/client";
 
 import OrganizationEditButton from "./organization-edit-button";
 
 interface OrganizationInformationProps {
-  organization: OrganizationWithRelations;
+  organization: OrganizationWithInclude;
   member: Member;
 }
 
