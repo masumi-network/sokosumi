@@ -2,9 +2,10 @@ import "server-only";
 
 import { cookies } from "next/headers";
 
-import prisma from "@/lib/db/repositories/prisma";
 import { UTM_COOKIE_NAME, UTMData, utmDataSchema } from "@/lib/utils/utm";
-import { Prisma, UTMAttribution } from "@/prisma/generated/client";
+import { UTMAttribution } from "@/prisma/generated/client";
+
+import { BaseService } from "./base.service";
 
 /**
  * UTMService provides methods for handling UTM (Urchin Tracking Module) attribution data.
@@ -17,34 +18,7 @@ import { Prisma, UTMAttribution } from "@/prisma/generated/client";
  * - Use `UTMService.getInstance()` for singleton access with the default Prisma client.
  * - Use `UTMService.createInstance(client)` for transactional operations with a specific Prisma client.
  */
-export class UTMService {
-  /**
-   * Private constructor to enforce singleton and transactional instantiation.
-   * @param client Prisma transaction client for database operations.
-   */
-  private constructor(protected client: Prisma.TransactionClient) {}
-
-  /**
-   * Create a new UTMService instance with a specific Prisma transaction client.
-   * Useful for transactional workflows.
-   * @param client Prisma.TransactionClient
-   * @returns UTMService instance
-   */
-  static createInstance(client: Prisma.TransactionClient): UTMService {
-    return new UTMService(client);
-  }
-
-  private static instance?: UTMService;
-
-  /**
-   * Get a singleton UTMService instance using the default Prisma client.
-   * @returns UTMService singleton instance
-   */
-  public static getInstance(): UTMService {
-    UTMService.instance ??= new UTMService(prisma);
-    return UTMService.instance;
-  }
-
+export class UTMService extends BaseService<UTMService> {
   /**
    * Create a UTM attribution record in the database for a user conversion event.
    *

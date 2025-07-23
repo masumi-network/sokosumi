@@ -1,53 +1,21 @@
 import "server-only";
 
 import { getSession } from "@/lib/auth/utils";
-import prisma from "@/lib/db/repositories/prisma";
-import { Prisma, User } from "@/prisma/generated/client";
+import { User } from "@/prisma/generated/client";
+
+import { BaseService } from "./base.service";
 
 /**
  * Service for user-related database operations.
  *
  * Provides methods to retrieve and update user records, including
  * support for transactional operations via a Prisma transaction client.
+ *
+ * Usage:
+ * - Use `UserService.getInstance()` for singleton access with the default Prisma client.
+ * - Use `UserService.createInstance(client)` for transactional operations with a specific Prisma client.
  */
-export class UserService {
-  /**
-   * Create a new UserService instance for transactional operations.
-   *
-   * @param client - Prisma transaction client to use for all queries.
-   * @private
-   */
-  private constructor(protected client: Prisma.TransactionClient) {}
-
-  /**
-   * Create a new UserService instance using a provided Prisma transaction client.
-   *
-   * Use this method within a transaction to ensure all user operations
-   * are performed atomically.
-   *
-   * @param client - Prisma transaction client.
-   * @returns A new UserService instance bound to the provided client.
-   */
-  static createInstance(client: Prisma.TransactionClient): UserService {
-    return new UserService(client);
-  }
-
-  /**
-   * Singleton instance of UserService using the default Prisma client.
-   * Use this for non-transactional operations.
-   */
-  private static instance?: UserService;
-
-  /**
-   * Get the singleton UserService instance using the default Prisma client.
-   *
-   * @returns The singleton UserService instance.
-   */
-  public static getInstance(): UserService {
-    UserService.instance ??= new UserService(prisma);
-    return UserService.instance;
-  }
-
+export class UserService extends BaseService<UserService> {
   /**
    * Get the currently authenticated user from the database.
    *
