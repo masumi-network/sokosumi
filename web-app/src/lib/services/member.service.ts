@@ -1,5 +1,4 @@
-import { MemberRole } from "src/lib/db";
-
+import { MemberRole } from "@/lib/db";
 import {
   memberOrderBy,
   memberOrganizationInclude,

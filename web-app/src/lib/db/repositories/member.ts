@@ -13,17 +13,6 @@ import { Member, Prisma } from "@/prisma/generated/client";
 
 import prisma from "./prisma";
 
-export async function retrieveMembersByOrganizationId(
-  organizationId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<Member[]> {
-  return await tx.member.findMany({
-    where: {
-      organizationId,
-    },
-  });
-}
-
 export async function retrieveMembersWithUser(
   where: Prisma.MemberWhereInput,
   params: {
