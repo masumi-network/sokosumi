@@ -20,19 +20,18 @@ export class UserService {
   constructor(protected client: Prisma.TransactionClient = prisma) {}
 
   /**
-   * Retrieves the current authenticated user's data.
+   * Retrieves the currently authenticated user from the database.
    *
-   * Uses the session to identify the user and fetches their record from the database.
+   * This method uses the current session to identify the user and fetches
+   * their record from the database. If there is no authenticated user in the session,
+   * it returns null.
    *
    * @returns A promise that resolves to the User object for the authenticated user,
-   *          or null if the user is not found.
-   * @throws Will throw an error if no valid session is found.
+   *          or null if no user is authenticated or found.
    */
   async getMe(): Promise<User | null> {
     const session = await getSession();
-    if (!session?.user) {
-      return null;
-    }
+    if (!session?.user) return null;
     return this.client.user.findUnique({ where: { id: session.user.id } });
   }
 
