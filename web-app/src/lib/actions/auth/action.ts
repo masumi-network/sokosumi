@@ -16,7 +16,6 @@ import {
   createMember,
   prisma,
   retrieveMembersByOrganizationId,
-  retrieveOrganizationWithRelationsById,
   retrieveValidPendingInvitationById,
 } from "@/lib/db/repositories";
 import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
@@ -74,11 +73,9 @@ export async function signUpEmail(
       let organization: Organization;
       let organizationCreated: boolean = false;
       if (!!parsed.selectedOrganization.id) {
-        const retrievedOrganization =
-          await retrieveOrganizationWithRelationsById(
-            parsed.selectedOrganization.id,
-            tx,
-          );
+        const retrievedOrganization = await OrganizationService.getInstance(
+          tx,
+        ).getOrganizationById(parsed.selectedOrganization.id);
         if (!retrievedOrganization) {
           actionError = {
             code: AuthErrorCode.ORGANIZATION_NOT_FOUND,

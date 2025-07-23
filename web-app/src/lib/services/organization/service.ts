@@ -2,7 +2,6 @@ import "server-only";
 
 import { nanoid } from "nanoid";
 import slugify from "slugify";
-import { OrganizationService } from "src/lib/services/organization.service";
 
 import { getSessionOrThrow } from "@/lib/auth/utils";
 import { MemberRole, MemberWithOrganization } from "@/lib/db";
@@ -13,6 +12,7 @@ import {
   retrieveOrganizationWithRelationsBySlug,
   retrievePendingInvitationsByOrganizationId,
 } from "@/lib/db/repositories";
+import { OrganizationService } from "@/lib/services";
 import { Invitation, Member } from "@/prisma/generated/client";
 
 /**

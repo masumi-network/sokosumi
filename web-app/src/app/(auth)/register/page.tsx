@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
-import { retrieveOrganizationWithRelationsById } from "@/lib/db/repositories/organization";
+import { OrganizationService } from "@/lib/services";
 
 import SignUpForm from "./components/form";
 import SignUpHeader from "./components/header";
@@ -27,7 +27,9 @@ interface SignUpPageProps {
 export default async function SignUp({ searchParams }: SignUpPageProps) {
   const { email, organizationId, invitationId } = await searchParams;
   const prefilledOrganization = organizationId
-    ? await retrieveOrganizationWithRelationsById(organizationId)
+    ? await OrganizationService.getInstance().getOrganizationById(
+        organizationId,
+      )
     : null;
   if (!!organizationId && !prefilledOrganization) {
     return notFound();

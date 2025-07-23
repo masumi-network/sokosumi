@@ -4,6 +4,7 @@ export * from "./credit";
 export * from "./invitation";
 export * from "./job";
 export * from "./organization";
+export { OrganizationService } from "./organization.service";
 export * from "./stripe";
 export { TagService } from "./tag.service";
 export { UserService } from "./user.service";
