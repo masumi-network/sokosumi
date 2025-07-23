@@ -2,6 +2,7 @@ import "server-only";
 
 import { nanoid } from "nanoid";
 import slugify from "slugify";
+import { OrganizationService } from "src/lib/services/organization.service";
 
 import { getSessionOrThrow } from "@/lib/auth/utils";
 import { MemberRole, MemberWithOrganization } from "@/lib/db";
@@ -9,7 +10,6 @@ import {
   retrieveMemberByUserIdAndOrganizationId,
   retrieveMembersWithOrganizationByUserId,
   retrieveMembersWithUser,
-  retrieveOrganizationWithRelationsById,
   retrieveOrganizationWithRelationsBySlug,
   retrievePendingInvitationsByOrganizationId,
 } from "@/lib/db/repositories";
@@ -161,9 +161,10 @@ export async function getActiveOrganization() {
     return null;
   }
 
-  const organization = await retrieveOrganizationWithRelationsById(
-    session.session.activeOrganizationId,
-  );
+  const organization =
+    await OrganizationService.getInstance().getOrganizationById(
+      session.session.activeOrganizationId,
+    );
 
   return organization;
 }
