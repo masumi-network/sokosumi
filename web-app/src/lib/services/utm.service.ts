@@ -17,10 +17,9 @@ export class UTMService {
   /**
    * Constructs a new UTMService instance.
    *
-   * @param client - Optional Prisma transaction client for transactional operations.
-   *                 Defaults to the main Prisma client if not provided.
+   * @param client - Prisma transaction client for transactional operations.
    */
-  constructor(protected client: Prisma.TransactionClient = prisma) {}
+  constructor(protected client: Prisma.TransactionClient) {}
 
   /**
    * Creates a UTM attribution record in the database for a given user.
@@ -86,4 +85,22 @@ export class UTMService {
  *   import { utmService } from "@/lib/services/utm.service";
  *   const utmData = await utmService.getUTMDataFromCookie();
  */
-export const utmService = new UTMService();
+export const utmService = createUTMService();
+
+/**
+ * Factory function to create a new instance of UTMService.
+ *
+ * @param client - Optional Prisma transaction client for transactional operations.
+ *                 Defaults to the main Prisma client if not provided.
+ * @returns An instance of UTMService for managing UTM attribution logic.
+ *
+ * Example:
+ *   const utmService = createUTMService();
+ *   // or with a transaction client:
+ *   const utmService = createUTMService(tx);
+ */
+export function createUTMService(
+  client: Prisma.TransactionClient = prisma,
+): UTMService {
+  return new UTMService(client);
+}

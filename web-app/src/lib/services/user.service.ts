@@ -14,10 +14,9 @@ export class UserService {
   /**
    * Constructs a new UserService instance.
    *
-   * @param client - Optional Prisma transaction client for transactional operations.
-   *                 Defaults to the main Prisma client if not provided.
+   * @param client - Prisma transaction client for transactional operations.
    */
-  constructor(protected client: Prisma.TransactionClient = prisma) {}
+  constructor(protected client: Prisma.TransactionClient) {}
 
   /**
    * Retrieves the currently authenticated user from the database.
@@ -88,4 +87,22 @@ export class UserService {
  *   import { userService } from "@/lib/services/user.service";
  *   const user = await userService.getMe();
  */
-export const userService = new UserService();
+export const userService = createUserService();
+
+/**
+ * Factory function to create a new instance of UserService.
+ *
+ * @param client - Optional Prisma transaction client for transactional operations.
+ *                 Defaults to the main Prisma client if not provided.
+ * @returns An instance of UserService for managing user-related operations.
+ *
+ * Example:
+ *   const userService = createUserService();
+ *   // or with a transaction client:
+ *   const userService = createUserService(tx);
+ */
+export function createUserService(
+  client: Prisma.TransactionClient = prisma,
+): UserService {
+  return new UserService(client);
+}

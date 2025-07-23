@@ -15,7 +15,7 @@ import {
   CouponNotFoundError,
   CouponTypeError,
 } from "@/lib/errors/coupon-errors";
-import { UserService, userService } from "@/lib/services/user.service";
+import { createUserService, userService } from "@/lib/services/user.service";
 
 import {
   createCheckoutSession,
@@ -36,7 +36,7 @@ export async function createStripeCheckoutSession(
   await verifyUserId(userId);
   return await prisma.$transaction(async (tx) => {
     try {
-      const user = await new UserService(tx).getUserById(userId);
+      const user = await createUserService(tx).getUserById(userId);
       if (!user) throw new Error("User not found");
       const amount = credits * price.amountPerCredit;
       const fiatTransaction = await createFiatTransaction(
