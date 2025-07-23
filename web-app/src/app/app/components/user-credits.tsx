@@ -9,12 +9,12 @@ import {
   getUserCredits,
   getWelcomePromotionCode,
 } from "@/lib/services";
-import { userService } from "@/lib/services/user.service";
+import { UserService } from "@/lib/services/user.service";
 
 import FreeCreditsButton from "./free-credits-button";
 
 export default async function UserCredits() {
-  const user = await userService.getMe();
+  const user = await UserService.getInstance().getMe();
   if (!user) {
     redirect("/login");
   }

@@ -7,27 +7,51 @@ import { UTM_COOKIE_NAME, UTMData, utmDataSchema } from "@/lib/utils/utm";
 import { Prisma, UTMAttribution } from "@/prisma/generated/client";
 
 /**
- * Service for handling UTM (Urchin Tracking Module) attribution data.
+ * UTMService provides methods for handling UTM (Urchin Tracking Module) attribution data.
  *
- * This service provides methods to create UTM attribution records in the database
- * and to retrieve UTM data from cookies. It is typically used to track the source
- * and context of user signups or conversions for analytics and marketing attribution.
+ * Responsibilities:
+ * - Creating UTM attribution records in the database for user conversions.
+ * - Retrieving and parsing UTM data from cookies for attribution purposes.
+ *
+ * Usage:
+ * - Use `UTMService.getInstance()` for singleton access with the default Prisma client.
+ * - Use `UTMService.createInstance(client)` for transactional operations with a specific Prisma client.
  */
 export class UTMService {
   /**
-   * Constructs a new UTMService instance.
-   *
-   * @param client - Prisma transaction client for transactional operations.
+   * Private constructor to enforce singleton and transactional instantiation.
+   * @param client Prisma transaction client for database operations.
    */
-  constructor(protected client: Prisma.TransactionClient) {}
+  private constructor(protected client: Prisma.TransactionClient) {}
 
   /**
-   * Creates a UTM attribution record in the database for a given user.
+   * Create a new UTMService instance with a specific Prisma transaction client.
+   * Useful for transactional workflows.
+   * @param client Prisma.TransactionClient
+   * @returns UTMService instance
+   */
+  static createInstance(client: Prisma.TransactionClient): UTMService {
+    return new UTMService(client);
+  }
+
+  private static instance?: UTMService;
+
+  /**
+   * Get a singleton UTMService instance using the default Prisma client.
+   * @returns UTMService singleton instance
+   */
+  public static getInstance(): UTMService {
+    UTMService.instance ??= new UTMService(prisma);
+    return UTMService.instance;
+  }
+
+  /**
+   * Create a UTM attribution record in the database for a user conversion event.
    *
-   * @param userId - The ID of the user to associate with the UTM attribution.
-   * @param utmData - The UTM data object containing source, medium, campaign, etc.
-   * @param convertedAt - The date and time when the conversion occurred.
-   * @returns A promise that resolves to the created UTMAttribution record, or null if creation fails.
+   * @param userId The user ID to associate with the UTM attribution.
+   * @param utmData The UTM data object (source, medium, campaign, etc.).
+   * @param convertedAt The timestamp when the conversion occurred.
+   * @returns The created UTMAttribution record, or null if creation fails.
    */
   async createUTMAttribution(
     userId: string,
@@ -55,10 +79,9 @@ export class UTMService {
   }
 
   /**
-   * Retrieves and parses UTM data from the UTM cookie, if present.
+   * Retrieve and parse UTM data from the UTM cookie, if present and valid.
    *
-   * @returns A promise that resolves to the parsed UTMData object if the cookie exists and is valid,
-   *          or null if the cookie is missing or invalid.
+   * @returns The parsed UTMData object if the cookie exists and is valid, or null otherwise.
    */
   async getUTMDataFromCookie(): Promise<UTMData | null> {
     const cookieStore = await cookies();
@@ -73,34 +96,4 @@ export class UTMService {
       return null;
     }
   }
-}
-
-/**
- * Singleton instance of UTMService for managing UTM attribution logic.
- *
- * Use this exported instance to interact with UTM-related operations,
- * such as creating UTM attributions and retrieving UTM data from cookies.
- *
- * Example:
- *   import { utmService } from "@/lib/services/utm.service";
- *   const utmData = await utmService.getUTMDataFromCookie();
- */
-export const utmService = createUTMService();
-
-/**
- * Factory function to create a new instance of UTMService.
- *
- * @param client - Optional Prisma transaction client for transactional operations.
- *                 Defaults to the main Prisma client if not provided.
- * @returns An instance of UTMService for managing UTM attribution logic.
- *
- * Example:
- *   const utmService = createUTMService();
- *   // or with a transaction client:
- *   const utmService = createUTMService(tx);
- */
-export function createUTMService(
-  client: Prisma.TransactionClient = prisma,
-): UTMService {
-  return new UTMService(client);
 }

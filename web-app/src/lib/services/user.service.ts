@@ -5,28 +5,56 @@ import prisma from "@/lib/db/repositories/prisma";
 import { Prisma, User } from "@/prisma/generated/client";
 
 /**
- * Service for interacting with User data in the database.
+ * Service for user-related database operations.
  *
- * Provides methods to retrieve and update user information, including
- * authenticated user lookup and Stripe customer ID management.
+ * Provides methods to retrieve and update user records, including
+ * support for transactional operations via a Prisma transaction client.
  */
 export class UserService {
   /**
-   * Constructs a new UserService instance.
+   * Create a new UserService instance for transactional operations.
    *
-   * @param client - Prisma transaction client for transactional operations.
+   * @param client - Prisma transaction client to use for all queries.
+   * @private
    */
-  constructor(protected client: Prisma.TransactionClient) {}
+  private constructor(protected client: Prisma.TransactionClient) {}
 
   /**
-   * Retrieves the currently authenticated user from the database.
+   * Create a new UserService instance using a provided Prisma transaction client.
    *
-   * This method uses the current session to identify the user and fetches
-   * their record from the database. If there is no authenticated user in the session,
-   * it returns null.
+   * Use this method within a transaction to ensure all user operations
+   * are performed atomically.
    *
-   * @returns A promise that resolves to the User object for the authenticated user,
-   *          or null if no user is authenticated or found.
+   * @param client - Prisma transaction client.
+   * @returns A new UserService instance bound to the provided client.
+   */
+  static createInstance(client: Prisma.TransactionClient): UserService {
+    return new UserService(client);
+  }
+
+  /**
+   * Singleton instance of UserService using the default Prisma client.
+   * Use this for non-transactional operations.
+   */
+  private static instance?: UserService;
+
+  /**
+   * Get the singleton UserService instance using the default Prisma client.
+   *
+   * @returns The singleton UserService instance.
+   */
+  public static getInstance(): UserService {
+    UserService.instance ??= new UserService(prisma);
+    return UserService.instance;
+  }
+
+  /**
+   * Get the currently authenticated user from the database.
+   *
+   * Uses the current session to identify the user and fetches their record.
+   * Returns null if no user is authenticated or found.
+   *
+   * @returns The authenticated User object, or null if not authenticated or not found.
    */
   async getMe(): Promise<User | null> {
     const session = await getSession();
@@ -35,35 +63,34 @@ export class UserService {
   }
 
   /**
-   * Retrieves a user by their unique ID.
+   * Retrieve a user by their unique user ID.
    *
-   * @param id - The unique identifier of the user.
-   * @returns A promise that resolves to the User object if found, or null if not found.
+   * @param id - The user's unique identifier.
+   * @returns The User object if found, or null if not found.
    */
   async getUserById(id: string): Promise<User | null> {
     return this.client.user.findUnique({ where: { id } });
   }
 
   /**
-   * Retrieves a user by their email address.
+   * Retrieve a user by their email address.
    *
-   * @param email - The email address of the user.
-   * @returns A promise that resolves to the User object if found, or null if not found.
+   * @param email - The user's email address.
+   * @returns The User object if found, or null if not found.
    */
   async getUserByEmail(email: string): Promise<User | null> {
     return this.client.user.findUnique({ where: { email } });
   }
 
   /**
-   * Updates the Stripe customer ID for a user identified by their ID.
+   * Update the Stripe customer ID for a user.
    *
-   * This method is typically used to associate or disassociate a Stripe customer
-   * with a user in the system.
+   * Associates or disassociates a Stripe customer with a user in the system.
    *
-   * @param userId - The ID of the user to update.
-   * @param stripeCustomerId - The Stripe customer ID to associate with the user, or null to remove it.
-   * @returns A promise that resolves to the updated User object.
-   * @throws Will throw an error if the user with the specified email does not exist.
+   * @param userId - The user's unique identifier.
+   * @param stripeCustomerId - The Stripe customer ID to associate, or null to remove it.
+   * @returns The updated User object.
+   * @throws If the user does not exist.
    */
   async setUserStripeCustomerId(
     userId: string,
@@ -74,35 +101,4 @@ export class UserService {
       data: { stripeCustomerId },
     });
   }
-}
-
-/**
- * Singleton instance of UserService for managing user-related operations.
- *
- * Use this exported instance to interact with user data, such as retrieving
- * the current authenticated user, fetching users by ID or email, and updating
- * user-related fields (e.g., Stripe customer ID).
- *
- * Example:
- *   import { userService } from "@/lib/services/user.service";
- *   const user = await userService.getMe();
- */
-export const userService = createUserService();
-
-/**
- * Factory function to create a new instance of UserService.
- *
- * @param client - Optional Prisma transaction client for transactional operations.
- *                 Defaults to the main Prisma client if not provided.
- * @returns An instance of UserService for managing user-related operations.
- *
- * Example:
- *   const userService = createUserService();
- *   // or with a transaction client:
- *   const userService = createUserService(tx);
- */
-export function createUserService(
-  client: Prisma.TransactionClient = prisma,
-): UserService {
-  return new UserService(client);
 }
