@@ -9,7 +9,6 @@ import {
   retrieveMemberByUserIdAndOrganizationId,
   retrieveMembersWithOrganizationByUserId,
   retrieveMembersWithUser,
-  retrieveOrganizationWithRelationsBySlug,
   retrievePendingInvitationsByOrganizationId,
 } from "@/lib/db/repositories";
 import { OrganizationService } from "@/lib/services";
@@ -29,7 +28,7 @@ import { Invitation, Member } from "@/prisma/generated/client";
 export async function generateOrganizationSlugFromName(name: string) {
   const slugedName = slugify(name, { lower: true, strict: true });
   const existingOrganization =
-    await retrieveOrganizationWithRelationsBySlug(slugedName);
+    await OrganizationService.getInstance().getOrganizationBySlug(slugedName);
   if (!existingOrganization) {
     return slugedName;
   }

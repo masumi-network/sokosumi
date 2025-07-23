@@ -5,11 +5,11 @@ import { getTranslations } from "next-intl/server";
 import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import { MemberRole } from "@/lib/db";
-import { retrieveOrganizationWithRelationsBySlug } from "@/lib/db/repositories";
 import {
   getMyMemberInOrganization,
   getOrganizationMembersWithUser,
   getOrganizationPendingInvitations,
+  OrganizationService,
 } from "@/lib/services";
 import { Invitation } from "@/prisma/generated/client";
 
@@ -29,7 +29,9 @@ export async function generateMetadata({
 
   const { organizationSlug } = await params;
   const organization =
-    await retrieveOrganizationWithRelationsBySlug(organizationSlug);
+    await OrganizationService.getInstance().getOrganizationBySlug(
+      organizationSlug,
+    );
   if (!organization) {
     return notFound();
   }
@@ -50,7 +52,9 @@ export default async function OrganizationPage({
   const { organizationSlug } = await params;
 
   const organization =
-    await retrieveOrganizationWithRelationsBySlug(organizationSlug);
+    await OrganizationService.getInstance().getOrganizationBySlug(
+      organizationSlug,
+    );
   if (!organization) {
     return notFound();
   }
