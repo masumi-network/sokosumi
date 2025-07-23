@@ -1,7 +1,7 @@
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
-import { listMyMembers } from "@/lib/services";
+import { MemberService } from "@/lib/services";
 import { getMyValidPendingInvitations } from "@/lib/services/invitation";
 
 import Organizations from "./components/organizations";
@@ -17,7 +17,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function OrganizationsPage() {
   const t = await getTranslations("App.Organizations");
 
-  const members = await listMyMembers();
+  const members = await MemberService.getInstance().getMyMembers();
   const invitations = await getMyValidPendingInvitations();
 
   return (
@@ -25,7 +25,7 @@ export default async function OrganizationsPage() {
       <div className="flex w-full items-center justify-between">
         <h1 className="text-2xl font-light">{t("title")}</h1>
       </div>
-      <Organizations members={members} invitations={invitations} />
+      <Organizations members={members ?? []} invitations={invitations} />
     </div>
   );
 }

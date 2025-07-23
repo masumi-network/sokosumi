@@ -1,3 +1,5 @@
+import { getSession } from "src/lib/auth/utils";
+
 import { MemberRole } from "@/lib/db";
 import {
   memberOrderBy,
@@ -87,5 +89,15 @@ export class MemberService extends BaseService<MemberService> {
       where: { id: memberId },
       data: { role },
     });
+  }
+
+  async getMyMembers(): Promise<MemberWithOrganization[] | null> {
+    const session = await getSession();
+    if (!session) {
+      return null;
+    }
+    const userId = session.user.id;
+
+    return this.getMembersWithOrganizationByUserId(userId);
   }
 }
