@@ -14,7 +14,6 @@ import { MemberRole } from "@/lib/db";
 import {
   acceptValidPendingInvitationById,
   createMember,
-  createOrganization,
   prisma,
   retrieveMembersByOrganizationId,
   retrieveOrganizationWithRelationsById,
@@ -22,6 +21,7 @@ import {
 } from "@/lib/db/repositories";
 import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
 import { generateOrganizationSlugFromName, UTMService } from "@/lib/services";
+import { OrganizationService } from "@/lib/services/organization.service";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import { getEmailDomain, removePublicDomains } from "@/lib/utils";
 import { Member, Organization } from "@/prisma/generated/client";
@@ -101,11 +101,12 @@ export async function signUpEmail(
           parsed.selectedOrganization.name,
         );
 
-        const createdOrganization = await createOrganization(
+        const createdOrganization = await OrganizationService.getInstance(
+          tx,
+        ).createOrganization(
           slug,
           parsed.selectedOrganization.name,
           requiredEmailDomains,
-          tx,
         );
         if (!createdOrganization) {
           actionError = {
