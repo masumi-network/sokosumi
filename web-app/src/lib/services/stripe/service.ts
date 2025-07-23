@@ -8,7 +8,6 @@ import { convertCreditsToCents } from "@/lib/db";
 import {
   createFiatTransaction,
   prisma,
-  retrieveUserById,
   updateFiatTransactionServicePaymentId,
 } from "@/lib/db/repositories";
 import {
@@ -16,6 +15,7 @@ import {
   CouponNotFoundError,
   CouponTypeError,
 } from "@/lib/errors/coupon-errors";
+import { UserService } from "@/lib/services/user.service";
 
 import {
   createCheckoutSession,
@@ -36,7 +36,7 @@ export async function createStripeCheckoutSession(
   await verifyUserId(userId);
   return await prisma.$transaction(async (tx) => {
     try {
-      const user = await retrieveUserById(userId, tx);
+      const user = await new UserService(tx).getUserById(userId);
       if (!user) throw new Error("User not found");
       const amount = credits * price.amountPerCredit;
       const fiatTransaction = await createFiatTransaction(
@@ -83,7 +83,7 @@ export async function getPromotionCode(
   metadata?: Record<string, string>,
 ): Promise<Stripe.PromotionCode | null> {
   await verifyUserId(userId);
-  const user = await retrieveUserById(userId);
+  const user = await new UserService().getUserById(userId);
   if (!user) {
     throw new Error("User not found");
   }

@@ -10,5 +10,4 @@ export * from "./member";
 export * from "./organization";
 export { default as prisma } from "./prisma";
 export * from "./tag";
-export * from "./user";
 export * from "./utmAttribution";

@@ -9,6 +9,9 @@ import { UnAuthenticatedError } from "./errors";
 
 export async function getSession(): Promise<Session | null> {
   const session = await auth.api.getSession({
+    query: {
+      disableCookieCache: true,
+    },
     headers: await headers(),
   });
 

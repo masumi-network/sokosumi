@@ -8,6 +8,7 @@ import {
   updateFiatTransactionStatusToSucceeded,
 } from "@/lib/db/repositories";
 import { constructEvent } from "@/lib/services";
+import { UserService } from "@/lib/services/user.service";
 import { FiatTransactionStatus } from "@/prisma/generated/client";
 
 export async function POST(req: Request) {
@@ -89,22 +90,30 @@ const handleCustomerCreatedEvent = async (customer: Stripe.Customer) => {
       { status: 500 },
     );
   }
-  const user = await prisma.user.update({
-    where: { email },
-    data: { stripeCustomerId: customer.id },
-  });
+  const userService = new UserService();
+  let user = await userService.getUserByEmail(email);
   if (!user) {
     return NextResponse.json(
-      { message: `User not found for email: ${email}` },
+      { message: `User with email ${email} not found` },
+      { status: 404 },
+    );
+  }
+  try {
+    user = await userService.setUserStripeCustomerId(user.id, customer.id);
+    return NextResponse.json(
+      {
+        message: `User ${user.id} / ${user.email} updated with stripe customer id: ${customer.id}`,
+      },
+      { status: 200 },
+    );
+  } catch {
+    return NextResponse.json(
+      {
+        message: `User with email ${email} not updated with stripe customer id: ${customer.id}`,
+      },
       { status: 500 },
     );
   }
-  return NextResponse.json(
-    {
-      message: `User ${user.id} updated with stripe customer id: ${customer.id}`,
-    },
-    { status: 200 },
-  );
 };
 
 const checkPaymentStatus = (session: Stripe.Checkout.Session) => {
