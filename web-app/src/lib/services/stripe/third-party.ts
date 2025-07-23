@@ -118,6 +118,7 @@ export async function createCheckoutSession(
     ...(user.stripeCustomerId
       ? { customer: user.stripeCustomerId }
       : { customer_email: user.email, customer_creation: "always" }),
+    metadata: { userId: user.id },
     billing_address_collection: "required",
     success_url: `${origin}/app/billing/success?session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${origin}/app/billing/cancel`,
@@ -140,8 +141,11 @@ export async function createCustomer(
   user: User,
   tx: Prisma.TransactionClient,
 ): Promise<string> {
-  const customer = await stripe.customers.create({ email: user.email });
-  await new UserService(tx).setUserStripeCustomerId(user.email, customer.id);
+  const customer = await stripe.customers.create({
+    email: user.email,
+    metadata: { userId: user.id },
+  });
+  await new UserService(tx).setUserStripeCustomerId(user.id, customer.id);
   return customer.id;
 }
 

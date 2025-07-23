@@ -46,22 +46,32 @@ export class UserService {
   }
 
   /**
-   * Updates the Stripe customer ID for a user identified by their email address.
+   * Retrieves a user by their email address.
+   *
+   * @param email - The email address of the user.
+   * @returns A promise that resolves to the User object if found, or null if not found.
+   */
+  async getUserByEmail(email: string): Promise<User | null> {
+    return this.client.user.findUnique({ where: { email } });
+  }
+
+  /**
+   * Updates the Stripe customer ID for a user identified by their ID.
    *
    * This method is typically used to associate or disassociate a Stripe customer
    * with a user in the system.
    *
-   * @param email - The email address of the user to update.
+   * @param userId - The ID of the user to update.
    * @param stripeCustomerId - The Stripe customer ID to associate with the user, or null to remove it.
    * @returns A promise that resolves to the updated User object.
    * @throws Will throw an error if the user with the specified email does not exist.
    */
   async setUserStripeCustomerId(
-    email: string,
+    userId: string,
     stripeCustomerId: string | null,
   ): Promise<User> {
     return this.client.user.update({
-      where: { email },
+      where: { id: userId },
       data: { stripeCustomerId },
     });
   }
