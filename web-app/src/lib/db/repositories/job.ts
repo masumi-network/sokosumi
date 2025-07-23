@@ -13,8 +13,8 @@ import {
   jobInclude,
   jobLimitedInclude,
   jobOrderBy,
+  JobStatus,
   JobWithLimitedInformation,
-  JobWithRelations,
   JobWithStatus,
 } from "@/lib/db/types";
 import { JobInputSchemaType } from "@/lib/job-input";
@@ -29,7 +29,7 @@ import {
 import { retrieveCreditTransactionByJobId } from "./creditTransaction";
 import prisma from "./prisma";
 
-function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
+function mapJobWithStatus<T extends Job>(job: T): T & { status: JobStatus } {
   return {
     ...job,
     status: computeJobStatus(job),
