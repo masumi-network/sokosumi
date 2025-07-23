@@ -1,12 +1,13 @@
 import { nanoid } from "nanoid";
 import slugify from "slugify";
 
+import { getSession } from "@/lib/auth/utils";
 import {
   organizationInclude,
   organizationOrderBy,
   OrganizationWithInclude,
 } from "@/lib/db/types";
-import { Prisma } from "@/prisma/generated/client";
+import { Organization, Prisma } from "@/prisma/generated/client";
 
 import { BaseService } from "./base.service";
 
@@ -139,5 +140,16 @@ export class OrganizationService extends BaseService<OrganizationService> {
 
     const uniqueId = nanoid(6);
     return `${slugedName}-${uniqueId}`;
+  }
+
+  async getActiveOrganization(): Promise<Organization | null> {
+    const session = await getSession();
+    if (!session) {
+      return null;
+    }
+    if (!session.session.activeOrganizationId) {
+      return null;
+    }
+    return await this.getOrganizationById(session.session.activeOrganizationId);
   }
 }

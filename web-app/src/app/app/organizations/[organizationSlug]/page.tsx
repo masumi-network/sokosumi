@@ -6,7 +6,6 @@ import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import { MemberRole } from "@/lib/db";
 import {
-  getOrganizationMembersWithUser,
   getOrganizationPendingInvitations,
   MemberService,
   OrganizationService,
@@ -58,15 +57,15 @@ export default async function OrganizationPage({
   if (!organization) {
     return notFound();
   }
-
-  const member = await MemberService.getInstance().getMyMemberInOrganization(
-    organization.id,
-  );
+  const memberService = MemberService.getInstance();
+  const member = await memberService.getMyMemberInOrganization(organization.id);
   if (!member) {
     redirect("/app/organizations");
   }
 
-  const members = await getOrganizationMembersWithUser(organization.id, true);
+  const members = await memberService.getMembersWithUser({
+    organizationId: organization.id,
+  });
 
   let pendingInvitations: Invitation[] = [];
   if (member.role === MemberRole.ADMIN) {

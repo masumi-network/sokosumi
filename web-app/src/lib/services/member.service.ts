@@ -28,7 +28,7 @@ export class MemberService extends BaseService<MemberService> {
       limit: number;
     } = {
       page: 1,
-      limit: 10,
+      limit: 100,
     },
   ): Promise<MemberWithUser[]> {
     return this.client.member.findMany({

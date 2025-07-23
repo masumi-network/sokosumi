@@ -4,10 +4,10 @@ import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
 import {
-  getActiveOrganization,
   getOrganizationCredits,
   getUserCredits,
   getWelcomePromotionCode,
+  OrganizationService,
   UserService,
 } from "@/lib/services";
 
@@ -28,7 +28,8 @@ export default async function UserCredits() {
   }
 
   // Check for active organization
-  const activeOrganization = await getActiveOrganization();
+  const activeOrganization =
+    await OrganizationService.getInstance().getActiveOrganization();
 
   // Get appropriate credits based on context
   let credits: number;
