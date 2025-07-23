@@ -8,6 +8,7 @@ import {
   updateFiatTransactionStatusToSucceeded,
 } from "@/lib/db/repositories";
 import { constructEvent } from "@/lib/services";
+import { UserService } from "@/lib/services/user.service";
 import { FiatTransactionStatus } from "@/prisma/generated/client";
 
 export async function POST(req: Request) {
@@ -89,10 +90,10 @@ const handleCustomerCreatedEvent = async (customer: Stripe.Customer) => {
       { status: 500 },
     );
   }
-  const user = await prisma.user.update({
-    where: { email },
-    data: { stripeCustomerId: customer.id },
-  });
+  const user = await new UserService().setUserStripeCustomerId(
+    email,
+    customer.id,
+  );
   if (!user) {
     return NextResponse.json(
       { message: `User not found for email: ${email}` },
