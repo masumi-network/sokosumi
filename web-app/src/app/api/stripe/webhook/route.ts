@@ -83,22 +83,25 @@ export async function POST(req: Request) {
 }
 
 const handleCustomerCreatedEvent = async (customer: Stripe.Customer) => {
-  const userId = customer.metadata.userId;
-  if (!userId) {
+  const email = customer.email;
+  if (!email) {
     return NextResponse.json(
-      {
-        message: `Customer metadata userId not found for customer: ${customer.id}`,
-      },
+      { message: `Customer email not found for customer: ${customer.id}` },
       { status: 500 },
     );
   }
-  const user = await new UserService().setUserStripeCustomerId(
-    userId,
-    customer.id,
-  );
+  const userService = new UserService();
+  let user = await userService.getUserByEmail(email);
   if (!user) {
     return NextResponse.json(
-      { message: `User not found for userId: ${userId}` },
+      { message: `User not found for email: ${email}` },
+      { status: 500 },
+    );
+  }
+  user = await userService.setUserStripeCustomerId(user.id, customer.id);
+  if (!user) {
+    return NextResponse.json(
+      { message: `User not updated for email: ${email}` },
       { status: 500 },
     );
   }
