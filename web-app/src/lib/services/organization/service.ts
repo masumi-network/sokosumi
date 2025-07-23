@@ -1,53 +1,14 @@
 import "server-only";
 
 import { getSessionOrThrow } from "@/lib/auth/utils";
-import { MemberRole, MemberWithOrganization } from "@/lib/db";
+import { MemberRole } from "@/lib/db";
 import {
   retrieveMemberByUserIdAndOrganizationId,
-  retrieveMembersWithOrganizationByUserId,
   retrieveMembersWithUser,
   retrievePendingInvitationsByOrganizationId,
 } from "@/lib/db/repositories";
 import { OrganizationService } from "@/lib/services";
-import { Invitation, Member } from "@/prisma/generated/client";
-
-/**
- * Retrieves all organization memberships for the currently authenticated user.
- *
- * - Fetches the current session and extracts the user ID.
- * - Returns a list of member records, each including associated organization data.
- *
- * @returns A promise that resolves to an array of MemberWithOrganization objects for the current user.
- */
-export async function listMyMembers(): Promise<MemberWithOrganization[]> {
-  const session = await getSessionOrThrow();
-  const userId = session.user.id;
-
-  return await retrieveMembersWithOrganizationByUserId(userId);
-}
-
-/**
- * Retrieves the membership record for the currently authenticated user in a specific organization.
- *
- * - Fetches the current session and extracts the user ID.
- * - Queries the database for a member record that matches the user ID and organization ID.
- *
- * @param organizationId - The ID of the organization to check for membership.
- * @returns A promise that resolves to the Member record if found, or null if not found.
- */
-export async function getMyMemberInOrganization(
-  organizationId: string,
-): Promise<Member | null> {
-  const session = await getSessionOrThrow();
-  const userId = session.user.id;
-
-  const member = await retrieveMemberByUserIdAndOrganizationId(
-    userId,
-    organizationId,
-  );
-
-  return member;
-}
+import { Invitation } from "@/prisma/generated/client";
 
 /**
  * Retrieves members of an organization, optionally excluding the current user.

@@ -6,7 +6,7 @@ import { ActionError, CommonErrorCode } from "@/lib/actions";
 import { getSession } from "@/lib/auth/utils";
 import { MemberRole } from "@/lib/db";
 import { updateOrganizationInformationFormSchema } from "@/lib/schemas";
-import { getMyMemberInOrganization, OrganizationService } from "@/lib/services";
+import { MemberService, OrganizationService } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import { Prisma } from "@/prisma/generated/client";
 
@@ -33,7 +33,10 @@ export async function updateOrganizationInformation(
     }
 
     // check membership and role
-    const member = await getMyMemberInOrganization(organizationId);
+    const member =
+      await MemberService.getInstance().getMyMemberInOrganization(
+        organizationId,
+      );
     if (!member || member.role !== MemberRole.ADMIN) {
       return Err({
         message: "Unauthorized",

@@ -7,11 +7,11 @@ import { CouponError } from "@/lib/errors/coupon-errors";
 import {
   createStripeCheckoutSession,
   getCreditsForCoupon,
-  getMyMemberInOrganization,
   getPriceFromPriceId,
   getPriceFromProductId,
   getPromotionCode,
   getWelcomePromotionCode,
+  MemberService,
 } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
 
@@ -82,7 +82,10 @@ export async function purchaseCredits(
 
     // Verify user is member of the organization
     if (organizationId) {
-      const member = await getMyMemberInOrganization(organizationId);
+      const member =
+        await MemberService.getInstance().getMyMemberInOrganization(
+          organizationId,
+        );
       if (!member) {
         return Err({
           message: "Unauthorized",
@@ -128,7 +131,10 @@ export async function getFreeCreditsWithCoupon(
 
     // If organizationId is provided, verify user is a member
     if (organizationId) {
-      const member = await getMyMemberInOrganization(organizationId);
+      const member =
+        await MemberService.getInstance().getMyMemberInOrganization(
+          organizationId,
+        );
       if (!member) {
         return Err({
           message: "Unauthorized",

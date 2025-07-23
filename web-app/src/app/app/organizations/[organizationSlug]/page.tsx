@@ -6,9 +6,9 @@ import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import { MemberRole } from "@/lib/db";
 import {
-  getMyMemberInOrganization,
   getOrganizationMembersWithUser,
   getOrganizationPendingInvitations,
+  MemberService,
   OrganizationService,
 } from "@/lib/services";
 import { Invitation } from "@/prisma/generated/client";
@@ -59,7 +59,9 @@ export default async function OrganizationPage({
     return notFound();
   }
 
-  const member = await getMyMemberInOrganization(organization.id);
+  const member = await MemberService.getInstance().getMyMemberInOrganization(
+    organization.id,
+  );
   if (!member) {
     redirect("/app/organizations");
   }

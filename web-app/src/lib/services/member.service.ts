@@ -99,4 +99,16 @@ export class MemberService extends BaseService<MemberService> {
 
     return this.getMembersWithOrganizationByUserId(userId);
   }
+
+  async getMyMemberInOrganization(
+    organizationId: string,
+  ): Promise<Member | null> {
+    const session = await getSession();
+    if (!session) {
+      return null;
+    }
+    const userId = session.user.id;
+
+    return this.getMemberByUserIdAndOrganizationId(userId, organizationId);
+  }
 }
