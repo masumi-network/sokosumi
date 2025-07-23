@@ -100,63 +100,64 @@ const handleCustomerCreatedEvent = async (customer: Stripe.Customer) => {
     );
   }
 
-  // If user already has a Stripe customer ID, this might be a duplicate
+  // If user already has a different Stripe customer ID, update to the new one
   if (user.stripeCustomerId && user.stripeCustomerId !== customer.id) {
     console.warn(
       `User ${user.id} already has Stripe customer ${user.stripeCustomerId}, ` +
-        `but webhook received new customer ${customer.id}. This might indicate a race condition or duplicate customer creation.`,
+        `but webhook received new customer ${customer.id}. Updating to new customer ID.`,
     );
 
-    // Still update metadata for the new customer for consistency
     try {
-      await updateCustomerMetadata(customer.id, user.id);
-    } catch (metadataError) {
+      user = await userService.setUserStripeCustomerId(user.id, customer.id);
+    } catch (error) {
       console.error(
-        `Failed to update metadata for customer ${customer.id}:`,
-        metadataError,
+        `Error updating user ${user.id} from customer ${user.stripeCustomerId} to ${customer.id}:`,
+        error,
+      );
+      return NextResponse.json(
+        {
+          message: `Failed to update user ${user.id} from customer ${user.stripeCustomerId} to ${customer.id}. This might be due to a unique constraint violation from concurrent customer creation.`,
+        },
+        { status: 500 },
       );
     }
-
-    return NextResponse.json(
-      {
-        message: `User ${user.id} already has Stripe customer ${user.stripeCustomerId}. New customer ${customer.id} not associated but metadata updated.`,
-      },
-      { status: 200 },
-    );
   }
 
+  // Update the database association if user doesn't have a Stripe customer ID
+  if (!user.stripeCustomerId) {
+    try {
+      user = await userService.setUserStripeCustomerId(user.id, customer.id);
+    } catch (error) {
+      console.error(
+        `Error updating user ${user.id} with customer ${customer.id}:`,
+        error,
+      );
+      return NextResponse.json(
+        {
+          message: `User with email ${email} not updated with stripe customer id: ${customer.id}. This might be due to a unique constraint violation from concurrent customer creation.`,
+        },
+        { status: 500 },
+      );
+    }
+  }
+
+  // Update metadata for the customer (this is non-critical and shouldn't cause webhook failure)
   try {
-    user = await userService.setUserStripeCustomerId(user.id, customer.id);
     await updateCustomerMetadata(customer.id, user.id);
-    return NextResponse.json(
-      {
-        message: `User ${user.id} / ${user.email} updated with stripe customer id: ${customer.id}`,
-      },
-      { status: 200 },
-    );
-  } catch (error) {
+  } catch (metadataError) {
     console.error(
-      `Error updating user ${user.id} with customer ${customer.id}:`,
-      error,
+      `Failed to update metadata for customer ${customer.id}:`,
+      metadataError,
     );
-
-    // Try to update metadata even if the database update failed
-    try {
-      await updateCustomerMetadata(customer.id, user.id);
-    } catch (metadataError) {
-      console.error(
-        `Failed to update metadata for customer ${customer.id}:`,
-        metadataError,
-      );
-    }
-
-    return NextResponse.json(
-      {
-        message: `User with email ${email} not updated with stripe customer id: ${customer.id}. This might be due to a unique constraint violation from concurrent customer creation.`,
-      },
-      { status: 500 },
-    );
+    // Don't return error - metadata update failure shouldn't cause webhook to fail
   }
+
+  return NextResponse.json(
+    {
+      message: `User ${user.id} / ${user.email} associated with stripe customer id: ${customer.id}`,
+    },
+    { status: 200 },
+  );
 };
 
 const checkPaymentStatus = (session: Stripe.Checkout.Session) => {
