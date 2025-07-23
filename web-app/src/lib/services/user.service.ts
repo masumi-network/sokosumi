@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getSessionOrThrow } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/utils";
 import prisma from "@/lib/db/repositories/prisma";
 import { Prisma, User } from "@/prisma/generated/client";
 
@@ -29,7 +29,10 @@ export class UserService {
    * @throws Will throw an error if no valid session is found.
    */
   async getMe(): Promise<User | null> {
-    const session = await getSessionOrThrow();
+    const session = await getSession();
+    if (!session?.user) {
+      return null;
+    }
     return this.client.user.findUnique({ where: { id: session.user.id } });
   }
 
