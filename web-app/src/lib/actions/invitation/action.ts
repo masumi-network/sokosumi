@@ -9,7 +9,6 @@ import { getSession } from "@/lib/auth/utils";
 import { MemberRole } from "@/lib/db";
 import {
   acceptValidPendingInvitationById,
-  createMember,
   prisma,
   rejectValidPendingInvitationById,
   retrievePendingInvitationById,
@@ -78,7 +77,11 @@ export async function acceptInvitation(
       }
 
       // create organization member
-      await createMember(userId, organizationId, MemberRole.MEMBER, tx);
+      await memberService.createMember(
+        userId,
+        organizationId,
+        MemberRole.MEMBER,
+      );
     });
 
     return Ok();
