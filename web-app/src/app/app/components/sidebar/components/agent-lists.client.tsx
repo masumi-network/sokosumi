@@ -2,9 +2,8 @@
 
 import { SquareTerminal } from "lucide-react";
 import Link from "next/link";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useCallback } from "react";
 
 import {
   SidebarGroup,
@@ -14,9 +13,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import useJobStatusEvent from "@/hooks/use-job-status-event";
 import { AgentWithAvailability, getAgentName, JobWithStatus } from "@/lib/db";
-import { PayloadSchemaType } from "@/lib/db/listener/schema";
 import { cn } from "@/lib/utils";
 
 import AgentJobStatusIndicator from "./agent-job-status-indicator";
@@ -35,23 +32,9 @@ export default function AgentListsClient({
   agentLists,
 }: AgentListsClientProps) {
   const t = useTranslations("App.Sidebar.Content.AgentLists");
-  const router = useRouter();
 
   // [agentId] in params
   const { agentId } = useParams();
-
-  const handleJobStatusEvent = useCallback(
-    (_event: PayloadSchemaType) => {
-      // NOTE:
-      // for now just revalidate the app path
-      // this will re-fetch all agent lists with latest jobs
-
-      router.refresh();
-    },
-    [router],
-  );
-
-  useJobStatusEvent(handleJobStatusEvent);
 
   return (
     <>
