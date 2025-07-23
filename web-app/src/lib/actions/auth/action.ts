@@ -15,17 +15,14 @@ import {
   acceptValidPendingInvitationById,
   createMember,
   createOrganization,
-  createUTMAttribution,
   prisma,
   retrieveMembersByOrganizationId,
   retrieveOrganizationWithRelationsById,
   retrieveValidPendingInvitationById,
 } from "@/lib/db/repositories";
 import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
-import {
-  generateOrganizationSlugFromName,
-  getUTMDataFromCookie,
-} from "@/lib/services";
+import { generateOrganizationSlugFromName } from "@/lib/services";
+import { UTMService } from "@/lib/services/utm.service";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import { getEmailDomain, removePublicDomains } from "@/lib/utils";
 import { Member, Organization } from "@/prisma/generated/client";
@@ -201,9 +198,14 @@ export async function signUpEmail(
     // create utm attribution (after main db transaction is committed)
     // without throwing error if it fails
     try {
-      const utmData = await getUTMDataFromCookie();
+      const utmService = new UTMService();
+      const utmData = await utmService.getUTMDataFromCookie();
       if (utmData) {
-        await createUTMAttribution(result.user.id, utmData, new Date());
+        await utmService.createUTMAttribution(
+          result.user.id,
+          utmData,
+          new Date(),
+        );
       }
 
       // remove utm cookie (whether it is set or not)
