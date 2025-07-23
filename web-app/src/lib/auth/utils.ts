@@ -33,7 +33,11 @@ export async function getSessionOrThrow(): Promise<Session> {
 }
 
 export async function verifyUserId(userId: string): Promise<boolean> {
-  const session = await getSessionOrThrow();
+  const session = await getSession();
+  if (!session) {
+    console.error("Session not found");
+    return false;
+  }
   if (session.user.id !== userId) {
     console.error(
       `UserId ${userId} does not match session user id ${session.user.id}`,
