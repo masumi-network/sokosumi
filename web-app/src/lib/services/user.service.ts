@@ -1,3 +1,5 @@
+import "server-only";
+
 import { getSessionOrThrow } from "@/lib/auth/utils";
 import prisma from "@/lib/db/repositories/prisma";
 import { Prisma, User } from "@/prisma/generated/client";
