@@ -16,12 +16,11 @@ import {
   retrieveAgentWithRelationsById,
   retrieveAllCreditCosts,
   retrieveHiredAgentsWithJobsByUserIdAndOrganization,
-  retrieveMembersOrganizationIdsByUserId,
   retrieveShownAgentsWithRelationsByStatus,
   retrieveShownAgentWithRelationById,
 } from "@/lib/db/repositories";
 import { JobInputsDataSchemaType } from "@/lib/job-input";
-import { getAgentCreditsPrice } from "@/lib/services";
+import { getAgentCreditsPrice, MemberService } from "@/lib/services";
 import {
   AgentListType,
   AgentStatus,
@@ -107,7 +106,9 @@ async function getAgentAccessContext(
   const creditCosts = await retrieveAllCreditCosts(tx);
   const userOrganizationIds =
     session?.user.id && session.user.id !== ""
-      ? await retrieveMembersOrganizationIdsByUserId(session.user.id, tx)
+      ? await MemberService.getInstance(tx).getMembersOrganizationIdsByUserId(
+          session.user.id,
+        )
       : [];
   return { userOrganizationIds, creditCosts };
 }
