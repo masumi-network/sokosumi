@@ -90,24 +90,25 @@ const handleCustomerCreatedEvent = async (customer: Stripe.Customer) => {
       { status: 500 },
     );
   }
-  const userService = new UserService();
-  let user = await userService.getUserByEmail(email);
+  const user = await prisma.$transaction(async (tx) => {
+    const userService = new UserService(tx);
+    const user = await userService.getUserByEmail(email);
+    if (!user) {
+      return null;
+    }
+    return await userService.setUserStripeCustomerId(user.id, customer.id);
+  });
   if (!user) {
     return NextResponse.json(
-      { message: `User not found for email: ${email}` },
-      { status: 500 },
-    );
-  }
-  user = await userService.setUserStripeCustomerId(user.id, customer.id);
-  if (!user) {
-    return NextResponse.json(
-      { message: `User not updated for email: ${email}` },
+      {
+        message: `User with email ${email} not updated with stripe customer id: ${customer.id}`,
+      },
       { status: 500 },
     );
   }
   return NextResponse.json(
     {
-      message: `User ${user.id} updated with stripe customer id: ${customer.id}`,
+      message: `User ${user.id} / ${user.email} updated with stripe customer id: ${customer.id}`,
     },
     { status: 200 },
   );
