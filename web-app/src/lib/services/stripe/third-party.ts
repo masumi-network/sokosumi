@@ -136,31 +136,40 @@ export async function constructEvent(req: Request, stripeSignature: string) {
   );
 }
 
-export async function createCustomer(user: User): Promise<string> {
-  const customer = await stripe.customers.create({
-    email: user.email,
-  });
-  await new UserService().setUserStripeCustomerId(user.id, customer.id);
-  return customer.id;
-}
-
 export async function getOrCreatePromotionCode(
-  customerId: string,
+  userId: string,
   couponId: string,
   maxRedemptions: number = 1,
   metadata?: Record<string, string>,
 ): Promise<Stripe.PromotionCode | null> {
   try {
+    const userService = new UserService();
+    let user = await userService.getUserById(userId);
+    if (!user) {
+      return null;
+    }
+    if (!user.stripeCustomerId) {
+      const customer = await stripe.customers.create({
+        email: user.email,
+        metadata: {
+          userId: user.id,
+        },
+      });
+      user = await userService.setUserStripeCustomerId(user.id, customer.id);
+    }
+    if (!user.stripeCustomerId) {
+      return null;
+    }
     const promotionCodes = await stripe.promotionCodes.list({
       coupon: couponId,
-      customer: customerId,
+      customer: user.stripeCustomerId,
       limit: 1,
     });
     if (promotionCodes.data.length > 0) {
       return promotionCodes.data[0];
     }
     const promotionCode = await stripe.promotionCodes.create({
-      customer: customerId,
+      customer: user.stripeCustomerId,
       coupon: couponId,
       max_redemptions: maxRedemptions,
       metadata,
@@ -179,4 +188,15 @@ export async function getCouponById(
   } catch {
     return null;
   }
+}
+
+export async function updateCustomerMetadata(
+  customerId: string,
+  userId: string,
+): Promise<void> {
+  await stripe.customers.update(customerId, {
+    metadata: {
+      userId: userId,
+    },
+  });
 }

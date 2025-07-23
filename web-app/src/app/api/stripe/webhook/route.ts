@@ -7,7 +7,7 @@ import {
   updateFiatTransactionStatusToFailed,
   updateFiatTransactionStatusToSucceeded,
 } from "@/lib/db/repositories";
-import { constructEvent } from "@/lib/services";
+import { constructEvent, updateCustomerMetadata } from "@/lib/services";
 import { UserService } from "@/lib/services/user.service";
 import { FiatTransactionStatus } from "@/prisma/generated/client";
 
@@ -100,6 +100,7 @@ const handleCustomerCreatedEvent = async (customer: Stripe.Customer) => {
   }
   try {
     user = await userService.setUserStripeCustomerId(user.id, customer.id);
+    await updateCustomerMetadata(customer.id, user.id);
     return NextResponse.json(
       {
         message: `User ${user.id} / ${user.email} updated with stripe customer id: ${customer.id}`,
