@@ -4,7 +4,7 @@ import { headers } from "next/headers";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
-import { UserService } from "@/lib/services/user.service";
+import { UserService } from "@/lib/services";
 import { FiatTransaction, User } from "@/prisma/generated/client";
 
 const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);

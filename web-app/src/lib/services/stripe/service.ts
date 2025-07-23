@@ -15,7 +15,7 @@ import {
   CouponNotFoundError,
   CouponTypeError,
 } from "@/lib/errors/coupon-errors";
-import { UserService } from "@/lib/services/user.service";
+import { UserService } from "@/lib/services";
 
 import {
   createCheckoutSession,

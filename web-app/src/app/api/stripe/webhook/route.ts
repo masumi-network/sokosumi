@@ -7,8 +7,7 @@ import {
   updateFiatTransactionStatusToFailed,
   updateFiatTransactionStatusToSucceeded,
 } from "@/lib/db/repositories";
-import { constructEvent } from "@/lib/services";
-import { UserService } from "@/lib/services/user.service";
+import { constructEvent, UserService } from "@/lib/services";
 import { FiatTransactionStatus } from "@/prisma/generated/client";
 
 export async function POST(req: Request) {

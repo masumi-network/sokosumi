@@ -21,8 +21,7 @@ import {
   retrieveValidPendingInvitationById,
 } from "@/lib/db/repositories";
 import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
-import { generateOrganizationSlugFromName } from "@/lib/services";
-import { UTMService } from "@/lib/services/utm.service";
+import { generateOrganizationSlugFromName, UTMService } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import { getEmailDomain, removePublicDomains } from "@/lib/utils";
 import { Member, Organization } from "@/prisma/generated/client";

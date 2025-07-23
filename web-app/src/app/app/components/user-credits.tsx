@@ -8,8 +8,8 @@ import {
   getOrganizationCredits,
   getUserCredits,
   getWelcomePromotionCode,
+  UserService,
 } from "@/lib/services";
-import { UserService } from "@/lib/services/user.service";
 
 import FreeCreditsButton from "./free-credits-button";
 
