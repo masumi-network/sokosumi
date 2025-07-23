@@ -36,7 +36,7 @@ export async function createStripeCheckoutSession(
   await verifyUserId(userId);
   return await prisma.$transaction(async (tx) => {
     try {
-      const user = await UserService.createInstance(tx).getUserById(userId);
+      const user = await UserService.getInstance(tx).getUserById(userId);
       if (!user) throw new Error("User not found");
       const amount = credits * price.amountPerCredit;
       const fiatTransaction = await createFiatTransaction(

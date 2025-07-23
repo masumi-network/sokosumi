@@ -143,12 +143,7 @@ export async function createCustomer(
   const customer = await stripe.customers.create({
     email: user.email,
   });
-  let userService: UserService;
-  if (tx) {
-    userService = UserService.createInstance(tx);
-  } else {
-    userService = UserService.getInstance();
-  }
+  const userService = UserService.getInstance(tx);
   await userService.setUserStripeCustomerId(user.id, customer.id);
   return customer.id;
 }
