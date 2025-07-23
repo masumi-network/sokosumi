@@ -2,10 +2,10 @@ import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { AgentsNotAvailable } from "@/components/agents";
-import { retrieveTags } from "@/lib/db/repositories";
 import {
   getAvailableAgentsWithCreditsPrice,
   getFavoriteAgents,
+  TagService,
 } from "@/lib/services";
 import { Tag } from "@/prisma/generated/client";
 
@@ -28,7 +28,7 @@ export default async function GalleryPage() {
     return <AgentsNotAvailable />;
   }
 
-  const tags: Tag[] = await retrieveTags();
+  const tags: Tag[] = await TagService.getInstance().getActiveTags();
   const tagNames = tags.map((tag) => tag.name);
 
   const favoriteAgents = await getFavoriteAgents();
