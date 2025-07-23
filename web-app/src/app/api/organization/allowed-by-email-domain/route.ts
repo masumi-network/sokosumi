@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { retrieveOrganizationsByEmailDomain } from "@/lib/db/repositories/organization";
+import { OrganizationService } from "@/lib/services/organization.service";
 import { getEmailDomain } from "@/lib/utils/email";
 
 export async function GET(req: NextRequest) {
@@ -22,7 +22,9 @@ export async function GET(req: NextRequest) {
   }
 
   const allowedOrganizations =
-    await retrieveOrganizationsByEmailDomain(emailDomain);
+    await OrganizationService.getInstance().getOrganizationsByEmailDomain(
+      emailDomain,
+    );
   return NextResponse.json({
     allowedOrganizations,
   });
