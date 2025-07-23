@@ -550,3 +550,26 @@ model CreditCost {
   unit         String   @unique
   centsPerUnit BigInt
 }
+
+// For Ably LiveSync
+model Nodes {
+  id     String   @id @default(cuid())
+  expiry DateTime @db.Timestamp(6)
+
+  @@map("nodes")
+}
+
+model Outbox {
+  sequence_id Int       @id @default(autoincrement())
+  mutation_id String
+  channel     String
+  name        String
+  rejected    Boolean   @default(false)
+  data        Json?
+  headers     Json?
+  locked_by   String?
+  lock_expiry DateTime? @db.Timestamp(6)
+  processed   Boolean   @default(false)
+
+  @@map("outbox")
+}
