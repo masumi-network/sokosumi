@@ -13,13 +13,15 @@ import { auth } from "@/lib/auth/auth";
 import { MemberRole } from "@/lib/db";
 import {
   acceptValidPendingInvitationById,
-  createMember,
   prisma,
-  retrieveMembersByOrganizationId,
   retrieveValidPendingInvitationById,
 } from "@/lib/db/repositories";
 import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
-import { generateOrganizationSlugFromName, UTMService } from "@/lib/services";
+import {
+  generateOrganizationSlugFromName,
+  MemberService,
+  UTMService,
+} from "@/lib/services";
 import { OrganizationService } from "@/lib/services/organization.service";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import { getEmailDomain, removePublicDomains } from "@/lib/utils";
@@ -182,12 +184,16 @@ export async function signUpEmail(
         code: AuthErrorCode.MEMBER_CREATE_FAILED,
         message: "Member creation failed",
       };
-      const members = await retrieveMembersByOrganizationId(
+      const memberService = MemberService.getInstance(tx);
+      const members = await memberService.getMembersByOrganizationId(
         organization.id,
-        tx,
       );
       const role = members.length === 0 ? MemberRole.ADMIN : MemberRole.MEMBER;
-      const member = await createMember(user.id, organization.id, role, tx);
+      const member = await memberService.createMember(
+        user.id,
+        organization.id,
+        role,
+      );
 
       return { organization, user, member };
     });

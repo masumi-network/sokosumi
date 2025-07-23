@@ -3,6 +3,7 @@ export { BaseService } from "./base.service";
 export * from "./credit";
 export * from "./invitation";
 export * from "./job";
+export { MemberService } from "./member.service";
 export * from "./organization";
 export { OrganizationService } from "./organization.service";
 export * from "./stripe";
