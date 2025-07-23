@@ -17,11 +17,7 @@ import {
   retrieveValidPendingInvitationById,
 } from "@/lib/db/repositories";
 import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
-import {
-  generateOrganizationSlugFromName,
-  MemberService,
-  UTMService,
-} from "@/lib/services";
+import { MemberService, UTMService } from "@/lib/services";
 import { OrganizationService } from "@/lib/services/organization.service";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import { getEmailDomain, removePublicDomains } from "@/lib/utils";
@@ -96,17 +92,17 @@ export async function signUpEmail(
           throw new Error("Email domain is invalid");
         }
         const requiredEmailDomains = removePublicDomains([emailDomain]);
-        const slug = await generateOrganizationSlugFromName(
+        const organizationService = OrganizationService.getInstance(tx);
+        const slug = await organizationService.generateOrganizationSlugFromName(
           parsed.selectedOrganization.name,
         );
 
-        const createdOrganization = await OrganizationService.getInstance(
-          tx,
-        ).createOrganization(
-          slug,
-          parsed.selectedOrganization.name,
-          requiredEmailDomains,
-        );
+        const createdOrganization =
+          await organizationService.createOrganization(
+            slug,
+            parsed.selectedOrganization.name,
+            requiredEmailDomains,
+          );
         if (!createdOrganization) {
           actionError = {
             code: AuthErrorCode.ORGANIZATION_CREATE_FAILED,
