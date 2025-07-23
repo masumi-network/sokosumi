@@ -12,9 +12,9 @@ import {
   createMember,
   prisma,
   rejectValidPendingInvitationById,
-  retrieveMemberByUserIdAndOrganizationId,
   retrievePendingInvitationById,
 } from "@/lib/db/repositories";
+import { MemberService } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
 
 export async function acceptInvitation(
@@ -47,11 +47,12 @@ export async function acceptInvitation(
       const { organizationId, inviterId } = invitation;
 
       // check inviter member
-      const inviterMember = await retrieveMemberByUserIdAndOrganizationId(
-        inviterId,
-        organizationId,
-        tx,
-      );
+      const memberService = MemberService.getInstance(tx);
+      const inviterMember =
+        await memberService.getMemberByUserIdAndOrganizationId(
+          inviterId,
+          organizationId,
+        );
       if (!inviterMember) {
         actionError = {
           message: "Inviter member not found",
@@ -64,10 +65,9 @@ export async function acceptInvitation(
       await acceptValidPendingInvitationById(invitationId, tx);
 
       // check if user is already member
-      const member = await retrieveMemberByUserIdAndOrganizationId(
+      const member = await memberService.getMemberByUserIdAndOrganizationId(
         userId,
         organizationId,
-        tx,
       );
       if (member) {
         actionError = {
@@ -118,11 +118,12 @@ export async function rejectInvitation(
       const { organizationId, inviterId } = invitation;
 
       // check inviter member
-      const inviterMember = await retrieveMemberByUserIdAndOrganizationId(
-        inviterId,
-        organizationId,
-        tx,
-      );
+      const memberService = MemberService.getInstance(tx);
+      const inviterMember =
+        await memberService.getMemberByUserIdAndOrganizationId(
+          inviterId,
+          organizationId,
+        );
       if (!inviterMember) {
         actionError = {
           message: "Inviter member not found",

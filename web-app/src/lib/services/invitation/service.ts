@@ -3,10 +3,10 @@ import "server-only";
 import { getSessionOrThrow } from "@/lib/auth/utils";
 import { InvitationWithRelations } from "@/lib/db";
 import {
-  retrieveMemberByUserIdAndOrganizationId,
   retrievePendingInvitationById,
   retrieveValidPendingInvitationsByEmail,
 } from "@/lib/db/repositories";
+import { MemberService } from "@/lib/services";
 
 import { InvitationErrorCode } from "./types";
 
@@ -33,10 +33,11 @@ export async function getPendingInvitation(id: string): Promise<
     };
   }
 
-  const inviterMember = await retrieveMemberByUserIdAndOrganizationId(
-    invitation.inviterId,
-    invitation.organizationId,
-  );
+  const inviterMember =
+    await MemberService.getInstance().getMemberByUserIdAndOrganizationId(
+      invitation.inviterId,
+      invitation.organizationId,
+    );
 
   if (!inviterMember) {
     return {
