@@ -142,6 +142,15 @@ export class OrganizationService extends BaseService<OrganizationService> {
     return `${slugedName}-${uniqueId}`;
   }
 
+  /**
+   * Retrieves the currently active organization for the authenticated user.
+   *
+   * - Fetches the current session.
+   * - Returns null if there is no session or no active organization ID in the session.
+   * - Otherwise, retrieves and returns the organization corresponding to the active organization ID.
+   *
+   * @returns A Promise resolving to the active Organization, or null if not found or not set.
+   */
   async getActiveOrganization(): Promise<Organization | null> {
     const session = await getSession();
     if (!session) {

@@ -5,11 +5,8 @@ import { getTranslations } from "next-intl/server";
 import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import { MemberRole } from "@/lib/db";
-import {
-  getOrganizationPendingInvitations,
-  MemberService,
-  OrganizationService,
-} from "@/lib/services";
+import { MemberService, OrganizationService } from "@/lib/services";
+import { InvitationService } from "@/lib/services/invitation.service";
 import { Invitation } from "@/prisma/generated/client";
 
 import OrganizationInformation from "./components/organization-information";
@@ -70,9 +67,10 @@ export default async function OrganizationPage({
   let pendingInvitations: Invitation[] = [];
   if (member.role === MemberRole.ADMIN) {
     try {
-      pendingInvitations = await getOrganizationPendingInvitations(
-        organization.id,
-      );
+      pendingInvitations =
+        await InvitationService.getInstance().getPendingInvitations(
+          organization.id,
+        );
     } catch (error) {
       console.error("Failed to get pending invitations", error);
     }
