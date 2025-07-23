@@ -83,21 +83,19 @@ export async function getPromotionCode(
   metadata?: Record<string, string>,
 ): Promise<Stripe.PromotionCode | null> {
   await verifyUserId(userId);
-  return await prisma.$transaction(async (tx) => {
-    const user = await new UserService(tx).getUserById(userId);
-    if (!user) {
-      throw new Error("User not found");
-    }
-    let stripeCustomerId = user.stripeCustomerId;
-    stripeCustomerId ??= await createCustomer(user, tx);
+  const user = await new UserService().getUserById(userId);
+  if (!user) {
+    throw new Error("User not found");
+  }
+  let stripeCustomerId = user.stripeCustomerId;
+  stripeCustomerId ??= await createCustomer(user);
 
-    return await getOrCreatePromotionCode(
-      stripeCustomerId,
-      couponId,
-      maxRedemptions,
-      metadata,
-    );
-  });
+  return await getOrCreatePromotionCode(
+    stripeCustomerId,
+    couponId,
+    maxRedemptions,
+    metadata,
+  );
 }
 
 export async function getCreditsForCoupon(

@@ -5,7 +5,7 @@ import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { UserService } from "@/lib/services/user.service";
-import { FiatTransaction, Prisma, User } from "@/prisma/generated/client";
+import { FiatTransaction, User } from "@/prisma/generated/client";
 
 const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
@@ -137,15 +137,12 @@ export async function constructEvent(req: Request, stripeSignature: string) {
   );
 }
 
-export async function createCustomer(
-  user: User,
-  tx: Prisma.TransactionClient,
-): Promise<string> {
+export async function createCustomer(user: User): Promise<string> {
   const customer = await stripe.customers.create({
     email: user.email,
     metadata: { userId: user.id },
   });
-  await new UserService(tx).setUserStripeCustomerId(user.id, customer.id);
+  await new UserService().setUserStripeCustomerId(user.id, customer.id);
   return customer.id;
 }
 
