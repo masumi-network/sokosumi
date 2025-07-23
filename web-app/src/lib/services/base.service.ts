@@ -25,17 +25,6 @@ import { Prisma } from "@/prisma/generated/client";
  */
 export abstract class BaseService<T extends BaseService<T>> {
   /**
-   * WeakMap to store singleton instances for each service class.
-   * WeakMap provides better memory management and cleanup when classes are garbage collected.
-   */
-  private static instances = new WeakMap<
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    new (client: Prisma.TransactionClient) => BaseService<any>,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    BaseService<any>
-  >();
-
-  /**
    * Constructor for creating service instances.
    * While public, instances should typically be created via getInstance() or createInstance().
    * @param client Prisma transaction client for database operations.
@@ -51,10 +40,11 @@ export abstract class BaseService<T extends BaseService<T>> {
   static getInstance<T extends BaseService<T>>(
     this: new (client: Prisma.TransactionClient) => T,
   ): T {
-    if (!BaseService.instances.has(this)) {
-      BaseService.instances.set(this, new this(prisma));
-    }
-    return BaseService.instances.get(this) as T;
+    const constructor = this as unknown as typeof BaseService & {
+      instance?: T;
+    };
+    constructor.instance ??= new this(prisma);
+    return constructor.instance;
   }
 
   /**
@@ -69,24 +59,5 @@ export abstract class BaseService<T extends BaseService<T>> {
     client: Prisma.TransactionClient,
   ): T {
     return new this(client);
-  }
-
-  /**
-   * Reset all singleton instances. Useful for testing.
-   * @internal
-   */
-  static resetAllInstances(): void {
-    // WeakMap doesn't have a clear method, so we create a new instance
-    BaseService.instances = new WeakMap();
-  }
-
-  /**
-   * Reset the singleton instance for a specific service class. Useful for testing.
-   * @internal
-   */
-  static resetInstance<T extends BaseService<T>>(
-    this: new (client: Prisma.TransactionClient) => T,
-  ): void {
-    BaseService.instances.delete(this);
   }
 }
