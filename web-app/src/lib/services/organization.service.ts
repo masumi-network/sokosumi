@@ -32,6 +32,7 @@ export class OrganizationService extends BaseService<OrganizationService> {
     return this.client.organization.findMany({
       where: { requiredEmailDomains: { has: emailDomain } },
       include: { ...organizationMembersCountInclude },
+      orderBy: organizationOrderBy,
     });
   }
 
