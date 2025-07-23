@@ -76,3 +76,16 @@ export class UserService {
     });
   }
 }
+
+/**
+ * Singleton instance of UserService for managing user-related operations.
+ *
+ * Use this exported instance to interact with user data, such as retrieving
+ * the current authenticated user, fetching users by ID or email, and updating
+ * user-related fields (e.g., Stripe customer ID).
+ *
+ * Example:
+ *   import { userService } from "@/lib/services/user.service";
+ *   const user = await userService.getMe();
+ */
+export const userService = new UserService();

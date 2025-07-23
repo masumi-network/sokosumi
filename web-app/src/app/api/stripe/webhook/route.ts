@@ -8,7 +8,7 @@ import {
   updateFiatTransactionStatusToSucceeded,
 } from "@/lib/db/repositories";
 import { constructEvent } from "@/lib/services";
-import { UserService } from "@/lib/services/user.service";
+import { userService } from "@/lib/services/user.service";
 import { FiatTransactionStatus } from "@/prisma/generated/client";
 
 export async function POST(req: Request) {
@@ -90,7 +90,6 @@ const handleCustomerCreatedEvent = async (customer: Stripe.Customer) => {
       { status: 500 },
     );
   }
-  const userService = new UserService();
   let user = await userService.getUserByEmail(email);
   if (!user) {
     return NextResponse.json(
