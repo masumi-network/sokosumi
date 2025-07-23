@@ -6,5 +6,4 @@ export * from "./fiatTransaction";
 export * from "./invitation";
 export * from "./job";
 export * from "./lock";
-export * from "./member";
 export { default as prisma } from "./prisma";
