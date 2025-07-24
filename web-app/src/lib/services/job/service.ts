@@ -4,6 +4,7 @@ import * as Sentry from "@sentry/nextjs";
 import { v4 as uuidv4 } from "uuid";
 
 import { getEnvPublicConfig } from "@/config/env.public";
+import { makeJobStatusUpdateMutation } from "@/lib/ably";
 import { JobError, JobErrorCode } from "@/lib/actions/types/error-codes/job";
 import { postPurchaseResolveBlockchainIdentifier } from "@/lib/api/generated/payment";
 import { getPaymentClient } from "@/lib/api/payment-service.client";
@@ -11,6 +12,7 @@ import { getActiveOrganizationId, getSessionOrThrow } from "@/lib/auth/utils";
 import { computeJobStatus, JobStatus, JobWithStatus } from "@/lib/db";
 import {
   createJob,
+  createOutboxMutation,
   prisma,
   refundJob,
   retrieveAgentWithRelationsById,
@@ -671,6 +673,7 @@ async function resolvePurchaseOfJob(job: Job): Promise<Purchase | null> {
 }
 
 export async function syncJob(job: Job) {
+  const oldJobStatus = computeJobStatus(job);
   if (!job.purchaseId) {
     const purchase = await resolvePurchaseOfJob(job);
     if (purchase) {
@@ -701,6 +704,14 @@ export async function syncJob(job: Job) {
           break;
         default:
           break;
+      }
+
+      // if job status changed, add a record to the outbox table
+      if (jobStatus !== oldJobStatus) {
+        console.log(
+          `Job ${job.id} status changed from ${oldJobStatus} to ${jobStatus}`,
+        );
+        await createOutboxMutation(makeJobStatusUpdateMutation(job), tx);
       }
     },
     {
