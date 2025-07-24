@@ -5,6 +5,7 @@ import { getTranslations } from "next-intl/server";
 import AppLayoutRestrictor from "@/components/app-layout-restrictor";
 import { FooterSections } from "@/components/footer";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import { AblyProvider } from "@/contexts/ably-provider";
 
 import Header from "./components/header";
 import Sidebar from "./components/sidebar";
@@ -30,7 +31,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   const defaultOpen = cookieStore.get("sidebar_state")?.value === "true";
 
   return (
-    <>
+    <AblyProvider>
       <AppLayoutRestrictor />
       <SidebarProvider defaultOpen={defaultOpen}>
         <Sidebar />
@@ -40,6 +41,6 @@ export default async function AppLayout({ children }: AppLayoutProps) {
           <FooterSections className="p-4" />
         </div>
       </SidebarProvider>
-    </>
+    </AblyProvider>
   );
 }

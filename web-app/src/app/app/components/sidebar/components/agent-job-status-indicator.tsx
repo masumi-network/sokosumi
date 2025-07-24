@@ -1,3 +1,5 @@
+"use client";
+
 import { Check, Circle, Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -6,6 +8,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import useJobStatus from "@/hooks/use-job-status";
 import { JobStatus, JobWithStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
@@ -18,11 +21,13 @@ export default function AgentJobStatusIndicator({
   job,
   className,
 }: AgentJobStatusIndicatorProps) {
+  const { jobStatus } = useJobStatus(job.id);
+
   return (
     <Tooltip>
       <TooltipTrigger>
         <AgentJobStatusIndicatorIcon
-          status={job.status}
+          status={jobStatus ?? job.status}
           className={className}
         />
       </TooltipTrigger>

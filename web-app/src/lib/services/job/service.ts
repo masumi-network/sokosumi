@@ -4,7 +4,7 @@ import * as Sentry from "@sentry/nextjs";
 import { v4 as uuidv4 } from "uuid";
 
 import { getEnvPublicConfig } from "@/config/env.public";
-import { makeJobStatusUpdateMutation } from "@/lib/ably";
+import { JobStatusData, makeJobStatusMutation } from "@/lib/ably";
 import { JobError, JobErrorCode } from "@/lib/actions/types/error-codes/job";
 import { postPurchaseResolveBlockchainIdentifier } from "@/lib/api/generated/payment";
 import { getPaymentClient } from "@/lib/api/payment-service.client";
@@ -706,12 +706,22 @@ export async function syncJob(job: Job) {
           break;
       }
 
+      console.log({
+        jobStatus,
+        oldJobStatus,
+      });
       // if job status changed, add a record to the outbox table
       if (jobStatus !== oldJobStatus) {
         console.log(
           `Job ${job.id} status changed from ${oldJobStatus} to ${jobStatus}`,
         );
-        await createOutboxMutation(makeJobStatusUpdateMutation(job), tx);
+        const jobStatusData: JobStatusData = {
+          id: job.id,
+          jobStatus: jobStatus,
+          onChainStatus: job.onChainStatus,
+          agentJobStatus: job.agentJobStatus,
+        };
+        await createOutboxMutation(makeJobStatusMutation(jobStatusData), tx);
       }
     },
     {
