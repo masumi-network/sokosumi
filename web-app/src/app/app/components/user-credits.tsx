@@ -5,16 +5,16 @@ import { getTranslations } from "next-intl/server";
 import { Button } from "@/components/ui/button";
 import {
   getActiveOrganization,
-  getAuthenticatedUser,
   getOrganizationCredits,
   getUserCredits,
   getWelcomePromotionCode,
 } from "@/lib/services";
+import { UserService } from "@/lib/services/user.service";
 
 import FreeCreditsButton from "./free-credits-button";
 
 export default async function UserCredits() {
-  const user = await getAuthenticatedUser();
+  const user = await new UserService().getMe();
   if (!user) {
     redirect("/login");
   }
@@ -50,7 +50,7 @@ export default async function UserCredits() {
   return (
     <div className="flex items-center gap-4">
       {promotionCode?.active && !activeOrganization ? (
-        <FreeCreditsButton />
+        <FreeCreditsButton promotionCode={promotionCode.id} />
       ) : (
         credits <= 50.0 && (
           <Button variant="default" size="sm" asChild>

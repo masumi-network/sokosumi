@@ -45,6 +45,7 @@ model User {
   utmAttribution UTMAttribution?
 
   @@unique([email])
+  @@unique([stripeCustomerId])
   @@map("user")
 }
 

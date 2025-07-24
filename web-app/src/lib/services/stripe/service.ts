@@ -3,12 +3,12 @@ import "server-only";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
+import { UnAuthenticatedError } from "@/lib/auth/errors";
 import { verifyUserId } from "@/lib/auth/utils";
 import { convertCreditsToCents } from "@/lib/db";
 import {
   createFiatTransaction,
   prisma,
-  retrieveUserById,
   updateFiatTransactionServicePaymentId,
 } from "@/lib/db/repositories";
 import {
@@ -16,10 +16,10 @@ import {
   CouponNotFoundError,
   CouponTypeError,
 } from "@/lib/errors/coupon-errors";
+import { UserService } from "@/lib/services/user.service";
 
 import {
   createCheckoutSession,
-  createCustomer,
   getCouponById,
   getOrCreatePromotionCode,
   Price,
@@ -33,10 +33,13 @@ export async function createStripeCheckoutSession(
   price: Price,
   promotionCode: string | null = null,
 ): Promise<{ stripeSessionId: string; url: string }> {
-  await verifyUserId(userId);
+  const isVerified = await verifyUserId(userId);
+  if (!isVerified) {
+    throw new UnAuthenticatedError("User not authorized");
+  }
   return await prisma.$transaction(async (tx) => {
     try {
-      const user = await retrieveUserById(userId, tx);
+      const user = await new UserService(tx).getUserById(userId);
       if (!user) throw new Error("User not found");
       const amount = credits * price.amountPerCredit;
       const fiatTransaction = await createFiatTransaction(
@@ -82,16 +85,17 @@ export async function getPromotionCode(
   maxRedemptions: number = 1,
   metadata?: Record<string, string>,
 ): Promise<Stripe.PromotionCode | null> {
-  await verifyUserId(userId);
-  const user = await retrieveUserById(userId);
+  const isVerified = await verifyUserId(userId);
+  if (!isVerified) {
+    return null;
+  }
+  const user = await new UserService().getUserById(userId);
   if (!user) {
     throw new Error("User not found");
   }
-  let stripeCustomerId = user.stripeCustomerId;
-  stripeCustomerId ??= await createCustomer(user);
 
   return await getOrCreatePromotionCode(
-    stripeCustomerId,
+    user.id,
     couponId,
     maxRedemptions,
     metadata,
