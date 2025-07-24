@@ -27,7 +27,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "3.3.1",
-    "@hey-api/openapi-ts": "0.79.2",
+    "@hey-api/openapi-ts": "0.80.0",
     "@noble/hashes": "1.8.0",
     "@swc/core": "1.13.2",
     "@swc/helpers": "0.5.17",
