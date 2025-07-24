@@ -12,6 +12,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  serverExternalPackages: ["ably"],
 };
 
 const withNextIntl = createNextIntlPlugin();
