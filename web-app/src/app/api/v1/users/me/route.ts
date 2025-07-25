@@ -2,11 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { createApiRoute } from "@/lib/api/v1/middleware";
 import { createApiResponse, requireAuth } from "@/lib/api/v1/utils";
-import { retrieveUserById } from "@/lib/db/repositories/user";
+import { UserService } from "@/lib/services/user.service";
 
 async function getUserProfile(_request: NextRequest): Promise<NextResponse> {
   const session = await requireAuth();
-  const user = await retrieveUserById(session.user.id);
+
+  const userService = new UserService();
+  const user = await userService.getUserById(session.user.id);
 
   if (!user) {
     throw new Error("User not found");
