@@ -1,6 +1,7 @@
 import "server-only";
 
 import { headers } from "next/headers";
+import { redirect } from "next/navigation";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { auth, Session } from "@/lib/auth/auth";
@@ -9,13 +10,25 @@ import { UnAuthenticatedError } from "./errors";
 
 export async function getSession(): Promise<Session | null> {
   const session = await auth.api.getSession({
-    query: {
-      disableCookieCache: true,
-    },
     headers: await headers(),
   });
 
   return session;
+}
+
+export async function getSessionOrRedirect(): Promise<Session> {
+  const session = await getSession();
+  if (session) {
+    return session;
+  }
+
+  // Get the current URL from headers for server-side redirect
+  const headersList = await headers();
+  const pathname = headersList.get("x-pathname") ?? "";
+  const searchParams = headersList.get("x-search-params") ?? "";
+  const currentUrl = pathname + searchParams;
+  const returnUrl = encodeURIComponent(currentUrl);
+  redirect(`/login?returnUrl=${returnUrl}`);
 }
 
 export async function getSessionOrThrow(): Promise<Session> {

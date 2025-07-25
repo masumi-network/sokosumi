@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { JobDetails } from "@/app/agents/[agentId]/jobs/@right/components/job-details";
-import { getSessionOrThrow } from "@/lib/auth/utils";
+import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { retrieveJobById } from "@/lib/db/repositories";
 import { getAgentById } from "@/lib/services";
 
@@ -15,7 +15,8 @@ export default async function JobDetailsPage({
 }: {
   params: Promise<JobDetailsPageParams>;
 }) {
-  const session = await getSessionOrThrow();
+  const session = await getSessionOrRedirect();
+
   const { agentId, jobId } = await params;
 
   const agent = await getAgentById(agentId);
