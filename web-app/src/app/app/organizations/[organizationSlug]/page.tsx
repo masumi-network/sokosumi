@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 
 import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
+import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { MemberRole } from "@/lib/db";
 import { retrieveOrganizationWithRelationsBySlug } from "@/lib/db/repositories";
 import {
@@ -46,6 +47,8 @@ export async function generateMetadata({
 export default async function OrganizationPage({
   params,
 }: OrganizationPageProps) {
+  await getSessionOrRedirect();
+
   const t = await getTranslations("App.Organizations.OrganizationDetail");
   const { organizationSlug } = await params;
 

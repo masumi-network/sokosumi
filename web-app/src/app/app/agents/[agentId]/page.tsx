@@ -5,6 +5,7 @@ import {
   CreateJobModal,
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
+import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { retrieveJobsWithLimitedInformationByAgentId } from "@/lib/db/repositories";
 import {
   getAgentCreditsPrice,
@@ -17,6 +18,8 @@ export default async function AgentDetailPage({
 }: {
   params: Promise<{ agentId: string }>;
 }) {
+  await getSessionOrRedirect();
+
   const { agentId } = await params;
 
   const agent = await getAvailableAgentById(agentId);
