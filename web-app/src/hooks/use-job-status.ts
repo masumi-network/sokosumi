@@ -4,13 +4,18 @@ import ModelsClient, { Model, SyncReturnType } from "@ably-labs/models";
 import { useAbly } from "ably/react";
 import { useEffect, useMemo, useState } from "react";
 
-import { makeJobStatusChannel, mergeJobStatus } from "@/lib/ably";
-import { JobStatus } from "@/lib/db";
+import {
+  JobStatusData,
+  makeJobStatusChannel,
+  mergeJobStatus,
+} from "@/lib/ably";
 
-export type ModelType = Model<(jobId: string) => SyncReturnType<JobStatus>>;
+export type ModelType = Model<(jobId: string) => SyncReturnType<JobStatusData>>;
 
 export default function useJobStatus(jobId: string) {
-  const [jobStatus, setJobStatus] = useState<JobStatus | null>(null);
+  const [jobStatusData, setJobStatusData] = useState<JobStatusData | null>(
+    null,
+  );
   const [model, setModel] = useState<ModelType>();
   const realtimeClient = useAbly();
   const modelsClient = useMemo(
@@ -25,13 +30,16 @@ export default function useJobStatus(jobId: string) {
       channelName: makeJobStatusChannel(jobId),
       sync: async (data) => {
         console.log("sync", data);
-        const response = await fetch(`/api/job/status-sync?jobId=${jobId}`);
+        const response = await fetch(`/api/job/status-data?jobId=${jobId}`);
+        if (!response.ok) {
+          throw new Error("Failed to get job status");
+        }
         const result = (await response.json()) as {
-          jobStatus: JobStatus;
+          jobStatusData: JobStatusData;
           sequenceId: number;
         };
         return {
-          data: result.jobStatus,
+          data: result.jobStatusData,
           sequenceId: result.sequenceId,
         };
       },
@@ -53,9 +61,9 @@ export default function useJobStatus(jobId: string) {
   useEffect(() => {
     if (!model) return;
 
-    const subscribe = (err: Error | null, data: JobStatus | undefined) => {
+    const subscribe = (err: Error | null, data: JobStatusData | undefined) => {
       if (err) return console.error(err);
-      setJobStatus(data ?? null);
+      setJobStatusData(data ?? null);
     };
 
     model.subscribe(subscribe);
@@ -65,5 +73,5 @@ export default function useJobStatus(jobId: string) {
     };
   }, [model]);
 
-  return { jobStatus, model };
+  return { data: jobStatusData, model };
 }

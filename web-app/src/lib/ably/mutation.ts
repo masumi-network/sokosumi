@@ -1,13 +1,11 @@
 import { ConfirmedEvent, OptimisticEvent } from "@ably-labs/models";
 
-import { JobStatus } from "@/lib/db";
-
-import { jobStatusDataSchema } from "./job-status";
+import { JobStatusData, jobStatusDataSchema } from "./job-status";
 
 export function mergeJobStatus(
-  existingState: JobStatus,
+  existingState: JobStatusData,
   event: OptimisticEvent | ConfirmedEvent,
-): JobStatus {
+): JobStatusData {
   // Optimistic and confirmed events use the same merge function logic.
 
   // The models function keeps track of the state before events are applied
@@ -22,5 +20,5 @@ export function mergeJobStatus(
   }
 
   const jobStatusData = parsedResult.data;
-  return jobStatusData.jobStatus;
+  return jobStatusData;
 }

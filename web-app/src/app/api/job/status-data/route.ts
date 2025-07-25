@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import { getNextLatestSequenceId } from "@/lib/db/repositories";
-import { retrieveJobStatus } from "@/lib/db/repositories/job";
+import { retrieveJobStatusData } from "@/lib/services";
 
 export async function GET(req: NextRequest) {
   const jobId = req.nextUrl.searchParams.get("jobId");
@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const jobStatus = await retrieveJobStatus(jobId);
+    const jobStatus = await retrieveJobStatusData(jobId);
     const sequenceId = await getNextLatestSequenceId();
     return NextResponse.json({
       jobStatus,

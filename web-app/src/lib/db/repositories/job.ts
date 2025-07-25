@@ -54,22 +54,6 @@ export async function retrieveJobsByUserId(
 }
 
 /**
- * Retrieves JobStatus for a specific job
- * @param jobId - The unique identifier of the job
- * @returns Promise containing the latest job status
- */
-export async function retrieveJobStatus(
-  jobId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<JobStatus | null> {
-  const job = await tx.job.findUnique({ where: { id: jobId } });
-  if (!job) {
-    return null;
-  }
-  return computeJobStatus(job);
-}
-
-/**
  * Retrieves all jobs associated with a specific agent
  * @param agentId - The unique identifier of the agent
  * @returns Promise containing an array of jobs with their relations

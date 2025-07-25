@@ -873,3 +873,24 @@ export async function getNotFinishedLatestJobsByAgentIds(
     ),
   );
 }
+
+/**
+ * Retrieves JobStatusData for a specific job
+ * @param jobId - The unique identifier of the job
+ * @returns Promise containing the latest job status
+ */
+export async function retrieveJobStatusData(
+  jobId: string,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<JobStatusData | null> {
+  const job = await tx.job.findUnique({ where: { id: jobId } });
+  if (!job) {
+    return null;
+  }
+  return {
+    id: job.id,
+    jobStatus: computeJobStatus(job),
+    onChainStatus: job.onChainStatus,
+    agentJobStatus: job.agentJobStatus,
+  };
+}
