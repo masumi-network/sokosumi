@@ -11,27 +11,18 @@ import {
   getPriceFromPriceId,
   getPriceFromProductId,
   getPromotionCode,
-  getWelcomePromotionCode,
 } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
 
-export async function claimFreeCredits(): Promise<
-  Result<{ url: string }, ActionError>
-> {
+export async function claimFreeCredits(
+  promotionCode: string,
+): Promise<Result<{ url: string }, ActionError>> {
   try {
     const session = await getSession();
     if (!session) {
       return Err({
         message: "Unauthenticated",
         code: CommonErrorCode.UNAUTHENTICATED,
-      });
-    }
-
-    const promotionCode = await getWelcomePromotionCode(session.user.id);
-    if (!promotionCode) {
-      return Err({
-        message: "Promotion code not found",
-        code: BillingErrorCode.PROMOTION_CODE_NOT_FOUND,
       });
     }
 
@@ -45,7 +36,7 @@ export async function claimFreeCredits(): Promise<
       null,
       100,
       price,
-      promotionCode.id,
+      promotionCode,
     );
 
     return Ok({ url });

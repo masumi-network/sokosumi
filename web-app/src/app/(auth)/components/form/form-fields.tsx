@@ -142,7 +142,7 @@ function FormInput<T extends FieldValues>({
   if (name === "selectedOrganization") {
     return (
       <OrganizationFormInput
-        email={email}
+        email={email ?? ""}
         field={field}
         prefilledOrganization={prefilledOrganization}
       />

@@ -4,6 +4,7 @@ import { headers } from "next/headers";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
+import prisma from "@/lib/db/repositories/prisma";
 import { UserService } from "@/lib/services/user.service";
 import { FiatTransaction, User } from "@/prisma/generated/client";
 
@@ -136,37 +137,142 @@ export async function constructEvent(req: Request, stripeSignature: string) {
   );
 }
 
-export async function createCustomer(user: User): Promise<string> {
-  const customer = await stripe.customers.create({
-    email: user.email,
+/**
+ * Atomically gets or creates a Stripe customer for a user.
+ * Handles race conditions by using database transactions and unique constraints.
+ * Also checks Stripe for existing customers to maintain idempotency.
+ *
+ * @param userId - The user ID to get or create a Stripe customer for
+ * @returns The Stripe customer ID, or null if the operation fails
+ */
+export async function getOrCreateStripeCustomer(
+  userId: string,
+): Promise<string | null> {
+  return await prisma.$transaction(async (tx) => {
+    try {
+      const userService = new UserService(tx);
+      let user = await userService.getUserById(userId);
+
+      if (!user) {
+        return null;
+      }
+
+      // If user already has a Stripe customer ID, return it
+      if (user.stripeCustomerId) {
+        return user.stripeCustomerId;
+      }
+
+      // Check if a customer already exists in Stripe for this email
+      // This handles cases where a customer was created outside our system
+      const existingCustomers = await stripe.customers.list({
+        email: user.email,
+        limit: 1,
+      });
+
+      if (existingCustomers.data.length > 0) {
+        const existingCustomer = existingCustomers.data[0];
+        try {
+          // Attempt to associate the existing customer with the user
+          user = await userService.setUserStripeCustomerId(
+            user.id,
+            existingCustomer.id,
+          );
+          return user.stripeCustomerId;
+        } catch (_error) {
+          // If there's a unique constraint violation, another process may have
+          // already associated this customer. Fetch the updated user record.
+          const updatedUser = await userService.getUserById(userId);
+          return updatedUser?.stripeCustomerId ?? null;
+        }
+      }
+
+      // Create a new Stripe customer
+      const customer = await stripe.customers.create({
+        email: user.email,
+        metadata: {
+          userId: user.id,
+        },
+      });
+
+      try {
+        // Attempt to save the customer ID to the database
+        user = await userService.setUserStripeCustomerId(user.id, customer.id);
+        return user.stripeCustomerId;
+      } catch (_error) {
+        // If there's a unique constraint violation, clean up the Stripe customer
+        // and return the existing customer ID from the database
+        try {
+          await stripe.customers.del(customer.id);
+        } catch (cleanupError) {
+          console.warn(
+            `Failed to cleanup duplicate Stripe customer ${customer.id}:`,
+            cleanupError,
+          );
+        }
+
+        // Fetch the updated user record to get the existing customer ID
+        const updatedUser = await userService.getUserById(userId);
+        return updatedUser?.stripeCustomerId ?? null;
+      }
+    } catch (error) {
+      console.error(
+        `Error in getOrCreateStripeCustomer for user ${userId}:`,
+        error,
+      );
+      return null;
+    }
   });
-  await new UserService().setUserStripeCustomerId(user.id, customer.id);
-  return customer.id;
+}
+
+export async function updateStripeCustomerEmail(
+  userId: string,
+  email: string,
+): Promise<void> {
+  const stripeCustomerId = await getOrCreateStripeCustomer(userId);
+  if (!stripeCustomerId) {
+    throw new Error("Stripe customer not found");
+  }
+  await stripe.customers.update(stripeCustomerId, { email });
 }
 
 export async function getOrCreatePromotionCode(
-  customerId: string,
+  userId: string,
   couponId: string,
   maxRedemptions: number = 1,
   metadata?: Record<string, string>,
 ): Promise<Stripe.PromotionCode | null> {
   try {
+    // Use the new atomic customer creation method
+    const stripeCustomerId = await getOrCreateStripeCustomer(userId);
+    if (!stripeCustomerId) {
+      return null;
+    }
+
+    // Check for existing promotion codes
     const promotionCodes = await stripe.promotionCodes.list({
       coupon: couponId,
-      customer: customerId,
+      customer: stripeCustomerId,
       limit: 1,
     });
+
     if (promotionCodes.data.length > 0) {
       return promotionCodes.data[0];
     }
+
+    // Create new promotion code
     const promotionCode = await stripe.promotionCodes.create({
-      customer: customerId,
+      customer: stripeCustomerId,
       coupon: couponId,
       max_redemptions: maxRedemptions,
       metadata,
     });
+
     return promotionCode;
-  } catch {
+  } catch (error) {
+    console.error(
+      `Error in getOrCreatePromotionCode for user ${userId}:`,
+      error,
+    );
     return null;
   }
 }
@@ -179,4 +285,15 @@ export async function getCouponById(
   } catch {
     return null;
   }
+}
+
+export async function updateCustomerMetadata(
+  customerId: string,
+  userId: string,
+): Promise<void> {
+  await stripe.customers.update(customerId, {
+    metadata: {
+      userId: userId,
+    },
+  });
 }

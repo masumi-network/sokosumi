@@ -13,14 +13,20 @@ import {
   CommonErrorCode,
 } from "@/lib/actions";
 
-export default function FreeCreditsButton() {
+interface FreeCreditsButtonProps {
+  promotionCode: string;
+}
+
+export default function FreeCreditsButton({
+  promotionCode,
+}: FreeCreditsButtonProps) {
   const [loading, setLoading] = useState(false);
   const router = useAsyncRouter();
   const t = useTranslations("App.Billing.FreeClaim");
 
   const handleFreeClaim = async () => {
     setLoading(true);
-    const result = await claimFreeCredits();
+    const result = await claimFreeCredits(promotionCode);
 
     if (result.ok) {
       window.location.href = result.data.url;
