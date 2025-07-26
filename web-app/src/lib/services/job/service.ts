@@ -713,7 +713,7 @@ export async function syncJob(job: Job) {
     },
   );
 
-  // if job status changed, add a record to the outbox table
+  // if job status changed, publish to job status to channel
   if (newJobStatus !== oldJobStatus) {
     console.log(
       `Job ${job.id} status changed from ${oldJobStatus} to ${newJobStatus}`,

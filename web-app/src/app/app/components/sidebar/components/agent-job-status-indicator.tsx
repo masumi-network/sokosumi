@@ -25,7 +25,7 @@ export default function AgentJobStatusIndicator({
   className,
 }: AgentJobStatusIndicatorProps) {
   const [messages, setMessages] = useState<Message[]>([]);
-  const { channel } = useChannel(makeJobStatusChannel(job.id), (message) => {
+  useChannel(makeJobStatusChannel(job.id), (message) => {
     setMessages((prev) => [...prev, message]);
   });
 
