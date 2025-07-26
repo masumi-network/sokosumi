@@ -62,7 +62,7 @@ export default function useJobStatus(jobId: string) {
     if (!model) return;
 
     const subscribe = (err: Error | null, data: JobStatusData | undefined) => {
-      if (err) return console.error(err);
+      console.log("subscribe", err, data);
       setJobStatusData(data ?? null);
     };
 

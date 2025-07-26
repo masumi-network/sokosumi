@@ -706,10 +706,6 @@ export async function syncJob(job: Job) {
           break;
       }
 
-      console.log({
-        jobStatus,
-        oldJobStatus,
-      });
       // if job status changed, add a record to the outbox table
       if (jobStatus !== oldJobStatus) {
         console.log(

@@ -27,7 +27,7 @@ const envPublicConfigSchema = z.object({
     .number({ coerce: true })
     .min(0)
     .default(7),
-  NEXT_PUBLIC_ABLY_API_KEY: z.string().min(1),
+  NEXT_PUBLIC_ABLY_JOB_SUBSCRIBE_ONLY_KEY: z.string().min(1),
 });
 
 let envPublicConfig: z.infer<typeof envPublicConfigSchema>;
@@ -48,7 +48,8 @@ function validateEnv() {
     NEXT_PUBLIC_CREDITS_BASE: process.env.NEXT_PUBLIC_CREDITS_BASE,
     NEXT_PUBLIC_AGENT_NEW_THRESHOLD_DAYS:
       process.env.NEXT_PUBLIC_AGENT_NEW_THRESHOLD_DAYS,
-    NEXT_PUBLIC_ABLY_API_KEY: process.env.NEXT_PUBLIC_ABLY_API_KEY,
+    NEXT_PUBLIC_ABLY_JOB_SUBSCRIBE_ONLY_KEY:
+      process.env.NEXT_PUBLIC_ABLY_JOB_SUBSCRIBE_ONLY_KEY,
   });
   if (!parsedConfig.success) {
     console.error(
