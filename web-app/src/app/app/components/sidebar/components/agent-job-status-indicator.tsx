@@ -1,10 +1,8 @@
 "use client";
 
-import { Message } from "ably";
-import { useChannel, useConnectionStateListener } from "ably/react";
+import { useChannel } from "ably/react";
 import { Check, Circle, Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
 
 import {
   Tooltip,
@@ -24,16 +22,9 @@ export default function AgentJobStatusIndicator({
   job,
   className,
 }: AgentJobStatusIndicatorProps) {
-  const [messages, setMessages] = useState<Message[]>([]);
   useChannel(makeJobStatusChannel(job.id), (message) => {
-    setMessages((prev) => [...prev, message]);
+    console.log("message", message);
   });
-
-  useConnectionStateListener("connected", () => {
-    console.log(`Connected to Ably! Channel: ${makeJobStatusChannel(job.id)}`);
-  });
-
-  console.log("messages", messages);
 
   return (
     <Tooltip>
