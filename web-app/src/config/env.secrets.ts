@@ -116,6 +116,9 @@ const envSecretsSchema = z.object({
     .transform((val) => val.split(","))
     .pipe(z.array(z.string()))
     .default(""),
+
+  // ably job channel publish only key
+  ABLY_JOB_PUBLISH_ONLY_KEY: z.string().min(1),
 });
 
 let envSecrets: z.infer<typeof envSecretsSchema>;

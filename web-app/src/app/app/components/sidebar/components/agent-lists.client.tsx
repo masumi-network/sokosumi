@@ -1,5 +1,6 @@
 "use client";
 
+import { ChannelProvider } from "ably/react";
 import { SquareTerminal } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
@@ -13,6 +14,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import { makeJobStatusChannel } from "@/lib/ably";
 import { AgentWithAvailability, getAgentName, JobWithStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +49,8 @@ export default function AgentListsClient({
                 <SidebarMenu>
                   {agents.map((agentWithAvailability, index) => {
                     const { agent, isAvailable } = agentWithAvailability;
+                    const latestJob = latestJobs[index];
+
                     return (
                       <SidebarMenuItem key={agent.id}>
                         <SidebarMenuButton
@@ -71,15 +75,22 @@ export default function AgentListsClient({
                               <span className="flex-1 truncate">
                                 {getAgentName(agent)}
                               </span>
-                              {latestJobs[index] && isAvailable && (
-                                <AgentJobStatusIndicator
-                                  job={latestJobs[index]}
-                                  className={cn("h-4 w-4", {
-                                    "text-primary-foreground":
-                                      agentId === agent.id,
-                                    "text-primary": agentId !== agent.id,
-                                  })}
-                                />
+                              {latestJob && isAvailable && (
+                                <ChannelProvider
+                                  channelName={makeJobStatusChannel(
+                                    latestJob.id,
+                                  )}
+                                >
+                                  <AgentJobStatusIndicator
+                                    job={latestJob}
+                                    className={cn("h-4 w-4", {
+                                      "text-primary-foreground":
+                                        agentId === agent.id,
+
+                                      "text-primary": agentId !== agent.id,
+                                    })}
+                                  />
+                                </ChannelProvider>
                               )}
                             </div>
                           </Link>

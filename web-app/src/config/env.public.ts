@@ -27,6 +27,8 @@ const envPublicConfigSchema = z.object({
     .number({ coerce: true })
     .min(0)
     .default(7),
+
+  // ably job channel subscribe only key
   NEXT_PUBLIC_ABLY_JOB_SUBSCRIBE_ONLY_KEY: z.string().min(1),
 });
 

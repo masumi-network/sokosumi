@@ -8,7 +8,6 @@ export * from "./job";
 export * from "./lock";
 export * from "./member";
 export * from "./organization";
-export * from "./outbox";
 export { default as prisma } from "./prisma";
 export * from "./tag";
 export * from "./utmAttribution";

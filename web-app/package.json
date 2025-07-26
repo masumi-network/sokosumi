@@ -33,7 +33,6 @@
     "generate:api": "pnpm run generate:registry && pnpm run generate:payment"
   },
   "dependencies": {
-    "@ably-labs/models": "0.0.4",
     "@anthropic-ai/sdk": "0.57.0",
     "@better-auth/utils": "0.2.6",
     "@hey-api/client-fetch": "0.13.1",

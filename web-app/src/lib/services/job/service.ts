@@ -4,7 +4,8 @@ import * as Sentry from "@sentry/nextjs";
 import { v4 as uuidv4 } from "uuid";
 
 import { getEnvPublicConfig } from "@/config/env.public";
-import { JobStatusData, makeJobStatusMutation } from "@/lib/ably";
+import { JobStatusData } from "@/lib/ably";
+import { publishJobStatusData } from "@/lib/ably/publish";
 import { JobError, JobErrorCode } from "@/lib/actions/types/error-codes/job";
 import { postPurchaseResolveBlockchainIdentifier } from "@/lib/api/generated/payment";
 import { getPaymentClient } from "@/lib/api/payment-service.client";
@@ -12,7 +13,6 @@ import { getActiveOrganizationId, getSessionOrThrow } from "@/lib/auth/utils";
 import { computeJobStatus, JobStatus, JobWithStatus } from "@/lib/db";
 import {
   createJob,
-  createOutboxMutation,
   prisma,
   refundJob,
   retrieveAgentWithRelationsById,
@@ -685,7 +685,7 @@ export async function syncJob(job: Job) {
     shouldSyncMasumiStatus(job) ? getOnChainPurchase(job.purchaseId) : null,
   ]);
 
-  await prisma.$transaction(
+  const newJobStatus = await prisma.$transaction(
     async (tx) => {
       if (onChainPurchase) {
         job = await syncRegistryStatus(job, onChainPurchase, tx);
@@ -705,26 +705,33 @@ export async function syncJob(job: Job) {
         default:
           break;
       }
-
-      // if job status changed, add a record to the outbox table
-      if (jobStatus !== oldJobStatus) {
-        console.log(
-          `Job ${job.id} status changed from ${oldJobStatus} to ${jobStatus}`,
-        );
-        const jobStatusData: JobStatusData = {
-          id: job.id,
-          jobStatus: jobStatus,
-          onChainStatus: job.onChainStatus,
-          agentJobStatus: job.agentJobStatus,
-        };
-        await createOutboxMutation(makeJobStatusMutation(jobStatusData), tx);
-      }
+      return jobStatus;
     },
     {
       maxWait: 5000, // default: 2000
       timeout: 20000, // default: 5000
     },
   );
+
+  // if job status changed, add a record to the outbox table
+  if (newJobStatus !== oldJobStatus) {
+    console.log(
+      `Job ${job.id} status changed from ${oldJobStatus} to ${newJobStatus}`,
+    );
+    const jobStatusData: JobStatusData = {
+      id: job.id,
+      jobStatus: newJobStatus,
+      onChainStatus: job.onChainStatus,
+      agentJobStatus: job.agentJobStatus,
+    };
+
+    try {
+      await publishJobStatusData(jobStatusData);
+      console.log(`Published job status data for job ${job.id}`);
+    } catch (err) {
+      console.error("Error publishing job status data", err);
+    }
+  }
 }
 
 async function syncRegistryStatus(
@@ -868,25 +875,4 @@ export async function getNotFinishedLatestJobsByAgentIds(
       ),
     ),
   );
-}
-
-/**
- * Retrieves JobStatusData for a specific job
- * @param jobId - The unique identifier of the job
- * @returns Promise containing the latest job status
- */
-export async function retrieveJobStatusData(
-  jobId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<JobStatusData | null> {
-  const job = await tx.job.findUnique({ where: { id: jobId } });
-  if (!job) {
-    return null;
-  }
-  return {
-    id: job.id,
-    jobStatus: computeJobStatus(job),
-    onChainStatus: job.onChainStatus,
-    agentJobStatus: job.agentJobStatus,
-  };
 }
