@@ -84,7 +84,7 @@ export async function getWelcomePromotionCode(
     return null;
   }
 
-  const user = await new UserService().getUserById(userId);
+  const user = await UserService.getInstance().getUserById(userId);
   if (!user) {
     throw new Error("User not found");
   }
