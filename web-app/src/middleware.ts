@@ -12,29 +12,11 @@ const EXCLUDED_PATHS = [
   "/sitemap.xml",
 ];
 
-const EXCLUDED_FILE_TYPES = [
-  ".png",
-  ".jpg",
-  ".jpeg",
-  ".svg",
-  ".ico",
-  ".webp",
-  ".gif",
-  ".mp4",
-  ".webm",
-  ".md",
-];
-
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Skip middleware for excluded paths
   if (EXCLUDED_PATHS.includes(pathname)) {
-    return NextResponse.next();
-  }
-
-  // Skip middleware for excluded file types
-  if (EXCLUDED_FILE_TYPES.some((ext) => pathname.endsWith(ext))) {
     return NextResponse.next();
   }
 
