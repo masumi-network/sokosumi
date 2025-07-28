@@ -410,6 +410,9 @@
         },
         "AgentsShowcase": {
           "viewAgent": "View Agent"
+        },
+        "HeroBanner": {
+          "button": "Register Now & Get $30 free credits"
         }
       },
       "Endorsements": {

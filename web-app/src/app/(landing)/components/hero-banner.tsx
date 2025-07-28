@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -8,6 +9,8 @@ interface HeroBannerProps {
 }
 
 export function HeroBanner({ className }: HeroBannerProps) {
+  const t = useTranslations("Landing.Page.Hero.HeroBanner");
+
   return (
     <Button
       className={cn(
@@ -16,7 +19,7 @@ export function HeroBanner({ className }: HeroBannerProps) {
       )}
       asChild
     >
-      <Link href="/register">{"Register Now & Get $100 free credits"}</Link>
+      <Link href="/register">{t("button")}</Link>
     </Button>
   );
 }
