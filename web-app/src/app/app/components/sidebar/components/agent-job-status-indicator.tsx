@@ -1,6 +1,5 @@
 "use client";
 
-import { useChannel } from "ably/react";
 import { Check, Circle, Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -9,7 +8,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { makeJobStatusChannel } from "@/lib/ably";
+import useJobStatus from "@/hooks/use-job-status";
 import { JobStatus, JobWithStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
@@ -22,20 +21,18 @@ export default function AgentJobStatusIndicator({
   job,
   className,
 }: AgentJobStatusIndicatorProps) {
-  useChannel(makeJobStatusChannel(job.id), (message) => {
-    console.log("message", message);
-  });
+  const jobStatus = useJobStatus(job.id, job.status);
 
   return (
     <Tooltip>
       <TooltipTrigger>
         <AgentJobStatusIndicatorIcon
-          status={job.status}
+          status={jobStatus ?? job.status}
           className={className}
         />
       </TooltipTrigger>
       <TooltipContent>
-        <AgentJobStatusIndicatorContent status={job.status} />
+        <AgentJobStatusIndicatorContent status={jobStatus ?? job.status} />
       </TooltipContent>
     </Tooltip>
   );

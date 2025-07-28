@@ -1,11 +1,14 @@
 "use client";
 
 import { ColumnDef, createColumnHelper } from "@tanstack/react-table";
+import { ChannelProvider } from "ably/react";
 import { useFormatter, useTranslations } from "next-intl";
 
 import { DataTableColumnHeader } from "@/components/data-table";
 import { MiddleTruncate } from "@/components/middle-truncate";
-import { JobWithStatus } from "@/lib/db";
+import useJobStatus from "@/hooks/use-job-status";
+import { makeJobStatusChannel } from "@/lib/ably";
+import { JobStatus, JobWithStatus } from "@/lib/db";
 
 import JobStatusBadge from "./job-status-badge";
 
@@ -43,7 +46,12 @@ export function getJobColumns(
       ),
       cell: ({ row }) => (
         <div className="p-2">
-          <JobStatusBadge status={row.original.status} />
+          <ChannelProvider channelName={makeJobStatusChannel(row.original.id)}>
+            <RealTimeJobStatusBadge
+              jobId={row.original.id}
+              status={row.original.status}
+            />
+          </ChannelProvider>
         </div>
       ),
       enableSorting: true,
@@ -72,4 +80,23 @@ export function getJobColumns(
       enableHiding: false,
     }) as ColumnDef<JobWithStatus>,
   };
+}
+
+function RealTimeJobStatusBadge({
+  jobId,
+  status,
+  className,
+}: {
+  jobId: string;
+  status: JobStatus;
+  className?: string;
+}) {
+  const realTimeJobStatus = useJobStatus(jobId, status);
+
+  return (
+    <JobStatusBadge
+      status={realTimeJobStatus ?? status}
+      className={className}
+    />
+  );
 }
