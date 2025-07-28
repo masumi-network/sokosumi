@@ -87,7 +87,6 @@ export default function JobInputsFormClient({
     if (result.ok) {
       handleClose();
       await router.push(`/app/agents/${agentId}/jobs/${result.data.jobId}`);
-      router.refresh();
     } else {
       switch (result.error.code) {
         case CommonErrorCode.UNAUTHENTICATED:
