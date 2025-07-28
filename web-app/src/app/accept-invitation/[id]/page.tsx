@@ -30,7 +30,7 @@ export default async function AcceptInvitationPage({
   const { organization, status } = invitation;
 
   if (status === "accepted") {
-    redirect(`/app/organizations/${organization.slug}`);
+    redirect(`/organizations/${organization.slug}`);
   }
 
   return (

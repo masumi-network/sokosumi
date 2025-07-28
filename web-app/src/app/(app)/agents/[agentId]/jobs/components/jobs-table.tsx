@@ -25,7 +25,7 @@ export default function JobsTable({ jobs }: JobsTableProps) {
 
   const handleRowClick = async (row: JobWithStatus) => {
     setRouterLoading(true);
-    await asyncRouter.push(`/app/agents/${row.agentId}/jobs/${row.id}`);
+    await asyncRouter.push(`/agents/${row.agentId}/jobs/${row.id}`);
     setRouterLoading(false);
   };
 

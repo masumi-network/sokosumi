@@ -51,7 +51,7 @@ export async function updateOrganizationInformation(
     });
 
     // revalidate the organization page
-    revalidatePath(`/app/organizations/${updatedOrganization.slug}`);
+    revalidatePath(`/organizations/${updatedOrganization.slug}`);
     return Ok();
   } catch (error) {
     console.error("Error updating organization information", error);

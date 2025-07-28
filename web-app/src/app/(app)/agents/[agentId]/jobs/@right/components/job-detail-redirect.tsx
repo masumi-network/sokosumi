@@ -17,7 +17,7 @@ export default function JobDetailRedirect({
   const router = useRouter();
 
   useEffect(() => {
-    router.push(`/app/agents/${agentId}/jobs/${jobId}`);
+    router.push(`/agents/${agentId}/jobs/${jobId}`);
   }, [agentId, jobId, router]);
 
   return (

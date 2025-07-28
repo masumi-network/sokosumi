@@ -56,7 +56,7 @@ export default function AgentListsClient({
                             agentId !== agent.id && !isAvailable,
                         })}
                       >
-                        <Link href={`/app/agents/${agent.id}/jobs`}>
+                        <Link href={`/agents/${agent.id}/jobs`}>
                           <div className="group/agent-menu flex w-full items-center gap-2">
                             <SquareTerminal
                               className={cn("h-4 w-4", {

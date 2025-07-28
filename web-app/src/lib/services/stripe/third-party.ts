@@ -120,8 +120,8 @@ export async function createCheckoutSession(
       ? { customer: user.stripeCustomerId }
       : { customer_email: user.email, customer_creation: "always" }),
     billing_address_collection: "required",
-    success_url: `${origin}/app/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-    cancel_url: `${origin}/app/billing/cancel`,
+    success_url: `${origin}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+    cancel_url: `${origin}/billing/cancel`,
   });
   if (!session.url) {
     throw new Error("Stripe session URL is null");

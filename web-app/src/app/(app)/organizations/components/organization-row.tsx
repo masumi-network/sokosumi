@@ -22,7 +22,7 @@ export default function OrganizationRow({
     <div className="flex items-center justify-between p-4">
       <div className="flex items-center gap-4">
         <OrganizationLogo organization={organization} size={24} />
-        <Link href={`/app/organizations/${slug}`}>
+        <Link href={`/organizations/${slug}`}>
           <p className="text-primary text-lg hover:underline">{name}</p>
         </Link>
         <OrganizationRoleBadge role={role} />

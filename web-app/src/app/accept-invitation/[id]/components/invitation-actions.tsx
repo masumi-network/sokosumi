@@ -67,7 +67,7 @@ export default function InvitationActions({
 
       if (result.ok) {
         toast.success(t("Accept.success"));
-        await router.push(`/app/organizations/${organizationSlug}`);
+        await router.push(`/organizations/${organizationSlug}`);
       } else {
         switch (result.error.code) {
           case InvitationErrorCode.INVITATION_NOT_FOUND:
@@ -81,7 +81,7 @@ export default function InvitationActions({
               action: {
                 label: t("Accept.Errors.alreadyMemberAction"),
                 onClick: () =>
-                  router.push(`/app/organizations/${organizationSlug}`),
+                  router.push(`/organizations/${organizationSlug}`),
               },
             });
             break;
