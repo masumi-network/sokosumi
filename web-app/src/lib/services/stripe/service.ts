@@ -95,11 +95,15 @@ export async function getWelcomePromotionCode(
   }
 
   for (const couponId of couponIds) {
-    const promotionCode = await getPromotionCodeByCustomerAndCouponId(
-      stripeCustomerId,
-      couponId,
-    );
-    if (promotionCode?.times_redeemed && promotionCode.times_redeemed >= 1) {
+    try {
+      const promotionCode = await getPromotionCodeByCustomerAndCouponId(
+        stripeCustomerId,
+        couponId,
+      );
+      if (promotionCode?.times_redeemed && promotionCode.times_redeemed >= 1) {
+        return null;
+      }
+    } catch {
       return null;
     }
   }
