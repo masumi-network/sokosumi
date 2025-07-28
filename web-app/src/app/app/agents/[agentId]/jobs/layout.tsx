@@ -20,11 +20,15 @@ import {
 import Footer from "./components/footer";
 import Header, { HeaderSkeleton } from "./components/header";
 
+interface JobLayoutProps {
+  children: React.ReactNode;
+  right: React.ReactNode;
+  params: Promise<{ agentId: string }>;
+}
+
 export async function generateMetadata({
   params,
-}: {
-  params: Promise<{ agentId: string }>;
-}): Promise<Metadata> {
+}: JobLayoutProps): Promise<Metadata> {
   const { agentId } = await params;
   const agent = await getAgentById(agentId);
   if (!agent) {
@@ -35,12 +39,6 @@ export async function generateMetadata({
     title: getAgentName(agent),
     description: getAgentDescription(agent),
   };
-}
-
-interface JobLayoutProps {
-  children: React.ReactNode;
-  right: React.ReactNode;
-  params: Promise<{ agentId: string }>;
 }
 
 export default async function JobLayout({
