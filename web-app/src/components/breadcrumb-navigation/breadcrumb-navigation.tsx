@@ -18,7 +18,7 @@ export default async function BreadcrumbNavigation({
   segmentLabels,
 }: BreadcrumbNavigationProps) {
   return (
-    <Suspense fallback={<BreadcrumbNavigationSkeleton />}>
+    <Suspense fallback={<BreadcrumbNavigationSkeleton className={className} />}>
       <BreadcrumbNavigationInner
         className={className}
         segmentLabels={segmentLabels}

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { CreateJobModalTrigger } from "@/components/create-job-modal";
+import { getSessionOrRedirect } from "@/lib/auth/utils";
 import {
   getAgentById,
   getAvailableAgentById,
@@ -19,6 +20,8 @@ export default async function RightSectionPage({
 }: {
   params: Promise<RightSectionPageParams>;
 }) {
+  await getSessionOrRedirect();
+
   const t = await getTranslations("App.Agents.Jobs.RightSection");
 
   const { agentId } = await params;

@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { getAgentById, getMyJobsByAgentId } from "@/lib/services";
 
 import JobsTable from "./components/jobs-table";
@@ -9,6 +10,8 @@ interface JobsPageProps {
 }
 
 export default async function JobsPage({ params }: JobsPageProps) {
+  await getSessionOrRedirect();
+
   const { agentId } = await params;
   const agent = await getAgentById(agentId);
 

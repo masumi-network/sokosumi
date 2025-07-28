@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -77,6 +78,13 @@ export default function SignInForm({
     router.refresh();
   };
 
+  const email = form.watch("email");
+  const forgotPasswordUrl = useMemo(
+    () =>
+      `/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ""}`,
+    [email],
+  );
+
   return (
     <AuthForm
       form={form}
@@ -100,7 +108,7 @@ export default function SignInForm({
             </Link>
           </div>
           <Link
-            href={`/forgot-password${form.watch("email") ? `?email=${encodeURIComponent(form.watch("email"))}` : ""}`}
+            href={forgotPasswordUrl}
             className="text-muted-foreground text-sm hover:underline"
           >
             {t("forgotPassword")}
