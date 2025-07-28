@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { JobStatusData } from "@/lib/ably";
-import { publishJobStatusData } from "@/lib/ably/publish";
+import publishJobStatusData from "@/lib/ably/publish";
 import { JobError, JobErrorCode } from "@/lib/actions/types/error-codes/job";
 import { postPurchaseResolveBlockchainIdentifier } from "@/lib/api/generated/payment";
 import { getPaymentClient } from "@/lib/api/payment-service.client";
