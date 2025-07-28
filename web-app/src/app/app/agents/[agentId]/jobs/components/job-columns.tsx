@@ -49,6 +49,7 @@ export function getJobColumns(
           <ChannelProvider channelName={makeJobStatusChannel(row.original.id)}>
             <RealTimeJobStatusBadge
               jobId={row.original.id}
+              agentId={row.original.agentId}
               status={row.original.status}
             />
           </ChannelProvider>
@@ -84,14 +85,16 @@ export function getJobColumns(
 
 function RealTimeJobStatusBadge({
   jobId,
+  agentId,
   status,
   className,
 }: {
   jobId: string;
+  agentId: string;
   status: JobStatus;
   className?: string;
 }) {
-  const realTimeJobStatus = useJobStatus(jobId, status);
+  const realTimeJobStatus = useJobStatus(jobId, agentId, status, true);
 
   return (
     <JobStatusBadge

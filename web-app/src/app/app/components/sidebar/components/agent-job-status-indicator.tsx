@@ -21,7 +21,7 @@ export default function AgentJobStatusIndicator({
   job,
   className,
 }: AgentJobStatusIndicatorProps) {
-  const jobStatus = useJobStatus(job.id, job.status);
+  const jobStatus = useJobStatus(job.id, job.agentId, job.status);
 
   return (
     <Tooltip>

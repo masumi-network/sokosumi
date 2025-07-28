@@ -1,4 +1,5 @@
 import { useChannel } from "ably/react";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { jobStatusDataSchema, makeJobStatusChannel } from "@/lib/ably";
@@ -6,8 +7,12 @@ import { JobStatus } from "@/lib/db";
 
 export default function useJobStatus(
   jobId: string,
+  agentId: string,
   initialJobStatus?: JobStatus | undefined,
+  refresh: boolean = false,
 ) {
+  const pathname = usePathname();
+  const router = useRouter();
   const [jobStatus, setJobStatus] = useState<JobStatus | null>(
     initialJobStatus ?? null,
   );
@@ -16,6 +21,12 @@ export default function useJobStatus(
     const parsedResult = jobStatusDataSchema.safeParse(message.data);
     if (parsedResult.success) {
       setJobStatus(parsedResult.data.jobStatus);
+      if (refresh) {
+        // check pathname is job details path
+        if (pathname.startsWith(`/app/agents/${agentId}/jobs/${jobId}`)) {
+          router.refresh();
+        }
+      }
     } else {
       console.error(
         "Failed to parse JobStatus from message",
