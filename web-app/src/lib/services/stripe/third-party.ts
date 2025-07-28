@@ -224,6 +224,23 @@ export async function getOrCreateStripeCustomer(
   });
 }
 
+export async function getPromotionCodeByCustomerAndCouponId(
+  customerId: string,
+  couponId: string,
+): Promise<Stripe.PromotionCode | null> {
+  const promotionCodes = await stripe.promotionCodes.list({
+    coupon: couponId,
+    customer: customerId,
+    limit: 1,
+  });
+
+  if (promotionCodes.data.length === 0) {
+    return null;
+  }
+
+  return promotionCodes.data[0];
+}
+
 export async function updateStripeCustomerEmail(
   userId: string,
   email: string,
