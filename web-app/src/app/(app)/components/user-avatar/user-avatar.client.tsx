@@ -85,19 +85,19 @@ export default function UserAvatarClient({
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
           <DropdownMenuItem className="cursor-pointer" asChild>
-            <Link href="/app/account" className="flex items-center gap-2">
+            <Link href="/account" className="flex items-center gap-2">
               <UserIcon className="text-muted-foreground" />
               {t("account")}
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem className="cursor-pointer" asChild>
-            <Link href="/app/organizations" className="flex items-center gap-2">
+            <Link href="/organizations" className="flex items-center gap-2">
               <Building2 className="text-muted-foreground" />
               {t("organizations")}
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem className="cursor-pointer" asChild>
-            <Link href="/app/billing" className="flex items-center gap-2">
+            <Link href="/billing" className="flex items-center gap-2">
               <CreditCardIcon className="text-muted-foreground" />
               {t("billing")}
             </Link>

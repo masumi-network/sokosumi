@@ -26,7 +26,7 @@ export default async function BillingCancelPage() {
         </CardHeader>
         <CardContent>
           <Button asChild>
-            <Link href="/app/billing">{t("backToBilling")}</Link>
+            <Link href="/billing">{t("backToBilling")}</Link>
           </Button>
         </CardContent>
       </Card>

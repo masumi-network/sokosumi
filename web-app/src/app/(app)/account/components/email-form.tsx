@@ -40,7 +40,7 @@ export function EmailForm() {
   const onSubmit = async (values: EmailFormType) => {
     const changeEmailResult = await changeEmail({
       newEmail: values.email,
-      callbackURL: "/app",
+      callbackURL: "/",
     });
 
     if (changeEmailResult.error) {

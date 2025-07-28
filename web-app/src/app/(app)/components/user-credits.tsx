@@ -54,7 +54,7 @@ export default async function UserCredits() {
       ) : (
         credits <= 50.0 && (
           <Button variant="default" size="sm" asChild>
-            <Link href="/app/billing">{t("buy")}</Link>
+            <Link href="/billing">{t("buy")}</Link>
           </Button>
         )
       )}

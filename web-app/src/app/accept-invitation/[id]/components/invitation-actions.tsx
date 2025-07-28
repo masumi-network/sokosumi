@@ -106,7 +106,7 @@ export default function InvitationActions({
 
       if (result.ok) {
         toast.success(t("Decline.success"));
-        await router.push("/app/organizations");
+        await router.push("/organizations");
       } else {
         switch (result.error.code) {
           case InvitationErrorCode.INVITATION_NOT_FOUND:

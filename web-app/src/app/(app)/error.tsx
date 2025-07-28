@@ -42,7 +42,7 @@ export default function Error({
             {t("tryAgain")}
           </Button>
           <Button asChild variant="secondary" className="w-full">
-            <Link href="/app">{t("goApp")}</Link>
+            <Link href="/">{t("goApp")}</Link>
           </Button>
         </CardFooter>
       </Card>

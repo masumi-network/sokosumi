@@ -168,7 +168,7 @@ export async function signUpEmail(
           email: parsed.email,
           name: parsed.name,
           password: parsed.password,
-          callbackURL: "/app",
+          callbackURL: "/",
           termsAccepted: parsed.termsAccepted,
         },
       });

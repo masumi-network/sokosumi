@@ -60,7 +60,7 @@ export default async function OrganizationPage({
 
   const member = await getMyMemberInOrganization(organization.id);
   if (!member) {
-    redirect("/app/organizations");
+    redirect("/organizations");
   }
 
   const members = await getOrganizationMembersWithUser(organization.id, true);

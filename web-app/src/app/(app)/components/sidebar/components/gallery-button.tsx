@@ -7,7 +7,7 @@ export default function GalleryButton() {
   const t = useTranslations("App.Sidebar.Footer.AgentButton");
 
   return (
-    <Link href="/app/agents">
+    <Link href="/agents">
       <div className="flex flex-col">
         <div className="border-border mb-2 w-full border-t" />
         <div className="flex items-center gap-2 p-4">
