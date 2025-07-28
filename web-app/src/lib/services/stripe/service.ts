@@ -22,6 +22,8 @@ import {
   createCheckoutSession,
   getCouponById,
   getOrCreatePromotionCode,
+  getOrCreateStripeCustomer,
+  getPromotionCodeByCustomerAndCouponId,
   Price,
 } from "./third-party";
 
@@ -72,11 +74,46 @@ export async function createStripeCheckoutSession(
 export async function getWelcomePromotionCode(
   userId: string,
 ): Promise<Stripe.PromotionCode | null> {
-  const couponId = getEnvSecrets().STRIPE_WELCOME_COUPON;
-  if (!couponId) {
+  const couponIds = getEnvSecrets().STRIPE_WELCOME_COUPONS;
+  if (couponIds.length === 0) {
     return null;
   }
-  return await getPromotionCode(userId, couponId, 1);
+
+  const isVerified = await verifyUserId(userId);
+  if (!isVerified) {
+    return null;
+  }
+
+  const user = await new UserService().getUserById(userId);
+  if (!user) {
+    throw new Error("User not found");
+  }
+
+  const stripeCustomerId = await getOrCreateStripeCustomer(userId);
+  if (!stripeCustomerId) {
+    return null;
+  }
+
+  for (const couponId of couponIds) {
+    try {
+      const promotionCode = await getPromotionCodeByCustomerAndCouponId(
+        stripeCustomerId,
+        couponId,
+      );
+      if (promotionCode?.times_redeemed && promotionCode.times_redeemed >= 1) {
+        return null;
+      }
+    } catch {
+      return null;
+    }
+  }
+
+  const lastCouponId = couponIds.at(-1);
+  if (!lastCouponId) {
+    return null;
+  }
+
+  return await getPromotionCode(userId, lastCouponId, 1);
 }
 
 export async function getPromotionCode(

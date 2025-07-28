@@ -388,7 +388,7 @@
     "Header": {
       "FreeCreditsBanner": {
         "start": "Limited time only: ",
-        "main": "Get 100$ for free",
+        "main": "Get 30$ for free",
         "end": " worth of credits when you sign up"
       },
       "Navigation": {
@@ -410,6 +410,9 @@
         },
         "AgentsShowcase": {
           "viewAgent": "View Agent"
+        },
+        "HeroBanner": {
+          "button": "Register Now & Get $30 free credits"
         }
       },
       "Endorsements": {
@@ -790,7 +793,7 @@
         "backToBilling": "Back to Billing"
       },
       "FreeClaim": {
-        "button": "Get 100 free credits",
+        "button": "Get 30 free credits",
         "error": "Failed to claim free credits",
         "Errors": {
           "unauthenticated": "You must log in to claim free credits.",
