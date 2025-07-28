@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 
+import ClientOnlyWrapper from "@/components/client-only-wrapper";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { getAgentById, getMyJobsByAgentId } from "@/lib/services";
 
@@ -21,5 +22,9 @@ export default async function JobsPage({ params }: JobsPageProps) {
 
   const agentJobs = await getMyJobsByAgentId(agentId);
 
-  return <JobsTable jobs={agentJobs} />;
+  return (
+    <ClientOnlyWrapper>
+      <JobsTable jobs={agentJobs} />
+    </ClientOnlyWrapper>
+  );
 }

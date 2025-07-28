@@ -5,7 +5,6 @@ import { getTranslations } from "next-intl/server";
 import AppLayoutRestrictor from "@/components/app-layout-restrictor";
 import { FooterSections } from "@/components/footer";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import AblyProvider from "@/contexts/ably-provider";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 
 import Header from "./components/header";
@@ -34,7 +33,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   await getSessionOrRedirect();
 
   return (
-    <AblyProvider>
+    <>
       <AppLayoutRestrictor />
       <SidebarProvider defaultOpen={defaultOpen}>
         <Sidebar />
@@ -44,6 +43,6 @@ export default async function AppLayout({ children }: AppLayoutProps) {
           <FooterSections className="p-4" />
         </div>
       </SidebarProvider>
-    </AblyProvider>
+    </>
   );
 }

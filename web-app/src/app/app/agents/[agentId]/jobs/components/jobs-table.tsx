@@ -5,6 +5,7 @@ import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { DataTable } from "@/components/data-table";
+import AblyProvider from "@/contexts/ably-provider";
 import { useAsyncRouter } from "@/hooks/use-async-router";
 import { JobWithStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
@@ -30,31 +31,33 @@ export default function JobsTable({ jobs }: JobsTableProps) {
   };
 
   return (
-    <DataTable
-      columns={getColumns(t, dateFormatter)}
-      onRowClick={(row) => async () => {
-        if (routerLoading) return;
-        await handleRowClick(row as JobWithStatus);
-      }}
-      data={jobs}
-      rowClassName={(row) => {
-        return cn({
-          "text-primary-foreground bg-primary hover:bg-primary active:bg-primary":
-            params.jobId === row.id,
-          "text-foreground active:bg-muted hover:bg-muted":
-            params.jobId !== row.id,
-        });
-      }}
-      containerClassName={cn(
-        "job-table-width min-h-[300px] rounded-xl bg-muted/50",
-      )}
-      defaultSort={[
-        {
-          id: "startedAt",
-          desc: true,
-        },
-      ]}
-    />
+    <AblyProvider>
+      <DataTable
+        columns={getColumns(t, dateFormatter)}
+        onRowClick={(row) => async () => {
+          if (routerLoading) return;
+          await handleRowClick(row as JobWithStatus);
+        }}
+        data={jobs}
+        rowClassName={(row) => {
+          return cn({
+            "text-primary-foreground bg-primary hover:bg-primary active:bg-primary":
+              params.jobId === row.id,
+            "text-foreground active:bg-muted hover:bg-muted":
+              params.jobId !== row.id,
+          });
+        }}
+        containerClassName={cn(
+          "job-table-width min-h-[300px] rounded-xl bg-muted/50",
+        )}
+        defaultSort={[
+          {
+            id: "startedAt",
+            desc: true,
+          },
+        ]}
+      />
+    </AblyProvider>
   );
 }
 

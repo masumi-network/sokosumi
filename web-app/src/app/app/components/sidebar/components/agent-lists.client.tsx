@@ -14,6 +14,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import AblyProvider from "@/contexts/ably-provider";
 import { makeJobStatusChannel } from "@/lib/ably";
 import { AgentWithAvailability, getAgentName, JobWithStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
@@ -39,7 +40,7 @@ export default function AgentListsClient({
   const { agentId } = useParams();
 
   return (
-    <>
+    <AblyProvider>
       {agentLists.map(
         ({ groupKey, title, agents, latestJobs, noAgentsType }) => (
           <SidebarGroup key={groupKey} className="w-72 md:w-64">
@@ -108,6 +109,6 @@ export default function AgentListsClient({
           </SidebarGroup>
         ),
       )}
-    </>
+    </AblyProvider>
   );
 }

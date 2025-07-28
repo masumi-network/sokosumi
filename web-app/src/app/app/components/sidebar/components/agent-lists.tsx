@@ -1,6 +1,7 @@
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
+import ClientOnlyWrapper from "@/components/client-only-wrapper";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import {
   SidebarGroup,
@@ -113,7 +114,9 @@ async function AgentListsContent() {
 
   return (
     <ScrollArea className="h-full">
-      <AgentListsClient agentLists={agentLists} />
+      <ClientOnlyWrapper>
+        <AgentListsClient agentLists={agentLists} />
+      </ClientOnlyWrapper>
     </ScrollArea>
   );
 }

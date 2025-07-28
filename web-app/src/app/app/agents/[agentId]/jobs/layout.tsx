@@ -97,7 +97,7 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
 
 function JobLayoutSkeleton() {
   return (
-    <div className="flex h-full flex-col p-4 lg:h-[calc(100svh-64px)] lg:p-6 xl:p-8">
+    <div className="flex flex-col lg:h-[calc(100svh-96px)]">
       <HeaderSkeleton />
       <div className="mt-6 flex flex-1">
         <DefaultLoading className="bg-muted/50 h-full min-h-[300px] w-full flex-1 rounded-xl border-none p-8" />
