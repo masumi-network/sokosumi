@@ -16,7 +16,7 @@ export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Skip middleware for excluded paths
-  if (EXCLUDED_PATHS.includes(pathname)) {
+  if (EXCLUDED_PATHS.some((path) => pathname.startsWith(path))) {
     return NextResponse.next();
   }
 
