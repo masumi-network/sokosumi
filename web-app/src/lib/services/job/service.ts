@@ -522,6 +522,26 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
         );
       }
 
+      const jobStatusData: JobStatusData = {
+        id: job.id,
+        agentId: job.agentId,
+        jobStatus: computeJobStatus(job),
+        onChainStatus: job.onChainStatus,
+        agentJobStatus: job.agentJobStatus,
+        createdAt: job.createdAt.toISOString(),
+        startedAt: job.startedAt.toISOString(),
+        completedAt: job.completedAt?.toISOString() ?? null,
+      };
+
+      try {
+        await publishJobStatusData(jobStatusData, job.userId);
+      } catch (err) {
+        console.error(
+          "Error publishing job status data after creating job",
+          err,
+        );
+      }
+
       // Add final success breadcrumb
       Sentry.addBreadcrumb({
         category: "Job Service",
