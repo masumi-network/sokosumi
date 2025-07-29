@@ -7,10 +7,6 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import { UnAuthenticatedError } from "@/lib/auth/errors";
 import { verifyUserId } from "@/lib/auth/utils";
 import { convertCreditsToCents } from "@/lib/db/helpers";
-import {
-  createFiatTransaction,
-  updateFiatTransactionServicePaymentId,
-} from "@/lib/db/repositories";
 import prisma from "@/lib/db/repositories/prisma";
 import {
   CouponCurrencyError,
@@ -20,6 +16,7 @@ import {
 import { FiatTransaction, Prisma, User } from "@/prisma/generated/client";
 
 import { BaseService } from "./base.service";
+import { FiatTransactionService } from "./fiatTransaction.service";
 import { UserService } from "./user.service";
 
 export interface Price {
@@ -318,21 +315,21 @@ export class StripeService extends BaseService<StripeService> {
         const user = await UserService.getInstance(tx).getUserById(userId);
         if (!user) throw new Error("User not found");
         const amount = credits * price.amountPerCredit;
-        const fiatTransaction = await createFiatTransaction(
-          userId,
-          organizationId,
-          convertCreditsToCents(credits),
-          amount,
-          price.currency,
-          tx,
-        );
+        const fiatTransactionService = FiatTransactionService.getInstance(tx);
+        const fiatTransaction =
+          await fiatTransactionService.createFiatTransaction(
+            userId,
+            organizationId,
+            convertCreditsToCents(credits),
+            amount,
+            price.currency,
+          );
         const { id: stripeSessionId, url } = await StripeService.getInstance(
           tx,
         ).createCheckoutSession(user, fiatTransaction, price, promotionCode);
-        await updateFiatTransactionServicePaymentId(
+        await fiatTransactionService.updateFiatTransactionServicePaymentId(
           fiatTransaction.id,
           stripeSessionId,
-          tx,
         );
         return { stripeSessionId, url };
       } catch (error) {

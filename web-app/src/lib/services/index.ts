@@ -1,6 +1,7 @@
 export * from "./agent";
 export { BaseService } from "./base.service";
 export * from "./credit";
+export { FiatTransactionService } from "./fiatTransaction.service";
 export * from "./invitation";
 export { InvitationService } from "./invitation.service";
 export * from "./job";

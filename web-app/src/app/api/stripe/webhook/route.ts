@@ -1,13 +1,8 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
-import {
-  prisma,
-  retrieveFiatTransactionByServicePaymentId,
-  updateFiatTransactionStatusToFailed,
-  updateFiatTransactionStatusToSucceeded,
-} from "@/lib/db/repositories";
-import { UserService } from "@/lib/services";
+import { prisma } from "@/lib/db/repositories";
+import { FiatTransactionService, UserService } from "@/lib/services";
 import { StripeService } from "@/lib/services/stripe.service";
 import { FiatTransactionStatus } from "@/prisma/generated/client";
 
@@ -221,10 +216,11 @@ const updateFiatTransactionStatus = async (
   }
   return await prisma.$transaction(async (tx) => {
     try {
-      const fiatTransaction = await retrieveFiatTransactionByServicePaymentId(
-        session.id,
-        tx,
-      );
+      const fiatTransactionService = FiatTransactionService.getInstance(tx);
+      const fiatTransaction =
+        await fiatTransactionService.getFiatTransactionByServicePaymentId(
+          session.id,
+        );
       if (!fiatTransaction) {
         return NextResponse.json(
           { message: `Fiat transaction for session ${session.id} not found` },
@@ -251,11 +247,10 @@ const updateFiatTransactionStatus = async (
       try {
         switch (status) {
           case "SUCCEEDED":
-            await updateFiatTransactionStatusToSucceeded(
+            await fiatTransactionService.updateFiatTransactionStatusToSucceeded(
               fiatTransaction,
               BigInt(amountTotal),
               currency,
-              tx,
             );
             return NextResponse.json(
               {
@@ -264,11 +259,10 @@ const updateFiatTransactionStatus = async (
               { status: 200 },
             );
           case "FAILED":
-            await updateFiatTransactionStatusToFailed(
+            await fiatTransactionService.updateFiatTransactionStatusToFailed(
               fiatTransaction,
               BigInt(amountTotal),
               currency,
-              tx,
             );
             return NextResponse.json(
               {
