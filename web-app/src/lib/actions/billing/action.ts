@@ -7,11 +7,10 @@ import { CouponError } from "@/lib/errors/coupon-errors";
 import {
   createStripeCheckoutSession,
   getCreditsForCoupon,
-  getPriceFromPriceId,
-  getPriceFromProductId,
   getPromotionCode,
   MemberService,
 } from "@/lib/services";
+import { StripeService } from "@/lib/services/stripe.service";
 import { Err, Ok, Result } from "@/lib/ts-res";
 
 export async function claimFreeCredits(
@@ -26,7 +25,7 @@ export async function claimFreeCredits(
       });
     }
 
-    const price = await getPriceFromProductId(
+    const price = await StripeService.getInstance().getPriceFromProductId(
       getEnvSecrets().STRIPE_PRODUCT_ID,
     );
 
@@ -86,7 +85,8 @@ export async function purchaseCredits(
     }
 
     // Fetch price server-side
-    const price = await getPriceFromPriceId(priceId);
+    const price =
+      await StripeService.getInstance().getPriceFromPriceId(priceId);
 
     // Create the checkout session
     const { url } = await createStripeCheckoutSession(
@@ -135,7 +135,8 @@ export async function getFreeCreditsWithCoupon(
     }
 
     // Fetch price server-side
-    const price = await getPriceFromPriceId(priceId);
+    const price =
+      await StripeService.getInstance().getPriceFromPriceId(priceId);
     const credits = await getCreditsForCoupon(couponId, price);
 
     // Validate and get the promotion code for this user and couponId

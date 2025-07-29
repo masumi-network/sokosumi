@@ -1,13 +1,15 @@
 import BillingForm from "@/components/billing/billing-form";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
-import { getPriceFromProductId, OrganizationService } from "@/lib/services";
+import { OrganizationService } from "@/lib/services";
+import { StripeService } from "@/lib/services/stripe.service";
 
 export default async function BillingPage() {
   await getSessionOrRedirect();
 
   const productId = getEnvSecrets().STRIPE_PRODUCT_ID;
-  const price = await getPriceFromProductId(productId);
+  const price =
+    await StripeService.getInstance().getPriceFromProductId(productId);
   const activeOrganization =
     await OrganizationService.getInstance().getActiveOrganization();
 

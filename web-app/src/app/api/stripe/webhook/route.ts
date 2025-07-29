@@ -7,11 +7,8 @@ import {
   updateFiatTransactionStatusToFailed,
   updateFiatTransactionStatusToSucceeded,
 } from "@/lib/db/repositories";
-import {
-  constructEvent,
-  updateCustomerMetadata,
-  UserService,
-} from "@/lib/services";
+import { UserService } from "@/lib/services";
+import { StripeService } from "@/lib/services/stripe.service";
 import { FiatTransactionStatus } from "@/prisma/generated/client";
 
 export async function POST(req: Request) {
@@ -20,7 +17,10 @@ export async function POST(req: Request) {
   try {
     const stripeSignature = req.headers.get("stripe-signature");
 
-    event = await constructEvent(req, stripeSignature as string);
+    event = await StripeService.getInstance().constructEvent(
+      req,
+      stripeSignature as string,
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.log(`❌ Error message: ${message}`);
@@ -145,7 +145,10 @@ const handleCustomerCreatedEvent = async (customer: Stripe.Customer) => {
 
   // Update metadata for the customer (this is non-critical and shouldn't cause webhook failure)
   try {
-    await updateCustomerMetadata(customer.id, user.id);
+    await StripeService.getInstance().updateCustomerMetadata(
+      customer.id,
+      user.id,
+    );
   } catch (metadataError) {
     console.error(
       `Failed to update metadata for customer ${customer.id}:`,
