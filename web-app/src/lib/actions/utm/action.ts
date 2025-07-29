@@ -44,6 +44,7 @@ export async function setUTMCookieIfNotExists(
     const cookieValue = JSON.stringify(utmData);
     cookieStore.set(UTM_COOKIE_NAME, cookieValue, {
       maxAge: UTM_COOKIE_MAX_AGE,
+      domain: getEnvSecrets().COOKIE_DOMAIN,
       httpOnly: false,
       secure: getEnvSecrets().NODE_ENV === "production",
       sameSite: "lax",
