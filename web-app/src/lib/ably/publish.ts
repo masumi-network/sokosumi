@@ -10,7 +10,7 @@ export default async function publishJobStatusData(
 ) {
   const client = getClient();
   const channel = client.channels.get(
-    makeAgentJobsChannel(jobStatusData.id, userId),
+    makeAgentJobsChannel(jobStatusData.agentId, userId),
   );
   await channel.publish(getAgentJobsChannelName(), jobStatusData);
 }

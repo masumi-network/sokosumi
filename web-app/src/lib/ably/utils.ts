@@ -3,5 +3,5 @@ export function getAgentJobsChannelName(): string {
 }
 
 export function makeAgentJobsChannel(agentId: string, userId: string): string {
-  return `agent-jobs:${agentId}:${userId}`;
+  return `agent-jobs:${agentId}-${userId}`;
 }
