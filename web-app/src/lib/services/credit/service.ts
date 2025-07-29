@@ -8,9 +8,9 @@ import {
   convertCreditsToCents,
   CreditsPrice,
 } from "@/lib/db";
-import { prisma, retrieveCreditCostByUnit } from "@/lib/db/repositories";
+import { prisma } from "@/lib/db/repositories";
 import { pricingAmountsSchema, PricingAmountsSchemaType } from "@/lib/schemas";
-import { CreditTransactionService } from "@/lib/services";
+import { CreditCostService, CreditTransactionService } from "@/lib/services";
 import { Prisma } from "@/prisma/generated/client";
 
 /**
@@ -111,7 +111,9 @@ export async function getCreditsPrice(
   let totalFee = BigInt(0);
   const minFeeCents = convertCreditsToCents(getEnvSecrets().MIN_FEE_CREDITS);
   for (const amount of amountsParsed) {
-    const creditCost = await retrieveCreditCostByUnit(amount.unit, tx);
+    const creditCost = await CreditCostService.getInstance(
+      tx,
+    ).getCreditCostByUnit(amount.unit);
     if (!creditCost) {
       throw new Error(`Credit cost not found for unit ${amount.unit}`);
     }

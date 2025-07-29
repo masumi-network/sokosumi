@@ -1,3 +1,5 @@
+import "server-only";
+
 import { CreditTransaction } from "@/prisma/generated/client";
 
 import { BaseService } from "./base.service";
