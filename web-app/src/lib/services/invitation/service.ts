@@ -2,11 +2,7 @@ import "server-only";
 
 import { getSessionOrThrow } from "@/lib/auth/utils";
 import { InvitationWithRelations } from "@/lib/db";
-import {
-  retrievePendingInvitationById,
-  retrieveValidPendingInvitationsByEmail,
-} from "@/lib/db/repositories";
-import { MemberService } from "@/lib/services";
+import { InvitationService, MemberService } from "@/lib/services";
 
 import { InvitationErrorCode } from "./types";
 
@@ -19,7 +15,8 @@ export async function getPendingInvitation(id: string): Promise<
       invitation: InvitationWithRelations;
     }
 > {
-  const invitation = await retrievePendingInvitationById(id);
+  const invitation =
+    await InvitationService.getInstance().getPendingInvitationById(id);
 
   if (!invitation) {
     return {
@@ -64,5 +61,7 @@ export async function getMyValidPendingInvitations(): Promise<
   const session = await getSessionOrThrow();
   const userEmail = session.user.email;
 
-  return await retrieveValidPendingInvitationsByEmail(userEmail);
+  return await InvitationService.getInstance().getValidPendingInvitationsByEmail(
+    userEmail,
+  );
 }

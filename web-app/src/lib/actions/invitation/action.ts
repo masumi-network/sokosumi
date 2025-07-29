@@ -7,13 +7,8 @@ import {
 } from "@/lib/actions";
 import { getSession } from "@/lib/auth/utils";
 import { MemberRole } from "@/lib/db";
-import {
-  acceptValidPendingInvitationById,
-  prisma,
-  rejectValidPendingInvitationById,
-  retrievePendingInvitationById,
-} from "@/lib/db/repositories";
-import { MemberService } from "@/lib/services";
+import { prisma } from "@/lib/db/repositories";
+import { InvitationService, MemberService } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
 
 export async function acceptInvitation(
@@ -35,7 +30,9 @@ export async function acceptInvitation(
     const userId = session.user.id;
 
     await prisma.$transaction(async (tx) => {
-      const invitation = await retrievePendingInvitationById(invitationId);
+      const invitationService = InvitationService.getInstance(tx);
+      const invitation =
+        await invitationService.getPendingInvitationById(invitationId);
       if (!invitation) {
         actionError = {
           message: "Invitation not found",
@@ -61,7 +58,7 @@ export async function acceptInvitation(
       }
 
       // accept invitation by invitation id
-      await acceptValidPendingInvitationById(invitationId, tx);
+      await invitationService.acceptValidPendingInvitationById(invitationId);
 
       // check if user is already member
       const member = await memberService.getMemberByUserIdAndOrganizationId(
@@ -110,7 +107,9 @@ export async function rejectInvitation(
     }
 
     await prisma.$transaction(async (tx) => {
-      const invitation = await retrievePendingInvitationById(invitationId);
+      const invitationService = InvitationService.getInstance(tx);
+      const invitation =
+        await invitationService.getPendingInvitationById(invitationId);
       if (!invitation) {
         actionError = {
           message: "Invitation not found",
@@ -136,7 +135,7 @@ export async function rejectInvitation(
       }
 
       // reject invitation by invitation id
-      await rejectValidPendingInvitationById(invitationId, tx);
+      await invitationService.rejectValidPendingInvitationById(invitationId);
     });
 
     return Ok();

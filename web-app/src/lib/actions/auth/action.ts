@@ -11,13 +11,9 @@ import {
 } from "@/lib/actions";
 import { auth } from "@/lib/auth/auth";
 import { MemberRole } from "@/lib/db";
-import {
-  acceptValidPendingInvitationById,
-  prisma,
-  retrieveValidPendingInvitationById,
-} from "@/lib/db/repositories";
+import { prisma } from "@/lib/db/repositories";
 import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
-import { MemberService, UTMService } from "@/lib/services";
+import { InvitationService, MemberService, UTMService } from "@/lib/services";
 import { OrganizationService } from "@/lib/services/organization.service";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import { getEmailDomain, removePublicDomains } from "@/lib/utils";
@@ -130,7 +126,9 @@ export async function signUpEmail(
           organization.requiredEmailDomains.includes(userEmailDomain));
 
       const invitation = invitationId
-        ? await retrieveValidPendingInvitationById(invitationId, tx)
+        ? await InvitationService.getInstance(tx).getValidPendingInvitationById(
+            invitationId,
+          )
         : undefined;
       const isValidInvitationUsed =
         invitation && invitation.organizationId === organization.id;
@@ -152,7 +150,9 @@ export async function signUpEmail(
       }
 
       if (invitation) {
-        await acceptValidPendingInvitationById(invitation.id, tx);
+        await InvitationService.getInstance(
+          tx,
+        ).acceptValidPendingInvitationById(invitation.id);
       }
 
       const signUpResult = await auth.api.signUpEmail({
