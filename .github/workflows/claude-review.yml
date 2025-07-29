@@ -1,0 +1,68 @@
+name: Claude Code Reviewer
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  review:
+    if: |
+      github.event.pull_request.draft == false &&
+      github.event.pull_request.user.login == 'mrgrauel' ||
+      github.event.pull_request.user.login == 'golddydev' ||
+      github.event.pull_request.user.login == 'francisluz'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      id-token: write
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: sokosumi
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Run Claude Code
+        id: claude
+        uses: anthropics/claude-code-action@beta
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          allowed_tools: Bash(pnpm install),Bash(pnpm run lint),Bash(pnpm run test),Bash(git:*)
+          direct_prompt: |
+            Please provide a thorough review of this pull request and suggest improvements.
+            Pay extra attention to coding standards, security practices,
+            and test coverage since this is from an external contributor.
+          claude_env: |
+            CI: true
+            DATABASE_URL: "postgresql://user:password@localhost:5432/sokosumi"
+            SOKOSUMI_URL: "https://sokosumi.com"
+            SOKOSUMI_FUNCTION_NAMESPACE: ${{ vars.PUBLIC_DEFAULT_SECRET }}
+            BETTER_AUTH_SECRET: ${{ vars.PUBLIC_DEFAULT_SECRET }}
+            RESEND_API_KEY: ${{ vars.PUBLIC_DEFAULT_SECRET }}
+            RESEND_FROM_EMAIL: ${{ vars.PUBLIC_DEFAULT_EMAIL }}
+            NEXT_PUBLIC_NETWORK: "Preprod"
+            PAYMENT_API_KEY: ${{ vars.PUBLIC_DEFAULT_SECRET }}
+            REGISTRY_API_KEY: ${{ vars.PUBLIC_DEFAULT_SECRET }}
+            STRIPE_PUBLISHABLE_KEY: ${{ vars.PUBLIC_DEFAULT_SECRET }}
+            STRIPE_SECRET_KEY: ${{ vars.PUBLIC_DEFAULT_SECRET }}
+            STRIPE_WEBHOOK_SECRET: ${{ vars.PUBLIC_DEFAULT_SECRET }}
+            STRIPE_PRICE_ID: ${{ vars.PUBLIC_DEFAULT_SECRET }}
+            STRIPE_WELCOME_COUPONS: ${{ vars.PUBLIC_DEFAULT_SECRET }}
