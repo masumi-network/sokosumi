@@ -28,7 +28,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function AppLayout({ children }: AppLayoutProps) {
   const cookieStore = await cookies();
-  const defaultOpen = cookieStore.get("sidebar_state")?.value === "true";
+  const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
 
   await getSessionOrRedirect();
 
