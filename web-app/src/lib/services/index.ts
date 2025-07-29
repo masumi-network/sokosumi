@@ -4,6 +4,7 @@ export * from "./credit";
 export * from "./invitation";
 export { InvitationService } from "./invitation.service";
 export * from "./job";
+export { LockService } from "./lock.service";
 export { MemberService } from "./member.service";
 export { OrganizationService } from "./organization.service";
 export { StripeService } from "./stripe.service";
