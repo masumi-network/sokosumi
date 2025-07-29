@@ -10,7 +10,7 @@ interface JobsPageProps {
 }
 
 export default async function JobsPage({ params }: JobsPageProps) {
-  await getSessionOrRedirect();
+  const session = await getSessionOrRedirect();
 
   const { agentId } = await params;
   const agent = await getAgentById(agentId);
@@ -21,5 +21,5 @@ export default async function JobsPage({ params }: JobsPageProps) {
 
   const agentJobs = await getMyJobsByAgentId(agentId);
 
-  return <JobsTable jobs={agentJobs} />;
+  return <JobsTable jobs={agentJobs} userId={session.user.id} />;
 }

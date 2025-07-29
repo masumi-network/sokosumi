@@ -9,7 +9,7 @@ let client: Realtime;
 export default function getClient() {
   if (!client) {
     client = new Realtime({
-      key: getEnvSecrets().ABLY_JOB_PUBLISH_ONLY_KEY,
+      key: getEnvSecrets().ABLY_AGENT_JOBS_PUBLISH_ONLY_KEY,
     });
   }
   return client;

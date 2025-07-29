@@ -121,8 +121,8 @@ const envSecretsSchema = z.object({
     .default(""),
 
   // ably keys
-  ABLY_JOB_SUBSCRIBE_ONLY_KEY: z.string().min(1),
-  ABLY_JOB_PUBLISH_ONLY_KEY: z.string().min(1),
+  ABLY_AGENT_JOBS_SUBSCRIBE_ONLY_KEY: z.string().min(1),
+  ABLY_AGENT_JOBS_PUBLISH_ONLY_KEY: z.string().min(1),
 });
 
 let envSecrets: z.infer<typeof envSecretsSchema>;

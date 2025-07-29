@@ -14,9 +14,10 @@ import { getJobColumns } from "./job-columns";
 
 interface JobsTableProps {
   jobs: JobWithStatus[];
+  userId: string;
 }
 
-export default function JobsTable({ jobs }: JobsTableProps) {
+export default function JobsTable({ jobs, userId }: JobsTableProps) {
   const t = useTranslations("App.Agents.Jobs.JobsTable");
   const dateFormatter = useFormatter();
   const params = useParams<{ jobId?: string | undefined }>();
@@ -33,7 +34,7 @@ export default function JobsTable({ jobs }: JobsTableProps) {
   return (
     <AblyProvider>
       <DataTable
-        columns={getColumns(t, dateFormatter)}
+        columns={getColumns(userId, t, dateFormatter)}
         onRowClick={(row) => async () => {
           if (routerLoading) return;
           await handleRowClick(row as JobWithStatus);
@@ -62,10 +63,12 @@ export default function JobsTable({ jobs }: JobsTableProps) {
 }
 
 function getColumns(
+  userId: string,
   t: ReturnType<typeof useTranslations>,
   dateFormatter: ReturnType<typeof useFormatter>,
 ) {
   const { startedAtColumn, statusColumn, nameColumn } = getJobColumns(
+    userId,
     t,
     dateFormatter,
   );

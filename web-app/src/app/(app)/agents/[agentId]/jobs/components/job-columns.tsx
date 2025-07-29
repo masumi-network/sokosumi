@@ -6,8 +6,8 @@ import { useFormatter, useTranslations } from "next-intl";
 
 import { DataTableColumnHeader } from "@/components/data-table";
 import { MiddleTruncate } from "@/components/middle-truncate";
-import useJobStatus from "@/hooks/use-job-status";
-import { makeJobStatusChannel } from "@/lib/ably";
+import useAgentJobStatus from "@/hooks/use-agent-job-status";
+import { makeAgentJobsChannel } from "@/lib/ably";
 import { JobStatus, JobWithStatus } from "@/lib/db";
 
 import JobStatusBadge from "./job-status-badge";
@@ -15,6 +15,7 @@ import JobStatusBadge from "./job-status-badge";
 const columnHelper = createColumnHelper<JobWithStatus>();
 
 export function getJobColumns(
+  userId: string,
   t: ReturnType<typeof useTranslations>,
   dateFormatter: ReturnType<typeof useFormatter>,
 ) {
@@ -46,11 +47,13 @@ export function getJobColumns(
       ),
       cell: ({ row }) => (
         <div className="p-2">
-          <ChannelProvider channelName={makeJobStatusChannel(row.original.id)}>
+          <ChannelProvider
+            channelName={makeAgentJobsChannel(row.original.agentId, userId)}
+          >
             <RealTimeJobStatusBadge
-              jobId={row.original.id}
               agentId={row.original.agentId}
-              status={row.original.status}
+              userId={userId}
+              initialStatus={row.original.status}
             />
           </ChannelProvider>
         </div>
@@ -84,21 +87,26 @@ export function getJobColumns(
 }
 
 function RealTimeJobStatusBadge({
-  jobId,
   agentId,
-  status,
+  userId,
+  initialStatus,
   className,
 }: {
-  jobId: string;
   agentId: string;
-  status: JobStatus;
+  userId: string;
+  initialStatus: JobStatus;
   className?: string;
 }) {
-  const realTimeJobStatus = useJobStatus(jobId, agentId, status, true);
+  const realTimeJobStatus = useAgentJobStatus(
+    agentId,
+    userId,
+    initialStatus,
+    true,
+  );
 
   return (
     <JobStatusBadge
-      status={realTimeJobStatus ?? status}
+      status={realTimeJobStatus ?? initialStatus}
       className={className}
     />
   );
