@@ -6,7 +6,7 @@ export { InvitationService } from "./invitation.service";
 export * from "./job";
 export { MemberService } from "./member.service";
 export { OrganizationService } from "./organization.service";
-export * from "./stripe";
+export { StripeService } from "./stripe.service";
 export { TagService } from "./tag.service";
 export { UserService } from "./user.service";
 export { UTMService } from "./utm.service";
