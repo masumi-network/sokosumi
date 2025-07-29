@@ -22,7 +22,6 @@ jobs:
       contents: read
       pull-requests: read
       issues: read
-      id-token: write
     services:
       postgres:
         image: postgres:17
@@ -52,6 +51,9 @@ jobs:
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
           allowed_tools: Bash(pnpm install),Bash(pnpm run lint),Bash(pnpm run test),Bash(git:*)
+          override_prompt: |
+            Please provide a thorough review of this pull request and suggest improvements.
+            Pay extra attention to coding standards, security practices.
           claude_env: |
             CI: true
             DATABASE_URL: "postgresql://user:password@localhost:5432/sokosumi"
