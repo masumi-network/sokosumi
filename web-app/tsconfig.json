@@ -22,8 +22,7 @@
     ],
     "paths": {
       "@/*": ["./src/*"],
-      "@/app/*": ["./src/app/app/*"],
-      "@/landing/*": ["./src/app/(landing)/*"],
+      "@/app/*": ["./src/app/(app)/*"],
       "@/auth/*": ["./src/app/(auth)/*"],
       "@/api/*": ["./src/app/api/*"],
       "@/components/*": ["./src/components/*"],

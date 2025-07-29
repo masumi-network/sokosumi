@@ -86,7 +86,7 @@ export default function JobInputsFormClient({
     setLoading(false);
     if (result.ok) {
       handleClose();
-      await router.push(`/app/agents/${agentId}/jobs/${result.data.jobId}`);
+      await router.push(`/agents/${agentId}/jobs/${result.data.jobId}`);
     } else {
       switch (result.error.code) {
         case CommonErrorCode.UNAUTHENTICATED:
@@ -104,7 +104,7 @@ export default function JobInputsFormClient({
           toast.error(t("Error.insufficientBalance"), {
             action: {
               label: t("Error.insufficientBalanceAction"),
-              onClick: async () => await router.push(`/app/billing`),
+              onClick: async () => await router.push(`/billing`),
             },
           });
           break;

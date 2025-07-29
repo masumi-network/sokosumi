@@ -1,13 +1,28 @@
 import { getSessionCookie } from "better-auth/cookies";
 import { NextRequest, NextResponse } from "next/server";
 
+const EXCLUDED_PATHS = [
+  "/login",
+  "/register",
+  "/forgot-password",
+  "/reset-password",
+  "/accept-invitation",
+  "/health",
+  "/robots.txt",
+  "/sitemap.xml",
+];
+
 export async function middleware(request: NextRequest) {
-  const response = NextResponse.next();
+  const { pathname } = request.nextUrl;
+
+  // Skip middleware for excluded paths
+  if (EXCLUDED_PATHS.some((path) => pathname.startsWith(path))) {
+    return NextResponse.next();
+  }
 
   // Add current URL to headers for server components
-  const pathname = request.nextUrl.pathname;
   const searchParams = request.nextUrl.search;
-
+  const response = NextResponse.next();
   response.headers.set("x-pathname", pathname);
   response.headers.set("x-search-params", searchParams);
 
@@ -24,5 +39,16 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/app/:path*"], // Apply middleware to specific routes
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - images directory in /public (public static images)
+     * - legal directory in /public (public static legal documents)
+     * - js directory in /public (public static js files)
+     */
+    "/((?!api|_next/static|_next/image|images|public|legal|js).*)",
+  ],
 };

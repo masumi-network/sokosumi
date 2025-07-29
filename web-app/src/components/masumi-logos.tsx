@@ -22,7 +22,7 @@ function KanjiLogo({ variant = "black", ...props }: LogoProps) {
   return (
     <Image
       className="hidden dark:block"
-      src={`/kanji/sokosumi-logo-kanji-${variant}.svg`}
+      src={`/images/kanji/sokosumi-logo-kanji-${variant}.svg`}
       alt="Hero Background"
       width={20}
       height={42}
@@ -34,7 +34,7 @@ function KanjiLogo({ variant = "black", ...props }: LogoProps) {
 function SokosumiLogo({ variant = "black", ...props }: LogoProps) {
   return (
     <Image
-      src={`/logos/sokosumi-logo-${variant}.svg`}
+      src={`/images/logos/sokosumi-logo-${variant}.svg`}
       alt="Sokosumi Logo"
       width={200}
       height={26}
@@ -46,7 +46,7 @@ function SokosumiLogo({ variant = "black", ...props }: LogoProps) {
 function KodosumiLogo({ variant = "black", ...props }: LogoProps) {
   return (
     <Image
-      src={`/logos/kodosumi-logo-${variant}.svg`}
+      src={`/images/logos/kodosumi-logo-${variant}.svg`}
       alt="Kodosumi Logo"
       width={200}
       height={27}
@@ -58,7 +58,7 @@ function KodosumiLogo({ variant = "black", ...props }: LogoProps) {
 function MasumiLogo({ variant = "black", ...props }: LogoProps) {
   return (
     <Image
-      src={`/logos/masumi-logo-${variant}.svg`}
+      src={`/images/logos/masumi-logo-${variant}.svg`}
       alt="Masumi Logo"
       width={200}
       height={31}

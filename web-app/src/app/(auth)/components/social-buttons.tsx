@@ -46,7 +46,7 @@ export default function SocialButtons() {
     const result = await signInSocial(key);
     if (result.ok) {
       toast.success(t("success"));
-      await router.push("/app");
+      await router.push("/agents");
     } else {
       toast.error(t("error"));
     }
