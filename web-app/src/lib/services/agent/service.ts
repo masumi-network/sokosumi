@@ -9,14 +9,8 @@ import {
 } from "@/lib/db";
 import {
   createAgentListByUserIdAndType,
-  mapAgentWithIsNew,
   prisma,
   retrieveAgentListByUserIdAndType,
-  retrieveAgentsWithRelations,
-  retrieveAgentWithRelationsById,
-  retrieveHiredAgentsWithJobsByUserIdAndOrganization,
-  retrieveShownAgentsWithRelationsByStatus,
-  retrieveShownAgentWithRelationById,
 } from "@/lib/db/repositories";
 import { JobInputsDataSchemaType } from "@/lib/job-input";
 import {
@@ -24,6 +18,7 @@ import {
   getAgentCreditsPrice,
   MemberService,
 } from "@/lib/services";
+import { AgentService } from "@/lib/services/agent.service";
 import {
   AgentListType,
   AgentStatus,
@@ -129,11 +124,9 @@ export async function getAvailableAgentById(
   agentId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithRelations | null> {
-  const agent = await retrieveShownAgentWithRelationById(
-    agentId,
-    AgentStatus.ONLINE,
+  const agent = await AgentService.getInstance(
     tx,
-  );
+  ).getShownAgentWithRelationById(agentId, AgentStatus.ONLINE);
   if (!agent) return null;
   const { userOrganizationIds, creditCosts } = await getAgentAccessContext(tx);
   if (!isAgentAvailable(agent, userOrganizationIds, creditCosts)) return null;
@@ -151,7 +144,7 @@ export async function getAgentById(
   agentId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithRelations | null> {
-  return await retrieveAgentWithRelationsById(agentId, tx);
+  return await AgentService.getInstance(tx).getAgentWithRelationsById(agentId);
 }
 
 /**
@@ -183,10 +176,9 @@ export async function getAvailableAgents(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithRelations[]> {
   const { userOrganizationIds, creditCosts } = await getAgentAccessContext(tx);
-  const onlineAgents = await retrieveShownAgentsWithRelationsByStatus(
-    AgentStatus.ONLINE,
+  const onlineAgents = await AgentService.getInstance(
     tx,
-  );
+  ).getShownAgentsWithRelationsByStatus(AgentStatus.ONLINE);
   return onlineAgents.filter((agent) =>
     isAgentAvailable(agent, userOrganizationIds, creditCosts),
   );
@@ -201,7 +193,7 @@ export async function getAvailableAgents(
 export async function getAgents(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithRelations[]> {
-  return await retrieveAgentsWithRelations(tx);
+  return await AgentService.getInstance(tx).getAgentsWithRelations();
 }
 
 /**
@@ -254,12 +246,9 @@ export async function getHiredAgentsOrderedByLatestJob(
   const session = await getSessionOrThrow();
   const userId = session.user.id;
   const activeOrganizationId = session.session.activeOrganizationId;
-  const hiredAgentsWithJobs =
-    await retrieveHiredAgentsWithJobsByUserIdAndOrganization(
-      userId,
-      activeOrganizationId,
-      tx,
-    );
+  const hiredAgentsWithJobs = await AgentService.getInstance(
+    tx,
+  ).getHiredAgentsWithJobsByUserIdAndOrganization(userId, activeOrganizationId);
   return hiredAgentsWithJobs.sort((a, b) => {
     const aLatestJob = a.jobs[0];
     const bLatestJob = b.jobs[0];
@@ -283,7 +272,8 @@ export async function getAgentInputSchema(
   agentId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<JobInputsDataSchemaType> {
-  const agent = await retrieveAgentWithRelationsById(agentId, tx);
+  const agent =
+    await AgentService.getInstance(tx).getAgentWithRelationsById(agentId);
   if (!agent) {
     throw new Error(`Agent with ID ${agentId} not found`);
   }
@@ -336,11 +326,11 @@ async function getAgentsByListType(
     const { userOrganizationIds, creditCosts } =
       await getAgentAccessContext(tx);
     return existingList.agents
-      .map(mapAgentWithIsNew)
+      .map(AgentService.mapAgentWithIsNew)
       .filter((agent) =>
         isAgentAvailable(agent, userOrganizationIds, creditCosts),
       );
   }
   const list = await createAgentListByUserIdAndType(session.user.id, type, tx);
-  return list.agents.map(mapAgentWithIsNew);
+  return list.agents.map(AgentService.mapAgentWithIsNew);
 }

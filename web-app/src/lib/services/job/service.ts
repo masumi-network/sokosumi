@@ -13,7 +13,6 @@ import {
   createJob,
   prisma,
   refundJob,
-  retrieveAgentWithRelationsById,
   retrieveJobsByAgentIdUserIdAndOrganizationId,
   retrieveNotFinishedLatestJobByAgentIdUserIdAndOrganization,
   retrievePersonalJobsByAgentIdAndUserId,
@@ -28,6 +27,7 @@ import {
   StartJobInputSchemaType,
 } from "@/lib/schemas";
 import {
+  AgentService,
   CreditTransactionService,
   getAvailableAgentById,
 } from "@/lib/services";
@@ -758,7 +758,9 @@ export async function getAgentJobStatus(
   job: Job,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<JobStatusResponse | null> {
-  const agent = await retrieveAgentWithRelationsById(job.agentId, tx);
+  const agent = await AgentService.getInstance(tx).getAgentWithRelationsById(
+    job.agentId,
+  );
   if (!agent) {
     return null;
   }
