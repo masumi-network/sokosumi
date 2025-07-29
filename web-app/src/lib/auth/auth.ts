@@ -36,7 +36,7 @@ export const auth = betterAuth({
     provider: "postgresql",
   }),
   trustedOrigins: (_) => {
-    const origins = [...getEnvSecrets().BETTER_AUTH_TRUSTED_ORIGINS];
+    const origins = [getEnvSecrets().BETTER_AUTH_TRUSTED_ORIGIN];
     const vercelBranchUrl = getEnvSecrets().VERCEL_BRANCH_URL;
     if (vercelBranchUrl) {
       origins.push(vercelBranchUrl);

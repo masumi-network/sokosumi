@@ -59,7 +59,7 @@ export async function updateOrganizationInformation(
       );
 
     // revalidate the organization page
-    revalidatePath(`/app/organizations/${updatedOrganization.slug}`);
+    revalidatePath(`/organizations/${updatedOrganization.slug}`);
     return Ok();
   } catch (error) {
     console.error("Error updating organization information", error);
@@ -71,5 +71,5 @@ export async function updateOrganizationInformation(
 }
 
 export async function revalidateOrganizationsPath() {
-  revalidatePath("/app/organizations");
+  revalidatePath("/organizations");
 }

@@ -80,8 +80,7 @@ function generateSegments(
       const isCurrent = index === pathSegments.length - 1;
 
       // check for special cases
-      if (href === "/app") return;
-      if (href.startsWith("/app/accept-invitation")) return;
+      if (href.startsWith("/accept-invitation")) return;
 
       // Try to resolve the segment label in the following order:
       // 1. Custom segment labels map

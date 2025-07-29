@@ -33,7 +33,7 @@ export async function toggleAgentInAgentList(
     }
 
     // Revalidate the app to update the UI
-    revalidatePath("/app");
+    revalidatePath("/");
     return Ok();
   } catch (error) {
     console.error("Error toggling agent in list", error);

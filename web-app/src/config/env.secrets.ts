@@ -31,6 +31,9 @@ const envSecretsSchema = z.object({
   // Plausible
   PLAUSIBLE_DOMAIN: z.string().default("sokosumi.com"),
 
+  // Cookie
+  COOKIE_DOMAIN: z.string().default("sokosumi.com"),
+
   // Stripe
   STRIPE_PUBLISHABLE_KEY: z.string().min(1),
   STRIPE_SECRET_KEY: z.string().min(1),
@@ -80,11 +83,7 @@ const envSecretsSchema = z.object({
   // BetterAuth Settings
   BETTER_AUTH_URL: z.string().url().default("http://localhost:3000"),
   BETTER_AUTH_SECRET: z.string().min(1),
-  BETTER_AUTH_TRUSTED_ORIGINS: z
-    .string()
-    .transform((val) => val.split(","))
-    .pipe(z.array(z.string()))
-    .default(""),
+  BETTER_AUTH_TRUSTED_ORIGIN: z.string().url().default("http://localhost:3000"),
   BETTER_AUTH_SESSION_EXPIRES_IN: z
     .number({ coerce: true })
     .min(1)

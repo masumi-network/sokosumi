@@ -62,7 +62,7 @@ export default function SignInForm({
     toast.success(t("success"));
     // Redirect to the original URL if provided, otherwise go to /app
     // Validate returnUrl to prevent open redirect attacks
-    let redirectUrl = "/app";
+    let redirectUrl = "/";
     if (returnUrl) {
       try {
         // Only allow relative URLs or URLs from the same origin
