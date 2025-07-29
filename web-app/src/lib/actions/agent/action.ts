@@ -4,10 +4,7 @@ import { revalidatePath } from "next/cache";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions";
 import { getSession } from "@/lib/auth/utils";
-import {
-  addAgentToAgentListByIdAndUserId,
-  removeAgentFromAgentListByIdAndUserId,
-} from "@/lib/db/repositories";
+import { AgentService } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import { AgentListType } from "@/prisma/generated/client";
 
@@ -27,9 +24,17 @@ export async function toggleAgentInAgentList(
     const userId = session.user.id;
 
     if (isBookmarked) {
-      await removeAgentFromAgentListByIdAndUserId(agentId, listType, userId);
+      await AgentService.getInstance().removeAgentFromAgentListByIdAndUserId(
+        agentId,
+        listType,
+        userId,
+      );
     } else {
-      await addAgentToAgentListByIdAndUserId(agentId, listType, userId);
+      await AgentService.getInstance().addAgentToAgentListByIdAndUserId(
+        agentId,
+        listType,
+        userId,
+      );
     }
 
     // Revalidate the app to update the UI

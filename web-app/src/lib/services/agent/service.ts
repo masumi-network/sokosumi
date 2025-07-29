@@ -7,11 +7,7 @@ import {
   AgentWithOrganizations,
   AgentWithRelations,
 } from "@/lib/db";
-import {
-  createAgentListByUserIdAndType,
-  prisma,
-  retrieveAgentListByUserIdAndType,
-} from "@/lib/db/repositories";
+import { prisma } from "@/lib/db/repositories";
 import { JobInputsDataSchemaType } from "@/lib/job-input";
 import {
   CreditCostService,
@@ -159,10 +155,11 @@ export async function getAgentById(
  */
 export async function isAgentFavorite(agentId: string): Promise<boolean> {
   const session = await getSessionOrThrow();
-  const favoriteList = await retrieveAgentListByUserIdAndType(
-    session.user.id,
-    AgentListType.FAVORITE,
-  );
+  const favoriteList =
+    await AgentService.getInstance().getAgentListByUserIdAndType(
+      session.user.id,
+      AgentListType.FAVORITE,
+    );
   return favoriteList?.agents.some((agent) => agent.id === agentId) ?? false;
 }
 
@@ -317,11 +314,9 @@ async function getAgentsByListType(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithRelations[]> {
   const session = await getSessionOrThrow();
-  const existingList = await retrieveAgentListByUserIdAndType(
-    session.user.id,
-    type,
+  const existingList = await AgentService.getInstance(
     tx,
-  );
+  ).getAgentListByUserIdAndType(session.user.id, type);
   if (existingList) {
     const { userOrganizationIds, creditCosts } =
       await getAgentAccessContext(tx);
@@ -331,6 +326,8 @@ async function getAgentsByListType(
         isAgentAvailable(agent, userOrganizationIds, creditCosts),
       );
   }
-  const list = await createAgentListByUserIdAndType(session.user.id, type, tx);
+  const list = await AgentService.getInstance(
+    tx,
+  ).createAgentListByUserIdAndType(session.user.id, type);
   return list.agents.map(AgentService.mapAgentWithIsNew);
 }

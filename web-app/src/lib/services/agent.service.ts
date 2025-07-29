@@ -3,11 +3,17 @@ import "server-only";
 import { getEnvPublicConfig } from "@/config/env.public";
 import {
   agentInclude,
+  agentListInclude,
+  AgentListWithAgents,
   agentOrderBy,
   AgentWithJobs,
   AgentWithRelations,
 } from "@/lib/db/types";
-import { AgentStatus } from "@/prisma/generated/client";
+import {
+  AgentList,
+  AgentListType,
+  AgentStatus,
+} from "@/prisma/generated/client";
 
 import { BaseService } from "./base.service";
 
@@ -97,6 +103,64 @@ export class AgentService extends BaseService<AgentService> {
       },
     });
   }
+
+  // Agent List Methods
+
+  async createAgentListByUserIdAndType(
+    userId: string,
+    type: AgentListType,
+  ): Promise<AgentListWithAgents> {
+    return await this.client.agentList.create({
+      data: {
+        userId,
+        type,
+      },
+      include: agentListInclude,
+    });
+  }
+
+  async getAgentListByUserIdAndType(
+    userId: string,
+    type: AgentListType,
+  ): Promise<AgentListWithAgents | null> {
+    return await this.client.agentList.findUnique({
+      where: {
+        userId_type: {
+          userId,
+          type,
+        },
+      },
+      include: agentListInclude,
+    });
+  }
+
+  async addAgentToAgentListByIdAndUserId(
+    agentId: string,
+    listType: AgentListType,
+    userId: string,
+  ): Promise<AgentList> {
+    return await this.client.agentList.update({
+      where: { userId_type: { userId, type: listType } },
+      data: {
+        agents: { connect: { id: agentId } },
+      },
+    });
+  }
+
+  async removeAgentFromAgentListByIdAndUserId(
+    agentId: string,
+    listType: AgentListType,
+    userId: string,
+  ): Promise<AgentList> {
+    return await this.client.agentList.update({
+      where: { userId_type: { userId, type: listType } },
+      data: {
+        agents: { disconnect: { id: agentId } },
+      },
+    });
+  }
+
+  // Static Methods
 
   static mapAgentWithIsNew(
     agent: Omit<AgentWithRelations, "isNew">,
