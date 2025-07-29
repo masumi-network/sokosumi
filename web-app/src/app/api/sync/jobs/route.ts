@@ -4,8 +4,8 @@ import pTimeout from "p-timeout";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { authenticateCronSecret } from "@/lib/auth/utils";
-import { jobsNotFinishedWhereQuery, prisma } from "@/lib/db/repositories";
-import { syncJob } from "@/lib/services";
+import { prisma } from "@/lib/db/repositories";
+import { JobService, syncJob } from "@/lib/services";
 import { LockService } from "@/lib/services/lock.service";
 import { Lock } from "@/prisma/generated/client";
 
@@ -69,7 +69,7 @@ async function syncAllJobs(): Promise<void> {
   const runningDbUpdates: Promise<void>[] = [];
 
   const jobs = await prisma.job.findMany({
-    where: jobsNotFinishedWhereQuery(),
+    where: JobService.jobsNotFinishedWhereQuery(),
   });
 
   console.info("Syncing", jobs.length, "jobs");

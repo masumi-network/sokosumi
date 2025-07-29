@@ -9,17 +9,7 @@ import { postPurchaseResolveBlockchainIdentifier } from "@/lib/api/generated/pay
 import { getPaymentClient } from "@/lib/api/payment-service.client";
 import { getActiveOrganizationId, getSessionOrThrow } from "@/lib/auth/utils";
 import { computeJobStatus, JobStatus, JobWithStatus } from "@/lib/db";
-import {
-  createJob,
-  prisma,
-  refundJob,
-  retrieveJobsByAgentIdUserIdAndOrganizationId,
-  retrieveNotFinishedLatestJobByAgentIdUserIdAndOrganization,
-  retrievePersonalJobsByAgentIdAndUserId,
-  updateJobNextActionByBlockchainIdentifier,
-  updateJobWithAgentJobStatus,
-  updateJobWithPurchase,
-} from "@/lib/db/repositories";
+import { prisma } from "@/lib/db/repositories";
 import { generateJobName } from "@/lib/generateJobName";
 import { JobInputData } from "@/lib/job-input";
 import {
@@ -30,6 +20,7 @@ import {
   AgentService,
   CreditTransactionService,
   getAvailableAgentById,
+  JobService,
 } from "@/lib/services";
 import { getInputHash, getInputHashDeprecated } from "@/lib/utils";
 import {
@@ -79,17 +70,17 @@ export async function getMyJobsByAgentId(
   const userId = session.user.id;
   const activeOrganizationId = session.session.activeOrganizationId;
 
+  const jobService = JobService.getInstance(tx);
   if (activeOrganizationId) {
     // Show jobs for the specific organization
-    return await retrieveJobsByAgentIdUserIdAndOrganizationId(
+    return await jobService.getJobsByAgentIdUserIdAndOrganizationId(
       agentId,
       userId,
       activeOrganizationId,
-      tx,
     );
   } else {
     // Show personal jobs only (without organization context)
-    return await retrievePersonalJobsByAgentIdAndUserId(agentId, userId, tx);
+    return await jobService.getPersonalJobsByAgentIdAndUserId(agentId, userId);
   }
 }
 
@@ -453,7 +444,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
         },
       });
 
-      const job = await createJob({
+      const job = await JobService.getInstance().createJob({
         agentJobId: startJobResponse.job_id,
         agentId,
         userId,
@@ -494,7 +485,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
       );
       if (createPurchaseResult.ok) {
         const purchase = createPurchaseResult.data.data as Purchase;
-        await updateJobWithPurchase(job.id, purchase);
+        await JobService.getInstance().updateJobWithPurchase(job.id, purchase);
 
         // Add breadcrumb for successful purchase creation
         Sentry.addBreadcrumb({
@@ -679,7 +670,10 @@ export async function syncJob(job: Job) {
   if (!job.purchaseId) {
     const purchase = await resolvePurchaseOfJob(job);
     if (purchase) {
-      job = await updateJobWithPurchase(job.id, purchase);
+      job = await JobService.getInstance().updateJobWithPurchase(
+        job.id,
+        purchase,
+      );
     }
   }
   const [agentJobStatus, onChainPurchase] = await Promise.all([
@@ -699,7 +693,7 @@ export async function syncJob(job: Job) {
       switch (jobStatus) {
         case JobStatus.PAYMENT_FAILED:
         case JobStatus.REFUND_RESOLVED:
-          await refundJob(job.id, tx);
+          await JobService.getInstance(tx).refundJob(job.id);
           break;
         case JobStatus.OUTPUT_PENDING:
           await requestRefundIfNeeded(job);
@@ -721,7 +715,10 @@ async function syncRegistryStatus(
   tx: Prisma.TransactionClient,
 ): Promise<Job> {
   try {
-    return await updateJobWithPurchase(job.id, purchase, tx);
+    return await JobService.getInstance(tx).updateJobWithPurchase(
+      job.id,
+      purchase,
+    );
   } catch {
     console.log("Error syncing registry status: ", job.id);
     return job;
@@ -734,7 +731,10 @@ async function syncAgentJobStatus(
   tx: Prisma.TransactionClient,
 ): Promise<Job> {
   try {
-    return await updateJobWithAgentJobStatus(job, jobStatusResponse, tx);
+    return await JobService.getInstance(tx).updateJobWithAgentJobStatus(
+      job,
+      jobStatusResponse,
+    );
   } catch {
     console.log("Error syncing agent job status: ", job.id);
     return job;
@@ -819,10 +819,11 @@ export async function requestRefundJob(
         );
       }
 
-      const job = await updateJobNextActionByBlockchainIdentifier(
-        jobBlockchainIdentifier,
-        NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
-      );
+      const job =
+        await JobService.getInstance().updateJobNextActionByBlockchainIdentifier(
+          jobBlockchainIdentifier,
+          NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
+        );
 
       // Add breadcrumb for successful refund request
       Sentry.addBreadcrumb({
@@ -850,11 +851,12 @@ export async function getNotFinishedLatestJobsByAgentIds(
 
   return await Promise.all(
     agentIds.map((agentId) =>
-      retrieveNotFinishedLatestJobByAgentIdUserIdAndOrganization(
+      JobService.getInstance(
+        tx,
+      ).getNotFinishedLatestJobByAgentIdUserIdAndOrganization(
         agentId,
         userId,
         activeOrganizationId,
-        tx,
       ),
     ),
   );

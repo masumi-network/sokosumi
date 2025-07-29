@@ -2,8 +2,7 @@ import { notFound } from "next/navigation";
 
 import { JobDetails } from "@/app/agents/[agentId]/jobs/@right/components/job-details";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
-import { retrieveJobById } from "@/lib/db/repositories";
-import { getAgentById } from "@/lib/services";
+import { getAgentById, JobService } from "@/lib/services";
 
 interface JobDetailsPageParams {
   agentId: string;
@@ -24,7 +23,7 @@ export default async function JobDetailsPage({
     notFound();
   }
 
-  const job = await retrieveJobById(jobId);
+  const job = await JobService.getInstance().getJobById(jobId);
   if (!job) {
     console.warn("job not found in job detail page");
     notFound();
