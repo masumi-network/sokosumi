@@ -18,6 +18,7 @@ import {
   JobWithStatus,
 } from "@/lib/db/types";
 import { JobInputSchemaType } from "@/lib/job-input";
+import { CreditTransactionService } from "@/lib/services";
 import {
   AgentJobStatus,
   Job,
@@ -26,7 +27,6 @@ import {
   Prisma,
 } from "@/prisma/generated/client";
 
-import { retrieveCreditTransactionByJobId } from "./creditTransaction";
 import prisma from "./prisma";
 
 function mapJobWithStatus<T extends Job>(job: T): T & { status: JobStatus } {
@@ -265,7 +265,10 @@ export async function refundJob(
     return;
   }
 
-  const creditTransaction = await retrieveCreditTransactionByJobId(jobId, tx);
+  const creditTransaction =
+    await CreditTransactionService.getInstance(tx).getCreditTransactionByJobId(
+      jobId,
+    );
   if (!creditTransaction) {
     throw new Error("Credit transaction not found");
   }

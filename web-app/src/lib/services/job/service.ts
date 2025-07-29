@@ -14,8 +14,6 @@ import {
   prisma,
   refundJob,
   retrieveAgentWithRelationsById,
-  retrieveCentsByOrganizationId,
-  retrieveCentsByUserId,
   retrieveJobsByAgentIdUserIdAndOrganizationId,
   retrieveNotFinishedLatestJobByAgentIdUserIdAndOrganization,
   retrievePersonalJobsByAgentIdAndUserId,
@@ -29,7 +27,10 @@ import {
   PricingAmountsSchemaType,
   StartJobInputSchemaType,
 } from "@/lib/schemas";
-import { getAvailableAgentById } from "@/lib/services";
+import {
+  CreditTransactionService,
+  getAvailableAgentById,
+} from "@/lib/services";
 import { getInputHash, getInputHashDeprecated } from "@/lib/utils";
 import {
   AgentJobStatus,
@@ -553,7 +554,8 @@ async function validateCreditsBalance(
   cents: bigint,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<void> {
-  const centsBalance = await retrieveCentsByUserId(userId, tx);
+  const centsBalance =
+    await CreditTransactionService.getInstance(tx).getCentsByUserId(userId);
   if (centsBalance - cents < BigInt(0)) {
     throw new JobError(
       JobErrorCode.INSUFFICIENT_BALANCE,
@@ -578,7 +580,10 @@ async function validateOrganizationCreditsBalance(
   cents: bigint,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<void> {
-  const centsBalance = await retrieveCentsByOrganizationId(organizationId, tx);
+  const centsBalance =
+    await CreditTransactionService.getInstance(tx).getCentsByOrganizationId(
+      organizationId,
+    );
   if (centsBalance - cents < BigInt(0)) {
     throw new JobError(
       JobErrorCode.INSUFFICIENT_BALANCE,

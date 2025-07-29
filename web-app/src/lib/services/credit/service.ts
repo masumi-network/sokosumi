@@ -8,13 +8,9 @@ import {
   convertCreditsToCents,
   CreditsPrice,
 } from "@/lib/db";
-import {
-  prisma,
-  retrieveCentsByOrganizationId,
-  retrieveCentsByUserId,
-  retrieveCreditCostByUnit,
-} from "@/lib/db/repositories";
+import { prisma, retrieveCreditCostByUnit } from "@/lib/db/repositories";
 import { pricingAmountsSchema, PricingAmountsSchemaType } from "@/lib/schemas";
+import { CreditTransactionService } from "@/lib/services";
 import { Prisma } from "@/prisma/generated/client";
 
 /**
@@ -31,7 +27,8 @@ export async function getUserCredits(
   userId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<number> {
-  const creditsBalance = await retrieveCentsByUserId(userId, tx);
+  const creditsBalance =
+    await CreditTransactionService.getInstance(tx).getCentsByUserId(userId);
   return convertCentsToCredits(creditsBalance);
 }
 
@@ -49,10 +46,10 @@ export async function getOrganizationCredits(
   organizationId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<number> {
-  const creditsBalance = await retrieveCentsByOrganizationId(
-    organizationId,
-    tx,
-  );
+  const creditsBalance =
+    await CreditTransactionService.getInstance(tx).getCentsByOrganizationId(
+      organizationId,
+    );
   return convertCentsToCredits(creditsBalance);
 }
 
