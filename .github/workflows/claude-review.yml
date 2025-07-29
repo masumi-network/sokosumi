@@ -7,9 +7,11 @@ on:
 jobs:
   review:
     if: |
-      github.event.pull_request.user.login == 'mrgrauel' ||
-      github.event.pull_request.user.login == 'golddydev' ||
-      github.event.pull_request.user.login == 'francisluz'
+      !github.event.pull_request.draft && (
+        github.event.pull_request.user.login == 'mrgrauel' ||
+        github.event.pull_request.user.login == 'golddydev' ||
+        github.event.pull_request.user.login == 'francisluz'
+      )
     runs-on: ubuntu-latest
     permissions:
       contents: read
