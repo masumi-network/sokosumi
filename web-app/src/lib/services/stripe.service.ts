@@ -17,12 +17,10 @@ import {
   CouponNotFoundError,
   CouponTypeError,
 } from "@/lib/errors/coupon-errors";
-import { FiatTransaction, User } from "@/prisma/generated/client";
+import { FiatTransaction, Prisma, User } from "@/prisma/generated/client";
 
 import { BaseService } from "./base.service";
 import { UserService } from "./user.service";
-
-const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
 export interface Price {
   id: string;
@@ -31,8 +29,15 @@ export interface Price {
 }
 
 export class StripeService extends BaseService<StripeService> {
+  private stripe: Stripe;
+
+  constructor(client: Prisma.TransactionClient) {
+    super(client);
+    this.stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
+  }
+
   async createCustomer(userId: string): Promise<string> {
-    const customer = await stripe.customers.create({
+    const customer = await this.stripe.customers.create({
       email: userId,
     });
     return customer.id;
@@ -55,7 +60,7 @@ export class StripeService extends BaseService<StripeService> {
 
         // Check if a customer already exists in Stripe for this email
         // This handles cases where a customer was created outside our system
-        const existingCustomers = await stripe.customers.list({
+        const existingCustomers = await this.stripe.customers.list({
           email: user.email,
           limit: 1,
         });
@@ -78,7 +83,7 @@ export class StripeService extends BaseService<StripeService> {
         }
 
         // Create a new Stripe customer
-        const customer = await stripe.customers.create({
+        const customer = await this.stripe.customers.create({
           email: user.email,
           metadata: {
             userId: user.id,
@@ -96,7 +101,7 @@ export class StripeService extends BaseService<StripeService> {
           // If there's a unique constraint violation, clean up the Stripe customer
           // and return the existing customer ID from the database
           try {
-            await stripe.customers.del(customer.id);
+            await this.stripe.customers.del(customer.id);
           } catch (cleanupError) {
             console.warn(
               `Failed to cleanup duplicate Stripe customer ${customer.id}:`,
@@ -139,7 +144,7 @@ export class StripeService extends BaseService<StripeService> {
 
   async getPriceFromPriceId(priceId: string): Promise<Price> {
     try {
-      const price = await stripe.prices.retrieve(priceId);
+      const price = await this.stripe.prices.retrieve(priceId);
       return this.validatePrice(price);
     } catch (error) {
       console.error("Error retrieving price", error);
@@ -149,7 +154,7 @@ export class StripeService extends BaseService<StripeService> {
 
   async getPriceFromProductId(productId: string): Promise<Price> {
     try {
-      const product = await stripe.products.retrieve(productId, {
+      const product = await this.stripe.products.retrieve(productId, {
         expand: ["default_price"],
       });
       if (
@@ -182,7 +187,7 @@ export class StripeService extends BaseService<StripeService> {
         "Price amountPerCredit is 0 – cannot create checkout session for free product",
       );
     }
-    const session = await stripe.checkout.sessions.create({
+    const session = await this.stripe.checkout.sessions.create({
       mode: "payment",
       line_items: [
         {
@@ -210,7 +215,7 @@ export class StripeService extends BaseService<StripeService> {
   }
 
   async constructEvent(req: Request, stripeSignature: string) {
-    return stripe.webhooks.constructEvent(
+    return this.stripe.webhooks.constructEvent(
       await req.text(),
       stripeSignature,
       getEnvSecrets().STRIPE_WEBHOOK_SECRET,
@@ -221,7 +226,7 @@ export class StripeService extends BaseService<StripeService> {
     customerId: string,
     couponId: string,
   ): Promise<Stripe.PromotionCode | null> {
-    const promotionCodes = await stripe.promotionCodes.list({
+    const promotionCodes = await this.stripe.promotionCodes.list({
       coupon: couponId,
       customer: customerId,
       limit: 1,
@@ -249,7 +254,7 @@ export class StripeService extends BaseService<StripeService> {
       }
 
       // Check for existing promotion codes
-      const promotionCodes = await stripe.promotionCodes.list({
+      const promotionCodes = await this.stripe.promotionCodes.list({
         coupon: couponId,
         customer: stripeCustomerId,
         limit: 1,
@@ -260,7 +265,7 @@ export class StripeService extends BaseService<StripeService> {
       }
 
       // Create new promotion code
-      const promotionCode = await stripe.promotionCodes.create({
+      const promotionCode = await this.stripe.promotionCodes.create({
         customer: stripeCustomerId,
         coupon: couponId,
         max_redemptions: maxRedemptions,
@@ -279,7 +284,7 @@ export class StripeService extends BaseService<StripeService> {
 
   async getCouponById(couponId: string): Promise<Stripe.Coupon | null> {
     try {
-      return await stripe.coupons.retrieve(couponId);
+      return await this.stripe.coupons.retrieve(couponId);
     } catch {
       return null;
     }
@@ -289,7 +294,7 @@ export class StripeService extends BaseService<StripeService> {
     customerId: string,
     userId: string,
   ): Promise<void> {
-    await stripe.customers.update(customerId, {
+    await this.stripe.customers.update(customerId, {
       metadata: {
         userId: userId,
       },
