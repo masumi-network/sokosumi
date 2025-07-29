@@ -4,12 +4,7 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import { ActionError, BillingErrorCode, CommonErrorCode } from "@/lib/actions";
 import { getSession } from "@/lib/auth/utils";
 import { CouponError } from "@/lib/errors/coupon-errors";
-import {
-  createStripeCheckoutSession,
-  getCreditsForCoupon,
-  getPromotionCode,
-  MemberService,
-} from "@/lib/services";
+import { MemberService } from "@/lib/services";
 import { StripeService } from "@/lib/services/stripe.service";
 import { Err, Ok, Result } from "@/lib/ts-res";
 
@@ -30,13 +25,14 @@ export async function claimFreeCredits(
     );
 
     // Create the checkout session
-    const { url } = await createStripeCheckoutSession(
-      session.user.id,
-      null,
-      100,
-      price,
-      promotionCode,
-    );
+    const { url } =
+      await StripeService.getInstance().createStripeCheckoutSession(
+        session.user.id,
+        null,
+        100,
+        price,
+        promotionCode,
+      );
 
     return Ok({ url });
   } catch (error) {
@@ -89,12 +85,13 @@ export async function purchaseCredits(
       await StripeService.getInstance().getPriceFromPriceId(priceId);
 
     // Create the checkout session
-    const { url } = await createStripeCheckoutSession(
-      session.user.id,
-      organizationId,
-      credits,
-      price,
-    );
+    const { url } =
+      await StripeService.getInstance().createStripeCheckoutSession(
+        session.user.id,
+        organizationId,
+        credits,
+        price,
+      );
 
     return Ok({ url });
   } catch (error) {
@@ -137,10 +134,17 @@ export async function getFreeCreditsWithCoupon(
     // Fetch price server-side
     const price =
       await StripeService.getInstance().getPriceFromPriceId(priceId);
-    const credits = await getCreditsForCoupon(couponId, price);
+    const credits = await StripeService.getInstance().getCreditsForCoupon(
+      couponId,
+      price,
+    );
 
     // Validate and get the promotion code for this user and couponId
-    const promo = await getPromotionCode(session.user.id, couponId, 1);
+    const promo = await StripeService.getInstance().getPromotionCode(
+      session.user.id,
+      couponId,
+      1,
+    );
     if (!promo || !promo.active) {
       return Err({
         message: "Invalid coupon",
@@ -149,13 +153,14 @@ export async function getFreeCreditsWithCoupon(
     }
 
     // Create the checkout session (for org if orgId provided, else personal)
-    const { url } = await createStripeCheckoutSession(
-      session.user.id,
-      organizationId ?? null,
-      credits,
-      price,
-      promo.id,
-    );
+    const { url } =
+      await StripeService.getInstance().createStripeCheckoutSession(
+        session.user.id,
+        organizationId ?? null,
+        credits,
+        price,
+        promo.id,
+      );
     return Ok({ url });
   } catch (error) {
     console.error("Failed to get free credits with coupon:", error);

@@ -6,10 +6,10 @@ import { Button } from "@/components/ui/button";
 import {
   getOrganizationCredits,
   getUserCredits,
-  getWelcomePromotionCode,
   OrganizationService,
   UserService,
 } from "@/lib/services";
+import { StripeService } from "@/lib/services/stripe.service";
 
 import FreeCreditsButton from "./free-credits-button";
 
@@ -46,7 +46,8 @@ export default async function UserCredits() {
     creditLabel = t("userBalance", { credits: credits });
   }
 
-  const promotionCode = await getWelcomePromotionCode(user.id);
+  const promotionCode =
+    await StripeService.getInstance().getWelcomePromotionCode(user.id);
 
   return (
     <div className="flex items-center gap-4">
