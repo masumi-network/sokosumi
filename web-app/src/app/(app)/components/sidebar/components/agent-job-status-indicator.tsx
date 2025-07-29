@@ -8,31 +8,36 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import useJobStatus from "@/hooks/use-job-status";
-import { JobStatus, JobWithStatus } from "@/lib/db";
+import useAgentJobStatus from "@/hooks/use-agent-job-status";
+import { JobStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 interface AgentJobStatusIndicatorProps {
-  job: JobWithStatus;
+  initialJobStatus: JobStatus | null;
+  agentId: string;
+  userId: string;
   className?: string | undefined;
 }
 
 export default function AgentJobStatusIndicator({
-  job,
+  initialJobStatus,
+  agentId,
+  userId,
   className,
 }: AgentJobStatusIndicatorProps) {
-  const jobStatus = useJobStatus(job.id, job.agentId, job.status);
+  const jobStatus = useAgentJobStatus(agentId, userId, initialJobStatus);
+
+  if (!jobStatus) {
+    return null;
+  }
 
   return (
     <Tooltip>
       <TooltipTrigger>
-        <AgentJobStatusIndicatorIcon
-          status={jobStatus ?? job.status}
-          className={className}
-        />
+        <AgentJobStatusIndicatorIcon status={jobStatus} className={className} />
       </TooltipTrigger>
       <TooltipContent>
-        <AgentJobStatusIndicatorContent status={jobStatus ?? job.status} />
+        <AgentJobStatusIndicatorContent status={jobStatus} />
       </TooltipContent>
     </Tooltip>
   );

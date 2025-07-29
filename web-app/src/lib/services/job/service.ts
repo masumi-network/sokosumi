@@ -19,7 +19,7 @@ import {
   retrieveCentsByOrganizationId,
   retrieveCentsByUserId,
   retrieveJobsByAgentIdUserIdAndOrganizationId,
-  retrieveNotFinishedLatestJobByAgentIdUserIdAndOrganization,
+  retrieveNotFinishedLatestJobStatusByAgentIdUserIdAndOrganization,
   retrievePersonalJobsByAgentIdAndUserId,
   updateJobNextActionByBlockchainIdentifier,
   updateJobWithAgentJobStatus,
@@ -720,14 +720,17 @@ export async function syncJob(job: Job) {
     );
     const jobStatusData: JobStatusData = {
       id: job.id,
+      agentId: job.agentId,
       jobStatus: newJobStatus,
       onChainStatus: job.onChainStatus,
       agentJobStatus: job.agentJobStatus,
+      createdAt: job.createdAt.toISOString(),
+      startedAt: job.startedAt.toISOString(),
+      completedAt: job.completedAt?.toISOString() ?? null,
     };
 
     try {
-      await publishJobStatusData(jobStatusData);
-      console.log(`Published job status data for job ${job.id}`);
+      await publishJobStatusData(jobStatusData, job.userId);
     } catch (err) {
       console.error("Error publishing job status data", err);
     }
@@ -857,17 +860,17 @@ export async function requestRefundJob(
   );
 }
 
-export async function getNotFinishedLatestJobsByAgentIds(
+export async function getNotFinishedLatestJobStatusesByAgentIds(
   agentIds: string[],
   tx: Prisma.TransactionClient = prisma,
-): Promise<(JobWithStatus | null)[]> {
+): Promise<(JobStatus | null)[]> {
   const session = await getSessionOrThrow();
   const userId = session.user.id;
   const activeOrganizationId = session.session.activeOrganizationId;
 
   return await Promise.all(
     agentIds.map((agentId) =>
-      retrieveNotFinishedLatestJobByAgentIdUserIdAndOrganization(
+      retrieveNotFinishedLatestJobStatusByAgentIdUserIdAndOrganization(
         agentId,
         userId,
         activeOrganizationId,

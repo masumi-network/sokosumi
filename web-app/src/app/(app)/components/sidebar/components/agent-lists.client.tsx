@@ -15,8 +15,8 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import AblyProvider from "@/contexts/ably-provider";
-import { makeJobStatusChannel } from "@/lib/ably";
-import { AgentWithAvailability, getAgentName, JobWithStatus } from "@/lib/db";
+import { makeAgentJobsChannel } from "@/lib/ably";
+import { AgentWithAvailability, getAgentName, JobStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 import AgentJobStatusIndicator from "./agent-job-status-indicator";
@@ -26,13 +26,15 @@ interface AgentListsClientProps {
     groupKey: string;
     title: string;
     agents: AgentWithAvailability[];
-    latestJobs: (JobWithStatus | null)[];
+    latestJobStatuses: (JobStatus | null)[];
     noAgentsType: string;
   }[];
+  userId: string;
 }
 
 export default function AgentListsClient({
   agentLists,
+  userId,
 }: AgentListsClientProps) {
   const t = useTranslations("App.Sidebar.Content.AgentLists");
 
@@ -42,7 +44,7 @@ export default function AgentListsClient({
   return (
     <AblyProvider>
       {agentLists.map(
-        ({ groupKey, title, agents, latestJobs, noAgentsType }) => (
+        ({ groupKey, title, agents, latestJobStatuses, noAgentsType }) => (
           <SidebarGroup key={groupKey} className="w-72 md:w-64">
             <SidebarGroupLabel className="text-base">{title}</SidebarGroupLabel>
             <SidebarGroupContent className="mt-2">
@@ -50,7 +52,7 @@ export default function AgentListsClient({
                 <SidebarMenu>
                   {agents.map((agentWithAvailability, index) => {
                     const { agent, isAvailable } = agentWithAvailability;
-                    const latestJob = latestJobs[index];
+                    const latestJobStatus = latestJobStatuses[index];
 
                     return (
                       <SidebarMenuItem key={agent.id}>
@@ -76,14 +78,17 @@ export default function AgentListsClient({
                               <span className="flex-1 truncate">
                                 {getAgentName(agent)}
                               </span>
-                              {latestJob && isAvailable && (
+                              {isAvailable && (
                                 <ChannelProvider
-                                  channelName={makeJobStatusChannel(
-                                    latestJob.id,
+                                  channelName={makeAgentJobsChannel(
+                                    agent.id,
+                                    userId,
                                   )}
                                 >
                                   <AgentJobStatusIndicator
-                                    job={latestJob}
+                                    agentId={agent.id}
+                                    userId={userId}
+                                    initialJobStatus={latestJobStatus}
                                     className={cn("h-4 w-4", {
                                       "text-primary-foreground":
                                         agentId === agent.id,

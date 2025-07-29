@@ -2,24 +2,25 @@ import { useChannel } from "ably/react";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { jobStatusDataSchema, makeJobStatusChannel } from "@/lib/ably";
+import { jobStatusDataSchema, makeAgentJobsChannel } from "@/lib/ably";
 import { JobStatus } from "@/lib/db";
 
-export default function useJobStatus(
-  jobId: string,
+export default function useAgentJobStatus(
   agentId: string,
-  initialJobStatus?: JobStatus | undefined,
+  userId: string,
+  initialJobStatus: JobStatus | null,
   refresh: boolean = false,
 ) {
   const pathname = usePathname();
   const router = useRouter();
   const [jobStatus, setJobStatus] = useState<JobStatus | null>(
-    initialJobStatus ?? null,
+    initialJobStatus,
   );
 
-  useChannel(makeJobStatusChannel(jobId), (message) => {
+  useChannel(makeAgentJobsChannel(agentId, userId), (message) => {
     const parsedResult = jobStatusDataSchema.safeParse(message.data);
     if (parsedResult.success) {
+      const jobId = parsedResult.data.id;
       setJobStatus(parsedResult.data.jobStatus);
       if (refresh) {
         // check pathname is job details path
