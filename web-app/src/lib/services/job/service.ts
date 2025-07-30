@@ -33,11 +33,7 @@ import {
   Prisma,
 } from "@/prisma/generated/client";
 
-import {
-  createPurchase,
-  getPaymentClientPurchase,
-  postPaymentClientRequestRefund,
-} from "./third-party";
+import { createPurchase, getPaymentClientPurchase } from "./third-party";
 
 function getMatchedInputHash(
   inputData: JobInputData,
@@ -641,7 +637,7 @@ async function requestRefundIfNeeded(job: Job) {
 
   // Only make one refund request if either condition is met
   if (shouldRequestRefund) {
-    const refundResult = await postPaymentClientRequestRefund(
+    const refundResult = await JobService.getInstance().requestRefund(
       job.blockchainIdentifier,
     );
     if (!refundResult.ok) {
@@ -849,7 +845,7 @@ export async function requestRefundJob(
         },
       });
 
-      const refundResult = await postPaymentClientRequestRefund(
+      const refundResult = await JobService.getInstance().requestRefund(
         jobBlockchainIdentifier,
       );
       if (!refundResult.ok) {
