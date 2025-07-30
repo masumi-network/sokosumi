@@ -4,7 +4,6 @@ export { BaseService } from "./base.service";
 export { CreditCostService } from "./creditCost.service";
 export { CreditTransactionService } from "./creditTransaction.service";
 export { FiatTransactionService } from "./fiatTransaction.service";
-export * from "./invitation";
 export { InvitationService } from "./invitation.service";
 export * from "./job";
 export { JobService } from "./job.service";

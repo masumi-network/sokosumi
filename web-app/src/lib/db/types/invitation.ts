@@ -33,3 +33,9 @@ export type InvitationWithInviter = Prisma.InvitationGetPayload<{
 export type InvitationWithRelations = Prisma.InvitationGetPayload<{
   include: typeof invitationInclude;
 }>;
+
+export enum InvitationErrorCode {
+  EXPIRED = "EXPIRED",
+  NOT_FOUND = "NOT_FOUND",
+  INVITER_NOT_FOUND = "INVITER_NOT_FOUND",
+}

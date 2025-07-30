@@ -1,4 +1,7 @@
+import { getSessionOrThrow } from "src/lib/auth/utils";
+
 import {
+  InvitationErrorCode,
   invitationInclude,
   InvitationStatus,
   InvitationWithRelations,
@@ -6,6 +9,7 @@ import {
 import { Invitation } from "@/prisma/generated/client";
 
 import { BaseService } from "./base.service";
+import { MemberService } from "./member.service";
 
 export class InvitationService extends BaseService<InvitationService> {
   async getPendingInvitationById(
@@ -72,5 +76,55 @@ export class InvitationService extends BaseService<InvitationService> {
       },
       include: invitationInclude,
     });
+  }
+
+  // Service methods
+
+  async getPendingInvitation(id: string): Promise<
+    | {
+        error: InvitationErrorCode;
+      }
+    | {
+        error?: never;
+        invitation: InvitationWithRelations;
+      }
+  > {
+    const invitation = await this.getPendingInvitationById(id);
+
+    if (!invitation) {
+      return {
+        error: InvitationErrorCode.NOT_FOUND,
+      };
+    }
+
+    if (invitation.expiresAt < new Date()) {
+      return {
+        error: InvitationErrorCode.EXPIRED,
+      };
+    }
+
+    const inviterMember = await MemberService.getInstance(
+      this.client,
+    ).getMemberByUserIdAndOrganizationId(
+      invitation.inviterId,
+      invitation.organizationId,
+    );
+
+    if (!inviterMember) {
+      return {
+        error: InvitationErrorCode.INVITER_NOT_FOUND,
+      };
+    }
+
+    return {
+      invitation,
+    };
+  }
+
+  async getMyValidPendingInvitations(): Promise<InvitationWithRelations[]> {
+    const session = await getSessionOrThrow();
+    const userEmail = session.user.email;
+
+    return await this.getValidPendingInvitationsByEmail(userEmail);
   }
 }
