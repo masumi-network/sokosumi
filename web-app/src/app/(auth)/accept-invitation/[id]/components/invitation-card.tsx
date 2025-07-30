@@ -13,8 +13,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { InvitationWithRelations } from "@/lib/db";
-import { InvitationErrorCode } from "@/lib/services";
+import { InvitationErrorCode, InvitationWithRelations } from "@/lib/db";
 
 import InvitationActions from "./invitation-actions";
 
