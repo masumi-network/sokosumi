@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getAgentInputSchema } from "@/lib/services";
+import { AgentService } from "@/lib/services";
 
 export async function GET(req: NextRequest) {
   const agentId = req.nextUrl.searchParams.get("agentId");
@@ -12,7 +12,8 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const inputSchema = await getAgentInputSchema(agentId);
+    const inputSchema =
+      await AgentService.getInstance().getAgentInputSchema(agentId);
     return NextResponse.json(inputSchema);
   } catch (error) {
     const message = error instanceof Error ? error.message : "";

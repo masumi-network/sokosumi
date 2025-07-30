@@ -13,12 +13,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { getSessionOrThrow } from "@/lib/auth/utils";
 import { AgentWithAvailability } from "@/lib/db";
-import {
-  getAgentJobStatusesByAgentIds,
-  getAvailableAgents,
-  getFavoriteAgents,
-  getHiredAgentsOrderedByLatestJob,
-} from "@/lib/services";
+import { AgentService, getAgentJobStatusesByAgentIds } from "@/lib/services";
 import { Agent } from "@/prisma/generated/client";
 
 import AgentListsClient from "./agent-lists.client";
@@ -61,12 +56,12 @@ async function AgentListsContent() {
   const t = await getTranslations("App.Sidebar.Content.AgentLists");
 
   const session = await getSessionOrThrow();
-
+  const agentService = AgentService.getInstance();
   const [favoriteAgents, hiredAgentsWithJobs, availableAgents] =
     await Promise.all([
-      getFavoriteAgents(),
-      getHiredAgentsOrderedByLatestJob(),
-      getAvailableAgents(),
+      agentService.getFavoriteAgents(),
+      agentService.getHiredAgentsOrderedByLatestJob(),
+      agentService.getAvailableAgents(),
     ]);
 
   const hiredAgents = filterDuplicatedAgents(

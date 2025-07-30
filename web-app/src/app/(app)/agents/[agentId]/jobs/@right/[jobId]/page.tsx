@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 
 import { JobDetails } from "@/app/agents/[agentId]/jobs/@right/components/job-details";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
-import { getAgentById, JobService } from "@/lib/services";
+import { AgentService, JobService } from "@/lib/services";
 
 interface JobDetailsPageParams {
   agentId: string;
@@ -18,7 +18,7 @@ export default async function JobDetailsPage({
 
   const { agentId, jobId } = await params;
 
-  const agent = await getAgentById(agentId);
+  const agent = await AgentService.getInstance().getAgentById(agentId);
   if (!agent) {
     notFound();
   }

@@ -6,12 +6,7 @@ import {
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
-import {
-  getAgentCreditsPrice,
-  getAvailableAgentById,
-  getFavoriteAgents,
-  JobService,
-} from "@/lib/services";
+import { AgentService, getAgentCreditsPrice, JobService } from "@/lib/services";
 
 export default async function AgentDetailPage({
   params,
@@ -22,7 +17,8 @@ export default async function AgentDetailPage({
 
   const { agentId } = await params;
 
-  const agent = await getAvailableAgentById(agentId);
+  const agentService = AgentService.getInstance();
+  const agent = await agentService.getAvailableAgentById(agentId);
   if (!agent) {
     return notFound();
   }
@@ -32,7 +28,7 @@ export default async function AgentDetailPage({
     return notFound();
   }
 
-  const favoriteAgents = await getFavoriteAgents();
+  const favoriteAgents = await agentService.getFavoriteAgents();
   const jobs =
     await JobService.getInstance().getJobsWithLimitedInformationByAgentId(
       agentId,

@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { getAgentDescription, getAgentName } from "@/lib/db";
-import { getAgentById } from "@/lib/services";
+import { AgentService } from "@/lib/services";
 
 export async function generateMetadata({
   params,
@@ -10,7 +10,7 @@ export async function generateMetadata({
   params: Promise<{ agentId: string }>;
 }): Promise<Metadata> {
   const { agentId } = await params;
-  const agent = await getAgentById(agentId);
+  const agent = await AgentService.getInstance().getAgentById(agentId);
   if (!agent) {
     notFound();
   }
