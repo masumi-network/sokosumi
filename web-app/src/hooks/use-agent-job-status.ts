@@ -8,7 +8,7 @@ import { JobStatus } from "@/lib/db";
 export default function useAgentJobStatus(
   agentId: string,
   userId: string,
-  currentJobId: string | undefined,
+  currentJobId: string | null,
   initialJobStatus: JobStatus | null,
   refresh: boolean = false,
 ) {
