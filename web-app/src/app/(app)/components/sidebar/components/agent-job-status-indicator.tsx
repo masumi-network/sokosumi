@@ -66,6 +66,8 @@ function AgentJobStatusIndicatorIcon({
     case JobStatus.REFUND_PENDING:
     case JobStatus.DISPUTE_PENDING:
       return <Loader2 className={cn("animate-spin", className)} />;
+    default:
+      return null;
   }
 }
 
@@ -95,5 +97,7 @@ function AgentJobStatusIndicatorContent({ status }: { status: JobStatus }) {
       return <p>{t("disputeResolved")}</p>;
     case JobStatus.OUTPUT_PENDING:
       return <p>{t("outputPending")}</p>;
+    default:
+      return null;
   }
 }
