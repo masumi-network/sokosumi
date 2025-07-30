@@ -1,5 +1,4 @@
 export { AgentService } from "./agent.service";
-export { AgentListService } from "./agentList.service";
 export { BaseService } from "./base.service";
 export { CreditCostService } from "./creditCost.service";
 export { CreditTransactionService } from "./creditTransaction.service";
