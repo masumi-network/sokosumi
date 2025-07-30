@@ -8,21 +8,10 @@ import {
   pricingAmountsSchema,
   PricingAmountsSchemaType,
 } from "@/lib/schemas/credit";
-import { CreditCost } from "@/prisma/generated/client";
 
 import { BaseService } from "./base.service";
 
 export class CreditCostService extends BaseService<CreditCostService> {
-  async getCreditCostByUnit(unit: string): Promise<CreditCost | null> {
-    return this.client.creditCost.findUnique({
-      where: { unit },
-    });
-  }
-
-  async getCreditCosts(): Promise<CreditCost[]> {
-    return await this.client.creditCost.findMany();
-  }
-
   async getCreditsPrice(
     amounts: PricingAmountsSchemaType,
   ): Promise<CreditsPrice> {
@@ -39,7 +28,9 @@ export class CreditCostService extends BaseService<CreditCostService> {
     let totalFee = BigInt(0);
     const minFeeCents = convertCreditsToCents(getEnvSecrets().MIN_FEE_CREDITS);
     for (const amount of amountsParsed) {
-      const creditCost = await this.getCreditCostByUnit(amount.unit);
+      const creditCost = await this.client.creditCost.findUnique({
+        where: { unit: amount.unit },
+      });
       if (!creditCost) {
         throw new Error(`Credit cost not found for unit ${amount.unit}`);
       }

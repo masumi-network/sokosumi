@@ -117,14 +117,12 @@ export class AgentService extends BaseService<AgentService> {
     creditCosts: CreditCost[];
   }> {
     const session = await getSession();
-    const creditCosts = await CreditCostService.getInstance(
-      this.client,
-    ).getCreditCosts();
+    const creditCosts = await this.client.creditCost.findMany();
     const userOrganizationIds =
       session?.user.id && session.user.id !== ""
-        ? await MemberService.getInstance(
-            this.client,
-          ).getMembersOrganizationIdsByUserId(session.user.id)
+        ? await MemberService.getInstance().getMembersOrganizationIdsByUserId(
+            session.user.id,
+          )
         : [];
     return { userOrganizationIds, creditCosts };
   }
