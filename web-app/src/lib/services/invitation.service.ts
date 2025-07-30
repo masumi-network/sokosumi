@@ -1,5 +1,4 @@
-import { getSessionOrThrow } from "src/lib/auth/utils";
-
+import { getSessionOrThrow } from "@/lib/auth/utils";
 import {
   InvitationErrorCode,
   invitationInclude,
