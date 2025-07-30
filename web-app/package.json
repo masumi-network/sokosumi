@@ -37,7 +37,7 @@
     "@better-auth/utils": "0.2.6",
     "@hey-api/client-fetch": "0.13.1",
     "@hey-api/client-next": "0.5.1",
-    "@hookform/resolvers": "5.2.0",
+    "@hookform/resolvers": "5.2.1",
     "@icons-pack/react-simple-icons": "13.7.0",
     "@prisma/client": "6.13.0",
     "@react-email/components": "0.3.2",
