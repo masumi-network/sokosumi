@@ -13,7 +13,7 @@ interface AblyProviderProps {
 export default function AblyProvider({ children }: AblyProviderProps) {
   const client = useMemo(() => {
     return new Ably.Realtime({
-      authUrl: "/ably/auth",
+      authUrl: "/api/ably/auth",
       authMethod: "POST",
     });
   }, []);
