@@ -206,9 +206,7 @@ export class AgentService extends BaseService<AgentService> {
     if (!amounts) {
       return { cents: BigInt(0), includedFee: BigInt(0) };
     }
-    return await CreditCostService.getInstance(this.client).getCreditsPrice(
-      amounts,
-    );
+    return await CreditCostService.getInstance().getCreditsPrice(amounts);
   }
 
   /**

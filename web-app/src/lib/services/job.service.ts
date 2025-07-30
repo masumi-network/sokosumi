@@ -1253,7 +1253,7 @@ export class JobService extends BaseService<JobService> {
   }
 
   private async getAgentJobStatus(job: Job): Promise<JobStatusResponse | null> {
-    const agentService = AgentService.getInstance(this.client);
+    const agentService = AgentService.getInstance();
     const agent = await agentService.getAgentWithRelationsById(job.agentId);
     if (!agent) {
       return null;
