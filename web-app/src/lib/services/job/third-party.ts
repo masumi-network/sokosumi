@@ -16,7 +16,7 @@ import {
   startJobResponseSchema,
   StartJobResponseSchemaType,
 } from "@/lib/schemas";
-import { getAgentUrlWithPathComponent } from "@/lib/services";
+import { AgentService } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
 
 export async function fetchAgentJobStatus(
@@ -24,7 +24,10 @@ export async function fetchAgentJobStatus(
   jobId: string,
 ): Promise<Result<JobStatusResponseSchemaType, string>> {
   try {
-    const jobStatusUrl = getAgentUrlWithPathComponent(agent, "status");
+    const jobStatusUrl = AgentService.getAgentUrlWithPathComponent(
+      agent,
+      "status",
+    );
     jobStatusUrl.searchParams.set("job_id", jobId);
     const jobStatusResponse = await fetch(jobStatusUrl, {
       method: "GET",
@@ -52,7 +55,10 @@ export async function startAgentJob(
   inputData: JobInputData,
 ): Promise<Result<StartJobResponseSchemaType, string>> {
   try {
-    const startJobUrl = getAgentUrlWithPathComponent(agent, "start_job");
+    const startJobUrl = AgentService.getAgentUrlWithPathComponent(
+      agent,
+      "start_job",
+    );
     const startJobResponse = await fetch(startJobUrl, {
       method: "POST",
       headers: {

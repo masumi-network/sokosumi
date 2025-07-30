@@ -22,8 +22,6 @@ import {
   Prisma,
 } from "@/prisma/generated/client";
 
-import { fetchAgentInputSchema } from "./third-party";
-
 /**
  * Utility: Checks if a user can access an agent based on organization membership and agent visibility.
  *
@@ -269,12 +267,12 @@ export async function getAgentInputSchema(
   agentId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<JobInputsDataSchemaType> {
-  const agent =
-    await AgentService.getInstance(tx).getAgentWithRelationsById(agentId);
+  const agentService = AgentService.getInstance(tx);
+  const agent = await agentService.getAgentWithRelationsById(agentId);
   if (!agent) {
     throw new Error(`Agent with ID ${agentId} not found`);
   }
-  const inputSchemaResult = await fetchAgentInputSchema(agent);
+  const inputSchemaResult = await agentService.fetchAgentInputSchema(agent);
   if (!inputSchemaResult.ok) {
     throw new Error(inputSchemaResult.error);
   }
