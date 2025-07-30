@@ -11,8 +11,10 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { getSessionOrThrow } from "@/lib/auth/utils";
 import { AgentWithAvailability } from "@/lib/db";
 import {
+  getAgentJobStatusesByAgentIds,
   getAvailableAgents,
   getFavoriteAgents,
   getHiredAgentsOrderedByLatestJob,
@@ -58,6 +60,8 @@ function AgentListsSkeleton() {
 async function AgentListsContent() {
   const t = await getTranslations("App.Sidebar.Content.AgentLists");
 
+  const session = await getSessionOrThrow();
+
   const [favoriteAgents, hiredAgentsWithJobs, availableAgents] =
     await Promise.all([
       getFavoriteAgents(),
@@ -68,6 +72,13 @@ async function AgentListsContent() {
   const hiredAgents = filterDuplicatedAgents(
     hiredAgentsWithJobs,
     favoriteAgents,
+  );
+
+  const [favoriteAgentsJobStatuses, hiredAgentsJobStatuses] = await Promise.all(
+    [
+      getAgentJobStatusesByAgentIds(favoriteAgents.map((agent) => agent.id)),
+      getAgentJobStatusesByAgentIds(hiredAgents.map((agent) => agent.id)),
+    ],
   );
 
   // Determine availability for each agent
@@ -93,19 +104,21 @@ async function AgentListsContent() {
       groupKey: "favorite-agents",
       title: t("pinnedTitle"),
       agents: favoriteAgentsWithAvailability,
+      initialJobStatuses: favoriteAgentsJobStatuses,
       noAgentsType: t("pinnedType"),
     },
     {
       groupKey: "hired-agents",
       title: t("hiredTitle"),
       agents: hiredAgentsWithAvailability,
+      initialJobStatuses: hiredAgentsJobStatuses,
       noAgentsType: t("hiredType"),
     },
   ];
 
   return (
     <ScrollArea className="h-full">
-      <AgentListsClient agentLists={agentLists} />
+      <AgentListsClient agentLists={agentLists} userId={session.user.id} />
     </ScrollArea>
   );
 }

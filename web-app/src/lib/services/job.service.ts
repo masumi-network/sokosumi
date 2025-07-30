@@ -314,26 +314,6 @@ export class JobService extends BaseService<JobService> {
     return JobService.mapJobWithStatus(job);
   }
 
-  async getNotFinishedLatestJobByAgentIdUserIdAndOrganization(
-    agentId: string,
-    userId: string,
-    organizationId: string | null | undefined,
-  ): Promise<JobWithStatus | null> {
-    // Normalize undefined to null for organizationId to ensure correct filtering (Prisma ignores undefined)
-    const normalizedOrganizationId = organizationId ?? null;
-    const job = await this.client.job.findFirst({
-      where: {
-        agentId,
-        userId,
-        organizationId: normalizedOrganizationId,
-        ...JobService.jobsNotFinishedWhereQuery(),
-      },
-      orderBy: { startedAt: "desc" },
-      include: jobInclude,
-    });
-    return job ? JobService.mapJobWithStatus(job) : null;
-  }
-
   async updateJobNameById(jobId: string, name: string | null) {
     return await this.client.job.update({
       where: { id: jobId },
@@ -379,4 +359,24 @@ export class JobService extends BaseService<JobService> {
       },
     ],
   });
+
+  async getLatestJobStatusByAgentIdUserIdAndOrganization(
+    agentId: string,
+    userId: string,
+    organizationId: string | null | undefined,
+  ): Promise<JobStatus | null> {
+    // Normalize undefined to null for organizationId to ensure correct filtering (Prisma ignores undefined)
+    const normalizedOrganizationId = organizationId ?? null;
+    const job = await this.client.job.findFirst({
+      where: {
+        agentId,
+        userId,
+        organizationId: normalizedOrganizationId,
+        ...JobService.jobsNotFinishedWhereQuery(),
+      },
+      orderBy: { startedAt: "desc" },
+      include: jobInclude,
+    });
+    return job ? computeJobStatus(job) : null;
+  }
 }

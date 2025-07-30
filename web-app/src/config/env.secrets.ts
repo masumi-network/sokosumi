@@ -119,6 +119,10 @@ const envSecretsSchema = z.object({
     .transform((val) => val.split(","))
     .pipe(z.array(z.string()))
     .default(""),
+
+  // ably keys
+  ABLY_AGENT_JOBS_SUBSCRIBE_ONLY_KEY: z.string().min(1),
+  ABLY_AGENT_JOBS_PUBLISH_ONLY_KEY: z.string().min(1),
 });
 
 let envSecrets: z.infer<typeof envSecretsSchema>;

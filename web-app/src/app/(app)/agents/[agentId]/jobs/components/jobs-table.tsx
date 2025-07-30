@@ -1,11 +1,14 @@
 "use client";
 
+import { ChannelProvider } from "ably/react";
 import { useParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { DataTable } from "@/components/data-table";
+import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 import { useAsyncRouter } from "@/hooks/use-async-router";
+import { makeAgentJobsChannel } from "@/lib/ably";
 import { JobWithStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
@@ -13,12 +16,13 @@ import { getJobColumns } from "./job-columns";
 
 interface JobsTableProps {
   jobs: JobWithStatus[];
+  userId: string;
 }
 
-export default function JobsTable({ jobs }: JobsTableProps) {
+export default function JobsTable({ jobs, userId }: JobsTableProps) {
   const t = useTranslations("App.Agents.Jobs.JobsTable");
   const dateFormatter = useFormatter();
-  const params = useParams<{ jobId?: string | undefined }>();
+  const params = useParams<{ agentId: string; jobId?: string | undefined }>();
 
   const asyncRouter = useAsyncRouter();
   const [routerLoading, setRouterLoading] = useState(false);
@@ -30,39 +34,47 @@ export default function JobsTable({ jobs }: JobsTableProps) {
   };
 
   return (
-    <DataTable
-      columns={getColumns(t, dateFormatter)}
-      onRowClick={(row) => async () => {
-        if (routerLoading) return;
-        await handleRowClick(row as JobWithStatus);
-      }}
-      data={jobs}
-      rowClassName={(row) => {
-        return cn({
-          "text-primary-foreground bg-primary hover:bg-primary active:bg-primary":
-            params.jobId === row.id,
-          "text-foreground active:bg-muted hover:bg-muted":
-            params.jobId !== row.id,
-        });
-      }}
-      containerClassName={cn(
-        "job-table-width min-h-[300px] rounded-xl bg-muted/50",
-      )}
-      defaultSort={[
-        {
-          id: "startedAt",
-          desc: true,
-        },
-      ]}
-    />
+    <DynamicAblyProvider>
+      <ChannelProvider
+        channelName={makeAgentJobsChannel(params.agentId, userId)}
+      >
+        <DataTable
+          columns={getColumns(userId, t, dateFormatter)}
+          onRowClick={(row) => async () => {
+            if (routerLoading) return;
+            await handleRowClick(row as JobWithStatus);
+          }}
+          data={jobs}
+          rowClassName={(row) => {
+            return cn({
+              "text-primary-foreground bg-primary hover:bg-primary active:bg-primary":
+                params.jobId === row.id,
+              "text-foreground active:bg-muted hover:bg-muted":
+                params.jobId !== row.id,
+            });
+          }}
+          containerClassName={cn(
+            "job-table-width min-h-[300px] rounded-xl bg-muted/50",
+          )}
+          defaultSort={[
+            {
+              id: "startedAt",
+              desc: true,
+            },
+          ]}
+        />
+      </ChannelProvider>
+    </DynamicAblyProvider>
   );
 }
 
 function getColumns(
+  userId: string,
   t: ReturnType<typeof useTranslations>,
   dateFormatter: ReturnType<typeof useFormatter>,
 ) {
   const { startedAtColumn, statusColumn, nameColumn } = getJobColumns(
+    userId,
     t,
     dateFormatter,
   );

@@ -5,13 +5,15 @@ import { useFormatter, useTranslations } from "next-intl";
 
 import { DataTableColumnHeader } from "@/components/data-table";
 import { MiddleTruncate } from "@/components/middle-truncate";
-import { JobWithStatus } from "@/lib/db";
+import useAgentJobStatus from "@/hooks/use-agent-job-status";
+import { JobStatus, JobWithStatus } from "@/lib/db";
 
 import JobStatusBadge from "./job-status-badge";
 
 const columnHelper = createColumnHelper<JobWithStatus>();
 
 export function getJobColumns(
+  userId: string,
   t: ReturnType<typeof useTranslations>,
   dateFormatter: ReturnType<typeof useFormatter>,
 ) {
@@ -43,7 +45,12 @@ export function getJobColumns(
       ),
       cell: ({ row }) => (
         <div className="p-2">
-          <JobStatusBadge status={row.original.status} />
+          <RealTimeJobStatusBadge
+            agentId={row.original.agentId}
+            userId={userId}
+            jobId={row.original.id}
+            initialStatus={row.original.status}
+          />
         </div>
       ),
       enableSorting: true,
@@ -72,4 +79,33 @@ export function getJobColumns(
       enableHiding: false,
     }) as ColumnDef<JobWithStatus>,
   };
+}
+
+function RealTimeJobStatusBadge({
+  agentId,
+  userId,
+  jobId,
+  initialStatus,
+  className,
+}: {
+  agentId: string;
+  userId: string;
+  jobId: string;
+  initialStatus: JobStatus;
+  className?: string;
+}) {
+  const realTimeJobStatus = useAgentJobStatus(
+    agentId,
+    userId,
+    jobId,
+    initialStatus,
+    true,
+  );
+
+  return (
+    <JobStatusBadge
+      status={realTimeJobStatus ?? initialStatus}
+      className={className}
+    />
+  );
 }

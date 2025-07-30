@@ -16,6 +16,7 @@ export default function JobStatusBadge({
   className,
 }: JobStatusBadgeProps) {
   const t = useTranslations("App.Agents.Jobs.StatusBadge");
+
   switch (status) {
     case JobStatus.COMPLETED:
       return (

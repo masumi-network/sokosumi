@@ -4,6 +4,8 @@ import * as Sentry from "@sentry/nextjs";
 import { v4 as uuidv4 } from "uuid";
 
 import { getEnvPublicConfig } from "@/config/env.public";
+import { JobStatusData } from "@/lib/ably";
+import publishJobStatusData from "@/lib/ably/publish";
 import { JobError, JobErrorCode } from "@/lib/actions/types/error-codes/job";
 import { postPurchaseResolveBlockchainIdentifier } from "@/lib/api/generated/payment";
 import { getPaymentClient } from "@/lib/api/payment-service.client";
@@ -512,6 +514,26 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
         );
       }
 
+      const jobStatusData: JobStatusData = {
+        id: job.id,
+        agentId: job.agentId,
+        jobStatus: computeJobStatus(job),
+        onChainStatus: job.onChainStatus,
+        agentJobStatus: job.agentJobStatus,
+        createdAt: job.createdAt.toISOString(),
+        startedAt: job.startedAt.toISOString(),
+        completedAt: job.completedAt?.toISOString() ?? null,
+      };
+
+      try {
+        await publishJobStatusData(jobStatusData, job.userId);
+      } catch (err) {
+        console.error(
+          "Error publishing job status data after creating job",
+          err,
+        );
+      }
+
       // Add final success breadcrumb
       Sentry.addBreadcrumb({
         category: "Job Service",
@@ -667,6 +689,7 @@ async function resolvePurchaseOfJob(job: Job): Promise<Purchase | null> {
 }
 
 export async function syncJob(job: Job) {
+  const oldJobStatus = computeJobStatus(job);
   if (!job.purchaseId) {
     const purchase = await resolvePurchaseOfJob(job);
     if (purchase) {
@@ -681,7 +704,7 @@ export async function syncJob(job: Job) {
     shouldSyncMasumiStatus(job) ? getOnChainPurchase(job.purchaseId) : null,
   ]);
 
-  await prisma.$transaction(
+  const newJobStatus = await prisma.$transaction(
     async (tx) => {
       if (onChainPurchase) {
         job = await syncRegistryStatus(job, onChainPurchase, tx);
@@ -701,12 +724,36 @@ export async function syncJob(job: Job) {
         default:
           break;
       }
+      return jobStatus;
     },
     {
       maxWait: 5000, // default: 2000
       timeout: 20000, // default: 5000
     },
   );
+
+  // if job status changed, publish to job status to channel
+  if (newJobStatus !== oldJobStatus) {
+    console.log(
+      `Job ${job.id} status changed from ${oldJobStatus} to ${newJobStatus}`,
+    );
+    const jobStatusData: JobStatusData = {
+      id: job.id,
+      agentId: job.agentId,
+      jobStatus: newJobStatus,
+      onChainStatus: job.onChainStatus,
+      agentJobStatus: job.agentJobStatus,
+      createdAt: job.createdAt.toISOString(),
+      startedAt: job.startedAt.toISOString(),
+      completedAt: job.completedAt?.toISOString() ?? null,
+    };
+
+    try {
+      await publishJobStatusData(jobStatusData, job.userId);
+    } catch (err) {
+      console.error("Error publishing job status data", err);
+    }
+  }
 }
 
 async function syncRegistryStatus(
@@ -841,10 +888,16 @@ export async function requestRefundJob(
   );
 }
 
-export async function getNotFinishedLatestJobsByAgentIds(
+/**
+ * Get the latest job status for each agent
+ * @param agentIds - The IDs of the agents to get the latest job status for
+ * @param tx - The transaction client to use for the database operations
+ * @returns The latest job status for each agent
+ */
+export async function getAgentJobStatusesByAgentIds(
   agentIds: string[],
   tx: Prisma.TransactionClient = prisma,
-): Promise<(JobWithStatus | null)[]> {
+): Promise<(JobStatus | null)[]> {
   const session = await getSessionOrThrow();
   const userId = session.user.id;
   const activeOrganizationId = session.session.activeOrganizationId;
@@ -853,7 +906,7 @@ export async function getNotFinishedLatestJobsByAgentIds(
     agentIds.map((agentId) =>
       JobService.getInstance(
         tx,
-      ).getNotFinishedLatestJobByAgentIdUserIdAndOrganization(
+      ).getLatestJobStatusByAgentIdUserIdAndOrganization(
         agentId,
         userId,
         activeOrganizationId,

@@ -1,3 +1,5 @@
+"use client";
+
 import { Check, Circle, Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -6,28 +8,36 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { JobStatus, JobWithStatus } from "@/lib/db";
+import useAgentJobStatus from "@/hooks/use-agent-job-status";
+import { JobStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 interface AgentJobStatusIndicatorProps {
-  job: JobWithStatus;
+  initialJobStatus: JobStatus | null;
+  agentId: string;
+  userId: string;
   className?: string | undefined;
 }
 
 export default function AgentJobStatusIndicator({
-  job,
+  initialJobStatus,
+  agentId,
+  userId,
   className,
 }: AgentJobStatusIndicatorProps) {
+  const jobStatus = useAgentJobStatus(agentId, userId, null, initialJobStatus);
+
+  if (!jobStatus) {
+    return null;
+  }
+
   return (
     <Tooltip>
       <TooltipTrigger>
-        <AgentJobStatusIndicatorIcon
-          status={job.status}
-          className={className}
-        />
+        <AgentJobStatusIndicatorIcon status={jobStatus} className={className} />
       </TooltipTrigger>
       <TooltipContent>
-        <AgentJobStatusIndicatorContent status={job.status} />
+        <AgentJobStatusIndicatorContent status={jobStatus} />
       </TooltipContent>
     </Tooltip>
   );
@@ -56,6 +66,8 @@ function AgentJobStatusIndicatorIcon({
     case JobStatus.REFUND_PENDING:
     case JobStatus.DISPUTE_PENDING:
       return <Loader2 className={cn("animate-spin", className)} />;
+    default:
+      return null;
   }
 }
 
@@ -85,5 +97,7 @@ function AgentJobStatusIndicatorContent({ status }: { status: JobStatus }) {
       return <p>{t("disputeResolved")}</p>;
     case JobStatus.OUTPUT_PENDING:
       return <p>{t("outputPending")}</p>;
+    default:
+      return null;
   }
 }
