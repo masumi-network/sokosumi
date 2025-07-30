@@ -1,7 +1,10 @@
 import "server-only";
 
 import { getEnvPublicConfig } from "@/config/env.public";
-import { postPurchaseRequestRefund } from "@/lib/api/generated/payment";
+import {
+  getPurchase,
+  postPurchaseRequestRefund,
+} from "@/lib/api/generated/payment";
 import { getPaymentClient } from "@/lib/api/payment-service.client";
 import {
   computeJobStatus,
@@ -385,7 +388,7 @@ export class JobService extends BaseService<JobService> {
   }
 
   // Third party methods
-  async requestRefund(
+  async requestRefundByBlockchainIdentifier(
     jobBlockchainIdentifier: string,
   ): Promise<Result<void, string>> {
     try {
@@ -403,6 +406,37 @@ export class JobService extends BaseService<JobService> {
       }
 
       return Ok();
+    } catch (err) {
+      return Err(String(err));
+    }
+  }
+
+  async getPurchaseById(purchaseId: string): Promise<Result<Purchase, string>> {
+    try {
+      const paymentClient = getPaymentClient();
+      const purchaseResponse = await getPurchase({
+        client: paymentClient,
+        query: {
+          cursorId: purchaseId,
+          network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
+          limit: 1,
+        },
+      });
+
+      if (
+        purchaseResponse.error ||
+        !purchaseResponse.data ||
+        purchaseResponse.data.data.Purchases.length != 1
+      ) {
+        return Err(
+          purchaseResponse.error
+            ? String(purchaseResponse.error)
+            : "Unknown error",
+        );
+      }
+      const purchase = purchaseResponse.data.data.Purchases[0];
+
+      return Ok(purchase);
     } catch (err) {
       return Err(String(err));
     }

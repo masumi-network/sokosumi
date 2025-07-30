@@ -33,7 +33,7 @@ import {
   Prisma,
 } from "@/prisma/generated/client";
 
-import { createPurchase, getPaymentClientPurchase } from "./third-party";
+import { createPurchase } from "./third-party";
 
 function getMatchedInputHash(
   inputData: JobInputData,
@@ -637,9 +637,10 @@ async function requestRefundIfNeeded(job: Job) {
 
   // Only make one refund request if either condition is met
   if (shouldRequestRefund) {
-    const refundResult = await JobService.getInstance().requestRefund(
-      job.blockchainIdentifier,
-    );
+    const refundResult =
+      await JobService.getInstance().requestRefundByBlockchainIdentifier(
+        job.blockchainIdentifier,
+      );
     if (!refundResult.ok) {
       console.error(
         `Failed to request refund for job ${job.id}:`,
@@ -791,7 +792,8 @@ async function getOnChainPurchase(
   if (jobPurchaseId === null) {
     return null;
   }
-  const purchaseResult = await getPaymentClientPurchase(jobPurchaseId);
+  const purchaseResult =
+    await JobService.getInstance().getPurchaseById(jobPurchaseId);
   if (!purchaseResult.ok) {
     return null;
   }
@@ -845,9 +847,10 @@ export async function requestRefundJob(
         },
       });
 
-      const refundResult = await JobService.getInstance().requestRefund(
-        jobBlockchainIdentifier,
-      );
+      const refundResult =
+        await JobService.getInstance().requestRefundByBlockchainIdentifier(
+          jobBlockchainIdentifier,
+        );
       if (!refundResult.ok) {
         Sentry.setTag("error_type", "refund_request_failed");
         Sentry.setContext("refund_error", {
