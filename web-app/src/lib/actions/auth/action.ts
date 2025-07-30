@@ -7,14 +7,14 @@ import {
   AuthErrorCode,
   betterAuthApiErrorSchema,
   CommonErrorCode,
-  removeUTMCookie,
 } from "@/lib/actions";
 import { auth } from "@/lib/auth/auth";
 import { MemberRole } from "@/lib/db";
 import { prisma } from "@/lib/db/repositories";
 import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
-import { InvitationService, MemberService, UTMService } from "@/lib/services";
+import { InvitationService, MemberService } from "@/lib/services";
 import { OrganizationService } from "@/lib/services/organization.service";
+import { utmService } from "@/lib/services/utm.service";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import { getEmailDomain, removePublicDomains } from "@/lib/utils";
 import { Member, Organization } from "@/prisma/generated/client";
@@ -196,23 +196,7 @@ export async function signUpEmail(
 
     // create utm attribution (after main db transaction is committed)
     // without throwing error if it fails
-    try {
-      const utmService = UTMService.getInstance();
-      const utmData = await utmService.getUTMDataFromCookie();
-      if (utmData) {
-        await utmService.createUTMAttribution(
-          result.user.id,
-          utmData,
-          new Date(),
-        );
-      }
-
-      // remove utm cookie (whether it is set or not)
-      await removeUTMCookie();
-    } catch (error) {
-      console.error("Failed to create utm attribution", error);
-    }
-
+    await utmService.createUTMAttributionIfCookieExists(result.user.id);
     return Ok(result);
   } catch (error) {
     console.error("Failed to sign up email", error);

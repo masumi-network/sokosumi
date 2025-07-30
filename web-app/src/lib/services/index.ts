@@ -11,4 +11,4 @@ export { OrganizationService } from "./organization.service";
 export { StripeService } from "./stripe.service";
 export { TagService } from "./tag.service";
 export { userService } from "./user.service";
-export { UTMService } from "./utm.service";
+export { utmService } from "./utm.service";

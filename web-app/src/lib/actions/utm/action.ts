@@ -60,8 +60,3 @@ export async function setUTMCookieIfNotExists(
     });
   }
 }
-
-export async function removeUTMCookie(): Promise<void> {
-  const cookieStore = await cookies();
-  cookieStore.delete(UTM_COOKIE_NAME);
-}
