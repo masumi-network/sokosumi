@@ -8,6 +8,7 @@ import { UnAuthenticatedError } from "@/lib/auth/errors";
 import { verifyUserId } from "@/lib/auth/utils";
 import { convertCreditsToCents } from "@/lib/db/helpers";
 import prisma from "@/lib/db/repositories/prisma";
+import { userRepository } from "@/lib/db/repositories/user.repository";
 import {
   CouponCurrencyError,
   CouponNotFoundError,
@@ -17,7 +18,6 @@ import { FiatTransaction, Prisma, User } from "@/prisma/generated/client";
 
 import { BaseService } from "./base.service";
 import { FiatTransactionService } from "./fiatTransaction.service";
-import { UserService } from "./user.service";
 
 export interface Price {
   id: string;
@@ -43,8 +43,7 @@ export class StripeService extends BaseService<StripeService> {
   async getOrCreateStripeCustomer(userId: string): Promise<string | null> {
     return await prisma.$transaction(async (tx) => {
       try {
-        const userService = UserService.getInstance(tx);
-        let user = await userService.getUserById(userId);
+        let user = await userRepository.getUserById(userId, tx);
 
         if (!user) {
           return null;
@@ -66,15 +65,16 @@ export class StripeService extends BaseService<StripeService> {
           const existingCustomer = existingCustomers.data[0];
           try {
             // Attempt to associate the existing customer with the user
-            user = await userService.setUserStripeCustomerId(
+            user = await userRepository.setUserStripeCustomerId(
               user.id,
               existingCustomer.id,
+              tx,
             );
             return user.stripeCustomerId;
           } catch (_error) {
             // If there's a unique constraint violation, another process may have
             // already associated this customer. Fetch the updated user record.
-            const updatedUser = await userService.getUserById(userId);
+            const updatedUser = await userRepository.getUserById(userId, tx);
             return updatedUser?.stripeCustomerId ?? null;
           }
         }
@@ -89,9 +89,10 @@ export class StripeService extends BaseService<StripeService> {
 
         try {
           // Attempt to save the customer ID to the database
-          user = await userService.setUserStripeCustomerId(
+          user = await userRepository.setUserStripeCustomerId(
             user.id,
             customer.id,
+            tx,
           );
           return user.stripeCustomerId;
         } catch (_error) {
@@ -107,7 +108,7 @@ export class StripeService extends BaseService<StripeService> {
           }
 
           // Fetch the updated user record to get the existing customer ID
-          const updatedUser = await userService.getUserById(userId);
+          const updatedUser = await userRepository.getUserById(userId, tx);
           return updatedUser?.stripeCustomerId ?? null;
         }
       } catch (error) {
@@ -312,7 +313,7 @@ export class StripeService extends BaseService<StripeService> {
     }
     return await prisma.$transaction(async (tx) => {
       try {
-        const user = await UserService.getInstance(tx).getUserById(userId);
+        const user = await userRepository.getUserById(userId, tx);
         if (!user) throw new Error("User not found");
         const amount = credits * price.amountPerCredit;
         const fiatTransactionService = FiatTransactionService.getInstance(tx);
@@ -349,7 +350,7 @@ export class StripeService extends BaseService<StripeService> {
     if (!isVerified) {
       return null;
     }
-    const user = await UserService.getInstance().getUserById(userId);
+    const user = await userRepository.getUserById(userId);
     if (!user) {
       throw new Error("User not found");
     }
@@ -375,7 +376,7 @@ export class StripeService extends BaseService<StripeService> {
       return null;
     }
 
-    const user = await UserService.getInstance().getUserById(userId);
+    const user = await userRepository.getUserById(userId);
     if (!user) {
       throw new Error("User not found");
     }

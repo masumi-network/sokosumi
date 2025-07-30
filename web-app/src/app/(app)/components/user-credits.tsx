@@ -3,17 +3,14 @@ import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
-import {
-  CreditTransactionService,
-  OrganizationService,
-  UserService,
-} from "@/lib/services";
+import { CreditTransactionService, OrganizationService } from "@/lib/services";
 import { StripeService } from "@/lib/services/stripe.service";
+import { userService } from "@/lib/services/user.service";
 
 import FreeCreditsButton from "./free-credits-button";
 
 export default async function UserCredits() {
-  const user = await UserService.getInstance().getMe();
+  const user = await userService.getMe();
   if (!user) {
     redirect("/login");
   }
