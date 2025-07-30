@@ -3,9 +3,12 @@ import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
-import { CreditTransactionService, OrganizationService } from "@/lib/services";
-import { StripeService } from "@/lib/services/stripe.service";
-import { userService } from "@/lib/services/user.service";
+import {
+  CreditTransactionService,
+  OrganizationService,
+  StripeService,
+  userService,
+} from "@/lib/services";
 
 import FreeCreditsButton from "./free-credits-button";
 
