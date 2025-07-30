@@ -1,13 +1,11 @@
 "use client";
 
 import { ColumnDef, createColumnHelper } from "@tanstack/react-table";
-import { ChannelProvider } from "ably/react";
 import { useFormatter, useTranslations } from "next-intl";
 
 import { DataTableColumnHeader } from "@/components/data-table";
 import { MiddleTruncate } from "@/components/middle-truncate";
 import useAgentJobStatus from "@/hooks/use-agent-job-status";
-import { makeAgentJobsChannel } from "@/lib/ably";
 import { JobStatus, JobWithStatus } from "@/lib/db";
 
 import JobStatusBadge from "./job-status-badge";
@@ -47,15 +45,12 @@ export function getJobColumns(
       ),
       cell: ({ row }) => (
         <div className="p-2">
-          <ChannelProvider
-            channelName={makeAgentJobsChannel(row.original.agentId, userId)}
-          >
-            <RealTimeJobStatusBadge
-              agentId={row.original.agentId}
-              userId={userId}
-              initialStatus={row.original.status}
-            />
-          </ChannelProvider>
+          <RealTimeJobStatusBadge
+            agentId={row.original.agentId}
+            userId={userId}
+            jobId={row.original.id}
+            initialStatus={row.original.status}
+          />
         </div>
       ),
       enableSorting: true,
@@ -89,17 +84,20 @@ export function getJobColumns(
 function RealTimeJobStatusBadge({
   agentId,
   userId,
+  jobId,
   initialStatus,
   className,
 }: {
   agentId: string;
   userId: string;
+  jobId: string;
   initialStatus: JobStatus;
   className?: string;
 }) {
   const realTimeJobStatus = useAgentJobStatus(
     agentId,
     userId,
+    jobId,
     initialStatus,
     true,
   );

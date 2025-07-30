@@ -8,6 +8,7 @@ import { JobStatus } from "@/lib/db";
 export default function useAgentJobStatus(
   agentId: string,
   userId: string,
+  currentJobId: string | undefined,
   initialJobStatus: JobStatus | null,
   refresh: boolean = false,
 ) {
@@ -21,6 +22,9 @@ export default function useAgentJobStatus(
     const parsedResult = jobStatusDataSchema.safeParse(message.data);
     if (parsedResult.success) {
       const jobId = parsedResult.data.id;
+      if (currentJobId && jobId !== currentJobId) {
+        return;
+      }
       setJobStatus(parsedResult.data.jobStatus);
       if (refresh) {
         // check pathname is job details path
@@ -29,6 +33,7 @@ export default function useAgentJobStatus(
         }
       }
     } else {
+      setJobStatus(null);
       console.error(
         "Failed to parse JobStatus from message",
         message,

@@ -402,7 +402,7 @@ export async function retrieveNotFinishedLatestJobByAgentIdAndUserId(
  * @param organizationId - The unique identifier of the organization (null for personal jobs)
  * @returns Promise latest not-finished job status or null
  */
-export async function retrieveNotFinishedLatestJobStatusByAgentIdUserIdAndOrganization(
+export async function retrieveLatestJobStatusByAgentIdUserIdAndOrganization(
   agentId: string,
   userId: string,
   organizationId: string | null | undefined,

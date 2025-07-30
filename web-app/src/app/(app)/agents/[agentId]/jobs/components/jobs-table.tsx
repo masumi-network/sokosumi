@@ -1,5 +1,6 @@
 "use client";
 
+import { ChannelProvider } from "ably/react";
 import { useParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
@@ -7,6 +8,7 @@ import { useState } from "react";
 import { DataTable } from "@/components/data-table";
 import AblyProvider from "@/contexts/ably-provider";
 import { useAsyncRouter } from "@/hooks/use-async-router";
+import { makeAgentJobsChannel } from "@/lib/ably";
 import { JobWithStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +22,7 @@ interface JobsTableProps {
 export default function JobsTable({ jobs, userId }: JobsTableProps) {
   const t = useTranslations("App.Agents.Jobs.JobsTable");
   const dateFormatter = useFormatter();
-  const params = useParams<{ jobId?: string | undefined }>();
+  const params = useParams<{ agentId: string; jobId?: string | undefined }>();
 
   const asyncRouter = useAsyncRouter();
   const [routerLoading, setRouterLoading] = useState(false);
@@ -33,31 +35,35 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
 
   return (
     <AblyProvider>
-      <DataTable
-        columns={getColumns(userId, t, dateFormatter)}
-        onRowClick={(row) => async () => {
-          if (routerLoading) return;
-          await handleRowClick(row as JobWithStatus);
-        }}
-        data={jobs}
-        rowClassName={(row) => {
-          return cn({
-            "text-primary-foreground bg-primary hover:bg-primary active:bg-primary":
-              params.jobId === row.id,
-            "text-foreground active:bg-muted hover:bg-muted":
-              params.jobId !== row.id,
-          });
-        }}
-        containerClassName={cn(
-          "job-table-width min-h-[300px] rounded-xl bg-muted/50",
-        )}
-        defaultSort={[
-          {
-            id: "startedAt",
-            desc: true,
-          },
-        ]}
-      />
+      <ChannelProvider
+        channelName={makeAgentJobsChannel(params.agentId, userId)}
+      >
+        <DataTable
+          columns={getColumns(userId, t, dateFormatter)}
+          onRowClick={(row) => async () => {
+            if (routerLoading) return;
+            await handleRowClick(row as JobWithStatus);
+          }}
+          data={jobs}
+          rowClassName={(row) => {
+            return cn({
+              "text-primary-foreground bg-primary hover:bg-primary active:bg-primary":
+                params.jobId === row.id,
+              "text-foreground active:bg-muted hover:bg-muted":
+                params.jobId !== row.id,
+            });
+          }}
+          containerClassName={cn(
+            "job-table-width min-h-[300px] rounded-xl bg-muted/50",
+          )}
+          defaultSort={[
+            {
+              id: "startedAt",
+              desc: true,
+            },
+          ]}
+        />
+      </ChannelProvider>
     </AblyProvider>
   );
 }

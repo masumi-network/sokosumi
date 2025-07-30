@@ -14,10 +14,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getSessionOrThrow } from "@/lib/auth/utils";
 import { AgentWithAvailability } from "@/lib/db";
 import {
+  getAgentJobStatusesByAgentIds,
   getAvailableAgents,
   getFavoriteAgents,
   getHiredAgentsOrderedByLatestJob,
-  getNotFinishedLatestJobStatusesByAgentIds,
 } from "@/lib/services";
 import { Agent } from "@/prisma/generated/client";
 
@@ -74,14 +74,12 @@ async function AgentListsContent() {
     favoriteAgents,
   );
 
-  const [favoriteAgentsLatestJobs, hiredAgentsLatestJobs] = await Promise.all([
-    getNotFinishedLatestJobStatusesByAgentIds(
-      favoriteAgents.map((agent) => agent.id),
-    ),
-    getNotFinishedLatestJobStatusesByAgentIds(
-      hiredAgents.map((agent) => agent.id),
-    ),
-  ]);
+  const [favoriteAgentsJobStatuses, hiredAgentsJobStatuses] = await Promise.all(
+    [
+      getAgentJobStatusesByAgentIds(favoriteAgents.map((agent) => agent.id)),
+      getAgentJobStatusesByAgentIds(hiredAgents.map((agent) => agent.id)),
+    ],
+  );
 
   // Determine availability for each agent
   const availableAgentIds = new Set(availableAgents.map((agent) => agent.id));
@@ -106,14 +104,14 @@ async function AgentListsContent() {
       groupKey: "favorite-agents",
       title: t("pinnedTitle"),
       agents: favoriteAgentsWithAvailability,
-      latestJobStatuses: favoriteAgentsLatestJobs,
+      initialJobStatuses: favoriteAgentsJobStatuses,
       noAgentsType: t("pinnedType"),
     },
     {
       groupKey: "hired-agents",
       title: t("hiredTitle"),
       agents: hiredAgentsWithAvailability,
-      latestJobStatuses: hiredAgentsLatestJobs,
+      initialJobStatuses: hiredAgentsJobStatuses,
       noAgentsType: t("hiredType"),
     },
   ];

@@ -19,7 +19,7 @@ import {
   retrieveCentsByOrganizationId,
   retrieveCentsByUserId,
   retrieveJobsByAgentIdUserIdAndOrganizationId,
-  retrieveNotFinishedLatestJobStatusByAgentIdUserIdAndOrganization,
+  retrieveLatestJobStatusByAgentIdUserIdAndOrganization,
   retrievePersonalJobsByAgentIdAndUserId,
   updateJobNextActionByBlockchainIdentifier,
   updateJobWithAgentJobStatus,
@@ -880,7 +880,13 @@ export async function requestRefundJob(
   );
 }
 
-export async function getNotFinishedLatestJobStatusesByAgentIds(
+/**
+ * Get the latest job status for each agent
+ * @param agentIds - The IDs of the agents to get the latest job status for
+ * @param tx - The transaction client to use for the database operations
+ * @returns The latest job status for each agent
+ */
+export async function getAgentJobStatusesByAgentIds(
   agentIds: string[],
   tx: Prisma.TransactionClient = prisma,
 ): Promise<(JobStatus | null)[]> {
@@ -890,7 +896,7 @@ export async function getNotFinishedLatestJobStatusesByAgentIds(
 
   return await Promise.all(
     agentIds.map((agentId) =>
-      retrieveNotFinishedLatestJobStatusByAgentIdUserIdAndOrganization(
+      retrieveLatestJobStatusByAgentIdUserIdAndOrganization(
         agentId,
         userId,
         activeOrganizationId,

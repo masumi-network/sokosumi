@@ -26,7 +26,7 @@ interface AgentListsClientProps {
     groupKey: string;
     title: string;
     agents: AgentWithAvailability[];
-    latestJobStatuses: (JobStatus | null)[];
+    initialJobStatuses: (JobStatus | null)[];
     noAgentsType: string;
   }[];
   userId: string;
@@ -44,7 +44,7 @@ export default function AgentListsClient({
   return (
     <AblyProvider>
       {agentLists.map(
-        ({ groupKey, title, agents, latestJobStatuses, noAgentsType }) => (
+        ({ groupKey, title, agents, initialJobStatuses, noAgentsType }) => (
           <SidebarGroup key={groupKey} className="w-72 md:w-64">
             <SidebarGroupLabel className="text-base">{title}</SidebarGroupLabel>
             <SidebarGroupContent className="mt-2">
@@ -52,7 +52,7 @@ export default function AgentListsClient({
                 <SidebarMenu>
                   {agents.map((agentWithAvailability, index) => {
                     const { agent, isAvailable } = agentWithAvailability;
-                    const latestJobStatus = latestJobStatuses[index];
+                    const initialJobStatus = initialJobStatuses[index];
 
                     return (
                       <SidebarMenuItem key={agent.id}>
@@ -88,7 +88,7 @@ export default function AgentListsClient({
                                   <AgentJobStatusIndicator
                                     agentId={agent.id}
                                     userId={userId}
-                                    initialJobStatus={latestJobStatus}
+                                    initialJobStatus={initialJobStatus}
                                     className={cn("h-4 w-4", {
                                       "text-primary-foreground":
                                         agentId === agent.id,
