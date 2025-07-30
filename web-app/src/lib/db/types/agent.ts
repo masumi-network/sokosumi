@@ -1,5 +1,7 @@
 import { Agent, Prisma } from "@/prisma/generated/client";
 
+import { CreditsPrice } from "./credit";
+
 export type AgentWithAvailability = {
   agent: Agent;
   isAvailable: boolean;
@@ -89,4 +91,9 @@ export interface AgentLegal {
   readonly privacyPolicy: string | null;
   readonly terms: string | null;
   readonly other: string | null;
+}
+
+export interface AgentWithCreditPrice {
+  agent: AgentWithRelations;
+  creditsPrice: CreditsPrice;
 }

@@ -10,6 +10,7 @@ import {
   agentListInclude,
   AgentListWithAgents,
   agentOrderBy,
+  AgentWithCreditPrice,
   AgentWithFixedPricing,
   AgentWithJobs,
   AgentWithOrganizations,
@@ -33,11 +34,6 @@ import { BaseService } from "./base.service";
 import { getAgentCreditsPrice } from "./credit";
 import { CreditCostService } from "./creditCost.service";
 import { MemberService } from "./member.service";
-
-export interface AgentWithCreditPrice {
-  agent: AgentWithRelations;
-  creditsPrice: Awaited<ReturnType<typeof getAgentCreditsPrice>>;
-}
 
 export class AgentService extends BaseService<AgentService> {
   private static thresholdDays =

@@ -1,4 +1,3 @@
-export * from "./agent";
 export { AgentService } from "./agent.service";
 export { AgentListService } from "./agentList.service";
 export { BaseService } from "./base.service";
