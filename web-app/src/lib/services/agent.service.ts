@@ -17,6 +17,7 @@ import {
   AgentWithRelations,
   CreditsPrice,
 } from "@/lib/db/types";
+import { JobInputData } from "@/lib/job-input";
 import {
   jobInputsDataSchema,
   JobInputsDataSchemaType,
@@ -24,6 +25,8 @@ import {
 import {
   jobStatusResponseSchema,
   JobStatusResponseSchemaType,
+  startJobResponseSchema,
+  StartJobResponseSchemaType,
 } from "@/lib/schemas";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import { safeAddPathComponent } from "@/lib/utils/url";
@@ -644,6 +647,46 @@ export class AgentService extends BaseService<AgentService> {
       );
       if (!parsedResult.success) {
         return Err("Failed to parse job status response");
+      }
+
+      return Ok(parsedResult.data);
+    } catch (err) {
+      return Err(String(err));
+    }
+  }
+
+  async startAgentJob(
+    agent: AgentWithRelations,
+    identifierFromPurchaser: string,
+    inputData: JobInputData,
+  ): Promise<Result<StartJobResponseSchemaType, string>> {
+    try {
+      const startJobUrl = AgentService.getAgentUrlWithPathComponent(
+        agent,
+        "start_job",
+      );
+      const startJobResponse = await fetch(startJobUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          identifier_from_purchaser: identifierFromPurchaser,
+          input_data: Object.fromEntries(inputData),
+        }),
+      });
+
+      if (!startJobResponse.ok) {
+        return Err("Failed to start job");
+      }
+      const responseJson = await startJobResponse.json();
+      const parsedResult = startJobResponseSchema.safeParse(responseJson);
+      if (!parsedResult.success) {
+        return Err(
+          `Failed to parse start job response: ${JSON.stringify(
+            parsedResult.error,
+          )}`,
+        );
       }
 
       return Ok(parsedResult.data);

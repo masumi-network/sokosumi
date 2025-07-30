@@ -1,5 +1,8 @@
 import "server-only";
 
+import { getEnvPublicConfig } from "@/config/env.public";
+import { postPurchaseRequestRefund } from "@/lib/api/generated/payment";
+import { getPaymentClient } from "@/lib/api/payment-service.client";
 import {
   computeJobStatus,
   jobStatusToAgentJobStatus,
@@ -18,6 +21,7 @@ import {
   JobWithStatus,
 } from "@/lib/db/types";
 import { JobInputSchemaType } from "@/lib/job-input";
+import { Err, Ok, Result } from "@/lib/ts-res";
 import {
   AgentJobStatus,
   Job,
@@ -381,4 +385,26 @@ export class JobService extends BaseService<JobService> {
   }
 
   // Third party methods
+  async requestRefund(
+    jobBlockchainIdentifier: string,
+  ): Promise<Result<void, string>> {
+    try {
+      const paymentClient = getPaymentClient();
+      const refundResponse = await postPurchaseRequestRefund({
+        client: paymentClient,
+        body: {
+          blockchainIdentifier: jobBlockchainIdentifier,
+          network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
+        },
+      });
+
+      if (refundResponse.error || !refundResponse.data) {
+        return Err("Failed to request refund");
+      }
+
+      return Ok();
+    } catch (err) {
+      return Err(String(err));
+    }
+  }
 }

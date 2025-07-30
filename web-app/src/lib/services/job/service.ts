@@ -37,7 +37,6 @@ import {
   createPurchase,
   getPaymentClientPurchase,
   postPaymentClientRequestRefund,
-  startAgentJob,
 } from "./third-party";
 
 function getMatchedInputHash(
@@ -304,7 +303,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
         },
       });
 
-      const startJobResult = await startAgentJob(
+      const startJobResult = await AgentService.getInstance().startAgentJob(
         agent,
         identifierFromPurchaser,
         inputData,

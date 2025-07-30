@@ -10,52 +10,8 @@ import {
 import { getPaymentClient } from "@/lib/api/payment-service.client";
 import { AgentWithRelations } from "@/lib/db";
 import { JobInputData } from "@/lib/job-input";
-import {
-  startJobResponseSchema,
-  StartJobResponseSchemaType,
-} from "@/lib/schemas";
-import { AgentService } from "@/lib/services";
+import { StartJobResponseSchemaType } from "@/lib/schemas";
 import { Err, Ok, Result } from "@/lib/ts-res";
-
-export async function startAgentJob(
-  agent: AgentWithRelations,
-  identifierFromPurchaser: string,
-  inputData: JobInputData,
-): Promise<Result<StartJobResponseSchemaType, string>> {
-  try {
-    const startJobUrl = AgentService.getAgentUrlWithPathComponent(
-      agent,
-      "start_job",
-    );
-    const startJobResponse = await fetch(startJobUrl, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        identifier_from_purchaser: identifierFromPurchaser,
-        input_data: Object.fromEntries(inputData),
-      }),
-    });
-
-    if (!startJobResponse.ok) {
-      return Err("Failed to start job");
-    }
-    const responseJson = await startJobResponse.json();
-    const parsedResult = startJobResponseSchema.safeParse(responseJson);
-    if (!parsedResult.success) {
-      return Err(
-        `Failed to parse start job response: ${JSON.stringify(
-          parsedResult.error,
-        )}`,
-      );
-    }
-
-    return Ok(parsedResult.data);
-  } catch (err) {
-    return Err(String(err));
-  }
-}
 
 export async function postPaymentClientRequestRefund(
   jobBlockchainIdentifier: string,
