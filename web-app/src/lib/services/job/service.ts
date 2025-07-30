@@ -33,8 +33,6 @@ import {
   Prisma,
 } from "@/prisma/generated/client";
 
-import { createPurchase } from "./third-party";
-
 function getMatchedInputHash(
   inputData: JobInputData,
   identifierFromPurchaser: string,
@@ -475,13 +473,14 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
       });
 
       // Create purchase
-      const createPurchaseResult = await createPurchase(
-        agent,
-        startJobResponse,
-        inputData,
-        matchedInputHash,
-        identifierFromPurchaser,
-      );
+      const createPurchaseResult =
+        await JobService.getInstance().createPurchase(
+          agent,
+          startJobResponse,
+          inputData,
+          matchedInputHash,
+          identifierFromPurchaser,
+        );
       if (createPurchaseResult.ok) {
         const purchase = createPurchaseResult.data.data as Purchase;
         await JobService.getInstance().updateJobWithPurchase(job.id, purchase);

@@ -3,7 +3,9 @@ import "server-only";
 import { getEnvPublicConfig } from "@/config/env.public";
 import {
   getPurchase,
+  postPurchase,
   postPurchaseRequestRefund,
+  PostPurchaseResponse,
 } from "@/lib/api/generated/payment";
 import { getPaymentClient } from "@/lib/api/payment-service.client";
 import {
@@ -14,6 +16,7 @@ import {
   transactionStatusToOnChainTransactionStatus,
 } from "@/lib/db/helpers/job";
 import {
+  AgentWithRelations,
   CreditsPrice,
   finalizedOnChainJobStatuses,
   jobInclude,
@@ -23,7 +26,8 @@ import {
   JobWithLimitedInformation,
   JobWithStatus,
 } from "@/lib/db/types";
-import { JobInputSchemaType } from "@/lib/job-input";
+import { JobInputData, JobInputSchemaType } from "@/lib/job-input";
+import { StartJobResponseSchemaType } from "@/lib/schemas";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import {
   AgentJobStatus,
@@ -406,6 +410,52 @@ export class JobService extends BaseService<JobService> {
       }
 
       return Ok();
+    } catch (err) {
+      return Err(String(err));
+    }
+  }
+
+  async createPurchase(
+    agent: AgentWithRelations,
+    startJobResponse: StartJobResponseSchemaType,
+    inputData: JobInputData,
+    inputHash: string,
+    identifierFromPurchaser: string,
+  ): Promise<Result<PostPurchaseResponse, string>> {
+    try {
+      const paymentClient = getPaymentClient();
+
+      const postPurchaseResponse = await postPurchase({
+        client: paymentClient,
+        body: {
+          agentIdentifier: agent.blockchainIdentifier,
+          inputHash: inputHash,
+          blockchainIdentifier: startJobResponse.blockchainIdentifier,
+          network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
+          sellerVkey: startJobResponse.sellerVKey,
+          paymentType: "Web3CardanoV1",
+          identifierFromPurchaser,
+          payByTime: startJobResponse.payByTime.toString(),
+          externalDisputeUnlockTime:
+            startJobResponse.externalDisputeUnlockTime.toString(),
+          submitResultTime: startJobResponse.submitResultTime.toString(),
+          unlockTime: startJobResponse.unlockTime.toString(),
+          metadata: JSON.stringify({
+            inputData: Object.fromEntries(inputData),
+            jobId: startJobResponse.job_id,
+          }),
+        },
+      });
+
+      if (postPurchaseResponse.error || !postPurchaseResponse.data) {
+        console.log(
+          "Failed to create purchase request",
+          postPurchaseResponse.error,
+        );
+        return Err("Failed to create purchase request");
+      }
+
+      return Ok(postPurchaseResponse.data);
     } catch (err) {
       return Err(String(err));
     }
