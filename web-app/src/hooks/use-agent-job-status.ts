@@ -28,7 +28,7 @@ export default function useAgentJobStatus(
       setJobStatus(parsedResult.data.jobStatus);
       if (refresh) {
         // check pathname is job details path
-        if (pathname.startsWith(`/app/agents/${agentId}/jobs/${jobId}`)) {
+        if (pathname.startsWith(`/agents/${agentId}/jobs/${jobId}`)) {
           router.refresh();
         }
       }
