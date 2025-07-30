@@ -5,7 +5,6 @@ export { CreditCostService } from "./creditCost.service";
 export { CreditTransactionService } from "./creditTransaction.service";
 export { FiatTransactionService } from "./fiatTransaction.service";
 export { InvitationService } from "./invitation.service";
-export * from "./job";
 export { JobService } from "./job.service";
 export { LockService } from "./lock.service";
 export { MemberService } from "./member.service";

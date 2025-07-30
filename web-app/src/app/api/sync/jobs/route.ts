@@ -5,7 +5,7 @@ import pTimeout from "p-timeout";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { authenticateCronSecret } from "@/lib/auth/utils";
 import { prisma } from "@/lib/db/repositories";
-import { JobService, syncJob } from "@/lib/services";
+import { JobService } from "@/lib/services";
 import { LockService } from "@/lib/services/lock.service";
 import { Lock } from "@/prisma/generated/client";
 
@@ -72,11 +72,12 @@ async function syncAllJobs(): Promise<void> {
     where: JobService.jobsNotFinishedWhereQuery(),
   });
 
+  const jobService = JobService.getInstance();
   console.info("Syncing", jobs.length, "jobs");
   // Process 5 jobs at a time
   const limit = pLimit(5);
   for (const job of jobs) {
-    runningDbUpdates.push(limit(() => syncJob(job)));
+    runningDbUpdates.push(limit(() => jobService.syncJob(job)));
   }
   try {
     await Promise.allSettled(runningDbUpdates);

@@ -12,7 +12,7 @@ import {
   startJobInputSchema,
   StartJobInputSchemaType,
 } from "@/lib/schemas";
-import { JobService, requestRefundJob, startJob } from "@/lib/services";
+import { JobService } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
 
 export async function startJobWithInputData(
@@ -76,7 +76,7 @@ export async function startJobWithInputData(
       }
       const parsed = parsedResult.data;
 
-      const job = await startJob(parsed);
+      const job = await JobService.getInstance().startJob(parsed);
 
       // Add success breadcrumb
       Sentry.addBreadcrumb({
@@ -261,7 +261,8 @@ export async function requestRefundJobByBlockchainIdentifier(
       });
     }
 
-    const job = await requestRefundJob(blockchainIdentifier);
+    const job =
+      await JobService.getInstance().requestRefundJob(blockchainIdentifier);
     return Ok({ job });
   } catch (error) {
     Sentry.withScope((scope) => {
