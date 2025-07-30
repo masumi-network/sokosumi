@@ -2,7 +2,13 @@ import "server-only";
 
 import { cookies } from "next/headers";
 
-import { UTM_COOKIE_NAME, UTMData, utmDataSchema } from "@/lib/utils/utm";
+import { getEnvSecrets } from "@/config/env.secrets";
+import {
+  UTM_COOKIE_MAX_AGE,
+  UTM_COOKIE_NAME,
+  UTMData,
+  utmDataSchema,
+} from "@/lib/utils/utm";
 import { Prisma, UTMAttribution } from "@/prisma/generated/client";
 
 import prisma from "./prisma";
@@ -47,6 +53,19 @@ export const utmAttributionRepository = {
       console.error("Failed to parse UTM cookie", error);
       return null;
     }
+  },
+
+  setUTMCookie: async (utmData: UTMData): Promise<void> => {
+    const cookieStore = await cookies();
+    const cookieValue = JSON.stringify(utmData);
+    cookieStore.set(UTM_COOKIE_NAME, cookieValue, {
+      maxAge: UTM_COOKIE_MAX_AGE,
+      domain: getEnvSecrets().COOKIE_DOMAIN,
+      httpOnly: false,
+      secure: getEnvSecrets().NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+    });
   },
 
   removeUTMCookie: async (): Promise<void> => {

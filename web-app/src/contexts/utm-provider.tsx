@@ -11,7 +11,7 @@ import {
   useState,
 } from "react";
 
-import { setUTMCookieIfNotExists } from "@/lib/actions/utm/action";
+import { utmService } from "@/lib/services/utm.service";
 import { extractUTMParams, type UTMData } from "@/lib/utils/utm";
 
 interface UTMContextValue {
@@ -36,7 +36,7 @@ export function UTMProviderInner({ children }: UTMProviderProps) {
 
   const setUTMCookie = useCallback(
     async (data: UTMData) => {
-      const result = await setUTMCookieIfNotExists(data);
+      const result = await utmService.setUTMCookieIfNotExists(data);
       if (result.ok) {
         setUTMData(result.data);
       }
