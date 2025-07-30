@@ -2,7 +2,6 @@
 
 import { ChannelProvider } from "ably/react";
 import { SquareTerminal } from "lucide-react";
-import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -15,15 +14,12 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
+import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 import { makeAgentJobsChannel } from "@/lib/ably";
 import { AgentWithAvailability, getAgentName, JobStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 import AgentJobStatusIndicator from "./agent-job-status-indicator";
-
-const AblyProvider = dynamic(() => import("@/contexts/ably-provider"), {
-  ssr: false,
-});
 
 interface AgentListsClientProps {
   agentLists: {
@@ -46,7 +42,7 @@ export default function AgentListsClient({
   const { agentId } = useParams();
 
   return (
-    <AblyProvider>
+    <DynamicAblyProvider>
       {agentLists.map(
         ({ groupKey, title, agents, initialJobStatuses, noAgentsType }) => (
           <SidebarGroup key={groupKey} className="w-72 md:w-64">
@@ -118,6 +114,6 @@ export default function AgentListsClient({
           </SidebarGroup>
         ),
       )}
-    </AblyProvider>
+    </DynamicAblyProvider>
   );
 }

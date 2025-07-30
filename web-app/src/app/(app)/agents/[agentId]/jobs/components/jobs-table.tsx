@@ -1,22 +1,18 @@
 "use client";
 
 import { ChannelProvider } from "ably/react";
-import dynamic from "next/dynamic";
 import { useParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { DataTable } from "@/components/data-table";
+import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 import { useAsyncRouter } from "@/hooks/use-async-router";
 import { makeAgentJobsChannel } from "@/lib/ably";
 import { JobWithStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 import { getJobColumns } from "./job-columns";
-
-const AblyProvider = dynamic(() => import("@/contexts/ably-provider"), {
-  ssr: false,
-});
 
 interface JobsTableProps {
   jobs: JobWithStatus[];
@@ -38,7 +34,7 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
   };
 
   return (
-    <AblyProvider>
+    <DynamicAblyProvider>
       <ChannelProvider
         channelName={makeAgentJobsChannel(params.agentId, userId)}
       >
@@ -68,7 +64,7 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
           ]}
         />
       </ChannelProvider>
-    </AblyProvider>
+    </DynamicAblyProvider>
   );
 }
 
