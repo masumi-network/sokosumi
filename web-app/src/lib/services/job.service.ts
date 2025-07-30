@@ -379,4 +379,6 @@ export class JobService extends BaseService<JobService> {
     });
     return job ? computeJobStatus(job) : null;
   }
+
+  // Third party methods
 }

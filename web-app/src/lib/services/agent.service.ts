@@ -21,6 +21,10 @@ import {
   jobInputsDataSchema,
   JobInputsDataSchemaType,
 } from "@/lib/job-input/job-input";
+import {
+  jobStatusResponseSchema,
+  JobStatusResponseSchemaType,
+} from "@/lib/schemas";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import { safeAddPathComponent } from "@/lib/utils/url";
 import {
@@ -614,6 +618,36 @@ export class AgentService extends BaseService<AgentService> {
         });
       });
 
+      return Err(String(err));
+    }
+  }
+
+  async fetchAgentJobStatus(
+    agent: AgentWithRelations,
+    jobId: string,
+  ): Promise<Result<JobStatusResponseSchemaType, string>> {
+    try {
+      const jobStatusUrl = AgentService.getAgentUrlWithPathComponent(
+        agent,
+        "status",
+      );
+      jobStatusUrl.searchParams.set("job_id", jobId);
+      const jobStatusResponse = await fetch(jobStatusUrl, {
+        method: "GET",
+      });
+
+      if (!jobStatusResponse.ok) {
+        return Err(jobStatusResponse.statusText);
+      }
+      const parsedResult = jobStatusResponseSchema.safeParse(
+        await jobStatusResponse.json(),
+      );
+      if (!parsedResult.success) {
+        return Err("Failed to parse job status response");
+      }
+
+      return Ok(parsedResult.data);
+    } catch (err) {
       return Err(String(err));
     }
   }

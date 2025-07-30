@@ -11,43 +11,11 @@ import { getPaymentClient } from "@/lib/api/payment-service.client";
 import { AgentWithRelations } from "@/lib/db";
 import { JobInputData } from "@/lib/job-input";
 import {
-  jobStatusResponseSchema,
-  JobStatusResponseSchemaType,
   startJobResponseSchema,
   StartJobResponseSchemaType,
 } from "@/lib/schemas";
 import { AgentService } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
-
-export async function fetchAgentJobStatus(
-  agent: AgentWithRelations,
-  jobId: string,
-): Promise<Result<JobStatusResponseSchemaType, string>> {
-  try {
-    const jobStatusUrl = AgentService.getAgentUrlWithPathComponent(
-      agent,
-      "status",
-    );
-    jobStatusUrl.searchParams.set("job_id", jobId);
-    const jobStatusResponse = await fetch(jobStatusUrl, {
-      method: "GET",
-    });
-
-    if (!jobStatusResponse.ok) {
-      return Err(jobStatusResponse.statusText);
-    }
-    const parsedResult = jobStatusResponseSchema.safeParse(
-      await jobStatusResponse.json(),
-    );
-    if (!parsedResult.success) {
-      return Err("Failed to parse job status response");
-    }
-
-    return Ok(parsedResult.data);
-  } catch (err) {
-    return Err(String(err));
-  }
-}
 
 export async function startAgentJob(
   agent: AgentWithRelations,

@@ -35,7 +35,6 @@ import {
 
 import {
   createPurchase,
-  fetchAgentJobStatus,
   getPaymentClientPurchase,
   postPaymentClientRequestRefund,
   startAgentJob,
@@ -808,13 +807,15 @@ export async function getAgentJobStatus(
   job: Job,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<JobStatusResponse | null> {
-  const agent = await AgentService.getInstance(tx).getAgentWithRelationsById(
-    job.agentId,
-  );
+  const agentService = AgentService.getInstance(tx);
+  const agent = await agentService.getAgentWithRelationsById(job.agentId);
   if (!agent) {
     return null;
   }
-  const jobStatusResult = await fetchAgentJobStatus(agent, job.agentJobId);
+  const jobStatusResult = await agentService.fetchAgentJobStatus(
+    agent,
+    job.agentJobId,
+  );
   if (!jobStatusResult.ok) {
     return null;
   }
