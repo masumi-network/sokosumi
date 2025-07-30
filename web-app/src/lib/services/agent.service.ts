@@ -15,6 +15,7 @@ import {
   AgentWithJobs,
   AgentWithOrganizations,
   AgentWithRelations,
+  CreditsPrice,
 } from "@/lib/db/types";
 import {
   jobInputsDataSchema,
@@ -31,7 +32,6 @@ import {
 } from "@/prisma/generated/client";
 
 import { BaseService } from "./base.service";
-import { getAgentCreditsPrice } from "./credit";
 import { CreditCostService } from "./creditCost.service";
 import { MemberService } from "./member.service";
 
@@ -179,7 +179,7 @@ export class AgentService extends BaseService<AgentService> {
     const agents = await this.getAvailableAgents();
     const results = await Promise.allSettled(
       agents.map(async (agent) => {
-        const creditsPrice = await getAgentCreditsPrice(agent);
+        const creditsPrice = await this.getAgentCreditsPrice(agent);
         return { agent, creditsPrice };
       }),
     );
@@ -189,6 +189,21 @@ export class AgentService extends BaseService<AgentService> {
           result.status === "fulfilled",
       )
       .map((result) => result.value);
+  }
+
+  async getAgentCreditsPrice(
+    agent: AgentWithFixedPricing,
+  ): Promise<CreditsPrice> {
+    const amounts = agent.pricing?.fixedPricing?.amounts?.map((amount) => ({
+      unit: amount.unit,
+      amount: Number(amount.amount),
+    }));
+    if (!amounts) {
+      return { cents: BigInt(0), includedFee: BigInt(0) };
+    }
+    return await CreditCostService.getInstance(this.client).getCreditsPrice(
+      amounts,
+    );
   }
 
   /**

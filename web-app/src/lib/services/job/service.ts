@@ -20,6 +20,7 @@ import {
 } from "@/lib/schemas";
 import {
   AgentService,
+  CreditCostService,
   CreditTransactionService,
   JobService,
 } from "@/lib/services";
@@ -31,7 +32,6 @@ import {
   OnChainJobStatus,
   Prisma,
 } from "@/prisma/generated/client";
-import { getCreditsPrice } from "@/services/credit";
 
 import {
   createPurchase,
@@ -216,7 +216,10 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
             );
           }
 
-          const creditsPrice = await getCreditsPrice(amountsPrice, tx);
+          const creditsPrice =
+            await CreditCostService.getInstance(tx).getCreditsPrice(
+              amountsPrice,
+            );
           if (creditsPrice.cents > maxAcceptedCents) {
             Sentry.setTag("error_type", "cost_too_high");
             Sentry.setContext("cost_validation", {

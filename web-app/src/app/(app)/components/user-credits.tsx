@@ -4,8 +4,7 @@ import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
 import {
-  getOrganizationCredits,
-  getUserCredits,
+  CreditTransactionService,
   OrganizationService,
   UserService,
 } from "@/lib/services";
@@ -36,13 +35,18 @@ export default async function UserCredits() {
   let creditLabel: string;
 
   if (activeOrganization) {
-    credits = await getOrganizationCredits(activeOrganization.id);
+    credits =
+      await CreditTransactionService.getInstance().getOrganizationCredits(
+        activeOrganization.id,
+      );
     creditLabel = t("organizationBalance", {
       credits: credits,
       organization: activeOrganization.name,
     });
   } else {
-    credits = await getUserCredits(user.id);
+    credits = await CreditTransactionService.getInstance().getUserCredits(
+      user.id,
+    );
     creditLabel = t("userBalance", { credits: credits });
   }
 
