@@ -28,12 +28,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
       - name: Run Claude Code
         id: claude
         continue-on-error: false
         uses: anthropics/claude-code-action@beta
         with:
           anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          allowed_tools: Bash(pnpm install),Bash(pnpm run lint),Bash(pnpm run test),Bash(git:*)
+          claude_env: |
+            CI: true
           override_prompt: |
             Please provide a thorough review of this pull request and suggest improvements.
             Pay extra attention to coding standards, security practices.
