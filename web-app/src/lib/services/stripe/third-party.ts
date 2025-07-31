@@ -4,8 +4,8 @@ import { headers } from "next/headers";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
+import { userRepository } from "@/lib/db/repositories";
 import prisma from "@/lib/db/repositories/prisma";
-import { UserService } from "@/lib/services/user.service";
 import { FiatTransaction, User } from "@/prisma/generated/client";
 
 const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
@@ -150,8 +150,7 @@ export async function getOrCreateStripeCustomer(
 ): Promise<string | null> {
   return await prisma.$transaction(async (tx) => {
     try {
-      const userService = new UserService(tx);
-      let user = await userService.getUserById(userId);
+      let user = await userRepository.getUserById(userId, tx);
 
       if (!user) {
         return null;
@@ -173,15 +172,16 @@ export async function getOrCreateStripeCustomer(
         const existingCustomer = existingCustomers.data[0];
         try {
           // Attempt to associate the existing customer with the user
-          user = await userService.setUserStripeCustomerId(
+          user = await userRepository.setUserStripeCustomerId(
             user.id,
             existingCustomer.id,
+            tx,
           );
           return user.stripeCustomerId;
         } catch (_error) {
           // If there's a unique constraint violation, another process may have
           // already associated this customer. Fetch the updated user record.
-          const updatedUser = await userService.getUserById(userId);
+          const updatedUser = await userRepository.getUserById(userId, tx);
           return updatedUser?.stripeCustomerId ?? null;
         }
       }
@@ -196,7 +196,11 @@ export async function getOrCreateStripeCustomer(
 
       try {
         // Attempt to save the customer ID to the database
-        user = await userService.setUserStripeCustomerId(user.id, customer.id);
+        user = await userRepository.setUserStripeCustomerId(
+          user.id,
+          customer.id,
+          tx,
+        );
         return user.stripeCustomerId;
       } catch (_error) {
         // If there's a unique constraint violation, clean up the Stripe customer
@@ -211,7 +215,7 @@ export async function getOrCreateStripeCustomer(
         }
 
         // Fetch the updated user record to get the existing customer ID
-        const updatedUser = await userService.getUserById(userId);
+        const updatedUser = await userRepository.getUserById(userId, tx);
         return updatedUser?.stripeCustomerId ?? null;
       }
     } catch (error) {

@@ -10,13 +10,13 @@ import {
   createFiatTransaction,
   prisma,
   updateFiatTransactionServicePaymentId,
+  userRepository,
 } from "@/lib/db/repositories";
 import {
   CouponCurrencyError,
   CouponNotFoundError,
   CouponTypeError,
 } from "@/lib/errors/coupon-errors";
-import { UserService } from "@/lib/services/user.service";
 
 import {
   createCheckoutSession,
@@ -41,7 +41,7 @@ export async function createStripeCheckoutSession(
   }
   return await prisma.$transaction(async (tx) => {
     try {
-      const user = await new UserService(tx).getUserById(userId);
+      const user = await userRepository.getUserById(userId, tx);
       if (!user) throw new Error("User not found");
       const amount = credits * price.amountPerCredit;
       const fiatTransaction = await createFiatTransaction(
@@ -84,7 +84,7 @@ export async function getWelcomePromotionCode(
     return null;
   }
 
-  const user = await new UserService().getUserById(userId);
+  const user = await userRepository.getUserById(userId);
   if (!user) {
     throw new Error("User not found");
   }
@@ -126,7 +126,7 @@ export async function getPromotionCode(
   if (!isVerified) {
     return null;
   }
-  const user = await new UserService().getUserById(userId);
+  const user = await userRepository.getUserById(userId);
   if (!user) {
     throw new Error("User not found");
   }

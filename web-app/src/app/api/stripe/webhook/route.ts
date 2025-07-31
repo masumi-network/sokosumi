@@ -6,9 +6,9 @@ import {
   retrieveFiatTransactionByServicePaymentId,
   updateFiatTransactionStatusToFailed,
   updateFiatTransactionStatusToSucceeded,
+  userRepository,
 } from "@/lib/db/repositories";
 import { constructEvent, updateCustomerMetadata } from "@/lib/services";
-import { UserService } from "@/lib/services/user.service";
 import { FiatTransactionStatus } from "@/prisma/generated/client";
 
 export async function POST(req: Request) {
@@ -91,8 +91,7 @@ const handleCustomerCreatedEvent = async (customer: Stripe.Customer) => {
     );
   }
 
-  const userService = new UserService();
-  let user = await userService.getUserByEmail(email);
+  let user = await userRepository.getUserByEmail(email);
   if (!user) {
     return NextResponse.json(
       { message: `User with email ${email} not found` },
@@ -108,7 +107,7 @@ const handleCustomerCreatedEvent = async (customer: Stripe.Customer) => {
     );
 
     try {
-      user = await userService.setUserStripeCustomerId(user.id, customer.id);
+      user = await userRepository.setUserStripeCustomerId(user.id, customer.id);
     } catch (error) {
       console.error(
         `Error updating user ${user.id} from customer ${user.stripeCustomerId} to ${customer.id}:`,
@@ -126,7 +125,7 @@ const handleCustomerCreatedEvent = async (customer: Stripe.Customer) => {
   // Update the database association if user doesn't have a Stripe customer ID
   if (!user.stripeCustomerId) {
     try {
-      user = await userService.setUserStripeCustomerId(user.id, customer.id);
+      user = await userRepository.setUserStripeCustomerId(user.id, customer.id);
     } catch (error) {
       console.error(
         `Error updating user ${user.id} with customer ${customer.id}:`,
