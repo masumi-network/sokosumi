@@ -16,6 +16,7 @@ import {
   CouponCurrencyError,
   CouponNotFoundError,
   CouponTypeError,
+  PromotionCodeNotFoundError,
 } from "@/lib/errors/coupon-errors";
 
 import {
@@ -146,7 +147,7 @@ export async function getCreditsForPromotionCode(
 ): Promise<number> {
   const coupon = await getCouponByPromotionCode(promotionCode);
   if (!coupon) {
-    throw new CouponNotFoundError(promotionCode);
+    throw new PromotionCodeNotFoundError(promotionCode);
   }
   return getCreditsForCoupon(coupon.id, price);
 }
