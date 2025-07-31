@@ -5,12 +5,11 @@ import pTimeout from "p-timeout";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { authenticateCronSecret } from "@/lib/auth/utils";
 import {
-  acquireLock,
   jobsNotFinishedWhereQuery,
+  lockRepository,
   prisma,
-  unlockLock,
 } from "@/lib/db/repositories";
-import { syncJob } from "@/lib/services";
+import { lockService, syncJob } from "@/lib/services";
 import { Lock } from "@/prisma/generated/client";
 
 const LOCK_KEY = "jobs-sync";
@@ -25,7 +24,7 @@ async function jobSync(): Promise<Response> {
   // Start a transaction to ensure atomicity
   let lock: Lock;
   try {
-    lock = await acquireLock(LOCK_KEY, getEnvSecrets().INSTANCE_ID);
+    lock = await lockService.acquireLock(LOCK_KEY, getEnvSecrets().INSTANCE_ID);
   } catch (error) {
     if (error instanceof Error && error.message === "LOCK_IS_LOCKED") {
       return NextResponse.json(
@@ -56,9 +55,10 @@ async function jobSync(): Promise<Response> {
     } catch (error) {
       console.error("Error in sync operation:", error);
     } finally {
-      const unlocked = await unlockLock(lock.key);
-      if (!unlocked) {
-        console.error("Failed to unlock lock");
+      try {
+        await lockRepository.unlockByKey(lock.key);
+      } catch (error) {
+        console.error("Failed to unlock lock:", error);
       }
     }
   });

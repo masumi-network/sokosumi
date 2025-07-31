@@ -6,7 +6,8 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import { postRegistryEntry } from "@/lib/api/generated/registry";
 import { getRegistryClient } from "@/lib/api/registry-service.client";
 import { authenticateCronSecret } from "@/lib/auth/utils";
-import { acquireLock, prisma, unlockLock } from "@/lib/db/repositories";
+import { lockRepository, prisma } from "@/lib/db/repositories";
+import { lockService } from "@/lib/services";
 import { AgentStatus, Lock, PricingType } from "@/prisma/generated/client";
 
 const LOCK_KEY = "agents-sync";
@@ -21,7 +22,7 @@ async function agentSync() {
   // Start a transaction to ensure atomicity
   let lock: Lock;
   try {
-    lock = await acquireLock(LOCK_KEY, getEnvSecrets().INSTANCE_ID);
+    lock = await lockService.acquireLock(LOCK_KEY, getEnvSecrets().INSTANCE_ID);
   } catch (error) {
     if (error instanceof Error && error.message === "LOCK_IS_LOCKED") {
       return NextResponse.json(
@@ -52,9 +53,10 @@ async function agentSync() {
     } catch (error) {
       console.error("Error in sync operation:", error);
     } finally {
-      const unlocked = await unlockLock(lock.key);
-      if (!unlocked) {
-        console.error("Failed to unlock lock");
+      try {
+        await lockRepository.unlockByKey(lock.key);
+      } catch (error) {
+        console.error("Failed to unlock lock:", error);
       }
     }
   });
