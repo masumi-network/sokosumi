@@ -3,14 +3,8 @@ import "server-only";
 import { ReadonlyRequestCookies } from "next/dist/server/web/spec-extension/adapters/request-cookies";
 import { cookies } from "next/headers";
 
-import { getEnvSecrets } from "@/config/env.secrets";
 import { utmAttributionRepository } from "@/lib/db/repositories/utmAttribution.repository";
-import {
-  UTM_COOKIE_MAX_AGE,
-  UTM_COOKIE_NAME,
-  UTMData,
-  utmDataSchema,
-} from "@/lib/utils/utm";
+import { UTM_COOKIE_NAME, UTMData, utmDataSchema } from "@/lib/utils/utm";
 import { UTMAttribution } from "@/prisma/generated/client";
 
 /**
@@ -32,7 +26,7 @@ export const utmService = {
   ): Promise<UTMAttribution | null> {
     const cookieStore = await cookies();
     try {
-      const utmData = this.getUTMDataFromCookie(cookieStore);
+      const utmData = getUTMDataFromCookie(cookieStore);
       if (utmData) {
         return await utmAttributionRepository.createUTMAttribution(
           userId,
@@ -48,44 +42,27 @@ export const utmService = {
       cookieStore.delete(UTM_COOKIE_NAME);
     }
   },
-
-  /**
-   * Retrieves UTM data from the user's cookies, if available.
-   *
-   * @returns A promise that resolves to the parsed UTMData object if the cookie exists and is valid, or null otherwise.
-   */
-  getUTMDataFromCookie(cookieStore: ReadonlyRequestCookies): UTMData | null {
-    const utmCookie = cookieStore.get(UTM_COOKIE_NAME)?.value;
-    if (!utmCookie) {
-      return null;
-    }
-    try {
-      return utmDataSchema.parse(JSON.parse(utmCookie));
-    } catch (error) {
-      console.error("Failed to parse UTM cookie", error);
-      return null;
-    }
-  },
-
-  /**
-   * Sets the UTM data in a cookie for the user.
-   *
-   * - Serializes the provided UTMData object and stores it in a cookie.
-   * - Configures the cookie with appropriate options for security and domain.
-   * - Intended for use on the server to persist UTM attribution data for later retrieval.
-   *
-   * @param utmData - The UTMData object to store in the cookie.
-   * @param cookieStore - The ReadonlyRequestCookies instance for managing cookies.
-   */
-  setUTMCookie(utmData: UTMData, cookieStore: ReadonlyRequestCookies): void {
-    const cookieValue = JSON.stringify(utmData);
-    cookieStore.set(UTM_COOKIE_NAME, cookieValue, {
-      maxAge: UTM_COOKIE_MAX_AGE,
-      domain: getEnvSecrets().COOKIE_DOMAIN,
-      httpOnly: false,
-      secure: getEnvSecrets().NODE_ENV === "production",
-      sameSite: "lax",
-      path: "/",
-    });
-  },
 };
+
+/**
+ * Retrieves and parses UTM data from the provided cookie store.
+ *
+ * - Attempts to read the UTM attribution cookie by its configured name.
+ * - If the cookie exists, parses its JSON value and validates it against the UTM data schema.
+ * - Returns the parsed and validated UTMData object if successful, or null if the cookie is missing or invalid.
+ *
+ * @param cookieStore - The cookie store (typically from Next.js `cookies()` API) to read the UTM cookie from.
+ * @returns The parsed UTMData object if available and valid, otherwise null.
+ */
+function getUTMDataFromCookie(
+  cookieStore: ReadonlyRequestCookies,
+): UTMData | null {
+  const utmCookie = cookieStore.get(UTM_COOKIE_NAME)?.value;
+  if (!utmCookie) return null;
+  try {
+    return utmDataSchema.parse(JSON.parse(utmCookie));
+  } catch (error) {
+    console.error("Failed to parse UTM cookie", error);
+    return null;
+  }
+}
