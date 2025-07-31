@@ -1,5 +1,7 @@
 "use server";
 
+import { cookies } from "next/headers";
+
 import { ActionError, CommonErrorCode } from "@/lib/actions/types";
 import { utmService } from "@/lib/services/utm.service";
 import { Err, Ok, Result } from "@/lib/ts-res";
@@ -23,9 +25,10 @@ export const utmActions = {
     utmData: UTMData,
   ): Promise<Result<UTMData, ActionError>> {
     try {
+      const cookieStore = await cookies();
       try {
         // Attempt to retrieve existing UTM cookie
-        const utmCookie = await utmService.getUTMDataFromCookie();
+        const utmCookie = utmService.getUTMDataFromCookie(cookieStore);
         // If a valid, non-expired UTM cookie exists, return it
         if (
           utmCookie &&
@@ -40,7 +43,7 @@ export const utmActions = {
       }
 
       // Set a new UTM cookie with the provided data
-      await utmService.setUTMDataInCookie(utmData);
+      utmService.setUTMCookie(utmData, cookieStore);
 
       return Ok(utmData);
     } catch (error) {

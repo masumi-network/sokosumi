@@ -1,5 +1,6 @@
 import "server-only";
 
+import { ReadonlyRequestCookies } from "next/dist/server/web/spec-extension/adapters/request-cookies";
 import { cookies } from "next/headers";
 
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -29,8 +30,9 @@ export const utmService = {
   async createUTMAttributionIfPossible(
     userId: string,
   ): Promise<UTMAttribution | null> {
+    const cookieStore = await cookies();
     try {
-      const utmData = await this.getUTMDataFromCookie();
+      const utmData = this.getUTMDataFromCookie(cookieStore);
       if (utmData) {
         return await utmAttributionRepository.createUTMAttribution(
           userId,
@@ -43,7 +45,7 @@ export const utmService = {
       console.error("Failed to create utm attribution", error);
       return null;
     } finally {
-      await this.removeUTMCookie();
+      cookieStore.delete(UTM_COOKIE_NAME);
     }
   },
 
@@ -52,8 +54,7 @@ export const utmService = {
    *
    * @returns A promise that resolves to the parsed UTMData object if the cookie exists and is valid, or null otherwise.
    */
-  async getUTMDataFromCookie(): Promise<UTMData | null> {
-    const cookieStore = await cookies();
+  getUTMDataFromCookie(cookieStore: ReadonlyRequestCookies): UTMData | null {
     const utmCookie = cookieStore.get(UTM_COOKIE_NAME)?.value;
     if (!utmCookie) {
       return null;
@@ -67,17 +68,17 @@ export const utmService = {
   },
 
   /**
-   * Stores the provided UTM data in a cookie for attribution tracking.
+   * Sets the UTM data in a cookie for the user.
    *
-   * Serializes the UTMData object and sets it as a cookie in the user's browser.
-   * The cookie is configured with appropriate security and domain settings.
+   * - Serializes the provided UTMData object and stores it in a cookie.
+   * - Configures the cookie with appropriate options for security and domain.
+   * - Intended for use on the server to persist UTM attribution data for later retrieval.
    *
    * @param utmData - The UTMData object to store in the cookie.
-   * @returns A promise that resolves when the cookie has been set.
+   * @param cookieStore - The ReadonlyRequestCookies instance for managing cookies.
    */
-  async setUTMDataInCookie(utmData: UTMData): Promise<void> {
+  setUTMCookie(utmData: UTMData, cookieStore: ReadonlyRequestCookies): void {
     const cookieValue = JSON.stringify(utmData);
-    const cookieStore = await cookies();
     cookieStore.set(UTM_COOKIE_NAME, cookieValue, {
       maxAge: UTM_COOKIE_MAX_AGE,
       domain: getEnvSecrets().COOKIE_DOMAIN,
@@ -86,15 +87,5 @@ export const utmService = {
       sameSite: "lax",
       path: "/",
     });
-  },
-
-  /**
-   * Removes the UTM data cookie from the user's browser.
-   *
-   * @returns A promise that resolves when the cookie has been deleted.
-   */
-  async removeUTMCookie(): Promise<void> {
-    const cookieStore = await cookies();
-    cookieStore.delete(UTM_COOKIE_NAME);
   },
 };
