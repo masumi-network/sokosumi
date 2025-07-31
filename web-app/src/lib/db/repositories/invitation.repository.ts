@@ -15,6 +15,44 @@ import prisma from "./prisma";
  */
 export const invitationRepository = {
   /**
+   * Retrieves a pending invitation by its ID, regardless of expiration.
+   *
+   * @param id - The invitation ID.
+   * @param tx - Optional Prisma transaction client.
+   * @returns Promise resolving to the invitation with relations, or null if not found.
+   */
+  async getPendingInvitationById(
+    id: string,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<InvitationWithRelations | null> {
+    return tx.invitation.findUnique({
+      where: { id, status: InvitationStatus.PENDING },
+      include: invitationInclude,
+    });
+  },
+
+  /**
+   * Retrieves a valid (not expired) pending invitation by its ID.
+   *
+   * @param id - The invitation ID.
+   * @param tx - Optional Prisma transaction client.
+   * @returns Promise resolving to the invitation with relations, or null if not found.
+   */
+  async getValidPendingInvitationById(
+    id: string,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<InvitationWithRelations | null> {
+    return tx.invitation.findUnique({
+      where: {
+        id,
+        status: InvitationStatus.PENDING,
+        expiresAt: { gt: new Date() },
+      },
+      include: invitationInclude,
+    });
+  },
+
+  /**
    * Retrieves all valid (not expired) pending invitations for a given email.
    *
    * @param email - The email address to search invitations for.
@@ -92,44 +130,6 @@ export const invitationRepository = {
         expiresAt: { gt: new Date() },
       },
       data: { status: InvitationStatus.ACCEPTED },
-    });
-  },
-
-  /**
-   * Retrieves a valid (not expired) pending invitation by its ID.
-   *
-   * @param id - The invitation ID.
-   * @param tx - Optional Prisma transaction client.
-   * @returns Promise resolving to the invitation with relations, or null if not found.
-   */
-  async getValidPendingInvitationById(
-    id: string,
-    tx: Prisma.TransactionClient = prisma,
-  ): Promise<InvitationWithRelations | null> {
-    return tx.invitation.findUnique({
-      where: {
-        id,
-        status: InvitationStatus.PENDING,
-        expiresAt: { gt: new Date() },
-      },
-      include: invitationInclude,
-    });
-  },
-
-  /**
-   * Retrieves a pending invitation by its ID, regardless of expiration.
-   *
-   * @param id - The invitation ID.
-   * @param tx - Optional Prisma transaction client.
-   * @returns Promise resolving to the invitation with relations, or null if not found.
-   */
-  async getPendingInvitationById(
-    id: string,
-    tx: Prisma.TransactionClient = prisma,
-  ): Promise<InvitationWithRelations | null> {
-    return tx.invitation.findUnique({
-      where: { id, status: InvitationStatus.PENDING },
-      include: invitationInclude,
     });
   },
 };
