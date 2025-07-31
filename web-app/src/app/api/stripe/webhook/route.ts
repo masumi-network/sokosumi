@@ -214,8 +214,8 @@ const updateFiatTransactionStatus = async (
   return await prisma.$transaction(async (tx) => {
     try {
       const fiatTransaction =
-        await fiatTransactionRepository.getFiatTransaction(
-          { servicePaymentId: session.id },
+        await fiatTransactionRepository.getFiatTransactionByServicePaymentId(
+          session.id,
           tx,
         );
       if (!fiatTransaction) {

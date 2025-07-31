@@ -61,7 +61,7 @@ export async function createStripeCheckoutSession(
         promotionCode,
       );
       await fiatTransactionRepository.updateFiatTransaction(
-        { id: fiatTransaction.id },
+        fiatTransaction.id,
         { servicePaymentId: stripeSessionId },
         tx,
       );
