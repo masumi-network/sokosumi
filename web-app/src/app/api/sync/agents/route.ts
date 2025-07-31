@@ -53,9 +53,10 @@ async function agentSync() {
     } catch (error) {
       console.error("Error in sync operation:", error);
     } finally {
-      const unlocked = await lockRepository.unlockByKey(lock.key);
-      if (!unlocked) {
-        console.error("Failed to unlock lock");
+      try {
+        await lockRepository.unlockByKey(lock.key);
+      } catch (error) {
+        console.error("Failed to unlock lock:", error);
       }
     }
   });
