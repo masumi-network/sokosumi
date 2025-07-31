@@ -342,7 +342,7 @@ model Lock {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
   key       String    @unique
-  isLocked  Boolean
+  isLocked  Boolean   @default(false)
   lockedAt  DateTime?
   lockedBy  String?
 }

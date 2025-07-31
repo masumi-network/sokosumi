@@ -5,7 +5,7 @@ export * from "./creditTransaction";
 export * from "./fiatTransaction";
 export * from "./invitation";
 export * from "./job";
-export * from "./lock";
+export * from "./lock.repository";
 export * from "./member";
 export * from "./organization";
 export { default as prisma } from "./prisma";
