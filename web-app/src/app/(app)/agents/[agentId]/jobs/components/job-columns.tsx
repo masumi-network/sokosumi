@@ -7,7 +7,7 @@ import { DataTableColumnHeader } from "@/components/data-table";
 import { MiddleTruncate } from "@/components/middle-truncate";
 import useAgentJobStatus from "@/hooks/use-agent-job-status";
 import { JobStatusData } from "@/lib/ably";
-import { getJobStatusData, JobWithStatus } from "@/lib/db";
+import { JobWithStatus } from "@/lib/db";
 
 import JobStatusBadge from "./job-status-badge";
 
@@ -50,7 +50,11 @@ export function getJobColumns(
             agentId={row.original.agentId}
             userId={userId}
             jobId={row.original.id}
-            initialJobStatusData={getJobStatusData(row.original)}
+            initialJobStatusData={{
+              id: row.original.id,
+              jobStatus: row.original.status,
+              jobStatusSettled: row.original.jobStatusSettled,
+            }}
           />
         </div>
       ),

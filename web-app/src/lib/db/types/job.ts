@@ -49,7 +49,10 @@ export const finalizedAgentJobStatuses: AgentJobStatus[] = [
   AgentJobStatus.COMPLETED,
 ];
 
-export type JobWithStatus = JobWithRelations & { status: JobStatus };
+export type JobWithStatus = JobWithRelations & {
+  status: JobStatus;
+  jobStatusSettled: boolean;
+};
 
 export const jobLimitedInclude = {
   id: true,

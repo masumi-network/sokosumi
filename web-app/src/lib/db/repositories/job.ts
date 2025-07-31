@@ -29,10 +29,13 @@ import {
 import { retrieveCreditTransactionByJobId } from "./creditTransaction";
 import prisma from "./prisma";
 
-function mapJobWithStatus<T extends Job>(job: T): T & { status: JobStatus } {
+function mapJobWithStatus<T extends Job>(
+  job: T,
+): T & { status: JobStatus; jobStatusSettled: boolean } {
   return {
     ...job,
     status: computeJobStatus(job),
+    jobStatusSettled: new Date() > job.externalDisputeUnlockTime,
   };
 }
 
