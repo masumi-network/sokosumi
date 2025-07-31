@@ -124,7 +124,7 @@ export function getJobStatusData(job: Job): JobStatusData {
   return {
     id: job.id,
     jobStatus: computeJobStatus(job),
-    externalDisputeUnlockTime: job.externalDisputeUnlockTime.toISOString(),
+    jobStatusSettled: new Date() > job.externalDisputeUnlockTime,
   };
 }
 

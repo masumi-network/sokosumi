@@ -527,14 +527,8 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
         );
       }
 
-      const jobStatusData: JobStatusData = {
-        id: job.id,
-        jobStatus: computeJobStatus(job),
-        externalDisputeUnlockTime: job.externalDisputeUnlockTime.toISOString(),
-      };
-
       try {
-        await publishJobStatusData(job.agentId, job.userId, jobStatusData);
+        await publishJobStatusData(job);
       } catch (err) {
         console.error(
           "Error publishing job status data after creating job",
@@ -738,14 +732,9 @@ export async function syncJob(job: Job) {
     console.log(
       `Job ${job.id} status changed from ${oldJobStatus} to ${newJobStatus}`,
     );
-    const jobStatusData: JobStatusData = {
-      id: job.id,
-      jobStatus: newJobStatus,
-      externalDisputeUnlockTime: job.externalDisputeUnlockTime.toISOString(),
-    };
 
     try {
-      await publishJobStatusData(job.agentId, job.userId, jobStatusData);
+      await publishJobStatusData(job);
     } catch (err) {
       console.error("Error publishing job status data", err);
     }

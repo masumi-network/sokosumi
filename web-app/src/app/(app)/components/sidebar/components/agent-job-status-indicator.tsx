@@ -59,10 +59,7 @@ function AgentJobStatusIndicatorIcon({
   jobStatusData: JobStatusData;
   className?: string | undefined;
 }) {
-  const jobStatus = jobStatusData.jobStatus;
-  const jobStatusSettled =
-    new Date() > new Date(jobStatusData.externalDisputeUnlockTime);
-
+  const { jobStatus, jobStatusSettled } = jobStatusData;
   if (jobStatusSettled) {
     return null;
   }
@@ -94,10 +91,8 @@ function AgentJobStatusIndicatorContent({
   jobStatusData: JobStatusData;
 }) {
   const t = useTranslations("App.Sidebar.Content.AgentLists.Statuses");
-  const jobStatus = jobStatusData.jobStatus;
-  const jobStatusSettled =
-    new Date() > new Date(jobStatusData.externalDisputeUnlockTime);
 
+  const { jobStatus, jobStatusSettled } = jobStatusData;
   if (jobStatusSettled) {
     return null;
   }
