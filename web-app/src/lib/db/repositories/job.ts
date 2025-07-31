@@ -396,18 +396,18 @@ export async function retrieveNotFinishedLatestJobByAgentIdAndUserId(
 }
 
 /**
- * Retrieves the latest not-finished job for status a specific agent, user, and organization
+ * Retrieves the latest not-finished job a specific agent, user, and organization
  * @param agentId - The unique identifier of the agent
  * @param userId - The unique identifier of the user
  * @param organizationId - The unique identifier of the organization (null for personal jobs)
- * @returns Promise latest not-finished job status or null
+ * @returns Promise latest not-finished job or null
  */
-export async function retrieveLatestJobStatusByAgentIdUserIdAndOrganization(
+export async function retrieveLatestJobByAgentIdUserIdAndOrganization(
   agentId: string,
   userId: string,
   organizationId: string | null | undefined,
   tx: Prisma.TransactionClient = prisma,
-): Promise<JobStatus | null> {
+): Promise<Job | null> {
   // Normalize undefined to null for organizationId to ensure correct filtering (Prisma ignores undefined)
   const normalizedOrganizationId = organizationId ?? null;
   const job = await tx.job.findFirst({
@@ -420,7 +420,7 @@ export async function retrieveLatestJobStatusByAgentIdUserIdAndOrganization(
     orderBy: { startedAt: "desc" },
     include: jobInclude,
   });
-  return job ? computeJobStatus(job) : null;
+  return job;
 }
 
 export async function updateJobNameById(

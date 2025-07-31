@@ -15,8 +15,8 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
-import { makeAgentJobsChannel } from "@/lib/ably";
-import { AgentWithAvailability, getAgentName, JobStatus } from "@/lib/db";
+import { JobStatusData, makeAgentJobsChannel } from "@/lib/ably";
+import { AgentWithAvailability, getAgentName } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 import AgentJobStatusIndicator from "./agent-job-status-indicator";
@@ -26,7 +26,7 @@ interface AgentListsClientProps {
     groupKey: string;
     title: string;
     agents: AgentWithAvailability[];
-    initialJobStatuses: (JobStatus | null)[];
+    initialJobStatusDataList: (JobStatusData | null)[];
     noAgentsType: string;
   }[];
   userId: string;
@@ -44,7 +44,13 @@ export default function AgentListsClient({
   return (
     <DynamicAblyProvider>
       {agentLists.map(
-        ({ groupKey, title, agents, initialJobStatuses, noAgentsType }) => (
+        ({
+          groupKey,
+          title,
+          agents,
+          initialJobStatusDataList,
+          noAgentsType,
+        }) => (
           <SidebarGroup key={groupKey} className="w-72 md:w-64">
             <SidebarGroupLabel className="text-base">{title}</SidebarGroupLabel>
             <SidebarGroupContent className="mt-2">
@@ -52,7 +58,8 @@ export default function AgentListsClient({
                 <SidebarMenu>
                   {agents.map((agentWithAvailability, index) => {
                     const { agent, isAvailable } = agentWithAvailability;
-                    const initialJobStatus = initialJobStatuses[index];
+                    const initialJobStatusData =
+                      initialJobStatusDataList[index];
 
                     return (
                       <SidebarMenuItem key={agent.id}>
@@ -88,7 +95,7 @@ export default function AgentListsClient({
                                   <AgentJobStatusIndicator
                                     agentId={agent.id}
                                     userId={userId}
-                                    initialJobStatus={initialJobStatus}
+                                    initialJobStatusData={initialJobStatusData}
                                     className={cn("h-4 w-4", {
                                       "text-primary-foreground":
                                         agentId === agent.id,

@@ -5,12 +5,11 @@ import { JobStatusData } from "./schema";
 import { getAgentJobsChannelName, makeAgentJobsChannel } from "./utils";
 
 export default async function publishJobStatusData(
-  jobStatusData: JobStatusData,
+  agentId: string,
   userId: string,
+  jobStatusData: JobStatusData,
 ) {
   const client = getClient();
-  const channel = client.channels.get(
-    makeAgentJobsChannel(jobStatusData.agentId, userId),
-  );
+  const channel = client.channels.get(makeAgentJobsChannel(agentId, userId));
   await channel.publish(getAgentJobsChannelName(), jobStatusData);
 }

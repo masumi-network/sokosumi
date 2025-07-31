@@ -2,20 +2,23 @@ import { useChannel } from "ably/react";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { jobStatusDataSchema, makeAgentJobsChannel } from "@/lib/ably";
-import { JobStatus } from "@/lib/db";
+import {
+  JobStatusData,
+  jobStatusDataSchema,
+  makeAgentJobsChannel,
+} from "@/lib/ably";
 
 export default function useAgentJobStatus(
   agentId: string,
   userId: string,
   currentJobId: string | null,
-  initialJobStatus: JobStatus | null,
+  initialJobStatusData: JobStatusData | null,
   refresh: boolean = false,
 ) {
   const pathname = usePathname();
   const router = useRouter();
-  const [jobStatus, setJobStatus] = useState<JobStatus | null>(
-    initialJobStatus,
+  const [jobStatusData, setJobStatusData] = useState<JobStatusData | null>(
+    initialJobStatusData,
   );
 
   useChannel(makeAgentJobsChannel(agentId, userId), (message) => {
@@ -25,7 +28,7 @@ export default function useAgentJobStatus(
       if (currentJobId && jobId !== currentJobId) {
         return;
       }
-      setJobStatus(parsedResult.data.jobStatus);
+      setJobStatusData(parsedResult.data);
       if (refresh) {
         // check pathname is job details path
         if (pathname.startsWith(`/agents/${agentId}/jobs/${jobId}`)) {
@@ -33,7 +36,7 @@ export default function useAgentJobStatus(
         }
       }
     } else {
-      setJobStatus(null);
+      setJobStatusData(null);
       console.error(
         "Failed to parse JobStatus from message",
         message,
@@ -42,5 +45,5 @@ export default function useAgentJobStatus(
     }
   });
 
-  return jobStatus;
+  return jobStatusData;
 }
