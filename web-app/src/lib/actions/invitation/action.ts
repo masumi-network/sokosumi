@@ -8,12 +8,9 @@ import {
 import { getSession } from "@/lib/auth/utils";
 import { MemberRole } from "@/lib/db";
 import {
-  acceptValidPendingInvitationById,
-  createMember,
+  invitationRepository,
+  memberRepository,
   prisma,
-  rejectValidPendingInvitationById,
-  retrieveMemberByUserIdAndOrganizationId,
-  retrievePendingInvitationById,
 } from "@/lib/db/repositories";
 import { Err, Ok, Result } from "@/lib/ts-res";
 
@@ -36,7 +33,10 @@ export async function acceptInvitation(
     const userId = session.user.id;
 
     await prisma.$transaction(async (tx) => {
-      const invitation = await retrievePendingInvitationById(invitationId);
+      const invitation = await invitationRepository.getPendingInvitationById(
+        invitationId,
+        tx,
+      );
       if (!invitation) {
         actionError = {
           message: "Invitation not found",
@@ -47,11 +47,12 @@ export async function acceptInvitation(
       const { organizationId, inviterId } = invitation;
 
       // check inviter member
-      const inviterMember = await retrieveMemberByUserIdAndOrganizationId(
-        inviterId,
-        organizationId,
-        tx,
-      );
+      const inviterMember =
+        await memberRepository.getMemberByUserIdAndOrganizationId(
+          inviterId,
+          organizationId,
+          tx,
+        );
       if (!inviterMember) {
         actionError = {
           message: "Inviter member not found",
@@ -61,10 +62,10 @@ export async function acceptInvitation(
       }
 
       // accept invitation by invitation id
-      await acceptValidPendingInvitationById(invitationId, tx);
+      await invitationRepository.acceptPendingInvitationById(invitationId, tx);
 
       // check if user is already member
-      const member = await retrieveMemberByUserIdAndOrganizationId(
+      const member = await memberRepository.getMemberByUserIdAndOrganizationId(
         userId,
         organizationId,
         tx,
@@ -78,7 +79,12 @@ export async function acceptInvitation(
       }
 
       // create organization member
-      await createMember(userId, organizationId, MemberRole.MEMBER, tx);
+      await memberRepository.createMember(
+        userId,
+        organizationId,
+        MemberRole.MEMBER,
+        tx,
+      );
     });
 
     return Ok();
@@ -107,7 +113,10 @@ export async function rejectInvitation(
     }
 
     await prisma.$transaction(async (tx) => {
-      const invitation = await retrievePendingInvitationById(invitationId);
+      const invitation = await invitationRepository.getPendingInvitationById(
+        invitationId,
+        tx,
+      );
       if (!invitation) {
         actionError = {
           message: "Invitation not found",
@@ -118,11 +127,12 @@ export async function rejectInvitation(
       const { organizationId, inviterId } = invitation;
 
       // check inviter member
-      const inviterMember = await retrieveMemberByUserIdAndOrganizationId(
-        inviterId,
-        organizationId,
-        tx,
-      );
+      const inviterMember =
+        await memberRepository.getMemberByUserIdAndOrganizationId(
+          inviterId,
+          organizationId,
+          tx,
+        );
       if (!inviterMember) {
         actionError = {
           message: "Inviter member not found",
@@ -132,7 +142,7 @@ export async function rejectInvitation(
       }
 
       // reject invitation by invitation id
-      await rejectValidPendingInvitationById(invitationId, tx);
+      await invitationRepository.rejectPendingInvitationById(invitationId, tx);
     });
 
     return Ok();

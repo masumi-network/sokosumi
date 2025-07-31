@@ -12,13 +12,11 @@ import {
 import { auth } from "@/lib/auth/auth";
 import { MemberRole } from "@/lib/db";
 import {
-  acceptValidPendingInvitationById,
-  createMember,
   createUTMAttribution,
+  invitationRepository,
+  memberRepository,
   organizationRepository,
   prisma,
-  retrieveMembersByOrganizationId,
-  retrieveValidPendingInvitationById,
 } from "@/lib/db/repositories";
 import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
 import {
@@ -138,7 +136,10 @@ export async function signUpEmail(
           organization.requiredEmailDomains.includes(userEmailDomain));
 
       const invitation = invitationId
-        ? await retrieveValidPendingInvitationById(invitationId, tx)
+        ? await invitationRepository.getValidPendingInvitationById(
+            invitationId,
+            tx,
+          )
         : undefined;
       const isValidInvitationUsed =
         invitation && invitation.organizationId === organization.id;
@@ -160,7 +161,10 @@ export async function signUpEmail(
       }
 
       if (invitation) {
-        await acceptValidPendingInvitationById(invitation.id, tx);
+        await invitationRepository.acceptPendingInvitationById(
+          invitation.id,
+          tx,
+        );
       }
 
       const signUpResult = await auth.api.signUpEmail({
@@ -188,12 +192,17 @@ export async function signUpEmail(
         code: AuthErrorCode.MEMBER_CREATE_FAILED,
         message: "Member creation failed",
       };
-      const members = await retrieveMembersByOrganizationId(
+      const members = await memberRepository.getMembersByOrganizationId(
         organization.id,
         tx,
       );
       const role = members.length === 0 ? MemberRole.ADMIN : MemberRole.MEMBER;
-      const member = await createMember(user.id, organization.id, role, tx);
+      const member = await memberRepository.createMember(
+        user.id,
+        organization.id,
+        role,
+        tx,
+      );
 
       return { organization, user, member };
     });
