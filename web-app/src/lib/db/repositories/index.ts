@@ -11,4 +11,4 @@ export * from "./organization";
 export { default as prisma } from "./prisma";
 export * from "./tag.repository";
 export * from "./user.repository";
-export * from "./utmAttribution";
+export * from "./utmAttribution.repository";
