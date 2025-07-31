@@ -298,6 +298,16 @@ export async function getOrCreatePromotionCode(
   }
 }
 
+export async function getCouponByPromotionCode(
+  code: string,
+): Promise<Stripe.Coupon | null> {
+  const promotionCode = await stripe.promotionCodes.retrieve(code);
+  if (!promotionCode.coupon) {
+    return null;
+  }
+  return promotionCode.coupon;
+}
+
 export async function getCouponById(
   couponId: string,
 ): Promise<Stripe.Coupon | null> {

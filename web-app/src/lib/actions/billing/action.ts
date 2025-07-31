@@ -7,6 +7,7 @@ import { CouponError } from "@/lib/errors/coupon-errors";
 import {
   createStripeCheckoutSession,
   getCreditsForCoupon,
+  getCreditsForPromotionCode,
   getMyMemberInOrganization,
   getPriceFromPriceId,
   getPriceFromProductId,
@@ -29,12 +30,13 @@ export async function claimFreeCredits(
     const price = await getPriceFromProductId(
       getEnvSecrets().STRIPE_PRODUCT_ID,
     );
+    const credits = await getCreditsForPromotionCode(promotionCode, price);
 
     // Create the checkout session
     const { url } = await createStripeCheckoutSession(
       session.user.id,
       null,
-      30,
+      credits,
       price,
       promotionCode,
     );
