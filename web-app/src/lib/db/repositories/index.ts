@@ -4,7 +4,7 @@ export * from "./creditCost.repository";
 export * from "./creditTransaction.repository";
 export * from "./fiatTransaction.repository";
 export * from "./invitation";
-export * from "./job";
+export * from "./job.repository";
 export * from "./lock.repository";
 export * from "./member";
 export * from "./organization";

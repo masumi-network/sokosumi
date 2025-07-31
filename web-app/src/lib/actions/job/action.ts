@@ -6,11 +6,7 @@ import { ActionError, CommonErrorCode } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/types/error-codes/job";
 import { getSession } from "@/lib/auth/utils";
 import { JobWithStatus } from "@/lib/db";
-import {
-  retrieveJobByBlockchainIdentifier,
-  retrieveJobById,
-  updateJobNameById,
-} from "@/lib/db/repositories";
+import { jobRepository } from "@/lib/db/repositories";
 import {
   jobDetailsNameFormSchema,
   JobDetailsNameFormSchemaType,
@@ -185,7 +181,7 @@ export async function updateJobName(
     }
     const parsed = parsedResult.data;
 
-    const job = await retrieveJobById(jobId);
+    const job = await jobRepository.getJobById(jobId);
     if (!job) {
       return Err({
         message: "Job not found",
@@ -202,7 +198,10 @@ export async function updateJobName(
     }
 
     // update job name
-    await updateJobNameById(jobId, parsed.name === "" ? null : parsed.name);
+    await jobRepository.updateJobNameById(
+      jobId,
+      parsed.name === "" ? null : parsed.name,
+    );
     return Ok();
   } catch (error) {
     Sentry.withScope((scope) => {
@@ -245,7 +244,7 @@ export async function requestRefundJobByBlockchainIdentifier(
     }
 
     const foundJob =
-      await retrieveJobByBlockchainIdentifier(blockchainIdentifier);
+      await jobRepository.getJobByBlockchainIdentifier(blockchainIdentifier);
     if (!foundJob) {
       return Err({
         message: "Job not found",

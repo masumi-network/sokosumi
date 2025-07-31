@@ -6,7 +6,7 @@ import {
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
-import { retrieveJobsWithLimitedInformationByAgentId } from "@/lib/db/repositories";
+import { jobRepository } from "@/lib/db/repositories";
 import {
   getAgentCreditsPrice,
   getAvailableAgentById,
@@ -33,7 +33,8 @@ export default async function AgentDetailPage({
   }
 
   const favoriteAgents = await getFavoriteAgents();
-  const jobs = await retrieveJobsWithLimitedInformationByAgentId(agentId);
+  const jobs =
+    await jobRepository.getJobsWithLimitedInformationByAgentId(agentId);
 
   return (
     <CreateJobModalContextProvider
