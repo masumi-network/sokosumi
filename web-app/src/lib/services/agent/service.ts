@@ -8,17 +8,13 @@ import {
   AgentWithRelations,
 } from "@/lib/db";
 import {
+  agentRepository,
   createAgentListByUserIdAndType,
   creditCostRepository,
   mapAgentWithIsNew,
   prisma,
   retrieveAgentListByUserIdAndType,
-  retrieveAgentsWithRelations,
-  retrieveAgentWithRelationsById,
-  retrieveHiredAgentsWithJobsByUserIdAndOrganization,
   retrieveMembersOrganizationIdsByUserId,
-  retrieveShownAgentsWithRelationsByStatus,
-  retrieveShownAgentWithRelationById,
 } from "@/lib/db/repositories";
 import { JobInputsDataSchemaType } from "@/lib/job-input";
 import { getAgentCreditsPrice } from "@/lib/services";
@@ -125,7 +121,7 @@ export async function getAvailableAgentById(
   agentId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithRelations | null> {
-  const agent = await retrieveShownAgentWithRelationById(
+  const agent = await agentRepository.getShownAgentWithRelationById(
     agentId,
     AgentStatus.ONLINE,
     tx,
@@ -147,7 +143,7 @@ export async function getAgentById(
   agentId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithRelations | null> {
-  return await retrieveAgentWithRelationsById(agentId, tx);
+  return await agentRepository.getAgentWithRelationsById(agentId, tx);
 }
 
 /**
@@ -179,10 +175,11 @@ export async function getAvailableAgents(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithRelations[]> {
   const { userOrganizationIds, creditCosts } = await getAgentAccessContext(tx);
-  const onlineAgents = await retrieveShownAgentsWithRelationsByStatus(
-    AgentStatus.ONLINE,
-    tx,
-  );
+  const onlineAgents =
+    await agentRepository.getShownAgentsWithRelationsByStatus(
+      AgentStatus.ONLINE,
+      tx,
+    );
   return onlineAgents.filter((agent) =>
     isAgentAvailable(agent, userOrganizationIds, creditCosts),
   );
@@ -197,7 +194,7 @@ export async function getAvailableAgents(
 export async function getAgents(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithRelations[]> {
-  return await retrieveAgentsWithRelations(tx);
+  return await agentRepository.getAgentsWithRelations(tx);
 }
 
 /**
@@ -251,7 +248,7 @@ export async function getHiredAgentsOrderedByLatestJob(
   const userId = session.user.id;
   const activeOrganizationId = session.session.activeOrganizationId;
   const hiredAgentsWithJobs =
-    await retrieveHiredAgentsWithJobsByUserIdAndOrganization(
+    await agentRepository.getHiredAgentsWithJobsByUserIdAndOrganization(
       userId,
       activeOrganizationId,
       tx,
@@ -279,7 +276,7 @@ export async function getAgentInputSchema(
   agentId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<JobInputsDataSchemaType> {
-  const agent = await retrieveAgentWithRelationsById(agentId, tx);
+  const agent = await agentRepository.getAgentWithRelationsById(agentId, tx);
   if (!agent) {
     throw new Error(`Agent with ID ${agentId} not found`);
   }

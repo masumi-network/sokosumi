@@ -1,4 +1,4 @@
-export * from "./agent";
+export * from "./agent.repository";
 export * from "./agentList";
 export * from "./creditCost.repository";
 export * from "./creditTransaction.repository";

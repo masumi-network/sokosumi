@@ -17,11 +17,11 @@ import {
   JobWithStatus,
 } from "@/lib/db";
 import {
+  agentRepository,
   createJob,
   creditTransactionRepository,
   prisma,
   refundJob,
-  retrieveAgentWithRelationsById,
   retrieveJobsByAgentIdUserIdAndOrganizationId,
   retrieveLatestJobByAgentIdUserIdAndOrganization,
   retrievePersonalJobsByAgentIdAndUserId,
@@ -790,7 +790,10 @@ export async function getAgentJobStatus(
   job: Job,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<JobStatusResponse | null> {
-  const agent = await retrieveAgentWithRelationsById(job.agentId, tx);
+  const agent = await agentRepository.getAgentWithRelationsById(
+    job.agentId,
+    tx,
+  );
   if (!agent) {
     return null;
   }
