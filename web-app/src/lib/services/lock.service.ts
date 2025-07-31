@@ -2,23 +2,39 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import { lockRepository } from "@/lib/db/repositories";
 import { Lock } from "@/prisma/generated/client";
 
+/**
+ * Service for distributed lock management using the Lock model.
+ * Ensures that only one process can acquire a lock for a given key at a time.
+ */
 export const lockService = {
+  /**
+   * Attempts to acquire a lock for the specified key and instance.
+   * - If the lock does not exist, it is created.
+   * - If the lock exists and is not expired, throws an error.
+   * - If the lock exists and is expired, it is forcefully unlocked before acquiring.
+   * - Lock acquisition is atomic to prevent race conditions.
+   *
+   * @param key - The unique key identifying the lock.
+   * @param instanceId - The identifier of the instance attempting to acquire the lock.
+   * @returns The acquired Lock object.
+   * @throws Error with message "LOCK_IS_LOCKED" if the lock is currently held and not expired.
+   */
   async acquireLock(key: string, instanceId: string): Promise<Lock> {
-    // Check if lock exists and is expired
+    // Retrieve existing lock or create a new one if it doesn't exist
     let lock = await lockRepository.getLockByKey(key);
     lock ??= await lockRepository.createLockByKey(key);
 
-    // If lock exists and is not expired, return the lock
+    // If the lock is currently held and not expired, prevent acquisition
     if (lock.isLocked && !isLockExpired(lock.lockedAt)) {
       throw new Error("LOCK_IS_LOCKED");
     }
 
-    // If lock exists and is expired, force unlock
+    // If the lock is held but expired, forcefully unlock it
     if (lock.isLocked && isLockExpired(lock.lockedAt)) {
       lock = await lockRepository.unlockByKey(key);
     }
 
-    // Try to atomically acquire the lock if it is not locked
+    // Atomically acquire the lock for this instance
     return await lockRepository.lockByKey(key, instanceId);
   },
 };
