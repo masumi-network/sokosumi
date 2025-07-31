@@ -23,7 +23,17 @@ export const lockService = {
     // Retrieve existing lock or create a new one if it doesn't exist
     return await prisma.$transaction(async (tx) => {
       let lock = await lockRepository.getLockByKey(key, tx);
-      lock ??= await lockRepository.createLockByKey(key, tx);
+
+      // Handle the race condition where two processes try to create the lock at the same time
+      if (!lock) {
+        try {
+          lock = await lockRepository.createLockByKey(key, tx);
+        } catch {
+          // Another process created it, retry getting it
+          lock = await lockRepository.getLockByKey(key, tx);
+          if (!lock) throw new Error("LOCK_CREATION_FAILED");
+        }
+      }
 
       // If the lock is currently held and not expired, prevent acquisition
       if (lock.isLocked && !isLockExpired(lock.lockedAt)) {
