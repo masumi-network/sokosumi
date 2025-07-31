@@ -8,11 +8,10 @@ import {
   AgentWithRelations,
 } from "@/lib/db";
 import {
-  createAgentListByUserIdAndType,
+  agentListRepository,
   creditCostRepository,
   mapAgentWithIsNew,
   prisma,
-  retrieveAgentListByUserIdAndType,
   retrieveAgentsWithRelations,
   retrieveAgentWithRelationsById,
   retrieveHiredAgentsWithJobsByUserIdAndOrganization,
@@ -162,7 +161,7 @@ export async function getAgentById(
  */
 export async function isAgentFavorite(agentId: string): Promise<boolean> {
   const session = await getSessionOrThrow();
-  const favoriteList = await retrieveAgentListByUserIdAndType(
+  const favoriteList = await agentListRepository.getAgentListByUserId(
     session.user.id,
     AgentListType.FAVORITE,
   );
@@ -323,7 +322,7 @@ async function getAgentsByListType(
   tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithRelations[]> {
   const session = await getSessionOrThrow();
-  const existingList = await retrieveAgentListByUserIdAndType(
+  const existingList = await agentListRepository.getAgentListByUserId(
     session.user.id,
     type,
     tx,
@@ -337,6 +336,10 @@ async function getAgentsByListType(
         isAgentAvailable(agent, userOrganizationIds, creditCosts),
       );
   }
-  const list = await createAgentListByUserIdAndType(session.user.id, type, tx);
+  const list = await agentListRepository.createAgentListForUserId(
+    session.user.id,
+    type,
+    tx,
+  );
   return list.agents.map(mapAgentWithIsNew);
 }
