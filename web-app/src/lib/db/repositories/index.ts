@@ -2,7 +2,7 @@ export * from "./agent";
 export * from "./agentList";
 export * from "./creditCost";
 export * from "./creditTransaction.repository";
-export * from "./fiatTransaction";
+export * from "./fiatTransaction.repository";
 export * from "./invitation";
 export * from "./job";
 export * from "./lock.repository";

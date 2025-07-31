@@ -8,7 +8,7 @@ import {
 
 import prisma from "./prisma";
 
-export async function createFiatTransaction(
+async function createFiatTransaction(
   userId: string,
   organizationId: string | null,
   cents: bigint,
@@ -18,8 +18,10 @@ export async function createFiatTransaction(
 ): Promise<FiatTransaction> {
   return await tx.fiatTransaction.create({
     data: {
-      userId,
-      ...(organizationId && { organizationId }),
+      user: { connect: { id: userId } },
+      ...(organizationId && {
+        organization: { connect: { id: organizationId } },
+      }),
       cents,
       amount,
       currency,
@@ -27,30 +29,31 @@ export async function createFiatTransaction(
   });
 }
 
-export async function retrieveFiatTransactionByServicePaymentId(
-  servicePaymentId: string,
+async function getFiatTransaction(
+  where: Prisma.FiatTransactionWhereUniqueInput,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<FiatTransaction | null> {
   return await tx.fiatTransaction.findUnique({
-    where: { servicePaymentId },
+    where,
   });
 }
 
-export async function updateFiatTransactionServicePaymentId(
-  id: string,
-  servicePaymentId: string,
+async function updateFiatTransaction(
+  where: Prisma.FiatTransactionWhereUniqueInput,
+  data: Prisma.FiatTransactionUpdateInput,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<FiatTransaction> {
   return await tx.fiatTransaction.update({
-    where: { id },
-    data: { servicePaymentId },
+    where,
+    data,
   });
 }
 
-export async function updateFiatTransactionStatusToSucceeded(
+async function updateFiatTransactionStatus(
   fiatTransaction: FiatTransaction,
   amount: bigint,
   currency: string,
+  status: FiatTransactionStatus,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<FiatTransaction> {
   // Build credit transaction data based on whether it's for a user or organization
@@ -65,24 +68,21 @@ export async function updateFiatTransactionStatusToSucceeded(
   return await tx.fiatTransaction.update({
     where: { id: fiatTransaction.id },
     data: {
-      status: FiatTransactionStatus.SUCCEEDED,
+      status,
       amount,
       currency,
-      creditTransaction: {
-        create: creditTransactionData,
-      },
+      ...(status === FiatTransactionStatus.SUCCEEDED && {
+        creditTransaction: {
+          create: creditTransactionData,
+        },
+      }),
     },
   });
 }
 
-export async function updateFiatTransactionStatusToFailed(
-  fiatTransaction: FiatTransaction,
-  amount: bigint,
-  currency: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<FiatTransaction> {
-  return await tx.fiatTransaction.update({
-    where: { id: fiatTransaction.id },
-    data: { status: FiatTransactionStatus.FAILED, amount, currency },
-  });
-}
+export const fiatTransactionRepository = {
+  createFiatTransaction,
+  getFiatTransaction,
+  updateFiatTransaction,
+  updateFiatTransactionStatus,
+};
