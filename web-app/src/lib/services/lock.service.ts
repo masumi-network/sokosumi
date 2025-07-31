@@ -1,5 +1,5 @@
 import { getEnvSecrets } from "@/config/env.secrets";
-import { lockRepository } from "@/lib/db/repositories";
+import { lockRepository, prisma } from "@/lib/db/repositories";
 import { Lock } from "@/prisma/generated/client";
 
 /**
@@ -21,21 +21,23 @@ export const lockService = {
    */
   async acquireLock(key: string, instanceId: string): Promise<Lock> {
     // Retrieve existing lock or create a new one if it doesn't exist
-    let lock = await lockRepository.getLockByKey(key);
-    lock ??= await lockRepository.createLockByKey(key);
+    return await prisma.$transaction(async (tx) => {
+      let lock = await lockRepository.getLockByKey(key, tx);
+      lock ??= await lockRepository.createLockByKey(key, tx);
 
-    // If the lock is currently held and not expired, prevent acquisition
-    if (lock.isLocked && !isLockExpired(lock.lockedAt)) {
-      throw new Error("LOCK_IS_LOCKED");
-    }
+      // If the lock is currently held and not expired, prevent acquisition
+      if (lock.isLocked && !isLockExpired(lock.lockedAt)) {
+        throw new Error("LOCK_IS_LOCKED");
+      }
 
-    // If the lock is held but expired, forcefully unlock it
-    if (lock.isLocked && isLockExpired(lock.lockedAt)) {
-      lock = await lockRepository.unlockByKey(key);
-    }
+      // If the lock is held but expired, forcefully unlock it
+      if (lock.isLocked && isLockExpired(lock.lockedAt)) {
+        lock = await lockRepository.unlockByKey(key, tx);
+      }
 
-    // Atomically acquire the lock for this instance
-    return await lockRepository.lockByKey(key, instanceId);
+      // Atomically acquire the lock for this instance
+      return await lockRepository.lockByKey(key, instanceId, tx);
+    });
   },
 };
 
