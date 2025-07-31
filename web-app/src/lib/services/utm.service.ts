@@ -13,17 +13,17 @@ import { UTMAttribution } from "@/prisma/generated/client";
  */
 export const utmService = {
   /**
-   * Attempts to create a UTM attribution record for the specified user if UTM data is available in cookies.
+   * Handles the conversion of UTM data for a given user.
+   *
+   * This method:
    * - Retrieves UTM data from the user's cookies.
-   * - If UTM data exists, creates a UTM attribution record in the database.
-   * - Always removes the UTM cookie after attempting to create the record, regardless of success or failure.
+   * - If valid UTM data is found, creates a UTM attribution record in the database for the specified user.
+   * - Removes the UTM cookie after processing, regardless of success or failure.
    *
    * @param userId - The unique identifier of the user for whom to create the UTM attribution.
    * @returns A promise that resolves to the created UTMAttribution object if successful, or null otherwise.
    */
-  async createUTMAttributionIfPossible(
-    userId: string,
-  ): Promise<UTMAttribution | null> {
+  async handleUTMConversion(userId: string): Promise<UTMAttribution | null> {
     const cookieStore = await cookies();
     try {
       const utmData = getUTMDataFromCookie(cookieStore);
