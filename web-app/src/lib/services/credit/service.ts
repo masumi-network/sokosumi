@@ -9,9 +9,8 @@ import {
   CreditsPrice,
 } from "@/lib/db";
 import {
+  creditTransactionRepository,
   prisma,
-  retrieveCentsByOrganizationId,
-  retrieveCentsByUserId,
   retrieveCreditCostByUnit,
 } from "@/lib/db/repositories";
 import { pricingAmountsSchema, PricingAmountsSchemaType } from "@/lib/schemas";
@@ -31,7 +30,10 @@ export async function getUserCredits(
   userId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<number> {
-  const creditsBalance = await retrieveCentsByUserId(userId, tx);
+  const creditsBalance = await creditTransactionRepository.getCentsByUserId(
+    userId,
+    tx,
+  );
   return convertCentsToCredits(creditsBalance);
 }
 
@@ -49,10 +51,11 @@ export async function getOrganizationCredits(
   organizationId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<number> {
-  const creditsBalance = await retrieveCentsByOrganizationId(
-    organizationId,
-    tx,
-  );
+  const creditsBalance =
+    await creditTransactionRepository.getCentsByOrganizationId(
+      organizationId,
+      tx,
+    );
   return convertCentsToCredits(creditsBalance);
 }
 

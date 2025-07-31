@@ -5,7 +5,7 @@ import { CreditTransaction, Prisma } from "@/prisma/generated/client";
 import prisma from "./prisma";
 
 /**
- * Retrieves the total credit balance (in cents) for a given user.
+ * Get the total credit balance (in cents) for a given user.
  *
  * This function aggregates all credit transactions for the specified user and sums the 'amount' field.
  * If the user has no credit transactions, it returns 0n (bigint zero).
@@ -14,7 +14,7 @@ import prisma from "./prisma";
  * @param tx - (Optional) The Prisma transaction client to use for database operations. Defaults to the main Prisma client.
  * @returns The total credit balance in cents as a bigint.
  */
-export async function retrieveCentsByUserId(
+async function getCentsByUserId(
   userId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<bigint> {
@@ -28,7 +28,7 @@ export async function retrieveCentsByUserId(
 }
 
 /**
- * Retrieves the total credit balance (in cents) for a given organization.
+ * Get the total credit balance (in cents) for a given organization.
  *
  * This function aggregates all credit transactions for the specified organization and sums the 'amount' field.
  * If the organization has no credit transactions, it returns 0n (bigint zero).
@@ -37,7 +37,7 @@ export async function retrieveCentsByUserId(
  * @param tx - (Optional) The Prisma transaction client to use for database operations. Defaults to the main Prisma client.
  * @returns The total credit balance in cents as a bigint.
  */
-export async function retrieveCentsByOrganizationId(
+async function getCentsByOrganizationId(
   organizationId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<bigint> {
@@ -50,7 +50,17 @@ export async function retrieveCentsByOrganizationId(
   return centsBalance._sum.amount ?? BigInt(0);
 }
 
-export async function retrieveCreditTransactionByJobId(
+/**
+ * Retrieves the credit transaction associated with a specific job.
+ *
+ * This function searches for the first credit transaction linked to the given job ID.
+ * It includes the related job data in the result.
+ *
+ * @param jobId - The ID of the job whose credit transaction is being retrieved.
+ * @param tx - (Optional) The Prisma transaction client to use for database operations. Defaults to the main Prisma client.
+ * @returns The credit transaction associated with the job, or null if not found.
+ */
+async function getCreditTransactionByJobId(
   jobId: string,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<CreditTransaction | null> {
@@ -61,3 +71,15 @@ export async function retrieveCreditTransactionByJobId(
     },
   });
 }
+
+/**
+ * Credit Transaction Repository Interface
+ *
+ * Exports all credit transaction data access methods as a single object
+ * for consistent repository pattern usage.
+ */
+export const creditTransactionRepository = {
+  getCentsByUserId,
+  getCentsByOrganizationId,
+  getCreditTransactionByJobId,
+};
