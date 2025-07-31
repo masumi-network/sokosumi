@@ -5,7 +5,20 @@ import { AgentList, AgentListType, Prisma } from "@/prisma/generated/client";
 
 import prisma from "./prisma";
 
+/**
+ * Repository for managing agent lists associated with users.
+ *
+ * Provides methods to create, retrieve, add agents to, and remove agents from user-specific agent lists.
+ */
 export const agentListRepository = {
+  /**
+   * Creates a new agent list for a user of a specific type.
+   *
+   * @param userId - The ID of the user.
+   * @param type - The type of the agent list (e.g., FAVORITE).
+   * @param tx - Optional Prisma transaction client.
+   * @returns The created agent list with included agents.
+   */
   async createAgentListForUserId(
     userId: string,
     type: AgentListType,
@@ -20,6 +33,14 @@ export const agentListRepository = {
     });
   },
 
+  /**
+   * Retrieves an agent list for a user by type.
+   *
+   * @param userId - The ID of the user.
+   * @param type - The type of the agent list.
+   * @param tx - Optional Prisma transaction client.
+   * @returns The agent list with included agents, or null if not found.
+   */
   async getAgentListByUserId(
     userId: string,
     type: AgentListType,
@@ -36,6 +57,15 @@ export const agentListRepository = {
     });
   },
 
+  /**
+   * Removes an agent from a user's agent list of a specific type.
+   *
+   * @param agentId - The ID of the agent to remove.
+   * @param userId - The ID of the user.
+   * @param listType - The type of the agent list.
+   * @param tx - Optional Prisma transaction client.
+   * @returns The updated agent list.
+   */
   async removeAgentFromAgentList(
     agentId: string,
     userId: string,
@@ -50,6 +80,15 @@ export const agentListRepository = {
     });
   },
 
+  /**
+   * Adds an agent to a user's agent list of a specific type.
+   *
+   * @param agentId - The ID of the agent to add.
+   * @param userId - The ID of the user.
+   * @param listType - The type of the agent list.
+   * @param tx - Optional Prisma transaction client.
+   * @returns The updated agent list.
+   */
   async addAgentToAgentList(
     agentId: string,
     userId: string,
