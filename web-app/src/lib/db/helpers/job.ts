@@ -1,3 +1,4 @@
+import { JobStatusData } from "@/lib/ably";
 import { JobStatus } from "@/lib/db/types";
 import {
   AgentJobStatus,
@@ -111,6 +112,20 @@ export function computeJobStatus(job: Job): JobStatus {
     case OnChainJobStatus.DISPUTED_WITHDRAWN:
       return JobStatus.DISPUTE_RESOLVED;
   }
+}
+
+/**
+ * Get the job status data for the job which is used on sidebar job status indicator
+ * and used by ably to update the job status in real time.
+ * @param job - The job to get the status data for.
+ * @returns The job status data.
+ */
+export function getJobStatusData(job: Job): JobStatusData {
+  return {
+    id: job.id,
+    jobStatus: computeJobStatus(job),
+    jobStatusSettled: new Date() > job.externalDisputeUnlockTime,
+  };
 }
 
 export function onChainStateToOnChainJobStatus(

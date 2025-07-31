@@ -9,48 +9,62 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import useAgentJobStatus from "@/hooks/use-agent-job-status";
+import { JobStatusData } from "@/lib/ably";
 import { JobStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 interface AgentJobStatusIndicatorProps {
-  initialJobStatus: JobStatus | null;
   agentId: string;
   userId: string;
+  initialJobStatusData: JobStatusData | null;
   className?: string | undefined;
 }
 
 export default function AgentJobStatusIndicator({
-  initialJobStatus,
   agentId,
   userId,
+  initialJobStatusData,
   className,
 }: AgentJobStatusIndicatorProps) {
-  const jobStatus = useAgentJobStatus(agentId, userId, null, initialJobStatus);
+  const jobStatusData = useAgentJobStatus(
+    agentId,
+    userId,
+    null,
+    initialJobStatusData,
+  );
 
-  if (!jobStatus) {
+  if (!jobStatusData) {
     return null;
   }
 
   return (
     <Tooltip>
       <TooltipTrigger>
-        <AgentJobStatusIndicatorIcon status={jobStatus} className={className} />
+        <AgentJobStatusIndicatorIcon
+          jobStatusData={jobStatusData}
+          className={className}
+        />
       </TooltipTrigger>
       <TooltipContent>
-        <AgentJobStatusIndicatorContent status={jobStatus} />
+        <AgentJobStatusIndicatorContent jobStatusData={jobStatusData} />
       </TooltipContent>
     </Tooltip>
   );
 }
 
 function AgentJobStatusIndicatorIcon({
-  status,
+  jobStatusData,
   className,
 }: {
-  status: JobStatus;
+  jobStatusData: JobStatusData;
   className?: string | undefined;
 }) {
-  switch (status) {
+  const { jobStatus, jobStatusSettled } = jobStatusData;
+  if (jobStatusSettled) {
+    return null;
+  }
+
+  switch (jobStatus) {
     case JobStatus.COMPLETED:
     case JobStatus.REFUND_RESOLVED:
     case JobStatus.DISPUTE_RESOLVED:
@@ -71,12 +85,25 @@ function AgentJobStatusIndicatorIcon({
   }
 }
 
-function AgentJobStatusIndicatorContent({ status }: { status: JobStatus }) {
+function AgentJobStatusIndicatorContent({
+  jobStatusData,
+}: {
+  jobStatusData: JobStatusData;
+}) {
   const t = useTranslations("App.Sidebar.Content.AgentLists.Statuses");
 
-  switch (status) {
+  const { jobStatus, jobStatusSettled } = jobStatusData;
+  if (jobStatusSettled) {
+    return null;
+  }
+
+  switch (jobStatus) {
     case JobStatus.COMPLETED:
       return <p>{t("completed")}</p>;
+    case JobStatus.REFUND_RESOLVED:
+      return <p>{t("refundResolved")}</p>;
+    case JobStatus.DISPUTE_RESOLVED:
+      return <p>{t("disputeResolved")}</p>;
     case JobStatus.FAILED:
       return <p>{t("failed")}</p>;
     case JobStatus.PAYMENT_FAILED:
@@ -89,12 +116,8 @@ function AgentJobStatusIndicatorContent({ status }: { status: JobStatus }) {
       return <p>{t("inputRequired")}</p>;
     case JobStatus.REFUND_PENDING:
       return <p>{t("refundRequested")}</p>;
-    case JobStatus.REFUND_RESOLVED:
-      return <p>{t("refundResolved")}</p>;
     case JobStatus.DISPUTE_PENDING:
       return <p>{t("disputeRequested")}</p>;
-    case JobStatus.DISPUTE_RESOLVED:
-      return <p>{t("disputeResolved")}</p>;
     case JobStatus.OUTPUT_PENDING:
       return <p>{t("outputPending")}</p>;
     default:

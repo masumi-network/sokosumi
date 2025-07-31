@@ -10,16 +10,20 @@ import { JobError, JobErrorCode } from "@/lib/actions/types/error-codes/job";
 import { postPurchaseResolveBlockchainIdentifier } from "@/lib/api/generated/payment";
 import { getPaymentClient } from "@/lib/api/payment-service.client";
 import { getActiveOrganizationId, getSessionOrThrow } from "@/lib/auth/utils";
-import { computeJobStatus, JobStatus, JobWithStatus } from "@/lib/db";
+import {
+  computeJobStatus,
+  getJobStatusData,
+  JobStatus,
+  JobWithStatus,
+} from "@/lib/db";
 import {
   createJob,
+  creditTransactionRepository,
   prisma,
   refundJob,
   retrieveAgentWithRelationsById,
-  retrieveCentsByOrganizationId,
-  retrieveCentsByUserId,
   retrieveJobsByAgentIdUserIdAndOrganizationId,
-  retrieveLatestJobStatusByAgentIdUserIdAndOrganization,
+  retrieveLatestJobByAgentIdUserIdAndOrganization,
   retrievePersonalJobsByAgentIdAndUserId,
   updateJobNextActionByBlockchainIdentifier,
   updateJobWithAgentJobStatus,
@@ -522,19 +526,8 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
         );
       }
 
-      const jobStatusData: JobStatusData = {
-        id: job.id,
-        agentId: job.agentId,
-        jobStatus: computeJobStatus(job),
-        onChainStatus: job.onChainStatus,
-        agentJobStatus: job.agentJobStatus,
-        createdAt: job.createdAt.toISOString(),
-        startedAt: job.startedAt.toISOString(),
-        completedAt: job.completedAt?.toISOString() ?? null,
-      };
-
       try {
-        await publishJobStatusData(jobStatusData, job.userId);
+        await publishJobStatusData(job);
       } catch (err) {
         console.error(
           "Error publishing job status data after creating job",
@@ -575,7 +568,10 @@ async function validateCreditsBalance(
   cents: bigint,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<void> {
-  const centsBalance = await retrieveCentsByUserId(userId, tx);
+  const centsBalance = await creditTransactionRepository.getCentsByUserId(
+    userId,
+    tx,
+  );
   if (centsBalance - cents < BigInt(0)) {
     throw new JobError(
       JobErrorCode.INSUFFICIENT_BALANCE,
@@ -600,7 +596,11 @@ async function validateOrganizationCreditsBalance(
   cents: bigint,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<void> {
-  const centsBalance = await retrieveCentsByOrganizationId(organizationId, tx);
+  const centsBalance =
+    await creditTransactionRepository.getCentsByOrganizationId(
+      organizationId,
+      tx,
+    );
   if (centsBalance - cents < BigInt(0)) {
     throw new JobError(
       JobErrorCode.INSUFFICIENT_BALANCE,
@@ -738,19 +738,9 @@ export async function syncJob(job: Job) {
     console.log(
       `Job ${job.id} status changed from ${oldJobStatus} to ${newJobStatus}`,
     );
-    const jobStatusData: JobStatusData = {
-      id: job.id,
-      agentId: job.agentId,
-      jobStatus: newJobStatus,
-      onChainStatus: job.onChainStatus,
-      agentJobStatus: job.agentJobStatus,
-      createdAt: job.createdAt.toISOString(),
-      startedAt: job.startedAt.toISOString(),
-      completedAt: job.completedAt?.toISOString() ?? null,
-    };
 
     try {
-      await publishJobStatusData(jobStatusData, job.userId);
+      await publishJobStatusData(job);
     } catch (err) {
       console.error("Error publishing job status data", err);
     }
@@ -881,27 +871,31 @@ export async function requestRefundJob(
 }
 
 /**
- * Get the latest job status for each agent
+ * Get the latest job's JobStatusData for each agent
  * @param agentIds - The IDs of the agents to get the latest job status for
  * @param tx - The transaction client to use for the database operations
- * @returns The latest job status for each agent
+ * @returns The latest job's JobStatusData for each agent
  */
-export async function getAgentJobStatusesByAgentIds(
+export async function getAgentJobStatusDataListByAgentIds(
   agentIds: string[],
   tx: Prisma.TransactionClient = prisma,
-): Promise<(JobStatus | null)[]> {
+): Promise<(JobStatusData | null)[]> {
   const session = await getSessionOrThrow();
   const userId = session.user.id;
   const activeOrganizationId = session.session.activeOrganizationId;
 
   return await Promise.all(
-    agentIds.map((agentId) =>
-      retrieveLatestJobStatusByAgentIdUserIdAndOrganization(
+    agentIds.map(async (agentId) => {
+      const latestJob = await retrieveLatestJobByAgentIdUserIdAndOrganization(
         agentId,
         userId,
         activeOrganizationId,
         tx,
-      ),
-    ),
+      );
+      if (!latestJob) {
+        return null;
+      }
+      return getJobStatusData(latestJob);
+    }),
   );
 }

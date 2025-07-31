@@ -1,16 +1,15 @@
 import "server-only";
 
-import getClient from "./client";
-import { JobStatusData } from "./schema";
+import { getJobStatusData } from "@/lib/db";
+import { Job } from "@/prisma/generated/client";
+
+import { getRestClient } from "./client";
 import { getAgentJobsChannelName, makeAgentJobsChannel } from "./utils";
 
-export default async function publishJobStatusData(
-  jobStatusData: JobStatusData,
-  userId: string,
-) {
-  const client = getClient();
+export default async function publishJobStatusData(job: Job) {
+  const client = getRestClient();
   const channel = client.channels.get(
-    makeAgentJobsChannel(jobStatusData.agentId, userId),
+    makeAgentJobsChannel(job.agentId, job.userId),
   );
-  await channel.publish(getAgentJobsChannelName(), jobStatusData);
+  await channel.publish(getAgentJobsChannelName(), getJobStatusData(job));
 }

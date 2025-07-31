@@ -6,7 +6,8 @@ import { useFormatter, useTranslations } from "next-intl";
 import { DataTableColumnHeader } from "@/components/data-table";
 import { MiddleTruncate } from "@/components/middle-truncate";
 import useAgentJobStatus from "@/hooks/use-agent-job-status";
-import { JobStatus, JobWithStatus } from "@/lib/db";
+import { JobStatusData } from "@/lib/ably";
+import { JobWithStatus } from "@/lib/db";
 
 import JobStatusBadge from "./job-status-badge";
 
@@ -49,7 +50,11 @@ export function getJobColumns(
             agentId={row.original.agentId}
             userId={userId}
             jobId={row.original.id}
-            initialStatus={row.original.status}
+            initialJobStatusData={{
+              id: row.original.id,
+              jobStatus: row.original.status,
+              jobStatusSettled: row.original.jobStatusSettled,
+            }}
           />
         </div>
       ),
@@ -85,26 +90,26 @@ function RealTimeJobStatusBadge({
   agentId,
   userId,
   jobId,
-  initialStatus,
+  initialJobStatusData,
   className,
 }: {
   agentId: string;
   userId: string;
   jobId: string;
-  initialStatus: JobStatus;
+  initialJobStatusData: JobStatusData;
   className?: string;
 }) {
   const realTimeJobStatus = useAgentJobStatus(
     agentId,
     userId,
     jobId,
-    initialStatus,
+    initialJobStatusData,
     true,
   );
 
   return (
     <JobStatusBadge
-      status={realTimeJobStatus ?? initialStatus}
+      status={realTimeJobStatus?.jobStatus ?? initialJobStatusData.jobStatus}
       className={className}
     />
   );

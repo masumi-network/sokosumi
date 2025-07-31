@@ -2,10 +2,8 @@ import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
 import {
+  fiatTransactionRepository,
   prisma,
-  retrieveFiatTransactionByServicePaymentId,
-  updateFiatTransactionStatusToFailed,
-  updateFiatTransactionStatusToSucceeded,
   userRepository,
 } from "@/lib/db/repositories";
 import { constructEvent, updateCustomerMetadata } from "@/lib/services";
@@ -215,10 +213,11 @@ const updateFiatTransactionStatus = async (
   }
   return await prisma.$transaction(async (tx) => {
     try {
-      const fiatTransaction = await retrieveFiatTransactionByServicePaymentId(
-        session.id,
-        tx,
-      );
+      const fiatTransaction =
+        await fiatTransactionRepository.getFiatTransactionByServicePaymentId(
+          session.id,
+          tx,
+        );
       if (!fiatTransaction) {
         return NextResponse.json(
           { message: `Fiat transaction for session ${session.id} not found` },
@@ -245,10 +244,11 @@ const updateFiatTransactionStatus = async (
       try {
         switch (status) {
           case "SUCCEEDED":
-            await updateFiatTransactionStatusToSucceeded(
+            await fiatTransactionRepository.updateFiatTransactionStatus(
               fiatTransaction,
               BigInt(amountTotal),
               currency,
+              FiatTransactionStatus.SUCCEEDED,
               tx,
             );
             return NextResponse.json(
@@ -258,10 +258,11 @@ const updateFiatTransactionStatus = async (
               { status: 200 },
             );
           case "FAILED":
-            await updateFiatTransactionStatusToFailed(
+            await fiatTransactionRepository.updateFiatTransactionStatus(
               fiatTransaction,
               BigInt(amountTotal),
               currency,
+              FiatTransactionStatus.FAILED,
               tx,
             );
             return NextResponse.json(

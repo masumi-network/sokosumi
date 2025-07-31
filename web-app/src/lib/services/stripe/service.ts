@@ -7,9 +7,8 @@ import { UnAuthenticatedError } from "@/lib/auth/errors";
 import { verifyUserId } from "@/lib/auth/utils";
 import { convertCreditsToCents } from "@/lib/db";
 import {
-  createFiatTransaction,
+  fiatTransactionRepository,
   prisma,
-  updateFiatTransactionServicePaymentId,
   userRepository,
 } from "@/lib/db/repositories";
 import {
@@ -46,23 +45,24 @@ export async function createStripeCheckoutSession(
       const user = await userRepository.getUserById(userId, tx);
       if (!user) throw new Error("User not found");
       const amount = credits * price.amountPerCredit;
-      const fiatTransaction = await createFiatTransaction(
-        userId,
-        organizationId,
-        convertCreditsToCents(credits),
-        amount,
-        price.currency,
-        tx,
-      );
+      const fiatTransaction =
+        await fiatTransactionRepository.createFiatTransaction(
+          userId,
+          organizationId,
+          convertCreditsToCents(credits),
+          amount,
+          price.currency,
+          tx,
+        );
       const { id: stripeSessionId, url } = await createCheckoutSession(
         user,
         fiatTransaction,
         price,
         promotionCode,
       );
-      await updateFiatTransactionServicePaymentId(
+      await fiatTransactionRepository.updateFiatTransaction(
         fiatTransaction.id,
-        stripeSessionId,
+        { servicePaymentId: stripeSessionId },
         tx,
       );
       return { stripeSessionId, url };
