@@ -5,4 +5,4 @@ export * from "./invitation";
 export * from "./job";
 export * from "./organization";
 export * from "./types";
-export * from "./utm";
+export * from "./utm.actions";

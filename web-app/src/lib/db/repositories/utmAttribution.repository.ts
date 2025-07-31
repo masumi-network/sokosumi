@@ -2,7 +2,13 @@ import "server-only";
 
 import { cookies } from "next/headers";
 
-import { UTM_COOKIE_NAME, UTMData, utmDataSchema } from "@/lib/utils/utm";
+import { getEnvSecrets } from "@/config/env.secrets";
+import {
+  UTM_COOKIE_MAX_AGE,
+  UTM_COOKIE_NAME,
+  UTMData,
+  utmDataSchema,
+} from "@/lib/utils/utm";
 import { Prisma, UTMAttribution } from "@/prisma/generated/client";
 
 import prisma from "./prisma";
@@ -62,6 +68,28 @@ export const utmAttributionRepository = {
       console.error("Failed to parse UTM cookie", error);
       return null;
     }
+  },
+
+  /**
+   * Stores the provided UTM data in a cookie for attribution tracking.
+   *
+   * Serializes the UTMData object and sets it as a cookie in the user's browser.
+   * The cookie is configured with appropriate security and domain settings.
+   *
+   * @param utmData - The UTMData object to store in the cookie.
+   * @returns A promise that resolves when the cookie has been set.
+   */
+  async setUTMDataInCookie(utmData: UTMData): Promise<void> {
+    const cookieValue = JSON.stringify(utmData);
+    const cookieStore = await cookies();
+    cookieStore.set(UTM_COOKIE_NAME, cookieValue, {
+      maxAge: UTM_COOKIE_MAX_AGE,
+      domain: getEnvSecrets().COOKIE_DOMAIN,
+      httpOnly: false,
+      secure: getEnvSecrets().NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+    });
   },
 
   /**
