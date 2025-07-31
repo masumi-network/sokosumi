@@ -6,7 +6,7 @@ import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { MemberRole } from "@/lib/db";
-import { retrieveOrganizationWithRelationsBySlug } from "@/lib/db/repositories";
+import { organizationRepository } from "@/lib/db/repositories";
 import {
   getMyMemberInOrganization,
   getOrganizationMembersWithUser,
@@ -30,7 +30,9 @@ export async function generateMetadata({
 
   const { organizationSlug } = await params;
   const organization =
-    await retrieveOrganizationWithRelationsBySlug(organizationSlug);
+    await organizationRepository.getOrganizationWithRelationsBySlug(
+      organizationSlug,
+    );
   if (!organization) {
     return notFound();
   }
@@ -53,7 +55,9 @@ export default async function OrganizationPage({
   const { organizationSlug } = await params;
 
   const organization =
-    await retrieveOrganizationWithRelationsBySlug(organizationSlug);
+    await organizationRepository.getOrganizationWithRelationsBySlug(
+      organizationSlug,
+    );
   if (!organization) {
     return notFound();
   }

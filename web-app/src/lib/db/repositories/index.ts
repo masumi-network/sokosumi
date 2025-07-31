@@ -1,13 +1,13 @@
 export * from "./agent.repository";
-export * from "./agentList";
+export * from "./agentList.repository";
 export * from "./creditCost.repository";
 export * from "./creditTransaction.repository";
 export * from "./fiatTransaction.repository";
-export * from "./invitation";
+export * from "./invitation.repository";
 export * from "./job.repository";
 export * from "./lock.repository";
-export * from "./member";
-export * from "./organization";
+export * from "./member.repository";
+export * from "./organization.repository";
 export { default as prisma } from "./prisma";
 export * from "./tag.repository";
 export * from "./user.repository";

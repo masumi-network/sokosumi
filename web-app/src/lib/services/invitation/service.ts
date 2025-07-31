@@ -2,11 +2,7 @@ import "server-only";
 
 import { getSessionOrThrow } from "@/lib/auth/utils";
 import { InvitationWithRelations } from "@/lib/db";
-import {
-  retrieveMemberByUserIdAndOrganizationId,
-  retrievePendingInvitationById,
-  retrieveValidPendingInvitationsByEmail,
-} from "@/lib/db/repositories";
+import { invitationRepository, memberRepository } from "@/lib/db/repositories";
 
 import { InvitationErrorCode } from "./types";
 
@@ -19,7 +15,7 @@ export async function getPendingInvitation(id: string): Promise<
       invitation: InvitationWithRelations;
     }
 > {
-  const invitation = await retrievePendingInvitationById(id);
+  const invitation = await invitationRepository.getPendingInvitationById(id);
 
   if (!invitation) {
     return {
@@ -33,10 +29,11 @@ export async function getPendingInvitation(id: string): Promise<
     };
   }
 
-  const inviterMember = await retrieveMemberByUserIdAndOrganizationId(
-    invitation.inviterId,
-    invitation.organizationId,
-  );
+  const inviterMember =
+    await memberRepository.getMemberByUserIdAndOrganizationId(
+      invitation.inviterId,
+      invitation.organizationId,
+    );
 
   if (!inviterMember) {
     return {
@@ -63,5 +60,7 @@ export async function getMyValidPendingInvitations(): Promise<
   const session = await getSessionOrThrow();
   const userEmail = session.user.email;
 
-  return await retrieveValidPendingInvitationsByEmail(userEmail);
+  return await invitationRepository.getValidPendingInvitationsByEmail(
+    userEmail,
+  );
 }
