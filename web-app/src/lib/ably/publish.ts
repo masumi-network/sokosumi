@@ -12,4 +12,5 @@ export default async function publishJobStatusData(job: Job) {
     makeAgentJobsChannel(job.agentId, job.userId),
   );
   await channel.publish(getAgentJobsChannelName(), getJobStatusData(job));
+  client.close();
 }
