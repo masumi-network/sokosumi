@@ -9,12 +9,12 @@ import {
 } from "@/lib/db";
 import {
   createAgentListByUserIdAndType,
+  creditCostRepository,
   mapAgentWithIsNew,
   prisma,
   retrieveAgentListByUserIdAndType,
   retrieveAgentsWithRelations,
   retrieveAgentWithRelationsById,
-  retrieveAllCreditCosts,
   retrieveHiredAgentsWithJobsByUserIdAndOrganization,
   retrieveMembersOrganizationIdsByUserId,
   retrieveShownAgentsWithRelationsByStatus,
@@ -104,7 +104,7 @@ async function getAgentAccessContext(
   creditCosts: CreditCost[];
 }> {
   const session = await getSession();
-  const creditCosts = await retrieveAllCreditCosts(tx);
+  const creditCosts = await creditCostRepository.getCreditCosts(tx);
   const userOrganizationIds =
     session?.user.id && session.user.id !== ""
       ? await retrieveMembersOrganizationIdsByUserId(session.user.id, tx)
