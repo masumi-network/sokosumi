@@ -1,7 +1,7 @@
 "use server";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions/types";
-import { utmAttributionRepository } from "@/lib/db/repositories";
+import { utmService } from "@/lib/services/utm.service";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import { UTM_COOKIE_MAX_AGE, UTMData } from "@/lib/utils/utm";
 
@@ -25,7 +25,7 @@ export const utmActions = {
     try {
       try {
         // Attempt to retrieve existing UTM cookie
-        const utmCookie = await utmAttributionRepository.getUTMDataFromCookie();
+        const utmCookie = await utmService.getUTMDataFromCookie();
         // If a valid, non-expired UTM cookie exists, return it
         if (
           utmCookie &&
@@ -40,7 +40,7 @@ export const utmActions = {
       }
 
       // Set a new UTM cookie with the provided data
-      await utmAttributionRepository.setUTMDataInCookie(utmData);
+      await utmService.setUTMDataInCookie(utmData);
 
       return Ok(utmData);
     } catch (error) {

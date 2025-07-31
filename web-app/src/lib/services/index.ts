@@ -6,4 +6,4 @@ export * from "./lock.service";
 export * from "./organization";
 export * from "./stripe";
 export * from "./user.service";
-export * from "./utm";
+export * from "./utm.service";
