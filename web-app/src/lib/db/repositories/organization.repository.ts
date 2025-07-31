@@ -1,10 +1,6 @@
 import "server-only";
 
-import {
-  organizationInclude,
-  organizationMembersCountInclude,
-  OrganizationWithRelations,
-} from "@/lib/db/types";
+import { organizationInclude, OrganizationWithRelations } from "@/lib/db/types";
 import { Organization, Prisma } from "@/prisma/generated/client";
 
 import prisma from "./prisma";
@@ -18,6 +14,7 @@ export const organizationRepository = {
   ): Promise<Organization> {
     return await tx.organization.create({
       data: { slug, name, requiredEmailDomains },
+      include: organizationInclude,
     });
   },
 
@@ -29,7 +26,7 @@ export const organizationRepository = {
       where: {
         requiredEmailDomains: { has: emailDomain },
       },
-      include: { ...organizationMembersCountInclude },
+      include: organizationInclude,
     });
   },
 
@@ -65,6 +62,7 @@ export const organizationRepository = {
     return await tx.organization.update({
       where: { id: organizationId },
       data,
+      include: organizationInclude,
     });
   },
 };
