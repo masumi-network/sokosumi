@@ -34,7 +34,7 @@ export async function claimFreeCredits(
     const { url } = await createStripeCheckoutSession(
       session.user.id,
       null,
-      100,
+      30,
       price,
       promotionCode,
     );
