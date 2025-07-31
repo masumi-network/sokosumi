@@ -1,16 +1,16 @@
 import "server-only";
 
-import { Realtime } from "ably";
+import { Rest } from "ably";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 
-let client: Realtime;
+let restClient: Rest;
 
-export default function getClient() {
-  if (!client) {
-    client = new Realtime({
+export function getRestClient() {
+  if (!restClient) {
+    restClient = new Rest({
       key: getEnvSecrets().ABLY_AGENT_JOBS_PUBLISH_ONLY_KEY,
     });
   }
-  return client;
+  return restClient;
 }
