@@ -8,6 +8,7 @@ import { getAgentJobsChannelName, makeAgentJobsChannel } from "./utils";
 
 export default async function publishJobStatusData(job: Job) {
   const client = getClient();
+  client.connect();
   const channel = client.channels.get(
     makeAgentJobsChannel(job.agentId, job.userId),
   );
