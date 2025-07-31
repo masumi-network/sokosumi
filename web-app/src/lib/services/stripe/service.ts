@@ -16,11 +16,13 @@ import {
   CouponCurrencyError,
   CouponNotFoundError,
   CouponTypeError,
+  PromotionCodeNotFoundError,
 } from "@/lib/errors/coupon-errors";
 
 import {
   createCheckoutSession,
   getCouponById,
+  getCouponByPromotionCode,
   getOrCreatePromotionCode,
   getOrCreateStripeCustomer,
   getPromotionCodeByCustomerAndCouponId,
@@ -137,6 +139,17 @@ export async function getPromotionCode(
     maxRedemptions,
     metadata,
   );
+}
+
+export async function getCreditsForPromotionCode(
+  promotionCode: string,
+  price: Price,
+): Promise<number> {
+  const coupon = await getCouponByPromotionCode(promotionCode);
+  if (!coupon) {
+    throw new PromotionCodeNotFoundError(promotionCode);
+  }
+  return getCreditsForCoupon(coupon.id, price);
 }
 
 export async function getCreditsForCoupon(
