@@ -26,7 +26,7 @@ import {
   Prisma,
 } from "@/prisma/generated/client";
 
-import { retrieveCreditTransactionByJobId } from "./creditTransaction";
+import { creditTransactionRepository } from "./creditTransaction.repository";
 import prisma from "./prisma";
 
 function mapJobWithStatus<T extends Job>(
@@ -268,7 +268,8 @@ export async function refundJob(
     return;
   }
 
-  const creditTransaction = await retrieveCreditTransactionByJobId(jobId, tx);
+  const creditTransaction =
+    await creditTransactionRepository.getCreditTransactionByJobId(jobId, tx);
   if (!creditTransaction) {
     throw new Error("Credit transaction not found");
   }

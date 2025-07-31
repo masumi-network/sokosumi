@@ -18,11 +18,10 @@ import {
 } from "@/lib/db";
 import {
   createJob,
+  creditTransactionRepository,
   prisma,
   refundJob,
   retrieveAgentWithRelationsById,
-  retrieveCentsByOrganizationId,
-  retrieveCentsByUserId,
   retrieveJobsByAgentIdUserIdAndOrganizationId,
   retrieveLatestJobByAgentIdUserIdAndOrganization,
   retrievePersonalJobsByAgentIdAndUserId,
@@ -569,7 +568,10 @@ async function validateCreditsBalance(
   cents: bigint,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<void> {
-  const centsBalance = await retrieveCentsByUserId(userId, tx);
+  const centsBalance = await creditTransactionRepository.getCentsByUserId(
+    userId,
+    tx,
+  );
   if (centsBalance - cents < BigInt(0)) {
     throw new JobError(
       JobErrorCode.INSUFFICIENT_BALANCE,
@@ -594,7 +596,11 @@ async function validateOrganizationCreditsBalance(
   cents: bigint,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<void> {
-  const centsBalance = await retrieveCentsByOrganizationId(organizationId, tx);
+  const centsBalance =
+    await creditTransactionRepository.getCentsByOrganizationId(
+      organizationId,
+      tx,
+    );
   if (centsBalance - cents < BigInt(0)) {
     throw new JobError(
       JobErrorCode.INSUFFICIENT_BALANCE,
