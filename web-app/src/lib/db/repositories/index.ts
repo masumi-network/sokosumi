@@ -7,7 +7,7 @@ export * from "./invitation";
 export * from "./job";
 export * from "./lock.repository";
 export * from "./member";
-export * from "./organization";
+export * from "./organization.repository";
 export { default as prisma } from "./prisma";
 export * from "./tag.repository";
 export * from "./user.repository";

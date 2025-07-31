@@ -14,11 +14,10 @@ import { MemberRole } from "@/lib/db";
 import {
   acceptValidPendingInvitationById,
   createMember,
-  createOrganization,
   createUTMAttribution,
+  organizationRepository,
   prisma,
   retrieveMembersByOrganizationId,
-  retrieveOrganizationWithRelationsById,
   retrieveValidPendingInvitationById,
 } from "@/lib/db/repositories";
 import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
@@ -79,7 +78,7 @@ export async function signUpEmail(
       let organizationCreated: boolean = false;
       if (!!parsed.selectedOrganization.id) {
         const retrievedOrganization =
-          await retrieveOrganizationWithRelationsById(
+          await organizationRepository.getOrganizationWithRelationsById(
             parsed.selectedOrganization.id,
             tx,
           );
@@ -105,12 +104,13 @@ export async function signUpEmail(
           parsed.selectedOrganization.name,
         );
 
-        const createdOrganization = await createOrganization(
-          slug,
-          parsed.selectedOrganization.name,
-          requiredEmailDomains,
-          tx,
-        );
+        const createdOrganization =
+          await organizationRepository.createOrganization(
+            slug,
+            parsed.selectedOrganization.name,
+            requiredEmailDomains,
+            tx,
+          );
         if (!createdOrganization) {
           actionError = {
             code: AuthErrorCode.ORGANIZATION_CREATE_FAILED,

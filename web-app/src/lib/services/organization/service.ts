@@ -6,11 +6,10 @@ import slugify from "slugify";
 import { getSessionOrThrow } from "@/lib/auth/utils";
 import { MemberRole, MemberWithOrganization } from "@/lib/db";
 import {
+  organizationRepository,
   retrieveMemberByUserIdAndOrganizationId,
   retrieveMembersWithOrganizationByUserId,
   retrieveMembersWithUser,
-  retrieveOrganizationWithRelationsById,
-  retrieveOrganizationWithRelationsBySlug,
   retrievePendingInvitationsByOrganizationId,
 } from "@/lib/db/repositories";
 import { Invitation, Member } from "@/prisma/generated/client";
@@ -29,7 +28,7 @@ import { Invitation, Member } from "@/prisma/generated/client";
 export async function generateOrganizationSlugFromName(name: string) {
   const slugedName = slugify(name, { lower: true, strict: true });
   const existingOrganization =
-    await retrieveOrganizationWithRelationsBySlug(slugedName);
+    await organizationRepository.getOrganizationWithRelationsBySlug(slugedName);
   if (!existingOrganization) {
     return slugedName;
   }
@@ -161,9 +160,10 @@ export async function getActiveOrganization() {
     return null;
   }
 
-  const organization = await retrieveOrganizationWithRelationsById(
-    session.session.activeOrganizationId,
-  );
+  const organization =
+    await organizationRepository.getOrganizationWithRelationsById(
+      session.session.activeOrganizationId,
+    );
 
   return organization;
 }
