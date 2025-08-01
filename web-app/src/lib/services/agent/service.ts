@@ -169,18 +169,6 @@ export async function getAvailableAgents(
 }
 
 /**
- * Retrieves all agents with all relations (no access control).
- *
- * @param tx - Optional Prisma transaction client.
- * @returns Array of all agents with relations.
- */
-export async function getAgents(
-  tx: Prisma.TransactionClient = prisma,
-): Promise<AgentWithRelations[]> {
-  return await agentRepository.getAgentsWithRelations(tx);
-}
-
-/**
  * Represents an agent with its calculated credit pricing information.
  */
 export interface AgentWithCreditPrice {
