@@ -90,14 +90,13 @@ export const jobRepository = {
     agentId: string,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<number> {
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const result = await tx.$queryRaw<[{ avg_duration_seconds: number }]>`
     SELECT 
       AVG(EXTRACT(EPOCH FROM ("completedAt" - "startedAt"))) as avg_duration_seconds
     FROM "Job"
     WHERE "agentId" = ${agentId}
     AND "completedAt" IS NOT NULL
-    AND "createdAt" >= ${thirtyDaysAgo}
+    AND "createdAt" >= NOW() - INTERVAL '30 days'
   `;
 
     const averageDurationSeconds = result[0]?.avg_duration_seconds ?? 0;
