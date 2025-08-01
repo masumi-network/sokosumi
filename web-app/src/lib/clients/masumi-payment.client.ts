@@ -7,7 +7,6 @@ import {
   postPurchase,
   postPurchaseRequestRefund,
   postPurchaseResolveBlockchainIdentifier,
-  PostPurchaseResponse,
 } from "@/lib/api/generated/payment";
 import { createClient } from "@/lib/api/generated/payment/client";
 import { JobInputData } from "@/lib/job-input";
@@ -101,7 +100,7 @@ export const paymentClient = {
     inputData: JobInputData,
     inputHash: string,
     identifierFromPurchaser: string,
-  ): Promise<Result<PostPurchaseResponse, string>> {
+  ): Promise<Result<Purchase, string>> {
     try {
       const response = await postPurchase({
         client: client(),
@@ -130,7 +129,7 @@ export const paymentClient = {
         return Err("Failed to create purchase request");
       }
 
-      return Ok(response.data);
+      return Ok(response.data.data);
     } catch (err) {
       return Err(String(err));
     }
