@@ -1,7 +1,6 @@
 import "server-only";
 
 import { getSession, getSessionOrThrow } from "@/lib/auth/utils";
-import { agentClient } from "@/lib/clients";
 import {
   AgentWithFixedPricing,
   AgentWithJobs,
@@ -16,7 +15,6 @@ import {
   memberRepository,
   prisma,
 } from "@/lib/db/repositories";
-import { JobInputsDataSchemaType } from "@/lib/job-input";
 import { getAgentCreditsPrice } from "@/lib/services";
 import {
   AgentListType,
@@ -261,31 +259,6 @@ export async function getHiredAgentsOrderedByLatestJob(
     if (!bLatestJob) return -1;
     return bLatestJob.startedAt.getTime() - aLatestJob.startedAt.getTime();
   });
-}
-
-/**
- * Retrieves the input schema definition for a specific agent, used to validate job inputs.
- *
- * - Throws an error if the agent or schema cannot be found.
- *
- * @param agentId - Unique agent identifier.
- * @param tx - Optional Prisma transaction client.
- * @returns The agent's input schema definition.
- * @throws If the agent is not found or if the schema cannot be fetched.
- */
-export async function getAgentInputSchema(
-  agentId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<JobInputsDataSchemaType> {
-  const agent = await agentRepository.getAgentWithRelationsById(agentId, tx);
-  if (!agent) {
-    throw new Error(`Agent with ID ${agentId} not found`);
-  }
-  const inputSchemaResult = await agentClient.fetchAgentInputSchema(agent);
-  if (!inputSchemaResult.ok) {
-    throw new Error(inputSchemaResult.error);
-  }
-  return inputSchemaResult.data;
 }
 
 /**

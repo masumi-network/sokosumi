@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { getAgentInputSchema } from "@/lib/services";
+import { agentClient } from "@/lib/clients/agent.client";
+import { agentRepository } from "@/lib/db/repositories";
 
 export async function GET(req: NextRequest) {
   const agentId = req.nextUrl.searchParams.get("agentId");
@@ -12,8 +13,15 @@ export async function GET(req: NextRequest) {
   }
 
   try {
-    const inputSchema = await getAgentInputSchema(agentId);
-    return NextResponse.json(inputSchema);
+    const agent = await agentRepository.getAgentWithRelationsById(agentId);
+    if (!agent) {
+      throw new Error(`Agent with ID ${agentId} not found`);
+    }
+    const inputSchemaResult = await agentClient.fetchAgentInputSchema(agent);
+    if (!inputSchemaResult.ok) {
+      throw new Error(inputSchemaResult.error);
+    }
+    return NextResponse.json(inputSchemaResult.data);
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     return NextResponse.json(
