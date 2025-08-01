@@ -25,10 +25,8 @@ import {
 import { AgentWithCreditPrice, getAgentCreditsPrice } from "./credit/service";
 
 export const agentService = {
-  async getFavoriteAgents(
-    tx: Prisma.TransactionClient = prisma,
-  ): Promise<AgentWithRelations[]> {
-    return await getAgentsByListType(AgentListType.FAVORITE, tx);
+  async getFavoriteAgents(): Promise<AgentWithRelations[]> {
+    return await getAgentsByListType(AgentListType.FAVORITE);
   },
 
   /**
