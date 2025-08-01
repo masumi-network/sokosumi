@@ -15,13 +15,66 @@ import {
   memberRepository,
   prisma,
 } from "@/lib/db/repositories";
-import { AgentListType, CreditCost, Prisma } from "@/prisma/generated/client";
+import {
+  AgentListType,
+  AgentStatus,
+  CreditCost,
+  Prisma,
+} from "@/prisma/generated/client";
+
+import { AgentWithCreditPrice, getAvailableAgents } from "./agent/service";
+import { getAgentCreditsPrice } from "./credit/service";
 
 export const agentService = {
   async getFavoriteAgents(
     tx: Prisma.TransactionClient = prisma,
   ): Promise<AgentWithRelations[]> {
     return await getAgentsByListType(AgentListType.FAVORITE, tx);
+  },
+
+  /**
+   * Retrieves all online agents available to the current user with valid pricing.
+   *
+   * @param tx - Optional Prisma transaction client.
+   * @returns Array of available agents with valid pricing.
+   */
+  async getAvailableAgents(): Promise<AgentWithRelations[]> {
+    return await prisma.$transaction(async (tx) => {
+      const { userOrganizationIds, creditCosts } =
+        await getAgentAccessContext(tx);
+      const onlineAgents =
+        await agentRepository.getShownAgentsWithRelationsByStatus(
+          AgentStatus.ONLINE,
+          tx,
+        );
+      return onlineAgents.filter((agent) =>
+        isAgentAvailable(agent, userOrganizationIds, creditCosts),
+      );
+    });
+  },
+
+  /**
+   * Retrieves all online agents available to the user, each with its calculated credit price.
+   *
+   * - Excludes agents for which credit price calculation fails.
+   *
+   * @param tx - Optional Prisma transaction client.
+   * @returns Array of agents with their calculated credit prices.
+   */
+  async getAvailableAgentsWithCreditsPrice(): Promise<AgentWithCreditPrice[]> {
+    const agents = await getAvailableAgents();
+    const results = await Promise.allSettled(
+      agents.map(async (agent) => {
+        const creditsPrice = await getAgentCreditsPrice(agent);
+        return { agent, creditsPrice };
+      }),
+    );
+    return results
+      .filter(
+        (result): result is PromiseFulfilledResult<AgentWithCreditPrice> =>
+          result.status === "fulfilled",
+      )
+      .map((result) => result.value);
   },
 
   /**

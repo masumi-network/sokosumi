@@ -16,7 +16,6 @@ import { AgentWithAvailability } from "@/lib/db";
 import {
   agentService,
   getAgentJobStatusDataListByAgentIds,
-  getAvailableAgents,
 } from "@/lib/services";
 import { Agent } from "@/prisma/generated/client";
 
@@ -65,7 +64,7 @@ async function AgentListsContent() {
     await Promise.all([
       agentService.getFavoriteAgents(),
       agentService.getHiredAgentsOrderedByLatestJob(),
-      getAvailableAgents(),
+      agentService.getAvailableAgents(),
     ]);
 
   const hiredAgents = filterDuplicatedAgents(

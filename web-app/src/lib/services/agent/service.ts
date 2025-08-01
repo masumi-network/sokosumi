@@ -201,29 +201,3 @@ export interface AgentWithCreditPrice {
   agent: AgentWithRelations;
   creditsPrice: Awaited<ReturnType<typeof getAgentCreditsPrice>>;
 }
-
-/**
- * Retrieves all online agents available to the user, each with its calculated credit price.
- *
- * - Excludes agents for which credit price calculation fails.
- *
- * @param tx - Optional Prisma transaction client.
- * @returns Array of agents with their calculated credit prices.
- */
-export async function getAvailableAgentsWithCreditsPrice(
-  tx: Prisma.TransactionClient = prisma,
-): Promise<AgentWithCreditPrice[]> {
-  const agents = await getAvailableAgents(tx);
-  const results = await Promise.allSettled(
-    agents.map(async (agent) => {
-      const creditsPrice = await getAgentCreditsPrice(agent, tx);
-      return { agent, creditsPrice };
-    }),
-  );
-  return results
-    .filter(
-      (result): result is PromiseFulfilledResult<AgentWithCreditPrice> =>
-        result.status === "fulfilled",
-    )
-    .map((result) => result.value);
-}
