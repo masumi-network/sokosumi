@@ -174,7 +174,7 @@ export default function JobInputsFormClient({
                     {t("submit")}
                   </div>
                   {averageExecutionDuration > 0 && (
-                    <span>{`(~ ${formattedDuration})`}</span>
+                    <span>{`(~${formattedDuration})`}</span>
                   )}
                   {!isMobile && (
                     <div className="flex items-center gap-1">
