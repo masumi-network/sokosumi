@@ -2,8 +2,7 @@ import { notFound } from "next/navigation";
 
 import { JobDetails } from "@/app/agents/[agentId]/jobs/@right/components/job-details";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
-import { jobRepository } from "@/lib/db/repositories";
-import { getAgentById } from "@/lib/services";
+import { agentRepository, jobRepository } from "@/lib/db/repositories";
 
 interface JobDetailsPageParams {
   agentId: string;
@@ -19,7 +18,7 @@ export default async function JobDetailsPage({
 
   const { agentId, jobId } = await params;
 
-  const agent = await getAgentById(agentId);
+  const agent = await agentRepository.getAgentWithRelationsById(agentId);
   if (!agent) {
     notFound();
   }

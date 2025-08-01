@@ -9,10 +9,9 @@ import {
 import DefaultLoading from "@/components/default-loading";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { getAgentDescription, getAgentLegal, getAgentName } from "@/lib/db";
-import { jobRepository } from "@/lib/db/repositories";
+import { agentRepository, jobRepository } from "@/lib/db/repositories";
 import {
   agentService,
-  getAgentById,
   getAgentCreditsPrice,
   getAvailableAgentById,
 } from "@/lib/services";
@@ -26,7 +25,7 @@ export async function generateMetadata({
   params: Promise<{ agentId: string }>;
 }): Promise<Metadata> {
   const { agentId } = await params;
-  const agent = await getAgentById(agentId);
+  const agent = await agentRepository.getAgentWithRelationsById(agentId);
   if (!agent) {
     notFound();
   }
@@ -61,7 +60,7 @@ export default async function JobLayout({
 
 async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
   const { agentId } = await params;
-  const agent = await getAgentById(agentId);
+  const agent = await agentRepository.getAgentWithRelationsById(agentId);
   if (!agent) {
     return notFound();
   }

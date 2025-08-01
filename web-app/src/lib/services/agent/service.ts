@@ -130,20 +130,6 @@ export async function getAvailableAgentById(
 }
 
 /**
- * Retrieves an agent by ID with all relations, without access control.
- *
- * @param agentId - Unique agent identifier.
- * @param tx - Optional Prisma transaction client.
- * @returns The agent with all relations, or null if not found.
- */
-export async function getAgentById(
-  agentId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<AgentWithRelations | null> {
-  return await agentRepository.getAgentWithRelationsById(agentId, tx);
-}
-
-/**
  * Checks if a specific agent is marked as favorite by the current authenticated user.
  *
  * - Requires an authenticated user session (throws if not authenticated).
