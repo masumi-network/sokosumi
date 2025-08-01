@@ -23,7 +23,7 @@ const client = () => {
 export const paymentClient = {
   async getPurchaseByBlockchainIdentifier(
     blockchainIdentifier: string,
-  ): Promise<Purchase | null> {
+  ): Promise<Result<Purchase, string>> {
     try {
       const response = await postPurchaseResolveBlockchainIdentifier({
         client: client(),
@@ -32,12 +32,14 @@ export const paymentClient = {
           network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
         },
       });
-      if (!response.data) {
-        return null;
+      if (response.error || !response.data) {
+        return Err(
+          response.error ? String(response.error) : "Failed to get purchase",
+        );
       }
-      return response.data.data;
-    } catch {
-      return null;
+      return Ok(response.data.data);
+    } catch (err) {
+      return Err(String(err));
     }
   },
 

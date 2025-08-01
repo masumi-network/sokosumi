@@ -619,11 +619,15 @@ function shouldSyncMasumiStatus(job: Job): boolean {
 export async function syncJob(job: Job) {
   const oldJobStatus = computeJobStatus(job);
   if (!job.purchaseId) {
-    const purchase = await paymentClient.getPurchaseByBlockchainIdentifier(
-      job.blockchainIdentifier,
-    );
-    if (purchase) {
-      job = await jobRepository.updateJobWithPurchase(job.id, purchase);
+    const purchaseResult =
+      await paymentClient.getPurchaseByBlockchainIdentifier(
+        job.blockchainIdentifier,
+      );
+    if (purchaseResult.ok) {
+      job = await jobRepository.updateJobWithPurchase(
+        job.id,
+        purchaseResult.data,
+      );
     }
   }
   const [agentJobStatus, onChainPurchase] = await Promise.all([
