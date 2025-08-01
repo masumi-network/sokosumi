@@ -11,10 +11,10 @@ import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { getAgentDescription, getAgentLegal, getAgentName } from "@/lib/db";
 import { jobRepository } from "@/lib/db/repositories";
 import {
+  agentService,
   getAgentById,
   getAgentCreditsPrice,
   getAvailableAgentById,
-  getFavoriteAgents,
 } from "@/lib/services";
 
 import Footer from "./components/footer";
@@ -67,7 +67,7 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
   }
 
   const agentCreditsPrice = await getAgentCreditsPrice(agent);
-  const favoriteAgents = await getFavoriteAgents();
+  const favoriteAgents = await agentService.getFavoriteAgents();
   const [executedJobsCount, averageExecutionDuration] = await Promise.all([
     jobRepository.getExecutedJobsCountByAgentId(agentId),
     jobRepository.getAverageExecutionDurationByAgentId(agentId),

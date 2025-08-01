@@ -11,7 +11,6 @@ import {
   agentListRepository,
   agentRepository,
   creditCostRepository,
-  mapAgentWithIsNew,
   memberRepository,
   prisma,
 } from "@/lib/db/repositories";
@@ -259,59 +258,4 @@ export async function getHiredAgentsOrderedByLatestJob(
     if (!bLatestJob) return -1;
     return bLatestJob.startedAt.getTime() - aLatestJob.startedAt.getTime();
   });
-}
-
-/**
- * Retrieves the current user's favorite agents list, filtered by access (organization membership and visibility).
- *
- * - Returns only agents the user can access.
- * - Throws an error if the user session is not found.
- *
- * @param tx - Optional Prisma transaction client.
- * @returns The user's favorite agents.
- * @throws If the user session is not found.
- */
-export async function getFavoriteAgents(
-  tx: Prisma.TransactionClient = prisma,
-): Promise<AgentWithRelations[]> {
-  return await getAgentsByListType(AgentListType.FAVORITE, tx);
-}
-
-/**
- * Retrieves or creates an agent list of the specified type for the current user, filtered by access.
- *
- * - If the list exists, filters agents by user access (organization membership and visibility).
- * - If the list does not exist, creates a new one.
- * - Throws an error if the user session is not found.
- *
- * @param type - The type of agent list to retrieve or create (e.g., FAVORITE).
- * @param tx - Optional Prisma transaction client.
- * @returns The agent list with accessible agents.
- * @throws If the user session is not found.
- */
-async function getAgentsByListType(
-  type: AgentListType,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<AgentWithRelations[]> {
-  const session = await getSessionOrThrow();
-  const existingList = await agentListRepository.getAgentListByUserId(
-    session.user.id,
-    type,
-    tx,
-  );
-  if (existingList) {
-    const { userOrganizationIds, creditCosts } =
-      await getAgentAccessContext(tx);
-    return existingList.agents
-      .map(mapAgentWithIsNew)
-      .filter((agent) =>
-        isAgentAvailable(agent, userOrganizationIds, creditCosts),
-      );
-  }
-  const list = await agentListRepository.createAgentListForUserId(
-    session.user.id,
-    type,
-    tx,
-  );
-  return list.agents.map(mapAgentWithIsNew);
 }

@@ -5,8 +5,8 @@ import { AgentsNotAvailable } from "@/components/agents";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { tagRepository } from "@/lib/db/repositories";
 import {
+  agentService,
   getAvailableAgentsWithCreditsPrice,
-  getFavoriteAgents,
 } from "@/lib/services";
 import { Tag } from "@/prisma/generated/client";
 
@@ -34,7 +34,7 @@ export default async function GalleryPage() {
   const tags: Tag[] = await tagRepository.getTags();
   const tagNames = tags.map((tag) => tag.name);
 
-  const favoriteAgents = await getFavoriteAgents();
+  const favoriteAgents = await agentService.getFavoriteAgents();
 
   return (
     <div className="w-full">

@@ -8,9 +8,9 @@ import {
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { jobRepository } from "@/lib/db/repositories";
 import {
+  agentService,
   getAgentCreditsPrice,
   getAvailableAgentById,
-  getFavoriteAgents,
 } from "@/lib/services";
 
 export default async function AgentDetailPage({
@@ -32,7 +32,7 @@ export default async function AgentDetailPage({
     return notFound();
   }
 
-  const favoriteAgents = await getFavoriteAgents();
+  const favoriteAgents = await agentService.getFavoriteAgents();
   const [executedJobsCount, averageExecutionDuration] = await Promise.all([
     jobRepository.getExecutedJobsCountByAgentId(agentId),
     jobRepository.getAverageExecutionDurationByAgentId(agentId),
