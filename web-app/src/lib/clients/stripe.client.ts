@@ -3,8 +3,6 @@ import "server-only";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
-import { userRepository } from "@/lib/db/repositories";
-import prisma from "@/lib/db/repositories/prisma";
 import { FiatTransaction, User } from "@/prisma/generated/client";
 
 const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
@@ -35,6 +33,32 @@ export interface Price {
 }
 
 export const stripeClient = {
+  async createCustomer(
+    email: string,
+    userId?: string,
+  ): Promise<Stripe.Customer> {
+    const customer = await stripe.customers.create({
+      email: email,
+      ...(userId && { metadata: { userId } }),
+    });
+    return customer;
+  },
+
+  async deleteCustomer(customerId: string): Promise<void> {
+    await stripe.customers.del(customerId);
+  },
+
+  async getCustomersByEmail(
+    email: string,
+    limit: number = 1,
+  ): Promise<Stripe.Customer[]> {
+    const customers = await stripe.customers.list({
+      email: email,
+      limit: limit,
+    });
+    return customers.data;
+  },
+
   async updateCustomerMetadata(
     customerId: string,
     userId: string,
@@ -166,86 +190,5 @@ export const stripeClient = {
       cancel_url: `${origin ?? getEnvSecrets().VERCEL_URL}/billing/cancel`,
     });
     return session;
-  },
-
-  async getOrCreateStripeCustomer(userId: string): Promise<string | null> {
-    return await prisma.$transaction(async (tx) => {
-      try {
-        let user = await userRepository.getUserById(userId, tx);
-
-        if (!user) {
-          return null;
-        }
-
-        // If user already has a Stripe customer ID, return it
-        if (user.stripeCustomerId) {
-          return user.stripeCustomerId;
-        }
-
-        // Check if a customer already exists in Stripe for this email
-        // This handles cases where a customer was created outside our system
-        const existingCustomers = await stripe.customers.list({
-          email: user.email,
-          limit: 1,
-        });
-
-        if (existingCustomers.data.length > 0) {
-          const existingCustomer = existingCustomers.data[0];
-          try {
-            // Attempt to associate the existing customer with the user
-            user = await userRepository.setUserStripeCustomerId(
-              user.id,
-              existingCustomer.id,
-              tx,
-            );
-            return user.stripeCustomerId;
-          } catch (_error) {
-            // If there's a unique constraint violation, another process may have
-            // already associated this customer. Fetch the updated user record.
-            const updatedUser = await userRepository.getUserById(userId, tx);
-            return updatedUser?.stripeCustomerId ?? null;
-          }
-        }
-
-        // Create a new Stripe customer
-        const customer = await stripe.customers.create({
-          email: user.email,
-          metadata: {
-            userId: user.id,
-          },
-        });
-
-        try {
-          // Attempt to save the customer ID to the database
-          user = await userRepository.setUserStripeCustomerId(
-            user.id,
-            customer.id,
-            tx,
-          );
-          return user.stripeCustomerId;
-        } catch (_error) {
-          // If there's a unique constraint violation, clean up the Stripe customer
-          // and return the existing customer ID from the database
-          try {
-            await stripe.customers.del(customer.id);
-          } catch (cleanupError) {
-            console.warn(
-              `Failed to cleanup duplicate Stripe customer ${customer.id}:`,
-              cleanupError,
-            );
-          }
-
-          // Fetch the updated user record to get the existing customer ID
-          const updatedUser = await userRepository.getUserById(userId, tx);
-          return updatedUser?.stripeCustomerId ?? null;
-        }
-      } catch (error) {
-        console.error(
-          `Error in getOrCreateStripeCustomer for user ${userId}:`,
-          error,
-        );
-        return null;
-      }
-    });
   },
 };

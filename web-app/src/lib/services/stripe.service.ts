@@ -88,8 +88,7 @@ export const stripeService = {
       throw new Error("User not found");
     }
 
-    const stripeCustomerId =
-      await stripeClient.getOrCreateStripeCustomer(userId);
+    const stripeCustomerId = await this.getStripeCustomer(userId);
     if (!stripeCustomerId) {
       return null;
     }
@@ -136,8 +135,7 @@ export const stripeService = {
 
     try {
       // Use the new atomic customer creation method
-      const stripeCustomerId =
-        await stripeClient.getOrCreateStripeCustomer(userId);
+      const stripeCustomerId = await this.getStripeCustomer(userId);
       if (!stripeCustomerId) {
         return null;
       }
@@ -210,5 +208,80 @@ export const stripeService = {
       throw new CouponTypeError("Coupon amount is too low");
     }
     return credits;
+  },
+
+  async getStripeCustomer(userId: string): Promise<string | null> {
+    return await prisma.$transaction(async (tx) => {
+      try {
+        let user = await userRepository.getUserById(userId, tx);
+
+        if (!user) {
+          return null;
+        }
+
+        // If user already has a Stripe customer ID, return it
+        if (user.stripeCustomerId) {
+          return user.stripeCustomerId;
+        }
+
+        // Check if a customer already exists in Stripe for this email
+        // This handles cases where a customer was created outside our system
+        const existingCustomers = await stripeClient.getCustomersByEmail(
+          user.email,
+        );
+
+        if (existingCustomers.length > 0) {
+          const existingCustomer = existingCustomers[0];
+          try {
+            // Attempt to associate the existing customer with the user
+            user = await userRepository.setUserStripeCustomerId(
+              user.id,
+              existingCustomer.id,
+              tx,
+            );
+            return user.stripeCustomerId;
+          } catch (_error) {
+            // If there's a unique constraint violation, another process may have
+            // already associated this customer. Fetch the updated user record.
+            const updatedUser = await userRepository.getUserById(userId, tx);
+            return updatedUser?.stripeCustomerId ?? null;
+          }
+        }
+
+        // Create a new Stripe customer
+        const customer = await stripeClient.createCustomer(user.email, user.id);
+
+        try {
+          // Attempt to save the customer ID to the database
+          user = await userRepository.setUserStripeCustomerId(
+            user.id,
+            customer.id,
+            tx,
+          );
+          return user.stripeCustomerId;
+        } catch (_error) {
+          // If there's a unique constraint violation, clean up the Stripe customer
+          // and return the existing customer ID from the database
+          try {
+            await stripeClient.deleteCustomer(customer.id);
+          } catch (cleanupError) {
+            console.warn(
+              `Failed to cleanup duplicate Stripe customer ${customer.id}:`,
+              cleanupError,
+            );
+          }
+
+          // Fetch the updated user record to get the existing customer ID
+          const updatedUser = await userRepository.getUserById(userId, tx);
+          return updatedUser?.stripeCustomerId ?? null;
+        }
+      } catch (error) {
+        console.error(
+          `Error in getOrCreateStripeCustomer for user ${userId}:`,
+          error,
+        );
+        return null;
+      }
+    });
   },
 };
