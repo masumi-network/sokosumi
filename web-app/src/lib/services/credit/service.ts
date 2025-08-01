@@ -4,6 +4,7 @@ import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import {
   AgentWithFixedPricing,
+  AgentWithRelations,
   convertCentsToCredits,
   convertCreditsToCents,
   CreditsPrice,
@@ -15,6 +16,11 @@ import {
 } from "@/lib/db/repositories";
 import { pricingAmountsSchema, PricingAmountsSchemaType } from "@/lib/schemas";
 import { Prisma } from "@/prisma/generated/client";
+
+export interface AgentWithCreditPrice {
+  agent: AgentWithRelations;
+  creditsPrice: Awaited<ReturnType<typeof getAgentCreditsPrice>>;
+}
 
 /**
  * Retrieves the total credit balance for a given user, expressed in credits.

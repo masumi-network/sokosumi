@@ -22,8 +22,7 @@ import {
   Prisma,
 } from "@/prisma/generated/client";
 
-import { AgentWithCreditPrice } from "./agent/service";
-import { getAgentCreditsPrice } from "./credit/service";
+import { AgentWithCreditPrice, getAgentCreditsPrice } from "./credit/service";
 
 export const agentService = {
   async getFavoriteAgents(
