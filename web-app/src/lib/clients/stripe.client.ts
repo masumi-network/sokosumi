@@ -59,7 +59,7 @@ export const stripeClient = {
     return customers.data;
   },
 
-  async updateCustomerMetadata(
+  async setUserIdForCustomer(
     customerId: string,
     userId: string,
   ): Promise<void> {

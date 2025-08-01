@@ -140,7 +140,7 @@ const handleCustomerCreatedEvent = async (customer: Stripe.Customer) => {
 
   // Update metadata for the customer (this is non-critical and shouldn't cause webhook failure)
   try {
-    await stripeClient.updateCustomerMetadata(customer.id, user.id);
+    await stripeClient.setUserIdForCustomer(customer.id, user.id);
   } catch (metadataError) {
     console.error(
       `Failed to update metadata for customer ${customer.id}:`,
