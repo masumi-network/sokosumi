@@ -3,11 +3,13 @@ import "server-only";
 import { getSession, getSessionOrThrow } from "@/lib/auth/utils";
 import {
   AgentWithFixedPricing,
+  AgentWithJobs,
   AgentWithOrganizations,
   AgentWithRelations,
 } from "@/lib/db";
 import {
   agentListRepository,
+  agentRepository,
   creditCostRepository,
   mapAgentWithIsNew,
   memberRepository,
@@ -20,6 +22,34 @@ export const agentService = {
     tx: Prisma.TransactionClient = prisma,
   ): Promise<AgentWithRelations[]> {
     return await getAgentsByListType(AgentListType.FAVORITE, tx);
+  },
+
+  /**
+   * Retrieves all agents hired by the current user, ordered by the most recent job activity (newest first).
+   *
+   * - Requires an active user session.
+   * - Agents without jobs are placed at the end of the list.
+   *
+   * @param tx - Optional Prisma transaction client.
+   * @returns Array of hired agents with their jobs, sorted by recent activity.
+   * @throws If no active session is found.
+   */
+  async getHiredAgentsOrderedByLatestJob(): Promise<AgentWithJobs[]> {
+    const session = await getSessionOrThrow();
+    const userId = session.user.id;
+    const activeOrganizationId = session.session.activeOrganizationId;
+    const hiredAgentsWithJobs =
+      await agentRepository.getHiredAgentsWithJobsByUserIdAndOrganization(
+        userId,
+        activeOrganizationId,
+      );
+    return hiredAgentsWithJobs.sort((a, b) => {
+      const aLatestJob = a.jobs[0];
+      const bLatestJob = b.jobs[0];
+      if (!aLatestJob) return 1;
+      if (!bLatestJob) return -1;
+      return bLatestJob.startedAt.getTime() - aLatestJob.startedAt.getTime();
+    });
   },
 };
 

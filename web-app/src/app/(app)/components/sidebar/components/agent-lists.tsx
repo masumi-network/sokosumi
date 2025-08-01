@@ -17,7 +17,6 @@ import {
   agentService,
   getAgentJobStatusDataListByAgentIds,
   getAvailableAgents,
-  getHiredAgentsOrderedByLatestJob,
 } from "@/lib/services";
 import { Agent } from "@/prisma/generated/client";
 
@@ -65,7 +64,7 @@ async function AgentListsContent() {
   const [favoriteAgents, hiredAgentsWithJobs, availableAgents] =
     await Promise.all([
       agentService.getFavoriteAgents(),
-      getHiredAgentsOrderedByLatestJob(),
+      agentService.getHiredAgentsOrderedByLatestJob(),
       getAvailableAgents(),
     ]);
 
