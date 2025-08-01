@@ -149,26 +149,6 @@ export async function isAgentFavorite(agentId: string): Promise<boolean> {
 }
 
 /**
- * Retrieves all online agents available to the current user with valid pricing.
- *
- * @param tx - Optional Prisma transaction client.
- * @returns Array of available agents with valid pricing.
- */
-export async function getAvailableAgents(
-  tx: Prisma.TransactionClient = prisma,
-): Promise<AgentWithRelations[]> {
-  const { userOrganizationIds, creditCosts } = await getAgentAccessContext(tx);
-  const onlineAgents =
-    await agentRepository.getShownAgentsWithRelationsByStatus(
-      AgentStatus.ONLINE,
-      tx,
-    );
-  return onlineAgents.filter((agent) =>
-    isAgentAvailable(agent, userOrganizationIds, creditCosts),
-  );
-}
-
-/**
  * Represents an agent with its calculated credit pricing information.
  */
 export interface AgentWithCreditPrice {

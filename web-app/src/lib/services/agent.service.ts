@@ -22,7 +22,7 @@ import {
   Prisma,
 } from "@/prisma/generated/client";
 
-import { AgentWithCreditPrice, getAvailableAgents } from "./agent/service";
+import { AgentWithCreditPrice } from "./agent/service";
 import { getAgentCreditsPrice } from "./credit/service";
 
 export const agentService = {
@@ -62,7 +62,7 @@ export const agentService = {
    * @returns Array of agents with their calculated credit prices.
    */
   async getAvailableAgentsWithCreditsPrice(): Promise<AgentWithCreditPrice[]> {
-    const agents = await getAvailableAgents();
+    const agents = await this.getAvailableAgents();
     const results = await Promise.allSettled(
       agents.map(async (agent) => {
         const creditsPrice = await getAgentCreditsPrice(agent);
