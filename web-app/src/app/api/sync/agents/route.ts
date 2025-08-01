@@ -1,11 +1,9 @@
 import { after, NextResponse } from "next/server";
 import pTimeout from "p-timeout";
 
-import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
-import { postRegistryEntry } from "@/lib/api/generated/registry";
-import { getRegistryClient } from "@/lib/api/registry-service.client";
 import { authenticateCronSecret } from "@/lib/auth/utils";
+import { registryClient } from "@/lib/clients/masumi-registry.client";
 import { lockRepository, prisma } from "@/lib/db/repositories";
 import { lockService } from "@/lib/services";
 import { AgentStatus, Lock, PricingType } from "@/prisma/generated/client";
@@ -81,32 +79,11 @@ const convertStatus = (
 
 async function syncAllEntries() {
   let lastIdentifier: string | undefined = undefined;
-  const limit = 20;
   const runningAgentsUpdates: Promise<void>[] = [];
   const runningTagsUpdates: Promise<void>[] = [];
-  const registryClient = getRegistryClient();
+  const limit = 20;
   while (true) {
-    const response = await postRegistryEntry({
-      client: registryClient,
-      body: {
-        network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
-        limit,
-        cursorId: lastIdentifier,
-        filter: {
-          status: ["Online", "Offline", "Deregistered", "Invalid"],
-        },
-      },
-    });
-    if (
-      !response.data ||
-      response.error ||
-      !response.data.data ||
-      response.response.status !== 200
-    ) {
-      console.error("Error in sync operation:", response.error);
-      break;
-    }
-    const entries = response.data.data.entries;
+    const entries = await registryClient.getAgents(lastIdentifier, limit);
 
     // add all tags to the database
     const tags = Array.from(
@@ -206,11 +183,8 @@ async function syncAllEntries() {
       break;
     }
 
-    const lastElement =
-      response.data.data.entries[response.data.data.entries.length - 1];
-
-    //TODO: figure out why the automatic type inference breaks here if not explicitly casted
-    lastIdentifier = lastElement.id as string;
+    const lastElement = entries.at(-1);
+    lastIdentifier = lastElement?.id;
   }
   await Promise.all(runningAgentsUpdates);
 }
