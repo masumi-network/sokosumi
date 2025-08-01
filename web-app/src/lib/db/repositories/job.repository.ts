@@ -96,6 +96,7 @@ export const jobRepository = {
     FROM "Job"
     WHERE "agentId" = ${agentId}
     AND "completedAt" IS NOT NULL
+    AND "createdAt" >= NOW() - INTERVAL '30 days'
   `;
 
     const averageDurationSeconds = result[0]?.avg_duration_seconds ?? 0;
