@@ -64,6 +64,21 @@ export const stripeClient = {
     return promotionCodes.data[0];
   },
 
+  async createPromotionCode(
+    customerId: string,
+    couponId: string,
+    maxRedemptions: number = 1,
+    metadata?: Record<string, string>,
+  ): Promise<Stripe.PromotionCode | null> {
+    const promotionCode = await stripe.promotionCodes.create({
+      customer: customerId,
+      coupon: couponId,
+      max_redemptions: maxRedemptions,
+      metadata,
+    });
+    return promotionCode;
+  },
+
   async getOrCreatePromotionCode(
     userId: string,
     couponId: string,
