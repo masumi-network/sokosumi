@@ -79,49 +79,6 @@ export const stripeClient = {
     return promotionCode;
   },
 
-  async getOrCreatePromotionCode(
-    userId: string,
-    couponId: string,
-    maxRedemptions: number = 1,
-    metadata?: Record<string, string>,
-  ): Promise<Stripe.PromotionCode | null> {
-    try {
-      // Use the new atomic customer creation method
-      const stripeCustomerId =
-        await stripeClient.getOrCreateStripeCustomer(userId);
-      if (!stripeCustomerId) {
-        return null;
-      }
-
-      // Check for existing promotion codes
-      const promotionCodes = await stripe.promotionCodes.list({
-        coupon: couponId,
-        customer: stripeCustomerId,
-        limit: 1,
-      });
-
-      if (promotionCodes.data.length > 0) {
-        return promotionCodes.data[0];
-      }
-
-      // Create new promotion code
-      const promotionCode = await stripe.promotionCodes.create({
-        customer: stripeCustomerId,
-        coupon: couponId,
-        max_redemptions: maxRedemptions,
-        metadata,
-      });
-
-      return promotionCode;
-    } catch (error) {
-      console.error(
-        `Error in getOrCreatePromotionCode for user ${userId}:`,
-        error,
-      );
-      return null;
-    }
-  },
-
   async getCouponByPromotionCode(code: string): Promise<Stripe.Coupon | null> {
     try {
       const promotionCode = await stripe.promotionCodes.retrieve(code);

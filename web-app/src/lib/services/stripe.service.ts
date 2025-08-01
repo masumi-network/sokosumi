@@ -129,12 +129,46 @@ export const stripeService = {
       throw new Error("User not found");
     }
 
-    return await stripeClient.getOrCreatePromotionCode(
-      user.id,
-      couponId,
-      maxRedemptions,
-      metadata,
-    );
+    try {
+      // Use the new atomic customer creation method
+      const stripeCustomerId =
+        await stripeClient.getOrCreateStripeCustomer(userId);
+      if (!stripeCustomerId) {
+        return null;
+      }
+
+      // Check for existing promotion codes
+      let promotionCode = await stripeClient.getPromotionCode(
+        stripeCustomerId,
+        couponId,
+      );
+      if (promotionCode) {
+        return promotionCode;
+      }
+
+      // Create new promotion code
+      promotionCode = await stripeClient.createPromotionCode(
+        stripeCustomerId,
+        couponId,
+        maxRedemptions,
+        metadata,
+      );
+
+      return promotionCode;
+    } catch (error) {
+      console.error(
+        `Error in getOrCreatePromotionCode for user ${userId}:`,
+        error,
+      );
+      return null;
+    }
+
+    // return await stripeClient.getOrCreatePromotionCode(
+    //   user.id,
+    //   couponId,
+    //   maxRedemptions,
+    //   metadata,
+    // );
   },
 
   async getCreditsForPromotionCode(
