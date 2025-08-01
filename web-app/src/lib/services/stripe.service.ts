@@ -1,5 +1,6 @@
 import "server-only";
 
+import { headers } from "next/headers";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -26,7 +27,7 @@ export const stripeService = {
     credits: number,
     price: Price,
     promotionCode: string | null = null,
-  ): Promise<{ stripeSessionId: string; url: string }> {
+  ): Promise<{ url: string }> {
     const isVerified = await verifyUserId(userId);
     if (!isVerified) {
       throw new UnAuthenticatedError("User not authorized");
@@ -45,19 +46,23 @@ export const stripeService = {
             price.currency,
             tx,
           );
-        const { id: stripeSessionId, url } =
-          await stripeClient.createCheckoutSession(
-            user,
-            fiatTransaction,
-            price,
-            promotionCode,
-          );
+        const headerList = await headers();
+        const checkoutSession = await stripeClient.createCheckoutSession(
+          user,
+          fiatTransaction,
+          price,
+          headerList.get("origin"),
+          promotionCode,
+        );
         await fiatTransactionRepository.updateFiatTransaction(
           fiatTransaction.id,
-          { servicePaymentId: stripeSessionId },
+          { servicePaymentId: checkoutSession.id },
           tx,
         );
-        return { stripeSessionId, url };
+        if (!checkoutSession.url) {
+          throw new Error("Failed to create checkout session");
+        }
+        return { url: checkoutSession.url };
       } catch (error) {
         console.log("Error creating stripe checkout session", error);
         throw error;

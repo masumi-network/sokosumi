@@ -1,6 +1,5 @@
 import "server-only";
 
-import { headers } from "next/headers";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -136,13 +135,9 @@ export const stripeClient = {
     user: User,
     fiatTransaction: FiatTransaction,
     price: Price,
+    origin: string | null = null,
     promotionCode: string | null = null,
-  ): Promise<{
-    id: string;
-    url: string;
-  }> {
-    const headerList = await headers();
-    const origin = headerList.get("origin");
+  ): Promise<Stripe.Checkout.Session> {
     // Prevent division by zero for price.unit_amount
     if (price.amountPerCredit === 0) {
       throw new Error(
@@ -167,13 +162,10 @@ export const stripeClient = {
         ? { customer: user.stripeCustomerId }
         : { customer_email: user.email, customer_creation: "always" }),
       billing_address_collection: "required",
-      success_url: `${origin}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/billing/cancel`,
+      success_url: `${origin ?? getEnvSecrets().VERCEL_URL}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${origin ?? getEnvSecrets().VERCEL_URL}/billing/cancel`,
     });
-    if (!session.url) {
-      throw new Error("Stripe session URL is null");
-    }
-    return { id: session.id, url: session.url };
+    return session;
   },
 
   async getOrCreateStripeCustomer(userId: string): Promise<string | null> {
