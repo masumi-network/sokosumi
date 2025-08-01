@@ -216,27 +216,28 @@ async function getAgentAccessContext(
 
 async function getAgentsByListType(
   type: AgentListType,
-  tx: Prisma.TransactionClient = prisma,
 ): Promise<AgentWithRelations[]> {
   const session = await getSessionOrThrow();
-  const existingList = await agentListRepository.getAgentListByUserId(
-    session.user.id,
-    type,
-    tx,
-  );
-  if (existingList) {
-    const { userOrganizationIds, creditCosts } =
-      await getAgentAccessContext(tx);
-    return existingList.agents
-      .map(mapAgentWithIsNew)
-      .filter((agent) =>
-        isAgentAvailable(agent, userOrganizationIds, creditCosts),
-      );
-  }
-  const list = await agentListRepository.createAgentListForUserId(
-    session.user.id,
-    type,
-    tx,
-  );
-  return list.agents.map(mapAgentWithIsNew);
+  return await prisma.$transaction(async (tx) => {
+    const existingList = await agentListRepository.getAgentListByUserId(
+      session.user.id,
+      type,
+      tx,
+    );
+    if (existingList) {
+      const { userOrganizationIds, creditCosts } =
+        await getAgentAccessContext(tx);
+      return existingList.agents
+        .map(mapAgentWithIsNew)
+        .filter((agent) =>
+          isAgentAvailable(agent, userOrganizationIds, creditCosts),
+        );
+    }
+    const list = await agentListRepository.createAgentListForUserId(
+      session.user.id,
+      type,
+      tx,
+    );
+    return list.agents.map(mapAgentWithIsNew);
+  });
 }
