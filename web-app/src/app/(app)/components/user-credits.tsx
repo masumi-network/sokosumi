@@ -7,7 +7,7 @@ import {
   getActiveOrganization,
   getOrganizationCredits,
   getUserCredits,
-  getWelcomePromotionCode,
+  stripeService,
 } from "@/lib/services";
 import { userService } from "@/lib/services/user.service";
 
@@ -45,7 +45,7 @@ export default async function UserCredits() {
     creditLabel = t("userBalance", { credits: credits });
   }
 
-  const promotionCode = await getWelcomePromotionCode(user.id);
+  const promotionCode = await stripeService.getWelcomePromotionCode(user.id);
 
   return (
     <div className="flex items-center gap-4">
