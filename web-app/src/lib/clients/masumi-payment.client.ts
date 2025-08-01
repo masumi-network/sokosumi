@@ -125,7 +125,7 @@ export const paymentClient = {
       });
 
       if (response.error || !response.data) {
-        console.log("Failed to create purchase request", response.error);
+        console.error("Failed to create purchase request", response.error);
         return Err("Failed to create purchase request");
       }
 
