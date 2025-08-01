@@ -13,7 +13,7 @@ function AgentDetailSection2({
 }) {
   const t = useTranslations("Components.Agents.AgentDetail.Section2");
   const formatter = useFormatter();
-  const tDuration = useTranslations("Library.Duration");
+  const tDuration = useTranslations("Library.Duration.Long");
 
   const formattedDuration = formatDuration(averageExecutionDuration, tDuration);
 

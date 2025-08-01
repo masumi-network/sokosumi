@@ -41,6 +41,7 @@ export default async function AgentDetailPage({
   return (
     <CreateJobModalContextProvider
       agentsWithPrice={[{ agent, creditsPrice: agentCreditsPrice }]}
+      averageExecutionDuration={averageExecutionDuration}
     >
       <div className="mx-auto flex justify-center px-4 py-8">
         <AgentDetail
