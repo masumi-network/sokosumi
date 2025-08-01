@@ -12,10 +12,8 @@ import {
   CreditsPrice,
   finalizedOnChainJobStatuses,
   jobInclude,
-  jobLimitedInclude,
   jobOrderBy,
   JobStatus,
-  JobWithLimitedInformation,
   JobWithStatus,
 } from "@/lib/db/types";
 import { JobInputSchemaType } from "@/lib/job-input";
@@ -84,21 +82,41 @@ export const jobRepository = {
   },
 
   /**
-   * Retrieves all jobs associated with a specific agent
+   * Retrieves the average execution duration in milliseconds for a specific agent
    * @param agentId - The unique identifier of the agent
-   * @returns Promise containing an array of jobs with their relations
+   * @returns Promise containing the average execution duration in seconds
    */
-  async getJobsWithLimitedInformationByAgentId(
+  async getAverageExecutionDurationByAgentId(
     agentId: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<JobWithLimitedInformation[]> {
-    const jobs = await tx.job.findMany({
-      where: { agentId },
-      select: jobLimitedInclude,
-      orderBy: jobOrderBy,
-    });
+  ): Promise<number> {
+    const result = await tx.$queryRaw<[{ avg_duration_seconds: number }]>`
+    SELECT 
+      AVG(EXTRACT(EPOCH FROM ("completedAt" - "startedAt"))) as avg_duration_seconds
+    FROM "Job"
+    WHERE "agentId" = ${agentId}
+    AND "completedAt" IS NOT NULL
+  `;
 
-    return jobs;
+    const averageDurationSeconds = result[0]?.avg_duration_seconds ?? 0;
+    return averageDurationSeconds * 1000;
+  },
+
+  /**
+   * Retrieves the number of executed jobs for a specific agent
+   * @param agentId - The unique identifier of the agent
+   * @returns Promise containing the number of executed jobs
+   */
+  async getExecutedJobsCountByAgentId(
+    agentId: string,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<number> {
+    const result = await tx.job.count({
+      where: {
+        agentId,
+      },
+    });
+    return result;
   },
 
   /**

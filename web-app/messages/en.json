@@ -78,7 +78,7 @@
         },
         "Section2": {
           "executedJobs": "Executed Jobs",
-          "unknownExecutedJobs": "Unknown"
+          "averageExecutionTime": "Average Execution Time"
         },
         "Section3": {
           "description": "Description",
@@ -1217,6 +1217,20 @@
       },
       "Error": {
         "failedToFetchJobInputSchema": "Failed to fetch Job Input Schema"
+      }
+    },
+    "Duration": {
+      "Long": {
+        "days": "{value, plural, =1 {day} other {days}}",
+        "hours": "{value, plural, =1 {hour} other {hours}}",
+        "minutes": "{value, plural, =1 {minute} other {minutes}}",
+        "seconds": "{value, plural, =1 {second} other {seconds}}"
+      },
+      "Short": {
+        "days": "{value, plural, =1 {day} other {days}}",
+        "hours": "{value, plural, =1 {hr} other {hr}}",
+        "minutes": "{value, plural, =1 {min} other {min}}",
+        "seconds": "{value, plural, =1 {sec} other {sec}}"
       }
     }
   }

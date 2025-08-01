@@ -12,6 +12,7 @@ import JobInputsFormClient from "./job-inputs-form.client";
 interface JobInputsFormProps {
   agentId: string;
   agentCreditsPrice: CreditsPrice;
+  averageExecutionDuration: number;
   legal?: AgentLegal | null | undefined;
   className?: string | undefined;
 }
@@ -23,6 +24,7 @@ interface JobInputsFormInnerProps extends JobInputsFormProps {
 export default function JobInputsForm({
   agentId,
   agentCreditsPrice,
+  averageExecutionDuration,
   legal,
   className,
 }: JobInputsFormProps) {
@@ -40,6 +42,7 @@ export default function JobInputsForm({
     <JobInputsFormInner
       agentId={agentId}
       agentCreditsPrice={agentCreditsPrice}
+      averageExecutionDuration={averageExecutionDuration}
       inputSchema={inputSchema}
       legal={legal}
       className={className}
@@ -50,6 +53,7 @@ export default function JobInputsForm({
 function JobInputsFormInner({
   agentId,
   agentCreditsPrice,
+  averageExecutionDuration,
   inputSchema,
   legal,
   className,
@@ -58,6 +62,7 @@ function JobInputsFormInner({
     <JobInputsFormClient
       agentId={agentId}
       agentCreditsPrice={agentCreditsPrice}
+      averageExecutionDuration={averageExecutionDuration}
       jobInputsDataSchema={inputSchema}
       legal={legal}
       className={className}

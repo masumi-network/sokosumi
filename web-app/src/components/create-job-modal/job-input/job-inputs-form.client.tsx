@@ -26,7 +26,7 @@ import {
   jobInputsFormSchema,
   JobInputsFormSchemaType,
 } from "@/lib/job-input";
-import { cn, getOSFromUserAgent } from "@/lib/utils";
+import { cn, formatDuration, getOSFromUserAgent } from "@/lib/utils";
 
 import JobInput from "./job-input";
 
@@ -42,6 +42,7 @@ function filterOutNullValues(values: JobInputsFormSchemaType): JobInputData {
 interface JobInputsFormClientProps {
   agentId: string;
   agentCreditsPrice: CreditsPrice;
+  averageExecutionDuration: number;
   jobInputsDataSchema: JobInputsDataSchemaType;
   legal?: AgentLegal | null | undefined;
   className?: string | undefined;
@@ -50,12 +51,15 @@ interface JobInputsFormClientProps {
 export default function JobInputsFormClient({
   agentId,
   agentCreditsPrice,
+  averageExecutionDuration,
   jobInputsDataSchema,
   legal,
   className,
 }: JobInputsFormClientProps) {
   const { input_data } = jobInputsDataSchema;
   const t = useTranslations("Library.JobInput.Form");
+  const tDuration = useTranslations("Library.Duration.Short");
+
   const form = useForm<JobInputsFormSchemaType>({
     resolver: zodResolver(jobInputsFormSchema(input_data, t)),
     defaultValues: defaultValues(input_data),
@@ -122,6 +126,8 @@ export default function JobInputsFormClient({
     form.reset();
   };
 
+  const formattedDuration = formatDuration(averageExecutionDuration, tDuration);
+
   return (
     <Form {...form}>
       <form
@@ -159,7 +165,7 @@ export default function JobInputsFormClient({
                     form.formState.isSubmitting ||
                     !form.formState.isValid
                   }
-                  className="items-center justify-between gap-2"
+                  className="items-center justify-between gap-1"
                 >
                   <div className="flex items-center gap-1">
                     {(loading || form.formState.isSubmitting) && (
@@ -167,6 +173,9 @@ export default function JobInputsFormClient({
                     )}
                     {t("submit")}
                   </div>
+                  {averageExecutionDuration > 0 && (
+                    <span>{`(~${formattedDuration})`}</span>
+                  )}
                   {!isMobile && (
                     <div className="flex items-center gap-1">
                       {os === "MacOS" ? <Command /> : t("ctrl")}

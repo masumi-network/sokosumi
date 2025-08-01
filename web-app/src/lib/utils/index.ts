@@ -87,6 +87,7 @@ export const createHash = (input: string) => {
 };
 
 export * from "./domain";
+export * from "./duration";
 export * from "./email";
 export * from "./usdm-unit";
 export * from "./user-agent";

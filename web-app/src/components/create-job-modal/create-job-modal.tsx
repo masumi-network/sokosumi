@@ -14,7 +14,8 @@ import { useCreateJobModalContext } from "./create-job-modal-context";
 import CreateJobSection from "./create-job-section";
 
 export default function CreateJobModal() {
-  const { open, setOpen, loading, agentWithPrice } = useCreateJobModalContext();
+  const { open, setOpen, loading, agentWithPrice, averageExecutionDuration } =
+    useCreateJobModalContext();
 
   const handleOnOpenChange = (open: boolean) => {
     if (loading) {
@@ -35,6 +36,7 @@ export default function CreateJobModal() {
               <CreateJobSection
                 agent={agentWithPrice.agent}
                 agentCreditsPrice={agentWithPrice.creditsPrice}
+                averageExecutionDuration={averageExecutionDuration}
               />
             )}
           </ScrollArea>

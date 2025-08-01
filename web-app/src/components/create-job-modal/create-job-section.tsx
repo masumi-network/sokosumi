@@ -22,11 +22,13 @@ import { JobInputsForm } from "./job-input";
 interface CreateJobSectionProps {
   agent: AgentWithRelations;
   agentCreditsPrice: CreditsPrice;
+  averageExecutionDuration: number;
 }
 
 export default function CreateJobSection({
   agent,
   agentCreditsPrice,
+  averageExecutionDuration,
 }: CreateJobSectionProps) {
   const { accordionValue, setAccordionValue, loading } =
     useCreateJobModalContext();
@@ -49,6 +51,7 @@ export default function CreateJobSection({
           agent={agent}
           agentCreditsPrice={agentCreditsPrice}
           disabled={loading}
+          averageExecutionDuration={averageExecutionDuration}
         />
       </Accordion>
     </div>
@@ -96,10 +99,12 @@ function InputAccordionItem({
   agent,
   agentCreditsPrice,
   disabled,
+  averageExecutionDuration,
 }: {
   agent: AgentWithRelations;
   agentCreditsPrice: CreditsPrice;
   disabled?: boolean | undefined;
+  averageExecutionDuration: number;
 }) {
   const t = useTranslations("App.Agents.Jobs.CreateJob.Input");
 
@@ -111,6 +116,7 @@ function InputAccordionItem({
           agentId={agent.id}
           agentCreditsPrice={agentCreditsPrice}
           legal={getAgentLegal(agent)}
+          averageExecutionDuration={averageExecutionDuration}
         />
       </div>
     </AccordionItemWrapper>

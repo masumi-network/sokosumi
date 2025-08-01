@@ -606,53 +606,6 @@ async function validateOrganizationCreditsBalance(
   }
 }
 
-/**
- * Requests a refund for a job if certain conditions are met:
- * 1. If the current time is within 1 hour before the unlock time
- * 2. If the job result was submitted more than 10 minutes ago
- *
- * This function helps ensure timely refunds for jobs that are either
- * approaching their unlock deadline or have had results submitted
- * but may not be processing correctly.
- *
- * @param job - The job to potentially request a refund for
- */
-async function requestRefundIfNeeded(job: Job) {
-  let shouldRequestRefund = false;
-  const currentTime = new Date();
-
-  // Check if we're within 1 hour of unlock time
-  const oneHourBeforeUnlock = new Date(
-    job.unlockTime.getTime() - 60 * 60 * 1000, // 1 hour before unlock
-  );
-
-  if (currentTime >= oneHourBeforeUnlock) {
-    shouldRequestRefund = true;
-  }
-
-  // Check if result was submitted more than 10 minutes ago
-  const resultSubmittedAt = job.resultSubmittedAt;
-  if (
-    resultSubmittedAt &&
-    currentTime.getTime() - resultSubmittedAt.getTime() > 10 * 60 * 1000 // 10 minutes
-  ) {
-    shouldRequestRefund = true;
-  }
-
-  // Only make one refund request if either condition is met
-  if (shouldRequestRefund) {
-    const refundResult = await postPaymentClientRequestRefund(
-      job.blockchainIdentifier,
-    );
-    if (!refundResult.ok) {
-      console.error(
-        `Failed to request refund for job ${job.id}:`,
-        refundResult.error,
-      );
-    }
-  }
-}
-
 function shouldSyncAgentStatus(job: Job): boolean {
   if (job.refundedCreditTransactionId) {
     return false;
@@ -715,9 +668,6 @@ export async function syncJob(job: Job) {
         case JobStatus.PAYMENT_FAILED:
         case JobStatus.REFUND_RESOLVED:
           await jobRepository.refundJob(job.id, tx);
-          break;
-        case JobStatus.OUTPUT_PENDING:
-          await requestRefundIfNeeded(job);
           break;
         default:
           break;
