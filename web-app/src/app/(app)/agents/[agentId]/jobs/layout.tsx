@@ -10,11 +10,7 @@ import DefaultLoading from "@/components/default-loading";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { getAgentDescription, getAgentLegal, getAgentName } from "@/lib/db";
 import { agentRepository, jobRepository } from "@/lib/db/repositories";
-import {
-  agentService,
-  getAgentCreditsPrice,
-  getAvailableAgentById,
-} from "@/lib/services";
+import { agentService, getAgentCreditsPrice } from "@/lib/services";
 
 import Footer from "./components/footer";
 import Header, { HeaderSkeleton } from "./components/header";
@@ -71,7 +67,7 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
     jobRepository.getExecutedJobsCountByAgentId(agentId),
     jobRepository.getAverageExecutionDurationByAgentId(agentId),
   ]);
-  const availableAgent = await getAvailableAgentById(agentId);
+  const availableAgent = await agentService.getAvailableAgentById(agentId);
 
   return (
     <CreateJobModalContextProvider

@@ -29,7 +29,7 @@ import {
   PricingAmountsSchemaType,
   StartJobInputSchemaType,
 } from "@/lib/schemas";
-import { getAvailableAgentById } from "@/lib/services";
+import { agentService } from "@/lib/services";
 import { getInputHash, getInputHashDeprecated } from "@/lib/utils";
 import {
   AgentJobStatus,
@@ -172,7 +172,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
             data: { agentId },
           });
 
-          const agent = await getAvailableAgentById(agentId, tx);
+          const agent = await agentService.getAvailableAgentById(agentId, tx);
           if (!agent) {
             Sentry.setTag("error_type", "agent_not_found");
             Sentry.setContext("agent_validation", {

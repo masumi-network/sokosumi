@@ -54,6 +54,31 @@ export const agentService = {
   },
 
   /**
+   * Retrieves an available agent by ID, validating access control for the current user.
+   *
+   * - Returns null if the agent doesn't exist, is not shown, or the user lacks access.
+   * - Returns the agent if accessible.
+   *
+   * @param agentId - Unique agent identifier.
+   * @returns The agent with all relations if accessible, null otherwise.
+   */
+  async getAvailableAgentById(
+    agentId: string,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<AgentWithRelations | null> {
+    const agent = await agentRepository.getShownAgentWithRelationById(
+      agentId,
+      AgentStatus.ONLINE,
+      tx,
+    );
+    if (!agent) return null;
+    const { userOrganizationIds, creditCosts } =
+      await getAgentAccessContext(tx);
+    if (!isAgentAvailable(agent, userOrganizationIds, creditCosts)) return null;
+    return agent;
+  },
+
+  /**
    * Retrieves all online agents available to the user, each with its calculated credit price.
    *
    * - Excludes agents for which credit price calculation fails.
