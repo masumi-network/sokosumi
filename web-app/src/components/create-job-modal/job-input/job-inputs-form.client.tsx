@@ -165,7 +165,7 @@ export default function JobInputsFormClient({
                     form.formState.isSubmitting ||
                     !form.formState.isValid
                   }
-                  className="items-center justify-between gap-2"
+                  className="items-center justify-between gap-1"
                 >
                   <div className="flex items-center gap-1">
                     {(loading || form.formState.isSubmitting) && (
