@@ -38,11 +38,7 @@ import {
 } from "@/prisma/generated/client";
 import { getCreditsPrice } from "@/services/credit";
 
-import {
-  createPurchase,
-  getPaymentClientPurchase,
-  postPaymentClientRequestRefund,
-} from "./third-party";
+import { createPurchase, getPaymentClientPurchase } from "./third-party";
 
 function getMatchedInputHash(
   inputData: JobInputData,
@@ -623,9 +619,7 @@ function shouldSyncMasumiStatus(job: Job): boolean {
 export async function syncJob(job: Job) {
   const oldJobStatus = computeJobStatus(job);
   if (!job.purchaseId) {
-    const purchase = await paymentClient.getPurchaseForBlockchainIdentifier(
-      job.blockchainIdentifier,
-    );
+    const purchase = await paymentClient.getPurchase(job.blockchainIdentifier);
     if (purchase) {
       job = await jobRepository.updateJobWithPurchase(job.id, purchase);
     }
@@ -766,7 +760,7 @@ export async function requestRefundJob(
         },
       });
 
-      const refundResult = await postPaymentClientRequestRefund(
+      const refundResult = await paymentClient.requestRefund(
         jobBlockchainIdentifier,
       );
       if (!refundResult.ok) {

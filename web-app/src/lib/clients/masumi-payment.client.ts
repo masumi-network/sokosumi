@@ -2,8 +2,12 @@ import "server-only";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
-import { postPurchaseResolveBlockchainIdentifier } from "@/lib/api/generated/payment";
+import {
+  postPurchaseRequestRefund,
+  postPurchaseResolveBlockchainIdentifier,
+} from "@/lib/api/generated/payment";
 import { createClient } from "@/lib/api/generated/payment/client";
+import { Err, Ok, Result } from "@/lib/ts-res";
 
 const client = () => {
   const paymentClient = createClient({
@@ -16,9 +20,7 @@ const client = () => {
 };
 
 export const paymentClient = {
-  async getPurchaseForBlockchainIdentifier(
-    blockchainIdentifier: string,
-  ): Promise<Purchase | null> {
+  async getPurchase(blockchainIdentifier: string): Promise<Purchase | null> {
     try {
       const purchaseResponse = await postPurchaseResolveBlockchainIdentifier({
         client: client(),
@@ -33,6 +35,28 @@ export const paymentClient = {
       return purchaseResponse.data.data;
     } catch {
       return null;
+    }
+  },
+
+  async requestRefund(
+    jobBlockchainIdentifier: string,
+  ): Promise<Result<void, string>> {
+    try {
+      const refundResponse = await postPurchaseRequestRefund({
+        client: client(),
+        body: {
+          blockchainIdentifier: jobBlockchainIdentifier,
+          network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
+        },
+      });
+
+      if (refundResponse.error || !refundResponse.data) {
+        return Err("Failed to request refund");
+      }
+
+      return Ok();
+    } catch (err) {
+      return Err(String(err));
     }
   },
 };
