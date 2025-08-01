@@ -17,17 +17,10 @@ import {
   JobWithStatus,
 } from "@/lib/db";
 import {
-  createJob,
+  agentRepository,
   creditTransactionRepository,
+  jobRepository,
   prisma,
-  refundJob,
-  retrieveAgentWithRelationsById,
-  retrieveJobsByAgentIdUserIdAndOrganizationId,
-  retrieveLatestJobByAgentIdUserIdAndOrganization,
-  retrievePersonalJobsByAgentIdAndUserId,
-  updateJobNextActionByBlockchainIdentifier,
-  updateJobWithAgentJobStatus,
-  updateJobWithPurchase,
 } from "@/lib/db/repositories";
 import { generateJobName } from "@/lib/generateJobName";
 import { JobInputData } from "@/lib/job-input";
@@ -86,7 +79,7 @@ export async function getMyJobsByAgentId(
 
   if (activeOrganizationId) {
     // Show jobs for the specific organization
-    return await retrieveJobsByAgentIdUserIdAndOrganizationId(
+    return await jobRepository.getJobsByAgentIdUserIdAndOrganizationId(
       agentId,
       userId,
       activeOrganizationId,
@@ -94,7 +87,11 @@ export async function getMyJobsByAgentId(
     );
   } else {
     // Show personal jobs only (without organization context)
-    return await retrievePersonalJobsByAgentIdAndUserId(agentId, userId, tx);
+    return await jobRepository.getPersonalJobsByAgentIdAndUserId(
+      agentId,
+      userId,
+      tx,
+    );
   }
 }
 
@@ -458,7 +455,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
         },
       });
 
-      const job = await createJob({
+      const job = await jobRepository.createJob({
         agentJobId: startJobResponse.job_id,
         agentId,
         userId,
@@ -499,7 +496,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
       );
       if (createPurchaseResult.ok) {
         const purchase = createPurchaseResult.data.data as Purchase;
-        await updateJobWithPurchase(job.id, purchase);
+        await jobRepository.updateJobWithPurchase(job.id, purchase);
 
         // Add breadcrumb for successful purchase creation
         Sentry.addBreadcrumb({
@@ -697,7 +694,7 @@ export async function syncJob(job: Job) {
   if (!job.purchaseId) {
     const purchase = await resolvePurchaseOfJob(job);
     if (purchase) {
-      job = await updateJobWithPurchase(job.id, purchase);
+      job = await jobRepository.updateJobWithPurchase(job.id, purchase);
     }
   }
   const [agentJobStatus, onChainPurchase] = await Promise.all([
@@ -717,7 +714,7 @@ export async function syncJob(job: Job) {
       switch (jobStatus) {
         case JobStatus.PAYMENT_FAILED:
         case JobStatus.REFUND_RESOLVED:
-          await refundJob(job.id, tx);
+          await jobRepository.refundJob(job.id, tx);
           break;
         case JobStatus.OUTPUT_PENDING:
           await requestRefundIfNeeded(job);
@@ -753,7 +750,7 @@ async function syncRegistryStatus(
   tx: Prisma.TransactionClient,
 ): Promise<Job> {
   try {
-    return await updateJobWithPurchase(job.id, purchase, tx);
+    return await jobRepository.updateJobWithPurchase(job.id, purchase, tx);
   } catch {
     console.log("Error syncing registry status: ", job.id);
     return job;
@@ -766,7 +763,11 @@ async function syncAgentJobStatus(
   tx: Prisma.TransactionClient,
 ): Promise<Job> {
   try {
-    return await updateJobWithAgentJobStatus(job, jobStatusResponse, tx);
+    return await jobRepository.updateJobWithAgentJobStatus(
+      job,
+      jobStatusResponse,
+      tx,
+    );
   } catch {
     console.log("Error syncing agent job status: ", job.id);
     return job;
@@ -790,7 +791,10 @@ export async function getAgentJobStatus(
   job: Job,
   tx: Prisma.TransactionClient = prisma,
 ): Promise<JobStatusResponse | null> {
-  const agent = await retrieveAgentWithRelationsById(job.agentId, tx);
+  const agent = await agentRepository.getAgentWithRelationsById(
+    job.agentId,
+    tx,
+  );
   if (!agent) {
     return null;
   }
@@ -849,7 +853,7 @@ export async function requestRefundJob(
         );
       }
 
-      const job = await updateJobNextActionByBlockchainIdentifier(
+      const job = await jobRepository.updateJobNextActionByBlockchainIdentifier(
         jobBlockchainIdentifier,
         NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
       );
@@ -886,12 +890,13 @@ export async function getAgentJobStatusDataListByAgentIds(
 
   return await Promise.all(
     agentIds.map(async (agentId) => {
-      const latestJob = await retrieveLatestJobByAgentIdUserIdAndOrganization(
-        agentId,
-        userId,
-        activeOrganizationId,
-        tx,
-      );
+      const latestJob =
+        await jobRepository.getLatestJobByAgentIdUserIdAndOrganization(
+          agentId,
+          userId,
+          activeOrganizationId,
+          tx,
+        );
       if (!latestJob) {
         return null;
       }

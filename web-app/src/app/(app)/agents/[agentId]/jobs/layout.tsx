@@ -9,7 +9,7 @@ import {
 import DefaultLoading from "@/components/default-loading";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { getAgentDescription, getAgentLegal, getAgentName } from "@/lib/db";
-import { retrieveJobsWithLimitedInformationByAgentId } from "@/lib/db/repositories";
+import { jobRepository } from "@/lib/db/repositories";
 import {
   getAgentById,
   getAgentCreditsPrice,
@@ -68,7 +68,8 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
 
   const agentCreditsPrice = await getAgentCreditsPrice(agent);
   const favoriteAgents = await getFavoriteAgents();
-  const jobs = await retrieveJobsWithLimitedInformationByAgentId(agentId);
+  const jobs =
+    await jobRepository.getJobsWithLimitedInformationByAgentId(agentId);
   const availableAgent = await getAvailableAgentById(agentId);
 
   return (
