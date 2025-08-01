@@ -17,7 +17,6 @@ import {
   convertCentsToCredits,
   CreditsPrice,
   getAgentName,
-  JobWithLimitedInformation,
 } from "@/lib/db";
 
 export function HeaderSkeleton() {
@@ -48,17 +47,19 @@ export function HeaderSkeleton() {
 interface HeaderProps {
   agent: AgentWithRelations;
   agentCreditsPrice: CreditsPrice;
+  executedJobsCount: number;
+  averageExecutionDuration: number;
   favoriteAgents: AgentWithRelations[];
-  jobs: JobWithLimitedInformation[];
   disabled?: boolean;
 }
 
 export default function Header({
   agent,
-  disabled,
   agentCreditsPrice,
+  executedJobsCount,
+  averageExecutionDuration,
   favoriteAgents,
-  jobs,
+  disabled,
 }: HeaderProps) {
   const t = useTranslations("App.Agents.Jobs.Header");
   const [detailOpen, setDetailOpen] = useState(false);
@@ -107,8 +108,9 @@ export default function Header({
         <AgentDetail
           agent={agent}
           agentCreditsPrice={agentCreditsPrice}
+          executedJobsCount={executedJobsCount}
+          averageExecutionDuration={averageExecutionDuration}
           favoriteAgents={favoriteAgents}
-          jobs={jobs}
           showBackButton={false}
           showCloseButton
           onClose={handleDetailClose}

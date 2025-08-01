@@ -3,7 +3,6 @@ import {
   CreditsPrice,
   getAgentExampleOutput,
   getAgentLegal,
-  JobWithLimitedInformation,
 } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
@@ -18,7 +17,8 @@ import { AgentDetailSection6, AgentDetailSection6Skeleton } from "./section-6";
 interface AgentDetailProps {
   agent: AgentWithRelations;
   agentCreditsPrice: CreditsPrice;
-  jobs: JobWithLimitedInformation[];
+  executedJobsCount: number;
+  averageExecutionDuration: number;
   favoriteAgents?: AgentWithRelations[] | undefined;
   showBackButton?: boolean | undefined;
   showCloseButton?: boolean | undefined;
@@ -30,7 +30,8 @@ interface AgentDetailProps {
 export function AgentDetail({
   agent,
   agentCreditsPrice,
-  jobs,
+  executedJobsCount,
+  averageExecutionDuration,
   favoriteAgents,
   showBackButton,
   showCloseButton,
@@ -54,7 +55,10 @@ export function AgentDetail({
         />
       </CardSection>
       <CardSection className={cardClassName}>
-        <AgentDetailSection2 jobs={jobs} />
+        <AgentDetailSection2
+          executedJobsCount={executedJobsCount}
+          averageExecutionDuration={averageExecutionDuration}
+        />
       </CardSection>
       <CardSection className={cardClassName}>
         <AgentDetailSection3 agent={agent} />
