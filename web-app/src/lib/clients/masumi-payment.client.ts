@@ -25,17 +25,17 @@ export const paymentClient = {
     blockchainIdentifier: string,
   ): Promise<Purchase | null> {
     try {
-      const purchaseResponse = await postPurchaseResolveBlockchainIdentifier({
+      const response = await postPurchaseResolveBlockchainIdentifier({
         client: client(),
         body: {
           blockchainIdentifier,
           network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
         },
       });
-      if (!purchaseResponse.data) {
+      if (!response.data) {
         return null;
       }
-      return purchaseResponse.data.data;
+      return response.data.data;
     } catch {
       return null;
     }
@@ -43,7 +43,7 @@ export const paymentClient = {
 
   async getPurchaseById(purchaseId: string): Promise<Result<Purchase, string>> {
     try {
-      const purchaseResponse = await getPurchase({
+      const response = await getPurchase({
         client: client(),
         query: {
           cursorId: purchaseId,
@@ -53,17 +53,13 @@ export const paymentClient = {
       });
 
       if (
-        purchaseResponse.error ||
-        !purchaseResponse.data ||
-        purchaseResponse.data.data.Purchases.length != 1
+        response.error ||
+        !response.data ||
+        response.data.data.Purchases.length != 1
       ) {
-        return Err(
-          purchaseResponse.error
-            ? String(purchaseResponse.error)
-            : "Unknown error",
-        );
+        return Err(response.error ? String(response.error) : "Unknown error");
       }
-      const purchase = purchaseResponse.data.data.Purchases[0];
+      const purchase = response.data.data.Purchases[0];
 
       return Ok(purchase);
     } catch (err) {
@@ -75,7 +71,7 @@ export const paymentClient = {
     jobBlockchainIdentifier: string,
   ): Promise<Result<void, string>> {
     try {
-      const refundResponse = await postPurchaseRequestRefund({
+      const response = await postPurchaseRequestRefund({
         client: client(),
         body: {
           blockchainIdentifier: jobBlockchainIdentifier,
@@ -83,7 +79,7 @@ export const paymentClient = {
         },
       });
 
-      if (refundResponse.error || !refundResponse.data) {
+      if (response.error || !response.data) {
         return Err("Failed to request refund");
       }
 
