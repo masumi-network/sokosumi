@@ -1,6 +1,7 @@
 import "server-only";
 
 import { getSession, getSessionOrThrow } from "@/lib/auth/utils";
+import { agentClient } from "@/lib/clients";
 import {
   AgentWithFixedPricing,
   AgentWithJobs,
@@ -23,8 +24,6 @@ import {
   CreditCost,
   Prisma,
 } from "@/prisma/generated/client";
-
-import { fetchAgentInputSchema } from "./third-party";
 
 /**
  * Utility: Checks if a user can access an agent based on organization membership and agent visibility.
@@ -282,7 +281,7 @@ export async function getAgentInputSchema(
   if (!agent) {
     throw new Error(`Agent with ID ${agentId} not found`);
   }
-  const inputSchemaResult = await fetchAgentInputSchema(agent);
+  const inputSchemaResult = await agentClient.fetchAgentInputSchema(agent);
   if (!inputSchemaResult.ok) {
     throw new Error(inputSchemaResult.error);
   }

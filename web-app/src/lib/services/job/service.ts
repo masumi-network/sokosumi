@@ -10,6 +10,7 @@ import { JobError, JobErrorCode } from "@/lib/actions/types/error-codes/job";
 import { postPurchaseResolveBlockchainIdentifier } from "@/lib/api/generated/payment";
 import { getPaymentClient } from "@/lib/api/payment-service.client";
 import { getActiveOrganizationId, getSessionOrThrow } from "@/lib/auth/utils";
+import { agentClient } from "@/lib/clients";
 import {
   computeJobStatus,
   getJobStatusData,
@@ -41,10 +42,8 @@ import { getCreditsPrice } from "@/services/credit";
 
 import {
   createPurchase,
-  fetchAgentJobStatus,
   getPaymentClientPurchase,
   postPaymentClientRequestRefund,
-  startAgentJob,
 } from "./third-party";
 
 function getMatchedInputHash(
@@ -311,7 +310,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
         },
       });
 
-      const startJobResult = await startAgentJob(
+      const startJobResult = await agentClient.startAgentJob(
         agent,
         identifierFromPurchaser,
         inputData,
@@ -748,7 +747,10 @@ export async function getAgentJobStatus(
   if (!agent) {
     return null;
   }
-  const jobStatusResult = await fetchAgentJobStatus(agent, job.agentJobId);
+  const jobStatusResult = await agentClient.fetchAgentJobStatus(
+    agent,
+    job.agentJobId,
+  );
   if (!jobStatusResult.ok) {
     return null;
   }
