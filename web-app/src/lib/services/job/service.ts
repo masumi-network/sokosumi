@@ -3,14 +3,12 @@ import "server-only";
 import * as Sentry from "@sentry/nextjs";
 import { v4 as uuidv4 } from "uuid";
 
-import { getEnvPublicConfig } from "@/config/env.public";
 import { JobStatusData } from "@/lib/ably";
 import publishJobStatusData from "@/lib/ably/publish";
 import { JobError, JobErrorCode } from "@/lib/actions/types/error-codes/job";
-import { postPurchaseResolveBlockchainIdentifier } from "@/lib/api/generated/payment";
-import { getPaymentClient } from "@/lib/api/payment-service.client";
 import { getActiveOrganizationId, getSessionOrThrow } from "@/lib/auth/utils";
 import { agentClient } from "@/lib/clients";
+import { paymentClient } from "@/lib/clients/masumi-payment.client";
 import {
   computeJobStatus,
   getJobStatusData,
@@ -622,29 +620,12 @@ function shouldSyncMasumiStatus(job: Job): boolean {
   return job.refundedCreditTransactionId === null;
 }
 
-async function resolvePurchaseOfJob(job: Job): Promise<Purchase | null> {
-  const client = getPaymentClient();
-  try {
-    const purchaseResponse = await postPurchaseResolveBlockchainIdentifier({
-      client: client,
-      body: {
-        blockchainIdentifier: job.blockchainIdentifier,
-        network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
-      },
-    });
-    if (!purchaseResponse.data) {
-      return null;
-    }
-    return purchaseResponse.data.data;
-  } catch {
-    return null;
-  }
-}
-
 export async function syncJob(job: Job) {
   const oldJobStatus = computeJobStatus(job);
   if (!job.purchaseId) {
-    const purchase = await resolvePurchaseOfJob(job);
+    const purchase = await paymentClient.getPurchaseForBlockchainIdentifier(
+      job.blockchainIdentifier,
+    );
     if (purchase) {
       job = await jobRepository.updateJobWithPurchase(job.id, purchase);
     }
