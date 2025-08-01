@@ -48,8 +48,8 @@ web-app/
 
 ## URLs
 
-- **Development**: [https://dev.sokosumi.com/](https://dev.sokosumi.com/)
-- **Production**: [https://sokosumi.com/](https://sokosumi.com)
+- **Preprod**: [https://preprod.sokosumi.com/](https://preprod.sokosumi.com/)
+- **Mainnet**: [https://app.sokosumi.com/](https://app.sokosumi.com)
 
 ## Getting Started
 

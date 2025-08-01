@@ -8,11 +8,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - `pnpm run dev` - Start development server
 - `pnpm run build` - Build for production (includes Prisma generation)
-- `pnpm run lint` - Run ESLint
+- `pnpm run lint` - Run ESLint with zero warnings tolerance
 - `pnpm run format` - Format code with Prettier
-- `pnpm run test` - Run Jest tests in watch mode
 - `pnpm run test:ci` - Run Jest tests in CI mode
-- `pnpm run test -- -t "test name"` - Run specific test
 - `pnpm run prisma:generate` - Generate Prisma client
 - `pnpm run prisma:migrate:dev` - Run Prisma migrations in development
 - `pnpm run prisma:migrate:deploy` - Deploy Prisma migrations in production
@@ -25,12 +23,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Code Style
 
 - TypeScript for all code; strict typing with interfaces preferred over types
-- Functional components; avoid classes
+- Avoid enums; use maps instead
+- Functional components with TypeScript interfaces; avoid classes
 - Use named exports for components
 - Follow directory naming: lowercase with dashes (e.g., `auth-wizard`)
 - Prefix event handlers with "handle" (e.g., `handleSubmit`)
 - Imports organized with simple-import-sort (auto-fixable with lint)
-- Prefer server components; limit 'use client' directives
+- Prefer server components; limit 'use client' directives to Web API access in small components
+- Use 'nuqs' for URL search parameter state management
 - Use descriptive variable names with auxiliary verbs (isLoading, hasError)
 - Structure files: exports, subcomponents, helpers, types
 - Error handling: use try/catch with descriptive error messages
@@ -38,6 +38,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Use nullish coalescing operator (??) over logical OR (||) when appropriate
 - Unused variables prefixed with underscore (\_) are allowed
 - No relative imports for cross-directory navigation (use absolute paths with @ aliases)
+- Use the "function" keyword for pure functions
+- Avoid unnecessary curly braces in conditionals; use concise syntax
+- Use declarative JSX and Suspense for async operations
 
 ## Import Paths & Aliases
 
@@ -80,7 +83,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - Jest with Testing Library
 - Tests in `__tests__` directories or `.test.ts` files
-- Run with `pnpm run test` (watch mode) or `pnpm run test:ci`
+- Run with `pnpm run test:ci` for CI mode
+- No watch mode script configured (use `pnpm run test:ci` for testing)
 
 ## Git Style
 
@@ -151,7 +155,34 @@ This is a Next.js 15 web application using the App Router with a service-oriente
 ### Development Patterns
 
 - Server Components by default, Client Components when needed
-- Structured error handling with custom error types
-- Type-safe environment variable validation
+- Structured error handling with custom error types and Result pattern
+- Type-safe environment variable validation with custom functions
 - Comprehensive form validation with Zod schemas
 - Internationalization support with next-intl
+- Use type inference from Prisma when possible
+- Follow Next.js documentation for Data Fetching, Rendering, and Routing
+
+## Monorepo Context
+
+This web-app is part of the Sokosumi monorepo and integrates with:
+
+- External Masumi services (Registry and Payment)
+- Install dependencies from monorepo root with `pnpm install`
+
+## Development Setup
+
+Prerequisites: Node.js v22+ and pnpm package manager
+
+1. Install dependencies from monorepo root: `pnpm install`
+2. Copy `.env.example` to `.env` and configure variables
+3. Run migrations: `pnpm run prisma:migrate:dev`
+4. Start development: `pnpm run dev` (available at http://localhost:3000)
+
+Production URLs: https://app.sokosumi.com (mainnet), https://preprod.sokosumi.com (preprod)
+
+# important-instruction-reminders
+
+Do what has been asked; nothing more, nothing less.
+NEVER create files unless they're absolutely necessary for achieving your goal.
+ALWAYS prefer editing an existing file to creating a new one.
+NEVER proactively create documentation files (\*.md) or README files. Only create documentation files if explicitly requested by the User.
