@@ -1,12 +1,12 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
+import { stripeClient } from "@/lib/clients/stripe.client";
 import {
   fiatTransactionRepository,
   prisma,
   userRepository,
 } from "@/lib/db/repositories";
-import { constructEvent, updateCustomerMetadata } from "@/lib/services";
 import { FiatTransactionStatus } from "@/prisma/generated/client";
 
 export async function POST(req: Request) {
@@ -15,7 +15,7 @@ export async function POST(req: Request) {
   try {
     const stripeSignature = req.headers.get("stripe-signature");
 
-    event = await constructEvent(req, stripeSignature as string);
+    event = await stripeClient.constructEvent(req, stripeSignature as string);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unknown error";
     console.log(`❌ Error message: ${message}`);
@@ -140,7 +140,7 @@ const handleCustomerCreatedEvent = async (customer: Stripe.Customer) => {
 
   // Update metadata for the customer (this is non-critical and shouldn't cause webhook failure)
   try {
-    await updateCustomerMetadata(customer.id, user.id);
+    await stripeClient.updateCustomerMetadata(customer.id, user.id);
   } catch (metadataError) {
     console.error(
       `Failed to update metadata for customer ${customer.id}:`,

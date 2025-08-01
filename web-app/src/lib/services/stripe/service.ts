@@ -5,6 +5,7 @@ import Stripe from "stripe";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { UnAuthenticatedError } from "@/lib/auth/errors";
 import { verifyUserId } from "@/lib/auth/utils";
+import { Price, stripeClient } from "@/lib/clients/stripe.client";
 import { convertCreditsToCents } from "@/lib/db";
 import {
   fiatTransactionRepository,
@@ -17,16 +18,6 @@ import {
   CouponTypeError,
   PromotionCodeNotFoundError,
 } from "@/lib/errors/coupon-errors";
-
-import {
-  createCheckoutSession,
-  getCouponById,
-  getCouponByPromotionCode,
-  getOrCreatePromotionCode,
-  getOrCreateStripeCustomer,
-  getPromotionCodeByCustomerAndCouponId,
-  Price,
-} from "./third-party";
 
 // Unified private helper for creating Stripe checkout sessions
 export async function createStripeCheckoutSession(
@@ -54,12 +45,13 @@ export async function createStripeCheckoutSession(
           price.currency,
           tx,
         );
-      const { id: stripeSessionId, url } = await createCheckoutSession(
-        user,
-        fiatTransaction,
-        price,
-        promotionCode,
-      );
+      const { id: stripeSessionId, url } =
+        await stripeClient.createCheckoutSession(
+          user,
+          fiatTransaction,
+          price,
+          promotionCode,
+        );
       await fiatTransactionRepository.updateFiatTransaction(
         fiatTransaction.id,
         { servicePaymentId: stripeSessionId },
@@ -91,17 +83,18 @@ export async function getWelcomePromotionCode(
     throw new Error("User not found");
   }
 
-  const stripeCustomerId = await getOrCreateStripeCustomer(userId);
+  const stripeCustomerId = await stripeClient.getOrCreateStripeCustomer(userId);
   if (!stripeCustomerId) {
     return null;
   }
 
   for (const couponId of couponIds) {
     try {
-      const promotionCode = await getPromotionCodeByCustomerAndCouponId(
-        stripeCustomerId,
-        couponId,
-      );
+      const promotionCode =
+        await stripeClient.getPromotionCodeByCustomerAndCouponId(
+          stripeCustomerId,
+          couponId,
+        );
       if (promotionCode?.times_redeemed && promotionCode.times_redeemed >= 1) {
         return null;
       }
@@ -133,7 +126,7 @@ export async function getPromotionCode(
     throw new Error("User not found");
   }
 
-  return await getOrCreatePromotionCode(
+  return await stripeClient.getOrCreatePromotionCode(
     user.id,
     couponId,
     maxRedemptions,
@@ -145,7 +138,7 @@ export async function getCreditsForPromotionCode(
   promotionCode: string,
   price: Price,
 ): Promise<number> {
-  const coupon = await getCouponByPromotionCode(promotionCode);
+  const coupon = await stripeClient.getCouponByPromotionCode(promotionCode);
   if (!coupon) {
     throw new PromotionCodeNotFoundError(promotionCode);
   }
@@ -156,7 +149,7 @@ export async function getCreditsForCoupon(
   couponId: string,
   price: Price,
 ): Promise<number> {
-  const coupon = await getCouponById(couponId);
+  const coupon = await stripeClient.getCouponById(couponId);
   if (!coupon) {
     throw new CouponNotFoundError(couponId);
   }

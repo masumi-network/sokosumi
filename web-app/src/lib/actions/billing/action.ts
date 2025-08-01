@@ -3,14 +3,13 @@
 import { getEnvSecrets } from "@/config/env.secrets";
 import { ActionError, BillingErrorCode, CommonErrorCode } from "@/lib/actions";
 import { getSession } from "@/lib/auth/utils";
+import { stripeClient } from "@/lib/clients/stripe.client";
 import { CouponError } from "@/lib/errors/coupon-errors";
 import {
   createStripeCheckoutSession,
   getCreditsForCoupon,
   getCreditsForPromotionCode,
   getMyMemberInOrganization,
-  getPriceFromPriceId,
-  getPriceFromProductId,
   getPromotionCode,
 } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
@@ -27,7 +26,7 @@ export async function claimFreeCredits(
       });
     }
 
-    const price = await getPriceFromProductId(
+    const price = await stripeClient.getPriceByProductId(
       getEnvSecrets().STRIPE_PRODUCT_ID,
     );
     const credits = await getCreditsForPromotionCode(promotionCode, price);
@@ -85,7 +84,7 @@ export async function purchaseCredits(
     }
 
     // Fetch price server-side
-    const price = await getPriceFromPriceId(priceId);
+    const price = await stripeClient.getPriceById(priceId);
 
     // Create the checkout session
     const { url } = await createStripeCheckoutSession(
@@ -131,7 +130,7 @@ export async function getFreeCreditsWithCoupon(
     }
 
     // Fetch price server-side
-    const price = await getPriceFromPriceId(priceId);
+    const price = await stripeClient.getPriceById(priceId);
     const credits = await getCreditsForCoupon(couponId, price);
 
     // Validate and get the promotion code for this user and couponId

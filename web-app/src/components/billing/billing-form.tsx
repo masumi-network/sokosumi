@@ -33,7 +33,7 @@ import {
   getFreeCreditsWithCoupon,
   purchaseCredits,
 } from "@/lib/actions";
-import { Price } from "@/lib/services/stripe/third-party";
+import { Price } from "@/lib/clients/stripe.client";
 import { Organization } from "@/prisma/generated/client";
 
 const billingFormSchema = z
