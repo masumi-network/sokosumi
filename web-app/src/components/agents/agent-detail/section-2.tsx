@@ -30,15 +30,17 @@ function AgentDetailSection2({
           })}
         </p>
       </div>
-      <div className="flex flex-col gap-0.5">
-        <div className="flex items-center gap-1.5">
-          <Clock size={16} />
-          <span className="text-upper text-xs">
-            {t("averageExecutionTime")}
-          </span>
+      {averageExecutionDuration > 0 && (
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-1.5">
+            <Clock size={16} />
+            <span className="text-upper text-xs">
+              {t("averageExecutionTime")}
+            </span>
+          </div>
+          <p className="text-base">{formattedDuration}</p>
         </div>
-        <p className="text-base">{formattedDuration}</p>
-      </div>
+      )}
     </div>
   );
 }

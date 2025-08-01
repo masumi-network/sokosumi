@@ -173,7 +173,9 @@ export default function JobInputsFormClient({
                     )}
                     {t("submit")}
                   </div>
-                  <span>{`(~ ${formattedDuration})`}</span>
+                  {averageExecutionDuration > 0 && (
+                    <span>{`(~ ${formattedDuration})`}</span>
+                  )}
                   {!isMobile && (
                     <div className="flex items-center gap-1">
                       {os === "MacOS" ? <Command /> : t("ctrl")}

@@ -8,10 +8,6 @@ export function formatDuration(
   ms: number,
   durationIntl?: IntlTranslation<"Library.Duration">,
 ): string {
-  if (ms === 0) {
-    return durationIntl?.("unknown") ?? "Unknown";
-  }
-
   const humanizer = humanizeDuration.humanizer({
     language: "intl",
     languages: {
