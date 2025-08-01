@@ -1224,13 +1224,15 @@
         "days": "{value, plural, =1 {day} other {days}}",
         "hours": "{value, plural, =1 {hour} other {hours}}",
         "minutes": "{value, plural, =1 {minute} other {minutes}}",
-        "seconds": "{value, plural, =1 {second} other {seconds}}"
+        "seconds": "{value, plural, =1 {second} other {seconds}}",
+        "unknown": "Unknown"
       },
       "Short": {
         "days": "{value, plural, =1 {day} other {days}}",
         "hours": "{value, plural, =1 {hr} other {hr}}",
         "minutes": "{value, plural, =1 {min} other {min}}",
-        "seconds": "{value, plural, =1 {sec} other {sec}}"
+        "seconds": "{value, plural, =1 {sec} other {sec}}",
+        "unknown": "Unknown"
       }
     }
   }
