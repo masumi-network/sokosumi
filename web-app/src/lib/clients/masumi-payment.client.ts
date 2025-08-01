@@ -3,6 +3,7 @@ import "server-only";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import {
+  getPurchase,
   postPurchaseRequestRefund,
   postPurchaseResolveBlockchainIdentifier,
 } from "@/lib/api/generated/payment";
@@ -20,7 +21,9 @@ const client = () => {
 };
 
 export const paymentClient = {
-  async getPurchase(blockchainIdentifier: string): Promise<Purchase | null> {
+  async getPurchaseByBlockchainIdentifier(
+    blockchainIdentifier: string,
+  ): Promise<Purchase | null> {
     try {
       const purchaseResponse = await postPurchaseResolveBlockchainIdentifier({
         client: client(),
@@ -35,6 +38,36 @@ export const paymentClient = {
       return purchaseResponse.data.data;
     } catch {
       return null;
+    }
+  },
+
+  async getPurchaseById(purchaseId: string): Promise<Result<Purchase, string>> {
+    try {
+      const purchaseResponse = await getPurchase({
+        client: client(),
+        query: {
+          cursorId: purchaseId,
+          network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
+          limit: 1,
+        },
+      });
+
+      if (
+        purchaseResponse.error ||
+        !purchaseResponse.data ||
+        purchaseResponse.data.data.Purchases.length != 1
+      ) {
+        return Err(
+          purchaseResponse.error
+            ? String(purchaseResponse.error)
+            : "Unknown error",
+        );
+      }
+      const purchase = purchaseResponse.data.data.Purchases[0];
+
+      return Ok(purchase);
+    } catch (err) {
+      return Err(String(err));
     }
   },
 

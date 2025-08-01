@@ -2,7 +2,6 @@ import "server-only";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import {
-  getPurchase,
   postPurchase,
   PostPurchaseResponse,
 } from "@/lib/api/generated/payment";
@@ -11,39 +10,6 @@ import { AgentWithRelations } from "@/lib/db";
 import { JobInputData } from "@/lib/job-input";
 import { StartJobResponseSchemaType } from "@/lib/schemas";
 import { Err, Ok, Result } from "@/lib/ts-res";
-
-export async function getPaymentClientPurchase(
-  purchaseId: string,
-): Promise<Result<Purchase, string>> {
-  try {
-    const paymentClient = getPaymentClient();
-    const purchaseResponse = await getPurchase({
-      client: paymentClient,
-      query: {
-        cursorId: purchaseId,
-        network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
-        limit: 1,
-      },
-    });
-
-    if (
-      purchaseResponse.error ||
-      !purchaseResponse.data ||
-      purchaseResponse.data.data.Purchases.length != 1
-    ) {
-      return Err(
-        purchaseResponse.error
-          ? String(purchaseResponse.error)
-          : "Unknown error",
-      );
-    }
-    const purchase = purchaseResponse.data.data.Purchases[0];
-
-    return Ok(purchase);
-  } catch (err) {
-    return Err(String(err));
-  }
-}
 
 export async function createPurchase(
   agent: AgentWithRelations,
