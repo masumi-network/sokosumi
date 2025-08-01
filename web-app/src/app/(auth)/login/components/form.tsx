@@ -60,7 +60,7 @@ export default function SignInForm({
     }
 
     toast.success(t("success"));
-    // Redirect to the original URL if provided, otherwise go to /
+    // Redirect to the original URL if provided, otherwise go to /agents
     // Validate returnUrl to prevent open redirect attacks
     let redirectUrl = "/agents";
     if (returnUrl) {
@@ -71,7 +71,7 @@ export default function SignInForm({
           redirectUrl = returnUrl;
         }
       } catch {
-        // Invalid URL, fallback to /
+        // Invalid URL, fallback to /agents
       }
     }
     router.push(redirectUrl);
