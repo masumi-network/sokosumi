@@ -91,11 +91,10 @@ export const stripeService = {
 
     for (const couponId of couponIds) {
       try {
-        const promotionCode =
-          await stripeClient.getPromotionCodeByCustomerAndCouponId(
-            stripeCustomerId,
-            couponId,
-          );
+        const promotionCode = await stripeClient.getPromotionCode(
+          stripeCustomerId,
+          couponId,
+        );
         if (
           promotionCode?.times_redeemed &&
           promotionCode.times_redeemed >= 1

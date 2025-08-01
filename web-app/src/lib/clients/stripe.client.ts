@@ -47,7 +47,7 @@ export const stripeClient = {
     });
   },
 
-  async getPromotionCodeByCustomerAndCouponId(
+  async getPromotionCode(
     customerId: string,
     couponId: string,
   ): Promise<Stripe.PromotionCode | null> {
