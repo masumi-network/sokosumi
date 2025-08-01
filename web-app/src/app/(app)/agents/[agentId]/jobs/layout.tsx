@@ -17,9 +17,7 @@ import Header, { HeaderSkeleton } from "./components/header";
 
 export async function generateMetadata({
   params,
-}: {
-  params: Promise<{ agentId: string }>;
-}): Promise<Metadata> {
+}: JobLayoutProps): Promise<Metadata> {
   const { agentId } = await params;
   const agent = await agentRepository.getAgentWithRelationsById(agentId);
   if (!agent) {
