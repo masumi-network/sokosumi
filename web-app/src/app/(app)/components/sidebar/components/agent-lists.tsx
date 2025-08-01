@@ -63,7 +63,7 @@ async function AgentListsContent() {
   const [favoriteAgents, hiredAgentsWithJobs, availableAgents] =
     await Promise.all([
       agentService.getFavoriteAgents(),
-      agentService.getHiredAgentsOrderedByLatestJob(),
+      agentService.getHiredAgents(),
       agentService.getAvailableAgents(),
     ]);
 

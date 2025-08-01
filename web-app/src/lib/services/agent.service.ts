@@ -109,7 +109,7 @@ export const agentService = {
    * @returns Array of hired agents with their jobs, sorted by recent activity.
    * @throws If no active session is found.
    */
-  async getHiredAgentsOrderedByLatestJob(): Promise<AgentWithJobs[]> {
+  async getHiredAgents(): Promise<AgentWithJobs[]> {
     const session = await getSessionOrThrow();
     const userId = session.user.id;
     const activeOrganizationId = session.session.activeOrganizationId;
