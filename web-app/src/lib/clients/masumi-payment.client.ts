@@ -129,7 +129,7 @@ export const paymentClient = {
         return Err("Failed to create purchase request");
       }
 
-      return Ok(response.data.data);
+      return Ok(response.data.data as Purchase);
     } catch (err) {
       return Err(String(err));
     }

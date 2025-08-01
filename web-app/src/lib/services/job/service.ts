@@ -486,7 +486,7 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
         identifierFromPurchaser,
       );
       if (createPurchaseResult.ok) {
-        const purchase = createPurchaseResult.data as Purchase;
+        const purchase = createPurchaseResult.data;
         await jobRepository.updateJobWithPurchase(job.id, purchase);
 
         // Add breadcrumb for successful purchase creation
