@@ -167,13 +167,6 @@ export const stripeService = {
       );
       return null;
     }
-
-    // return await stripeClient.getOrCreatePromotionCode(
-    //   user.id,
-    //   couponId,
-    //   maxRedemptions,
-    //   metadata,
-    // );
   },
 
   async getCreditsForPromotionCode(
