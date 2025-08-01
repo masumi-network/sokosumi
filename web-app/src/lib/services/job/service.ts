@@ -38,8 +38,6 @@ import {
 } from "@/prisma/generated/client";
 import { getCreditsPrice } from "@/services/credit";
 
-import { createPurchase } from "./third-party";
-
 function getMatchedInputHash(
   inputData: JobInputData,
   identifierFromPurchaser: string,
@@ -480,8 +478,8 @@ export async function startJob(input: StartJobInputSchemaType): Promise<Job> {
       });
 
       // Create purchase
-      const createPurchaseResult = await createPurchase(
-        agent,
+      const createPurchaseResult = await paymentClient.createPurchase(
+        agent.blockchainIdentifier,
         startJobResponse,
         inputData,
         matchedInputHash,

@@ -4,10 +4,14 @@ import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import {
   getPurchase,
+  postPurchase,
   postPurchaseRequestRefund,
   postPurchaseResolveBlockchainIdentifier,
+  PostPurchaseResponse,
 } from "@/lib/api/generated/payment";
 import { createClient } from "@/lib/api/generated/payment/client";
+import { JobInputData } from "@/lib/job-input";
+import { StartJobResponseSchemaType } from "@/lib/schemas";
 import { Err, Ok, Result } from "@/lib/ts-res";
 
 const client = () => {
@@ -22,13 +26,13 @@ const client = () => {
 
 export const paymentClient = {
   async getPurchaseByBlockchainIdentifier(
-    blockchainIdentifier: string,
+    jobBlockchainIdentifier: string,
   ): Promise<Result<Purchase, string>> {
     try {
       const response = await postPurchaseResolveBlockchainIdentifier({
         client: client(),
         body: {
-          blockchainIdentifier,
+          blockchainIdentifier: jobBlockchainIdentifier,
           network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
         },
       });
@@ -86,6 +90,47 @@ export const paymentClient = {
       }
 
       return Ok();
+    } catch (err) {
+      return Err(String(err));
+    }
+  },
+
+  async createPurchase(
+    agentBlockchainIdentifier: string,
+    startJobResponse: StartJobResponseSchemaType,
+    inputData: JobInputData,
+    inputHash: string,
+    identifierFromPurchaser: string,
+  ): Promise<Result<PostPurchaseResponse, string>> {
+    try {
+      const response = await postPurchase({
+        client: client(),
+        body: {
+          agentIdentifier: agentBlockchainIdentifier,
+          inputHash: inputHash,
+          blockchainIdentifier: startJobResponse.blockchainIdentifier,
+          network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
+          sellerVkey: startJobResponse.sellerVKey,
+          paymentType: "Web3CardanoV1",
+          identifierFromPurchaser,
+          payByTime: startJobResponse.payByTime.toString(),
+          externalDisputeUnlockTime:
+            startJobResponse.externalDisputeUnlockTime.toString(),
+          submitResultTime: startJobResponse.submitResultTime.toString(),
+          unlockTime: startJobResponse.unlockTime.toString(),
+          metadata: JSON.stringify({
+            inputData: Object.fromEntries(inputData),
+            jobId: startJobResponse.job_id,
+          }),
+        },
+      });
+
+      if (response.error || !response.data) {
+        console.log("Failed to create purchase request", response.error);
+        return Err("Failed to create purchase request");
+      }
+
+      return Ok(response.data);
     } catch (err) {
       return Err(String(err));
     }
