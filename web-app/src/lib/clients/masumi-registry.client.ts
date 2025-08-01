@@ -2,8 +2,12 @@ import "server-only";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
-import { postRegistryEntry } from "@/lib/api/generated/registry";
+import {
+  postRegistryEntry,
+  PostRegistryEntryResponse,
+} from "@/lib/api/generated/registry";
 import { createClient } from "@/lib/api/generated/registry/client";
+import { Err, Ok, Result } from "@/lib/ts-res";
 
 const client = () => {
   const registryClient = createClient({
@@ -16,7 +20,10 @@ const client = () => {
 };
 
 export const registryClient = {
-  async getAgents(lastIdentifier: string | undefined, limit: number = 20) {
+  async getAgents(
+    lastIdentifier: string | undefined,
+    limit: number = 20,
+  ): Promise<Result<PostRegistryEntryResponse["data"]["entries"], string>> {
     const response = await postRegistryEntry({
       client: client(),
       body: {
@@ -35,9 +42,8 @@ export const registryClient = {
       response.response.status !== 200
     ) {
       console.error("Error in sync operation:", response.error);
-      return [];
+      return Err(response.error ? String(response.error) : "Unknown error");
     }
-    const entries = response.data.data.entries;
-    return entries;
+    return Ok(response.data.data.entries);
   },
 };

@@ -83,7 +83,12 @@ async function syncAllEntries() {
   const runningTagsUpdates: Promise<void>[] = [];
   const limit = 20;
   while (true) {
-    const entries = await registryClient.getAgents(lastIdentifier, limit);
+    const entriesResult = await registryClient.getAgents(lastIdentifier, limit);
+    if (!entriesResult.ok) {
+      console.error("Error in sync operation:", entriesResult.error);
+      return;
+    }
+    const entries = entriesResult.data;
 
     // add all tags to the database
     const tags = Array.from(
