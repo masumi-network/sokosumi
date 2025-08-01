@@ -3,7 +3,7 @@
 **/coverage/**
 
 # Ignore generated code
-src/lib/api/generated/**
+src/lib/clients/generated/**
 
 # Ignore UI components
 src/components/ui/**

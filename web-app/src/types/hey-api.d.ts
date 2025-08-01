@@ -1,4 +1,4 @@
-import { GetPurchaseResponse } from "@/lib/api/generated/payment";
+import { GetPurchaseResponse } from "@/lib/clients/generated/payment";
 
 declare global {
   type PurchaseOnChainState =

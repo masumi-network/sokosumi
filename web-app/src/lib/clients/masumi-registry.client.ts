@@ -5,8 +5,8 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import {
   postRegistryEntry,
   PostRegistryEntryResponse,
-} from "@/lib/api/generated/registry";
-import { createClient } from "@/lib/api/generated/registry/client";
+} from "@/lib/clients/generated/registry";
+import { createClient } from "@/lib/clients/generated/registry/client";
 import { Err, Ok, Result } from "@/lib/ts-res";
 
 const client = () => {

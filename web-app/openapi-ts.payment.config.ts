@@ -2,7 +2,7 @@ import { defaultPlugins } from "@hey-api/openapi-ts";
 
 const config = {
   input: "https://payment.masumi.network/api-docs",
-  output: "./src/lib/api/generated/payment",
+  output: "./src/lib/clients/generated/payment",
   name: "MasumiPaymentClient",
   baseUrl: "https://payment.masumi.network/api/v1",
   plugins: [

@@ -7,8 +7,8 @@ import {
   postPurchase,
   postPurchaseRequestRefund,
   postPurchaseResolveBlockchainIdentifier,
-} from "@/lib/api/generated/payment";
-import { createClient } from "@/lib/api/generated/payment/client";
+} from "@/lib/clients/generated/payment";
+import { createClient } from "@/lib/clients/generated/payment/client";
 import { JobInputData } from "@/lib/job-input";
 import { StartJobResponseSchemaType } from "@/lib/schemas";
 import { Err, Ok, Result } from "@/lib/ts-res";

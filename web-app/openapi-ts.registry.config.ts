@@ -2,7 +2,7 @@ import { defaultPlugins } from "@hey-api/openapi-ts";
 
 const config = {
   input: "https://registry.masumi.network/api-docs",
-  output: "./src/lib/api/generated/registry",
+  output: "./src/lib/clients/generated/registry",
   name: "MasumiRegistryClient",
   baseUrl: "https://registry.masumi.network/api/v1",
   plugins: [

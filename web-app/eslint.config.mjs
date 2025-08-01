@@ -22,7 +22,7 @@ const eslintConfig = [
       "**/build/**",
       "**/coverage/**",
       "src/components/ui/**",
-      "src/lib/api/generated/**",
+      "src/lib/clients/generated/**",
       "public/js/**/*.js",
       "*.config.mjs",
     ],

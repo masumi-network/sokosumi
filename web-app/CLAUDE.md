@@ -91,6 +91,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 This is a Next.js 15 web application using the App Router with a service-oriented architecture:
 
 ### Core Technologies
+
 - **Next.js 15**: React framework with App Router
 - **TypeScript**: Strict type checking enabled
 - **Prisma**: Database ORM with PostgreSQL
@@ -102,32 +103,38 @@ This is a Next.js 15 web application using the App Router with a service-oriente
 ### Key Architecture Patterns
 
 #### Service Layer (`src/lib/services/`)
+
 - Business logic organized by domain (agent, job, organization, etc.)
 - Services handle external API calls and complex operations
 - Each service exports a main service object and types
 
 #### Action Layer (`src/lib/actions/`)
+
 - Server Actions for form handling and mutations
 - Structured error handling with typed error codes
 - Each action domain exports both actions and error types
 
 #### Repository Pattern (`src/lib/db/repositories/`)
+
 - Database access layer with Prisma
 - Type-safe database operations
 - Centralized database queries and mutations
 
-#### API Integration (`src/lib/api/generated/`)
+#### API Integration (`src/lib/clients/generated/`)
+
 - Auto-generated clients for external services (Payment & Registry)
 - Generated from OpenAPI specifications
 - Type-safe API calls with proper error handling
 
 ### Authentication & Authorization
+
 - Better Auth with email/password and organization plugins
 - Session-based authentication with configurable expiration
 - Organization-based access control with member roles
 - Email verification and password reset flows
 
 ### Database Schema
+
 - Users with profile information and preferences
 - Organizations with member management
 - Jobs (AI agent tasks) with input/output tracking
@@ -135,12 +142,14 @@ This is a Next.js 15 web application using the App Router with a service-oriente
 - Agent listings with ratings and bookmarks
 
 ### External Services
+
 - **Masumi Registry**: Agent discovery and metadata
 - **Masumi Payment**: Billing and transaction processing
 - **Stripe**: Payment processing and subscription management
 - **Resend**: Transactional email delivery
 
 ### Development Patterns
+
 - Server Components by default, Client Components when needed
 - Structured error handling with custom error types
 - Type-safe environment variable validation
