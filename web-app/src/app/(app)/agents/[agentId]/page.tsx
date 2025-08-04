@@ -41,8 +41,7 @@ export default async function AgentDetailPage({
     >
       <div className="mx-auto flex justify-center px-4 py-8">
         <AgentDetail
-          agent={agent}
-          agentCreditsPrice={agentWithCreditsPrice.creditsPrice}
+          agent={agentWithCreditsPrice}
           executedJobsCount={executedJobsCount}
           averageExecutionDuration={averageExecutionDuration}
           favoriteAgents={favoriteAgents}
