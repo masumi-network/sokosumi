@@ -12,14 +12,13 @@ import { getSession, getSessionOrThrow } from "@/lib/auth/utils";
 import { agentClient, paymentClient } from "@/lib/clients";
 import { anthropicClient } from "@/lib/clients/anthropic.client";
 import {
-  AgentWithCreditPrice,
+  AgentWithCreditsPrice,
   AgentWithFixedPricing,
   AgentWithJobs,
   AgentWithOrganizations,
   AgentWithRelations,
   computeJobStatus,
   convertCreditsToCents,
-  CreditsPrice,
   getJobStatusData,
   JobStatus,
   JobWithStatus,
@@ -113,17 +112,17 @@ export const agentService = {
    * @param tx - Optional Prisma transaction client.
    * @returns Array of agents with their calculated credit prices.
    */
-  async getAvailableAgentsWithCreditsPrice(): Promise<AgentWithCreditPrice[]> {
+  async getAvailableAgentsWithCreditsPrice(): Promise<AgentWithCreditsPrice[]> {
     const agents = await this.getAvailableAgents();
     const results = await Promise.allSettled(
       agents.map(async (agent) => {
-        const creditsPrice = await this.getAgentCreditsPrice(agent);
-        return { agent, creditsPrice };
+        const agentWithCreditsPrice = await this.getAgentCreditsPrice(agent);
+        return agentWithCreditsPrice;
       }),
     );
     return results
       .filter(
-        (result): result is PromiseFulfilledResult<AgentWithCreditPrice> =>
+        (result): result is PromiseFulfilledResult<AgentWithCreditsPrice> =>
           result.status === "fulfilled",
       )
       .map((result) => result.value);
@@ -158,29 +157,66 @@ export const agentService = {
   },
 
   /**
-   * Calculates the total credit price (in cents) for a given agent's fixed pricing.
+   * Calculates the total credit price (in cents) for an agent, including any applicable fee.
    *
-   * - Extracts the pricing amounts from the agent's fixed pricing configuration.
-   * - Converts the amounts to the expected format.
-   * - Delegates the calculation to `getCreditsPrice`.
-   * - Returns zero if the agent has no pricing amounts.
+   * - Sums the cost of all fixed pricing units for the agent, using the current credit cost per unit.
+   * - Applies a fee percentage (from NEXT_PUBLIC_FEE_PERCENTAGE) to the total cost.
+   * - Ensures the total fee is at least the minimum fee (MIN_FEE_CREDITS).
+   * - Returns the agent object extended with a `creditsPrice` field containing the total price and included fee.
    *
-   * @param agent - The agent object containing fixed pricing information.
-   * @param tx - (Optional) The Prisma transaction client to use for database operations. Defaults to the main Prisma client.
-   * @returns An object containing the total price in cents and the included fee, both as bigint.
+   * @param agent - The agent with pricing and relations data.
+   * @param tx - Optional Prisma transaction client for DB operations (defaults to main Prisma client).
+   * @returns The agent object with an added `creditsPrice` property.
+   * @throws If the fee percentage is negative or if a credit cost for a unit is not found.
    */
   async getAgentCreditsPrice(
-    agent: AgentWithFixedPricing,
+    agent: AgentWithRelations,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<CreditsPrice> {
+  ): Promise<AgentWithCreditsPrice> {
     const amounts = agent.pricing?.fixedPricing?.amounts?.map((amount) => ({
       unit: amount.unit,
       amount: Number(amount.amount),
     }));
     if (!amounts) {
-      return { cents: BigInt(0), includedFee: BigInt(0) };
+      return {
+        ...agent,
+        creditsPrice: { cents: BigInt(0), includedFee: BigInt(0) },
+      };
     }
-    return await getCreditsPrice(amounts, tx);
+    const feePercentagePoints = getEnvPublicConfig().NEXT_PUBLIC_FEE_PERCENTAGE;
+    if (feePercentagePoints < 0) {
+      throw new Error(
+        "Added fee percentage must be equal to or greater than 0",
+      );
+    }
+    const feeMultiplier = feePercentagePoints / 100;
+    const amountsParsed = pricingAmountsSchema.parse(amounts);
+
+    let totalCents = BigInt(0);
+    let totalFee = BigInt(0);
+    const minFeeCents = convertCreditsToCents(getEnvSecrets().MIN_FEE_CREDITS);
+    for (const amount of amountsParsed) {
+      const creditCost = await creditCostRepository.getCreditCostByUnit(
+        amount.unit,
+        tx,
+      );
+      if (!creditCost) {
+        throw new Error(`Credit cost not found for unit ${amount.unit}`);
+      }
+      const cents = amount.amount * Number(creditCost.centsPerUnit);
+      const fee = cents * feeMultiplier;
+
+      // round up to the nearest integer
+      totalCents += BigInt(Math.ceil(cents));
+      totalFee += BigInt(Math.ceil(fee));
+    }
+    if (totalFee < minFeeCents) {
+      totalFee = minFeeCents;
+    }
+    return {
+      ...agent,
+      creditsPrice: { cents: totalCents + totalFee, includedFee: totalFee },
+    };
   },
 
   async startJob(input: StartJobInputSchemaType): Promise<Job> {
@@ -219,7 +255,7 @@ export const agentService = {
           },
         });
 
-        const [agent, creditsPrice] = await prisma.$transaction(async (tx) => {
+        const agentWithCreditsPrice = await prisma.$transaction(async (tx) => {
           // Add breadcrumb for database transaction
           Sentry.addBreadcrumb({
             category: "Job Service",
@@ -256,19 +292,22 @@ export const agentService = {
             },
           });
 
-          const creditsPrice = await this.getAgentCreditsPrice(agent, tx);
+          const agentWithCreditsPrice = await this.getAgentCreditsPrice(
+            agent,
+            tx,
+          );
 
-          if (creditsPrice.cents > maxAcceptedCents) {
+          if (agentWithCreditsPrice.creditsPrice.cents > maxAcceptedCents) {
             Sentry.setTag("error_type", "cost_too_high");
             Sentry.setContext("cost_validation", {
               agentId,
-              creditsCents: creditsPrice.cents,
+              creditsCents: agentWithCreditsPrice.creditsPrice.cents,
               maxAcceptedCents,
               activeOrganizationId,
             });
 
             Sentry.captureMessage(
-              `Credit cost too high: ${creditsPrice.cents} > ${maxAcceptedCents}`,
+              `Credit cost too high: ${agentWithCreditsPrice.creditsPrice.cents} > ${maxAcceptedCents}`,
               "warning",
             );
             throw new JobError(
@@ -283,28 +322,32 @@ export const agentService = {
             message: "Validating credit balance",
             level: "info",
             data: {
-              creditsCents: creditsPrice.cents,
+              creditsCents: agentWithCreditsPrice.creditsPrice.cents,
               activeOrganizationId,
             },
           });
 
-          if (creditsPrice.cents > 0) {
+          if (agentWithCreditsPrice.creditsPrice.cents > 0) {
             try {
               if (activeOrganizationId) {
                 await validateOrganizationCreditsBalance(
                   activeOrganizationId,
-                  creditsPrice.cents,
+                  agentWithCreditsPrice.creditsPrice.cents,
                   tx,
                 );
               } else {
-                await validateCreditsBalance(userId, creditsPrice.cents, tx);
+                await validateCreditsBalance(
+                  userId,
+                  agentWithCreditsPrice.creditsPrice.cents,
+                  tx,
+                );
               }
             } catch (error) {
               Sentry.setTag("error_type", "insufficient_balance");
               Sentry.setContext("balance_validation", {
                 userId,
                 activeOrganizationId,
-                creditsCents: creditsPrice.cents,
+                creditsCents: agentWithCreditsPrice.creditsPrice.cents,
                 isOrganization: !!activeOrganizationId,
               });
               throw error;
@@ -317,12 +360,12 @@ export const agentService = {
             message: "Credit validation successful",
             level: "info",
             data: {
-              creditsCents: creditsPrice.cents,
+              creditsCents: agentWithCreditsPrice.creditsPrice.cents,
               activeOrganizationId,
             },
           });
 
-          return [agent, creditsPrice];
+          return agentWithCreditsPrice;
         });
 
         // Start job
@@ -337,13 +380,13 @@ export const agentService = {
           level: "info",
           data: {
             agentId,
-            agentName: agent.name,
+            agentName: agentWithCreditsPrice.name,
             identifierFromPurchaser,
           },
         });
 
         const startJobResult = await agentClient.startAgentJob(
-          agent,
+          agentWithCreditsPrice,
           identifierFromPurchaser,
           inputData,
         );
@@ -351,7 +394,7 @@ export const agentService = {
           Sentry.setTag("error_type", "agent_job_start_failed");
           Sentry.setContext("agent_job_start", {
             agentId,
-            agentName: agent.name,
+            agentName: agentWithCreditsPrice.name,
             identifierFromPurchaser,
             error: startJobResult.error,
           });
@@ -409,10 +452,12 @@ export const agentService = {
 
         // Add breadcrumb for pricing validation
         const amountsPrice =
-          agent.pricing?.fixedPricing?.amounts.map((amount) => ({
-            unit: amount.unit,
-            amount: Number(amount.amount),
-          })) ?? [];
+          agentWithCreditsPrice.pricing?.fixedPricing?.amounts.map(
+            (amount) => ({
+              unit: amount.unit,
+              amount: Number(amount.amount),
+            }),
+          ) ?? [];
         try {
           Sentry.addBreadcrumb({
             category: "Job Service",
@@ -444,14 +489,14 @@ export const agentService = {
             message: "Generating job name via AI",
             level: "info",
             data: {
-              agentName: agent.name,
+              agentName: agentWithCreditsPrice.name,
             },
           });
 
           generatedName = await anthropicClient.generateJobName(
             {
-              name: agent.name,
-              description: agent.description,
+              name: agentWithCreditsPrice.name,
+              description: agentWithCreditsPrice.description,
             },
             inputData,
           );
@@ -460,8 +505,8 @@ export const agentService = {
             scope.setTag("error_type", "job_name_generation_failed");
             scope.setContext("job_name_generation", {
               agentId,
-              agentName: agent.name,
-              agentDescription: agent.description,
+              agentName: agentWithCreditsPrice.name,
+              agentDescription: agentWithCreditsPrice.description,
             });
 
             Sentry.captureException(error, {
@@ -497,7 +542,7 @@ export const agentService = {
           organizationId: activeOrganizationId,
           input: JSON.stringify(Object.fromEntries(inputData)),
           inputSchema: inputSchema,
-          creditsPrice,
+          creditsPrice: agentWithCreditsPrice.creditsPrice,
           identifierFromPurchaser,
           externalDisputeUnlockTime: new Date(
             startJobResponse.externalDisputeUnlockTime,
@@ -523,7 +568,7 @@ export const agentService = {
 
         // Create purchase
         const createPurchaseResult = await paymentClient.createPurchase(
-          agent.blockchainIdentifier,
+          agentWithCreditsPrice.blockchainIdentifier,
           startJobResponse,
           inputData,
           matchedInputHash,
@@ -927,54 +972,6 @@ async function validateOrganizationCreditsBalance(
       "Insufficient balance",
     );
   }
-}
-
-/**
- * Calculates the total credit price (in cents) for a set of pricing amounts, including a configurable fee.
- *
- * - Fetches the credit cost per unit from the repository for each amount.
- * - Applies a fee percentage (from public config) to the subtotal.
- * - Ensures the total fee is at least the minimum fee (from secrets).
- * - Rounds up cents and fee to the nearest integer for each unit.
- *
- * @param amounts - Array of pricing amounts (unit and amount) to price.
- * @param tx - Optional Prisma transaction client for DB access (defaults to global prisma).
- * @returns An object containing the total price in cents and the included fee in cents.
- * @throws If the fee percentage is negative or a credit cost for a unit is not found.
- */
-async function getCreditsPrice(
-  amounts: PricingAmountsSchemaType,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<CreditsPrice> {
-  const feePercentagePoints = getEnvPublicConfig().NEXT_PUBLIC_FEE_PERCENTAGE;
-  if (feePercentagePoints < 0) {
-    throw new Error("Added fee percentage must be equal to or greater than 0");
-  }
-  const feeMultiplier = feePercentagePoints / 100;
-  const amountsParsed = pricingAmountsSchema.parse(amounts);
-
-  let totalCents = BigInt(0);
-  let totalFee = BigInt(0);
-  const minFeeCents = convertCreditsToCents(getEnvSecrets().MIN_FEE_CREDITS);
-  for (const amount of amountsParsed) {
-    const creditCost = await creditCostRepository.getCreditCostByUnit(
-      amount.unit,
-      tx,
-    );
-    if (!creditCost) {
-      throw new Error(`Credit cost not found for unit ${amount.unit}`);
-    }
-    const cents = amount.amount * Number(creditCost.centsPerUnit);
-    const fee = cents * feeMultiplier;
-
-    // round up to the nearest integer
-    totalCents += BigInt(Math.ceil(cents));
-    totalFee += BigInt(Math.ceil(fee));
-  }
-  if (totalFee < minFeeCents) {
-    totalFee = minFeeCents;
-  }
-  return { cents: totalCents + totalFee, includedFee: totalFee };
 }
 
 /**

@@ -8,12 +8,16 @@ import {
   AgentsNotAvailable,
   AgentsNotFound,
 } from "@/components/agents";
-import { AgentWithRelations, CreditsPrice, getAgentTags } from "@/lib/db";
+import {
+  AgentWithCreditsPrice,
+  AgentWithRelations,
+  getAgentTags,
+} from "@/lib/db";
 
 import { GalleryFilterState } from "./use-gallery-filter";
 
 const filterAgents = (
-  agents: AgentWithRelations[],
+  agents: AgentWithCreditsPrice[],
   { query, tags }: GalleryFilterState,
 ) => {
   if (!query && tags.length === 0) {
@@ -40,9 +44,8 @@ const filterAgents = (
 };
 
 interface FilteredAgentsProps {
-  agents: AgentWithRelations[];
+  agents: AgentWithCreditsPrice[];
   favoriteAgents?: AgentWithRelations[] | undefined;
-  agentCreditsPriceList: CreditsPrice[];
 }
 
 export default function FilteredAgents(props: FilteredAgentsProps) {
@@ -53,11 +56,7 @@ export default function FilteredAgents(props: FilteredAgentsProps) {
   );
 }
 
-function FilteredAgentsInner({
-  agents,
-  favoriteAgents,
-  agentCreditsPriceList,
-}: FilteredAgentsProps) {
+function FilteredAgentsInner({ agents, favoriteAgents }: FilteredAgentsProps) {
   const searchParams = useSearchParams();
 
   const filteredAgents = useMemo(() => {
@@ -77,11 +76,5 @@ function FilteredAgentsInner({
     return <AgentsNotFound />;
   }
 
-  return (
-    <Agents
-      agents={filteredAgents}
-      favoriteAgents={favoriteAgents}
-      agentCreditsPriceList={agentCreditsPriceList}
-    />
-  );
+  return <Agents agents={filteredAgents} favoriteAgents={favoriteAgents} />;
 }

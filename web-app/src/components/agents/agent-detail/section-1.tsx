@@ -10,18 +10,17 @@ import { AgentHireButton } from "@/components/agents/agent-hire-button";
 import { AgentVerifiedBadge } from "@/components/agents/agent-verified-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  AgentWithCreditsPrice,
   AgentWithRelations,
   convertCentsToCredits,
-  CreditsPrice,
   getAgentName,
   getAgentResolvedImage,
   getFullAgentAuthorName,
 } from "@/lib/db";
 
 interface AgentDetailSection1Props {
-  agent: AgentWithRelations;
+  agent: AgentWithCreditsPrice;
   favoriteAgents: AgentWithRelations[] | undefined;
-  agentCreditsPrice: CreditsPrice;
   showBackButton?: boolean | undefined;
   showCloseButton?: boolean | undefined;
   onClose?: (() => void) | undefined;
@@ -30,7 +29,6 @@ interface AgentDetailSection1Props {
 function AgentDetailSection1({
   agent,
   favoriteAgents,
-  agentCreditsPrice,
   showBackButton,
   showCloseButton,
   onClose,
@@ -89,7 +87,7 @@ function AgentDetailSection1({
             <div className="text-sm md:text-base">
               <span className="font-medium">
                 {t("pricing", {
-                  credits: convertCentsToCredits(agentCreditsPrice.cents),
+                  credits: convertCentsToCredits(agent.creditsPrice.cents),
                 })}
               </span>
             </div>

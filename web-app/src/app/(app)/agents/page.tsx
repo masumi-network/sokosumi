@@ -40,11 +40,8 @@ export default async function GalleryPage() {
         <FilterSection tags={tagNames} />
         {/* Agent Cards Grid */}
         <FilteredAgents
-          agents={agentsWithPrice.map((item) => item.agent)}
+          agents={agentsWithPrice}
           favoriteAgents={favoriteAgents}
-          agentCreditsPriceList={agentsWithPrice.map(
-            (item) => item.creditsPrice,
-          )}
         />
       </div>
     </div>

@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useMemo, useState } from "react";
 
-import { AgentWithCreditPrice } from "@/lib/db";
+import { AgentWithCreditsPrice } from "@/lib/db";
 
 interface CreateJobModalContextType {
   // modal open
@@ -20,11 +20,11 @@ interface CreateJobModalContextType {
   handleExpand: () => void;
   handleCollapse: () => void;
   // agents with price
-  agentsWithPrice: AgentWithCreditPrice[];
+  agentsWithPrice: AgentWithCreditsPrice[];
   // selected agent
   agentId?: string | undefined;
   setAgentId: (agentId: string) => void;
-  agentWithPrice?: AgentWithCreditPrice | undefined;
+  agentWithPrice?: AgentWithCreditsPrice | undefined;
   // average execution duration
   averageExecutionDuration: number;
 }
@@ -55,7 +55,7 @@ export function CreateJobModalContextProvider({
   averageExecutionDuration,
   children,
 }: {
-  agentsWithPrice: AgentWithCreditPrice[];
+  agentsWithPrice: AgentWithCreditsPrice[];
   averageExecutionDuration: number;
   children: React.ReactNode;
 }) {
@@ -67,7 +67,7 @@ export function CreateJobModalContextProvider({
     if (!agentId) {
       return;
     }
-    const result = agentsWithPrice.find(({ agent }) => agent.id === agentId);
+    const result = agentsWithPrice.find((agent) => agent.id === agentId);
     if (!result) {
       console.error("agent not found in agentsWithPrice", agentId);
     }

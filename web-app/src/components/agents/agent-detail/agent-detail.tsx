@@ -1,6 +1,6 @@
 import {
+  AgentWithCreditsPrice,
   AgentWithRelations,
-  CreditsPrice,
   getAgentExampleOutput,
   getAgentLegal,
 } from "@/lib/db";
@@ -15,8 +15,7 @@ import { AgentDetailSection5, AgentDetailSection5Skeleton } from "./section-5";
 import { AgentDetailSection6, AgentDetailSection6Skeleton } from "./section-6";
 
 interface AgentDetailProps {
-  agent: AgentWithRelations;
-  agentCreditsPrice: CreditsPrice;
+  agent: AgentWithCreditsPrice;
   executedJobsCount: number;
   averageExecutionDuration: number;
   favoriteAgents?: AgentWithRelations[] | undefined;
@@ -29,7 +28,6 @@ interface AgentDetailProps {
 
 export function AgentDetail({
   agent,
-  agentCreditsPrice,
   executedJobsCount,
   averageExecutionDuration,
   favoriteAgents,
@@ -48,7 +46,6 @@ export function AgentDetail({
         <AgentDetailSection1
           agent={agent}
           favoriteAgents={favoriteAgents}
-          agentCreditsPrice={agentCreditsPrice}
           showBackButton={showBackButton}
           showCloseButton={showCloseButton}
           onClose={onClose}

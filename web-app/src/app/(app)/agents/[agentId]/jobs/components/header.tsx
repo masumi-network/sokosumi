@@ -13,9 +13,9 @@ import { CreateJobModalTrigger } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  AgentWithCreditsPrice,
   AgentWithRelations,
   convertCentsToCredits,
-  CreditsPrice,
   getAgentName,
 } from "@/lib/db";
 
@@ -45,8 +45,7 @@ export function HeaderSkeleton() {
 }
 
 interface HeaderProps {
-  agent: AgentWithRelations;
-  agentCreditsPrice: CreditsPrice;
+  agent: AgentWithCreditsPrice;
   executedJobsCount: number;
   averageExecutionDuration: number;
   favoriteAgents: AgentWithRelations[];
@@ -55,7 +54,6 @@ interface HeaderProps {
 
 export default function Header({
   agent,
-  agentCreditsPrice,
   executedJobsCount,
   averageExecutionDuration,
   favoriteAgents,
@@ -98,7 +96,7 @@ export default function Header({
       <div className="flex flex-1 flex-row items-center justify-end gap-4">
         <div className="w-full text-end text-sm font-semibold">
           {t("price", {
-            price: convertCentsToCredits(agentCreditsPrice.cents),
+            price: convertCentsToCredits(agent.creditsPrice.cents),
           })}
         </div>
         <CreateJobModalTrigger agentId={agent.id} disabled={disabled} />
@@ -107,7 +105,6 @@ export default function Header({
       <AgentModal open={detailOpen}>
         <AgentDetail
           agent={agent}
-          agentCreditsPrice={agentCreditsPrice}
           executedJobsCount={executedJobsCount}
           averageExecutionDuration={averageExecutionDuration}
           favoriteAgents={favoriteAgents}
