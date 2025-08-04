@@ -1,11 +1,16 @@
 import "server-only";
 
+import { getEnvPublicConfig } from "@/config/env.public";
+import { getEnvSecrets } from "@/config/env.secrets";
 import { getSession, getSessionOrThrow } from "@/lib/auth/utils";
 import {
+  AgentWithCreditPrice,
   AgentWithFixedPricing,
   AgentWithJobs,
   AgentWithOrganizations,
   AgentWithRelations,
+  convertCreditsToCents,
+  CreditsPrice,
 } from "@/lib/db";
 import {
   agentListRepository,
@@ -15,14 +20,13 @@ import {
   memberRepository,
   prisma,
 } from "@/lib/db/repositories";
+import { pricingAmountsSchema, PricingAmountsSchemaType } from "@/lib/schemas";
 import {
   AgentListType,
   AgentStatus,
   CreditCost,
   Prisma,
 } from "@/prisma/generated/client";
-
-import { AgentWithCreditPrice, getAgentCreditsPrice } from "./credit/service";
 
 export const agentService = {
   async getFavoriteAgents(): Promise<AgentWithRelations[]> {
@@ -87,7 +91,7 @@ export const agentService = {
     const agents = await this.getAvailableAgents();
     const results = await Promise.allSettled(
       agents.map(async (agent) => {
-        const creditsPrice = await getAgentCreditsPrice(agent);
+        const creditsPrice = await this.getAgentCreditsPrice(agent);
         return { agent, creditsPrice };
       }),
     );
@@ -126,7 +130,81 @@ export const agentService = {
       return bLatestJob.startedAt.getTime() - aLatestJob.startedAt.getTime();
     });
   },
+
+  /**
+   * Calculates the total credit price (in cents) for a given agent's fixed pricing.
+   *
+   * - Extracts the pricing amounts from the agent's fixed pricing configuration.
+   * - Converts the amounts to the expected format.
+   * - Delegates the calculation to `getCreditsPrice`.
+   * - Returns zero if the agent has no pricing amounts.
+   *
+   * @param agent - The agent object containing fixed pricing information.
+   * @param tx - (Optional) The Prisma transaction client to use for database operations. Defaults to the main Prisma client.
+   * @returns An object containing the total price in cents and the included fee, both as bigint.
+   */
+  async getAgentCreditsPrice(
+    agent: AgentWithFixedPricing,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<CreditsPrice> {
+    const amounts = agent.pricing?.fixedPricing?.amounts?.map((amount) => ({
+      unit: amount.unit,
+      amount: Number(amount.amount),
+    }));
+    if (!amounts) {
+      return { cents: BigInt(0), includedFee: BigInt(0) };
+    }
+    return await getCreditsPrice(amounts, tx);
+  },
 };
+
+/**
+ * Calculates the total credit price (in cents) for a set of pricing amounts, including a configurable fee.
+ *
+ * - Fetches the credit cost per unit from the repository for each amount.
+ * - Applies a fee percentage (from public config) to the subtotal.
+ * - Ensures the total fee is at least the minimum fee (from secrets).
+ * - Rounds up cents and fee to the nearest integer for each unit.
+ *
+ * @param amounts - Array of pricing amounts (unit and amount) to price.
+ * @param tx - Optional Prisma transaction client for DB access (defaults to global prisma).
+ * @returns An object containing the total price in cents and the included fee in cents.
+ * @throws If the fee percentage is negative or a credit cost for a unit is not found.
+ */
+async function getCreditsPrice(
+  amounts: PricingAmountsSchemaType,
+  tx: Prisma.TransactionClient = prisma,
+): Promise<CreditsPrice> {
+  const feePercentagePoints = getEnvPublicConfig().NEXT_PUBLIC_FEE_PERCENTAGE;
+  if (feePercentagePoints < 0) {
+    throw new Error("Added fee percentage must be equal to or greater than 0");
+  }
+  const feeMultiplier = feePercentagePoints / 100;
+  const amountsParsed = pricingAmountsSchema.parse(amounts);
+
+  let totalCents = BigInt(0);
+  let totalFee = BigInt(0);
+  const minFeeCents = convertCreditsToCents(getEnvSecrets().MIN_FEE_CREDITS);
+  for (const amount of amountsParsed) {
+    const creditCost = await creditCostRepository.getCreditCostByUnit(
+      amount.unit,
+      tx,
+    );
+    if (!creditCost) {
+      throw new Error(`Credit cost not found for unit ${amount.unit}`);
+    }
+    const cents = amount.amount * Number(creditCost.centsPerUnit);
+    const fee = cents * feeMultiplier;
+
+    // round up to the nearest integer
+    totalCents += BigInt(Math.ceil(cents));
+    totalFee += BigInt(Math.ceil(fee));
+  }
+  if (totalFee < minFeeCents) {
+    totalFee = minFeeCents;
+  }
+  return { cents: totalCents + totalFee, includedFee: totalFee };
+}
 
 /**
  * Utility: Checks if a user can access an agent based on organization membership and agent visibility.

@@ -7,7 +7,7 @@ import {
 } from "@/components/create-job-modal";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { jobRepository } from "@/lib/db/repositories";
-import { agentService, getAgentCreditsPrice } from "@/lib/services";
+import { agentService } from "@/lib/services";
 
 export default async function AgentDetailPage({
   params,
@@ -23,7 +23,7 @@ export default async function AgentDetailPage({
     return notFound();
   }
 
-  const agentCreditsPrice = await getAgentCreditsPrice(agent);
+  const agentCreditsPrice = await agentService.getAgentCreditsPrice(agent);
   if (!agentCreditsPrice) {
     return notFound();
   }

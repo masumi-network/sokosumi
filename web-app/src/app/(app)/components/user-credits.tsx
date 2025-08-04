@@ -3,12 +3,9 @@ import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { Button } from "@/components/ui/button";
-import {
-  getActiveOrganization,
-  getOrganizationCredits,
-  getUserCredits,
-  stripeService,
-} from "@/lib/services";
+import { convertCentsToCredits } from "@/lib/db";
+import { creditTransactionRepository } from "@/lib/db/repositories";
+import { getActiveOrganization, stripeService } from "@/lib/services";
 import { userService } from "@/lib/services/user.service";
 
 import FreeCreditsButton from "./free-credits-button";
@@ -35,13 +32,17 @@ export default async function UserCredits() {
   let creditLabel: string;
 
   if (activeOrganization) {
-    credits = await getOrganizationCredits(activeOrganization.id);
+    const cents = await creditTransactionRepository.getCentsByOrganizationId(
+      activeOrganization.id,
+    );
+    credits = convertCentsToCredits(cents);
     creditLabel = t("organizationBalance", {
       credits: credits,
       organization: activeOrganization.name,
     });
   } else {
-    credits = await getUserCredits(user.id);
+    const cents = await creditTransactionRepository.getCentsByUserId(user.id);
+    credits = convertCentsToCredits(cents);
     creditLabel = t("userBalance", { credits: credits });
   }
 
