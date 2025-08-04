@@ -228,7 +228,7 @@ export const agentService = {
             data: { agentId },
           });
 
-          const agent = await agentService.getAvailableAgentById(agentId, tx);
+          const agent = await this.getAvailableAgentById(agentId, tx);
           if (!agent) {
             Sentry.setTag("error_type", "agent_not_found");
             Sentry.setContext("agent_validation", {
@@ -256,10 +256,7 @@ export const agentService = {
             },
           });
 
-          const creditsPrice = await agentService.getAgentCreditsPrice(
-            agent,
-            tx,
-          );
+          const creditsPrice = await this.getAgentCreditsPrice(agent, tx);
 
           if (creditsPrice.cents > maxAcceptedCents) {
             Sentry.setTag("error_type", "cost_too_high");
