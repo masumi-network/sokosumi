@@ -13,7 +13,7 @@ import {
   startJobInputSchema,
   StartJobInputSchemaType,
 } from "@/lib/schemas";
-import { requestRefundJob, startJob } from "@/lib/services";
+import { agentService, requestRefundJob } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
 
 export async function startJobWithInputData(
@@ -77,7 +77,7 @@ export async function startJobWithInputData(
       }
       const parsed = parsedResult.data;
 
-      const job = await startJob(parsed);
+      const job = await agentService.startJob(parsed);
 
       // Add success breadcrumb
       Sentry.addBreadcrumb({
