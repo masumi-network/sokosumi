@@ -7,8 +7,8 @@ import AccordionItemWrapper from "@/app/agents/[agentId]/jobs/components/accordi
 import Markdown from "@/components/markdown";
 import { Accordion } from "@/components/ui/accordion";
 import {
+  AgentWithCreditsPrice,
   AgentWithRelations,
-  CreditsPrice,
   getAgentDescription,
   getAgentLegal,
   getAgentName,
@@ -20,14 +20,12 @@ import CreateJobModalHeader from "./create-job-modal-header";
 import { JobInputsForm } from "./job-input";
 
 interface CreateJobSectionProps {
-  agent: AgentWithRelations;
-  agentCreditsPrice: CreditsPrice;
+  agent: AgentWithCreditsPrice;
   averageExecutionDuration: number;
 }
 
 export default function CreateJobSection({
   agent,
-  agentCreditsPrice,
   averageExecutionDuration,
 }: CreateJobSectionProps) {
   const { accordionValue, setAccordionValue, loading } =
@@ -49,7 +47,6 @@ export default function CreateJobSection({
         <InformationAccordionItem agent={agent} disabled={loading} />
         <InputAccordionItem
           agent={agent}
-          agentCreditsPrice={agentCreditsPrice}
           disabled={loading}
           averageExecutionDuration={averageExecutionDuration}
         />
@@ -97,12 +94,10 @@ function InformationAccordionItem({
 
 function InputAccordionItem({
   agent,
-  agentCreditsPrice,
   disabled,
   averageExecutionDuration,
 }: {
-  agent: AgentWithRelations;
-  agentCreditsPrice: CreditsPrice;
+  agent: AgentWithCreditsPrice;
   disabled?: boolean | undefined;
   averageExecutionDuration: number;
 }) {
@@ -114,7 +109,7 @@ function InputAccordionItem({
         <p className="text-sm">{t("description")}</p>
         <JobInputsForm
           agentId={agent.id}
-          agentCreditsPrice={agentCreditsPrice}
+          agentCreditsPrice={agent.creditsPrice}
           legal={getAgentLegal(agent)}
           averageExecutionDuration={averageExecutionDuration}
         />
