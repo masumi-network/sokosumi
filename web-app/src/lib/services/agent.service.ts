@@ -1,6 +1,7 @@
 import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
+import { JobStatusData } from "src/lib/ably/schema";
 import { v4 as uuidv4 } from "uuid";
 
 import { getEnvPublicConfig } from "@/config/env.public";
@@ -18,6 +19,7 @@ import {
   computeJobStatus,
   convertCreditsToCents,
   CreditsPrice,
+  getJobStatusData,
   JobStatus,
   JobWithStatus,
 } from "@/lib/db";
@@ -731,6 +733,47 @@ export const agentService = {
         console.error("Error publishing job status data", err);
       }
     }
+  },
+
+  /**
+   * Retrieves the latest job status data for a list of agent IDs for the current user and organization.
+   *
+   * For each agent ID provided, this function fetches the most recent job associated with the agent,
+   * the current user, and the active organization. If a job is found, it returns the job's status data;
+   * otherwise, it returns null for that agent.
+   *
+   * @param agentIds - An array of agent IDs to fetch job status data for.
+   * @param tx - (Optional) A Prisma transaction client to use for database operations. Defaults to the main Prisma client.
+   * @returns A Promise that resolves to an array of JobStatusData or null (one for each agent ID).
+   *
+   * If the user session is not found, returns an empty array.
+   */
+  async getAgentJobStatusDataListByAgentIds(
+    agentIds: string[],
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<(JobStatusData | null)[]> {
+    const session = await getSession();
+    if (!session) {
+      return [];
+    }
+    const userId = session.user.id;
+    const activeOrganizationId = session.session.activeOrganizationId;
+
+    return await Promise.all(
+      agentIds.map(async (agentId) => {
+        const latestJob =
+          await jobRepository.getLatestJobByAgentIdUserIdAndOrganization(
+            agentId,
+            userId,
+            activeOrganizationId,
+            tx,
+          );
+        if (!latestJob) {
+          return null;
+        }
+        return getJobStatusData(latestJob);
+      }),
+    );
   },
 };
 
