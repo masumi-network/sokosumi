@@ -38,6 +38,109 @@ import { userService } from "./user.service";
 
 export const jobService = (() => {
   /**
+   * Helper function to determine if agent status should be synchronized for a job.
+   */
+  function shouldSyncAgentStatus(job: Job): boolean {
+    if (job.refundedCreditTransactionId) {
+      return false;
+    }
+    if (
+      job.onChainStatus === OnChainJobStatus.RESULT_SUBMITTED &&
+      job.agentJobStatus === AgentJobStatus.COMPLETED
+    ) {
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Helper function to determine if Masumi payment status should be synchronized for a job.
+   */
+  function shouldSyncMasumiStatus(job: Job): boolean {
+    return job.refundedCreditTransactionId === null;
+  }
+
+  /**
+   * Returns the matching input hash for a job, supporting both current and deprecated hash formats.
+   *
+   * This function computes the input hash for the provided job input data and purchaser identifier,
+   * and compares it to the given hash to match. If the current hash does not match, it also checks
+   * against a deprecated hash format for backward compatibility. If neither matches, a JobError is thrown.
+   *
+   * @param inputData - The job input data used to compute the hash.
+   * @param identifierFromPurchaser - The unique identifier from the purchaser, used in hash computation.
+   * @param inputHashToMatch - The hash value to match against (could be current or deprecated).
+   * @returns The matched input hash string (current or deprecated).
+   * @throws {JobError} If neither the current nor deprecated input hash matches the provided value.
+   */
+  function getMatchedInputHash(
+    inputData: JobInputData,
+    identifierFromPurchaser: string,
+    inputHashToMatch: string,
+  ): string {
+    const inputHash = getInputHash(inputData, identifierFromPurchaser);
+    if (inputHashToMatch === inputHash) {
+      return inputHash;
+    }
+    const inputHashDeprecated = getInputHashDeprecated(
+      inputData,
+      identifierFromPurchaser,
+    );
+    if (inputHashToMatch === inputHashDeprecated) {
+      return inputHashDeprecated;
+    }
+    throw new JobError(
+      JobErrorCode.INPUT_HASH_MISMATCH,
+      "Input data hash mismatch",
+    );
+  }
+
+  /**
+   * Validates that the agent's pricing schema matches the job's pricing schema.
+   *
+   * - Compares the pricing amounts (unit and amount) between the agent and the job.
+   * - Throws a JobError with code PRICING_SCHEMA_MISMATCH if:
+   *   - The number of pricing units differs.
+   *   - Any unit in the job's pricing is missing from the agent's pricing.
+   *   - The amount for any unit does not match between agent and job.
+   *
+   * @param agentPricing - The pricing amounts defined by the agent.
+   * @param jobPricing - The pricing amounts specified for the job.
+   * @throws {JobError} If the pricing schemas do not match.
+   */
+  function tryValidatePricing(
+    agentPricing: PricingAmountsSchemaType,
+    jobPricing: PricingAmountsSchemaType,
+  ): void {
+    const agentPricingMap = new Map(
+      agentPricing.map((amount) => [amount.unit, amount.amount]),
+    );
+    const jobPricingMap = new Map(
+      jobPricing.map((amount) => [amount.unit, amount.amount]),
+    );
+    if (agentPricingMap.size !== jobPricingMap.size) {
+      throw new JobError(
+        JobErrorCode.PRICING_SCHEMA_MISMATCH,
+        "Pricing schemas have different lengths",
+      );
+    }
+    // verify that the pricing schemas are identical
+    for (const [unit, amount] of jobPricingMap) {
+      if (!agentPricingMap.has(unit)) {
+        throw new JobError(
+          JobErrorCode.PRICING_SCHEMA_MISMATCH,
+          `Agent pricing not found for unit ${unit}`,
+        );
+      }
+      if (agentPricingMap.get(unit) !== amount) {
+        throw new JobError(
+          JobErrorCode.PRICING_SCHEMA_MISMATCH,
+          `Agent pricing for unit ${unit} is incorrect`,
+        );
+      }
+    }
+  }
+  /**
    * Validates that a user has sufficient credit balance (in cents) to cover a specified amount.
    *
    * This function retrieves the user's current credit balance in cents and checks if it is
@@ -48,7 +151,7 @@ export const jobService = (() => {
    * @param tx - (Optional) The Prisma transaction client to use for database operations. Defaults to the main Prisma client.
    * @throws Error if the user's balance is insufficient to cover the specified amount.
    */
-  const validateCreditsBalance = async (
+  const validateUserCreditsBalance = async (
     userId: string,
     cents: bigint,
     tx: Prisma.TransactionClient = prisma,
@@ -230,7 +333,7 @@ export const jobService = (() => {
                   tx,
                 );
               } else {
-                await validateCreditsBalance(
+                await validateUserCreditsBalance(
                   userId,
                   agentWithCreditsPrice.creditsPrice.cents,
                   tx,
@@ -732,107 +835,3 @@ export const jobService = (() => {
     getAgentJobStatusDataListByAgentIds,
   };
 })();
-
-/**
- * Helper function to determine if agent status should be synchronized for a job.
- */
-function shouldSyncAgentStatus(job: Job): boolean {
-  if (job.refundedCreditTransactionId) {
-    return false;
-  }
-  if (
-    job.onChainStatus === OnChainJobStatus.RESULT_SUBMITTED &&
-    job.agentJobStatus === AgentJobStatus.COMPLETED
-  ) {
-    return false;
-  }
-  return true;
-}
-
-/**
- * Helper function to determine if Masumi payment status should be synchronized for a job.
- */
-function shouldSyncMasumiStatus(job: Job): boolean {
-  return job.refundedCreditTransactionId === null;
-}
-
-/**
- * Returns the matching input hash for a job, supporting both current and deprecated hash formats.
- *
- * This function computes the input hash for the provided job input data and purchaser identifier,
- * and compares it to the given hash to match. If the current hash does not match, it also checks
- * against a deprecated hash format for backward compatibility. If neither matches, a JobError is thrown.
- *
- * @param inputData - The job input data used to compute the hash.
- * @param identifierFromPurchaser - The unique identifier from the purchaser, used in hash computation.
- * @param inputHashToMatch - The hash value to match against (could be current or deprecated).
- * @returns The matched input hash string (current or deprecated).
- * @throws {JobError} If neither the current nor deprecated input hash matches the provided value.
- */
-function getMatchedInputHash(
-  inputData: JobInputData,
-  identifierFromPurchaser: string,
-  inputHashToMatch: string,
-): string {
-  const inputHash = getInputHash(inputData, identifierFromPurchaser);
-  if (inputHashToMatch === inputHash) {
-    return inputHash;
-  }
-  const inputHashDeprecated = getInputHashDeprecated(
-    inputData,
-    identifierFromPurchaser,
-  );
-  if (inputHashToMatch === inputHashDeprecated) {
-    return inputHashDeprecated;
-  }
-  throw new JobError(
-    JobErrorCode.INPUT_HASH_MISMATCH,
-    "Input data hash mismatch",
-  );
-}
-
-/**
- * Validates that the agent's pricing schema matches the job's pricing schema.
- *
- * - Compares the pricing amounts (unit and amount) between the agent and the job.
- * - Throws a JobError with code PRICING_SCHEMA_MISMATCH if:
- *   - The number of pricing units differs.
- *   - Any unit in the job's pricing is missing from the agent's pricing.
- *   - The amount for any unit does not match between agent and job.
- *
- * @param agentPricing - The pricing amounts defined by the agent.
- * @param jobPricing - The pricing amounts specified for the job.
- * @throws {JobError} If the pricing schemas do not match.
- */
-function tryValidatePricing(
-  agentPricing: PricingAmountsSchemaType,
-  jobPricing: PricingAmountsSchemaType,
-): void {
-  const agentPricingMap = new Map(
-    agentPricing.map((amount) => [amount.unit, amount.amount]),
-  );
-  const jobPricingMap = new Map(
-    jobPricing.map((amount) => [amount.unit, amount.amount]),
-  );
-  if (agentPricingMap.size !== jobPricingMap.size) {
-    throw new JobError(
-      JobErrorCode.PRICING_SCHEMA_MISMATCH,
-      "Pricing schemas have different lengths",
-    );
-  }
-  // verify that the pricing schemas are identical
-  for (const [unit, amount] of jobPricingMap) {
-    if (!agentPricingMap.has(unit)) {
-      throw new JobError(
-        JobErrorCode.PRICING_SCHEMA_MISMATCH,
-        `Agent pricing not found for unit ${unit}`,
-      );
-    }
-    if (agentPricingMap.get(unit) !== amount) {
-      throw new JobError(
-        JobErrorCode.PRICING_SCHEMA_MISMATCH,
-        `Agent pricing for unit ${unit} is incorrect`,
-      );
-    }
-  }
-}
