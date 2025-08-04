@@ -32,7 +32,7 @@ export default function OrganizationInformationModal({
   onOpenChange,
   organization,
 }: OrganizationInformationModalProps) {
-  const t = useTranslations("Components.Organizations.InformationModal");
+  const t = useTranslations("Components.Organizations.InformationModal.Title");
 
   const form = useForm<OrganizationInformationFormSchemaType>({
     resolver: zodResolver(
@@ -72,7 +72,7 @@ export default function OrganizationInformationModal({
         <DialogOverlay className="backdrop-blur-lg" />
         <DialogContent className="max-h-[80svh] w-[80vw] max-w-2xl!">
           <DialogTitle className="text-center">
-            {isCreating ? t("Title.create") : t("Title.edit")}
+            {isCreating ? t("create") : t("edit")}
           </DialogTitle>
           <DialogDescription className="hidden" />
           <OrganizationInformationForm
