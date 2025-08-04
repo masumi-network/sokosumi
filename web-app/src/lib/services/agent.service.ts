@@ -1,12 +1,12 @@
 import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
-import { JobStatusData } from "src/lib/ably/schema";
 import { v4 as uuidv4 } from "uuid";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import publishJobStatusData from "@/lib/ably/publish";
+import { JobStatusData } from "@/lib/ably/schema";
 import { JobError, JobErrorCode } from "@/lib/actions/types/error-codes/job";
 import { getSession, getSessionOrThrow } from "@/lib/auth/utils";
 import { agentClient, paymentClient } from "@/lib/clients";
