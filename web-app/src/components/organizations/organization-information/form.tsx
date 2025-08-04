@@ -8,34 +8,38 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { useAsyncRouter } from "@/hooks/use-async-router";
-import { CommonErrorCode, updateOrganizationInformation } from "@/lib/actions";
-import { UpdateOrganizationInformationFormSchemaType } from "@/lib/schemas";
+import {
+  CommonErrorCode,
+  createOrganization,
+  updateOrganizationInformation,
+} from "@/lib/actions";
+import { OrganizationInformationFormSchemaType } from "@/lib/schemas";
 
 import { updateOrganizationInformationFormData } from "./data";
 import { FormFields } from "./form-fields";
 
-interface OrganizationInformationEditFormProps {
-  organizationId: string;
-  form: UseFormReturn<UpdateOrganizationInformationFormSchemaType>;
+interface OrganizationInformationFormProps {
+  organizationId: string | null;
+  form: UseFormReturn<OrganizationInformationFormSchemaType>;
   onOpenChange: (open: boolean) => void;
 }
 
-export default function OrganizationInformationEditForm({
+export default function OrganizationInformationForm({
   organizationId,
   form,
   onOpenChange,
-}: OrganizationInformationEditFormProps) {
-  const t = useTranslations(
-    "Components.Organizations.EditInformationModal.Form",
-  );
+}: OrganizationInformationFormProps) {
+  const t = useTranslations("Components.Organizations.InformationModal.Form");
   const router = useAsyncRouter();
 
-  const onSubmit = async (
-    values: UpdateOrganizationInformationFormSchemaType,
-  ) => {
-    const result = await updateOrganizationInformation(organizationId, values);
+  const isCreating = !organizationId;
+
+  const onSubmit = async (values: OrganizationInformationFormSchemaType) => {
+    const result = isCreating
+      ? await createOrganization(values)
+      : await updateOrganizationInformation(organizationId, values);
     if (result.ok) {
-      toast.success(t("success"));
+      toast.success(isCreating ? t("Success.create") : t("Success.edit"));
       onOpenChange(false);
     } else {
       switch (result.error.code) {
@@ -53,7 +57,7 @@ export default function OrganizationInformationEditForm({
           toast.error(t("Errors.unauthorized"));
           break;
         default:
-          toast.error(t("error"));
+          toast.error(isCreating ? t("Error.create") : t("Error.edit"));
       }
       return;
     }
@@ -71,7 +75,7 @@ export default function OrganizationInformationEditForm({
           />
           <Button type="submit" disabled={isLoading} className="w-full">
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {t("submit")}
+            {isCreating ? t("Submit.create") : t("Submit.edit")}
           </Button>
         </fieldset>
       </form>

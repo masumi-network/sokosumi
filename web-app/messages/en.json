@@ -200,17 +200,29 @@
       "RequiredEmailDomains": {
         "restrictAll": "Restrict all email domains"
       },
-      "EditInformationModal": {
-        "title": "Edit Organization",
+      "InformationModal": {
+        "Title": {
+          "create": "Create Organization",
+          "edit": "Edit Organization"
+        },
         "Form": {
-          "submit": "Save",
+          "Submit": {
+            "create": "Create",
+            "edit": "Save"
+          },
           "cancel": "Cancel",
-          "success": "Organization updated successfully",
-          "error": "Failed to update organization",
+          "Success": {
+            "create": "Organization created successfully",
+            "edit": "Organization updated successfully"
+          },
+          "Error": {
+            "create": "Failed to create organization",
+            "edit": "Failed to update organization"
+          },
           "Errors": {
-            "unauthenticated": "You must be logged in to edit an organization.",
+            "unauthenticated": "You must be logged in.",
             "unauthenticatedAction": "Login",
-            "unauthorized": "You must be an admin to edit an organization."
+            "unauthorized": "You must be an admin."
           },
           "Fields": {
             "Name": {
@@ -648,11 +660,6 @@
           },
           "Errors": {
             "badInput": "Please input form correctly.",
-            "organizationNotFound": "Organization not found",
-            "memberCreateFailed": "Failed to create organization member",
-            "emailDomainInvalid": "Email domain is invalid",
-            "emailNotAllowedByOrganization": "Email not allowed to join organization",
-            "invitationNotFound": "Invitation not found",
             "userExists": "User already exists",
             "termsNotAccepted": "You must accept the terms and conditions to register"
           },
@@ -865,7 +872,7 @@
       },
       "title": "Organizations",
       "newOrganization": "New Organization",
-      "membersNotAvailable": "No members found",
+      "organizationsNotAvailable": "No Organizations found",
       "OrganizationRow": {
         "leave": "Leave",
         "activate": "Activate",

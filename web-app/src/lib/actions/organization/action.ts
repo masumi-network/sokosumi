@@ -5,15 +5,83 @@ import { revalidatePath } from "next/cache";
 import { ActionError, CommonErrorCode } from "@/lib/actions";
 import { getSession } from "@/lib/auth/utils";
 import { MemberRole } from "@/lib/db";
-import { organizationRepository } from "@/lib/db/repositories";
-import { updateOrganizationInformationFormSchema } from "@/lib/schemas";
-import { getMyMemberInOrganization } from "@/lib/services";
+import {
+  memberRepository,
+  organizationRepository,
+  prisma,
+} from "@/lib/db/repositories";
+import {
+  organizationInformationFormSchema,
+  OrganizationInformationFormSchemaType,
+} from "@/lib/schemas";
+import {
+  generateOrganizationSlugFromName,
+  getMyMemberInOrganization,
+} from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
-import { Prisma } from "@/prisma/generated/client";
+import { Organization } from "@/prisma/generated/client";
+
+export async function createOrganization(
+  data: OrganizationInformationFormSchemaType,
+): Promise<Result<Organization, ActionError>> {
+  try {
+    const session = await getSession();
+    if (!session) {
+      return Err({
+        message: "Unauthenticated",
+        code: CommonErrorCode.UNAUTHENTICATED,
+      });
+    }
+    const userId = session.user.id;
+
+    const parsedResult = organizationInformationFormSchema().safeParse(data);
+    if (!parsedResult.success) {
+      return Err({
+        message: "Bad Input",
+        code: CommonErrorCode.BAD_INPUT,
+      });
+    }
+
+    // generate slug from name
+    const slug = await generateOrganizationSlugFromName(parsedResult.data.name);
+
+    // create organization and admin atomically
+    const { organization } = await prisma.$transaction(async (tx) => {
+      // create organization
+      const organization = await organizationRepository.createOrganization(
+        slug,
+        parsedResult.data.name,
+        parsedResult.data.requiredEmailDomains ?? [],
+        parsedResult.data.metadata ?? null,
+        tx,
+      );
+
+      // create admin
+      await memberRepository.createMember(
+        userId,
+        organization.id,
+        MemberRole.ADMIN,
+        tx,
+      );
+
+      return {
+        organization,
+      };
+    });
+
+    return Ok(organization);
+  } catch (error) {
+    console.error("Error creating organization", error);
+    return Err({
+      message: "Internal server error",
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+    });
+  }
+}
 
 export async function updateOrganizationInformation(
   organizationId: string,
-  data: Prisma.OrganizationUpdateInput,
+  data: OrganizationInformationFormSchemaType,
 ): Promise<Result<void, ActionError>> {
   try {
     const session = await getSession();
@@ -24,8 +92,7 @@ export async function updateOrganizationInformation(
       });
     }
 
-    const parsedResult =
-      updateOrganizationInformationFormSchema().safeParse(data);
+    const parsedResult = organizationInformationFormSchema().safeParse(data);
     if (!parsedResult.success) {
       return Err({
         message: "Bad Input",

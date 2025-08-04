@@ -1,8 +1,5 @@
 import { Metadata } from "next";
-import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-
-import { organizationRepository } from "@/lib/db/repositories/organization.repository";
 
 import SignUpForm from "./components/form";
 import SignUpHeader from "./components/header";
@@ -19,32 +16,19 @@ export async function generateMetadata(): Promise<Metadata> {
 interface SignUpPageProps {
   searchParams: Promise<{
     email?: string;
-    organizationId?: string;
     invitationId?: string;
   }>;
 }
 
 export default async function SignUp({ searchParams }: SignUpPageProps) {
-  const { email, organizationId, invitationId } = await searchParams;
-  const prefilledOrganization = organizationId
-    ? await organizationRepository.getOrganizationWithRelationsById(
-        organizationId,
-      )
-    : null;
-  if (!!organizationId && !prefilledOrganization) {
-    return notFound();
-  }
+  const { email, invitationId } = await searchParams;
 
   return (
     <div className="flex flex-1 flex-col">
       <SignUpHeader invitationId={invitationId} />
       <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
         {/* <SocialButtons /> */}
-        <SignUpForm
-          prefilledEmail={email}
-          prefilledOrganization={prefilledOrganization}
-          invitationId={invitationId}
-        />
+        <SignUpForm prefilledEmail={email} invitationId={invitationId} />
       </div>
     </div>
   );
