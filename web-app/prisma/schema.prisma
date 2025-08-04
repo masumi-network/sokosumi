@@ -111,8 +111,6 @@ model Organization {
   creditTransactions CreditTransaction[]
   fiatTransactions   FiatTransaction[]
 
-  requiredEmailDomains String[] @default([])
-
   @@unique([slug])
   @@map("organization")
 }

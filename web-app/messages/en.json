@@ -197,9 +197,6 @@
         "pending": "Pending",
         "expired": "Expired"
       },
-      "RequiredEmailDomains": {
-        "restrictAll": "Restrict all email domains"
-      },
       "InformationModal": {
         "Title": {
           "create": "Create Organization",
@@ -230,13 +227,6 @@
             },
             "Metadata": {
               "placeholder": "Metadata"
-            },
-            "RequiredEmailDomains": {
-              "label": "Required email domains",
-              "placeholder": "Add domain",
-              "duplicate": "Domain already exists",
-              "invalid": "Invalid domain",
-              "noDomains": "Restrict all email domains"
             }
           }
         },
@@ -251,11 +241,6 @@
             "min": "Organization metadata must be at least 10 characters.",
             "max": "Organization metadata must be at most 500 characters.",
             "invalid": "Organization metadata must be a valid string."
-          },
-          "RequiredEmailDomains": {
-            "max": "Organization must have at most 10 required email domains.",
-            "unique": "Must be unique domains",
-            "invalid": "Must be a valid domain"
           }
         }
       },
@@ -912,7 +897,6 @@
         },
         "roleIndicator": "View as:",
         "title": "{name}",
-        "requiredEmailDomains": "Required email domains:",
         "edit": "Edit",
         "invite": "Invite Member",
         "members": "Members"

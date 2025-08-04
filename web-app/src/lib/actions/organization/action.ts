@@ -51,7 +51,6 @@ export async function createOrganization(
       const organization = await organizationRepository.createOrganization(
         slug,
         parsedResult.data.name,
-        parsedResult.data.requiredEmailDomains ?? [],
         parsedResult.data.metadata ?? null,
         tx,
       );
@@ -115,7 +114,6 @@ export async function updateOrganizationInformation(
         name: parsedResult.data.name,
         metadata:
           parsedResult.data.metadata === "" ? null : parsedResult.data.metadata,
-        requiredEmailDomains: parsedResult.data.requiredEmailDomains,
       });
 
     // revalidate the organization page
