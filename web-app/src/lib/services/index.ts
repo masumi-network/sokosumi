@@ -1,5 +1,4 @@
 export * from "./agent.service";
-export * from "./credit";
 export * from "./invitation";
 export * from "./job";
 export * from "./lock.service";

@@ -10,7 +10,7 @@ import DefaultLoading from "@/components/default-loading";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { getAgentDescription, getAgentLegal, getAgentName } from "@/lib/db";
 import { agentRepository, jobRepository } from "@/lib/db/repositories";
-import { agentService, getAgentCreditsPrice } from "@/lib/services";
+import { agentService } from "@/lib/services";
 
 import Footer from "./components/footer";
 import Header, { HeaderSkeleton } from "./components/header";
@@ -59,7 +59,7 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
     return notFound();
   }
 
-  const agentCreditsPrice = await getAgentCreditsPrice(agent);
+  const agentCreditsPrice = await agentService.getAgentCreditsPrice(agent);
   const favoriteAgents = await agentService.getFavoriteAgents();
   const [executedJobsCount, averageExecutionDuration] = await Promise.all([
     jobRepository.getExecutedJobsCountByAgentId(agentId),
