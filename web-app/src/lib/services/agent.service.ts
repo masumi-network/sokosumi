@@ -4,6 +4,7 @@ import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { getSession, getSessionOrThrow } from "@/lib/auth/utils";
 import {
+  AgentWithCreditPrice,
   AgentWithFixedPricing,
   AgentWithJobs,
   AgentWithOrganizations,
@@ -26,11 +27,6 @@ import {
   CreditCost,
   Prisma,
 } from "@/prisma/generated/client";
-
-export interface AgentWithCreditPrice {
-  agent: AgentWithRelations;
-  creditsPrice: CreditsPrice;
-}
 
 export const agentService = {
   async getFavoriteAgents(): Promise<AgentWithRelations[]> {
