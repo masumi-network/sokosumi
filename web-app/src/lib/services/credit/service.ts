@@ -5,64 +5,16 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import {
   AgentWithFixedPricing,
   AgentWithRelations,
-  convertCentsToCredits,
   convertCreditsToCents,
   CreditsPrice,
 } from "@/lib/db";
-import {
-  creditCostRepository,
-  creditTransactionRepository,
-  prisma,
-} from "@/lib/db/repositories";
+import { creditCostRepository, prisma } from "@/lib/db/repositories";
 import { pricingAmountsSchema, PricingAmountsSchemaType } from "@/lib/schemas";
 import { Prisma } from "@/prisma/generated/client";
 
 export interface AgentWithCreditPrice {
   agent: AgentWithRelations;
   creditsPrice: Awaited<ReturnType<typeof getAgentCreditsPrice>>;
-}
-
-/**
- * Retrieves the total credit balance for a given user, expressed in credits.
- *
- * This function fetches the user's credit balance in cents using `getCentsByUserId`,
- * then converts the value to credits using `convertCentsToCredits`.
- *
- * @param userId - The ID of the user whose credit balance is being retrieved.
- * @param tx - (Optional) The Prisma transaction client to use for database operations. Defaults to the main Prisma client.
- * @returns The total credit balance as a number of credits.
- */
-export async function getUserCredits(
-  userId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<number> {
-  const creditsBalance = await creditTransactionRepository.getCentsByUserId(
-    userId,
-    tx,
-  );
-  return convertCentsToCredits(creditsBalance);
-}
-
-/**
- * Retrieves the total credit balance for a given organization, expressed in credits.
- *
- * This function fetches the organization's credit balance in cents using `retrieveCentsByOrganizationId`,
- * then converts the value to credits using `convertCentsToCredits`.
- *
- * @param organizationId - The ID of the organization whose credit balance is being retrieved.
- * @param tx - (Optional) The Prisma transaction client to use for database operations. Defaults to the main Prisma client.
- * @returns The total credit balance as a number of credits.
- */
-export async function getOrganizationCredits(
-  organizationId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<number> {
-  const creditsBalance =
-    await creditTransactionRepository.getCentsByOrganizationId(
-      organizationId,
-      tx,
-    );
-  return convertCentsToCredits(creditsBalance);
 }
 
 /**
