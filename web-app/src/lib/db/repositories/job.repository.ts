@@ -484,7 +484,7 @@ export const jobRepository = {
  * @param cutoffTime - The time threshold for filtering jobs (defaults to 10 minutes ago)
  * @returns Prisma where query object for filtering non-finished jobs
  */
-export const jobsNotFinishedWhereQuery = (
+const jobsNotFinishedWhereQuery = (
   cutoffTime: Date = new Date(Date.now() - 1000 * 60 * 10),
 ): Prisma.JobWhereInput => ({
   OR: [
