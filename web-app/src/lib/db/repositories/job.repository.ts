@@ -64,6 +64,15 @@ interface CreateJobData {
  * creating new jobs, updating job status, and handling job lifecycle operations.
  */
 export const jobRepository = {
+  async getJobsNotFinished(
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<JobWithStatus[]> {
+    const jobs = await tx.job.findMany({
+      where: jobsNotFinishedWhereQuery(),
+      include: jobInclude,
+    });
+    return jobs.map(mapJobWithStatus);
+  },
   /**
    * Retrieves all jobs associated with a specific user
    * @param userId - The unique identifier of the user

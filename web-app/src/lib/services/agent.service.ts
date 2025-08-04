@@ -15,8 +15,10 @@ import {
   AgentWithJobs,
   AgentWithOrganizations,
   AgentWithRelations,
+  computeJobStatus,
   convertCreditsToCents,
   CreditsPrice,
+  JobStatus,
   JobWithStatus,
 } from "@/lib/db";
 import {
@@ -38,11 +40,13 @@ import {
 } from "@/lib/schemas";
 import { getInputHash, getInputHashDeprecated } from "@/lib/utils";
 import {
+  AgentJobStatus,
   AgentListType,
   AgentStatus,
   CreditCost,
   Job,
   NextJobAction,
+  OnChainJobStatus,
   Prisma,
 } from "@/prisma/generated/client";
 
@@ -658,7 +662,94 @@ export const agentService = {
       },
     );
   },
+
+  async syncJob(job: JobWithStatus) {
+    const oldJobStatus = computeJobStatus(job);
+    if (!job.purchaseId) {
+      const purchaseResult =
+        await paymentClient.getPurchaseByBlockchainIdentifier(
+          job.blockchainIdentifier,
+        );
+      if (purchaseResult.ok) {
+        job = await jobRepository.updateJobWithPurchase(
+          job.id,
+          purchaseResult.data,
+        );
+      }
+    }
+    const [agentJobStatusResult, onChainPurchaseResult] = await Promise.all([
+      shouldSyncAgentStatus(job)
+        ? await agentClient.fetchAgentJobStatus(job.agent, job.agentJobId)
+        : null,
+      shouldSyncMasumiStatus(job)
+        ? await paymentClient.getPurchaseById(job.purchaseId!)
+        : null,
+    ]);
+
+    const newJobStatus = await prisma.$transaction(
+      async (tx) => {
+        if (onChainPurchaseResult && onChainPurchaseResult.ok) {
+          job = await jobRepository.updateJobWithPurchase(
+            job.id,
+            onChainPurchaseResult.data,
+            tx,
+          );
+        }
+        if (agentJobStatusResult && agentJobStatusResult.ok) {
+          job = await jobRepository.updateJobWithAgentJobStatus(
+            job,
+            agentJobStatusResult.data,
+            tx,
+          );
+        }
+        const jobStatus = computeJobStatus(job);
+        switch (jobStatus) {
+          case JobStatus.PAYMENT_FAILED:
+          case JobStatus.REFUND_RESOLVED:
+            await jobRepository.refundJob(job.id, tx);
+            break;
+          default:
+            break;
+        }
+        return jobStatus;
+      },
+      {
+        maxWait: 5000, // default: 2000
+        timeout: 20000, // default: 5000
+      },
+    );
+
+    // if job status changed, publish to job status to channel
+    if (newJobStatus !== oldJobStatus) {
+      console.log(
+        `Job ${job.id} status changed from ${oldJobStatus} to ${newJobStatus}`,
+      );
+
+      try {
+        await publishJobStatusData(job);
+      } catch (err) {
+        console.error("Error publishing job status data", err);
+      }
+    }
+  },
 };
+
+function shouldSyncAgentStatus(job: Job): boolean {
+  if (job.refundedCreditTransactionId) {
+    return false;
+  }
+  if (
+    job.onChainStatus === OnChainJobStatus.RESULT_SUBMITTED &&
+    job.agentJobStatus === AgentJobStatus.COMPLETED
+  ) {
+    return false;
+  }
+  return true;
+}
+
+function shouldSyncMasumiStatus(job: Job): boolean {
+  return job.refundedCreditTransactionId === null;
+}
 
 /**
  * Returns the matching input hash for a job, supporting both current and deprecated hash formats.

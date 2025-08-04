@@ -3,7 +3,6 @@ import "server-only";
 import * as Sentry from "@sentry/nextjs";
 
 import { getEnvSecrets } from "@/config/env.secrets";
-import { AgentWithRelations } from "@/lib/db";
 import {
   JobInputData,
   jobInputsDataSchema,
@@ -21,7 +20,7 @@ import { Agent } from "@/prisma/generated/client";
 
 export const agentClient = {
   async startAgentJob(
-    agent: AgentWithRelations,
+    agent: Agent,
     identifierFromPurchaser: string,
     inputData: JobInputData,
   ): Promise<Result<StartJobResponseSchemaType, string>> {
@@ -58,7 +57,7 @@ export const agentClient = {
   },
 
   async fetchAgentJobStatus(
-    agent: AgentWithRelations,
+    agent: Agent,
     jobId: string,
   ): Promise<Result<JobStatusResponseSchemaType, string>> {
     try {
@@ -85,7 +84,7 @@ export const agentClient = {
   },
 
   async fetchAgentInputSchema(
-    agent: AgentWithRelations,
+    agent: Agent,
   ): Promise<Result<JobInputsDataSchemaType, string>> {
     const agentContext = {
       agentId: agent.id,
