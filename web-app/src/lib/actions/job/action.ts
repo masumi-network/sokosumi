@@ -13,7 +13,7 @@ import {
   startJobInputSchema,
   StartJobInputSchemaType,
 } from "@/lib/schemas";
-import { agentService, requestRefundJob } from "@/lib/services";
+import { agentService } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
 
 export async function startJobWithInputData(
@@ -260,7 +260,7 @@ export async function requestRefundJobByBlockchainIdentifier(
       });
     }
 
-    const job = await requestRefundJob(blockchainIdentifier);
+    const job = await agentService.requestRefund(blockchainIdentifier);
     return Ok({ job });
   } catch (error) {
     Sentry.withScope((scope) => {

@@ -17,6 +17,7 @@ import {
   AgentWithRelations,
   convertCreditsToCents,
   CreditsPrice,
+  JobWithStatus,
 } from "@/lib/db";
 import {
   agentListRepository,
@@ -41,6 +42,7 @@ import {
   AgentStatus,
   CreditCost,
   Job,
+  NextJobAction,
   Prisma,
 } from "@/prisma/generated/client";
 
@@ -571,6 +573,84 @@ export const agentService = {
             jobId: job.id,
             agentJobId: startJobResponse.job_id,
             blockchainIdentifier: startJobResponse.blockchainIdentifier,
+          },
+        });
+
+        return job;
+      },
+    );
+  },
+
+  /**
+   * Requests a refund for a job based on its blockchain identifier.
+   *
+   * This function initiates a refund process for a job by contacting the payment service.
+   * It updates the job's status to indicate that a refund has been requested.
+   *
+   * @param jobBlockchainIdentifier - The blockchain identifier of the job to refund.
+   * @returns The updated job with status indicating the refund request.
+   * @throws {JobError} If the refund request fails.
+   */
+  async requestRefund(jobBlockchainIdentifier: string): Promise<JobWithStatus> {
+    return await Sentry.startSpan(
+      {
+        op: "job.refund",
+        name: "requestRefundJob",
+        attributes: {
+          "job.blockchain_identifier": jobBlockchainIdentifier,
+        },
+      },
+      async (_span) => {
+        Sentry.setTag("service", "job");
+        Sentry.setTag("operation", "requestRefundJob");
+        Sentry.setContext("job_refund_request", {
+          blockchainIdentifier: jobBlockchainIdentifier,
+        });
+
+        // Add breadcrumb for refund request
+        Sentry.addBreadcrumb({
+          category: "Job Service",
+          message: "Requesting job refund",
+          level: "info",
+          data: {
+            blockchainIdentifier: jobBlockchainIdentifier,
+          },
+        });
+
+        const refundResult = await paymentClient.requestRefund(
+          jobBlockchainIdentifier,
+        );
+        if (!refundResult.ok) {
+          Sentry.setTag("error_type", "refund_request_failed");
+          Sentry.setContext("refund_error", {
+            blockchainIdentifier: jobBlockchainIdentifier,
+            error: refundResult.error,
+          });
+
+          Sentry.captureMessage(
+            `Refund request failed: ${refundResult.error}`,
+            "error",
+          );
+          throw new JobError(
+            JobErrorCode.REFUND_REQUEST_FAILED,
+            refundResult.error,
+          );
+        }
+
+        const job =
+          await jobRepository.updateJobNextActionByBlockchainIdentifier(
+            jobBlockchainIdentifier,
+            NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
+          );
+
+        // Add breadcrumb for successful refund request
+        Sentry.addBreadcrumb({
+          category: "Job Service",
+          message: "Refund requested successfully",
+          level: "info",
+          data: {
+            jobId: job.id,
+            blockchainIdentifier: jobBlockchainIdentifier,
           },
         });
 
