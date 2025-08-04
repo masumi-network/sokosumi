@@ -10,6 +10,7 @@ import { JobStatusData } from "@/lib/ably/schema";
 import { JobError, JobErrorCode } from "@/lib/actions/types/error-codes/job";
 import { getSession, getSessionOrThrow } from "@/lib/auth/utils";
 import { agentClient, paymentClient } from "@/lib/clients";
+import { anthropicClient } from "@/lib/clients/anthropic.client";
 import {
   AgentWithCreditPrice,
   AgentWithFixedPricing,
@@ -33,7 +34,6 @@ import {
   memberRepository,
   prisma,
 } from "@/lib/db/repositories";
-import { generateJobName } from "@/lib/generateJobName";
 import { JobInputData } from "@/lib/job-input";
 import {
   pricingAmountsSchema,
@@ -451,7 +451,7 @@ export const agentService = {
             },
           });
 
-          generatedName = await generateJobName(
+          generatedName = await anthropicClient.generateJobName(
             {
               name: agent.name,
               description: agent.description,
