@@ -59,32 +59,6 @@ function getMatchedInputHash(
   );
 }
 
-export async function getMyJobsByAgentId(
-  agentId: string,
-  tx: Prisma.TransactionClient = prisma,
-): Promise<JobWithStatus[]> {
-  const session = await getSessionOrThrow();
-  const userId = session.user.id;
-  const activeOrganizationId = session.session.activeOrganizationId;
-
-  if (activeOrganizationId) {
-    // Show jobs for the specific organization
-    return await jobRepository.getJobsByAgentIdUserIdAndOrganizationId(
-      agentId,
-      userId,
-      activeOrganizationId,
-      tx,
-    );
-  } else {
-    // Show personal jobs only (without organization context)
-    return await jobRepository.getPersonalJobsByAgentIdAndUserId(
-      agentId,
-      userId,
-      tx,
-    );
-  }
-}
-
 function tryValidatePricing(
   agentPricing: PricingAmountsSchemaType,
   jobPricing: PricingAmountsSchemaType,
