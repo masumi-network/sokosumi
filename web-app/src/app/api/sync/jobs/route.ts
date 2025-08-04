@@ -5,7 +5,7 @@ import pTimeout from "p-timeout";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { authenticateCronSecret } from "@/lib/auth/utils";
 import { jobRepository, lockRepository } from "@/lib/db/repositories";
-import { agentService, lockService } from "@/lib/services";
+import { jobService, lockService } from "@/lib/services";
 import { Lock } from "@/prisma/generated/client";
 
 const LOCK_KEY = "jobs-sync";
@@ -71,7 +71,7 @@ async function syncAllJobs(): Promise<void> {
   // Process 5 jobs at a time
   const limit = pLimit(5);
   for (const job of jobs) {
-    runningDbUpdates.push(limit(() => agentService.syncJob(job)));
+    runningDbUpdates.push(limit(() => jobService.syncJob(job)));
   }
   try {
     await Promise.allSettled(runningDbUpdates);

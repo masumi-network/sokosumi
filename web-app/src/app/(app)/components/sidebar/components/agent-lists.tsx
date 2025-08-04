@@ -13,7 +13,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { getSessionOrThrow } from "@/lib/auth/utils";
 import { AgentWithAvailability } from "@/lib/db";
-import { agentService } from "@/lib/services";
+import { agentService, jobService } from "@/lib/services";
 import { Agent } from "@/prisma/generated/client";
 
 import AgentListsClient from "./agent-lists.client";
@@ -71,10 +71,10 @@ async function AgentListsContent() {
 
   const [favoriteAgentsJobStatusDataList, hiredAgentsJobStatusDataList] =
     await Promise.all([
-      agentService.getAgentJobStatusDataListByAgentIds(
+      jobService.getAgentJobStatusDataListByAgentIds(
         favoriteAgents.map((agent) => agent.id),
       ),
-      agentService.getAgentJobStatusDataListByAgentIds(
+      jobService.getAgentJobStatusDataListByAgentIds(
         hiredAgents.map((agent) => agent.id),
       ),
     ]);

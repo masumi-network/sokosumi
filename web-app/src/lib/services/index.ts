@@ -1,5 +1,6 @@
-export * from "./agent.service";
+export { agentService } from "./agent.service";
 export * from "./invitation";
+export { jobService } from "./job.service";
 export * from "./lock.service";
 export * from "./organization";
 export * from "./organization.service";
