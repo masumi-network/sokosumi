@@ -1,13 +1,13 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { UseFormReturn } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
-import { useAsyncRouter } from "@/hooks/use-async-router";
 import {
   CommonErrorCode,
   createOrganization,
@@ -30,7 +30,7 @@ export default function OrganizationInformationForm({
   onOpenChange,
 }: OrganizationInformationFormProps) {
   const t = useTranslations("Components.Organizations.InformationModal.Form");
-  const router = useAsyncRouter();
+  const router = useRouter();
 
   const isCreating = !organizationId;
 
@@ -41,6 +41,7 @@ export default function OrganizationInformationForm({
     if (result.ok) {
       toast.success(isCreating ? t("Success.create") : t("Success.edit"));
       onOpenChange(false);
+      router.refresh();
     } else {
       switch (result.error.code) {
         case CommonErrorCode.UNAUTHENTICATED:

@@ -109,15 +109,11 @@ export async function updateOrganizationInformation(
     }
 
     // update organization information
-    const updatedOrganization =
-      await organizationRepository.updateOrganizationById(organizationId, {
-        name: parsedResult.data.name,
-        metadata:
-          parsedResult.data.metadata === "" ? null : parsedResult.data.metadata,
-      });
-
-    // revalidate the organization page
-    revalidatePath(`/organizations/${updatedOrganization.slug}`);
+    await organizationRepository.updateOrganizationById(organizationId, {
+      name: parsedResult.data.name,
+      metadata:
+        parsedResult.data.metadata === "" ? null : parsedResult.data.metadata,
+    });
     return Ok();
   } catch (error) {
     console.error("Error updating organization information", error);
