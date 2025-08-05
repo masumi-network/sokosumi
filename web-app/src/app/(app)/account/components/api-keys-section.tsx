@@ -355,7 +355,6 @@ export function ApiKeysSection() {
                   <TableRow>
                     <TableHead>{"Name"}</TableHead>
                     <TableHead>{"Key"}</TableHead>
-                    <TableHead>{"Created"}</TableHead>
                     <TableHead>{"Status"}</TableHead>
                     <TableHead className="w-[100px]">{"Actions"}</TableHead>
                   </TableRow>
@@ -370,9 +369,6 @@ export function ApiKeysSection() {
                         <code className="bg-muted relative rounded px-[0.3rem] py-[0.2rem] font-mono text-sm">
                           {apiKey.start ?? "••••••••"}
                         </code>
-                      </TableCell>
-                      <TableCell>
-                        {new Date(apiKey.createdAt).toLocaleDateString()}
                       </TableCell>
                       <TableCell>
                         <span
