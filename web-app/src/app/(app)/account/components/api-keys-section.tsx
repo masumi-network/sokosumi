@@ -11,7 +11,8 @@ import {
   Plus,
   Trash2,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -63,27 +64,33 @@ import {
 import { authClient } from "@/lib/auth/auth.client";
 import { Apikey } from "@/prisma/generated/client";
 
-// Schemas for form validation
-const createApiKeySchema = z.object({
-  name: z
-    .string()
-    .min(1, "API key name is required")
-    .max(100, "API key name must be less than 100 characters")
-    .regex(
-      /^[a-zA-Z0-9\s\-_]+$/,
-      "API key name can only contain letters, numbers, spaces, hyphens, and underscores",
-    ),
-});
+// Types
+type CreateApiKeyType = {
+  name: string;
+};
 
-const deleteApiKeySchema = z.object({
-  keyId: z.string().min(1, "API key ID is required"),
-  confirmName: z.string().min(1, "Please confirm the API key name"),
-});
-
-type CreateApiKeyType = z.infer<typeof createApiKeySchema>;
-type DeleteApiKeyType = z.infer<typeof deleteApiKeySchema>;
+type DeleteApiKeyType = {
+  keyId: string;
+  confirmName: string;
+};
 
 export function ApiKeysSection() {
+  const t = useTranslations("App.Account.ApiKeys");
+
+  // Schemas with translated validation messages
+  const createApiKeySchema = z.object({
+    name: z
+      .string()
+      .min(1, t("Validation.nameRequired"))
+      .max(100, t("Validation.nameMaxLength"))
+      .regex(/^[a-zA-Z0-9\s\-_]+$/, t("Validation.namePattern")),
+  });
+
+  const deleteApiKeySchema = z.object({
+    keyId: z.string().min(1, t("Validation.keyIdRequired")),
+    confirmName: z.string().min(1, t("Validation.confirmNameRequired")),
+  });
+
   const [apiKeys, setApiKeys] = useState<Apikey[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -110,7 +117,7 @@ export function ApiKeysSection() {
   });
 
   // Load API keys
-  const loadApiKeys = async () => {
+  const loadApiKeys = useCallback(async () => {
     setLoading(true);
     try {
       const result = await authClient.apiKey.list();
@@ -119,17 +126,17 @@ export function ApiKeysSection() {
         setApiKeys(result.data as Apikey[]);
         setCurrentPage(1); // Reset to first page when reloading
       } else {
-        toast.error("Failed to load API keys");
+        toast.error(t("Messages.loadError"));
       }
     } catch (_error) {
-      toast.error("Failed to load API keys");
+      toast.error(t("Messages.loadError"));
     }
     setLoading(false);
-  };
+  }, [t]);
 
   useEffect(() => {
     loadApiKeys();
-  }, []);
+  }, [loadApiKeys]);
 
   // Handle create API key
   const onCreateSubmit = async (values: CreateApiKeyType) => {
@@ -140,14 +147,14 @@ export function ApiKeysSection() {
 
       if (result.data) {
         setCreatedKey(result.data.key);
-        toast.success("API key created successfully");
+        toast.success(t("Messages.createSuccess"));
         createForm.reset();
         await loadApiKeys();
       } else {
-        toast.error(result.error?.message ?? "Failed to create API key");
+        toast.error(result.error?.message ?? t("Messages.createError"));
       }
     } catch (_error) {
-      toast.error("Failed to create API key");
+      toast.error(t("Messages.createError"));
     }
   };
 
@@ -157,7 +164,7 @@ export function ApiKeysSection() {
 
     // Verify the confirmation name matches
     if (keyToDelete.name !== values.confirmName) {
-      toast.error("The confirmation name does not match");
+      toast.error(t("Messages.confirmNameMismatch"));
       return;
     }
 
@@ -167,16 +174,16 @@ export function ApiKeysSection() {
       });
 
       if (result.data) {
-        toast.success("API key deleted successfully");
+        toast.success(t("Messages.deleteSuccess"));
         setDeleteDialogOpen(false);
         setKeyToDelete(null);
         deleteForm.reset();
         await loadApiKeys();
       } else {
-        toast.error(result.error?.message ?? "Failed to delete API key");
+        toast.error(result.error?.message ?? t("Messages.deleteError"));
       }
     } catch (_error) {
-      toast.error("Failed to delete API key");
+      toast.error(t("Messages.deleteError"));
     }
   };
 
@@ -184,11 +191,11 @@ export function ApiKeysSection() {
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      toast.success("Copied to clipboard");
+      toast.success(t("Messages.copySuccess"));
       setCopiedKey(true);
       setTimeout(() => setCopiedKey(false), 3000);
     } catch (_error) {
-      toast.error("Failed to copy to clipboard");
+      toast.error(t("Messages.copyError"));
     }
   };
 
@@ -201,15 +208,14 @@ export function ApiKeysSection() {
       });
 
       if (result.data) {
-        toast.success(
-          `API key ${apiKey.enabled ? "disabled" : "enabled"} successfully`,
-        );
+        const action = apiKey.enabled ? "disabled" : "enabled";
+        toast.success(t("Messages.updateSuccess", { action }));
         await loadApiKeys();
       } else {
-        toast.error(result.error?.message ?? "Failed to update API key");
+        toast.error(result.error?.message ?? t("Messages.updateError"));
       }
     } catch (_error) {
-      toast.error("Failed to update API key");
+      toast.error(t("Messages.updateError"));
     }
   };
 
@@ -241,10 +247,8 @@ export function ApiKeysSection() {
       <CardHeader>
         <div className="flex items-center justify-between">
           <div>
-            <CardTitle>{"API Keys"}</CardTitle>
-            <CardDescription>
-              {"Manage your API keys for programmatic access"}
-            </CardDescription>
+            <CardTitle>{t("title")}</CardTitle>
+            <CardDescription>{t("description")}</CardDescription>
           </div>
           <Dialog
             open={createDialogOpen}
@@ -262,26 +266,26 @@ export function ApiKeysSection() {
             <DialogTrigger asChild>
               <Button>
                 <Plus className="h-4 w-4" />
-                {"Create"}
+                {t("createButton")}
               </Button>
             </DialogTrigger>
             <DialogContent>
               {!createdKey && (
                 <DialogHeader>
-                  <DialogTitle>{"Create New API Key"}</DialogTitle>
+                  <DialogTitle>{t("CreateDialog.title")}</DialogTitle>
                   <DialogDescription>
-                    {
-                      "Give your API key a descriptive name to help you identify it later."
-                    }
+                    {t("CreateDialog.description")}
                   </DialogDescription>
                 </DialogHeader>
               )}
               {createdKey ? (
                 <>
                   <DialogHeader>
-                    <DialogTitle>{"New API Key Created"}</DialogTitle>
+                    <DialogTitle>
+                      {t("CreateDialog.CreatedSuccess.title")}
+                    </DialogTitle>
                     <DialogDescription>
-                      {"Your new API key has been created successfully."}
+                      {t("CreateDialog.CreatedSuccess.description")}
                     </DialogDescription>
                   </DialogHeader>
                   <div className="space-y-4">
@@ -312,7 +316,7 @@ export function ApiKeysSection() {
                           }, 300);
                         }}
                       >
-                        {"Done"}
+                        {t("CreateDialog.CreatedSuccess.doneButton")}
                       </Button>
                     </DialogFooter>
                   </div>
@@ -328,10 +332,10 @@ export function ApiKeysSection() {
                       name="name"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>{"Name"}</FormLabel>
+                          <FormLabel>{t("CreateDialog.nameLabel")}</FormLabel>
                           <FormControl>
                             <Input
-                              placeholder="e.g., Production Server, Development App"
+                              placeholder={t("CreateDialog.namePlaceholder")}
                               {...field}
                             />
                           </FormControl>
@@ -345,13 +349,13 @@ export function ApiKeysSection() {
                         variant="outline"
                         onClick={() => setCreateDialogOpen(false)}
                       >
-                        {"Cancel"}
+                        {t("CreateDialog.cancelButton")}
                       </Button>
                       <Button
                         type="submit"
                         disabled={createForm.formState.isSubmitting}
                       >
-                        {"Create API Key"}
+                        {t("CreateDialog.createButton")}
                       </Button>
                     </DialogFooter>
                   </form>
@@ -364,11 +368,11 @@ export function ApiKeysSection() {
       <CardContent>
         {loading ? (
           <div className="text-muted-foreground py-8 text-center">
-            {"Loading API keys..."}
+            {t("loading")}
           </div>
         ) : apiKeys.length === 0 ? (
           <div className="text-muted-foreground py-8 text-center">
-            {"No API keys found. Create your first API key to get started."}
+            {t("noKeysFound")}
           </div>
         ) : (
           <div className="space-y-4">
@@ -376,10 +380,12 @@ export function ApiKeysSection() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>{"Name"}</TableHead>
-                    <TableHead>{"Key"}</TableHead>
-                    <TableHead>{"Status"}</TableHead>
-                    <TableHead className="w-[100px]">{"Actions"}</TableHead>
+                    <TableHead>{t("Table.name")}</TableHead>
+                    <TableHead>{t("Table.key")}</TableHead>
+                    <TableHead>{t("Table.status")}</TableHead>
+                    <TableHead className="w-[100px]">
+                      {t("Table.actions")}
+                    </TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -401,7 +407,9 @@ export function ApiKeysSection() {
                               : "bg-semantic-destructive/10 text-semantic-destructive"
                           }`}
                         >
-                          {apiKey.enabled ? "Enabled" : "Disabled"}
+                          {apiKey.enabled
+                            ? t("Status.enabled")
+                            : t("Status.disabled")}
                         </span>
                       </TableCell>
                       <TableCell>
@@ -412,8 +420,8 @@ export function ApiKeysSection() {
                             onClick={() => handleToggleStatus(apiKey)}
                             title={
                               apiKey.enabled
-                                ? "Disable API key"
-                                : "Enable API key"
+                                ? t("Actions.disableTooltip")
+                                : t("Actions.enableTooltip")
                             }
                           >
                             {apiKey.enabled ? (
@@ -426,7 +434,7 @@ export function ApiKeysSection() {
                             size="sm"
                             variant="ghost"
                             onClick={() => handleDeleteClick(apiKey)}
-                            title="Delete API key"
+                            title={t("Actions.deleteTooltip")}
                           >
                             <Trash2 className="text-destructive h-4 w-4" />
                           </Button>
@@ -442,7 +450,11 @@ export function ApiKeysSection() {
             {totalPages > 1 && (
               <div className="flex items-center justify-between">
                 <p className="text-muted-foreground text-sm">
-                  {`Showing ${startIndex + 1}-${Math.min(startIndex + itemsPerPage, apiKeys.length)} of ${apiKeys.length}`}
+                  {t("Pagination.showing", {
+                    start: startIndex + 1,
+                    end: Math.min(startIndex + itemsPerPage, apiKeys.length),
+                    total: apiKeys.length,
+                  })}
                 </p>
                 <div className="flex items-center space-x-2">
                   <Button
@@ -452,9 +464,13 @@ export function ApiKeysSection() {
                     disabled={currentPage === 1}
                   >
                     <ChevronLeft className="h-4 w-4" />
+                    {t("Pagination.previousButton")}
                   </Button>
                   <span className="text-sm">
-                    {`Page ${currentPage} of ${totalPages}`}
+                    {t("Pagination.page", {
+                      current: currentPage,
+                      total: totalPages,
+                    })}
                   </span>
                   <Button
                     variant="outline"
@@ -462,6 +478,7 @@ export function ApiKeysSection() {
                     onClick={handleNextPage}
                     disabled={currentPage === totalPages}
                   >
+                    {t("Pagination.nextButton")}
                     <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
@@ -474,11 +491,9 @@ export function ApiKeysSection() {
         <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>{"Delete API Key"}</AlertDialogTitle>
+              <AlertDialogTitle>{t("DeleteDialog.title")}</AlertDialogTitle>
               <AlertDialogDescription>
-                {
-                  "This action cannot be undone. This will permanently delete the API key and any applications using it will no longer be able to access your account."
-                }
+                {t("DeleteDialog.description")}
               </AlertDialogDescription>
             </AlertDialogHeader>
             {keyToDelete && (
@@ -493,9 +508,9 @@ export function ApiKeysSection() {
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel>
-                          {"Type "}
-                          <strong>{keyToDelete.name}</strong>
-                          {" to confirm deletion:"}
+                          {t("DeleteDialog.confirmLabelPrefix")}{" "}
+                          <strong>{keyToDelete.name}</strong>{" "}
+                          {t("DeleteDialog.confirmLabelSuffix")}
                         </FormLabel>
                         <FormControl>
                           <Input {...field} />
@@ -505,13 +520,15 @@ export function ApiKeysSection() {
                     )}
                   />
                   <AlertDialogFooter>
-                    <AlertDialogCancel>{"Cancel"}</AlertDialogCancel>
+                    <AlertDialogCancel>
+                      {t("DeleteDialog.cancelButton")}
+                    </AlertDialogCancel>
                     <Button
                       type="submit"
                       variant="destructive"
                       disabled={deleteForm.formState.isSubmitting}
                     >
-                      {"Delete API Key"}
+                      {t("DeleteDialog.deleteButton")}
                     </Button>
                   </AlertDialogFooter>
                 </form>
