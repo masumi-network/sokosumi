@@ -800,7 +800,7 @@ export const jobService = (() => {
    *
    * If the user session is not found, returns an empty array.
    */
-  const getJobStatusIndicatorStatuses = async (
+  const getJobIndicatorStatuses = async (
     agentIds: string[],
     tx: Prisma.TransactionClient = prisma,
   ): Promise<(JobIndicatorStatus | null)[]> => {
@@ -832,6 +832,6 @@ export const jobService = (() => {
     startJob,
     requestRefund,
     syncJob,
-    getJobStatusIndicatorStatuses,
+    getJobIndicatorStatuses,
   };
 })();
