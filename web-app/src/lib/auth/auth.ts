@@ -4,7 +4,7 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
-import { organization } from "better-auth/plugins";
+import { apiKey, organization } from "better-auth/plugins";
 import { getTranslations } from "next-intl/server";
 
 import { getEnvPublicConfig } from "@/config/env.public";
@@ -156,6 +156,13 @@ export const auth = betterAuth({
     storage: "database",
   },
   plugins: [
+    apiKey({
+      rateLimit: {
+        enabled: true,
+        timeWindow: 60, // 60 seconds
+        maxRequests: 100, // 100 requests per minute
+      },
+    }),
     organization({
       async sendInvitationEmail(data) {
         const inviteLink = `${getEnvSecrets().BETTER_AUTH_URL}/accept-invitation/${data.id}`;
