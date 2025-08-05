@@ -2,8 +2,7 @@ import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { getSessionOrRedirect } from "@/lib/auth/utils";
-import { listMyMembers } from "@/lib/services";
-import { getMyValidPendingInvitations } from "@/lib/services/invitation";
+import { organizationService } from "@/lib/services";
 
 import OrganizationCreateButton from "./components/organization-create-button";
 import Organizations from "./components/organizations";
@@ -21,8 +20,8 @@ export default async function OrganizationsPage() {
 
   const t = await getTranslations("App.Organizations");
 
-  const members = await listMyMembers();
-  const invitations = await getMyValidPendingInvitations();
+  const members = await organizationService.getMyMembersWithOrganizations();
+  const invitations = await organizationService.getMyValidPendingInvitations();
 
   return (
     <div className="container flex flex-col gap-8 p-8">
