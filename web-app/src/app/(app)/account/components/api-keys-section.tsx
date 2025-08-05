@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Copy, Plus, Trash2 } from "lucide-react";
+import { Check, Copy, Plus, Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -80,6 +80,7 @@ export function ApiKeysSection() {
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [keyToDelete, setKeyToDelete] = useState<Apikey | null>(null);
+  const [copiedKey, setCopiedKey] = useState(false);
 
   const createForm = useForm<CreateApiKeyType>({
     resolver: zodResolver(createApiKeySchema),
@@ -171,6 +172,8 @@ export function ApiKeysSection() {
     try {
       await navigator.clipboard.writeText(text);
       toast.success("Copied to clipboard");
+      setCopiedKey(true);
+      setTimeout(() => setCopiedKey(false), 3000);
     } catch (_error) {
       toast.error("Failed to copy to clipboard");
     }
@@ -215,37 +218,43 @@ export function ApiKeysSection() {
                 </DialogHeader>
               )}
               {createdKey ? (
-                <div className="space-y-4">
-                  <div className="bg-muted/50 rounded-md p-4">
-                    <p className="mb-2 text-sm font-medium">
-                      {"Your new API key (save this, it won't be shown again):"}
-                    </p>
-                    <div className="space-y-2">
-                      <code className="bg-muted relative block rounded px-[0.3rem] py-[0.2rem] font-mono text-sm break-all">
-                        {createdKey}
-                      </code>
-                      <Button
-                        size="sm"
-                        variant="ghost"
+                <>
+                  <DialogHeader>
+                    <DialogTitle>{"New API Key Created"}</DialogTitle>
+                    <DialogDescription>
+                      {"Your new API key has been created successfully."}
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="rounded-md py-4">
+                      <button
                         onClick={() => copyToClipboard(createdKey)}
-                        className="w-full"
+                        className="bg-muted hover:bg-muted/80 group relative block w-full cursor-pointer rounded px-[1rem] py-[1rem] text-left transition-colors"
                       >
-                        <Copy className="mr-2 h-4 w-4" />
-                        {"Copy API Key"}
-                      </Button>
+                        <div className="flex items-center justify-between">
+                          <code className="pr-2 font-mono text-sm break-all">
+                            {createdKey}
+                          </code>
+                          {copiedKey ? (
+                            <Check className="text-semantic-success h-4 w-4 flex-shrink-0" />
+                          ) : (
+                            <Copy className="text-muted-foreground group-hover:text-foreground h-4 w-4 flex-shrink-0 transition-colors" />
+                          )}
+                        </div>
+                      </button>
                     </div>
+                    <DialogFooter>
+                      <Button
+                        onClick={() => {
+                          setCreatedKey(null);
+                          setCreateDialogOpen(false);
+                        }}
+                      >
+                        {"Done"}
+                      </Button>
+                    </DialogFooter>
                   </div>
-                  <DialogFooter>
-                    <Button
-                      onClick={() => {
-                        setCreatedKey(null);
-                        setCreateDialogOpen(false);
-                      }}
-                    >
-                      {"Done"}
-                    </Button>
-                  </DialogFooter>
-                </div>
+                </>
               ) : (
                 <Form {...createForm}>
                   <form
