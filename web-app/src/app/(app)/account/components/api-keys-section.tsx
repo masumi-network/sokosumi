@@ -226,14 +226,16 @@ export function ApiKeysSection() {
               </Button>
             </DialogTrigger>
             <DialogContent>
-              <DialogHeader>
-                <DialogTitle>{"Create New API Key"}</DialogTitle>
-                <DialogDescription>
-                  {
-                    "Give your API key a descriptive name to help you identify it later."
-                  }
-                </DialogDescription>
-              </DialogHeader>
+              {!createdKey && (
+                <DialogHeader>
+                  <DialogTitle>{"Create New API Key"}</DialogTitle>
+                  <DialogDescription>
+                    {
+                      "Give your API key a descriptive name to help you identify it later."
+                    }
+                  </DialogDescription>
+                </DialogHeader>
+              )}
               {createdKey ? (
                 <div className="space-y-4">
                   <div className="bg-muted/50 rounded-md p-4">
