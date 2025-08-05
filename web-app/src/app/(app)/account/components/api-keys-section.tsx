@@ -127,7 +127,12 @@ export function ApiKeysSection() {
       const result = await authClient.apiKey.list();
 
       if (result.data) {
-        setApiKeys(result.data as Apikey[]);
+        // Sort API keys by creation date, latest first
+        const sortedApiKeys = (result.data as Apikey[]).sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        );
+        setApiKeys(sortedApiKeys);
         setCurrentPage(1); // Reset to first page when reloading
       } else {
         toast.error(t("Messages.loadError"));
