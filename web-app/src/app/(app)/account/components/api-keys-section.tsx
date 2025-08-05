@@ -51,30 +51,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { authClient } from "@/lib/auth/auth.client";
-
-// Types for Better Auth API Keys
-type ApiKey = {
-  id: string;
-  name: string | null;
-  start: string | null;
-  prefix: string | null;
-  userId: string;
-  enabled: boolean | null;
-  createdAt: Date;
-  updatedAt: Date;
-  expiresAt: Date | null;
-  permissions: { [key: string]: string[] } | null;
-  refillInterval: number | null;
-  refillAmount: number | null;
-  lastRefillAt: Date | null;
-  rateLimitEnabled: boolean | null;
-  rateLimitTimeWindow: number | null;
-  rateLimitMax: number | null;
-  requestCount: number | null;
-  remaining: number | null;
-  lastRequest: Date | null;
-  metadata: Record<string, unknown> | null;
-};
+import { Apikey } from "@/prisma/generated/client";
 
 // Schemas for form validation
 const createApiKeySchema = z.object({
@@ -97,12 +74,12 @@ type CreateApiKeyType = z.infer<typeof createApiKeySchema>;
 type DeleteApiKeyType = z.infer<typeof deleteApiKeySchema>;
 
 export function ApiKeysSection() {
-  const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
+  const [apiKeys, setApiKeys] = useState<Apikey[]>([]);
   const [loading, setLoading] = useState(true);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [keyToDelete, setKeyToDelete] = useState<ApiKey | null>(null);
+  const [keyToDelete, setKeyToDelete] = useState<Apikey | null>(null);
 
   const createForm = useForm<CreateApiKeyType>({
     resolver: zodResolver(createApiKeySchema),
@@ -124,8 +101,9 @@ export function ApiKeysSection() {
     setLoading(true);
     try {
       const result = await authClient.apiKey.list();
+
       if (result.data) {
-        setApiKeys(result.data);
+        setApiKeys(result.data as Apikey[]);
       } else {
         toast.error("Failed to load API keys");
       }
@@ -199,7 +177,7 @@ export function ApiKeysSection() {
   };
 
   // Handle delete button click
-  const handleDeleteClick = (apiKey: ApiKey) => {
+  const handleDeleteClick = (apiKey: Apikey) => {
     setKeyToDelete(apiKey);
     deleteForm.reset({
       keyId: apiKey.id,
