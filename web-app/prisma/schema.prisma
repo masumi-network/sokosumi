@@ -44,6 +44,8 @@ model User {
   // UTM Attribution
   utmAttribution UTMAttribution?
 
+  apikeys Apikey[]
+
   @@unique([email])
   @@unique([stripeCustomerId])
   @@map("user")
@@ -550,4 +552,31 @@ model CreditCost {
   updatedAt    DateTime @updatedAt
   unit         String   @unique
   centsPerUnit BigInt
+}
+
+model Apikey {
+  id                  String    @id
+  name                String?
+  start               String?
+  prefix              String?
+  key                 String
+  userId              String
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refillInterval      Int?
+  refillAmount        Int?
+  lastRefillAt        DateTime?
+  enabled             Boolean?
+  rateLimitEnabled    Boolean?
+  rateLimitTimeWindow Int?
+  rateLimitMax        Int?
+  requestCount        Int?
+  remaining           Int?
+  lastRequest         DateTime?
+  expiresAt           DateTime?
+  createdAt           DateTime
+  updatedAt           DateTime
+  permissions         String?
+  metadata            String?
+
+  @@map("apikey")
 }
