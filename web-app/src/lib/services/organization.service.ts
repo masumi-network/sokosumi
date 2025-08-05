@@ -1,8 +1,16 @@
 import "server-only";
 
+import { nanoid } from "nanoid";
+import slugify from "slugify";
+
 import { getSession } from "@/lib/auth/utils";
-import { InvitationWithRelations, MemberWithOrganization } from "@/lib/db";
-import { invitationRepository, memberRepository } from "@/lib/db/repositories";
+import { InvitationWithRelations, MemberRole, MemberWithUser } from "@/lib/db";
+import {
+  invitationRepository,
+  memberRepository,
+  organizationRepository,
+} from "@/lib/db/repositories";
+import { Invitation } from "@/prisma/generated/client";
 
 /**
  * Service for organization and invitations related operations.
@@ -10,39 +18,28 @@ import { invitationRepository, memberRepository } from "@/lib/db/repositories";
  */
 export const organizationService = (() => {
   /**
-   * Retrieves all organization memberships for the currently authenticated user.
+   * Generates a unique, URL-friendly slug for an organization based on its name.
    *
-   * @returns A promise that resolves to an array of MemberWithOrganization objects for the current user.
+   * - Converts the provided name to a lowercase, strict slug.
+   * - Checks if an organization with the generated slug already exists.
+   *   - If not, returns the slug.
+   *   - If it exists, appends a unique 6-character ID to ensure uniqueness.
+   *
+   * @param name - The name of the organization to generate a slug for.
+   * @returns A unique, URL-safe slug string for the organization.
    */
-  async function getMyMembersWithOrganizations(): Promise<
-    MemberWithOrganization[]
-  > {
-    const session = await getSession();
-    if (!session) {
-      return [];
+  async function generateOrganizationSlugFromName(name: string) {
+    const slugedName = slugify(name, { lower: true, strict: true });
+    const existingOrganization =
+      await organizationRepository.getOrganizationWithRelationsBySlug(
+        slugedName,
+      );
+    if (!existingOrganization) {
+      return slugedName;
     }
 
-    const userId = session.user.id;
-    return await memberRepository.getMembersWithOrganizationByUserId(userId);
-  }
-
-  /**
-   * Retrieves all valid pending invitations for the currently authenticated user.
-   *
-   * @returns A promise that resolves to an array of InvitationWithRelations objects for the current user.
-   */
-  async function getMyValidPendingInvitations(): Promise<
-    InvitationWithRelations[]
-  > {
-    const session = await getSession();
-    if (!session) {
-      return [];
-    }
-
-    const userEmail = session.user.email;
-    return await invitationRepository.getValidPendingInvitationsByEmail(
-      userEmail,
-    );
+    const uniqueId = nanoid(6);
+    return `${slugedName}-${uniqueId}`;
   }
 
   /**
@@ -91,10 +88,100 @@ export const organizationService = (() => {
     };
   }
 
+  /**
+   * Retrieves members of an organization, optionally excluding the current user.
+   *
+   * - Fetches the current session and extracts the user ID.
+   * - Checks if the user is a member of the organization.
+   * - Queries the database for members of the specified organization.
+   *   - If includeMe is false, excludes the current user from the results.
+   *
+   * @param organizationId - The ID of the organization to retrieve members for.
+   * @param includeMe - Whether to include the current user in the results.
+   * @param params - Optional pagination parameters.
+   * @returns A promise that resolves to an array of MemberWithUser objects.
+   */
+  async function getOrganizationMembersWithUser(
+    organizationId: string,
+    includeMe = false,
+    params: {
+      page: number;
+      limit: number;
+    } = {
+      page: 1,
+      limit: 100,
+    },
+  ): Promise<MemberWithUser[]> {
+    const session = await getSession();
+    if (!session) {
+      return [];
+    }
+    const userId = session.user.id;
+
+    // check if the user is a member of the organization
+    const myMemberInOrganization =
+      await memberRepository.getMemberByUserIdAndOrganizationId(
+        userId,
+        organizationId,
+      );
+    if (!myMemberInOrganization) {
+      console.error("You are not the member of the organization");
+      throw new Error("NOT_AUTHORIZED");
+    }
+
+    const members = await memberRepository.getMembersWithUser(
+      {
+        organizationId,
+        ...(includeMe ? {} : { userId: { not: userId } }),
+      },
+      params,
+    );
+
+    return members;
+  }
+
+  /**
+   * Retrieves pending invitations for an organization.
+   *
+   * - Fetches the current session and extracts the user ID.
+   * - Checks if the user is a member of the organization.
+   * - Queries the database for pending invitations of the specified organization.
+   *
+   * @param organizationId - The ID of the organization to retrieve pending invitations for.
+   * @returns A promise that resolves to an array of Invitation objects.
+   */
+  async function getOrganizationPendingInvitations(
+    organizationId: string,
+  ): Promise<Invitation[]> {
+    const session = await getSession();
+    if (!session) {
+      return [];
+    }
+    const userId = session.user.id;
+
+    const myMemberInOrganization =
+      await memberRepository.getMemberByUserIdAndOrganizationId(
+        userId,
+        organizationId,
+      );
+    if (
+      !myMemberInOrganization ||
+      myMemberInOrganization.role !== MemberRole.ADMIN
+    ) {
+      console.error("You are not the admin of the organization");
+      throw new Error("UNAUTHORIZED");
+    }
+
+    return await invitationRepository.getPendingInvitationsByOrganizationId(
+      organizationId,
+    );
+  }
+
   return {
-    getMyMembersWithOrganizations,
-    getMyValidPendingInvitations,
+    generateOrganizationSlugFromName,
     getPendingInvitation,
+    getOrganizationMembersWithUser,
+    getOrganizationPendingInvitations,
   };
 })();
 

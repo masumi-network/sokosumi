@@ -14,10 +14,7 @@ import {
   organizationInformationFormSchema,
   OrganizationInformationFormSchemaType,
 } from "@/lib/schemas";
-import {
-  generateOrganizationSlugFromName,
-  getMyMemberInOrganization,
-} from "@/lib/services";
+import { organizationService, userService } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import { Organization } from "@/prisma/generated/client";
 
@@ -43,7 +40,9 @@ export async function createOrganization(
     }
 
     // generate slug from name
-    const slug = await generateOrganizationSlugFromName(parsedResult.data.name);
+    const slug = await organizationService.generateOrganizationSlugFromName(
+      parsedResult.data.name,
+    );
 
     // create organization and admin atomically
     const { organization } = await prisma.$transaction(async (tx) => {
@@ -100,7 +99,7 @@ export async function updateOrganizationInformation(
     }
 
     // check membership and role
-    const member = await getMyMemberInOrganization(organizationId);
+    const member = await userService.getMyMemberInOrganization(organizationId);
     if (!member || member.role !== MemberRole.ADMIN) {
       return Err({
         message: "Unauthorized",

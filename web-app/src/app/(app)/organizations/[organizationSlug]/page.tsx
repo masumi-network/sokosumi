@@ -7,11 +7,7 @@ import { OrganizationRoleBadge } from "@/components/organizations";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { MemberRole } from "@/lib/db";
 import { organizationRepository } from "@/lib/db/repositories";
-import {
-  getMyMemberInOrganization,
-  getOrganizationMembersWithUser,
-  getOrganizationPendingInvitations,
-} from "@/lib/services";
+import { organizationService, userService } from "@/lib/services";
 import { Invitation } from "@/prisma/generated/client";
 
 import OrganizationInformation from "./components/organization-information";
@@ -62,19 +58,23 @@ export default async function OrganizationPage({
     return notFound();
   }
 
-  const member = await getMyMemberInOrganization(organization.id);
+  const member = await userService.getMyMemberInOrganization(organization.id);
   if (!member) {
     redirect("/organizations");
   }
 
-  const members = await getOrganizationMembersWithUser(organization.id, true);
+  const members = await organizationService.getOrganizationMembersWithUser(
+    organization.id,
+    true,
+  );
 
   let pendingInvitations: Invitation[] = [];
   if (member.role === MemberRole.ADMIN) {
     try {
-      pendingInvitations = await getOrganizationPendingInvitations(
-        organization.id,
-      );
+      pendingInvitations =
+        await organizationService.getOrganizationPendingInvitations(
+          organization.id,
+        );
     } catch (error) {
       console.error("Failed to get pending invitations", error);
     }
