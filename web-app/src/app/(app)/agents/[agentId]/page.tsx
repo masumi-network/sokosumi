@@ -23,8 +23,8 @@ export default async function AgentDetailPage({
     return notFound();
   }
 
-  const agentCreditsPrice = await agentService.getAgentCreditsPrice(agent);
-  if (!agentCreditsPrice) {
+  const agentWithCreditsPrice = await agentService.getAgentCreditsPrice(agent);
+  if (!agentWithCreditsPrice) {
     return notFound();
   }
 
@@ -36,13 +36,12 @@ export default async function AgentDetailPage({
 
   return (
     <CreateJobModalContextProvider
-      agentsWithPrice={[{ agent, creditsPrice: agentCreditsPrice }]}
+      agentsWithPrice={[agentWithCreditsPrice]}
       averageExecutionDuration={averageExecutionDuration}
     >
       <div className="mx-auto flex justify-center px-4 py-8">
         <AgentDetail
-          agent={agent}
-          agentCreditsPrice={agentCreditsPrice}
+          agent={agentWithCreditsPrice}
           executedJobsCount={executedJobsCount}
           averageExecutionDuration={averageExecutionDuration}
           favoriteAgents={favoriteAgents}

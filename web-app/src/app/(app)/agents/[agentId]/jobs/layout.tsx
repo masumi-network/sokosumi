@@ -59,7 +59,7 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
     return notFound();
   }
 
-  const agentCreditsPrice = await agentService.getAgentCreditsPrice(agent);
+  const agentWithCreditsPrice = await agentService.getAgentCreditsPrice(agent);
   const favoriteAgents = await agentService.getFavoriteAgents();
   const [executedJobsCount, averageExecutionDuration] = await Promise.all([
     jobRepository.getExecutedJobsCountByAgentId(agentId),
@@ -69,13 +69,12 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
 
   return (
     <CreateJobModalContextProvider
-      agentsWithPrice={[{ agent, creditsPrice: agentCreditsPrice }]}
+      agentsWithPrice={[agentWithCreditsPrice]}
       averageExecutionDuration={averageExecutionDuration}
     >
       <div className="flex flex-col lg:h-[calc(100svh-96px)]">
         <Header
-          agent={agent}
-          agentCreditsPrice={agentCreditsPrice}
+          agent={agentWithCreditsPrice}
           executedJobsCount={executedJobsCount}
           averageExecutionDuration={averageExecutionDuration}
           favoriteAgents={favoriteAgents}

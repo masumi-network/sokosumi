@@ -7,9 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  AgentWithCreditsPrice,
   AgentWithRelations,
   convertCentsToCredits,
-  CreditsPrice,
   getAgentName,
   getAgentResolvedImage,
   getAgentTags,
@@ -268,16 +268,14 @@ function AgentCardSkeleton({
 }
 
 interface AgentCardProps {
-  agent: AgentWithRelations;
+  agent: AgentWithCreditsPrice;
   favoriteAgents?: AgentWithRelations[] | undefined;
-  agentCreditsPrice: CreditsPrice;
   className?: string | undefined;
 }
 
 function AgentCard({
   agent,
   favoriteAgents,
-  agentCreditsPrice,
   className,
   size,
 }: AgentCardProps & VariantProps<typeof agentCardVariants>) {
@@ -354,7 +352,7 @@ function AgentCard({
             <div className={cn(agentCardPricingVariants({ size }))}>
               <p>
                 {t("pricing", {
-                  price: convertCentsToCredits(agentCreditsPrice.cents),
+                  price: convertCentsToCredits(agent.creditsPrice.cents),
                 })}
               </p>
             </div>

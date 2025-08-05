@@ -1,6 +1,6 @@
 import { useTranslations } from "next-intl";
 
-import { AgentWithRelations, CreditsPrice } from "@/lib/db";
+import { AgentWithCreditsPrice, AgentWithRelations } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 import { AgentCard, AgentCardSkeleton } from "./agent-card";
@@ -51,11 +51,10 @@ function AgentsSkeleton({ className }: AgentsSkeletonProps) {
 }
 
 interface AgentsProps {
-  agents: AgentWithRelations[];
+  agents: AgentWithCreditsPrice[];
   favoriteAgents?: AgentWithRelations[] | undefined;
   className?: string | undefined;
   agentCardClassName?: string | undefined;
-  agentCreditsPriceList: CreditsPrice[];
 }
 
 function Agents({
@@ -63,7 +62,6 @@ function Agents({
   favoriteAgents,
   className,
   agentCardClassName,
-  agentCreditsPriceList,
 }: AgentsProps) {
   return (
     <div
@@ -72,12 +70,11 @@ function Agents({
         className,
       )}
     >
-      {agents.map((agent, index) => (
+      {agents.map((agent) => (
         <AgentCard
           key={agent.id}
           agent={agent}
           favoriteAgents={favoriteAgents}
-          agentCreditsPrice={agentCreditsPriceList[index]}
           className={agentCardClassName}
         />
       ))}

@@ -34,8 +34,7 @@ export default function CreateJobModal() {
           <ScrollArea className="max-h-svh md:max-h-[90svh]">
             {agentWithPrice && (
               <CreateJobSection
-                agent={agentWithPrice.agent}
-                agentCreditsPrice={agentWithPrice.creditsPrice}
+                agent={agentWithPrice}
                 averageExecutionDuration={averageExecutionDuration}
               />
             )}

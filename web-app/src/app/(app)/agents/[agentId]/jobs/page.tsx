@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { agentRepository } from "@/lib/db/repositories";
-import { getMyJobsByAgentId } from "@/lib/services";
+import { userService } from "@/lib/services";
 
 import JobsTable from "./components/jobs-table";
 
@@ -20,7 +20,7 @@ export default async function JobsPage({ params }: JobsPageProps) {
     return notFound();
   }
 
-  const agentJobs = await getMyJobsByAgentId(agentId);
+  const agentJobs = await userService.getMyJobs(agentId);
 
   return <JobsTable jobs={agentJobs} userId={session.user.id} />;
 }

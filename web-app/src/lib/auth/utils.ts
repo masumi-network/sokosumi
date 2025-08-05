@@ -60,13 +60,6 @@ export async function verifyUserId(userId: string): Promise<boolean> {
   return true;
 }
 
-export async function getActiveOrganizationId(): Promise<
-  string | null | undefined
-> {
-  const session = await getSession();
-  return session?.session.activeOrganizationId;
-}
-
 /**
  * Checks the Authorization header for a valid Bearer CRON_SECRET.
  * Returns { ok: true } if valid, or { ok: false, response } if not.

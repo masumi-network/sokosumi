@@ -1,7 +1,5 @@
 import { Agent, Prisma } from "@/prisma/generated/client";
 
-import { CreditsPrice } from "./credit";
-
 export type AgentWithAvailability = {
   agent: Agent;
   isAvailable: boolean;
@@ -59,6 +57,15 @@ export const agentOrderBy = [
   { ...agentCreatedAtOrderBy },
 ] as const;
 
+export type AgentWithCreditsPrice = Prisma.AgentGetPayload<{
+  include: typeof agentInclude;
+}> & {
+  creditsPrice: {
+    cents: bigint;
+    includedFee: bigint;
+  };
+} & { isNew: boolean };
+
 export type AgentWithRelations = Prisma.AgentGetPayload<{
   include: typeof agentInclude;
 }> & { isNew: boolean };
@@ -91,9 +98,4 @@ export interface AgentLegal {
   readonly privacyPolicy: string | null;
   readonly terms: string | null;
   readonly other: string | null;
-}
-
-export interface AgentWithCreditPrice {
-  agent: AgentWithRelations;
-  creditsPrice: CreditsPrice;
 }

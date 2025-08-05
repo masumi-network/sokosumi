@@ -4,7 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { CreateJobModalTrigger } from "@/components/create-job-modal";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { agentRepository } from "@/lib/db/repositories";
-import { agentService, getMyJobsByAgentId } from "@/lib/services";
+import { agentService, userService } from "@/lib/services";
 
 import JobDetailRedirect from "./components/job-detail-redirect";
 
@@ -28,7 +28,7 @@ export default async function RightSectionPage({
     notFound();
   }
 
-  const agentJobs = await getMyJobsByAgentId(agentId);
+  const agentJobs = await userService.getMyJobs(agentId);
   const availableAgent = await agentService.getAvailableAgentById(agentId);
 
   if (agentJobs.length > 0) {
