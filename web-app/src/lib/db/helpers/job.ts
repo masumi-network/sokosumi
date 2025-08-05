@@ -1,4 +1,4 @@
-import { JobStatusData } from "@/lib/ably";
+import { JobIndicatorStatus } from "@/lib/ably";
 import { JobStatus } from "@/lib/db/types";
 import {
   AgentJobStatus,
@@ -120,9 +120,9 @@ export function computeJobStatus(job: Job): JobStatus {
  * @param job - The job to get the status data for.
  * @returns The job status data.
  */
-export function getJobStatusData(job: Job): JobStatusData {
+export function getJobIndicatorStatus(job: Job): JobIndicatorStatus {
   return {
-    id: job.id,
+    jobId: job.id,
     jobStatus: computeJobStatus(job),
     jobStatusSettled: new Date() > job.externalDisputeUnlockTime,
   };
