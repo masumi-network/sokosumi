@@ -1,7 +1,14 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Check, Copy, Plus, Trash2 } from "lucide-react";
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -42,6 +49,7 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Table,
   TableBody,
@@ -81,6 +89,8 @@ export function ApiKeysSection() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [keyToDelete, setKeyToDelete] = useState<Apikey | null>(null);
   const [copiedKey, setCopiedKey] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
 
   const createForm = useForm<CreateApiKeyType>({
     resolver: zodResolver(createApiKeySchema),
@@ -105,6 +115,7 @@ export function ApiKeysSection() {
 
       if (result.data) {
         setApiKeys(result.data as Apikey[]);
+        setCurrentPage(1); // Reset to first page when reloading
       } else {
         toast.error("Failed to load API keys");
       }
@@ -189,6 +200,19 @@ export function ApiKeysSection() {
     setDeleteDialogOpen(true);
   };
 
+  // Pagination logic
+  const totalPages = Math.ceil(apiKeys.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const paginatedApiKeys = apiKeys.slice(startIndex, startIndex + itemsPerPage);
+
+  const handlePreviousPage = () => {
+    setCurrentPage((prev) => Math.max(prev - 1, 1));
+  };
+
+  const handleNextPage = () => {
+    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
+  };
+
   return (
     <Card>
       <CardHeader>
@@ -214,8 +238,8 @@ export function ApiKeysSection() {
           >
             <DialogTrigger asChild>
               <Button>
-                <Plus className="mr-2 h-4 w-4" />
-                {"Create API Key"}
+                <Plus className="h-4 w-4" />
+                {"Create"}
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -324,52 +348,88 @@ export function ApiKeysSection() {
             {"No API keys found. Create your first API key to get started."}
           </div>
         ) : (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{"Name"}</TableHead>
-                <TableHead>{"Key"}</TableHead>
-                <TableHead>{"Created"}</TableHead>
-                <TableHead>{"Status"}</TableHead>
-                <TableHead className="w-[100px]">{"Actions"}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {apiKeys.map((apiKey) => (
-                <TableRow key={apiKey.id}>
-                  <TableCell className="font-medium">{apiKey.name}</TableCell>
-                  <TableCell>
-                    <code className="bg-muted relative rounded px-[0.3rem] py-[0.2rem] font-mono text-sm">
-                      {apiKey.start ?? "••••••••"}
-                    </code>
-                  </TableCell>
-                  <TableCell>
-                    {new Date(apiKey.createdAt).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
-                    <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                        apiKey.enabled
-                          ? "bg-green-100 text-green-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {apiKey.enabled ? "Active" : "Disabled"}
-                    </span>
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleDeleteClick(apiKey)}
-                    >
-                      <Trash2 className="text-destructive h-4 w-4" />
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          <div className="space-y-4">
+            <ScrollArea>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>{"Name"}</TableHead>
+                    <TableHead>{"Key"}</TableHead>
+                    <TableHead>{"Created"}</TableHead>
+                    <TableHead>{"Status"}</TableHead>
+                    <TableHead className="w-[100px]">{"Actions"}</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {paginatedApiKeys.map((apiKey) => (
+                    <TableRow key={apiKey.id}>
+                      <TableCell className="font-medium">
+                        {apiKey.name}
+                      </TableCell>
+                      <TableCell>
+                        <code className="bg-muted relative rounded px-[0.3rem] py-[0.2rem] font-mono text-sm">
+                          {apiKey.start ?? "••••••••"}
+                        </code>
+                      </TableCell>
+                      <TableCell>
+                        {new Date(apiKey.createdAt).toLocaleDateString()}
+                      </TableCell>
+                      <TableCell>
+                        <span
+                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
+                            apiKey.enabled
+                              ? "bg-green-100 text-green-800"
+                              : "bg-red-100 text-red-800"
+                          }`}
+                        >
+                          {apiKey.enabled ? "Active" : "Disabled"}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => handleDeleteClick(apiKey)}
+                        >
+                          <Trash2 className="text-destructive h-4 w-4" />
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </ScrollArea>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between">
+                <p className="text-muted-foreground text-sm">
+                  {`Showing ${startIndex + 1}-${Math.min(startIndex + itemsPerPage, apiKeys.length)} of ${apiKeys.length}`}
+                </p>
+                <div className="flex items-center space-x-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handlePreviousPage}
+                    disabled={currentPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
+                  <span className="text-sm">
+                    {`Page ${currentPage} of ${totalPages}`}
+                  </span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={handleNextPage}
+                    disabled={currentPage === totalPages}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
+          </div>
         )}
 
         {/* Delete Confirmation Dialog */}
