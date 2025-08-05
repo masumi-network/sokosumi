@@ -199,7 +199,19 @@ export function ApiKeysSection() {
               {"Manage your API keys for programmatic access"}
             </CardDescription>
           </div>
-          <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+          <Dialog
+            open={createDialogOpen}
+            onOpenChange={(open) => {
+              setCreateDialogOpen(open);
+              if (!open) {
+                // Reset all state when dialog closes
+                setTimeout(() => {
+                  setCreatedKey(null);
+                  setCopiedKey(false);
+                }, 300);
+              }
+            }}
+          >
             <DialogTrigger asChild>
               <Button>
                 <Plus className="mr-2 h-4 w-4" />
@@ -246,8 +258,11 @@ export function ApiKeysSection() {
                     <DialogFooter>
                       <Button
                         onClick={() => {
-                          setCreatedKey(null);
                           setCreateDialogOpen(false);
+                          setTimeout(() => {
+                            setCreatedKey(null);
+                            setCopiedKey(false);
+                          }, 300);
                         }}
                       >
                         {"Done"}
