@@ -12,7 +12,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -101,6 +101,10 @@ export function ApiKeysSection() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
 
+  // Refs for timeout cleanup
+  const copyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const dialogTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   const createForm = useForm<CreateApiKeyType>({
     resolver: zodResolver(createApiKeySchema),
     defaultValues: {
@@ -137,6 +141,32 @@ export function ApiKeysSection() {
   useEffect(() => {
     loadApiKeys();
   }, [loadApiKeys]);
+
+  // Helper function for dialog state cleanup
+  const clearDialogStateWithDelay = useCallback(() => {
+    if (dialogTimeoutRef.current) {
+      clearTimeout(dialogTimeoutRef.current);
+    }
+
+    dialogTimeoutRef.current = setTimeout(() => {
+      setCreatedKey(null);
+      setCopiedKey(false);
+      dialogTimeoutRef.current = null;
+    }, 300);
+  }, []);
+
+  // Cleanup effect for timeouts
+  useEffect(() => {
+    return () => {
+      // Clear all timeouts on unmount
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+      if (dialogTimeoutRef.current) {
+        clearTimeout(dialogTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Handle create API key
   const onCreateSubmit = async (values: CreateApiKeyType) => {
@@ -193,7 +223,17 @@ export function ApiKeysSection() {
       await navigator.clipboard.writeText(text);
       toast.success(t("Messages.copySuccess"));
       setCopiedKey(true);
-      setTimeout(() => setCopiedKey(false), 3000);
+
+      // Clear any existing timeout
+      if (copyTimeoutRef.current) {
+        clearTimeout(copyTimeoutRef.current);
+      }
+
+      // Set new timeout and store reference
+      copyTimeoutRef.current = setTimeout(() => {
+        setCopiedKey(false);
+        copyTimeoutRef.current = null;
+      }, 3000);
     } catch (_error) {
       toast.error(t("Messages.copyError"));
     }
@@ -256,10 +296,7 @@ export function ApiKeysSection() {
               setCreateDialogOpen(open);
               if (!open) {
                 // Reset all state when dialog closes
-                setTimeout(() => {
-                  setCreatedKey(null);
-                  setCopiedKey(false);
-                }, 300);
+                clearDialogStateWithDelay();
               }
             }}
           >
@@ -310,10 +347,7 @@ export function ApiKeysSection() {
                       <Button
                         onClick={() => {
                           setCreateDialogOpen(false);
-                          setTimeout(() => {
-                            setCreatedKey(null);
-                            setCopiedKey(false);
-                          }, 300);
+                          clearDialogStateWithDelay();
                         }}
                       >
                         {t("CreateDialog.CreatedSuccess.doneButton")}
