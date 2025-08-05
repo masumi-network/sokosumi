@@ -862,7 +862,7 @@
         "description": "Manage your API keys for programmatic access",
         "createButton": "Create",
         "loading": "Loading API keys...",
-        "noKeysFound": "No API keys found. Create your first API key to get started.",
+        "noKeysFound": "Create your first API key to get started.",
         "Table": {
           "name": "Name",
           "key": "Key",
@@ -875,7 +875,7 @@
         },
         "Actions": {
           "enableTooltip": "Enable API key",
-          "disableTooltip": "Disable API key", 
+          "disableTooltip": "Disable API key",
           "deleteTooltip": "Delete API key"
         },
         "CreateDialog": {
@@ -883,7 +883,7 @@
           "description": "Give your API key a descriptive name to help you identify it later.",
           "nameLabel": "Name",
           "namePlaceholder": "e.g., Production Server, Development App",
-          "cancelButton": "Cancel", 
+          "cancelButton": "Cancel",
           "createButton": "Create API Key",
           "CreatedSuccess": {
             "title": "New API Key Created",
@@ -902,7 +902,7 @@
         "Pagination": {
           "showing": "Showing {start}-{end} of {total}",
           "page": "Page {current} of {total}",
-          "previousButton": "Previous", 
+          "previousButton": "Previous",
           "nextButton": "Next"
         },
         "Messages": {
@@ -910,7 +910,7 @@
           "createSuccess": "API key created successfully",
           "createError": "Failed to create API key",
           "updateSuccess": "API key {action} successfully",
-          "updateError": "Failed to update API key", 
+          "updateError": "Failed to update API key",
           "deleteSuccess": "API key deleted successfully",
           "deleteError": "Failed to delete API key",
           "copySuccess": "Copied to clipboard",
@@ -919,7 +919,7 @@
         },
         "Validation": {
           "nameRequired": "API key name is required",
-          "nameMaxLength": "API key name must be less than 100 characters", 
+          "nameMaxLength": "API key name must be less than 100 characters",
           "namePattern": "API key name can only contain letters, numbers, spaces, hyphens, and underscores",
           "keyIdRequired": "API key ID is required",
           "confirmNameRequired": "Please confirm the API key name"
