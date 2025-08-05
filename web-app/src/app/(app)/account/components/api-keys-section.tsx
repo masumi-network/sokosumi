@@ -6,6 +6,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Copy,
+  Eye,
+  EyeOff,
   Plus,
   Trash2,
 } from "lucide-react";
@@ -187,6 +189,27 @@ export function ApiKeysSection() {
       setTimeout(() => setCopiedKey(false), 3000);
     } catch (_error) {
       toast.error("Failed to copy to clipboard");
+    }
+  };
+
+  // Handle toggle API key status
+  const handleToggleStatus = async (apiKey: Apikey) => {
+    try {
+      const result = await authClient.apiKey.update({
+        keyId: apiKey.id,
+        enabled: !apiKey.enabled,
+      });
+
+      if (result.data) {
+        toast.success(
+          `API key ${apiKey.enabled ? "disabled" : "enabled"} successfully`,
+        );
+        await loadApiKeys();
+      } else {
+        toast.error(result.error?.message ?? "Failed to update API key");
+      }
+    } catch (_error) {
+      toast.error("Failed to update API key");
     }
   };
 
@@ -374,21 +397,40 @@ export function ApiKeysSection() {
                         <span
                           className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
                             apiKey.enabled
-                              ? "bg-green-100 text-green-800"
-                              : "bg-red-100 text-red-800"
+                              ? "bg-semantic-success/10 text-semantic-success"
+                              : "bg-semantic-destructive/10 text-semantic-destructive"
                           }`}
                         >
-                          {apiKey.enabled ? "Active" : "Disabled"}
+                          {apiKey.enabled ? "Enabled" : "Disabled"}
                         </span>
                       </TableCell>
                       <TableCell>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => handleDeleteClick(apiKey)}
-                        >
-                          <Trash2 className="text-destructive h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center space-x-1">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleToggleStatus(apiKey)}
+                            title={
+                              apiKey.enabled
+                                ? "Disable API key"
+                                : "Enable API key"
+                            }
+                          >
+                            {apiKey.enabled ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => handleDeleteClick(apiKey)}
+                            title="Delete API key"
+                          >
+                            <Trash2 className="text-destructive h-4 w-4" />
+                          </Button>
+                        </div>
                       </TableCell>
                     </TableRow>
                   ))}
