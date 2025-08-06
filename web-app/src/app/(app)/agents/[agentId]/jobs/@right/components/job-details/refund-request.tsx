@@ -204,7 +204,9 @@ export default function RequestRefundButton({
       <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <AlertDialogTrigger asChild>
           <ButtonBase
-            disabled={isLoading || isRefundDisabled || isRefundRequested}
+            disabled={
+              isLoading || isRefundDisabled || isRefundRequested || isFailed
+            }
             className={className}
           >
             {isLoading ? (
