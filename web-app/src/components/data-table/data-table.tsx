@@ -39,6 +39,7 @@ interface DataTableProps<TData, TValue> {
   tableBodyClassName?: string | undefined;
   showPagination?: boolean | undefined;
   enableRowSelection?: boolean | undefined;
+  disableHover?: boolean | undefined;
   defaultSort?: { id: string; desc: boolean }[];
   onRowClick?: (row: TData) => () => void | Promise<void>;
   rowClassName?: (row: TData) => string | undefined;
@@ -53,6 +54,7 @@ export default function DataTable<TData, TValue>({
   tableBodyClassName,
   showPagination,
   enableRowSelection = true,
+  disableHover = false,
   defaultSort,
   onRowClick,
   rowClassName,
@@ -139,6 +141,7 @@ export default function DataTable<TData, TValue>({
                       className={cn(
                         rowClassName?.(row.original),
                         onClick != undefined && "cursor-pointer",
+                        disableHover && "hover:bg-transparent",
                       )}
                       onClick={onClick}
                     >
