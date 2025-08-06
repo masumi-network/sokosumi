@@ -28,7 +28,10 @@ export function MemberActionsModalContextProvider({
   const t = useTranslations("Components.MembersTable.MemberActions.Modal");
   const router = useRouter();
 
-  async function onAction(member: MemberWithUser, action: MemberAction) {
+  async function onAction(
+    member: MemberWithUser,
+    action: MemberAction,
+  ): Promise<{ error: unknown }> {
     switch (action) {
       case MemberAction.CHANGE_TO_ADMIN:
         return await authClient.organization.updateMemberRole({
