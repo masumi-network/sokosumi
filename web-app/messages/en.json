@@ -217,16 +217,12 @@
             "edit": "Failed to update organization"
           },
           "Errors": {
-            "unauthenticated": "You must be logged in.",
-            "unauthenticatedAction": "Login",
-            "unauthorized": "You must be an admin."
+            "unauthorized": "You must be logged in.",
+            "unauthorizedAction": "Login"
           },
           "Fields": {
             "Name": {
               "placeholder": "Name"
-            },
-            "Metadata": {
-              "placeholder": "Metadata"
             }
           }
         },
@@ -236,11 +232,6 @@
             "max": "Organization name must be at most 50 characters.",
             "invalid": "Organization name must be a valid string.",
             "required": "Organization name is required"
-          },
-          "Metadata": {
-            "min": "Organization metadata must be at least 10 characters.",
-            "max": "Organization metadata must be at most 500 characters.",
-            "invalid": "Organization metadata must be a valid string."
           }
         }
       },

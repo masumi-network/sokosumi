@@ -13,7 +13,6 @@ import { MemberRole } from "@/lib/db";
 import {
   memberRepository,
   organizationRepository,
-  prisma,
 } from "@/lib/db/repositories";
 import {
   organizationInformationFormSchema,
@@ -21,21 +20,11 @@ import {
 } from "@/lib/schemas";
 import { organizationService, userService } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
-import { Organization } from "@/prisma/generated/client";
 
-export async function createOrganization(
+export async function generateOrganizationSlug(
   data: OrganizationInformationFormSchemaType,
-): Promise<Result<Organization, ActionError>> {
+): Promise<Result<string, ActionError>> {
   try {
-    const session = await getSession();
-    if (!session) {
-      return Err({
-        message: "Unauthenticated",
-        code: CommonErrorCode.UNAUTHENTICATED,
-      });
-    }
-    const userId = session.user.id;
-
     const parsedResult = organizationInformationFormSchema().safeParse(data);
     if (!parsedResult.success) {
       return Err({
@@ -44,37 +33,13 @@ export async function createOrganization(
       });
     }
 
-    // generate slug from name
     const slug = await organizationService.generateOrganizationSlugFromName(
       parsedResult.data.name,
     );
 
-    // create organization and admin atomically
-    const { organization } = await prisma.$transaction(async (tx) => {
-      // create organization
-      const organization = await organizationRepository.createOrganization(
-        slug,
-        parsedResult.data.name,
-        parsedResult.data.metadata ?? null,
-        tx,
-      );
-
-      // create admin
-      await memberRepository.createMember(
-        userId,
-        organization.id,
-        MemberRole.ADMIN,
-        tx,
-      );
-
-      return {
-        organization,
-      };
-    });
-
-    return Ok(organization);
+    return Ok(slug);
   } catch (error) {
-    console.error("Error creating organization", error);
+    console.error("Error generating organization slug", error);
     return Err({
       message: "Internal server error",
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,
@@ -115,8 +80,6 @@ export async function updateOrganizationInformation(
     // update organization information
     await organizationRepository.updateOrganizationById(organizationId, {
       name: parsedResult.data.name,
-      metadata:
-        parsedResult.data.metadata === "" ? null : parsedResult.data.metadata,
     });
     return Ok();
   } catch (error) {
@@ -134,8 +97,8 @@ export async function updateOrganizationInformation(
  * If user is the last admin of the organization, they cannot leave.
  * If user is the last person of the organization, they cannot leave.
  *
- * @param organizationId - The ID of the organization to check if the user can leave.
- * @returns A promise that resolves to a boolean indicating if the user can leave the organization.
+ * @param organizationId - The ID of the organization to leave.
+ * @returns A promise that resolves to a void indicating if the user left the organization.
  */
 export async function leaveOrganization(
   organizationId: string,

@@ -9,8 +9,4 @@ export const updateOrganizationInformationFormData: FormData<
     name: "name",
     placeholderKey: "Fields.Name.placeholder",
   },
-  {
-    name: "metadata",
-    placeholderKey: "Fields.Metadata.placeholder",
-  },
 ];

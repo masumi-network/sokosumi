@@ -8,11 +8,8 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
-import {
-  CommonErrorCode,
-  createOrganization,
-  updateOrganizationInformation,
-} from "@/lib/actions";
+import { CommonErrorCode, generateOrganizationSlug } from "@/lib/actions";
+import { authClient } from "@/lib/auth/auth.client";
 import { OrganizationInformationFormSchemaType } from "@/lib/schemas";
 
 import { updateOrganizationInformationFormData } from "./data";
@@ -32,38 +29,52 @@ export default function OrganizationInformationForm({
   const t = useTranslations("Components.Organizations.InformationModal.Form");
   const router = useRouter();
 
-  const isCreating = !organizationId;
-
   const onSubmit = async (values: OrganizationInformationFormSchemaType) => {
-    const result = isCreating
-      ? await createOrganization(values)
-      : await updateOrganizationInformation(organizationId, values);
-    if (result.ok) {
+    let result;
+    if (!organizationId) {
+      const slugResult = await generateOrganizationSlug(values);
+      if (!slugResult.ok) {
+        toast.error(t("Error.create"));
+        return;
+      }
+      const slug = slugResult.data;
+      result = await authClient.organization.create({
+        name: values.name,
+        slug,
+      });
+    } else {
+      result = await authClient.organization.update({
+        organizationId,
+        data: {
+          name: values.name,
+        },
+      });
+    }
+
+    if (result.error) {
+      if (result.error.code === CommonErrorCode.UNAUTHORIZED) {
+        toast.error(t("Errors.unauthorized"), {
+          action: {
+            label: t("Errors.unauthorizedAction"),
+            onClick: async () => {
+              router.push("/login");
+            },
+          },
+        });
+      } else {
+        const errorMessage =
+          result.error.message ??
+          (isCreating ? t("Error.create") : t("Error.edit"));
+        toast.error(errorMessage);
+      }
+    } else {
       toast.success(isCreating ? t("Success.create") : t("Success.edit"));
       onOpenChange(false);
       router.refresh();
-    } else {
-      switch (result.error.code) {
-        case CommonErrorCode.UNAUTHENTICATED:
-          toast.error(t("Errors.unauthenticated"), {
-            action: {
-              label: t("Errors.unauthenticatedAction"),
-              onClick: async () => {
-                await router.push("/login");
-              },
-            },
-          });
-          break;
-        case CommonErrorCode.UNAUTHORIZED:
-          toast.error(t("Errors.unauthorized"));
-          break;
-        default:
-          toast.error(isCreating ? t("Error.create") : t("Error.edit"));
-      }
-      return;
     }
   };
 
+  const isCreating = !organizationId;
   const isLoading = form.formState.isSubmitting;
 
   return (

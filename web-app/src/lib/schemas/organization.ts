@@ -9,11 +9,6 @@ export const organizationInformationFormSchema = (
       .min(1, t?.("Name.required"))
       .min(2, t?.("Name.min"))
       .max(50, t?.("Name.max")),
-    metadata: z
-      .string({ message: t?.("Metadata.invalid") })
-      .min(10, t?.("Metadata.min"))
-      .max(500, t?.("Metadata.max"))
-      .or(z.literal("")),
   });
 
 export type OrganizationInformationFormSchemaType = z.infer<

@@ -42,7 +42,6 @@ export default function OrganizationInformationModal({
     ),
     defaultValues: {
       name: "",
-      metadata: "",
     },
   });
   const isLoading = form.formState.isSubmitting;
@@ -52,9 +51,8 @@ export default function OrganizationInformationModal({
       return;
     }
 
-    const { name, metadata } = organization;
+    const { name } = organization;
     form.setValue("name", name);
-    form.setValue("metadata", metadata ?? "");
   }, [organization, form, open]);
 
   const handleOpenChange = (open: boolean) => {
