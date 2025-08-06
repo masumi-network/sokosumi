@@ -1,3 +1,5 @@
 export enum OrganizationErrorCode {
-  EMAIL_DOMAIN_NOT_ALLOWED_BY_ORGANIZATION = "EMAIL_DOMAIN_NOT_ALLOWED_BY_ORGANIZATION",
+  // Organization Leave Error Codes
+  LAST_PERSON = "LAST_PERSON",
+  LAST_ADMIN = "LAST_ADMIN",
 }

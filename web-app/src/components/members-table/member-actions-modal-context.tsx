@@ -1,11 +1,11 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { ReactNode } from "react";
 import { toast } from "sonner";
 
 import { createModalContext } from "@/components/common/modal-context";
-import { revalidateOrganizationsPath } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
 import { MemberRole, MemberWithUser } from "@/lib/db";
 
@@ -26,6 +26,7 @@ export function MemberActionsModalContextProvider({
   children: ReactNode;
 }) {
   const t = useTranslations("Components.MembersTable.MemberActions.Modal");
+  const router = useRouter();
 
   async function onAction(member: MemberWithUser, action: MemberAction) {
     switch (action) {
@@ -50,7 +51,7 @@ export function MemberActionsModalContextProvider({
   }
 
   async function onSuccess(action: MemberAction) {
-    await revalidateOrganizationsPath();
+    router.refresh();
     toast.success(
       action === MemberAction.REMOVE
         ? t("Successes.removeSuccess")

@@ -1,6 +1,7 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -15,9 +16,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useAsyncRouter } from "@/hooks/use-async-router";
-import { revalidateOrganizationsPath } from "@/lib/actions";
-import { authClient } from "@/lib/auth/auth.client";
+import {
+  CommonErrorCode,
+  leaveOrganization,
+  OrganizationErrorCode,
+} from "@/lib/actions";
 import { Organization } from "@/prisma/generated/client";
 
 interface LeaveOrganizationModalProps {
@@ -33,36 +36,43 @@ export function LeaveOrganizationModal({
 }: LeaveOrganizationModalProps) {
   const t = useTranslations("Components.Organizations.LeaveOrganizationModal");
   const [loading, setLoading] = useState(false);
-  const router = useAsyncRouter();
+  const router = useRouter();
 
   const handleLeaveOrganization = async () => {
     setLoading(true);
     try {
-      // list organizations
-      const organizationsResult = await authClient.organization.list();
-      if (!organizationsResult.data) {
-        toast.error(t("Errors.notAuthenticated"));
-        await router.push("/login");
-        return;
+      const result = await leaveOrganization(organization.id);
+      if (result.ok) {
+        router.refresh();
+        toast.success(t("success"));
+        onOpenChange(false);
+      } else {
+        switch (result.error.code) {
+          case CommonErrorCode.UNAUTHENTICATED:
+            toast.error(t("Errors.unauthenticated"), {
+              action: {
+                label: t("Errors.unauthenticatedAction"),
+                onClick: () => {
+                  router.push(`/login`);
+                },
+              },
+            });
+            break;
+          case CommonErrorCode.UNAUTHORIZED:
+            toast.error(t("Errors.unauthorized"));
+            break;
+          case OrganizationErrorCode.LAST_PERSON:
+            toast.error(t("Errors.lastPerson"));
+            break;
+          case OrganizationErrorCode.LAST_ADMIN:
+            toast.error(t("Errors.lastAdmin"));
+            break;
+          case CommonErrorCode.INTERNAL_SERVER_ERROR:
+          default:
+            toast.error(t("error"));
+            break;
+        }
       }
-      const organizations = organizationsResult.data;
-      if (organizations.length < 2) {
-        toast.error(t("Errors.organizationsCountNotAllowed"));
-        return;
-      }
-
-      const result = await authClient.organization.leave({
-        organizationId: organization.id,
-      });
-      if (result.error) {
-        console.error("Error leaving organization", result.error);
-        toast.error(t("error"));
-        return;
-      }
-
-      await revalidateOrganizationsPath();
-      toast.success(t("success"));
-      onOpenChange(false);
     } finally {
       setLoading(false);
     }

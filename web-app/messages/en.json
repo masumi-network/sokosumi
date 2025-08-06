@@ -284,8 +284,11 @@
         "success": "You have left the organization",
         "error": "Failed to leave organization",
         "Errors": {
-          "notAuthenticated": "You must be logged in to leave the organization.",
-          "organizationsCountNotAllowed": "You must be member of at least one organization."
+          "unauthenticated": "You must be logged in to leave the organization.",
+          "unauthenticatedAction": "Login",
+          "unauthorized": "You are not a member of the organization.",
+          "lastPerson": "You cannot leave the organization because you are the last person.",
+          "lastAdmin": "You cannot leave the organization because you are the last admin."
         }
       }
     },
