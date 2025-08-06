@@ -101,9 +101,11 @@ export default function DataTable<TData, TValue>({
       <div
         className={cn("flex flex-1 flex-col overflow-hidden", tableClassName)}
       >
-        <div className={cn("sticky top-0 z-10", tableHeaderClassName)}>
+        <ScrollArea className="h-full">
           <Table>
-            <TableHeader>
+            <TableHeader
+              className={cn("sticky top-0 z-10", tableHeaderClassName)}
+            >
               {table.getHeaderGroups().map((headerGroup) => (
                 <TableRow key={headerGroup.id}>
                   {headerGroup.headers.map((header) => (
@@ -126,56 +128,50 @@ export default function DataTable<TData, TValue>({
                 </TableRow>
               ))}
             </TableHeader>
-          </Table>
-        </div>
-        <div className={cn("flex-1 overflow-hidden", tableBodyClassName)}>
-          <ScrollArea className="h-full">
-            <Table>
-              <TableBody>
-                {rowModel.rows?.length ? (
-                  rowModel.rows.map((row) => {
-                    const onClick = onRowClick?.(row.original);
-                    return (
-                      <TableRow
-                        key={row.id}
-                        data-state={row.getIsSelected() && "selected"}
-                        className={cn(
-                          rowClassName?.(row.original),
-                          onClick != undefined && "cursor-pointer",
-                        )}
-                        onClick={onClick}
-                      >
-                        {row.getVisibleCells().map((cell) => (
-                          <TableCell
-                            key={cell.id}
-                            className="p-2"
-                            style={{
-                              width: cell.column.getSize(),
-                            }}
-                          >
-                            {flexRender(
-                              cell.column.columnDef.cell,
-                              cell.getContext(),
-                            )}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                    );
-                  })
-                ) : (
-                  <TableRow>
-                    <TableCell
-                      colSpan={columns.length}
-                      className="h-24 p-2 text-center"
+            <TableBody className={cn(tableBodyClassName)}>
+              {rowModel.rows?.length ? (
+                rowModel.rows.map((row) => {
+                  const onClick = onRowClick?.(row.original);
+                  return (
+                    <TableRow
+                      key={row.id}
+                      data-state={row.getIsSelected() && "selected"}
+                      className={cn(
+                        rowClassName?.(row.original),
+                        onClick != undefined && "cursor-pointer",
+                      )}
+                      onClick={onClick}
                     >
-                      {t("noResults")}
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </ScrollArea>
-        </div>
+                      {row.getVisibleCells().map((cell) => (
+                        <TableCell
+                          key={cell.id}
+                          className="p-2"
+                          style={{
+                            width: cell.column.getSize(),
+                          }}
+                        >
+                          {flexRender(
+                            cell.column.columnDef.cell,
+                            cell.getContext(),
+                          )}
+                        </TableCell>
+                      ))}
+                    </TableRow>
+                  );
+                })
+              ) : (
+                <TableRow>
+                  <TableCell
+                    colSpan={columns.length}
+                    className="h-24 p-2 text-center"
+                  >
+                    {t("noResults")}
+                  </TableCell>
+                </TableRow>
+              )}
+            </TableBody>
+          </Table>
+        </ScrollArea>
       </div>
       {showPagination && (
         <DataTablePagination
