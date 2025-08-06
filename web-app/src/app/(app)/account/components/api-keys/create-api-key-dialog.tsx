@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
@@ -41,6 +41,7 @@ export function CreateApiKeyDialog({
   const t = useTranslations("App.Account.ApiKeys");
   const { create } = useApiKeys();
   const [createdKey, setCreatedKey] = useState<string | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const schema = createApiKeySchema(t);
 
@@ -69,10 +70,15 @@ export function CreateApiKeyDialog({
   const handleOpenChange = (open: boolean) => {
     onOpenChange(open);
     if (!open) {
+      // Clear any existing timeout
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
       // Reset state when closing
-      setTimeout(() => {
+      timeoutRef.current = setTimeout(() => {
         setCreatedKey(null);
         form.reset();
+        timeoutRef.current = null;
       }, 300); // Small delay for smooth animation
     }
   };
@@ -83,6 +89,15 @@ export function CreateApiKeyDialog({
   const handleSuccessClose = () => {
     handleOpenChange(false);
   };
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>

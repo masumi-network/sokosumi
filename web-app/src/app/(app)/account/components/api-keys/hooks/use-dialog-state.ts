@@ -19,8 +19,9 @@ export function useDialogState(): DialogState {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [keyToDelete, setKeyToDelete] = useState<Apikey | null>(null);
 
-  // Timeout ref for cleanup
+  // Timeout refs for cleanup
   const dialogTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const deleteTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   /**
    * Clear dialog state with a delay to allow for smooth transitions
@@ -56,18 +57,26 @@ export function useDialogState(): DialogState {
   const setDeleteOpen = useCallback((open: boolean) => {
     setDeleteDialogOpen(open);
     if (!open) {
+      // Clear any existing delete timeout
+      if (deleteTimeoutRef.current) {
+        clearTimeout(deleteTimeoutRef.current);
+      }
       // Reset delete state when dialog closes
-      setTimeout(() => {
+      deleteTimeoutRef.current = setTimeout(() => {
         setKeyToDelete(null);
+        deleteTimeoutRef.current = null;
       }, DIALOG_CLEANUP_TIMEOUT);
     }
   }, []);
 
-  // Cleanup timeout on unmount
+  // Cleanup timeouts on unmount
   useEffect(() => {
     return () => {
       if (dialogTimeoutRef.current) {
         clearTimeout(dialogTimeoutRef.current);
+      }
+      if (deleteTimeoutRef.current) {
+        clearTimeout(deleteTimeoutRef.current);
       }
     };
   }, []);
