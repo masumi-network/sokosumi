@@ -71,9 +71,8 @@ export default function SignUpForm({
     );
 
     if (result.ok) {
-      plausible("Signup");
+      plausible("Signup", { callback: () => router.push("/login") });
       toast.success(t("success"));
-      router.push("/login");
     } else {
       switch (result.error.code) {
         case CommonErrorCode.BAD_INPUT:

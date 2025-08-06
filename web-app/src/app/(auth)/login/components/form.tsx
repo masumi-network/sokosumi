@@ -76,8 +76,7 @@ export default function SignInForm({
         // Invalid URL, fallback to /agents
       }
     }
-    plausible("SignIn");
-    router.push(redirectUrl);
+    plausible("SignIn", { callback: () => router.push(redirectUrl) });
   };
 
   const email = form.watch("email");
