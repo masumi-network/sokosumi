@@ -20,20 +20,23 @@ import {
 
 interface DataTablePaginationProps<TData> {
   table: Table<TData>;
+  enableRowSelection?: boolean;
 }
 
 export default function DataTablePagination<TData>({
   table,
+  enableRowSelection = true,
 }: DataTablePaginationProps<TData>) {
   const t = useTranslations("Components.DataTable.Pagination");
 
   return (
     <div className="flex items-center justify-between px-2">
       <div className="text-muted-foreground flex-1 text-sm">
-        {t("rowsSelected", {
-          selected: table.getFilteredSelectedRowModel().rows.length,
-          total: table.getFilteredRowModel().rows.length,
-        })}
+        {enableRowSelection &&
+          t("rowsSelected", {
+            selected: table.getFilteredSelectedRowModel().rows.length,
+            total: table.getFilteredRowModel().rows.length,
+          })}
       </div>
       <div className="flex items-center space-x-6 lg:space-x-8">
         <div className="flex items-center space-x-2">

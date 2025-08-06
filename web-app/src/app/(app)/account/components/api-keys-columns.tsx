@@ -18,7 +18,8 @@ export function getApiKeyColumns(
   return [
     columnHelper.accessor("name", {
       id: "name",
-      minSize: 125,
+      minSize: 120,
+      size: 120,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("Table.name")} />
       ),
@@ -29,7 +30,8 @@ export function getApiKeyColumns(
 
     columnHelper.accessor("start", {
       id: "key",
-      minSize: 100,
+      minSize: 80,
+      size: 80,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("Table.key")} />
       ),
@@ -44,7 +46,8 @@ export function getApiKeyColumns(
 
     columnHelper.accessor("enabled", {
       id: "status",
-      minSize: 100,
+      minSize: 90,
+      size: 90,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("Table.status")} />
       ),
@@ -65,7 +68,8 @@ export function getApiKeyColumns(
 
     columnHelper.accessor("createdAt", {
       id: "createdAt",
-      minSize: 125,
+      minSize: 100,
+      size: 100,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("Table.created")} />
       ),
@@ -80,7 +84,9 @@ export function getApiKeyColumns(
 
     columnHelper.display({
       id: "actions",
-      minSize: 100,
+      minSize: 80,
+      size: 80,
+      maxSize: 80,
       header: () => <div className="text-right">{t("Table.actions")}</div>,
       cell: ({ row }) => (
         <div className="flex items-center justify-end space-x-1">
