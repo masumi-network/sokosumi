@@ -1,6 +1,6 @@
 import { useTranslations } from "next-intl";
 
-import { ApiKeysSection } from "./api-keys-section";
+import { ApiKeysSection } from "./api-keys";
 import { DeleteAccountForm } from "./delete-account-form";
 import { EmailForm } from "./email-form";
 import { NameForm } from "./name-form";
