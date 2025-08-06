@@ -140,7 +140,7 @@ export function DeleteApiKeyDialog({
               />
 
               <AlertDialogFooter>
-                <AlertDialogCancel>
+                <AlertDialogCancel disabled={form.formState.isSubmitting}>
                   {t("DeleteDialog.cancelButton")}
                 </AlertDialogCancel>
                 <Button

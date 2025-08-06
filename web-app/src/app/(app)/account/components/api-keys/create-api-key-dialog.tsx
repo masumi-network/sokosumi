@@ -143,6 +143,7 @@ export function CreateApiKeyDialog({
                     type="button"
                     variant="outline"
                     onClick={() => handleOpenChange(false)}
+                    disabled={form.formState.isSubmitting}
                   >
                     {t("CreateDialog.cancelButton")}
                   </Button>
