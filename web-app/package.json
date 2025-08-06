@@ -58,7 +58,7 @@
     "isomorphic-dompurify": "^2.26.0",
     "json-canonicalize": "^2.0.0",
     "lucide-react": "0.536.0",
-    "markdown-to-jsx": "7.7.12",
+    "markdown-to-jsx": "7.7.13",
     "nanoid": "5.1.5",
     "next": "15.4.5",
     "next-intl": "4.3.4",
