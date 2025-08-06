@@ -1,22 +1,14 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  Copy,
-  Eye,
-  EyeOff,
-  Plus,
-  Trash2,
-} from "lucide-react";
+import { Check, Copy, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
+import { DataTable } from "@/components/data-table";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -52,17 +44,10 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 import { authClient } from "@/lib/auth/auth.client";
 import { Apikey } from "@/prisma/generated/client";
+
+import { getApiKeyColumns } from "./api-keys-columns";
 
 // Types
 type CreateApiKeyType = {
@@ -98,8 +83,6 @@ export function ApiKeysSection() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [keyToDelete, setKeyToDelete] = useState<Apikey | null>(null);
   const [copiedKey, setCopiedKey] = useState(false);
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
 
   // Refs for timeout cleanup
   const copyTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -127,13 +110,7 @@ export function ApiKeysSection() {
       const result = await authClient.apiKey.list();
 
       if (result.data) {
-        // Sort API keys by creation date, latest first
-        const sortedApiKeys = (result.data as Apikey[]).sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-        );
-        setApiKeys(sortedApiKeys);
-        setCurrentPage(1); // Reset to first page when reloading
+        setApiKeys(result.data as Apikey[]);
       } else {
         toast.error(t("Messages.loadError"));
       }
@@ -274,18 +251,8 @@ export function ApiKeysSection() {
     setDeleteDialogOpen(true);
   };
 
-  // Pagination logic
-  const totalPages = Math.ceil(apiKeys.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedApiKeys = apiKeys.slice(startIndex, startIndex + itemsPerPage);
-
-  const handlePreviousPage = () => {
-    setCurrentPage((prev) => Math.max(prev - 1, 1));
-  };
-
-  const handleNextPage = () => {
-    setCurrentPage((prev) => Math.min(prev + 1, totalPages));
-  };
+  // Get column definitions
+  const columns = getApiKeyColumns(t, handleToggleStatus, handleDeleteClick);
 
   return (
     <Card>
@@ -414,116 +381,18 @@ export function ApiKeysSection() {
             {t("noKeysFound")}
           </div>
         ) : (
-          <div className="space-y-4">
-            <ScrollArea>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t("Table.name")}</TableHead>
-                    <TableHead>{t("Table.key")}</TableHead>
-                    <TableHead>{t("Table.status")}</TableHead>
-                    <TableHead className="w-[100px]">
-                      {t("Table.actions")}
-                    </TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {paginatedApiKeys.map((apiKey) => (
-                    <TableRow key={apiKey.id}>
-                      <TableCell className="font-medium">
-                        {apiKey.name}
-                      </TableCell>
-                      <TableCell>
-                        <code className="bg-muted relative rounded px-[0.3rem] py-[0.2rem] font-mono text-sm">
-                          {apiKey.start ?? "••••••••"}
-                        </code>
-                      </TableCell>
-                      <TableCell>
-                        <span
-                          className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${
-                            apiKey.enabled
-                              ? "bg-semantic-success/10 text-semantic-success"
-                              : "bg-semantic-destructive/10 text-semantic-destructive"
-                          }`}
-                        >
-                          {apiKey.enabled
-                            ? t("Status.enabled")
-                            : t("Status.disabled")}
-                        </span>
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center space-x-1">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleToggleStatus(apiKey)}
-                            title={
-                              apiKey.enabled
-                                ? t("Actions.disableTooltip")
-                                : t("Actions.enableTooltip")
-                            }
-                          >
-                            {apiKey.enabled ? (
-                              <EyeOff className="h-4 w-4" />
-                            ) : (
-                              <Eye className="h-4 w-4" />
-                            )}
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleDeleteClick(apiKey)}
-                            title={t("Actions.deleteTooltip")}
-                          >
-                            <Trash2 className="text-destructive h-4 w-4" />
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </ScrollArea>
-
-            {/* Pagination Controls */}
-            {totalPages > 1 && (
-              <div className="flex items-center justify-between">
-                <p className="text-muted-foreground text-sm">
-                  {t("Pagination.showing", {
-                    start: startIndex + 1,
-                    end: Math.min(startIndex + itemsPerPage, apiKeys.length),
-                    total: apiKeys.length,
-                  })}
-                </p>
-                <div className="flex items-center space-x-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handlePreviousPage}
-                    disabled={currentPage === 1}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    {t("Pagination.previousButton")}
-                  </Button>
-                  <span className="text-sm">
-                    {t("Pagination.page", {
-                      current: currentPage,
-                      total: totalPages,
-                    })}
-                  </span>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={handleNextPage}
-                    disabled={currentPage === totalPages}
-                  >
-                    {t("Pagination.nextButton")}
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            )}
-          </div>
+          <DataTable
+            columns={columns}
+            data={apiKeys}
+            showPagination={apiKeys.length > 0}
+            defaultSort={[
+              {
+                id: "createdAt",
+                desc: true,
+              },
+            ]}
+            containerClassName="rounded-lg"
+          />
         )}
 
         {/* Delete Confirmation Dialog */}

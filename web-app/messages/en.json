@@ -867,7 +867,8 @@
           "name": "Name",
           "key": "Key",
           "status": "Status",
-          "actions": "Actions"
+          "actions": "Actions",
+          "created": "Created"
         },
         "Status": {
           "enabled": "Enabled",
@@ -898,12 +899,6 @@
           "confirmLabelSuffix": "to confirm deletion:",
           "cancelButton": "Cancel",
           "deleteButton": "Delete API Key"
-        },
-        "Pagination": {
-          "showing": "Showing {start}-{end} of {total}",
-          "page": "Page {current} of {total}",
-          "previousButton": "Previous",
-          "nextButton": "Next"
         },
         "Messages": {
           "loadError": "Failed to load API keys",
