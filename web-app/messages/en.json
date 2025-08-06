@@ -1010,7 +1010,7 @@
           "Output": {
             "title": "Output",
             "failedToParseOutput": "Failed to parse output",
-            "none": "No result data",
+            "none": "No output available",
             "download": "Download",
             "copy": "Copy",
             "copySuccess": "Output copied to clipboard",

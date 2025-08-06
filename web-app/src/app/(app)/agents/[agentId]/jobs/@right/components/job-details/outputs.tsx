@@ -3,7 +3,7 @@ import { useTranslations } from "next-intl";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import Markdown from "@/components/markdown";
-import { JobWithStatus } from "@/lib/db";
+import { JobStatus, JobWithStatus } from "@/lib/db";
 import {
   jobStatusResponseSchema,
   JobStatusResponseSchemaType,
@@ -37,25 +37,22 @@ export default function JobDetailsOutputs({ job }: JobDetailsOutputsProps) {
 function JobDetailsOutputsInner({ job }: JobDetailsOutputsProps) {
   const t = useTranslations("App.Agents.Jobs.JobDetails.Output");
 
-  if (!job.output) {
-    return (
-      <JobDetailsOutputsLayout>
-        <p className="text-base">{t("none")}</p>
-      </JobDetailsOutputsLayout>
-    );
+  let output: JobStatusResponseSchemaType | null = null;
+  if (job.output) {
+    try {
+      const parsedOutput = JSON.parse(job.output);
+      output = jobStatusResponseSchema.parse(parsedOutput);
+    } catch {
+      return <JobDetailsOutputsError />;
+    }
   }
 
-  let output: JobStatusResponseSchemaType;
-  try {
-    const parsedOutput = JSON.parse(job.output);
-    output = jobStatusResponseSchema.parse(parsedOutput);
-  } catch {
-    return <JobDetailsOutputsError />;
-  }
+  // Show refund button for failed jobs or when there's output with result
+  const shouldShowRefundButton = job.status === JobStatus.FAILED;
 
   return (
     <JobDetailsOutputsLayout>
-      {output.result ? (
+      {output?.result ? (
         <>
           <Markdown>{output.result}</Markdown>
           <div className="flex justify-between gap-2">
@@ -70,7 +67,14 @@ function JobDetailsOutputsInner({ job }: JobDetailsOutputsProps) {
           </div>
         </>
       ) : (
-        <p className="text-base">{t("none")}</p>
+        <>
+          <p className="text-base">{t("none")}</p>
+          {shouldShowRefundButton && (
+            <div className="flex justify-end">
+              <RequestRefundButton job={job} />
+            </div>
+          )}
+        </>
       )}
     </JobDetailsOutputsLayout>
   );
