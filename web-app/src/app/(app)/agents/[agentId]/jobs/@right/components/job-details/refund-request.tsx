@@ -67,11 +67,11 @@ function ButtonBase({
 
 function makeTitleAndDescription(
   isRefundDisabled: boolean,
-  unlockTime: Date,
+  refundAvailableTime: Date,
   t: IntlTranslation<"App.Agents.Jobs.JobDetails.Output.Refund">,
   formatter: IntlDateFormatter,
 ) {
-  const unlockTimeFormatted = formatter.dateTime(unlockTime, {
+  const refundAvailableTimeFormatted = formatter.dateTime(refundAvailableTime, {
     dateStyle: "medium",
     timeStyle: "short",
   });
@@ -80,13 +80,13 @@ function makeTitleAndDescription(
     ? {
         title: t("Tooltip.unavailable.title"),
         description: t("Tooltip.unavailable.description", {
-          unlockAt: unlockTimeFormatted,
+          unlockAt: refundAvailableTimeFormatted,
         }),
       }
     : {
         title: t("Tooltip.available.title"),
         description: t("Tooltip.available.description", {
-          unlockAt: unlockTimeFormatted,
+          unlockAt: refundAvailableTimeFormatted,
         }),
       };
 
@@ -129,10 +129,15 @@ export default function RequestRefundButton({
     );
   }
 
-  const isRefundDisabled = job.unlockTime.getTime() < Date.now();
+  const FIVE_MINUTES_MS = 5 * 60 * 1000;
+  const isRefundDisabled =
+    job.submitResultTime.getTime() + FIVE_MINUTES_MS > Date.now();
+  const submitResultTimeWithBuffer = new Date(
+    job.submitResultTime.getTime() + FIVE_MINUTES_MS,
+  );
   const { title, description } = makeTitleAndDescription(
     isRefundDisabled,
-    job.unlockTime,
+    submitResultTimeWithBuffer,
     t,
     formatter,
   );

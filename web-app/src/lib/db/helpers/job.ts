@@ -32,6 +32,8 @@ function getFundsLockedJobStatus(
       return JobStatus.INPUT_REQUIRED;
     case AgentJobStatus.COMPLETED:
       return JobStatus.COMPLETED;
+    case AgentJobStatus.FAILED:
+      return JobStatus.FAILED;
     default:
       // Check for FAILED status first (highest priority)
       if (

@@ -47,6 +47,7 @@ export const finalizedOnChainJobStatuses: OnChainJobStatus[] = [
 
 export const finalizedAgentJobStatuses: AgentJobStatus[] = [
   AgentJobStatus.COMPLETED,
+  AgentJobStatus.FAILED,
 ];
 
 export type JobWithStatus = JobWithRelations & {
