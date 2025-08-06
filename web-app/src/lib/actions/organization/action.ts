@@ -171,14 +171,6 @@ export async function leaveOrganization(
       0,
     );
 
-    // check if user is the last person of the organization
-    if (totalCount <= 1) {
-      return Err({
-        message: "Last Person",
-        code: OrganizationErrorCode.LAST_PERSON,
-      });
-    }
-
     // check if user is the last admin of the organization
     if (
       myMemberInOrganization.role === MemberRole.ADMIN &&
@@ -187,6 +179,14 @@ export async function leaveOrganization(
       return Err({
         message: "Last Admin",
         code: OrganizationErrorCode.LAST_ADMIN,
+      });
+    }
+
+    // check if user is the last person of the organization
+    if (totalCount <= 1) {
+      return Err({
+        message: "Last Person",
+        code: OrganizationErrorCode.LAST_PERSON,
       });
     }
 
