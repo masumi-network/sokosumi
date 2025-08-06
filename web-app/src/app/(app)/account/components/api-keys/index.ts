@@ -10,7 +10,6 @@ export { DeleteApiKeyDialog } from "./delete-api-key-dialog";
 
 // Hook exports
 export { useApiKeys } from "./hooks/use-api-keys";
-export { useClipboard } from "./hooks/use-clipboard";
 export { useDialogState } from "./hooks/use-dialog-state";
 
 // Utility exports
