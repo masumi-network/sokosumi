@@ -1031,11 +1031,15 @@
               "Tooltip": {
                 "available": {
                   "title": "Refund available",
-                  "description": "You can request a manual refund starting {unlockAt}. If no result is submitted, an automatic refund will be processed at that time."
+                  "description": "You can request a refund until {unlockAt}."
                 },
                 "unavailable": {
-                  "title": "Refund not yet available",
-                  "description": "Manual refund will be available at {unlockAt}. If the agent doesn't submit a result by then, an automatic refund will be processed."
+                  "title": "Refund no longer available",
+                  "description": "You could have requested a refund until {unlockAt}."
+                },
+                "failed": {
+                  "title": "Automatic refund pending",
+                  "description": "An automatic refund will be processed at {unlockAt}"
                 }
               },
               "Errors": {

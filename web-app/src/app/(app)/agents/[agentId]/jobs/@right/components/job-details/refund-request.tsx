@@ -30,7 +30,7 @@ import {
   JobErrorCode,
   requestRefundJobByBlockchainIdentifier,
 } from "@/lib/actions";
-import { JobWithStatus } from "@/lib/db";
+import { JobStatus, JobWithStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
 import { NextJobAction, OnChainJobStatus } from "@/prisma/generated/client";
 
@@ -67,11 +67,29 @@ function ButtonBase({
 
 function makeTitleAndDescription(
   isRefundDisabled: boolean,
-  refundAvailableTime: Date,
+  isFailed: boolean,
+  unlockTime: Date,
+  submitResultTime: Date,
   t: IntlTranslation<"App.Agents.Jobs.JobDetails.Output.Refund">,
   formatter: IntlDateFormatter,
 ) {
-  const refundAvailableTimeFormatted = formatter.dateTime(refundAvailableTime, {
+  if (isFailed) {
+    // Use submitResultTime for failed jobs (automatic refund timing)
+    const submitResultTimeFormatted = formatter.dateTime(submitResultTime, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+
+    return {
+      title: t("Tooltip.failed.title"),
+      description: t("Tooltip.failed.description", {
+        unlockAt: submitResultTimeFormatted,
+      }),
+    };
+  }
+
+  // Use unlockTime for available/unavailable states
+  const unlockTimeFormatted = formatter.dateTime(unlockTime, {
     dateStyle: "medium",
     timeStyle: "short",
   });
@@ -80,13 +98,13 @@ function makeTitleAndDescription(
     ? {
         title: t("Tooltip.unavailable.title"),
         description: t("Tooltip.unavailable.description", {
-          unlockAt: refundAvailableTimeFormatted,
+          unlockAt: unlockTimeFormatted,
         }),
       }
     : {
         title: t("Tooltip.available.title"),
         description: t("Tooltip.available.description", {
-          unlockAt: refundAvailableTimeFormatted,
+          unlockAt: unlockTimeFormatted,
         }),
       };
 
@@ -129,15 +147,13 @@ export default function RequestRefundButton({
     );
   }
 
-  const FIVE_MINUTES_MS = 5 * 60 * 1000;
-  const isRefundDisabled =
-    job.submitResultTime.getTime() + FIVE_MINUTES_MS > Date.now();
-  const submitResultTimeWithBuffer = new Date(
-    job.submitResultTime.getTime() + FIVE_MINUTES_MS,
-  );
+  const isRefundDisabled = job.unlockTime.getTime() < Date.now();
+  const isFailed = job.status === JobStatus.FAILED;
   const { title, description } = makeTitleAndDescription(
     isRefundDisabled,
-    submitResultTimeWithBuffer,
+    isFailed,
+    job.unlockTime,
+    job.submitResultTime,
     t,
     formatter,
   );
