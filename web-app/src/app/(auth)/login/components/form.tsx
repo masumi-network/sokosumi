@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { usePlausible } from "next-plausible";
 import { useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -25,6 +26,7 @@ export default function SignInForm({
   const t = useTranslations("Auth.Pages.SignIn.Form");
 
   const router = useRouter();
+  const plausible = usePlausible();
 
   const form = useForm<SignInFormSchemaType>({
     resolver: zodResolver(
@@ -74,7 +76,7 @@ export default function SignInForm({
         // Invalid URL, fallback to /agents
       }
     }
-    router.push(redirectUrl);
+    plausible("SignIn", { callback: () => router.push(redirectUrl) });
   };
 
   const email = form.watch("email");
@@ -90,7 +92,6 @@ export default function SignInForm({
       formData={signInFormData}
       namespace="Auth.Pages.SignIn.Form"
       onSubmit={handleSubmit}
-      submitEventName="SignIn"
     >
       <div className="flex flex-col gap-4">
         <SubmitButton form={form} label={t("submit")} className="w-full" />
