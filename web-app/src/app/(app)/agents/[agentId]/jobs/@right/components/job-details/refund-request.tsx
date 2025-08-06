@@ -199,67 +199,70 @@ export default function RequestRefundButton({
     setIsDialogOpen(false);
   };
 
-  const buttonElement = (
-    <div>
-      <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <AlertDialogTrigger asChild>
-          <ButtonBase
-            disabled={
-              isLoading || isRefundDisabled || isRefundRequested || isFailed
-            }
-            className={className}
-          >
-            {isLoading ? (
-              <LoaderCircle className="h-4 w-4 animate-spin" />
-            ) : (
-              <HandCoins className="h-4 w-4" />
-            )}
-            {t("request")}
-          </ButtonBase>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("confirmTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("confirmDescription")}
-              <div className="mt-2">
-                <a
-                  href="https://docs.masumi.network/core-concepts/refunds-and-disputes"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary flex items-center gap-1 hover:underline"
-                >
-                  {t("learnMore")}
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRefundRequest}>
-              {t("confirm")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      {error && <p className="text-xs text-red-500">{t("error")}</p>}
-    </div>
-  );
-
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span tabIndex={0}>{buttonElement}</span>
-        </TooltipTrigger>
-        <TooltipContent>
-          <div className="space-y-1">
-            <h4 className="text-sm font-medium">{title}</h4>
-            <p className="text-muted-foreground text-xs">{description}</p>
-          </div>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span tabIndex={0}>
+              <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <AlertDialogTrigger asChild>
+                  <ButtonBase
+                    disabled={
+                      isLoading ||
+                      isRefundDisabled ||
+                      isRefundRequested ||
+                      isFailed
+                    }
+                    className={className}
+                  >
+                    {isLoading ? (
+                      <LoaderCircle className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <HandCoins className="h-4 w-4" />
+                    )}
+                    {t("request")}
+                  </ButtonBase>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{t("confirmTitle")}</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t("confirmDescription")}
+                      <span className="mt-2 block">
+                        <a
+                          href="https://docs.masumi.network/core-concepts/refunds-and-disputes"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary flex items-center gap-1 hover:underline"
+                        >
+                          {t("learnMore")}
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </span>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleRefundRequest}>
+                      {t("confirm")}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            <div className="space-y-1">
+              <h4 className="text-sm font-medium">{title}</h4>
+              <p className="text-muted-foreground text-xs">{description}</p>
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      {error && (
+        <p className="text-semantic-destructive text-xs">{t("error")}</p>
+      )}
+    </>
   );
 }
