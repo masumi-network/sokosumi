@@ -74,7 +74,7 @@ export function getApiKeyColumns(
         <DataTableColumnHeader column={column} title={t("Table.created")} />
       ),
       cell: ({ row }) => (
-        <div className="text-muted-foreground">
+        <div className="text-muted-foreground text-center">
           {new Date(row.original.createdAt).toLocaleDateString()}
         </div>
       ),
@@ -87,7 +87,9 @@ export function getApiKeyColumns(
       minSize: 80,
       size: 80,
       maxSize: 80,
-      header: () => <div className="text-right">{t("Table.actions")}</div>,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t("Table.actions")} />
+      ),
       cell: ({ row }) => (
         <div className="flex items-center justify-end space-x-1">
           <Button
