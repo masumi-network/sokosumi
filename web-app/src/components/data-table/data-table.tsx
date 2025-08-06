@@ -41,6 +41,7 @@ interface DataTableProps<TData, TValue> {
   enableRowSelection?: boolean | undefined;
   disableHover?: boolean | undefined;
   showRowsPerPage?: boolean | undefined;
+  initialPageSize?: number | undefined;
   defaultSort?: { id: string; desc: boolean }[];
   onRowClick?: (row: TData) => () => void | Promise<void>;
   rowClassName?: (row: TData) => string | undefined;
@@ -57,6 +58,7 @@ export default function DataTable<TData, TValue>({
   enableRowSelection = true,
   disableHover = false,
   showRowsPerPage = true,
+  initialPageSize,
   defaultSort,
   onRowClick,
   rowClassName,
@@ -79,6 +81,11 @@ export default function DataTable<TData, TValue>({
       columnVisibility,
       rowSelection,
       columnFilters,
+    },
+    initialState: {
+      pagination: {
+        pageSize: initialPageSize ?? 10,
+      },
     },
     enableRowSelection,
     onRowSelectionChange: setRowSelection,
