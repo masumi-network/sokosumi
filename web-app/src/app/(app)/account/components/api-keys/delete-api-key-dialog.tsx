@@ -1,8 +1,9 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import React from "react";
+import React, { useEffect, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -53,6 +54,16 @@ export function DeleteApiKeyDialog({
     defaultValues: DEFAULT_DELETE_FORM_VALUES,
   });
 
+  // Reset form when apiKey changes
+  useEffect(() => {
+    if (apiKey) {
+      form.reset({
+        keyId: apiKey.id,
+        confirmName: "",
+      });
+    }
+  }, [apiKey, form]);
+
   /**
    * Handle form submission to delete API key
    */
@@ -92,15 +103,10 @@ export function DeleteApiKeyDialog({
     }
   };
 
-  // Reset form when apiKey changes
-  React.useEffect(() => {
-    if (apiKey) {
-      form.reset({
-        keyId: apiKey.id,
-        confirmName: "",
-      });
-    }
-  }, [apiKey, form]);
+  const confirmName = form.watch("confirmName");
+  const canDelete = useMemo(() => {
+    return confirmName === apiKey?.name;
+  }, [confirmName, apiKey]);
 
   return (
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
@@ -140,8 +146,11 @@ export function DeleteApiKeyDialog({
                 <Button
                   type="submit"
                   variant="destructive"
-                  disabled={form.formState.isSubmitting}
+                  disabled={form.formState.isSubmitting || !canDelete}
                 >
+                  {form.formState.isSubmitting && (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  )}
                   {t("DeleteDialog.deleteButton")}
                 </Button>
               </AlertDialogFooter>

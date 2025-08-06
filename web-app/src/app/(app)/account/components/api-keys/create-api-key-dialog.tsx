@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -146,6 +147,9 @@ export function CreateApiKeyDialog({
                     {t("CreateDialog.cancelButton")}
                   </Button>
                   <Button type="submit" disabled={form.formState.isSubmitting}>
+                    {form.formState.isSubmitting && (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    )}
                     {t("CreateDialog.createButton")}
                   </Button>
                 </DialogFooter>
