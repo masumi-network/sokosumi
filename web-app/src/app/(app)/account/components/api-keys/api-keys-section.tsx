@@ -20,10 +20,10 @@ import { CreateApiKeyResult } from "./types";
 export function ApiKeysSection() {
   const {
     apiKeys,
-    loading,
+    isInitialLoading,
+    create,
     update,
     delete: deleteApiKey,
-    create,
   } = useApiKeys();
   const dialogState = useDialogState();
 
@@ -85,7 +85,7 @@ export function ApiKeysSection() {
       <CardContent>
         <ApiKeysList
           apiKeys={apiKeys}
-          loading={loading}
+          isInitialLoading={isInitialLoading}
           onToggleStatus={handleToggleStatus}
           onDeleteClick={handleDeleteClick}
         />

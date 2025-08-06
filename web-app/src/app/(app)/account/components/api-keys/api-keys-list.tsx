@@ -14,7 +14,7 @@ import { ApiKeysListProps } from "./types";
  */
 export function ApiKeysList({
   apiKeys,
-  loading,
+  isInitialLoading,
   onToggleStatus,
   onDeleteClick,
 }: ApiKeysListProps) {
@@ -26,8 +26,8 @@ export function ApiKeysList({
     [t, onToggleStatus, onDeleteClick],
   );
 
-  // Loading state
-  if (loading) {
+  // Loading state - only show on initial load
+  if (isInitialLoading) {
     return (
       <div className="text-muted-foreground py-8 text-center">
         {t("loading")}

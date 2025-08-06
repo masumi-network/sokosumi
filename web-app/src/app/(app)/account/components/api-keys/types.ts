@@ -40,9 +40,9 @@ export interface DeleteApiKeyRequest {
 // Hook return types
 export interface UseApiKeysReturn {
   apiKeys: Apikey[];
-  loading: boolean;
+  isInitialLoading: boolean;
   error: string | null;
-  refresh: () => Promise<void>;
+  refresh: (isInitial?: boolean) => Promise<void>;
   create: (data: CreateApiKeyRequest) => Promise<CreateApiKeyResult>;
   update: (data: UpdateApiKeyRequest) => Promise<boolean>;
   delete: (data: DeleteApiKeyRequest) => Promise<boolean>;
@@ -76,7 +76,7 @@ export interface ApiKeysHeaderProps {
 
 export interface ApiKeysListProps {
   apiKeys: Apikey[];
-  loading: boolean;
+  isInitialLoading: boolean;
   onToggleStatus: (apiKey: Apikey) => Promise<void>;
   onDeleteClick: (apiKey: Apikey) => void;
 }

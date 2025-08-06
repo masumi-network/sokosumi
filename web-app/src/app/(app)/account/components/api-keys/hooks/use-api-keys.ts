@@ -22,34 +22,41 @@ import { Apikey } from "@/prisma/generated/client";
 export function useApiKeys(): UseApiKeysReturn {
   const t = useTranslations("App.Account.ApiKeys");
   const [apiKeys, setApiKeys] = useState<Apikey[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   /**
    * Loads API keys from the server
    */
-  const refresh = useCallback(async () => {
-    setLoading(true);
-    setError(null);
+  const refresh = useCallback(
+    async (isInitial = false) => {
+      if (isInitial) {
+        setIsInitialLoading(true);
+      }
+      setError(null);
 
-    try {
-      const result = await authClient.apiKey.list();
+      try {
+        const result = await authClient.apiKey.list();
 
-      if (result.data) {
-        setApiKeys(result.data as Apikey[]);
-      } else {
+        if (result.data) {
+          setApiKeys(result.data as Apikey[]);
+        } else {
+          const errorMessage = t("Messages.loadError");
+          setError(errorMessage);
+          toast.error(errorMessage);
+        }
+      } catch (_error) {
         const errorMessage = t("Messages.loadError");
         setError(errorMessage);
         toast.error(errorMessage);
+      } finally {
+        if (isInitial) {
+          setIsInitialLoading(false);
+        }
       }
-    } catch (_error) {
-      const errorMessage = t("Messages.loadError");
-      setError(errorMessage);
-      toast.error(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  }, [t]);
+    },
+    [t],
+  );
 
   /**
    * Creates a new API key
@@ -155,12 +162,12 @@ export function useApiKeys(): UseApiKeysReturn {
 
   // Load API keys on mount
   useEffect(() => {
-    refresh();
+    refresh(true);
   }, [refresh]);
 
   return {
     apiKeys,
-    loading,
+    isInitialLoading,
     error,
     refresh,
     create,
