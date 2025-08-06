@@ -387,6 +387,7 @@ export function ApiKeysSection() {
             showPagination={apiKeys.length > 0}
             enableRowSelection={false}
             disableHover={true}
+            showRowsPerPage={false}
             defaultSort={[
               {
                 id: "createdAt",

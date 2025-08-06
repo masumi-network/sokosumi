@@ -21,11 +21,13 @@ import {
 interface DataTablePaginationProps<TData> {
   table: Table<TData>;
   enableRowSelection?: boolean;
+  showRowsPerPage?: boolean;
 }
 
 export default function DataTablePagination<TData>({
   table,
   enableRowSelection = true,
+  showRowsPerPage = true,
 }: DataTablePaginationProps<TData>) {
   const t = useTranslations("Components.DataTable.Pagination");
 
@@ -39,26 +41,30 @@ export default function DataTablePagination<TData>({
           })}
       </div>
       <div className="flex items-center space-x-6 lg:space-x-8">
-        <div className="flex items-center space-x-2">
-          <p className="text-sm">{t("rowsPerPage")}</p>
-          <Select
-            value={`${table.getState().pagination.pageSize}`}
-            onValueChange={(value) => {
-              table.setPageSize(Number(value));
-            }}
-          >
-            <SelectTrigger className="h-8 w-[70px]">
-              <SelectValue placeholder={table.getState().pagination.pageSize} />
-            </SelectTrigger>
-            <SelectContent side="top">
-              {[10, 20, 30, 40, 50].map((pageSize) => (
-                <SelectItem key={pageSize} value={`${pageSize}`}>
-                  {pageSize}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {showRowsPerPage && (
+          <div className="flex items-center space-x-2">
+            <p className="text-sm">{t("rowsPerPage")}</p>
+            <Select
+              value={`${table.getState().pagination.pageSize}`}
+              onValueChange={(value) => {
+                table.setPageSize(Number(value));
+              }}
+            >
+              <SelectTrigger className="h-8 w-[70px]">
+                <SelectValue
+                  placeholder={table.getState().pagination.pageSize}
+                />
+              </SelectTrigger>
+              <SelectContent side="top">
+                {[10, 20, 30, 40, 50].map((pageSize) => (
+                  <SelectItem key={pageSize} value={`${pageSize}`}>
+                    {pageSize}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         <div className="flex w-[100px] items-center justify-center text-sm font-medium">
           {t("page", {
             page: table.getState().pagination.pageIndex + 1,

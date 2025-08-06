@@ -40,6 +40,7 @@ interface DataTableProps<TData, TValue> {
   showPagination?: boolean | undefined;
   enableRowSelection?: boolean | undefined;
   disableHover?: boolean | undefined;
+  showRowsPerPage?: boolean | undefined;
   defaultSort?: { id: string; desc: boolean }[];
   onRowClick?: (row: TData) => () => void | Promise<void>;
   rowClassName?: (row: TData) => string | undefined;
@@ -55,6 +56,7 @@ export default function DataTable<TData, TValue>({
   showPagination,
   enableRowSelection = true,
   disableHover = false,
+  showRowsPerPage = true,
   defaultSort,
   onRowClick,
   rowClassName,
@@ -180,6 +182,7 @@ export default function DataTable<TData, TValue>({
         <DataTablePagination
           table={table}
           enableRowSelection={enableRowSelection}
+          showRowsPerPage={showRowsPerPage}
         />
       )}
     </div>
