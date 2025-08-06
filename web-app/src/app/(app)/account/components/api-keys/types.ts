@@ -85,6 +85,7 @@ export interface CreateApiKeyDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: (result: CreateApiKeyResult) => void;
+  createApiKey: (data: CreateApiKeyRequest) => Promise<CreateApiKeyResult>;
 }
 
 export interface DeleteApiKeyDialogProps {
@@ -92,6 +93,7 @@ export interface DeleteApiKeyDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  deleteApiKey: (data: DeleteApiKeyRequest) => Promise<boolean>;
 }
 
 export interface ApiKeySuccessDisplayProps {

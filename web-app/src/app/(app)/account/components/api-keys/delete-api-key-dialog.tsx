@@ -26,7 +26,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 
-import { useApiKeys } from "./hooks/use-api-keys";
 import { DeleteApiKeyDialogProps, DeleteApiKeyFormData } from "./types";
 import {
   DEFAULT_DELETE_FORM_VALUES,
@@ -43,9 +42,9 @@ export function DeleteApiKeyDialog({
   open,
   onOpenChange,
   onSuccess,
+  deleteApiKey,
 }: DeleteApiKeyDialogProps) {
   const t = useTranslations("App.Account.ApiKeys");
-  const { delete: deleteApiKey } = useApiKeys();
 
   const schema = deleteApiKeySchema(t);
 

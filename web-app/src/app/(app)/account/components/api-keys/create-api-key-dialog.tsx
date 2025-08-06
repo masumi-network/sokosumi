@@ -25,7 +25,6 @@ import {
 import { Input } from "@/components/ui/input";
 
 import { ApiKeySuccessDisplay } from "./api-key-success-display";
-import { useApiKeys } from "./hooks/use-api-keys";
 import { CreateApiKeyDialogProps, CreateApiKeyFormData } from "./types";
 import { createApiKeySchema, DEFAULT_CREATE_FORM_VALUES } from "./utils";
 
@@ -37,9 +36,9 @@ export function CreateApiKeyDialog({
   open,
   onOpenChange,
   onSuccess,
+  createApiKey,
 }: CreateApiKeyDialogProps) {
   const t = useTranslations("App.Account.ApiKeys");
-  const { create } = useApiKeys();
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -54,7 +53,7 @@ export function CreateApiKeyDialog({
    * Handle form submission to create API key
    */
   const onSubmit = async (values: CreateApiKeyFormData) => {
-    const result = await create({ name: values.name });
+    const result = await createApiKey({ name: values.name });
 
     if (result.success && result.data) {
       setCreatedKey(result.data.key);

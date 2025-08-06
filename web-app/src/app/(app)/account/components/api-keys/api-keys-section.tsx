@@ -18,7 +18,13 @@ import { CreateApiKeyResult } from "./types";
  * Orchestrates all API key operations and UI components
  */
 export function ApiKeysSection() {
-  const { apiKeys, loading, update } = useApiKeys();
+  const {
+    apiKeys,
+    loading,
+    update,
+    delete: deleteApiKey,
+    create,
+  } = useApiKeys();
   const dialogState = useDialogState();
 
   /**
@@ -88,6 +94,7 @@ export function ApiKeysSection() {
           open={dialogState.createDialog.open}
           onOpenChange={dialogState.createDialog.setOpen}
           onSuccess={handleCreateSuccess}
+          createApiKey={create}
         />
 
         <DeleteApiKeyDialog
@@ -95,6 +102,7 @@ export function ApiKeysSection() {
           open={dialogState.deleteDialog.open}
           onOpenChange={dialogState.deleteDialog.setOpen}
           onSuccess={handleDeleteSuccess}
+          deleteApiKey={deleteApiKey}
         />
       </CardContent>
     </Card>
