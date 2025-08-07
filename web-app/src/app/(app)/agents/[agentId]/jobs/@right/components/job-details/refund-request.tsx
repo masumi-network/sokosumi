@@ -190,7 +190,7 @@ export default function RequestRefundButton({
       };
 
       return (
-        <>
+        <div className="flex flex-col items-end gap-1">
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -253,7 +253,7 @@ export default function RequestRefundButton({
           {error && (
             <p className="text-semantic-destructive text-xs">{t("error")}</p>
           )}
-        </>
+        </div>
       );
   }
 }
