@@ -16,6 +16,7 @@ export const organizationRepository = {
    *
    * @param slug - The unique slug for the organization.
    * @param name - The name of the organization.
+   * @param invoiceEmail - The email address to use for invoice.
    * @param requiredEmailDomains - Array of allowed email domains for membership.
    * @param tx - Optional Prisma transaction client for transactional operations.
    * @returns The created Organization object.
@@ -23,11 +24,12 @@ export const organizationRepository = {
   async createOrganization(
     slug: string,
     name: string,
+    invoiceEmail: string,
     requiredEmailDomains: string[],
     tx: Prisma.TransactionClient = prisma,
   ): Promise<Organization> {
     return await tx.organization.create({
-      data: { slug, name, requiredEmailDomains },
+      data: { slug, name, invoiceEmail, requiredEmailDomains },
       include: organizationInclude,
     });
   },

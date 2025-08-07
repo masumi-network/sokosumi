@@ -250,11 +250,7 @@ export const stripeService = (() => {
           }
 
           // Create a new Stripe customer
-          const customer = await stripeClient.createUserCustomer(
-            user.email,
-            user.name,
-            user.id,
-          );
+          const customer = await stripeClient.createUserCustomer(user);
 
           try {
             // Attempt to save the customer ID to the database

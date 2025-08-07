@@ -3,7 +3,7 @@ import "server-only";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
-import { FiatTransaction, User } from "@/prisma/generated/client";
+import { FiatTransaction, Organization, User } from "@/prisma/generated/client";
 
 export interface Price {
   id: string;
@@ -34,29 +34,25 @@ export const stripeClient = (() => {
   }
 
   return {
-    async createUserCustomer(
-      email: string,
-      name: string,
-      userId: string,
-    ): Promise<Stripe.Customer> {
+    async createUserCustomer(user: User): Promise<Stripe.Customer> {
       const customer = await stripe.customers.create({
-        email: email,
-        name: name,
-        metadata: { userId },
+        email: user.email,
+        name: user.name,
+        metadata: { userId: user.id },
       });
       return customer;
     },
 
     async createOrganizationCustomer(
-      email: string,
-      name: string,
-      slug: string,
-      organizationId: string,
+      organization: Organization,
     ): Promise<Stripe.Customer> {
       const customer = await stripe.customers.create({
-        email: email,
-        name: name,
-        metadata: { organizationId, slug },
+        email: organization.invoiceEmail,
+        name: organization.name,
+        metadata: {
+          organizationId: organization.id,
+          organizationSlug: organization.slug,
+        },
       });
       return customer;
     },
@@ -67,7 +63,7 @@ export const stripeClient = (() => {
 
     async getCustomersByEmail(
       email: string,
-      limit: number = 1,
+      limit?: number,
     ): Promise<Stripe.Customer[]> {
       const customers = await stripe.customers.list({
         email: email,
