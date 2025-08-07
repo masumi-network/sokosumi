@@ -14,6 +14,7 @@ import CookieConsent from "@/components/cookie-consent";
 import { GlobalModalsContextProvider } from "@/components/modals/global-modals-context";
 import { Toaster } from "@/components/ui/sonner";
 import { UsersnapProvider } from "@/components/usersnap/usersnap-provider";
+import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { ThemeProvider } from "@/contexts/theme-context";
 
@@ -38,10 +39,11 @@ export default async function RootLayout({
 }>) {
   const locale = await getLocale();
   const messages = await getMessages();
+  const gtmId = getEnvPublicConfig().NEXT_PUBLIC_GOOGLE_TAG_MANAGER_ID;
 
   return (
     <html lang={locale} suppressHydrationWarning className={inter.className}>
-      <GoogleTagManager gtmId="GTM-N7GC8SFT" />
+      {gtmId && <GoogleTagManager gtmId={gtmId} />}
       <head>
         <PlausibleProvider
           domain={getEnvSecrets().PLAUSIBLE_DOMAIN}

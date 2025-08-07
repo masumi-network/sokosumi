@@ -2,6 +2,7 @@
 import z from "zod";
 
 const envPublicConfigSchema = z.object({
+  NEXT_PUBLIC_GOOGLE_TAG_MANAGER_ID: z.string().optional(),
   NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME: z
     .number({ coerce: true })
     .min(0)
