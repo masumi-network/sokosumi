@@ -48,8 +48,9 @@ export default function SignUpForm({ prefilledEmail }: SignUpFormProps) {
     });
 
     if (result.ok) {
-      plausible("Signup", { callback: () => router.push("/login") });
+      plausible("Signup");
       toast.success(t("success"));
+      router.push("/login");
     } else {
       switch (result.error.code) {
         case AuthErrorCode.EMAIL_DOMAIN_NOT_ALLOWED:

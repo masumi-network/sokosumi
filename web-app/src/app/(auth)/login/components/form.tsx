@@ -58,7 +58,7 @@ export default function SignInForm({
       }
       return;
     }
-
+    plausible("SignIn");
     toast.success(t("success"));
     // Redirect to the original URL if provided, otherwise go to /agents
     // Validate returnUrl to prevent open redirect attacks
@@ -74,7 +74,7 @@ export default function SignInForm({
         // Invalid URL, fallback to /agents
       }
     }
-    plausible("SignIn", { callback: () => router.push(redirectUrl) });
+    router.push(redirectUrl);
   };
 
   const email = form.watch("email");
