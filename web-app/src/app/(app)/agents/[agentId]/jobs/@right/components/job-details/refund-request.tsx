@@ -109,11 +109,12 @@ function makeTitleAndDescription(
 }
 
 function isRefundEnabled(job: JobWithStatus) {
+  const now = new Date();
   switch (job.status) {
     case JobStatus.FAILED:
-      return new Date() > job.submitResultTime && new Date() < job.unlockTime;
+      return now > job.submitResultTime && now < job.unlockTime;
     case JobStatus.COMPLETED:
-      return new Date() < job.unlockTime;
+      return now < job.unlockTime;
     default:
       return false;
   }
