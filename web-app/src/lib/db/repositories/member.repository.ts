@@ -117,27 +117,17 @@ export const memberRepository = (() => {
    * Supports pagination.
    *
    * @param where - Prisma filter for members.
-   * @param params - Pagination parameters (page, limit).
    * @param tx - Optional Prisma transaction client.
    * @returns An array of MemberWithUser objects.
    */
   async function getMembersWithUser(
     where: Prisma.MemberWhereInput,
-    params: {
-      page: number;
-      limit: number;
-    } = {
-      page: 1,
-      limit: 10,
-    },
     tx: Prisma.TransactionClient = prisma,
   ): Promise<MemberWithUser[]> {
     return await tx.member.findMany({
       where,
       include: memberUserInclude,
       orderBy: [...memberOrderBy],
-      skip: (params.page - 1) * params.limit,
-      take: params.limit,
     });
   }
 
