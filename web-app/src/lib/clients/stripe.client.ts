@@ -71,17 +71,6 @@ export const stripeClient = (() => {
       return customers.data;
     },
 
-    async setUserIdForCustomer(
-      customerId: string,
-      userId: string,
-    ): Promise<void> {
-      await stripe.customers.update(customerId, {
-        metadata: {
-          userId: userId,
-        },
-      });
-    },
-
     async getPromotionCode(
       customerId: string,
       couponId: string,
