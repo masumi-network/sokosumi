@@ -5,6 +5,13 @@ export const authClient = createAuthClient({
   plugins: [organizationClient()],
 });
 
+export type BetterAuthClientError = {
+  code?: string | undefined;
+  message?: string | undefined;
+  status: number;
+  statusText: string;
+};
+
 export const {
   signUp,
   signIn,

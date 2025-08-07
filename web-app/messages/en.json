@@ -876,9 +876,8 @@
         "rejectSuccess": "Invitation rejected successfully",
         "rejectError": "Failed to reject invitation",
         "Errors": {
-          "invitationNotFound": "Invitation not found",
-          "inviterNotFound": "Inviter not found",
-          "alreadyMember": "You are already member of this organization."
+          "unauthorized": "You must be logged in.",
+          "unauthorizedAction": "Login"
         }
       },
       "OrganizationDetail": {
