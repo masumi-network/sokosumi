@@ -34,7 +34,7 @@ import { JobStatus, JobWithStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 interface RequestRefundButtonProps {
-  job: JobWithStatus;
+  initialJob: JobWithStatus;
   className?: string;
 }
 
@@ -65,11 +65,11 @@ function ButtonBase({
 }
 
 function makeTitleAndDescription(
-  isEnabled: boolean,
   job: JobWithStatus,
   t: IntlTranslation<"App.Agents.Jobs.JobDetails.Output.Refund">,
   formatter: IntlDateFormatter,
 ) {
+  const isEnabled = isRefundEnabled(job);
   if (job.status === JobStatus.FAILED) {
     // Use submitResultTime for failed jobs (automatic refund timing)
     const submitResultTimeFormatted = formatter.dateTime(job.submitResultTime, {
@@ -120,7 +120,7 @@ function isRefundEnabled(job: JobWithStatus) {
 }
 
 export default function RequestRefundButton({
-  job,
+  initialJob,
   className,
 }: RequestRefundButtonProps) {
   const t = useTranslations("App.Agents.Jobs.JobDetails.Output.Refund");
@@ -129,8 +129,8 @@ export default function RequestRefundButton({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<ActionError | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isEnabled, setIsEnabled] = useState(isRefundEnabled(job));
   const formatter = useFormatter();
+  const [job, setJob] = useState(initialJob);
 
   const isRefunded = job.status === JobStatus.REFUND_RESOLVED;
   if (isRefunded) {
@@ -151,12 +151,7 @@ export default function RequestRefundButton({
     );
   }
 
-  const { title, description } = makeTitleAndDescription(
-    isEnabled,
-    job,
-    t,
-    formatter,
-  );
+  const { title, description } = makeTitleAndDescription(job, t, formatter);
 
   const handleRefundRequest = async () => {
     setIsLoading(true);
@@ -166,7 +161,7 @@ export default function RequestRefundButton({
       job.blockchainIdentifier,
     );
     if (result.ok) {
-      setIsEnabled(isRefundEnabled(result.data.job));
+      setJob(result.data.job);
     } else {
       switch (result.error.code) {
         case CommonErrorCode.UNAUTHENTICATED:
@@ -205,7 +200,7 @@ export default function RequestRefundButton({
               <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <AlertDialogTrigger asChild>
                   <ButtonBase
-                    disabled={isLoading || !isEnabled}
+                    disabled={isLoading || !isRefundEnabled(job)}
                     className={className}
                   >
                     {isLoading ? (
