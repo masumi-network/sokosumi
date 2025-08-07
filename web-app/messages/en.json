@@ -167,7 +167,6 @@
             "remove": "Failed to remove member"
           },
           "Errors": {
-            "unauthorized": "You must be logged in.",
             "unauthorizedAction": "Login"
           }
         }
@@ -183,7 +182,6 @@
           "success": "Invitation canceled successfully",
           "error": "Failed to cancel invitation",
           "Errors": {
-            "unauthorized": "You must be logged in.",
             "unauthorizedAction": "Login"
           }
         },
@@ -225,7 +223,6 @@
             "edit": "Failed to update organization"
           },
           "Errors": {
-            "unauthorized": "You must be logged in.",
             "unauthorizedAction": "Login"
           },
           "Fields": {
@@ -251,7 +248,6 @@
           "success": "Member invited successfully",
           "error": "Failed to invite member",
           "Errors": {
-            "unauthorized": "You must be logged in.",
             "unauthorizedAction": "Login"
           },
           "Fields": {
@@ -281,7 +277,6 @@
         "success": "You have left the organization",
         "error": "Failed to leave organization",
         "Errors": {
-          "unauthorized": "You must be logged in.",
           "unauthorizedAction": "Login"
         }
       }
@@ -330,6 +325,9 @@
         "Error": {
           "accept": "Failed to accept invitation",
           "decline": "Failed to decline invitation"
+        },
+        "Errors": {
+          "unauthorizedAction": "Login"
         }
       }
     },
@@ -931,7 +929,6 @@
         "rejectSuccess": "Invitation rejected successfully",
         "rejectError": "Failed to reject invitation",
         "Errors": {
-          "unauthorized": "You must be logged in.",
           "unauthorizedAction": "Login"
         }
       },

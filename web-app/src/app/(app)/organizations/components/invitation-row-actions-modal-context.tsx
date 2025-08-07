@@ -6,11 +6,7 @@ import { ReactNode } from "react";
 import { toast } from "sonner";
 
 import { createModalContext } from "@/components/common/modal-context";
-import {
-  BetterAuthClientError,
-  BetterAuthClientResult,
-  CommonErrorCode,
-} from "@/lib/actions";
+import { BetterAuthClientError, BetterAuthClientResult } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
 import { InvitationWithRelations } from "@/lib/db";
 
@@ -65,8 +61,13 @@ export function InvitationRowActionsModalContextProvider({
   function onError(action: InvitationRowAction, error: BetterAuthClientError) {
     console.error(`Failed to "${action}" invitation`, error);
 
-    if (error.code === CommonErrorCode.UNAUTHORIZED) {
-      toast.error(t("Errors.unauthorized"), {
+    const errorMessage =
+      error.message ??
+      (action === InvitationRowAction.ACCEPT
+        ? t("acceptError")
+        : t("rejectError"));
+    if (error.status === 401) {
+      toast.error(errorMessage, {
         action: {
           label: t("Errors.unauthorizedAction"),
           onClick: async () => {
@@ -75,11 +76,6 @@ export function InvitationRowActionsModalContextProvider({
         },
       });
     } else {
-      const errorMessage =
-        error.message ??
-        (action === InvitationRowAction.ACCEPT
-          ? t("acceptError")
-          : t("rejectError"));
       toast.error(errorMessage);
     }
   }

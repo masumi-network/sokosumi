@@ -6,11 +6,7 @@ import { ReactNode } from "react";
 import { toast } from "sonner";
 
 import { createModalContext } from "@/components/common/modal-context";
-import {
-  BetterAuthClientError,
-  BetterAuthClientResult,
-  CommonErrorCode,
-} from "@/lib/actions";
+import { BetterAuthClientError, BetterAuthClientResult } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
 import { Invitation } from "@/prisma/generated/client";
 
@@ -51,8 +47,9 @@ export function InvitationActionsModalContextProvider({
   }
 
   function onError(_action: InvitationAction, error: BetterAuthClientError) {
-    if (error.code === CommonErrorCode.UNAUTHORIZED) {
-      toast.error(t("Errors.unauthorized"), {
+    const errorMessage = error.message ?? t("error");
+    if (error.status === 401) {
+      toast.error(errorMessage, {
         action: {
           label: t("Errors.unauthorizedAction"),
           onClick: () => {
@@ -61,7 +58,7 @@ export function InvitationActionsModalContextProvider({
         },
       });
     } else {
-      toast.error(error.message ?? t("error"));
+      toast.error(errorMessage);
     }
   }
 

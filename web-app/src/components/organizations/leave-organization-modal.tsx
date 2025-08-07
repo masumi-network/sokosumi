@@ -16,7 +16,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { CommonErrorCode } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
 import { Organization } from "@/prisma/generated/client";
 
@@ -41,8 +40,9 @@ export function LeaveOrganizationModal({
       organizationId: organization.id,
     });
     if (result.error) {
-      if (result.error.code === CommonErrorCode.UNAUTHORIZED) {
-        toast.error(t("Errors.unauthorized"), {
+      const errorMessage = result.error.message ?? t("error");
+      if (result.error.status === 401) {
+        toast.error(errorMessage, {
           action: {
             label: t("Errors.unauthorizedAction"),
             onClick: () => {
@@ -51,7 +51,7 @@ export function LeaveOrganizationModal({
           },
         });
       } else {
-        toast.error(result.error.message ?? t("error"));
+        toast.error(errorMessage);
       }
     } else {
       router.refresh();

@@ -6,11 +6,7 @@ import { ReactNode } from "react";
 import { toast } from "sonner";
 
 import { createModalContext } from "@/components/common/modal-context";
-import {
-  BetterAuthClientError,
-  BetterAuthClientResult,
-  CommonErrorCode,
-} from "@/lib/actions";
+import { BetterAuthClientError, BetterAuthClientResult } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
 import { MemberRole, MemberWithUser } from "@/lib/db";
 
@@ -69,8 +65,14 @@ export function MemberActionsModalContextProvider({
 
   function onError(action: MemberAction, error: BetterAuthClientError) {
     console.error(`Failed to "${action}" member`, error);
-    if (error.code === CommonErrorCode.UNAUTHORIZED) {
-      toast.error(t("Errors.unauthorized"), {
+
+    const errorMessage =
+      error.message ??
+      (action === MemberAction.REMOVE
+        ? t("Error.remove")
+        : t("Error.changeRole"));
+    if (error.status === 401) {
+      toast.error(errorMessage, {
         action: {
           label: t("Errors.unauthorizedAction"),
           onClick: () => {
@@ -79,11 +81,6 @@ export function MemberActionsModalContextProvider({
         },
       });
     } else {
-      const errorMessage =
-        error.message ??
-        (action === MemberAction.REMOVE
-          ? t("Error.remove")
-          : t("Error.changeRole"));
       toast.error(errorMessage);
     }
   }

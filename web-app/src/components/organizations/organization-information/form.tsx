@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
-import { CommonErrorCode, generateOrganizationSlug } from "@/lib/actions";
+import { generateOrganizationSlug } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
 import { OrganizationInformationFormSchemaType } from "@/lib/schemas";
 
@@ -52,8 +52,11 @@ export default function OrganizationInformationForm({
     }
 
     if (result.error) {
-      if (result.error.code === CommonErrorCode.UNAUTHORIZED) {
-        toast.error(t("Errors.unauthorized"), {
+      const errorMessage =
+        result.error.message ??
+        (isCreating ? t("Error.create") : t("Error.edit"));
+      if (result.error.status === 401) {
+        toast.error(errorMessage, {
           action: {
             label: t("Errors.unauthorizedAction"),
             onClick: async () => {
@@ -62,9 +65,6 @@ export default function OrganizationInformationForm({
           },
         });
       } else {
-        const errorMessage =
-          result.error.message ??
-          (isCreating ? t("Error.create") : t("Error.edit"));
         toast.error(errorMessage);
       }
     } else {

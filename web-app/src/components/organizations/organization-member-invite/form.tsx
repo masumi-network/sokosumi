@@ -8,7 +8,6 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
-import { CommonErrorCode } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
 import { MemberRole } from "@/lib/db";
 import { inviteFormData, InviteFormSchemaType } from "@/lib/schemas";
@@ -38,19 +37,18 @@ export default function OrganizationMemberInviteForm({
       resend: true,
     });
     if (result.error) {
-      switch (result.error.code) {
-        case CommonErrorCode.UNAUTHORIZED:
-          toast.error(t("Errors.unauthorized"), {
-            action: {
-              label: t("Errors.unauthorizedAction"),
-              onClick: () => {
-                router.push("/login");
-              },
+      const errorMessage = result.error.message ?? t("error");
+      if (result.error.status === 401) {
+        toast.error(errorMessage, {
+          action: {
+            label: t("Errors.unauthorizedAction"),
+            onClick: () => {
+              router.push("/login");
             },
-          });
-          break;
-        default:
-          toast.error(result.error.message ?? t("error"));
+          },
+        });
+      } else {
+        toast.error(errorMessage);
       }
     } else {
       toast.success(t("success"));

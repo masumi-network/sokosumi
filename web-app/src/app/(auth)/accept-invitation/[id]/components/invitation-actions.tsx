@@ -11,7 +11,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CommonErrorCode } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
 import { InvitationWithRelations } from "@/lib/db";
 
@@ -63,8 +62,9 @@ export default function InvitationActions({
     });
 
     if (result.error) {
-      if (result.error.code === CommonErrorCode.UNAUTHORIZED) {
-        toast.error(t("Errors.unauthorized"), {
+      const errorMessage = result.error.message ?? t("Error.accept");
+      if (result.error.status === 401) {
+        toast.error(errorMessage, {
           action: {
             label: t("Errors.unauthorizedAction"),
             onClick: async () => {
@@ -73,7 +73,7 @@ export default function InvitationActions({
           },
         });
       } else {
-        toast.error(result.error.message ?? t("Error.accept"));
+        toast.error(errorMessage);
       }
     } else {
       toast.success(t("Success.accept"));
@@ -94,8 +94,9 @@ export default function InvitationActions({
     });
 
     if (result.error) {
-      if (result.error.code === CommonErrorCode.UNAUTHORIZED) {
-        toast.error(t("Errors.unauthorized"), {
+      const errorMessage = result.error.message ?? t("Error.decline");
+      if (result.error.status === 401) {
+        toast.error(errorMessage, {
           action: {
             label: t("Errors.unauthorizedAction"),
             onClick: async () => {
@@ -104,7 +105,7 @@ export default function InvitationActions({
           },
         });
       } else {
-        toast.error(result.error.message ?? t("Error.decline"));
+        toast.error(errorMessage);
       }
     } else {
       toast.success(t("Success.decline"));
