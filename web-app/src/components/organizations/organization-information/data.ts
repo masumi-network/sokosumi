@@ -6,6 +6,10 @@ export const updateOrganizationInformationFormData: FormData<
   "Components.Organizations.InformationModal.Form"
 > = [
   {
+    name: "slug",
+    placeholderKey: "Fields.Slug.placeholder",
+  },
+  {
     name: "name",
     placeholderKey: "Fields.Name.placeholder",
   },

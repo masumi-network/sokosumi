@@ -8,21 +8,21 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
-import { generateOrganizationSlug } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
 import { OrganizationInformationFormSchemaType } from "@/lib/schemas";
+import { Organization } from "@/prisma/generated/client";
 
 import { updateOrganizationInformationFormData } from "./data";
 import { FormFields } from "./form-fields";
 
 interface OrganizationInformationFormProps {
-  organizationId: string | null;
+  organization: Organization | null;
   form: UseFormReturn<OrganizationInformationFormSchemaType>;
   onOpenChange: (open: boolean) => void;
 }
 
 export default function OrganizationInformationForm({
-  organizationId,
+  organization,
   form,
   onOpenChange,
 }: OrganizationInformationFormProps) {
@@ -31,21 +31,27 @@ export default function OrganizationInformationForm({
 
   const onSubmit = async (values: OrganizationInformationFormSchemaType) => {
     let result;
-    if (!organizationId) {
-      const slugResult = await generateOrganizationSlug(values);
-      if (!slugResult.ok) {
-        toast.error(t("Error.create"));
+    const shouldCheckSlug = !organization || values.slug !== organization.slug;
+    if (shouldCheckSlug) {
+      const checkSlugResult = await authClient.organization.checkSlug({
+        slug: values.slug,
+      });
+      if (checkSlugResult.error || !checkSlugResult.data.status) {
+        toast.error(t("Errors.slug"));
         return;
       }
-      const slug = slugResult.data;
+    }
+
+    if (!organization) {
       result = await authClient.organization.create({
+        slug: values.slug,
         name: values.name,
-        slug,
       });
     } else {
       result = await authClient.organization.update({
-        organizationId,
+        organizationId: organization.id,
         data: {
+          slug: values.slug,
           name: values.name,
         },
       });
@@ -74,7 +80,7 @@ export default function OrganizationInformationForm({
     }
   };
 
-  const isCreating = !organizationId;
+  const isCreating = !organization;
   const isLoading = form.formState.isSubmitting;
 
   return (

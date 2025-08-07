@@ -41,6 +41,7 @@ export default function OrganizationInformationModal({
       ),
     ),
     defaultValues: {
+      slug: "",
       name: "",
     },
   });
@@ -51,7 +52,8 @@ export default function OrganizationInformationModal({
       return;
     }
 
-    const { name } = organization;
+    const { slug, name } = organization;
+    form.setValue("slug", slug);
     form.setValue("name", name);
   }, [organization, form, open]);
 
@@ -74,7 +76,7 @@ export default function OrganizationInformationModal({
           </DialogTitle>
           <DialogDescription className="hidden" />
           <OrganizationInformationForm
-            organizationId={organization?.id ?? null}
+            organization={organization}
             form={form}
             onOpenChange={onOpenChange}
           />
