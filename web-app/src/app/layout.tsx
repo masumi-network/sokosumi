@@ -1,5 +1,6 @@
 import "./globals.css";
 
+import { GoogleTagManager } from "@next/third-parties/google";
 import * as Sentry from "@sentry/nextjs";
 import { Metadata } from "next";
 import { Inter } from "next/font/google";
@@ -40,6 +41,7 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} suppressHydrationWarning className={inter.className}>
+      <GoogleTagManager gtmId="GTM-N7GC8SFT" />
       <head>
         <PlausibleProvider
           domain={getEnvSecrets().PLAUSIBLE_DOMAIN}
