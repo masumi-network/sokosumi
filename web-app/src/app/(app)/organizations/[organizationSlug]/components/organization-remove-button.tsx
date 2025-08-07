@@ -29,7 +29,7 @@ export default function OrganizationRemoveButton({
       {Component}
       <Button variant="destructive" onClick={showModal}>
         <Trash size={16} />
-        {t("remove")}
+        {t("delete")}
       </Button>
     </>
   );

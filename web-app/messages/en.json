@@ -955,7 +955,7 @@
         "roleIndicator": "View as:",
         "title": "{name}",
         "edit": "Edit",
-        "remove": "Remove",
+        "delete": "Delete",
         "invite": "Invite Member",
         "members": "Members"
       }
