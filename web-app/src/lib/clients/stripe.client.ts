@@ -34,13 +34,29 @@ export const stripeClient = (() => {
   }
 
   return {
-    async createCustomer(
+    async createUserCustomer(
       email: string,
-      userId?: string,
+      name: string,
+      userId: string,
     ): Promise<Stripe.Customer> {
       const customer = await stripe.customers.create({
         email: email,
-        ...(userId && { metadata: { userId } }),
+        name: name,
+        metadata: { userId },
+      });
+      return customer;
+    },
+
+    async createOrganizationCustomer(
+      email: string,
+      name: string,
+      slug: string,
+      organizationId: string,
+    ): Promise<Stripe.Customer> {
+      const customer = await stripe.customers.create({
+        email: email,
+        name: name,
+        metadata: { organizationId, slug },
       });
       return customer;
     },

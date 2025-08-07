@@ -250,8 +250,9 @@ export const stripeService = (() => {
           }
 
           // Create a new Stripe customer
-          const customer = await stripeClient.createCustomer(
+          const customer = await stripeClient.createUserCustomer(
             user.email,
+            user.name,
             user.id,
           );
 
