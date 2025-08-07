@@ -47,7 +47,6 @@ export const stripeClient = (() => {
       organization: Organization,
     ): Promise<Stripe.Customer> {
       const customer = await stripe.customers.create({
-        email: organization.invoiceEmail,
         name: organization.name,
         metadata: {
           organizationId: organization.id,
