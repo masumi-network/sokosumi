@@ -65,7 +65,6 @@ export default async function OrganizationPage({
 
   const members = await organizationService.getOrganizationMembersWithUser(
     organization.id,
-    true,
   );
 
   const isOwnerOrAdmin =

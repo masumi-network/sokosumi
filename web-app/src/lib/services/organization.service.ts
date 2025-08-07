@@ -89,21 +89,19 @@ export const organizationService = (() => {
   }
 
   /**
-   * Retrieves members of an organization, optionally excluding the current user.
+   * Retrieves members of an organization along with their associated user data.
    *
-   * - Fetches the current session and extracts the user ID.
-   * - Checks if the user is a member of the organization.
-   * - Queries the database for members of the specified organization.
-   *   - If includeMe is false, excludes the current user from the results.
+   * - Requires the current session to be valid.
+   * - Checks if the current user is a member of the specified organization.
+   * - Supports pagination via the `params` argument.
    *
-   * @param organizationId - The ID of the organization to retrieve members for.
-   * @param includeMe - Whether to include the current user in the results.
-   * @param params - Optional pagination parameters.
+   * @param organizationId - The ID of the organization whose members are to be retrieved.
+   * @param params - Pagination parameters (page and limit). Defaults to page 1, limit 100.
    * @returns A promise that resolves to an array of MemberWithUser objects.
+   * @throws Error with code "NOT_AUTHORIZED" if the user is not a member of the organization.
    */
   async function getOrganizationMembersWithUser(
     organizationId: string,
-    includeMe = false,
     params: {
       page: number;
       limit: number;
@@ -118,7 +116,7 @@ export const organizationService = (() => {
     }
     const userId = session.user.id;
 
-    // check if the user is a member of the organization
+    // Check if the user is a member of the organization
     const myMemberInOrganization =
       await memberRepository.getMemberByUserIdAndOrganizationId(
         userId,
@@ -132,7 +130,6 @@ export const organizationService = (() => {
     const members = await memberRepository.getMembersWithUser(
       {
         organizationId,
-        ...(includeMe ? {} : { userId: { not: userId } }),
       },
       params,
     );
