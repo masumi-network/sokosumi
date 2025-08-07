@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, HandCoins, LoaderCircle } from "lucide-react";
+import { ExternalLink, HandCoins, LoaderCircle, RefreshCw } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -189,17 +189,36 @@ export default function RequestRefundButton({
         setIsDialogOpen(false);
       };
 
+      const handleRetry = () => {
+        setError(null);
+        setIsDialogOpen(true);
+      };
+
+      if (error) {
+        return (
+          <button
+            className="text-semantic-destructive flex items-center gap-1.5 text-sm transition-opacity hover:opacity-80"
+            onClick={handleRetry}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3.5 w-3.5" />
+            )}
+            <span>{t("error")}</span>
+          </button>
+        );
+      }
+
       return (
-        <div className="flex flex-col items-end gap-1">
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <span tabIndex={0}>
-                  <AlertDialog
-                    open={isDialogOpen}
-                    onOpenChange={setIsDialogOpen}
-                  >
-                    <AlertDialogTrigger asChild>
+        <>
+          <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+            <AlertDialogTrigger asChild>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <span tabIndex={0}>
                       <ButtonBase
                         disabled={isLoading || !isRefundEnabled(job)}
                         className={className}
@@ -211,49 +230,46 @@ export default function RequestRefundButton({
                         )}
                         {t("request")}
                       </ButtonBase>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>{t("confirmTitle")}</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          {t("confirmDescription")}
-                          <span className="mt-2 block">
-                            <a
-                              href="https://docs.masumi.network/core-concepts/refunds-and-disputes"
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-primary flex items-center gap-1 hover:underline"
-                            >
-                              {t("learnMore")}
-                              <ExternalLink className="h-3 w-3" />
-                            </a>
-                          </span>
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
-                        <AlertDialogAction
-                          onClick={() => handleRefundRequest(job)}
-                        >
-                          {t("confirm")}
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </span>
-              </TooltipTrigger>
-              <TooltipContent>
-                <div className="space-y-1">
-                  <h4 className="text-sm font-medium">{title}</h4>
-                  <p className="text-muted-foreground text-xs">{description}</p>
-                </div>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          {error && (
-            <p className="text-semantic-destructive text-xs">{t("error")}</p>
-          )}
-        </div>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <div className="space-y-1">
+                      <h4 className="text-sm font-medium">{title}</h4>
+                      <p className="text-muted-foreground text-xs">
+                        {description}
+                      </p>
+                    </div>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>{t("confirmTitle")}</AlertDialogTitle>
+                <AlertDialogDescription>
+                  {t("confirmDescription")}
+                  <span className="mt-2 block">
+                    <a
+                      href="https://docs.masumi.network/core-concepts/refunds-and-disputes"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary flex items-center gap-1 hover:underline"
+                    >
+                      {t("learnMore")}
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  </span>
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+                <AlertDialogAction onClick={() => handleRefundRequest(job)}>
+                  {t("confirm")}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
       );
   }
 }
