@@ -115,6 +115,8 @@ model Organization {
 
   requiredEmailDomains String[] @default([])
 
+  stripeCustomerId String?
+
   @@unique([slug])
   @@map("organization")
 }
