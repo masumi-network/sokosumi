@@ -64,6 +64,31 @@ function ButtonBase({
   );
 }
 
+function RefundErrorButton({
+  isLoading,
+  onRetry,
+  t,
+}: {
+  isLoading: boolean;
+  onRetry: () => void;
+  t: IntlTranslation<"App.Agents.Jobs.JobDetails.Output.Refund">;
+}) {
+  return (
+    <button
+      className="text-semantic-destructive flex items-center gap-1.5 text-sm transition-opacity hover:opacity-80"
+      onClick={onRetry}
+      disabled={isLoading}
+    >
+      {isLoading ? (
+        <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+      ) : (
+        <RefreshCw className="h-3.5 w-3.5" />
+      )}
+      <span>{t("error")}</span>
+    </button>
+  );
+}
+
 function makeTitleAndDescription(
   job: JobWithStatus,
   t: IntlTranslation<"App.Agents.Jobs.JobDetails.Output.Refund">,
@@ -128,7 +153,7 @@ export default function RequestRefundButton({
   const router = useAsyncRouter();
 
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<ActionError | null>(null);
+  const [error, setError] = useState<ActionError | null>();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const formatter = useFormatter();
   const [job, setJob] = useState(initialJob);
@@ -196,18 +221,11 @@ export default function RequestRefundButton({
 
       if (error) {
         return (
-          <button
-            className="text-semantic-destructive flex items-center gap-1.5 text-sm transition-opacity hover:opacity-80"
-            onClick={handleRetry}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <RefreshCw className="h-3.5 w-3.5" />
-            )}
-            <span>{t("error")}</span>
-          </button>
+          <RefundErrorButton
+            isLoading={isLoading}
+            onRetry={handleRetry}
+            t={t}
+          />
         );
       }
 
