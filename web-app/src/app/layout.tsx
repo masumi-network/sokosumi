@@ -15,7 +15,6 @@ import { GlobalModalsContextProvider } from "@/components/modals/global-modals-c
 import { Toaster } from "@/components/ui/sonner";
 import { UsersnapProvider } from "@/components/usersnap/usersnap-provider";
 import { getEnvPublicConfig } from "@/config/env.public";
-import { getEnvSecrets } from "@/config/env.secrets";
 import { ThemeProvider } from "@/contexts/theme-context";
 
 const inter = Inter({
@@ -46,7 +45,7 @@ export default async function RootLayout({
       {gtmId && <GoogleTagManager gtmId={gtmId} />}
       <head>
         <PlausibleProvider
-          domain={getEnvSecrets().PLAUSIBLE_DOMAIN}
+          domain={getEnvPublicConfig().NEXT_PUBLIC_PLAUSIBLE_DOMAIN}
           trackFileDownloads={true}
           trackOutboundLinks={true}
           hash={true}

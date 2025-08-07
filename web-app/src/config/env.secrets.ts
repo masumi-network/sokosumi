@@ -28,12 +28,6 @@ const envSecretsSchema = z.object({
     .default("false")
     .transform((val) => val === "true"),
 
-  // Plausible
-  PLAUSIBLE_DOMAIN: z.string().default("sokosumi.com"),
-
-  // Cookie
-  COOKIE_DOMAIN: z.string().default("sokosumi.com"),
-
   // Stripe
   STRIPE_PUBLISHABLE_KEY: z.string().min(1),
   STRIPE_SECRET_KEY: z.string().min(1),
