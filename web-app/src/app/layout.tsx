@@ -1,5 +1,6 @@
 import "./globals.css";
 
+import { GoogleTagManager } from "@next/third-parties/google";
 import * as Sentry from "@sentry/nextjs";
 import { Metadata } from "next";
 import { Inter } from "next/font/google";
@@ -13,7 +14,7 @@ import CookieConsent from "@/components/cookie-consent";
 import { GlobalModalsContextProvider } from "@/components/modals/global-modals-context";
 import { Toaster } from "@/components/ui/sonner";
 import { UsersnapProvider } from "@/components/usersnap/usersnap-provider";
-import { getEnvSecrets } from "@/config/env.secrets";
+import { getEnvPublicConfig } from "@/config/env.public";
 import { ThemeProvider } from "@/contexts/theme-context";
 
 const inter = Inter({
@@ -37,12 +38,14 @@ export default async function RootLayout({
 }>) {
   const locale = await getLocale();
   const messages = await getMessages();
+  const gtmId = getEnvPublicConfig().NEXT_PUBLIC_GOOGLE_TAG_MANAGER_ID;
 
   return (
     <html lang={locale} suppressHydrationWarning className={inter.className}>
+      {gtmId && <GoogleTagManager gtmId={gtmId} />}
       <head>
         <PlausibleProvider
-          domain={getEnvSecrets().PLAUSIBLE_DOMAIN}
+          domain={getEnvPublicConfig().NEXT_PUBLIC_PLAUSIBLE_DOMAIN}
           trackFileDownloads={true}
           trackOutboundLinks={true}
           hash={true}
