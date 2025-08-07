@@ -1,6 +1,11 @@
 import "server-only";
 
-import { organizationInclude, OrganizationWithRelations } from "@/lib/db/types";
+import {
+  organizationInclude,
+  organizationLimitedInfoInclude,
+  OrganizationWithLimitedInfo,
+  OrganizationWithRelations,
+} from "@/lib/db/types";
 import { Organization, Prisma } from "@/prisma/generated/client";
 
 import prisma from "./prisma";
@@ -94,6 +99,14 @@ export const organizationRepository = {
       where: { id: organizationId },
       data,
       include: organizationInclude,
+    });
+  },
+
+  async listOrganizationsWithLimitedInfo(
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<OrganizationWithLimitedInfo[]> {
+    return await tx.organization.findMany({
+      select: organizationLimitedInfoInclude,
     });
   },
 };
