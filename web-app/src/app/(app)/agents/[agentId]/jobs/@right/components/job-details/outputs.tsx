@@ -81,8 +81,10 @@ function JobDetailsOutputsError() {
   const t = useTranslations("App.Agents.Jobs.JobDetails.Output");
 
   return (
-    <div className="flex min-h-[120px] w-full items-center justify-center rounded-md border border-red-300 bg-red-50 p-4">
-      <span className="text-lg text-red-500">{t("failedToParseOutput")}</span>
+    <div className="border-semantic-destructive bg-semantic-destructive/10 flex min-h-[120px] w-full items-center justify-center rounded-md border p-4">
+      <span className="text-semantic-destructive text-lg">
+        {t("failedToParseOutput")}
+      </span>
     </div>
   );
 }

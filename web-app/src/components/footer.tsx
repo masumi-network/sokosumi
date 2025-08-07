@@ -141,14 +141,20 @@ export function FooterSections({ className }: FooterSectionsProps) {
           </Button>
         </div>
         <div className="flex w-full items-center justify-between gap-4 md:w-auto md:justify-start">
-          <Link href="/imprint" className="text-sm hover:text-gray-300">
+          <Link
+            href="https://sokosumi.com/imprint"
+            className="text-sm hover:text-gray-300"
+          >
             {t("imprint")}
           </Link>
-          <Link href="/privacy-policy" className="text-sm hover:text-gray-300">
+          <Link
+            href="https://sokosumi.com/privacy-policy"
+            className="text-sm hover:text-gray-300"
+          >
             {t("privacyPolicy")}
           </Link>
           <Link
-            href="/terms-of-service"
+            href="https://sokosumi.com/terms-of-service"
             className="text-sm hover:text-gray-300"
           >
             {t("termsOfServices")}
