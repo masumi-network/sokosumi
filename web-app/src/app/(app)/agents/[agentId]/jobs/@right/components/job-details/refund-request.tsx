@@ -141,8 +141,8 @@ export default function RequestRefundButton({
       </ButtonBase>
     );
   }
-
-  if (!isEnabled) {
+  const isRefundRequested = job.status === JobStatus.REFUND_PENDING;
+  if (!isRefundRequested) {
     return (
       <ButtonBase disabled={true} className={className}>
         <LoaderCircle className="h-4 w-4 animate-spin" />
