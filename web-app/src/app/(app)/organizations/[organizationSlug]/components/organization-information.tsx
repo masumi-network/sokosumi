@@ -27,11 +27,13 @@ export default function OrganizationInformation({
   return (
     <div className="flex items-center gap-8 lg:gap-12">
       <OrganizationLogo organization={organization} size={96} />
-      <div className="flex flex-1 flex-col justify-center self-stretch">
-        <h1 className="text-2xl font-light">{t("title", { name })}</h1>
-        <p className="text-muted-foreground mt-auto line-clamp-2 text-sm">
-          {slug}
-        </p>
+      <div className="flex flex-1 flex-col justify-between self-stretch">
+        <div className="flex flex-col gap-1">
+          <h1 className="text-2xl font-light">{t("title", { name })}</h1>
+          <p className="text-muted-foreground mt-auto line-clamp-2 text-sm">
+            {slug}
+          </p>
+        </div>
       </div>
       {isOwnerOrAdmin && (
         <div className="flex items-start gap-2 self-stretch">
