@@ -6,6 +6,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
+import { SheetClose } from "@/components/ui/sheet";
 import {
   SidebarGroup,
   SidebarGroupContent,
@@ -74,41 +75,43 @@ export default function AgentListsClient({
                               agentId !== agent.id && !isAvailable,
                           })}
                         >
-                          <Link href={`/agents/${agent.id}/jobs`}>
-                            <div className="group/agent-menu flex w-full items-center gap-2">
-                              <SquareTerminal
-                                className={cn("h-4 w-4", {
-                                  "text-gray-500":
-                                    !isAvailable && agentId !== agent.id,
-                                })}
-                              />
-                              <span className="flex-1 truncate">
-                                {getAgentName(agent)}
-                              </span>
-                              {isAvailable && (
-                                <ChannelProvider
-                                  channelName={makeAgentJobsChannel(
-                                    agent.id,
-                                    userId,
-                                  )}
-                                >
-                                  <AgentJobStatusIndicator
-                                    agentId={agent.id}
-                                    userId={userId}
-                                    initialJobIndicatorStatus={
-                                      initialJobIndicatorStatus
-                                    }
-                                    className={cn("h-4 w-4", {
-                                      "text-primary-foreground":
-                                        agentId === agent.id,
+                          <SheetClose asChild>
+                            <Link href={`/agents/${agent.id}/jobs`}>
+                              <div className="group/agent-menu flex w-full items-center gap-2">
+                                <SquareTerminal
+                                  className={cn("h-4 w-4", {
+                                    "text-gray-500":
+                                      !isAvailable && agentId !== agent.id,
+                                  })}
+                                />
+                                <span className="flex-1 truncate">
+                                  {getAgentName(agent)}
+                                </span>
+                                {isAvailable && (
+                                  <ChannelProvider
+                                    channelName={makeAgentJobsChannel(
+                                      agent.id,
+                                      userId,
+                                    )}
+                                  >
+                                    <AgentJobStatusIndicator
+                                      agentId={agent.id}
+                                      userId={userId}
+                                      initialJobIndicatorStatus={
+                                        initialJobIndicatorStatus
+                                      }
+                                      className={cn("h-4 w-4", {
+                                        "text-primary-foreground":
+                                          agentId === agent.id,
 
-                                      "text-primary": agentId !== agent.id,
-                                    })}
-                                  />
-                                </ChannelProvider>
-                              )}
-                            </div>
-                          </Link>
+                                        "text-primary": agentId !== agent.id,
+                                      })}
+                                    />
+                                  </ChannelProvider>
+                                )}
+                              </div>
+                            </Link>
+                          </SheetClose>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
                     );

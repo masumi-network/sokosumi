@@ -6,6 +6,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { useSidebar } from "@/components/ui/sidebar";
 import { useAsyncRouter } from "@/hooks/use-async-router";
 import {
   BillingErrorCode,
@@ -23,6 +24,7 @@ export default function FreeCreditsButton({
   const [loading, setLoading] = useState(false);
   const router = useAsyncRouter();
   const t = useTranslations("App.Billing.FreeClaim");
+  const { isMobile, toggleSidebar } = useSidebar();
 
   const handleFreeClaim = async () => {
     setLoading(true);
@@ -53,7 +55,16 @@ export default function FreeCreditsButton({
   };
 
   return (
-    <Button onClick={() => handleFreeClaim()} disabled={loading}>
+    <Button
+      onClick={() => {
+        handleFreeClaim();
+        if (isMobile) {
+          toggleSidebar();
+        }
+      }}
+      disabled={loading}
+      className="w-full md:w-auto"
+    >
       {loading && <Loader2 className="mr-2 size-4 animate-spin" />}
       {t("button")}
     </Button>

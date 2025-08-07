@@ -15,6 +15,7 @@ interface AgentActionButtonsProps {
   agent: AgentWithRelations;
   favoriteAgents?: AgentWithRelations[] | undefined;
   showBackButton?: boolean | undefined;
+  showShareButton?: boolean | undefined;
   showCloseButton?: boolean | undefined;
   onClose?: (() => void) | undefined;
   className?: string | undefined;
@@ -24,6 +25,7 @@ function AgentActionButtons({
   agent,
   favoriteAgents,
   showBackButton = true,
+  showShareButton = true,
   showCloseButton = false,
   onClose,
   className,
@@ -36,7 +38,7 @@ function AgentActionButtons({
 
   useEffect(() => {
     setUrl(new URL(`${window.location.origin}/agents/${agent.id}`));
-  }, [agent.id]);
+  }, [agent]);
 
   const onBack = () => {
     router.back();
@@ -63,7 +65,7 @@ function AgentActionButtons({
             isFavorite={isFavorite ?? false}
           />
         )}
-        {url && <ShareButton url={url} />}
+        {showShareButton && url && <ShareButton url={url} />}
       </div>
     </div>
   );
