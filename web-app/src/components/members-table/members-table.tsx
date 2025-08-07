@@ -37,7 +37,10 @@ export default function MembersTable({
             pendingInvitations,
           )}
           rowClassName={() => "text-foreground active:bg-muted hover:bg-muted"}
-          containerClassName={cn("w-full rounded-xl bg-muted/50")}
+          containerClassName={cn("w-full rounded-xl bg-muted/50 p-2")}
+          showPagination={members.length > 0}
+          showRowsPerPage={false}
+          initialPageSize={5}
         />
         <MemberActionsModal />
         <InvitationActionsModal />

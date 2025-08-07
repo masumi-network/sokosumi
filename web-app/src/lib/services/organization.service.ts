@@ -96,19 +96,11 @@ export const organizationService = (() => {
    * - Supports pagination via the `params` argument.
    *
    * @param organizationId - The ID of the organization whose members are to be retrieved.
-   * @param params - Pagination parameters (page and limit). Defaults to page 1, limit 100.
    * @returns A promise that resolves to an array of MemberWithUser objects.
    * @throws Error with code "NOT_AUTHORIZED" if the user is not a member of the organization.
    */
   async function getOrganizationMembersWithUser(
     organizationId: string,
-    params: {
-      page: number;
-      limit: number;
-    } = {
-      page: 1,
-      limit: 100,
-    },
   ): Promise<MemberWithUser[]> {
     const session = await getSession();
     if (!session) {
@@ -127,12 +119,9 @@ export const organizationService = (() => {
       throw new Error("NOT_AUTHORIZED");
     }
 
-    const members = await memberRepository.getMembersWithUser(
-      {
-        organizationId,
-      },
-      params,
-    );
+    const members = await memberRepository.getMembersWithUser({
+      organizationId,
+    });
 
     return members;
   }
