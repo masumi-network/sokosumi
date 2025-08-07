@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { usePlausible } from "next-plausible";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -21,6 +22,7 @@ export default function SignUpForm({ prefilledEmail }: SignUpFormProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form");
 
   const router = useRouter();
+  const plausible = usePlausible();
   const form = useForm<SignUpFormSchemaType>({
     resolver: zodResolver(
       signUpFormSchema(useTranslations("Library.Auth.Schema")),
@@ -46,8 +48,8 @@ export default function SignUpForm({ prefilledEmail }: SignUpFormProps) {
     });
 
     if (result.ok) {
+      plausible("Signup", { callback: () => router.push("/login") });
       toast.success(t("success"));
-      router.push("/login");
     } else {
       switch (result.error.code) {
         case CommonErrorCode.BAD_INPUT:
@@ -74,7 +76,6 @@ export default function SignUpForm({ prefilledEmail }: SignUpFormProps) {
       formData={signUpFormData}
       namespace="Auth.Pages.SignUp.Form"
       onSubmit={handleSubmit}
-      submitEventName="Signup"
     >
       <div className="flex flex-col gap-4">
         <SubmitButton

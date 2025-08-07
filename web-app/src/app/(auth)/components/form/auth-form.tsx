@@ -14,7 +14,6 @@ interface AuthFormProps<T extends FieldValues> {
   formData: FormData<T, AuthNamespace>;
   namespace: AuthNamespace;
   onSubmit: (values: T) => Promise<void>;
-  submitEventName?: string;
   children: ReactNode;
   className?: string;
 }
@@ -24,17 +23,11 @@ export function AuthForm<T extends FieldValues>({
   formData,
   namespace,
   onSubmit,
-  submitEventName,
   children,
   className,
 }: AuthFormProps<T>) {
   return (
-    <BaseForm
-      form={form}
-      onSubmit={onSubmit}
-      submitEventName={submitEventName}
-      className={className}
-    >
+    <BaseForm form={form} onSubmit={onSubmit} className={className}>
       <FormFields form={form} formData={formData} namespace={namespace} />
       {children}
     </BaseForm>

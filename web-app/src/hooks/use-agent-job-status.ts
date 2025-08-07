@@ -3,8 +3,8 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 
 import {
-  JobStatusData,
-  jobStatusDataSchema,
+  JobIndicatorStatus,
+  jobIndicatorStatusSchema,
   makeAgentJobsChannel,
 } from "@/lib/ably";
 
@@ -12,19 +12,19 @@ export default function useAgentJobStatus(
   agentId: string,
   userId: string,
   currentJobId: string | null,
-  initialJobStatusData: JobStatusData | null,
+  initialJobIndicatorStatus: JobIndicatorStatus | null,
   refresh: boolean = false,
 ) {
   const pathname = usePathname();
   const router = useRouter();
-  const [jobStatusData, setJobStatusData] = useState<JobStatusData | null>(
-    initialJobStatusData,
+  const [jobStatusData, setJobStatusData] = useState<JobIndicatorStatus | null>(
+    initialJobIndicatorStatus,
   );
 
   useChannel(makeAgentJobsChannel(agentId, userId), (message) => {
-    const parsedResult = jobStatusDataSchema.safeParse(message.data);
+    const parsedResult = jobIndicatorStatusSchema.safeParse(message.data);
     if (parsedResult.success) {
-      const jobId = parsedResult.data.id;
+      const jobId = parsedResult.data.jobId;
       if (currentJobId && jobId !== currentJobId) {
         return;
       }

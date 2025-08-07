@@ -1,5 +1,6 @@
 import { useTranslations } from "next-intl";
 
+import { ApiKeysSection } from "./api-keys";
 import { DeleteAccountForm } from "./delete-account-form";
 import { EmailForm } from "./email-form";
 import { NameForm } from "./name-form";
@@ -24,6 +25,10 @@ export function AccountSettings() {
           <div className="md:col-span-2">
             <PasswordForm />
           </div>
+        </div>
+
+        <div className="border-t pt-8">
+          <ApiKeysSection />
         </div>
 
         <div className="border-t pt-8">

@@ -1,5 +1,7 @@
 import DefaultMarkdown, { MarkdownToJSX } from "markdown-to-jsx";
 
+import { sanitizeMarkdown } from "@/lib/utils/sanitizeMarkdown";
+
 interface MarkdownProps {
   children: string;
   options?: MarkdownToJSX.Options | undefined;
@@ -7,7 +9,7 @@ interface MarkdownProps {
 }
 
 const defaultOptions: MarkdownToJSX.Options = {
-  disableParsingRawHTML: true,
+  disableParsingRawHTML: false,
   wrapper: ({ children }) => (
     <article className="prose dark:prose-invert max-w-none">{children}</article>
   ),
@@ -20,6 +22,43 @@ const defaultOptions: MarkdownToJSX.Options = {
         </a>
       ),
     },
+    img: {
+      component: ({ alt, src, ...props }) => {
+        const isVideo = src?.match(/\.(mp4|webm|ogg)$/i);
+
+        if (isVideo) {
+          return (
+            <video
+              src={src}
+              controls
+              {...props}
+              className="w-full max-w-3xl rounded-lg"
+            >
+              <source src={src} type="video/mp4" />
+              {"Your browser does not support the video tag."}
+              <a href={src}>{"Download video"}</a>
+            </video>
+          );
+        }
+
+        return (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            alt={alt}
+            src={src}
+            {...props}
+            className="max-w-full rounded-lg"
+          />
+        );
+      },
+    },
+    video: {
+      component: ({ children, ...props }) => (
+        <video {...props} className="w-full max-w-3xl rounded-lg" controls>
+          {children}
+        </video>
+      ),
+    },
   },
 };
 
@@ -28,9 +67,11 @@ export default function Markdown({
   options = defaultOptions,
   className,
 }: MarkdownProps) {
+  const sanitizedChildren = sanitizeMarkdown(children);
+
   return (
     <DefaultMarkdown options={options} className={className}>
-      {children}
+      {sanitizedChildren}
     </DefaultMarkdown>
   );
 }

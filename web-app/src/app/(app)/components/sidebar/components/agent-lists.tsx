@@ -69,14 +69,12 @@ async function AgentListsContent() {
     favoriteAgents,
   );
 
-  const [favoriteAgentsJobStatusDataList, hiredAgentsJobStatusDataList] =
+  const [favoriteAgentsJobIndicatorStatuses, hiredAgentsJobIndicatorStatuses] =
     await Promise.all([
-      jobService.getAgentJobStatusDataListByAgentIds(
+      jobService.getJobIndicatorStatuses(
         favoriteAgents.map((agent) => agent.id),
       ),
-      jobService.getAgentJobStatusDataListByAgentIds(
-        hiredAgents.map((agent) => agent.id),
-      ),
+      jobService.getJobIndicatorStatuses(hiredAgents.map((agent) => agent.id)),
     ]);
 
   // Determine availability for each agent
@@ -102,14 +100,14 @@ async function AgentListsContent() {
       groupKey: "favorite-agents",
       title: t("pinnedTitle"),
       agents: favoriteAgentsWithAvailability,
-      initialJobStatusDataList: favoriteAgentsJobStatusDataList,
+      initialJobIndicatorStatuses: favoriteAgentsJobIndicatorStatuses,
       noAgentsType: t("pinnedType"),
     },
     {
       groupKey: "hired-agents",
       title: t("hiredTitle"),
       agents: hiredAgentsWithAvailability,
-      initialJobStatusDataList: hiredAgentsJobStatusDataList,
+      initialJobIndicatorStatuses: hiredAgentsJobIndicatorStatuses,
       noAgentsType: t("hiredType"),
     },
   ];

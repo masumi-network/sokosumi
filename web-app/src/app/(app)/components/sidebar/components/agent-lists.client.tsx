@@ -15,7 +15,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
-import { JobStatusData, makeAgentJobsChannel } from "@/lib/ably";
+import { JobIndicatorStatus, makeAgentJobsChannel } from "@/lib/ably";
 import { AgentWithAvailability, getAgentName } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
@@ -26,7 +26,7 @@ interface AgentListsClientProps {
     groupKey: string;
     title: string;
     agents: AgentWithAvailability[];
-    initialJobStatusDataList: (JobStatusData | null)[];
+    initialJobIndicatorStatuses: (JobIndicatorStatus | null)[];
     noAgentsType: string;
   }[];
   userId: string;
@@ -48,7 +48,7 @@ export default function AgentListsClient({
           groupKey,
           title,
           agents,
-          initialJobStatusDataList,
+          initialJobIndicatorStatuses,
           noAgentsType,
         }) => (
           <SidebarGroup key={groupKey} className="w-72 md:w-64">
@@ -58,8 +58,8 @@ export default function AgentListsClient({
                 <SidebarMenu>
                   {agents.map((agentWithAvailability, index) => {
                     const { agent, isAvailable } = agentWithAvailability;
-                    const initialJobStatusData =
-                      initialJobStatusDataList[index];
+                    const initialJobIndicatorStatus =
+                      initialJobIndicatorStatuses[index];
 
                     return (
                       <SidebarMenuItem key={agent.id}>
@@ -95,7 +95,9 @@ export default function AgentListsClient({
                                   <AgentJobStatusIndicator
                                     agentId={agent.id}
                                     userId={userId}
-                                    initialJobStatusData={initialJobStatusData}
+                                    initialJobIndicatorStatus={
+                                      initialJobIndicatorStatus
+                                    }
                                     className={cn("h-4 w-4", {
                                       "text-primary-foreground":
                                         agentId === agent.id,

@@ -842,6 +842,69 @@
         "confirm": "Yes, delete my account",
         "success": "Account deleted successfully",
         "error": "Failed to delete account"
+      },
+      "ApiKeys": {
+        "title": "API Keys",
+        "description": "Manage your API keys for programmatic access",
+        "createButton": "Create",
+        "loading": "Loading API keys...",
+        "noKeysFound": "Create your first API key to get started.",
+        "Table": {
+          "name": "Name",
+          "key": "Key",
+          "status": "Status",
+          "actions": "Actions",
+          "created": "Created"
+        },
+        "Status": {
+          "enabled": "Enabled",
+          "disabled": "Disabled"
+        },
+        "Actions": {
+          "enableTooltip": "Enable API key",
+          "disableTooltip": "Disable API key",
+          "deleteTooltip": "Delete API key"
+        },
+        "CreateDialog": {
+          "title": "Create New API Key",
+          "description": "Give your API key a descriptive name to help you identify it later.",
+          "nameLabel": "Name",
+          "namePlaceholder": "e.g., Production Server, Development App",
+          "cancelButton": "Cancel",
+          "createButton": "Create API Key",
+          "CreatedSuccess": {
+            "title": "New API Key Created",
+            "description": "Your new API key has been created successfully.",
+            "doneButton": "Done"
+          }
+        },
+        "DeleteDialog": {
+          "title": "Delete API Key",
+          "description": "This action cannot be undone. This will permanently delete the API key and any applications using it will no longer be able to access your account.",
+          "confirmLabelPrefix": "Type",
+          "confirmLabelSuffix": "to confirm deletion:",
+          "cancelButton": "Cancel",
+          "deleteButton": "Delete API Key"
+        },
+        "Messages": {
+          "loadError": "Failed to load API keys",
+          "createSuccess": "API key created successfully",
+          "createError": "Failed to create API key",
+          "updateSuccess": "API key {action} successfully",
+          "updateError": "Failed to update API key",
+          "deleteSuccess": "API key deleted successfully",
+          "deleteError": "Failed to delete API key",
+          "copySuccess": "Copied to clipboard",
+          "copyError": "Failed to copy to clipboard",
+          "confirmNameMismatch": "The confirmation name does not match"
+        },
+        "Validation": {
+          "nameRequired": "API key name is required",
+          "nameMaxLength": "API key name must be less than 100 characters",
+          "namePattern": "API key name can only contain letters, numbers, spaces, hyphens, and underscores",
+          "keyIdRequired": "API key ID is required",
+          "confirmNameRequired": "Please confirm the API key name"
+        }
       }
     },
     "Organizations": {
@@ -994,7 +1057,7 @@
           "Output": {
             "title": "Output",
             "failedToParseOutput": "Failed to parse output",
-            "none": "No result data",
+            "none": "No output available",
             "download": "Download",
             "copy": "Copy",
             "copySuccess": "Output copied to clipboard",
@@ -1020,6 +1083,10 @@
                 "unavailable": {
                   "title": "Refund no longer available",
                   "description": "You could have requested a refund until {unlockAt}."
+                },
+                "failed": {
+                  "title": "Automatic refund pending",
+                  "description": "An automatic refund will be processed at {unlockAt}"
                 }
               },
               "Errors": {

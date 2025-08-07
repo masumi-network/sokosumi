@@ -4,14 +4,14 @@ import * as Sentry from "@sentry/nextjs";
 import { v4 as uuidv4 } from "uuid";
 
 import publishJobStatusData from "@/lib/ably/publish";
-import { JobStatusData } from "@/lib/ably/schema";
+import { JobIndicatorStatus } from "@/lib/ably/schema";
 import { JobError, JobErrorCode } from "@/lib/actions/types/error-codes/job";
 import { getSession } from "@/lib/auth/utils";
 import { agentClient, paymentClient } from "@/lib/clients";
 import { anthropicClient } from "@/lib/clients/anthropic.client";
 import {
   computeJobStatus,
-  getJobStatusData,
+  getJobIndicatorStatus,
   JobStatus,
   JobWithStatus,
 } from "@/lib/db";
@@ -800,10 +800,10 @@ export const jobService = (() => {
    *
    * If the user session is not found, returns an empty array.
    */
-  const getAgentJobStatusDataListByAgentIds = async (
+  const getJobIndicatorStatuses = async (
     agentIds: string[],
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<(JobStatusData | null)[]> => {
+  ): Promise<(JobIndicatorStatus | null)[]> => {
     const session = await getSession();
     if (!session) {
       return [];
@@ -823,7 +823,7 @@ export const jobService = (() => {
         if (!latestJob) {
           return null;
         }
-        return getJobStatusData(latestJob);
+        return getJobIndicatorStatus(latestJob);
       }),
     );
   };
@@ -832,6 +832,6 @@ export const jobService = (() => {
     startJob,
     requestRefund,
     syncJob,
-    getAgentJobStatusDataListByAgentIds,
+    getJobIndicatorStatuses,
   };
 })();

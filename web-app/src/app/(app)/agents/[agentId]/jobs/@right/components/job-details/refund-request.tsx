@@ -30,7 +30,7 @@ import {
   JobErrorCode,
   requestRefundJobByBlockchainIdentifier,
 } from "@/lib/actions";
-import { JobWithStatus } from "@/lib/db";
+import { JobStatus, JobWithStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
 import { NextJobAction, OnChainJobStatus } from "@/prisma/generated/client";
 
@@ -67,10 +67,28 @@ function ButtonBase({
 
 function makeTitleAndDescription(
   isRefundDisabled: boolean,
+  isFailed: boolean,
   unlockTime: Date,
+  submitResultTime: Date,
   t: IntlTranslation<"App.Agents.Jobs.JobDetails.Output.Refund">,
   formatter: IntlDateFormatter,
 ) {
+  if (isFailed) {
+    // Use submitResultTime for failed jobs (automatic refund timing)
+    const submitResultTimeFormatted = formatter.dateTime(submitResultTime, {
+      dateStyle: "medium",
+      timeStyle: "short",
+    });
+
+    return {
+      title: t("Tooltip.failed.title"),
+      description: t("Tooltip.failed.description", {
+        unlockAt: submitResultTimeFormatted,
+      }),
+    };
+  }
+
+  // Use unlockTime for available/unavailable states
   const unlockTimeFormatted = formatter.dateTime(unlockTime, {
     dateStyle: "medium",
     timeStyle: "short",
@@ -130,9 +148,12 @@ export default function RequestRefundButton({
   }
 
   const isRefundDisabled = job.unlockTime.getTime() < Date.now();
+  const isFailed = job.status === JobStatus.FAILED;
   const { title, description } = makeTitleAndDescription(
     isRefundDisabled,
+    isFailed,
     job.unlockTime,
+    job.submitResultTime,
     t,
     formatter,
   );
@@ -178,65 +199,70 @@ export default function RequestRefundButton({
     setIsDialogOpen(false);
   };
 
-  const buttonElement = (
-    <div>
-      <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <AlertDialogTrigger asChild>
-          <ButtonBase
-            disabled={isLoading || isRefundDisabled || isRefundRequested}
-            className={className}
-          >
-            {isLoading ? (
-              <LoaderCircle className="h-4 w-4 animate-spin" />
-            ) : (
-              <HandCoins className="h-4 w-4" />
-            )}
-            {t("request")}
-          </ButtonBase>
-        </AlertDialogTrigger>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t("confirmTitle")}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t("confirmDescription")}
-              <div className="mt-2">
-                <a
-                  href="https://docs.masumi.network/core-concepts/refunds-and-disputes"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-primary flex items-center gap-1 hover:underline"
-                >
-                  {t("learnMore")}
-                  <ExternalLink className="h-3 w-3" />
-                </a>
-              </div>
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
-            <AlertDialogAction onClick={handleRefundRequest}>
-              {t("confirm")}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      {error && <p className="text-xs text-red-500">{t("error")}</p>}
-    </div>
-  );
-
   return (
-    <TooltipProvider>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <span tabIndex={0}>{buttonElement}</span>
-        </TooltipTrigger>
-        <TooltipContent>
-          <div className="space-y-1">
-            <h4 className="text-sm font-medium">{title}</h4>
-            <p className="text-muted-foreground text-xs">{description}</p>
-          </div>
-        </TooltipContent>
-      </Tooltip>
-    </TooltipProvider>
+    <>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span tabIndex={0}>
+              <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+                <AlertDialogTrigger asChild>
+                  <ButtonBase
+                    disabled={
+                      isLoading ||
+                      isRefundDisabled ||
+                      isRefundRequested ||
+                      isFailed
+                    }
+                    className={className}
+                  >
+                    {isLoading ? (
+                      <LoaderCircle className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <HandCoins className="h-4 w-4" />
+                    )}
+                    {t("request")}
+                  </ButtonBase>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{t("confirmTitle")}</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      {t("confirmDescription")}
+                      <span className="mt-2 block">
+                        <a
+                          href="https://docs.masumi.network/core-concepts/refunds-and-disputes"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-primary flex items-center gap-1 hover:underline"
+                        >
+                          {t("learnMore")}
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </span>
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleRefundRequest}>
+                      {t("confirm")}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            <div className="space-y-1">
+              <h4 className="text-sm font-medium">{title}</h4>
+              <p className="text-muted-foreground text-xs">{description}</p>
+            </div>
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      {error && (
+        <p className="text-semantic-destructive text-xs">{t("error")}</p>
+      )}
+    </>
   );
 }
