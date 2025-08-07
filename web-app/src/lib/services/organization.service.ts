@@ -5,11 +5,7 @@ import slugify from "slugify";
 
 import { getSession } from "@/lib/auth/utils";
 import { InvitationWithRelations, MemberRole, MemberWithUser } from "@/lib/db";
-import {
-  invitationRepository,
-  memberRepository,
-  organizationRepository,
-} from "@/lib/db/repositories";
+import { invitationRepository, memberRepository } from "@/lib/db/repositories";
 import { Invitation } from "@/prisma/generated/client";
 
 /**
@@ -21,23 +17,13 @@ export const organizationService = (() => {
    * Generates a unique, URL-friendly slug for an organization based on its name.
    *
    * - Converts the provided name to a lowercase, strict slug.
-   * - Checks if an organization with the generated slug already exists.
-   *   - If not, returns the slug.
-   *   - If it exists, appends a unique 6-character ID to ensure uniqueness.
+   * - Appends a unique 6-character ID to ensure uniqueness.
    *
    * @param name - The name of the organization to generate a slug for.
    * @returns A unique, URL-safe slug string for the organization.
    */
   async function generateOrganizationSlugFromName(name: string) {
     const slugedName = slugify(name, { lower: true, strict: true });
-    const existingOrganization =
-      await organizationRepository.getOrganizationWithRelationsBySlug(
-        slugedName,
-      );
-    if (!existingOrganization) {
-      return slugedName;
-    }
-
     const uniqueId = nanoid(6);
     return `${slugedName}-${uniqueId}`;
   }
