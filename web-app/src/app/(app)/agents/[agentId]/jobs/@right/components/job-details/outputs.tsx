@@ -47,9 +47,6 @@ function JobDetailsOutputsInner({ job }: JobDetailsOutputsProps) {
     }
   }
 
-  // Show refund button for failed jobs or when there's output with result
-  const shouldShowRefundButton = job.status === JobStatus.FAILED;
-
   return (
     <JobDetailsOutputsLayout>
       {output?.result ? (
@@ -63,15 +60,15 @@ function JobDetailsOutputsInner({ job }: JobDetailsOutputsProps) {
                 <CopyMarkdown markdown={output.result} />
               </div>
             </div>
-            <RequestRefundButton job={job} />
+            <RequestRefundButton initialJob={job} />
           </div>
         </>
       ) : (
         <>
           <p className="text-base">{t("none")}</p>
-          {shouldShowRefundButton && (
+          {job.status === JobStatus.FAILED && (
             <div className="flex justify-end">
-              <RequestRefundButton job={job} />
+              <RequestRefundButton initialJob={job} />
             </div>
           )}
         </>

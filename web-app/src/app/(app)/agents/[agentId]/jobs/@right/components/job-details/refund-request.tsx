@@ -32,10 +32,9 @@ import {
 } from "@/lib/actions";
 import { JobStatus, JobWithStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
-import { NextJobAction, OnChainJobStatus } from "@/prisma/generated/client";
 
 interface RequestRefundButtonProps {
-  job: JobWithStatus;
+  initialJob: JobWithStatus;
   className?: string;
 }
 
@@ -66,16 +65,14 @@ function ButtonBase({
 }
 
 function makeTitleAndDescription(
-  isRefundDisabled: boolean,
-  isFailed: boolean,
-  unlockTime: Date,
-  submitResultTime: Date,
+  job: JobWithStatus,
   t: IntlTranslation<"App.Agents.Jobs.JobDetails.Output.Refund">,
   formatter: IntlDateFormatter,
 ) {
-  if (isFailed) {
+  const isEnabled = isRefundEnabled(job);
+  if (job.status === JobStatus.FAILED) {
     // Use submitResultTime for failed jobs (automatic refund timing)
-    const submitResultTimeFormatted = formatter.dateTime(submitResultTime, {
+    const submitResultTimeFormatted = formatter.dateTime(job.submitResultTime, {
       dateStyle: "medium",
       timeStyle: "short",
     });
@@ -89,12 +86,12 @@ function makeTitleAndDescription(
   }
 
   // Use unlockTime for available/unavailable states
-  const unlockTimeFormatted = formatter.dateTime(unlockTime, {
+  const unlockTimeFormatted = formatter.dateTime(job.unlockTime, {
     dateStyle: "medium",
     timeStyle: "short",
   });
 
-  const { title, description } = isRefundDisabled
+  const { title, description } = !isEnabled
     ? {
         title: t("Tooltip.unavailable.title"),
         description: t("Tooltip.unavailable.description", {
@@ -111,8 +108,20 @@ function makeTitleAndDescription(
   return { title, description };
 }
 
+function isRefundEnabled(job: JobWithStatus) {
+  const now = new Date();
+  switch (job.status) {
+    case JobStatus.FAILED:
+      return now > job.submitResultTime && now < job.unlockTime;
+    case JobStatus.COMPLETED:
+      return now < job.unlockTime;
+    default:
+      return false;
+  }
+}
+
 export default function RequestRefundButton({
-  job,
+  initialJob,
   className,
 }: RequestRefundButtonProps) {
   const t = useTranslations("App.Agents.Jobs.JobDetails.Output.Refund");
@@ -121,148 +130,130 @@ export default function RequestRefundButton({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<ActionError | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isRefundRequested, setIsRefundRequested] = useState(
-    job.onChainStatus === OnChainJobStatus.REFUND_REQUESTED ||
-      job.nextAction === NextJobAction.SET_REFUND_REQUESTED_INITIATED ||
-      job.nextAction === NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
-  );
   const formatter = useFormatter();
+  const [job, setJob] = useState(initialJob);
 
-  const isRefunded = job.onChainStatus === OnChainJobStatus.REFUND_WITHDRAWN;
-  if (isRefunded) {
-    return (
-      <ButtonBase disabled={true} className={className}>
-        <HandCoins className="h-4 w-4" />
-        {t("refunded")}
-      </ButtonBase>
-    );
-  }
-
-  if (isRefundRequested) {
-    return (
-      <ButtonBase disabled={true} className={className}>
-        <LoaderCircle className="h-4 w-4 animate-spin" />
-        {t("requested")}
-      </ButtonBase>
-    );
-  }
-
-  const isRefundDisabled = job.unlockTime.getTime() < Date.now();
-  const isFailed = job.status === JobStatus.FAILED;
-  const { title, description } = makeTitleAndDescription(
-    isRefundDisabled,
-    isFailed,
-    job.unlockTime,
-    job.submitResultTime,
-    t,
-    formatter,
-  );
-
-  const handleRefundRequest = async () => {
-    setIsLoading(true);
-    setError(null);
-
-    const result = await requestRefundJobByBlockchainIdentifier(
-      job.blockchainIdentifier,
-    );
-    if (result.ok) {
-      setIsRefundRequested(
-        result.data.job.nextAction ===
-          NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
+  switch (job.status) {
+    case JobStatus.REFUND_PENDING:
+      return (
+        <ButtonBase disabled={true} className={className}>
+          <LoaderCircle className="h-4 w-4 animate-spin" />
+          {t("requested")}
+        </ButtonBase>
       );
-    } else {
-      switch (result.error.code) {
-        case CommonErrorCode.UNAUTHENTICATED:
-          toast.error(t("Errors.unauthenticated"), {
-            action: {
-              label: t("Errors.unauthenticatedAction"),
-              onClick: async () => {
-                await router.push(`/login`);
-              },
-            },
-          });
-          break;
-        case JobErrorCode.JOB_NOT_FOUND:
-          toast.error(t("Errors.jobNotFound"));
-          break;
-        case CommonErrorCode.UNAUTHORIZED:
-          toast.error(t("Errors.unauthorized"));
-          break;
-        case CommonErrorCode.INTERNAL_SERVER_ERROR:
-          toast.error(t("error"));
-          break;
-        default:
-      }
-      setError(result.error);
-    }
-    setIsLoading(false);
-    setIsDialogOpen(false);
-  };
+    case JobStatus.REFUND_RESOLVED:
+      return (
+        <ButtonBase disabled={true} className={className}>
+          <HandCoins className="h-4 w-4" />
+          {t("refunded")}
+        </ButtonBase>
+      );
+    default:
+      const { title, description } = makeTitleAndDescription(job, t, formatter);
 
-  return (
-    <>
-      <TooltipProvider>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span tabIndex={0}>
-              <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-                <AlertDialogTrigger asChild>
-                  <ButtonBase
-                    disabled={
-                      isLoading ||
-                      isRefundDisabled ||
-                      isRefundRequested ||
-                      isFailed
-                    }
-                    className={className}
+      const handleRefundRequest = async (job: JobWithStatus) => {
+        setIsLoading(true);
+        setError(null);
+
+        const result = await requestRefundJobByBlockchainIdentifier(
+          job.blockchainIdentifier,
+        );
+        if (result.ok) {
+          setJob(result.data.job);
+        } else {
+          switch (result.error.code) {
+            case CommonErrorCode.UNAUTHENTICATED:
+              toast.error(t("Errors.unauthenticated"), {
+                action: {
+                  label: t("Errors.unauthenticatedAction"),
+                  onClick: async () => {
+                    await router.push(`/login`);
+                  },
+                },
+              });
+              break;
+            case JobErrorCode.JOB_NOT_FOUND:
+              toast.error(t("Errors.jobNotFound"));
+              break;
+            case CommonErrorCode.UNAUTHORIZED:
+              toast.error(t("Errors.unauthorized"));
+              break;
+            case CommonErrorCode.INTERNAL_SERVER_ERROR:
+              toast.error(t("error"));
+              break;
+            default:
+          }
+          setError(result.error);
+        }
+        setIsLoading(false);
+        setIsDialogOpen(false);
+      };
+
+      return (
+        <>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span tabIndex={0}>
+                  <AlertDialog
+                    open={isDialogOpen}
+                    onOpenChange={setIsDialogOpen}
                   >
-                    {isLoading ? (
-                      <LoaderCircle className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <HandCoins className="h-4 w-4" />
-                    )}
-                    {t("request")}
-                  </ButtonBase>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                  <AlertDialogHeader>
-                    <AlertDialogTitle>{t("confirmTitle")}</AlertDialogTitle>
-                    <AlertDialogDescription>
-                      {t("confirmDescription")}
-                      <span className="mt-2 block">
-                        <a
-                          href="https://docs.masumi.network/core-concepts/refunds-and-disputes"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-primary flex items-center gap-1 hover:underline"
+                    <AlertDialogTrigger asChild>
+                      <ButtonBase
+                        disabled={isLoading || !isRefundEnabled(job)}
+                        className={className}
+                      >
+                        {isLoading ? (
+                          <LoaderCircle className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <HandCoins className="h-4 w-4" />
+                        )}
+                        {t("request")}
+                      </ButtonBase>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>{t("confirmTitle")}</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {t("confirmDescription")}
+                          <span className="mt-2 block">
+                            <a
+                              href="https://docs.masumi.network/core-concepts/refunds-and-disputes"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary flex items-center gap-1 hover:underline"
+                            >
+                              {t("learnMore")}
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </span>
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleRefundRequest(job)}
                         >
-                          {t("learnMore")}
-                          <ExternalLink className="h-3 w-3" />
-                        </a>
-                      </span>
-                    </AlertDialogDescription>
-                  </AlertDialogHeader>
-                  <AlertDialogFooter>
-                    <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
-                    <AlertDialogAction onClick={handleRefundRequest}>
-                      {t("confirm")}
-                    </AlertDialogAction>
-                  </AlertDialogFooter>
-                </AlertDialogContent>
-              </AlertDialog>
-            </span>
-          </TooltipTrigger>
-          <TooltipContent>
-            <div className="space-y-1">
-              <h4 className="text-sm font-medium">{title}</h4>
-              <p className="text-muted-foreground text-xs">{description}</p>
-            </div>
-          </TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
-      {error && (
-        <p className="text-semantic-destructive text-xs">{t("error")}</p>
-      )}
-    </>
-  );
+                          {t("confirm")}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="space-y-1">
+                  <h4 className="text-sm font-medium">{title}</h4>
+                  <p className="text-muted-foreground text-xs">{description}</p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          {error && (
+            <p className="text-semantic-destructive text-xs">{t("error")}</p>
+          )}
+        </>
+      );
+  }
 }
