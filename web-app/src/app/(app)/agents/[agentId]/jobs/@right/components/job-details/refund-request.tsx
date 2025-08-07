@@ -177,6 +177,7 @@ export default function RequestRefundButton({
       const { title, description } = makeTitleAndDescription(job, t, formatter);
 
       const handleRefundRequest = async (job: JobWithStatus) => {
+        console.log("handleRefundRequest", job);
         setIsLoading(true);
         setError(null);
 
@@ -231,12 +232,15 @@ export default function RequestRefundButton({
 
       return (
         <>
-          <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <AlertDialogTrigger asChild>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <span tabIndex={0}>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span tabIndex={0}>
+                  <AlertDialog
+                    open={isDialogOpen}
+                    onOpenChange={setIsDialogOpen}
+                  >
+                    <AlertDialogTrigger asChild>
                       <ButtonBase
                         disabled={isLoading || !isRefundEnabled(job)}
                         className={className}
@@ -248,45 +252,45 @@ export default function RequestRefundButton({
                         )}
                         {t("request")}
                       </ButtonBase>
-                    </span>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <div className="space-y-1">
-                      <h4 className="text-sm font-medium">{title}</h4>
-                      <p className="text-muted-foreground text-xs">
-                        {description}
-                      </p>
-                    </div>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>{t("confirmTitle")}</AlertDialogTitle>
-                <AlertDialogDescription>
-                  {t("confirmDescription")}
-                  <span className="mt-2 block">
-                    <a
-                      href="https://docs.masumi.network/core-concepts/refunds-and-disputes"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-primary flex items-center gap-1 hover:underline"
-                    >
-                      {t("learnMore")}
-                      <ExternalLink className="h-3 w-3" />
-                    </a>
-                  </span>
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
-                <AlertDialogAction onClick={() => handleRefundRequest(job)}>
-                  {t("confirm")}
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>{t("confirmTitle")}</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          {t("confirmDescription")}
+                          <span className="mt-2 block">
+                            <a
+                              href="https://docs.masumi.network/core-concepts/refunds-and-disputes"
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary flex items-center gap-1 hover:underline"
+                            >
+                              {t("learnMore")}
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </span>
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>{t("cancel")}</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleRefundRequest(job)}
+                        >
+                          {t("confirm")}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </span>
+              </TooltipTrigger>
+              <TooltipContent>
+                <div className="space-y-1">
+                  <h4 className="text-sm font-medium">{title}</h4>
+                  <p className="text-muted-foreground text-xs">{description}</p>
+                </div>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         </>
       );
   }
