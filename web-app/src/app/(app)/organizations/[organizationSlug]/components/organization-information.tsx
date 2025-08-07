@@ -7,6 +7,7 @@ import { MemberRole, OrganizationWithRelations } from "@/lib/db";
 import { Member } from "@/prisma/generated/client";
 
 import OrganizationEditButton from "./organization-edit-button";
+import OrganizationRemoveButton from "./organization-remove-button";
 
 interface OrganizationInformationProps {
   organization: OrganizationWithRelations;
@@ -21,7 +22,7 @@ export default function OrganizationInformation({
 
   const { name, metadata } = organization;
   const { role } = member;
-  const isAdmin = role === MemberRole.ADMIN;
+  const isOwnerOrAdmin = role === MemberRole.OWNER || role === MemberRole.ADMIN;
 
   return (
     <div className="flex items-center gap-8 lg:gap-12">
@@ -34,9 +35,10 @@ export default function OrganizationInformation({
           </p>
         )}
       </div>
-      {isAdmin && (
-        <div className="self-stretch">
+      {isOwnerOrAdmin && (
+        <div className="flex items-start gap-2 self-stretch">
           <OrganizationEditButton organization={organization} />
+          <OrganizationRemoveButton organization={organization} />
         </div>
       )}
     </div>

@@ -68,8 +68,10 @@ export default async function OrganizationPage({
     true,
   );
 
+  const isOwnerOrAdmin =
+    member.role === MemberRole.OWNER || member.role === MemberRole.ADMIN;
   let pendingInvitations: Invitation[] = [];
-  if (member.role === MemberRole.ADMIN) {
+  if (isOwnerOrAdmin) {
     try {
       pendingInvitations =
         await organizationService.getOrganizationPendingInvitations(
@@ -89,7 +91,7 @@ export default async function OrganizationPage({
       <OrganizationInformation organization={organization} member={member} />
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-light">{t("members")}</h1>
-        {member.role === MemberRole.ADMIN && (
+        {isOwnerOrAdmin && (
           <OrganizationInviteButton organizationId={organization.id} />
         )}
       </div>

@@ -198,6 +198,7 @@
     },
     "Organizations": {
       "Role": {
+        "owner": "Owner",
         "admin": "Admin",
         "member": "Member",
         "pending": "Pending",
@@ -238,6 +239,17 @@
             "invalid": "Organization name must be a valid string.",
             "required": "Organization name is required"
           }
+        }
+      },
+      "RemoveModal": {
+        "title": "Remove Organization",
+        "description": "Are you sure you want to remove the organization \"{organization}\"?",
+        "confirm": "Confirm",
+        "cancel": "Cancel",
+        "success": "Organization removed successfully",
+        "error": "Failed to remove organization",
+        "Errors": {
+          "unauthorizedAction": "Login"
         }
       },
       "InviteMemberModal": {
@@ -943,6 +955,7 @@
         "roleIndicator": "View as:",
         "title": "{name}",
         "edit": "Edit",
+        "remove": "Remove",
         "invite": "Invite Member",
         "members": "Members"
       }

@@ -1,8 +1,8 @@
 import { Prisma } from "@/prisma/generated/client";
 
 export enum MemberRole {
-  ADMIN = "admin",
   OWNER = "owner",
+  ADMIN = "admin",
   MEMBER = "member",
 }
 

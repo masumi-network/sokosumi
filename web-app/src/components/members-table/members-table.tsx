@@ -49,10 +49,11 @@ export default function MembersTable({
 function getColumns(t: ReturnType<typeof useTranslations>, me: Member) {
   const { nameColumn, emailColumn, roleColumn, actionColumn } =
     getMembersTableColumns(t, me);
-  const isAdmin = me.role === MemberRole.ADMIN;
+  const isOwnerOrAdmin =
+    me.role === MemberRole.OWNER || me.role === MemberRole.ADMIN;
 
   return [nameColumn, emailColumn, roleColumn].concat(
-    isAdmin ? [actionColumn] : [],
+    isOwnerOrAdmin ? [actionColumn] : [],
   );
 }
 
