@@ -102,7 +102,6 @@ export async function signUpEmail(
           await organizationRepository.createOrganization(
             slug,
             parsed.selectedOrganization.name,
-            parsed.email,
             requiredEmailDomains,
             tx,
           );
