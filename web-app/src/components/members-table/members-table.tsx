@@ -64,7 +64,7 @@ function combineMembersAndPendingInvitations(
   return members
     .sort((a, b) => {
       const roleScoreDiff =
-        (RoleScoreMap[a.role] || 0) - (RoleScoreMap[b.role] || 0);
+        (RoleScoreMap[a.role] ?? 0) - (RoleScoreMap[b.role] ?? 0);
       const nameDiff = a.user.name.localeCompare(b.user.name);
       return roleScoreDiff !== 0 ? roleScoreDiff : nameDiff;
     })
@@ -97,7 +97,7 @@ function convertInvitationToMemberRowData(
 }
 
 const RoleScoreMap: Record<string, number> = {
-  [MemberRole.OWNER]: 3,
+  [MemberRole.OWNER]: 1,
   [MemberRole.ADMIN]: 2,
-  [MemberRole.MEMBER]: 1,
+  [MemberRole.MEMBER]: 3,
 };
