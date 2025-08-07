@@ -32,7 +32,6 @@ import {
 } from "@/lib/actions";
 import { JobStatus, JobWithStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
-import { NextJobAction, OnChainJobStatus } from "@/prisma/generated/client";
 
 interface RequestRefundButtonProps {
   job: JobWithStatus;
@@ -66,16 +65,14 @@ function ButtonBase({
 }
 
 function makeTitleAndDescription(
-  isRefundDisabled: boolean,
-  isFailed: boolean,
-  unlockTime: Date,
-  submitResultTime: Date,
+  isEnabled: boolean,
+  job: JobWithStatus,
   t: IntlTranslation<"App.Agents.Jobs.JobDetails.Output.Refund">,
   formatter: IntlDateFormatter,
 ) {
-  if (isFailed) {
+  if (job.status === JobStatus.FAILED) {
     // Use submitResultTime for failed jobs (automatic refund timing)
-    const submitResultTimeFormatted = formatter.dateTime(submitResultTime, {
+    const submitResultTimeFormatted = formatter.dateTime(job.submitResultTime, {
       dateStyle: "medium",
       timeStyle: "short",
     });
@@ -89,12 +86,12 @@ function makeTitleAndDescription(
   }
 
   // Use unlockTime for available/unavailable states
-  const unlockTimeFormatted = formatter.dateTime(unlockTime, {
+  const unlockTimeFormatted = formatter.dateTime(job.unlockTime, {
     dateStyle: "medium",
     timeStyle: "short",
   });
 
-  const { title, description } = isRefundDisabled
+  const { title, description } = !isEnabled
     ? {
         title: t("Tooltip.unavailable.title"),
         description: t("Tooltip.unavailable.description", {
@@ -111,6 +108,17 @@ function makeTitleAndDescription(
   return { title, description };
 }
 
+function isRefundEnabled(job: JobWithStatus) {
+  switch (job.status) {
+    case JobStatus.FAILED:
+      return new Date() > job.submitResultTime && new Date() < job.unlockTime;
+    case JobStatus.COMPLETED:
+      return new Date() < job.unlockTime;
+    default:
+      return false;
+  }
+}
+
 export default function RequestRefundButton({
   job,
   className,
@@ -121,14 +129,10 @@ export default function RequestRefundButton({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<ActionError | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isRefundRequested, setIsRefundRequested] = useState(
-    job.onChainStatus === OnChainJobStatus.REFUND_REQUESTED ||
-      job.nextAction === NextJobAction.SET_REFUND_REQUESTED_INITIATED ||
-      job.nextAction === NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
-  );
+  const [isEnabled, setIsEnabled] = useState(isRefundEnabled(job));
   const formatter = useFormatter();
 
-  const isRefunded = job.onChainStatus === OnChainJobStatus.REFUND_WITHDRAWN;
+  const isRefunded = job.status === JobStatus.REFUND_RESOLVED;
   if (isRefunded) {
     return (
       <ButtonBase disabled={true} className={className}>
@@ -138,7 +142,7 @@ export default function RequestRefundButton({
     );
   }
 
-  if (isRefundRequested) {
+  if (!isEnabled) {
     return (
       <ButtonBase disabled={true} className={className}>
         <LoaderCircle className="h-4 w-4 animate-spin" />
@@ -147,13 +151,9 @@ export default function RequestRefundButton({
     );
   }
 
-  const isRefundDisabled = job.unlockTime.getTime() < Date.now();
-  const isFailed = job.status === JobStatus.FAILED;
   const { title, description } = makeTitleAndDescription(
-    isRefundDisabled,
-    isFailed,
-    job.unlockTime,
-    job.submitResultTime,
+    isEnabled,
+    job,
     t,
     formatter,
   );
@@ -166,10 +166,7 @@ export default function RequestRefundButton({
       job.blockchainIdentifier,
     );
     if (result.ok) {
-      setIsRefundRequested(
-        result.data.job.nextAction ===
-          NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
-      );
+      setIsEnabled(isRefundEnabled(result.data.job));
     } else {
       switch (result.error.code) {
         case CommonErrorCode.UNAUTHENTICATED:
@@ -208,12 +205,7 @@ export default function RequestRefundButton({
               <AlertDialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                 <AlertDialogTrigger asChild>
                   <ButtonBase
-                    disabled={
-                      isLoading ||
-                      isRefundDisabled ||
-                      isRefundRequested ||
-                      isFailed
-                    }
+                    disabled={isLoading || !isEnabled}
                     className={className}
                   >
                     {isLoading ? (
