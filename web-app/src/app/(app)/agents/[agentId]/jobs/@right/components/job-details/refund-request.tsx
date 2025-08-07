@@ -1,6 +1,6 @@
 "use client";
 
-import { ExternalLink, HandCoins, LoaderCircle } from "lucide-react";
+import { ExternalLink, HandCoins, LoaderCircle, RefreshCw } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -61,6 +61,31 @@ function ButtonBase({
     >
       {children}
     </Button>
+  );
+}
+
+function RefundErrorButton({
+  isLoading,
+  onRetry,
+  t,
+}: {
+  isLoading: boolean;
+  onRetry: () => void;
+  t: IntlTranslation<"App.Agents.Jobs.JobDetails.Output.Refund">;
+}) {
+  return (
+    <button
+      className="text-semantic-destructive flex items-center gap-1.5 text-sm transition-opacity hover:opacity-80"
+      onClick={onRetry}
+      disabled={isLoading}
+    >
+      {isLoading ? (
+        <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+      ) : (
+        <RefreshCw className="h-3.5 w-3.5" />
+      )}
+      <span>{t("error")}</span>
+    </button>
   );
 }
 
@@ -128,7 +153,7 @@ export default function RequestRefundButton({
   const router = useAsyncRouter();
 
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<ActionError | null>(null);
+  const [error, setError] = useState<ActionError | null>();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const formatter = useFormatter();
   const [job, setJob] = useState(initialJob);
@@ -152,6 +177,7 @@ export default function RequestRefundButton({
       const { title, description } = makeTitleAndDescription(job, t, formatter);
 
       const handleRefundRequest = async (job: JobWithStatus) => {
+        console.log("handleRefundRequest", job);
         setIsLoading(true);
         setError(null);
 
@@ -188,6 +214,21 @@ export default function RequestRefundButton({
         setIsLoading(false);
         setIsDialogOpen(false);
       };
+
+      const handleRetry = () => {
+        setError(null);
+        setIsDialogOpen(true);
+      };
+
+      if (error) {
+        return (
+          <RefundErrorButton
+            isLoading={isLoading}
+            onRetry={handleRetry}
+            t={t}
+          />
+        );
+      }
 
       return (
         <>
@@ -250,9 +291,6 @@ export default function RequestRefundButton({
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
-          {error && (
-            <p className="text-semantic-destructive text-xs">{t("error")}</p>
-          )}
         </>
       );
   }
