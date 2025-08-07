@@ -161,11 +161,14 @@ export const organizationService = (() => {
         userId,
         organizationId,
       );
-    if (
-      !myMemberInOrganization ||
-      myMemberInOrganization.role !== MemberRole.ADMIN
-    ) {
-      console.error("You are not the admin of the organization");
+    if (!myMemberInOrganization) {
+      console.error("You are not from the organization");
+      throw new Error("UNAUTHORIZED");
+    }
+    const isOwnerOrAdmin =
+      myMemberInOrganization.role === MemberRole.OWNER || MemberRole.ADMIN;
+    if (!isOwnerOrAdmin) {
+      console.error("You are not owner or admin of the organization");
       throw new Error("UNAUTHORIZED");
     }
 
