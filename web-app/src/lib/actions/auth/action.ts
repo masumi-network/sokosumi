@@ -26,7 +26,6 @@ export async function signInSocial(
   } catch (error) {
     console.error("Error signing in with social provider", error);
     return Err({
-      message: "Internal server error",
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,
     });
   }
@@ -37,14 +36,12 @@ export async function signUpEmail(
 ): Promise<Result<User, ActionError>> {
   let actionError: ActionError = {
     code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-    message: "Internal server error",
   };
 
   try {
     const parsedResult = signUpFormSchema().safeParse(data);
     if (!parsedResult.success) {
       return Err({
-        message: "Bad Input",
         code: CommonErrorCode.BAD_INPUT,
       });
     }
@@ -64,7 +61,6 @@ export async function signUpEmail(
       console.error("Sign up email returned no user");
       actionError = {
         code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-        message: "Internal server error",
       };
       throw new Error("Internal server error");
     }
@@ -85,12 +81,21 @@ export async function signUpEmail(
       betterAuthApiErrorSchema.safeParse(error);
     if (parsedBetterAuthApiErrorResult.success) {
       switch (parsedBetterAuthApiErrorResult.data.body.code) {
-        case AuthErrorCode.USER_ALREADY_EXISTS:
+        case AuthErrorCode.EMAIL_DOMAIN_NOT_ALLOWED:
           actionError = {
-            code: AuthErrorCode.USER_ALREADY_EXISTS,
-            message: "User already exists",
+            code: AuthErrorCode.EMAIL_DOMAIN_NOT_ALLOWED,
           };
           break;
+        case AuthErrorCode.TERMS_NOT_ACCEPTED:
+          actionError = {
+            code: AuthErrorCode.TERMS_NOT_ACCEPTED,
+          };
+          break;
+        default:
+          actionError = {
+            code: parsedBetterAuthApiErrorResult.data.body.code,
+            message: parsedBetterAuthApiErrorResult.data.body.message,
+          };
       }
     }
     return Err(actionError);

@@ -2,7 +2,7 @@
 
 import { createContext, ReactNode, useContext, useState } from "react";
 
-import { BetterAuthClientError } from "@/lib/auth/auth.client";
+import { BetterAuthClientError, BetterAuthClientResult } from "@/lib/actions";
 
 export interface ModalContextType<TItem, TAction> {
   open: boolean;
@@ -21,7 +21,7 @@ interface ModalContextProviderProps<TItem, TAction> {
   onAction: (
     item: TItem,
     action: TAction,
-  ) => Promise<{ data?: unknown; error: BetterAuthClientError | null }>;
+  ) => Promise<BetterAuthClientResult<unknown>>;
   onSuccess?: (action: TAction) => void;
   onError?: (action: TAction, error: BetterAuthClientError) => void;
 }

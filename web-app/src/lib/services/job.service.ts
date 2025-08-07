@@ -5,7 +5,7 @@ import { v4 as uuidv4 } from "uuid";
 
 import publishJobStatusData from "@/lib/ably/publish";
 import { JobIndicatorStatus } from "@/lib/ably/schema";
-import { JobError, JobErrorCode } from "@/lib/actions/types/error-codes/job";
+import { JobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { getSession } from "@/lib/auth/utils";
 import { agentClient, paymentClient } from "@/lib/clients";
 import { anthropicClient } from "@/lib/clients/anthropic.client";

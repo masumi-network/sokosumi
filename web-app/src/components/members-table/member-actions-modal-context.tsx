@@ -6,6 +6,11 @@ import { ReactNode } from "react";
 import { toast } from "sonner";
 
 import { createModalContext } from "@/components/common/modal-context";
+import {
+  BetterAuthClientError,
+  BetterAuthClientResult,
+  CommonErrorCode,
+} from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
 import { MemberRole, MemberWithUser } from "@/lib/db";
 
@@ -31,7 +36,7 @@ export function MemberActionsModalContextProvider({
   async function onAction(
     member: MemberWithUser,
     action: MemberAction,
-  ): Promise<{ error: unknown }> {
+  ): Promise<BetterAuthClientResult<unknown>> {
     switch (action) {
       case MemberAction.CHANGE_TO_ADMIN:
         return await authClient.organization.updateMemberRole({
@@ -57,18 +62,30 @@ export function MemberActionsModalContextProvider({
     router.refresh();
     toast.success(
       action === MemberAction.REMOVE
-        ? t("Successes.removeSuccess")
-        : t("Successes.changeRoleSuccess"),
+        ? t("Success.remove")
+        : t("Success.changeRole"),
     );
   }
 
-  function onError(action: MemberAction, error: unknown) {
+  function onError(action: MemberAction, error: BetterAuthClientError) {
     console.error(`Failed to "${action}" member`, error);
-    toast.error(
-      action === MemberAction.REMOVE
-        ? t("Errors.removeError")
-        : t("Errors.changeRoleError"),
-    );
+    if (error.code === CommonErrorCode.UNAUTHORIZED) {
+      toast.error(t("Errors.unauthorized"), {
+        action: {
+          label: t("Errors.unauthorizedAction"),
+          onClick: () => {
+            router.push(`/login`);
+          },
+        },
+      });
+    } else {
+      const errorMessage =
+        error.message ??
+        (action === MemberAction.REMOVE
+          ? t("Error.remove")
+          : t("Error.changeRole"));
+      toast.error(errorMessage);
+    }
   }
 
   return (

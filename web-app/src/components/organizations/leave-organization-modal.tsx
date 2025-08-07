@@ -16,11 +16,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  CommonErrorCode,
-  leaveOrganization,
-  OrganizationErrorCode,
-} from "@/lib/actions";
+import { CommonErrorCode } from "@/lib/actions";
+import { authClient } from "@/lib/auth/auth.client";
 import { Organization } from "@/prisma/generated/client";
 
 interface LeaveOrganizationModalProps {
@@ -40,42 +37,28 @@ export function LeaveOrganizationModal({
 
   const handleLeaveOrganization = async () => {
     setLoading(true);
-    try {
-      const result = await leaveOrganization(organization.id);
-      if (result.ok) {
-        router.refresh();
-        toast.success(t("success"));
-        onOpenChange(false);
+    const result = await authClient.organization.leave({
+      organizationId: organization.id,
+    });
+    if (result.error) {
+      if (result.error.code === CommonErrorCode.UNAUTHORIZED) {
+        toast.error(t("Errors.unauthorized"), {
+          action: {
+            label: t("Errors.unauthorizedAction"),
+            onClick: () => {
+              router.push(`/login`);
+            },
+          },
+        });
       } else {
-        switch (result.error.code) {
-          case CommonErrorCode.UNAUTHENTICATED:
-            toast.error(t("Errors.unauthenticated"), {
-              action: {
-                label: t("Errors.unauthenticatedAction"),
-                onClick: () => {
-                  router.push(`/login`);
-                },
-              },
-            });
-            break;
-          case CommonErrorCode.UNAUTHORIZED:
-            toast.error(t("Errors.unauthorized"));
-            break;
-          case OrganizationErrorCode.LAST_PERSON:
-            toast.error(t("Errors.lastPerson"));
-            break;
-          case OrganizationErrorCode.LAST_ADMIN:
-            toast.error(t("Errors.lastAdmin"));
-            break;
-          case CommonErrorCode.INTERNAL_SERVER_ERROR:
-          default:
-            toast.error(t("error"));
-            break;
-        }
+        toast.error(result.error.message ?? t("error"));
       }
-    } finally {
-      setLoading(false);
+    } else {
+      router.refresh();
+      toast.success(t("success"));
+      onOpenChange(false);
     }
+    setLoading(false);
   };
 
   return (

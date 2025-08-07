@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
+import { CommonErrorCode } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
 import { MemberRole } from "@/lib/db";
 import { inviteFormData, InviteFormSchemaType } from "@/lib/schemas";
@@ -38,24 +39,24 @@ export default function OrganizationMemberInviteForm({
     });
     if (result.error) {
       switch (result.error.code) {
-        case "USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION":
-          toast.error(t("Errors.userAlreadyMember"));
-          break;
-        case "YOU_ARE_NOT_ALLOWED_TO_INVITE_USER_WITH_THIS_ROLE":
-          toast.error(t("Errors.unauthorized"));
-          break;
-        case "INVITATION_LIMIT_REACHED":
-          toast.error(t("Errors.invitationLimitReached"));
+        case CommonErrorCode.UNAUTHORIZED:
+          toast.error(t("Errors.unauthorized"), {
+            action: {
+              label: t("Errors.unauthorizedAction"),
+              onClick: () => {
+                router.push("/login");
+              },
+            },
+          });
           break;
         default:
-          toast.error(t("error"));
+          toast.error(result.error.message ?? t("error"));
       }
-      return;
+    } else {
+      toast.success(t("success"));
+      onOpenChange(false);
+      router.refresh();
     }
-
-    toast.success(t("success"));
-    onOpenChange(false);
-    router.refresh();
   };
 
   const isLoading = form.formState.isSubmitting;

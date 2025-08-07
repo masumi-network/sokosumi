@@ -11,7 +11,8 @@ import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { signInFormData } from "@/auth/login/data";
-import { signIn } from "@/lib/auth/auth.client";
+import { AuthErrorCode } from "@/lib/actions";
+import { authClient } from "@/lib/auth/auth.client";
 import { signInFormSchema, SignInFormSchemaType } from "@/lib/schemas";
 
 interface SignInFormProps {
@@ -40,22 +41,19 @@ export default function SignInForm({
   });
 
   const handleSubmit = async (values: SignInFormSchemaType) => {
-    const singInResult = await signIn.email({
+    const result = await authClient.signIn.email({
       email: values.email,
       password: values.currentPassword,
       rememberMe: values.rememberMe,
     });
 
-    if (singInResult.error) {
-      switch (singInResult.error.code) {
-        case "EMAIL_NOT_VERIFIED":
-          toast.error(t("Errors.verifyEmail"));
-          break;
-        case "TERMS_NOT_ACCEPTED":
+    if (result.error) {
+      switch (result.error.code) {
+        case AuthErrorCode.TERMS_NOT_ACCEPTED:
           toast.error(t("Errors.termsNotAccepted"));
           break;
         default:
-          toast.error(t("error"));
+          toast.error(result.error.message ?? t("error"));
           break;
       }
       return;

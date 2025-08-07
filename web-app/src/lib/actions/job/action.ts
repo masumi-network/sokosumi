@@ -3,7 +3,7 @@
 import * as Sentry from "@sentry/nextjs";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions";
-import { isJobError, JobErrorCode } from "@/lib/actions/types/error-codes/job";
+import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { getSession } from "@/lib/auth/utils";
 import { JobWithStatus } from "@/lib/db";
 import { jobRepository } from "@/lib/db/repositories";

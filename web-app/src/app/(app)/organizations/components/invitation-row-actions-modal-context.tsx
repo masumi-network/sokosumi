@@ -6,8 +6,12 @@ import { ReactNode } from "react";
 import { toast } from "sonner";
 
 import { createModalContext } from "@/components/common/modal-context";
-import { CommonErrorCode } from "@/lib/actions";
-import { authClient, BetterAuthClientError } from "@/lib/auth/auth.client";
+import {
+  BetterAuthClientError,
+  BetterAuthClientResult,
+  CommonErrorCode,
+} from "@/lib/actions";
+import { authClient } from "@/lib/auth/auth.client";
 import { InvitationWithRelations } from "@/lib/db";
 
 export enum InvitationRowAction {
@@ -31,7 +35,7 @@ export function InvitationRowActionsModalContextProvider({
   async function onAction(
     invitation: InvitationWithRelations,
     action: InvitationRowAction,
-  ): Promise<{ data: unknown; error: BetterAuthClientError | null }> {
+  ): Promise<BetterAuthClientResult<unknown>> {
     switch (action) {
       case InvitationRowAction.ACCEPT: {
         return await authClient.organization.acceptInvitation({

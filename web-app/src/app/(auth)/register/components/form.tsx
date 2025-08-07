@@ -10,7 +10,7 @@ import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { signUpFormData } from "@/auth/register/data";
-import { AuthErrorCode, CommonErrorCode, signUpEmail } from "@/lib/actions";
+import { AuthErrorCode, signUpEmail } from "@/lib/actions";
 import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
 
 interface SignUpFormProps {
@@ -52,17 +52,14 @@ export default function SignUpForm({ prefilledEmail }: SignUpFormProps) {
       toast.success(t("success"));
     } else {
       switch (result.error.code) {
-        case CommonErrorCode.BAD_INPUT:
-          toast.error(t("Errors.badInput"));
-          break;
-        case AuthErrorCode.USER_ALREADY_EXISTS:
-          toast.error(t("Errors.userExists"));
+        case AuthErrorCode.EMAIL_DOMAIN_NOT_ALLOWED:
+          toast.error(t("Errors.emailDomainNotAllowed"));
           break;
         case AuthErrorCode.TERMS_NOT_ACCEPTED:
           toast.error(t("Errors.termsNotAccepted"));
           break;
         default:
-          toast.error(t("error"));
+          toast.error(result.error.message ?? t("error"));
           break;
       }
     }

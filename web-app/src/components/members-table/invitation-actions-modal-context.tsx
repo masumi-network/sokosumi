@@ -6,6 +6,11 @@ import { ReactNode } from "react";
 import { toast } from "sonner";
 
 import { createModalContext } from "@/components/common/modal-context";
+import {
+  BetterAuthClientError,
+  BetterAuthClientResult,
+  CommonErrorCode,
+} from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
 import { Invitation } from "@/prisma/generated/client";
 
@@ -31,13 +36,12 @@ export function InvitationActionsModalContextProvider({
   async function onAction(
     invitation: Invitation,
     action: InvitationAction,
-  ): Promise<{ error?: unknown }> {
+  ): Promise<BetterAuthClientResult<unknown>> {
     switch (action) {
       case InvitationAction.CANCEL:
-        const result = await authClient.organization.cancelInvitation({
+        return await authClient.organization.cancelInvitation({
           invitationId: invitation.id,
         });
-        return { error: result.error };
     }
   }
 
@@ -46,8 +50,19 @@ export function InvitationActionsModalContextProvider({
     router.refresh();
   }
 
-  function onError(_action: InvitationAction, _error: unknown) {
-    toast.error(t("error"));
+  function onError(_action: InvitationAction, error: BetterAuthClientError) {
+    if (error.code === CommonErrorCode.UNAUTHORIZED) {
+      toast.error(t("Errors.unauthorized"), {
+        action: {
+          label: t("Errors.unauthorizedAction"),
+          onClick: () => {
+            router.push(`/login`);
+          },
+        },
+      });
+    } else {
+      toast.error(error.message ?? t("error"));
+    }
   }
 
   return (

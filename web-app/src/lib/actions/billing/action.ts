@@ -1,7 +1,11 @@
 "use server";
 
 import { getEnvSecrets } from "@/config/env.secrets";
-import { ActionError, BillingErrorCode, CommonErrorCode } from "@/lib/actions";
+import {
+  ActionError,
+  BillingErrorCode,
+  CommonErrorCode,
+} from "@/lib/actions/errors";
 import { getSession } from "@/lib/auth/utils";
 import { stripeClient } from "@/lib/clients/stripe.client";
 import { CouponError } from "@/lib/errors/coupon-errors";

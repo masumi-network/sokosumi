@@ -158,13 +158,17 @@
           "removeDescription": "Are you sure you want to remove {member} from the organization?",
           "confirm": "Confirm",
           "cancel": "Cancel",
-          "Successes": {
-            "changeRoleSuccess": "Role changed successfully",
-            "removeSuccess": "Member removed successfully"
+          "Success": {
+            "changeRole": "Role changed successfully",
+            "remove": "Member removed successfully"
+          },
+          "Error": {
+            "changeRole": "Failed to change role",
+            "remove": "Failed to remove member"
           },
           "Errors": {
-            "changeRoleError": "Failed to change role",
-            "removeError": "Failed to remove member"
+            "unauthorized": "You must be logged in.",
+            "unauthorizedAction": "Login"
           }
         }
       },
@@ -177,7 +181,11 @@
           "confirm": "Confirm",
           "cancel": "Cancel",
           "success": "Invitation canceled successfully",
-          "error": "Failed to cancel invitation"
+          "error": "Failed to cancel invitation",
+          "Errors": {
+            "unauthorized": "You must be logged in.",
+            "unauthorizedAction": "Login"
+          }
         },
         "resendSuccess": "Invitation resent successfully",
         "resendError": "Failed to resend invitation"
@@ -243,10 +251,8 @@
           "success": "Member invited successfully",
           "error": "Failed to invite member",
           "Errors": {
-            "notAuthenticated": "You must be logged in to invite members.",
-            "unauthorized": "You must be an admin to invite members.",
-            "invitationLimitReached": "You have reached the invitation limit.",
-            "userAlreadyMember": "User is already a member of this organization."
+            "unauthorized": "You must be logged in.",
+            "unauthorizedAction": "Login"
           },
           "Fields": {
             "Email": {
@@ -275,11 +281,8 @@
         "success": "You have left the organization",
         "error": "Failed to leave organization",
         "Errors": {
-          "unauthenticated": "You must be logged in to leave the organization.",
-          "unauthenticatedAction": "Login",
-          "unauthorized": "You are not a member of the organization.",
-          "lastPerson": "You cannot leave the organization because you are the last person.",
-          "lastAdmin": "You cannot leave the organization because you are the last admin."
+          "unauthorized": "You must be logged in.",
+          "unauthorizedAction": "Login"
         }
       }
     },
@@ -320,23 +323,13 @@
           "login": "Login",
           "register": "Register"
         },
-        "Accept": {
-          "success": "Invitation accepted successfully",
-          "error": "Failed to accept invitation",
-          "Errors": {
-            "invitationNotFound": "Invitation not found",
-            "inviterNotFound": "Inviter not found",
-            "alreadyMember": "You are already member of this organization.",
-            "alreadyMemberAction": "Go to Organization"
-          }
+        "Success": {
+          "accept": "Invitation accepted successfully",
+          "decline": "Invitation declined successfully"
         },
-        "Decline": {
-          "success": "Invitation declined successfully",
-          "error": "Failed to decline invitation",
-          "Errors": {
-            "invitationNotFound": "Invitation not found",
-            "inviterNotFound": "Inviter not found"
-          }
+        "Error": {
+          "accept": "Failed to accept invitation",
+          "decline": "Failed to decline invitation"
         }
       }
     },
@@ -583,7 +576,6 @@
             "link": "Register"
           },
           "Errors": {
-            "verifyEmail": "Please verify your email address",
             "termsNotAccepted": "You must accept the terms and conditions to login"
           }
         }
@@ -638,9 +630,9 @@
             }
           },
           "Errors": {
-            "badInput": "Please input form correctly.",
-            "userExists": "User already exists",
-            "termsNotAccepted": "You must accept the terms and conditions to register"
+            "termsNotAccepted": "You must accept the terms and conditions to register",
+            "emailDomainNotAllowed": "Email domain not allowed",
+            "badInput": "Please input form correctly."
           },
           "Login": {
             "message": "Already have an account?",
