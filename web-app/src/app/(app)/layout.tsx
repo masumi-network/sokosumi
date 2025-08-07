@@ -36,8 +36,8 @@ export default async function AppLayout({ children }: AppLayoutProps) {
       <SidebarProvider defaultOpen={defaultOpen}>
         <Sidebar />
         <div className="flex w-full flex-col overflow-clip">
-          <Header className="h-[64px] p-4" />
-          <main className="relative min-h-[calc(100svh-64px)] p-4 pt-[80px] md:pt-4">
+          <Header className="h-16 p-4" />
+          <main className="relative min-h-[calc(100svh-64px)] p-4 pt-20 md:pt-4">
             {children}
           </main>
           <FooterSections className="p-4" />
