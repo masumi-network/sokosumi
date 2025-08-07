@@ -25,9 +25,11 @@ export async function generateMetadata({
   );
 
   const { organizationSlug } = await params;
+  const normalizedSlug = decodeURIComponent(organizationSlug);
+
   const organization =
     await organizationRepository.getOrganizationWithRelationsBySlug(
-      organizationSlug,
+      normalizedSlug,
     );
   if (!organization) {
     return notFound();
@@ -49,10 +51,11 @@ export default async function OrganizationPage({
 
   const t = await getTranslations("App.Organizations.OrganizationDetail");
   const { organizationSlug } = await params;
+  const normalizedSlug = decodeURIComponent(organizationSlug);
 
   const organization =
     await organizationRepository.getOrganizationWithRelationsBySlug(
-      organizationSlug,
+      normalizedSlug,
     );
   if (!organization) {
     return notFound();

@@ -68,7 +68,9 @@ export default function InvitationCard({
               })}
             </p>
             <Button variant="outline" asChild className="w-full">
-              <Link href={`/app/organizations/${organizationSlug}`}>
+              <Link
+                href={`/app/organizations/${encodeURIComponent(organizationSlug)}`}
+              >
                 {t("goToOrganization")}
               </Link>
             </Button>
