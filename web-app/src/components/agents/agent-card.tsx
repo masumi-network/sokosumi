@@ -378,7 +378,7 @@ function AgentCard({
                   </Button>
                 </div>
                 <ClickBlocker
-                  className={(cn(agentHireButtonVariants({ size })), "hidden")}
+                  className={cn(agentHireButtonVariants({ size }), "hidden")}
                 >
                   <AgentHireButton
                     agentId={agent.id}

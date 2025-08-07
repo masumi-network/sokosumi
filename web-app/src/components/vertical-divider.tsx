@@ -7,7 +7,7 @@ interface VerticalDividerProps {
 export default function VerticalDivider({ className }: VerticalDividerProps) {
   return (
     <div
-      className={cn("border-muted-foreground/20 h-8 border-r-1", className)}
+      className={cn("border-muted-foreground/20 h-8 border-r", className)}
     ></div>
   );
 }
