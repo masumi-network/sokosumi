@@ -229,10 +229,10 @@
           },
           "Fields": {
             "Name": {
-              "placeholder": "Name"
+              "placeholder": "Name (e.g. 'My Organization')"
             },
             "Slug": {
-              "placeholder": "Slug"
+              "placeholder": "Slug (e.g. 'my-organization')"
             }
           }
         },

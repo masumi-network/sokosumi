@@ -69,7 +69,7 @@ export default function OrganizationInformationModal({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogPortal>
         <DialogOverlay className="backdrop-blur-lg" />
-        <DialogContent className="max-h-[80svh] w-[80vw] max-w-2xl!">
+        <DialogContent className="max-h-[80svh] w-[30vw] max-w-2xl!">
           <DialogTitle className="text-center">
             {isCreating ? t("create") : t("edit")}
           </DialogTitle>
