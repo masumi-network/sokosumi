@@ -126,14 +126,29 @@ function RefundErrorButton({
   );
 }
 
+/**
+ * Generates the appropriate tooltip title and description for the refund request button
+ * based on the job's status and refund eligibility.
+ *
+ * - For FAILED jobs: Uses the job's `submitResultTime` as the unlock time for refund eligibility.
+ *   The tooltip will indicate when the refund becomes available.
+ * - For other statuses: Uses the job's `unlockTime` to determine if the refund is available or unavailable,
+ *   and formats the tooltip accordingly.
+ *
+ * @param job - The job object containing status and relevant timestamps.
+ * @param t - The translation function for refund-related tooltips.
+ * @param formatter - The date formatter for displaying unlock times.
+ * @returns An object with `title` and `description` for the tooltip.
+ */
 function makeTitleAndDescription(
   job: JobWithStatus,
   t: IntlTranslation<"App.Agents.Jobs.JobDetails.Output.Refund">,
   formatter: IntlDateFormatter,
 ) {
   const isEnabled = isRefundEnabled(job);
+
   if (job.status === JobStatus.FAILED) {
-    // Use submitResultTime for failed jobs (automatic refund timing)
+    // For failed jobs, use submitResultTime as the unlock time for refunds
     const submitResultTimeFormatted = formatter.dateTime(job.submitResultTime, {
       dateStyle: "medium",
       timeStyle: "short",
@@ -147,30 +162,42 @@ function makeTitleAndDescription(
     };
   }
 
-  // Use unlockTime for available/unavailable states
+  // For other statuses, use unlockTime for available/unavailable tooltips
   const unlockTimeFormatted = formatter.dateTime(job.unlockTime, {
     dateStyle: "medium",
     timeStyle: "short",
   });
 
-  const { title, description } = !isEnabled
-    ? {
-        title: t("Tooltip.unavailable.title"),
-        description: t("Tooltip.unavailable.description", {
-          unlockAt: unlockTimeFormatted,
-        }),
-      }
-    : {
-        title: t("Tooltip.available.title"),
-        description: t("Tooltip.available.description", {
-          unlockAt: unlockTimeFormatted,
-        }),
-      };
+  if (!isEnabled) {
+    return {
+      title: t("Tooltip.unavailable.title"),
+      description: t("Tooltip.unavailable.description", {
+        unlockAt: unlockTimeFormatted,
+      }),
+    };
+  }
 
-  return { title, description };
+  return {
+    title: t("Tooltip.available.title"),
+    description: t("Tooltip.available.description", {
+      unlockAt: unlockTimeFormatted,
+    }),
+  };
 }
 
-function isRefundEnabled(job: JobWithStatus) {
+/**
+ * Determines if a refund can currently be requested for a given job.
+ *
+ * Refund eligibility depends on the job's status and timing:
+ * - For FAILED jobs: Refund is enabled if the current time is after the job's submitResultTime
+ *   and before the unlockTime.
+ * - For COMPLETED jobs: Refund is enabled if the current time is before the unlockTime.
+ * - For all other statuses: Refund is not enabled.
+ *
+ * @param job - The job object containing status and relevant timestamps.
+ * @returns True if refund is currently enabled, false otherwise.
+ */
+function isRefundEnabled(job: JobWithStatus): boolean {
   const now = new Date();
   switch (job.status) {
     case JobStatus.FAILED:
