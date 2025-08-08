@@ -1,5 +1,6 @@
 import { Ellipsis } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useMemo } from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -48,40 +49,48 @@ export default function MemberActionsDropdown({
     openActionModal(member, MemberAction.REMOVE);
   };
 
+  const [hasPermission, canChangeToOwner, canChangeToAdmin, canChangeToMember] =
+    useMemo(() => {
+      return [
+        checkPermission(me, member),
+        checkCanChangeToOwner(me, member),
+        checkCanChangeToAdmin(me, member),
+        checkCanChangeToMember(me, member),
+      ];
+    }, [me, member]);
+
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild disabled={!canDoAction(me, member)}>
+      <DropdownMenuTrigger asChild disabled={!hasPermission}>
         <Button variant="outline" size="icon" className={cn("p-2!", className)}>
           <Ellipsis />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
-        {canChangeToOwner(me, member) && (
+        {canChangeToOwner && (
           <DropdownMenuItem onClick={handleChangeToOwner}>
             {t("changeToOwner")}
           </DropdownMenuItem>
         )}
-        {canChangeToAdmin(me, member) && (
+        {canChangeToAdmin && (
           <DropdownMenuItem onClick={handleChangeToAdmin}>
             {t("changeToAdmin")}
           </DropdownMenuItem>
         )}
-        {canChangeToMember(me, member) && (
+        {canChangeToMember && (
           <DropdownMenuItem onClick={handleChangeToMember}>
             {t("changeToMember")}
           </DropdownMenuItem>
         )}
-        {canRemove(me, member) && (
-          <DropdownMenuItem variant="destructive" onClick={handleRemove}>
-            {t("remove")}
-          </DropdownMenuItem>
-        )}
+        <DropdownMenuItem variant="destructive" onClick={handleRemove}>
+          {t("remove")}
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
 
-function canDoAction(me: Member, member: MemberWithUser) {
+function checkPermission(me: Member, member: MemberWithUser) {
   switch (me.role) {
     case MemberRole.OWNER:
       return true;
@@ -92,18 +101,7 @@ function canDoAction(me: Member, member: MemberWithUser) {
   }
 }
 
-function canRemove(me: Member, member: MemberWithUser) {
-  switch (me.role) {
-    case MemberRole.OWNER:
-      return true;
-    case MemberRole.ADMIN:
-      return member.role !== MemberRole.OWNER;
-    default:
-      return false;
-  }
-}
-
-function canChangeToOwner(me: Member, member: MemberWithUser) {
+function checkCanChangeToOwner(me: Member, member: MemberWithUser) {
   switch (me.role) {
     case MemberRole.OWNER:
       return member.role !== MemberRole.OWNER;
@@ -112,7 +110,7 @@ function canChangeToOwner(me: Member, member: MemberWithUser) {
   }
 }
 
-function canChangeToAdmin(me: Member, member: MemberWithUser) {
+function checkCanChangeToAdmin(me: Member, member: MemberWithUser) {
   switch (me.role) {
     case MemberRole.OWNER:
       return member.role !== MemberRole.ADMIN;
@@ -123,7 +121,7 @@ function canChangeToAdmin(me: Member, member: MemberWithUser) {
   }
 }
 
-function canChangeToMember(me: Member, member: MemberWithUser) {
+function checkCanChangeToMember(me: Member, member: MemberWithUser) {
   switch (me.role) {
     case MemberRole.OWNER:
       return member.role !== MemberRole.MEMBER;
