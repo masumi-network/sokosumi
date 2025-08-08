@@ -346,10 +346,10 @@
       "declinedDescription": "You've declined the invitation to join {organizationName}.",
       "goToHome": "Go to Home",
       "Actions": {
-        "accept": "Accept Invitation",
-        "decline": "Decline Invitation",
+        "accept": "Accept",
+        "decline": "Decline",
         "logout": "Logout",
-        "ignore": "Ignore Invitation",
+        "ignore": "Ignore",
         "emailMismatch": "You are not the invited user.",
         "WithoutSession": {
           "ifYouAlreadyHaveAnAccount": "If you already have an account, you can log in to your account and accept the invitation.",
