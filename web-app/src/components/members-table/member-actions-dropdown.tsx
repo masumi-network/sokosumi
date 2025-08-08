@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MemberRole, MemberWithUser } from "@/lib/db";
 import { cn } from "@/lib/utils";
+import { Member } from "@/prisma/generated/client";
 
 import {
   MemberAction,
@@ -17,11 +18,13 @@ import {
 } from "./member-actions-modal-context";
 
 interface MemberActionsDropdownProps {
+  me: Member;
   member: MemberWithUser;
   className?: string;
 }
 
 export default function MemberActionsDropdown({
+  me,
   member,
   className,
 }: MemberActionsDropdownProps) {
@@ -29,7 +32,9 @@ export default function MemberActionsDropdown({
 
   const { openActionModal } = useMemberActionsModalContext();
 
-  const { role } = member;
+  const handleChangeToOwner = () => {
+    openActionModal(member, MemberAction.CHANGE_TO_OWNER);
+  };
 
   const handleChangeToAdmin = () => {
     openActionModal(member, MemberAction.CHANGE_TO_ADMIN);
@@ -45,26 +50,86 @@ export default function MemberActionsDropdown({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
+      <DropdownMenuTrigger asChild disabled={!canDoAction(me, member)}>
         <Button variant="outline" size="icon" className={cn("p-2!", className)}>
           <Ellipsis />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start">
-        {role === MemberRole.MEMBER && (
+        {canChangeToOwner(me, member) && (
+          <DropdownMenuItem onClick={handleChangeToOwner}>
+            {t("changeToOwner")}
+          </DropdownMenuItem>
+        )}
+        {canChangeToAdmin(me, member) && (
           <DropdownMenuItem onClick={handleChangeToAdmin}>
             {t("changeToAdmin")}
           </DropdownMenuItem>
         )}
-        {role === MemberRole.ADMIN && (
+        {canChangeToMember(me, member) && (
           <DropdownMenuItem onClick={handleChangeToMember}>
             {t("changeToMember")}
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem variant="destructive" onClick={handleRemove}>
-          {t("remove")}
-        </DropdownMenuItem>
+        {canRemove(me, member) && (
+          <DropdownMenuItem variant="destructive" onClick={handleRemove}>
+            {t("remove")}
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
+}
+
+function canDoAction(me: Member, member: MemberWithUser) {
+  switch (me.role) {
+    case MemberRole.OWNER:
+      return true;
+    case MemberRole.ADMIN:
+      return member.role !== MemberRole.OWNER;
+    default:
+      return false;
+  }
+}
+
+function canRemove(me: Member, member: MemberWithUser) {
+  switch (me.role) {
+    case MemberRole.OWNER:
+      return true;
+    case MemberRole.ADMIN:
+      return member.role !== MemberRole.OWNER;
+    default:
+      return false;
+  }
+}
+
+function canChangeToOwner(me: Member, member: MemberWithUser) {
+  switch (me.role) {
+    case MemberRole.OWNER:
+      return member.role !== MemberRole.OWNER;
+    default:
+      return false;
+  }
+}
+
+function canChangeToAdmin(me: Member, member: MemberWithUser) {
+  switch (me.role) {
+    case MemberRole.OWNER:
+      return member.role !== MemberRole.ADMIN;
+    case MemberRole.ADMIN:
+      return member.role === MemberRole.MEMBER;
+    default:
+      return false;
+  }
+}
+
+function canChangeToMember(me: Member, member: MemberWithUser) {
+  switch (me.role) {
+    case MemberRole.OWNER:
+      return member.role !== MemberRole.MEMBER;
+    case MemberRole.ADMIN:
+      return member.role === MemberRole.ADMIN;
+    default:
+      return false;
+  }
 }
