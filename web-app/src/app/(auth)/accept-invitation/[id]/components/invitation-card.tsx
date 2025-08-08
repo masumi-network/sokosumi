@@ -14,7 +14,7 @@ import {
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InvitationWithRelations } from "@/lib/db";
-import { InvitationErrorCode } from "@/lib/services";
+import { PendingInvitationErrorCode } from "@/lib/services";
 
 import InvitationActions from "./invitation-actions";
 
@@ -45,11 +45,6 @@ export default function InvitationCard({
               <strong>{inviterEmail}</strong> {t("hasInvitedYouToJoin")}{" "}
               <strong>{organizationName}</strong>
             </p>
-            {user && (
-              <p>
-                {t("youAreAcceptingWith")} <strong>{user.email}</strong>
-              </p>
-            )}
           </div>
         )}
         {status === "accepted" && (
@@ -68,7 +63,9 @@ export default function InvitationCard({
               })}
             </p>
             <Button variant="outline" asChild className="w-full">
-              <Link href={`/app/organizations/${organizationSlug}`}>
+              <Link
+                href={`/organizations/${encodeURIComponent(organizationSlug)}`}
+              >
                 {t("goToOrganization")}
               </Link>
             </Button>
@@ -128,7 +125,7 @@ export function InvitationCardSkeleton() {
 export function InvitationErrorCard({
   errorCode,
 }: {
-  errorCode: InvitationErrorCode;
+  errorCode: PendingInvitationErrorCode;
 }) {
   const t = useTranslations(
     getTranslationPathForInvitationErrorCode(errorCode),
@@ -160,14 +157,14 @@ export function InvitationErrorCard({
 }
 
 function getTranslationPathForInvitationErrorCode(
-  errorCode: InvitationErrorCode,
+  errorCode: PendingInvitationErrorCode,
 ) {
   switch (errorCode) {
-    case InvitationErrorCode.NOT_FOUND:
+    case PendingInvitationErrorCode.NOT_FOUND:
       return "AcceptInvitation.InvitationErrorCard.NotFound";
-    case InvitationErrorCode.EXPIRED:
+    case PendingInvitationErrorCode.EXPIRED:
       return "AcceptInvitation.InvitationErrorCard.Expired";
-    case InvitationErrorCode.INVITER_NOT_FOUND:
+    case PendingInvitationErrorCode.INVITER_NOT_FOUND:
       return "AcceptInvitation.InvitationErrorCard.InviterNotFound";
   }
 }

@@ -3,7 +3,7 @@ import { getTranslations } from "next-intl/server";
 
 import { convertCentsToCredits } from "@/lib/db";
 import { creditTransactionRepository } from "@/lib/db/repositories";
-import { getActiveOrganization, stripeService } from "@/lib/services";
+import { stripeService } from "@/lib/services";
 import { userService } from "@/lib/services/user.service";
 
 import BuyCreditsButton from "./buy-credits-button";
@@ -25,7 +25,7 @@ export default async function UserCredits() {
   }
 
   // Check for active organization
-  const activeOrganization = await getActiveOrganization();
+  const activeOrganization = await userService.getActiveOrganization();
 
   // Get appropriate credits based on context
   let credits: number;

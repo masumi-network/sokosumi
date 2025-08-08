@@ -1,6 +1,6 @@
 import { Suspense } from "react";
 
-import { agentRepository } from "@/lib/db/repositories";
+import { agentRepository, organizationRepository } from "@/lib/db/repositories";
 
 import BreadcrumbNavigationClient from "./breadcrumb-navigation.client";
 import BreadcrumbNavigationSkeleton from "./breadcrumb-navigation.skeleton";
@@ -35,10 +35,13 @@ async function BreadcrumbNavigationInner({
   segmentLabels?: Record<string, string>;
 }) {
   const agents = await agentRepository.getAgentsWithRelations();
+  const organizations =
+    await organizationRepository.listOrganizationsWithLimitedInfo();
 
   return (
     <BreadcrumbNavigationClient
       agents={agents}
+      organizations={organizations}
       className={className}
       segmentLabels={segmentLabels}
     />

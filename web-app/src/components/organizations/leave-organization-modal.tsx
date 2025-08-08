@@ -1,6 +1,7 @@
 "use client";
 
 import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -15,8 +16,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useAsyncRouter } from "@/hooks/use-async-router";
-import { revalidateOrganizationsPath } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
 import { Organization } from "@/prisma/generated/client";
 
@@ -33,39 +32,33 @@ export function LeaveOrganizationModal({
 }: LeaveOrganizationModalProps) {
   const t = useTranslations("Components.Organizations.LeaveOrganizationModal");
   const [loading, setLoading] = useState(false);
-  const router = useAsyncRouter();
+  const router = useRouter();
 
   const handleLeaveOrganization = async () => {
     setLoading(true);
-    try {
-      // list organizations
-      const organizationsResult = await authClient.organization.list();
-      if (!organizationsResult.data) {
-        toast.error(t("Errors.notAuthenticated"));
-        await router.push("/login");
-        return;
+    const result = await authClient.organization.leave({
+      organizationId: organization.id,
+    });
+    if (result.error) {
+      const errorMessage = result.error.message ?? t("error");
+      if (result.error.status === 401) {
+        toast.error(errorMessage, {
+          action: {
+            label: t("Errors.unauthorizedAction"),
+            onClick: () => {
+              router.push(`/login`);
+            },
+          },
+        });
+      } else {
+        toast.error(errorMessage);
       }
-      const organizations = organizationsResult.data;
-      if (organizations.length < 2) {
-        toast.error(t("Errors.organizationsCountNotAllowed"));
-        return;
-      }
-
-      const result = await authClient.organization.leave({
-        organizationId: organization.id,
-      });
-      if (result.error) {
-        console.error("Error leaving organization", result.error);
-        toast.error(t("error"));
-        return;
-      }
-
-      await revalidateOrganizationsPath();
+    } else {
+      router.refresh();
       toast.success(t("success"));
       onOpenChange(false);
-    } finally {
-      setLoading(false);
     }
+    setLoading(false);
   };
 
   return (

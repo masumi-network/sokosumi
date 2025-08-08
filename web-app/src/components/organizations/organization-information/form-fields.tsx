@@ -17,23 +17,19 @@ import {
 import { Input } from "@/components/ui/input";
 import { FormData } from "@/lib/form";
 
-import RequiredEmailDomainsInput from "./required-email-domains-input";
-
-type OrganizationEditFormNamespace =
-  "Components.Organizations.EditInformationModal.Form";
+type OrganizationFormNamespace =
+  "Components.Organizations.InformationModal.Form";
 
 interface FormFieldsProps<T extends FieldValues> {
   form: UseFormReturn<T>;
-  formData: FormData<T, OrganizationEditFormNamespace>;
+  formData: FormData<T, OrganizationFormNamespace>;
 }
 
 export function FormFields<T extends FieldValues>({
   form,
   formData,
 }: FormFieldsProps<T>) {
-  const t = useTranslations(
-    "Components.Organizations.EditInformationModal.Form",
-  );
+  const t = useTranslations("Components.Organizations.InformationModal.Form");
 
   return (
     <div className="flex flex-col gap-4">
@@ -58,8 +54,8 @@ export function FormFields<T extends FieldValues>({
 
 interface FormInputProps<T extends FieldValues> {
   field: ControllerRenderProps<T, Path<T>>;
-  formDataItem: FormData<T, OrganizationEditFormNamespace>[number];
-  t: IntlTranslation<OrganizationEditFormNamespace>;
+  formDataItem: FormData<T, OrganizationFormNamespace>[number];
+  t: IntlTranslation<OrganizationFormNamespace>;
 }
 
 function FormInput<T extends FieldValues>({
@@ -67,21 +63,7 @@ function FormInput<T extends FieldValues>({
   formDataItem,
   t,
 }: FormInputProps<T>) {
-  const { type, labelKey, name, placeholderKey } = formDataItem;
-
-  if (name === "requiredEmailDomains") {
-    return (
-      <>
-        {labelKey && <p className="text-sm">{t(labelKey)}</p>}
-        <RequiredEmailDomainsInput
-          id={name.toString()}
-          domains={field.value}
-          onChange={field.onChange}
-          placeholder={placeholderKey && t(placeholderKey)}
-        />
-      </>
-    );
-  }
+  const { type, name, placeholderKey } = formDataItem;
 
   return (
     <Input

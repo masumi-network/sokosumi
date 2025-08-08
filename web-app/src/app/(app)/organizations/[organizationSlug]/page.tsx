@@ -7,11 +7,7 @@ import { OrganizationRoleBadge } from "@/components/organizations";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { MemberRole } from "@/lib/db";
 import { organizationRepository } from "@/lib/db/repositories";
-import {
-  getMyMemberInOrganization,
-  getOrganizationMembersWithUser,
-  getOrganizationPendingInvitations,
-} from "@/lib/services";
+import { organizationService, userService } from "@/lib/services";
 import { Invitation } from "@/prisma/generated/client";
 
 import OrganizationInformation from "./components/organization-information";
@@ -29,9 +25,11 @@ export async function generateMetadata({
   );
 
   const { organizationSlug } = await params;
+  const normalizedSlug = decodeURIComponent(organizationSlug);
+
   const organization =
     await organizationRepository.getOrganizationWithRelationsBySlug(
-      organizationSlug,
+      normalizedSlug,
     );
   if (!organization) {
     return notFound();
@@ -53,28 +51,34 @@ export default async function OrganizationPage({
 
   const t = await getTranslations("App.Organizations.OrganizationDetail");
   const { organizationSlug } = await params;
+  const normalizedSlug = decodeURIComponent(organizationSlug);
 
   const organization =
     await organizationRepository.getOrganizationWithRelationsBySlug(
-      organizationSlug,
+      normalizedSlug,
     );
   if (!organization) {
     return notFound();
   }
 
-  const member = await getMyMemberInOrganization(organization.id);
+  const member = await userService.getMyMemberInOrganization(organization.id);
   if (!member) {
     redirect("/organizations");
   }
 
-  const members = await getOrganizationMembersWithUser(organization.id, true);
+  const members = await organizationService.getOrganizationMembersWithUser(
+    organization.id,
+  );
 
+  const isOwnerOrAdmin =
+    member.role === MemberRole.OWNER || member.role === MemberRole.ADMIN;
   let pendingInvitations: Invitation[] = [];
-  if (member.role === MemberRole.ADMIN) {
+  if (isOwnerOrAdmin) {
     try {
-      pendingInvitations = await getOrganizationPendingInvitations(
-        organization.id,
-      );
+      pendingInvitations =
+        await organizationService.getOrganizationPendingInvitations(
+          organization.id,
+        );
     } catch (error) {
       console.error("Failed to get pending invitations", error);
     }
@@ -89,7 +93,7 @@ export default async function OrganizationPage({
       <OrganizationInformation organization={organization} member={member} />
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-light">{t("members")}</h1>
-        {member.role === MemberRole.ADMIN && (
+        {isOwnerOrAdmin && (
           <OrganizationInviteButton organizationId={organization.id} />
         )}
       </div>

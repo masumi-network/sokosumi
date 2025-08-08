@@ -5,11 +5,11 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { apiKey, organization } from "better-auth/plugins";
+import { localization } from "better-auth-localization";
 import { getTranslations } from "next-intl/server";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
-import { MemberRole } from "@/lib/db";
 import { prisma } from "@/lib/db/repositories";
 import { reactChangeEmailVerificationEmail } from "@/lib/email/change-email";
 import { reactInviteUserEmail } from "@/lib/email/invitation";
@@ -179,10 +179,18 @@ export const auth = betterAuth({
           }),
         });
       },
-      async invitationLimit({ member }) {
-        return member.role === MemberRole.ADMIN ? 100 : 0;
-      },
+      invitationLimit: getEnvSecrets().BETTER_AUTH_ORG_INVITATION_LIMIT,
       cancelPendingInvitationsOnReInvite: true,
+      allowUserToCreateOrganization(user) {
+        return user.emailVerified;
+      },
+      organizationLimit: getEnvSecrets().BETTER_AUTH_ORG_LIMIT,
+    }),
+    localization({
+      defaultLocale: "default",
+      // TODO:
+      // implement dynamic localization
+      // by using `getLocale` function
     }),
     nextCookies(),
   ],

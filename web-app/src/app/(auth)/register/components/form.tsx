@@ -5,27 +5,21 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { usePlausible } from "next-plausible";
-import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { signUpFormData } from "@/auth/register/data";
-import { AuthErrorCode, CommonErrorCode, signUpEmail } from "@/lib/actions";
-import { OrganizationWithRelations } from "@/lib/db";
+import { AuthErrorCode, signUpEmail } from "@/lib/actions";
+import { FormData } from "@/lib/form";
 import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
 
 interface SignUpFormProps {
   prefilledEmail?: string | undefined;
-  prefilledOrganization?: OrganizationWithRelations | null;
   invitationId?: string | undefined;
 }
 
-export default function SignUpForm({
-  prefilledEmail,
-  prefilledOrganization,
-  invitationId,
-}: SignUpFormProps) {
+export default function SignUpForm({ prefilledEmail }: SignUpFormProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form");
 
   const router = useRouter();
@@ -39,83 +33,52 @@ export default function SignUpForm({
       name: "",
       password: "",
       confirmPassword: "",
-      selectedOrganization: prefilledOrganization ?? undefined,
       termsAccepted: false,
       marketingOptIn: false,
     },
   });
 
-  const email = form.watch("email");
-  useEffect(() => {
-    if (prefilledOrganization) {
-      form.setValue("selectedOrganization", { id: prefilledOrganization.id });
-      return;
-    }
-    form.setValue("selectedOrganization", {
-      name: "",
-    });
-  }, [email, form, prefilledOrganization]);
-
   const handleSubmit = async (values: SignUpFormSchemaType) => {
-    const result = await signUpEmail(
-      {
-        email: values.email,
-        name: values.name,
-        password: values.password,
-        confirmPassword: values.confirmPassword,
-        termsAccepted: values.termsAccepted,
-        marketingOptIn: values.marketingOptIn,
-        selectedOrganization: values.selectedOrganization,
-      },
-      invitationId,
-    );
+    const result = await signUpEmail({
+      email: values.email,
+      name: values.name,
+      password: values.password,
+      confirmPassword: values.confirmPassword,
+      termsAccepted: values.termsAccepted,
+      marketingOptIn: values.marketingOptIn,
+    });
 
     if (result.ok) {
-      plausible("Signup", { callback: () => router.push("/login") });
+      plausible("Signup");
       toast.success(t("success"));
+      router.push("/login");
     } else {
       switch (result.error.code) {
-        case CommonErrorCode.BAD_INPUT:
-          toast.error(t("Errors.badInput"));
-          break;
-        case AuthErrorCode.ORGANIZATION_NOT_FOUND:
-          toast.error(t("Errors.organizationNotFound"));
-          break;
-        case AuthErrorCode.ORGANIZATION_CREATE_FAILED:
-          toast.error(t("Errors.organizationCreateFailed"));
-          break;
-        case AuthErrorCode.EMAIL_DOMAIN_INVALID:
-          toast.error(t("Errors.emailDomainInvalid"));
-          break;
-        case AuthErrorCode.EMAIL_NOT_ALLOWED_BY_ORGANIZATION:
-          toast.error(t("Errors.emailNotAllowedByOrganization"));
-          break;
-        case AuthErrorCode.INVITATION_NOT_FOUND:
-          toast.error(t("Errors.invitationNotFound"));
-          break;
-        case AuthErrorCode.MEMBER_CREATE_FAILED:
-          toast.error(t("Errors.memberCreateFailed"));
-          break;
-        case AuthErrorCode.USER_ALREADY_EXISTS:
-          toast.error(t("Errors.userExists"));
+        case AuthErrorCode.EMAIL_DOMAIN_NOT_ALLOWED:
+          toast.error(t("Errors.emailDomainNotAllowed"));
           break;
         case AuthErrorCode.TERMS_NOT_ACCEPTED:
           toast.error(t("Errors.termsNotAccepted"));
           break;
         default:
-          toast.error(t("error"));
+          toast.error(result.error.message ?? t("error"));
           break;
       }
     }
   };
 
   const termsAccepted = form.watch("termsAccepted");
+  const formData: FormData<SignUpFormSchemaType, "Auth.Pages.SignUp.Form"> =
+    signUpFormData.map((item) =>
+      item.name === "email" && prefilledEmail
+        ? { ...item, disabled: true }
+        : item,
+    );
 
   return (
     <AuthForm
       form={form}
-      formData={signUpFormData}
-      prefilledOrganization={prefilledOrganization}
+      formData={formData}
       namespace="Auth.Pages.SignUp.Form"
       onSubmit={handleSubmit}
     >

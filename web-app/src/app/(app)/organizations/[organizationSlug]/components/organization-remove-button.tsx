@@ -1,23 +1,23 @@
 "use client";
 
-import { Pencil } from "lucide-react";
+import { Trash } from "lucide-react";
 import { useTranslations } from "next-intl";
 
-import { OrganizationInformationModal } from "@/components/organizations";
+import { OrganizationRemoveModal } from "@/components/organizations";
 import { Button } from "@/components/ui/button";
 import useModal from "@/hooks/use-modal";
 import { Organization } from "@/prisma/generated/client";
 
-interface OrganizationEditButtonProps {
+interface OrganizationRemoveButtonProps {
   organization: Organization;
 }
 
-export default function OrganizationEditButton({
+export default function OrganizationRemoveButton({
   organization,
-}: OrganizationEditButtonProps) {
+}: OrganizationRemoveButtonProps) {
   const t = useTranslations("App.Organizations.OrganizationDetail");
   const { Component, showModal } = useModal(({ open, onOpenChange }) => (
-    <OrganizationInformationModal
+    <OrganizationRemoveModal
       open={open}
       onOpenChange={onOpenChange}
       organization={organization}
@@ -27,9 +27,9 @@ export default function OrganizationEditButton({
   return (
     <>
       {Component}
-      <Button onClick={showModal}>
-        <Pencil size={16} />
-        {t("edit")}
+      <Button variant="destructive" onClick={showModal}>
+        <Trash size={16} />
+        {t("delete")}
       </Button>
     </>
   );

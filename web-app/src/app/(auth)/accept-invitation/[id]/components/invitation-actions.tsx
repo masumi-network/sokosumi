@@ -3,6 +3,7 @@
 import { User } from "better-auth";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -10,12 +11,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAsyncRouter } from "@/hooks/use-async-router";
-import {
-  acceptInvitation,
-  InvitationErrorCode,
-  rejectInvitation,
-} from "@/lib/actions";
+import { authClient } from "@/lib/auth/auth.client";
 import { InvitationWithRelations } from "@/lib/db";
 
 interface InvitationActionsProps {
@@ -28,12 +24,15 @@ export default function InvitationActions({
   user,
 }: InvitationActionsProps) {
   const t = useTranslations("AcceptInvitation.InvitationCard.Actions");
+
   const { id, email, organization } = invitation;
   const { id: organizationId, slug: organizationSlug } = organization;
 
-  const router = useAsyncRouter();
+  const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [action, setAction] = useState<"accept" | "reject" | null>(null);
+  const [action, setAction] = useState<"accept" | "reject" | "logout" | null>(
+    null,
+  );
 
   const [loginSearchParamsString, setLoginSearchParamsString] = useState<
     string | null
@@ -51,8 +50,6 @@ export default function InvitationActions({
 
     const registerSearchParams = new URLSearchParams();
     registerSearchParams.set("email", email);
-    registerSearchParams.set("organizationId", organizationId);
-    registerSearchParams.set("invitationId", id);
     setRegisterSearchParamsString(registerSearchParams.toString());
   }, [email, organizationId, id]);
 
@@ -60,88 +57,114 @@ export default function InvitationActions({
     if (loading) {
       return;
     }
-    try {
-      setLoading(true);
-      setAction("accept");
-      const result = await acceptInvitation(id);
+    setLoading(true);
+    setAction("accept");
+    const result = await authClient.organization.acceptInvitation({
+      invitationId: id,
+    });
 
-      if (result.ok) {
-        toast.success(t("Accept.success"));
-        await router.push(`/organizations/${organizationSlug}`);
+    if (result.error) {
+      const errorMessage = result.error.message ?? t("Error.accept");
+      if (result.error.status === 401) {
+        toast.error(errorMessage, {
+          action: {
+            label: t("Errors.unauthorizedAction"),
+            onClick: async () => {
+              router.push("/login");
+            },
+          },
+        });
       } else {
-        switch (result.error.code) {
-          case InvitationErrorCode.INVITATION_NOT_FOUND:
-            toast.error(t("Accept.Errors.invitationNotFound"));
-            break;
-          case InvitationErrorCode.INVITER_NOT_FOUND:
-            toast.error(t("Accept.Errors.inviterNotFound"));
-            break;
-          case InvitationErrorCode.ALREADY_MEMBER:
-            toast.error(t("Accept.Errors.alreadyMember"), {
-              action: {
-                label: t("Accept.Errors.alreadyMemberAction"),
-                onClick: () =>
-                  router.push(`/organizations/${organizationSlug}`),
-              },
-            });
-            break;
-          default:
-            toast.error(t("Accept.error"));
-        }
+        toast.error(errorMessage);
       }
-    } finally {
-      setLoading(false);
-      setAction(null);
+    } else {
+      toast.success(t("Success.accept"));
+      router.push(`/organizations/${organizationSlug}`);
     }
+    setLoading(false);
+    setAction(null);
   };
 
   const handleReject = async () => {
     if (loading) {
       return;
     }
-    try {
-      setLoading(true);
-      setAction("reject");
-      const result = await rejectInvitation(id);
+    setLoading(true);
+    setAction("reject");
+    const result = await authClient.organization.rejectInvitation({
+      invitationId: id,
+    });
 
-      if (result.ok) {
-        toast.success(t("Decline.success"));
-        await router.push("/organizations");
+    if (result.error) {
+      const errorMessage = result.error.message ?? t("Error.decline");
+      if (result.error.status === 401) {
+        toast.error(errorMessage, {
+          action: {
+            label: t("Errors.unauthorizedAction"),
+            onClick: async () => {
+              router.push("/login");
+            },
+          },
+        });
       } else {
-        switch (result.error.code) {
-          case InvitationErrorCode.INVITATION_NOT_FOUND:
-            toast.error(t("Decline.Errors.invitationNotFound"));
-            break;
-          case InvitationErrorCode.INVITER_NOT_FOUND:
-            toast.error(t("Decline.Errors.inviterNotFound"));
-            break;
-          default:
-            toast.error(t("Decline.error"));
-        }
+        toast.error(errorMessage);
       }
-    } finally {
-      setLoading(false);
-      setAction(null);
+    } else {
+      toast.success(t("Success.decline"));
+      router.push("/organizations");
     }
+
+    setLoading(false);
+    setAction(null);
+  };
+
+  const handleLogout = async () => {
+    setLoading(true);
+    setAction("logout");
+    await authClient.signOut();
+    router.push("/login");
+    setLoading(false);
+    setAction(null);
+  };
+
+  const handleIgnore = async () => {
+    router.push("/organizations");
   };
 
   if (user) {
-    return (
-      <CardFooter className="flex justify-between">
-        <Button variant="outline" onClick={handleReject} disabled={loading}>
-          {loading && action === "reject" && (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          )}
-          {t("decline")}
-        </Button>
-        <Button onClick={handleAccept} disabled={loading}>
-          {loading && action === "accept" && (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          )}
-          {t("accept")}
-        </Button>
-      </CardFooter>
-    );
+    if (user.email === email) {
+      return (
+        <CardFooter className="flex justify-between gap-2 sm:gap-4">
+          <Button variant="outline" onClick={handleReject} disabled={loading}>
+            {loading && action === "reject" && (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            )}
+            {t("decline")}
+          </Button>
+          <Button onClick={handleAccept} disabled={loading}>
+            {loading && action === "accept" && (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            )}
+            {t("accept")}
+          </Button>
+        </CardFooter>
+      );
+    } else {
+      return (
+        <CardFooter className="flex flex-col gap-4">
+          <p>{t("emailMismatch")}</p>
+          <div className="flex justify-between gap-2 sm:gap-4">
+            <Button variant="outline" onClick={handleLogout}>
+              {loading && action === "logout" && (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              )}
+              {t("logout")}
+            </Button>
+            <Button onClick={handleIgnore}>{t("ignore")}</Button>
+          </div>
+        </CardFooter>
+      );
+    }
   }
 
   return (

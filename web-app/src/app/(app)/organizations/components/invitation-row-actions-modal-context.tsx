@@ -6,11 +6,8 @@ import { ReactNode } from "react";
 import { toast } from "sonner";
 
 import { createModalContext } from "@/components/common/modal-context";
-import {
-  acceptInvitation,
-  InvitationErrorCode,
-  rejectInvitation,
-} from "@/lib/actions";
+import { BetterAuthClientError, BetterAuthClientResult } from "@/lib/actions";
+import { authClient } from "@/lib/auth/auth.client";
 import { InvitationWithRelations } from "@/lib/db";
 
 export enum InvitationRowAction {
@@ -34,15 +31,17 @@ export function InvitationRowActionsModalContextProvider({
   async function onAction(
     invitation: InvitationWithRelations,
     action: InvitationRowAction,
-  ): Promise<{ error?: unknown }> {
+  ): Promise<BetterAuthClientResult<unknown>> {
     switch (action) {
       case InvitationRowAction.ACCEPT: {
-        const result = await acceptInvitation(invitation.id);
-        return { error: result.ok ? undefined : result.error };
+        return await authClient.organization.acceptInvitation({
+          invitationId: invitation.id,
+        });
       }
       case InvitationRowAction.REJECT: {
-        const result = await rejectInvitation(invitation.id);
-        return { error: result.ok ? undefined : result.error };
+        return await authClient.organization.rejectInvitation({
+          invitationId: invitation.id,
+        });
       }
     }
   }
@@ -59,38 +58,25 @@ export function InvitationRowActionsModalContextProvider({
     router.refresh();
   }
 
-  function onError(action: InvitationRowAction, error: unknown) {
+  function onError(action: InvitationRowAction, error: BetterAuthClientError) {
     console.error(`Failed to "${action}" invitation`, error);
 
-    if (
-      typeof error === "object" &&
-      error &&
-      "code" in error &&
-      typeof error.code === "string"
-    ) {
-      switch (error.code) {
-        case InvitationErrorCode.INVITATION_NOT_FOUND:
-          toast.error(t("Errors.invitationNotFound"));
-          break;
-        case InvitationErrorCode.INVITER_NOT_FOUND:
-          toast.error(t("Errors.inviterNotFound"));
-          break;
-        case InvitationErrorCode.ALREADY_MEMBER:
-          toast.error(t("Errors.alreadyMember"));
-          break;
-        default:
-          toast.error(
-            action === InvitationRowAction.ACCEPT
-              ? t("acceptError")
-              : t("rejectError"),
-          );
-      }
+    const errorMessage =
+      error.message ??
+      (action === InvitationRowAction.ACCEPT
+        ? t("acceptError")
+        : t("rejectError"));
+    if (error.status === 401) {
+      toast.error(errorMessage, {
+        action: {
+          label: t("Errors.unauthorizedAction"),
+          onClick: async () => {
+            router.push("/login");
+          },
+        },
+      });
     } else {
-      toast.error(
-        action === InvitationRowAction.ACCEPT
-          ? t("acceptError")
-          : t("rejectError"),
-      );
+      toast.error(errorMessage);
     }
   }
 

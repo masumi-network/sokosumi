@@ -9,19 +9,9 @@ import {
   CommonErrorCode,
 } from "@/lib/actions";
 import { auth } from "@/lib/auth/auth";
-import { MemberRole } from "@/lib/db";
-import {
-  invitationRepository,
-  memberRepository,
-  organizationRepository,
-  prisma,
-} from "@/lib/db/repositories";
 import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
-import { generateOrganizationSlugFromName } from "@/lib/services";
 import { utmService } from "@/lib/services/utm.service";
 import { Err, Ok, Result } from "@/lib/ts-res";
-import { getEmailDomain, removePublicDomains } from "@/lib/utils";
-import { Member, Organization } from "@/prisma/generated/client";
 
 export async function signInSocial(
   provider: "google" | "microsoft" | "apple" | "linkedin",
@@ -36,7 +26,6 @@ export async function signInSocial(
   } catch (error) {
     console.error("Error signing in with social provider", error);
     return Err({
-      message: "Internal server error",
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,
     });
   }
@@ -44,174 +33,47 @@ export async function signInSocial(
 
 export async function signUpEmail(
   data: SignUpFormSchemaType,
-  invitationId?: string | undefined,
-): Promise<
-  Result<
-    { organization: Organization; member: Member; user: User },
-    ActionError
-  >
-> {
+): Promise<Result<User, ActionError>> {
   let actionError: ActionError = {
     code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-    message: "Internal server error",
   };
 
   try {
     const parsedResult = signUpFormSchema().safeParse(data);
     if (!parsedResult.success) {
       return Err({
-        message: "Bad Input",
         code: CommonErrorCode.BAD_INPUT,
       });
     }
     const parsed = parsedResult.data;
 
-    const result = await prisma.$transaction(async (tx) => {
-      // organization check
-      let organization: Organization;
-      let organizationCreated: boolean = false;
-      if (!!parsed.selectedOrganization.id) {
-        const retrievedOrganization =
-          await organizationRepository.getOrganizationWithRelationsById(
-            parsed.selectedOrganization.id,
-            tx,
-          );
-        if (!retrievedOrganization) {
-          actionError = {
-            code: AuthErrorCode.ORGANIZATION_NOT_FOUND,
-            message: "Organization not found",
-          };
-          throw new Error("Organization not found");
-        }
-        organization = retrievedOrganization;
-      } else if (!!parsed.selectedOrganization.name) {
-        const emailDomain = getEmailDomain(parsed.email);
-        if (!emailDomain) {
-          actionError = {
-            code: AuthErrorCode.EMAIL_DOMAIN_INVALID,
-            message: "Email domain is invalid",
-          };
-          throw new Error("Email domain is invalid");
-        }
-        const requiredEmailDomains = removePublicDomains([emailDomain]);
-        const slug = await generateOrganizationSlugFromName(
-          parsed.selectedOrganization.name,
-        );
-
-        const createdOrganization =
-          await organizationRepository.createOrganization(
-            slug,
-            parsed.selectedOrganization.name,
-            requiredEmailDomains,
-            tx,
-          );
-        if (!createdOrganization) {
-          actionError = {
-            code: AuthErrorCode.ORGANIZATION_CREATE_FAILED,
-            message: "Organization creation failed",
-          };
-          throw new Error("Organization creation failed");
-        }
-        organization = createdOrganization;
-        organizationCreated = true;
-      } else {
-        actionError = {
-          code: CommonErrorCode.BAD_INPUT,
-          message: "Bad Input",
-        };
-        throw new Error("Bad Input");
-      }
-
-      // check user can join organization
-      // whether his email domain is allowed by organization
-      // or invited to organization
-      const userEmailDomain = getEmailDomain(parsed.email);
-      const isUserEmailAllowed =
-        organizationCreated ||
-        (userEmailDomain &&
-          organization.requiredEmailDomains.includes(userEmailDomain));
-
-      const invitation = invitationId
-        ? await invitationRepository.getValidPendingInvitationById(
-            invitationId,
-            tx,
-          )
-        : undefined;
-      const isValidInvitationUsed =
-        invitation && invitation.organizationId === organization.id;
-
-      if (!isUserEmailAllowed && !isValidInvitationUsed) {
-        if (invitationId) {
-          actionError = {
-            code: AuthErrorCode.INVITATION_NOT_FOUND,
-            message: "Invitation not found",
-          };
-          throw new Error("Invitation not found");
-        } else {
-          actionError = {
-            code: AuthErrorCode.EMAIL_NOT_ALLOWED_BY_ORGANIZATION,
-            message: "Email not allowed by organization",
-          };
-          throw new Error("Email not allowed by organization");
-        }
-      }
-
-      if (invitation) {
-        await invitationRepository.acceptPendingInvitationById(
-          invitation.id,
-          tx,
-        );
-      }
-
-      const signUpResult = await auth.api.signUpEmail({
-        body: {
-          email: parsed.email,
-          name: parsed.name,
-          password: parsed.password,
-          callbackURL: "/",
-          termsAccepted: parsed.termsAccepted,
-        },
-      });
-      const user = signUpResult.user;
-      if (!user) {
-        console.error("Sign up email returned no user");
-        actionError = {
-          code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-          message: "Internal server error",
-        };
-        throw new Error("Internal server error");
-      }
-
-      // check if organization has any members
-      // if there are no members, the create as ADMIN
-      actionError = {
-        code: AuthErrorCode.MEMBER_CREATE_FAILED,
-        message: "Member creation failed",
-      };
-      const members = await memberRepository.getMembersByOrganizationId(
-        organization.id,
-        tx,
-      );
-      const role = members.length === 0 ? MemberRole.ADMIN : MemberRole.MEMBER;
-      const member = await memberRepository.createMember(
-        user.id,
-        organization.id,
-        role,
-        tx,
-      );
-
-      return { organization, user, member };
+    const signUpResult = await auth.api.signUpEmail({
+      body: {
+        email: parsed.email,
+        name: parsed.name,
+        password: parsed.password,
+        callbackURL: "/",
+        termsAccepted: parsed.termsAccepted,
+      },
     });
+    const user = signUpResult.user;
+    if (!user) {
+      console.error("Sign up email returned no user");
+      actionError = {
+        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+      };
+      throw new Error("Internal server error");
+    }
 
     // create utm attribution (after main db transaction is committed)
     // without throwing error if it fails
     try {
-      await utmService.handleUTMConversion(result.user.id);
+      await utmService.handleUTMConversion(user.id);
     } catch (error) {
       console.error("Failed to create utm attribution", error);
     }
 
-    return Ok(result);
+    return Ok(user);
   } catch (error) {
     console.error("Failed to sign up email", error);
 
@@ -219,12 +81,21 @@ export async function signUpEmail(
       betterAuthApiErrorSchema.safeParse(error);
     if (parsedBetterAuthApiErrorResult.success) {
       switch (parsedBetterAuthApiErrorResult.data.body.code) {
-        case AuthErrorCode.USER_ALREADY_EXISTS:
+        case AuthErrorCode.EMAIL_DOMAIN_NOT_ALLOWED:
           actionError = {
-            code: AuthErrorCode.USER_ALREADY_EXISTS,
-            message: "User already exists",
+            code: AuthErrorCode.EMAIL_DOMAIN_NOT_ALLOWED,
           };
           break;
+        case AuthErrorCode.TERMS_NOT_ACCEPTED:
+          actionError = {
+            code: AuthErrorCode.TERMS_NOT_ACCEPTED,
+          };
+          break;
+        default:
+          actionError = {
+            code: parsedBetterAuthApiErrorResult.data.body.code,
+            message: parsedBetterAuthApiErrorResult.data.body.message,
+          };
       }
     }
     return Err(actionError);
