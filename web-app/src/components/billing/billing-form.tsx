@@ -41,25 +41,21 @@ const billingFormSchema = z
     credits: z.number().optional(),
     coupon: z.string().optional(),
   })
-  .refine(
-    (data) => {
-      const hasValidCredits = data.credits != null && data.credits > 0;
-      const hasValidCoupon =
-        data.coupon != null && data.coupon.trim().length > 0;
-      return hasValidCredits || hasValidCoupon;
-    },
-    (data) => {
-      // Show error on the field that makes more sense contextually
-      const hasCreditsAttempt = data.credits != null;
-      const hasCouponAttempt =
-        data.coupon != null && data.coupon.trim().length > 0;
+  .superRefine((data, ctx) => {
+    const hasValidCredits = data.credits != null && data.credits > 0;
+    const hasValidCoupon = data.coupon != null && data.coupon.trim().length > 0;
+    if (hasValidCredits || hasValidCoupon) return;
 
-      return {
-        message: "Please enter either a credit amount or a coupon code",
-        path: hasCreditsAttempt && !hasCouponAttempt ? ["credits"] : ["coupon"],
-      };
-    },
-  );
+    const hasCreditsAttempt = data.credits != null;
+    const hasCouponAttempt =
+      data.coupon != null && data.coupon.trim().length > 0;
+
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message: "Please enter either a credit amount or a coupon code",
+      path: hasCreditsAttempt && !hasCouponAttempt ? ["credits"] : ["coupon"],
+    });
+  });
 
 type BillingFormData = z.infer<typeof billingFormSchema>;
 

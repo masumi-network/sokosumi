@@ -57,6 +57,7 @@ export const selectedOrganizationSchema = (
           minimum: 2,
           type: "string",
           inclusive: true,
+          origin: "string",
           message: t?.("Organization.min"),
         });
       } else if (value.name && value.name.length > 50) {
@@ -65,6 +66,7 @@ export const selectedOrganizationSchema = (
           maximum: 50,
           type: "string",
           inclusive: true,
+          origin: "string",
           message: t?.("Organization.max"),
         });
       }

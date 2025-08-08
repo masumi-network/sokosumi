@@ -20,7 +20,7 @@ export const jobInputsFormSchema = (
   );
 };
 
-export type JobInputsFormSchemaType = z.infer<
+export type JobInputsFormSchemaType = z.output<
   ReturnType<typeof jobInputsFormSchema>
 >;
 

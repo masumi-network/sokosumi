@@ -30,7 +30,11 @@ import {
 import { isOptional, isSingleOption } from "./util";
 
 interface JobInputProps {
-  form: UseFormReturn<JobInputsFormSchemaType>;
+  form: UseFormReturn<
+    Record<string, unknown>,
+    unknown,
+    JobInputsFormSchemaType
+  >;
   jobInputSchema: JobInputSchemaType;
 }
 
@@ -62,7 +66,7 @@ export default function JobInput({ form, jobInputSchema }: JobInputProps) {
 interface InputFieldProps {
   id: string;
   jobInputSchema: JobInputSchemaType;
-  field: ControllerRenderProps<JobInputsFormSchemaType>;
+  field: ControllerRenderProps<Record<string, unknown>>;
 }
 
 function InputField({ id, field, jobInputSchema }: InputFieldProps) {

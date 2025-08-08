@@ -1,5 +1,5 @@
 import { MessageKeys, NestedKeyOf, NestedValueOf } from "next-intl";
-import { z, ZodSchema } from "zod";
+import { z, type ZodSchema } from "zod";
 
 type EndsWithFormString<T extends string> = T extends `${infer _Key}.Form`
   ? T

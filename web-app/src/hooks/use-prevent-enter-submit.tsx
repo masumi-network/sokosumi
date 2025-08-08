@@ -1,9 +1,12 @@
 import React, { useCallback, useEffect, useRef } from "react";
 import { FieldValues, SubmitHandler, UseFormReturn } from "react-hook-form";
 
-export default function usePreventEnterSubmit<T extends FieldValues>(
-  form: UseFormReturn<T>,
-  handleSubmit: SubmitHandler<T>,
+export default function usePreventEnterSubmit<
+  TFieldValues extends FieldValues,
+  TOutput extends FieldValues = TFieldValues,
+>(
+  form: UseFormReturn<TFieldValues, unknown, TOutput>,
+  handleSubmit: SubmitHandler<TOutput>,
   isActive: boolean,
 ) {
   const preventEnterSubmit = useRef(false);

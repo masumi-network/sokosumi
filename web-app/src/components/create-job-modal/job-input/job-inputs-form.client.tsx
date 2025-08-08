@@ -7,6 +7,7 @@ import { useTranslations } from "next-intl";
 import React from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { toast } from "sonner";
+import { z } from "zod";
 
 import { useCreateJobModalContext } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";
@@ -60,8 +61,13 @@ export default function JobInputsFormClient({
   const t = useTranslations("Library.JobInput.Form");
   const tDuration = useTranslations("Library.Duration.Short");
 
-  const form = useForm<JobInputsFormSchemaType>({
-    resolver: zodResolver(jobInputsFormSchema(input_data, t)),
+  const schema = jobInputsFormSchema(input_data, t);
+  const form = useForm<
+    z.input<typeof schema>,
+    unknown,
+    JobInputsFormSchemaType
+  >({
+    resolver: zodResolver(schema),
     defaultValues: defaultValues(input_data),
     mode: "onChange",
   });
@@ -120,7 +126,11 @@ export default function JobInputsFormClient({
   };
 
   const { formRef, handleSubmit: enterPreventedHandleSubmit } =
-    usePreventEnterSubmit(form, handleSubmit, open);
+    usePreventEnterSubmit<z.input<typeof schema>, JobInputsFormSchemaType>(
+      form,
+      handleSubmit,
+      open,
+    );
 
   const handleClear = () => {
     form.reset();

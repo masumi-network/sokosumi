@@ -2,7 +2,7 @@ import "server-only";
 
 /* eslint-disable no-restricted-properties */
 import { v4 as uuidv4 } from "uuid";
-import z from "zod";
+import { z } from "zod";
 
 /**
  * Specify your environment variables schema here.
@@ -16,7 +16,7 @@ const envSecretsSchema = z.object({
 
   // Database
   DATABASE_URL: z.string().url(),
-  MIN_FEE_CREDITS: z.number({ coerce: true }).min(0).default(1),
+  MIN_FEE_CREDITS: z.coerce.number().min(0).default(1),
   ALLOWED_EMAIL_DOMAINS: z
     .string()
     .default("")
@@ -78,28 +78,28 @@ const envSecretsSchema = z.object({
   BETTER_AUTH_URL: z.string().url().default("http://localhost:3000"),
   BETTER_AUTH_SECRET: z.string().min(1),
   BETTER_AUTH_TRUSTED_ORIGIN: z.string().url().default("http://localhost:3000"),
-  BETTER_AUTH_SESSION_EXPIRES_IN: z
-    .number({ coerce: true })
+  BETTER_AUTH_SESSION_EXPIRES_IN: z.coerce
+    .number()
     .min(1)
     .default(60 * 60 * 24 * 7), // 7 days
-  BETTER_AUTH_SESSION_UPDATE_AGE: z
-    .number({ coerce: true })
+  BETTER_AUTH_SESSION_UPDATE_AGE: z.coerce
+    .number()
     .min(1)
     .default(60 * 60 * 24), // 1 day
-  BETTER_AUTH_SESSION_FRESH_AGE: z
-    .number({ coerce: true })
+  BETTER_AUTH_SESSION_FRESH_AGE: z.coerce
+    .number()
     .min(1)
     .default(60 * 5), // 5 minutes
-  BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE: z
-    .number({ coerce: true })
+  BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE: z.coerce
+    .number()
     .min(0)
     .default(60 * 5), // 5 minutes
-  LOCK_TIMEOUT: z
-    .number({ coerce: true })
+  LOCK_TIMEOUT: z.coerce
+    .number()
     .min(1 * 60 * 1000)
     .default(2 * 60 * 1000), // 2 minutes
-  LOCK_TIMEOUT_BUFFER: z
-    .number({ coerce: true })
+  LOCK_TIMEOUT_BUFFER: z.coerce
+    .number()
     .min(1000)
     .default(1000 * 25), // 25 seconds
   INSTANCE_ID: z.string().min(1).default(uuidv4()),
@@ -110,9 +110,9 @@ const envSecretsSchema = z.object({
   REGISTRY_API_KEY: z.string().min(1),
   BLACKLISTED_AGENT_HOSTNAMES: z
     .string()
-    .transform((val) => val.split(","))
+    .transform((val) => (val.trim() === "" ? [] : val.split(",")))
     .pipe(z.array(z.string()))
-    .default(""),
+    .default([]),
 
   // ably keys
   ABLY_AGENT_JOBS_SUBSCRIBE_ONLY_KEY: z.string().min(1),
