@@ -134,7 +134,7 @@ export default function InvitationActions({
   if (user) {
     if (user.email === email) {
       return (
-        <CardFooter className="flex justify-between">
+        <CardFooter className="flex justify-between gap-2 sm:gap-4">
           <Button variant="outline" onClick={handleReject} disabled={loading}>
             {loading && action === "reject" && (
               <Loader2 className="h-4 w-4 animate-spin" />
@@ -153,7 +153,7 @@ export default function InvitationActions({
       return (
         <CardFooter className="flex flex-col gap-4">
           <p>{t("emailMismatch")}</p>
-          <div className="flex justify-between">
+          <div className="flex justify-between gap-2 sm:gap-4">
             <Button variant="outline" onClick={handleLogout}>
               {loading && action === "logout" && (
                 <Loader2 className="h-4 w-4 animate-spin" />
