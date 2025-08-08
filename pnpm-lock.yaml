@@ -168,8 +168,8 @@ importers:
         specifier: 2.0.0
         version: 2.0.0
       lucide-react:
-        specifier: 0.536.0
-        version: 0.536.0(react@19.1.1)
+        specifier: 0.537.0
+        version: 0.537.0(react@19.1.1)
       markdown-to-jsx:
         specifier: 7.7.13
         version: 7.7.13(react@19.1.1)
@@ -234,8 +234,8 @@ importers:
         specifier: 2.15.4
         version: 2.15.4(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       resend:
-        specifier: 5.0.0
-        version: 5.0.0(@react-email/render@1.2.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1))
+        specifier: 6.0.0
+        version: 6.0.0(@react-email/render@1.2.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1))
       server-only:
         specifier: ^0.0.1
         version: 0.0.1
@@ -4893,8 +4893,8 @@ packages:
   lru-cache@5.1.1:
     resolution: {integrity: sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==}
 
-  lucide-react@0.536.0:
-    resolution: {integrity: sha512-2PgvNa9v+qz4Jt/ni8vPLt4jwoFybXHuubQT8fv4iCW5TjDxkbZjNZZHa485ad73NSEn/jdsEtU57eE1g+ma8A==}
+  lucide-react@0.537.0:
+    resolution: {integrity: sha512-VxWsdxBGeFnlC+HwMg/l08HptN4YRU9o/lRog156jOmRxI1ERKqN+rJiNY/mPcKAdWdM0UbyO8ft1o0jq69SSQ==}
     peerDependencies:
       react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
 
@@ -5704,8 +5704,8 @@ packages:
     resolution: {integrity: sha512-gAZ+kLqBdHarXB64XpAe2VCjB7rIRv+mU8tfRWziHRJ5umKsIHN2tLLv6EtMw7WCdP19S0ERVMldNvxYCHnhSQ==}
     engines: {node: '>=8.6.0'}
 
-  resend@5.0.0:
-    resolution: {integrity: sha512-LhYs1lzpV+jrgEuLdXSehe+xOrdwHWvjdxzdvIcAzMW3qW5Fqz0nS4k+xXgUH7dR3ihzB3NutzoPkGZedwYBlQ==}
+  resend@6.0.0:
+    resolution: {integrity: sha512-YOqhUbdrAvlC+mAV0Ga7qD8jG+fJTvrYVaIpr5Dgs+557RnC5p/6V3me5fQFK3bEpbBA9Gz3SRf6uG+fZriqUw==}
     engines: {node: '>=18'}
     peerDependencies:
       '@react-email/render': ^1.1.0
@@ -11651,7 +11651,7 @@ snapshots:
     dependencies:
       yallist: 3.1.1
 
-  lucide-react@0.536.0(react@19.1.1):
+  lucide-react@0.537.0(react@19.1.1):
     dependencies:
       react: 19.1.1
 
@@ -12410,7 +12410,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  resend@5.0.0(@react-email/render@1.2.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)):
+  resend@6.0.0(@react-email/render@1.2.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)):
     optionalDependencies:
       '@react-email/render': 1.2.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
 
