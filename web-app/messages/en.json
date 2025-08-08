@@ -1088,6 +1088,8 @@
               "error": "Failed to request refund",
               "request": "Request Refund",
               "requested": "Refund Requested",
+              "disputePending": "Dispute Pending",
+              "disputeResolved": "Dispute Resolved",
               "refunded": "Refunded",
               "confirmTitle": "Request Refund?",
               "confirmDescription": "Are you sure you want to request a refund for this job?",

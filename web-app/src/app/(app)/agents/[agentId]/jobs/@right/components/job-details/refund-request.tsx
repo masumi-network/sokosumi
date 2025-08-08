@@ -166,6 +166,20 @@ export default function RequestRefundButton({
           {t("requested")}
         </ButtonBase>
       );
+    case JobStatus.DISPUTE_PENDING:
+      return (
+        <ButtonBase disabled={true} className={className}>
+          <LoaderCircle className="h-4 w-4 animate-spin" />
+          {t("disputePending")}
+        </ButtonBase>
+      );
+    case JobStatus.DISPUTE_RESOLVED:
+      return (
+        <ButtonBase disabled={true} className={className}>
+          <HandCoins className="h-4 w-4" />
+          {t("disputeResolved")}
+        </ButtonBase>
+      );
     case JobStatus.REFUND_RESOLVED:
       return (
         <ButtonBase disabled={true} className={className}>
