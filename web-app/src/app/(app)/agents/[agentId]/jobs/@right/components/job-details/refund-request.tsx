@@ -1,6 +1,12 @@
 "use client";
 
-import { ExternalLink, HandCoins, LoaderCircle, RefreshCw } from "lucide-react";
+import {
+  ExternalLink,
+  HandCoins,
+  LoaderCircle,
+  type LucideIcon,
+  RefreshCw,
+} from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -39,9 +45,12 @@ interface RequestRefundButtonProps {
 }
 
 // Status configuration for simple button states
+type IntlKey<N extends IntlNestedKey> = Parameters<IntlTranslation<N>>[0];
+type RefundIntlKey = IntlKey<"App.Agents.Jobs.JobDetails.Output.Refund">;
+
 interface StatusConfig {
-  icon: typeof LoaderCircle | typeof HandCoins;
-  labelKey: string;
+  icon: LucideIcon;
+  labelKey: RefundIntlKey;
   isAnimated?: boolean;
 }
 
@@ -197,7 +206,7 @@ export default function RequestRefundButton({
             statusConfig.isAnimated ? "h-4 w-4 animate-spin" : "h-4 w-4"
           }
         />
-        {t(statusConfig.labelKey as Parameters<typeof t>[0])}
+        {t(statusConfig.labelKey)}
       </ButtonBase>
     );
   }
