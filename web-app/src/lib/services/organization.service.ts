@@ -24,7 +24,7 @@ export const organizationService = (() => {
    */
   async function generateOrganizationSlugFromName(name: string) {
     const slugedName = slugify(name, { lower: true, strict: true });
-    const uniqueId = nanoid(6);
+    const uniqueId = nanoid(6).toLowerCase();
     return `${slugedName}-${uniqueId}`;
   }
 
