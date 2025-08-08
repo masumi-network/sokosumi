@@ -62,11 +62,7 @@ export default function JobInputsFormClient({
   const tDuration = useTranslations("Library.Duration.Short");
 
   const schema = jobInputsFormSchema(input_data, t);
-  const form = useForm<
-    z.input<typeof schema>,
-    unknown,
-    JobInputsFormSchemaType
-  >({
+  const form = useForm<JobInputsFormSchemaType>({
     resolver: zodResolver(schema),
     defaultValues: defaultValues(input_data),
     mode: "onChange",
