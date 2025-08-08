@@ -742,7 +742,7 @@
             "agentConnectionFailed": "Agent Connection Failed",
             "paymentNodeConnectionFailed": "Node Connection Failed",
             "inputRequired": "Input Required",
-            "disputeRequested": "Dispute Requested",
+            "disputeRequested": "Dispute Pending",
             "disputeResolved": "Dispute Resolved",
             "refundRequested": "Refund Requested",
             "refundResolved": "Refunded",
@@ -1032,7 +1032,7 @@
           "agentConnectionFailed": "Agent Connection Failed",
           "paymentNodeConnectionFailed": "Node Connection Failed",
           "inputRequired": "Input Required",
-          "disputeRequested": "Dispute Requested",
+          "disputeRequested": "Dispute Pending",
           "disputeResolved": "Dispute Resolved",
           "refundRequested": "Refund Requested",
           "refundResolved": "Refunded",
@@ -1088,6 +1088,8 @@
               "error": "Failed to request refund",
               "request": "Request Refund",
               "requested": "Refund Requested",
+              "disputePending": "Dispute Pending",
+              "disputeResolved": "Dispute Resolved",
               "refunded": "Refunded",
               "confirmTitle": "Request Refund?",
               "confirmDescription": "Are you sure you want to request a refund for this job?",
@@ -1112,7 +1114,7 @@
                 "unauthenticated": "You must be logged in to request a refund.",
                 "unauthenticatedAction": "Login",
                 "jobNotFound": "Job not found",
-                "unauthorized": "You must be job owner to reqeust a refund"
+                "unauthorized": "You must be job owner to request a refund"
               }
             }
           }
