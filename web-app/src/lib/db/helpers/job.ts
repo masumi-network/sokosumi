@@ -87,6 +87,11 @@ export function computeJobStatus(job: Job): JobStatus {
     return JobStatus.REFUND_RESOLVED;
   }
 
+  // If the job has no on-chain status and there is an error type, it means the job is failed
+  if (job.onChainStatus === null && nextActionErrorType) {
+    return JobStatus.PAYMENT_FAILED;
+  }
+
   const now = new Date();
 
   // If the job has no purchase, it means the job is not yet started
@@ -104,9 +109,6 @@ export function computeJobStatus(job: Job): JobStatus {
   // If the job has a purchase, it means the job is started
   switch (onChainStatus) {
     case null:
-      if (nextActionErrorType) {
-        return JobStatus.PAYMENT_FAILED;
-      }
       if (
         job.payByTime &&
         job.payByTime.getTime() < now.getTime() - TEN_MINUTES_TIMESTAMP
