@@ -41,7 +41,6 @@ export default function OrganizationInformationModal({
       ),
     ),
     defaultValues: {
-      slug: "",
       name: "",
     },
   });
@@ -51,8 +50,7 @@ export default function OrganizationInformationModal({
       return;
     }
 
-    const { slug, name } = organization;
-    form.setValue("slug", slug);
+    const { name } = organization;
     form.setValue("name", name);
   }, [organization, form, open]);
 

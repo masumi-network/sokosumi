@@ -8,6 +8,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
+import { generateOrganizationSlug } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
 import { OrganizationInformationFormSchemaType } from "@/lib/schemas";
 import { Organization } from "@/prisma/generated/client";
@@ -31,27 +32,24 @@ export default function OrganizationInformationForm({
 
   const onSubmit = async (values: OrganizationInformationFormSchemaType) => {
     let result;
-    const shouldCheckSlug = !organization || values.slug !== organization.slug;
-    if (shouldCheckSlug) {
-      const checkSlugResult = await authClient.organization.checkSlug({
-        slug: values.slug,
+    const isCreating = !organization;
+    if (isCreating) {
+      const slugResult = await generateOrganizationSlug({
+        name: values.name,
       });
-      if (checkSlugResult.error || !checkSlugResult.data.status) {
-        toast.error(t("Errors.slug"));
+      if (!slugResult.ok) {
+        toast.error(t("Error.create"));
         return;
       }
-    }
-
-    if (!organization) {
+      const slug = slugResult.data;
       result = await authClient.organization.create({
-        slug: values.slug,
+        slug,
         name: values.name,
       });
     } else {
       result = await authClient.organization.update({
         organizationId: organization.id,
         data: {
-          slug: values.slug,
           name: values.name,
         },
       });

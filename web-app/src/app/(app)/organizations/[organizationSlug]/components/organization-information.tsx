@@ -20,7 +20,7 @@ export default function OrganizationInformation({
 }: OrganizationInformationProps) {
   const t = useTranslations("App.Organizations.OrganizationDetail");
 
-  const { name, slug } = organization;
+  const { name } = organization;
   const { role } = member;
   const isOwnerOrAdmin = role === MemberRole.OWNER || role === MemberRole.ADMIN;
 
@@ -30,9 +30,6 @@ export default function OrganizationInformation({
       <div className="flex flex-1 flex-col justify-between self-stretch">
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-light">{t("title", { name })}</h1>
-          <p className="text-muted-foreground mt-auto line-clamp-2 text-sm">
-            {slug}
-          </p>
         </div>
       </div>
       {isOwnerOrAdmin && (

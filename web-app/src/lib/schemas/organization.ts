@@ -4,11 +4,6 @@ export const organizationInformationFormSchema = (
   t?: IntlTranslation<"Components.Organizations.InformationModal.Schema">,
 ) =>
   z.object({
-    slug: z
-      .string({ message: t?.("Slug.invalid") })
-      .min(1, t?.("Slug.required"))
-      .min(2, t?.("Slug.min"))
-      .max(50, t?.("Slug.max")),
     name: z
       .string({ message: t?.("Name.invalid") })
       .min(1, t?.("Name.required"))

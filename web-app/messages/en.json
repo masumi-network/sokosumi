@@ -224,25 +224,15 @@
             "edit": "Failed to update organization"
           },
           "Errors": {
-            "unauthorizedAction": "Login",
-            "slug": "Slug is already taken"
+            "unauthorizedAction": "Login"
           },
           "Fields": {
             "Name": {
               "placeholder": "Name (e.g. 'My Organization')"
-            },
-            "Slug": {
-              "placeholder": "Slug (e.g. 'my-organization')"
             }
           }
         },
         "Schema": {
-          "Slug": {
-            "min": "Slug must be at least 2 characters.",
-            "max": "Slug must be at most 50 characters.",
-            "invalid": "Slug must be a valid string.",
-            "required": "Slug is required"
-          },
           "Name": {
             "min": "Organization name must be at least 2 characters.",
             "max": "Organization name must be at most 50 characters.",

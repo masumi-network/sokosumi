@@ -111,7 +111,7 @@ function generateSegments(
       const label =
         segmentLabels[segment] ??
         (agent && getAgentName(agent)) ??
-        (organization && organization.slug) ??
+        (organization && organization.name) ??
         (t && t.has(segment) ? t(segment) : segment);
 
       return {
