@@ -34,3 +34,26 @@ export const createOrganizationSchema = (
 export type CreateOrganizationSchemaType = z.infer<
   ReturnType<typeof createOrganizationSchema>
 >;
+
+export const removeOrganizationSchema = (
+  t?: IntlTranslation<"Components.Organizations.RemoveModal.Schema">,
+) =>
+  z
+    .object({
+      name: z
+        .string({ message: t?.("Organization.invalid") })
+        .min(1, { message: t?.("Organization.required") })
+        .min(2, { message: t?.("Organization.min") })
+        .max(50, { message: t?.("Organization.max") }),
+      confirmName: z
+        .string({ message: t?.("ConfirmOrganization.invalid") })
+        .min(1, { message: t?.("ConfirmOrganization.required") }),
+    })
+    .refine(({ name, confirmName }) => name === confirmName, {
+      path: ["confirmName"],
+      message: t?.("ConfirmOrganization.mismatch"),
+    });
+
+export type RemoveOrganizationSchemaType = z.infer<
+  ReturnType<typeof removeOrganizationSchema>
+>;

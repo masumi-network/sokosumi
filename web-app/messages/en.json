@@ -258,8 +258,23 @@
         "cancel": "Cancel",
         "success": "Organization removed successfully",
         "error": "Failed to remove organization",
+        "confirmLabelPrefix": "Type",
+        "confirmLabelSuffix": "to confirm deletion:",
         "Errors": {
           "unauthorizedAction": "Login"
+        },
+        "Schema": {
+          "Organization": {
+            "invalid": "Organization name must be a valid string.",
+            "required": "Organization name is required",
+            "min": "Organization name must be at least 2 characters.",
+            "max": "Organization name must be at most 50 characters."
+          },
+          "ConfirmOrganization": {
+            "invalid": "Confirm organization name must be a valid string.",
+            "required": "Confirm organization name is required",
+            "mismatch": "Organization name doesn't match"
+          }
         }
       },
       "InviteMemberModal": {

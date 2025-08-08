@@ -12,7 +12,7 @@ import { authClient } from "@/lib/auth/auth.client";
 import { OrganizationInformationFormSchemaType } from "@/lib/schemas";
 import { Organization } from "@/prisma/generated/client";
 
-import { updateOrganizationInformationFormData } from "./data";
+import { organizationInformationFormData } from "./data";
 import { FormFields } from "./form-fields";
 
 interface OrganizationInformationFormProps {
@@ -87,10 +87,7 @@ export default function OrganizationInformationForm({
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}>
         <fieldset disabled={isLoading} className="flex flex-col gap-8">
-          <FormFields
-            form={form}
-            formData={updateOrganizationInformationFormData}
-          />
+          <FormFields form={form} formData={organizationInformationFormData} />
           <Button type="submit" disabled={isLoading} className="w-full">
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {isCreating ? t("Submit.create") : t("Submit.edit")}

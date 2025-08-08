@@ -45,7 +45,6 @@ export default function OrganizationInformationModal({
       name: "",
     },
   });
-  const isLoading = form.formState.isSubmitting;
 
   useEffect(() => {
     if (!open || !organization) {
@@ -58,7 +57,7 @@ export default function OrganizationInformationModal({
   }, [organization, form, open]);
 
   const handleOpenChange = (open: boolean) => {
-    if (isLoading) {
+    if (form.formState.isSubmitting) {
       return;
     }
     onOpenChange(open);
