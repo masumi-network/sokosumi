@@ -45,11 +45,6 @@ export default function InvitationCard({
               <strong>{inviterEmail}</strong> {t("hasInvitedYouToJoin")}{" "}
               <strong>{organizationName}</strong>
             </p>
-            {user && (
-              <p>
-                {t("youAreAcceptingWith")} <strong>{user.email}</strong>
-              </p>
-            )}
           </div>
         )}
         {status === "accepted" && (

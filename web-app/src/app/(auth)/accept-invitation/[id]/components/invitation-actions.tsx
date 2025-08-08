@@ -30,7 +30,9 @@ export default function InvitationActions({
 
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [action, setAction] = useState<"accept" | "reject" | null>(null);
+  const [action, setAction] = useState<"accept" | "reject" | "logout" | null>(
+    null,
+  );
 
   const [loginSearchParamsString, setLoginSearchParamsString] = useState<
     string | null
@@ -116,23 +118,53 @@ export default function InvitationActions({
     setAction(null);
   };
 
+  const handleLogout = async () => {
+    setLoading(true);
+    setAction("logout");
+    await authClient.signOut();
+    router.push("/login");
+    setLoading(false);
+    setAction(null);
+  };
+
+  const handleIgnore = async () => {
+    router.push("/organizations");
+  };
+
   if (user) {
-    return (
-      <CardFooter className="flex justify-between">
-        <Button variant="outline" onClick={handleReject} disabled={loading}>
-          {loading && action === "reject" && (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          )}
-          {t("decline")}
-        </Button>
-        <Button onClick={handleAccept} disabled={loading}>
-          {loading && action === "accept" && (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          )}
-          {t("accept")}
-        </Button>
-      </CardFooter>
-    );
+    if (user.email === email) {
+      return (
+        <CardFooter className="flex justify-between">
+          <Button variant="outline" onClick={handleReject} disabled={loading}>
+            {loading && action === "reject" && (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            )}
+            {t("decline")}
+          </Button>
+          <Button onClick={handleAccept} disabled={loading}>
+            {loading && action === "accept" && (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            )}
+            {t("accept")}
+          </Button>
+        </CardFooter>
+      );
+    } else {
+      return (
+        <CardFooter className="flex flex-col gap-4">
+          <p>{t("emailMismatch")}</p>
+          <div className="flex justify-between">
+            <Button variant="outline" onClick={handleLogout}>
+              {loading && action === "logout" && (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              )}
+              {t("logout")}
+            </Button>
+            <Button onClick={handleIgnore}>{t("ignore")}</Button>
+          </div>
+        </CardFooter>
+      );
+    }
   }
 
   return (
