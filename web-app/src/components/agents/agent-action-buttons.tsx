@@ -56,7 +56,7 @@ function AgentActionButtons({
   return (
     <div className={cn("flex w-full items-center justify-between", className)}>
       <div className="flex items-center gap-2">
-        {showBackButton && window.history.length > 1 && (
+        {showBackButton && (
           <Button size="icon" variant="secondary" onClick={onBack}>
             <ArrowLeft />
           </Button>
