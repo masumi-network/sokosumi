@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { signUpFormData } from "@/auth/register/data";
 import { AuthErrorCode, signUpEmail } from "@/lib/actions";
+import { FormData } from "@/lib/form";
 import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
 
 interface SignUpFormProps {
@@ -67,11 +68,17 @@ export default function SignUpForm({ prefilledEmail }: SignUpFormProps) {
   };
 
   const termsAccepted = form.watch("termsAccepted");
+  const formData: FormData<SignUpFormSchemaType, "Auth.Pages.SignUp.Form"> =
+    signUpFormData.map((item) =>
+      item.name === "email" && prefilledEmail
+        ? { ...item, disabled: true }
+        : item,
+    );
 
   return (
     <AuthForm
       form={form}
-      formData={signUpFormData}
+      formData={formData}
       namespace="Auth.Pages.SignUp.Form"
       onSubmit={handleSubmit}
     >

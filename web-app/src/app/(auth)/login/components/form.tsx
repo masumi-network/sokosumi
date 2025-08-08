@@ -13,6 +13,7 @@ import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { signInFormData } from "@/auth/login/data";
 import { AuthErrorCode } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
+import { FormData } from "@/lib/form";
 import { signInFormSchema, SignInFormSchemaType } from "@/lib/schemas";
 
 interface SignInFormProps {
@@ -78,6 +79,12 @@ export default function SignInForm({
   };
 
   const email = form.watch("email");
+  const formData: FormData<SignInFormSchemaType, "Auth.Pages.SignIn.Form"> =
+    signInFormData.map((item) =>
+      item.name === "email" && prefilledEmail
+        ? { ...item, disabled: true }
+        : item,
+    );
   const forgotPasswordUrl = useMemo(
     () =>
       `/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ""}`,
@@ -87,7 +94,7 @@ export default function SignInForm({
   return (
     <AuthForm
       form={form}
-      formData={signInFormData}
+      formData={formData}
       namespace="Auth.Pages.SignIn.Form"
       onSubmit={handleSubmit}
     >

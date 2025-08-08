@@ -67,7 +67,7 @@ function FormInput<T extends FieldValues>({
   formDataItem,
   t,
 }: FormInputProps<T>) {
-  const { type, labelKey, name, placeholderKey } = formDataItem;
+  const { type, labelKey, name, placeholderKey, disabled } = formDataItem;
 
   if (type === "checkbox") {
     const iAgreeToText = t.has("Fields.TermsAccepted.Label.iAgreeTo")
@@ -128,6 +128,7 @@ function FormInput<T extends FieldValues>({
       type={type ?? "text"}
       {...field}
       value={field.value}
+      disabled={disabled}
     />
   );
 }
