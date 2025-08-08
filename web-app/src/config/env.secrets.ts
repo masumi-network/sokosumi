@@ -78,18 +78,6 @@ const envSecretsSchema = z.object({
   BETTER_AUTH_URL: z.string().url().default("http://localhost:3000"),
   BETTER_AUTH_SECRET: z.string().min(1),
   BETTER_AUTH_TRUSTED_ORIGIN: z.string().url().default("http://localhost:3000"),
-  BETTER_AUTH_SESSION_EXPIRES_IN: z
-    .number({ coerce: true })
-    .min(1)
-    .default(60 * 60 * 24 * 7), // 7 days
-  BETTER_AUTH_SESSION_UPDATE_AGE: z
-    .number({ coerce: true })
-    .min(1)
-    .default(60 * 60 * 24), // 1 day
-  BETTER_AUTH_SESSION_FRESH_AGE: z
-    .number({ coerce: true })
-    .min(1)
-    .default(60 * 5), // 5 minutes
   BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE: z
     .number({ coerce: true })
     .min(0)

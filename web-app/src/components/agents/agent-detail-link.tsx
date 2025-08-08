@@ -11,7 +11,7 @@ interface AgentDetailLinkProps {
 function AgentDetailLink({
   children,
   agentId,
-  className,
+  className = "w-full md:w-auto",
 }: AgentDetailLinkProps) {
   return (
     <Link className={className} href={`/agents/${agentId}`}>

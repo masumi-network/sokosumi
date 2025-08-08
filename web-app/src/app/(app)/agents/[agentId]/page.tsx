@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 
 import { AgentDetail } from "@/components/agents";
+import AgentBottomNavigation from "@/components/agents/agent-botton-navigation";
+import AgentMobileHeader from "@/components/agents/agent-mobile-header";
 import {
   CreateJobModal,
   CreateJobModalContextProvider,
@@ -39,7 +41,8 @@ export default async function AgentDetailPage({
       agentsWithPrice={[agentWithCreditsPrice]}
       averageExecutionDuration={averageExecutionDuration}
     >
-      <div className="mx-auto flex justify-center px-4 py-8">
+      <AgentMobileHeader agent={agentWithCreditsPrice} />
+      <div className="mx-auto flex justify-center py-8 md:px-4">
         <AgentDetail
           agent={agentWithCreditsPrice}
           executedJobsCount={executedJobsCount}
@@ -47,6 +50,10 @@ export default async function AgentDetailPage({
           favoriteAgents={favoriteAgents}
         />
       </div>
+      <AgentBottomNavigation
+        agent={agentWithCreditsPrice}
+        favoriteAgents={favoriteAgents}
+      />
       {/* Create Job Modal */}
       <CreateJobModal />
     </CreateJobModalContextProvider>

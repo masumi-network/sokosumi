@@ -71,7 +71,7 @@ export function getJobColumns(
       cell: ({ row }) => (
         <div className="p-2">
           {!!row.original.name ? (
-            <p className="max-w-40 truncate">{row.original.name}</p>
+            <p className="max-w-28 truncate md:max-w-40">{row.original.name}</p>
           ) : (
             <MiddleTruncate
               text={row.original.name ?? row.original.id}

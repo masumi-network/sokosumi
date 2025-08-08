@@ -148,11 +148,13 @@
       },
       "MemberActions": {
         "remove": "Remove",
+        "changeToOwner": "Change to Owner",
         "changeToAdmin": "Change to Admin",
         "changeToMember": "Change to Member",
         "Modal": {
           "changeRoleTitle": "Change Role",
           "removeTitle": "Remove Member",
+          "changeToOwnerDescription": "Are you sure you want to change the role of {member} to Owner?",
           "changeToAdminDescription": "Are you sure you want to change the role of {member} to Admin?",
           "changeToMemberDescription": "Are you sure you want to change the role of {member} to Member?",
           "removeDescription": "Are you sure you want to remove {member} from the organization?",

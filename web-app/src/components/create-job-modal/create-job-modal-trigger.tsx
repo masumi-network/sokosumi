@@ -12,12 +12,14 @@ interface CreateJobModalTriggerProps {
   agentId: string;
   className?: string | undefined;
   disabled?: boolean;
+  showLabel?: boolean;
 }
 
 export default function CreateJobModalTrigger({
   agentId,
   className,
   disabled,
+  showLabel = true,
 }: CreateJobModalTriggerProps) {
   const t = useTranslations("App.Agents.Jobs");
   const { handleOpen } = useCreateJobModalContext();
@@ -34,7 +36,7 @@ export default function CreateJobModalTrigger({
       disabled={disabled}
     >
       <Plus />
-      {t("newJob")}
+      {showLabel && t("newJob")}
     </Button>
   );
 }

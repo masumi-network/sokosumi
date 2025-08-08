@@ -63,11 +63,11 @@ export function getMembersTableColumns(
         const { member, invitation } = row.original;
         if (member) {
           return member.id === me.id ? null : (
-            <MemberActionsDropdown member={member} />
+            <MemberActionsDropdown me={me} member={member} />
           );
         }
         if (invitation) {
-          return <InvitationActionsDropdown invitation={invitation} />;
+          return <InvitationActionsDropdown me={me} invitation={invitation} />;
         }
         return null;
       },

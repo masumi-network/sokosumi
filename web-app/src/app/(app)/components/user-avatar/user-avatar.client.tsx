@@ -8,7 +8,7 @@ import {
   LogOut,
   User as UserIcon,
 } from "lucide-react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
@@ -21,6 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useSidebar } from "@/components/ui/sidebar";
 import {
   Tooltip,
   TooltipContent,
@@ -51,6 +52,23 @@ export default function UserAvatarClient({
     window.open("https://www.masumi.network/contact", "_blank");
   };
 
+  const router = useRouter();
+  const { isMobile, toggleSidebar } = useSidebar();
+
+  const handleClick = (e: React.MouseEvent, path: string) => {
+    e.preventDefault();
+
+    if (!path) {
+      return;
+    }
+
+    router.push(path);
+    // Close sidebar if on mobile
+    if (isMobile) {
+      toggleSidebar();
+    }
+  };
+
   return (
     <DropdownMenu>
       <TooltipProvider disableHoverableContent>
@@ -59,7 +77,7 @@ export default function UserAvatarClient({
             <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
-                className="relative h-10 w-10 rounded-full"
+                className="relative h-8 w-8 rounded-full px-2 md:h-10 md:w-10 md:px-4"
                 aria-label={`User profile for ${sessionUser.name ?? "current user"}`}
               >
                 <UserAvatarContent
@@ -84,23 +102,26 @@ export default function UserAvatarClient({
         />
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem className="cursor-pointer" asChild>
-            <Link href="/account" className="flex items-center gap-2">
-              <UserIcon className="text-muted-foreground" />
-              {t("account")}
-            </Link>
+          <DropdownMenuItem
+            className="flex cursor-pointer items-center gap-2"
+            onClick={(e) => handleClick(e, "/account")}
+          >
+            <UserIcon className="text-muted-foreground" />
+            {t("account")}
           </DropdownMenuItem>
-          <DropdownMenuItem className="cursor-pointer" asChild>
-            <Link href="/organizations" className="flex items-center gap-2">
-              <Building2 className="text-muted-foreground" />
-              {t("organizations")}
-            </Link>
+          <DropdownMenuItem
+            className="flex cursor-pointer items-center gap-2"
+            onClick={(e) => handleClick(e, "/organizations")}
+          >
+            <Building2 className="text-muted-foreground" />
+            {t("organizations")}
           </DropdownMenuItem>
-          <DropdownMenuItem className="cursor-pointer" asChild>
-            <Link href="/billing" className="flex items-center gap-2">
-              <CreditCardIcon className="text-muted-foreground" />
-              {t("billing")}
-            </Link>
+          <DropdownMenuItem
+            className="flex cursor-pointer items-center gap-2"
+            onClick={(e) => handleClick(e, "/billing")}
+          >
+            <CreditCardIcon className="text-muted-foreground" />
+            {t("billing")}
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />

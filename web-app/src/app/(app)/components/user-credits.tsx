@@ -1,14 +1,14 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
-import { Button } from "@/components/ui/button";
 import { convertCentsToCredits } from "@/lib/db";
 import { creditTransactionRepository } from "@/lib/db/repositories";
 import { stripeService } from "@/lib/services";
 import { userService } from "@/lib/services/user.service";
 
+import BuyCreditsButton from "./buy-credits-button";
 import FreeCreditsButton from "./free-credits-button";
+import UserAvatar from "./user-avatar";
 
 export default async function UserCredits() {
   const user = await userService.getMe();
@@ -49,19 +49,18 @@ export default async function UserCredits() {
   const promotionCode = await stripeService.getWelcomePromotionCode(user.id);
 
   return (
-    <div className="flex items-center gap-4">
+    <div className="flex flex-1 flex-col-reverse gap-4 md:flex-initial md:flex-row md:items-center">
       {promotionCode?.active && !activeOrganization ? (
         <FreeCreditsButton promotionCode={promotionCode.id} />
       ) : (
-        credits <= 50.0 && (
-          <Button variant="default" size="sm" asChild>
-            <Link href="/billing">{t("buy")}</Link>
-          </Button>
-        )
+        credits <= 50.0 && <BuyCreditsButton label={t("buy")} path="/billing" />
       )}
-      <div className="flex flex-col items-end gap-0.5">
-        <div className="text-sm font-semibold">{user.name}</div>
-        <div className="text-muted-foreground text-xs">{creditLabel}</div>
+      <div className="flex items-center gap-2 md:flex-row-reverse">
+        <UserAvatar />
+        <div className="flex flex-col gap-0.5 md:items-end">
+          <div className="text-sm font-semibold">{user.name}</div>
+          <div className="text-muted-foreground text-xs">{creditLabel}</div>
+        </div>
       </div>
     </div>
   );

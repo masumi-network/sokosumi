@@ -1,6 +1,8 @@
 import Link from "next/link";
 
+import UserCredits from "@/app/components/user-credits";
 import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
+import { SheetClose } from "@/components/ui/sheet";
 import {
   Sidebar as ShadcnSidebar,
   SidebarContent,
@@ -17,14 +19,16 @@ export default function Sidebar() {
     <ShadcnSidebar>
       <SidebarHeader className="h-[64px] border-b">
         <div className="flex items-center justify-between gap-2 p-2">
-          <Link href="/">
-            <ThemedLogo
-              LogoComponent={SokosumiLogo}
-              priority
-              width={123}
-              height={16}
-            />
-          </Link>
+          <SheetClose asChild>
+            <Link href="/">
+              <ThemedLogo
+                LogoComponent={SokosumiLogo}
+                priority
+                width={123}
+                height={16}
+              />
+            </Link>
+          </SheetClose>
           <CustomTrigger />
         </div>
       </SidebarHeader>
@@ -32,7 +36,12 @@ export default function Sidebar() {
         <AgentLists />
       </SidebarContent>
       <SidebarFooter className="px-0">
-        <GalleryButton />
+        <SheetClose asChild>
+          <GalleryButton />
+        </SheetClose>
+        <div className="flex flex-1 gap-2 p-4 pt-0 md:hidden">
+          <UserCredits />
+        </div>
       </SidebarFooter>
     </ShadcnSidebar>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { Bookmark, Plus } from "lucide-react";
+import { ArrowLeft, Bookmark, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
@@ -9,6 +9,7 @@ import {
   AgentDetail,
   AgentModal,
 } from "@/components/agents";
+import { AgentActionButtons } from "@/components/agents/agent-action-buttons";
 import { CreateJobModalTrigger } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -23,15 +24,28 @@ export function HeaderSkeleton() {
   const t = useTranslations("App.Agents.Jobs.Header");
 
   return (
-    <div className="flex flex-col items-center gap-4 lg:flex-row lg:gap-6 xl:gap-8">
-      <div className="flex flex-row items-center gap-4">
-        <Skeleton className="h-8 w-60 xl:h-9" />
+    <div className="md:justify-initial flex flex-col items-center gap-4 lg:flex-row lg:gap-6 xl:gap-8">
+      <div className="md:justify-initial flex w-full flex-row items-center justify-between gap-4 md:w-auto md:flex-initial">
+        <Button
+          variant="secondary"
+          size="icon"
+          disabled
+          className="flex md:hidden"
+        >
+          <ArrowLeft className="animate-pulse" />
+        </Button>
+        <Skeleton className="hidden h-8 w-60 md:flex xl:h-9" />
         <Skeleton className="h-6 w-16" />
-        <Button variant="secondary" size="icon" disabled>
+        <Button
+          variant="secondary"
+          size="icon"
+          disabled
+          className="hidden md:flex"
+        >
           <Bookmark className="animate-pulse" />
         </Button>
       </div>
-      <div className="flex flex-1 flex-row items-center justify-end gap-4">
+      <div className="flex hidden flex-1 flex-row items-center justify-end gap-4 md:flex">
         <div className="w-full text-end text-sm font-semibold">
           <Skeleton className="ml-auto h-5 w-24" />
         </div>
@@ -74,11 +88,14 @@ export default function Header({
   };
 
   return (
-    <div className="flex flex-col items-center gap-4 lg:flex-row lg:gap-6 xl:gap-8">
-      <div className="flex flex-row items-center gap-4">
-        <h1 className="text-3xl leading-none font-light tracking-tighter text-nowrap">
-          {getAgentName(agent)}
-        </h1>
+    <div className="flex flex-col items-center gap-4 pt-14 md:pt-0 lg:flex-row lg:gap-6 xl:gap-8">
+      <div className="bg-background/95 fixed top-[64px] z-50 flex w-full flex-row items-center justify-between gap-4 p-4 md:hidden">
+        <AgentActionButtons
+          agent={agent}
+          showBackButton={true}
+          showShareButton={false}
+          showCloseButton={false}
+        ></AgentActionButtons>
         <Button
           className="text-sm leading-tight font-medium"
           variant="ghost"
@@ -87,13 +104,28 @@ export default function Header({
         >
           {t("details")}
         </Button>
-        <AgentBookmarkButton
-          agentId={agent.id}
-          isFavorite={isFavorite}
-          disabled={disabled}
-        />
       </div>
-      <div className="flex flex-1 flex-row items-center justify-end gap-4">
+      <div className="flex w-full flex-row items-center justify-between gap-4 md:w-auto md:justify-center">
+        <h1 className="text-2xl leading-none font-light tracking-tighter text-nowrap md:text-3xl">
+          {getAgentName(agent)}
+        </h1>
+        <div className="hidden md:flex">
+          <Button
+            className="text-sm leading-tight font-medium"
+            variant="ghost"
+            disabled={disabled}
+            onClick={handleDetailsClick}
+          >
+            {t("details")}
+          </Button>
+          <AgentBookmarkButton
+            agentId={agent.id}
+            isFavorite={isFavorite}
+            disabled={disabled}
+          />
+        </div>
+      </div>
+      <div className="flex hidden flex-1 flex-row items-center justify-end gap-4 md:flex">
         <div className="w-full text-end text-sm font-semibold">
           {t("price", {
             price: convertCentsToCredits(agent.creditsPrice.cents),

@@ -10,9 +10,9 @@ export function AccountSettings() {
   const t = useTranslations("App.Account");
 
   return (
-    <div className="mx-auto max-w-5xl space-y-8">
+    <div className="w-full space-y-8 md:mx-auto md:w-auto md:max-w-5xl">
       <div className="space-y-2">
-        <h1 className="text-3xl font-light tracking-tight">{t("title")}</h1>
+        <h1 className="text-2xl font-light tracking-tight">{t("title")}</h1>
         <p className="text-muted-foreground text-sm leading-6">
           {t("description")}
         </p>

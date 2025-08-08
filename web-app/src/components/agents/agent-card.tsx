@@ -32,7 +32,7 @@ const agentCardVariants = cva("flex rounded-lg border-none p-1 shadow-none", {
     size: {
       xs: "hover:bg-foreground/5 w-64 flex-row items-center gap-2.5 transition-colors",
       sm: "hover:bg-foreground/5 w-80 flex-row items-center gap-4 transition-colors",
-      md: "hover:bg-foreground/5 w-80 flex-col gap-2 transition-colors",
+      md: "w-[min(100%,theme(maxWidth.5xl))] flex-col items-center gap-6 md:hover:bg-foreground/5 md:w-80 md:gap-2 md:transition-colors",
       lg: "w-[min(100%,theme(maxWidth.5xl))] flex-col items-center gap-6 md:flex-row md:gap-2",
     },
   },
@@ -48,7 +48,7 @@ const agentCardImageContainerVariants = cva(
       size: {
         xs: "agent-card-image-shadow h-16 w-16",
         sm: "agent-card-image-shadow h-24 w-24",
-        md: "agent-card-image-shadow aspect-[1.6] w-full",
+        md: "md:agent-card-image-shadow aspect-[1.6] w-full",
         lg: "aspect-[1.6] w-full md:w-1/2",
       },
     },
@@ -97,7 +97,7 @@ const agentCardContentVariants = cva("flex w-full flex-col", {
     size: {
       xs: "min-w-0 flex-1 gap-1",
       sm: "min-w-0 flex-1 gap-2",
-      md: "flex-1 gap-2 p-1",
+      md: "flex-1 gap-8 p-0 md:gap-2 md:p-1",
       lg: "flex-1 gap-8 p-0 md:max-w-1/2 md:gap-12 md:p-12",
     },
   },
@@ -142,7 +142,7 @@ const agentCardPricingAndButtonsContainerVariants = cva(
         xs: "flex-col",
         sm: "flex-col",
         md: "flex-col",
-        lg: "flex-row items-center justify-between md:flex-col md:items-start",
+        lg: "flex-col items-center justify-between md:flex-row md:items-start",
       },
     },
     defaultVariants: {
@@ -159,7 +159,7 @@ const agentCardButtonsContainerVariants = cva(
         xs: "block",
         sm: "block",
         md: "block md:hidden",
-        lg: "w-auto",
+        lg: "w-full md:w-auto",
       },
     },
     defaultVariants: {
@@ -288,96 +288,109 @@ function AgentCard({
   const buttonSize = size === "xs" || size === "sm" ? "sm" : "lg";
 
   return (
-    <AgentCardWrapper agentId={agent.id} isLink={isDefault}>
-      <Card className={cn(agentCardVariants({ size }), className)}>
-        {/* Image */}
-        <div className={cn(agentCardImageContainerVariants({ size }))}>
-          <AgentCardWrapper agentId={agent.id} isLink={size === "lg"}>
-            <Image
-              src={getAgentResolvedImage(agent)}
-              alt={`${getAgentName(agent)} image`}
-              width={400}
-              height={250}
-              className="h-full w-full object-cover transition-transform group-hover:scale-105"
-            />
-          </AgentCardWrapper>
+    <>
+      <AgentCardWrapper agentId={agent.id} isLink={isDefault}>
+        <Card className={cn(agentCardVariants({ size }), className)}>
+          {/* Image */}
+          <div className={cn(agentCardImageContainerVariants({ size }))}>
+            <AgentCardWrapper agentId={agent.id} isLink={size === "lg"}>
+              <Image
+                src={getAgentResolvedImage(agent)}
+                alt={`${getAgentName(agent)} image`}
+                width={400}
+                height={250}
+                className="h-full w-full object-cover transition-transform group-hover:scale-105"
+              />
+            </AgentCardWrapper>
 
-          {/* Hover blur and Show Details Button */}
-          <div className={cn(agentCardImageHoverVariants({ size }))}>
-            <div className="relative flex h-full w-full items-center justify-center">
-              {favoriteAgents && (
-                <ClickBlocker className="absolute top-3 right-3">
-                  <AgentBookmarkButton
-                    agentId={agent.id}
-                    isFavorite={isFavorite ?? false}
-                  />
-                </ClickBlocker>
-              )}
-              <Button className="hidden md:block" variant="primary">
-                {t("view")}
-              </Button>
+            {/* Hover blur and Show Details Button */}
+            <div className={cn(agentCardImageHoverVariants({ size }))}>
+              <div className="relative flex h-full w-full items-center justify-center">
+                {favoriteAgents && (
+                  <ClickBlocker className="absolute top-3 right-3">
+                    <AgentBookmarkButton
+                      agentId={agent.id}
+                      isFavorite={isFavorite ?? false}
+                    />
+                  </ClickBlocker>
+                )}
+                <Button className="hidden md:block" variant="primary">
+                  {t("view")}
+                </Button>
+              </div>
+            </div>
+
+            {/* Badges */}
+            <div className={cn(agentCardBadgesContainerVariants({ size }))}>
+              {/* New Badge */}
+              {agent.isNew && <AgentNewBadge />}
+              {/* Tags */}
+              <AgentBadgeCloud tags={getAgentTags(agent)} />
             </div>
           </div>
 
-          {/* Badges */}
-          <div className={cn(agentCardBadgesContainerVariants({ size }))}>
-            {/* New Badge */}
-            {agent.isNew && <AgentNewBadge />}
-            {/* Tags */}
-            <AgentBadgeCloud tags={getAgentTags(agent)} />
-          </div>
-        </div>
-
-        {/* Content */}
-        <div className={cn(agentCardContentVariants({ size }))}>
-          <div className="flex flex-col gap-1">
-            <div className="flex items-center gap-2">
-              <h3 className={agentCardNameVariants({ size })}>
-                {getAgentName(agent)}
-              </h3>
-              <AgentVerifiedBadge />
-            </div>
-            <p className={agentCardAuthorVariants({ size })}>
-              {getShortAgentAuthorName(agent)}
-            </p>
-          </div>
-
-          {/* Pricing and Buttons */}
-          <div
-            className={cn(
-              agentCardPricingAndButtonsContainerVariants({ size }),
-            )}
-          >
-            {/* Pricing */}
-            <div className={cn(agentCardPricingVariants({ size }))}>
-              <p>
-                {t("pricing", {
-                  price: convertCentsToCredits(agent.creditsPrice.cents),
-                })}
+          {/* Content */}
+          <div className={cn(agentCardContentVariants({ size }))}>
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center gap-2">
+                <h3 className={agentCardNameVariants({ size })}>
+                  {getAgentName(agent)}
+                </h3>
+                <AgentVerifiedBadge />
+              </div>
+              <p className={agentCardAuthorVariants({ size })}>
+                {getShortAgentAuthorName(agent)}
               </p>
             </div>
-            {/* Buttons */}
-            <div className={cn(agentCardButtonsContainerVariants({ size }))}>
-              {!isDefault && (
-                <div className={cn(agentShowDetailButtonVariants({ size }))}>
-                  <Button variant="secondary" size={buttonSize} asChild>
-                    <AgentDetailLink agentId={agent.id}>
-                      {t("view")}
-                    </AgentDetailLink>
+
+            {/* Pricing and Buttons */}
+            <div
+              className={cn(
+                agentCardPricingAndButtonsContainerVariants({ size }),
+              )}
+            >
+              {/* Pricing */}
+              <div className={cn(agentCardPricingVariants({ size }))}>
+                <p>
+                  {t("pricing", {
+                    price: convertCentsToCredits(agent.creditsPrice.cents),
+                  })}
+                </p>
+              </div>
+              {/* Buttons */}
+              <div className={cn(agentCardButtonsContainerVariants({ size }))}>
+                {!isDefault && (
+                  <div className={cn(agentShowDetailButtonVariants({ size }))}>
+                    <Button variant="secondary" size={buttonSize} asChild>
+                      <AgentDetailLink agentId={agent.id}>
+                        {t("view")}
+                      </AgentDetailLink>
+                    </Button>
+                  </div>
+                )}
+                <div className={cn(agentHireButtonVariants({ size }))}>
+                  <Button
+                    variant="primary"
+                    size={buttonSize}
+                    className="w-full cursor-pointer md:w-auto"
+                  >
+                    {t("view")}
                   </Button>
                 </div>
-              )}
-              <ClickBlocker className={cn(agentHireButtonVariants({ size }))}>
-                <AgentHireButton
-                  agentId={agent.id}
-                  className="w-full md:w-auto"
-                />
-              </ClickBlocker>
+                <ClickBlocker
+                  className={cn(agentHireButtonVariants({ size }), "hidden")}
+                >
+                  <AgentHireButton
+                    agentId={agent.id}
+                    className="w-full md:w-auto"
+                  />
+                </ClickBlocker>
+              </div>
             </div>
           </div>
-        </div>
-      </Card>
-    </AgentCardWrapper>
+        </Card>
+      </AgentCardWrapper>
+    </>
   );
 }
 
