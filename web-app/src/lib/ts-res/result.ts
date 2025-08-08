@@ -1,6 +1,6 @@
 export type ErrorType =
   | string
-  | { name?: string; code?: string; message: string }
+  | { name?: string; code?: string; message?: string | undefined | null }
   | undefined
   | void;
 

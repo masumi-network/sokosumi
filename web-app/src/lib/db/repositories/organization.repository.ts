@@ -1,52 +1,38 @@
 import "server-only";
 
-import { organizationInclude, OrganizationWithRelations } from "@/lib/db/types";
+import {
+  organizationInclude,
+  organizationLimitedInfoInclude,
+  OrganizationWithLimitedInfo,
+  OrganizationWithRelations,
+} from "@/lib/db/types";
 import { Organization, Prisma } from "@/prisma/generated/client";
 
 import prisma from "./prisma";
 
 /**
  * Repository for managing Organization entities and related queries.
- * Provides methods for creating organizations, retrieving organizations by domain,
- * fetching organizations with relations, and updating organization data.
+ * Provides methods for creating organizations, fetching organizations with relations
+ * and updating organization data.
  */
 export const organizationRepository = {
   /**
-   * Creates a new organization with the specified slug, name, and required email domains.
+   * Creates a new organization with the specified slug, name, and metadata.
    *
    * @param slug - The unique slug for the organization.
    * @param name - The name of the organization.
-   * @param requiredEmailDomains - Array of allowed email domains for membership.
+   * @param metadata - The metadata of the organization.
    * @param tx - Optional Prisma transaction client for transactional operations.
    * @returns The created Organization object.
    */
   async createOrganization(
     slug: string,
     name: string,
-    requiredEmailDomains: string[],
+    metadata: string | null,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<Organization> {
     return await tx.organization.create({
-      data: { slug, name, requiredEmailDomains },
-      include: organizationInclude,
-    });
-  },
-
-  /**
-   * Retrieves all organizations that allow the specified email domain.
-   *
-   * @param emailDomain - The email domain to filter organizations by.
-   * @param tx - Optional Prisma transaction client.
-   * @returns An array of OrganizationWithRelations objects.
-   */
-  async getOrganizationsByEmailDomain(
-    emailDomain: string,
-    tx: Prisma.TransactionClient = prisma,
-  ): Promise<OrganizationWithRelations[]> {
-    return await tx.organization.findMany({
-      where: {
-        requiredEmailDomains: { has: emailDomain },
-      },
+      data: { slug, name, metadata },
       include: organizationInclude,
     });
   },
@@ -113,6 +99,14 @@ export const organizationRepository = {
       where: { id: organizationId },
       data,
       include: organizationInclude,
+    });
+  },
+
+  async listOrganizationsWithLimitedInfo(
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<OrganizationWithLimitedInfo[]> {
+    return await tx.organization.findMany({
+      select: organizationLimitedInfoInclude,
     });
   },
 };

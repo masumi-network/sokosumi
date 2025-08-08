@@ -158,13 +158,16 @@
           "removeDescription": "Are you sure you want to remove {member} from the organization?",
           "confirm": "Confirm",
           "cancel": "Cancel",
-          "Successes": {
-            "changeRoleSuccess": "Role changed successfully",
-            "removeSuccess": "Member removed successfully"
+          "Success": {
+            "changeRole": "Role changed successfully",
+            "remove": "Member removed successfully"
+          },
+          "Error": {
+            "changeRole": "Failed to change role",
+            "remove": "Failed to remove member"
           },
           "Errors": {
-            "changeRoleError": "Failed to change role",
-            "removeError": "Failed to remove member"
+            "unauthorizedAction": "Login"
           }
         }
       },
@@ -177,7 +180,10 @@
           "confirm": "Confirm",
           "cancel": "Cancel",
           "success": "Invitation canceled successfully",
-          "error": "Failed to cancel invitation"
+          "error": "Failed to cancel invitation",
+          "Errors": {
+            "unauthorizedAction": "Login"
+          }
         },
         "resendSuccess": "Invitation resent successfully",
         "resendError": "Failed to resend invitation"
@@ -192,39 +198,37 @@
     },
     "Organizations": {
       "Role": {
+        "owner": "Owner",
         "admin": "Admin",
         "member": "Member",
         "pending": "Pending",
         "expired": "Expired"
       },
-      "RequiredEmailDomains": {
-        "restrictAll": "Restrict all email domains"
-      },
-      "EditInformationModal": {
-        "title": "Edit Organization",
+      "InformationModal": {
+        "Title": {
+          "create": "Create Organization",
+          "edit": "Edit Organization"
+        },
         "Form": {
-          "submit": "Save",
+          "Submit": {
+            "create": "Create",
+            "edit": "Save"
+          },
           "cancel": "Cancel",
-          "success": "Organization updated successfully",
-          "error": "Failed to update organization",
+          "Success": {
+            "create": "Organization created successfully",
+            "edit": "Organization updated successfully"
+          },
+          "Error": {
+            "create": "Failed to create organization",
+            "edit": "Failed to update organization"
+          },
           "Errors": {
-            "unauthenticated": "You must be logged in to edit an organization.",
-            "unauthenticatedAction": "Login",
-            "unauthorized": "You must be an admin to edit an organization."
+            "unauthorizedAction": "Login"
           },
           "Fields": {
             "Name": {
-              "placeholder": "Name"
-            },
-            "Metadata": {
-              "placeholder": "Metadata"
-            },
-            "RequiredEmailDomains": {
-              "label": "Required email domains",
-              "placeholder": "Add domain",
-              "duplicate": "Domain already exists",
-              "invalid": "Invalid domain",
-              "noDomains": "Restrict all email domains"
+              "placeholder": "Name (e.g. 'My Organization')"
             }
           }
         },
@@ -234,16 +238,32 @@
             "max": "Organization name must be at most 50 characters.",
             "invalid": "Organization name must be a valid string.",
             "required": "Organization name is required"
+          }
+        }
+      },
+      "RemoveModal": {
+        "title": "Remove Organization",
+        "description": "Are you sure you want to remove the organization \"{organization}\"?",
+        "confirm": "Confirm",
+        "cancel": "Cancel",
+        "success": "Organization removed successfully",
+        "error": "Failed to remove organization",
+        "confirmLabelPrefix": "Type",
+        "confirmLabelSuffix": "to confirm deletion:",
+        "Errors": {
+          "unauthorizedAction": "Login"
+        },
+        "Schema": {
+          "Organization": {
+            "invalid": "Organization name must be a valid string.",
+            "required": "Organization name is required",
+            "min": "Organization name must be at least 2 characters.",
+            "max": "Organization name must be at most 50 characters."
           },
-          "Metadata": {
-            "min": "Organization metadata must be at least 10 characters.",
-            "max": "Organization metadata must be at most 500 characters.",
-            "invalid": "Organization metadata must be a valid string."
-          },
-          "RequiredEmailDomains": {
-            "max": "Organization must have at most 10 required email domains.",
-            "unique": "Must be unique domains",
-            "invalid": "Must be a valid domain"
+          "ConfirmOrganization": {
+            "invalid": "Confirm organization name must be a valid string.",
+            "required": "Confirm organization name is required",
+            "mismatch": "Organization name doesn't match"
           }
         }
       },
@@ -255,10 +275,7 @@
           "success": "Member invited successfully",
           "error": "Failed to invite member",
           "Errors": {
-            "notAuthenticated": "You must be logged in to invite members.",
-            "unauthorized": "You must be an admin to invite members.",
-            "invitationLimitReached": "You have reached the invitation limit.",
-            "userAlreadyMember": "User is already a member of this organization."
+            "unauthorizedAction": "Login"
           },
           "Fields": {
             "Email": {
@@ -287,8 +304,7 @@
         "success": "You have left the organization",
         "error": "Failed to leave organization",
         "Errors": {
-          "notAuthenticated": "You must be logged in to leave the organization.",
-          "organizationsCountNotAllowed": "You must be member of at least one organization."
+          "unauthorizedAction": "Login"
         }
       }
     },
@@ -313,7 +329,6 @@
       "title": "Organization Invitation",
       "description": "You've been invited to join an organization",
       "hasInvitedYouToJoin": "has invited you to join",
-      "youAreAcceptingWith": "You are accepting with",
       "acceptedTitle": "Welcome to {organizationName}!",
       "acceptedDescription": "You've successfully joined the organization. We're excited to have you on board!",
       "goToOrganization": "Go to Organization",
@@ -321,31 +336,27 @@
       "declinedDescription": "You've declined the invitation to join {organizationName}.",
       "goToHome": "Go to Home",
       "Actions": {
-        "accept": "Accept Invitation",
-        "decline": "Decline Invitation",
+        "accept": "Accept",
+        "decline": "Decline",
+        "logout": "Logout",
+        "ignore": "Ignore",
+        "emailMismatch": "You are not the invited user.",
         "WithoutSession": {
           "ifYouAlreadyHaveAnAccount": "If you already have an account, you can log in to your account and accept the invitation.",
           "ifYouDontHaveAnAccount": "If you don't have an account, you can register a new account and join the organization.",
           "login": "Login",
           "register": "Register"
         },
-        "Accept": {
-          "success": "Invitation accepted successfully",
-          "error": "Failed to accept invitation",
-          "Errors": {
-            "invitationNotFound": "Invitation not found",
-            "inviterNotFound": "Inviter not found",
-            "alreadyMember": "You are already member of this organization.",
-            "alreadyMemberAction": "Go to Organization"
-          }
+        "Success": {
+          "accept": "Invitation accepted successfully",
+          "decline": "Invitation declined successfully"
         },
-        "Decline": {
-          "success": "Invitation declined successfully",
-          "error": "Failed to decline invitation",
-          "Errors": {
-            "invitationNotFound": "Invitation not found",
-            "inviterNotFound": "Inviter not found"
-          }
+        "Error": {
+          "accept": "Failed to accept invitation",
+          "decline": "Failed to decline invitation"
+        },
+        "Errors": {
+          "unauthorizedAction": "Login"
         }
       }
     },
@@ -592,7 +603,6 @@
             "link": "Register"
           },
           "Errors": {
-            "verifyEmail": "Please verify your email address",
             "termsNotAccepted": "You must accept the terms and conditions to login"
           }
         }
@@ -647,14 +657,9 @@
             }
           },
           "Errors": {
-            "badInput": "Please input form correctly.",
-            "organizationNotFound": "Organization not found",
-            "memberCreateFailed": "Failed to create organization member",
-            "emailDomainInvalid": "Email domain is invalid",
-            "emailNotAllowedByOrganization": "Email not allowed to join organization",
-            "invitationNotFound": "Invitation not found",
-            "userExists": "User already exists",
-            "termsNotAccepted": "You must accept the terms and conditions to register"
+            "termsNotAccepted": "You must accept the terms and conditions to register",
+            "emailDomainNotAllowed": "Email domain not allowed",
+            "badInput": "Please input form correctly."
           },
           "Login": {
             "message": "Already have an account?",
@@ -928,7 +933,7 @@
       },
       "title": "Organizations",
       "newOrganization": "New Organization",
-      "membersNotAvailable": "No members found",
+      "organizationsNotAvailable": "No Organizations found",
       "OrganizationRow": {
         "leave": "Leave",
         "activate": "Activate",
@@ -953,9 +958,7 @@
         "rejectSuccess": "Invitation rejected successfully",
         "rejectError": "Failed to reject invitation",
         "Errors": {
-          "invitationNotFound": "Invitation not found",
-          "inviterNotFound": "Inviter not found",
-          "alreadyMember": "You are already member of this organization."
+          "unauthorizedAction": "Login"
         }
       },
       "OrganizationDetail": {
@@ -968,8 +971,8 @@
         },
         "roleIndicator": "View as:",
         "title": "{name}",
-        "requiredEmailDomains": "Required email domains:",
         "edit": "Edit",
+        "delete": "Delete",
         "invite": "Invite Member",
         "members": "Members"
       }

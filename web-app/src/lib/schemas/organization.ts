@@ -1,9 +1,7 @@
 import { z } from "zod";
 
-import { isValidDomain } from "@/lib/utils";
-
-export const updateOrganizationInformationFormSchema = (
-  t?: IntlTranslation<"Components.Organizations.EditInformationModal.Schema">,
+export const organizationInformationFormSchema = (
+  t?: IntlTranslation<"Components.Organizations.InformationModal.Schema">,
 ) =>
   z.object({
     name: z
@@ -11,32 +9,10 @@ export const updateOrganizationInformationFormSchema = (
       .min(1, t?.("Name.required"))
       .min(2, t?.("Name.min"))
       .max(50, t?.("Name.max")),
-    metadata: z
-      .string({ message: t?.("Metadata.invalid") })
-      .min(10, t?.("Metadata.min"))
-      .max(500, t?.("Metadata.max"))
-      .or(z.literal("")),
-    requiredEmailDomains: z
-      .array(
-        z.string().refine(isValidDomain, {
-          message: t?.("RequiredEmailDomains.invalid"),
-        }),
-      )
-      .max(10, t?.("RequiredEmailDomains.max"))
-      .refine(
-        (domains) =>
-          new Set(domains.map((domain) => domain.toLowerCase())).size ===
-          domains.length,
-        {
-          message: t?.("RequiredEmailDomains.unique"),
-        },
-      )
-      .transform((domains) => domains.map((domain) => domain.toLowerCase()))
-      .optional(),
   });
 
-export type UpdateOrganizationInformationFormSchemaType = z.infer<
-  ReturnType<typeof updateOrganizationInformationFormSchema>
+export type OrganizationInformationFormSchemaType = z.infer<
+  ReturnType<typeof organizationInformationFormSchema>
 >;
 
 export const createOrganizationSchema = (
@@ -52,4 +28,27 @@ export const createOrganizationSchema = (
 
 export type CreateOrganizationSchemaType = z.infer<
   ReturnType<typeof createOrganizationSchema>
+>;
+
+export const removeOrganizationSchema = (
+  t?: IntlTranslation<"Components.Organizations.RemoveModal.Schema">,
+) =>
+  z
+    .object({
+      name: z
+        .string({ message: t?.("Organization.invalid") })
+        .min(1, { message: t?.("Organization.required") })
+        .min(2, { message: t?.("Organization.min") })
+        .max(50, { message: t?.("Organization.max") }),
+      confirmName: z
+        .string({ message: t?.("ConfirmOrganization.invalid") })
+        .min(1, { message: t?.("ConfirmOrganization.required") }),
+    })
+    .refine(({ name, confirmName }) => name === confirmName, {
+      path: ["confirmName"],
+      message: t?.("ConfirmOrganization.mismatch"),
+    });
+
+export type RemoveOrganizationSchemaType = z.infer<
+  ReturnType<typeof removeOrganizationSchema>
 >;

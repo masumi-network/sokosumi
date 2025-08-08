@@ -37,7 +37,11 @@ export default function MembersTable({
             pendingInvitations,
           )}
           rowClassName={() => "text-foreground active:bg-muted hover:bg-muted"}
-          containerClassName={cn("w-full rounded-xl bg-muted/50")}
+          containerClassName={cn("w-full rounded-xl bg-muted/50 p-2")}
+          showPagination={members.length > 10}
+          showRowsPerPage={false}
+          enableRowSelection={false}
+          initialPageSize={10}
         />
         <MemberActionsModal />
         <InvitationActionsModal />
@@ -49,10 +53,11 @@ export default function MembersTable({
 function getColumns(t: ReturnType<typeof useTranslations>, me: Member) {
   const { nameColumn, emailColumn, roleColumn, actionColumn } =
     getMembersTableColumns(t, me);
-  const isAdmin = me.role === MemberRole.ADMIN;
+  const isOwnerOrAdmin =
+    me.role === MemberRole.OWNER || me.role === MemberRole.ADMIN;
 
   return [nameColumn, emailColumn, roleColumn].concat(
-    isAdmin ? [actionColumn] : [],
+    isOwnerOrAdmin ? [actionColumn] : [],
   );
 }
 
@@ -61,6 +66,12 @@ function combineMembersAndPendingInvitations(
   pendingInvitations: Invitation[],
 ): MemberRowData[] {
   return members
+    .sort((a, b) => {
+      const roleScoreDiff =
+        (RoleScoreMap[a.role] ?? 0) - (RoleScoreMap[b.role] ?? 0);
+      const nameDiff = a.user.name.localeCompare(b.user.name);
+      return roleScoreDiff !== 0 ? roleScoreDiff : nameDiff;
+    })
     .map(convertMemberWithUserToMemberRowData)
     .concat(pendingInvitations.map(convertInvitationToMemberRowData));
 }
@@ -88,3 +99,9 @@ function convertInvitationToMemberRowData(
     invitation,
   };
 }
+
+const RoleScoreMap: Record<string, number> = {
+  [MemberRole.OWNER]: 1,
+  [MemberRole.ADMIN]: 2,
+  [MemberRole.MEMBER]: 3,
+};

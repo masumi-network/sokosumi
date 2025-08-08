@@ -11,7 +11,9 @@ import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { signInFormData } from "@/auth/login/data";
-import { signIn } from "@/lib/auth/auth.client";
+import { AuthErrorCode } from "@/lib/actions";
+import { authClient } from "@/lib/auth/auth.client";
+import { FormData } from "@/lib/form";
 import { signInFormSchema, SignInFormSchemaType } from "@/lib/schemas";
 
 interface SignInFormProps {
@@ -40,27 +42,24 @@ export default function SignInForm({
   });
 
   const handleSubmit = async (values: SignInFormSchemaType) => {
-    const singInResult = await signIn.email({
+    const result = await authClient.signIn.email({
       email: values.email,
       password: values.currentPassword,
       rememberMe: values.rememberMe,
     });
 
-    if (singInResult.error) {
-      switch (singInResult.error.code) {
-        case "EMAIL_NOT_VERIFIED":
-          toast.error(t("Errors.verifyEmail"));
-          break;
-        case "TERMS_NOT_ACCEPTED":
+    if (result.error) {
+      switch (result.error.code) {
+        case AuthErrorCode.TERMS_NOT_ACCEPTED:
           toast.error(t("Errors.termsNotAccepted"));
           break;
         default:
-          toast.error(t("error"));
+          toast.error(result.error.message ?? t("error"));
           break;
       }
       return;
     }
-
+    plausible("SignIn");
     toast.success(t("success"));
     // Redirect to the original URL if provided, otherwise go to /agents
     // Validate returnUrl to prevent open redirect attacks
@@ -76,10 +75,16 @@ export default function SignInForm({
         // Invalid URL, fallback to /agents
       }
     }
-    plausible("SignIn", { callback: () => router.push(redirectUrl) });
+    router.push(redirectUrl);
   };
 
   const email = form.watch("email");
+  const formData: FormData<SignInFormSchemaType, "Auth.Pages.SignIn.Form"> =
+    signInFormData.map((item) =>
+      item.name === "email" && prefilledEmail
+        ? { ...item, disabled: true }
+        : item,
+    );
   const forgotPasswordUrl = useMemo(
     () =>
       `/forgot-password${email ? `?email=${encodeURIComponent(email)}` : ""}`,
@@ -89,7 +94,7 @@ export default function SignInForm({
   return (
     <AuthForm
       form={form}
-      formData={signInFormData}
+      formData={formData}
       namespace="Auth.Pages.SignIn.Form"
       onSubmit={handleSubmit}
     >

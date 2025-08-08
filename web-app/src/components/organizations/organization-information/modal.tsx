@@ -14,66 +14,66 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  updateOrganizationInformationFormSchema,
-  UpdateOrganizationInformationFormSchemaType,
+  organizationInformationFormSchema,
+  OrganizationInformationFormSchemaType,
 } from "@/lib/schemas";
 import { Organization } from "@/prisma/generated/client";
 
-import OrganizationInformationEditForm from "./form";
+import OrganizationInformationForm from "./form";
 
-interface OrganizationInformationEditModalProps {
+interface OrganizationInformationModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  organization: Organization;
+  organization: Organization | null;
 }
 
-export default function OrganizationInformationEditModal({
+export default function OrganizationInformationModal({
   open,
   onOpenChange,
   organization,
-}: OrganizationInformationEditModalProps) {
-  const t = useTranslations("Components.Organizations.EditInformationModal");
+}: OrganizationInformationModalProps) {
+  const t = useTranslations("Components.Organizations.InformationModal.Title");
 
-  const form = useForm<UpdateOrganizationInformationFormSchemaType>({
+  const form = useForm<OrganizationInformationFormSchemaType>({
     resolver: zodResolver(
-      updateOrganizationInformationFormSchema(
-        useTranslations("Components.Organizations.EditInformationModal.Schema"),
+      organizationInformationFormSchema(
+        useTranslations("Components.Organizations.InformationModal.Schema"),
       ),
     ),
     defaultValues: {
       name: "",
-      metadata: "",
-      requiredEmailDomains: [],
     },
   });
-  const isLoading = form.formState.isSubmitting;
 
   useEffect(() => {
-    if (!open) {
+    if (!open || !organization) {
       return;
     }
-    const { name, metadata, requiredEmailDomains } = organization;
+
+    const { name } = organization;
     form.setValue("name", name);
-    form.setValue("metadata", metadata ?? "");
-    form.setValue("requiredEmailDomains", requiredEmailDomains ?? []);
   }, [organization, form, open]);
 
   const handleOpenChange = (open: boolean) => {
-    if (isLoading) {
+    if (form.formState.isSubmitting) {
       return;
     }
     onOpenChange(open);
   };
 
+  const isCreating = !organization;
+
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogPortal>
         <DialogOverlay className="backdrop-blur-lg" />
-        <DialogContent className="max-h-[80svh] w-[80vw] max-w-2xl!">
-          <DialogTitle className="text-center">{t("title")}</DialogTitle>
+        <DialogContent className="max-h-[80svh] w-[30vw] max-w-2xl!">
+          <DialogTitle className="text-center">
+            {isCreating ? t("create") : t("edit")}
+          </DialogTitle>
           <DialogDescription className="hidden" />
-          <OrganizationInformationEditForm
-            organizationId={organization.id}
+          <OrganizationInformationForm
+            organization={organization}
             form={form}
             onOpenChange={onOpenChange}
           />
