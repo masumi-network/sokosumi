@@ -132,7 +132,7 @@ export function FooterSections({ className }: FooterSectionsProps) {
       </div>
 
       {/* Bottom section */}
-      <div className="flex flex-wrap items-center gap-4">
+      <div className="mb-24 flex flex-wrap items-center gap-4 md:mb-0">
         <div className="flex w-full items-center justify-between gap-4 md:w-auto">
           <ThemeToggle />
           <Button variant="secondary">
