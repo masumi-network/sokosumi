@@ -11,6 +11,7 @@ import { authClient } from "@/lib/auth/auth.client";
 import { MemberRole, MemberWithUser } from "@/lib/db";
 
 export enum MemberAction {
+  CHANGE_TO_OWNER = "CHANGE_TO_OWNER",
   CHANGE_TO_ADMIN = "CHANGE_TO_ADMIN",
   CHANGE_TO_MEMBER = "CHANGE_TO_MEMBER",
   REMOVE = "REMOVE",
@@ -34,6 +35,12 @@ export function MemberActionsModalContextProvider({
     action: MemberAction,
   ): Promise<BetterAuthClientResult<unknown>> {
     switch (action) {
+      case MemberAction.CHANGE_TO_OWNER:
+        return await authClient.organization.updateMemberRole({
+          organizationId: member.organizationId,
+          memberId: member.id,
+          role: MemberRole.OWNER,
+        });
       case MemberAction.CHANGE_TO_ADMIN:
         return await authClient.organization.updateMemberRole({
           organizationId: member.organizationId,

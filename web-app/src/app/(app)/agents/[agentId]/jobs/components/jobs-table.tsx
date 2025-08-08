@@ -39,6 +39,7 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
         channelName={makeAgentJobsChannel(params.agentId, userId)}
       >
         <DataTable
+          tableClassName="[&>div>div>div]:flex! [&>div>div>div]:md:table!"
           columns={getColumns(userId, t, dateFormatter)}
           onRowClick={(row) => async () => {
             if (routerLoading) return;

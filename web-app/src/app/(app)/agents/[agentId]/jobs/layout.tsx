@@ -14,6 +14,7 @@ import { agentService } from "@/lib/services";
 
 import Footer from "./components/footer";
 import Header, { HeaderSkeleton } from "./components/header";
+import JobBottomNavigation from "./components/job-bottom-navigation";
 
 export async function generateMetadata({
   params,
@@ -84,6 +85,11 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
           {children}
           {right}
         </div>
+        <JobBottomNavigation
+          agent={agentWithCreditsPrice}
+          favoriteAgents={favoriteAgents}
+          disabled={!availableAgent}
+        />
         <Footer legal={getAgentLegal(agent)} />
         {/* Create Job Modal */}
         {!!availableAgent && <CreateJobModal />}

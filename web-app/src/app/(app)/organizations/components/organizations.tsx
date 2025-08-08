@@ -39,7 +39,7 @@ export function OrganizationsNotAvailable() {
   const t = useTranslations("App.Organizations");
 
   return (
-    <div className="flex w-full items-center justify-center p-8">
+    <div className="flex w-full items-center justify-center md:p-8">
       <p className="text-muted-foreground text-center text-base">
         {t("organizationsNotAvailable")}
       </p>

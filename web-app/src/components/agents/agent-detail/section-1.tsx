@@ -17,6 +17,7 @@ import {
   getAgentResolvedImage,
   getFullAgentAuthorName,
 } from "@/lib/db";
+import { cn } from "@/lib/utils";
 
 interface AgentDetailSection1Props {
   agent: AgentWithCreditsPrice;
@@ -37,13 +38,15 @@ function AgentDetailSection1({
 
   return (
     <div className="flex flex-col gap-6">
-      <AgentActionButtons
-        agent={agent}
-        favoriteAgents={favoriteAgents}
-        showBackButton={showBackButton}
-        showCloseButton={showCloseButton}
-        onClose={onClose}
-      />
+      <div className={cn("w-full md:flex", !showCloseButton && "hidden")}>
+        <AgentActionButtons
+          agent={agent}
+          favoriteAgents={favoriteAgents}
+          showBackButton={showBackButton}
+          showCloseButton={showCloseButton}
+          onClose={onClose}
+        />
+      </div>
       <div className="flex flex-col gap-6 md:flex-row">
         <div className="relative aspect-square w-full shrink-0 md:h-48 md:w-48">
           <Image

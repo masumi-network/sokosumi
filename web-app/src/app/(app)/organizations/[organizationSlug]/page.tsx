@@ -85,7 +85,7 @@ export default async function OrganizationPage({
   }
 
   return (
-    <div className="container flex flex-col gap-8 p-8">
+    <div className="container flex flex-col gap-8 md:p-8">
       <div className="flex items-center gap-2">
         <p className="text-muted-foreground">{t("roleIndicator")}</p>
         <OrganizationRoleBadge role={member.role} />

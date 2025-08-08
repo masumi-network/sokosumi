@@ -7,6 +7,7 @@ import { useEffect, useState } from "react";
 import { AgentBookmarkButton } from "@/components/agents/agent-bookmark-button";
 import { ShareButton } from "@/components/share-button";
 import { Button } from "@/components/ui/button";
+import { useSidebar } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AgentWithRelations } from "@/lib/db";
 import { cn } from "@/lib/utils";
@@ -15,6 +16,7 @@ interface AgentActionButtonsProps {
   agent: AgentWithRelations;
   favoriteAgents?: AgentWithRelations[] | undefined;
   showBackButton?: boolean | undefined;
+  showShareButton?: boolean | undefined;
   showCloseButton?: boolean | undefined;
   onClose?: (() => void) | undefined;
   className?: string | undefined;
@@ -24,11 +26,13 @@ function AgentActionButtons({
   agent,
   favoriteAgents,
   showBackButton = true,
+  showShareButton = true,
   showCloseButton = false,
   onClose,
   className,
 }: AgentActionButtonsProps) {
   const router = useRouter();
+  const { isMobile } = useSidebar();
   const [url, setUrl] = useState<URL | undefined>(undefined);
   const isFavorite = favoriteAgents?.some(
     (favoriteAgent) => favoriteAgent.id === agent.id,
@@ -36,16 +40,23 @@ function AgentActionButtons({
 
   useEffect(() => {
     setUrl(new URL(`${window.location.origin}/agents/${agent.id}`));
-  }, [agent.id]);
+  }, [agent]);
 
   const onBack = () => {
-    router.back();
+    // Check if we're inside of jobs/<id> and if it's mobile, redirect to /agents
+    const pathMatch = window.location.pathname.includes("/jobs/");
+
+    if (isMobile && pathMatch) {
+      router.push("/agents");
+    } else {
+      router.back();
+    }
   };
 
   return (
     <div className={cn("flex w-full items-center justify-between", className)}>
       <div className="flex items-center gap-2">
-        {showBackButton && (
+        {showBackButton && window.history.length > 1 && (
           <Button size="icon" variant="secondary" onClick={onBack}>
             <ArrowLeft />
           </Button>
@@ -63,7 +74,7 @@ function AgentActionButtons({
             isFavorite={isFavorite ?? false}
           />
         )}
-        {url && <ShareButton url={url} />}
+        {showShareButton && url && <ShareButton url={url} />}
       </div>
     </div>
   );

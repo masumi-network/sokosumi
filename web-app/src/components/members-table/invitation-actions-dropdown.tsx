@@ -14,7 +14,7 @@ import {
 import { authClient } from "@/lib/auth/auth.client";
 import { MemberRole } from "@/lib/db";
 import { cn } from "@/lib/utils";
-import { Invitation } from "@/prisma/generated/client";
+import { Invitation, Member } from "@/prisma/generated/client";
 
 import {
   InvitationAction,
@@ -22,11 +22,13 @@ import {
 } from "./invitation-actions-modal-context";
 
 interface InvitationActionsDropdownProps {
+  me: Member;
   invitation: Invitation;
   className?: string;
 }
 
 export default function InvitationActionsDropdown({
+  me,
   invitation,
   className,
 }: InvitationActionsDropdownProps) {
@@ -73,9 +75,12 @@ export default function InvitationActionsDropdown({
     setOpen(open);
   };
 
+  const isOwnerOrAdmin =
+    me.role === MemberRole.OWNER || me.role === MemberRole.ADMIN;
+
   return (
     <DropdownMenu open={open} onOpenChange={handleOpenChange}>
-      <DropdownMenuTrigger asChild>
+      <DropdownMenuTrigger asChild disabled={!isOwnerOrAdmin}>
         <Button
           variant="outline"
           size="icon"
