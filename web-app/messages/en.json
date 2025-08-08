@@ -1114,7 +1114,7 @@
                 "unauthenticated": "You must be logged in to request a refund.",
                 "unauthenticatedAction": "Login",
                 "jobNotFound": "Job not found",
-                "unauthorized": "You must be job owner to reqeust a refund"
+                "unauthorized": "You must be job owner to request a refund"
               }
             }
           }
