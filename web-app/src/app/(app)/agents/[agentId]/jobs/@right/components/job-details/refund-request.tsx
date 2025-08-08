@@ -191,7 +191,6 @@ export default function RequestRefundButton({
       const { title, description } = makeTitleAndDescription(job, t, formatter);
 
       const handleRefundRequest = async (job: JobWithStatus) => {
-        console.log("handleRefundRequest", job);
         setIsLoading(true);
         setError(null);
 
