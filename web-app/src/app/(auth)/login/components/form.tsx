@@ -65,6 +65,12 @@ export default function SignInForm({
     // Verify session is available before redirecting
     const session = await authClient.getSession();
     if (!session) {
+      Sentry.captureMessage(
+        "Session not established after login, waiting for 500ms",
+        {
+          level: "warning",
+        },
+      );
       await new Promise((resolve) => setTimeout(resolve, 500));
       const retrySession = await authClient.getSession();
       if (!retrySession) {
