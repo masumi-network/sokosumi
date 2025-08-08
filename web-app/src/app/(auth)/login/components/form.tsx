@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import * as Sentry from "@sentry/nextjs";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { usePlausible } from "next-plausible";
@@ -60,6 +61,21 @@ export default function SignInForm({
 
     // Wait a moment for session to be established
     await new Promise((resolve) => setTimeout(resolve, 200));
+
+    // Verify session is available before redirecting
+    const session = await authClient.getSession();
+    if (!session) {
+      await new Promise((resolve) => setTimeout(resolve, 500));
+      const retrySession = await authClient.getSession();
+      if (!retrySession) {
+        Sentry.captureMessage(
+          "Session not established after login, proceeding with redirect anyway",
+          {
+            level: "warning",
+          },
+        );
+      }
+    }
 
     plausible("SignIn");
     toast.success(t("success"));
