@@ -49,15 +49,19 @@ export default function MemberActionsDropdown({
     openActionModal(member, MemberAction.REMOVE);
   };
 
-  const [hasPermission, canChangeToOwner, canChangeToAdmin, canChangeToMember] =
-    useMemo(() => {
-      return [
-        checkPermission(me, member),
-        checkCanChangeToOwner(me, member),
-        checkCanChangeToAdmin(me, member),
-        checkCanChangeToMember(me, member),
-      ];
-    }, [me, member]);
+  const {
+    hasPermission,
+    canChangeToOwner,
+    canChangeToAdmin,
+    canChangeToMember,
+  } = useMemo(() => {
+    return {
+      hasPermission: checkPermission(me, member),
+      canChangeToOwner: checkCanChangeToOwner(me, member),
+      canChangeToAdmin: checkCanChangeToAdmin(me, member),
+      canChangeToMember: checkCanChangeToMember(me, member),
+    };
+  }, [me, member]);
 
   return (
     <DropdownMenu>
@@ -82,9 +86,11 @@ export default function MemberActionsDropdown({
             {t("changeToMember")}
           </DropdownMenuItem>
         )}
-        <DropdownMenuItem variant="destructive" onClick={handleRemove}>
-          {t("remove")}
-        </DropdownMenuItem>
+        {hasPermission && (
+          <DropdownMenuItem variant="destructive" onClick={handleRemove}>
+            {t("remove")}
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
