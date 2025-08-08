@@ -339,7 +339,6 @@
       "title": "Organization Invitation",
       "description": "You've been invited to join an organization",
       "hasInvitedYouToJoin": "has invited you to join",
-      "youAreAcceptingWith": "You are accepting with",
       "acceptedTitle": "Welcome to {organizationName}!",
       "acceptedDescription": "You've successfully joined the organization. We're excited to have you on board!",
       "goToOrganization": "Go to Organization",
@@ -349,6 +348,9 @@
       "Actions": {
         "accept": "Accept Invitation",
         "decline": "Decline Invitation",
+        "logout": "Logout",
+        "ignore": "Ignore Invitation",
+        "emailMismatch": "You are not the invited user.",
         "WithoutSession": {
           "ifYouAlreadyHaveAnAccount": "If you already have an account, you can log in to your account and accept the invitation.",
           "ifYouDontHaveAnAccount": "If you don't have an account, you can register a new account and join the organization.",
