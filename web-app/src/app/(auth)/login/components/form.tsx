@@ -2,7 +2,6 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { usePlausible } from "next-plausible";
 import { useMemo } from "react";
@@ -27,7 +26,6 @@ export default function SignInForm({
 }: SignInFormProps) {
   const t = useTranslations("Auth.Pages.SignIn.Form");
 
-  const router = useRouter();
   const plausible = usePlausible();
 
   const form = useForm<SignInFormSchemaType>({
@@ -59,8 +57,13 @@ export default function SignInForm({
       }
       return;
     }
+
+    // Wait a moment for session to be established
+    await new Promise((resolve) => setTimeout(resolve, 200));
+
     plausible("SignIn");
     toast.success(t("success"));
+
     // Redirect to the original URL if provided, otherwise go to /agents
     // Validate returnUrl to prevent open redirect attacks
     let redirectUrl = "/agents";
@@ -75,7 +78,9 @@ export default function SignInForm({
         // Invalid URL, fallback to /agents
       }
     }
-    router.push(redirectUrl);
+
+    // Use window.location.href for hard navigation to ensure cookies are properly sent
+    window.location.href = redirectUrl;
   };
 
   const email = form.watch("email");

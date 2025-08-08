@@ -24,9 +24,6 @@ const fromEmail = getEnvSecrets().RESEND_FROM_EMAIL;
 
 export const auth = betterAuth({
   session: {
-    expiresIn: getEnvSecrets().BETTER_AUTH_SESSION_EXPIRES_IN,
-    updateAge: getEnvSecrets().BETTER_AUTH_SESSION_UPDATE_AGE,
-    freshAge: getEnvSecrets().BETTER_AUTH_SESSION_FRESH_AGE,
     cookieCache: {
       enabled: true,
       maxAge: getEnvSecrets().BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE,
