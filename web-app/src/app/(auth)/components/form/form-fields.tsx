@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
 import {
   ControllerRenderProps,
   FieldValues,
@@ -19,24 +18,19 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useAllowedOrganizations } from "@/hooks/use-allowed-organizations";
-import { OrganizationWithRelations } from "@/lib/db/types/organization";
 import { FormData } from "@/lib/form";
 
-import { OrganizationInput } from "./organization-input";
 import { AuthNamespace } from "./types";
 
 interface FormFieldsProps<T extends FieldValues> {
   form: UseFormReturn<T>;
   formData: FormData<T, AuthNamespace>;
-  prefilledOrganization?: OrganizationWithRelations | null;
   namespace: AuthNamespace;
 }
 
 export function FormFields<T extends FieldValues>({
   form,
   formData,
-  prefilledOrganization,
   namespace,
 }: FormFieldsProps<T>) {
   const t = useTranslations(namespace);
@@ -51,13 +45,7 @@ export function FormFields<T extends FieldValues>({
           render={({ field }) => (
             <FormItem>
               <FormControl>
-                <FormInput
-                  form={form}
-                  field={field}
-                  formDataItem={formDataItem}
-                  t={t}
-                  prefilledOrganization={prefilledOrganization}
-                />
+                <FormInput field={field} formDataItem={formDataItem} t={t} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -69,22 +57,17 @@ export function FormFields<T extends FieldValues>({
 }
 
 interface FormInputProps<T extends FieldValues> {
-  form: UseFormReturn<T>;
   field: ControllerRenderProps<T, Path<T>>;
   formDataItem: FormData<T, AuthNamespace>[number];
   t: IntlTranslation<AuthNamespace>;
-  prefilledOrganization?: OrganizationWithRelations | null;
 }
 
 function FormInput<T extends FieldValues>({
-  form,
   field,
   formDataItem,
   t,
-  prefilledOrganization,
 }: FormInputProps<T>) {
-  const { type, labelKey, name, placeholderKey } = formDataItem;
-  const email = form.watch("email" as unknown as Path<T>);
+  const { type, labelKey, name, placeholderKey, disabled } = formDataItem;
 
   if (type === "checkbox") {
     const iAgreeToText = t.has("Fields.TermsAccepted.Label.iAgreeTo")
@@ -139,77 +122,13 @@ function FormInput<T extends FieldValues>({
     );
   }
 
-  if (name === "selectedOrganization") {
-    return (
-      <OrganizationFormInput
-        email={email ?? ""}
-        field={field}
-        prefilledOrganization={prefilledOrganization}
-      />
-    );
-  }
-
   return (
     <Input
       placeholder={placeholderKey && t(placeholderKey)}
       type={type ?? "text"}
       {...field}
       value={field.value}
-    />
-  );
-}
-
-interface OrganizationFormInputProps<T extends FieldValues> {
-  email: string;
-  field: ControllerRenderProps<T, Path<T>>;
-  prefilledOrganization?: OrganizationWithRelations | null;
-}
-
-function OrganizationFormInput<T extends FieldValues>({
-  email,
-  field,
-  prefilledOrganization,
-}: OrganizationFormInputProps<T>) {
-  const { allowedOrganizations, isLoading } = useAllowedOrganizations({
-    email,
-    prefilledOrganization,
-  });
-  const [selectedOrganization, setSelectedOrganization] = useState<
-    OrganizationWithRelations | { name: string } | undefined
-  >(
-    prefilledOrganization ??
-      allowedOrganizations.find(
-        (org: OrganizationWithRelations) => org.id === field.value?.id,
-      ),
-  );
-
-  useEffect(() => {
-    if (prefilledOrganization) {
-      setSelectedOrganization(prefilledOrganization);
-      return;
-    }
-    setSelectedOrganization(undefined);
-  }, [prefilledOrganization, email]);
-
-  const handleOrganizationChange = (
-    organization: OrganizationWithRelations | { name: string },
-  ) => {
-    setSelectedOrganization(organization);
-    // Set the full organization object with id and name properties
-    field.onChange({
-      id: "id" in organization ? organization.id : null,
-      name: organization?.name,
-    });
-  };
-
-  return (
-    <OrganizationInput
-      email={email}
-      isLoading={isLoading}
-      organizations={allowedOrganizations}
-      value={selectedOrganization}
-      onChange={handleOrganizationChange}
-      disabled={!!prefilledOrganization}
+      disabled={disabled}
     />
   );
 }

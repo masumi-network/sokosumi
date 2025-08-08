@@ -13,7 +13,11 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import { AgentWithRelations, getAgentName } from "@/lib/db";
+import {
+  AgentWithRelations,
+  getAgentName,
+  OrganizationWithLimitedInfo,
+} from "@/lib/db";
 
 interface BreadcrumbSegment {
   label: string;
@@ -23,25 +27,36 @@ interface BreadcrumbSegment {
 
 interface BreadcrumbNavigationClientProps {
   /**
-   * Optional map of path segments to their display labels
-   */
-  segmentLabels?: Record<string, string>;
-  /**
    * Agents for resolving agent IDs to names
    */
   agents: AgentWithRelations[];
+  /**
+   * Organizations for resolving organization IDs to names
+   */
+  organizations: OrganizationWithLimitedInfo[];
+  /**
+   * Optional map of path segments to their display labels
+   */
+  segmentLabels?: Record<string, string>;
   className?: string | undefined;
 }
 
 export default function BreadcrumbNavigationClient({
-  segmentLabels = {},
   agents,
+  organizations,
+  segmentLabels = {},
   className,
 }: BreadcrumbNavigationClientProps) {
   const pathname = usePathname();
   const t = useTranslations("Components.Breadcrumb");
 
-  const segments = generateSegments(pathname, segmentLabels, agents, t);
+  const segments = generateSegments(
+    pathname,
+    segmentLabels,
+    agents,
+    organizations,
+    t,
+  );
 
   return (
     <Breadcrumb className={className}>
@@ -69,6 +84,7 @@ function generateSegments(
   pathname: string,
   segmentLabels: Record<string, string>,
   agents: AgentWithRelations[],
+  organizations: OrganizationWithLimitedInfo[],
   t?: IntlTranslation<"Components.Breadcrumb">,
 ): BreadcrumbSegment[] {
   const pathSegments = pathname.split("/").filter(Boolean);
@@ -85,12 +101,17 @@ function generateSegments(
       // Try to resolve the segment label in the following order:
       // 1. Custom segment labels map
       // 2. Agent name resolution
-      // 3. Translation key
-      // 4. Fallback to the segment itself
+      // 3. Organization name resolution
+      // 4. Translation key
+      // 5. Fallback to the segment itself
       const agent = agents.find((a) => a.id === segment);
+      const organization = organizations.find(
+        (o) => o.slug === decodeURIComponent(segment),
+      );
       const label =
         segmentLabels[segment] ??
         (agent && getAgentName(agent)) ??
+        (organization && organization.name) ??
         (t && t.has(segment) ? t(segment) : segment);
 
       return {

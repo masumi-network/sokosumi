@@ -1,11 +1,15 @@
 "use server";
 
 import { getEnvSecrets } from "@/config/env.secrets";
-import { ActionError, BillingErrorCode, CommonErrorCode } from "@/lib/actions";
+import {
+  ActionError,
+  BillingErrorCode,
+  CommonErrorCode,
+} from "@/lib/actions/errors";
 import { getSession } from "@/lib/auth/utils";
 import { stripeClient } from "@/lib/clients/stripe.client";
 import { CouponError } from "@/lib/errors/coupon-errors";
-import { getMyMemberInOrganization } from "@/lib/services";
+import { userService } from "@/lib/services";
 import { stripeService } from "@/lib/services/stripe.service";
 import { Err, Ok, Result } from "@/lib/ts-res";
 
@@ -72,7 +76,8 @@ export async function purchaseCredits(
 
     // Verify user is member of the organization
     if (organizationId) {
-      const member = await getMyMemberInOrganization(organizationId);
+      const member =
+        await userService.getMyMemberInOrganization(organizationId);
       if (!member) {
         return Err({
           message: "Unauthorized",
@@ -118,7 +123,8 @@ export async function getFreeCreditsWithCoupon(
 
     // If organizationId is provided, verify user is a member
     if (organizationId) {
-      const member = await getMyMemberInOrganization(organizationId);
+      const member =
+        await userService.getMyMemberInOrganization(organizationId);
       if (!member) {
         return Err({
           message: "Unauthorized",

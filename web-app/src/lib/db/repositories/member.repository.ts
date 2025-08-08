@@ -18,7 +18,7 @@ import prisma from "./prisma";
  * Provides methods for creating members, retrieving member lists,
  * and fetching membership information with related user or organization data.
  */
-export const memberRepository = {
+export const memberRepository = (() => {
   /**
    * Creates a new member in the specified organization with the given role.
    *
@@ -28,7 +28,7 @@ export const memberRepository = {
    * @param tx - Optional Prisma transaction client for transactional operations.
    * @returns The created Member object.
    */
-  async createMember(
+  async function createMember(
     userId: string,
     organizationId: string,
     role: MemberRole,
@@ -49,7 +49,7 @@ export const memberRepository = {
         role,
       },
     });
-  },
+  }
 
   /**
    * Retrieves all memberships for a user, including organization details.
@@ -58,7 +58,7 @@ export const memberRepository = {
    * @param tx - Optional Prisma transaction client.
    * @returns An array of MemberWithOrganization objects.
    */
-  async getMembersWithOrganizationByUserId(
+  async function getMembersWithOrganizationByUserId(
     userId: string,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<MemberWithOrganization[]> {
@@ -69,7 +69,7 @@ export const memberRepository = {
       include: memberOrganizationInclude,
       orderBy: [{ ...memberRoleOrderBy }],
     });
-  },
+  }
 
   /**
    * Retrieves all organization IDs for which the user is a member.
@@ -78,7 +78,7 @@ export const memberRepository = {
    * @param tx - Optional Prisma transaction client.
    * @returns An array of organization IDs.
    */
-  async getMembersOrganizationIdsByUserId(
+  async function getMembersOrganizationIdsByUserId(
     userId: string,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<string[]> {
@@ -87,7 +87,7 @@ export const memberRepository = {
       select: { organizationId: true },
     });
     return userMemberships.map((m) => m.organizationId);
-  },
+  }
 
   /**
    * Retrieves a member by user ID and organization ID.
@@ -97,7 +97,7 @@ export const memberRepository = {
    * @param tx - Optional Prisma transaction client.
    * @returns The Member object if found, otherwise null.
    */
-  async getMemberByUserIdAndOrganizationId(
+  async function getMemberByUserIdAndOrganizationId(
     userId: string,
     organizationId: string,
     tx: Prisma.TransactionClient = prisma,
@@ -110,36 +110,26 @@ export const memberRepository = {
         },
       },
     });
-  },
+  }
 
   /**
    * Retrieves members matching the given filter, including user details.
    * Supports pagination.
    *
    * @param where - Prisma filter for members.
-   * @param params - Pagination parameters (page, limit).
    * @param tx - Optional Prisma transaction client.
    * @returns An array of MemberWithUser objects.
    */
-  async getMembersWithUser(
+  async function getMembersWithUser(
     where: Prisma.MemberWhereInput,
-    params: {
-      page: number;
-      limit: number;
-    } = {
-      page: 1,
-      limit: 10,
-    },
     tx: Prisma.TransactionClient = prisma,
   ): Promise<MemberWithUser[]> {
     return await tx.member.findMany({
       where,
       include: memberUserInclude,
       orderBy: [...memberOrderBy],
-      skip: (params.page - 1) * params.limit,
-      take: params.limit,
     });
-  },
+  }
 
   /**
    * Retrieves all members of a given organization.
@@ -148,7 +138,7 @@ export const memberRepository = {
    * @param tx - Optional Prisma transaction client.
    * @returns An array of Member objects.
    */
-  async getMembersByOrganizationId(
+  async function getMembersByOrganizationId(
     organizationId: string,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<Member[]> {
@@ -157,5 +147,57 @@ export const memberRepository = {
         organizationId,
       },
     });
-  },
-};
+  }
+
+  /**
+   * Retrieves the count of members by role for a given organization.
+   *
+   * @param organizationId - The ID of the organization.
+   * @param tx - Optional Prisma transaction client.
+   * @returns An object with the count of members by role.
+   */
+  async function getPerRoleCountByOrganizationId(
+    organizationId: string,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<{ [key in MemberRole]: number }> {
+    const memberCounts = await tx.member.groupBy({
+      by: ["role"],
+      where: { organizationId },
+      _count: {
+        role: true,
+      },
+    });
+
+    const counts: { [key in MemberRole]: number } = Object.values(
+      MemberRole,
+    ).reduce(
+      (acc, role) => {
+        acc[role] = 0;
+        return acc;
+      },
+      {} as { [key in MemberRole]: number },
+    );
+
+    memberCounts.forEach((group) => {
+      const {
+        role,
+        _count: { role: roleCount },
+      } = group;
+      if (role in counts) {
+        counts[role as MemberRole] = roleCount;
+      }
+    });
+
+    return counts;
+  }
+
+  return {
+    createMember,
+    getMembersWithOrganizationByUserId,
+    getMembersOrganizationIdsByUserId,
+    getMemberByUserIdAndOrganizationId,
+    getMembersWithUser,
+    getMembersByOrganizationId,
+    getPerRoleCountByOrganizationId,
+  };
+})();

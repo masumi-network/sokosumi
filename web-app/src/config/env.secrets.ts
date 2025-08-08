@@ -94,6 +94,11 @@ const envSecretsSchema = z.object({
     .number({ coerce: true })
     .min(0)
     .default(60 * 5), // 5 minutes
+  BETTER_AUTH_ORG_INVITATION_LIMIT: z
+    .number({ coerce: true })
+    .min(0)
+    .default(100),
+  BETTER_AUTH_ORG_LIMIT: z.number({ coerce: true }).min(0).default(100),
   LOCK_TIMEOUT: z
     .number({ coerce: true })
     .min(1 * 60 * 1000)

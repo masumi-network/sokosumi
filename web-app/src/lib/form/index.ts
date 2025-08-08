@@ -21,6 +21,7 @@ type FormData<
   labelKey?: MessageKeysIn<Path>;
   placeholderKey?: MessageKeysIn<Path>;
   descriptionKey?: MessageKeysIn<Path>;
+  disabled?: boolean;
 }>;
 
 export type { FormData };

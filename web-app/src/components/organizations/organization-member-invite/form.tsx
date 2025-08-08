@@ -37,25 +37,24 @@ export default function OrganizationMemberInviteForm({
       resend: true,
     });
     if (result.error) {
-      switch (result.error.code) {
-        case "USER_IS_ALREADY_A_MEMBER_OF_THIS_ORGANIZATION":
-          toast.error(t("Errors.userAlreadyMember"));
-          break;
-        case "YOU_ARE_NOT_ALLOWED_TO_INVITE_USER_WITH_THIS_ROLE":
-          toast.error(t("Errors.unauthorized"));
-          break;
-        case "INVITATION_LIMIT_REACHED":
-          toast.error(t("Errors.invitationLimitReached"));
-          break;
-        default:
-          toast.error(t("error"));
+      const errorMessage = result.error.message ?? t("error");
+      if (result.error.status === 401) {
+        toast.error(errorMessage, {
+          action: {
+            label: t("Errors.unauthorizedAction"),
+            onClick: () => {
+              router.push("/login");
+            },
+          },
+        });
+      } else {
+        toast.error(errorMessage);
       }
-      return;
+    } else {
+      toast.success(t("success"));
+      onOpenChange(false);
+      router.refresh();
     }
-
-    toast.success(t("success"));
-    onOpenChange(false);
-    router.refresh();
   };
 
   const isLoading = form.formState.isSubmitting;
