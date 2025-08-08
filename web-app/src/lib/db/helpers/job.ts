@@ -22,6 +22,27 @@ function checkPaymentStatus(job: Job, now: Date): JobStatus | null {
   return null;
 }
 
+function checkNextAction(job: Job): JobStatus | null {
+  switch (job.nextAction) {
+    case NextJobAction.FUNDS_LOCKING_INITIATED:
+    case NextJobAction.FUNDS_LOCKING_REQUESTED:
+      return JobStatus.PAYMENT_PENDING;
+    case NextJobAction.SET_REFUND_REQUESTED_INITIATED:
+    case NextJobAction.SET_REFUND_REQUESTED_REQUESTED:
+    case NextJobAction.UNSET_REFUND_REQUESTED_INITIATED:
+    case NextJobAction.UNSET_REFUND_REQUESTED_REQUESTED:
+      return JobStatus.REFUND_PENDING;
+    case NextJobAction.WITHDRAW_REFUND_REQUESTED:
+    case NextJobAction.WITHDRAW_REFUND_INITIATED:
+    case NextJobAction.WAITING_FOR_MANUAL_ACTION:
+    case NextJobAction.WAITING_FOR_EXTERNAL_ACTION:
+    case NextJobAction.NONE:
+    case NextJobAction.IGNORE:
+    case null:
+      return null;
+  }
+}
+
 function getFundsLockedJobStatus(
   job: Job,
   agentJobStatus: AgentJobStatus | null,
@@ -74,6 +95,12 @@ export function computeJobStatus(job: Job): JobStatus {
     return paymentStatus;
   }
 
+  // If the job has a next action, it means the job is not yet finished
+  const nextActionStatus = checkNextAction(job);
+  if (nextActionStatus) {
+    return nextActionStatus;
+  }
+
   // If the job has a purchase, it means the job is started
   switch (onChainStatus) {
     case null:
@@ -81,8 +108,8 @@ export function computeJobStatus(job: Job): JobStatus {
         return JobStatus.PAYMENT_FAILED;
       }
       if (
-        job.submitResultTime &&
-        job.submitResultTime.getTime() < now.getTime() - TEN_MINUTES_TIMESTAMP
+        job.payByTime &&
+        job.payByTime.getTime() < now.getTime() - TEN_MINUTES_TIMESTAMP
       ) {
         return JobStatus.FAILED;
       }
