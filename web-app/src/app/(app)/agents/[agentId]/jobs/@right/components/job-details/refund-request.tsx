@@ -236,6 +236,8 @@ export default function RequestRefundButton({
           toast.error(t("error"));
           break;
         default:
+          toast.error(t("error"));
+          break;
       }
       setError(result.error);
     }
