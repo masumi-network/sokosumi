@@ -59,7 +59,7 @@ export type GetPaymentInformationResponses = {
             };
             PaymentIdentifier: Array<{
                 paymentIdentifier: string | null;
-                paymentType: 'Web3CardanoV1';
+                paymentType: 'Web3CardanoV1' | 'Offchain';
                 sellerVKey: string | null;
             }>;
             Capability: {
@@ -67,7 +67,7 @@ export type GetPaymentInformationResponses = {
                 version: string | null;
             } | null;
             AgentPricing: {
-                pricingType: 'Fixed';
+                pricingType: 'Fixed' | 'None';
                 FixedPricing: {
                     Amounts: Array<{
                         amount: string;
@@ -111,7 +111,7 @@ export type PostRegistryEntryData = {
         limit?: number;
         cursorId?: string;
         filter?: {
-            paymentTypes?: Array<'Web3CardanoV1'>;
+            paymentTypes?: Array<'Web3CardanoV1' | 'Offchain'>;
             status?: Array<'Online' | 'Offline' | 'Deregistered' | 'Invalid'>;
             policyId?: string;
             assetIdentifier?: string;
@@ -180,13 +180,15 @@ export type PostRegistryEntryResponses = {
                 tags: Array<string> | null;
                 agentIdentifier: string;
                 AgentPricing: {
-                    pricingType: 'Fixed';
+                    pricingType: 'Fixed' | 'None';
                     FixedPricing: {
                         Amounts: Array<{
                             amount: string;
                             unit: string;
                         }>;
                     };
+                } | {
+                    pricingType: 'Fixed' | 'None';
                 };
                 ExampleOutput: Array<{
                     name: string;
