@@ -287,6 +287,10 @@ export const jobRepository = {
         blockchainIdentifier: data.blockchainIdentifier,
         sellerVkey: data.sellerVkey,
         name: data.name,
+        // for demo job
+        agentJobStatus: data.agentJobStatus,
+        output: data.output,
+        completedAt: data.completedAt,
       },
     });
   },

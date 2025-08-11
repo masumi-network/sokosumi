@@ -46,17 +46,24 @@ export function getJobColumns(
       ),
       cell: ({ row }) => (
         <div className="p-2">
-          <RealTimeJobStatusBadge
-            agentId={row.original.agentId}
-            userId={userId}
-            jobId={row.original.id}
-            initialJobIndicatorStatus={{
-              jobId: row.original.id,
-              jobStatus: row.original.status,
-              jobStatusSettled: row.original.jobStatusSettled,
-            }}
-            isDemo={row.original.isDemo}
-          />
+          {row.original.isDemo ? (
+            <JobStatusBadge
+              status={row.original.status}
+              isDemo={row.original.isDemo}
+            />
+          ) : (
+            <RealTimeJobStatusBadge
+              agentId={row.original.agentId}
+              userId={userId}
+              jobId={row.original.id}
+              initialJobIndicatorStatus={{
+                jobId: row.original.id,
+                jobStatus: row.original.status,
+                jobStatusSettled: row.original.jobStatusSettled,
+              }}
+              isDemo={row.original.isDemo}
+            />
+          )}
         </div>
       ),
       enableSorting: true,
