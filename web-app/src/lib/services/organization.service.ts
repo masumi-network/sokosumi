@@ -3,6 +3,7 @@ import "server-only";
 import { nanoid } from "nanoid";
 import slugify from "slugify";
 
+import { Invitation } from "@/lib/auth/auth";
 import { getSession } from "@/lib/auth/utils";
 import { InvitationWithRelations, MemberWithUser } from "@/lib/db";
 import { invitationRepository, memberRepository } from "@/lib/db/repositories";
@@ -111,10 +112,29 @@ export const organizationService = (() => {
     return members;
   }
 
+  /**
+   * Filters and sorts pending invitations by email, keeping only the latest per email.
+   *
+   * @param invitations - An array of pending invitations to filter and sort.
+   * @returns A new array of invitations with the latest per email.
+   */
+  function filterPendingInvitation(invitations: Invitation[]): Invitation[] {
+    invitations.sort((a, b) => b.expiresAt.valueOf() - a.expiresAt.valueOf());
+    // Group by email and take the first (latest) invitation per email
+    const emailMap = new Map<string, Invitation>();
+    for (const invitation of invitations) {
+      if (!emailMap.has(invitation.email)) {
+        emailMap.set(invitation.email, invitation);
+      }
+    }
+    return Array.from(emailMap.values());
+  }
+
   return {
     generateOrganizationSlugFromName,
     getPendingInvitation,
     getOrganizationMembersWithUser,
+    filterPendingInvitation,
   };
 })();
 

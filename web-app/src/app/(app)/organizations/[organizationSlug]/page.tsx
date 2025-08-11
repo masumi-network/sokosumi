@@ -76,7 +76,7 @@ export default async function OrganizationPage({
   let pendingInvitations: Invitation[] = [];
   if (isOwnerOrAdmin) {
     try {
-      pendingInvitations = filterPendingInvitation(
+      pendingInvitations = organizationService.filterPendingInvitation(
         await auth.api.listInvitations({
           query: {
             organizationId: organization.id,
@@ -110,16 +110,4 @@ export default async function OrganizationPage({
       />
     </div>
   );
-}
-
-function filterPendingInvitation(invitations: Invitation[]): Invitation[] {
-  invitations.sort((a, b) => b.expiresAt.valueOf() - a.expiresAt.valueOf());
-  // Group by email and take the first (latest) invitation per email
-  const emailMap = new Map<string, Invitation>();
-  for (const invitation of invitations) {
-    if (!emailMap.has(invitation.email)) {
-      emailMap.set(invitation.email, invitation);
-    }
-  }
-  return Array.from(emailMap.values());
 }
