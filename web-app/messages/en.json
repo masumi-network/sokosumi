@@ -1010,6 +1010,7 @@
         },
         "CreateJob": {
           "title": "New {name}",
+          "demo": "Demo",
           "cancel": "Cancel",
           "Information": {
             "title": "Information"

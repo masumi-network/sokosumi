@@ -3,6 +3,7 @@
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AgentWithRelations, getAgentName } from "@/lib/db";
 
@@ -10,10 +11,12 @@ import { useCreateJobModalContext } from "./create-job-modal-context";
 
 interface CreateJobModalHeaderProps {
   agent: AgentWithRelations;
+  isDemo: boolean;
 }
 
 export default function CreateJobModalHeader({
   agent,
+  isDemo,
 }: CreateJobModalHeaderProps) {
   const t = useTranslations("App.Agents.Jobs.CreateJob");
   const name = getAgentName(agent);
@@ -32,9 +35,16 @@ export default function CreateJobModalHeader({
       >
         {isExpanded ? <ChevronUp /> : <ChevronDown />}
       </Button>
-      <h3 className="truncate text-base font-medium md:text-lg">
-        {t("title", { name })}
-      </h3>
+      <div className="flex items-center gap-2">
+        <h3 className="truncate text-base font-medium md:text-lg">
+          {t("title", { name })}
+        </h3>
+        {isDemo && (
+          <Badge variant="default" className="bg-orange-100 text-orange-800">
+            {t("demo")}
+          </Badge>
+        )}
+      </div>
       <Button
         variant="ghost"
         onClick={handleClose}
