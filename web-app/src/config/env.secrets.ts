@@ -20,13 +20,13 @@ const envSecretsSchema = z.object({
   ALLOWED_EMAIL_DOMAINS: z
     .string()
     .default("")
-    .transform((val) => (val.trim() === "" ? [] : val.split(",")))
+    .transform((val: string) => (val.trim() === "" ? [] : val.split(",")))
     .pipe(z.array(z.string())),
 
   SHOW_AGENTS_BY_DEFAULT: z
     .string()
     .default("false")
-    .transform((val) => val === "true"),
+    .transform((val: string) => val === "true"),
 
   // Stripe
   STRIPE_PUBLISHABLE_KEY: z.string().min(1),
@@ -36,7 +36,7 @@ const envSecretsSchema = z.object({
   STRIPE_WELCOME_COUPONS: z
     .string()
     .default("")
-    .transform((val) => (val.trim() === "" ? [] : val.split(",")))
+    .transform((val: string) => (val.trim() === "" ? [] : val.split(",")))
     .pipe(z.array(z.string().min(1))),
 
   // Anthropic
@@ -46,7 +46,7 @@ const envSecretsSchema = z.object({
   SEED_DATABASE: z
     .string()
     .default("false")
-    .transform((val) => val === "true"),
+    .transform((val: string) => val === "true"),
   SEED_USER_EMAIL: z.string().email().default("dev@sokosumi.com"),
   SEED_USER_PASSWORD: z.string().min(8).default("password"),
 
@@ -57,12 +57,16 @@ const envSecretsSchema = z.object({
   // Vercel
   VERCEL_URL: z
     .string()
-    .transform((val) => (val.startsWith("https://") ? val : `https://${val}`))
+    .transform((val: string) =>
+      val.startsWith("https://") ? val : `https://${val}`,
+    )
     .pipe(z.string().url())
     .optional(),
   VERCEL_BRANCH_URL: z
     .string()
-    .transform((val) => (val.startsWith("https://") ? val : `https://${val}`))
+    .transform((val: string) =>
+      val.startsWith("https://") ? val : `https://${val}`,
+    )
     .pipe(z.string().url())
     .optional(),
 
@@ -101,7 +105,7 @@ const envSecretsSchema = z.object({
   BLACKLISTED_AGENT_HOSTNAMES: z
     .string()
     .default("")
-    .transform((val) => (val.trim() === "" ? [] : val.split(",")))
+    .transform((val: string) => (val.trim() === "" ? [] : val.split(",")))
     .pipe(z.array(z.string())),
 
   // ably keys
