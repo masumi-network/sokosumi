@@ -13,6 +13,7 @@ import {
   computeJobStatus,
   getJobIndicatorStatus,
   JobStatus,
+  jobStatusToAgentJobStatus,
   JobWithStatus,
 } from "@/lib/db";
 import {
@@ -22,10 +23,15 @@ import {
 } from "@/lib/db/repositories";
 import { JobInputData } from "@/lib/job-input";
 import {
+  JobStatusResponseSchemaType,
   PricingAmountsSchemaType,
   StartJobInputSchemaType,
 } from "@/lib/schemas";
-import { getInputHash, getInputHashDeprecated } from "@/lib/utils";
+import {
+  generateRandomHexString,
+  getInputHash,
+  getInputHashDeprecated,
+} from "@/lib/utils";
 import {
   AgentJobStatus,
   Job,
@@ -34,6 +40,7 @@ import {
   Prisma,
 } from "@/prisma/generated/client";
 
+import { agentService } from "./agent.service";
 import { userService } from "./user.service";
 
 export const jobService = (() => {
@@ -198,6 +205,56 @@ export const jobService = (() => {
   };
 
   /**
+   * Starts a demo job for a specified agent with the provided input data.
+   *
+   * This function creates a job record with demo job-specific parameters and returns the created job.
+   *
+   * @param input - Job creation parameters including agent ID, user ID, input data, and input schema
+   * @param jobStatusResponse - The demo job status response from the agent
+   * @returns Promise resolving to the created Job record
+   * @throws {JobError} Various job-related errors including agent not found, etc.
+   */
+  const startDemoJob = async (
+    input: StartJobInputSchemaType,
+    jobStatusResponse: JobStatusResponseSchemaType,
+  ): Promise<Job> => {
+    const { userId, agentId, inputData, inputSchema } = input;
+    const activeOrganizationId = await userService.getActiveOrganizationId();
+
+    const agent = await agentService.getAvailableAgentById(agentId);
+    if (!agent) {
+      throw new JobError(JobErrorCode.AGENT_NOT_FOUND, "Agent not found");
+    }
+
+    const output = JSON.stringify(jobStatusResponse);
+    const agentJobStatus = jobStatusToAgentJobStatus(jobStatusResponse.status);
+
+    const job = await jobRepository.createJob({
+      agentJobId: uuidv4(),
+      agentId,
+      userId,
+      organizationId: activeOrganizationId,
+      input: JSON.stringify(Object.fromEntries(inputData)),
+      inputSchema: inputSchema,
+      creditsPrice: { cents: BigInt(0), includedFee: BigInt(0) },
+      identifierFromPurchaser: uuidv4(),
+      externalDisputeUnlockTime: new Date(),
+      payByTime: new Date(),
+      submitResultTime: new Date(),
+      unlockTime: new Date(),
+      blockchainIdentifier: generateRandomHexString(128),
+      sellerVkey: generateRandomHexString(),
+      name: "Demo Job",
+      agentJobStatus,
+      output,
+      completedAt:
+        agentJobStatus === AgentJobStatus.COMPLETED ? new Date() : null,
+    });
+
+    return job;
+  };
+
+  /**
    * Starts a new job for a specified agent with the provided input data.
    *
    * This function handles the complete job creation workflow including:
@@ -248,9 +305,6 @@ export const jobService = (() => {
           },
         });
 
-        const agentServiceModule = await import("./agent.service");
-        const agentServiceInstance = agentServiceModule.agentService;
-
         const agentWithCreditsPrice = await prisma.$transaction(async (tx) => {
           // Add breadcrumb for database transaction
           Sentry.addBreadcrumb({
@@ -260,10 +314,7 @@ export const jobService = (() => {
             data: { agentId },
           });
 
-          const agent = await agentServiceInstance.getAvailableAgentById(
-            agentId,
-            tx,
-          );
+          const agent = await agentService.getAvailableAgentById(agentId, tx);
           if (!agent) {
             Sentry.setTag("error_type", "agent_not_found");
             Sentry.setContext("agent_validation", {
@@ -291,8 +342,10 @@ export const jobService = (() => {
             },
           });
 
-          const agentWithCreditsPrice =
-            await agentServiceInstance.getAgentCreditsPrice(agent, tx);
+          const agentWithCreditsPrice = await agentService.getAgentCreditsPrice(
+            agent,
+            tx,
+          );
 
           if (agentWithCreditsPrice.creditsPrice.cents > maxAcceptedCents) {
             Sentry.setTag("error_type", "cost_too_high");
@@ -830,6 +883,7 @@ export const jobService = (() => {
 
   return {
     startJob,
+    startDemoJob,
     requestRefund,
     syncJob,
     getJobIndicatorStatuses,

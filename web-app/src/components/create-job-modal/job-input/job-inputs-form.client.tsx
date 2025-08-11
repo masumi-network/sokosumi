@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Command, CornerDownLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import React, { useEffect } from "react";
+import React from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -16,6 +16,7 @@ import usePreventEnterSubmit from "@/hooks/use-prevent-enter-submit";
 import {
   CommonErrorCode,
   JobErrorCode,
+  startDemoJob,
   startJobWithInputData,
 } from "@/lib/actions";
 import { AgentLegal, convertCentsToCredits, CreditsPrice } from "@/lib/db";
@@ -27,13 +28,14 @@ import {
   jobInputsFormSchema,
   JobInputsFormSchemaType,
 } from "@/lib/job-input";
+import { JobStatusResponseSchemaType } from "@/lib/schemas";
 import { cn, formatDuration, getOSFromUserAgent } from "@/lib/utils";
 
 import JobInput from "./job-input";
 
 export interface DemoValues {
-  inputValues: JobInputData;
-  output: string;
+  input: JobInputData;
+  output: JobStatusResponseSchemaType;
 }
 
 interface JobInputsFormClientProps {
@@ -41,7 +43,7 @@ interface JobInputsFormClientProps {
   agentCreditsPrice: CreditsPrice;
   averageExecutionDuration: number;
   jobInputsDataSchema: JobInputsDataSchemaType;
-  demoValues?: DemoValues | null;
+  demoValues: DemoValues | null;
   legal?: AgentLegal | null | undefined;
   className?: string | undefined;
 }
@@ -61,7 +63,9 @@ export default function JobInputsFormClient({
 
   const form = useForm<JobInputsFormSchemaType>({
     resolver: zodResolver(jobInputsFormSchema(input_data, t)),
-    defaultValues: defaultValues(input_data),
+    defaultValues: demoValues
+      ? Object.fromEntries(demoValues.input.entries())
+      : defaultValues(input_data),
     mode: "onChange",
   });
   const router = useAsyncRouter();
@@ -71,30 +75,33 @@ export default function JobInputsFormClient({
   // create job modal context
   const { open, loading, setLoading, handleClose } = useCreateJobModalContext();
 
-  useEffect(() => {
-    if (demoValues?.inputValues) {
-      form.reset(Object.fromEntries(demoValues.inputValues.entries()));
-    }
-  }, [demoValues, form]);
-
   const handleSubmit: SubmitHandler<JobInputsFormSchemaType> = async (
     values,
   ) => {
     setLoading(true);
-    if (demoValues) {
-      setLoading(false);
-      return;
-    }
 
+    let result;
     // Transform input data to match expected type
     // Filter out null values and ensure arrays are of correct type
     const transformedInputData = filterOutNullValues(values);
-    const result = await startJobWithInputData({
-      agentId: agentId,
-      maxAcceptedCents: agentCreditsPrice.cents,
-      inputSchema: input_data,
-      inputData: transformedInputData,
-    });
+
+    if (demoValues) {
+      result = await startDemoJob(
+        {
+          agentId: agentId,
+          inputSchema: input_data,
+          inputData: demoValues.input,
+        },
+        demoValues.output,
+      );
+    } else {
+      result = await startJobWithInputData({
+        agentId: agentId,
+        maxAcceptedCents: agentCreditsPrice.cents,
+        inputSchema: input_data,
+        inputData: transformedInputData,
+      });
+    }
 
     setLoading(false);
     if (result.ok) {

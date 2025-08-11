@@ -1,6 +1,10 @@
 import { z } from "zod";
 
 import { AgentDemoData } from "@/lib/db";
+import {
+  jobStatusResponseSchema,
+  JobStatusResponseSchemaType,
+} from "@/lib/schemas";
 
 import { makeZodSchemaFromJobInputSchema } from "./form-schema";
 import { JobInputSchemaType } from "./job-input";
@@ -61,21 +65,36 @@ const getDefaultValue = (jobInputSchema: JobInputSchemaType) => {
   }
 };
 
-export const getDemoInputValues = (
+export const getDemoValues = (
   jobInputSchemas: JobInputSchemaType[],
   demoData: AgentDemoData,
-): JobInputData | null => {
-  const { input } = demoData;
+): { input: JobInputData; output: JobStatusResponseSchemaType } | null => {
+  const { input, output } = demoData;
   try {
-    const result = jobInputsFormSchema(jobInputSchemas).safeParse(
+    const inputParsedResult = jobInputsFormSchema(jobInputSchemas).safeParse(
       JSON.parse(input),
     );
-    if (result.success) {
-      return filterOutNullValues(result.data);
+    let inputValue;
+    if (inputParsedResult.success) {
+      inputValue = filterOutNullValues(inputParsedResult.data);
     }
-    return null;
+
+    const outputParsedResult = jobStatusResponseSchema.safeParse(
+      JSON.parse(output),
+    );
+    let outputValue;
+    if (outputParsedResult.success) {
+      outputValue = outputParsedResult.data;
+    }
+
+    if (inputValue && outputValue) {
+      return { input: inputValue, output: outputValue };
+    } else {
+      console.error("Invalid demo data", { input, output });
+      return null;
+    }
   } catch (error) {
-    console.error("Invalid JSON for demo input", error);
+    console.error("Invalid JSON for demo data", error);
     return null;
   }
 };

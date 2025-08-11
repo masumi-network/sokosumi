@@ -56,6 +56,10 @@ interface CreateJobData {
   blockchainIdentifier: string;
   sellerVkey: string;
   name: string | null;
+  // for demo jobs
+  agentJobStatus?: AgentJobStatus | null;
+  output?: string | null;
+  completedAt?: Date | null;
 }
 
 /**

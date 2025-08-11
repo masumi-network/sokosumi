@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import { Skeleton } from "@/components/ui/skeleton";
 import useAgentInputSchema from "@/hooks/use-agent-input-schema";
 import { AgentDemoData, AgentLegal, CreditsPrice } from "@/lib/db";
-import { getDemoInputValues, JobInputsDataSchemaType } from "@/lib/job-input";
+import { getDemoValues, JobInputsDataSchemaType } from "@/lib/job-input";
 
 import JobInputsFormClient, { DemoValues } from "./job-inputs-form.client";
 
@@ -44,17 +44,10 @@ export default function JobInputsForm({
   // check demo data is valid
   let demoValues: DemoValues | null = null;
   if (demoData) {
-    const demoInputValues = getDemoInputValues(
-      inputSchema.input_data,
-      demoData,
-    );
-    if (!demoInputValues) {
+    demoValues = getDemoValues(inputSchema.input_data, demoData);
+    if (!demoValues) {
       return <JobInputsFormDemoError />;
     }
-    demoValues = {
-      inputValues: demoInputValues,
-      output: demoData.output,
-    };
   }
 
   return (
