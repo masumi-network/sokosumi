@@ -1,12 +1,13 @@
 import "server-only";
 
 import { nanoid } from "nanoid";
+import { headers } from "next/headers";
 import slugify from "slugify";
 
+import { auth, Invitation } from "@/lib/auth/auth";
 import { getSession } from "@/lib/auth/utils";
-import { InvitationWithRelations, MemberRole, MemberWithUser } from "@/lib/db";
+import { InvitationWithRelations, MemberWithUser } from "@/lib/db";
 import { invitationRepository, memberRepository } from "@/lib/db/repositories";
-import { Invitation } from "@/prisma/generated/client";
 
 /**
  * Service for organization and invitations related operations.
@@ -112,52 +113,41 @@ export const organizationService = (() => {
     return members;
   }
 
-  /**
-   * Retrieves pending invitations for an organization.
-   *
-   * - Fetches the current session and extracts the user ID.
-   * - Checks if the user is a member of the organization.
-   * - Queries the database for pending invitations of the specified organization.
-   *
-   * @param organizationId - The ID of the organization to retrieve pending invitations for.
-   * @returns A promise that resolves to an array of Invitation objects.
-   */
-  async function getOrganizationPendingInvitations(
+  async function getPendingInvitations(
     organizationId: string,
   ): Promise<Invitation[]> {
-    const session = await getSession();
-    if (!session) {
-      return [];
-    }
-    const userId = session.user.id;
-
-    const myMemberInOrganization =
-      await memberRepository.getMemberByUserIdAndOrganizationId(
-        userId,
+    const invitations = await auth.api.listInvitations({
+      query: {
         organizationId,
-      );
-    if (!myMemberInOrganization) {
-      console.error("You are not from the organization");
-      throw new Error("UNAUTHORIZED");
-    }
-    const isOwnerOrAdmin =
-      myMemberInOrganization.role === MemberRole.OWNER ||
-      myMemberInOrganization.role === MemberRole.ADMIN;
-    if (!isOwnerOrAdmin) {
-      console.error("You are not owner or admin of the organization");
-      throw new Error("UNAUTHORIZED");
-    }
+      },
+      headers: await headers(),
+    });
+    return filterPendingInvitation(invitations);
+  }
 
-    return await invitationRepository.getPendingInvitationsByOrganizationId(
-      organizationId,
-    );
+  /**
+   * Filters and sorts pending invitations by email, keeping only the latest per email.
+   *
+   * @param invitations - An array of pending invitations to filter and sort.
+   * @returns A new array of invitations with the latest per email.
+   */
+  function filterPendingInvitation(invitations: Invitation[]): Invitation[] {
+    invitations.sort((a, b) => b.expiresAt.valueOf() - a.expiresAt.valueOf());
+    // Group by email and take the first (latest) invitation per email
+    const emailMap = new Map<string, Invitation>();
+    for (const invitation of invitations) {
+      if (!emailMap.has(invitation.email)) {
+        emailMap.set(invitation.email, invitation);
+      }
+    }
+    return Array.from(emailMap.values());
   }
 
   return {
     generateOrganizationSlugFromName,
     getPendingInvitation,
+    getPendingInvitations,
     getOrganizationMembersWithUser,
-    getOrganizationPendingInvitations,
   };
 })();
 

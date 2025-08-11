@@ -209,6 +209,8 @@ model AgentPricing {
 
 enum PricingType {
   FIXED
+  FREE
+  UNKNOWN
 }
 
 model AgentFixedPricing {
@@ -310,8 +312,9 @@ model Agent {
 
   metadataVersion Int @default(1)
 
-  pricing   AgentPricing @relation(fields: [pricingId], references: [id])
-  pricingId String       @unique
+  paymentType PaymentType  @default(WEB3_CARDANO_V1)
+  pricing     AgentPricing @relation(fields: [pricingId], references: [id])
+  pricingId   String       @unique
 
   status AgentStatus @default(ONLINE)
 
@@ -332,6 +335,12 @@ model Agent {
   // Demo Input and Output
   demoInput  String?
   demoOutput String?
+}
+
+enum PaymentType {
+  WEB3_CARDANO_V1
+  NONE
+  UNKNOWN
 }
 
 enum RiskClassification {

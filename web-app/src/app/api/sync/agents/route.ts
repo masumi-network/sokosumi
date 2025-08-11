@@ -6,7 +6,12 @@ import { authenticateCronSecret } from "@/lib/auth/utils";
 import { registryClient } from "@/lib/clients/masumi-registry.client";
 import { lockRepository, prisma } from "@/lib/db/repositories";
 import { lockService } from "@/lib/services";
-import { AgentStatus, Lock, PricingType } from "@/prisma/generated/client";
+import {
+  AgentStatus,
+  Lock,
+  PaymentType,
+  PricingType,
+} from "@/prisma/generated/client";
 
 const LOCK_KEY = "agents-sync";
 
@@ -77,6 +82,30 @@ const convertStatus = (
   }
 };
 
+const convertPricingType = (pricingType: "Fixed" | "Free" | unknown) => {
+  switch (pricingType) {
+    case "Fixed":
+      return PricingType.FIXED;
+    case "Free":
+      return PricingType.FREE;
+    default:
+      return PricingType.UNKNOWN;
+  }
+};
+
+const convertPaymentType = (
+  paymentType: "Web3CardanoV1" | "None" | unknown,
+) => {
+  switch (paymentType) {
+    case "Web3CardanoV1":
+      return PaymentType.WEB3_CARDANO_V1;
+    case "None":
+      return PaymentType.NONE;
+    default:
+      return PaymentType.UNKNOWN;
+  }
+};
+
 async function syncAllEntries() {
   let lastIdentifier: string | undefined = undefined;
   const runningAgentsUpdates: Promise<void>[] = [];
@@ -140,23 +169,28 @@ async function syncAllEntries() {
                   totalRatings: 0,
                 },
               },
+              paymentType: convertPaymentType(entry.paymentType),
               pricing: {
                 create: {
-                  pricingType: PricingType.FIXED,
-                  fixedPricing: {
-                    create: {
-                      amounts: {
-                        createMany: {
-                          data: entry.AgentPricing.FixedPricing.Amounts.map(
-                            (amount) => ({
-                              amount: BigInt(amount.amount),
-                              unit: amount.unit,
-                            }),
-                          ),
+                  pricingType: convertPricingType(
+                    entry.AgentPricing.pricingType,
+                  ),
+                  ...(entry.AgentPricing.pricingType === "Fixed" && {
+                    fixedPricing: {
+                      create: {
+                        amounts: {
+                          createMany: {
+                            data: entry.AgentPricing.FixedPricing?.Amounts.map(
+                              (amount) => ({
+                                amount: BigInt(amount.amount),
+                                unit: amount.unit,
+                              }),
+                            ),
+                          },
                         },
                       },
                     },
-                  },
+                  }),
                 },
               },
               exampleOutput: {
@@ -172,7 +206,7 @@ async function syncAllEntries() {
               },
             },
             update: {
-              //No update as the metadata will not change
+              // No update as the metadata will not change
               lastUptimeCheck: entry.lastUptimeCheck,
               uptimeCount: entry.uptimeCount,
               uptimeCheckCount: entry.uptimeCheckCount,
