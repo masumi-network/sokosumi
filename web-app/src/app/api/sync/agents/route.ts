@@ -77,12 +77,14 @@ const convertStatus = (
   }
 };
 
-const convertPricingType = (pricingType: "Fixed" | "None") => {
+const convertPricingType = (pricingType: "Fixed" | "Free") => {
   switch (pricingType) {
     case "Fixed":
       return PricingType.FIXED;
-    case "None":
-      return PricingType.NONE;
+    case "Free":
+      return PricingType.FREE;
+    default:
+      return PricingType.UNKNOWN;
   }
 };
 

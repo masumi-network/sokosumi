@@ -188,7 +188,7 @@ export type PostRegistryEntryResponses = {
                         }>;
                     };
                 } | {
-                    pricingType: 'None';
+                    pricingType: 'Free';
                 };
                 ExampleOutput: Array<{
                     name: string;
