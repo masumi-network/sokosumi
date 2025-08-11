@@ -28,6 +28,7 @@ export const jobInputSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) =>
     .or(jobInputNumberSchema(t))
     .or(jobInputBooleanSchema(t))
     .or(jobInputOptionSchema(t))
+    .or(jobInputFileSchema(t))
     .or(jobInputNoneSchema(t));
 
 export type JobInputSchemaType = z.infer<ReturnType<typeof jobInputSchema>>;
@@ -233,4 +234,35 @@ export const jobInputNoneSchema = (
 
 export type JobInputNoneSchemaType = z.infer<
   ReturnType<typeof jobInputNoneSchema>
+>;
+
+export const jobInputFileSchema = (
+  t?: IntlTranslation<JobInputSchemaIntlPath>,
+) =>
+  z.object({
+    id: z.string().min(1, {
+      message: t?.("Id.required"),
+    }),
+    type: z.enum([ValidJobInputTypes.FILE], {
+      message: t?.("Type.enum", {
+        options: Object.values(ValidJobInputTypes).join(", "),
+      }),
+    }),
+    name: z.string().min(1, {
+      message: t?.("Name.required"),
+    }),
+    data: z
+      .object({
+        description: z.string().optional(),
+        accept: z.string().optional(), // e.g. ".pdf,.docx,image/*"
+        maxSize: z.string().optional(), // e.g. "10485760" (10MB)
+        outputFormat: z.string().optional(), // e.g. "base64"
+        multiple: z.boolean().optional(),
+      })
+      .optional(),
+    validations: z.array(optionalValidationSchema(t)).optional(),
+  });
+
+export type JobInputFileSchemaType = z.infer<
+  ReturnType<typeof jobInputFileSchema>
 >;

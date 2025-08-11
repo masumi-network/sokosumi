@@ -36,7 +36,6 @@ interface JobInputProps {
 
 export default function JobInput({ form, jobInputSchema }: JobInputProps) {
   const { id, name, data } = jobInputSchema;
-
   return (
     <FormField
       control={form.control}
@@ -49,6 +48,26 @@ export default function JobInput({ form, jobInputSchema }: JobInputProps) {
           <FormControl>
             <InputField id={id} field={field} jobInputSchema={jobInputSchema} />
           </FormControl>
+          {/* <FormControl>
+            <div className="grid w-full max-w-sm items-center gap-3">
+              <FormLabel htmlFor="file">File</FormLabel>
+              <Input
+                id="file"
+                type="file"
+                accept="image/jpeg, image/png, image/webp"
+                required
+                onChange={async (e) => {
+                  const formData = new FormData();
+                  if (e.target.files && e.target.files[0]) {
+                    formData.append("file", e.target.files[0]);
+                    const blob = await uploadFile(formData);
+                    console.log("File uploaded:", blob);
+                    // field.onChange(blob);
+                  }
+                }}
+              />
+            </div>
+          </FormControl> */}
           {data?.description && (
             <FormDescription>{data.description}</FormDescription>
           )}
@@ -120,7 +139,11 @@ function InputField({ id, field, jobInputSchema }: InputFieldProps) {
     if (isSingle) {
       return (
         <Select
-          value={Array.isArray(field.value) ? values[field.value[0]] : ""}
+          value={
+            Array.isArray(field.value) && typeof field.value[0] === "number"
+              ? values[field.value[0]]
+              : ""
+          }
           onValueChange={(value) => field.onChange([values.indexOf(value)])}
         >
           <SelectTrigger className="w-full">
@@ -144,7 +167,9 @@ function InputField({ id, field, jobInputSchema }: InputFieldProps) {
           name={name}
           value={
             Array.isArray(field.value)
-              ? field.value.map((index) => values[index])
+              ? field.value
+                  .filter((index) => typeof index === "number")
+                  .map((index) => values[index])
               : []
           }
           onChange={(optionValues) =>
@@ -160,6 +185,21 @@ function InputField({ id, field, jobInputSchema }: InputFieldProps) {
       );
     }
   }
+
+  if (type === ValidJobInputTypes.FILE)
+    return (
+      <Input
+        id={id}
+        accept={data?.accept ?? "image/*"}
+        max={data?.maxSize ?? undefined}
+        type="file"
+        onChange={(e) => {
+          const file = e.target.files?.[0] ?? null;
+          field.onChange(file);
+        }}
+        // File inputs are always uncontrolled, so value should be undefined
+      />
+    );
 
   if (type === ValidJobInputTypes.NONE) return null;
 }

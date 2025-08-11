@@ -1287,6 +1287,11 @@
           "integer": "{name} option value must be an index",
           "nonnegative": "{name} option value must be non negative index",
           "invalid": "{name} option value must be index from 0 to {maxValue}"
+        },
+        "File": {
+          "required": "{name} is required",
+          "invalid": "{name} must be a valid file",
+          "maxSize": "{name} must be at most {value} bytes"
         }
       },
       "Error": {

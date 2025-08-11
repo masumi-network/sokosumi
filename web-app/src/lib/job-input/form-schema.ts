@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import {
   JobInputBooleanSchemaType,
+  JobInputFileSchemaType,
   JobInputNumberSchemaType,
   JobInputOptionSchemaType,
   JobInputSchemaType,
@@ -30,6 +31,8 @@ export const makeZodSchemaFromJobInputSchema = (
       return makeZodSchemaFromJobInputBooleanSchema(jobInputSchema, t);
     case ValidJobInputTypes.OPTION:
       return makeZodSchemaFromJobInputOptionSchema(jobInputSchema, t);
+    case ValidJobInputTypes.FILE:
+      return makeZodSchemaFromJobInputFileSchema(jobInputSchema, t);
     case ValidJobInputTypes.NONE:
       return z.never().nullable();
   }
@@ -224,4 +227,44 @@ const makeZodSchemaFromJobInputOptionSchema = (
   }, defaultSchema);
 
   return canBeOptional ? schema.optional() : schema;
+};
+
+const makeZodSchemaFromJobInputFileSchema = (
+  jobInputFileSchema: JobInputFileSchemaType,
+  t?: IntlTranslation<JobInputFormIntlPath>,
+) => {
+  const { name, data } = jobInputFileSchema;
+  const maxSize = data?.maxSize ? parseInt(data.maxSize, 10) : undefined;
+  const isMultiple = !!data?.multiple;
+
+  if (isMultiple) {
+    return z
+      .array(z.instanceof(File))
+      .refine(
+        (files) => {
+          if (!maxSize) return true;
+          return files.every((file) => file.size <= maxSize);
+        },
+        {
+          message: t?.("File.maxSize", { name, value: data?.maxSize ?? "" }),
+        },
+      )
+      .optional();
+  } else {
+    return z
+      .instanceof(File)
+      .refine(
+        (file) => {
+          if (!file || !maxSize) return true;
+          return file.size <= maxSize;
+        },
+        {
+          message: t?.("File.maxSize", {
+            name,
+            value: data?.maxSize ?? "",
+          }),
+        },
+      )
+      .optional();
+  }
 };

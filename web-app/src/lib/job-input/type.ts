@@ -5,6 +5,7 @@ export enum ValidJobInputTypes {
   BOOLEAN = "boolean",
   OPTION = "option",
   NONE = "none",
+  FILE = "file",
 }
 export enum ValidJobInputValidationTypes {
   MIN = "min",

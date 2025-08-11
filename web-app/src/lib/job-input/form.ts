@@ -43,6 +43,8 @@ const getDefaultValue = (jobInputSchema: JobInputSchemaType) => {
       return null;
     case ValidJobInputTypes.OPTION:
       return null;
+    case ValidJobInputTypes.FILE:
+      return null;
     case ValidJobInputTypes.NONE:
       return null;
   }

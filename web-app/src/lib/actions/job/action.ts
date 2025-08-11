@@ -1,6 +1,8 @@
 "use server";
 
 import * as Sentry from "@sentry/nextjs";
+import { put, PutBlobResult } from "@vercel/blob";
+import { revalidatePath } from "next/cache";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
@@ -287,4 +289,14 @@ export async function requestRefundJobByBlockchainIdentifier(
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,
     });
   }
+}
+
+export async function uploadFile(formData: FormData): Promise<PutBlobResult> {
+  const inputFile = formData.get("file") as File;
+  const blob = await put(inputFile.name, inputFile, {
+    access: "public",
+    addRandomSuffix: true,
+  });
+  revalidatePath("/");
+  return blob;
 }
