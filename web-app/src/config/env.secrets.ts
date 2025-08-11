@@ -100,9 +100,9 @@ const envSecretsSchema = z.object({
   REGISTRY_API_KEY: z.string().min(1),
   BLACKLISTED_AGENT_HOSTNAMES: z
     .string()
-    .transform((val) => val.split(","))
-    .pipe(z.array(z.string()))
-    .default([]),
+    .default("")
+    .transform((val) => (val.trim() === "" ? [] : val.split(",")))
+    .pipe(z.array(z.string())),
 
   // ably keys
   ABLY_AGENT_JOBS_SUBSCRIBE_ONLY_KEY: z.string().min(1),
