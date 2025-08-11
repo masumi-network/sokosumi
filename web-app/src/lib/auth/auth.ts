@@ -148,6 +148,11 @@ export const auth = betterAuth({
         type: "boolean",
         required: false,
       },
+      stripeCustomerId: {
+        type: "string",
+        required: false,
+        defaultValue: null,
+      },
     },
   },
   rateLimit: {
