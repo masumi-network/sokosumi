@@ -3,7 +3,7 @@ import "server-only";
 import { nanoid } from "nanoid";
 import slugify from "slugify";
 
-import { Invitation } from "@/lib/auth/auth";
+import { auth, Invitation } from "@/lib/auth/auth";
 import { getSession } from "@/lib/auth/utils";
 import { InvitationWithRelations, MemberWithUser } from "@/lib/db";
 import { invitationRepository, memberRepository } from "@/lib/db/repositories";
@@ -112,6 +112,17 @@ export const organizationService = (() => {
     return members;
   }
 
+  async function getPendingInvitations(
+    organizationId: string,
+  ): Promise<Invitation[]> {
+    const invitations = await auth.api.listInvitations({
+      query: {
+        organizationId,
+      },
+    });
+    return filterPendingInvitation(invitations);
+  }
+
   /**
    * Filters and sorts pending invitations by email, keeping only the latest per email.
    *
@@ -133,8 +144,8 @@ export const organizationService = (() => {
   return {
     generateOrganizationSlugFromName,
     getPendingInvitation,
+    getPendingInvitations,
     getOrganizationMembersWithUser,
-    filterPendingInvitation,
   };
 })();
 
