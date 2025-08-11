@@ -116,6 +116,7 @@ model Organization {
   stripeCustomerId String?
 
   @@unique([slug])
+  @@unique([stripeCustomerId])
   @@map("organization")
 }
 
