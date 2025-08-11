@@ -6,7 +6,12 @@ import { authenticateCronSecret } from "@/lib/auth/utils";
 import { registryClient } from "@/lib/clients/masumi-registry.client";
 import { lockRepository, prisma } from "@/lib/db/repositories";
 import { lockService } from "@/lib/services";
-import { AgentStatus, Lock, PricingType } from "@/prisma/generated/client";
+import {
+  AgentStatus,
+  Lock,
+  PaymentType,
+  PricingType,
+} from "@/prisma/generated/client";
 
 const LOCK_KEY = "agents-sync";
 
@@ -77,7 +82,7 @@ const convertStatus = (
   }
 };
 
-const convertPricingType = (pricingType: "Fixed" | "Free") => {
+const convertPricingType = (pricingType: "Fixed" | "Free" | unknown) => {
   switch (pricingType) {
     case "Fixed":
       return PricingType.FIXED;
@@ -85,6 +90,19 @@ const convertPricingType = (pricingType: "Fixed" | "Free") => {
       return PricingType.FREE;
     default:
       return PricingType.UNKNOWN;
+  }
+};
+
+const convertPaymentType = (
+  paymentType: "Web3CardanoV1" | "None" | unknown,
+) => {
+  switch (paymentType) {
+    case "Web3CardanoV1":
+      return PaymentType.Web3CardanoV1;
+    case "None":
+      return PaymentType.NONE;
+    default:
+      return PaymentType.UNKNOWN;
   }
 };
 
@@ -151,6 +169,7 @@ async function syncAllEntries() {
                   totalRatings: 0,
                 },
               },
+              paymentType: convertPaymentType(entry.paymentType),
               pricing: {
                 create: {
                   pricingType: convertPricingType(
@@ -187,7 +206,9 @@ async function syncAllEntries() {
               },
             },
             update: {
-              //No update as the metadata will not change
+              // This is a new field, so we need to update it
+              paymentType: convertPaymentType(entry.paymentType),
+              // No update as the metadata will not change
               lastUptimeCheck: entry.lastUptimeCheck,
               uptimeCount: entry.uptimeCount,
               uptimeCheckCount: entry.uptimeCheckCount,

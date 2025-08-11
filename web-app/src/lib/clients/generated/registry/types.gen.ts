@@ -57,23 +57,24 @@ export type GetPaymentInformationResponses = {
                 policyId: string | null;
                 url: string | null;
             };
-            PaymentIdentifier: Array<{
-                paymentIdentifier: string | null;
-                paymentType: 'Web3CardanoV1' | 'Offchain';
-                sellerVKey: string | null;
-            }>;
+            sellerWallet: {
+                address: string;
+                vkey: string;
+            };
             Capability: {
                 name: string | null;
                 version: string | null;
             } | null;
             AgentPricing: {
-                pricingType: 'Fixed' | 'None';
+                pricingType: 'Fixed';
                 FixedPricing: {
                     Amounts: Array<{
                         amount: string;
                         unit: string;
                     }>;
                 };
+            } | {
+                pricingType: 'Free';
             };
             name: string;
             description: string | null;
@@ -92,6 +93,7 @@ export type GetPaymentInformationResponses = {
             termsAndCondition: string | null;
             otherLegal: string | null;
             tags: Array<string> | null;
+            paymentType: 'Web3CardanoV1' | 'None';
             agentIdentifier: string;
             ExampleOutput: Array<{
                 name: string;
@@ -111,7 +113,7 @@ export type PostRegistryEntryData = {
         limit?: number;
         cursorId?: string;
         filter?: {
-            paymentTypes?: Array<'Web3CardanoV1' | 'Offchain'>;
+            paymentTypes?: Array<'Web3CardanoV1' | 'None'>;
             status?: Array<'Online' | 'Offline' | 'Deregistered' | 'Invalid'>;
             policyId?: string;
             assetIdentifier?: string;
@@ -179,6 +181,7 @@ export type PostRegistryEntryResponses = {
                 otherLegal: string | null;
                 tags: Array<string> | null;
                 agentIdentifier: string;
+                paymentType: 'Web3CardanoV1' | 'None';
                 AgentPricing: {
                     pricingType: 'Fixed';
                     FixedPricing: {

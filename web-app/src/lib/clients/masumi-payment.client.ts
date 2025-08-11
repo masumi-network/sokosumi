@@ -13,6 +13,7 @@ import { createClient } from "@/lib/clients/generated/payment/client";
 import { JobInputData } from "@/lib/job-input";
 import { StartJobResponseSchemaType } from "@/lib/schemas";
 import { Err, Ok, Result } from "@/lib/ts-res";
+import { Agent } from "@/prisma/generated/client";
 
 // Type alias for Purchase from the generated API response
 type Purchase = GetPurchaseResponses[200]["data"]["Purchases"][0];
@@ -102,7 +103,7 @@ export const paymentClient = (() => {
     },
 
     async createPurchase(
-      agentBlockchainIdentifier: string,
+      agent: Agent,
       startJobResponse: StartJobResponseSchemaType,
       inputData: JobInputData,
       inputHash: string,
@@ -112,7 +113,7 @@ export const paymentClient = (() => {
         const response = await postPurchase({
           client: client(),
           body: {
-            agentIdentifier: agentBlockchainIdentifier,
+            agentIdentifier: agent.blockchainIdentifier,
             inputHash: inputHash,
             blockchainIdentifier: startJobResponse.blockchainIdentifier,
             network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
