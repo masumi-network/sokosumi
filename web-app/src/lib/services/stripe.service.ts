@@ -34,33 +34,34 @@ export const stripeService = (() => {
       if (!isVerified) {
         throw new UnAuthenticatedError("User not authorized");
       }
-      return await prisma.$transaction(async (tx) => {
-        try {
-          const user = await userRepository.getUserById(userId, tx);
-          if (!user) throw new Error("User not found");
+      try {
+        const user = await userRepository.getUserById(userId);
+        if (!user) throw new Error("User not found");
 
-          // Get or create the appropriate Stripe customer ID
-          let stripeCustomerId: string | null;
-          if (organizationId) {
-            // Use organization's Stripe customer
-            stripeCustomerId =
-              await this.getOrCreateStripeCustomerForOrganization(
-                organizationId,
-              );
-            if (!stripeCustomerId) {
-              throw new Error(
-                "Failed to get or create organization Stripe customer",
-              );
-            }
-          } else {
-            // Use user's Stripe customer
-            stripeCustomerId =
-              await this.getOrCreateStripeCustomerForUser(userId);
-            if (!stripeCustomerId) {
-              throw new Error("Failed to get or create user Stripe customer");
-            }
+        // Get or create the appropriate Stripe customer ID (has its own transaction)
+        let stripeCustomerId: string | null;
+        if (organizationId) {
+          // Use organization's Stripe customer
+          stripeCustomerId =
+            await this.getOrCreateStripeCustomerForOrganization(organizationId);
+          if (!stripeCustomerId) {
+            throw new Error(
+              "Failed to get or create organization Stripe customer",
+            );
           }
-          const amount = credits * price.amountPerCredit;
+        } else {
+          // Use user's Stripe customer
+          stripeCustomerId =
+            await this.getOrCreateStripeCustomerForUser(userId);
+          if (!stripeCustomerId) {
+            throw new Error("Failed to get or create user Stripe customer");
+          }
+        }
+
+        const amount = credits * price.amountPerCredit;
+
+        // Transaction only for fiat transaction creation and update
+        const { checkoutSession } = await prisma.$transaction(async (tx) => {
           const fiatTransaction =
             await fiatTransactionRepository.createFiatTransaction(
               userId,
@@ -70,6 +71,7 @@ export const stripeService = (() => {
               price.currency,
               tx,
             );
+
           const headerList = await headers();
           const checkoutSession = await stripeClient.createCheckoutSession(
             stripeCustomerId,
@@ -78,20 +80,25 @@ export const stripeService = (() => {
             headerList.get("origin"),
             promotionCode,
           );
+
           await fiatTransactionRepository.updateFiatTransaction(
             fiatTransaction.id,
             { servicePaymentId: checkoutSession.id },
             tx,
           );
-          if (!checkoutSession.url) {
-            throw new Error("Failed to create checkout session");
-          }
-          return { url: checkoutSession.url };
-        } catch (error) {
-          console.log("Error creating stripe checkout session", error);
-          throw error;
+
+          return { fiatTransaction, checkoutSession };
+        });
+
+        if (!checkoutSession.url) {
+          throw new Error("Failed to create checkout session");
         }
-      });
+
+        return { url: checkoutSession.url };
+      } catch (error) {
+        console.log("Error creating stripe checkout session", error);
+        throw error;
+      }
     },
 
     async getWelcomePromotionCode(
