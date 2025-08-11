@@ -180,7 +180,7 @@ export type PostRegistryEntryResponses = {
                 tags: Array<string> | null;
                 agentIdentifier: string;
                 AgentPricing: {
-                    pricingType: 'Fixed' | 'None';
+                    pricingType: 'Fixed';
                     FixedPricing: {
                         Amounts: Array<{
                             amount: string;
@@ -188,7 +188,7 @@ export type PostRegistryEntryResponses = {
                         }>;
                     };
                 } | {
-                    pricingType: 'Fixed' | 'None';
+                    pricingType: 'None';
                 };
                 ExampleOutput: Array<{
                     name: string;

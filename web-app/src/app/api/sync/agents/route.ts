@@ -154,24 +154,22 @@ async function syncAllEntries() {
                   pricingType: convertPricingType(
                     entry.AgentPricing.pricingType,
                   ),
-                  ...(entry.AgentPricing.pricingType === "Fixed" &&
-                    "FixedPricing" in entry.AgentPricing &&
-                    entry.AgentPricing.FixedPricing && {
-                      fixedPricing: {
-                        create: {
-                          amounts: {
-                            createMany: {
-                              data: entry.AgentPricing.FixedPricing.Amounts.map(
-                                (amount) => ({
-                                  amount: BigInt(amount.amount),
-                                  unit: amount.unit,
-                                }),
-                              ),
-                            },
+                  ...(entry.AgentPricing.pricingType === "Fixed" && {
+                    fixedPricing: {
+                      create: {
+                        amounts: {
+                          createMany: {
+                            data: entry.AgentPricing.FixedPricing.Amounts.map(
+                              (amount) => ({
+                                amount: BigInt(amount.amount),
+                                unit: amount.unit,
+                              }),
+                            ),
                           },
                         },
                       },
-                    }),
+                    },
+                  }),
                 },
               },
               exampleOutput: {
