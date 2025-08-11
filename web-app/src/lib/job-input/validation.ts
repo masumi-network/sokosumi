@@ -77,7 +77,7 @@ export const minValidationSchema = (
         options: Object.values(ValidJobInputValidationTypes).join(", "),
       }),
     }),
-    value: z.number({ coerce: true }).int().min(0),
+    value: z.coerce.number().int().min(0),
   });
 
 export const maxValidationSchema = (
@@ -89,7 +89,7 @@ export const maxValidationSchema = (
         options: Object.values(ValidJobInputValidationTypes).join(", "),
       }),
     }),
-    value: z.number({ coerce: true }).int().min(0),
+    value: z.coerce.number().int().min(0),
   });
 
 export const formatUrlValidationSchema = (

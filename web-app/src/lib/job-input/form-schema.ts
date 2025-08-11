@@ -128,8 +128,7 @@ const makeZodSchemaFromJobInputNumberSchema = (
   t?: IntlTranslation<JobInputFormIntlPath>,
 ) => {
   const { name, validations } = jobInputNumberSchema;
-  const defaultSchema = z.number({
-    coerce: true,
+  const defaultSchema = z.coerce.number({
     message: t?.("Number.required", { name }),
     required_error: t?.("Number.required", { name }),
     invalid_type_error: t?.("Number.required", { name }),

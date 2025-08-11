@@ -16,7 +16,7 @@ const envSecretsSchema = z.object({
 
   // Database
   DATABASE_URL: z.string().url(),
-  MIN_FEE_CREDITS: z.number({ coerce: true }).min(0).default(1),
+  MIN_FEE_CREDITS: z.coerce.number().min(0).default(1),
   ALLOWED_EMAIL_DOMAINS: z
     .string()
     .default("")
@@ -78,21 +78,18 @@ const envSecretsSchema = z.object({
   BETTER_AUTH_URL: z.string().url().default("http://localhost:3000"),
   BETTER_AUTH_SECRET: z.string().min(1),
   BETTER_AUTH_TRUSTED_ORIGIN: z.string().url().default("http://localhost:3000"),
-  BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE: z
-    .number({ coerce: true })
+  BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE: z.coerce
+    .number()
     .min(0)
     .default(60 * 5), // 5 minutes
-  BETTER_AUTH_ORG_INVITATION_LIMIT: z
-    .number({ coerce: true })
-    .min(0)
-    .default(100),
-  BETTER_AUTH_ORG_LIMIT: z.number({ coerce: true }).min(0).default(100),
-  LOCK_TIMEOUT: z
-    .number({ coerce: true })
+  BETTER_AUTH_ORG_INVITATION_LIMIT: z.coerce.number().min(0).default(100),
+  BETTER_AUTH_ORG_LIMIT: z.coerce.number().min(0).default(100),
+  LOCK_TIMEOUT: z.coerce
+    .number()
     .min(1 * 60 * 1000)
     .default(2 * 60 * 1000), // 2 minutes
-  LOCK_TIMEOUT_BUFFER: z
-    .number({ coerce: true })
+  LOCK_TIMEOUT_BUFFER: z.coerce
+    .number()
     .min(1000)
     .default(1000 * 25), // 25 seconds
   INSTANCE_ID: z.string().min(1).default(uuidv4()),
@@ -105,7 +102,7 @@ const envSecretsSchema = z.object({
     .string()
     .transform((val) => val.split(","))
     .pipe(z.array(z.string()))
-    .default(""),
+    .default([]),
 
   // ably keys
   ABLY_AGENT_JOBS_SUBSCRIBE_ONLY_KEY: z.string().min(1),
