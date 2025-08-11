@@ -524,5 +524,9 @@ const jobsNotFinishedWhereQuery = (
         lt: cutoffTime,
       },
     },
+    // Filter out demo jobs
+    {
+      isDemo: true,
+    },
   ],
 });

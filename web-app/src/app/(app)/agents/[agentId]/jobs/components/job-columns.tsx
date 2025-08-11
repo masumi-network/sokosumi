@@ -55,6 +55,7 @@ export function getJobColumns(
               jobStatus: row.original.status,
               jobStatusSettled: row.original.jobStatusSettled,
             }}
+            isDemo={row.original.isDemo}
           />
         </div>
       ),
@@ -91,12 +92,14 @@ function RealTimeJobStatusBadge({
   userId,
   jobId,
   initialJobIndicatorStatus,
+  isDemo = false,
   className,
 }: {
   agentId: string;
   userId: string;
   jobId: string;
   initialJobIndicatorStatus: JobIndicatorStatus;
+  isDemo?: boolean;
   className?: string;
 }) {
   const realTimeJobStatus = useAgentJobStatus(
@@ -112,6 +115,7 @@ function RealTimeJobStatusBadge({
       status={
         realTimeJobStatus?.jobStatus ?? initialJobIndicatorStatus.jobStatus
       }
+      isDemo={isDemo}
       className={className}
     />
   );

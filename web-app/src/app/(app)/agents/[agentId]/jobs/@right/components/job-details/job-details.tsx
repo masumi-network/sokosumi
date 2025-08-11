@@ -55,7 +55,7 @@ export default function JobDetails({ job, className }: JobDetailsProps) {
 
 function JobDetailsHeader({ job }: { job: JobWithStatus }) {
   const formatter = useFormatter();
-  const { createdAt, status } = job;
+  const { createdAt, status, isDemo } = job;
 
   return (
     <div className="flex flex-col gap-2">
@@ -67,7 +67,7 @@ function JobDetailsHeader({ job }: { job: JobWithStatus }) {
             timeStyle: "short",
           })}
         </p>
-        <JobStatusBadge status={status} />
+        <JobStatusBadge status={status} isDemo={isDemo} />
       </div>
     </div>
   );
