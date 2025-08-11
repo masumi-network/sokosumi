@@ -60,6 +60,7 @@ interface CreateJobData {
   agentJobStatus?: AgentJobStatus | null;
   output?: string | null;
   completedAt?: Date | null;
+  isDemo?: boolean;
 }
 
 /**
@@ -291,6 +292,7 @@ export const jobRepository = {
         agentJobStatus: data.agentJobStatus,
         output: data.output,
         completedAt: data.completedAt,
+        isDemo: data.isDemo,
       },
     });
   },

@@ -249,6 +249,7 @@ export const jobService = (() => {
       output,
       completedAt:
         agentJobStatus === AgentJobStatus.COMPLETED ? new Date() : null,
+      isDemo: true,
     });
 
     return job;
