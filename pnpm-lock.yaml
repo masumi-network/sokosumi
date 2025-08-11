@@ -135,8 +135,8 @@ importers:
         specifier: 1.2.5
         version: 1.2.5(better-auth@1.3.4(react-dom@19.1.1(react@19.1.1))(react@19.1.1))
       better-auth-localization:
-        specifier: ^2.0.5
-        version: 2.0.5(better-auth@1.3.4(react-dom@19.1.1(react@19.1.1))(react@19.1.1))
+        specifier: ^2.0.7
+        version: 2.0.7(better-auth@1.3.4(react-dom@19.1.1(react@19.1.1))(react@19.1.1))
       class-variance-authority:
         specifier: 0.7.1
         version: 0.7.1
@@ -3282,8 +3282,8 @@ packages:
     peerDependencies:
       better-auth: ^1.0.3
 
-  better-auth-localization@2.0.5:
-    resolution: {integrity: sha512-sz4O2yYSq7gZVXVW57WUkHbLTFsRXcysrjRiO8OGCoD+q+E5CKlCj+tIBeGr47gGnjfahd+6dtqeMsxDFroFsA==}
+  better-auth-localization@2.0.7:
+    resolution: {integrity: sha512-/owPdPUTb2pzX9P54FozpDiLqjT4kyCoFISqjx7F1PJqvyO4kCV03KGBDrJz+fyXDsKBhu7poA3+LUbI14VTNA==}
     peerDependencies:
       better-auth: ^1.3.4
 
@@ -3323,6 +3323,11 @@ packages:
 
   browserslist@4.25.1:
     resolution: {integrity: sha512-KGj0KoOMXLpSNkkEI6Z6mShmQy0bc1I+T7K9N81k4WWMrfz+6fQ6es80B/YLAeRoKvjYE1YSHHOW1qe9xIVzHw==}
+    engines: {node: ^6 || ^7 || ^8 || ^9 || ^10 || ^11 || ^12 || >=13.7}
+    hasBin: true
+
+  browserslist@4.25.2:
+    resolution: {integrity: sha512-0si2SJK3ooGzIawRu61ZdPCO1IncZwS8IzuX73sPZsXW6EQ/w/DAfPyKI8l1ETTCr2MnvqWitmlCUxgdul45jA==}
     engines: {node: ^6 || ^7 || ^8 || ^9 || ^10 || ^11 || ^12 || >=13.7}
     hasBin: true
 
@@ -3386,6 +3391,9 @@ packages:
 
   caniuse-lite@1.0.30001731:
     resolution: {integrity: sha512-lDdp2/wrOmTRWuoB5DpfNkC0rJDU8DqRa6nYL6HK6sytw70QMopt/NIc/9SM7ylItlBWfACXk0tEn37UWM/+mg==}
+
+  caniuse-lite@1.0.30001734:
+    resolution: {integrity: sha512-uhE1Ye5vgqju6OI71HTQqcBCZrvHugk0MjLak7Q+HfoBgoq5Bi+5YnwjP4fjDgrtYr/l8MVRBvzz9dPD4KyK0A==}
 
   chalk@3.0.0:
     resolution: {integrity: sha512-4D3B6Wf41KOYRFdszmDqMCGq5VV/uMAB273JILmO+3jAlh8X4qDtdtgCR3fxtbLEMzSx22QdhnDcJvu2u1fVwg==}
@@ -3730,6 +3738,9 @@ packages:
 
   electron-to-chromium@1.5.198:
     resolution: {integrity: sha512-G5COfnp3w+ydVu80yprgWSfmfQaYRh9DOxfhAxstLyetKaLyl55QrNjx8C38Pc/C+RaDmb1M0Lk8wPEMQ+bGgQ==}
+
+  electron-to-chromium@1.5.199:
+    resolution: {integrity: sha512-3gl0S7zQd88kCAZRO/DnxtBKuhMO4h0EaQIN3YgZfV6+pW+5+bf2AdQeHNESCoaQqo/gjGVYEf2YM4O5HJQqpQ==}
 
   embla-carousel-react@8.6.0:
     resolution: {integrity: sha512-0/PjqU7geVmo6F734pmPqpyHqiM99olvyecY7zdweCw+6tKEXnrE90pBiBbMMU8s5tICemzpQ3hi5EpxzGW+JA==}
@@ -9676,7 +9687,7 @@ snapshots:
       mailchecker: 6.0.17
       validator: 13.15.15
 
-  better-auth-localization@2.0.5(better-auth@1.3.4(react-dom@19.1.1(react@19.1.1))(react@19.1.1)):
+  better-auth-localization@2.0.7(better-auth@1.3.4(react-dom@19.1.1(react@19.1.1))(react@19.1.1)):
     dependencies:
       better-auth: 1.3.4(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
 
@@ -9733,6 +9744,13 @@ snapshots:
       electron-to-chromium: 1.5.198
       node-releases: 2.0.19
       update-browserslist-db: 1.1.3(browserslist@4.25.1)
+
+  browserslist@4.25.2:
+    dependencies:
+      caniuse-lite: 1.0.30001734
+      electron-to-chromium: 1.5.199
+      node-releases: 2.0.19
+      update-browserslist-db: 1.1.3(browserslist@4.25.2)
 
   bser@2.1.1:
     dependencies:
@@ -9810,6 +9828,8 @@ snapshots:
   camelcase@6.3.0: {}
 
   caniuse-lite@1.0.30001731: {}
+
+  caniuse-lite@1.0.30001734: {}
 
   chalk@3.0.0:
     dependencies:
@@ -10119,6 +10139,8 @@ snapshots:
       fast-check: 3.23.2
 
   electron-to-chromium@1.5.198: {}
+
+  electron-to-chromium@1.5.199: {}
 
   embla-carousel-react@8.6.0(react@19.1.1):
     dependencies:
@@ -13024,6 +13046,12 @@ snapshots:
       escalade: 3.2.0
       picocolors: 1.1.1
 
+  update-browserslist-db@1.1.3(browserslist@4.25.2):
+    dependencies:
+      browserslist: 4.25.2
+      escalade: 3.2.0
+      picocolors: 1.1.1
+
   uri-js@4.4.1:
     dependencies:
       punycode: 2.3.1
@@ -13134,7 +13162,7 @@ snapshots:
       '@webassemblyjs/wasm-parser': 1.14.1
       acorn: 8.15.0
       acorn-import-phases: 1.0.4(acorn@8.15.0)
-      browserslist: 4.25.1
+      browserslist: 4.25.2
       chrome-trace-event: 1.0.4
       enhanced-resolve: 5.18.3
       es-module-lexer: 1.7.0
