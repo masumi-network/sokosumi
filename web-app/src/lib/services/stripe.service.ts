@@ -61,7 +61,7 @@ export const stripeService = (() => {
         const amount = credits * price.amountPerCredit;
 
         // Transaction only for fiat transaction creation and update
-        const { checkoutSession } = await prisma.$transaction(async (tx) => {
+        const checkoutSession = await prisma.$transaction(async (tx) => {
           const fiatTransaction =
             await fiatTransactionRepository.createFiatTransaction(
               userId,
@@ -87,7 +87,7 @@ export const stripeService = (() => {
             tx,
           );
 
-          return { fiatTransaction, checkoutSession };
+          return checkoutSession;
         });
 
         if (!checkoutSession.url) {
