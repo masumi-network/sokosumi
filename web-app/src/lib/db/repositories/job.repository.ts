@@ -109,6 +109,7 @@ export const jobRepository = {
       AVG(EXTRACT(EPOCH FROM ("completedAt" - "startedAt"))) as avg_duration_seconds
     FROM "Job"
     WHERE "agentId" = ${agentId}
+    AND "isDemo" = false
     AND "completedAt" IS NOT NULL
     AND "createdAt" >= NOW() - INTERVAL '30 days'
   `;
@@ -118,7 +119,7 @@ export const jobRepository = {
   },
 
   /**
-   * Retrieves the number of executed jobs for a specific agent
+   * Retrieves the number of executed jobs for a specific agent (not demo jobs)
    * @param agentId - The unique identifier of the agent
    * @returns Promise containing the number of executed jobs
    */
@@ -129,13 +130,14 @@ export const jobRepository = {
     const result = await tx.job.count({
       where: {
         agentId,
+        isDemo: false,
       },
     });
     return result;
   },
 
   /**
-   * Retrieves all jobs associated with a specific agent and user
+   * Retrieves all jobs associated with a specific agent and user (not demo jobs)
    * @param agentId - The unique identifier of the agent
    * @param userId - The unique identifier of the user
    * @returns Promise containing an array of jobs with their relations
