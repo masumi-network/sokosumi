@@ -32,10 +32,10 @@ export default function Sidebar() {
           <CustomTrigger />
         </div>
       </SidebarHeader>
-      <SidebarContent className="w-full">
+      <SidebarContent className="min-h-0 w-full flex-1">
         <AgentLists />
       </SidebarContent>
-      <SidebarFooter className="px-0">
+      <SidebarFooter className="shrink-0 px-0">
         <SheetClose asChild>
           <GalleryButton />
         </SheetClose>
