@@ -1,12 +1,14 @@
 import { AgentDemoData } from "@/lib/db";
 import {
+  filterOutNullValues,
+  JobInputData,
+  JobInputSchemaType,
+  jobInputsFormSchema,
+} from "@/lib/job-input";
+import {
   jobStatusResponseSchema,
   JobStatusResponseSchemaType,
 } from "@/lib/schemas";
-
-import { filterOutNullValues, jobInputsFormSchema } from "./form";
-import { JobInputSchemaType } from "./job-input";
-import { JobInputData } from "./type";
 
 export const getDemoValues = (
   jobInputSchemas: JobInputSchemaType[],
