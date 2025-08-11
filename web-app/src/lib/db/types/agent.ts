@@ -99,3 +99,8 @@ export interface AgentLegal {
   readonly terms: string | null;
   readonly other: string | null;
 }
+
+export interface AgentDemoData {
+  input: string;
+  output: string;
+}

@@ -2,13 +2,13 @@
 
 import { createContext, useContext, useMemo, useState } from "react";
 
-import { AgentWithCreditsPrice } from "@/lib/db";
+import { AgentDemoData, AgentWithCreditsPrice } from "@/lib/db";
 
 interface CreateJobModalContextType {
   // modal open
   open: boolean;
   setOpen: (open: boolean) => void;
-  handleOpen: (agentId: string) => void;
+  handleOpen: (agentId: string, demoData?: AgentDemoData) => void;
   handleClose: () => void;
   // create job form loading
   loading: boolean;
@@ -23,6 +23,7 @@ interface CreateJobModalContextType {
   agentsWithPrice: AgentWithCreditsPrice[];
   // selected agent
   agentId?: string | undefined;
+  demoData?: AgentDemoData | null;
   setAgentId: (agentId: string) => void;
   agentWithPrice?: AgentWithCreditsPrice | undefined;
   // average execution duration
@@ -43,6 +44,7 @@ const initialState: CreateJobModalContextType = {
   handleCollapse: () => {},
   agentsWithPrice: [],
   agentId: undefined,
+  demoData: undefined,
   setAgentId: () => {},
   averageExecutionDuration: 0,
 };
@@ -63,6 +65,8 @@ export function CreateJobModalContextProvider({
   const [loading, setLoading] = useState(false);
   const [accordionValue, setAccordionValue] = useState<string[]>(["input"]);
   const [agentId, setAgentId] = useState<string | undefined>(undefined);
+  const [demoData, setDemoData] = useState<AgentDemoData | null>(null);
+
   const agentWithPrice = useMemo(() => {
     if (!agentId) {
       return;
@@ -82,9 +86,10 @@ export function CreateJobModalContextProvider({
     setAccordionValue([]);
   };
 
-  const handleOpen = (agentId: string) => {
+  const handleOpen = (agentId: string, demoData?: AgentDemoData | null) => {
     setOpen(true);
     setAgentId(agentId);
+    setDemoData(demoData ?? null);
   };
 
   const handleClose = () => {
@@ -106,6 +111,7 @@ export function CreateJobModalContextProvider({
     handleCollapse,
     agentsWithPrice,
     agentId,
+    demoData,
     setAgentId,
     agentWithPrice,
     averageExecutionDuration,

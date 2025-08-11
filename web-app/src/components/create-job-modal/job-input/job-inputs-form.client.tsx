@@ -21,6 +21,7 @@ import {
 import { AgentLegal, convertCentsToCredits, CreditsPrice } from "@/lib/db";
 import {
   defaultValues,
+  filterOutNullValues,
   JobInputData,
   JobInputsDataSchemaType,
   jobInputsFormSchema,
@@ -30,13 +31,9 @@ import { cn, formatDuration, getOSFromUserAgent } from "@/lib/utils";
 
 import JobInput from "./job-input";
 
-function filterOutNullValues(values: JobInputsFormSchemaType): JobInputData {
-  return new Map(
-    Object.entries(values).filter(([_, value]) => value !== null) as [
-      string,
-      string | number | boolean | number[],
-    ][],
-  );
+export interface DemoValues {
+  inputValues: JobInputData;
+  output: string;
 }
 
 interface JobInputsFormClientProps {
@@ -44,6 +41,7 @@ interface JobInputsFormClientProps {
   agentCreditsPrice: CreditsPrice;
   averageExecutionDuration: number;
   jobInputsDataSchema: JobInputsDataSchemaType;
+  demoValues?: DemoValues | null;
   legal?: AgentLegal | null | undefined;
   className?: string | undefined;
 }
@@ -53,6 +51,7 @@ export default function JobInputsFormClient({
   agentCreditsPrice,
   averageExecutionDuration,
   jobInputsDataSchema,
+  demoValues,
   legal,
   className,
 }: JobInputsFormClientProps) {
@@ -62,7 +61,9 @@ export default function JobInputsFormClient({
 
   const form = useForm<JobInputsFormSchemaType>({
     resolver: zodResolver(jobInputsFormSchema(input_data, t)),
-    defaultValues: defaultValues(input_data),
+    defaultValues: demoValues
+      ? Object.fromEntries(demoValues.inputValues.entries())
+      : defaultValues(input_data),
     mode: "onChange",
   });
   const router = useAsyncRouter();
@@ -144,10 +145,16 @@ export default function JobInputsFormClient({
               key={jobInputSchema.id}
               form={form}
               jobInputSchema={jobInputSchema}
+              disabled={!!demoValues}
             />
           ))}
           <div className="flex items-end justify-between gap-2">
-            <Button type="reset" variant="secondary" onClick={handleClear}>
+            <Button
+              type="reset"
+              variant="secondary"
+              onClick={handleClear}
+              disabled={!!demoValues}
+            >
               {t("clear")}
             </Button>
             <div className="flex flex-col items-end gap-2">

@@ -1,8 +1,10 @@
 import { z } from "zod";
 
+import { AgentDemoData } from "@/lib/db";
+
 import { makeZodSchemaFromJobInputSchema } from "./form-schema";
 import { JobInputSchemaType } from "./job-input";
-import { JobInputFormIntlPath, ValidJobInputTypes } from "./type";
+import { JobInputData, JobInputFormIntlPath, ValidJobInputTypes } from "./type";
 
 export const jobInputsFormSchema = (
   jobInputSchemas: JobInputSchemaType[],
@@ -23,6 +25,17 @@ export const jobInputsFormSchema = (
 export type JobInputsFormSchemaType = z.infer<
   ReturnType<typeof jobInputsFormSchema>
 >;
+
+export function filterOutNullValues(
+  values: JobInputsFormSchemaType,
+): JobInputData {
+  return new Map(
+    Object.entries(values).filter(([_, value]) => value !== null) as [
+      string,
+      string | number | boolean | number[],
+    ][],
+  );
+}
 
 export const defaultValues = (jobInputSchemas: JobInputSchemaType[]) => {
   return Object.fromEntries(
@@ -45,5 +58,24 @@ const getDefaultValue = (jobInputSchema: JobInputSchemaType) => {
       return null;
     case ValidJobInputTypes.NONE:
       return null;
+  }
+};
+
+export const getDemoInputValues = (
+  jobInputSchemas: JobInputSchemaType[],
+  demoData: AgentDemoData,
+): JobInputData | null => {
+  const { input } = demoData;
+  try {
+    const result = jobInputsFormSchema(jobInputSchemas).safeParse(
+      JSON.parse(input),
+    );
+    if (result.success) {
+      return filterOutNullValues(result.data);
+    }
+    return null;
+  } catch (error) {
+    console.error("Invalid JSON for demo input", error);
+    return null;
   }
 };

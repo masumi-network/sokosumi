@@ -4,27 +4,30 @@ import { useTranslations } from "next-intl";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import useAgentInputSchema from "@/hooks/use-agent-input-schema";
-import { AgentLegal, CreditsPrice } from "@/lib/db";
-import { JobInputsDataSchemaType } from "@/lib/job-input";
+import { AgentDemoData, AgentLegal, CreditsPrice } from "@/lib/db";
+import { getDemoInputValues, JobInputsDataSchemaType } from "@/lib/job-input";
 
-import JobInputsFormClient from "./job-inputs-form.client";
+import JobInputsFormClient, { DemoValues } from "./job-inputs-form.client";
 
 interface JobInputsFormProps {
   agentId: string;
   agentCreditsPrice: CreditsPrice;
   averageExecutionDuration: number;
+  demoData?: AgentDemoData | null;
   legal?: AgentLegal | null | undefined;
   className?: string | undefined;
 }
 
 interface JobInputsFormInnerProps extends JobInputsFormProps {
   inputSchema: JobInputsDataSchemaType;
+  demoValues: DemoValues | null;
 }
 
 export default function JobInputsForm({
   agentId,
   agentCreditsPrice,
   averageExecutionDuration,
+  demoData,
   legal,
   className,
 }: JobInputsFormProps) {
@@ -38,11 +41,28 @@ export default function JobInputsForm({
     return <JobInputsFormError />;
   }
 
+  // check demo data is valid
+  let demoValues: DemoValues | null = null;
+  if (demoData) {
+    const demoInputValues = getDemoInputValues(
+      inputSchema.input_data,
+      demoData,
+    );
+    if (!demoInputValues) {
+      return <JobInputsFormDemoError />;
+    }
+    demoValues = {
+      inputValues: demoInputValues,
+      output: demoData.output,
+    };
+  }
+
   return (
     <JobInputsFormInner
       agentId={agentId}
       agentCreditsPrice={agentCreditsPrice}
       averageExecutionDuration={averageExecutionDuration}
+      demoValues={demoValues}
       inputSchema={inputSchema}
       legal={legal}
       className={className}
@@ -54,6 +74,7 @@ function JobInputsFormInner({
   agentId,
   agentCreditsPrice,
   averageExecutionDuration,
+  demoValues,
   inputSchema,
   legal,
   className,
@@ -64,6 +85,7 @@ function JobInputsFormInner({
       agentCreditsPrice={agentCreditsPrice}
       averageExecutionDuration={averageExecutionDuration}
       jobInputsDataSchema={inputSchema}
+      demoValues={demoValues}
       legal={legal}
       className={className}
     />
@@ -95,6 +117,16 @@ function JobInputsFormError() {
       <span className="text-lg text-red-500">
         {t("failedToFetchJobInputSchema")}
       </span>
+    </div>
+  );
+}
+
+function JobInputsFormDemoError() {
+  const t = useTranslations("Library.JobInput.Error");
+
+  return (
+    <div className="flex min-h-[120px] w-full items-center justify-center rounded-md border border-red-300 bg-red-50 p-4">
+      <span className="text-lg text-red-500">{t("demoDataInvalid")}</span>
     </div>
   );
 }

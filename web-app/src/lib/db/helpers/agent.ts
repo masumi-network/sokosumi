@@ -1,4 +1,5 @@
 import {
+  AgentDemoData,
   AgentLegal,
   AgentWithExampleOutput,
   AgentWithTags,
@@ -91,4 +92,10 @@ export function getAgentResolvedExampleOutputUrl(
   exampleOutput: ExampleOutput,
 ): string {
   return ipfsUrlResolver(exampleOutput.url);
+}
+
+export function getAgentDemoData(agent: Agent): AgentDemoData | null {
+  return !!agent.demoInput && !!agent.demoOutput
+    ? { input: agent.demoInput, output: agent.demoOutput }
+    : null;
 }

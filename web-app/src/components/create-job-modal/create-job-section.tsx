@@ -7,6 +7,7 @@ import AccordionItemWrapper from "@/app/agents/[agentId]/jobs/components/accordi
 import Markdown from "@/components/markdown";
 import { Accordion } from "@/components/ui/accordion";
 import {
+  AgentDemoData,
   AgentWithCreditsPrice,
   AgentWithRelations,
   getAgentDescription,
@@ -28,7 +29,7 @@ export default function CreateJobSection({
   agent,
   averageExecutionDuration,
 }: CreateJobSectionProps) {
-  const { accordionValue, setAccordionValue, loading } =
+  const { accordionValue, setAccordionValue, loading, demoData } =
     useCreateJobModalContext();
 
   const handleAccordionValueChange = (value: string[]) => {
@@ -49,6 +50,7 @@ export default function CreateJobSection({
           agent={agent}
           disabled={loading}
           averageExecutionDuration={averageExecutionDuration}
+          demoData={demoData}
         />
       </Accordion>
     </div>
@@ -96,10 +98,12 @@ function InputAccordionItem({
   agent,
   disabled,
   averageExecutionDuration,
+  demoData,
 }: {
   agent: AgentWithCreditsPrice;
   disabled?: boolean | undefined;
   averageExecutionDuration: number;
+  demoData?: AgentDemoData | null;
 }) {
   const t = useTranslations("App.Agents.Jobs.CreateJob.Input");
 
@@ -112,6 +116,7 @@ function InputAccordionItem({
           agentCreditsPrice={agent.creditsPrice}
           legal={getAgentLegal(agent)}
           averageExecutionDuration={averageExecutionDuration}
+          demoData={demoData}
         />
       </div>
     </AccordionItemWrapper>
