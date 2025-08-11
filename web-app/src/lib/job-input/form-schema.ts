@@ -130,8 +130,7 @@ const makeZodSchemaFromJobInputNumberSchema = (
   const { name, validations } = jobInputNumberSchema;
   const defaultSchema = z.coerce.number({
     message: t?.("Number.required", { name }),
-    required_error: t?.("Number.required", { name }),
-    invalid_type_error: t?.("Number.required", { name }),
+    error: t?.("Number.required", { name }),
   });
   if (!validations) return defaultSchema;
 
