@@ -1,6 +1,7 @@
 import "server-only";
 
 import { nanoid } from "nanoid";
+import { headers } from "next/headers";
 import slugify from "slugify";
 
 import { auth, Invitation } from "@/lib/auth/auth";
@@ -119,6 +120,7 @@ export const organizationService = (() => {
       query: {
         organizationId,
       },
+      headers: await headers(),
     });
     return filterPendingInvitation(invitations);
   }
