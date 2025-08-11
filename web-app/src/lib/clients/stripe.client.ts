@@ -159,7 +159,7 @@ export const stripeClient = (() => {
     },
 
     async createCheckoutSession(
-      user: User,
+      stripeCustomerId: string,
       fiatTransaction: FiatTransaction,
       price: Price,
       origin: string | null = null,
@@ -185,9 +185,10 @@ export const stripeClient = (() => {
           ? { discounts: [{ promotion_code: promotionCode }] }
           : { allow_promotion_codes: false }),
         client_reference_id: fiatTransaction.id,
-        ...(user.stripeCustomerId
-          ? { customer: user.stripeCustomerId }
-          : { customer_email: user.email, customer_creation: "always" }),
+        customer: stripeCustomerId,
+        customer_update: {
+          address: "auto",
+        },
         billing_address_collection: "required",
         success_url: `${origin ?? getEnvSecrets().VERCEL_URL}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${origin ?? getEnvSecrets().VERCEL_URL}/billing/cancel`,

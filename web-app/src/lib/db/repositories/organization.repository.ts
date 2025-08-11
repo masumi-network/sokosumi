@@ -109,4 +109,23 @@ export const organizationRepository = {
       select: organizationLimitedInfoInclude,
     });
   },
+
+  /**
+   * Sets the Stripe customer ID for an organization.
+   *
+   * @param organizationId - The ID of the organization to update.
+   * @param stripeCustomerId - The Stripe customer ID to set.
+   * @param tx - Optional Prisma transaction client.
+   * @returns The updated Organization object.
+   */
+  async setOrganizationStripeCustomerId(
+    organizationId: string,
+    stripeCustomerId: string,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<Organization> {
+    return await tx.organization.update({
+      where: { id: organizationId },
+      data: { stripeCustomerId },
+    });
+  },
 };
