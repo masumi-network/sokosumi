@@ -77,6 +77,15 @@ const convertStatus = (
   }
 };
 
+const convertPricingType = (pricingType: "Fixed" | "None") => {
+  switch (pricingType) {
+    case "Fixed":
+      return PricingType.FIXED;
+    case "None":
+      return PricingType.NONE;
+  }
+};
+
 async function syncAllEntries() {
   let lastIdentifier: string | undefined = undefined;
   const runningAgentsUpdates: Promise<void>[] = [];
@@ -142,21 +151,25 @@ async function syncAllEntries() {
               },
               pricing: {
                 create: {
-                  pricingType: PricingType.FIXED,
-                  fixedPricing: {
-                    create: {
-                      amounts: {
-                        createMany: {
-                          data: entry.AgentPricing.FixedPricing.Amounts.map(
-                            (amount) => ({
-                              amount: BigInt(amount.amount),
-                              unit: amount.unit,
-                            }),
-                          ),
+                  pricingType: convertPricingType(
+                    entry.AgentPricing.pricingType,
+                  ),
+                  ...(entry.AgentPricing.pricingType === "Fixed" && {
+                    fixedPricing: {
+                      create: {
+                        amounts: {
+                          createMany: {
+                            data: entry.AgentPricing.FixedPricing.Amounts.map(
+                              (amount) => ({
+                                amount: BigInt(amount.amount),
+                                unit: amount.unit,
+                              }),
+                            ),
+                          },
                         },
                       },
                     },
-                  },
+                  }),
                 },
               },
               exampleOutput: {
