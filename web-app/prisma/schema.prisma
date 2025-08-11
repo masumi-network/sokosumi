@@ -328,6 +328,10 @@ model Agent {
 
   tags         Tag[] @relation("AgentTag")
   overrideTags Tag[] @relation("AgentTagOverride")
+
+  // Demo Input and Output
+  demoInput  String?
+  demoOutput String?
 }
 
 enum RiskClassification {
@@ -492,6 +496,9 @@ model Job {
   refundedCreditTransactionId String?            @unique
 
   name String? // user-defined job name
+
+  // is demo job?
+  isDemo Boolean @default(false)
 }
 
 enum OnChainTransactionStatus {
