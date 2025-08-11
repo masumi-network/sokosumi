@@ -180,7 +180,7 @@ async function syncAllEntries() {
                       create: {
                         amounts: {
                           createMany: {
-                            data: entry.AgentPricing.FixedPricing.Amounts.map(
+                            data: entry.AgentPricing.FixedPricing?.Amounts.map(
                               (amount) => ({
                                 amount: BigInt(amount.amount),
                                 unit: amount.unit,
