@@ -98,7 +98,7 @@ const convertPaymentType = (
 ) => {
   switch (paymentType) {
     case "Web3CardanoV1":
-      return PaymentType.Web3CardanoV1;
+      return PaymentType.WEB3_CARDANO_V1;
     case "None":
       return PaymentType.NONE;
     default:
@@ -206,8 +206,6 @@ async function syncAllEntries() {
               },
             },
             update: {
-              // This is a new field, so we need to update it
-              paymentType: convertPaymentType(entry.paymentType),
               // No update as the metadata will not change
               lastUptimeCheck: entry.lastUptimeCheck,
               uptimeCount: entry.uptimeCount,
