@@ -4,9 +4,8 @@ import { nanoid } from "nanoid";
 import slugify from "slugify";
 
 import { getSession } from "@/lib/auth/utils";
-import { InvitationWithRelations, MemberRole, MemberWithUser } from "@/lib/db";
+import { InvitationWithRelations, MemberWithUser } from "@/lib/db";
 import { invitationRepository, memberRepository } from "@/lib/db/repositories";
-import { Invitation } from "@/prisma/generated/client";
 
 /**
  * Service for organization and invitations related operations.
@@ -112,52 +111,10 @@ export const organizationService = (() => {
     return members;
   }
 
-  /**
-   * Retrieves pending invitations for an organization.
-   *
-   * - Fetches the current session and extracts the user ID.
-   * - Checks if the user is a member of the organization.
-   * - Queries the database for pending invitations of the specified organization.
-   *
-   * @param organizationId - The ID of the organization to retrieve pending invitations for.
-   * @returns A promise that resolves to an array of Invitation objects.
-   */
-  async function getOrganizationPendingInvitations(
-    organizationId: string,
-  ): Promise<Invitation[]> {
-    const session = await getSession();
-    if (!session) {
-      return [];
-    }
-    const userId = session.user.id;
-
-    const myMemberInOrganization =
-      await memberRepository.getMemberByUserIdAndOrganizationId(
-        userId,
-        organizationId,
-      );
-    if (!myMemberInOrganization) {
-      console.error("You are not from the organization");
-      throw new Error("UNAUTHORIZED");
-    }
-    const isOwnerOrAdmin =
-      myMemberInOrganization.role === MemberRole.OWNER ||
-      myMemberInOrganization.role === MemberRole.ADMIN;
-    if (!isOwnerOrAdmin) {
-      console.error("You are not owner or admin of the organization");
-      throw new Error("UNAUTHORIZED");
-    }
-
-    return await invitationRepository.getPendingInvitationsByOrganizationId(
-      organizationId,
-    );
-  }
-
   return {
     generateOrganizationSlugFromName,
     getPendingInvitation,
     getOrganizationMembersWithUser,
-    getOrganizationPendingInvitations,
   };
 })();
 

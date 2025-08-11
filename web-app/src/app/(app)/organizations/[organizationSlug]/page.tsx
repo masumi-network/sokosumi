@@ -1,14 +1,15 @@
 import { Metadata } from "next";
+import { headers } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
+import { auth, Invitation } from "@/lib/auth/auth";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { MemberRole } from "@/lib/db";
 import { organizationRepository } from "@/lib/db/repositories";
 import { organizationService, userService } from "@/lib/services";
-import { Invitation } from "@/prisma/generated/client";
 
 import OrganizationInformation from "./components/organization-information";
 import OrganizationInviteButton from "./components/organization-invite-button";
@@ -75,10 +76,15 @@ export default async function OrganizationPage({
   let pendingInvitations: Invitation[] = [];
   if (isOwnerOrAdmin) {
     try {
-      pendingInvitations =
-        await organizationService.getOrganizationPendingInvitations(
-          organization.id,
-        );
+      pendingInvitations = filterPendingInvitation(
+        await auth.api.listInvitations({
+          query: {
+            organizationId: organization.id,
+          },
+          params: {},
+          headers: await headers(),
+        }),
+      );
     } catch (error) {
       console.error("Failed to get pending invitations", error);
     }
@@ -104,4 +110,16 @@ export default async function OrganizationPage({
       />
     </div>
   );
+}
+
+function filterPendingInvitation(invitations: Invitation[]): Invitation[] {
+  invitations.sort((a, b) => b.expiresAt.valueOf() - a.expiresAt.valueOf());
+  // Group by email and take the first (latest) invitation per email
+  const emailMap = new Map<string, Invitation>();
+  for (const invitation of invitations) {
+    if (!emailMap.has(invitation.email)) {
+      emailMap.set(invitation.email, invitation);
+    }
+  }
+  return Array.from(emailMap.values());
 }
