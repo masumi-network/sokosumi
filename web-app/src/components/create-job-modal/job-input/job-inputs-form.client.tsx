@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Command, CornerDownLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import React from "react";
+import React, { useEffect } from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -61,9 +61,7 @@ export default function JobInputsFormClient({
 
   const form = useForm<JobInputsFormSchemaType>({
     resolver: zodResolver(jobInputsFormSchema(input_data, t)),
-    defaultValues: demoValues
-      ? Object.fromEntries(demoValues.inputValues.entries())
-      : defaultValues(input_data),
+    defaultValues: defaultValues(input_data),
     mode: "onChange",
   });
   const router = useAsyncRouter();
@@ -73,11 +71,21 @@ export default function JobInputsFormClient({
   // create job modal context
   const { open, loading, setLoading, handleClose } = useCreateJobModalContext();
 
-  // Then replace your existing handleSubmit function with this:
+  useEffect(() => {
+    if (demoValues?.inputValues) {
+      form.reset(Object.fromEntries(demoValues.inputValues.entries()));
+    }
+  }, [demoValues, form]);
+
   const handleSubmit: SubmitHandler<JobInputsFormSchemaType> = async (
     values,
   ) => {
     setLoading(true);
+    if (demoValues) {
+      setLoading(false);
+      return;
+    }
+
     // Transform input data to match expected type
     // Filter out null values and ensure arrays are of correct type
     const transformedInputData = filterOutNullValues(values);
