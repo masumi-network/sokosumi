@@ -76,19 +76,34 @@ export const invitationRepository = {
   },
 
   /**
-   * Retrieves all pending invitations for a specific organization.
+   * Retrieves the latest pending invitation per user for a specific organization.
+   * This ensures only one invitation per email address is returned, even if multiple
+   * expired invitations exist for the same user.
    *
    * @param organizationId - The ID of the organization.
    * @param tx - Optional Prisma transaction client.
-   * @returns Promise resolving to an array of invitations.
+   * @returns Promise resolving to an array of invitations with one per user.
    */
   async getPendingInvitationsByOrganizationId(
     organizationId: string,
     tx: Prisma.TransactionClient = prisma,
-  ) {
-    return tx.invitation.findMany({
+  ): Promise<InvitationWithRelations[]> {
+    // Get all pending invitations for the organization
+    const allInvitations = await tx.invitation.findMany({
       where: { organizationId, status: InvitationStatus.PENDING },
+      include: invitationInclude,
+      orderBy: { expiresAt: "desc" },
     });
+
+    // Group by email and take the first (latest) invitation per email
+    const emailMap = new Map<string, InvitationWithRelations>();
+    for (const invitation of allInvitations) {
+      if (!emailMap.has(invitation.email)) {
+        emailMap.set(invitation.email, invitation);
+      }
+    }
+
+    return Array.from(emailMap.values());
   },
 
   /**
