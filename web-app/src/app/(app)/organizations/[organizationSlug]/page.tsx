@@ -4,11 +4,11 @@ import { getTranslations } from "next-intl/server";
 
 import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
+import { Invitation } from "@/lib/auth/auth";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { MemberRole } from "@/lib/db";
 import { organizationRepository } from "@/lib/db/repositories";
 import { organizationService, userService } from "@/lib/services";
-import { Invitation } from "@/prisma/generated/client";
 
 import OrganizationInformation from "./components/organization-information";
 import OrganizationInviteButton from "./components/organization-invite-button";
@@ -66,23 +66,22 @@ export default async function OrganizationPage({
     redirect("/organizations");
   }
 
-  const members = await organizationService.getOrganizationMembersWithUser(
-    organization.id,
-  );
-
   const isOwnerOrAdmin =
     member.role === MemberRole.OWNER || member.role === MemberRole.ADMIN;
   let pendingInvitations: Invitation[] = [];
   if (isOwnerOrAdmin) {
     try {
-      pendingInvitations =
-        await organizationService.getOrganizationPendingInvitations(
-          organization.id,
-        );
+      pendingInvitations = await organizationService.getPendingInvitations(
+        organization.id,
+      );
     } catch (error) {
       console.error("Failed to get pending invitations", error);
     }
   }
+
+  const members = await organizationService.getOrganizationMembersWithUser(
+    organization.id,
+  );
 
   return (
     <div className="container flex flex-col gap-8 md:p-8">
