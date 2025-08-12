@@ -38,7 +38,7 @@ export const stripeClient = (() => {
       const customer = await stripe.customers.create({
         email: user.email,
         name: user.name,
-        metadata: { userId: user.id },
+        metadata: { userId: user.id, type: "user" },
       });
       return customer;
     },
@@ -52,6 +52,7 @@ export const stripeClient = (() => {
         metadata: {
           organizationId: organization.id,
           organizationSlug: organization.slug,
+          type: "organization",
         },
       });
       return customer;
