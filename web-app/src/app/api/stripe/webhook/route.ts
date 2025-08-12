@@ -432,38 +432,19 @@ const handleInvoicePaidEvent = async (
     );
 
     // Create the fiat transaction and credit transaction in a database transaction
-    await prisma.$transaction(async (tx) => {
-      // Create fiat transaction
-      const fiatTransaction =
-        await fiatTransactionRepository.createFiatTransaction(
-          userId,
-          organizationId,
-          cents,
-          invoice.amount_paid,
-          invoice.currency,
-          tx,
-        );
-
-      // Update with invoice ID as servicePaymentId and mark as succeeded
-      await fiatTransactionRepository.updateFiatTransactionStatus(
-        fiatTransaction,
-        BigInt(invoice.amount_paid),
-        invoice.currency,
-        FiatTransactionStatus.SUCCEEDED,
-        tx,
-      );
-
-      // Update the fiatTransaction with the invoice ID for tracking
-      await fiatTransactionRepository.setFiatTransactionServicePaymentId(
-        fiatTransaction.id,
+    const transaction =
+      await fiatTransactionRepository.createFiatTransactionFromInvoice(
+        userId,
+        organizationId,
+        cents,
         invoice.id!,
-        tx,
+        invoice.amount_paid,
+        invoice.currency,
       );
 
-      console.log(
-        `✅ Processed invoice ${invoice.id}: Created fiatTransaction ${fiatTransaction.id} with ${cents} credits for ${organizationId ? `organization ${organizationId}` : `user ${userId}`}`,
-      );
-    });
+    console.log(
+      `✅ Processed invoice ${invoice.id}: Created fiatTransaction ${transaction.id} with ${cents} credits for ${organizationId ? `organization ${organizationId}` : `user ${userId}`}`,
+    );
 
     return NextResponse.json(
       { message: `Invoice ${invoice.id} processed successfully` },
