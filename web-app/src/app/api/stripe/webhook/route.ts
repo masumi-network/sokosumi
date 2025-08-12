@@ -94,10 +94,6 @@ const handleCheckoutSessionCompletedEvent = async (
   session: Stripe.Checkout.Session,
 ) => {
   checkPaymentStatus(session);
-
-  // Sync customer email if it was updated during checkout
-  await syncCustomerEmailFromCheckout(session);
-
   return await updateFiatTransactionStatus(session, "SUCCEEDED");
 };
 
@@ -265,53 +261,5 @@ const handleCustomerUpdatedEvent = async (
       { message: "Failed to process customer update" },
       { status: 500 },
     );
-  }
-};
-
-const syncCustomerEmailFromCheckout = async (
-  session: Stripe.Checkout.Session,
-): Promise<void> => {
-  try {
-    // Check if customer details email is available
-    const customerEmail = session.customer_details?.email;
-    if (!customerEmail) {
-      return;
-    }
-
-    // Get the fiat transaction to determine if this is an organization purchase
-    const fiatTransaction =
-      await fiatTransactionRepository.getFiatTransactionByServicePaymentId(
-        session.id,
-      );
-
-    if (!fiatTransaction || !fiatTransaction.organizationId) {
-      // Not an organization purchase, nothing to sync
-      return;
-    }
-
-    // Get the organization
-    const organization =
-      await organizationRepository.getOrganizationWithRelationsById(
-        fiatTransaction.organizationId,
-      );
-
-    if (!organization) {
-      console.log(`Organization ${fiatTransaction.organizationId} not found`);
-      return;
-    }
-
-    // Only update if the email has changed
-    if (organization.invoiceEmail !== customerEmail) {
-      await organizationRepository.updateOrganizationInvoiceEmail(
-        fiatTransaction.organizationId,
-        customerEmail,
-      );
-      console.log(
-        `✅ Synced organization ${fiatTransaction.organizationId} invoice email from checkout: ${customerEmail}`,
-      );
-    }
-  } catch (error) {
-    // Don't fail the webhook if email sync fails
-    console.error("Error syncing customer email from checkout", error);
   }
 };
