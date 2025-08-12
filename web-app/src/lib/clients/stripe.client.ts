@@ -48,12 +48,22 @@ export const stripeClient = (() => {
     ): Promise<Stripe.Customer> {
       const customer = await stripe.customers.create({
         name: organization.name,
+        ...(organization.invoiceEmail && { email: organization.invoiceEmail }),
         metadata: {
           organizationId: organization.id,
           organizationSlug: organization.slug,
         },
       });
       return customer;
+    },
+
+    async updateCustomerEmail(
+      customerId: string,
+      email: string | null,
+    ): Promise<Stripe.Customer> {
+      return await stripe.customers.update(customerId, {
+        email: email ?? undefined,
+      });
     },
 
     async deleteCustomer(customerId: string): Promise<void> {

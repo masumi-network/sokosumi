@@ -358,5 +358,36 @@ export const stripeService = (() => {
         }
       });
     },
+
+    async syncOrganizationInvoiceEmailWithStripe(
+      organizationId: string,
+      invoiceEmail: string | null,
+    ): Promise<boolean> {
+      try {
+        const organization =
+          await organizationRepository.getOrganizationWithRelationsById(
+            organizationId,
+          );
+
+        if (!organization || !organization.stripeCustomerId) {
+          // No Stripe customer to update
+          return true;
+        }
+
+        // Update Stripe customer email
+        await stripeClient.updateCustomerEmail(
+          organization.stripeCustomerId,
+          invoiceEmail,
+        );
+
+        return true;
+      } catch (error) {
+        console.error(
+          `Error syncing invoice email with Stripe for organization ${organizationId}:`,
+          error,
+        );
+        return false;
+      }
+    },
   };
 })();

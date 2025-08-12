@@ -12,6 +12,7 @@ import { organizationService, userService } from "@/lib/services";
 
 import OrganizationInformation from "./components/organization-information";
 import OrganizationInviteButton from "./components/organization-invite-button";
+import OrganizationInvoiceEmail from "./components/organization-invoice-email";
 
 interface OrganizationPageProps {
   params: Promise<{ organizationSlug: string }>;
@@ -90,6 +91,7 @@ export default async function OrganizationPage({
         <OrganizationRoleBadge role={member.role} />
       </div>
       <OrganizationInformation organization={organization} member={member} />
+      <OrganizationInvoiceEmail organization={organization} member={member} />
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-light">{t("members")}</h1>
         {isOwnerOrAdmin && (

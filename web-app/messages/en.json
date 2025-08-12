@@ -976,7 +976,27 @@
         "edit": "Edit",
         "delete": "Delete",
         "invite": "Invite Member",
-        "members": "Members"
+        "members": "Members",
+        "InvoiceEmail": {
+          "title": "Invoice Email",
+          "description": "Email address for receiving invoices and billing notifications",
+          "label": "Invoice Email",
+          "placeholder": "billing@example.com",
+          "help": "This email will receive all invoices and billing-related communications from Stripe",
+          "edit": "Edit",
+          "save": "Save",
+          "cancel": "Cancel",
+          "Success": {
+            "update": "Invoice email updated successfully"
+          },
+          "Errors": {
+            "unauthenticated": "Please log in to continue",
+            "unauthenticatedAction": "Log in",
+            "unauthorized": "Only organization owners and admins can update the invoice email",
+            "badInput": "Please enter a valid email address",
+            "general": "Failed to update invoice email"
+          }
+        }
       }
     },
     "Agents": {

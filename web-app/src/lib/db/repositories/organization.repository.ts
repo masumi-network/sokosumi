@@ -128,4 +128,23 @@ export const organizationRepository = {
       data: { stripeCustomerId },
     });
   },
+
+  /**
+   * Updates the invoice email for an organization.
+   *
+   * @param organizationId - The ID of the organization to update.
+   * @param invoiceEmail - The invoice email to set (or null to clear).
+   * @param tx - Optional Prisma transaction client.
+   * @returns The updated Organization object.
+   */
+  async updateOrganizationInvoiceEmail(
+    organizationId: string,
+    invoiceEmail: string | null,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<Organization> {
+    return await tx.organization.update({
+      where: { id: organizationId },
+      data: { invoiceEmail },
+    });
+  },
 };

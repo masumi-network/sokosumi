@@ -114,6 +114,7 @@ model Organization {
   fiatTransactions   FiatTransaction[]
 
   stripeCustomerId String?
+  invoiceEmail     String?
 
   @@unique([slug])
   @@unique([stripeCustomerId])
