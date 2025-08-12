@@ -123,4 +123,55 @@ export const fiatTransactionRepository = {
       },
     });
   },
+
+  /**
+   * Creates a fiat transaction from a paid invoice and automatically creates the associated credit transaction.
+   * This combines the creation, status update, and service payment ID assignment into a single atomic operation.
+   *
+   * @param userId - The ID of the user associated with the transaction.
+   * @param organizationId - The ID of the organization, or null if not applicable.
+   * @param cents - The amount in cents (bigint) representing credits.
+   * @param invoiceId - The Stripe invoice ID.
+   * @param amountPaid - The amount paid in the invoice (in cents).
+   * @param currency - The currency code (e.g., "usd").
+   * @param tx - (Optional) The Prisma transaction client to use for database operations.
+   * @returns The created FiatTransaction object with the credit transaction.
+   */
+  async createFiatTransactionFromInvoice(
+    userId: string,
+    organizationId: string | null,
+    cents: bigint,
+    invoiceId: string,
+    amountPaid: number,
+    currency: string,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<FiatTransaction> {
+    // Create the fiat transaction with SUCCEEDED status and credit transaction in one operation
+    return await tx.fiatTransaction.create({
+      data: {
+        user: { connect: { id: userId } },
+        ...(organizationId && {
+          organization: { connect: { id: organizationId } },
+        }),
+        cents,
+        amount: BigInt(amountPaid),
+        currency,
+        status: FiatTransactionStatus.SUCCEEDED,
+        servicePaymentId: invoiceId,
+        // Create the credit transaction immediately since status is SUCCEEDED
+        creditTransaction: {
+          create: {
+            amount: cents,
+            user: { connect: { id: userId } },
+            ...(organizationId && {
+              organization: { connect: { id: organizationId } },
+            }),
+          },
+        },
+      },
+      include: {
+        creditTransaction: true,
+      },
+    });
+  },
 };
