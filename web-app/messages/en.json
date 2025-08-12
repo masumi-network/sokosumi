@@ -1014,8 +1014,7 @@
             "title": "Information"
           },
           "Input": {
-            "title": "Input",
-            "description": "Ensure inputs are clear, specific, and relevant to the analysis, providing structured data on the reference company, target competitors, and market focus to generate precise, actionable insights in the output."
+            "title": "Input"
           }
         },
         "JobsTable": {
