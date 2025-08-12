@@ -66,7 +66,7 @@ function JobDetailsOutputsInner({ job }: JobDetailsOutputsProps) {
       ) : (
         <>
           <p className="text-base">{t("none")}</p>
-          {job.status === JobStatus.FAILED && (
+          {!job.isDemo && job.status === JobStatus.FAILED && (
             <div className="flex justify-end">
               <RequestRefundButton initialJob={job} />
             </div>
