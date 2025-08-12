@@ -158,6 +158,12 @@ export const stripeClient = (() => {
       );
     },
 
+    async getInvoice(invoiceId: string): Promise<Stripe.Invoice> {
+      return await stripe.invoices.retrieve(invoiceId, {
+        expand: ["lines.data.price.product"],
+      });
+    },
+
     async createCheckoutSession(
       stripeCustomerId: string,
       fiatTransaction: FiatTransaction,
