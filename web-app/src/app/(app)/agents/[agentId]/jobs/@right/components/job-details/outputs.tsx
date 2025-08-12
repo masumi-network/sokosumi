@@ -60,7 +60,7 @@ function JobDetailsOutputsInner({ job }: JobDetailsOutputsProps) {
                 <CopyMarkdown markdown={output.result} />
               </div>
             </div>
-            <RequestRefundButton initialJob={job} />
+            {!job.isDemo && <RequestRefundButton initialJob={job} />}
           </div>
         </>
       ) : (
