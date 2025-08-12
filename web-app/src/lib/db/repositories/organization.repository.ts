@@ -147,4 +147,20 @@ export const organizationRepository = {
       data: { invoiceEmail },
     });
   },
+
+  /**
+   * Get an organization by its Stripe customer ID.
+   *
+   * @param stripeCustomerId - The Stripe customer ID.
+   * @param tx - Optional Prisma transaction client.
+   * @returns The organization if found, null otherwise.
+   */
+  async getOrganizationByStripeCustomerId(
+    stripeCustomerId: string,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<Organization | null> {
+    return await tx.organization.findUnique({
+      where: { stripeCustomerId },
+    });
+  },
 };
