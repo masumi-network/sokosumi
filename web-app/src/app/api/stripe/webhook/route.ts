@@ -292,7 +292,7 @@ const handleInvoicePaidEvent = async (
     const invoiceId = invoice.id;
 
     if (!invoice.customer) {
-      console.log(`Invoice ${invoice.id} has no customer`);
+      console.log(`Invoice ${invoiceId} has no customer`);
       return NextResponse.json(
         { message: "Invoice has no customer" },
         { status: 200 },
@@ -300,7 +300,7 @@ const handleInvoicePaidEvent = async (
     }
 
     if (invoice.amount_paid === null || invoice.amount_paid === 0) {
-      console.log(`Invoice ${invoice.id} has no amount paid`);
+      console.log(`Invoice ${invoiceId} has no amount paid`);
       return NextResponse.json(
         { message: "Invoice has no amount paid" },
         { status: 200 },
@@ -452,7 +452,7 @@ const handleInvoicePaidEvent = async (
     );
 
     return NextResponse.json(
-      { message: `Invoice ${invoice.id} processed successfully` },
+      { message: `Invoice ${invoiceId} processed successfully` },
       { status: 200 },
     );
   } catch (error) {
