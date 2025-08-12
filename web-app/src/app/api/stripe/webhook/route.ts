@@ -3,7 +3,11 @@ import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { stripeClient } from "@/lib/clients/stripe.client";
-import { convertCreditsToCents, MemberRole } from "@/lib/db";
+import {
+  convertCentsToCredits,
+  convertCreditsToCents,
+  MemberRole,
+} from "@/lib/db";
 import {
   fiatTransactionRepository,
   memberRepository,
@@ -285,6 +289,7 @@ const handleInvoicePaidEvent = async (
         { status: 200 },
       );
     }
+    const invoiceId = invoice.id;
 
     if (!invoice.customer) {
       console.log(`Invoice ${invoice.id} has no customer`);
@@ -346,7 +351,7 @@ const handleInvoicePaidEvent = async (
       } else {
         // Customer not found in our system
         console.log(
-          `Stripe customer ${stripeCustomerId} not found in our system for invoice ${invoice.id}`,
+          `Stripe customer ${stripeCustomerId} not found in our system for invoice ${invoiceId}`,
         );
         return NextResponse.json(
           { message: "Customer not found in system" },
@@ -358,11 +363,11 @@ const handleInvoicePaidEvent = async (
     // Check if we already processed this invoice
     const existingTransaction =
       await fiatTransactionRepository.getFiatTransactionByServicePaymentId(
-        invoice.id,
+        invoiceId,
       );
 
     if (existingTransaction) {
-      console.log(`Invoice ${invoice.id} already processed`);
+      console.log(`Invoice ${invoiceId} already processed`);
       return NextResponse.json(
         { message: "Invoice already processed" },
         { status: 200 },
@@ -375,8 +380,8 @@ const handleInvoicePaidEvent = async (
     // Ensure we have line items - fetch full invoice if needed
     let lines = invoice.lines?.data || [];
     if (lines.length === 0) {
-      console.log(`Fetching full invoice ${invoice.id} to get line items`);
-      const expandedInvoice = await stripeClient.getInvoice(invoice.id);
+      console.log(`Fetching full invoice ${invoiceId} to get line items`);
+      const expandedInvoice = await stripeClient.getInvoice(invoiceId);
       lines = expandedInvoice.lines?.data || [];
     }
 
@@ -388,7 +393,7 @@ const handleInvoicePaidEvent = async (
 
         if (productId !== allowedProductId) {
           console.log(
-            `Invoice ${invoice.id} contains unauthorized product ${productId}. Only ${allowedProductId} is allowed.`,
+            `Invoice ${invoiceId} contains unauthorized product ${productId}. Only ${allowedProductId} is allowed.`,
           );
           return NextResponse.json(
             { message: "Invoice contains unauthorized products" },
@@ -418,7 +423,7 @@ const handleInvoicePaidEvent = async (
 
     // If no credits, return 200
     if (totalCredits === 0) {
-      console.log(`No line items found for invoice ${invoice.id}`);
+      console.log(`No line items found for invoice ${invoiceId}`);
       return NextResponse.json(
         { message: "No line items found" },
         { status: 200 },
@@ -428,7 +433,7 @@ const handleInvoicePaidEvent = async (
     const cents = convertCreditsToCents(totalCredits);
 
     console.log(
-      `Invoice ${invoice.id}: Calculated ${cents} credits from ${lines.length} line items`,
+      `Invoice ${invoiceId}: Calculated ${cents} cents from ${lines.length} line items`,
     );
 
     // Create the fiat transaction and credit transaction in a database transaction
@@ -437,13 +442,13 @@ const handleInvoicePaidEvent = async (
         userId,
         organizationId,
         cents,
-        invoice.id!,
+        invoiceId,
         invoice.amount_paid,
         invoice.currency,
       );
 
     console.log(
-      `✅ Processed invoice ${invoice.id}: Created fiatTransaction ${transaction.id} with ${cents} credits for ${organizationId ? `organization ${organizationId}` : `user ${userId}`}`,
+      `✅ Processed invoice ${invoiceId}: Created fiatTransaction ${transaction.id} with ${convertCentsToCredits(cents)} credits for ${organizationId ? `organization ${organizationId}` : `user ${userId}`}`,
     );
 
     return NextResponse.json(
