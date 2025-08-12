@@ -112,10 +112,6 @@ export default function OrganizationInvoiceEmail({
     setIsEditing(false);
   };
 
-  if (!isOwnerOrAdmin) {
-    return null;
-  }
-
   return (
     <Card>
       <CardHeader>
@@ -144,13 +140,15 @@ export default function OrganizationInvoiceEmail({
                         value={field.value ?? ""}
                       />
                       {!isEditing ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => setIsEditing(true)}
-                        >
-                          {t("edit")}
-                        </Button>
+                        isOwnerOrAdmin && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setIsEditing(true)}
+                          >
+                            {t("edit")}
+                          </Button>
+                        )
                       ) : (
                         <>
                           <Button
