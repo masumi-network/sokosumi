@@ -64,21 +64,21 @@ export const fiatTransactionRepository = {
   },
 
   /**
-   * Updates a fiat transaction by its ID with the provided data.
+   * Sets the service payment ID for a fiat transaction.
    *
    * @param id - The ID of the fiat transaction to update.
-   * @param data - The update data (Prisma.FiatTransactionUpdateInput).
+   * @param servicePaymentId - The new service payment ID.
    * @param tx - (Optional) The Prisma transaction client to use for database operations. Defaults to the main Prisma client.
    * @returns The updated FiatTransaction object.
    */
-  async updateFiatTransaction(
+  async setFiatTransactionServicePaymentId(
     id: string,
-    data: Prisma.FiatTransactionUpdateInput,
+    servicePaymentId: string,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<FiatTransaction> {
     return await tx.fiatTransaction.update({
       where: { id },
-      data,
+      data: { servicePaymentId },
     });
   },
 

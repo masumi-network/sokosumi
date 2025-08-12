@@ -416,7 +416,7 @@ const handleInvoicePaidEvent = async (
       }
     }
 
-    //
+    // If no credits, return 200
     if (totalCredits === 0) {
       console.log(`No line items found for invoice ${invoice.id}`);
       return NextResponse.json(
@@ -454,9 +454,9 @@ const handleInvoicePaidEvent = async (
       );
 
       // Update the fiatTransaction with the invoice ID for tracking
-      await fiatTransactionRepository.updateFiatTransaction(
+      await fiatTransactionRepository.setFiatTransactionServicePaymentId(
         fiatTransaction.id,
-        { servicePaymentId: invoice.id },
+        invoice.id!,
         tx,
       );
 

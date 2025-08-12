@@ -81,9 +81,9 @@ export const stripeService = (() => {
             promotionCode,
           );
 
-          await fiatTransactionRepository.updateFiatTransaction(
+          await fiatTransactionRepository.setFiatTransactionServicePaymentId(
             fiatTransaction.id,
-            { servicePaymentId: checkoutSession.id },
+            checkoutSession.id,
             tx,
           );
 
