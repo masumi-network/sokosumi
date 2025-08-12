@@ -389,5 +389,34 @@ export const stripeService = (() => {
         return false;
       }
     },
+
+    async syncUserEmailWithStripe(
+      userId: string,
+      newEmail: string,
+    ): Promise<boolean> {
+      try {
+        const user = await userRepository.getUserById(userId);
+
+        if (!user || !user.stripeCustomerId) {
+          // No Stripe customer to update
+          return true;
+        }
+
+        // Update Stripe customer email
+        await stripeClient.updateCustomerEmail(user.stripeCustomerId, newEmail);
+
+        console.log(
+          `✅ Synced user ${userId} email to Stripe customer ${user.stripeCustomerId}`,
+        );
+
+        return true;
+      } catch (error) {
+        console.error(
+          `Error syncing user email with Stripe for user ${userId}:`,
+          error,
+        );
+        return false;
+      }
+    },
   };
 })();

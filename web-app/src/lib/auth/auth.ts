@@ -16,6 +16,7 @@ import { reactInviteUserEmail } from "@/lib/email/invitation";
 import { resend } from "@/lib/email/resend";
 import { reactResetPasswordEmail } from "@/lib/email/reset-password";
 import { reactVerificationEmail } from "@/lib/email/verification";
+import { stripeService } from "@/lib/services";
 
 export type Session = typeof auth.$Infer.Session;
 export type SessionUser = typeof auth.$Infer.Session.user;
@@ -77,6 +78,20 @@ export const auth = betterAuth({
           throw new APIError("BAD_REQUEST", {
             code: "TERMS_NOT_ACCEPTED",
           });
+        }
+      }
+
+      // Sync user email with Stripe after email change verification
+      if (ctx.path === "/verify-email" && ctx.context.newSession?.user) {
+        console.log("syncing user email with Stripe");
+        const user = ctx.context.newSession?.user;
+        if (user.stripeCustomerId && user.email) {
+          // Fire and forget - don't wait for sync to complete
+          stripeService
+            .syncUserEmailWithStripe(user.id, user.email)
+            .catch((error) => {
+              console.error("Failed to sync user email with Stripe:", error);
+            });
         }
       }
     }),
