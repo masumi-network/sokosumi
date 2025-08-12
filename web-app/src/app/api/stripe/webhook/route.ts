@@ -1,9 +1,17 @@
 import { NextResponse } from "next/server";
 import Stripe from "stripe";
 
+import { getEnvSecrets } from "@/config/env.secrets";
 import { stripeClient } from "@/lib/clients/stripe.client";
 import {
+  convertCentsToCredits,
+  convertCreditsToCents,
+  MemberRole,
+} from "@/lib/db";
+import {
   fiatTransactionRepository,
+  memberRepository,
+  organizationRepository,
   prisma,
   userRepository,
 } from "@/lib/db/repositories";
@@ -30,7 +38,8 @@ export async function POST(req: Request) {
     "checkout.session.expired",
     "checkout.session.async_payment_succeeded",
     "checkout.session.async_payment_failed",
-    "customer.created",
+    "invoice.paid",
+    "customer.updated",
   ];
 
   console.log(`🔍 Event id: ${event.id}`);
@@ -54,9 +63,13 @@ export async function POST(req: Request) {
           const session = event.data.object as Stripe.Checkout.Session;
           return await handleCheckoutSessionAsyncPaymentFailedEvent(session);
         }
-        case "customer.created": {
+        case "customer.updated": {
           const customer = event.data.object as Stripe.Customer;
-          return await handleCustomerCreatedEvent(customer);
+          return await handleCustomerUpdatedEvent(customer);
+        }
+        case "invoice.paid": {
+          const invoice = event.data.object as Stripe.Invoice;
+          return await handleInvoicePaidEvent(invoice);
         }
         default:
           return NextResponse.json(
@@ -79,83 +92,6 @@ export async function POST(req: Request) {
     );
   }
 }
-
-const handleCustomerCreatedEvent = async (customer: Stripe.Customer) => {
-  const email = customer.email;
-  if (!email) {
-    return NextResponse.json(
-      { message: `Customer email not found for customer: ${customer.id}` },
-      { status: 500 },
-    );
-  }
-
-  let user = await userRepository.getUserByEmail(email);
-  if (!user) {
-    return NextResponse.json(
-      { message: `User with email ${email} not found` },
-      { status: 404 },
-    );
-  }
-
-  // If user already has a different Stripe customer ID, update to the new one
-  if (user.stripeCustomerId && user.stripeCustomerId !== customer.id) {
-    console.warn(
-      `User ${user.id} already has Stripe customer ${user.stripeCustomerId}, ` +
-        `but webhook received new customer ${customer.id}. Updating to new customer ID.`,
-    );
-
-    try {
-      user = await userRepository.setUserStripeCustomerId(user.id, customer.id);
-    } catch (error) {
-      console.error(
-        `Error updating user ${user.id} from customer ${user.stripeCustomerId} to ${customer.id}:`,
-        error,
-      );
-      return NextResponse.json(
-        {
-          message: `Failed to update user ${user.id} from customer ${user.stripeCustomerId} to ${customer.id}. This might be due to a unique constraint violation from concurrent customer creation.`,
-        },
-        { status: 500 },
-      );
-    }
-  }
-
-  // Update the database association if user doesn't have a Stripe customer ID
-  if (!user.stripeCustomerId) {
-    try {
-      user = await userRepository.setUserStripeCustomerId(user.id, customer.id);
-    } catch (error) {
-      console.error(
-        `Error updating user ${user.id} with customer ${customer.id}:`,
-        error,
-      );
-      return NextResponse.json(
-        {
-          message: `User with email ${email} not updated with stripe customer id: ${customer.id}. This might be due to a unique constraint violation from concurrent customer creation.`,
-        },
-        { status: 500 },
-      );
-    }
-  }
-
-  // Update metadata for the customer (this is non-critical and shouldn't cause webhook failure)
-  try {
-    await stripeClient.setUserIdForCustomer(customer.id, user.id);
-  } catch (metadataError) {
-    console.error(
-      `Failed to update metadata for customer ${customer.id}:`,
-      metadataError,
-    );
-    // Don't return error - metadata update failure shouldn't cause webhook to fail
-  }
-
-  return NextResponse.json(
-    {
-      message: `User ${user.id} / ${user.email} associated with stripe customer id: ${customer.id}`,
-    },
-    { status: 200 },
-  );
-};
 
 const checkPaymentStatus = (session: Stripe.Checkout.Session) => {
   const paymentStatus = session.payment_status;
@@ -283,4 +219,247 @@ const updateFiatTransactionStatus = async (
       throw error;
     }
   });
+};
+
+const handleCustomerUpdatedEvent = async (
+  customer: Stripe.Customer,
+): Promise<NextResponse> => {
+  try {
+    // Check if this is an organization customer
+    const metadata = customer.metadata;
+    if (metadata?.type === "organization" && metadata?.organizationId) {
+      const organizationId = metadata.organizationId;
+      const customerEmail =
+        typeof customer.email === "string" ? customer.email : null;
+
+      // Get the current organization to compare emails
+      const organization =
+        await organizationRepository.getOrganizationWithRelationsById(
+          organizationId,
+        );
+
+      if (!organization) {
+        console.log(
+          `Organization ${organizationId} not found for customer ${customer.id}`,
+        );
+        return NextResponse.json(
+          { message: `Organization not found` },
+          { status: 200 },
+        );
+      }
+
+      // Only update if the email has actually changed
+      if (organization.invoiceEmail !== customerEmail) {
+        await organizationRepository.updateOrganizationInvoiceEmail(
+          organizationId,
+          customerEmail,
+        );
+        console.log(
+          `✅ Updated organization ${organizationId} invoice email from ${organization.invoiceEmail} to ${customerEmail}`,
+        );
+      }
+    } else if (metadata?.type === "user" && metadata?.userId) {
+      // For user customers, we could update the user email if needed
+      // Currently, user emails are managed through the auth system
+      console.log(`User customer ${customer.id} updated, no action taken`);
+    }
+
+    return NextResponse.json(
+      { message: "Customer update processed" },
+      { status: 200 },
+    );
+  } catch (error) {
+    console.error("Error handling customer.updated event", error);
+    return NextResponse.json(
+      { message: "Failed to process customer update" },
+      { status: 500 },
+    );
+  }
+};
+
+const handleInvoicePaidEvent = async (
+  invoice: Stripe.Invoice,
+): Promise<NextResponse> => {
+  try {
+    // Validate invoice has required data
+    if (!invoice.id) {
+      console.log(`Invoice has no ID`);
+      return NextResponse.json(
+        { message: "Invoice has no ID" },
+        { status: 200 },
+      );
+    }
+    const invoiceId = invoice.id;
+
+    if (!invoice.customer) {
+      console.log(`Invoice ${invoiceId} has no customer`);
+      return NextResponse.json(
+        { message: "Invoice has no customer" },
+        { status: 200 },
+      );
+    }
+
+    if (invoice.amount_paid === null || invoice.amount_paid === 0) {
+      console.log(`Invoice ${invoiceId} has no amount paid`);
+      return NextResponse.json(
+        { message: "Invoice has no amount paid" },
+        { status: 200 },
+      );
+    }
+
+    // Get the Stripe customer ID from the invoice
+    const stripeCustomerId =
+      typeof invoice.customer === "string"
+        ? invoice.customer
+        : invoice.customer.id;
+
+    // Look up the user or organization by stripeCustomerId
+    let userId: string;
+    let organizationId: string | null = null;
+
+    // First, try to find a user with this stripeCustomerId
+    const user =
+      await userRepository.getUserByStripeCustomerId(stripeCustomerId);
+
+    if (user) {
+      // This is a user purchase
+      userId = user.id;
+    } else {
+      // Try to find an organization with this stripeCustomerId
+      const organization =
+        await organizationRepository.getOrganizationByStripeCustomerId(
+          stripeCustomerId,
+        );
+
+      if (organization) {
+        // This is an organization purchase
+        organizationId = organization.id;
+
+        // Get organization members to find the owner to attribute the transaction
+        const members =
+          await memberRepository.getMembersByOrganizationId(organizationId);
+        const ownerMember = members.find((m) => m.role === MemberRole.OWNER);
+
+        if (!ownerMember) {
+          console.log(`No owner found for organization ${organizationId}`);
+          return NextResponse.json(
+            { message: "Organization owner not found" },
+            { status: 200 },
+          );
+        }
+        userId = ownerMember.userId;
+      } else {
+        // Customer not found in our system
+        console.log(
+          `Stripe customer ${stripeCustomerId} not found in our system for invoice ${invoiceId}`,
+        );
+        return NextResponse.json(
+          { message: "Customer not found in system" },
+          { status: 200 },
+        );
+      }
+    }
+
+    // Check if we already processed this invoice
+    const existingTransaction =
+      await fiatTransactionRepository.getFiatTransactionByServicePaymentId(
+        invoiceId,
+      );
+
+    if (existingTransaction) {
+      console.log(`Invoice ${invoiceId} already processed`);
+      return NextResponse.json(
+        { message: "Invoice already processed" },
+        { status: 200 },
+      );
+    }
+
+    // Get the allowed product ID and its default price
+    const allowedProductId = getEnvSecrets().STRIPE_PRODUCT_ID;
+
+    // Ensure we have line items - fetch full invoice if needed
+    let lines = invoice.lines?.data || [];
+    if (lines.length === 0) {
+      console.log(`Fetching full invoice ${invoiceId} to get line items`);
+      const expandedInvoice = await stripeClient.getInvoice(invoiceId);
+      lines = expandedInvoice.lines?.data || [];
+    }
+
+    // Validate all line items are for the allowed product
+    for (const lineItem of lines) {
+      if (lineItem.pricing && typeof lineItem.pricing === "object") {
+        // Get the product ID from the price
+        const productId = lineItem.pricing.price_details?.product;
+
+        if (productId !== allowedProductId) {
+          console.log(
+            `Invoice ${invoiceId} contains unauthorized product ${productId}. Only ${allowedProductId} is allowed.`,
+          );
+          return NextResponse.json(
+            { message: "Invoice contains unauthorized products" },
+            { status: 200 },
+          );
+        }
+      } else {
+        return NextResponse.json(
+          { message: "Invoice contains line items with no pricing" },
+          { status: 200 },
+        );
+      }
+    }
+
+    // Calculate total credits from line items
+    let totalCredits: number = 0;
+    for (const lineItem of lines) {
+      if (lineItem.pricing && typeof lineItem.pricing === "object") {
+        totalCredits += lineItem.quantity ?? 1;
+      } else {
+        return NextResponse.json(
+          { message: "Invoice contains line items with no pricing" },
+          { status: 200 },
+        );
+      }
+    }
+
+    // If no credits, return 200
+    if (totalCredits === 0) {
+      console.log(`No line items found for invoice ${invoiceId}`);
+      return NextResponse.json(
+        { message: "No line items found" },
+        { status: 200 },
+      );
+    }
+
+    const cents = convertCreditsToCents(totalCredits);
+
+    console.log(
+      `Invoice ${invoiceId}: Calculated ${cents} cents from ${lines.length} line items`,
+    );
+
+    // Create the fiat transaction and credit transaction in a database transaction
+    const transaction =
+      await fiatTransactionRepository.createFiatTransactionFromInvoice(
+        userId,
+        organizationId,
+        cents,
+        invoiceId,
+        invoice.amount_paid,
+        invoice.currency,
+      );
+
+    console.log(
+      `✅ Processed invoice ${invoiceId}: Created fiatTransaction ${transaction.id} with ${convertCentsToCredits(cents)} credits for ${organizationId ? `organization ${organizationId}` : `user ${userId}`}`,
+    );
+
+    return NextResponse.json(
+      { message: `Invoice ${invoiceId} processed successfully` },
+      { status: 200 },
+    );
+  } catch (error) {
+    console.error("Error handling invoice.paid event", error);
+    return NextResponse.json(
+      { message: "Failed to process invoice payment" },
+      { status: 500 },
+    );
+  }
 };

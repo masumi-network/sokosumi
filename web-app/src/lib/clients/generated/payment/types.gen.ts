@@ -1638,67 +1638,54 @@ export type GetRegistryWalletResponse = GetRegistryWalletResponses[keyof GetRegi
 export type DeleteRegistryData = {
     body?: {
         /**
-         * The identifier of the registration (asset) to be deregistered
+         * The database ID of the agent registration record to be deleted.
          */
-        agentIdentifier: string;
-        /**
-         * The network the registration was made on
-         */
-        network: 'Preprod' | 'Mainnet';
-        /**
-         * The smart contract address of the payment contract to which the registration belongs
-         */
-        smartContractAddress?: string;
+        id: string;
     };
     path?: never;
     query?: never;
     url: '/registry/';
 };
 
+export type DeleteRegistryErrors = {
+    /**
+     * Bad Request - Invalid state for deletion
+     */
+    400: {
+        status: string;
+        error: {
+            message: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Agent Registration not found
+     */
+    404: {
+        status: string;
+        error: {
+            message: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: unknown;
+};
+
+export type DeleteRegistryError = DeleteRegistryErrors[keyof DeleteRegistryErrors];
+
 export type DeleteRegistryResponses = {
     /**
-     * Payment source deleted
+     * Agent registration deleted successfully
      */
     200: {
         status: string;
         data: {
             id: string;
-            name: string;
-            apiBaseUrl: string;
-            Capability: {
-                name: string | null;
-                version: string | null;
-            };
-            Author: {
-                name: string;
-                contactEmail: string | null;
-                contactOther: string | null;
-                organization: string | null;
-            };
-            Legal: {
-                privacyPolicy: string | null;
-                terms: string | null;
-                other: string | null;
-            };
-            description: string | null;
-            Tags: Array<string>;
-            SmartContractWallet: {
-                walletVkey: string;
-                walletAddress: string;
-            };
-            state: 'RegistrationRequested' | 'RegistrationInitiated' | 'RegistrationConfirmed' | 'RegistrationFailed' | 'DeregistrationRequested' | 'DeregistrationInitiated' | 'DeregistrationConfirmed' | 'DeregistrationFailed';
-            ExampleOutputs: Array<{
-                name: string;
-                url: string;
-                mimeType: string;
-            }>;
-            AgentPricing: {
-                pricingType: 'Fixed';
-                Pricing: Array<{
-                    unit: string;
-                    amount: string;
-                }>;
-            };
         };
     };
 };
@@ -1906,6 +1893,76 @@ export type PostRegistryResponses = {
 };
 
 export type PostRegistryResponse = PostRegistryResponses[keyof PostRegistryResponses];
+
+export type PostRegistryDeregisterData = {
+    body?: {
+        /**
+         * The identifier of the registration (asset) to be deregistered
+         */
+        agentIdentifier: string;
+        /**
+         * The network the registration was made on
+         */
+        network: 'Preprod' | 'Mainnet';
+        /**
+         * The smart contract address of the payment contract to which the registration belongs
+         */
+        smartContractAddress?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/registry/deregister';
+};
+
+export type PostRegistryDeregisterResponses = {
+    /**
+     * Payment source deleted
+     */
+    200: {
+        status: string;
+        data: {
+            id: string;
+            name: string;
+            apiBaseUrl: string;
+            Capability: {
+                name: string | null;
+                version: string | null;
+            };
+            Author: {
+                name: string;
+                contactEmail: string | null;
+                contactOther: string | null;
+                organization: string | null;
+            };
+            Legal: {
+                privacyPolicy: string | null;
+                terms: string | null;
+                other: string | null;
+            };
+            description: string | null;
+            Tags: Array<string>;
+            SmartContractWallet: {
+                walletVkey: string;
+                walletAddress: string;
+            };
+            state: 'RegistrationRequested' | 'RegistrationInitiated' | 'RegistrationConfirmed' | 'RegistrationFailed' | 'DeregistrationRequested' | 'DeregistrationInitiated' | 'DeregistrationConfirmed' | 'DeregistrationFailed';
+            ExampleOutputs: Array<{
+                name: string;
+                url: string;
+                mimeType: string;
+            }>;
+            AgentPricing: {
+                pricingType: 'Fixed';
+                Pricing: Array<{
+                    unit: string;
+                    amount: string;
+                }>;
+            };
+        };
+    };
+};
+
+export type PostRegistryDeregisterResponse = PostRegistryDeregisterResponses[keyof PostRegistryDeregisterResponses];
 
 export type GetPaymentSourceData = {
     body?: never;

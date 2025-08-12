@@ -113,7 +113,11 @@ model Organization {
   creditTransactions CreditTransaction[]
   fiatTransactions   FiatTransaction[]
 
+  stripeCustomerId String?
+  invoiceEmail     String?
+
   @@unique([slug])
+  @@unique([stripeCustomerId])
   @@map("organization")
 }
 
@@ -209,6 +213,8 @@ model AgentPricing {
 
 enum PricingType {
   FIXED
+  FREE
+  UNKNOWN
 }
 
 model AgentFixedPricing {
@@ -310,8 +316,9 @@ model Agent {
 
   metadataVersion Int @default(1)
 
-  pricing   AgentPricing @relation(fields: [pricingId], references: [id])
-  pricingId String       @unique
+  paymentType PaymentType  @default(WEB3_CARDANO_V1)
+  pricing     AgentPricing @relation(fields: [pricingId], references: [id])
+  pricingId   String       @unique
 
   status AgentStatus @default(ONLINE)
 
@@ -328,6 +335,12 @@ model Agent {
 
   tags         Tag[] @relation("AgentTag")
   overrideTags Tag[] @relation("AgentTagOverride")
+}
+
+enum PaymentType {
+  WEB3_CARDANO_V1
+  NONE
+  UNKNOWN
 }
 
 enum RiskClassification {

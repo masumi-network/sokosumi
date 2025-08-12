@@ -106,7 +106,6 @@ function InputAccordionItem({
   return (
     <AccordionItemWrapper value="input" title={t("title")} disabled={disabled}>
       <div className="flex flex-col gap-6">
-        <p className="text-sm">{t("description")}</p>
         <JobInputsForm
           agentId={agent.id}
           agentCreditsPrice={agent.creditsPrice}

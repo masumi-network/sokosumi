@@ -16,17 +16,17 @@ const envSecretsSchema = z.object({
 
   // Database
   DATABASE_URL: z.string().url(),
-  MIN_FEE_CREDITS: z.number({ coerce: true }).min(0).default(1),
+  MIN_FEE_CREDITS: z.coerce.number().min(0).default(1),
   ALLOWED_EMAIL_DOMAINS: z
     .string()
     .default("")
-    .transform((val) => (val.trim() === "" ? [] : val.split(",")))
+    .transform((val: string) => (val.trim() === "" ? [] : val.split(",")))
     .pipe(z.array(z.string())),
 
   SHOW_AGENTS_BY_DEFAULT: z
     .string()
     .default("false")
-    .transform((val) => val === "true"),
+    .transform((val: string) => val === "true"),
 
   // Stripe
   STRIPE_PUBLISHABLE_KEY: z.string().min(1),
@@ -36,7 +36,7 @@ const envSecretsSchema = z.object({
   STRIPE_WELCOME_COUPONS: z
     .string()
     .default("")
-    .transform((val) => (val.trim() === "" ? [] : val.split(",")))
+    .transform((val: string) => (val.trim() === "" ? [] : val.split(",")))
     .pipe(z.array(z.string().min(1))),
 
   // Anthropic
@@ -46,7 +46,7 @@ const envSecretsSchema = z.object({
   SEED_DATABASE: z
     .string()
     .default("false")
-    .transform((val) => val === "true"),
+    .transform((val: string) => val === "true"),
   SEED_USER_EMAIL: z.string().email().default("dev@sokosumi.com"),
   SEED_USER_PASSWORD: z.string().min(8).default("password"),
 
@@ -57,12 +57,16 @@ const envSecretsSchema = z.object({
   // Vercel
   VERCEL_URL: z
     .string()
-    .transform((val) => (val.startsWith("https://") ? val : `https://${val}`))
+    .transform((val: string) =>
+      val.startsWith("https://") ? val : `https://${val}`,
+    )
     .pipe(z.string().url())
     .optional(),
   VERCEL_BRANCH_URL: z
     .string()
-    .transform((val) => (val.startsWith("https://") ? val : `https://${val}`))
+    .transform((val: string) =>
+      val.startsWith("https://") ? val : `https://${val}`,
+    )
     .pipe(z.string().url())
     .optional(),
 
@@ -78,21 +82,18 @@ const envSecretsSchema = z.object({
   BETTER_AUTH_URL: z.string().url().default("http://localhost:3000"),
   BETTER_AUTH_SECRET: z.string().min(1),
   BETTER_AUTH_TRUSTED_ORIGIN: z.string().url().default("http://localhost:3000"),
-  BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE: z
-    .number({ coerce: true })
+  BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE: z.coerce
+    .number()
     .min(0)
     .default(60 * 5), // 5 minutes
-  BETTER_AUTH_ORG_INVITATION_LIMIT: z
-    .number({ coerce: true })
-    .min(0)
-    .default(100),
-  BETTER_AUTH_ORG_LIMIT: z.number({ coerce: true }).min(0).default(100),
-  LOCK_TIMEOUT: z
-    .number({ coerce: true })
+  BETTER_AUTH_ORG_INVITATION_LIMIT: z.coerce.number().min(0).default(100),
+  BETTER_AUTH_ORG_LIMIT: z.coerce.number().min(0).default(100),
+  LOCK_TIMEOUT: z.coerce
+    .number()
     .min(1 * 60 * 1000)
     .default(2 * 60 * 1000), // 2 minutes
-  LOCK_TIMEOUT_BUFFER: z
-    .number({ coerce: true })
+  LOCK_TIMEOUT_BUFFER: z.coerce
+    .number()
     .min(1000)
     .default(1000 * 25), // 25 seconds
   INSTANCE_ID: z.string().min(1).default(uuidv4()),
@@ -103,9 +104,9 @@ const envSecretsSchema = z.object({
   REGISTRY_API_KEY: z.string().min(1),
   BLACKLISTED_AGENT_HOSTNAMES: z
     .string()
-    .transform((val) => val.split(","))
-    .pipe(z.array(z.string()))
-    .default(""),
+    .default("")
+    .transform((val: string) => (val.trim() === "" ? [] : val.split(",")))
+    .pipe(z.array(z.string())),
 
   // ably keys
   ABLY_AGENT_JOBS_SUBSCRIBE_ONLY_KEY: z.string().min(1),
