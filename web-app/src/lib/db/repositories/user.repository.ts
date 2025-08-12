@@ -52,4 +52,20 @@ export const userRepository = {
       data: { stripeCustomerId },
     });
   },
+
+  /**
+   * Get a user by their Stripe customer ID.
+   *
+   * @param stripeCustomerId - The Stripe customer ID.
+   * @param tx - Optional Prisma transaction client.
+   * @returns The user if found, null otherwise.
+   */
+  getUserByStripeCustomerId: async (
+    stripeCustomerId: string,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<User | null> => {
+    return tx.user.findUnique({
+      where: { stripeCustomerId },
+    });
+  },
 };
