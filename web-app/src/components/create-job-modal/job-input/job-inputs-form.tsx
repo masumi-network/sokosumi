@@ -4,35 +4,35 @@ import { useTranslations } from "next-intl";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import useAgentInputSchema from "@/hooks/use-agent-input-schema";
-import { AgentDemoData, AgentLegal, CreditsPrice } from "@/lib/db";
-import { getDemoValues } from "@/lib/demo-job";
+import {
+  AgentDemoValues,
+  AgentWithCreditsPrice,
+  getAgentDemoValues,
+  getAgentLegal,
+} from "@/lib/db";
 import { JobInputsDataSchemaType } from "@/lib/job-input";
 
-import JobInputsFormClient, { DemoValues } from "./job-inputs-form.client";
+import JobInputsFormClient from "./job-inputs-form.client";
 
 interface JobInputsFormProps {
-  agentId: string;
-  agentCreditsPrice: CreditsPrice;
+  agent: AgentWithCreditsPrice;
   averageExecutionDuration: number;
-  demoData?: AgentDemoData | null;
-  legal?: AgentLegal | null | undefined;
+  isDemo: boolean;
   className?: string | undefined;
 }
 
-interface JobInputsFormInnerProps extends JobInputsFormProps {
+interface JobInputsFormInnerProps extends Omit<JobInputsFormProps, "isDemo"> {
   inputSchema: JobInputsDataSchemaType;
-  demoValues: DemoValues | null;
+  demoValues: AgentDemoValues | null;
 }
 
 export default function JobInputsForm({
-  agentId,
-  agentCreditsPrice,
+  agent,
   averageExecutionDuration,
-  demoData,
-  legal,
+  isDemo,
   className,
 }: JobInputsFormProps) {
-  const { data: inputSchema, loading, error } = useAgentInputSchema(agentId);
+  const { data: inputSchema, loading, error } = useAgentInputSchema(agent.id);
 
   if (loading) {
     return <JobInputsFormSkeleton />;
@@ -43,9 +43,9 @@ export default function JobInputsForm({
   }
 
   // check demo data is valid
-  let demoValues: DemoValues | null = null;
-  if (demoData) {
-    demoValues = getDemoValues(inputSchema.input_data, demoData);
+  let demoValues: AgentDemoValues | null = null;
+  if (isDemo) {
+    demoValues = getAgentDemoValues(agent, inputSchema);
     if (!demoValues) {
       return <JobInputsFormDemoError />;
     }
@@ -53,34 +53,30 @@ export default function JobInputsForm({
 
   return (
     <JobInputsFormInner
-      agentId={agentId}
-      agentCreditsPrice={agentCreditsPrice}
+      agent={agent}
       averageExecutionDuration={averageExecutionDuration}
       demoValues={demoValues}
       inputSchema={inputSchema}
-      legal={legal}
       className={className}
     />
   );
 }
 
 function JobInputsFormInner({
-  agentId,
-  agentCreditsPrice,
+  agent,
   averageExecutionDuration,
   demoValues,
   inputSchema,
-  legal,
   className,
 }: JobInputsFormInnerProps) {
   return (
     <JobInputsFormClient
-      agentId={agentId}
-      agentCreditsPrice={agentCreditsPrice}
+      agentId={agent.id}
+      agentCreditsPrice={agent.creditsPrice}
       averageExecutionDuration={averageExecutionDuration}
       jobInputsDataSchema={inputSchema}
       demoValues={demoValues}
-      legal={legal}
+      legal={getAgentLegal(agent)}
       className={className}
     />
   );

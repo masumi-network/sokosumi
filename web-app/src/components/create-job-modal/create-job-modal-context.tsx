@@ -2,13 +2,13 @@
 
 import { createContext, useContext, useMemo, useState } from "react";
 
-import { AgentDemoData, AgentWithCreditsPrice } from "@/lib/db";
+import { AgentWithCreditsPrice } from "@/lib/db";
 
 interface CreateJobModalContextType {
   // modal open
   open: boolean;
   setOpen: (open: boolean) => void;
-  handleOpen: (agentId: string, demoData?: AgentDemoData) => void;
+  handleOpen: (agentId: string, isDemo?: boolean) => void;
   handleClose: () => void;
   // create job form loading
   loading: boolean;
@@ -23,7 +23,7 @@ interface CreateJobModalContextType {
   agentsWithPrice: AgentWithCreditsPrice[];
   // selected agent
   agentId?: string | undefined;
-  demoData?: AgentDemoData | null;
+  isDemo: boolean;
   setAgentId: (agentId: string) => void;
   agentWithPrice?: AgentWithCreditsPrice | undefined;
   // average execution duration
@@ -44,7 +44,7 @@ const initialState: CreateJobModalContextType = {
   handleCollapse: () => {},
   agentsWithPrice: [],
   agentId: undefined,
-  demoData: undefined,
+  isDemo: false,
   setAgentId: () => {},
   averageExecutionDuration: 0,
 };
@@ -65,7 +65,7 @@ export function CreateJobModalContextProvider({
   const [loading, setLoading] = useState(false);
   const [accordionValue, setAccordionValue] = useState<string[]>(["input"]);
   const [agentId, setAgentId] = useState<string | undefined>(undefined);
-  const [demoData, setDemoData] = useState<AgentDemoData | null>(null);
+  const [isDemo, setIsDemo] = useState(false);
 
   const agentWithPrice = useMemo(() => {
     if (!agentId) {
@@ -86,10 +86,10 @@ export function CreateJobModalContextProvider({
     setAccordionValue([]);
   };
 
-  const handleOpen = (agentId: string, demoData?: AgentDemoData | null) => {
+  const handleOpen = (agentId: string, isDemo?: boolean) => {
     setOpen(true);
     setAgentId(agentId);
-    setDemoData(demoData ?? null);
+    setIsDemo(isDemo ?? false);
   };
 
   const handleClose = () => {
@@ -111,7 +111,7 @@ export function CreateJobModalContextProvider({
     handleCollapse,
     agentsWithPrice,
     agentId,
-    demoData,
+    isDemo,
     setAgentId,
     agentWithPrice,
     averageExecutionDuration,

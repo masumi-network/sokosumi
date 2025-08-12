@@ -1,3 +1,5 @@
+import { JobInputsFormSchemaType } from "@/lib/job-input";
+import { JobStatusResponseSchemaType } from "@/lib/schemas";
 import { Agent, Prisma } from "@/prisma/generated/client";
 
 export type AgentWithAvailability = {
@@ -101,6 +103,11 @@ export interface AgentLegal {
 }
 
 export interface AgentDemoData {
-  input: string;
-  output: string;
+  demoInput: string;
+  demoOutput: string;
+}
+
+export interface AgentDemoValues {
+  input: JobInputsFormSchemaType;
+  output: JobStatusResponseSchemaType;
 }

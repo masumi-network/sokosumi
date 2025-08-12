@@ -19,32 +19,30 @@ import {
   startDemoJob,
   startJobWithInputData,
 } from "@/lib/actions";
-import { AgentLegal, convertCentsToCredits, CreditsPrice } from "@/lib/db";
+import {
+  AgentDemoValues,
+  AgentLegal,
+  convertCentsToCredits,
+  CreditsPrice,
+} from "@/lib/db";
 import {
   defaultValues,
   filterOutNullValues,
-  JobInputData,
   JobInputsDataSchemaType,
   jobInputsFormSchema,
   JobInputsFormSchemaType,
 } from "@/lib/job-input";
-import { JobStatusResponseSchemaType } from "@/lib/schemas";
 import { cn, formatDuration, getOSFromUserAgent } from "@/lib/utils";
 
 import JobInput from "./job-input";
-
-export interface DemoValues {
-  input: JobInputData;
-  output: JobStatusResponseSchemaType;
-}
 
 interface JobInputsFormClientProps {
   agentId: string;
   agentCreditsPrice: CreditsPrice;
   averageExecutionDuration: number;
   jobInputsDataSchema: JobInputsDataSchemaType;
-  demoValues: DemoValues | null;
-  legal?: AgentLegal | null | undefined;
+  demoValues: AgentDemoValues | null;
+  legal: AgentLegal | null;
   className?: string | undefined;
 }
 
@@ -63,9 +61,7 @@ export default function JobInputsFormClient({
 
   const form = useForm<JobInputsFormSchemaType>({
     resolver: zodResolver(jobInputsFormSchema(input_data, t)),
-    defaultValues: demoValues
-      ? Object.fromEntries(demoValues.input.entries())
-      : defaultValues(input_data),
+    defaultValues: demoValues ? demoValues.input : defaultValues(input_data),
     mode: "onChange",
   });
   const router = useAsyncRouter();
@@ -90,7 +86,7 @@ export default function JobInputsFormClient({
         {
           agentId: agentId,
           inputSchema: input_data,
-          inputData: demoValues.input,
+          inputData: filterOutNullValues(demoValues.input),
         },
         demoValues.output,
       );

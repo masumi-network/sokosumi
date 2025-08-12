@@ -7,11 +7,9 @@ import AccordionItemWrapper from "@/app/agents/[agentId]/jobs/components/accordi
 import Markdown from "@/components/markdown";
 import { Accordion } from "@/components/ui/accordion";
 import {
-  AgentDemoData,
   AgentWithCreditsPrice,
   AgentWithRelations,
   getAgentDescription,
-  getAgentLegal,
   getAgentName,
   getAgentResolvedImage,
 } from "@/lib/db";
@@ -29,7 +27,7 @@ export default function CreateJobSection({
   agent,
   averageExecutionDuration,
 }: CreateJobSectionProps) {
-  const { accordionValue, setAccordionValue, loading, demoData } =
+  const { accordionValue, setAccordionValue, loading, isDemo } =
     useCreateJobModalContext();
 
   const handleAccordionValueChange = (value: string[]) => {
@@ -38,7 +36,7 @@ export default function CreateJobSection({
 
   return (
     <div className="bg-background flex min-h-svh w-svw flex-col rounded-none p-4 pt-0 md:min-h-auto md:w-auto md:rounded-xl md:p-6">
-      <CreateJobModalHeader agent={agent} isDemo={!!demoData} />
+      <CreateJobModalHeader agent={agent} isDemo={isDemo} />
       <Accordion
         type="multiple"
         value={accordionValue}
@@ -50,7 +48,7 @@ export default function CreateJobSection({
           agent={agent}
           disabled={loading}
           averageExecutionDuration={averageExecutionDuration}
-          demoData={demoData}
+          isDemo={isDemo}
         />
       </Accordion>
     </div>
@@ -98,12 +96,12 @@ function InputAccordionItem({
   agent,
   disabled,
   averageExecutionDuration,
-  demoData,
+  isDemo,
 }: {
   agent: AgentWithCreditsPrice;
   disabled?: boolean | undefined;
   averageExecutionDuration: number;
-  demoData?: AgentDemoData | null;
+  isDemo: boolean;
 }) {
   const t = useTranslations("App.Agents.Jobs.CreateJob.Input");
 
@@ -112,11 +110,9 @@ function InputAccordionItem({
       <div className="flex flex-col gap-6">
         <p className="text-sm">{t("description")}</p>
         <JobInputsForm
-          agentId={agent.id}
-          agentCreditsPrice={agent.creditsPrice}
-          legal={getAgentLegal(agent)}
+          agent={agent}
           averageExecutionDuration={averageExecutionDuration}
-          demoData={demoData}
+          isDemo={isDemo}
         />
       </div>
     </AccordionItemWrapper>
