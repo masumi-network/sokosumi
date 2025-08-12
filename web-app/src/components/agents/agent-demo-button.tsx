@@ -7,12 +7,10 @@ import { ComponentProps } from "react";
 import { useCreateJobModalContext } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";
 import useWithAuthentication from "@/hooks/use-with-authentication";
-import { AgentDemoData } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 interface AgentDemoButtonProps {
   agentId: string;
-  demoData: AgentDemoData;
   size?: ComponentProps<typeof Button>["size"] | undefined;
   className?: string | undefined;
   disabled?: boolean;
@@ -20,7 +18,6 @@ interface AgentDemoButtonProps {
 
 export function AgentDemoButton({
   agentId,
-  demoData,
   size = "lg",
   className,
   disabled = false,
@@ -31,7 +28,7 @@ export function AgentDemoButton({
   const { handleOpen } = useCreateJobModalContext();
 
   const handleDemo = () => {
-    handleOpen(agentId, demoData);
+    handleOpen(agentId, true);
   };
 
   return (

@@ -37,7 +37,6 @@ function AgentDetailSection1({
   onClose,
 }: AgentDetailSection1Props) {
   const t = useTranslations("Components.Agents.AgentDetail.Section1");
-
   const agentDemoData = getAgentDemoData(agent);
 
   return (
@@ -99,9 +98,7 @@ function AgentDetailSection1({
               </span>
             </div>
             <div className="flex items-center gap-2">
-              {agentDemoData && (
-                <AgentDemoButton agentId={agent.id} demoData={agentDemoData} />
-              )}
+              {agentDemoData && <AgentDemoButton agentId={agent.id} />}
               <AgentHireButton agentId={agent.id} />
             </div>
           </div>
