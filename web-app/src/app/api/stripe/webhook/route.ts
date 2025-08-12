@@ -4,8 +4,8 @@ import Stripe from "stripe";
 import { stripeClient } from "@/lib/clients/stripe.client";
 import {
   fiatTransactionRepository,
+  organizationRepository,
   prisma,
-  userRepository,
 } from "@/lib/db/repositories";
 import { FiatTransactionStatus } from "@/prisma/generated/client";
 
@@ -30,7 +30,7 @@ export async function POST(req: Request) {
     "checkout.session.expired",
     "checkout.session.async_payment_succeeded",
     "checkout.session.async_payment_failed",
-    "customer.created",
+    "customer.updated",
   ];
 
   console.log(`🔍 Event id: ${event.id}`);
@@ -54,9 +54,9 @@ export async function POST(req: Request) {
           const session = event.data.object as Stripe.Checkout.Session;
           return await handleCheckoutSessionAsyncPaymentFailedEvent(session);
         }
-        case "customer.created": {
+        case "customer.updated": {
           const customer = event.data.object as Stripe.Customer;
-          return await handleCustomerCreatedEvent(customer);
+          return await handleCustomerUpdatedEvent(customer);
         }
         default:
           return NextResponse.json(
@@ -79,83 +79,6 @@ export async function POST(req: Request) {
     );
   }
 }
-
-const handleCustomerCreatedEvent = async (customer: Stripe.Customer) => {
-  const email = customer.email;
-  if (!email) {
-    return NextResponse.json(
-      { message: `Customer email not found for customer: ${customer.id}` },
-      { status: 500 },
-    );
-  }
-
-  let user = await userRepository.getUserByEmail(email);
-  if (!user) {
-    return NextResponse.json(
-      { message: `User with email ${email} not found` },
-      { status: 404 },
-    );
-  }
-
-  // If user already has a different Stripe customer ID, update to the new one
-  if (user.stripeCustomerId && user.stripeCustomerId !== customer.id) {
-    console.warn(
-      `User ${user.id} already has Stripe customer ${user.stripeCustomerId}, ` +
-        `but webhook received new customer ${customer.id}. Updating to new customer ID.`,
-    );
-
-    try {
-      user = await userRepository.setUserStripeCustomerId(user.id, customer.id);
-    } catch (error) {
-      console.error(
-        `Error updating user ${user.id} from customer ${user.stripeCustomerId} to ${customer.id}:`,
-        error,
-      );
-      return NextResponse.json(
-        {
-          message: `Failed to update user ${user.id} from customer ${user.stripeCustomerId} to ${customer.id}. This might be due to a unique constraint violation from concurrent customer creation.`,
-        },
-        { status: 500 },
-      );
-    }
-  }
-
-  // Update the database association if user doesn't have a Stripe customer ID
-  if (!user.stripeCustomerId) {
-    try {
-      user = await userRepository.setUserStripeCustomerId(user.id, customer.id);
-    } catch (error) {
-      console.error(
-        `Error updating user ${user.id} with customer ${customer.id}:`,
-        error,
-      );
-      return NextResponse.json(
-        {
-          message: `User with email ${email} not updated with stripe customer id: ${customer.id}. This might be due to a unique constraint violation from concurrent customer creation.`,
-        },
-        { status: 500 },
-      );
-    }
-  }
-
-  // Update metadata for the customer (this is non-critical and shouldn't cause webhook failure)
-  try {
-    await stripeClient.setUserIdForCustomer(customer.id, user.id);
-  } catch (metadataError) {
-    console.error(
-      `Failed to update metadata for customer ${customer.id}:`,
-      metadataError,
-    );
-    // Don't return error - metadata update failure shouldn't cause webhook to fail
-  }
-
-  return NextResponse.json(
-    {
-      message: `User ${user.id} / ${user.email} associated with stripe customer id: ${customer.id}`,
-    },
-    { status: 200 },
-  );
-};
 
 const checkPaymentStatus = (session: Stripe.Checkout.Session) => {
   const paymentStatus = session.payment_status;
@@ -283,4 +206,60 @@ const updateFiatTransactionStatus = async (
       throw error;
     }
   });
+};
+
+const handleCustomerUpdatedEvent = async (
+  customer: Stripe.Customer,
+): Promise<NextResponse> => {
+  try {
+    // Check if this is an organization customer
+    const metadata = customer.metadata;
+    if (metadata?.type === "organization" && metadata?.organizationId) {
+      const organizationId = metadata.organizationId;
+      const customerEmail =
+        typeof customer.email === "string" ? customer.email : null;
+
+      // Get the current organization to compare emails
+      const organization =
+        await organizationRepository.getOrganizationWithRelationsById(
+          organizationId,
+        );
+
+      if (!organization) {
+        console.log(
+          `Organization ${organizationId} not found for customer ${customer.id}`,
+        );
+        return NextResponse.json(
+          { message: `Organization not found` },
+          { status: 200 },
+        );
+      }
+
+      // Only update if the email has actually changed
+      if (organization.invoiceEmail !== customerEmail) {
+        await organizationRepository.updateOrganizationInvoiceEmail(
+          organizationId,
+          customerEmail,
+        );
+        console.log(
+          `✅ Updated organization ${organizationId} invoice email from ${organization.invoiceEmail} to ${customerEmail}`,
+        );
+      }
+    } else if (metadata?.type === "user" && metadata?.userId) {
+      // For user customers, we could update the user email if needed
+      // Currently, user emails are managed through the auth system
+      console.log(`User customer ${customer.id} updated, no action taken`);
+    }
+
+    return NextResponse.json(
+      { message: "Customer update processed" },
+      { status: 200 },
+    );
+  } catch (error) {
+    console.error("Error handling customer.updated event", error);
+    return NextResponse.json(
+      { message: "Failed to process customer update" },
+      { status: 500 },
+    );
+  }
 };

@@ -10,6 +10,7 @@ import { Price, stripeClient } from "@/lib/clients/stripe.client";
 import { convertCreditsToCents } from "@/lib/db";
 import {
   fiatTransactionRepository,
+  organizationRepository,
   prisma,
   userRepository,
 } from "@/lib/db/repositories";
@@ -33,11 +34,34 @@ export const stripeService = (() => {
       if (!isVerified) {
         throw new UnAuthenticatedError("User not authorized");
       }
-      return await prisma.$transaction(async (tx) => {
-        try {
-          const user = await userRepository.getUserById(userId, tx);
-          if (!user) throw new Error("User not found");
-          const amount = credits * price.amountPerCredit;
+      try {
+        const user = await userRepository.getUserById(userId);
+        if (!user) throw new Error("User not found");
+
+        // Get or create the appropriate Stripe customer ID (has its own transaction)
+        let stripeCustomerId: string | null;
+        if (organizationId) {
+          // Use organization's Stripe customer
+          stripeCustomerId =
+            await this.getOrCreateStripeCustomerForOrganization(organizationId);
+          if (!stripeCustomerId) {
+            throw new Error(
+              "Failed to get or create organization Stripe customer",
+            );
+          }
+        } else {
+          // Use user's Stripe customer
+          stripeCustomerId =
+            await this.getOrCreateStripeCustomerForUser(userId);
+          if (!stripeCustomerId) {
+            throw new Error("Failed to get or create user Stripe customer");
+          }
+        }
+
+        const amount = credits * price.amountPerCredit;
+
+        // Transaction only for fiat transaction creation and update
+        const checkoutSession = await prisma.$transaction(async (tx) => {
           const fiatTransaction =
             await fiatTransactionRepository.createFiatTransaction(
               userId,
@@ -47,28 +71,34 @@ export const stripeService = (() => {
               price.currency,
               tx,
             );
+
           const headerList = await headers();
           const checkoutSession = await stripeClient.createCheckoutSession(
-            user,
+            stripeCustomerId,
             fiatTransaction,
             price,
             headerList.get("origin"),
             promotionCode,
           );
+
           await fiatTransactionRepository.updateFiatTransaction(
             fiatTransaction.id,
             { servicePaymentId: checkoutSession.id },
             tx,
           );
-          if (!checkoutSession.url) {
-            throw new Error("Failed to create checkout session");
-          }
-          return { url: checkoutSession.url };
-        } catch (error) {
-          console.log("Error creating stripe checkout session", error);
-          throw error;
+
+          return checkoutSession;
+        });
+
+        if (!checkoutSession.url) {
+          throw new Error("Failed to create checkout session");
         }
-      });
+
+        return { url: checkoutSession.url };
+      } catch (error) {
+        console.log("Error creating stripe checkout session", error);
+        throw error;
+      }
     },
 
     async getWelcomePromotionCode(
@@ -89,7 +119,8 @@ export const stripeService = (() => {
         throw new Error("User not found");
       }
 
-      const stripeCustomerId = await this.getStripeCustomer(userId);
+      const stripeCustomerId =
+        await this.getOrCreateStripeCustomerForUser(userId);
       if (!stripeCustomerId) {
         return null;
       }
@@ -136,7 +167,8 @@ export const stripeService = (() => {
 
       try {
         // Use the new atomic customer creation method
-        const stripeCustomerId = await this.getStripeCustomer(userId);
+        const stripeCustomerId =
+          await this.getOrCreateStripeCustomerForUser(userId);
         if (!stripeCustomerId) {
           return null;
         }
@@ -211,10 +243,12 @@ export const stripeService = (() => {
       return credits;
     },
 
-    async getStripeCustomer(userId: string): Promise<string | null> {
+    async getOrCreateStripeCustomerForUser(
+      userId: string,
+    ): Promise<string | null> {
       return await prisma.$transaction(async (tx) => {
         try {
-          let user = await userRepository.getUserById(userId, tx);
+          const user = await userRepository.getUserById(userId, tx);
 
           if (!user) {
             return null;
@@ -225,44 +259,17 @@ export const stripeService = (() => {
             return user.stripeCustomerId;
           }
 
-          // Check if a customer already exists in Stripe for this email
-          // This handles cases where a customer was created outside our system
-          const existingCustomers = await stripeClient.getCustomersByEmail(
-            user.email,
-          );
-
-          if (existingCustomers.length > 0) {
-            const existingCustomer = existingCustomers[0];
-            try {
-              // Attempt to associate the existing customer with the user
-              user = await userRepository.setUserStripeCustomerId(
-                user.id,
-                existingCustomer.id,
-                tx,
-              );
-              return user.stripeCustomerId;
-            } catch (_error) {
-              // If there's a unique constraint violation, another process may have
-              // already associated this customer. Fetch the updated user record.
-              const updatedUser = await userRepository.getUserById(userId, tx);
-              return updatedUser?.stripeCustomerId ?? null;
-            }
-          }
-
-          // Create a new Stripe customer
-          const customer = await stripeClient.createCustomer(
-            user.email,
-            user.id,
-          );
+          // Create a new Stripe customer for the user
+          const customer = await stripeClient.createUserCustomer(user);
 
           try {
-            // Attempt to save the customer ID to the database
-            user = await userRepository.setUserStripeCustomerId(
+            // Save the customer ID to the database
+            const updatedUser = await userRepository.setUserStripeCustomerId(
               user.id,
               customer.id,
               tx,
             );
-            return user.stripeCustomerId;
+            return updatedUser.stripeCustomerId;
           } catch (_error) {
             // If there's a unique constraint violation, clean up the Stripe customer
             // and return the existing customer ID from the database
@@ -281,12 +288,135 @@ export const stripeService = (() => {
           }
         } catch (error) {
           console.error(
-            `Error in getOrCreateStripeCustomer for user ${userId}:`,
+            `Error in getOrCreateStripeCustomerForUser for user ${userId}:`,
             error,
           );
           return null;
         }
       });
+    },
+
+    async getOrCreateStripeCustomerForOrganization(
+      organizationId: string,
+    ): Promise<string | null> {
+      return await prisma.$transaction(async (tx) => {
+        try {
+          const organization =
+            await organizationRepository.getOrganizationWithRelationsById(
+              organizationId,
+              tx,
+            );
+
+          if (!organization) {
+            return null;
+          }
+
+          // If organization already has a Stripe customer ID, return it
+          if (organization.stripeCustomerId) {
+            return organization.stripeCustomerId;
+          }
+
+          // Create a new Stripe customer for the organization
+          const customer =
+            await stripeClient.createOrganizationCustomer(organization);
+
+          try {
+            // Save the customer ID to the database
+            const updatedOrg =
+              await organizationRepository.setOrganizationStripeCustomerId(
+                organization.id,
+                customer.id,
+                tx,
+              );
+            return updatedOrg.stripeCustomerId;
+          } catch (_error) {
+            // If there's a unique constraint violation, clean up the Stripe customer
+            // and return the existing customer ID from the database
+            try {
+              await stripeClient.deleteCustomer(customer.id);
+            } catch (cleanupError) {
+              console.warn(
+                `Failed to cleanup duplicate Stripe customer ${customer.id}:`,
+                cleanupError,
+              );
+            }
+
+            // Fetch the updated organization record to get the existing customer ID
+            const updatedOrganization =
+              await organizationRepository.getOrganizationWithRelationsById(
+                organizationId,
+                tx,
+              );
+            return updatedOrganization?.stripeCustomerId ?? null;
+          }
+        } catch (error) {
+          console.error(
+            `Error in getOrCreateStripeCustomerForOrganization for organization ${organizationId}:`,
+            error,
+          );
+          return null;
+        }
+      });
+    },
+
+    async syncOrganizationInvoiceEmailWithStripe(
+      organizationId: string,
+      invoiceEmail: string | null,
+    ): Promise<boolean> {
+      try {
+        const organization =
+          await organizationRepository.getOrganizationWithRelationsById(
+            organizationId,
+          );
+
+        if (!organization || !organization.stripeCustomerId) {
+          // No Stripe customer to update
+          return true;
+        }
+
+        // Update Stripe customer email
+        await stripeClient.updateCustomerEmail(
+          organization.stripeCustomerId,
+          invoiceEmail,
+        );
+
+        return true;
+      } catch (error) {
+        console.error(
+          `Error syncing invoice email with Stripe for organization ${organizationId}:`,
+          error,
+        );
+        return false;
+      }
+    },
+
+    async syncUserEmailWithStripe(
+      userId: string,
+      newEmail: string,
+    ): Promise<boolean> {
+      try {
+        const user = await userRepository.getUserById(userId);
+
+        if (!user || !user.stripeCustomerId) {
+          // No Stripe customer to update
+          return true;
+        }
+
+        // Update Stripe customer email
+        await stripeClient.updateCustomerEmail(user.stripeCustomerId, newEmail);
+
+        console.log(
+          `✅ Synced user ${userId} email to Stripe customer ${user.stripeCustomerId}`,
+        );
+
+        return true;
+      } catch (error) {
+        console.error(
+          `Error syncing user email with Stripe for user ${userId}:`,
+          error,
+        );
+        return false;
+      }
     },
   };
 })();

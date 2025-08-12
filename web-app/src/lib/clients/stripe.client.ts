@@ -3,7 +3,7 @@ import "server-only";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
-import { FiatTransaction, User } from "@/prisma/generated/client";
+import { FiatTransaction, Organization, User } from "@/prisma/generated/client";
 
 export interface Price {
   id: string;
@@ -34,41 +34,41 @@ export const stripeClient = (() => {
   }
 
   return {
-    async createCustomer(
-      email: string,
-      userId?: string,
-    ): Promise<Stripe.Customer> {
+    async createUserCustomer(user: User): Promise<Stripe.Customer> {
       const customer = await stripe.customers.create({
-        email: email,
-        ...(userId && { metadata: { userId } }),
+        name: user.name,
+        email: user.email,
+        metadata: { userId: user.id, type: "user" },
       });
       return customer;
     },
 
-    async deleteCustomer(customerId: string): Promise<void> {
-      await stripe.customers.del(customerId);
-    },
-
-    async getCustomersByEmail(
-      email: string,
-      limit: number = 1,
-    ): Promise<Stripe.Customer[]> {
-      const customers = await stripe.customers.list({
-        email: email,
-        limit: limit,
-      });
-      return customers.data;
-    },
-
-    async setUserIdForCustomer(
-      customerId: string,
-      userId: string,
-    ): Promise<void> {
-      await stripe.customers.update(customerId, {
+    async createOrganizationCustomer(
+      organization: Organization,
+    ): Promise<Stripe.Customer> {
+      const customer = await stripe.customers.create({
+        name: organization.name,
+        ...(organization.invoiceEmail && { email: organization.invoiceEmail }),
         metadata: {
-          userId: userId,
+          organizationId: organization.id,
+          organizationSlug: organization.slug,
+          type: "organization",
         },
       });
+      return customer;
+    },
+
+    async updateCustomerEmail(
+      customerId: string,
+      email: string | null,
+    ): Promise<Stripe.Customer> {
+      return await stripe.customers.update(customerId, {
+        email: email ?? undefined,
+      });
+    },
+
+    async deleteCustomer(customerId: string): Promise<void> {
+      await stripe.customers.del(customerId);
     },
 
     async getPromotionCode(
@@ -159,7 +159,7 @@ export const stripeClient = (() => {
     },
 
     async createCheckoutSession(
-      user: User,
+      stripeCustomerId: string,
       fiatTransaction: FiatTransaction,
       price: Price,
       origin: string | null = null,
@@ -185,10 +185,13 @@ export const stripeClient = (() => {
           ? { discounts: [{ promotion_code: promotionCode }] }
           : { allow_promotion_codes: false }),
         client_reference_id: fiatTransaction.id,
-        ...(user.stripeCustomerId
-          ? { customer: user.stripeCustomerId }
-          : { customer_email: user.email, customer_creation: "always" }),
+        customer: stripeCustomerId,
+        customer_update: {
+          address: "auto",
+          name: "auto",
+        },
         billing_address_collection: "required",
+        tax_id_collection: { enabled: true },
         success_url: `${origin ?? getEnvSecrets().VERCEL_URL}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url: `${origin ?? getEnvSecrets().VERCEL_URL}/billing/cancel`,
       });

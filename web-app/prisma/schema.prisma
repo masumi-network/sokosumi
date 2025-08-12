@@ -113,7 +113,11 @@ model Organization {
   creditTransactions CreditTransaction[]
   fiatTransactions   FiatTransaction[]
 
+  stripeCustomerId String?
+  invoiceEmail     String?
+
   @@unique([slug])
+  @@unique([stripeCustomerId])
   @@map("organization")
 }
 
