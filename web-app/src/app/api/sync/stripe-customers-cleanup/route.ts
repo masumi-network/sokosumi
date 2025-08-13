@@ -14,6 +14,7 @@ import {
 import { lockService } from "@/lib/services";
 import { Lock } from "@/prisma/generated/client";
 
+const CURSOR_ID = "stripe-customers-cleanup";
 const LOCK_KEY = "stripe-customers-cleanup";
 const CUSTOMERS_PER_CHUNK = 500;
 
@@ -71,7 +72,7 @@ async function cleanupOrphanedStripeCustomers(): Promise<void> {
   console.info(`Starting Stripe customer cleanup with chunked processing`);
 
   // Get cursor position
-  const cursorRecord = await stripeCleanupCursorRepository.getCursor();
+  const cursorRecord = await stripeCleanupCursorRepository.getCursor(CURSOR_ID);
   const startingAfter = cursorRecord?.cursor ?? undefined;
 
   console.info(
@@ -93,7 +94,7 @@ async function cleanupOrphanedStripeCustomers(): Promise<void> {
 
   if (stripeCustomers.length === 0) {
     console.info("No customers in chunk, resetting cursor");
-    await stripeCleanupCursorRepository.resetCursor();
+    await stripeCleanupCursorRepository.resetCursor(CURSOR_ID);
     return;
   }
 
@@ -148,13 +149,13 @@ async function cleanupOrphanedStripeCustomers(): Promise<void> {
   // Update cursor for next run
   if (hasMore && cursorId) {
     // Save cursor to continue from this position next time
-    await stripeCleanupCursorRepository.setCursor(cursorId);
+    await stripeCleanupCursorRepository.setCursor(CURSOR_ID, cursorId);
     console.info(
       `Saved cursor position: ${cursorId}${cursorId !== lastId ? " (last non-deleted customer)" : ""}`,
     );
   } else {
     // No more customers, reset cursor to start from beginning next time
-    await stripeCleanupCursorRepository.resetCursor();
+    await stripeCleanupCursorRepository.resetCursor(CURSOR_ID);
     console.info("Reached end of customers, reset cursor for next cycle");
   }
 
