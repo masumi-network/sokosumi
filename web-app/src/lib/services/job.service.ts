@@ -27,11 +27,7 @@ import {
   PricingAmountsSchemaType,
   StartJobInputSchemaType,
 } from "@/lib/schemas";
-import {
-  generateRandomHexString,
-  getInputHash,
-  getInputHashDeprecated,
-} from "@/lib/utils";
+import { getInputHash, getInputHashDeprecated } from "@/lib/utils";
 import {
   AgentJobStatus,
   Job,
@@ -229,27 +225,18 @@ export const jobService = (() => {
     const output = JSON.stringify(jobStatusResponse);
     const agentJobStatus = jobStatusToAgentJobStatus(jobStatusResponse.status);
 
-    const job = await jobRepository.createJob({
+    const job = await jobRepository.createDemoJob({
       agentJobId: uuidv4(),
       agentId,
       userId,
       organizationId: activeOrganizationId,
       input: JSON.stringify(Object.fromEntries(inputData)),
       inputSchema: inputSchema,
-      creditsPrice: { cents: BigInt(0), includedFee: BigInt(0) },
-      identifierFromPurchaser: uuidv4(),
-      payByTime: new Date(Date.now() + 60 * 60 * 1000),
-      submitResultTime: new Date(Date.now() + 2 * 60 * 60 * 1000),
-      unlockTime: new Date(Date.now() + 3 * 60 * 60 * 1000),
-      externalDisputeUnlockTime: new Date(Date.now() + 4 * 60 * 60 * 1000),
-      blockchainIdentifier: generateRandomHexString(128),
-      sellerVkey: generateRandomHexString(),
       name: "Demo Job",
       agentJobStatus,
       output,
       completedAt:
         agentJobStatus === AgentJobStatus.COMPLETED ? new Date() : null,
-      isDemo: true,
     });
 
     return job;

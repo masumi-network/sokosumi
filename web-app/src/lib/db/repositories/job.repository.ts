@@ -1,5 +1,7 @@
 import "server-only";
 
+import { v4 as uuidv4 } from "uuid";
+
 // Purchase type is declared globally in types/hey-api.d.ts
 import {
   computeJobStatus,
@@ -18,6 +20,7 @@ import {
 } from "@/lib/db/types";
 import { JobInputSchemaType } from "@/lib/job-input";
 import { JobStatusResponseSchemaType } from "@/lib/schemas";
+import { generateRandomHexString } from "@/lib/utils";
 import {
   AgentJobStatus,
   Job,
@@ -37,6 +40,19 @@ function mapJobWithStatus<T extends Job>(
     status: computeJobStatus(job),
     jobStatusSettled: new Date() > job.externalDisputeUnlockTime,
   };
+}
+
+interface CreateDemoJobData {
+  agentJobId: string;
+  agentId: string;
+  userId: string;
+  organizationId: string | null | undefined;
+  inputSchema: JobInputSchemaType[];
+  input: string;
+  name: string | null;
+  agentJobStatus: AgentJobStatus;
+  output: string;
+  completedAt: Date | null;
 }
 
 interface CreateJobData {
@@ -230,6 +246,69 @@ export const jobRepository = {
       include: jobInclude,
     });
     return job;
+  },
+
+  async createDemoJob(
+    data: CreateDemoJobData,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<Job> {
+    // Build the credit transaction data based on whether it's for a user or organization
+    const creditTransactionData: Prisma.CreditTransactionCreateInput = {
+      amount: BigInt(0),
+      includedFee: BigInt(0),
+      user: {
+        connect: {
+          id: data.userId,
+        },
+      },
+      ...(data.organizationId && {
+        organization: {
+          connect: {
+            id: data.organizationId,
+          },
+        },
+      }),
+    };
+
+    return await tx.job.create({
+      data: {
+        agentJobId: data.agentJobId,
+        agent: {
+          connect: {
+            id: data.agentId,
+          },
+        },
+        user: {
+          connect: {
+            id: data.userId,
+          },
+        },
+        ...(data.organizationId && {
+          organization: {
+            connect: {
+              id: data.organizationId,
+            },
+          },
+        }),
+        creditTransaction: {
+          create: creditTransactionData,
+        },
+        inputSchema: data.inputSchema,
+        input: data.input,
+        identifierFromPurchaser: uuidv4(),
+        payByTime: new Date(Date.now() + 60 * 60 * 1000),
+        submitResultTime: new Date(Date.now() + 2 * 60 * 60 * 1000),
+        unlockTime: new Date(Date.now() + 3 * 60 * 60 * 1000),
+        externalDisputeUnlockTime: new Date(Date.now() + 4 * 60 * 60 * 1000),
+        blockchainIdentifier: generateRandomHexString(128),
+        sellerVkey: generateRandomHexString(),
+        name: data.name,
+        agentJobStatus: data.agentJobStatus,
+        output: data.output,
+        completedAt: data.completedAt,
+        isDemo: true,
+      },
+    });
   },
 
   async createJob(
