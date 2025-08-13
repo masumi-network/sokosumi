@@ -1,9 +1,13 @@
 import {
+  AgentDemoData,
+  AgentDemoValues,
   AgentLegal,
   AgentWithExampleOutput,
   AgentWithTags,
 } from "@/lib/db/types";
 import { ipfsUrlResolver } from "@/lib/ipfs";
+import { JobInputsDataSchemaType, jobInputsFormSchema } from "@/lib/job-input";
+import { jobStatusResponseSchema } from "@/lib/schemas";
 import { Agent, ExampleOutput } from "@/prisma/generated/client";
 
 export function getAgentName(agent: Agent): string {
@@ -91,4 +95,49 @@ export function getAgentResolvedExampleOutputUrl(
   exampleOutput: ExampleOutput,
 ): string {
   return ipfsUrlResolver(exampleOutput.url);
+}
+
+export function getAgentDemoValues(
+  agent: Agent,
+  inputSchema: JobInputsDataSchemaType,
+): AgentDemoValues | null {
+  const demoData = getAgentDemoData(agent);
+  if (!demoData) {
+    return null;
+  }
+
+  try {
+    const inputParsedResult = jobInputsFormSchema(
+      inputSchema.input_data,
+    ).safeParse(JSON.parse(demoData.demoInput));
+    if (!inputParsedResult.success) {
+      console.error(
+        "Failed to parse agent demo input",
+        inputParsedResult.error,
+      );
+      return null;
+    }
+
+    const outputParsedResult = jobStatusResponseSchema.safeParse(
+      JSON.parse(demoData.demoOutput),
+    );
+    if (!outputParsedResult.success) {
+      console.error(
+        "Failed to parse agent demo output",
+        outputParsedResult.error,
+      );
+      return null;
+    }
+
+    return { input: inputParsedResult.data, output: outputParsedResult.data };
+  } catch (error) {
+    console.error("Failed to parse agent demo values", error);
+    return null;
+  }
+}
+
+export function getAgentDemoData(agent: Agent): AgentDemoData | null {
+  return !!agent.demoInput && !!agent.demoOutput
+    ? { demoInput: agent.demoInput, demoOutput: agent.demoOutput }
+    : null;
 }

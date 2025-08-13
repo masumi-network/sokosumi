@@ -6,6 +6,7 @@ import {
   AgentActionButtonsSkeleton,
 } from "@/components/agents/agent-action-buttons";
 import { AgentNewBadge } from "@/components/agents/agent-badge-cloud";
+import { AgentDemoButton } from "@/components/agents/agent-demo-button";
 import { AgentHireButton } from "@/components/agents/agent-hire-button";
 import { AgentVerifiedBadge } from "@/components/agents/agent-verified-badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -13,6 +14,7 @@ import {
   AgentWithCreditsPrice,
   AgentWithRelations,
   convertCentsToCredits,
+  getAgentDemoData,
   getAgentName,
   getAgentResolvedImage,
   getFullAgentAuthorName,
@@ -35,6 +37,7 @@ function AgentDetailSection1({
   onClose,
 }: AgentDetailSection1Props) {
   const t = useTranslations("Components.Agents.AgentDetail.Section1");
+  const agentDemoData = getAgentDemoData(agent);
 
   return (
     <div className="flex flex-col gap-6">
@@ -94,7 +97,10 @@ function AgentDetailSection1({
                 })}
               </span>
             </div>
-            <AgentHireButton agentId={agent.id} />
+            <div className="flex items-center gap-2">
+              {agentDemoData && <AgentDemoButton agentId={agent.id} />}
+              <AgentHireButton agentId={agent.id} />
+            </div>
           </div>
         </div>
       </div>

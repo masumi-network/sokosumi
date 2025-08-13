@@ -1,5 +1,7 @@
 import "server-only";
 
+import { v4 as uuidv4 } from "uuid";
+
 // Purchase type is declared globally in types/hey-api.d.ts
 import {
   computeJobStatus,
@@ -18,6 +20,7 @@ import {
 } from "@/lib/db/types";
 import { JobInputSchemaType } from "@/lib/job-input";
 import { JobStatusResponseSchemaType } from "@/lib/schemas";
+import { generateRandomHexString } from "@/lib/utils";
 import {
   AgentJobStatus,
   Job,
@@ -39,6 +42,19 @@ function mapJobWithStatus<T extends Job>(
   };
 }
 
+interface CreateDemoJobData {
+  agentJobId: string;
+  agentId: string;
+  userId: string;
+  organizationId: string | null | undefined;
+  inputSchema: JobInputSchemaType[];
+  input: string;
+  name: string | null;
+  agentJobStatus: AgentJobStatus;
+  output: string;
+  completedAt: Date | null;
+}
+
 interface CreateJobData {
   agentJobId: string;
   agentId: string;
@@ -56,6 +72,11 @@ interface CreateJobData {
   blockchainIdentifier: string;
   sellerVkey: string;
   name: string | null;
+  // for demo jobs
+  agentJobStatus?: AgentJobStatus | null;
+  output?: string | null;
+  completedAt?: Date | null;
+  isDemo?: boolean;
 }
 
 /**
@@ -104,6 +125,7 @@ export const jobRepository = {
       AVG(EXTRACT(EPOCH FROM ("completedAt" - "startedAt"))) as avg_duration_seconds
     FROM "Job"
     WHERE "agentId" = ${agentId}
+    AND "isDemo" = false
     AND "completedAt" IS NOT NULL
     AND "createdAt" >= NOW() - INTERVAL '30 days'
   `;
@@ -113,7 +135,7 @@ export const jobRepository = {
   },
 
   /**
-   * Retrieves the number of executed jobs for a specific agent
+   * Retrieves the number of executed jobs for a specific agent (not demo jobs)
    * @param agentId - The unique identifier of the agent
    * @returns Promise containing the number of executed jobs
    */
@@ -124,13 +146,14 @@ export const jobRepository = {
     const result = await tx.job.count({
       where: {
         agentId,
+        isDemo: false,
       },
     });
     return result;
   },
 
   /**
-   * Retrieves all jobs associated with a specific agent and user
+   * Retrieves all jobs associated with a specific agent and user (not demo jobs)
    * @param agentId - The unique identifier of the agent
    * @param userId - The unique identifier of the user
    * @returns Promise containing an array of jobs with their relations
@@ -225,6 +248,69 @@ export const jobRepository = {
     return job;
   },
 
+  async createDemoJob(
+    data: CreateDemoJobData,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<Job> {
+    // Build the credit transaction data based on whether it's for a user or organization
+    const creditTransactionData: Prisma.CreditTransactionCreateInput = {
+      amount: BigInt(0),
+      includedFee: BigInt(0),
+      user: {
+        connect: {
+          id: data.userId,
+        },
+      },
+      ...(data.organizationId && {
+        organization: {
+          connect: {
+            id: data.organizationId,
+          },
+        },
+      }),
+    };
+
+    return await tx.job.create({
+      data: {
+        agentJobId: data.agentJobId,
+        agent: {
+          connect: {
+            id: data.agentId,
+          },
+        },
+        user: {
+          connect: {
+            id: data.userId,
+          },
+        },
+        ...(data.organizationId && {
+          organization: {
+            connect: {
+              id: data.organizationId,
+            },
+          },
+        }),
+        creditTransaction: {
+          create: creditTransactionData,
+        },
+        inputSchema: data.inputSchema,
+        input: data.input,
+        identifierFromPurchaser: uuidv4(),
+        payByTime: new Date(Date.now() + 60 * 60 * 1000),
+        submitResultTime: new Date(Date.now() + 2 * 60 * 60 * 1000),
+        unlockTime: new Date(Date.now() + 3 * 60 * 60 * 1000),
+        externalDisputeUnlockTime: new Date(Date.now() + 4 * 60 * 60 * 1000),
+        blockchainIdentifier: generateRandomHexString(128),
+        sellerVkey: generateRandomHexString(),
+        name: data.name,
+        agentJobStatus: data.agentJobStatus,
+        output: data.output,
+        completedAt: data.completedAt,
+        isDemo: true,
+      },
+    });
+  },
+
   async createJob(
     data: CreateJobData,
     tx: Prisma.TransactionClient = prisma,
@@ -283,6 +369,11 @@ export const jobRepository = {
         blockchainIdentifier: data.blockchainIdentifier,
         sellerVkey: data.sellerVkey,
         name: data.name,
+        // for demo job
+        agentJobStatus: data.agentJobStatus,
+        output: data.output,
+        completedAt: data.completedAt,
+        isDemo: data.isDemo,
       },
     });
   },
@@ -519,6 +610,10 @@ const jobsNotFinishedWhereQuery = (
       payByTime: {
         lt: cutoffTime,
       },
+    },
+    // Filter out demo jobs
+    {
+      isDemo: true,
     },
   ],
 });

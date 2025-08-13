@@ -8,14 +8,27 @@ import { cn } from "@/lib/utils";
 
 interface JobStatusBadgeProps {
   status: JobStatus;
+  isDemo?: boolean;
   className?: string;
 }
 
 export default function JobStatusBadge({
   status,
+  isDemo = false,
   className,
 }: JobStatusBadgeProps) {
   const t = useTranslations("App.Agents.Jobs.StatusBadge");
+
+  if (isDemo) {
+    return (
+      <Badge
+        variant="default"
+        className={cn("bg-orange-100 text-orange-800", className)}
+      >
+        {t("demo")}
+      </Badge>
+    );
+  }
 
   switch (status) {
     case JobStatus.COMPLETED:

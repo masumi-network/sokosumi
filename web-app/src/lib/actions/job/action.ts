@@ -10,11 +10,47 @@ import { jobRepository } from "@/lib/db/repositories";
 import {
   jobDetailsNameFormSchema,
   JobDetailsNameFormSchemaType,
+  JobStatusResponseSchemaType,
   startJobInputSchema,
   StartJobInputSchemaType,
 } from "@/lib/schemas";
 import { jobService } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
+
+export async function startDemoJob(
+  input: Omit<StartJobInputSchemaType, "userId" | "maxAcceptedCents">,
+  jobStatusResponse: JobStatusResponseSchemaType,
+): Promise<Result<{ jobId: string }, ActionError>> {
+  // Authentication
+  const session = await getSession();
+  if (!session) {
+    return Err({
+      message: "Unauthenticated",
+      code: CommonErrorCode.UNAUTHENTICATED,
+    });
+  }
+  const userId = session.user.id;
+  const inputDataForService: StartJobInputSchemaType = {
+    ...input,
+    userId,
+    maxAcceptedCents: BigInt(0),
+  };
+
+  // Validation
+  const parsedResult = startJobInputSchema.safeParse(inputDataForService);
+  if (!parsedResult.success) {
+    console.error(`Failed to start demo job: ${parsedResult.error}`);
+
+    return Err({
+      message: "Bad Input",
+      code: CommonErrorCode.BAD_INPUT,
+    });
+  }
+  const parsed = parsedResult.data;
+
+  const job = await jobService.startDemoJob(parsed, jobStatusResponse);
+  return Ok({ jobId: job.id });
+}
 
 export async function startJobWithInputData(
   input: Omit<StartJobInputSchemaType, "userId">,

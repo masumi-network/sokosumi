@@ -16,12 +16,18 @@ import usePreventEnterSubmit from "@/hooks/use-prevent-enter-submit";
 import {
   CommonErrorCode,
   JobErrorCode,
+  startDemoJob,
   startJobWithInputData,
 } from "@/lib/actions";
-import { AgentLegal, convertCentsToCredits, CreditsPrice } from "@/lib/db";
+import {
+  AgentDemoValues,
+  AgentLegal,
+  convertCentsToCredits,
+  CreditsPrice,
+} from "@/lib/db";
 import {
   defaultValues,
-  JobInputData,
+  filterOutNullValues,
   JobInputsDataSchemaType,
   jobInputsFormSchema,
   JobInputsFormSchemaType,
@@ -30,21 +36,13 @@ import { cn, formatDuration, getOSFromUserAgent } from "@/lib/utils";
 
 import JobInput from "./job-input";
 
-function filterOutNullValues(values: JobInputsFormSchemaType): JobInputData {
-  return new Map(
-    Object.entries(values).filter(([_, value]) => value !== null) as [
-      string,
-      string | number | boolean | number[],
-    ][],
-  );
-}
-
 interface JobInputsFormClientProps {
   agentId: string;
   agentCreditsPrice: CreditsPrice;
   averageExecutionDuration: number;
   jobInputsDataSchema: JobInputsDataSchemaType;
-  legal?: AgentLegal | null | undefined;
+  demoValues: AgentDemoValues | null;
+  legal: AgentLegal | null;
   className?: string | undefined;
 }
 
@@ -53,6 +51,7 @@ export default function JobInputsFormClient({
   agentCreditsPrice,
   averageExecutionDuration,
   jobInputsDataSchema,
+  demoValues,
   legal,
   className,
 }: JobInputsFormClientProps) {
@@ -62,7 +61,7 @@ export default function JobInputsFormClient({
 
   const form = useForm<JobInputsFormSchemaType>({
     resolver: zodResolver(jobInputsFormSchema(input_data, t)),
-    defaultValues: defaultValues(input_data),
+    defaultValues: demoValues ? demoValues.input : defaultValues(input_data),
     mode: "onChange",
   });
   const router = useAsyncRouter();
@@ -72,20 +71,33 @@ export default function JobInputsFormClient({
   // create job modal context
   const { open, loading, setLoading, handleClose } = useCreateJobModalContext();
 
-  // Then replace your existing handleSubmit function with this:
   const handleSubmit: SubmitHandler<JobInputsFormSchemaType> = async (
     values,
   ) => {
     setLoading(true);
+
+    let result;
     // Transform input data to match expected type
     // Filter out null values and ensure arrays are of correct type
     const transformedInputData = filterOutNullValues(values);
-    const result = await startJobWithInputData({
-      agentId: agentId,
-      maxAcceptedCents: agentCreditsPrice.cents,
-      inputSchema: input_data,
-      inputData: transformedInputData,
-    });
+
+    if (demoValues) {
+      result = await startDemoJob(
+        {
+          agentId: agentId,
+          inputSchema: input_data,
+          inputData: filterOutNullValues(demoValues.input),
+        },
+        demoValues.output,
+      );
+    } else {
+      result = await startJobWithInputData({
+        agentId: agentId,
+        maxAcceptedCents: agentCreditsPrice.cents,
+        inputSchema: input_data,
+        inputData: transformedInputData,
+      });
+    }
 
     setLoading(false);
     if (result.ok) {
@@ -144,10 +156,16 @@ export default function JobInputsFormClient({
               key={jobInputSchema.id}
               form={form}
               jobInputSchema={jobInputSchema}
+              disabled={!!demoValues}
             />
           ))}
           <div className="flex items-end justify-between gap-2">
-            <Button type="reset" variant="secondary" onClick={handleClear}>
+            <Button
+              type="reset"
+              variant="secondary"
+              onClick={handleClear}
+              disabled={!!demoValues}
+            >
               {t("clear")}
             </Button>
             <div className="flex flex-col items-end gap-2">

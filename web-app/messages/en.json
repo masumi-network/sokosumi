@@ -65,6 +65,7 @@
       "agentsNotAvailable": "No agents available",
       "agentsNotFound": "No Agents found",
       "hire": "Hire Agent",
+      "freeDemo": "Free Demo",
       "AgentCard": {
         "view": "Show Details",
         "pricing": "{price, plural, =0 {For Free} =1 {1 credit} other {# credits}}",
@@ -1029,6 +1030,7 @@
         },
         "CreateJob": {
           "title": "New {name}",
+          "demo": "Demo",
           "cancel": "Cancel",
           "Information": {
             "title": "Information"
@@ -1045,6 +1047,7 @@
           }
         },
         "StatusBadge": {
+          "demo": "Demo",
           "completed": "Completed",
           "failed": "Failed",
           "paymentPending": "Hiring",
@@ -1309,7 +1312,8 @@
         }
       },
       "Error": {
-        "failedToFetchJobInputSchema": "Failed to fetch Job Input Schema"
+        "failedToFetchJobInputSchema": "Failed to fetch Job Input Schema",
+        "demoDataInvalid": "Agent's Demo data is invalid."
       }
     },
     "Duration": {

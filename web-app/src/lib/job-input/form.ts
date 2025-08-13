@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { makeZodSchemaFromJobInputSchema } from "./form-schema";
 import { JobInputSchemaType } from "./job-input";
-import { JobInputFormIntlPath, ValidJobInputTypes } from "./type";
+import { JobInputData, JobInputFormIntlPath, ValidJobInputTypes } from "./type";
 
 export const jobInputsFormSchema = (
   jobInputSchemas: JobInputSchemaType[],
@@ -23,6 +23,17 @@ export const jobInputsFormSchema = (
 export type JobInputsFormSchemaType = z.infer<
   ReturnType<typeof jobInputsFormSchema>
 >;
+
+export function filterOutNullValues(
+  values: JobInputsFormSchemaType,
+): JobInputData {
+  return new Map(
+    Object.entries(values).filter(([_, value]) => value !== null) as [
+      string,
+      string | number | boolean | number[],
+    ][],
+  );
+}
 
 export const defaultValues = (jobInputSchemas: JobInputSchemaType[]) => {
   return Object.fromEntries(
