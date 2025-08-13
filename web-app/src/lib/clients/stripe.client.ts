@@ -71,6 +71,28 @@ export const stripeClient = (() => {
       await stripe.customers.del(customerId);
     },
 
+    async listAllCustomers(): Promise<Stripe.Customer[]> {
+      const customers: Stripe.Customer[] = [];
+      let hasMore = true;
+      let startingAfter: string | undefined = undefined;
+
+      while (hasMore) {
+        const response: Stripe.ApiList<Stripe.Customer> =
+          await stripe.customers.list({
+            limit: 100,
+            starting_after: startingAfter,
+          });
+
+        customers.push(...response.data);
+        hasMore = response.has_more;
+        if (hasMore && response.data.length > 0) {
+          startingAfter = response.data[response.data.length - 1].id;
+        }
+      }
+
+      return customers;
+    },
+
     async getPromotionCode(
       customerId: string,
       couponId: string,
