@@ -598,3 +598,11 @@ model Apikey {
 
   @@map("apikey")
 }
+
+model StripeCleanupCursor {
+  id        String   @id @default("stripe-cleanup-cursor")
+  cursor    String?  // Last processed Stripe customer ID
+  updatedAt DateTime @updatedAt
+
+  @@map("stripe_cleanup_cursor")
+}

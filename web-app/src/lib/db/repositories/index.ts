@@ -9,6 +9,7 @@ export * from "./lock.repository";
 export * from "./member.repository";
 export * from "./organization.repository";
 export { default as prisma } from "./prisma";
+export * from "./stripe-cleanup-cursor.repository";
 export * from "./tag.repository";
 export * from "./user.repository";
 export * from "./utmAttribution.repository";

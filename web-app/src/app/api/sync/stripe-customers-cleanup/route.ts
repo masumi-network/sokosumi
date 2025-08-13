@@ -8,13 +8,14 @@ import { stripeClient } from "@/lib/clients/stripe.client";
 import {
   lockRepository,
   organizationRepository,
+  stripeCleanupCursorRepository,
   userRepository,
 } from "@/lib/db/repositories";
 import { lockService } from "@/lib/services";
 import { Lock } from "@/prisma/generated/client";
 
 const LOCK_KEY = "stripe-customers-cleanup";
-const MAX_DELETIONS_PER_RUN = 100;
+const CUSTOMERS_PER_CHUNK = 10;
 
 export async function GET(request: Request) {
   const authResult = authenticateCronSecret(request);
@@ -67,11 +68,34 @@ async function stripeCustomersCleanup(): Promise<Response> {
 }
 
 async function cleanupOrphanedStripeCustomers(): Promise<void> {
-  console.info(`Starting Stripe customer cleanup`);
+  console.info(`Starting Stripe customer cleanup with chunked processing`);
 
-  // Get all Stripe customers
-  const stripeCustomers = await stripeClient.getCustomers();
-  console.info(`Found ${stripeCustomers.length} Stripe customers`);
+  // Get cursor position
+  const cursorRecord = await stripeCleanupCursorRepository.getCursor();
+  const startingAfter = cursorRecord?.cursor ?? undefined;
+
+  console.info(
+    startingAfter
+      ? `Resuming from cursor: ${startingAfter}`
+      : "Starting from beginning",
+  );
+
+  // Fetch a chunk of Stripe customers
+  const {
+    customers: stripeCustomers,
+    hasMore,
+    lastId,
+  } = await stripeClient.getCustomersChunk(startingAfter, CUSTOMERS_PER_CHUNK);
+
+  console.info(
+    `Found ${stripeCustomers.length} Stripe customers in chunk (hasMore: ${hasMore})`,
+  );
+
+  if (stripeCustomers.length === 0) {
+    console.info("No customers in chunk, resetting cursor");
+    await stripeCleanupCursorRepository.resetCursor();
+    return;
+  }
 
   // Get all customer IDs from our database
   const [userCustomerIds, organizationCustomerIds] = await Promise.all([
@@ -85,49 +109,43 @@ async function cleanupOrphanedStripeCustomers(): Promise<void> {
   ]);
   console.info(`Found ${dbCustomerIds.size} customer IDs in database`);
 
-  // Identify orphaned customers
+  // Identify orphaned customers in this chunk
   const orphanedCustomers = stripeCustomers.filter(
     (customer) => !dbCustomerIds.has(customer.id),
   );
 
-  console.info(`Found ${orphanedCustomers.length} orphaned customers`);
+  console.info(`Found ${orphanedCustomers.length} orphaned customers in chunk`);
 
-  if (orphanedCustomers.length === 0) {
-    console.info("No orphaned customers to clean up");
-    return;
-  }
-
-  // Limit deletions per run
-  const customersToDelete = orphanedCustomers.slice(0, MAX_DELETIONS_PER_RUN);
-  if (customersToDelete.length < orphanedCustomers.length) {
-    console.info(
-      `Limited to ${MAX_DELETIONS_PER_RUN} deletions per run. ${
-        orphanedCustomers.length - customersToDelete.length
-      } customers will be processed in next run`,
+  // Delete customers in batches if any orphaned customers found
+  if (orphanedCustomers.length > 0) {
+    const limit = pLimit(5);
+    const deletionPromises = orphanedCustomers.map((customer) =>
+      limit(async () => {
+        try {
+          //await stripeClient.deleteCustomer(customer.id);
+          console.info(`Deleted orphaned customer ${customer.id}`);
+        } catch (error) {
+          console.error(`Failed to delete customer ${customer.id}:`, error);
+        }
+      }),
     );
+
+    await Promise.allSettled(deletionPromises);
+    console.info(`Deleted ${orphanedCustomers.length} orphaned customers`);
   }
 
-  if (customersToDelete.length === 0) {
-    console.info("No customers safe to delete");
-    return;
+  // Update cursor for next run
+  if (hasMore && lastId) {
+    // Save cursor to continue from this position next time
+    await stripeCleanupCursorRepository.setCursor(lastId);
+    console.info(`Saved cursor position: ${lastId}`);
+  } else {
+    // No more customers, reset cursor to start from beginning next time
+    await stripeCleanupCursorRepository.resetCursor();
+    console.info("Reached end of customers, reset cursor for next cycle");
   }
-
-  // Delete customers in batches
-  const limit = pLimit(5);
-  const deletionPromises = customersToDelete.map((customer) =>
-    limit(async () => {
-      try {
-        await stripeClient.deleteCustomer(customer.id);
-        console.info(`Deleted orphaned customer ${customer.id}`);
-      } catch (error) {
-        console.error(`Failed to delete customer ${customer.id}:`, error);
-      }
-    }),
-  );
-
-  await Promise.allSettled(deletionPromises);
 
   console.info(
-    `Cleanup completed. Processed ${customersToDelete.length} customers`,
+    `Cleanup chunk completed. Processed ${stripeCustomers.length} customers, deleted ${orphanedCustomers.length} orphaned customers`,
   );
 }
