@@ -163,4 +163,20 @@ export const organizationRepository = {
       where: { stripeCustomerId },
     });
   },
+
+  /**
+   * Retrieves all organizations that do not have a Stripe customer ID.
+   *
+   * @param tx - (Optional) The Prisma transaction client to use. Defaults to the main Prisma client.
+   * @returns A promise that resolves to an array of Organization objects without Stripe customer IDs.
+   */
+  async getOrganizationsWithoutStripeCustomerId(
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<Organization[]> {
+    return await tx.organization.findMany({
+      where: {
+        stripeCustomerId: null,
+      },
+    });
+  },
 };

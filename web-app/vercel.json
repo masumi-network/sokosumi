@@ -8,6 +8,10 @@
     {
       "path": "/api/sync/jobs",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/sync/stripe-customers",
+      "schedule": "0 * * * *"
     }
   ]
 }
