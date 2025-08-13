@@ -75,8 +75,8 @@ async function cleanupOrphanedStripeCustomers(): Promise<void> {
 
   // Get all customer IDs from our database
   const [userCustomerIds, organizationCustomerIds] = await Promise.all([
-    userRepository.getAllUserStripeCustomerIds(),
-    organizationRepository.getAllOrganizationStripeCustomerIds(),
+    userRepository.getUserStripeCustomerIds(),
+    organizationRepository.getOrganizationStripeCustomerIds(),
   ]);
 
   const dbCustomerIds = new Set([

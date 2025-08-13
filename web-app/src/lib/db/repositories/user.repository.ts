@@ -91,7 +91,7 @@ export const userRepository = {
    * @param tx - (Optional) The Prisma transaction client to use. Defaults to the main Prisma client.
    * @returns A promise that resolves to an array of Stripe customer IDs.
    */
-  getAllUserStripeCustomerIds: async (
+  getUserStripeCustomerIds: async (
     tx: Prisma.TransactionClient = prisma,
   ): Promise<string[]> => {
     const users = await tx.user.findMany({

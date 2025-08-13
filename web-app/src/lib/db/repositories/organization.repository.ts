@@ -186,7 +186,7 @@ export const organizationRepository = {
    * @param tx - (Optional) The Prisma transaction client to use. Defaults to the main Prisma client.
    * @returns A promise that resolves to an array of Stripe customer IDs.
    */
-  async getAllOrganizationStripeCustomerIds(
+  async getOrganizationStripeCustomerIds(
     tx: Prisma.TransactionClient = prisma,
   ): Promise<string[]> {
     const organizations = await tx.organization.findMany({
