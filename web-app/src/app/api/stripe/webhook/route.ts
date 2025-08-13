@@ -242,6 +242,12 @@ const handleCustomerCreatedEvent = async (
               { status: 200 },
             );
           }
+          if (user.stripeCustomerId === customer.id) {
+            return NextResponse.json(
+              { message: "User already has this stripe customer id" },
+              { status: 200 },
+            );
+          }
           if (user.stripeCustomerId) {
             await stripeClient.deleteCustomer(customer.id);
             return NextResponse.json(
@@ -267,6 +273,12 @@ const handleCustomerCreatedEvent = async (
           if (!organization) {
             return NextResponse.json(
               { message: "Organization not found" },
+              { status: 200 },
+            );
+          }
+          if (organization.stripeCustomerId === customer.id) {
+            return NextResponse.json(
+              { message: "Organization already has this stripe customer id" },
               { status: 200 },
             );
           }
