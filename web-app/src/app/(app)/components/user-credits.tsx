@@ -46,7 +46,7 @@ export default async function UserCredits() {
     creditLabel = t("userBalance", { credits: credits });
   }
 
-  const promotionCode = await stripeService.getWelcomePromotionCode(user.id);
+  const promotionCode = await stripeService.getWelcomePromotionCode();
 
   return (
     <div className="flex flex-1 flex-col-reverse gap-4 md:flex-initial md:flex-row md:items-center">

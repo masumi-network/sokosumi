@@ -5,7 +5,7 @@ import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { UnAuthenticatedError } from "@/lib/auth/errors";
-import { verifyUserId } from "@/lib/auth/utils";
+import { getSession, verifyUserId } from "@/lib/auth/utils";
 import { Price, stripeClient } from "@/lib/clients/stripe.client";
 import { convertCreditsToCents } from "@/lib/db";
 import {
@@ -22,6 +22,26 @@ import {
 } from "@/lib/errors/coupon-errors";
 
 export const stripeService = (() => {
+  async function getStripeCustomerId(
+    userId: string,
+    organizationId: string | null,
+  ): Promise<string | null> {
+    if (organizationId) {
+      const organization =
+        await organizationRepository.getOrganizationWithRelationsById(
+          organizationId,
+        );
+      if (!organization) {
+        throw new Error("Organization not found");
+      }
+      return organization.stripeCustomerId;
+    } else {
+      const user = await userRepository.getUserById(userId);
+      if (!user) throw new Error("User not found");
+      return user.stripeCustomerId;
+    }
+  }
+
   async function getOrCreateStripeCustomerId(
     userId: string,
     organizationId: string | null,
@@ -123,28 +143,24 @@ export const stripeService = (() => {
       }
     },
 
-    async getWelcomePromotionCode(
-      userId: string,
-    ): Promise<Stripe.PromotionCode | null> {
+    async getWelcomePromotionCode(): Promise<Stripe.PromotionCode | null> {
       const couponIds = getEnvSecrets().STRIPE_WELCOME_COUPONS;
       if (couponIds.length === 0) {
         return null;
       }
 
-      const isVerified = await verifyUserId(userId);
-      if (!isVerified) {
+      const session = await getSession();
+      if (!session) {
         return null;
       }
 
-      const user = await userRepository.getUserById(userId);
-      if (!user) {
-        throw new Error("User not found");
-      }
-
-      if (!user.stripeCustomerId) {
+      const stripeCustomerId = await getStripeCustomerId(
+        session.user.id,
+        session.session.activeOrganizationId ?? null,
+      );
+      if (!stripeCustomerId) {
         return null;
       }
-      const stripeCustomerId = user.stripeCustomerId;
 
       for (const couponId of couponIds) {
         try {
@@ -168,28 +184,26 @@ export const stripeService = (() => {
         return null;
       }
 
-      return await this.getPromotionCode(userId, lastCouponId, 1);
+      return await this.getPromotionCode(lastCouponId, 1);
     },
 
     async getPromotionCode(
-      userId: string,
       couponId: string,
       maxRedemptions: number = 1,
       metadata?: Record<string, string>,
     ): Promise<Stripe.PromotionCode | null> {
-      const isVerified = await verifyUserId(userId);
-      if (!isVerified) {
+      const session = await getSession();
+      if (!session) {
         return null;
-      }
-      const user = await userRepository.getUserById(userId);
-      if (!user) {
-        throw new Error("User not found");
       }
 
-      if (!user.stripeCustomerId) {
+      const stripeCustomerId = await getStripeCustomerId(
+        session.user.id,
+        session.session.activeOrganizationId ?? null,
+      );
+      if (!stripeCustomerId) {
         return null;
       }
-      const stripeCustomerId = user.stripeCustomerId;
 
       try {
         // Check for existing promotion codes
@@ -212,7 +226,7 @@ export const stripeService = (() => {
         return promotionCode;
       } catch (error) {
         console.error(
-          `Error in getOrCreatePromotionCode for user ${userId}:`,
+          `Error in getOrCreatePromotionCode for user ${session.user.id} and organization ${session.session.activeOrganizationId}:`,
           error,
         );
         return null;
