@@ -71,7 +71,7 @@ export const stripeClient = (() => {
       await stripe.customers.del(customerId);
     },
 
-    async listAllCustomers(): Promise<Stripe.Customer[]> {
+    async getCustomers(): Promise<Stripe.Customer[]> {
       const customers: Stripe.Customer[] = [];
       let hasMore = true;
       let startingAfter: string | undefined = undefined;

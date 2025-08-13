@@ -70,7 +70,7 @@ async function cleanupOrphanedStripeCustomers(): Promise<void> {
   console.info(`Starting Stripe customer cleanup`);
 
   // Get all Stripe customers
-  const stripeCustomers = await stripeClient.listAllCustomers();
+  const stripeCustomers = await stripeClient.getCustomers();
   console.info(`Found ${stripeCustomers.length} Stripe customers`);
 
   // Get all customer IDs from our database
