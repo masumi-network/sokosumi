@@ -71,9 +71,9 @@ export const stripeClient = (() => {
       await stripe.customers.del(customerId);
     },
 
-    async getCustomersChunk(
+    async getCustomers(
       startingAfter?: string,
-      limit: number = 500,
+      limit: number = 100,
     ): Promise<{
       customers: Stripe.Customer[];
       hasMore: boolean;
@@ -113,21 +113,6 @@ export const stripeClient = (() => {
         lastId:
           customers.length > 0 ? customers[customers.length - 1].id : undefined,
       };
-    },
-
-    async getCustomers(): Promise<Stripe.Customer[]> {
-      const customers: Stripe.Customer[] = [];
-      let hasMore = true;
-      let startingAfter: string | undefined = undefined;
-
-      while (hasMore) {
-        const chunk = await this.getCustomersChunk(startingAfter, 100);
-        customers.push(...chunk.customers);
-        hasMore = chunk.hasMore;
-        startingAfter = chunk.lastId;
-      }
-
-      return customers;
     },
 
     async getPromotionCode(

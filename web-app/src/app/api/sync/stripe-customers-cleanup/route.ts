@@ -86,7 +86,7 @@ async function cleanupOrphanedStripeCustomers(): Promise<void> {
     customers: stripeCustomers,
     hasMore,
     lastId,
-  } = await stripeClient.getCustomersChunk(startingAfter, CUSTOMERS_PER_CHUNK);
+  } = await stripeClient.getCustomers(startingAfter, CUSTOMERS_PER_CHUNK);
 
   console.info(
     `Found ${stripeCustomers.length} Stripe customers in chunk (hasMore: ${hasMore})`,
