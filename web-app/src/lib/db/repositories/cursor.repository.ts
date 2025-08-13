@@ -5,7 +5,7 @@ import { Cursor, Prisma } from "@/prisma/generated/client";
  * Repository for managing StripeCleanupCursor entity.
  * Provides methods for tracking the cursor position in Stripe cleanup operations.
  */
-export const stripeCleanupCursorRepository = {
+export const cursorRepository = {
   /**
    * Gets the current cursor position for Stripe cleanup.
    *
