@@ -71,7 +71,7 @@ export const stripeClient = (() => {
       await stripe.customers.del(customerId);
     },
 
-    async getCustomers(
+    async getCustomersChunk(
       startingAfter?: string,
       limit: number = 100,
     ): Promise<{
