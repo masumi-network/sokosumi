@@ -15,7 +15,7 @@
     },
     {
       "path": "/api/sync/stripe-customers-cleanup",
-      "schedule": "30 * * * *"
+      "schedule": "*/15 * * * *"
     }
   ]
 }
