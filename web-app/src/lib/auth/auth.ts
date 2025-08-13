@@ -4,7 +4,7 @@ import { betterAuth, User } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
-import { apiKey, Organization, organization } from "better-auth/plugins";
+import { apiKey, organization } from "better-auth/plugins";
 import { localization } from "better-auth-localization";
 import { getTranslations } from "next-intl/server";
 
@@ -39,15 +39,6 @@ export const auth = betterAuth({
       create: {
         after: async (user: User) => {
           await stripeService.createStripeCustomerForUser(user.id);
-        },
-      },
-    },
-    organization: {
-      create: {
-        after: async (organization: Organization) => {
-          await stripeService.createStripeCustomerForOrganization(
-            organization.id,
-          );
         },
       },
     },
@@ -200,6 +191,13 @@ export const auth = betterAuth({
       },
     }),
     organization({
+      organizationCreation: {
+        afterCreate: async ({ organization }) => {
+          await stripeService.createStripeCustomerForOrganization(
+            organization.id,
+          );
+        },
+      },
       schema: {
         organization: {
           additionalFields: {
