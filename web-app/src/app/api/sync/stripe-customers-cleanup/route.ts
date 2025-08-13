@@ -135,7 +135,7 @@ async function cleanupOrphanedStripeCustomers(): Promise<void> {
     console.info(`Deleted ${orphanedCustomers.length} orphaned customers`);
   }
 
-  // Find the last customer ID for the cursor
+  // Set the last customer ID for the cursor
   const cursorId: string | undefined = lastId;
 
   // Update cursor for next run
