@@ -242,6 +242,9 @@ const handleCustomerCreatedEvent = async (
               { status: 200 },
             );
           }
+          if (user.email !== customer.email) {
+            await stripeClient.updateCustomerEmail(customer.id, user.email);
+          }
           if (user.stripeCustomerId === customer.id) {
             return NextResponse.json(
               { message: "User already has this stripe customer id" },
