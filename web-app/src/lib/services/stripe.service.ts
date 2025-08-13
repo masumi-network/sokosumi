@@ -243,6 +243,16 @@ export const stripeService = (() => {
       return credits;
     },
 
+    async createStripeCustomerForUser(
+      userId: string,
+    ): Promise<Stripe.Customer | null> {
+      const user = await userRepository.getUserById(userId);
+      if (!user) {
+        return null;
+      }
+      return await stripeClient.createUserCustomer(user);
+    },
+
     async getOrCreateStripeCustomerForUser(
       userId: string,
     ): Promise<string | null> {
@@ -294,6 +304,19 @@ export const stripeService = (() => {
           return null;
         }
       });
+    },
+
+    async createStripeCustomerForOrganization(
+      organizationId: string,
+    ): Promise<Stripe.Customer | null> {
+      const organization =
+        await organizationRepository.getOrganizationWithRelationsById(
+          organizationId,
+        );
+      if (!organization) {
+        return null;
+      }
+      return await stripeClient.createOrganizationCustomer(organization);
     },
 
     async getOrCreateStripeCustomerForOrganization(
