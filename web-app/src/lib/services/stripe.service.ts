@@ -22,7 +22,7 @@ import {
 } from "@/lib/errors/coupon-errors";
 
 export const stripeService = (() => {
-  async function getStripeCustomerId(
+  async function getOrCreateStripeCustomerId(
     userId: string,
     organizationId: string | null,
   ): Promise<string | null> {
@@ -72,7 +72,7 @@ export const stripeService = (() => {
         const user = await userRepository.getUserById(userId);
         if (!user) throw new Error("User not found");
 
-        const stripeCustomerId = await getStripeCustomerId(
+        const stripeCustomerId = await getOrCreateStripeCustomerId(
           userId,
           organizationId,
         );
