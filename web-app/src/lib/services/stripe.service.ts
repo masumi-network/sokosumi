@@ -22,6 +22,40 @@ import {
 } from "@/lib/errors/coupon-errors";
 
 export const stripeService = (() => {
+  async function getStripeCustomerId(
+    userId: string,
+    organizationId: string | null,
+  ): Promise<string | null> {
+    const user = await userRepository.getUserById(userId);
+    if (!user) throw new Error("User not found");
+
+    // Get or create the appropriate Stripe customer ID (has its own transaction)
+    let stripeCustomerId: string | null;
+    if (organizationId) {
+      const organization =
+        await organizationRepository.getOrganizationWithRelationsById(
+          organizationId,
+        );
+      if (!organization) {
+        throw new Error("Organization not found");
+      }
+      // Use organization's Stripe customer
+      stripeCustomerId = organization.stripeCustomerId;
+      if (!stripeCustomerId) {
+        const stripeCustomer =
+          await stripeClient.createOrganizationCustomer(organization);
+        stripeCustomerId = stripeCustomer.id;
+      }
+    } else {
+      // Use user's Stripe customer
+      stripeCustomerId = user.stripeCustomerId;
+      if (!stripeCustomerId) {
+        const stripeCustomer = await stripeClient.createUserCustomer(user);
+        stripeCustomerId = stripeCustomer.id;
+      }
+    }
+    return stripeCustomerId;
+  }
   return {
     async createStripeCheckoutSession(
       userId: string,
@@ -38,24 +72,12 @@ export const stripeService = (() => {
         const user = await userRepository.getUserById(userId);
         if (!user) throw new Error("User not found");
 
-        // Get or create the appropriate Stripe customer ID (has its own transaction)
-        let stripeCustomerId: string | null;
-        if (organizationId) {
-          // Use organization's Stripe customer
-          stripeCustomerId =
-            await this.getOrCreateStripeCustomerForOrganization(organizationId);
-          if (!stripeCustomerId) {
-            throw new Error(
-              "Failed to get or create organization Stripe customer",
-            );
-          }
-        } else {
-          // Use user's Stripe customer
-          stripeCustomerId =
-            await this.getOrCreateStripeCustomerForUser(userId);
-          if (!stripeCustomerId) {
-            throw new Error("Failed to get or create user Stripe customer");
-          }
+        const stripeCustomerId = await getStripeCustomerId(
+          userId,
+          organizationId,
+        );
+        if (!stripeCustomerId) {
+          throw new Error("Failed to get or create Stripe customer");
         }
 
         const amount = credits * price.amountPerCredit;
@@ -119,11 +141,10 @@ export const stripeService = (() => {
         throw new Error("User not found");
       }
 
-      const stripeCustomerId =
-        await this.getOrCreateStripeCustomerForUser(userId);
-      if (!stripeCustomerId) {
+      if (!user.stripeCustomerId) {
         return null;
       }
+      const stripeCustomerId = user.stripeCustomerId;
 
       for (const couponId of couponIds) {
         try {
@@ -165,14 +186,12 @@ export const stripeService = (() => {
         throw new Error("User not found");
       }
 
-      try {
-        // Use the new atomic customer creation method
-        const stripeCustomerId =
-          await this.getOrCreateStripeCustomerForUser(userId);
-        if (!stripeCustomerId) {
-          return null;
-        }
+      if (!user.stripeCustomerId) {
+        return null;
+      }
+      const stripeCustomerId = user.stripeCustomerId;
 
+      try {
         // Check for existing promotion codes
         let promotionCode = await stripeClient.getPromotionCode(
           stripeCustomerId,
@@ -253,59 +272,6 @@ export const stripeService = (() => {
       return await stripeClient.createUserCustomer(user);
     },
 
-    async getOrCreateStripeCustomerForUser(
-      userId: string,
-    ): Promise<string | null> {
-      return await prisma.$transaction(async (tx) => {
-        try {
-          const user = await userRepository.getUserById(userId, tx);
-
-          if (!user) {
-            return null;
-          }
-
-          // If user already has a Stripe customer ID, return it
-          if (user.stripeCustomerId) {
-            return user.stripeCustomerId;
-          }
-
-          // Create a new Stripe customer for the user
-          const customer = await stripeClient.createUserCustomer(user);
-
-          try {
-            // Save the customer ID to the database
-            const updatedUser = await userRepository.setUserStripeCustomerId(
-              user.id,
-              customer.id,
-              tx,
-            );
-            return updatedUser.stripeCustomerId;
-          } catch (_error) {
-            // If there's a unique constraint violation, clean up the Stripe customer
-            // and return the existing customer ID from the database
-            try {
-              await stripeClient.deleteCustomer(customer.id);
-            } catch (cleanupError) {
-              console.warn(
-                `Failed to cleanup duplicate Stripe customer ${customer.id}:`,
-                cleanupError,
-              );
-            }
-
-            // Fetch the updated user record to get the existing customer ID
-            const updatedUser = await userRepository.getUserById(userId, tx);
-            return updatedUser?.stripeCustomerId ?? null;
-          }
-        } catch (error) {
-          console.error(
-            `Error in getOrCreateStripeCustomerForUser for user ${userId}:`,
-            error,
-          );
-          return null;
-        }
-      });
-    },
-
     async createStripeCustomerForOrganization(
       organizationId: string,
     ): Promise<Stripe.Customer | null> {
@@ -317,69 +283,6 @@ export const stripeService = (() => {
         return null;
       }
       return await stripeClient.createOrganizationCustomer(organization);
-    },
-
-    async getOrCreateStripeCustomerForOrganization(
-      organizationId: string,
-    ): Promise<string | null> {
-      return await prisma.$transaction(async (tx) => {
-        try {
-          const organization =
-            await organizationRepository.getOrganizationWithRelationsById(
-              organizationId,
-              tx,
-            );
-
-          if (!organization) {
-            return null;
-          }
-
-          // If organization already has a Stripe customer ID, return it
-          if (organization.stripeCustomerId) {
-            return organization.stripeCustomerId;
-          }
-
-          // Create a new Stripe customer for the organization
-          const customer =
-            await stripeClient.createOrganizationCustomer(organization);
-
-          try {
-            // Save the customer ID to the database
-            const updatedOrg =
-              await organizationRepository.setOrganizationStripeCustomerId(
-                organization.id,
-                customer.id,
-                tx,
-              );
-            return updatedOrg.stripeCustomerId;
-          } catch (_error) {
-            // If there's a unique constraint violation, clean up the Stripe customer
-            // and return the existing customer ID from the database
-            try {
-              await stripeClient.deleteCustomer(customer.id);
-            } catch (cleanupError) {
-              console.warn(
-                `Failed to cleanup duplicate Stripe customer ${customer.id}:`,
-                cleanupError,
-              );
-            }
-
-            // Fetch the updated organization record to get the existing customer ID
-            const updatedOrganization =
-              await organizationRepository.getOrganizationWithRelationsById(
-                organizationId,
-                tx,
-              );
-            return updatedOrganization?.stripeCustomerId ?? null;
-          }
-        } catch (error) {
-          console.error(
-            `Error in getOrCreateStripeCustomerForOrganization for organization ${organizationId}:`,
-            error,
-          );
-          return null;
-        }
-      });
     },
 
     async syncOrganizationInvoiceEmailWithStripe(
