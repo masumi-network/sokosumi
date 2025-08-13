@@ -13,24 +13,6 @@ import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
 import { utmService } from "@/lib/services/utm.service";
 import { Err, Ok, Result } from "@/lib/ts-res";
 
-export async function signInSocial(
-  provider: "google" | "microsoft" | "apple" | "linkedin",
-): Promise<Result<void, ActionError>> {
-  try {
-    await auth.api.signInSocial({
-      body: {
-        provider: provider,
-      },
-    });
-    return Ok();
-  } catch (error) {
-    console.error("Error signing in with social provider", error);
-    return Err({
-      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-    });
-  }
-}
-
 export async function signUpEmail(
   data: SignUpFormSchemaType,
 ): Promise<Result<User, ActionError>> {

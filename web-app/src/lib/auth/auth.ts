@@ -34,6 +34,16 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+  socialProviders: {
+    google: {
+      clientId: getEnvSecrets().GOOGLE_CLIENT_ID,
+      clientSecret: getEnvSecrets().GOOGLE_CLIENT_SECRET,
+    },
+    microsoft: {
+      clientId: getEnvSecrets().MICROSOFT_CLIENT_ID,
+      clientSecret: getEnvSecrets().MICROSOFT_CLIENT_SECRET,
+    },
+  },
   databaseHooks: {
     user: {
       create: {

@@ -1,8 +1,10 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
+import Divider from "./components/divider";
 import SignInForm from "./components/form";
 import SignInHeader from "./components/header";
+import SocialButtons from "./components/social-buttons";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Auth.Pages.SignIn.Metadata");
@@ -24,7 +26,8 @@ export default async function SignIn({ searchParams }: SignInPageProps) {
     <div className="flex flex-1 flex-col">
       <SignInHeader />
       <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
-        {/* <SocialButtons /> */}
+        <SocialButtons />
+        <Divider />
         <SignInForm returnUrl={returnUrl} prefilledEmail={email} />
       </div>
     </div>

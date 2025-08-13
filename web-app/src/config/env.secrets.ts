@@ -78,7 +78,14 @@ const envSecretsSchema = z.object({
     .url()
     .default("https://payment.masumi.network/api/v1"),
 
-  // BetterAuth Settings
+  // Social Secrets
+  GOOGLE_CLIENT_ID: z.string().min(1),
+  GOOGLE_CLIENT_SECRET: z.string().min(1),
+
+  MICROSOFT_CLIENT_ID: z.string().min(1),
+  MICROSOFT_CLIENT_SECRET: z.string().min(1),
+
+  // Better Auth Settings
   BETTER_AUTH_URL: z.string().url().default("http://localhost:3000"),
   BETTER_AUTH_SECRET: z.string().min(1),
   BETTER_AUTH_TRUSTED_ORIGIN: z.string().url().default("http://localhost:3000"),
