@@ -15,7 +15,7 @@ import { lockService } from "@/lib/services";
 import { Lock } from "@/prisma/generated/client";
 
 const LOCK_KEY = "stripe-customers-cleanup";
-const CUSTOMERS_PER_CHUNK = 10;
+const CUSTOMERS_PER_CHUNK = 500;
 
 export async function GET(request: Request) {
   const authResult = authenticateCronSecret(request);
@@ -122,7 +122,7 @@ async function cleanupOrphanedStripeCustomers(): Promise<void> {
     const deletionPromises = orphanedCustomers.map((customer) =>
       limit(async () => {
         try {
-          //await stripeClient.deleteCustomer(customer.id);
+          await stripeClient.deleteCustomer(customer.id);
           console.info(`Deleted orphaned customer ${customer.id}`);
         } catch (error) {
           console.error(`Failed to delete customer ${customer.id}:`, error);
@@ -134,11 +134,28 @@ async function cleanupOrphanedStripeCustomers(): Promise<void> {
     console.info(`Deleted ${orphanedCustomers.length} orphaned customers`);
   }
 
+  // Find the last non-deleted (non-orphaned) customer ID for the cursor
+  let cursorId: string | undefined = undefined;
+
+  // Search from the end of the array backwards to find last non-orphaned customer
+  for (let i = stripeCustomers.length - 1; i >= 0; i--) {
+    const customer = stripeCustomers[i];
+    if (dbCustomerIds.has(customer.id)) {
+      cursorId = customer.id;
+      break;
+    }
+  }
+
+  // If no non-orphaned customers found, use the original lastId (all were deleted)
+  cursorId ??= lastId;
+
   // Update cursor for next run
-  if (hasMore && lastId) {
+  if (hasMore && cursorId) {
     // Save cursor to continue from this position next time
-    await stripeCleanupCursorRepository.setCursor(lastId);
-    console.info(`Saved cursor position: ${lastId}`);
+    await stripeCleanupCursorRepository.setCursor(cursorId);
+    console.info(
+      `Saved cursor position: ${cursorId}${cursorId !== lastId ? " (last non-deleted customer)" : ""}`,
+    );
   } else {
     // No more customers, reset cursor to start from beginning next time
     await stripeCleanupCursorRepository.resetCursor();
