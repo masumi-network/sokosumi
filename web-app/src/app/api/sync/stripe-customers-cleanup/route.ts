@@ -16,7 +16,7 @@ import { Lock } from "@/prisma/generated/client";
 
 const CURSOR_ID = "stripe-customers-cleanup";
 const LOCK_KEY = "stripe-customers-cleanup";
-const CUSTOMERS_PER_CHUNK = 500;
+const CUSTOMERS_PER_CHUNK = 200;
 
 export async function GET(request: Request) {
   const authResult = authenticateCronSecret(request);
