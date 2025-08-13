@@ -179,4 +179,28 @@ export const organizationRepository = {
       },
     });
   },
+
+  /**
+   * Retrieves all Stripe customer IDs from organizations that have them.
+   *
+   * @param tx - (Optional) The Prisma transaction client to use. Defaults to the main Prisma client.
+   * @returns A promise that resolves to an array of Stripe customer IDs.
+   */
+  async getOrganizationStripeCustomerIds(
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<string[]> {
+    const organizations = await tx.organization.findMany({
+      where: {
+        stripeCustomerId: {
+          not: null,
+        },
+      },
+      select: {
+        stripeCustomerId: true,
+      },
+    });
+    return organizations
+      .map((org) => org.stripeCustomerId)
+      .filter((id): id is string => id !== null);
+  },
 };

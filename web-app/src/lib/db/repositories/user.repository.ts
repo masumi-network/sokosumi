@@ -84,4 +84,28 @@ export const userRepository = {
       },
     });
   },
+
+  /**
+   * Retrieves all Stripe customer IDs from users that have them.
+   *
+   * @param tx - (Optional) The Prisma transaction client to use. Defaults to the main Prisma client.
+   * @returns A promise that resolves to an array of Stripe customer IDs.
+   */
+  getUserStripeCustomerIds: async (
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<string[]> => {
+    const users = await tx.user.findMany({
+      where: {
+        stripeCustomerId: {
+          not: null,
+        },
+      },
+      select: {
+        stripeCustomerId: true,
+      },
+    });
+    return users
+      .map((user) => user.stripeCustomerId)
+      .filter((id): id is string => id !== null);
+  },
 };

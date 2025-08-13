@@ -71,6 +71,50 @@ export const stripeClient = (() => {
       await stripe.customers.del(customerId);
     },
 
+    async getCustomersChunk(
+      startingAfter?: string,
+      limit: number = 100,
+    ): Promise<{
+      customers: Stripe.Customer[];
+      hasMore: boolean;
+      lastId?: string;
+    }> {
+      const customers: Stripe.Customer[] = [];
+      let currentStartingAfter = startingAfter;
+      let hasMorePages = true;
+
+      // Make multiple API calls to reach the desired limit
+      while (customers.length < limit && hasMorePages) {
+        const remainingLimit = limit - customers.length;
+        const requestLimit = Math.min(remainingLimit, 100); // Stripe max is 100 per request
+
+        const response: Stripe.ApiList<Stripe.Customer> =
+          await stripe.customers.list({
+            limit: requestLimit,
+            starting_after: currentStartingAfter,
+          });
+
+        customers.push(...response.data);
+        hasMorePages = response.has_more;
+        currentStartingAfter =
+          response.data.length > 0
+            ? response.data[response.data.length - 1].id
+            : currentStartingAfter;
+
+        // If we got fewer customers than requested, we've reached the end
+        if (response.data.length < requestLimit) {
+          hasMorePages = false;
+        }
+      }
+
+      return {
+        customers,
+        hasMore: hasMorePages,
+        lastId:
+          customers.length > 0 ? customers[customers.length - 1].id : undefined,
+      };
+    },
+
     async getPromotionCode(
       customerId: string,
       couponId: string,
