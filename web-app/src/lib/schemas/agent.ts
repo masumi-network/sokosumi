@@ -23,7 +23,7 @@ export const agentResponseSchema = z.object({
   isShown: z.boolean(),
   createdAt: z.string(), // Date as ISO string
   updatedAt: z.string(), // Date as ISO string
-  creditsPrice: creditsPriceSchema,
+  price: creditsPriceSchema,
   tags: z.array(agentTagSchema),
 });
 

@@ -27,7 +27,7 @@ function formatAgentResponse(agent: AgentWithCreditsPrice): AgentResponse {
     status: agent.status,
     isNew: agent.isNew,
     isShown: agent.isShown,
-    creditsPrice: {
+    price: {
       credits: convertCentsToCredits(agent.creditsPrice.cents),
       includedFee: convertCentsToCredits(agent.creditsPrice.includedFee),
     },
