@@ -46,10 +46,24 @@ export async function GET(
       );
     }
 
-    const jobs = await jobRepository.getPersonalJobsByAgentIdAndUserId(
-      agentId,
-      session.user.id,
-    );
+    // Get organization context from session (works for both regular sessions and API keys)
+    const activeOrganizationId = session.session.activeOrganizationId;
+
+    let jobs;
+    if (activeOrganizationId) {
+      // Show jobs for the specific organization
+      jobs = await jobRepository.getJobsByAgentIdUserIdAndOrganizationId(
+        agentId,
+        session.user.id,
+        activeOrganizationId,
+      );
+    } else {
+      // Show personal jobs only (no organization)
+      jobs = await jobRepository.getPersonalJobsByAgentIdAndUserId(
+        agentId,
+        session.user.id,
+      );
+    }
 
     // Format all jobs
     const formattedJobs = jobs.map((job) => formatJobResponse(job).job);

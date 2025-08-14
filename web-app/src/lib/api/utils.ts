@@ -9,7 +9,7 @@ import { auth } from "@/lib/auth/auth";
 /**
  * Validates API key authentication via Better Auth
  * @param headers - Request headers containing x-api-key
- * @returns Session object if valid
+ * @returns Session object with organization context if valid
  * @throws Error with "UNAUTHORIZED" if invalid
  */
 export async function validateApiKeySession(headers: Headers) {
@@ -18,6 +18,9 @@ export async function validateApiKeySession(headers: Headers) {
   if (!session) {
     throw new Error("UNAUTHORIZED");
   }
+
+  // Note: API key organization context will be handled in individual endpoints
+  // when they need to validate organization access from API key metadata
 
   return session;
 }

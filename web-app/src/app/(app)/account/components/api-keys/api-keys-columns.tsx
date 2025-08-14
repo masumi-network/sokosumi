@@ -28,6 +28,49 @@ export function getApiKeyColumns(
       enableHiding: false,
     }) as ColumnDef<Apikey>,
 
+    columnHelper.display({
+      id: "scope",
+      minSize: 120,
+      size: 120,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t("Table.scope")} />
+      ),
+      cell: ({ row }) => {
+        // Parse metadata to determine scope
+        let organizationId = null;
+        if (row.original.metadata) {
+          try {
+            const apiKey = row.original as Apikey & {
+              metadata: { organizationId: string };
+            };
+            organizationId = apiKey.metadata.organizationId;
+          } catch {
+            // Invalid JSON, ignore
+            console.error(
+              "Invalid JSON in API key metadata",
+              row.original.metadata,
+            );
+          }
+        }
+
+        return (
+          <div className="text-sm">
+            {organizationId ? (
+              <span className="text-muted-foreground">
+                {t("Scope.organization")}
+              </span>
+            ) : (
+              <span className="text-muted-foreground">
+                {t("Scope.personal")}
+              </span>
+            )}
+          </div>
+        );
+      },
+      enableSorting: true,
+      enableHiding: false,
+    }) as ColumnDef<Apikey>,
+
     columnHelper.accessor("start", {
       id: "key",
       minSize: 80,
