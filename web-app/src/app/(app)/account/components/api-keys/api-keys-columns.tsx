@@ -8,7 +8,7 @@ import { DataTableColumnHeader } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import { Apikey } from "@/prisma/generated/client";
 
-import { OrganizationSlugDisplay } from "./organization-slug-display";
+import { OrganizationNameDisplay } from "./organization-name-display";
 
 const columnHelper = createColumnHelper<Apikey>();
 
@@ -60,7 +60,7 @@ export function getApiKeyColumns(
         return (
           <div className="text-sm">
             {organizationId ? (
-              <OrganizationSlugDisplay organizationId={organizationId} />
+              <OrganizationNameDisplay organizationId={organizationId} />
             ) : (
               <span className="text-muted-foreground">
                 {t("Scope.personal")}

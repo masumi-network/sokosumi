@@ -4,17 +4,17 @@ import { useTranslations } from "next-intl";
 
 import { authClient } from "@/lib/auth/auth.client";
 
-interface OrganizationSlugDisplayProps {
+interface OrganizationNameDisplayProps {
   organizationId: string;
 }
 
 /**
- * Component that displays the organization slug for a given organization ID
+ * Component that displays the organization name for a given organization ID
  * Uses the Better Auth hook to fetch organizations and find the matching one
  */
-export function OrganizationSlugDisplay({
+export function OrganizationNameDisplay({
   organizationId,
-}: OrganizationSlugDisplayProps) {
+}: OrganizationNameDisplayProps) {
   const t = useTranslations("App.Account.ApiKeys");
   const { data: organizations, isPending } = authClient.useListOrganizations();
 
@@ -28,7 +28,14 @@ export function OrganizationSlugDisplay({
   const organization = organizations?.find((org) => org.id === organizationId);
 
   if (organization) {
-    return <span className="text-muted-foreground">{organization.slug}</span>;
+    return (
+      <span
+        className="text-muted-foreground truncate"
+        title={organization.name}
+      >
+        {organization.name}
+      </span>
+    );
   }
 
   // Fallback to generic "Organization" if not found
