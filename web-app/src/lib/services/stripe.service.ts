@@ -104,6 +104,20 @@ export const stripeService = (() => {
       }
     },
 
+    /**
+     * Retrieves a welcome promotion code for the current user if eligible.
+     *
+     * This function checks if the user is eligible for a welcome promotion code based on the following criteria:
+     * - The environment variable STRIPE_WELCOME_COUPONS must contain at least one coupon ID.
+     * - The user must be authenticated (session exists).
+     * - The user must not be part of an active organization (promotion is for individual users only).
+     * - The user must have a valid Stripe customer ID.
+     * - The user must not have already redeemed any of the welcome coupons.
+     *
+     * If all criteria are met, the function attempts to retrieve or create a promotion code for the last coupon ID in the list.
+     *
+     * @returns {Promise<Stripe.PromotionCode | null>} The promotion code if eligible, otherwise null.
+     */
     async getWelcomePromotionCode(): Promise<Stripe.PromotionCode | null> {
       const couponIds = getEnvSecrets().STRIPE_WELCOME_COUPONS;
       if (couponIds.length === 0) {
@@ -112,6 +126,11 @@ export const stripeService = (() => {
 
       const session = await getSession();
       if (!session) {
+        return null;
+      }
+
+      // If user is in an organization, we don't need to create a promotion code
+      if (session.session.activeOrganizationId) {
         return null;
       }
 
