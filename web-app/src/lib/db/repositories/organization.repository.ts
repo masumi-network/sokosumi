@@ -187,6 +187,7 @@ export const organizationRepository = {
    * @returns A promise that resolves to an array of Stripe customer IDs.
    */
   async getOrganizationStripeCustomerIds(
+    createdAfter?: Date,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<string[]> {
     const organizations = await tx.organization.findMany({
@@ -194,6 +195,11 @@ export const organizationRepository = {
         stripeCustomerId: {
           not: null,
         },
+        ...(createdAfter && {
+          created: {
+            gte: createdAfter.getTime(),
+          },
+        }),
       },
       select: {
         stripeCustomerId: true,

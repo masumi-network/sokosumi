@@ -81,6 +81,8 @@ async function cleanupOrphanedStripeCustomers(): Promise<void> {
       : "Starting from beginning",
   );
 
+  const createdAfter = new Date(Date.now() - 1000 * 60 * 60 * 24 * 3); // 3 days ago
+
   // Fetch a chunk of Stripe customers
   const {
     customers: stripeCustomers,
@@ -89,7 +91,7 @@ async function cleanupOrphanedStripeCustomers(): Promise<void> {
   } = await stripeClient.getCustomersChunk(
     CUSTOMERS_PER_CHUNK,
     startingAfter,
-    new Date(Date.now() - 1000 * 60 * 60 * 24 * 5), // 5 days ago
+    createdAfter,
   );
 
   console.info(
@@ -104,8 +106,8 @@ async function cleanupOrphanedStripeCustomers(): Promise<void> {
 
   // Get all customer IDs from our database
   const [userCustomerIds, organizationCustomerIds] = await Promise.all([
-    userRepository.getUserStripeCustomerIds(),
-    organizationRepository.getOrganizationStripeCustomerIds(),
+    userRepository.getUserStripeCustomerIds(createdAfter),
+    organizationRepository.getOrganizationStripeCustomerIds(createdAfter),
   ]);
 
   const dbCustomerIds = new Set([
