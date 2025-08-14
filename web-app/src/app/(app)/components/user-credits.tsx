@@ -50,7 +50,7 @@ export default async function UserCredits() {
 
   return (
     <div className="flex flex-1 flex-col-reverse gap-4 md:flex-initial md:flex-row md:items-center">
-      {promotionCode?.active && !activeOrganization ? (
+      {promotionCode?.active ? (
         <FreeCreditsButton promotionCode={promotionCode.id} />
       ) : (
         credits <= 50.0 && <BuyCreditsButton label={t("buy")} path="/billing" />
