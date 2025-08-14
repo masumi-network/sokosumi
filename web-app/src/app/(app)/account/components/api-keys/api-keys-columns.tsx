@@ -8,6 +8,8 @@ import { DataTableColumnHeader } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import { Apikey } from "@/prisma/generated/client";
 
+import { OrganizationSlugDisplay } from "./organization-slug-display";
+
 const columnHelper = createColumnHelper<Apikey>();
 
 export function getApiKeyColumns(
@@ -36,19 +38,21 @@ export function getApiKeyColumns(
         <DataTableColumnHeader column={column} title={t("Table.scope")} />
       ),
       cell: ({ row }) => {
-        // Parse metadata to determine scope
+        // Parse metadata to determine scope and get organization ID
         let organizationId = null;
         if (row.original.metadata) {
           try {
-            const apiKey = row.original as Apikey & {
-              metadata: { organizationId: string };
-            };
-            organizationId = apiKey.metadata.organizationId;
-          } catch {
-            // Invalid JSON, ignore
-            console.error(
-              "Invalid JSON in API key metadata",
+            // Metadata might be stored as a JSON string or already parsed object
+            const metadata =
+              typeof row.original.metadata === "string"
+                ? JSON.parse(row.original.metadata)
+                : row.original.metadata;
+            organizationId = metadata?.organizationId ?? null;
+          } catch (error) {
+            console.warn(
+              "Failed to parse API key metadata:",
               row.original.metadata,
+              error,
             );
           }
         }
@@ -56,9 +60,7 @@ export function getApiKeyColumns(
         return (
           <div className="text-sm">
             {organizationId ? (
-              <span className="text-muted-foreground">
-                {t("Scope.organization")}
-              </span>
+              <OrganizationSlugDisplay organizationId={organizationId} />
             ) : (
               <span className="text-muted-foreground">
                 {t("Scope.personal")}
