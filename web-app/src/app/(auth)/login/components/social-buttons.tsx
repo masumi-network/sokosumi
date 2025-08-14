@@ -14,15 +14,15 @@ import { authClient } from "@/lib/auth/auth.client";
 type SocialKey = "google" | "microsoft";
 const socialButtons: Array<{
   key: SocialKey;
-  button: React.FC<ComponentProps<typeof GoogleLoginButton>>;
+  Button: React.FC<ComponentProps<typeof GoogleLoginButton>>;
 }> = [
   {
     key: "google",
-    button: GoogleLoginButton,
+    Button: GoogleLoginButton,
   },
   {
     key: "microsoft",
-    button: MicrosoftLoginButton,
+    Button: MicrosoftLoginButton,
   },
 ];
 
@@ -46,7 +46,7 @@ export default function SocialButtons() {
   return (
     <div className="grid grid-cols-1 gap-2 lg:gap-4">
       {socialButtons.map((socialButton) => (
-        <socialButton.button
+        <socialButton.Button
           onClick={() => handleClick(socialButton.key)}
           key={socialButton.key}
           className="flex items-center justify-center !rounded-lg !px-3 !py-2 !text-sm"
