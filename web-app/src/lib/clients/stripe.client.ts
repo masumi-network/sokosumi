@@ -73,15 +73,9 @@ export const stripeClient = (() => {
 
     async getCustomersChunk(
       limit: number = 100,
-      startingAfter?: string,
-      createdAfter?: Date,
-    ): Promise<{
-      customers: Stripe.Customer[];
-      hasMore: boolean;
-      lastId?: string;
-    }> {
+      createdAfter: Date,
+    ): Promise<Stripe.Customer[]> {
       const customers: Stripe.Customer[] = [];
-      let currentStartingAfter = startingAfter;
       let hasMorePages = true;
 
       // Make multiple API calls to reach the desired limit
@@ -92,20 +86,13 @@ export const stripeClient = (() => {
         const response: Stripe.ApiList<Stripe.Customer> =
           await stripe.customers.list({
             limit: requestLimit,
-            starting_after: currentStartingAfter,
-            ...(createdAfter && {
-              created: {
-                gte: createdAfter.getTime(),
-              },
-            }),
+            created: {
+              gte: createdAfter.getTime(),
+            },
           });
 
         customers.push(...response.data);
         hasMorePages = response.has_more;
-        currentStartingAfter =
-          response.data.length > 0
-            ? response.data[response.data.length - 1].id
-            : currentStartingAfter;
 
         // If we got fewer customers than requested, we've reached the end
         if (response.data.length < requestLimit) {
@@ -113,12 +100,7 @@ export const stripeClient = (() => {
         }
       }
 
-      return {
-        customers,
-        hasMore: hasMorePages,
-        lastId:
-          customers.length > 0 ? customers[customers.length - 1].id : undefined,
-      };
+      return customers;
     },
 
     async getPromotionCode(
