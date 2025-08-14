@@ -67,26 +67,6 @@ export default function JobInput({
           <FormControl>
             <InputField id={id} field={field} jobInputSchema={jobInputSchema} />
           </FormControl>
-          {/* <FormControl>
-            <div className="grid w-full max-w-sm items-center gap-3">
-              <FormLabel htmlFor="file">File</FormLabel>
-              <Input
-                id="file"
-                type="file"
-                accept="image/jpeg, image/png, image/webp"
-                required
-                onChange={async (e) => {
-                  const formData = new FormData();
-                  if (e.target.files && e.target.files[0]) {
-                    formData.append("file", e.target.files[0]);
-                    const blob = await uploadFile(formData);
-                    console.log("File uploaded:", blob);
-                    // field.onChange(blob);
-                  }
-                }}
-              />
-            </div>
-          </FormControl> */}
           {data?.description && (
             <FormDescription>{data.description}</FormDescription>
           )}
@@ -214,12 +194,7 @@ function InputField({ id, field, jobInputSchema }: InputFieldProps) {
         onValueChange={field.onChange}
         accept={data?.accept ?? "image/*"}
         maxFiles={data?.multiple ? undefined : 1}
-        maxSize={Number(data?.maxSize) ?? 5 * 1024 * 1024}
-        // onFileReject={(_, message) => {
-        //   form.setError("files", {
-        //     message,
-        //   });
-        // }}
+        maxSize={Number(data?.maxSize) ?? 1 * 1024 * 1024}
         multiple={data?.multiple ?? false}
       >
         <FileUploadDropzone className="flex-row flex-wrap border-dotted text-center">
