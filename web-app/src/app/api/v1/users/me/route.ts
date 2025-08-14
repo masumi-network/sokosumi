@@ -88,10 +88,10 @@ function formatUserResponse(user: User) {
   return {
     user: {
       id: user.id,
+      createdAt: user.createdAt.toISOString(),
+      updatedAt: user.updatedAt.toISOString(),
       name: user.name,
       email: user.email,
-      createdAt: user.createdAt,
-      updatedAt: user.updatedAt,
       termsAccepted: user.termsAccepted,
       marketingOptIn: user.marketingOptIn,
       stripeCustomerId: user.stripeCustomerId,
