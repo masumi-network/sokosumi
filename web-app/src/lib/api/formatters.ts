@@ -3,15 +3,33 @@ import "server-only";
 import { AgentWithCreditsPrice, convertCentsToCredits } from "@/lib/db";
 import { User } from "@/prisma/generated/client";
 
-import { AgentResponse, UserResponse, userResponseSchema } from "./schemas";
+import {
+  AgentResponse,
+  agentResponseSchema,
+  UserResponse,
+  userResponseWrapperSchema,
+} from "./schemas";
 import { dateToISO } from "./utils";
 
 /**
  * Formats user data for API response
  */
 export function formatUserResponse(user: User): UserResponse {
-  const userResponse = userResponseSchema.parse(user);
-  return userResponse;
+  const formatted = {
+    user: {
+      id: user.id,
+      createdAt: dateToISO(user.createdAt),
+      updatedAt: dateToISO(user.updatedAt),
+      name: user.name,
+      email: user.email,
+      termsAccepted: user.termsAccepted,
+      marketingOptIn: user.marketingOptIn,
+      stripeCustomerId: user.stripeCustomerId,
+    },
+  };
+
+  // Validate the formatted response
+  return userResponseWrapperSchema.parse(formatted);
 }
 
 /**
@@ -20,7 +38,7 @@ export function formatUserResponse(user: User): UserResponse {
 export function formatAgentResponse(
   agent: AgentWithCreditsPrice,
 ): AgentResponse {
-  return {
+  const formatted = {
     id: agent.id,
     createdAt: dateToISO(agent.createdAt),
     updatedAt: dateToISO(agent.updatedAt),
@@ -37,4 +55,7 @@ export function formatAgentResponse(
       name: tag.name,
     })),
   };
+
+  // Validate the formatted response
+  return agentResponseSchema.parse(formatted);
 }

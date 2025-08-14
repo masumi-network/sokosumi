@@ -21,8 +21,8 @@ export const agentResponseSchema = z.object({
   status: z.nativeEnum(AgentStatus),
   isNew: z.boolean(),
   isShown: z.boolean(),
-  createdAt: z.string(), // Date as ISO string
-  updatedAt: z.string(), // Date as ISO string
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
   price: creditsPriceSchema,
   tags: z.array(agentTagSchema),
 });

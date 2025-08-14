@@ -31,17 +31,24 @@ export function deleteUserSchema() {
 }
 
 /**
- * Schema for user response data
+ * Schema for user response data (inner user object)
  */
 export const userResponseSchema = z.object({
   id: z.string(),
-  createdAt: z.string(), // ISO date string
-  updatedAt: z.string(), // ISO date string
+  createdAt: z.string().datetime(), // ISO date string
+  updatedAt: z.string().datetime(), // ISO date string
   name: z.string(),
   email: z.string(),
   termsAccepted: z.boolean(),
   marketingOptIn: z.boolean(),
   stripeCustomerId: z.string().nullable(),
+});
+
+/**
+ * Schema for the complete user API response wrapper
+ */
+export const userResponseWrapperSchema = z.object({
+  user: userResponseSchema,
 });
 
 // Type exports for use in API routes
@@ -52,4 +59,4 @@ export type UpdateUserProfileFullType = z.infer<
   ReturnType<typeof updateUserProfileFullSchema>
 >;
 export type DeleteUserType = z.infer<ReturnType<typeof deleteUserSchema>>;
-export type UserResponse = z.infer<typeof userResponseSchema>;
+export type UserResponse = z.infer<typeof userResponseWrapperSchema>;
