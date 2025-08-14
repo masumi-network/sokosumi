@@ -1,20 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import {
+  deleteUserSchema,
   formatUserResponse,
   handleApiError,
+  updateUserProfileFullSchema,
+  updateUserProfileSchema,
   validateApiKeySession,
 } from "@/lib/api";
 import { auth } from "@/lib/auth/auth";
 import { userRepository } from "@/lib/db/repositories";
-import {
-  deleteUserSchema,
-  updateUserProfileFullSchema,
-  updateUserProfileSchema,
-} from "@/lib/schemas";
 import { User } from "@/prisma/generated/client";
-
-// Using shared validateApiKeySession from @/lib/api/utils
 
 // Helper function for updating user via Better Auth and fetching result
 async function updateUserAndFetch(

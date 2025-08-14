@@ -1,9 +1,9 @@
 import "server-only";
 
 import { AgentWithCreditsPrice, convertCentsToCredits } from "@/lib/db";
-import { AgentResponse } from "@/lib/schemas";
 import { User } from "@/prisma/generated/client";
 
+import { AgentResponse } from "./schemas";
 import { dateToISO } from "./utils";
 
 /**
