@@ -90,6 +90,9 @@ export const stripeClient = (() => {
 
         const response: Stripe.ApiList<Stripe.Customer> =
           await stripe.customers.list({
+            created: {
+              gte: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5).getTime(), // 5 days ago
+            },
             limit: requestLimit,
             starting_after: currentStartingAfter,
           });
