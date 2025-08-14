@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
-import Divider from "./components/divider";
+import Divider from "@/auth/components/divider";
+import SocialButtons from "@/auth/components/social-buttons";
+
 import SignInForm from "./components/form";
 import SignInHeader from "./components/header";
-import SocialButtons from "./components/social-buttons";
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("Auth.Pages.SignIn.Metadata");

@@ -1,6 +1,9 @@
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
+import Divider from "@/auth/components/divider";
+import SocialButtons from "@/auth/components/social-buttons";
+
 import SignUpForm from "./components/form";
 import SignUpHeader from "./components/header";
 
@@ -27,7 +30,8 @@ export default async function SignUp({ searchParams }: SignUpPageProps) {
     <div className="flex flex-1 flex-col">
       <SignUpHeader invitationId={invitationId} />
       <div className="flex flex-1 flex-col gap-6 p-6 pt-0">
-        {/* <SocialButtons /> */}
+        <SocialButtons />
+        <Divider />
         <SignUpForm prefilledEmail={email} invitationId={invitationId} />
       </div>
     </div>
