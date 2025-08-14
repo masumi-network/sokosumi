@@ -1,6 +1,5 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { ComponentProps } from "react";
 import {
@@ -28,7 +27,6 @@ const socialButtons: Array<{
 
 export default function SocialButtons() {
   const t = useTranslations("Auth.SocialButtons");
-  const router = useRouter();
 
   const handleClick = async (key: SocialKey) => {
     const result = await authClient.signIn.social({
@@ -37,8 +35,6 @@ export default function SocialButtons() {
     if (result.error) {
       const errorMessage = result.error.message ?? t("error");
       toast.error(errorMessage);
-    } else {
-      router.push("/agents");
     }
   };
 
