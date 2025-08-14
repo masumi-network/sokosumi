@@ -126,8 +126,8 @@ importers:
         specifier: 1.0.2
         version: 1.0.2
       ably:
-        specifier: 2.10.1
-        version: 2.10.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+        specifier: 2.11.0
+        version: 2.11.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       better-auth:
         specifier: 1.3.6
         version: 1.3.6(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(zod@3.25.76)
@@ -3084,8 +3084,8 @@ packages:
   '@xtuc/long@4.2.2':
     resolution: {integrity: sha512-NuHqBY1PB/D8xU6s/thBgOAiAP7HOYDQ32+BFZILJ8ivkUkAHQnWfn6WhL79Owj1qmUnoN/YPhktdIoucipkAQ==}
 
-  ably@2.10.1:
-    resolution: {integrity: sha512-GwFRZptZqGhJhNWgoycJmSSpkaF1PzGLlYgTiyOTvkWymS+ZMo2qE0b1x1KD7/0e4Fz5UJLq18489oFHCUQAwA==}
+  ably@2.11.0:
+    resolution: {integrity: sha512-3BgCzE1pRRpkmn40c7/KIyoWgwJNds7+k8llDOoUrXg9u1I+NnZ8U1Eo7u6fuc5Nz5dBaWXgOrU257P0Z5RDlQ==}
     engines: {node: '>=16'}
     peerDependencies:
       react: '>=16.8.0'
@@ -9388,7 +9388,7 @@ snapshots:
 
   '@xtuc/long@4.2.2': {}
 
-  ably@2.10.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
+  ably@2.11.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
     dependencies:
       '@ably/msgpack-js': 0.4.1
       dequal: 2.0.3
@@ -11120,7 +11120,7 @@ snapshots:
       '@jest/expect': 30.0.5
       '@jest/test-result': 30.0.5
       '@jest/types': 30.0.5
-      '@types/node': 24.2.1
+      '@types/node': 22.17.1
       chalk: 4.1.2
       co: 4.6.0
       dedent: 1.6.0
@@ -11227,7 +11227,7 @@ snapshots:
       '@jest/environment': 30.0.5
       '@jest/fake-timers': 30.0.5
       '@jest/types': 30.0.5
-      '@types/node': 24.2.1
+      '@types/node': 22.17.1
       jest-mock: 30.0.5
       jest-util: 30.0.5
       jest-validate: 30.0.5
@@ -11418,7 +11418,7 @@ snapshots:
 
   jest-worker@30.0.5:
     dependencies:
-      '@types/node': 24.2.1
+      '@types/node': 22.17.1
       '@ungap/structured-clone': 1.3.0
       jest-util: 30.0.5
       merge-stream: 2.0.0
