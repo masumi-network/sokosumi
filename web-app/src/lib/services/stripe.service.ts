@@ -31,9 +31,7 @@ export const stripeService = (() => {
         await organizationRepository.getOrganizationWithRelationsById(
           organizationId,
         );
-      if (!organization) {
-        throw new Error("Organization not found");
-      }
+      if (!organization) throw new Error("Organization not found");
       return organization.stripeCustomerId;
     } else {
       const user = await userRepository.getUserById(userId);
@@ -42,40 +40,6 @@ export const stripeService = (() => {
     }
   }
 
-  async function getOrCreateStripeCustomerId(
-    userId: string,
-    organizationId: string | null,
-  ): Promise<string | null> {
-    const user = await userRepository.getUserById(userId);
-    if (!user) throw new Error("User not found");
-
-    // Get or create the appropriate Stripe customer ID (has its own transaction)
-    let stripeCustomerId: string | null;
-    if (organizationId) {
-      const organization =
-        await organizationRepository.getOrganizationWithRelationsById(
-          organizationId,
-        );
-      if (!organization) {
-        throw new Error("Organization not found");
-      }
-      // Use organization's Stripe customer
-      stripeCustomerId = organization.stripeCustomerId;
-      if (!stripeCustomerId) {
-        const stripeCustomer =
-          await stripeClient.createOrganizationCustomer(organization);
-        stripeCustomerId = stripeCustomer.id;
-      }
-    } else {
-      // Use user's Stripe customer
-      stripeCustomerId = user.stripeCustomerId;
-      if (!stripeCustomerId) {
-        const stripeCustomer = await stripeClient.createUserCustomer(user);
-        stripeCustomerId = stripeCustomer.id;
-      }
-    }
-    return stripeCustomerId;
-  }
   return {
     async createStripeCheckoutSession(
       userId: string,
@@ -89,15 +53,12 @@ export const stripeService = (() => {
         throw new UnAuthenticatedError("User not authorized");
       }
       try {
-        const user = await userRepository.getUserById(userId);
-        if (!user) throw new Error("User not found");
-
-        const stripeCustomerId = await getOrCreateStripeCustomerId(
+        const stripeCustomerId = await getStripeCustomerId(
           userId,
           organizationId,
         );
         if (!stripeCustomerId) {
-          throw new Error("Failed to get or create Stripe customer");
+          throw new Error("Stripe customer not found");
         }
 
         const amount = credits * price.amountPerCredit;
