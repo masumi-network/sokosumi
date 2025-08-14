@@ -1,36 +1,8 @@
 import "server-only";
 
+import { AgentResponse, agentResponseSchema } from "@/lib/api/schemas";
+import { dateToISO } from "@/lib/api/utils";
 import { AgentWithCreditsPrice, convertCentsToCredits } from "@/lib/db";
-import { User } from "@/prisma/generated/client";
-
-import {
-  AgentResponse,
-  agentResponseSchema,
-  UserResponse,
-  userResponseWrapperSchema,
-} from "./schemas";
-import { dateToISO } from "./utils";
-
-/**
- * Formats user data for API response
- */
-export function formatUserResponse(user: User): UserResponse {
-  const formatted = {
-    user: {
-      id: user.id,
-      createdAt: dateToISO(user.createdAt),
-      updatedAt: dateToISO(user.updatedAt),
-      name: user.name,
-      email: user.email,
-      termsAccepted: user.termsAccepted,
-      marketingOptIn: user.marketingOptIn,
-      stripeCustomerId: user.stripeCustomerId,
-    },
-  };
-
-  // Validate the formatted response
-  return userResponseWrapperSchema.parse(formatted);
-}
 
 /**
  * Formats agent data for API response with BigInt conversion

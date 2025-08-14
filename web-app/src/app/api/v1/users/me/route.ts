@@ -37,10 +37,6 @@ async function updateUserAndFetch(
   return user;
 }
 
-// Using shared handleApiError from @/lib/api/utils
-
-// Using shared formatUserResponse from @/lib/api/formatters
-
 export async function GET(request: NextRequest) {
   try {
     const session = await validateApiKeySession(request.headers);
