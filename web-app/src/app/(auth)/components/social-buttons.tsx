@@ -10,17 +10,20 @@ import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth/auth.client";
 
-type SocialKey = "Google" | "Microsoft";
+type SocialKey = "google" | "microsoft";
 const socialButtons: Array<{
   key: SocialKey;
+  name: string;
   Button: React.FC<ComponentProps<typeof GoogleLoginButton>>;
 }> = [
   {
-    key: "Google",
+    key: "google",
+    name: "Google",
     Button: GoogleLoginButton,
   },
   {
-    key: "Microsoft",
+    key: "microsoft",
+    name: "Microsoft",
     Button: MicrosoftLoginButton,
   },
 ];
@@ -46,7 +49,7 @@ export default function SocialButtons() {
           key={socialButton.key}
           className="flex items-center justify-center !rounded-lg !px-3 !py-2 !text-sm"
           align="center"
-          text={t("continueWith", { provider: socialButton.key })}
+          text={t("continueWith", { provider: socialButton.name })}
         />
       ))}
     </div>
