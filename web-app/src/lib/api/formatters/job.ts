@@ -35,19 +35,21 @@ export function formatJobResponse(job: JobWithStatus): JobResponseWrapper {
       isDemo: job.isDemo,
       price: job.creditTransaction
         ? {
-            credits: convertCentsToCredits(job.creditTransaction.amount),
-            includedFee: convertCentsToCredits(
-              job.creditTransaction.includedFee,
+            credits: Math.abs(
+              convertCentsToCredits(job.creditTransaction.amount),
+            ),
+            includedFee: Math.abs(
+              convertCentsToCredits(job.creditTransaction.includedFee),
             ),
           }
         : null,
       refund: job.refundedCreditTransaction
         ? {
-            credits: convertCentsToCredits(
-              job.refundedCreditTransaction.amount,
+            credits: Math.abs(
+              convertCentsToCredits(job.refundedCreditTransaction.amount),
             ),
-            includedFee: convertCentsToCredits(
-              job.refundedCreditTransaction.includedFee,
+            includedFee: Math.abs(
+              convertCentsToCredits(job.refundedCreditTransaction.includedFee),
             ),
           }
         : null,
