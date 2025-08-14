@@ -81,7 +81,8 @@ async function cleanupOrphanedStripeCustomers(): Promise<void> {
       : "Starting from beginning",
   );
 
-  const createdAfter = new Date(Date.now() - 1000 * 60 * 60 * 24 * 3); // 3 days ago
+  const now = Date.now();
+  let createdAfter = new Date(now - 1000 * 60 * 60 * 24 * 3); // 3 days ago
 
   // Fetch a chunk of Stripe customers
   const {
@@ -103,6 +104,9 @@ async function cleanupOrphanedStripeCustomers(): Promise<void> {
     await cursorRepository.resetCursor(CURSOR_ID);
     return;
   }
+
+  // Add 2 days grace period to avoid deleting customers
+  createdAfter = new Date(now - 1000 * 60 * 60 * 24 * 5); // 5 days ago
 
   // Get all customer IDs from our database
   const [userCustomerIds, organizationCustomerIds] = await Promise.all([
