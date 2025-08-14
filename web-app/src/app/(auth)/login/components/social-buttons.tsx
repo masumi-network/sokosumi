@@ -38,13 +38,12 @@ export default function SocialButtons() {
       const errorMessage = result.error.message ?? t("error");
       toast.error(errorMessage);
     } else {
-      toast.success(t("success"));
       router.push("/agents");
     }
   };
 
   return (
-    <div className="grid grid-cols-1 gap-2 lg:gap-4">
+    <div className="grid grid-cols-1 gap-2">
       {socialButtons.map((socialButton) => (
         <socialButton.Button
           onClick={() => handleClick(socialButton.key)}
