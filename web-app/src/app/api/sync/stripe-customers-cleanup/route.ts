@@ -120,11 +120,6 @@ async function cleanupOrphanedStripeCustomers(): Promise<void> {
   ]);
   console.info(`Found ${dbCustomerIds.size} customer IDs in database`);
 
-  if (dbCustomerIds.size === 0) {
-    console.info("No customer IDs in database, skipping cleanup");
-    return;
-  }
-
   // Identify orphaned customers in this chunk
   const orphanedCustomers = stripeCustomers.filter(
     (customer) => !dbCustomerIds.has(customer.id),
