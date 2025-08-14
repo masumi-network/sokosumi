@@ -1,7 +1,10 @@
-import { APIError } from "better-auth/api";
 import { NextRequest, NextResponse } from "next/server";
-import { z } from "zod";
 
+import {
+  formatUserResponse,
+  handleApiError,
+  validateApiKeySession,
+} from "@/lib/api";
 import { auth } from "@/lib/auth/auth";
 import { userRepository } from "@/lib/db/repositories";
 import {
@@ -11,15 +14,7 @@ import {
 } from "@/lib/schemas";
 import { User } from "@/prisma/generated/client";
 
-async function validateSession(headers: Headers) {
-  const session = await auth.api.getSession({ headers });
-
-  if (!session) {
-    throw new Error("UNAUTHORIZED");
-  }
-
-  return session;
-}
+// Using shared validateApiKeySession from @/lib/api/utils
 
 // Helper function for updating user via Better Auth and fetching result
 async function updateUserAndFetch(
@@ -46,62 +41,13 @@ async function updateUserAndFetch(
   return user;
 }
 
-// Helper function for common error handling
-function handleApiError(error: unknown, operation: string): NextResponse {
-  console.error(`Error in ${operation}:`, error);
+// Using shared handleApiError from @/lib/api/utils
 
-  if (error instanceof APIError) {
-    return NextResponse.json(
-      { error: "Unauthorized", message: error.message || "Invalid API key" },
-      { status: 401 },
-    );
-  }
-
-  if (error instanceof Error && error.message === "UNAUTHORIZED") {
-    return NextResponse.json(
-      { error: "Unauthorized", message: "Valid API key required" },
-      { status: 401 },
-    );
-  }
-
-  if (error instanceof z.ZodError) {
-    return NextResponse.json(
-      {
-        error: "Bad Request",
-        message: "Validation failed",
-        details: error.errors,
-      },
-      { status: 400 },
-    );
-  }
-
-  return NextResponse.json(
-    {
-      error: "Internal Server Error",
-      message: `Failed to ${operation}`,
-    },
-    { status: 500 },
-  );
-}
-
-function formatUserResponse(user: User) {
-  return {
-    user: {
-      id: user.id,
-      createdAt: user.createdAt.toISOString(),
-      updatedAt: user.updatedAt.toISOString(),
-      name: user.name,
-      email: user.email,
-      termsAccepted: user.termsAccepted,
-      marketingOptIn: user.marketingOptIn,
-      stripeCustomerId: user.stripeCustomerId,
-    },
-  };
-}
+// Using shared formatUserResponse from @/lib/api/formatters
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await validateSession(request.headers);
+    const session = await validateApiKeySession(request.headers);
     const user = await userRepository.getUserById(session.user.id);
     if (!user) {
       throw new Error("UNAUTHORIZED");
@@ -114,7 +60,7 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const session = await validateSession(request.headers);
+    const session = await validateApiKeySession(request.headers);
 
     const body = await request.json();
     const validatedData = updateUserProfileFullSchema().parse(body);
@@ -133,7 +79,7 @@ export async function PUT(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await validateSession(request.headers);
+    const session = await validateApiKeySession(request.headers);
 
     const body = await request.json();
     const validatedData = updateUserProfileSchema().parse(body);
@@ -163,7 +109,7 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    await validateSession(request.headers);
+    await validateApiKeySession(request.headers);
 
     const body = await request.json();
     const validatedData = deleteUserSchema().parse(body);
