@@ -10,7 +10,14 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "c-ipfs-gw.nmkr.io",
       },
+      new URL("https://yhpsw8jlcoagsrkq.public.blob.vercel-storage.com"),
+      new URL("https://igcd4cnfvuav1zto.public.blob.vercel-storage.com"),
     ],
+  },
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "20mb",
+    },
   },
   serverExternalPackages: ["ably"],
 };

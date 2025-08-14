@@ -251,11 +251,17 @@ const makeZodSchemaFromJobInputFileSchema = (
       .optional();
   } else {
     return z
-      .instanceof(File)
+      .array(z.instanceof(File))
+      .min(1, {
+        message: t?.("File.required", { name }),
+      })
+      .max(1, {
+        message: t?.("File.required", { name }),
+      })
       .refine(
-        (file) => {
-          if (!file || !maxSize) return true;
-          return file.size <= maxSize;
+        (files) => {
+          if (!files || !maxSize) return true;
+          return files[0]?.size <= maxSize;
         },
         {
           message: t?.("File.maxSize", {

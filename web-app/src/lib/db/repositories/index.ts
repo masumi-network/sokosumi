@@ -10,5 +10,6 @@ export * from "./member.repository";
 export * from "./organization.repository";
 export { default as prisma } from "./prisma";
 export * from "./tag.repository";
+export * from "./uploadFiles.repository";
 export * from "./user.repository";
 export * from "./utmAttribution.repository";

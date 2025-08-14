@@ -1,6 +1,19 @@
+import { Button } from "@react-email/components";
+import { CloudUpload, X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { ControllerRenderProps, UseFormReturn } from "react-hook-form";
 
 import MultipleSelect from "@/components/multiple-select";
+import {
+  FileUpload,
+  FileUploadDropzone,
+  FileUploadItem,
+  FileUploadItemDelete,
+  FileUploadItemMetadata,
+  FileUploadItemPreview,
+  FileUploadList,
+  FileUploadTrigger,
+} from "@/components/ui/file-upload";
 import {
   FormControl,
   FormDescription,
@@ -92,6 +105,7 @@ interface InputFieldProps {
 
 function InputField({ id, field, jobInputSchema }: InputFieldProps) {
   const { type, data } = jobInputSchema;
+  const t = useTranslations("Library.JobInput.Form");
 
   if (type === ValidJobInputTypes.STRING)
     return (
@@ -194,17 +208,48 @@ function InputField({ id, field, jobInputSchema }: InputFieldProps) {
 
   if (type === ValidJobInputTypes.FILE)
     return (
-      <Input
+      <FileUpload
         id={id}
+        value={(field.value as File[]) ?? []}
+        onValueChange={field.onChange}
         accept={data?.accept ?? "image/*"}
-        max={data?.maxSize ?? undefined}
-        type="file"
-        onChange={(e) => {
-          const file = e.target.files?.[0] ?? null;
-          field.onChange(file);
-        }}
-        // File inputs are always uncontrolled, so value should be undefined
-      />
+        maxFiles={data?.multiple ? undefined : 1}
+        maxSize={Number(data?.maxSize) ?? 5 * 1024 * 1024}
+        // onFileReject={(_, message) => {
+        //   form.setError("files", {
+        //     message,
+        //   });
+        // }}
+        multiple={data?.multiple ?? false}
+      >
+        <FileUploadDropzone className="flex-row flex-wrap border-dotted text-center">
+          <FileUploadTrigger asChild>
+            <Button className="cursor-pointer p-0">
+              <span className="flex flex-row items-center gap-2">
+                <CloudUpload className="size-4" />
+                {t("File.description")}
+              </span>
+            </Button>
+          </FileUploadTrigger>
+        </FileUploadDropzone>
+        <FileUploadList>
+          {Array.isArray(field.value) &&
+            field.value
+              .filter((file): file is File => file instanceof File)
+              .map((file, index) => (
+                <FileUploadItem key={index} value={file}>
+                  <FileUploadItemPreview />
+                  <FileUploadItemMetadata />
+                  <FileUploadItemDelete asChild>
+                    <Button className="size-7 cursor-pointer">
+                      <X />
+                      <span className="sr-only">{t("File.delete")}</span>
+                    </Button>
+                  </FileUploadItemDelete>
+                </FileUploadItem>
+              ))}
+        </FileUploadList>
+      </FileUpload>
     );
 
   if (type === ValidJobInputTypes.NONE) return null;

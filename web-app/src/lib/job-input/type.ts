@@ -30,5 +30,5 @@ export type JobInputFormIntlPath = "Library.JobInput.Form";
 
 export type JobInputData = Map<
   string,
-  string | number | boolean | number[] | undefined
+  string | string[] | number | boolean | number[] | File | File[] | undefined
 >;

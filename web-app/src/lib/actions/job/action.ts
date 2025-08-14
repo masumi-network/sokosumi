@@ -8,7 +8,8 @@ import { ActionError, CommonErrorCode } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { getSession } from "@/lib/auth/utils";
 import { JobWithStatus } from "@/lib/db";
-import { jobRepository } from "@/lib/db/repositories";
+import { jobRepository, uploadFilesRepository } from "@/lib/db/repositories";
+import { ValidJobInputTypes } from "@/lib/job-input";
 import {
   jobDetailsNameFormSchema,
   JobDetailsNameFormSchemaType,
@@ -68,6 +69,12 @@ export async function startJobWithInputData(
         });
       }
       const userId = session.user.id;
+
+      // Upload files if any
+      if (input.inputData) {
+        await handleInputDataFileUploads(userId, input.inputData);
+      }
+
       const inputDataForService: StartJobInputSchemaType = { ...input, userId };
 
       // Set user context for Sentry
@@ -100,6 +107,7 @@ export async function startJobWithInputData(
 
       // Validation
       const parsedResult = startJobInputSchema.safeParse(inputDataForService);
+
       if (!parsedResult.success) {
         scope.setTag("error_type", "validation_error");
         scope.setContext("validation_error", {
@@ -116,6 +124,16 @@ export async function startJobWithInputData(
       const parsed = parsedResult.data;
 
       const job = await jobService.startJob(parsed);
+
+      // Save files uploaded if any
+      if (input.inputData) {
+        await saveUploadedFiles(
+          userId,
+          job.id,
+          input.inputSchema,
+          input.inputData,
+        );
+      }
 
       // Add success breadcrumb
       Sentry.addBreadcrumb({
@@ -327,12 +345,82 @@ export async function requestRefundJobByBlockchainIdentifier(
   }
 }
 
-export async function uploadFile(formData: FormData): Promise<PutBlobResult> {
-  const inputFile = formData.get("file") as File;
-  const blob = await put(inputFile.name, inputFile, {
-    access: "public",
-    addRandomSuffix: true,
-  });
+export async function uploadFile(
+  userId: string,
+  inputFile: File,
+): Promise<PutBlobResult> {
+  const blob = await put(
+    `${userId}/${inputFile.name.replace(/ /g, "_")}`,
+    inputFile,
+    {
+      access: "public",
+      addRandomSuffix: true,
+    },
+  );
   revalidatePath("/");
   return blob;
+}
+
+// Helper function to handle file uploads in inputData
+async function handleInputDataFileUploads(
+  userId: string,
+  inputData: Map<string, unknown>,
+) {
+  for (const [key, value] of inputData.entries()) {
+    if (value instanceof File) {
+      const blob = await uploadFile(userId, value);
+      inputData.set(key, blob.url);
+    } else if (Array.isArray(value) && value.every((v) => v instanceof File)) {
+      const fileUrls = await Promise.all(
+        value.map(async (file: File) => {
+          const blob = await uploadFile(userId, file);
+          return blob.url;
+        }),
+      );
+      // If only one file or multiple is disabled, send as string
+      if (fileUrls.length === 1) {
+        inputData.set(key, fileUrls[0]);
+      } else {
+        inputData.set(key, fileUrls);
+      }
+    }
+  }
+}
+
+// Helper function to save uploaded files from inputData based on inputSchema
+async function saveUploadedFiles(
+  userId: string,
+  jobId: string,
+  inputSchema: { id: string; type: string }[],
+  inputData: Map<string, unknown>,
+) {
+  for (const field of inputSchema) {
+    if (field.type === ValidJobInputTypes.FILE) {
+      console.log(`Field ${field.id} is a file input`);
+      const value = inputData?.get(field.id);
+      console.log(`Field value: ${value}`);
+      if (typeof value === "string" && value) {
+        console.log(`Saving file URL: ${value}`);
+        const result = await uploadFilesRepository.createUploadFile(
+          userId,
+          jobId,
+          value,
+        );
+        console.log(`File saved with: ${result}`);
+      } else if (
+        Array.isArray(value) &&
+        value.every((v) => typeof v === "string")
+      ) {
+        for (const fileUrl of value) {
+          console.log(`Saving file URL: ${fileUrl}`);
+          const result = await uploadFilesRepository.createUploadFile(
+            userId,
+            jobId,
+            fileUrl,
+          );
+          console.log(`File saved with: ${result}`);
+        }
+      }
+    }
+  }
 }
