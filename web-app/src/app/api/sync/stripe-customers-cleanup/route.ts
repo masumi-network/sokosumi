@@ -14,7 +14,6 @@ import { lockService } from "@/lib/services";
 import { Lock } from "@/prisma/generated/client";
 
 const LOCK_KEY = "stripe-customers-cleanup";
-const CUSTOMERS_PER_CHUNK = 200;
 
 export async function GET(request: Request) {
   const authResult = authenticateCronSecret(request);
@@ -73,10 +72,8 @@ async function cleanupOrphanedStripeCustomers(): Promise<void> {
   let createdAfter = new Date(now - 1000 * 60 * 60 * 24 * 3); // 3 days ago
 
   // Fetch a chunk of Stripe customers
-  const stripeCustomers = await stripeClient.getCustomersChunk(
-    CUSTOMERS_PER_CHUNK,
-    createdAfter,
-  );
+  const stripeCustomers =
+    await stripeClient.getCustomersCreatedAfter(createdAfter);
 
   console.info(`Found ${stripeCustomers.length} Stripe customers in chunk`);
 

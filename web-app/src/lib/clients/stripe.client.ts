@@ -71,17 +71,15 @@ export const stripeClient = (() => {
       await stripe.customers.del(customerId);
     },
 
-    async getCustomersChunk(
-      limit: number = 100,
+    async getCustomersCreatedAfter(
       createdAfter: Date,
     ): Promise<Stripe.Customer[]> {
       const customers: Stripe.Customer[] = [];
       let hasMorePages = true;
 
       // Make multiple API calls to reach the desired limit
-      while (customers.length < limit && hasMorePages) {
-        const remainingLimit = limit - customers.length;
-        const requestLimit = Math.min(remainingLimit, 100); // Stripe max is 100 per request
+      while (hasMorePages) {
+        const requestLimit = 100; // Stripe max is 100 per request
 
         const response: Stripe.ApiList<Stripe.Customer> =
           await stripe.customers.list({
@@ -89,6 +87,7 @@ export const stripeClient = (() => {
             created: {
               gte: createdAfter.getTime(),
             },
+            starting_after: customers[customers.length - 1]?.id,
           });
 
         customers.push(...response.data);
