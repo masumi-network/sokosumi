@@ -598,11 +598,3 @@ model Apikey {
 
   @@map("apikey")
 }
-
-model Cursor {
-  id        String   @id
-  cursor    String? // Last processed ID
-  updatedAt DateTime @updatedAt
-
-  @@map("cursor")
-}

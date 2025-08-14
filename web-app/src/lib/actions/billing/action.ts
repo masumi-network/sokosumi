@@ -138,11 +138,7 @@ export async function getFreeCreditsWithCoupon(
     const credits = await stripeService.getCreditsForCoupon(couponId, price);
 
     // Validate and get the promotion code for this user and couponId
-    const promo = await stripeService.getPromotionCode(
-      session.user.id,
-      couponId,
-      1,
-    );
+    const promo = await stripeService.getPromotionCode(couponId, 1);
     if (!promo || !promo.active) {
       return Err({
         message: "Invalid coupon",

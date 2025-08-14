@@ -6,7 +6,6 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import { authenticateCronSecret } from "@/lib/auth/utils";
 import { stripeClient } from "@/lib/clients/stripe.client";
 import {
-  cursorRepository,
   lockRepository,
   organizationRepository,
   userRepository,
@@ -14,9 +13,7 @@ import {
 import { lockService } from "@/lib/services";
 import { Lock } from "@/prisma/generated/client";
 
-const CURSOR_ID = "stripe-customers-cleanup";
 const LOCK_KEY = "stripe-customers-cleanup";
-const CUSTOMERS_PER_CHUNK = 200;
 
 export async function GET(request: Request) {
   const authResult = authenticateCronSecret(request);
@@ -71,37 +68,27 @@ async function stripeCustomersCleanup(): Promise<Response> {
 async function cleanupOrphanedStripeCustomers(): Promise<void> {
   console.info(`Starting Stripe customer cleanup with chunked processing`);
 
-  // Get cursor position
-  const cursorRecord = await cursorRepository.getCursor(CURSOR_ID);
-  const startingAfter = cursorRecord?.cursor ?? undefined;
-
-  console.info(
-    startingAfter
-      ? `Resuming from cursor: ${startingAfter}`
-      : "Starting from beginning",
-  );
+  const now = Date.now();
+  let createdAfter = new Date(now - 1000 * 60 * 60 * 24 * 3); // 3 days ago
 
   // Fetch a chunk of Stripe customers
-  const {
-    customers: stripeCustomers,
-    hasMore,
-    lastId,
-  } = await stripeClient.getCustomersChunk(startingAfter, CUSTOMERS_PER_CHUNK);
+  const stripeCustomers =
+    await stripeClient.getCustomersCreatedAfter(createdAfter);
 
-  console.info(
-    `Found ${stripeCustomers.length} Stripe customers in chunk (hasMore: ${hasMore})`,
-  );
+  console.info(`Found ${stripeCustomers.length} Stripe customers in chunk`);
 
   if (stripeCustomers.length === 0) {
     console.info("No customers in chunk, resetting cursor");
-    await cursorRepository.resetCursor(CURSOR_ID);
     return;
   }
 
+  // Add 2 days grace period to avoid deleting customers
+  createdAfter = new Date(now - 1000 * 60 * 60 * 24 * 5); // 5 days ago
+
   // Get all customer IDs from our database
   const [userCustomerIds, organizationCustomerIds] = await Promise.all([
-    userRepository.getUserStripeCustomerIds(),
-    organizationRepository.getOrganizationStripeCustomerIds(),
+    userRepository.getUserStripeCustomerIds(createdAfter),
+    organizationRepository.getOrganizationStripeCustomerIds(createdAfter),
   ]);
 
   const dbCustomerIds = new Set([
@@ -133,22 +120,6 @@ async function cleanupOrphanedStripeCustomers(): Promise<void> {
 
     await Promise.allSettled(deletionPromises);
     console.info(`Deleted ${orphanedCustomers.length} orphaned customers`);
-  }
-
-  // Set the last customer ID for the cursor
-  const cursorId: string | undefined = lastId;
-
-  // Update cursor for next run
-  if (hasMore && cursorId) {
-    // Save cursor to continue from this position next time
-    await cursorRepository.setCursor(CURSOR_ID, cursorId);
-    console.info(
-      `Saved cursor position: ${cursorId}${cursorId !== lastId ? " (last non-deleted customer)" : ""}`,
-    );
-  } else {
-    // No more customers, reset cursor to start from beginning next time
-    await cursorRepository.resetCursor(CURSOR_ID);
-    console.info("Reached end of customers, reset cursor for next cycle");
   }
 
   console.info(
