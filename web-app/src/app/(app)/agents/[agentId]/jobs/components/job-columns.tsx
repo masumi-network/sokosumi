@@ -46,16 +46,24 @@ export function getJobColumns(
       ),
       cell: ({ row }) => (
         <div className="p-2">
-          <RealTimeJobStatusBadge
-            agentId={row.original.agentId}
-            userId={userId}
-            jobId={row.original.id}
-            initialJobIndicatorStatus={{
-              jobId: row.original.id,
-              jobStatus: row.original.status,
-              jobStatusSettled: row.original.jobStatusSettled,
-            }}
-          />
+          {row.original.isDemo ? (
+            <JobStatusBadge
+              status={row.original.status}
+              isDemo={row.original.isDemo}
+            />
+          ) : (
+            <RealTimeJobStatusBadge
+              agentId={row.original.agentId}
+              userId={userId}
+              jobId={row.original.id}
+              initialJobIndicatorStatus={{
+                jobId: row.original.id,
+                jobStatus: row.original.status,
+                jobStatusSettled: row.original.jobStatusSettled,
+              }}
+              isDemo={row.original.isDemo}
+            />
+          )}
         </div>
       ),
       enableSorting: true,
@@ -91,12 +99,14 @@ function RealTimeJobStatusBadge({
   userId,
   jobId,
   initialJobIndicatorStatus,
+  isDemo = false,
   className,
 }: {
   agentId: string;
   userId: string;
   jobId: string;
   initialJobIndicatorStatus: JobIndicatorStatus;
+  isDemo?: boolean;
   className?: string;
 }) {
   const realTimeJobStatus = useAgentJobStatus(
@@ -112,6 +122,7 @@ function RealTimeJobStatusBadge({
       status={
         realTimeJobStatus?.jobStatus ?? initialJobIndicatorStatus.jobStatus
       }
+      isDemo={isDemo}
       className={className}
     />
   );

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { betterAuth } from "better-auth";
+import { betterAuth, User } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
@@ -34,6 +34,15 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+  databaseHooks: {
+    user: {
+      create: {
+        after: async (user: User) => {
+          await stripeService.createStripeCustomerForUser(user.id);
+        },
+      },
+    },
+  },
   trustedOrigins: (_) => {
     const origins = [getEnvSecrets().BETTER_AUTH_TRUSTED_ORIGIN];
     const vercelBranchUrl = getEnvSecrets().VERCEL_BRANCH_URL;
@@ -182,6 +191,13 @@ export const auth = betterAuth({
       },
     }),
     organization({
+      organizationCreation: {
+        afterCreate: async ({ organization }) => {
+          await stripeService.createStripeCustomerForOrganization(
+            organization.id,
+          );
+        },
+      },
       schema: {
         organization: {
           additionalFields: {

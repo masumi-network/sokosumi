@@ -10,7 +10,6 @@ import {
   AgentWithCreditsPrice,
   AgentWithRelations,
   getAgentDescription,
-  getAgentLegal,
   getAgentName,
   getAgentResolvedImage,
 } from "@/lib/db";
@@ -28,7 +27,7 @@ export default function CreateJobSection({
   agent,
   averageExecutionDuration,
 }: CreateJobSectionProps) {
-  const { accordionValue, setAccordionValue, loading } =
+  const { accordionValue, setAccordionValue, loading, isDemo } =
     useCreateJobModalContext();
 
   const handleAccordionValueChange = (value: string[]) => {
@@ -37,7 +36,7 @@ export default function CreateJobSection({
 
   return (
     <div className="bg-background flex min-h-svh w-svw flex-col rounded-none p-4 pt-0 md:min-h-auto md:w-auto md:rounded-xl md:p-6">
-      <CreateJobModalHeader agent={agent} />
+      <CreateJobModalHeader agent={agent} isDemo={isDemo} />
       <Accordion
         type="multiple"
         value={accordionValue}
@@ -49,6 +48,7 @@ export default function CreateJobSection({
           agent={agent}
           disabled={loading}
           averageExecutionDuration={averageExecutionDuration}
+          isDemo={isDemo}
         />
       </Accordion>
     </div>
@@ -96,10 +96,12 @@ function InputAccordionItem({
   agent,
   disabled,
   averageExecutionDuration,
+  isDemo,
 }: {
   agent: AgentWithCreditsPrice;
   disabled?: boolean | undefined;
   averageExecutionDuration: number;
+  isDemo: boolean;
 }) {
   const t = useTranslations("App.Agents.Jobs.CreateJob.Input");
 
@@ -107,10 +109,9 @@ function InputAccordionItem({
     <AccordionItemWrapper value="input" title={t("title")} disabled={disabled}>
       <div className="flex flex-col gap-6">
         <JobInputsForm
-          agentId={agent.id}
-          agentCreditsPrice={agent.creditsPrice}
-          legal={getAgentLegal(agent)}
+          agent={agent}
           averageExecutionDuration={averageExecutionDuration}
+          isDemo={isDemo}
         />
       </div>
     </AccordionItemWrapper>

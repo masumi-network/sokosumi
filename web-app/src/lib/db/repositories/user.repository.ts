@@ -68,4 +68,50 @@ export const userRepository = {
       where: { stripeCustomerId },
     });
   },
+
+  /**
+   * Retrieves all users that do not have a Stripe customer ID.
+   *
+   * @param tx - (Optional) The Prisma transaction client to use. Defaults to the main Prisma client.
+   * @returns A promise that resolves to an array of User objects without Stripe customer IDs.
+   */
+  getUsersWithoutStripeCustomerId: async (
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<User[]> => {
+    return tx.user.findMany({
+      where: {
+        stripeCustomerId: null,
+      },
+    });
+  },
+
+  /**
+   * Retrieves all Stripe customer IDs from users that have them.
+   *
+   * @param tx - (Optional) The Prisma transaction client to use. Defaults to the main Prisma client.
+   * @returns A promise that resolves to an array of Stripe customer IDs.
+   */
+  getUserStripeCustomerIds: async (
+    createdAfter?: Date,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<string[]> => {
+    const users = await tx.user.findMany({
+      where: {
+        stripeCustomerId: {
+          not: null,
+        },
+        ...(createdAfter && {
+          created: {
+            gte: createdAfter.getTime(),
+          },
+        }),
+      },
+      select: {
+        stripeCustomerId: true,
+      },
+    });
+    return users
+      .map((user) => user.stripeCustomerId)
+      .filter((id): id is string => id !== null);
+  },
 };

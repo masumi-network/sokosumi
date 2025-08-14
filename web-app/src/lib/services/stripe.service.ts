@@ -5,7 +5,7 @@ import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { UnAuthenticatedError } from "@/lib/auth/errors";
-import { verifyUserId } from "@/lib/auth/utils";
+import { getSession, verifyUserId } from "@/lib/auth/utils";
 import { Price, stripeClient } from "@/lib/clients/stripe.client";
 import { convertCreditsToCents } from "@/lib/db";
 import {
@@ -22,6 +22,24 @@ import {
 } from "@/lib/errors/coupon-errors";
 
 export const stripeService = (() => {
+  async function getStripeCustomerId(
+    userId: string,
+    organizationId: string | null,
+  ): Promise<string | null> {
+    if (organizationId) {
+      const organization =
+        await organizationRepository.getOrganizationWithRelationsById(
+          organizationId,
+        );
+      if (!organization) throw new Error("Organization not found");
+      return organization.stripeCustomerId;
+    } else {
+      const user = await userRepository.getUserById(userId);
+      if (!user) throw new Error("User not found");
+      return user.stripeCustomerId;
+    }
+  }
+
   return {
     async createStripeCheckoutSession(
       userId: string,
@@ -35,27 +53,12 @@ export const stripeService = (() => {
         throw new UnAuthenticatedError("User not authorized");
       }
       try {
-        const user = await userRepository.getUserById(userId);
-        if (!user) throw new Error("User not found");
-
-        // Get or create the appropriate Stripe customer ID (has its own transaction)
-        let stripeCustomerId: string | null;
-        if (organizationId) {
-          // Use organization's Stripe customer
-          stripeCustomerId =
-            await this.getOrCreateStripeCustomerForOrganization(organizationId);
-          if (!stripeCustomerId) {
-            throw new Error(
-              "Failed to get or create organization Stripe customer",
-            );
-          }
-        } else {
-          // Use user's Stripe customer
-          stripeCustomerId =
-            await this.getOrCreateStripeCustomerForUser(userId);
-          if (!stripeCustomerId) {
-            throw new Error("Failed to get or create user Stripe customer");
-          }
+        const stripeCustomerId = await getStripeCustomerId(
+          userId,
+          organizationId,
+        );
+        if (!stripeCustomerId) {
+          throw new Error("Stripe customer not found");
         }
 
         const amount = credits * price.amountPerCredit;
@@ -101,26 +104,40 @@ export const stripeService = (() => {
       }
     },
 
-    async getWelcomePromotionCode(
-      userId: string,
-    ): Promise<Stripe.PromotionCode | null> {
+    /**
+     * Retrieves a welcome promotion code for the current user if eligible.
+     *
+     * This function checks if the user is eligible for a welcome promotion code based on the following criteria:
+     * - The environment variable STRIPE_WELCOME_COUPONS must contain at least one coupon ID.
+     * - The user must be authenticated (session exists).
+     * - The user must not be part of an active organization (promotion is for individual users only).
+     * - The user must have a valid Stripe customer ID.
+     * - The user must not have already redeemed any of the welcome coupons.
+     *
+     * If all criteria are met, the function attempts to retrieve or create a promotion code for the last coupon ID in the list.
+     *
+     * @returns {Promise<Stripe.PromotionCode | null>} The promotion code if eligible, otherwise null.
+     */
+    async getWelcomePromotionCode(): Promise<Stripe.PromotionCode | null> {
       const couponIds = getEnvSecrets().STRIPE_WELCOME_COUPONS;
       if (couponIds.length === 0) {
         return null;
       }
 
-      const isVerified = await verifyUserId(userId);
-      if (!isVerified) {
+      const session = await getSession();
+      if (!session) {
         return null;
       }
 
-      const user = await userRepository.getUserById(userId);
-      if (!user) {
-        throw new Error("User not found");
+      // If user is in an organization, we don't need to create a promotion code
+      if (session.session.activeOrganizationId) {
+        return null;
       }
 
-      const stripeCustomerId =
-        await this.getOrCreateStripeCustomerForUser(userId);
+      const stripeCustomerId = await getStripeCustomerId(
+        session.user.id,
+        session.session.activeOrganizationId ?? null,
+      );
       if (!stripeCustomerId) {
         return null;
       }
@@ -147,32 +164,28 @@ export const stripeService = (() => {
         return null;
       }
 
-      return await this.getPromotionCode(userId, lastCouponId, 1);
+      return await this.getPromotionCode(lastCouponId, 1);
     },
 
     async getPromotionCode(
-      userId: string,
       couponId: string,
       maxRedemptions: number = 1,
       metadata?: Record<string, string>,
     ): Promise<Stripe.PromotionCode | null> {
-      const isVerified = await verifyUserId(userId);
-      if (!isVerified) {
+      const session = await getSession();
+      if (!session) {
         return null;
       }
-      const user = await userRepository.getUserById(userId);
-      if (!user) {
-        throw new Error("User not found");
+
+      const stripeCustomerId = await getStripeCustomerId(
+        session.user.id,
+        session.session.activeOrganizationId ?? null,
+      );
+      if (!stripeCustomerId) {
+        return null;
       }
 
       try {
-        // Use the new atomic customer creation method
-        const stripeCustomerId =
-          await this.getOrCreateStripeCustomerForUser(userId);
-        if (!stripeCustomerId) {
-          return null;
-        }
-
         // Check for existing promotion codes
         let promotionCode = await stripeClient.getPromotionCode(
           stripeCustomerId,
@@ -193,7 +206,7 @@ export const stripeService = (() => {
         return promotionCode;
       } catch (error) {
         console.error(
-          `Error in getOrCreatePromotionCode for user ${userId}:`,
+          `Error in getOrCreatePromotionCode for user ${session.user.id} and organization ${session.session.activeOrganizationId}:`,
           error,
         );
         return null;
@@ -243,120 +256,27 @@ export const stripeService = (() => {
       return credits;
     },
 
-    async getOrCreateStripeCustomerForUser(
+    async createStripeCustomerForUser(
       userId: string,
-    ): Promise<string | null> {
-      return await prisma.$transaction(async (tx) => {
-        try {
-          const user = await userRepository.getUserById(userId, tx);
-
-          if (!user) {
-            return null;
-          }
-
-          // If user already has a Stripe customer ID, return it
-          if (user.stripeCustomerId) {
-            return user.stripeCustomerId;
-          }
-
-          // Create a new Stripe customer for the user
-          const customer = await stripeClient.createUserCustomer(user);
-
-          try {
-            // Save the customer ID to the database
-            const updatedUser = await userRepository.setUserStripeCustomerId(
-              user.id,
-              customer.id,
-              tx,
-            );
-            return updatedUser.stripeCustomerId;
-          } catch (_error) {
-            // If there's a unique constraint violation, clean up the Stripe customer
-            // and return the existing customer ID from the database
-            try {
-              await stripeClient.deleteCustomer(customer.id);
-            } catch (cleanupError) {
-              console.warn(
-                `Failed to cleanup duplicate Stripe customer ${customer.id}:`,
-                cleanupError,
-              );
-            }
-
-            // Fetch the updated user record to get the existing customer ID
-            const updatedUser = await userRepository.getUserById(userId, tx);
-            return updatedUser?.stripeCustomerId ?? null;
-          }
-        } catch (error) {
-          console.error(
-            `Error in getOrCreateStripeCustomerForUser for user ${userId}:`,
-            error,
-          );
-          return null;
-        }
-      });
+    ): Promise<Stripe.Customer | null> {
+      const user = await userRepository.getUserById(userId);
+      if (!user) {
+        return null;
+      }
+      return await stripeClient.createUserCustomer(user);
     },
 
-    async getOrCreateStripeCustomerForOrganization(
+    async createStripeCustomerForOrganization(
       organizationId: string,
-    ): Promise<string | null> {
-      return await prisma.$transaction(async (tx) => {
-        try {
-          const organization =
-            await organizationRepository.getOrganizationWithRelationsById(
-              organizationId,
-              tx,
-            );
-
-          if (!organization) {
-            return null;
-          }
-
-          // If organization already has a Stripe customer ID, return it
-          if (organization.stripeCustomerId) {
-            return organization.stripeCustomerId;
-          }
-
-          // Create a new Stripe customer for the organization
-          const customer =
-            await stripeClient.createOrganizationCustomer(organization);
-
-          try {
-            // Save the customer ID to the database
-            const updatedOrg =
-              await organizationRepository.setOrganizationStripeCustomerId(
-                organization.id,
-                customer.id,
-                tx,
-              );
-            return updatedOrg.stripeCustomerId;
-          } catch (_error) {
-            // If there's a unique constraint violation, clean up the Stripe customer
-            // and return the existing customer ID from the database
-            try {
-              await stripeClient.deleteCustomer(customer.id);
-            } catch (cleanupError) {
-              console.warn(
-                `Failed to cleanup duplicate Stripe customer ${customer.id}:`,
-                cleanupError,
-              );
-            }
-
-            // Fetch the updated organization record to get the existing customer ID
-            const updatedOrganization =
-              await organizationRepository.getOrganizationWithRelationsById(
-                organizationId,
-                tx,
-              );
-            return updatedOrganization?.stripeCustomerId ?? null;
-          }
-        } catch (error) {
-          console.error(
-            `Error in getOrCreateStripeCustomerForOrganization for organization ${organizationId}:`,
-            error,
-          );
-          return null;
-        }
-      });
+    ): Promise<Stripe.Customer | null> {
+      const organization =
+        await organizationRepository.getOrganizationWithRelationsById(
+          organizationId,
+        );
+      if (!organization) {
+        return null;
+      }
+      return await stripeClient.createOrganizationCustomer(organization);
     },
 
     async syncOrganizationInvoiceEmailWithStripe(

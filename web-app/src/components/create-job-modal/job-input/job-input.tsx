@@ -32,14 +32,20 @@ import { isOptional, isSingleOption } from "./util";
 interface JobInputProps {
   form: UseFormReturn<JobInputsFormSchemaType>;
   jobInputSchema: JobInputSchemaType;
+  disabled?: boolean;
 }
 
-export default function JobInput({ form, jobInputSchema }: JobInputProps) {
+export default function JobInput({
+  form,
+  jobInputSchema,
+  disabled = false,
+}: JobInputProps) {
   const { id, name, data } = jobInputSchema;
   return (
     <FormField
       control={form.control}
       name={id}
+      disabled={disabled}
       render={({ field }) => (
         <FormItem>
           <FormLabel

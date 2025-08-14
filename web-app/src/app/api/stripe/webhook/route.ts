@@ -39,6 +39,7 @@ export async function POST(req: Request) {
     "checkout.session.async_payment_succeeded",
     "checkout.session.async_payment_failed",
     "invoice.paid",
+    "customer.created",
     "customer.updated",
   ];
 
@@ -62,6 +63,10 @@ export async function POST(req: Request) {
         case "checkout.session.async_payment_failed": {
           const session = event.data.object as Stripe.Checkout.Session;
           return await handleCheckoutSessionAsyncPaymentFailedEvent(session);
+        }
+        case "customer.created": {
+          const customer = event.data.object as Stripe.Customer;
+          return await handleCustomerCreatedEvent(customer);
         }
         case "customer.updated": {
           const customer = event.data.object as Stripe.Customer;
@@ -219,6 +224,103 @@ const updateFiatTransactionStatus = async (
       throw error;
     }
   });
+};
+
+const handleCustomerCreatedEvent = async (
+  customer: Stripe.Customer,
+): Promise<NextResponse> => {
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const metadata = customer.metadata;
+      switch (metadata?.type) {
+        case "user": {
+          const userId = metadata.userId;
+          const user = await userRepository.getUserById(userId, tx);
+          if (!user) {
+            return NextResponse.json(
+              { message: "User not found" },
+              { status: 200 },
+            );
+          }
+          if (user.email !== customer.email) {
+            await stripeClient.updateCustomerEmail(customer.id, user.email);
+          }
+          if (user.stripeCustomerId === customer.id) {
+            return NextResponse.json(
+              { message: "User already has this stripe customer id" },
+              { status: 200 },
+            );
+          }
+          if (user.stripeCustomerId) {
+            await stripeClient.deleteCustomer(customer.id);
+            return NextResponse.json(
+              { message: "User already has a stripe customer id" },
+              { status: 200 },
+            );
+          }
+          await userRepository.setUserStripeCustomerId(userId, customer.id, tx);
+          return NextResponse.json(
+            {
+              message: `✅ Updated user ${userId} stripe customer id to ${customer.id}`,
+            },
+            { status: 200 },
+          );
+        }
+        case "organization": {
+          const organizationId = metadata.organizationId;
+          const organization =
+            await organizationRepository.getOrganizationWithRelationsById(
+              organizationId,
+              tx,
+            );
+          if (!organization) {
+            return NextResponse.json(
+              { message: "Organization not found" },
+              { status: 200 },
+            );
+          }
+          if (organization.stripeCustomerId === customer.id) {
+            return NextResponse.json(
+              { message: "Organization already has this stripe customer id" },
+              { status: 200 },
+            );
+          }
+          if (organization.stripeCustomerId) {
+            await stripeClient.deleteCustomer(customer.id);
+            return NextResponse.json(
+              { message: "Organization already has a stripe customer id" },
+              { status: 200 },
+            );
+          }
+          await organizationRepository.setOrganizationStripeCustomerId(
+            organizationId,
+            customer.id,
+            tx,
+          );
+          return NextResponse.json(
+            {
+              message: `✅ Updated organization ${organizationId} stripe customer id to ${customer.id}`,
+            },
+            { status: 200 },
+          );
+        }
+        default: {
+          return NextResponse.json(
+            {
+              message: `Unknown customer type ${metadata?.type} for customer ${customer.id}`,
+            },
+            { status: 200 },
+          );
+        }
+      }
+    });
+  } catch (error) {
+    console.error("Error handling customer.created event", error);
+    return NextResponse.json(
+      { message: "Failed to process customer creation" },
+      { status: 500 },
+    );
+  }
 };
 
 const handleCustomerUpdatedEvent = async (

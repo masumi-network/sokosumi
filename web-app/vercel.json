@@ -8,6 +8,14 @@
     {
       "path": "/api/sync/jobs",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/sync/stripe-customers",
+      "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/sync/stripe-customers-cleanup",
+      "schedule": "0 0 * * *"
     }
   ]
 }

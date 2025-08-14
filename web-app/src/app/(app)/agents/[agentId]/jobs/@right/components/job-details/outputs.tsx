@@ -60,13 +60,13 @@ function JobDetailsOutputsInner({ job }: JobDetailsOutputsProps) {
                 <CopyMarkdown markdown={output.result} />
               </div>
             </div>
-            <RequestRefundButton initialJob={job} />
+            {!job.isDemo && <RequestRefundButton initialJob={job} />}
           </div>
         </>
       ) : (
         <>
           <p className="text-base">{t("none")}</p>
-          {job.status === JobStatus.FAILED && (
+          {!job.isDemo && job.status === JobStatus.FAILED && (
             <div className="flex justify-end">
               <RequestRefundButton initialJob={job} />
             </div>
