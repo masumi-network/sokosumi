@@ -10,17 +10,17 @@ import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth/auth.client";
 
-type SocialKey = "google" | "microsoft";
+type SocialKey = "Google" | "Microsoft";
 const socialButtons: Array<{
   key: SocialKey;
   Button: React.FC<ComponentProps<typeof GoogleLoginButton>>;
 }> = [
   {
-    key: "google",
+    key: "Google",
     Button: GoogleLoginButton,
   },
   {
-    key: "microsoft",
+    key: "Microsoft",
     Button: MicrosoftLoginButton,
   },
 ];
