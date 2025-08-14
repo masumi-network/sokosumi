@@ -86,7 +86,11 @@ async function cleanupOrphanedStripeCustomers(): Promise<void> {
     customers: stripeCustomers,
     hasMore,
     lastId,
-  } = await stripeClient.getCustomersChunk(startingAfter, CUSTOMERS_PER_CHUNK);
+  } = await stripeClient.getCustomersChunk(
+    CUSTOMERS_PER_CHUNK,
+    startingAfter,
+    new Date(Date.now() - 1000 * 60 * 60 * 24 * 5), // 5 days ago
+  );
 
   console.info(
     `Found ${stripeCustomers.length} Stripe customers in chunk (hasMore: ${hasMore})`,
@@ -109,6 +113,11 @@ async function cleanupOrphanedStripeCustomers(): Promise<void> {
     ...organizationCustomerIds,
   ]);
   console.info(`Found ${dbCustomerIds.size} customer IDs in database`);
+
+  if (dbCustomerIds.size === 0) {
+    console.info("No customer IDs in database, skipping cleanup");
+    return;
+  }
 
   // Identify orphaned customers in this chunk
   const orphanedCustomers = stripeCustomers.filter(

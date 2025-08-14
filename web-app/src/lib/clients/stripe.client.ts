@@ -72,8 +72,9 @@ export const stripeClient = (() => {
     },
 
     async getCustomersChunk(
-      startingAfter?: string,
       limit: number = 100,
+      startingAfter?: string,
+      createdAfter?: Date,
     ): Promise<{
       customers: Stripe.Customer[];
       hasMore: boolean;
@@ -92,6 +93,11 @@ export const stripeClient = (() => {
           await stripe.customers.list({
             limit: requestLimit,
             starting_after: currentStartingAfter,
+            ...(createdAfter && {
+              created: {
+                gte: createdAfter.getTime(),
+              },
+            }),
           });
 
         customers.push(...response.data);
