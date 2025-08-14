@@ -3,25 +3,15 @@ import "server-only";
 import { AgentWithCreditsPrice, convertCentsToCredits } from "@/lib/db";
 import { User } from "@/prisma/generated/client";
 
-import { AgentResponse } from "./schemas";
+import { AgentResponse, UserResponse, userResponseSchema } from "./schemas";
 import { dateToISO } from "./utils";
 
 /**
  * Formats user data for API response
  */
-export function formatUserResponse(user: User) {
-  return {
-    user: {
-      id: user.id,
-      createdAt: dateToISO(user.createdAt),
-      updatedAt: dateToISO(user.updatedAt),
-      name: user.name,
-      email: user.email,
-      termsAccepted: user.termsAccepted,
-      marketingOptIn: user.marketingOptIn,
-      stripeCustomerId: user.stripeCustomerId,
-    },
-  };
+export function formatUserResponse(user: User): UserResponse {
+  const userResponse = userResponseSchema.parse(user);
+  return userResponse;
 }
 
 /**
