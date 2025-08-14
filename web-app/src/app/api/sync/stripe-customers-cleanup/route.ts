@@ -135,16 +135,8 @@ async function cleanupOrphanedStripeCustomers(): Promise<void> {
     console.info(`Deleted ${orphanedCustomers.length} orphaned customers`);
   }
 
-  // Find the last non-deleted (non-orphaned) customer ID for the cursor
-  let cursorId: string | undefined = cursorRecord?.cursor ?? undefined;
-
-  // Search from the end of the array backwards to find last non-orphaned customer
-  for (const customer of stripeCustomers.toReversed()) {
-    if (dbCustomerIds.has(customer.id)) {
-      cursorId = customer.id;
-      break;
-    }
-  }
+  // Set the last customer ID for the cursor
+  const cursorId: string | undefined = lastId;
 
   // Update cursor for next run
   if (hasMore && cursorId) {
