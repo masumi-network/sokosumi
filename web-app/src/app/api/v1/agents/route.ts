@@ -1,15 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import {
-  formatAgentResponse,
-  handleApiError,
-  validateApiKeySession,
-} from "@/lib/api";
+import { formatAgentResponse, handleApiError, validateApiKey } from "@/lib/api";
 import { agentService } from "@/lib/services";
 
 export async function GET(request: NextRequest) {
   try {
-    await validateApiKeySession(request.headers);
+    const _apiKey = await validateApiKey(request.headers);
 
     // Get all available agents with credits pricing
     const agents = await agentService.getAvailableAgentsWithCreditsPrice();

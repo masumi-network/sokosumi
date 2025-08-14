@@ -6,23 +6,32 @@ import { z } from "zod";
 
 import { auth } from "@/lib/auth/auth";
 
-/**
- * Validates API key authentication via Better Auth
- * @param headers - Request headers containing x-api-key
- * @returns Session object with organization context if valid
- * @throws Error with "UNAUTHORIZED" if invalid
- */
-export async function validateApiKeySession(headers: Headers) {
-  const session = await auth.api.getSession({ headers });
+export async function validateApiKey(headers: Headers) {
+  const key = headers.get("x-api-key");
+  if (!key) {
+    throw new Error("UNAUTHORIZED");
+  }
+  const data = await auth.api.verifyApiKey({
+    body: {
+      key,
+    },
+  });
 
-  if (!session) {
+  if (data.error) {
     throw new Error("UNAUTHORIZED");
   }
 
-  // Note: API key organization context will be handled in individual endpoints
-  // when they need to validate organization access from API key metadata
+  if (!data.valid) {
+    throw new Error("UNAUTHORIZED");
+  }
 
-  return session;
+  const apiKey = data.key;
+
+  if (!apiKey) {
+    throw new Error("UNAUTHORIZED");
+  }
+
+  return apiKey;
 }
 
 /**

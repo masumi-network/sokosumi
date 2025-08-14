@@ -9,7 +9,7 @@ import {
   createJobRequestSchema,
   formatJobResponse,
   handleApiError,
-  validateApiKeySession,
+  validateApiKey,
 } from "@/lib/api";
 import { agentClient } from "@/lib/clients";
 import { convertCreditsToCents } from "@/lib/db";
@@ -31,7 +31,7 @@ export async function GET(
   { params }: RouteParams,
 ): Promise<NextResponse> {
   try {
-    const session = await validateApiKeySession(request.headers);
+    const apiKey = await validateApiKey(request.headers);
     const { agentId } = await params;
 
     // Validate that the agent exists and is available
@@ -47,21 +47,21 @@ export async function GET(
     }
 
     // Get organization context from session (works for both regular sessions and API keys)
-    const activeOrganizationId = session.session.activeOrganizationId;
+    const activeOrganizationId = apiKey.metadata?.organizationId;
 
     let jobs;
     if (activeOrganizationId) {
       // Show jobs for the specific organization
       jobs = await jobRepository.getJobsByAgentIdUserIdAndOrganizationId(
         agentId,
-        session.user.id,
+        apiKey.userId,
         activeOrganizationId,
       );
     } else {
       // Show personal jobs only (no organization)
       jobs = await jobRepository.getPersonalJobsByAgentIdAndUserId(
         agentId,
-        session.user.id,
+        apiKey.userId,
       );
     }
 
@@ -86,7 +86,7 @@ export async function POST(
   { params }: RouteParams,
 ): Promise<NextResponse> {
   try {
-    await validateApiKeySession(request.headers);
+    const _apiKey = await validateApiKey(request.headers);
     const { agentId } = await params;
 
     // Parse request body

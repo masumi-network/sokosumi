@@ -6,7 +6,7 @@ import {
   handleApiError,
   updateUserProfileFullSchema,
   updateUserProfileSchema,
-  validateApiKeySession,
+  validateApiKey,
 } from "@/lib/api";
 import { auth } from "@/lib/auth/auth";
 import { userRepository } from "@/lib/db/repositories";
@@ -14,7 +14,7 @@ import { User } from "@/prisma/generated/client";
 
 // Helper function for updating user via Better Auth and fetching result
 async function updateUserAndFetch(
-  session: { user: { id: string } },
+  userId: string,
   headers: Headers,
   data: { name?: string; marketingOptIn?: boolean },
 ): Promise<User> {
@@ -29,7 +29,7 @@ async function updateUserAndFetch(
   }
 
   // Fetch the complete updated user from repository
-  const user = await userRepository.getUserById(session.user.id);
+  const user = await userRepository.getUserById(userId);
   if (!user) {
     throw new Error("User not found after update");
   }
@@ -39,8 +39,8 @@ async function updateUserAndFetch(
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await validateApiKeySession(request.headers);
-    const user = await userRepository.getUserById(session.user.id);
+    const apiKey = await validateApiKey(request.headers);
+    const user = await userRepository.getUserById(apiKey.userId);
     if (!user) {
       throw new Error("UNAUTHORIZED");
     }
@@ -52,13 +52,13 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
-    const session = await validateApiKeySession(request.headers);
+    const apiKey = await validateApiKey(request.headers);
 
     const body = await request.json();
     const validatedData = updateUserProfileFullSchema().parse(body);
 
     const updatedUser = await updateUserAndFetch(
-      session,
+      apiKey.userId,
       request.headers,
       validatedData,
     );
@@ -71,7 +71,7 @@ export async function PUT(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await validateApiKeySession(request.headers);
+    const apiKey = await validateApiKey(request.headers);
 
     const body = await request.json();
     const validatedData = updateUserProfileSchema().parse(body);
@@ -88,7 +88,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     const updatedUser = await updateUserAndFetch(
-      session,
+      apiKey.userId,
       request.headers,
       validatedData,
     );
@@ -101,7 +101,7 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    await validateApiKeySession(request.headers);
+    const _apiKey = await validateApiKey(request.headers);
 
     const body = await request.json();
     const validatedData = deleteUserSchema().parse(body);
