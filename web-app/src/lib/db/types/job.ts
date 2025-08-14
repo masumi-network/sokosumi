@@ -7,6 +7,8 @@ import {
 export const jobInclude = {
   agent: true,
   user: true,
+  creditTransaction: true,
+  refundedCreditTransaction: true,
 } as const;
 
 export const jobOrderBy = {
