@@ -6,8 +6,6 @@ import { redirect } from "next/navigation";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { auth, Session } from "@/lib/auth/auth";
 
-import { UnAuthenticatedError } from "./errors";
-
 /**
  * Represents the authentication scope for a user, including their user ID
  * and optional active organization ID.
@@ -79,29 +77,6 @@ export async function getScope(): Promise<Scope | null> {
   } else {
     return await getScopeFromSession(headersList);
   }
-}
-
-/**
- * Gets the current user's authentication scope or throws an UnAuthenticatedError
- * if no valid authentication is found. This is useful when authentication is
- * required for the operation to proceed.
- *
- * @returns Promise resolving to the user's scope
- * @throws {UnAuthenticatedError} When no valid authentication is found
- *
- */
-export async function getScopeOrThrow(): Promise<Scope> {
-  const scope = await getScope();
-  if (!scope) {
-    // Get the current URL from headers for server-side redirect
-    const headersList = await headers();
-    const pathname = headersList.get("x-pathname") ?? "";
-    const searchParams = headersList.get("x-search-params") ?? "";
-    const currentUrl = pathname + searchParams;
-
-    throw new UnAuthenticatedError(currentUrl);
-  }
-  return scope;
 }
 
 /**

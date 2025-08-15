@@ -2,7 +2,7 @@ import "server-only";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
-import { getScope, getScopeOrThrow } from "@/lib/auth/utils";
+import { getScope } from "@/lib/auth/utils";
 import {
   AgentWithCreditsPrice,
   AgentWithFixedPricing,
@@ -119,7 +119,10 @@ export const agentService = (() => {
   const getAgentsByListType = async (
     type: AgentListType,
   ): Promise<AgentWithRelations[]> => {
-    const scope = await getScopeOrThrow();
+    const scope = await getScope();
+    if (!scope) {
+      return [];
+    }
     return await prisma.$transaction(async (tx) => {
       const existingList = await agentListRepository.getAgentListByUserId(
         scope.userId,
@@ -241,7 +244,10 @@ export const agentService = (() => {
      * @throws If no active session is found.
      */
     getHiredAgents: async (): Promise<AgentWithJobs[]> => {
-      const scope = await getScopeOrThrow();
+      const scope = await getScope();
+      if (!scope) {
+        return [];
+      }
       const hiredAgentsWithJobs =
         await agentRepository.getHiredAgentsWithJobsByUserIdAndOrganization(
           scope.userId,
