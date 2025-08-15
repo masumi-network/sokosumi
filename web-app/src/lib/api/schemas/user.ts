@@ -44,13 +44,6 @@ export const userResponseSchema = z.object({
   stripeCustomerId: z.string().nullable(),
 });
 
-/**
- * Schema for the complete user API response wrapper
- */
-export const userResponseWrapperSchema = z.object({
-  user: userResponseSchema,
-});
-
 // Type exports for use in API routes
 export type UpdateUserProfileType = z.infer<
   ReturnType<typeof updateUserProfileSchema>
@@ -59,4 +52,4 @@ export type UpdateUserProfileFullType = z.infer<
   ReturnType<typeof updateUserProfileFullSchema>
 >;
 export type DeleteUserType = z.infer<ReturnType<typeof deleteUserSchema>>;
-export type UserResponse = z.infer<typeof userResponseWrapperSchema>;
+export type UserResponse = z.infer<typeof userResponseSchema>;

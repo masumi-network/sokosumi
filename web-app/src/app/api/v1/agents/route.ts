@@ -1,6 +1,11 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
-import { formatAgentResponse, handleApiError, validateApiKey } from "@/lib/api";
+import {
+  createApiSuccessResponse,
+  formatAgentResponse,
+  handleApiError,
+  validateApiKey,
+} from "@/lib/api";
 import { agentService } from "@/lib/services";
 
 export async function GET(request: NextRequest) {
@@ -13,10 +18,7 @@ export async function GET(request: NextRequest) {
     // Format agents to handle BigInt and Date serialization
     const formattedAgents = agents.map(formatAgentResponse);
 
-    return NextResponse.json({
-      agents: formattedAgents,
-      total: formattedAgents.length,
-    });
+    return createApiSuccessResponse(formattedAgents);
   } catch (error) {
     return handleApiError(error, "retrieve agents");
   }

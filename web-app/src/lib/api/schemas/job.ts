@@ -52,11 +52,6 @@ export const jobResponseSchema = z.object({
   jobStatusSettled: z.boolean(),
 });
 
-// Response schema for single job endpoint
-export const jobResponseWrapperSchema = z.object({
-  job: jobResponseSchema,
-});
-
 // Response schema for jobs list endpoint
 export const jobsListResponseSchema = z.object({
   jobs: z.array(jobResponseSchema),
@@ -67,5 +62,4 @@ export const jobsListResponseSchema = z.object({
 export type CreateJobRequest = z.infer<typeof createJobRequestSchema>;
 export type JobCreditsResponse = z.infer<typeof jobCreditsSchema>;
 export type JobResponse = z.infer<typeof jobResponseSchema>;
-export type JobResponseWrapper = z.infer<typeof jobResponseWrapperSchema>;
 export type JobsListResponse = z.infer<typeof jobsListResponseSchema>;

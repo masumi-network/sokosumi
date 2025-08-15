@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { CommonErrorCode, JobErrorCode, startJob } from "@/lib/actions";
 import {
+  createApiSuccessResponse,
   createJobRequestSchema,
   formatJobResponse,
   handleApiError,
@@ -33,13 +34,7 @@ export async function GET(
     // Validate that the agent exists and is available
     const agent = await agentService.getAvailableAgentById(agentId);
     if (!agent) {
-      return NextResponse.json(
-        {
-          error: "Not Found",
-          message: "Agent not found or not available",
-        },
-        { status: 404 },
-      );
+      throw new Error("AGENT_NOT_FOUND");
     }
 
     // Get organization context from session (works for both regular sessions and API keys)
@@ -62,12 +57,8 @@ export async function GET(
     }
 
     // Format all jobs
-    const formattedJobs = jobs.map((job) => formatJobResponse(job).job);
-
-    return NextResponse.json({
-      jobs: formattedJobs,
-      total: formattedJobs.length,
-    });
+    const formattedJobs = jobs.map((job) => formatJobResponse(job));
+    return createApiSuccessResponse(formattedJobs);
   } catch (error) {
     return handleApiError(error, "retrieve jobs");
   }
@@ -95,14 +86,11 @@ export async function POST(
     );
 
     if (!response.ok) {
-      return NextResponse.json(
-        { error: "Bad Request", message: "Failed to fetch agent input schema" },
-        { status: 400 },
-      );
+      throw new Error("INVALID_INPUT");
     }
 
     const inputSchema = await response.json();
-    const validatedInputSchema = jobInputsDataSchema().parse(inputSchema);
+    const validatedInputSchema = jobInputsDataSchema().parse(inputSchema.data);
 
     // Convert credits back to cents for the job service
     const maxAcceptedCents = convertCreditsToCents(
@@ -127,61 +115,25 @@ export async function POST(
     );
 
     if (!result.ok) {
-      // Handle specific job creation errors
+      // Handle specific job creation errors by throwing errors that handleApiError can catch
       switch (result.error.code) {
         case CommonErrorCode.BAD_INPUT:
-          return NextResponse.json(
-            {
-              error: "Bad Request",
-              message: result.error.message,
-            },
-            { status: 400 },
-          );
+          throw new Error("INVALID_INPUT");
         case JobErrorCode.AGENT_NOT_FOUND:
-          return NextResponse.json(
-            {
-              error: "Not Found",
-              message: result.error.message,
-            },
-            { status: 404 },
-          );
+          throw new Error("AGENT_NOT_FOUND");
         case JobErrorCode.INSUFFICIENT_BALANCE:
-          return NextResponse.json(
-            {
-              error: "Payment Required",
-              message: result.error.message,
-            },
-            { status: 402 },
-          );
+          throw new Error("INSUFFICIENT_BALANCE");
         case JobErrorCode.COST_TOO_HIGH:
-          return NextResponse.json(
-            {
-              error: "Bad Request",
-              message: result.error.message,
-            },
-            { status: 400 },
-          );
+          throw new Error("INVALID_INPUT");
         default:
-          return NextResponse.json(
-            {
-              error: "Internal Server Error",
-              message: result.error.message,
-            },
-            { status: 500 },
-          );
+          throw new Error(result.error.message ?? "Unknown error");
       }
     }
 
     // Get the created job and return it
     const createdJob = await jobRepository.getJobById(result.data.jobId);
     if (!createdJob) {
-      return NextResponse.json(
-        {
-          error: "Internal Server Error",
-          message: "Failed to retrieve created job",
-        },
-        { status: 500 },
-      );
+      throw new Error("JOB_NOT_FOUND");
     }
 
     // Set the job name if provided
@@ -193,26 +145,16 @@ export async function POST(
       // Refetch the job with updated name
       const updatedJob = await jobRepository.getJobById(result.data.jobId);
       if (updatedJob) {
-        return NextResponse.json(formatJobResponse(updatedJob), {
+        return createApiSuccessResponse(formatJobResponse(updatedJob), {
           status: 201,
         });
       }
     }
 
-    return NextResponse.json(formatJobResponse(createdJob), { status: 201 });
+    return createApiSuccessResponse(formatJobResponse(createdJob), {
+      status: 201,
+    });
   } catch (error) {
-    // Handle Zod validation errors specifically
-    if (error && typeof error === "object" && "issues" in error) {
-      return NextResponse.json(
-        {
-          error: "Bad Request",
-          message: "Invalid request data",
-          details: (error as { issues: unknown[] }).issues,
-        },
-        { status: 400 },
-      );
-    }
-
     return handleApiError(error, "create job");
   }
 }

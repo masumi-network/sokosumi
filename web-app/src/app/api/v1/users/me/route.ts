@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 
 import {
+  createApiEmptyResponse,
+  createApiSuccessResponse,
   deleteUserSchema,
   formatUserResponse,
   handleApiError,
@@ -44,7 +46,7 @@ export async function GET(request: NextRequest) {
     if (!user) {
       throw new Error("UNAUTHORIZED");
     }
-    return NextResponse.json(formatUserResponse(user));
+    return createApiSuccessResponse(formatUserResponse(user));
   } catch (error) {
     return handleApiError(error, "retrieve user information");
   }
@@ -63,7 +65,7 @@ export async function PUT(request: NextRequest) {
       validatedData,
     );
 
-    return NextResponse.json(formatUserResponse(updatedUser));
+    return createApiSuccessResponse(formatUserResponse(updatedUser));
   } catch (error) {
     return handleApiError(error, "update user information");
   }
@@ -78,13 +80,7 @@ export async function PATCH(request: NextRequest) {
 
     // Only update if there are actually fields to update
     if (Object.keys(validatedData).length === 0) {
-      return NextResponse.json(
-        {
-          error: "Bad Request",
-          message: "No valid fields provided for update",
-        },
-        { status: 400 },
-      );
+      throw new Error("INVALID_INPUT");
     }
 
     const updatedUser = await updateUserAndFetch(
@@ -93,7 +89,7 @@ export async function PATCH(request: NextRequest) {
       validatedData,
     );
 
-    return NextResponse.json(formatUserResponse(updatedUser));
+    return createApiSuccessResponse(formatUserResponse(updatedUser));
   } catch (error) {
     return handleApiError(error, "update user information");
   }
@@ -113,9 +109,7 @@ export async function DELETE(request: NextRequest) {
       },
     });
 
-    return NextResponse.json({
-      message: "Account successfully deleted",
-    });
+    return createApiEmptyResponse({ status: 204 });
   } catch (error) {
     return handleApiError(error, "delete user account");
   }
