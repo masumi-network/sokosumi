@@ -79,29 +79,6 @@ export async function getScope(): Promise<Scope | null> {
   }
 }
 
-/**
- * Gets the current user's authentication scope or redirects to the login page
- * if no valid authentication is found. This is useful for protecting routes
- * that require authentication.
- *
- * @returns Promise resolving to the user's scope
- * @throws {NextError} Redirects to login page with return URL when not authenticated
- *
- */
-export async function getScopeOrRedirect(): Promise<Scope> {
-  const scope = await getScope();
-  if (!scope) {
-    // Get the current URL from headers for server-side redirect
-    const headersList = await headers();
-    const pathname = headersList.get("x-pathname") ?? "";
-    const searchParams = headersList.get("x-search-params") ?? "";
-    const currentUrl = pathname + searchParams;
-    const returnUrl = encodeURIComponent(currentUrl);
-    redirect(`/login?returnUrl=${returnUrl}`);
-  }
-  return scope;
-}
-
 // ============================================================================
 // SESSION FUNCTIONS
 // ============================================================================
