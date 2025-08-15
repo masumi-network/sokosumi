@@ -71,37 +71,6 @@ export const stripeClient = (() => {
       await stripe.customers.del(customerId);
     },
 
-    async getCustomersCreatedAfter(
-      createdAfter: Date,
-    ): Promise<Stripe.Customer[]> {
-      const customers: Stripe.Customer[] = [];
-      let hasMorePages = true;
-
-      // Make multiple API calls to reach the desired limit
-      while (hasMorePages) {
-        const requestLimit = 100; // Stripe max is 100 per request
-
-        const response: Stripe.ApiList<Stripe.Customer> =
-          await stripe.customers.list({
-            limit: requestLimit,
-            created: {
-              gte: createdAfter.getTime(),
-            },
-            starting_after: customers[customers.length - 1]?.id,
-          });
-
-        customers.push(...response.data);
-        hasMorePages = response.has_more;
-
-        // If we got fewer customers than requested, we've reached the end
-        if (response.data.length < requestLimit) {
-          hasMorePages = false;
-        }
-      }
-
-      return customers;
-    },
-
     async getPromotionCode(
       customerId: string,
       couponId: string,
