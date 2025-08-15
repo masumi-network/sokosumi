@@ -3,8 +3,14 @@ import { NextRequest, NextResponse } from "next/server";
 import { agentClient } from "@/lib/clients/agent.client";
 import { agentRepository } from "@/lib/db/repositories";
 
-export async function GET(req: NextRequest) {
-  const agentId = req.nextUrl.searchParams.get("agentId");
+interface RouteParams {
+  params: Promise<{
+    agentId: string;
+  }>;
+}
+
+export async function GET(request: NextRequest, { params }: RouteParams) {
+  const { agentId } = await params;
   if (!agentId) {
     return NextResponse.json(
       { message: "Agent ID is required" },
