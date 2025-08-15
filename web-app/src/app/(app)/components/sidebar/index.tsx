@@ -44,7 +44,7 @@ export default function Sidebar({ userId }: SidebarProps) {
           <GalleryButton />
         </SheetClose>
         <div className="flex flex-1 gap-2 p-4 pt-0 md:hidden">
-          <UserCredits />
+          <UserCredits userId={userId} />
         </div>
       </SidebarFooter>
     </ShadcnSidebar>

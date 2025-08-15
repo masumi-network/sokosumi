@@ -8,10 +8,11 @@ import CustomTrigger from "./sidebar/components/custom-trigger";
 import UserCredits from "./user-credits";
 
 interface HeaderProps {
+  userId: string;
   className?: string | undefined;
 }
 
-export default function Header({ className }: HeaderProps) {
+export default function Header({ userId, className }: HeaderProps) {
   return (
     <header
       className={cn(
@@ -33,7 +34,7 @@ export default function Header({ className }: HeaderProps) {
 
       <div className="hidden flex-1 flex-row gap-2 sm:flex">
         <BreadcrumbNavigation className="flex flex-1" />
-        <UserCredits />
+        <UserCredits userId={userId} />
       </div>
     </header>
   );

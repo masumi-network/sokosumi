@@ -1,8 +1,10 @@
-import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { convertCentsToCredits } from "@/lib/db";
-import { creditTransactionRepository } from "@/lib/db/repositories";
+import {
+  creditTransactionRepository,
+  userRepository,
+} from "@/lib/db/repositories";
 import { stripeService } from "@/lib/services";
 import { userService } from "@/lib/services/user.service";
 
@@ -10,11 +12,12 @@ import BuyCreditsButton from "./buy-credits-button";
 import FreeCreditsButton from "./free-credits-button";
 import UserAvatar from "./user-avatar";
 
-export default async function UserCredits() {
-  const user = await userService.getMe();
-  if (!user) {
-    redirect("/login");
-  }
+interface UserCreditsProps {
+  userId: string;
+}
+
+export default async function UserCredits({ userId }: UserCreditsProps) {
+  const user = await userRepository.getUserById(userId);
 
   const t = await getTranslations("App.Header.Credit");
 
