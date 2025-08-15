@@ -11,7 +11,6 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getSession } from "@/lib/auth/utils";
 import { AgentWithAvailability } from "@/lib/db";
 import { agentService, jobService } from "@/lib/services";
 import { Agent } from "@/prisma/generated/client";
@@ -58,11 +57,6 @@ function AgentListsSkeleton() {
 
 async function AgentListsContent({ userId }: { userId: string }) {
   const t = await getTranslations("App.Sidebar.Content.AgentLists");
-
-  const session = await getSession();
-  if (!session) {
-    return <AgentListsSkeleton />;
-  }
 
   const [favoriteAgents, hiredAgentsWithJobs, availableAgents] =
     await Promise.all([
