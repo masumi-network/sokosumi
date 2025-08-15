@@ -4,6 +4,7 @@ import { jobInputSchema } from "@/lib/job-input";
 
 export const startJobInputSchema = z.object({
   userId: z.string(),
+  organizationId: z.string().nullish(),
   agentId: z.string(),
   maxAcceptedCents: z.bigint(),
   inputSchema: z.array(jobInputSchema()),

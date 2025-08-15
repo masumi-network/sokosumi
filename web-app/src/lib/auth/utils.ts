@@ -8,6 +8,52 @@ import { auth, Session } from "@/lib/auth/auth";
 
 import { UnAuthenticatedError } from "./errors";
 
+interface Scope {
+  userId: string;
+  organizationId: string | null;
+}
+
+async function getScopeFromApiKey(key: string): Promise<Scope> {
+  const apiKeyResult = await auth.api.verifyApiKey({
+    body: {
+      key,
+    },
+  });
+  if (!apiKeyResult.valid) {
+    throw new UnAuthenticatedError("Invalid API key");
+  }
+  if (!apiKeyResult.key) {
+    throw new UnAuthenticatedError("Invalid API key");
+  }
+  return {
+    userId: apiKeyResult.key.userId,
+    organizationId: apiKeyResult.key.metadata?.organizationId ?? null,
+  };
+}
+
+async function getScopeFromSession(headers: Headers): Promise<Scope> {
+  const session = await auth.api.getSession({
+    headers,
+  });
+  if (!session) {
+    throw new UnAuthenticatedError("Invalid session");
+  }
+  return {
+    userId: session.user.id,
+    organizationId: session.session.activeOrganizationId ?? null,
+  };
+}
+
+export async function getScope(): Promise<Scope> {
+  const headersList = await headers();
+  const key = headersList.get("x-api-key");
+  if (key) {
+    return await getScopeFromApiKey(key);
+  } else {
+    return await getScopeFromSession(headersList);
+  }
+}
+
 export async function getSession(): Promise<Session | null> {
   const session = await auth.api.getSession({
     headers: await headers(),

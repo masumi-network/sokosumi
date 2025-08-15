@@ -265,20 +265,25 @@ export const jobService = (() => {
         attributes: {
           "job.agent_id": input.agentId,
           "job.user_id": input.userId,
+          "job.organization_id": input.organizationId ?? "null",
         },
       },
       async (span) => {
-        const { userId, agentId, maxAcceptedCents, inputData, inputSchema } =
-          input;
-        const activeOrganizationId =
-          await userService.getActiveOrganizationId();
+        const {
+          userId,
+          organizationId,
+          agentId,
+          maxAcceptedCents,
+          inputData,
+          inputSchema,
+        } = input;
         // Set comprehensive context for the job start operation
         Sentry.setTag("service", "job");
         Sentry.setTag("operation", "startJob");
         Sentry.setContext("job_start_request", {
           userId,
           agentId,
-          activeOrganizationId,
+          organizationId,
         });
 
         // Add breadcrumb for job start
@@ -289,7 +294,7 @@ export const jobService = (() => {
           data: {
             agentId,
             userId,
-            activeOrganizationId,
+            organizationId,
           },
         });
 
@@ -308,7 +313,7 @@ export const jobService = (() => {
             Sentry.setContext("agent_validation", {
               agentId,
               userId,
-              activeOrganizationId,
+              organizationId,
             });
 
             Sentry.captureMessage(
@@ -341,7 +346,7 @@ export const jobService = (() => {
               agentId,
               creditsCents: agentWithCreditsPrice.creditsPrice.cents,
               maxAcceptedCents,
-              activeOrganizationId,
+              organizationId,
             });
 
             Sentry.captureMessage(
@@ -361,15 +366,15 @@ export const jobService = (() => {
             level: "info",
             data: {
               creditsCents: agentWithCreditsPrice.creditsPrice.cents,
-              activeOrganizationId,
+              organizationId,
             },
           });
 
           if (agentWithCreditsPrice.creditsPrice.cents > 0) {
             try {
-              if (activeOrganizationId) {
+              if (organizationId) {
                 await validateOrganizationCreditsBalance(
-                  activeOrganizationId,
+                  organizationId,
                   agentWithCreditsPrice.creditsPrice.cents,
                   tx,
                 );
@@ -384,9 +389,9 @@ export const jobService = (() => {
               Sentry.setTag("error_type", "insufficient_balance");
               Sentry.setContext("balance_validation", {
                 userId,
-                activeOrganizationId,
+                organizationId,
                 creditsCents: agentWithCreditsPrice.creditsPrice.cents,
-                isOrganization: !!activeOrganizationId,
+                isOrganization: !!organizationId,
               });
               throw error;
             }
@@ -399,7 +404,7 @@ export const jobService = (() => {
             level: "info",
             data: {
               creditsCents: agentWithCreditsPrice.creditsPrice.cents,
-              activeOrganizationId,
+              organizationId,
             },
           });
 
@@ -577,7 +582,7 @@ export const jobService = (() => {
           agentJobId: startJobResponse.job_id,
           agentId,
           userId,
-          organizationId: activeOrganizationId,
+          organizationId,
           input: JSON.stringify(Object.fromEntries(inputData)),
           inputSchema: inputSchema,
           creditsPrice: agentWithCreditsPrice.creditsPrice,

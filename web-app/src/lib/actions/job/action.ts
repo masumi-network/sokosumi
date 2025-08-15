@@ -4,7 +4,7 @@ import * as Sentry from "@sentry/nextjs";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
-import { getSession } from "@/lib/auth/utils";
+import { getScope, getSession } from "@/lib/auth/utils";
 import { JobWithStatus } from "@/lib/db";
 import { jobRepository } from "@/lib/db/repositories";
 import {
@@ -53,25 +53,29 @@ export async function startDemoJob(
 }
 
 export async function startJobWithInputData(
-  input: Omit<StartJobInputSchemaType, "userId">,
+  input: Omit<StartJobInputSchemaType, "userId" | "organizationId">,
 ): Promise<Result<{ jobId: string }, ActionError>> {
   return await Sentry.withScope(async (scope) => {
     try {
       // Authentication
-      const session = await getSession();
-      if (!session) {
+      const appScope = await getScope();
+      if (!appScope) {
         return Err({
           message: "Unauthenticated",
           code: CommonErrorCode.UNAUTHENTICATED,
         });
       }
-      const userId = session.user.id;
-      const inputDataForService: StartJobInputSchemaType = { ...input, userId };
+      const userId = appScope.userId;
+      const organizationId = appScope.organizationId;
+      const inputDataForService: StartJobInputSchemaType = {
+        ...input,
+        userId,
+        organizationId,
+      };
 
       // Set user context for Sentry
       Sentry.setUser({
         id: userId,
-        email: session.user.email,
       });
 
       // Set job context
@@ -81,7 +85,7 @@ export async function startJobWithInputData(
         agentId: input.agentId,
         maxAcceptedCents: input.maxAcceptedCents,
         inputDataSize: JSON.stringify(input.inputData).length,
-        organizationId: session.session.activeOrganizationId,
+        organizationId: organizationId,
       });
 
       // Add breadcrumb for job start flow
@@ -92,7 +96,7 @@ export async function startJobWithInputData(
         data: {
           agentId: input.agentId,
           userId: userId,
-          organizationId: session.session.activeOrganizationId,
+          organizationId: organizationId,
         },
       });
 
