@@ -35,6 +35,7 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  JobInputFileSchemaType,
   JobInputSchemaType,
   JobInputsFormSchemaType,
   ValidJobInputTypes,
@@ -65,7 +66,12 @@ export default function JobInput({
             htmlFor={id}
           >{`${name} ${isOptional(jobInputSchema) ? "" : "*"}`}</FormLabel>
           <FormControl>
-            <InputField id={id} field={field} jobInputSchema={jobInputSchema} />
+            <InputField
+              id={id}
+              field={field}
+              jobInputSchema={jobInputSchema}
+              form={form}
+            />
           </FormControl>
           {data?.description && (
             <FormDescription>{data.description}</FormDescription>
@@ -81,9 +87,10 @@ interface InputFieldProps {
   id: string;
   jobInputSchema: JobInputSchemaType;
   field: ControllerRenderProps<JobInputsFormSchemaType>;
+  form: UseFormReturn<JobInputsFormSchemaType>;
 }
 
-function InputField({ id, field, jobInputSchema }: InputFieldProps) {
+function InputField({ id, field, jobInputSchema, form }: InputFieldProps) {
   const { type, data } = jobInputSchema;
   const t = useTranslations("Library.JobInput.Form");
 
@@ -186,16 +193,45 @@ function InputField({ id, field, jobInputSchema }: InputFieldProps) {
     }
   }
 
-  if (type === ValidJobInputTypes.FILE)
+  if (type === ValidJobInputTypes.FILE) {
+    const validations = (jobInputSchema as JobInputFileSchemaType).validations;
+    const validationObj = validations?.reduce<Record<string, string | number>>(
+      (acc, curr) => {
+        acc[curr.validation] = curr.value;
+        return acc;
+      },
+      {},
+    );
+
+    if (
+      !validationObj ||
+      Object.keys(validationObj).length === 0 ||
+      validationObj.accept === undefined ||
+      validationObj.maxSize === undefined ||
+      validationObj.min === undefined ||
+      validationObj.max === undefined
+    ) {
+      return (
+        <div className="text-muted-foreground text-sm">
+          {t("File.noValidation")}
+        </div>
+      );
+    }
+
     return (
       <FileUpload
         id={id}
         value={(field.value as File[]) ?? []}
         onValueChange={field.onChange}
-        accept={data?.accept ?? "image/*"}
-        maxFiles={data?.multiple ? undefined : 1}
-        maxSize={Number(data?.maxSize) ?? 1 * 1024 * 1024}
-        multiple={data?.multiple ?? false}
+        accept={validationObj.accept.toString()}
+        maxSize={Number(validationObj.maxSize)}
+        maxFiles={Number(validationObj.max)}
+        multiple={Number(validationObj.max) > 1}
+        onFileReject={(_, message) => {
+          form.setError(id, {
+            message,
+          });
+        }}
       >
         <FileUploadDropzone className="flex-row flex-wrap border-dotted text-center">
           <FileUploadTrigger asChild>
@@ -226,6 +262,7 @@ function InputField({ id, field, jobInputSchema }: InputFieldProps) {
         </FileUploadList>
       </FileUpload>
     );
+  }
 
   if (type === ValidJobInputTypes.NONE) return null;
 }

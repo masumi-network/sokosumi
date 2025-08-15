@@ -12,6 +12,8 @@ export enum ValidJobInputValidationTypes {
   MAX = "max",
   FORMAT = "format",
   OPTIONAL = "optional",
+  MAX_SIZE = "maxSize",
+  ACCEPT = "accept",
 }
 
 export enum ValidJobInputFormatValues {

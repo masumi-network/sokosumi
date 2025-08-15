@@ -139,3 +139,29 @@ export const formatNonEmptyValidationSchema = (
     }),
     value: formatNonEmptyValidationValueSchema(t),
   });
+
+export const acceptValidationSchema = (
+  t?: IntlTranslation<JobInputSchemaIntlPath>,
+) =>
+  z.object({
+    validation: z.enum([ValidJobInputValidationTypes.ACCEPT], {
+      message: t?.("Validations.Validation.enum", {
+        options: Object.values(ValidJobInputValidationTypes).join(", "),
+      }),
+    }),
+    value: z.string().min(1, {
+      message: t?.("Validations.Value.required", { validation: "accept" }),
+    }),
+  });
+
+export const maxSizeValidationSchema = (
+  t?: IntlTranslation<JobInputSchemaIntlPath>,
+) =>
+  z.object({
+    validation: z.enum([ValidJobInputValidationTypes.MAX_SIZE], {
+      message: t?.("Validations.Validation.enum", {
+        options: Object.values(ValidJobInputValidationTypes).join(", "),
+      }),
+    }),
+    value: z.coerce.number().int().min(0),
+  });

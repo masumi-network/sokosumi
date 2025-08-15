@@ -232,44 +232,37 @@ const makeZodSchemaFromJobInputFileSchema = (
   jobInputFileSchema: JobInputFileSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
 ) => {
-  const { name, data } = jobInputFileSchema;
-  const maxSize = data?.maxSize ? parseInt(data.maxSize, 10) : undefined;
-  const isMultiple = !!data?.multiple;
+  const { name, validations } = jobInputFileSchema;
+  let maxSize = 0;
 
-  if (isMultiple) {
-    return z
-      .array(z.instanceof(File))
-      .refine(
-        (files) => {
-          if (!maxSize) return true;
-          return files.every((file) => file.size <= maxSize);
-        },
-        {
-          message: t?.("File.maxSize", { name, value: data?.maxSize ?? "" }),
-        },
-      )
-      .optional();
-  } else {
-    return z
-      .array(z.instanceof(File))
-      .min(1, {
-        message: t?.("File.required", { name }),
-      })
-      .max(1, {
-        message: t?.("File.required", { name }),
-      })
-      .refine(
-        (files) => {
-          if (!files || !maxSize) return true;
-          return files[0]?.size <= maxSize;
-        },
-        {
-          message: t?.("File.maxSize", {
-            name,
-            value: data?.maxSize ?? "",
-          }),
-        },
-      )
-      .optional();
-  }
+  const defaultSchema = z.array(z.instanceof(File));
+
+  const schema = validations?.reduce((acc, cur) => {
+    const { validation, value } = cur;
+    switch (validation) {
+      case ValidJobInputValidationTypes.MIN:
+        return acc.min(value, {
+          message: t?.("Number.min", { name, value }),
+        });
+      case ValidJobInputValidationTypes.MAX:
+        return acc.max(value, {
+          message: t?.("Number.max", { name, value }),
+        });
+      case ValidJobInputValidationTypes.MAX_SIZE:
+        maxSize = Number(value);
+        return acc;
+      case ValidJobInputValidationTypes.ACCEPT:
+        return acc;
+    }
+  }, defaultSchema);
+
+  return (schema ?? defaultSchema).refine(
+    (files) => {
+      if (!maxSize) return true;
+      return files.every((file) => file.size <= maxSize);
+    },
+    {
+      message: t?.("File.maxSize", { name, value: maxSize ?? "" }),
+    },
+  );
 };

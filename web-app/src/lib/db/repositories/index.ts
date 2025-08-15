@@ -1,5 +1,6 @@
 export * from "./agent.repository";
 export * from "./agentList.repository";
+export * from "./blob.repository";
 export * from "./creditCost.repository";
 export * from "./creditTransaction.repository";
 export * from "./fiatTransaction.repository";
@@ -10,6 +11,5 @@ export * from "./member.repository";
 export * from "./organization.repository";
 export { default as prisma } from "./prisma";
 export * from "./tag.repository";
-export * from "./uploadFiles.repository";
 export * from "./user.repository";
 export * from "./utmAttribution.repository";

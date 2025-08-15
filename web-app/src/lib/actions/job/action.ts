@@ -8,7 +8,7 @@ import { ActionError, CommonErrorCode } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { getSession } from "@/lib/auth/utils";
 import { JobWithStatus } from "@/lib/db";
-import { jobRepository, uploadFilesRepository } from "@/lib/db/repositories";
+import { blobRepository, jobRepository } from "@/lib/db/repositories";
 import { ValidJobInputTypes } from "@/lib/job-input";
 import {
   jobDetailsNameFormSchema,
@@ -396,29 +396,15 @@ async function saveUploadedFiles(
 ) {
   for (const field of inputSchema) {
     if (field.type === ValidJobInputTypes.FILE) {
-      console.log(`Field ${field.id} is a file input`);
       const value = inputData?.get(field.id);
-      console.log(`Field value: ${value}`);
       if (typeof value === "string" && value) {
-        console.log(`Saving file URL: ${value}`);
-        const result = await uploadFilesRepository.createUploadFile(
-          userId,
-          jobId,
-          value,
-        );
-        console.log(`File saved with: ${result}`);
+        await blobRepository.createBlob(userId, jobId, value);
       } else if (
         Array.isArray(value) &&
         value.every((v) => typeof v === "string")
       ) {
         for (const fileUrl of value) {
-          console.log(`Saving file URL: ${fileUrl}`);
-          const result = await uploadFilesRepository.createUploadFile(
-            userId,
-            jobId,
-            fileUrl,
-          );
-          console.log(`File saved with: ${result}`);
+          await blobRepository.createBlob(userId, jobId, fileUrl);
         }
       }
     }

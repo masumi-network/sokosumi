@@ -30,7 +30,7 @@ model User {
   creditTransactions CreditTransaction[]
   fiatTransactions   FiatTransaction[]
   jobs               Job[]
-  uploadedFiles      UploadFiles[] @relation("UserUploadFiles")
+  blobs      Blob[] @relation("UserBlob")
 
   stripeCustomerId String?
 
@@ -514,7 +514,7 @@ model Job {
   // is demo job?
   isDemo Boolean @default(false)
 
-  uploadFiles UploadFiles[] @relation("JobUploadFiles")
+  blobs Blob[] @relation("JobBlob")
 }
 
 enum OnChainTransactionStatus {
@@ -602,15 +602,15 @@ model Apikey {
   @@map("apikey")
 }
 
-model UploadFiles {
+model Blob {
   id        String   @id @default(uuid())
   userId    String
   jobId     String
   fileUrl   String
   createdAt DateTime @default(now())
 
-  user      User     @relation("UserUploadFiles", fields: [userId], references: [id], onDelete: Cascade)
-  job       Job      @relation("JobUploadFiles", fields: [jobId], references: [id], onDelete: Cascade)
+  user      User     @relation("UserBlob", fields: [userId], references: [id], onDelete: Cascade)
+  job       Job      @relation("JobBlob", fields: [jobId], references: [id], onDelete: Cascade)
 
-  @@map("uploadfiles")
+  @@map("blob")
 }
