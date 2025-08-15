@@ -4,7 +4,7 @@ import { getTranslations } from "next-intl/server";
 
 import { FooterSections } from "@/components/footer";
 import { SidebarProvider } from "@/components/ui/sidebar";
-import { verifySessionOrRedirect } from "@/lib/auth/utils";
+import { getSessionOrRedirect } from "@/lib/auth/utils";
 
 import Header from "./components/header";
 import Sidebar from "./components/sidebar";
@@ -29,12 +29,12 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   const cookieStore = await cookies();
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
 
-  await verifySessionOrRedirect();
+  const session = await getSessionOrRedirect();
 
   return (
     <>
       <SidebarProvider defaultOpen={defaultOpen}>
-        <Sidebar />
+        <Sidebar userId={session.user.id} />
         <div className="flex w-full flex-col overflow-clip">
           <Header className="h-16 p-4" />
           <main className="relative min-h-[calc(100svh-64px)] p-4 pt-20 md:pt-4">

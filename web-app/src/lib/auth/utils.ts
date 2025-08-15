@@ -147,27 +147,24 @@ export async function getSession(): Promise<Session | null> {
 }
 
 /**
- * Verifies that a valid user session exists, or redirects to the login page if not.
- * This is useful for protecting routes that require authentication, but do not need
- * to return the session object itself.
+ * Gets the current user's session or redirects to the login page if no valid session is found.
+ * This is useful for protecting routes that require session-based authentication.
  *
- * If no session is found, the user is redirected to the login page with a returnUrl
- * query parameter set to the current URL, so they can be redirected back after login.
- *
- * @returns Promise<void>
- * @throws Redirects to the login page if no valid session is found
+ * @returns Promise resolving to the user's session if authenticated
+ * @throws {NextError} Redirects to login page with return URL when not authenticated
  */
-export async function verifySessionOrRedirect(): Promise<void> {
+export async function getSessionOrRedirect(): Promise<Session> {
   const session = await getSession();
-  if (!session) {
-    // Get the current URL from headers for server-side redirect
-    const headersList = await headers();
-    const pathname = headersList.get("x-pathname") ?? "";
-    const searchParams = headersList.get("x-search-params") ?? "";
-    const currentUrl = pathname + searchParams;
-    const returnUrl = encodeURIComponent(currentUrl);
-    redirect(`/login?returnUrl=${returnUrl}`);
+  if (session) {
+    return session;
   }
+  // Get the current URL from headers for server-side redirect
+  const headersList = await headers();
+  const pathname = headersList.get("x-pathname") ?? "";
+  const searchParams = headersList.get("x-search-params") ?? "";
+  const currentUrl = pathname + searchParams;
+  const returnUrl = encodeURIComponent(currentUrl);
+  redirect(`/login?returnUrl=${returnUrl}`);
 }
 
 /**

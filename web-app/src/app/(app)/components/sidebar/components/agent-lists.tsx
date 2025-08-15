@@ -11,17 +11,21 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getSessionOrThrow } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/utils";
 import { AgentWithAvailability } from "@/lib/db";
 import { agentService, jobService } from "@/lib/services";
 import { Agent } from "@/prisma/generated/client";
 
 import AgentListsClient from "./agent-lists.client";
 
-export default function AgentLists() {
+interface AgentListsProps {
+  userId: string;
+}
+
+export default function AgentLists({ userId }: AgentListsProps) {
   return (
     <Suspense fallback={<AgentListsSkeleton />}>
-      <AgentListsContent />
+      <AgentListsContent userId={userId} />
     </Suspense>
   );
 }
@@ -52,10 +56,13 @@ function AgentListsSkeleton() {
   );
 }
 
-async function AgentListsContent() {
+async function AgentListsContent({ userId }: { userId: string }) {
   const t = await getTranslations("App.Sidebar.Content.AgentLists");
 
-  const session = await getSessionOrThrow();
+  const session = await getSession();
+  if (!session) {
+    return <AgentListsSkeleton />;
+  }
 
   const [favoriteAgents, hiredAgentsWithJobs, availableAgents] =
     await Promise.all([
@@ -114,7 +121,7 @@ async function AgentListsContent() {
 
   return (
     <ScrollArea className="h-full">
-      <AgentListsClient agentLists={agentLists} userId={session.user.id} />
+      <AgentListsClient agentLists={agentLists} userId={userId} />
     </ScrollArea>
   );
 }

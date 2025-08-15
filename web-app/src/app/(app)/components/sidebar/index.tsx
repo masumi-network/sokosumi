@@ -14,7 +14,11 @@ import AgentLists from "./components/agent-lists";
 import CustomTrigger from "./components/custom-trigger";
 import GalleryButton from "./components/gallery-button";
 
-export default function Sidebar() {
+interface SidebarProps {
+  userId: string;
+}
+
+export default function Sidebar({ userId }: SidebarProps) {
   return (
     <ShadcnSidebar>
       <SidebarHeader className="h-[64px] border-b">
@@ -33,7 +37,7 @@ export default function Sidebar() {
         </div>
       </SidebarHeader>
       <SidebarContent className="min-h-0 w-full flex-1">
-        <AgentLists />
+        <AgentLists userId={userId} />
       </SidebarContent>
       <SidebarFooter className="shrink-0 px-0">
         <SheetClose asChild>
