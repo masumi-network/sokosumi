@@ -168,29 +168,6 @@ export async function getSessionOrRedirect(): Promise<Session> {
 }
 
 /**
- * Gets the current user's session or throws an UnAuthenticatedError if no
- * valid session is found. This is useful when session-based authentication
- * is required and you want to handle the error explicitly.
- *
- * @returns Promise resolving to the user's session
- * @throws {UnAuthenticatedError} When no valid session is found
- *
- */
-export async function getSessionOrThrow(): Promise<Session> {
-  const session = await getSession();
-  if (!session) {
-    // Get the current URL from headers for server-side redirect
-    const headersList = await headers();
-    const pathname = headersList.get("x-pathname") ?? "";
-    const searchParams = headersList.get("x-search-params") ?? "";
-    const currentUrl = pathname + searchParams;
-
-    throw new UnAuthenticatedError(currentUrl);
-  }
-  return session;
-}
-
-/**
  * Verifies that a given user ID matches the currently authenticated user's ID.
  * This is useful for ensuring users can only access their own resources.
  *
