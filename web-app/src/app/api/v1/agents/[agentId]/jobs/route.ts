@@ -11,9 +11,9 @@ import {
   handleApiError,
   validateApiKey,
 } from "@/lib/api";
-import { agentClient } from "@/lib/clients";
 import { convertCreditsToCents } from "@/lib/db";
 import { jobRepository } from "@/lib/db/repositories";
+import { jobInputsDataSchema } from "@/lib/job-input";
 import { agentService } from "@/lib/services";
 
 interface RouteParams {
@@ -93,31 +93,20 @@ export async function POST(
     const body = await request.json();
     const validatedData = createJobRequestSchema.parse(body);
 
-    // Validate that the agent exists and is available
-    const agent = await agentService.getAvailableAgentById(agentId);
-    if (!agent) {
-      return NextResponse.json(
-        {
-          error: "Not Found",
-          message: "Agent not found or not available",
-        },
-        { status: 404 },
-      );
-    }
+    const baseUrl = request.nextUrl.origin;
+    const response = await fetch(
+      `${baseUrl}/api/v1/agents/${encodeURIComponent(agentId)}/input-schema`,
+    );
 
-    // Get the agent's input schema from the agent API
-    const inputSchemaResult = await agentClient.fetchAgentInputSchema(agent);
-    if (!inputSchemaResult.ok) {
+    if (!response.ok) {
       return NextResponse.json(
-        {
-          error: "Bad Request",
-          message:
-            "Failed to fetch agent input schema: " + inputSchemaResult.error,
-        },
+        { error: "Bad Request", message: "Failed to fetch agent input schema" },
         { status: 400 },
       );
     }
-    const agentInputSchema = inputSchemaResult.data.input_data;
+
+    const inputSchema = await response.json();
+    const validatedInputSchema = jobInputsDataSchema().parse(inputSchema);
 
     // Convert credits back to cents for the job service
     const maxAcceptedCents = convertCreditsToCents(
@@ -131,7 +120,7 @@ export async function POST(
     const result = await startJobWithInputData({
       agentId,
       maxAcceptedCents,
-      inputSchema: agentInputSchema,
+      inputSchema: validatedInputSchema.input_data,
       inputData: inputDataMap,
     });
 
