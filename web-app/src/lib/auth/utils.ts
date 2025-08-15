@@ -8,22 +8,31 @@ import { auth, Session } from "@/lib/auth/auth";
 
 import { UnAuthenticatedError } from "./errors";
 
+/**
+ * Represents the authentication scope for a user, including their user ID
+ * and optional active organization ID.
+ */
 interface Scope {
+  /** The unique identifier of the authenticated user */
   userId: string;
+  /** The active organization ID the user belongs to, or null if none is active */
   organizationId: string | null;
 }
 
-async function getScopeFromApiKey(key: string): Promise<Scope> {
+/**
+ * Authenticates a user using an API key and returns their scope.
+ *
+ * @param key - The API key to verify
+ * @returns Promise resolving to the user's scope if valid, null otherwise
+ */
+async function getScopeFromApiKey(key: string): Promise<Scope | null> {
   const apiKeyResult = await auth.api.verifyApiKey({
     body: {
       key,
     },
   });
-  if (!apiKeyResult.valid) {
-    throw new UnAuthenticatedError("Invalid API key");
-  }
-  if (!apiKeyResult.key) {
-    throw new UnAuthenticatedError("Invalid API key");
+  if (!apiKeyResult.valid || !apiKeyResult.key) {
+    return null;
   }
   return {
     userId: apiKeyResult.key.userId,
@@ -31,12 +40,18 @@ async function getScopeFromApiKey(key: string): Promise<Scope> {
   };
 }
 
-async function getScopeFromSession(headers: Headers): Promise<Scope> {
+/**
+ * Authenticates a user using their session and returns their scope.
+ *
+ * @param headers - The request headers containing session information
+ * @returns Promise resolving to the user's scope if valid, null otherwise
+ */
+async function getScopeFromSession(headers: Headers): Promise<Scope | null> {
   const session = await auth.api.getSession({
     headers,
   });
   if (!session) {
-    throw new UnAuthenticatedError("Invalid session");
+    return null;
   }
   return {
     userId: session.user.id,
@@ -44,7 +59,19 @@ async function getScopeFromSession(headers: Headers): Promise<Scope> {
   };
 }
 
-export async function getScope(): Promise<Scope> {
+// ============================================================================
+// SCOPE FUNCTIONS
+// ============================================================================
+
+/**
+ * Gets the current user's authentication scope by checking for either an API key
+ * or session. This function automatically determines the authentication method
+ * based on the presence of an 'x-api-key' header.
+ *
+ * @returns Promise resolving to the user's scope if authenticated, null otherwise
+ *
+ */
+export async function getScope(): Promise<Scope | null> {
   const headersList = await headers();
   const key = headersList.get("x-api-key");
   if (key) {
@@ -54,6 +81,63 @@ export async function getScope(): Promise<Scope> {
   }
 }
 
+/**
+ * Gets the current user's authentication scope or throws an UnAuthenticatedError
+ * if no valid authentication is found. This is useful when authentication is
+ * required for the operation to proceed.
+ *
+ * @returns Promise resolving to the user's scope
+ * @throws {UnAuthenticatedError} When no valid authentication is found
+ *
+ */
+export async function getScopeOrThrow(): Promise<Scope> {
+  const scope = await getScope();
+  if (!scope) {
+    // Get the current URL from headers for server-side redirect
+    const headersList = await headers();
+    const pathname = headersList.get("x-pathname") ?? "";
+    const searchParams = headersList.get("x-search-params") ?? "";
+    const currentUrl = pathname + searchParams;
+
+    throw new UnAuthenticatedError(currentUrl);
+  }
+  return scope;
+}
+
+/**
+ * Gets the current user's authentication scope or redirects to the login page
+ * if no valid authentication is found. This is useful for protecting routes
+ * that require authentication.
+ *
+ * @returns Promise resolving to the user's scope
+ * @throws {NextError} Redirects to login page with return URL when not authenticated
+ *
+ */
+export async function getScopeOrRedirect(): Promise<Scope> {
+  const scope = await getScope();
+  if (!scope) {
+    // Get the current URL from headers for server-side redirect
+    const headersList = await headers();
+    const pathname = headersList.get("x-pathname") ?? "";
+    const searchParams = headersList.get("x-search-params") ?? "";
+    const currentUrl = pathname + searchParams;
+    const returnUrl = encodeURIComponent(currentUrl);
+    redirect(`/login?returnUrl=${returnUrl}`);
+  }
+  return scope;
+}
+
+// ============================================================================
+// SESSION FUNCTIONS
+// ============================================================================
+
+/**
+ * Gets the current user's session information. This function only works with
+ * session-based authentication, not API keys.
+ *
+ * @returns Promise resolving to the user's session if valid, null otherwise
+ *
+ */
 export async function getSession(): Promise<Session | null> {
   const session = await auth.api.getSession({
     headers: await headers(),
@@ -62,6 +146,15 @@ export async function getSession(): Promise<Session | null> {
   return session;
 }
 
+/**
+ * Gets the current user's session or redirects to the login page if no valid
+ * session is found. This is useful for protecting routes that require
+ * session-based authentication.
+ *
+ * @returns Promise resolving to the user's session
+ * @throws {NextError} Redirects to login page with return URL when not authenticated
+ *
+ */
 export async function getSessionOrRedirect(): Promise<Session> {
   const session = await getSession();
   if (session) {
@@ -77,6 +170,15 @@ export async function getSessionOrRedirect(): Promise<Session> {
   redirect(`/login?returnUrl=${returnUrl}`);
 }
 
+/**
+ * Gets the current user's session or throws an UnAuthenticatedError if no
+ * valid session is found. This is useful when session-based authentication
+ * is required and you want to handle the error explicitly.
+ *
+ * @returns Promise resolving to the user's session
+ * @throws {UnAuthenticatedError} When no valid session is found
+ *
+ */
 export async function getSessionOrThrow(): Promise<Session> {
   const session = await getSession();
   if (!session) {
@@ -91,15 +193,23 @@ export async function getSessionOrThrow(): Promise<Session> {
   return session;
 }
 
+/**
+ * Verifies that a given user ID matches the currently authenticated user's ID.
+ * This is useful for ensuring users can only access their own resources.
+ *
+ * @param userId - The user ID to verify against the current scope
+ * @returns Promise resolving to true if the user ID matches, false otherwise
+ *
+ */
 export async function verifyUserId(userId: string): Promise<boolean> {
-  const session = await getSession();
-  if (!session) {
-    console.error("Session not found");
+  const scope = await getScope();
+  if (!scope) {
+    console.error("Authentication not found");
     return false;
   }
-  if (session.user.id !== userId) {
+  if (scope.userId !== userId) {
     console.error(
-      `UserId ${userId} does not match session user id ${session.user.id}`,
+      `UserId ${userId} does not match scope user id ${scope.userId}`,
     );
     return false;
   }
@@ -107,8 +217,13 @@ export async function verifyUserId(userId: string): Promise<boolean> {
 }
 
 /**
- * Checks the Authorization header for a valid Bearer CRON_SECRET.
- * Returns { ok: true } if valid, or { ok: false, response } if not.
+ * Authenticates a request using a Bearer token that should match the CRON_SECRET
+ * environment variable. This is typically used for internal cron job authentication
+ * to ensure only authorized services can trigger scheduled tasks.
+ *
+ * @param request - The incoming request to authenticate
+ * @returns An object indicating authentication success or failure with appropriate response
+ *
  */
 export function authenticateCronSecret(
   request: Request,
