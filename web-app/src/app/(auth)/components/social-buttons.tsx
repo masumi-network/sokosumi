@@ -42,12 +42,12 @@ export default function SocialButtons() {
   };
 
   return (
-    <div className="grid grid-cols-1 gap-2">
+    <div className="flex flex-col gap-3">
       {socialButtons.map((socialButton) => (
         <socialButton.Button
           onClick={() => handleClick(socialButton.key)}
           key={socialButton.key}
-          className="flex items-center justify-center !rounded-lg !px-3 !py-2 !text-sm"
+          className="bg-accent! text-foreground! m-0! flex w-full rounded-md! px-3! py-2! text-sm! transition-colors! duration-300"
           align="center"
           text={t("continueWith", { provider: socialButton.name })}
         />
