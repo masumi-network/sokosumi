@@ -558,6 +558,36 @@ export const jobRepository = {
       data: { name },
     });
   },
+
+  /**
+   * Retrieves a job by ID with authorization checks
+   * Ensures the job belongs to the specified user and organization context
+   * @param jobId - The unique identifier of the job
+   * @param userId - The unique identifier of the user (must match job owner)
+   * @param organizationId - The organization context (null for personal jobs)
+   * @returns Promise containing the job if authorized, null if not found or not authorized
+   */
+  async getJobByIdWithAuthCheck(
+    jobId: string,
+    userId: string,
+    organizationId: string | null,
+    tx: Prisma.TransactionClient = prisma,
+  ) {
+    const job = await tx.job.findUnique({
+      where: {
+        id: jobId,
+        userId,
+        organizationId,
+      },
+      include: jobInclude,
+    });
+
+    if (!job) {
+      return null;
+    }
+
+    return mapJobWithStatus(job);
+  },
 };
 
 /**
