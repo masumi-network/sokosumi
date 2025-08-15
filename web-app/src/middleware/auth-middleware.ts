@@ -14,7 +14,7 @@ export function withAuthContext<T extends AuthenticatedRequest, R>(
       return handler(params as T & { authContext: AuthContext });
     }
 
-    // Otherwise, verify the session
+    // Otherwise, get the auth context
     const authContext = await getAuthContext();
     if (!authContext) {
       throw new UnAuthenticatedError();
