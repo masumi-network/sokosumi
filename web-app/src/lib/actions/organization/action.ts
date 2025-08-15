@@ -3,7 +3,7 @@
 import { z } from "zod";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions";
-import { getScope } from "@/lib/auth/utils";
+import { getContext } from "@/lib/auth/utils";
 import {
   memberRepository,
   organizationRepository,
@@ -58,8 +58,8 @@ export async function updateOrganizationInvoiceEmail(
   }
 
   // Get current user session
-  const scope = await getScope();
-  if (!scope) {
+  const context = await getContext();
+  if (!context) {
     return Err({
       code: CommonErrorCode.UNAUTHENTICATED,
       message: "Unauthenticated",
@@ -70,7 +70,7 @@ export async function updateOrganizationInvoiceEmail(
 
   // Check if user is an owner or admin of the organization
   const member = await memberRepository.getMemberByUserIdAndOrganizationId(
-    scope.userId,
+    context.userId,
     organizationId,
   );
 

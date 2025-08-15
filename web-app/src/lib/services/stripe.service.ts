@@ -5,7 +5,7 @@ import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { UnAuthenticatedError } from "@/lib/auth/errors";
-import { getScope, verifyUserId } from "@/lib/auth/utils";
+import { getContext, verifyUserId } from "@/lib/auth/utils";
 import { Price, stripeClient } from "@/lib/clients/stripe.client";
 import { convertCreditsToCents } from "@/lib/db";
 import {
@@ -124,19 +124,19 @@ export const stripeService = (() => {
         return null;
       }
 
-      const scope = await getScope();
-      if (!scope) {
+      const context = await getContext();
+      if (!context) {
         return null;
       }
 
       // If user is in an organization, we don't need to create a promotion code
-      if (scope.organizationId) {
+      if (context.organizationId) {
         return null;
       }
 
       const stripeCustomerId = await getStripeCustomerId(
-        scope.userId,
-        scope.organizationId,
+        context.userId,
+        context.organizationId,
       );
       if (!stripeCustomerId) {
         return null;
@@ -172,14 +172,14 @@ export const stripeService = (() => {
       maxRedemptions: number = 1,
       metadata?: Record<string, string>,
     ): Promise<Stripe.PromotionCode | null> {
-      const scope = await getScope();
-      if (!scope) {
+      const context = await getContext();
+      if (!context) {
         return null;
       }
 
       const stripeCustomerId = await getStripeCustomerId(
-        scope.userId,
-        scope.organizationId,
+        context.userId,
+        context.organizationId,
       );
       if (!stripeCustomerId) {
         return null;

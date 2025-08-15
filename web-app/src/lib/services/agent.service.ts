@@ -2,7 +2,7 @@ import "server-only";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
-import { getScope } from "@/lib/auth/utils";
+import { getContext } from "@/lib/auth/utils";
 import {
   AgentWithCreditsPrice,
   AgentWithFixedPricing,
@@ -99,11 +99,11 @@ export const agentService = (() => {
     userOrganizationIds: string[];
     creditCosts: CreditCost[];
   }> => {
-    const scope = await getScope();
+    const context = await getContext();
     const creditCosts = await creditCostRepository.getCreditCosts(tx);
-    const userOrganizationIds = scope?.userId
+    const userOrganizationIds = context?.userId
       ? await memberRepository.getMembersOrganizationIdsByUserId(
-          scope.userId,
+          context.userId,
           tx,
         )
       : [];
@@ -119,13 +119,13 @@ export const agentService = (() => {
   const getAgentsByListType = async (
     type: AgentListType,
   ): Promise<AgentWithRelations[]> => {
-    const scope = await getScope();
-    if (!scope) {
+    const context = await getContext();
+    if (!context) {
       return [];
     }
     return await prisma.$transaction(async (tx) => {
       const existingList = await agentListRepository.getAgentListByUserId(
-        scope.userId,
+        context.userId,
         type,
         tx,
       );
@@ -139,7 +139,7 @@ export const agentService = (() => {
           );
       }
       const list = await agentListRepository.createAgentListForUserId(
-        scope.userId,
+        context.userId,
         type,
         tx,
       );
@@ -244,14 +244,14 @@ export const agentService = (() => {
      * @throws If no active session is found.
      */
     getHiredAgents: async (): Promise<AgentWithJobs[]> => {
-      const scope = await getScope();
-      if (!scope) {
+      const context = await getContext();
+      if (!context) {
         return [];
       }
       const hiredAgentsWithJobs =
         await agentRepository.getHiredAgentsWithJobsByUserIdAndOrganization(
-          scope.userId,
-          scope.organizationId,
+          context.userId,
+          context.organizationId,
         );
       return hiredAgentsWithJobs.sort((a, b) => {
         const aLatestJob = a.jobs[0];

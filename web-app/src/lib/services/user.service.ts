@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getScope } from "@/lib/auth/utils";
+import { getContext } from "@/lib/auth/utils";
 import {
   InvitationWithRelations,
   JobWithStatus,
@@ -27,11 +27,11 @@ export const userService = (() => {
    *
    */
   async function getMe(): Promise<User | null> {
-    const scope = await getScope();
-    if (!scope) {
+    const context = await getContext();
+    if (!context) {
       return null;
     }
-    return userRepository.getUserById(scope.userId);
+    return userRepository.getUserById(context.userId);
   }
 
   /**
@@ -43,11 +43,11 @@ export const userService = (() => {
    * @returns {Promise<string | null | undefined>} The active organization ID, or null/undefined if not set.
    */
   async function getActiveOrganizationId(): Promise<string | null | undefined> {
-    const scope = await getScope();
-    if (!scope) {
+    const context = await getContext();
+    if (!context) {
       return null;
     }
-    return scope.organizationId;
+    return context.organizationId;
   }
 
   async function getActiveOrganization(): Promise<OrganizationWithRelations | null> {
@@ -73,12 +73,12 @@ export const userService = (() => {
    *
    */
   async function getMyJobs(agentId: string): Promise<JobWithStatus[]> {
-    const scope = await getScope();
-    if (!scope) {
+    const context = await getContext();
+    if (!context) {
       return [];
     }
-    const userId = scope.userId;
-    const activeOrganizationId = scope.organizationId;
+    const userId = context.userId;
+    const activeOrganizationId = context.organizationId;
 
     if (activeOrganizationId) {
       // Show jobs for the specific organization
@@ -104,12 +104,12 @@ export const userService = (() => {
   async function getMyMembersWithOrganizations(): Promise<
     MemberWithOrganization[]
   > {
-    const scope = await getScope();
-    if (!scope) {
+    const context = await getContext();
+    if (!context) {
       return [];
     }
     return await memberRepository.getMembersWithOrganizationByUserId(
-      scope.userId,
+      context.userId,
     );
   }
 
@@ -125,12 +125,12 @@ export const userService = (() => {
   async function getMyMemberInOrganization(
     organizationId: string,
   ): Promise<Member | null> {
-    const scope = await getScope();
-    if (!scope) {
+    const context = await getContext();
+    if (!context) {
       return null;
     }
     return await memberRepository.getMemberByUserIdAndOrganizationId(
-      scope.userId,
+      context.userId,
       organizationId,
     );
   }
@@ -143,11 +143,11 @@ export const userService = (() => {
   async function getMyValidPendingInvitations(): Promise<
     InvitationWithRelations[]
   > {
-    const scope = await getScope();
-    if (!scope) {
+    const context = await getContext();
+    if (!context) {
       return [];
     }
-    const user = await userRepository.getUserById(scope.userId);
+    const user = await userRepository.getUserById(context.userId);
     if (!user?.email) {
       console.error("User email not found");
       return [];

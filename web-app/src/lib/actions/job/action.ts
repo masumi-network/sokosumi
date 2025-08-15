@@ -4,7 +4,7 @@ import * as Sentry from "@sentry/nextjs";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
-import { getScope } from "@/lib/auth/utils";
+import { Context, getContext } from "@/lib/auth/utils";
 import { JobWithStatus } from "@/lib/db";
 import { jobRepository } from "@/lib/db/repositories";
 import {
@@ -22,14 +22,14 @@ export async function startDemoJob(
   jobStatusResponse: JobStatusResponseSchemaType,
 ): Promise<Result<{ jobId: string }, ActionError>> {
   // Authentication
-  const scope = await getScope();
-  if (!scope) {
+  const context = await getContext();
+  if (!context) {
     return Err({
       message: "Unauthenticated",
       code: CommonErrorCode.UNAUTHENTICATED,
     });
   }
-  const userId = scope.userId;
+  const userId = context.userId;
   const inputDataForService: StartJobInputSchemaType = {
     ...input,
     userId,
@@ -52,21 +52,20 @@ export async function startDemoJob(
   return Ok({ jobId: job.id });
 }
 
-export async function startJobWithInputData(
+export async function startJob(
   input: Omit<StartJobInputSchemaType, "userId" | "organizationId">,
+  ctx?: Context,
 ): Promise<Result<{ jobId: string }, ActionError>> {
+  const context = ctx ?? (await getContext());
+  if (!context) {
+    return Err({
+      message: "Unauthenticated",
+      code: CommonErrorCode.UNAUTHENTICATED,
+    });
+  }
   return await Sentry.withScope(async (scope) => {
     try {
-      // Authentication
-      const appScope = await getScope();
-      if (!appScope) {
-        return Err({
-          message: "Unauthenticated",
-          code: CommonErrorCode.UNAUTHENTICATED,
-        });
-      }
-      const userId = appScope.userId;
-      const organizationId = appScope.organizationId;
+      const { userId, organizationId } = context;
       const inputDataForService: StartJobInputSchemaType = {
         ...input,
         userId,
@@ -202,14 +201,14 @@ export async function updateJobName(
   data: JobDetailsNameFormSchemaType,
 ): Promise<Result<void, ActionError>> {
   // Authentication
-  const scope = await getScope();
-  if (!scope) {
+  const context = await getContext();
+  if (!context) {
     return Err({
       message: "Unauthenticated",
       code: CommonErrorCode.UNAUTHENTICATED,
     });
   }
-  const userId = scope.userId;
+  const userId = context.userId;
 
   const parsedResult = jobDetailsNameFormSchema().safeParse(data);
   if (!parsedResult.success) {
@@ -247,8 +246,8 @@ export async function updateJobName(
 export async function requestRefundJobByBlockchainIdentifier(
   blockchainIdentifier: string,
 ): Promise<Result<{ job: JobWithStatus }, ActionError>> {
-  const scope = await getScope();
-  if (!scope) {
+  const context = await getContext();
+  if (!context) {
     return Err({
       message: "Unauthenticated",
       code: CommonErrorCode.UNAUTHENTICATED,
@@ -265,7 +264,7 @@ export async function requestRefundJobByBlockchainIdentifier(
   }
 
   // check user is owner of job
-  if (foundJob.userId !== scope.userId) {
+  if (foundJob.userId !== context.userId) {
     return Err({
       message: "Unauthorized",
       code: CommonErrorCode.UNAUTHORIZED,

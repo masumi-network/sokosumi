@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import {
-  CommonErrorCode,
-  JobErrorCode,
-  startJobWithInputData,
-} from "@/lib/actions";
+import { CommonErrorCode, JobErrorCode, startJob } from "@/lib/actions";
 import {
   createJobRequestSchema,
   formatJobResponse,
@@ -86,7 +82,7 @@ export async function POST(
   { params }: RouteParams,
 ): Promise<NextResponse> {
   try {
-    const _apiKey = await validateApiKey(request.headers);
+    const apiKey = await validateApiKey(request.headers);
     const { agentId } = await params;
 
     // Parse request body
@@ -117,12 +113,18 @@ export async function POST(
     const inputDataMap = new Map(Object.entries(validatedData.inputData ?? {}));
 
     // Create the job using the existing action
-    const result = await startJobWithInputData({
-      agentId,
-      maxAcceptedCents,
-      inputSchema: validatedInputSchema.input_data,
-      inputData: inputDataMap,
-    });
+    const result = await startJob(
+      {
+        agentId,
+        maxAcceptedCents,
+        inputSchema: validatedInputSchema.input_data,
+        inputData: inputDataMap,
+      },
+      {
+        userId: apiKey.userId,
+        organizationId: apiKey.metadata?.organizationId ?? null,
+      },
+    );
 
     if (!result.ok) {
       // Handle specific job creation errors

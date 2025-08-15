@@ -10,7 +10,7 @@ import { auth, Session } from "@/lib/auth/auth";
  * Represents the authentication scope for a user, including their user ID
  * and optional active organization ID.
  */
-interface Scope {
+export interface Context {
   /** The unique identifier of the authenticated user */
   userId: string;
   /** The active organization ID the user belongs to, or null if none is active */
@@ -23,7 +23,7 @@ interface Scope {
  * @param key - The API key to verify
  * @returns Promise resolving to the user's scope if valid, null otherwise
  */
-async function getScopeFromApiKey(key: string): Promise<Scope | null> {
+async function getContextFromApiKey(key: string): Promise<Context | null> {
   const apiKeyResult = await auth.api.verifyApiKey({
     body: {
       key,
@@ -44,7 +44,9 @@ async function getScopeFromApiKey(key: string): Promise<Scope | null> {
  * @param headers - The request headers containing session information
  * @returns Promise resolving to the user's scope if valid, null otherwise
  */
-async function getScopeFromSession(headers: Headers): Promise<Scope | null> {
+async function getContextFromSession(
+  headers: Headers,
+): Promise<Context | null> {
   const session = await auth.api.getSession({
     headers,
   });
@@ -58,24 +60,24 @@ async function getScopeFromSession(headers: Headers): Promise<Scope | null> {
 }
 
 // ============================================================================
-// SCOPE FUNCTIONS
+// AUTH CONTEXT FUNCTIONS
 // ============================================================================
 
 /**
- * Gets the current user's authentication scope by checking for either an API key
+ * Gets the current user's authentication context by checking for either an API key
  * or session. This function automatically determines the authentication method
  * based on the presence of an 'x-api-key' header.
  *
- * @returns Promise resolving to the user's scope if authenticated, null otherwise
+ * @returns Promise resolving to the user's context if authenticated, null otherwise
  *
  */
-export async function getScope(): Promise<Scope | null> {
+export async function getContext(): Promise<Context | null> {
   const headersList = await headers();
   const key = headersList.get("x-api-key");
   if (key) {
-    return await getScopeFromApiKey(key);
+    return await getContextFromApiKey(key);
   } else {
-    return await getScopeFromSession(headersList);
+    return await getContextFromSession(headersList);
   }
 }
 
@@ -123,19 +125,19 @@ export async function getSessionOrRedirect(): Promise<Session> {
  * Verifies that a given user ID matches the currently authenticated user's ID.
  * This is useful for ensuring users can only access their own resources.
  *
- * @param userId - The user ID to verify against the current scope
+ * @param userId - The user ID to verify against the current context
  * @returns Promise resolving to true if the user ID matches, false otherwise
  *
  */
 export async function verifyUserId(userId: string): Promise<boolean> {
-  const scope = await getScope();
-  if (!scope) {
+  const context = await getContext();
+  if (!context) {
     console.error("Authentication not found");
     return false;
   }
-  if (scope.userId !== userId) {
+  if (context.userId !== userId) {
     console.error(
-      `UserId ${userId} does not match scope user id ${scope.userId}`,
+      `UserId ${userId} does not match context user id ${context.userId}`,
     );
     return false;
   }

@@ -6,7 +6,7 @@ import {
   BillingErrorCode,
   CommonErrorCode,
 } from "@/lib/actions/errors";
-import { getScope } from "@/lib/auth/utils";
+import { getContext } from "@/lib/auth/utils";
 import { stripeClient } from "@/lib/clients/stripe.client";
 import { userService } from "@/lib/services";
 import { stripeService } from "@/lib/services/stripe.service";
@@ -15,8 +15,8 @@ import { Err, Ok, Result } from "@/lib/ts-res";
 export async function claimFreeCredits(
   promotionCode: string,
 ): Promise<Result<{ url: string }, ActionError>> {
-  const scope = await getScope();
-  if (!scope) {
+  const context = await getContext();
+  if (!context) {
     return Err({
       message: "Unauthenticated",
       code: CommonErrorCode.UNAUTHENTICATED,
@@ -33,7 +33,7 @@ export async function claimFreeCredits(
 
   // Create the checkout session
   const { url } = await stripeService.createStripeCheckoutSession(
-    scope.userId,
+    context.userId,
     null,
     credits,
     price,
@@ -48,8 +48,8 @@ export async function purchaseCredits(
   priceId: string,
   credits: number,
 ): Promise<Result<{ url: string }, ActionError>> {
-  const scope = await getScope();
-  if (!scope) {
+  const context = await getContext();
+  if (!context) {
     return Err({
       message: "Unauthenticated",
       code: CommonErrorCode.UNAUTHENTICATED,
@@ -80,7 +80,7 @@ export async function purchaseCredits(
 
   // Create the checkout session
   const { url } = await stripeService.createStripeCheckoutSession(
-    scope.userId,
+    context.userId,
     organizationId,
     credits,
     price,
@@ -94,8 +94,8 @@ export async function getFreeCreditsWithCoupon(
   priceId: string,
   couponId: string,
 ): Promise<Result<{ url: string }, ActionError>> {
-  const scope = await getScope();
-  if (!scope) {
+  const context = await getContext();
+  if (!context) {
     return Err({
       message: "Unauthenticated",
       code: CommonErrorCode.UNAUTHENTICATED,
@@ -128,7 +128,7 @@ export async function getFreeCreditsWithCoupon(
 
   // Create the checkout session (for org if orgId provided, else personal)
   const { url } = await stripeService.createStripeCheckoutSession(
-    scope.userId,
+    context.userId,
     organizationId ?? null,
     credits,
     price,
