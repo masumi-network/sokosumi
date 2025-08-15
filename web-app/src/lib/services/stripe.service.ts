@@ -5,7 +5,7 @@ import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { UnAuthenticatedError } from "@/lib/auth/errors";
-import { getSession, verifyUserId } from "@/lib/auth/utils";
+import { getScope, verifyUserId } from "@/lib/auth/utils";
 import { Price, stripeClient } from "@/lib/clients/stripe.client";
 import { convertCreditsToCents } from "@/lib/db";
 import {
@@ -124,19 +124,19 @@ export const stripeService = (() => {
         return null;
       }
 
-      const session = await getSession();
-      if (!session) {
+      const scope = await getScope();
+      if (!scope) {
         return null;
       }
 
       // If user is in an organization, we don't need to create a promotion code
-      if (session.session.activeOrganizationId) {
+      if (scope.organizationId) {
         return null;
       }
 
       const stripeCustomerId = await getStripeCustomerId(
-        session.user.id,
-        session.session.activeOrganizationId ?? null,
+        scope.userId,
+        scope.organizationId,
       );
       if (!stripeCustomerId) {
         return null;
@@ -172,14 +172,14 @@ export const stripeService = (() => {
       maxRedemptions: number = 1,
       metadata?: Record<string, string>,
     ): Promise<Stripe.PromotionCode | null> {
-      const session = await getSession();
-      if (!session) {
+      const scope = await getScope();
+      if (!scope) {
         return null;
       }
 
       const stripeCustomerId = await getStripeCustomerId(
-        session.user.id,
-        session.session.activeOrganizationId ?? null,
+        scope.userId,
+        scope.organizationId,
       );
       if (!stripeCustomerId) {
         return null;
@@ -205,10 +205,7 @@ export const stripeService = (() => {
 
         return promotionCode;
       } catch (error) {
-        console.error(
-          `Error in getOrCreatePromotionCode for user ${session.user.id} and organization ${session.session.activeOrganizationId}:`,
-          error,
-        );
+        console.error("Error in getPromotionCode:", error);
         return null;
       }
     },

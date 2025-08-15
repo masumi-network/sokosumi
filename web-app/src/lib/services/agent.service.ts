@@ -2,7 +2,7 @@ import "server-only";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
-import { getSession, getSessionOrThrow } from "@/lib/auth/utils";
+import { getScope, getScopeOrThrow } from "@/lib/auth/utils";
 import {
   AgentWithCreditsPrice,
   AgentWithFixedPricing,
@@ -99,15 +99,14 @@ export const agentService = (() => {
     userOrganizationIds: string[];
     creditCosts: CreditCost[];
   }> => {
-    const session = await getSession();
+    const scope = await getScope();
     const creditCosts = await creditCostRepository.getCreditCosts(tx);
-    const userOrganizationIds =
-      session?.user.id && session.user.id !== ""
-        ? await memberRepository.getMembersOrganizationIdsByUserId(
-            session.user.id,
-            tx,
-          )
-        : [];
+    const userOrganizationIds = scope?.userId
+      ? await memberRepository.getMembersOrganizationIdsByUserId(
+          scope.userId,
+          tx,
+        )
+      : [];
     return { userOrganizationIds, creditCosts };
   };
 
@@ -120,10 +119,10 @@ export const agentService = (() => {
   const getAgentsByListType = async (
     type: AgentListType,
   ): Promise<AgentWithRelations[]> => {
-    const session = await getSessionOrThrow();
+    const scope = await getScopeOrThrow();
     return await prisma.$transaction(async (tx) => {
       const existingList = await agentListRepository.getAgentListByUserId(
-        session.user.id,
+        scope.userId,
         type,
         tx,
       );
@@ -137,7 +136,7 @@ export const agentService = (() => {
           );
       }
       const list = await agentListRepository.createAgentListForUserId(
-        session.user.id,
+        scope.userId,
         type,
         tx,
       );
@@ -242,13 +241,11 @@ export const agentService = (() => {
      * @throws If no active session is found.
      */
     getHiredAgents: async (): Promise<AgentWithJobs[]> => {
-      const session = await getSessionOrThrow();
-      const userId = session.user.id;
-      const activeOrganizationId = session.session.activeOrganizationId;
+      const scope = await getScopeOrThrow();
       const hiredAgentsWithJobs =
         await agentRepository.getHiredAgentsWithJobsByUserIdAndOrganization(
-          userId,
-          activeOrganizationId,
+          scope.userId,
+          scope.organizationId,
         );
       return hiredAgentsWithJobs.sort((a, b) => {
         const aLatestJob = a.jobs[0];

@@ -4,7 +4,7 @@ import * as Sentry from "@sentry/nextjs";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
-import { getScope, getSession } from "@/lib/auth/utils";
+import { getScope } from "@/lib/auth/utils";
 import { JobWithStatus } from "@/lib/db";
 import { jobRepository } from "@/lib/db/repositories";
 import {
@@ -22,14 +22,14 @@ export async function startDemoJob(
   jobStatusResponse: JobStatusResponseSchemaType,
 ): Promise<Result<{ jobId: string }, ActionError>> {
   // Authentication
-  const session = await getSession();
-  if (!session) {
+  const scope = await getScope();
+  if (!scope) {
     return Err({
       message: "Unauthenticated",
       code: CommonErrorCode.UNAUTHENTICATED,
     });
   }
-  const userId = session.user.id;
+  const userId = scope.userId;
   const inputDataForService: StartJobInputSchemaType = {
     ...input,
     userId,
@@ -201,130 +201,77 @@ export async function updateJobName(
   jobId: string,
   data: JobDetailsNameFormSchemaType,
 ): Promise<Result<void, ActionError>> {
-  try {
-    // Authentication
-    const session = await getSession();
-    if (!session) {
-      return Err({
-        message: "Unauthenticated",
-        code: CommonErrorCode.UNAUTHENTICATED,
-      });
-    }
-    const userId = session.user.id;
-
-    const parsedResult = jobDetailsNameFormSchema().safeParse(data);
-    if (!parsedResult.success) {
-      return Err({
-        message: "Bad Input",
-        code: CommonErrorCode.BAD_INPUT,
-      });
-    }
-    const parsed = parsedResult.data;
-
-    const job = await jobRepository.getJobById(jobId);
-    if (!job) {
-      return Err({
-        message: "Job not found",
-        code: JobErrorCode.JOB_NOT_FOUND,
-      });
-    }
-
-    // check job user id is same as authenticated user
-    if (job.userId !== userId) {
-      return Err({
-        message: "Unauthorized",
-        code: CommonErrorCode.UNAUTHORIZED,
-      });
-    }
-
-    // update job name
-    await jobRepository.updateJobNameById(
-      jobId,
-      parsed.name === "" ? null : parsed.name,
-    );
-    return Ok();
-  } catch (error) {
-    Sentry.withScope((scope) => {
-      scope.setTag("action", "updateJobName");
-      scope.setTag("service", "job");
-      scope.setTag("error_type", "job_name_update_error");
-      scope.setContext("job_update", {
-        jobId: jobId,
-        requestedName: data.name,
-      });
-
-      Sentry.captureException(error, {
-        contexts: {
-          error_classification: {
-            severity: "error",
-            domain: "job_update",
-            category: "action_layer",
-          },
-        },
-      });
-    });
-
+  // Authentication
+  const scope = await getScope();
+  if (!scope) {
     return Err({
-      message: "Internal server error",
-      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+      message: "Unauthenticated",
+      code: CommonErrorCode.UNAUTHENTICATED,
     });
   }
+  const userId = scope.userId;
+
+  const parsedResult = jobDetailsNameFormSchema().safeParse(data);
+  if (!parsedResult.success) {
+    return Err({
+      message: "Bad Input",
+      code: CommonErrorCode.BAD_INPUT,
+    });
+  }
+  const parsed = parsedResult.data;
+
+  const job = await jobRepository.getJobById(jobId);
+  if (!job) {
+    return Err({
+      message: "Job not found",
+      code: JobErrorCode.JOB_NOT_FOUND,
+    });
+  }
+
+  // check job user id is same as authenticated user
+  if (job.userId !== userId) {
+    return Err({
+      message: "Unauthorized",
+      code: CommonErrorCode.UNAUTHORIZED,
+    });
+  }
+
+  // update job name
+  await jobRepository.updateJobNameById(
+    jobId,
+    parsed.name === "" ? null : parsed.name,
+  );
+  return Ok();
 }
 
 export async function requestRefundJobByBlockchainIdentifier(
   blockchainIdentifier: string,
 ): Promise<Result<{ job: JobWithStatus }, ActionError>> {
-  try {
-    const session = await getSession();
-    if (!session) {
-      return Err({
-        message: "Unauthenticated",
-        code: CommonErrorCode.UNAUTHENTICATED,
-      });
-    }
-
-    const foundJob =
-      await jobRepository.getJobByBlockchainIdentifier(blockchainIdentifier);
-    if (!foundJob) {
-      return Err({
-        message: "Job not found",
-        code: JobErrorCode.JOB_NOT_FOUND,
-      });
-    }
-
-    // check user is owner of job
-    if (foundJob.userId !== session.user.id) {
-      return Err({
-        message: "Unauthorized",
-        code: CommonErrorCode.UNAUTHORIZED,
-      });
-    }
-
-    const job = await jobService.requestRefund(blockchainIdentifier);
-    return Ok({ job });
-  } catch (error) {
-    Sentry.withScope((scope) => {
-      scope.setTag("action", "requestRefundJobByBlockchainIdentifier");
-      scope.setTag("service", "job");
-      scope.setTag("error_type", "job_refund_error");
-      scope.setContext("job_refund", {
-        blockchainIdentifier: blockchainIdentifier,
-      });
-
-      Sentry.captureException(error, {
-        contexts: {
-          error_classification: {
-            severity: "error",
-            domain: "job_refund",
-            category: "action_layer",
-          },
-        },
-      });
-    });
-
+  const scope = await getScope();
+  if (!scope) {
     return Err({
-      message: "Internal server error",
-      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+      message: "Unauthenticated",
+      code: CommonErrorCode.UNAUTHENTICATED,
     });
   }
+
+  const foundJob =
+    await jobRepository.getJobByBlockchainIdentifier(blockchainIdentifier);
+  if (!foundJob) {
+    return Err({
+      message: "Job not found",
+      code: JobErrorCode.JOB_NOT_FOUND,
+    });
+  }
+
+  // check user is owner of job
+  if (foundJob.userId !== scope.userId) {
+    return Err({
+      message: "Unauthorized",
+      code: CommonErrorCode.UNAUTHORIZED,
+    });
+  }
+
+  const job = await jobService.requestRefund(blockchainIdentifier);
+  return Ok({ job });
 }

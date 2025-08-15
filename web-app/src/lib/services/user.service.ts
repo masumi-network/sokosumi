@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getSession } from "@/lib/auth/utils";
+import { getScope } from "@/lib/auth/utils";
 import {
   InvitationWithRelations,
   JobWithStatus,
@@ -27,9 +27,11 @@ export const userService = (() => {
    *
    */
   async function getMe(): Promise<User | null> {
-    const session = await getSession();
-    if (!session?.user) return null;
-    return userRepository.getUserById(session.user.id);
+    const scope = await getScope();
+    if (!scope) {
+      return null;
+    }
+    return userRepository.getUserById(scope.userId);
   }
 
   /**
@@ -41,8 +43,11 @@ export const userService = (() => {
    * @returns {Promise<string | null | undefined>} The active organization ID, or null/undefined if not set.
    */
   async function getActiveOrganizationId(): Promise<string | null | undefined> {
-    const session = await getSession();
-    return session?.session.activeOrganizationId;
+    const scope = await getScope();
+    if (!scope) {
+      return null;
+    }
+    return scope.organizationId;
   }
 
   async function getActiveOrganization(): Promise<OrganizationWithRelations | null> {
@@ -68,11 +73,12 @@ export const userService = (() => {
    *
    */
   async function getMyJobs(agentId: string): Promise<JobWithStatus[]> {
-    const session = await getSession();
-    if (!session) return [];
-
-    const userId = session.user.id;
-    const activeOrganizationId = session.session.activeOrganizationId;
+    const scope = await getScope();
+    if (!scope) {
+      return [];
+    }
+    const userId = scope.userId;
+    const activeOrganizationId = scope.organizationId;
 
     if (activeOrganizationId) {
       // Show jobs for the specific organization
@@ -98,13 +104,13 @@ export const userService = (() => {
   async function getMyMembersWithOrganizations(): Promise<
     MemberWithOrganization[]
   > {
-    const session = await getSession();
-    if (!session) {
+    const scope = await getScope();
+    if (!scope) {
       return [];
     }
-    const userId = session.user.id;
-
-    return await memberRepository.getMembersWithOrganizationByUserId(userId);
+    return await memberRepository.getMembersWithOrganizationByUserId(
+      scope.userId,
+    );
   }
 
   /**
@@ -119,18 +125,14 @@ export const userService = (() => {
   async function getMyMemberInOrganization(
     organizationId: string,
   ): Promise<Member | null> {
-    const session = await getSession();
-    if (!session) {
+    const scope = await getScope();
+    if (!scope) {
       return null;
     }
-    const userId = session.user.id;
-
-    const member = await memberRepository.getMemberByUserIdAndOrganizationId(
-      userId,
+    return await memberRepository.getMemberByUserIdAndOrganizationId(
+      scope.userId,
       organizationId,
     );
-
-    return member;
   }
 
   /**
@@ -141,14 +143,18 @@ export const userService = (() => {
   async function getMyValidPendingInvitations(): Promise<
     InvitationWithRelations[]
   > {
-    const session = await getSession();
-    if (!session) {
+    const scope = await getScope();
+    if (!scope) {
+      return [];
+    }
+    const user = await userRepository.getUserById(scope.userId);
+    if (!user?.email) {
+      console.error("User email not found");
       return [];
     }
 
-    const userEmail = session.user.email;
     return await invitationRepository.getValidPendingInvitationsByEmail(
-      userEmail,
+      user.email,
     );
   }
 

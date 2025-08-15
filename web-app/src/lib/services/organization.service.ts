@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import slugify from "slugify";
 
 import { auth, Invitation } from "@/lib/auth/auth";
-import { getSession } from "@/lib/auth/utils";
+import { getScope } from "@/lib/auth/utils";
 import { InvitationWithRelations, MemberWithUser } from "@/lib/db";
 import { invitationRepository, memberRepository } from "@/lib/db/repositories";
 
@@ -89,11 +89,11 @@ export const organizationService = (() => {
   async function getOrganizationMembersWithUser(
     organizationId: string,
   ): Promise<MemberWithUser[]> {
-    const session = await getSession();
-    if (!session) {
+    const scope = await getScope();
+    if (!scope) {
       return [];
     }
-    const userId = session.user.id;
+    const userId = scope.userId;
 
     // Check if the user is a member of the organization
     const myMemberInOrganization =

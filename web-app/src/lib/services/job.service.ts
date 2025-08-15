@@ -6,7 +6,7 @@ import { v4 as uuidv4 } from "uuid";
 import publishJobStatusData from "@/lib/ably/publish";
 import { JobIndicatorStatus } from "@/lib/ably/schema";
 import { JobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
-import { getSession } from "@/lib/auth/utils";
+import { getScope } from "@/lib/auth/utils";
 import { agentClient, paymentClient } from "@/lib/clients";
 import { anthropicClient } from "@/lib/clients/anthropic.client";
 import {
@@ -850,12 +850,12 @@ export const jobService = (() => {
     agentIds: string[],
     tx: Prisma.TransactionClient = prisma,
   ): Promise<(JobIndicatorStatus | null)[]> => {
-    const session = await getSession();
-    if (!session) {
+    const scope = await getScope();
+    if (!scope) {
       return [];
     }
-    const userId = session.user.id;
-    const activeOrganizationId = session.session.activeOrganizationId;
+    const userId = scope.userId;
+    const activeOrganizationId = scope.organizationId;
 
     return await Promise.all(
       agentIds.map(async (agentId) => {
