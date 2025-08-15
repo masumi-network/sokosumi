@@ -92,10 +92,12 @@ export default function JobInputsFormClient({
       );
     } else {
       result = await startJob({
-        agentId: agentId,
-        maxAcceptedCents: agentCreditsPrice.cents,
-        inputSchema: input_data,
-        inputData: transformedInputData,
+        input: {
+          agentId: agentId,
+          maxAcceptedCents: agentCreditsPrice.cents,
+          inputSchema: input_data,
+          inputData: transformedInputData,
+        },
       });
     }
 

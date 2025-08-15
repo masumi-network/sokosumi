@@ -101,18 +101,18 @@ export async function POST(
     const inputDataMap = new Map(Object.entries(validatedData.inputData ?? {}));
 
     // Create the job using the existing action
-    const result = await startJob(
-      {
+    const result = await startJob({
+      input: {
         agentId,
         maxAcceptedCents,
         inputSchema: validatedInputSchema.input_data,
         inputData: inputDataMap,
       },
-      {
+      authContext: {
         userId: apiKey.userId,
         organizationId: apiKey.metadata?.organizationId ?? null,
       },
-    );
+    });
 
     if (!result.ok) {
       // Handle specific job creation errors by throwing errors that handleApiError can catch

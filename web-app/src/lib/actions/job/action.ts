@@ -4,7 +4,7 @@ import * as Sentry from "@sentry/nextjs";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
-import { AuthContext, getAuthContext } from "@/lib/auth/utils";
+import { getAuthContext } from "@/lib/auth/utils";
 import { JobWithStatus } from "@/lib/db";
 import { jobRepository } from "@/lib/db/repositories";
 import {
@@ -16,6 +16,10 @@ import {
 } from "@/lib/schemas";
 import { jobService } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
+import {
+  AuthenticatedRequest,
+  withAuthContext,
+} from "@/middleware/auth-middleware";
 
 export async function startDemoJob(
   input: Omit<StartJobInputSchemaType, "userId" | "maxAcceptedCents">,
@@ -52,20 +56,17 @@ export async function startDemoJob(
   return Ok({ jobId: job.id });
 }
 
-export async function startJob(
-  input: Omit<StartJobInputSchemaType, "userId" | "organizationId">,
-  ctx?: AuthContext,
-): Promise<Result<{ jobId: string }, ActionError>> {
-  const context = ctx ?? (await getAuthContext());
-  if (!context) {
-    return Err({
-      message: "Unauthenticated",
-      code: CommonErrorCode.UNAUTHENTICATED,
-    });
-  }
+interface StartJobParameters extends AuthenticatedRequest {
+  input: Omit<StartJobInputSchemaType, "userId" | "organizationId">;
+}
+
+export const startJob = withAuthContext<
+  StartJobParameters,
+  Result<{ jobId: string }, ActionError>
+>(async ({ input, authContext }) => {
   return await Sentry.withScope(async (scope) => {
     try {
-      const { userId, organizationId } = context;
+      const { userId, organizationId } = authContext;
       const inputDataForService: StartJobInputSchemaType = {
         ...input,
         userId,
@@ -194,7 +195,7 @@ export async function startJob(
       }
     }
   });
-}
+});
 
 export async function updateJobName(
   jobId: string,

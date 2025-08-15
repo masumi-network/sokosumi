@@ -33,8 +33,8 @@ export default function useAgentInputSchema(agentId: string) {
             return;
           }
 
-          const data = await response.json();
-          const parsedResult = jobInputsDataSchema().safeParse(data);
+          const json = await response.json();
+          const parsedResult = jobInputsDataSchema().safeParse(json.data);
           if (!parsedResult.success) {
             setError(new Error("Failed to parse agent input schema"));
           } else {
