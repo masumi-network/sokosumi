@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 import slugify from "slugify";
 
 import { auth, Invitation } from "@/lib/auth/auth";
-import { getContext } from "@/lib/auth/utils";
+import { getAuthContext } from "@/lib/auth/utils";
 import { InvitationWithRelations, MemberWithUser } from "@/lib/db";
 import { invitationRepository, memberRepository } from "@/lib/db/repositories";
 
@@ -89,7 +89,7 @@ export const organizationService = (() => {
   async function getOrganizationMembersWithUser(
     organizationId: string,
   ): Promise<MemberWithUser[]> {
-    const context = await getContext();
+    const context = await getAuthContext();
     if (!context) {
       return [];
     }

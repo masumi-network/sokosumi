@@ -5,7 +5,7 @@ import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { UnAuthenticatedError } from "@/lib/auth/errors";
-import { getContext, verifyUserId } from "@/lib/auth/utils";
+import { getAuthContext, verifyUserId } from "@/lib/auth/utils";
 import { Price, stripeClient } from "@/lib/clients/stripe.client";
 import { convertCreditsToCents } from "@/lib/db";
 import {
@@ -124,7 +124,7 @@ export const stripeService = (() => {
         return null;
       }
 
-      const context = await getContext();
+      const context = await getAuthContext();
       if (!context) {
         return null;
       }
@@ -172,7 +172,7 @@ export const stripeService = (() => {
       maxRedemptions: number = 1,
       metadata?: Record<string, string>,
     ): Promise<Stripe.PromotionCode | null> {
-      const context = await getContext();
+      const context = await getAuthContext();
       if (!context) {
         return null;
       }

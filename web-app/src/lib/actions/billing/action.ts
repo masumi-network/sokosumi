@@ -6,7 +6,7 @@ import {
   BillingErrorCode,
   CommonErrorCode,
 } from "@/lib/actions/errors";
-import { getContext } from "@/lib/auth/utils";
+import { getAuthContext } from "@/lib/auth/utils";
 import { stripeClient } from "@/lib/clients/stripe.client";
 import { userService } from "@/lib/services";
 import { stripeService } from "@/lib/services/stripe.service";
@@ -15,7 +15,7 @@ import { Err, Ok, Result } from "@/lib/ts-res";
 export async function claimFreeCredits(
   promotionCode: string,
 ): Promise<Result<{ url: string }, ActionError>> {
-  const context = await getContext();
+  const context = await getAuthContext();
   if (!context) {
     return Err({
       message: "Unauthenticated",
@@ -48,7 +48,7 @@ export async function purchaseCredits(
   priceId: string,
   credits: number,
 ): Promise<Result<{ url: string }, ActionError>> {
-  const context = await getContext();
+  const context = await getAuthContext();
   if (!context) {
     return Err({
       message: "Unauthenticated",
@@ -94,7 +94,7 @@ export async function getFreeCreditsWithCoupon(
   priceId: string,
   couponId: string,
 ): Promise<Result<{ url: string }, ActionError>> {
-  const context = await getContext();
+  const context = await getAuthContext();
   if (!context) {
     return Err({
       message: "Unauthenticated",

@@ -10,7 +10,7 @@ import { auth, Session } from "@/lib/auth/auth";
  * Represents the authentication scope for a user, including their user ID
  * and optional active organization ID.
  */
-export interface Context {
+export interface AuthContext {
   /** The unique identifier of the authenticated user */
   userId: string;
   /** The active organization ID the user belongs to, or null if none is active */
@@ -18,12 +18,14 @@ export interface Context {
 }
 
 /**
- * Authenticates a user using an API key and returns their scope.
+ * Authenticates a user using an API key and returns their context.
  *
  * @param key - The API key to verify
- * @returns Promise resolving to the user's scope if valid, null otherwise
+ * @returns Promise resolving to the user's context if valid, null otherwise
  */
-async function getContextFromApiKey(key: string): Promise<Context | null> {
+async function getAuthContextFromApiKey(
+  key: string,
+): Promise<AuthContext | null> {
   const apiKeyResult = await auth.api.verifyApiKey({
     body: {
       key,
@@ -39,14 +41,14 @@ async function getContextFromApiKey(key: string): Promise<Context | null> {
 }
 
 /**
- * Authenticates a user using their session and returns their scope.
+ * Authenticates a user using their session and returns their context.
  *
  * @param headers - The request headers containing session information
- * @returns Promise resolving to the user's scope if valid, null otherwise
+ * @returns Promise resolving to the user's context if valid, null otherwise
  */
-async function getContextFromSession(
+async function getAuthContextFromSession(
   headers: Headers,
-): Promise<Context | null> {
+): Promise<AuthContext | null> {
   const session = await auth.api.getSession({
     headers,
   });
@@ -71,13 +73,13 @@ async function getContextFromSession(
  * @returns Promise resolving to the user's context if authenticated, null otherwise
  *
  */
-export async function getContext(): Promise<Context | null> {
+export async function getAuthContext(): Promise<AuthContext | null> {
   const headersList = await headers();
   const key = headersList.get("x-api-key");
   if (key) {
-    return await getContextFromApiKey(key);
+    return await getAuthContextFromApiKey(key);
   } else {
-    return await getContextFromSession(headersList);
+    return await getAuthContextFromSession(headersList);
   }
 }
 
@@ -130,7 +132,7 @@ export async function getSessionOrRedirect(): Promise<Session> {
  *
  */
 export async function verifyUserId(userId: string): Promise<boolean> {
-  const context = await getContext();
+  const context = await getAuthContext();
   if (!context) {
     console.error("Authentication not found");
     return false;

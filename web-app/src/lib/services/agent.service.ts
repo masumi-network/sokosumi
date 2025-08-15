@@ -2,7 +2,7 @@ import "server-only";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
-import { getContext } from "@/lib/auth/utils";
+import { getAuthContext } from "@/lib/auth/utils";
 import {
   AgentWithCreditsPrice,
   AgentWithFixedPricing,
@@ -99,7 +99,7 @@ export const agentService = (() => {
     userOrganizationIds: string[];
     creditCosts: CreditCost[];
   }> => {
-    const context = await getContext();
+    const context = await getAuthContext();
     const creditCosts = await creditCostRepository.getCreditCosts(tx);
     const userOrganizationIds = context?.userId
       ? await memberRepository.getMembersOrganizationIdsByUserId(
@@ -119,7 +119,7 @@ export const agentService = (() => {
   const getAgentsByListType = async (
     type: AgentListType,
   ): Promise<AgentWithRelations[]> => {
-    const context = await getContext();
+    const context = await getAuthContext();
     if (!context) {
       return [];
     }
@@ -244,7 +244,7 @@ export const agentService = (() => {
      * @throws If no active session is found.
      */
     getHiredAgents: async (): Promise<AgentWithJobs[]> => {
-      const context = await getContext();
+      const context = await getAuthContext();
       if (!context) {
         return [];
       }

@@ -3,7 +3,7 @@
 import { z } from "zod";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions";
-import { getContext } from "@/lib/auth/utils";
+import { getAuthContext } from "@/lib/auth/utils";
 import {
   memberRepository,
   organizationRepository,
@@ -58,7 +58,7 @@ export async function updateOrganizationInvoiceEmail(
   }
 
   // Get current user session
-  const context = await getContext();
+  const context = await getAuthContext();
   if (!context) {
     return Err({
       code: CommonErrorCode.UNAUTHENTICATED,

@@ -4,7 +4,7 @@ import * as Sentry from "@sentry/nextjs";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
-import { Context, getContext } from "@/lib/auth/utils";
+import { AuthContext, getAuthContext } from "@/lib/auth/utils";
 import { JobWithStatus } from "@/lib/db";
 import { jobRepository } from "@/lib/db/repositories";
 import {
@@ -22,7 +22,7 @@ export async function startDemoJob(
   jobStatusResponse: JobStatusResponseSchemaType,
 ): Promise<Result<{ jobId: string }, ActionError>> {
   // Authentication
-  const context = await getContext();
+  const context = await getAuthContext();
   if (!context) {
     return Err({
       message: "Unauthenticated",
@@ -54,9 +54,9 @@ export async function startDemoJob(
 
 export async function startJob(
   input: Omit<StartJobInputSchemaType, "userId" | "organizationId">,
-  ctx?: Context,
+  ctx?: AuthContext,
 ): Promise<Result<{ jobId: string }, ActionError>> {
-  const context = ctx ?? (await getContext());
+  const context = ctx ?? (await getAuthContext());
   if (!context) {
     return Err({
       message: "Unauthenticated",
@@ -201,7 +201,7 @@ export async function updateJobName(
   data: JobDetailsNameFormSchemaType,
 ): Promise<Result<void, ActionError>> {
   // Authentication
-  const context = await getContext();
+  const context = await getAuthContext();
   if (!context) {
     return Err({
       message: "Unauthenticated",
@@ -246,7 +246,7 @@ export async function updateJobName(
 export async function requestRefundJobByBlockchainIdentifier(
   blockchainIdentifier: string,
 ): Promise<Result<{ job: JobWithStatus }, ActionError>> {
-  const context = await getContext();
+  const context = await getAuthContext();
   if (!context) {
     return Err({
       message: "Unauthenticated",

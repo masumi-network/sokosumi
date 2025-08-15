@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions";
-import { getContext } from "@/lib/auth/utils";
+import { getAuthContext } from "@/lib/auth/utils";
 import { agentListRepository } from "@/lib/db/repositories";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import { AgentListType } from "@/prisma/generated/client";
@@ -13,7 +13,7 @@ export async function toggleAgentInAgentList(
   listType: AgentListType,
   isBookmarked: boolean,
 ): Promise<Result<void, ActionError>> {
-  const context = await getContext();
+  const context = await getAuthContext();
   if (!context) {
     return Err({
       message: "Unauthenticated",

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getContext } from "@/lib/auth/utils";
+import { getAuthContext } from "@/lib/auth/utils";
 import {
   InvitationWithRelations,
   JobWithStatus,
@@ -27,7 +27,7 @@ export const userService = (() => {
    *
    */
   async function getMe(): Promise<User | null> {
-    const context = await getContext();
+    const context = await getAuthContext();
     if (!context) {
       return null;
     }
@@ -43,7 +43,7 @@ export const userService = (() => {
    * @returns {Promise<string | null | undefined>} The active organization ID, or null/undefined if not set.
    */
   async function getActiveOrganizationId(): Promise<string | null | undefined> {
-    const context = await getContext();
+    const context = await getAuthContext();
     if (!context) {
       return null;
     }
@@ -73,7 +73,7 @@ export const userService = (() => {
    *
    */
   async function getMyJobs(agentId: string): Promise<JobWithStatus[]> {
-    const context = await getContext();
+    const context = await getAuthContext();
     if (!context) {
       return [];
     }
@@ -104,7 +104,7 @@ export const userService = (() => {
   async function getMyMembersWithOrganizations(): Promise<
     MemberWithOrganization[]
   > {
-    const context = await getContext();
+    const context = await getAuthContext();
     if (!context) {
       return [];
     }
@@ -125,7 +125,7 @@ export const userService = (() => {
   async function getMyMemberInOrganization(
     organizationId: string,
   ): Promise<Member | null> {
-    const context = await getContext();
+    const context = await getAuthContext();
     if (!context) {
       return null;
     }
@@ -143,7 +143,7 @@ export const userService = (() => {
   async function getMyValidPendingInvitations(): Promise<
     InvitationWithRelations[]
   > {
-    const context = await getContext();
+    const context = await getAuthContext();
     if (!context) {
       return [];
     }
