@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 
 import { JobDetails } from "@/app/agents/[agentId]/jobs/@right/components/job-details";
-import { getSessionOrRedirect } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/utils";
 import { agentRepository, jobRepository } from "@/lib/db/repositories";
 
 interface JobDetailsPageParams {
@@ -14,7 +14,10 @@ export default async function JobDetailsPage({
 }: {
   params: Promise<JobDetailsPageParams>;
 }) {
-  const session = await getSessionOrRedirect();
+  const session = await getSession();
+  if (!session) {
+    return notFound();
+  }
 
   const { agentId, jobId } = await params;
 
