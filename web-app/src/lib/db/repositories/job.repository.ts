@@ -176,56 +176,6 @@ export const jobRepository = {
     return jobs.map(mapJobWithStatus);
   },
 
-  /**
-   * Retrieves jobs associated with a specific agent, user, and organization
-   * @param agentId - The unique identifier of the agent
-   * @param userId - The unique identifier of the user
-   * @param organizationId - The unique identifier of the organization
-   * @returns Promise containing an array of jobs with their relations
-   */
-  async getJobsByAgentIdUserIdAndOrganizationId(
-    agentId: string,
-    userId: string,
-    organizationId: string,
-    tx: Prisma.TransactionClient = prisma,
-  ): Promise<JobWithStatus[]> {
-    const jobs = await tx.job.findMany({
-      where: {
-        agentId,
-        userId,
-        organizationId,
-      },
-      include: jobInclude,
-      orderBy: jobOrderBy,
-    });
-
-    return jobs.map(mapJobWithStatus);
-  },
-
-  /**
-   * Retrieves personal jobs (without organization context) for a specific agent and user
-   * @param agentId - The unique identifier of the agent
-   * @param userId - The unique identifier of the user
-   * @returns Promise containing an array of jobs with their relations
-   */
-  async getPersonalJobsByAgentIdAndUserId(
-    agentId: string,
-    userId: string,
-    tx: Prisma.TransactionClient = prisma,
-  ): Promise<JobWithStatus[]> {
-    const jobs = await tx.job.findMany({
-      where: {
-        agentId,
-        userId,
-        organizationId: null,
-      },
-      include: jobInclude,
-      orderBy: jobOrderBy,
-    });
-
-    return jobs.map(mapJobWithStatus);
-  },
-
   async getJobById(jobId: string, tx: Prisma.TransactionClient = prisma) {
     const job = await tx.job.findUnique({
       where: { id: jobId },
@@ -589,47 +539,15 @@ export const jobRepository = {
     return mapJobWithStatus(job);
   },
 
-  /**
-   * Retrieves all jobs for a specific user and organization
-   * @param userId - The unique identifier of the user
-   * @param organizationId - The unique identifier of the organization
-   * @returns Promise containing an array of jobs with their relations
-   */
-  async getJobsByUserIdAndOrganizationId(
-    userId: string,
-    organizationId: string,
+  async getJobs(
+    where: Prisma.JobWhereInput,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<JobWithStatus[]> {
     const jobs = await tx.job.findMany({
-      where: {
-        userId,
-        organizationId,
-      },
+      where,
       include: jobInclude,
       orderBy: jobOrderBy,
     });
-
-    return jobs.map(mapJobWithStatus);
-  },
-
-  /**
-   * Retrieves all personal jobs (without organization context) for a specific user
-   * @param userId - The unique identifier of the user
-   * @returns Promise containing an array of jobs with their relations
-   */
-  async getPersonalJobsByUserId(
-    userId: string,
-    tx: Prisma.TransactionClient = prisma,
-  ): Promise<JobWithStatus[]> {
-    const jobs = await tx.job.findMany({
-      where: {
-        userId,
-        organizationId: null,
-      },
-      include: jobInclude,
-      orderBy: jobOrderBy,
-    });
-
     return jobs.map(mapJobWithStatus);
   },
 };

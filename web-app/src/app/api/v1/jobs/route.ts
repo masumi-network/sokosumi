@@ -28,26 +28,14 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     // Get organization context from API key
     const activeOrganizationId = apiKey.metadata?.organizationId;
 
-    let jobs;
-    if (activeOrganizationId) {
-      // Show jobs for the specific organization
-      jobs = await jobRepository.getJobsByUserIdAndOrganizationId(
-        apiKey.userId,
-        activeOrganizationId,
-      );
-    } else {
-      // Show personal jobs only (no organization)
-      jobs = await jobRepository.getPersonalJobsByUserId(apiKey.userId);
-    }
+    const jobs = await jobRepository.getJobs({
+      userId: apiKey.userId,
+      organizationId: activeOrganizationId,
+      ...(agentIdFilter ? { agentId: agentIdFilter } : {}),
+    });
 
     // Apply filters
     let filteredJobs = jobs;
-
-    if (agentIdFilter) {
-      filteredJobs = filteredJobs.filter(
-        (job) => job.agentId === agentIdFilter,
-      );
-    }
 
     if (statusFilter && Object.values(JobStatus).includes(statusFilter)) {
       filteredJobs = filteredJobs.filter((job) => job.status === statusFilter);

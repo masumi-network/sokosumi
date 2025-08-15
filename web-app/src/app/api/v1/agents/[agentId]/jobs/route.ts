@@ -40,21 +40,11 @@ export async function GET(
     // Get organization context from session (works for both regular sessions and API keys)
     const activeOrganizationId = apiKey.metadata?.organizationId;
 
-    let jobs;
-    if (activeOrganizationId) {
-      // Show jobs for the specific organization
-      jobs = await jobRepository.getJobsByAgentIdUserIdAndOrganizationId(
-        agentId,
-        apiKey.userId,
-        activeOrganizationId,
-      );
-    } else {
-      // Show personal jobs only (no organization)
-      jobs = await jobRepository.getPersonalJobsByAgentIdAndUserId(
-        agentId,
-        apiKey.userId,
-      );
-    }
+    const jobs = await jobRepository.getJobs({
+      agentId,
+      userId: apiKey.userId,
+      organizationId: activeOrganizationId,
+    });
 
     // Format all jobs
     const formattedJobs = jobs.map((job) => formatJobResponse(job));

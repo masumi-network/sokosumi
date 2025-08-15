@@ -80,20 +80,11 @@ export const userService = (() => {
     const userId = context.userId;
     const activeOrganizationId = context.organizationId;
 
-    if (activeOrganizationId) {
-      // Show jobs for the specific organization
-      return await jobRepository.getJobsByAgentIdUserIdAndOrganizationId(
-        agentId,
-        userId,
-        activeOrganizationId,
-      );
-    } else {
-      // Show personal jobs only (without organization context)
-      return await jobRepository.getPersonalJobsByAgentIdAndUserId(
-        agentId,
-        userId,
-      );
-    }
+    return await jobRepository.getJobs({
+      agentId,
+      userId,
+      organizationId: activeOrganizationId,
+    });
   }
 
   /**
