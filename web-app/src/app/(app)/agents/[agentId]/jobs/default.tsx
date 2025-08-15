@@ -19,7 +19,6 @@ export default async function JobsPage({ params }: JobsPageProps) {
   const { agentId } = await params;
   const agent = await agentRepository.getAgentWithRelationsById(agentId);
   if (!agent) {
-    console.warn("agent not found in job layout");
     return notFound();
   }
 
