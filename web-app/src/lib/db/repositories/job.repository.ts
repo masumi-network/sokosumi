@@ -588,6 +588,50 @@ export const jobRepository = {
 
     return mapJobWithStatus(job);
   },
+
+  /**
+   * Retrieves all jobs for a specific user and organization
+   * @param userId - The unique identifier of the user
+   * @param organizationId - The unique identifier of the organization
+   * @returns Promise containing an array of jobs with their relations
+   */
+  async getJobsByUserIdAndOrganizationId(
+    userId: string,
+    organizationId: string,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<JobWithStatus[]> {
+    const jobs = await tx.job.findMany({
+      where: {
+        userId,
+        organizationId,
+      },
+      include: jobInclude,
+      orderBy: jobOrderBy,
+    });
+
+    return jobs.map(mapJobWithStatus);
+  },
+
+  /**
+   * Retrieves all personal jobs (without organization context) for a specific user
+   * @param userId - The unique identifier of the user
+   * @returns Promise containing an array of jobs with their relations
+   */
+  async getPersonalJobsByUserId(
+    userId: string,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<JobWithStatus[]> {
+    const jobs = await tx.job.findMany({
+      where: {
+        userId,
+        organizationId: null,
+      },
+      include: jobInclude,
+      orderBy: jobOrderBy,
+    });
+
+    return jobs.map(mapJobWithStatus);
+  },
 };
 
 /**
