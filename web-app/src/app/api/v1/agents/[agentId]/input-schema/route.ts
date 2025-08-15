@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { agentClient } from "@/lib/clients/agent.client";
 import { agentRepository } from "@/lib/db/repositories";
+import { jobInputsDataSchema } from "@/lib/job-input";
 
 interface RouteParams {
   params: Promise<{
@@ -9,7 +10,10 @@ interface RouteParams {
   }>;
 }
 
-export async function GET(request: NextRequest, { params }: RouteParams) {
+export async function GET(
+  _request: NextRequest,
+  { params }: RouteParams,
+): Promise<NextResponse> {
   const { agentId } = await params;
   if (!agentId) {
     return NextResponse.json(
@@ -27,7 +31,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     if (!inputSchemaResult.ok) {
       throw new Error(inputSchemaResult.error);
     }
-    return NextResponse.json(inputSchemaResult.data);
+
+    const inputSchema = jobInputsDataSchema().parse(inputSchemaResult.data);
+    return NextResponse.json(inputSchema);
   } catch (error) {
     const message = error instanceof Error ? error.message : "";
     return NextResponse.json(

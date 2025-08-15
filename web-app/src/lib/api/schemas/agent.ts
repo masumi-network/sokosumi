@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { jobInputsDataSchema } from "@/lib/job-input";
 import { AgentStatus } from "@/prisma/generated/client";
 
 // Schema for credit price with BigInt to string conversion
@@ -37,3 +38,6 @@ export const agentsListResponseSchema = z.object({
 export type CreditsPriceResponse = z.infer<typeof creditsPriceSchema>;
 export type AgentResponse = z.infer<typeof agentResponseSchema>;
 export type AgentsListResponse = z.infer<typeof agentsListResponseSchema>;
+export type AgentInputSchemaResponse = z.infer<
+  ReturnType<typeof jobInputsDataSchema>
+>;
