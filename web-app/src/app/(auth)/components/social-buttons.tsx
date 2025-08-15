@@ -47,7 +47,7 @@ export default function SocialButtons() {
         <socialButton.Button
           onClick={() => handleClick(socialButton.key)}
           key={socialButton.key}
-          className="bg-accent! text-foreground! m-0! flex w-full! rounded-md! px-3! py-2! text-sm! transition-colors! duration-300"
+          className="bg-senary! hover:bg-quinary! text-foreground! m-0! flex w-full! rounded-md! px-3! py-2! text-sm! shadow-none! transition-colors! duration-300!"
           align="center"
           text={t("continueWith", { provider: socialButton.name })}
         />
