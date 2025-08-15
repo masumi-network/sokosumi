@@ -2,17 +2,18 @@ import Link from "next/link";
 
 import { BreadcrumbNavigation } from "@/components/breadcrumb-navigation";
 import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
+import { Session } from "@/lib/auth/auth";
 import { cn } from "@/lib/utils";
 
 import CustomTrigger from "./sidebar/components/custom-trigger";
 import UserCredits from "./user-credits";
 
 interface HeaderProps {
-  userId: string;
+  session: Session;
   className?: string | undefined;
 }
 
-export default function Header({ userId, className }: HeaderProps) {
+export default function Header({ session, className }: HeaderProps) {
   return (
     <header
       className={cn(
@@ -34,7 +35,7 @@ export default function Header({ userId, className }: HeaderProps) {
 
       <div className="hidden flex-1 flex-row gap-2 sm:flex">
         <BreadcrumbNavigation className="flex flex-1" />
-        <UserCredits userId={userId} />
+        <UserCredits session={session} />
       </div>
     </header>
   );

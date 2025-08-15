@@ -1,5 +1,6 @@
 import { getTranslations } from "next-intl/server";
 
+import { Session } from "@/lib/auth/auth";
 import { convertCentsToCredits } from "@/lib/db";
 import {
   creditTransactionRepository,
@@ -13,11 +14,11 @@ import FreeCreditsButton from "./free-credits-button";
 import UserAvatar from "./user-avatar";
 
 interface UserCreditsProps {
-  userId: string;
+  session: Session;
 }
 
-export default async function UserCredits({ userId }: UserCreditsProps) {
-  const user = await userRepository.getUserById(userId);
+export default async function UserCredits({ session }: UserCreditsProps) {
+  const user = await userRepository.getUserById(session.user.id);
 
   const t = await getTranslations("App.Header.Credit");
 
@@ -59,7 +60,7 @@ export default async function UserCredits({ userId }: UserCreditsProps) {
         credits <= 50.0 && <BuyCreditsButton label={t("buy")} path="/billing" />
       )}
       <div className="flex items-center gap-2 md:flex-row-reverse">
-        <UserAvatar />
+        <UserAvatar session={session} />
         <div className="flex flex-col gap-0.5 md:items-end">
           <div className="text-sm font-semibold">{user.name}</div>
           <div className="text-muted-foreground text-xs">{creditLabel}</div>
