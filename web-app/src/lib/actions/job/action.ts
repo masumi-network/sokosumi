@@ -80,7 +80,7 @@ export const startJob = withAuthContext<
       Sentry.setUser({
         id: userId,
       });
-      
+
       // Upload files if any
       if (input.inputData) {
         await handleInputDataFileUploads(userId, input.inputData);
