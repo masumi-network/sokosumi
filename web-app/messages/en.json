@@ -874,6 +874,7 @@
         "Table": {
           "name": "Name",
           "key": "Key",
+          "scope": "Scope",
           "status": "Status",
           "actions": "Actions",
           "created": "Created"
@@ -881,6 +882,10 @@
         "Status": {
           "enabled": "Enabled",
           "disabled": "Disabled"
+        },
+        "Scope": {
+          "personal": "Personal",
+          "organization": "Organization"
         },
         "Actions": {
           "enableTooltip": "Enable API key",
@@ -892,6 +897,12 @@
           "description": "Give your API key a descriptive name to help you identify it later.",
           "nameLabel": "Name",
           "namePlaceholder": "e.g., Production Server, Development App",
+          "scopeLabel": "Scope",
+          "personalScope": "Personal",
+          "organizationScope": "Organization",
+          "organizationLabel": "Organization",
+          "selectOrganization": "Select an organization",
+          "loadingOrganizations": "Loading organizations...",
           "cancelButton": "Cancel",
           "createButton": "Create API Key",
           "CreatedSuccess": {
@@ -924,6 +935,8 @@
           "nameRequired": "API key name is required",
           "nameMaxLength": "API key name must be less than 100 characters",
           "namePattern": "API key name can only contain letters, numbers, spaces, hyphens, and underscores",
+          "scopeRequired": "Please select a scope for the API key",
+          "organizationRequired": "Please select an organization when using organization scope",
           "keyIdRequired": "API key ID is required",
           "confirmNameRequired": "Please confirm the API key name"
         }

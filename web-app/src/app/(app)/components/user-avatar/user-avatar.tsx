@@ -1,21 +1,24 @@
 import { Suspense } from "react";
 
-import { getSessionOrThrow } from "@/lib/auth/utils";
+import { Session } from "@/lib/auth/auth";
 import { userService } from "@/lib/services";
 
 import UserAvatarClient from "./user-avatar.client";
 import UserAvatarSkeleton from "./user-avatar-skeleton";
 
-export default async function UserAvatar() {
+interface UserAvatarProps {
+  session: Session;
+}
+
+export default async function UserAvatar({ session }: UserAvatarProps) {
   return (
     <Suspense fallback={<UserAvatarSkeleton />}>
-      <UserAvatarInner />
+      <UserAvatarInner session={session} />
     </Suspense>
   );
 }
 
-async function UserAvatarInner() {
-  const session = await getSessionOrThrow();
+async function UserAvatarInner({ session }: { session: Session }) {
   const members = await userService.getMyMembersWithOrganizations();
 
   return (

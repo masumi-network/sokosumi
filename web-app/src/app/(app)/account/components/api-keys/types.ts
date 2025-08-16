@@ -5,6 +5,8 @@ import { Apikey } from "@/prisma/generated/client";
 // Form types
 export interface CreateApiKeyFormData {
   name: string;
+  scope: "personal" | "organization";
+  organizationId?: string;
 }
 
 export interface DeleteApiKeyFormData {
@@ -15,6 +17,8 @@ export interface DeleteApiKeyFormData {
 // API operation types
 export interface CreateApiKeyRequest {
   name: string;
+  scope: "personal" | "organization";
+  organizationId?: string;
 }
 
 export interface CreateApiKeyResult {

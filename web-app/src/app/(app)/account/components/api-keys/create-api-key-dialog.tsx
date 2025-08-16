@@ -24,8 +24,18 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { ApiKeySuccessDisplay } from "./api-key-success-display";
+import { useUserOrganizations } from "./hooks/use-user-organizations";
 import { CreateApiKeyDialogProps, CreateApiKeyFormData } from "./types";
 import { createApiKeySchema, DEFAULT_CREATE_FORM_VALUES } from "./utils";
 
@@ -43,6 +53,9 @@ export function CreateApiKeyDialog({
   const [createdKey, setCreatedKey] = useState<string | null>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  // Fetch user's organizations for scope selector
+  const { organizations, isLoading: isLoadingOrgs } = useUserOrganizations();
+
   const schema = createApiKeySchema(t);
 
   const form = useForm<CreateApiKeyFormData>({
@@ -54,7 +67,12 @@ export function CreateApiKeyDialog({
    * Handle form submission to create API key
    */
   const onSubmit = async (values: CreateApiKeyFormData) => {
-    const result = await createApiKey({ name: values.name });
+    const result = await createApiKey({
+      name: values.name,
+      scope: values.scope,
+      organizationId:
+        values.scope === "organization" ? values.organizationId : undefined,
+    });
 
     if (result.success && result.data) {
       setCreatedKey(result.data.key);
@@ -137,6 +155,85 @@ export function CreateApiKeyDialog({
                     </FormItem>
                   )}
                 />
+
+                <FormField
+                  control={form.control}
+                  name="scope"
+                  render={({ field }) => (
+                    <FormItem className="space-y-3">
+                      <FormLabel>{t("CreateDialog.scopeLabel")}</FormLabel>
+                      <FormControl>
+                        <RadioGroup
+                          onValueChange={field.onChange}
+                          value={field.value}
+                          className="flex flex-col space-y-1"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="personal" id="personal" />
+                            <Label
+                              htmlFor="personal"
+                              className="text-sm font-normal"
+                            >
+                              {t("CreateDialog.personalScope")}
+                            </Label>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem
+                              value="organization"
+                              id="organization"
+                            />
+                            <Label
+                              htmlFor="organization"
+                              className="text-sm font-normal"
+                            >
+                              {t("CreateDialog.organizationScope")}
+                            </Label>
+                          </div>
+                        </RadioGroup>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                {form.watch("scope") === "organization" && (
+                  <FormField
+                    control={form.control}
+                    name="organizationId"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>
+                          {t("CreateDialog.organizationLabel")}
+                        </FormLabel>
+                        <Select
+                          onValueChange={field.onChange}
+                          value={field.value}
+                          disabled={isLoadingOrgs}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue
+                                placeholder={
+                                  isLoadingOrgs
+                                    ? t("CreateDialog.loadingOrganizations")
+                                    : t("CreateDialog.selectOrganization")
+                                }
+                              />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {organizations.map((org) => (
+                              <SelectItem key={org.id} value={org.id}>
+                                {org.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                )}
 
                 <DialogFooter>
                   <Button

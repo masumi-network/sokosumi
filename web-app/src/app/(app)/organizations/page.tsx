@@ -1,7 +1,6 @@
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
-import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { userService } from "@/lib/services";
 
 import OrganizationCreateButton from "./components/organization-create-button";
@@ -16,8 +15,6 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function OrganizationsPage() {
-  await getSessionOrRedirect();
-
   const t = await getTranslations("App.Organizations");
 
   const members = await userService.getMyMembersWithOrganizations();

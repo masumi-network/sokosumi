@@ -8,6 +8,8 @@ import { DataTableColumnHeader } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
 import { Apikey } from "@/prisma/generated/client";
 
+import { OrganizationNameDisplay } from "./organization-name-display";
+
 const columnHelper = createColumnHelper<Apikey>();
 
 export function getApiKeyColumns(
@@ -24,6 +26,49 @@ export function getApiKeyColumns(
         <DataTableColumnHeader column={column} title={t("Table.name")} />
       ),
       cell: ({ row }) => <div className="font-medium">{row.original.name}</div>,
+      enableSorting: true,
+      enableHiding: false,
+    }) as ColumnDef<Apikey>,
+
+    columnHelper.display({
+      id: "scope",
+      minSize: 120,
+      size: 120,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t("Table.scope")} />
+      ),
+      cell: ({ row }) => {
+        // Parse metadata to determine scope and get organization ID
+        let organizationId = null;
+        if (row.original.metadata) {
+          try {
+            // Metadata might be stored as a JSON string or already parsed object
+            const metadata =
+              typeof row.original.metadata === "string"
+                ? JSON.parse(row.original.metadata)
+                : row.original.metadata;
+            organizationId = metadata?.organizationId ?? null;
+          } catch (error) {
+            console.warn(
+              "Failed to parse API key metadata:",
+              row.original.metadata,
+              error,
+            );
+          }
+        }
+
+        return (
+          <div className="text-sm">
+            {organizationId ? (
+              <OrganizationNameDisplay organizationId={organizationId} />
+            ) : (
+              <span className="text-muted-foreground">
+                {t("Scope.personal")}
+              </span>
+            )}
+          </div>
+        );
+      },
       enableSorting: true,
       enableHiding: false,
     }) as ColumnDef<Apikey>,

@@ -1,6 +1,6 @@
 import "server-only";
 
-import { getSession } from "@/lib/auth/utils";
+import { getAuthContext } from "@/lib/auth/utils";
 import {
   InvitationWithRelations,
   JobWithStatus,
@@ -27,9 +27,11 @@ export const userService = (() => {
    *
    */
   async function getMe(): Promise<User | null> {
-    const session = await getSession();
-    if (!session?.user) return null;
-    return userRepository.getUserById(session.user.id);
+    const context = await getAuthContext();
+    if (!context) {
+      return null;
+    }
+    return userRepository.getUserById(context.userId);
   }
 
   /**
@@ -41,8 +43,11 @@ export const userService = (() => {
    * @returns {Promise<string | null | undefined>} The active organization ID, or null/undefined if not set.
    */
   async function getActiveOrganizationId(): Promise<string | null | undefined> {
-    const session = await getSession();
-    return session?.session.activeOrganizationId;
+    const context = await getAuthContext();
+    if (!context) {
+      return null;
+    }
+    return context.organizationId;
   }
 
   async function getActiveOrganization(): Promise<OrganizationWithRelations | null> {
@@ -68,26 +73,18 @@ export const userService = (() => {
    *
    */
   async function getMyJobs(agentId: string): Promise<JobWithStatus[]> {
-    const session = await getSession();
-    if (!session) return [];
-
-    const userId = session.user.id;
-    const activeOrganizationId = session.session.activeOrganizationId;
-
-    if (activeOrganizationId) {
-      // Show jobs for the specific organization
-      return await jobRepository.getJobsByAgentIdUserIdAndOrganizationId(
-        agentId,
-        userId,
-        activeOrganizationId,
-      );
-    } else {
-      // Show personal jobs only (without organization context)
-      return await jobRepository.getPersonalJobsByAgentIdAndUserId(
-        agentId,
-        userId,
-      );
+    const context = await getAuthContext();
+    if (!context) {
+      return [];
     }
+    const userId = context.userId;
+    const activeOrganizationId = context.organizationId;
+
+    return await jobRepository.getJobs({
+      agentId,
+      userId,
+      organizationId: activeOrganizationId,
+    });
   }
 
   /**
@@ -98,13 +95,13 @@ export const userService = (() => {
   async function getMyMembersWithOrganizations(): Promise<
     MemberWithOrganization[]
   > {
-    const session = await getSession();
-    if (!session) {
+    const context = await getAuthContext();
+    if (!context) {
       return [];
     }
-    const userId = session.user.id;
-
-    return await memberRepository.getMembersWithOrganizationByUserId(userId);
+    return await memberRepository.getMembersWithOrganizationByUserId(
+      context.userId,
+    );
   }
 
   /**
@@ -119,18 +116,14 @@ export const userService = (() => {
   async function getMyMemberInOrganization(
     organizationId: string,
   ): Promise<Member | null> {
-    const session = await getSession();
-    if (!session) {
+    const context = await getAuthContext();
+    if (!context) {
       return null;
     }
-    const userId = session.user.id;
-
-    const member = await memberRepository.getMemberByUserIdAndOrganizationId(
-      userId,
+    return await memberRepository.getMemberByUserIdAndOrganizationId(
+      context.userId,
       organizationId,
     );
-
-    return member;
   }
 
   /**
@@ -141,14 +134,18 @@ export const userService = (() => {
   async function getMyValidPendingInvitations(): Promise<
     InvitationWithRelations[]
   > {
-    const session = await getSession();
-    if (!session) {
+    const context = await getAuthContext();
+    if (!context) {
+      return [];
+    }
+    const user = await userRepository.getUserById(context.userId);
+    if (!user?.email) {
+      console.error("User email not found");
       return [];
     }
 
-    const userEmail = session.user.email;
     return await invitationRepository.getValidPendingInvitationsByEmail(
-      userEmail,
+      user.email,
     );
   }
 
