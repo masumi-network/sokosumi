@@ -1,8 +1,14 @@
-// lib/sanitizeMarkdown.ts
 import DOMPurify from "isomorphic-dompurify";
 
+// Handles markdown replacements for custom rules
+export function handleMarkdownReplaces(markdown: string): string {
+  // Replace lines containing only three or more dashes, asterisks, or underscores (with optional spaces) with '___'
+  return markdown.replace(/^( {0,3}(([-*_])\s?){3,})$/gm, "\n___\n");
+}
+
 export function sanitizeMarkdown(markdown: string): string {
-  return DOMPurify.sanitize(markdown, {
+  const replacedMarkdown = handleMarkdownReplaces(markdown);
+  return DOMPurify.sanitize(replacedMarkdown, {
     ALLOWED_TAGS: [
       "b",
       "i",
