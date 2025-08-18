@@ -52,7 +52,7 @@ export function AccountSettings({ accounts }: AccountSettingsProps) {
         </div>
 
         <div className="border-t pt-8">
-          <div className="mx-auto max-w-sm">
+          <div className="mx-auto w-full">
             <DeleteAccountForm />
           </div>
         </div>
