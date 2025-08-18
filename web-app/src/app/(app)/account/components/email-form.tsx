@@ -59,17 +59,17 @@ export function EmailForm() {
 
   return (
     <Card className="flex h-full flex-col">
-      <CardHeader>
-        <CardTitle>{t("title")}</CardTitle>
-        <CardDescription>{t("description")}</CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)}>
-            <fieldset
-              className="space-y-4"
-              disabled={form.formState.isSubmitting}
-            >
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(handleSubmit)}>
+          <fieldset
+            className="space-y-6"
+            disabled={form.formState.isSubmitting}
+          >
+            <CardHeader>
+              <CardTitle>{t("title")}</CardTitle>
+              <CardDescription>{t("description")}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
               <FormField
                 control={form.control}
                 name="email"
@@ -83,22 +83,22 @@ export function EmailForm() {
                   </FormItem>
                 )}
               />
-            </fieldset>
-          </form>
-        </Form>
-      </CardContent>
-      <CardFooter>
-        <Button
-          type="submit"
-          disabled={form.formState.isSubmitting}
-          className="w-full"
-        >
-          {form.formState.isSubmitting && (
-            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-          )}
-          {t("submit")}
-        </Button>
-      </CardFooter>
+            </CardContent>
+            <CardFooter>
+              <Button
+                type="submit"
+                disabled={form.formState.isSubmitting}
+                className="w-full"
+              >
+                {form.formState.isSubmitting && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                {t("submit")}
+              </Button>
+            </CardFooter>
+          </fieldset>
+        </form>
+      </Form>
     </Card>
   );
 }
