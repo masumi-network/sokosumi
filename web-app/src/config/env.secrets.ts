@@ -23,6 +23,9 @@ const envSecretsSchema = z.object({
     .transform((val: string) => (val.trim() === "" ? [] : val.split(",")))
     .pipe(z.array(z.string())),
 
+  // Usercentrics
+  USER_CENTRICS_DATA_SETTINGS_ID: z.string().min(1),
+
   SHOW_AGENTS_BY_DEFAULT: z
     .string()
     .default("false")
