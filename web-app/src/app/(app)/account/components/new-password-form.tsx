@@ -25,34 +25,33 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { authClient } from "@/lib/auth/auth.client";
-import { nameFormSchema, NameFormType } from "@/lib/schemas";
+import { createCredentialAccount } from "@/lib/actions";
+import { newPasswordFormSchema, NewPasswordFormType } from "@/lib/schemas";
 
-export function NameForm() {
-  const t = useTranslations("App.Account.Name");
+export function NewPasswordForm() {
+  const t = useTranslations("App.Account.NewPassword");
   const router = useRouter();
 
-  const form = useForm<NameFormType>({
+  const form = useForm<NewPasswordFormType>({
     resolver: zodResolver(
-      nameFormSchema(useTranslations("Library.Auth.Schema")),
+      newPasswordFormSchema(useTranslations("Library.Auth.Schema")),
     ),
     defaultValues: {
-      name: "",
+      newPassword: "",
+      confirmNewPassword: "",
     },
   });
 
-  const handleSubmit = async (values: NameFormType) => {
-    const updateUserResult = await authClient.updateUser({
-      name: values.name,
-    });
+  const handleSubmit = async (values: NewPasswordFormType) => {
+    const result = await createCredentialAccount(values);
 
-    if (updateUserResult.error) {
-      const errorMessage = updateUserResult.error.message ?? t("error");
-      toast.error(errorMessage);
-    } else {
+    if (result.ok) {
       toast.success(t("success"));
       form.reset();
       router.refresh();
+    } else {
+      const errorMessage = result.error.message ?? t("error");
+      toast.error(errorMessage);
     }
   };
 
@@ -71,12 +70,25 @@ export function NameForm() {
             <CardContent className="space-y-4">
               <FormField
                 control={form.control}
-                name="name"
+                name="newPassword"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("newName")}</FormLabel>
+                    <FormLabel>{t("newPassword")}</FormLabel>
                     <FormControl>
-                      <Input placeholder="John Doe" {...field} />
+                      <Input type="password" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="confirmNewPassword"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("confirmPassword")}</FormLabel>
+                    <FormControl>
+                      <Input type="password" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

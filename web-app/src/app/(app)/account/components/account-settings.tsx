@@ -1,13 +1,29 @@
 import { useTranslations } from "next-intl";
 
+import { type Account } from "@/lib/auth/auth";
+import { AccountProvider } from "@/lib/auth/types";
+
 import { ApiKeysSection } from "./api-keys";
 import { DeleteAccountForm } from "./delete-account-form";
 import { EmailForm } from "./email-form";
 import { NameForm } from "./name-form";
+import { NewPasswordForm } from "./new-password-form";
 import { PasswordForm } from "./password-form";
+import { SocialAccounts } from "./social-accounts";
 
-export function AccountSettings() {
+interface AccountSettingsProps {
+  accounts: Account[];
+}
+
+export function AccountSettings({ accounts }: AccountSettingsProps) {
   const t = useTranslations("App.Account");
+
+  const socialAccounts = accounts.filter(
+    (account) => account.provider !== AccountProvider.CREDENTIAL,
+  );
+  const hasCredentialAccount = accounts.some(
+    (account) => account.provider === AccountProvider.CREDENTIAL,
+  );
 
   return (
     <div className="w-full space-y-8 md:mx-auto md:w-auto md:max-w-5xl">
@@ -23,8 +39,12 @@ export function AccountSettings() {
           <NameForm />
           <EmailForm />
           <div className="md:col-span-2">
-            <PasswordForm />
+            {hasCredentialAccount ? <PasswordForm /> : <NewPasswordForm />}
           </div>
+        </div>
+
+        <div className="border-t pt-8">
+          <SocialAccounts socialAccounts={socialAccounts} />
         </div>
 
         <div className="border-t pt-8">
@@ -32,7 +52,7 @@ export function AccountSettings() {
         </div>
 
         <div className="border-t pt-8">
-          <div className="mx-auto max-w-sm">
+          <div className="mx-auto w-full">
             <DeleteAccountForm />
           </div>
         </div>

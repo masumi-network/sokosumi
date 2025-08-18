@@ -854,6 +854,29 @@
         "success": "Password updated successfully",
         "error": "Failed to update password"
       },
+      "NewPassword": {
+        "title": "Set password",
+        "description": "Set a password for your account",
+        "newPassword": "New password",
+        "confirmPassword": "Confirm new password",
+        "submit": "Set password",
+        "success": "Password set successfully",
+        "error": "Failed to set password"
+      },
+      "SocialAccounts": {
+        "connected": "is connected",
+        "notConnected": "is not connected",
+        "success": "Account connected successfully",
+        "error": "Failed to connect {provider}",
+        "DisconnectModal": {
+          "title": "Disconnect {provider}",
+          "description": "Are you sure you want to disconnect your {provider} account?",
+          "confirm": "Disconnect",
+          "cancel": "Cancel",
+          "success": "Account disconnected successfully",
+          "error": "Failed to disconnect {provider}"
+        }
+      },
       "Delete": {
         "title": "Delete account",
         "description": "Permanently delete your account and all associated data",

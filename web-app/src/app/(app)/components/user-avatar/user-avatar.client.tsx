@@ -94,7 +94,7 @@ export default function UserAvatarClient({
         </Tooltip>
       </TooltipProvider>
 
-      <DropdownMenuContent className="w-60" align="end" forceMount>
+      <DropdownMenuContent className="w-60" align="end">
         <OrganizationSwitcher
           members={members}
           activeOrganizationId={activeOrganizationId}

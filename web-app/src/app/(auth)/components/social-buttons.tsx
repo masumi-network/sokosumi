@@ -3,69 +3,55 @@
 import { useTranslations } from "next-intl";
 import { ComponentProps } from "react";
 import {
-  AppleLoginButton,
   GoogleLoginButton,
-  LinkedInLoginButton,
   MicrosoftLoginButton,
 } from "react-social-login-buttons";
 import { toast } from "sonner";
 
-import { useAsyncRouter } from "@/hooks/use-async-router";
-import { signInSocial } from "@/lib/actions";
+import { authClient } from "@/lib/auth/auth.client";
 
-import Divider from "./divider";
-
-type SocialKey = "google" | "microsoft" | "apple" | "linkedin";
+type SocialKey = "google" | "microsoft";
 const socialButtons: Array<{
   key: SocialKey;
-  button: React.FC<ComponentProps<typeof GoogleLoginButton>>;
+  name: string;
+  Button: React.FC<ComponentProps<typeof GoogleLoginButton>>;
 }> = [
   {
     key: "google",
-    button: GoogleLoginButton,
+    name: "Google",
+    Button: GoogleLoginButton,
   },
   {
     key: "microsoft",
-    button: MicrosoftLoginButton,
-  },
-  {
-    key: "apple",
-    button: AppleLoginButton,
-  },
-  {
-    key: "linkedin",
-    button: LinkedInLoginButton,
+    name: "Microsoft",
+    Button: MicrosoftLoginButton,
   },
 ];
 
 export default function SocialButtons() {
   const t = useTranslations("Auth.SocialButtons");
-  const router = useAsyncRouter();
 
   const handleClick = async (key: SocialKey) => {
-    const result = await signInSocial(key);
-    if (result.ok) {
-      toast.success(t("success"));
-      await router.push("/agents");
-    } else {
-      toast.error(t("error"));
+    const result = await authClient.signIn.social({
+      provider: key,
+    });
+    if (result.error) {
+      const errorMessage = result.error.message ?? t("error");
+      toast.error(errorMessage);
     }
   };
 
   return (
-    <>
-      <div className="grid grid-cols-1 gap-4 lg:gap-6">
-        {socialButtons.map((socialButton) => (
-          <socialButton.button
-            onClick={() => handleClick(socialButton.key)}
-            key={socialButton.key}
-            className="flex items-center justify-center !rounded-lg !px-3 !py-2 !text-sm"
-            align="center"
-            text={t("continueWith", { provider: socialButton.key })}
-          />
-        ))}
-      </div>
-      <Divider label={t("divider")} />
-    </>
+    <div className="flex flex-col gap-3">
+      {socialButtons.map((socialButton) => (
+        <socialButton.Button
+          onClick={() => handleClick(socialButton.key)}
+          key={socialButton.key}
+          className="bg-senary! hover:bg-quinary! text-foreground! m-0! flex w-full! rounded-md! px-4! py-2! text-sm! shadow-none! transition-colors! duration-300! [&>div]:justify-center! [&>div]:gap-2! [&>div_div]:w-auto!"
+          align="center"
+          text={t("continueWith", { provider: socialButton.name })}
+        />
+      ))}
+    </div>
   );
 }
