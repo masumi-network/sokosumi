@@ -17,7 +17,7 @@ import {
   CommonErrorCode,
   JobErrorCode,
   startDemoJob,
-  startJobWithInputData,
+  startJob,
 } from "@/lib/actions";
 import {
   AgentDemoValues,
@@ -91,11 +91,13 @@ export default function JobInputsFormClient({
         demoValues.output,
       );
     } else {
-      result = await startJobWithInputData({
-        agentId: agentId,
-        maxAcceptedCents: agentCreditsPrice.cents,
-        inputSchema: input_data,
-        inputData: transformedInputData,
+      result = await startJob({
+        input: {
+          agentId: agentId,
+          maxAcceptedCents: agentCreditsPrice.cents,
+          inputSchema: input_data,
+          inputData: transformedInputData,
+        },
       });
     }
 

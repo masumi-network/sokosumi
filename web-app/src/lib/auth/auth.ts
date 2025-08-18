@@ -199,6 +199,7 @@ export const auth = betterAuth({
         timeWindow: 60, // 60 seconds
         maxRequests: 100, // 100 requests per minute
       },
+      enableMetadata: true,
     }),
     organization({
       organizationCreation: {

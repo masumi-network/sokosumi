@@ -16,7 +16,7 @@ export default function useAgentInputSchema(agentId: string) {
           setLoading(true);
           setError(null);
           const response = await fetch(
-            `/api/agent/input-schema?agentId=${encodeURIComponent(agentId)}`,
+            `/api/v1/agents/${encodeURIComponent(agentId)}/input-schema`,
           );
 
           if (!response.ok) {
@@ -33,8 +33,8 @@ export default function useAgentInputSchema(agentId: string) {
             return;
           }
 
-          const data = await response.json();
-          const parsedResult = jobInputsDataSchema().safeParse(data);
+          const json = await response.json();
+          const parsedResult = jobInputsDataSchema().safeParse(json.data);
           if (!parsedResult.success) {
             setError(new Error("Failed to parse agent input schema"));
           } else {

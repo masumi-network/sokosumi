@@ -9,12 +9,17 @@ import {
   SidebarFooter,
   SidebarHeader,
 } from "@/components/ui/sidebar";
+import { Session } from "@/lib/auth/auth";
 
 import AgentLists from "./components/agent-lists";
 import CustomTrigger from "./components/custom-trigger";
 import GalleryButton from "./components/gallery-button";
 
-export default function Sidebar() {
+interface SidebarProps {
+  session: Session;
+}
+
+export default function Sidebar({ session }: SidebarProps) {
   return (
     <ShadcnSidebar>
       <SidebarHeader className="h-[64px] border-b">
@@ -33,14 +38,14 @@ export default function Sidebar() {
         </div>
       </SidebarHeader>
       <SidebarContent className="min-h-0 w-full flex-1">
-        <AgentLists />
+        <AgentLists userId={session.user.id} />
       </SidebarContent>
       <SidebarFooter className="shrink-0 px-0">
         <SheetClose asChild>
           <GalleryButton />
         </SheetClose>
         <div className="flex flex-1 gap-2 p-4 pt-0 md:hidden">
-          <UserCredits />
+          <UserCredits session={session} />
         </div>
       </SidebarFooter>
     </ShadcnSidebar>

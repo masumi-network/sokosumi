@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { getTranslations } from "next-intl/server";
 
 import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
+import { getSession } from "@/lib/auth/utils";
 
 import AuthBackground from "./components/auth-background";
 
@@ -19,11 +21,16 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function AuthLayout({
+export default async function AuthLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const session = await getSession();
+  if (session) {
+    redirect("/agents");
+  }
+
   return (
     <div className="flex h-svh gap-6 p-6">
       <div className="flex h-full flex-1 flex-col gap-6">

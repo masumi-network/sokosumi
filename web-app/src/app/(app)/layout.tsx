@@ -29,14 +29,14 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   const cookieStore = await cookies();
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
 
-  await getSessionOrRedirect();
+  const session = await getSessionOrRedirect();
 
   return (
     <>
       <SidebarProvider defaultOpen={defaultOpen}>
-        <Sidebar />
+        <Sidebar session={session} />
         <div className="flex w-full flex-col overflow-clip">
-          <Header className="h-16 p-4" />
+          <Header session={session} className="h-16 p-4" />
           <main className="relative min-h-[calc(100svh-64px)] p-4 pt-20 md:pt-4">
             {children}
           </main>

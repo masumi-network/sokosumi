@@ -6,13 +6,31 @@ import { TranslationFunction } from "./types";
  * Creates validation schema for creating API keys
  */
 export function createApiKeySchema(t: TranslationFunction) {
-  return z.object({
-    name: z
-      .string()
-      .min(1, t("Validation.nameRequired"))
-      .max(100, t("Validation.nameMaxLength"))
-      .regex(/^[a-zA-Z0-9\s\-_]+$/, t("Validation.namePattern")),
-  });
+  return z
+    .object({
+      name: z
+        .string()
+        .min(1, t("Validation.nameRequired"))
+        .max(100, t("Validation.nameMaxLength"))
+        .regex(/^[a-zA-Z0-9\s\-_]+$/, t("Validation.namePattern")),
+      scope: z.enum(["personal", "organization"], {
+        required_error: t("Validation.scopeRequired"),
+      }),
+      organizationId: z.string().optional(),
+    })
+    .refine(
+      (data) => {
+        // If scope is organization, organizationId is required
+        if (data.scope === "organization" && !data.organizationId) {
+          return false;
+        }
+        return true;
+      },
+      {
+        message: t("Validation.organizationRequired"),
+        path: ["organizationId"],
+      },
+    );
 }
 
 /**
@@ -64,7 +82,9 @@ export function getToggleActionText(
  */
 export const DEFAULT_CREATE_FORM_VALUES = {
   name: "",
-} as const;
+  scope: "personal" as const,
+  organizationId: "",
+};
 
 /**
  * Default form values for deleting API keys

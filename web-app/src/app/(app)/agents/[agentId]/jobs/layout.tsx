@@ -7,7 +7,6 @@ import {
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
 import DefaultLoading from "@/components/default-loading";
-import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { getAgentDescription, getAgentLegal, getAgentName } from "@/lib/db";
 import { agentRepository, jobRepository } from "@/lib/db/repositories";
 import { agentService } from "@/lib/services";
@@ -42,8 +41,6 @@ export default async function JobLayout({
   right,
   params,
 }: JobLayoutProps) {
-  await getSessionOrRedirect();
-
   return (
     <Suspense fallback={<JobLayoutSkeleton />}>
       <JobLayoutInner right={right} params={params}>

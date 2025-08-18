@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { getSessionOrRedirect } from "@/lib/auth/utils";
+import { getSession } from "@/lib/auth/utils";
 import { agentRepository } from "@/lib/db/repositories";
 import { userService } from "@/lib/services";
 
@@ -11,12 +11,14 @@ interface JobsPageProps {
 }
 
 export default async function JobsPage({ params }: JobsPageProps) {
-  const session = await getSessionOrRedirect();
+  const session = await getSession();
+  if (!session) {
+    return notFound();
+  }
 
   const { agentId } = await params;
   const agent = await agentRepository.getAgentWithRelationsById(agentId);
   if (!agent) {
-    console.warn("agent not found in job layout");
     return notFound();
   }
 

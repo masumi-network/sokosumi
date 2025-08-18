@@ -2,7 +2,6 @@ import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { AgentsNotAvailable } from "@/components/agents";
-import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { tagRepository } from "@/lib/db/repositories";
 import { agentService } from "@/lib/services";
 import { Tag } from "@/prisma/generated/client";
@@ -20,8 +19,6 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function GalleryPage() {
-  await getSessionOrRedirect();
-
   const agentsWithPrice =
     await agentService.getAvailableAgentsWithCreditsPrice();
 

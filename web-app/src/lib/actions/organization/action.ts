@@ -3,7 +3,7 @@
 import { z } from "zod";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions";
-import { getSession } from "@/lib/auth/utils";
+import { getAuthContext } from "@/lib/auth/utils";
 import {
   memberRepository,
   organizationRepository,
@@ -48,66 +48,60 @@ const updateInvoiceEmailSchema = z.object({
 export async function updateOrganizationInvoiceEmail(
   data: z.infer<typeof updateInvoiceEmailSchema>,
 ): Promise<Result<{ invoiceEmail: string | null }, ActionError>> {
-  try {
-    // Validate input
-    const parsedResult = updateInvoiceEmailSchema.safeParse(data);
-    if (!parsedResult.success) {
-      return Err({
-        code: CommonErrorCode.BAD_INPUT,
-        message: parsedResult.error.errors[0]?.message,
-      });
-    }
+  // Validate input
+  const parsedResult = updateInvoiceEmailSchema.safeParse(data);
+  if (!parsedResult.success) {
+    return Err({
+      code: CommonErrorCode.BAD_INPUT,
+      message: parsedResult.error.errors[0]?.message,
+    });
+  }
 
-    // Get current user session
-    const session = await getSession();
-    if (!session) {
-      return Err({
-        code: CommonErrorCode.UNAUTHENTICATED,
-      });
-    }
+  // Get current user session
+  const context = await getAuthContext();
+  if (!context) {
+    return Err({
+      code: CommonErrorCode.UNAUTHENTICATED,
+      message: "Unauthenticated",
+    });
+  }
 
-    const { organizationId, invoiceEmail } = parsedResult.data;
+  const { organizationId, invoiceEmail } = parsedResult.data;
 
-    // Check if user is an owner or admin of the organization
-    const member = await memberRepository.getMemberByUserIdAndOrganizationId(
-      session.user.id,
-      organizationId,
-    );
+  // Check if user is an owner or admin of the organization
+  const member = await memberRepository.getMemberByUserIdAndOrganizationId(
+    context.userId,
+    organizationId,
+  );
 
-    if (!member) {
-      return Err({
-        code: CommonErrorCode.UNAUTHORIZED,
-        message: "You are not a member of this organization",
-      });
-    }
+  if (!member) {
+    return Err({
+      code: CommonErrorCode.UNAUTHORIZED,
+      message: "You are not a member of this organization",
+    });
+  }
 
-    // Only owners and admins can update invoice email
-    if (member.role !== MemberRole.OWNER && member.role !== MemberRole.ADMIN) {
-      return Err({
-        code: CommonErrorCode.UNAUTHORIZED,
-        message:
-          "Only organization owners and admins can update the invoice email",
-      });
-    }
+  // Only owners and admins can update invoice email
+  if (member.role !== MemberRole.OWNER && member.role !== MemberRole.ADMIN) {
+    return Err({
+      code: CommonErrorCode.UNAUTHORIZED,
+      message:
+        "Only organization owners and admins can update the invoice email",
+    });
+  }
 
-    // Update the invoice email in the database
-    const updatedOrganization =
-      await organizationRepository.updateOrganizationInvoiceEmail(
-        organizationId,
-        invoiceEmail,
-      );
-
-    // Sync with Stripe if the organization has a Stripe customer
-    await stripeService.syncOrganizationInvoiceEmailWithStripe(
+  // Update the invoice email in the database
+  const updatedOrganization =
+    await organizationRepository.updateOrganizationInvoiceEmail(
       organizationId,
       invoiceEmail,
     );
 
-    return Ok({ invoiceEmail: updatedOrganization.invoiceEmail });
-  } catch (error) {
-    console.error("Error updating organization invoice email", error);
-    return Err({
-      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-    });
-  }
+  // Sync with Stripe if the organization has a Stripe customer
+  await stripeService.syncOrganizationInvoiceEmailWithStripe(
+    organizationId,
+    invoiceEmail,
+  );
+
+  return Ok({ invoiceEmail: updatedOrganization.invoiceEmail });
 }
