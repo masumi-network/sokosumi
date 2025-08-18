@@ -10,7 +10,7 @@ import { getTranslations } from "next-intl/server";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
-import { prisma } from "@/lib/db/repositories";
+import { prisma, userRepository } from "@/lib/db/repositories";
 import { reactChangeEmailVerificationEmail } from "@/lib/email/change-email";
 import { reactInviteUserEmail } from "@/lib/email/invitation";
 import { resend } from "@/lib/email/resend";
@@ -21,6 +21,9 @@ import { stripeService } from "@/lib/services";
 export type Session = typeof auth.$Infer.Session;
 export type SessionUser = typeof auth.$Infer.Session.user;
 export type Invitation = typeof auth.$Infer.Invitation;
+export type Account = Awaited<
+  ReturnType<typeof auth.api.listUserAccounts>
+>[number];
 
 const fromEmail = getEnvSecrets().RESEND_FROM_EMAIL;
 
@@ -34,6 +37,18 @@ export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
+  socialProviders: {
+    google: {
+      clientId: getEnvSecrets().GOOGLE_CLIENT_ID,
+      clientSecret: getEnvSecrets().GOOGLE_CLIENT_SECRET,
+      mapProfileToUser,
+    },
+    microsoft: {
+      clientId: getEnvSecrets().MICROSOFT_CLIENT_ID,
+      clientSecret: getEnvSecrets().MICROSOFT_CLIENT_SECRET,
+      mapProfileToUser,
+    },
+  },
   databaseHooks: {
     user: {
       create: {
@@ -81,7 +96,14 @@ export const auth = betterAuth({
       }
     }),
     after: createAuthMiddleware(async (ctx) => {
-      if (ctx.path.startsWith("/sign-in")) {
+      if (ctx.path.startsWith("/callback")) {
+        // if user signs in using social account
+        // set TERMS_ACCEPTED to true
+        const newUser = ctx.context.newSession?.user;
+        if (newUser && !(newUser as SessionUser).termsAccepted) {
+          await userRepository.updateUserTermsAccepted(newUser.id, true);
+        }
+      } else if (ctx.path.startsWith("/sign-in")) {
         const user = ctx.context.newSession?.user;
         if (user && !user.termsAccepted) {
           throw new APIError("BAD_REQUEST", {
@@ -248,3 +270,17 @@ export const auth = betterAuth({
     nextCookies(),
   ],
 });
+
+// check image is longer than 256 characters
+function mapProfileToUser(profile: { name: string; picture: string }) {
+  if (profile.picture && profile.picture.length > 256) {
+    return {
+      name: profile.name,
+      image: undefined,
+    };
+  }
+  return {
+    name: profile.name,
+    image: profile.picture,
+  };
+}

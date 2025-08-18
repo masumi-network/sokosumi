@@ -1,6 +1,7 @@
 "use server";
 
 import { User } from "better-auth";
+import { headers } from "next/headers";
 
 import {
   ActionError,
@@ -9,22 +10,52 @@ import {
   CommonErrorCode,
 } from "@/lib/actions";
 import { auth } from "@/lib/auth/auth";
-import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
+import {
+  newPasswordFormSchema,
+  NewPasswordFormType,
+  signUpFormSchema,
+  SignUpFormSchemaType,
+} from "@/lib/schemas";
 import { utmService } from "@/lib/services/utm.service";
 import { Err, Ok, Result } from "@/lib/ts-res";
 
-export async function signInSocial(
-  provider: "google" | "microsoft" | "apple" | "linkedin",
+/**
+ * Creates a credential account for the user.
+ * This is used for social signed up users to set up a password.
+ * @param data - The data for the new password.
+ * @returns The user if the account was created successfully, otherwise an error.
+ */
+export async function createCredentialAccount(
+  data: NewPasswordFormType,
 ): Promise<Result<void, ActionError>> {
+  const parsedResult = newPasswordFormSchema().safeParse(data);
+  if (!parsedResult.success) {
+    return Err({
+      code: CommonErrorCode.BAD_INPUT,
+    });
+  }
+  const parsed = parsedResult.data;
+
   try {
-    await auth.api.signInSocial({
+    await auth.api.setPassword({
       body: {
-        provider: provider,
+        newPassword: parsed.newPassword,
       },
+      headers: await headers(),
     });
     return Ok();
   } catch (error) {
-    console.error("Error signing in with social provider", error);
+    console.error("Failed to set password", error);
+
+    const parsedBetterAuthApiErrorResult =
+      betterAuthApiErrorSchema.safeParse(error);
+    if (parsedBetterAuthApiErrorResult.success) {
+      return Err({
+        code: parsedBetterAuthApiErrorResult.data.body.code,
+        message: parsedBetterAuthApiErrorResult.data.body.message,
+      });
+    }
+
     return Err({
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,
     });
