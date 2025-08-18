@@ -53,7 +53,7 @@ export function SocialAccounts({ socialAccounts }: SocialAccountsProps) {
   };
 
   return (
-    <div className="flex flex-col divide-y rounded-md border p-2">
+    <div className="flex flex-col divide-y rounded-xl border p-2">
       {supportedSocialProviders.map((provider) => {
         const account = socialAccounts.find(
           (account) => account.provider === provider,
