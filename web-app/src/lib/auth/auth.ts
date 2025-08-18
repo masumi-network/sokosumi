@@ -41,12 +41,12 @@ export const auth = betterAuth({
     google: {
       clientId: getEnvSecrets().GOOGLE_CLIENT_ID,
       clientSecret: getEnvSecrets().GOOGLE_CLIENT_SECRET,
-      overrideUserInfoOnSignIn: true,
+      mapProfileToUser,
     },
     microsoft: {
       clientId: getEnvSecrets().MICROSOFT_CLIENT_ID,
       clientSecret: getEnvSecrets().MICROSOFT_CLIENT_SECRET,
-      overrideUserInfoOnSignIn: true,
+      mapProfileToUser,
     },
   },
   databaseHooks: {
@@ -270,3 +270,17 @@ export const auth = betterAuth({
     nextCookies(),
   ],
 });
+
+// check image is longer than 256 characters
+function mapProfileToUser(profile: { name: string; picture: string }) {
+  if (profile.picture && profile.picture.length > 256) {
+    return {
+      name: profile.name,
+      image: undefined,
+    };
+  }
+  return {
+    name: profile.name,
+    image: profile.picture,
+  };
+}
