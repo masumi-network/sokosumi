@@ -10,7 +10,7 @@ import { getTranslations } from "next-intl/server";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
-import { prisma } from "@/lib/db/repositories";
+import { prisma, userRepository } from "@/lib/db/repositories";
 import { reactChangeEmailVerificationEmail } from "@/lib/email/change-email";
 import { reactInviteUserEmail } from "@/lib/email/invitation";
 import { resend } from "@/lib/email/resend";
@@ -102,7 +102,17 @@ export const auth = betterAuth({
       }
     }),
     after: createAuthMiddleware(async (ctx) => {
-      if (ctx.path.startsWith("/sign-in")) {
+      if (
+        ctx.path.startsWith("/callback/google") ||
+        ctx.path.startsWith("/callback/microsoft")
+      ) {
+        // if user signs in using social account
+        // set TERMS_ACCEPTED to true
+        const newUser = ctx.context.newSession?.user;
+        if (newUser && !(newUser as SessionUser).termsAccepted) {
+          await userRepository.updateUserTermsAccepted(newUser.user.id, true);
+        }
+      } else if (ctx.path.startsWith("/sign-in")) {
         const user = ctx.context.newSession?.user;
         if (user && !user.termsAccepted) {
           throw new APIError("BAD_REQUEST", {
