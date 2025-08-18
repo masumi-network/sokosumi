@@ -38,6 +38,7 @@ export function SocialAccounts({ socialAccounts }: SocialAccountsProps) {
     setLoading(true);
     const result = await authClient.linkSocial({
       provider,
+      callbackURL: "/account",
     });
     if (result.error) {
       const errorMessage = result.error.message ?? t("error", { provider });
