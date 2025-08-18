@@ -4,7 +4,7 @@ import { betterAuth, User } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
-import { apiKey, organization } from "better-auth/plugins";
+import { apiKey, customSession, organization } from "better-auth/plugins";
 import { localization } from "better-auth-localization";
 import { getTranslations } from "next-intl/server";
 
@@ -269,6 +269,13 @@ export const auth = betterAuth({
       // TODO:
       // implement dynamic localization
       // by using `getLocale` function
+    }),
+    customSession(async ({ user, session }, _ctx) => {
+      delete user.image;
+      return {
+        user,
+        session,
+      };
     }),
     nextCookies(),
   ],
