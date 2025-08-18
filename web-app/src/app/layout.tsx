@@ -74,7 +74,6 @@ export default async function RootLayout({
               <NextIntlClientProvider messages={messages}>
                 <GlobalModalsContextProvider>
                   <div className="bg-background">{children}</div>
-                  {/* <CookieConsent /> */}
                 </GlobalModalsContextProvider>
                 {/* Toaster */}
                 <Toaster />
