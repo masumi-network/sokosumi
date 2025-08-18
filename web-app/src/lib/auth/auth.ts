@@ -25,12 +25,6 @@ export type Account = Awaited<
   ReturnType<typeof auth.api.listUserAccounts>
 >[number];
 
-export enum AccountProvider {
-  CREDENTIAL = "credential",
-  GOOGLE = "google",
-  MICROSOFT = "microsoft",
-}
-
 const fromEmail = getEnvSecrets().RESEND_FROM_EMAIL;
 
 export const auth = betterAuth({

@@ -1,6 +1,7 @@
 import { useTranslations } from "next-intl";
 
-import { Account, AccountProvider } from "@/lib/auth/auth";
+import { type Account } from "@/lib/auth/auth";
+import { AccountProvider } from "@/lib/auth/types";
 
 import { ApiKeysSection } from "./api-keys";
 import { DeleteAccountForm } from "./delete-account-form";
@@ -8,6 +9,7 @@ import { EmailForm } from "./email-form";
 import { NameForm } from "./name-form";
 import { NewPasswordForm } from "./new-password-form";
 import { PasswordForm } from "./password-form";
+import { SocialAccounts } from "./social-accounts";
 
 interface AccountSettingsProps {
   accounts: Account[];
@@ -16,6 +18,9 @@ interface AccountSettingsProps {
 export function AccountSettings({ accounts }: AccountSettingsProps) {
   const t = useTranslations("App.Account");
 
+  const socialAccounts = accounts.filter(
+    (account) => account.provider !== AccountProvider.CREDENTIAL,
+  );
   const hasCredentialAccount = accounts.some(
     (account) => account.provider === AccountProvider.CREDENTIAL,
   );
@@ -36,6 +41,10 @@ export function AccountSettings({ accounts }: AccountSettingsProps) {
           <div className="md:col-span-2">
             {hasCredentialAccount ? <PasswordForm /> : <NewPasswordForm />}
           </div>
+        </div>
+
+        <div className="border-t pt-8">
+          <SocialAccounts socialAccounts={socialAccounts} />
         </div>
 
         <div className="border-t pt-8">
