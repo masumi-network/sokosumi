@@ -70,7 +70,7 @@
     "p-timeout": "6.1.4",
     "radix-ui": "1.4.3",
     "react": "19.1.1",
-    "react-day-picker": "9.8.1",
+    "react-day-picker": "9.9.0",
     "react-dom": "19.1.1",
     "react-error-boundary": "6.0.0",
     "react-fast-marquee": "1.6.5",
