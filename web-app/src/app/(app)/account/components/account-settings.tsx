@@ -1,13 +1,24 @@
 import { useTranslations } from "next-intl";
 
+import { Account, AccountProvider } from "@/lib/auth/auth";
+
 import { ApiKeysSection } from "./api-keys";
 import { DeleteAccountForm } from "./delete-account-form";
 import { EmailForm } from "./email-form";
 import { NameForm } from "./name-form";
+import { NewPasswordForm } from "./new-password-form";
 import { PasswordForm } from "./password-form";
 
-export function AccountSettings() {
+interface AccountSettingsProps {
+  accounts: Account[];
+}
+
+export function AccountSettings({ accounts }: AccountSettingsProps) {
   const t = useTranslations("App.Account");
+
+  const hasCredentialAccount = accounts.some(
+    (account) => account.provider === AccountProvider.CREDENTIAL,
+  );
 
   return (
     <div className="w-full space-y-8 md:mx-auto md:w-auto md:max-w-5xl">
@@ -23,7 +34,7 @@ export function AccountSettings() {
           <NameForm />
           <EmailForm />
           <div className="md:col-span-2">
-            <PasswordForm />
+            {hasCredentialAccount ? <PasswordForm /> : <NewPasswordForm />}
           </div>
         </div>
 

@@ -21,6 +21,15 @@ import { stripeService } from "@/lib/services";
 export type Session = typeof auth.$Infer.Session;
 export type SessionUser = typeof auth.$Infer.Session.user;
 export type Invitation = typeof auth.$Infer.Invitation;
+export type Account = Awaited<
+  ReturnType<typeof auth.api.listUserAccounts>
+>[number];
+
+export enum AccountProvider {
+  CREDENTIAL = "credential",
+  GOOGLE = "google",
+  MICROSOFT = "microsoft",
+}
 
 const fromEmail = getEnvSecrets().RESEND_FROM_EMAIL;
 
@@ -38,10 +47,12 @@ export const auth = betterAuth({
     google: {
       clientId: getEnvSecrets().GOOGLE_CLIENT_ID,
       clientSecret: getEnvSecrets().GOOGLE_CLIENT_SECRET,
+      overrideUserInfoOnSignIn: true,
     },
     microsoft: {
       clientId: getEnvSecrets().MICROSOFT_CLIENT_ID,
       clientSecret: getEnvSecrets().MICROSOFT_CLIENT_SECRET,
+      overrideUserInfoOnSignIn: true,
     },
   },
   databaseHooks: {

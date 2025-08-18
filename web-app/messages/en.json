@@ -854,6 +854,15 @@
         "success": "Password updated successfully",
         "error": "Failed to update password"
       },
+      "NewPassword": {
+        "title": "Set password",
+        "description": "Set a password for your account",
+        "newPassword": "New password",
+        "confirmPassword": "Confirm new password",
+        "submit": "Set password",
+        "success": "Password set successfully",
+        "error": "Failed to set password"
+      },
       "Delete": {
         "title": "Delete account",
         "description": "Permanently delete your account and all associated data",

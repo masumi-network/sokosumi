@@ -1,6 +1,8 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -28,6 +30,8 @@ import { nameFormSchema, NameFormType } from "@/lib/schemas";
 
 export function NameForm() {
   const t = useTranslations("App.Account.Name");
+  const router = useRouter();
+
   const form = useForm<NameFormType>({
     resolver: zodResolver(
       nameFormSchema(useTranslations("Library.Auth.Schema")),
@@ -37,18 +41,19 @@ export function NameForm() {
     },
   });
 
-  const onSubmit = async (values: NameFormType) => {
+  const handleSubmit = async (values: NameFormType) => {
     const updateUserResult = await authClient.updateUser({
       name: values.name,
     });
 
     if (updateUserResult.error) {
-      toast.error(t("error"));
-      return;
+      const errorMessage = updateUserResult.error.message ?? t("error");
+      toast.error(errorMessage);
+    } else {
+      toast.success(t("success"));
+      form.reset();
+      router.refresh();
     }
-
-    toast.success(t("success"));
-    form.reset();
   };
 
   return (
@@ -59,20 +64,25 @@ export function NameForm() {
       </CardHeader>
       <CardContent>
         <Form {...form}>
-          <form className="space-y-4">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{t("newName")}</FormLabel>
-                  <FormControl>
-                    <Input placeholder="John Doe" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+          <form onSubmit={form.handleSubmit(handleSubmit)}>
+            <fieldset
+              className="space-y-4"
+              disabled={form.formState.isSubmitting}
+            >
+              <FormField
+                control={form.control}
+                name="name"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>{t("newName")}</FormLabel>
+                    <FormControl>
+                      <Input placeholder="John Doe" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            </fieldset>
           </form>
         </Form>
       </CardContent>
@@ -80,9 +90,11 @@ export function NameForm() {
         <Button
           type="submit"
           disabled={form.formState.isSubmitting}
-          onClick={form.handleSubmit(onSubmit)}
           className="w-full"
         >
+          {form.formState.isSubmitting && (
+            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          )}
           {t("submit")}
         </Button>
       </CardFooter>

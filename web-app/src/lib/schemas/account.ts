@@ -38,6 +38,23 @@ export const passwordFormSchema = (
 
 export type PasswordFormType = z.infer<ReturnType<typeof passwordFormSchema>>;
 
+export const newPasswordFormSchema = (
+  t?: IntlTranslation<"Library.Auth.Schema">,
+) =>
+  z
+    .object({
+      newPassword: passwordSchema(t),
+      confirmNewPassword: confirmPasswordSchema(t),
+    })
+    .refine((data) => data.newPassword === data.confirmNewPassword, {
+      path: ["confirmNewPassword"],
+      message: t?.("ConfirmPassword.match"),
+    });
+
+export type NewPasswordFormType = z.infer<
+  ReturnType<typeof newPasswordFormSchema>
+>;
+
 export const deleteAccountSchema = (
   t?: IntlTranslation<"Library.Auth.Schema">,
 ) =>
