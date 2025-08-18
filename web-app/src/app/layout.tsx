@@ -40,6 +40,7 @@ export default async function RootLayout({
   const messages = await getMessages();
   const gtmId = getEnvPublicConfig().NEXT_PUBLIC_GOOGLE_TAG_MANAGER_ID;
   const isProduction = getEnvSecrets().NODE_ENV === "production";
+  const isMainnet = getEnvPublicConfig().NEXT_PUBLIC_NETWORK === "Mainnet";
 
   return (
     <html lang={locale} suppressHydrationWarning className={inter.className}>
@@ -56,18 +57,22 @@ export default async function RootLayout({
       </head>
       <body className="bg-background min-h-svh max-w-dvw antialiased">
         <Script src="/js/plain.js" strategy="afterInteractive" />
-        <Script
-          src="https://web.cmp.usercentrics.eu/modules/autoblocker.js"
-          strategy="beforeInteractive"
-        />
-        <Script
-          id="usercentrics-cmp"
-          src="https://web.cmp.usercentrics.eu/ui/loader.js"
-          {...(!isProduction && { "data-draft": "true" })}
-          data-settings-id={getEnvSecrets().USER_CENTRICS_DATA_SETTINGS_ID}
-          async
-          strategy="beforeInteractive"
-        />
+        {isProduction && (
+          <>
+            <Script
+              src="https://web.cmp.usercentrics.eu/modules/autoblocker.js"
+              strategy="beforeInteractive"
+            />
+            <Script
+              id="usercentrics-cmp"
+              src="https://web.cmp.usercentrics.eu/ui/loader.js"
+              {...(!isMainnet && { "data-draft": "true" })}
+              data-settings-id={getEnvSecrets().USER_CENTRICS_DATA_SETTINGS_ID}
+              async
+              strategy="beforeInteractive"
+            />
+          </>
+        )}
         <UsersnapProvider>
           <NuqsAdapter>
             <ThemeProvider>
