@@ -81,10 +81,13 @@ export default function UserAvatarClient({
                 aria-label={`User profile for ${sessionUser.name ?? "current user"}`}
               >
                 <UserAvatarContent
-                  imageUrl={gravatarUrl(sessionUser.email, {
-                    size: 80,
-                    default: "404",
-                  })}
+                  imageUrl={
+                    sessionUser.image ??
+                    gravatarUrl(sessionUser.email, {
+                      size: 80,
+                      default: "404",
+                    })
+                  }
                   imageAlt={sessionUser.name ?? "User avatar"}
                 />
               </Button>
