@@ -12,8 +12,8 @@ importers:
         specifier: 3.3.1
         version: 3.3.1
       '@hey-api/openapi-ts':
-        specifier: 0.80.11
-        version: 0.80.11(typescript@5.9.2)
+        specifier: 0.80.14
+        version: 0.80.14(typescript@5.9.2)
       '@noble/hashes':
         specifier: 1.8.0
         version: 1.8.0
@@ -97,10 +97,10 @@ importers:
         version: 0.2.6
       '@hey-api/client-fetch':
         specifier: 0.13.1
-        version: 0.13.1(@hey-api/openapi-ts@0.80.11(typescript@5.9.2))
+        version: 0.13.1(@hey-api/openapi-ts@0.80.14(typescript@5.9.2))
       '@hey-api/client-next':
         specifier: 0.5.1
-        version: 0.5.1(@hey-api/openapi-ts@0.80.11(typescript@5.9.2))
+        version: 0.5.1(@hey-api/openapi-ts@0.80.14(typescript@5.9.2))
       '@hookform/resolvers':
         specifier: 5.2.1
         version: 5.2.1(react-hook-form@7.62.0(react@19.1.1))
@@ -788,8 +788,8 @@ packages:
     resolution: {integrity: sha512-yktiFZoWPtEW8QKS65eqKwA5MTKp88CyiL8q72WynrBs/73SAaxlSWlA2zW/DZlywZ5hX1OYzrCC0wFdvO9c2w==}
     engines: {node: '>= 16'}
 
-  '@hey-api/openapi-ts@0.80.11':
-    resolution: {integrity: sha512-xbZn9xXE9aJKBlMaiXzDthR43s2AHCv6u2dByCfg+n1tfIyuXbnPIJ7tco2uMPBf4E9xIHZsmip6+5FPmHI/hg==}
+  '@hey-api/openapi-ts@0.80.14':
+    resolution: {integrity: sha512-pxcXDR/FKYqRHo+Jj3d09aHUPReNZZfTKtDBVwjI7HNcspmqfGFPSQlAWwQ7ZWCTR218XO3P2kA6FRah3WwqGQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=22.10.0}
     hasBin: true
     peerDependencies:
@@ -3385,6 +3385,11 @@ packages:
     engines: {node: ^6 || ^7 || ^8 || ^9 || ^10 || ^11 || ^12 || >=13.7}
     hasBin: true
 
+  browserslist@4.25.3:
+    resolution: {integrity: sha512-cDGv1kkDI4/0e5yON9yM5G/0A5u8sf5TnmdX5C9qHzI9PPu++sQ9zjm1k9NiOrf3riY4OkK0zSGqfvJyJsgCBQ==}
+    engines: {node: ^6 || ^7 || ^8 || ^9 || ^10 || ^11 || ^12 || >=13.7}
+    hasBin: true
+
   bser@2.1.1:
     resolution: {integrity: sha512-gQxTNE/GAfIIrmHLUE3oJyp5FO6HRBfhjnw4/wMmA63ZGDJnWBmgY/lyQBpnDUkGmAhbSe39tx2d/iTOAfglwQ==}
 
@@ -3445,6 +3450,9 @@ packages:
 
   caniuse-lite@1.0.30001734:
     resolution: {integrity: sha512-uhE1Ye5vgqju6OI71HTQqcBCZrvHugk0MjLak7Q+HfoBgoq5Bi+5YnwjP4fjDgrtYr/l8MVRBvzz9dPD4KyK0A==}
+
+  caniuse-lite@1.0.30001735:
+    resolution: {integrity: sha512-EV/laoX7Wq2J9TQlyIXRxTJqIw4sxfXS4OYgudGxBYRuTv0q7AM6yMEpU/Vo1I94thg9U6EZ2NfZx9GJq83u7w==}
 
   chalk@3.0.0:
     resolution: {integrity: sha512-4D3B6Wf41KOYRFdszmDqMCGq5VV/uMAB273JILmO+3jAlh8X4qDtdtgCR3fxtbLEMzSx22QdhnDcJvu2u1fVwg==}
@@ -3793,6 +3801,9 @@ packages:
 
   electron-to-chromium@1.5.200:
     resolution: {integrity: sha512-rFCxROw7aOe4uPTfIAx+rXv9cEcGx+buAF4npnhtTqCJk5KDFRnh3+KYj7rdVh6lsFt5/aPs+Irj9rZ33WMA7w==}
+
+  electron-to-chromium@1.5.205:
+    resolution: {integrity: sha512-gBtbT7IgOHu7CwdtIiXwbNRD1l6oG6GAyanmwMCLVqaoGy92Jfe1dSHLiSj8xUEZNxOTIVlXuaAalMMD+S4y0w==}
 
   embla-carousel-react@8.6.0:
     resolution: {integrity: sha512-0/PjqU7geVmo6F734pmPqpyHqiM99olvyecY7zdweCw+6tKEXnrE90pBiBbMMU8s5tICemzpQ3hi5EpxzGW+JA==}
@@ -6899,13 +6910,13 @@ snapshots:
 
   '@hexagon/base64@1.1.28': {}
 
-  '@hey-api/client-fetch@0.13.1(@hey-api/openapi-ts@0.80.11(typescript@5.9.2))':
+  '@hey-api/client-fetch@0.13.1(@hey-api/openapi-ts@0.80.14(typescript@5.9.2))':
     dependencies:
-      '@hey-api/openapi-ts': 0.80.11(typescript@5.9.2)
+      '@hey-api/openapi-ts': 0.80.14(typescript@5.9.2)
 
-  '@hey-api/client-next@0.5.1(@hey-api/openapi-ts@0.80.11(typescript@5.9.2))':
+  '@hey-api/client-next@0.5.1(@hey-api/openapi-ts@0.80.14(typescript@5.9.2))':
     dependencies:
-      '@hey-api/openapi-ts': 0.80.11(typescript@5.9.2)
+      '@hey-api/openapi-ts': 0.80.14(typescript@5.9.2)
 
   '@hey-api/json-schema-ref-parser@1.0.6':
     dependencies:
@@ -6914,7 +6925,7 @@ snapshots:
       js-yaml: 4.1.0
       lodash: 4.17.21
 
-  '@hey-api/openapi-ts@0.80.11(typescript@5.9.2)':
+  '@hey-api/openapi-ts@0.80.14(typescript@5.9.2)':
     dependencies:
       '@hey-api/json-schema-ref-parser': 1.0.6
       ansi-colors: 4.1.3
@@ -6922,6 +6933,7 @@ snapshots:
       color-support: 1.1.3
       commander: 13.0.0
       handlebars: 4.7.8
+      js-yaml: 4.1.0
       open: 10.1.2
       semver: 7.7.2
       typescript: 5.9.2
@@ -9796,6 +9808,13 @@ snapshots:
       node-releases: 2.0.19
       update-browserslist-db: 1.1.3(browserslist@4.25.2)
 
+  browserslist@4.25.3:
+    dependencies:
+      caniuse-lite: 1.0.30001735
+      electron-to-chromium: 1.5.205
+      node-releases: 2.0.19
+      update-browserslist-db: 1.1.3(browserslist@4.25.3)
+
   bser@2.1.1:
     dependencies:
       node-int64: 0.4.0
@@ -9872,6 +9891,8 @@ snapshots:
   camelcase@6.3.0: {}
 
   caniuse-lite@1.0.30001734: {}
+
+  caniuse-lite@1.0.30001735: {}
 
   chalk@3.0.0:
     dependencies:
@@ -10183,6 +10204,8 @@ snapshots:
       fast-check: 3.23.2
 
   electron-to-chromium@1.5.200: {}
+
+  electron-to-chromium@1.5.205: {}
 
   embla-carousel-react@8.6.0(react@19.1.1):
     dependencies:
@@ -13031,6 +13054,12 @@ snapshots:
       escalade: 3.2.0
       picocolors: 1.1.1
 
+  update-browserslist-db@1.1.3(browserslist@4.25.3):
+    dependencies:
+      browserslist: 4.25.3
+      escalade: 3.2.0
+      picocolors: 1.1.1
+
   uri-js@4.4.1:
     dependencies:
       punycode: 2.3.1
@@ -13136,7 +13165,7 @@ snapshots:
       '@webassemblyjs/wasm-parser': 1.14.1
       acorn: 8.15.0
       acorn-import-phases: 1.0.4(acorn@8.15.0)
-      browserslist: 4.25.2
+      browserslist: 4.25.3
       chrome-trace-event: 1.0.4
       enhanced-resolve: 5.18.3
       es-module-lexer: 1.7.0
