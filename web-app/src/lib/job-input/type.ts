@@ -23,6 +23,15 @@ export enum ValidJobInputFormatValues {
   NON_EMPTY = "nonempty",
 }
 
+export const requiredJobInputFileValidationTypes = [
+  ValidJobInputValidationTypes.MIN,
+  ValidJobInputValidationTypes.MAX,
+  ValidJobInputValidationTypes.MAX_SIZE,
+  ValidJobInputValidationTypes.ACCEPT,
+] as const;
+export type RequiredJobInputFileValidationTypes =
+  (typeof requiredJobInputFileValidationTypes)[number];
+
 export type JobInputType = ValidJobInputTypes;
 export type JobInputValidationType = ValidJobInputValidationTypes;
 export type JobInputFormatValue = ValidJobInputFormatValues;

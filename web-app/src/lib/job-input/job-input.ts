@@ -1,6 +1,10 @@
 import { z } from "zod";
 
-import { JobInputSchemaIntlPath, ValidJobInputTypes } from "./type";
+import {
+  JobInputSchemaIntlPath,
+  requiredJobInputFileValidationTypes,
+  ValidJobInputTypes,
+} from "./type";
 import {
   acceptValidationSchema,
   formatEmailValidationSchema,
@@ -254,8 +258,8 @@ export const jobInputFileSchema = (
       message: t?.("Name.required"),
     }),
     data: z.object({
-      description: z.string().optional().default(""),
-      outputFormat: z.string().optional().default("string"), // e.g. "base64"
+      description: z.string().optional(),
+      outputFormat: z.string().optional(),
     }),
     validations: z
       .array(
@@ -264,7 +268,22 @@ export const jobInputFileSchema = (
           .or(maxValidationSchema(t))
           .or(maxSizeValidationSchema(t)),
       )
-      .optional(),
+      .refine(
+        (validations) => {
+          for (const validationType of requiredJobInputFileValidationTypes) {
+            if (
+              validations.find((v) => v.validation === validationType) ===
+              undefined
+            ) {
+              return false;
+            }
+          }
+          return true;
+        },
+        {
+          message: t?.("Validations.fileInvalid"),
+        },
+      ),
   });
 
 export type JobInputFileSchemaType = z.infer<

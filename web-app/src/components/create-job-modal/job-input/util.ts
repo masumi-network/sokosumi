@@ -1,4 +1,5 @@
 import {
+  JobInputFileSchemaType,
   JobInputOptionSchemaType,
   JobInputSchemaType,
   ValidJobInputTypes,
@@ -28,4 +29,19 @@ export const isSingleOption = (
     ({ validation, value }) =>
       validation === ValidJobInputValidationTypes.MAX && value <= 1,
   );
+};
+
+export const transformJobInputFileSchema = (
+  jobInputFileSchema: JobInputFileSchemaType,
+): Record<ValidJobInputValidationTypes, string | number> => {
+  const { validations } = jobInputFileSchema;
+  const validationObject = validations.reduce(
+    (acc, cur) => {
+      acc[cur.validation] = cur.value;
+      return acc;
+    },
+    {} as Record<ValidJobInputValidationTypes, string | number>,
+  );
+
+  return validationObject;
 };

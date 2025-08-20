@@ -35,13 +35,16 @@ import {
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  JobInputFileSchemaType,
   JobInputSchemaType,
   JobInputsFormSchemaType,
   ValidJobInputTypes,
 } from "@/lib/job-input";
 
-import { isOptional, isSingleOption } from "./util";
+import {
+  isOptional,
+  isSingleOption,
+  transformJobInputFileSchema,
+} from "./util";
 
 interface JobInputProps {
   form: UseFormReturn<JobInputsFormSchemaType>;
@@ -194,39 +197,17 @@ function InputField({ id, field, jobInputSchema, form }: InputFieldProps) {
   }
 
   if (type === ValidJobInputTypes.FILE) {
-    const validations = (jobInputSchema as JobInputFileSchemaType).validations;
-    const validationObj = validations?.reduce<Record<string, string | number>>(
-      (acc, curr) => {
-        acc[curr.validation] = curr.value;
-        return acc;
-      },
-      {},
-    );
-
-    if (
-      !validationObj ||
-      Object.keys(validationObj).length === 0 ||
-      validationObj.accept === undefined ||
-      validationObj.maxSize === undefined ||
-      validationObj.min === undefined ||
-      validationObj.max === undefined
-    ) {
-      return (
-        <div className="text-muted-foreground text-sm">
-          {t("File.noValidation")}
-        </div>
-      );
-    }
+    const transformedValidations = transformJobInputFileSchema(jobInputSchema);
 
     return (
       <FileUpload
         id={id}
         value={(field.value as File[]) ?? []}
         onValueChange={field.onChange}
-        accept={validationObj.accept.toString()}
-        maxSize={Number(validationObj.maxSize)}
-        maxFiles={Number(validationObj.max)}
-        multiple={Number(validationObj.max) > 1}
+        accept={transformedValidations.accept.toString()}
+        maxSize={Number(transformedValidations.maxSize)}
+        maxFiles={Number(transformedValidations.max)}
+        multiple={Number(transformedValidations.max) > 1}
         onFileReject={(_, message) => {
           form.setError(id, {
             message,

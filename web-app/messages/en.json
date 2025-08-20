@@ -1298,7 +1298,8 @@
             "required": "Value is required for validation {validation}",
             "integer": "Value must be integer for validation {validation}",
             "enum": "Value must be one of {options}, for validation {validation}"
-          }
+          },
+          "fileInvalid": "File's schema is invalid. Missing required validations"
         },
         "invalidValidations": "Validations are not valid for type {type}",
         "optionValuesRequired": "Values are required for option type",
@@ -1349,9 +1350,8 @@
           "required": "{name} is required",
           "invalid": "{name} must be a valid file",
           "maxSize": "{name} must be at most {value} bytes",
-          "description":"Drag and drop or choose files to upload",
-          "delete": "Delete",
-          "noValidation": "Failed to verify Validations from Job Input Schema"
+          "description": "Drag and drop or choose files to upload",
+          "delete": "Delete"
         }
       },
       "Error": {
