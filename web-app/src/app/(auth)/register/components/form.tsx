@@ -1,9 +1,11 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { sendGTMEvent } from "@next/third-parties/google";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -20,6 +22,7 @@ interface SignUpFormProps {
 
 export default function SignUpForm({ prefilledEmail }: SignUpFormProps) {
   const t = useTranslations("Auth.Pages.SignUp.Form");
+  const registerFormStart = useRef(false);
 
   const router = useRouter();
   const form = useForm<SignUpFormSchemaType>({
@@ -36,6 +39,24 @@ export default function SignUpForm({ prefilledEmail }: SignUpFormProps) {
     },
   });
 
+  // when user first sees the register page
+  useEffect(() => {
+    sendGTMEvent({
+      event: "view_register_area",
+    });
+  }, []);
+
+  // when user starts typing in the form
+  useEffect(() => {
+    if (registerFormStart.current) return;
+    if (form.formState.isDirty) {
+      registerFormStart.current = true;
+      sendGTMEvent({
+        event: "register_form_start",
+      });
+    }
+  }, [form.formState.isDirty]);
+
   const handleSubmit = async (values: SignUpFormSchemaType) => {
     const result = await signUpEmail({
       email: values.email,
@@ -47,6 +68,10 @@ export default function SignUpForm({ prefilledEmail }: SignUpFormProps) {
     });
 
     if (result.ok) {
+      // when user creates a new account
+      sendGTMEvent({
+        event: "sign_up",
+      });
       toast.success(t("success"));
       router.push("/login");
     } else {
