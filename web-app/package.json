@@ -42,7 +42,6 @@
     "@react-email/components": "0.5.0",
     "@sentry/nextjs": "10.5.0",
     "@tanstack/react-table": "8.21.3",
-    "@usercentrics/cmp-browser-sdk": "4.48.0",
     "@usersnap/browser": "1.0.2",
     "ably": "2.11.0",
     "better-auth": "1.3.7",
