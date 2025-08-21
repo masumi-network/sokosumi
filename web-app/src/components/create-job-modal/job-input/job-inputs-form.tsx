@@ -15,7 +15,6 @@ import { JobInputsDataSchemaType } from "@/lib/job-input";
 import JobInputsFormClient from "./job-inputs-form.client";
 
 interface JobInputsFormProps {
-  email: string;
   agent: AgentWithCreditsPrice;
   averageExecutionDuration: number;
   isDemo: boolean;
@@ -23,13 +22,11 @@ interface JobInputsFormProps {
 }
 
 interface JobInputsFormInnerProps extends Omit<JobInputsFormProps, "isDemo"> {
-  email: string;
   inputSchema: JobInputsDataSchemaType;
   demoValues: AgentDemoValues | null;
 }
 
 export default function JobInputsForm({
-  email,
   agent,
   averageExecutionDuration,
   isDemo,
@@ -56,7 +53,6 @@ export default function JobInputsForm({
 
   return (
     <JobInputsFormInner
-      email={email}
       agent={agent}
       averageExecutionDuration={averageExecutionDuration}
       demoValues={demoValues}
@@ -67,7 +63,6 @@ export default function JobInputsForm({
 }
 
 function JobInputsFormInner({
-  email,
   agent,
   averageExecutionDuration,
   demoValues,
@@ -76,7 +71,6 @@ function JobInputsFormInner({
 }: JobInputsFormInnerProps) {
   return (
     <JobInputsFormClient
-      email={email}
       agent={agent}
       averageExecutionDuration={averageExecutionDuration}
       jobInputsDataSchema={inputSchema}

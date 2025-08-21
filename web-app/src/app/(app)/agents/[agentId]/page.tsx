@@ -7,7 +7,6 @@ import {
   CreateJobModal,
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
-import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { jobRepository } from "@/lib/db/repositories";
 import { agentService } from "@/lib/services";
 
@@ -16,9 +15,6 @@ export default async function AgentDetailPage({
 }: {
   params: Promise<{ agentId: string }>;
 }) {
-  const session = await getSessionOrRedirect();
-  const userEmail = session.user.email;
-
   const { agentId } = await params;
 
   const agent = await agentService.getAvailableAgentById(agentId);
@@ -56,7 +52,7 @@ export default async function AgentDetailPage({
         favoriteAgents={favoriteAgents}
       />
       {/* Create Job Modal */}
-      <CreateJobModal email={userEmail} />
+      <CreateJobModal />
     </CreateJobModalContextProvider>
   );
 }

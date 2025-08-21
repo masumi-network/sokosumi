@@ -1,7 +1,5 @@
-import * as Sentry from "@sentry/nextjs";
-
 import { gtmEvents } from "./events";
-import { afterAgentHiredWebHook, fireEvent } from "./utils";
+import { fireEvent } from "./utils";
 
 export const fireGMTEvent = {
   viewRegisterArea() {
@@ -46,30 +44,8 @@ export const fireGMTEvent = {
   /**
    * @param agentName - The name of the agent.
    * @param credits - The number of credits to run a job on agent.
-   * @param email - The email of the user.
    */
-  async agentHired(agentName: string, credits: number, email: string) {
+  agentHired(agentName: string, credits: number) {
     fireEvent(gtmEvents.agentHired(agentName, credits));
-    try {
-      const isSuccess = await afterAgentHiredWebHook(email);
-      if (!isSuccess) {
-        Sentry.captureMessage("Failed to call after agent hired webhook", {
-          level: "warning",
-          user: {
-            email,
-          },
-        });
-      }
-    } catch (error) {
-      Sentry.captureMessage("Failed to call after agent hired webhook", {
-        level: "warning",
-        user: {
-          email,
-        },
-        extra: {
-          error: String(error),
-        },
-      });
-    }
   },
 };

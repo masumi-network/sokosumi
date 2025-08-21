@@ -7,7 +7,6 @@ import {
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
 import DefaultLoading from "@/components/default-loading";
-import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { getAgentDescription, getAgentLegal, getAgentName } from "@/lib/db";
 import { agentRepository, jobRepository } from "@/lib/db/repositories";
 import { agentService } from "@/lib/services";
@@ -52,9 +51,6 @@ export default async function JobLayout({
 }
 
 async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
-  const session = await getSessionOrRedirect();
-  const userEmail = session.user.email;
-
   const { agentId } = await params;
   const agent = await agentRepository.getAgentWithRelationsById(agentId);
   if (!agent) {
@@ -93,7 +89,7 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
         />
         <Footer legal={getAgentLegal(agent)} />
         {/* Create Job Modal */}
-        {!!availableAgent && <CreateJobModal email={userEmail} />}
+        {!!availableAgent && <CreateJobModal />}
       </div>
     </CreateJobModalContextProvider>
   );

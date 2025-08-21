@@ -19,13 +19,11 @@ import CreateJobModalHeader from "./create-job-modal-header";
 import { JobInputsForm } from "./job-input";
 
 interface CreateJobSectionProps {
-  email: string;
   agent: AgentWithCreditsPrice;
   averageExecutionDuration: number;
 }
 
 export default function CreateJobSection({
-  email,
   agent,
   averageExecutionDuration,
 }: CreateJobSectionProps) {
@@ -47,7 +45,6 @@ export default function CreateJobSection({
       >
         <InformationAccordionItem agent={agent} disabled={loading} />
         <InputAccordionItem
-          email={email}
           agent={agent}
           disabled={loading}
           averageExecutionDuration={averageExecutionDuration}
@@ -96,13 +93,11 @@ function InformationAccordionItem({
 }
 
 function InputAccordionItem({
-  email,
   agent,
   disabled,
   averageExecutionDuration,
   isDemo,
 }: {
-  email: string;
   agent: AgentWithCreditsPrice;
   disabled?: boolean | undefined;
   averageExecutionDuration: number;
@@ -114,7 +109,6 @@ function InputAccordionItem({
     <AccordionItemWrapper value="input" title={t("title")} disabled={disabled}>
       <div className="flex flex-col gap-6">
         <JobInputsForm
-          email={email}
           agent={agent}
           averageExecutionDuration={averageExecutionDuration}
           isDemo={isDemo}

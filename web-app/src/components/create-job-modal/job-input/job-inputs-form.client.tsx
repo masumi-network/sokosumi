@@ -14,6 +14,7 @@ import { Form } from "@/components/ui/form";
 import { useAsyncRouter } from "@/hooks/use-async-router";
 import usePreventEnterSubmit from "@/hooks/use-prevent-enter-submit";
 import {
+  callAfterAgentHiredWebHook,
   CommonErrorCode,
   JobErrorCode,
   startDemoJob,
@@ -39,7 +40,6 @@ import { cn, formatDuration, getOSFromUserAgent } from "@/lib/utils";
 import JobInput from "./job-input";
 
 interface JobInputsFormClientProps {
-  email: string;
   agent: AgentWithCreditsPrice;
   averageExecutionDuration: number;
   jobInputsDataSchema: JobInputsDataSchemaType;
@@ -49,7 +49,6 @@ interface JobInputsFormClientProps {
 }
 
 export default function JobInputsFormClient({
-  email,
   agent,
   averageExecutionDuration,
   jobInputsDataSchema,
@@ -110,8 +109,10 @@ export default function JobInputsFormClient({
       fireGMTEvent.agentHired(
         getAgentName(agent),
         convertCentsToCredits(creditsPrice.cents),
-        email,
       );
+      // call after agent hired webhook
+      callAfterAgentHiredWebHook();
+      // close modal
       handleClose();
       await router.push(`/agents/${agentId}/jobs/${result.data.jobId}`);
     } else {
