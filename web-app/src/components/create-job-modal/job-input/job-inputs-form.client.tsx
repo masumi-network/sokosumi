@@ -1,7 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { sendGTMEvent } from "@next/third-parties/google";
 import { Command, CornerDownLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -27,6 +26,7 @@ import {
   convertCentsToCredits,
   getAgentName,
 } from "@/lib/db";
+import { fireGMTEvent } from "@/lib/gtm-events";
 import {
   defaultValues,
   filterOutNullValues,
@@ -39,6 +39,7 @@ import { cn, formatDuration, getOSFromUserAgent } from "@/lib/utils";
 import JobInput from "./job-input";
 
 interface JobInputsFormClientProps {
+  email: string;
   agent: AgentWithCreditsPrice;
   averageExecutionDuration: number;
   jobInputsDataSchema: JobInputsDataSchemaType;
@@ -48,6 +49,7 @@ interface JobInputsFormClientProps {
 }
 
 export default function JobInputsFormClient({
+  email,
   agent,
   averageExecutionDuration,
   jobInputsDataSchema,
@@ -105,11 +107,11 @@ export default function JobInputsFormClient({
     setLoading(false);
     if (result.ok) {
       // send GTM event of agent_hired
-      sendGTMEvent({
-        event: "agent_hired",
-        agent_name: getAgentName(agent),
-        agent_price: convertCentsToCredits(creditsPrice.cents).toString(),
-      });
+      fireGMTEvent.agentHired(
+        getAgentName(agent),
+        convertCentsToCredits(creditsPrice.cents),
+        email,
+      );
       handleClose();
       await router.push(`/agents/${agentId}/jobs/${result.data.jobId}`);
     } else {

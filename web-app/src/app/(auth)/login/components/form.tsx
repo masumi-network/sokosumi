@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as Sentry from "@sentry/nextjs";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -13,6 +13,7 @@ import { signInFormData } from "@/auth/login/data";
 import { AuthErrorCode } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
 import { FormData } from "@/lib/form";
+import { fireGMTEvent } from "@/lib/gtm-events";
 import { signInFormSchema, SignInFormSchemaType } from "@/lib/schemas";
 
 interface SignInFormProps {
@@ -25,6 +26,7 @@ export default function SignInForm({
   prefilledEmail,
 }: SignInFormProps) {
   const t = useTranslations("Auth.Pages.SignIn.Form");
+  const loginAreaFormStart = useRef(false);
 
   const form = useForm<SignInFormSchemaType>({
     resolver: zodResolver(
@@ -36,6 +38,20 @@ export default function SignInForm({
       rememberMe: false,
     },
   });
+
+  // when user first sees the register page
+  useEffect(() => {
+    fireGMTEvent.viewLoginArea();
+  }, []);
+
+  // when user starts typing in the form
+  useEffect(() => {
+    if (loginAreaFormStart.current) return;
+    if (form.formState.isDirty) {
+      loginAreaFormStart.current = true;
+      fireGMTEvent.loginAreaFormStart();
+    }
+  }, [form.formState.isDirty]);
 
   const handleSubmit = async (values: SignInFormSchemaType) => {
     const result = await authClient.signIn.email({
@@ -80,6 +96,7 @@ export default function SignInForm({
       }
     }
 
+    fireGMTEvent.login();
     toast.success(t("success"));
 
     // Redirect to the original URL if provided, otherwise go to /agents

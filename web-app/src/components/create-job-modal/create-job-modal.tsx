@@ -13,7 +13,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useCreateJobModalContext } from "./create-job-modal-context";
 import CreateJobSection from "./create-job-section";
 
-export default function CreateJobModal() {
+export default function CreateJobModal({ email }: { email: string }) {
   const { open, setOpen, loading, agentWithPrice, averageExecutionDuration } =
     useCreateJobModalContext();
 
@@ -34,6 +34,7 @@ export default function CreateJobModal() {
           <ScrollArea className="max-h-svh md:max-h-[90svh]">
             {agentWithPrice && (
               <CreateJobSection
+                email={email}
                 agent={agentWithPrice}
                 averageExecutionDuration={averageExecutionDuration}
               />

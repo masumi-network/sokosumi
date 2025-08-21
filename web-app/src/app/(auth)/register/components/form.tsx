@@ -1,7 +1,6 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { sendGTMEvent } from "@next/third-parties/google";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -13,6 +12,7 @@ import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { signUpFormData } from "@/auth/register/data";
 import { AuthErrorCode, signUpEmail } from "@/lib/actions";
 import { FormData } from "@/lib/form";
+import { fireGMTEvent } from "@/lib/gtm-events";
 import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
 
 interface SignUpFormProps {
@@ -41,9 +41,7 @@ export default function SignUpForm({ prefilledEmail }: SignUpFormProps) {
 
   // when user first sees the register page
   useEffect(() => {
-    sendGTMEvent({
-      event: "view_register_area",
-    });
+    fireGMTEvent.viewRegisterArea();
   }, []);
 
   // when user starts typing in the form
@@ -51,9 +49,7 @@ export default function SignUpForm({ prefilledEmail }: SignUpFormProps) {
     if (registerFormStart.current) return;
     if (form.formState.isDirty) {
       registerFormStart.current = true;
-      sendGTMEvent({
-        event: "register_form_start",
-      });
+      fireGMTEvent.registerFormStart();
     }
   }, [form.formState.isDirty]);
 
@@ -69,9 +65,7 @@ export default function SignUpForm({ prefilledEmail }: SignUpFormProps) {
 
     if (result.ok) {
       // when user creates a new account
-      sendGTMEvent({
-        event: "sign_up",
-      });
+      fireGMTEvent.signUp();
       toast.success(t("success"));
       router.push("/login");
     } else {
