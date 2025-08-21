@@ -71,8 +71,7 @@ function JobInputsFormInner({
 }: JobInputsFormInnerProps) {
   return (
     <JobInputsFormClient
-      agentId={agent.id}
-      agentCreditsPrice={agent.creditsPrice}
+      agent={agent}
       averageExecutionDuration={averageExecutionDuration}
       jobInputsDataSchema={inputSchema}
       demoValues={demoValues}

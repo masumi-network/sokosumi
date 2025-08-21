@@ -1,5 +1,6 @@
 "use client";
 
+import { sendGTMEvent } from "@next/third-parties/google";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -31,6 +32,10 @@ export default function FreeCreditsButton({
     const result = await claimFreeCredits(promotionCode);
 
     if (result.ok) {
+      // send GTM event
+      sendGTMEvent({
+        event: "free_credit_start_checkout",
+      });
       window.location.href = result.data.url;
     } else {
       switch (result.error.code) {

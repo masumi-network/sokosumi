@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { sendGTMEvent } from "@next/third-parties/google";
 import { Command, CornerDownLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -22,8 +23,9 @@ import {
 import {
   AgentDemoValues,
   AgentLegal,
+  AgentWithCreditsPrice,
   convertCentsToCredits,
-  CreditsPrice,
+  getAgentName,
 } from "@/lib/db";
 import {
   defaultValues,
@@ -37,8 +39,7 @@ import { cn, formatDuration, getOSFromUserAgent } from "@/lib/utils";
 import JobInput from "./job-input";
 
 interface JobInputsFormClientProps {
-  agentId: string;
-  agentCreditsPrice: CreditsPrice;
+  agent: AgentWithCreditsPrice;
   averageExecutionDuration: number;
   jobInputsDataSchema: JobInputsDataSchemaType;
   demoValues: AgentDemoValues | null;
@@ -47,14 +48,14 @@ interface JobInputsFormClientProps {
 }
 
 export default function JobInputsFormClient({
-  agentId,
-  agentCreditsPrice,
+  agent,
   averageExecutionDuration,
   jobInputsDataSchema,
   demoValues,
   legal,
   className,
 }: JobInputsFormClientProps) {
+  const { id: agentId, creditsPrice } = agent;
   const { input_data } = jobInputsDataSchema;
   const t = useTranslations("Library.JobInput.Form");
   const tDuration = useTranslations("Library.Duration.Short");
@@ -94,7 +95,7 @@ export default function JobInputsFormClient({
       result = await startJob({
         input: {
           agentId: agentId,
-          maxAcceptedCents: agentCreditsPrice.cents,
+          maxAcceptedCents: creditsPrice.cents,
           inputSchema: input_data,
           inputData: transformedInputData,
         },
@@ -103,6 +104,12 @@ export default function JobInputsFormClient({
 
     setLoading(false);
     if (result.ok) {
+      // send GTM event of agent_hired
+      sendGTMEvent({
+        event: "agent_hired",
+        agent_name: getAgentName(agent),
+        agent_price: convertCentsToCredits(creditsPrice.cents).toString(),
+      });
       handleClose();
       await router.push(`/agents/${agentId}/jobs/${result.data.jobId}`);
     } else {
@@ -171,7 +178,7 @@ export default function JobInputsFormClient({
               <div className="flex items-center gap-2">
                 <div className="text-muted-foreground text-sm">
                   {t("price", {
-                    price: convertCentsToCredits(agentCreditsPrice.cents),
+                    price: convertCentsToCredits(creditsPrice.cents),
                   })}
                 </div>
                 <Button
