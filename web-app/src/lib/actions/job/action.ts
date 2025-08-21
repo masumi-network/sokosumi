@@ -1,15 +1,12 @@
 "use server";
 
 import * as Sentry from "@sentry/nextjs";
-import { put, PutBlobResult } from "@vercel/blob";
-import { revalidatePath } from "next/cache";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { getAuthContext } from "@/lib/auth/utils";
 import { JobWithStatus } from "@/lib/db";
-import { blobRepository, jobRepository } from "@/lib/db/repositories";
-import { ValidJobInputTypes } from "@/lib/job-input";
+import { jobRepository } from "@/lib/db/repositories";
 import {
   jobDetailsNameFormSchema,
   JobDetailsNameFormSchemaType,
@@ -23,6 +20,8 @@ import {
   AuthenticatedRequest,
   withAuthContext,
 } from "@/middleware/auth-middleware";
+
+import { handleInputDataFileUploads, saveUploadedFiles } from "./utils";
 
 export async function startDemoJob(
   input: Omit<StartJobInputSchemaType, "userId" | "maxAcceptedCents">,
@@ -82,8 +81,9 @@ export const startJob = withAuthContext<
       });
 
       // Upload files if any
+      let fileUrls: string[] = [];
       if (input.inputData) {
-        await handleInputDataFileUploads(userId, input.inputData);
+        fileUrls = await handleInputDataFileUploads(userId, input.inputData);
       }
 
       // Set job context
@@ -129,14 +129,7 @@ export const startJob = withAuthContext<
       const job = await jobService.startJob(parsed);
 
       // Save files uploaded if any
-      if (input.inputData) {
-        await saveUploadedFiles(
-          userId,
-          job.id,
-          input.inputSchema,
-          input.inputData,
-        );
-      }
+      await saveUploadedFiles(userId, job.id, fileUrls);
 
       // Add success breadcrumb
       Sentry.addBreadcrumb({
@@ -293,70 +286,4 @@ export async function requestRefundJobByBlockchainIdentifier(
 
   const job = await jobService.requestRefund(blockchainIdentifier);
   return Ok({ job });
-}
-
-export async function uploadFile(
-  userId: string,
-  inputFile: File,
-): Promise<PutBlobResult> {
-  const blob = await put(
-    `${userId}/${inputFile.name.replace(/ /g, "_")}`,
-    inputFile,
-    {
-      access: "public",
-      addRandomSuffix: true,
-    },
-  );
-  revalidatePath("/");
-  return blob;
-}
-
-// Helper function to handle file uploads in inputData
-async function handleInputDataFileUploads(
-  userId: string,
-  inputData: Map<string, unknown>,
-) {
-  for (const [key, value] of inputData.entries()) {
-    if (value instanceof File) {
-      const blob = await uploadFile(userId, value);
-      inputData.set(key, blob.url);
-    } else if (Array.isArray(value) && value.every((v) => v instanceof File)) {
-      const fileUrls = await Promise.all(
-        value.map(async (file: File) => {
-          const blob = await uploadFile(userId, file);
-          return blob.url;
-        }),
-      );
-      // If only one file or multiple is disabled, send as string
-      if (fileUrls.length === 1) {
-        inputData.set(key, fileUrls[0]);
-      } else {
-        inputData.set(key, fileUrls);
-      }
-    }
-  }
-}
-
-// Helper function to save uploaded files from inputData based on inputSchema
-async function saveUploadedFiles(
-  userId: string,
-  jobId: string,
-  inputSchema: { id: string; type: string }[],
-  inputData: Map<string, unknown>,
-) {
-  for (const field of inputSchema) {
-    if (field.type === ValidJobInputTypes.FILE) {
-      const value = inputData?.get(field.id);
-      if (typeof value === "string" && value) {
-        await blobRepository.createBlob(userId, jobId, value);
-      } else if (
-        Array.isArray(value) &&
-        value.every((v) => typeof v === "string")
-      ) {
-        for (const fileUrl of value) {
-          await blobRepository.createBlob(userId, jobId, fileUrl);
-        }
-      }
-    }
-  }
 }
