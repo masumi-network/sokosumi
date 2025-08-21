@@ -150,7 +150,7 @@ importers:
         specifier: 4.1.0
         version: 4.1.0
       dotenv:
-        specifier: ^17.2.1
+        specifier: 17.2.1
         version: 17.2.1
       embla-carousel-react:
         specifier: 8.6.0
@@ -240,7 +240,7 @@ importers:
         specifier: 6.0.1
         version: 6.0.1(@react-email/render@1.2.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1))
       server-only:
-        specifier: ^0.0.1
+        specifier: 0.0.1
         version: 0.0.1
       slugify:
         specifier: 1.6.6
@@ -274,7 +274,7 @@ importers:
         version: 3.25.76
     devDependencies:
       '@types/humanize-duration':
-        specifier: ^3.27.4
+        specifier: 3.27.4
         version: 3.27.4
       '@types/node':
         specifier: 22.17.1
