@@ -1,13 +1,12 @@
 import "./globals.css";
 
-import { GoogleTagManager } from "@next/third-parties/google";
+import { GoogleAnalytics, GoogleTagManager } from "@next/third-parties/google";
 import * as Sentry from "@sentry/nextjs";
 import { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Script from "next/script";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
-import PlausibleProvider from "next-plausible";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
 import { GlobalModalsContextProvider } from "@/components/modals/global-modals-context";
@@ -39,22 +38,13 @@ export default async function RootLayout({
   const locale = await getLocale();
   const messages = await getMessages();
   const gtmId = getEnvPublicConfig().NEXT_PUBLIC_GOOGLE_TAG_MANAGER_ID;
+  const gaId = getEnvPublicConfig().NEXT_PUBLIC_GOOGLE_ANALYTICS_ID;
   const isProduction = getEnvSecrets().NODE_ENV === "production";
   const isMainnet = getEnvPublicConfig().NEXT_PUBLIC_NETWORK === "Mainnet";
 
   return (
     <html lang={locale} suppressHydrationWarning className={inter.className}>
       {gtmId && <GoogleTagManager gtmId={gtmId} />}
-      <head>
-        <PlausibleProvider
-          domain={getEnvPublicConfig().NEXT_PUBLIC_PLAUSIBLE_DOMAIN}
-          trackFileDownloads={true}
-          trackOutboundLinks={true}
-          hash={true}
-          pageviewProps={true}
-          taggedEvents={true}
-        />
-      </head>
       <body className="bg-background min-h-svh max-w-dvw antialiased">
         <Script src="/js/plain.js" strategy="afterInteractive" />
         {isProduction && (
@@ -87,6 +77,7 @@ export default async function RootLayout({
           </NuqsAdapter>
         </UsersnapProvider>
       </body>
+      {gaId && <GoogleAnalytics gaId={gaId} />}
     </html>
   );
 }

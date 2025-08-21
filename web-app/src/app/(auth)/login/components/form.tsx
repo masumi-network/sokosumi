@@ -4,7 +4,6 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import * as Sentry from "@sentry/nextjs";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { usePlausible } from "next-plausible";
 import { useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -26,8 +25,6 @@ export default function SignInForm({
   prefilledEmail,
 }: SignInFormProps) {
   const t = useTranslations("Auth.Pages.SignIn.Form");
-
-  const plausible = usePlausible();
 
   const form = useForm<SignInFormSchemaType>({
     resolver: zodResolver(
@@ -83,7 +80,6 @@ export default function SignInForm({
       }
     }
 
-    plausible("SignIn");
     toast.success(t("success"));
 
     // Redirect to the original URL if provided, otherwise go to /agents

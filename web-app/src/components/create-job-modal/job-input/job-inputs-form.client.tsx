@@ -144,11 +144,7 @@ export default function JobInputsFormClient({
 
   return (
     <Form {...form}>
-      <form
-        ref={formRef}
-        onSubmit={enterPreventedHandleSubmit}
-        className="plausible-event-name=Hire"
-      >
+      <form ref={formRef} onSubmit={enterPreventedHandleSubmit}>
         <fieldset
           disabled={loading || form.formState.isSubmitting}
           className={cn("flex flex-1 flex-col gap-6", className)}

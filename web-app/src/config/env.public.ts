@@ -3,7 +3,7 @@ import z from "zod";
 
 const envPublicConfigSchema = z.object({
   NEXT_PUBLIC_GOOGLE_TAG_MANAGER_ID: z.string().optional(),
-  NEXT_PUBLIC_PLAUSIBLE_DOMAIN: z.string().default("sokosumi.com"),
+  NEXT_PUBLIC_GOOGLE_ANALYTICS_ID: z.string().optional(),
   NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME: z.coerce
     .number()
     .min(0)
@@ -30,7 +30,8 @@ function validateEnv() {
   const parsedConfig = envPublicConfigSchema.safeParse({
     NEXT_PUBLIC_GOOGLE_TAG_MANAGER_ID:
       process.env.NEXT_PUBLIC_GOOGLE_TAG_MANAGER_ID,
-    NEXT_PUBLIC_PLAUSIBLE_DOMAIN: process.env.NEXT_PUBLIC_PLAUSIBLE_DOMAIN,
+    NEXT_PUBLIC_GOOGLE_ANALYTICS_ID:
+      process.env.NEXT_PUBLIC_GOOGLE_ANALYTICS_ID,
     NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME:
       process.env.NEXT_PUBLIC_KEYBOARD_INPUT_DEBOUNCE_TIME,
     NEXT_PUBLIC_PASSWORD_MIN_LENGTH:
