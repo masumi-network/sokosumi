@@ -45,7 +45,7 @@ export function HeaderSkeleton() {
           <Bookmark className="animate-pulse" />
         </Button>
       </div>
-      <div className="flex hidden flex-1 flex-row items-center justify-end gap-4 md:flex">
+      <div className="hidden flex-1 flex-row items-center justify-end gap-4 md:flex">
         <div className="w-full text-end text-sm font-semibold">
           <Skeleton className="ml-auto h-5 w-24" />
         </div>
@@ -125,7 +125,7 @@ export default function Header({
           />
         </div>
       </div>
-      <div className="flex hidden flex-1 flex-row items-center justify-end gap-4 md:flex">
+      <div className="hidden flex-1 flex-row items-center justify-end gap-4 md:flex">
         <div className="w-full text-end text-sm font-semibold">
           {t("price", {
             price: convertCentsToCredits(agent.creditsPrice.cents),

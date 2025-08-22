@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { AgentDetail } from "@/components/agents";
+import { AgentDetail, AgentDetailViewTracker } from "@/components/agents";
 import AgentBottomNavigation from "@/components/agents/agent-botton-navigation";
 import AgentMobileHeader from "@/components/agents/agent-mobile-header";
 import {
@@ -40,6 +40,7 @@ export default async function AgentDetailPage({
     >
       <AgentMobileHeader agent={agentWithCreditsPrice} />
       <div className="mx-auto flex justify-center py-8 md:px-4">
+        <AgentDetailViewTracker agent={agentWithCreditsPrice} />
         <AgentDetail
           agent={agentWithCreditsPrice}
           executedJobsCount={executedJobsCount}

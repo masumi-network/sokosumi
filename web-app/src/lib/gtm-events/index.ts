@@ -1,44 +1,62 @@
-import { gtmEvents } from "./events";
 import { fireEvent } from "./utils";
 
-export const fireGMTEvent = {
+export const fireGTMEvent = {
   viewRegisterArea() {
-    fireEvent(gtmEvents.viewRegisterArea());
+    fireEvent({
+      event: "view_register_area",
+    });
   },
 
   registerFormStart() {
-    fireEvent(gtmEvents.registerFormStart());
+    fireEvent({
+      event: "register_form_start",
+    });
   },
 
   signUp() {
-    fireEvent(gtmEvents.signUp());
+    fireEvent({
+      event: "sign_up",
+    });
   },
 
   doiConfirmed() {
-    fireEvent(gtmEvents.doiConfirmed());
+    fireEvent({
+      event: "doi_confirmed",
+    });
   },
 
   viewLoginArea() {
-    fireEvent(gtmEvents.viewLoginArea());
+    fireEvent({
+      event: "view_login_area",
+    });
   },
 
   loginAreaFormStart() {
-    fireEvent(gtmEvents.loginAreaFormStart());
+    fireEvent({
+      event: "login_area_form_start",
+    });
   },
 
   login() {
-    fireEvent(gtmEvents.login());
+    fireEvent({
+      event: "login",
+    });
   },
 
   freeCreditStartCheckout() {
-    fireEvent(gtmEvents.freeCreditStartCheckout());
+    fireEvent({
+      event: "free_credit_start_checkout",
+    });
   },
 
   /**
    * @param transactionId - The transaction ID of the checkout session.
    */
   freeCreditPurchase(transactionId: string) {
-    fireEvent(gtmEvents.freeCreditPurchase(transactionId));
+    fireEvent({
+      event: "free_credit_purchase",
+      transactionId,
+    });
   },
 
   /**
@@ -46,6 +64,36 @@ export const fireGMTEvent = {
    * @param credits - The number of credits to run a job on agent.
    */
   agentHired(agentName: string, credits: number) {
-    fireEvent(gtmEvents.agentHired(agentName, credits));
+    fireEvent({
+      event: "agent_hired",
+      agent_name: agentName,
+      agent_price: credits.toString(),
+    });
+  },
+
+  viewBilling() {
+    fireEvent({
+      event: "view_billing",
+    });
+  },
+
+  beginCheckout() {
+    fireEvent({
+      event: "begin_checkout",
+    });
+  },
+
+  purchase() {
+    fireEvent({
+      event: "purchase",
+    });
+  },
+
+  viewAgent(agentName: string, credits: number) {
+    fireEvent({
+      event: "view_agent",
+      agent_name: agentName,
+      agent_price: credits.toString(),
+    });
   },
 };

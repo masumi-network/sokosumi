@@ -12,7 +12,7 @@ import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { signUpFormData } from "@/auth/register/data";
 import { AuthErrorCode, signUpEmail } from "@/lib/actions";
 import { FormData } from "@/lib/form";
-import { fireGMTEvent } from "@/lib/gtm-events";
+import { fireGTMEvent } from "@/lib/gtm-events";
 import { signUpFormSchema, SignUpFormSchemaType } from "@/lib/schemas";
 
 interface SignUpFormProps {
@@ -41,7 +41,7 @@ export default function SignUpForm({ prefilledEmail }: SignUpFormProps) {
 
   // when user first sees the register page
   useEffect(() => {
-    fireGMTEvent.viewRegisterArea();
+    fireGTMEvent.viewRegisterArea();
   }, []);
 
   // when user starts typing in the form
@@ -49,7 +49,7 @@ export default function SignUpForm({ prefilledEmail }: SignUpFormProps) {
     if (registerFormStart.current) return;
     if (form.formState.isDirty) {
       registerFormStart.current = true;
-      fireGMTEvent.registerFormStart();
+      fireGTMEvent.registerFormStart();
     }
   }, [form.formState.isDirty]);
 
@@ -65,7 +65,7 @@ export default function SignUpForm({ prefilledEmail }: SignUpFormProps) {
 
     if (result.ok) {
       // when user creates a new account
-      fireGMTEvent.signUp();
+      fireGTMEvent.signUp();
       toast.success(t("success"));
       router.push("/login");
     } else {

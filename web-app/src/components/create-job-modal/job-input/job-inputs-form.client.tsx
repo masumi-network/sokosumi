@@ -27,7 +27,7 @@ import {
   convertCentsToCredits,
   getAgentName,
 } from "@/lib/db";
-import { fireGMTEvent } from "@/lib/gtm-events";
+import { fireGTMEvent } from "@/lib/gtm-events";
 import {
   defaultValues,
   filterOutNullValues,
@@ -106,7 +106,7 @@ export default function JobInputsFormClient({
     setLoading(false);
     if (result.ok) {
       // send GTM event of agent_hired
-      fireGMTEvent.agentHired(
+      fireGTMEvent.agentHired(
         getAgentName(agent),
         convertCentsToCredits(creditsPrice.cents),
       );

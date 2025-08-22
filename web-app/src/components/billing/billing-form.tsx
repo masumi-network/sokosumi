@@ -3,7 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Building2, Loader2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -34,6 +34,7 @@ import {
   purchaseCredits,
 } from "@/lib/actions";
 import { Price } from "@/lib/clients/stripe.client";
+import { fireGTMEvent } from "@/lib/gtm-events";
 import { Organization } from "@/prisma/generated/client";
 
 const billingFormSchema = z
@@ -84,6 +85,10 @@ export default function BillingForm({ price, organization }: BillingFormProps) {
       coupon: undefined,
     },
   });
+
+  useEffect(() => {
+    fireGTMEvent.viewBilling();
+  }, []);
 
   const { watch, setValue } = form;
   const credits = watch("credits");
@@ -141,6 +146,7 @@ export default function BillingForm({ price, organization }: BillingFormProps) {
       }
 
       if (result.ok) {
+        fireGTMEvent.beginCheckout();
         window.location.href = result.data.url;
       } else {
         switch (result.error.code) {

@@ -13,7 +13,7 @@ import { signInFormData } from "@/auth/login/data";
 import { AuthErrorCode } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
 import { FormData } from "@/lib/form";
-import { fireGMTEvent } from "@/lib/gtm-events";
+import { fireGTMEvent } from "@/lib/gtm-events";
 import { signInFormSchema, SignInFormSchemaType } from "@/lib/schemas";
 
 interface SignInFormProps {
@@ -41,7 +41,7 @@ export default function SignInForm({
 
   // when user first sees the register page
   useEffect(() => {
-    fireGMTEvent.viewLoginArea();
+    fireGTMEvent.viewLoginArea();
   }, []);
 
   // when user starts typing in the form
@@ -49,7 +49,7 @@ export default function SignInForm({
     if (loginAreaFormStart.current) return;
     if (form.formState.isDirty) {
       loginAreaFormStart.current = true;
-      fireGMTEvent.loginAreaFormStart();
+      fireGTMEvent.loginAreaFormStart();
     }
   }, [form.formState.isDirty]);
 
@@ -96,7 +96,7 @@ export default function SignInForm({
       }
     }
 
-    fireGMTEvent.login();
+    fireGTMEvent.login();
     toast.success(t("success"));
 
     // Redirect to the original URL if provided, otherwise go to /agents
