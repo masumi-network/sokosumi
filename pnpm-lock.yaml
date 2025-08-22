@@ -135,8 +135,8 @@ importers:
         specifier: 1.2.5
         version: 1.2.5(better-auth@1.3.7(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(zod@3.25.76))
       better-auth-localization:
-        specifier: 2.1.1
-        version: 2.1.1(better-auth@1.3.7(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(zod@3.25.76))
+        specifier: 2.1.3
+        version: 2.1.3(better-auth@1.3.7(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(zod@3.25.76))
       class-variance-authority:
         specifier: 0.7.1
         version: 0.7.1
@@ -3271,8 +3271,8 @@ packages:
     peerDependencies:
       better-auth: ^1.0.3
 
-  better-auth-localization@2.1.1:
-    resolution: {integrity: sha512-urrbDJt23Rpp+TXi0J9j/v9+L4RDsVjKwXpp2+92Dex4mtb/q88I25C4eC4Vu55t1ufRXhxmWRpgrn8yZIGSkQ==}
+  better-auth-localization@2.1.3:
+    resolution: {integrity: sha512-GJ9cKcZR/6KKOpa+UWnVBO5ilIbVOi76wikcEGdMjnhHL0JWO1XWACKsMV+FeH8uq8YE/PymQ/MSCeX/VQtN1A==}
     peerDependencies:
       better-auth: ^1.3.4
 
@@ -9597,7 +9597,7 @@ snapshots:
       mailchecker: 6.0.18
       validator: 13.15.15
 
-  better-auth-localization@2.1.1(better-auth@1.3.7(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(zod@3.25.76)):
+  better-auth-localization@2.1.3(better-auth@1.3.7(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(zod@3.25.76)):
     dependencies:
       better-auth: 1.3.7(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(zod@3.25.76)
 
