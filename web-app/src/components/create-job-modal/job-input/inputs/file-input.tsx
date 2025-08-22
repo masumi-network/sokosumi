@@ -34,6 +34,7 @@ export function FileInput({
       id={id}
       value={(field.value as File[]) ?? []}
       onValueChange={field.onChange}
+      disabled={form.formState.isSubmitting}
       accept={transformedValidations.accept.toString()}
       maxSize={Number(transformedValidations.maxSize)}
       maxFiles={Number(transformedValidations.max)}
@@ -62,12 +63,14 @@ export function FileInput({
               <FileUploadItem key={index} value={file}>
                 <FileUploadItemPreview />
                 <FileUploadItemMetadata />
-                <FileUploadItemDelete asChild>
-                  <Button className="size-7 cursor-pointer">
-                    <X />
-                    <span className="sr-only">{t("File.delete")}</span>
-                  </Button>
-                </FileUploadItemDelete>
+                {!form.formState.isSubmitting && (
+                  <FileUploadItemDelete asChild>
+                    <Button className="size-7 cursor-pointer">
+                      <X />
+                      <span className="sr-only">{t("File.delete")}</span>
+                    </Button>
+                  </FileUploadItemDelete>
+                )}
               </FileUploadItem>
             ))}
       </FileUploadList>
