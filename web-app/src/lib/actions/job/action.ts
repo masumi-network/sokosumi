@@ -21,6 +21,8 @@ import {
   withAuthContext,
 } from "@/middleware/auth-middleware";
 
+import { handleInputDataFileUploads, saveUploadedFiles } from "./utils";
+
 export async function startDemoJob(
   input: Omit<StartJobInputSchemaType, "userId" | "maxAcceptedCents">,
   jobStatusResponse: JobStatusResponseSchemaType,
@@ -78,6 +80,12 @@ export const startJob = withAuthContext<
         id: userId,
       });
 
+      // Upload files if any
+      let fileUrls: string[] = [];
+      if (input.inputData) {
+        fileUrls = await handleInputDataFileUploads(userId, input.inputData);
+      }
+
       // Set job context
       scope.setTag("action", "startJobWithInputData");
       scope.setTag("service", "job");
@@ -102,6 +110,7 @@ export const startJob = withAuthContext<
 
       // Validation
       const parsedResult = startJobInputSchema.safeParse(inputDataForService);
+
       if (!parsedResult.success) {
         scope.setTag("error_type", "validation_error");
         scope.setContext("validation_error", {
@@ -118,6 +127,9 @@ export const startJob = withAuthContext<
       const parsed = parsedResult.data;
 
       const job = await jobService.startJob(parsed);
+
+      // Save files uploaded if any
+      await saveUploadedFiles(userId, job.id, fileUrls);
 
       // Add success breadcrumb
       Sentry.addBreadcrumb({

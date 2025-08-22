@@ -30,7 +30,16 @@ export function filterOutNullValues(
   return new Map(
     Object.entries(values).filter(([_, value]) => value !== null) as [
       string,
-      string | number | boolean | number[],
+      (
+        | string
+        | string[]
+        | number
+        | boolean
+        | number[]
+        | File
+        | File[]
+        | undefined
+      ),
     ][],
   );
 }
@@ -53,6 +62,8 @@ const getDefaultValue = (jobInputSchema: JobInputSchemaType) => {
     case ValidJobInputTypes.NUMBER:
       return null;
     case ValidJobInputTypes.OPTION:
+      return null;
+    case ValidJobInputTypes.FILE:
       return null;
     case ValidJobInputTypes.NONE:
       return null;

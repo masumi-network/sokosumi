@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import {
   JobInputBooleanSchemaType,
+  JobInputFileSchemaType,
   JobInputNumberSchemaType,
   JobInputOptionSchemaType,
   JobInputSchemaType,
@@ -30,6 +31,8 @@ export const makeZodSchemaFromJobInputSchema = (
       return makeZodSchemaFromJobInputBooleanSchema(jobInputSchema, t);
     case ValidJobInputTypes.OPTION:
       return makeZodSchemaFromJobInputOptionSchema(jobInputSchema, t);
+    case ValidJobInputTypes.FILE:
+      return makeZodSchemaFromJobInputFileSchema(jobInputSchema, t);
     case ValidJobInputTypes.NONE:
       return z.never().nullable();
   }
@@ -223,4 +226,43 @@ const makeZodSchemaFromJobInputOptionSchema = (
   }, defaultSchema);
 
   return canBeOptional ? schema.optional() : schema;
+};
+
+const makeZodSchemaFromJobInputFileSchema = (
+  jobInputFileSchema: JobInputFileSchemaType,
+  t?: IntlTranslation<JobInputFormIntlPath>,
+) => {
+  const { name, validations } = jobInputFileSchema;
+  let maxSize = 0;
+
+  const defaultSchema = z.array(z.instanceof(File));
+
+  const schema = validations?.reduce((acc, cur) => {
+    const { validation, value } = cur;
+    switch (validation) {
+      case ValidJobInputValidationTypes.MIN:
+        return acc.min(value, {
+          message: t?.("Number.min", { name, value }),
+        });
+      case ValidJobInputValidationTypes.MAX:
+        return acc.max(value, {
+          message: t?.("Number.max", { name, value }),
+        });
+      case ValidJobInputValidationTypes.MAX_SIZE:
+        maxSize = Number(value);
+        return acc;
+      case ValidJobInputValidationTypes.ACCEPT:
+        return acc;
+    }
+  }, defaultSchema);
+
+  return (schema ?? defaultSchema).refine(
+    (files) => {
+      if (!maxSize) return true;
+      return files.every((file) => file.size <= maxSize);
+    },
+    {
+      message: t?.("File.maxSize", { name, value: maxSize ?? "" }),
+    },
+  );
 };

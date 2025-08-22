@@ -1297,9 +1297,9 @@
             "invalid": "Value is invalid for validation {validation}",
             "required": "Value is required for validation {validation}",
             "integer": "Value must be integer for validation {validation}",
-            "notNegative": "Value must be not negative for validation {validation}",
             "enum": "Value must be one of {options}, for validation {validation}"
-          }
+          },
+          "fileInvalid": "File's schema is invalid. Missing required validations"
         },
         "invalidValidations": "Validations are not valid for type {type}",
         "optionValuesRequired": "Values are required for option type",
@@ -1345,6 +1345,13 @@
           "integer": "{name} option value must be an index",
           "nonnegative": "{name} option value must be non negative index",
           "invalid": "{name} option value must be index from 0 to {maxValue}"
+        },
+        "File": {
+          "required": "{name} is required",
+          "invalid": "{name} must be a valid file",
+          "maxSize": "{name} must be at most {value} bytes",
+          "description": "Drag and drop or choose files to upload",
+          "delete": "Delete"
         }
       },
       "Error": {

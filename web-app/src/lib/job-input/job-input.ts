@@ -1,11 +1,17 @@
 import { z } from "zod";
 
-import { JobInputSchemaIntlPath, ValidJobInputTypes } from "./type";
 import {
+  JobInputSchemaIntlPath,
+  requiredJobInputFileValidationTypes,
+  ValidJobInputTypes,
+} from "./type";
+import {
+  acceptValidationSchema,
   formatEmailValidationSchema,
   formatIntegerValidationSchema,
   formatNonEmptyValidationSchema,
   formatUrlValidationSchema,
+  maxSizeValidationSchema,
   maxValidationSchema,
   minValidationSchema,
   optionalValidationSchema,
@@ -28,6 +34,7 @@ export const jobInputSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) =>
     .or(jobInputNumberSchema(t))
     .or(jobInputBooleanSchema(t))
     .or(jobInputOptionSchema(t))
+    .or(jobInputFileSchema(t))
     .or(jobInputNoneSchema(t));
 
 export type JobInputSchemaType = z.infer<ReturnType<typeof jobInputSchema>>;
@@ -233,4 +240,52 @@ export const jobInputNoneSchema = (
 
 export type JobInputNoneSchemaType = z.infer<
   ReturnType<typeof jobInputNoneSchema>
+>;
+
+export const jobInputFileSchema = (
+  t?: IntlTranslation<JobInputSchemaIntlPath>,
+) =>
+  z.object({
+    id: z.string().min(1, {
+      message: t?.("Id.required"),
+    }),
+    type: z.enum([ValidJobInputTypes.FILE], {
+      message: t?.("Type.enum", {
+        options: Object.values(ValidJobInputTypes).join(", "),
+      }),
+    }),
+    name: z.string().min(1, {
+      message: t?.("Name.required"),
+    }),
+    data: z.object({
+      description: z.string().optional(),
+      outputFormat: z.string().optional(),
+    }),
+    validations: z
+      .array(
+        acceptValidationSchema(t)
+          .or(minValidationSchema(t))
+          .or(maxValidationSchema(t))
+          .or(maxSizeValidationSchema(t)),
+      )
+      .refine(
+        (validations) => {
+          for (const validationType of requiredJobInputFileValidationTypes) {
+            if (
+              validations.find((v) => v.validation === validationType) ===
+              undefined
+            ) {
+              return false;
+            }
+          }
+          return true;
+        },
+        {
+          message: t?.("Validations.fileInvalid"),
+        },
+      ),
+  });
+
+export type JobInputFileSchemaType = z.infer<
+  ReturnType<typeof jobInputFileSchema>
 >;

@@ -13,8 +13,11 @@ export const startJobInputSchema = z.object({
     z.union([
       z.number(),
       z.string(),
+      z.array(z.string()),
       z.boolean(),
       z.array(z.number()),
+      z.instanceof(File),
+      z.array(z.instanceof(File)),
       z.undefined(),
     ]),
   ),

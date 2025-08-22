@@ -30,6 +30,7 @@ model User {
   creditTransactions CreditTransaction[]
   fiatTransactions   FiatTransaction[]
   jobs               Job[]
+  blobs      Blob[] @relation("UserBlob")
 
   stripeCustomerId String?
 
@@ -512,6 +513,8 @@ model Job {
 
   // is demo job?
   isDemo Boolean @default(false)
+
+  blobs Blob[] @relation("JobBlob")
 }
 
 enum OnChainTransactionStatus {
@@ -597,4 +600,17 @@ model Apikey {
   metadata            String?
 
   @@map("apikey")
+}
+
+model Blob {
+  id        String   @id @default(uuid())
+  userId    String
+  jobId     String
+  fileUrl   String
+  createdAt DateTime @default(now())
+
+  user      User     @relation("UserBlob", fields: [userId], references: [id], onDelete: Cascade)
+  job       Job      @relation("JobBlob", fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@map("blob")
 }
