@@ -29,12 +29,14 @@ export function FileInput({
     jobInputSchema as JobInputFileSchemaType,
   );
 
+  const isSubmitting = form.formState.isSubmitting;
+
   return (
     <FileUpload
       id={id}
       value={(field.value as File[]) ?? []}
       onValueChange={field.onChange}
-      disabled={form.formState.isSubmitting}
+      disabled={isSubmitting}
       accept={transformedValidations.accept.toString()}
       maxSize={Number(transformedValidations.maxSize)}
       maxFiles={Number(transformedValidations.max)}
@@ -45,7 +47,11 @@ export function FileInput({
         });
       }}
     >
-      <FileUploadDropzone className="flex-row flex-wrap border-dotted text-center">
+      <FileUploadDropzone
+        className={`flex-row flex-wrap border-dotted text-center ${
+          isSubmitting ? "opacity-50" : ""
+        }`}
+      >
         <FileUploadTrigger asChild>
           <Button className="cursor-pointer p-0">
             <span className="flex flex-row items-center gap-2">
@@ -63,7 +69,7 @@ export function FileInput({
               <FileUploadItem key={index} value={file}>
                 <FileUploadItemPreview />
                 <FileUploadItemMetadata />
-                {!form.formState.isSubmitting && (
+                {!isSubmitting && (
                   <FileUploadItemDelete asChild>
                     <Button className="size-7 cursor-pointer">
                       <X />
