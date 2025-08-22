@@ -15,7 +15,6 @@ interface AgentDetailViewTrackerProps {
 
 export function AgentDetailViewTracker({ agent }: AgentDetailViewTrackerProps) {
   useEffect(() => {
-    console.log("Agent View");
     fireGTMEvent.viewAgent(
       getAgentName(agent),
       convertCentsToCredits(agent.creditsPrice.cents),

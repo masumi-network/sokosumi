@@ -1,3 +1,5 @@
+import { CheckoutSessionData } from "@/lib/clients";
+
 import { fireEvent } from "./utils";
 
 export const fireGTMEvent = {
@@ -50,12 +52,12 @@ export const fireGTMEvent = {
   },
 
   /**
-   * @param transactionId - The transaction ID of the checkout session.
+   * @param sessionId - The ID of the checkout session.
    */
-  freeCreditPurchase(transactionId: string) {
+  freeCreditPurchase(sessionId: string) {
     fireEvent({
       event: "free_credit_purchase",
-      transactionId,
+      transaction_id: sessionId,
     });
   },
 
@@ -83,9 +85,14 @@ export const fireGTMEvent = {
     });
   },
 
-  purchase() {
+  purchase(checkoutSession: CheckoutSessionData) {
+    const { session, items, value } = checkoutSession;
     fireEvent({
       event: "purchase",
+      transaction_id: session.id,
+      value,
+      currency: session.currency,
+      items,
     });
   },
 

@@ -11,6 +11,16 @@ export interface Price {
   currency: string;
 }
 
+export interface CheckoutSessionData {
+  session: Stripe.Checkout.Session;
+  items: {
+    item_id: string;
+    item_name: string;
+    quantity: number;
+  }[];
+  value: number;
+  isWelcomePromotion: boolean;
+}
 export const stripeClient = (() => {
   const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
 
@@ -162,6 +172,70 @@ export const stripeClient = (() => {
       return await stripe.invoices.retrieve(invoiceId, {
         expand: ["lines.data.price.product"],
       });
+    },
+
+    async getCheckoutSession(
+      sessionId: string,
+    ): Promise<Stripe.Checkout.Session> {
+      return await stripe.checkout.sessions.retrieve(sessionId, {
+        expand: [
+          "line_items",
+          "line_items.data.price.product",
+          "discounts.coupon",
+        ],
+      });
+    },
+
+    /**
+     * Get the data for a checkout session.
+     * This is used for Google Tag Manager to track the checkout session.
+     *
+     * - session: the checkout session
+     * - items: the line items with the product name and quantity
+     * - value: the total amount of the checkout session in the currency of the checkout session
+     * - isWelcomePromotion: whether the checkout session has a welcome promotion
+     */
+    async getCheckoutSessionData(id: string): Promise<CheckoutSessionData> {
+      const session = await this.getCheckoutSession(id);
+      const lineItems = session.line_items?.data ?? [];
+      const items = lineItems
+        .map((item) => {
+          if (
+            item.price?.product &&
+            typeof item.price.product === "object" &&
+            "id" in item.price.product &&
+            "name" in item.price.product
+          ) {
+            return {
+              item_id: item.price.product.id,
+              item_name: item.price.product.name,
+              quantity: item.quantity,
+            };
+          }
+        })
+        .filter(Boolean) as {
+        item_id: string;
+        item_name: string;
+        quantity: number;
+      }[];
+      // NOTE:
+      // we only allow support for USD for now
+      const value = (session.amount_total ?? 0) / 100;
+      const isWelcomePromotion =
+        session.discounts?.some(
+          (discount) =>
+            typeof discount.coupon === "object" &&
+            discount.coupon &&
+            "id" in discount.coupon &&
+            getEnvSecrets().STRIPE_WELCOME_COUPONS.includes(discount.coupon.id),
+        ) ?? false;
+
+      return {
+        session,
+        items,
+        value,
+        isWelcomePromotion,
+      };
     },
 
     async createCheckoutSession(
