@@ -27,21 +27,34 @@ export const isSingleOption = (
 
   return validations.some(
     ({ validation, value }) =>
-      validation === ValidJobInputValidationTypes.MAX && value <= 1,
+      validation === ValidJobInputValidationTypes.MAX && Number(value) <= 1,
   );
 };
 
-export const transformJobInputFileSchema = (
-  jobInputFileSchema: JobInputFileSchemaType,
-): Record<ValidJobInputValidationTypes, string | number> => {
-  const { validations } = jobInputFileSchema;
-  const validationObject = validations.reduce(
+export const transformJobInputSchemaValidations = (
+  jobInputSchema: JobInputSchemaType,
+): Partial<Record<ValidJobInputValidationTypes, string | number>> => {
+  const { validations } = jobInputSchema as {
+    validations?: {
+      validation: ValidJobInputValidationTypes;
+      value: string | number;
+    }[];
+  };
+  return (validations ?? []).reduce(
     (acc, cur) => {
       acc[cur.validation] = cur.value;
       return acc;
     },
-    {} as Record<ValidJobInputValidationTypes, string | number>,
+    {} as Partial<Record<ValidJobInputValidationTypes, string | number>>,
   );
+};
 
-  return validationObject;
+export const transformJobInputFileSchema = (
+  jobInputSchema: JobInputFileSchemaType,
+): Record<ValidJobInputValidationTypes, string | number> => {
+  const v = transformJobInputSchemaValidations(jobInputSchema) as Record<
+    ValidJobInputValidationTypes,
+    string | number
+  >;
+  return v;
 };

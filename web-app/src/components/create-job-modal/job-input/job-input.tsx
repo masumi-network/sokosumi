@@ -8,7 +8,11 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { JobInputSchemaType, JobInputsFormSchemaType } from "@/lib/job-input";
+import {
+  JobInputSchemaType,
+  JobInputsFormSchemaType,
+  ValidJobInputTypes,
+} from "@/lib/job-input";
 
 import { InputField } from "./inputs/input-field";
 import { isOptional } from "./util";
@@ -32,9 +36,11 @@ export default function JobInput({
       disabled={disabled}
       render={({ field }) => (
         <FormItem>
-          <FormLabel
-            htmlFor={id}
-          >{`${name} ${isOptional(jobInputSchema) ? "" : "*"}`}</FormLabel>
+          {jobInputSchema.type !== ValidJobInputTypes.HIDDEN && (
+            <FormLabel htmlFor={id}>{`${name} ${
+              isOptional(jobInputSchema) ? "" : "*"
+            }`}</FormLabel>
+          )}
           <FormControl>
             <InputField
               id={id}
@@ -43,14 +49,13 @@ export default function JobInput({
               form={form}
             />
           </FormControl>
-          {data?.description && (
-            <FormDescription>{data.description}</FormDescription>
-          )}
+          {jobInputSchema.type !== ValidJobInputTypes.HIDDEN &&
+            data?.description && (
+              <FormDescription>{data.description}</FormDescription>
+            )}
           <FormMessage />
         </FormItem>
       )}
     />
   );
 }
-
-// InputField moved to ./inputs/input-field

@@ -3,9 +3,25 @@ export enum ValidJobInputTypes {
   TEXTAREA = "textarea",
   NUMBER = "number",
   BOOLEAN = "boolean",
+  CHECKBOX = "checkbox",
   OPTION = "option",
   NONE = "none",
   FILE = "file",
+  DATE = "date",
+  DATETIME = "datetime-local",
+  TIME = "time",
+  RANGE = "range",
+  MULTISELECT = "multiselect",
+  RADIO_GROUP = "radio",
+  PASSWORD = "password",
+  EMAIL = "email",
+  TEL = "tel",
+  URL = "url",
+  MONTH = "month",
+  WEEK = "week",
+  HIDDEN = "hidden",
+  SEARCH = "search",
+  COLOR = "color",
 }
 export enum ValidJobInputValidationTypes {
   MIN = "min",
@@ -14,6 +30,7 @@ export enum ValidJobInputValidationTypes {
   OPTIONAL = "optional",
   MAX_SIZE = "maxSize",
   ACCEPT = "accept",
+  STEP = "step",
 }
 
 export enum ValidJobInputFormatValues {
@@ -21,6 +38,7 @@ export enum ValidJobInputFormatValues {
   EMAIL = "email",
   INTEGER = "integer",
   NON_EMPTY = "nonempty",
+  TEL_PATTERN = "tel_pattern",
 }
 
 export const requiredJobInputFileValidationTypes = [
