@@ -3,6 +3,7 @@ import pTimeout from "p-timeout";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { authenticateCronSecret } from "@/lib/auth/utils";
+import { anthropicClient } from "@/lib/clients";
 import { registryClient } from "@/lib/clients/masumi-registry.client";
 import { lockRepository, prisma } from "@/lib/db/repositories";
 import { lockService } from "@/lib/services";
@@ -138,12 +139,29 @@ async function syncAllEntries() {
     runningAgentsUpdates.push(
       ...entries.map(async (entry) => {
         const updateDbEntry = async () => {
+          let summary: string | null = null;
+          const oldAgent = await prisma.agent.findUnique({
+            where: { blockchainIdentifier: entry.agentIdentifier },
+          });
+          if (!oldAgent && entry.description) {
+            try {
+              summary = await anthropicClient.generateAgentSummary(
+                entry.description,
+              );
+            } catch (err) {
+              console.error(
+                `Failed to generate agent summary for agent ${entry.agentIdentifier}`,
+                err,
+              );
+            }
+          }
           await prisma.agent.upsert({
             where: { blockchainIdentifier: entry.agentIdentifier },
             create: {
               blockchainIdentifier: entry.agentIdentifier,
               name: entry.name,
               description: entry.description,
+              summary,
               apiBaseUrl: entry.apiBaseUrl,
               lastUptimeCheck: entry.lastUptimeCheck,
               uptimeCount: entry.uptimeCount,

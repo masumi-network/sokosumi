@@ -52,5 +52,38 @@ export const anthropicClient = (() => {
         return null;
       }
     },
+
+    async generateAgentSummary(description: string): Promise<string | null> {
+      const systemPrompt =
+        "You are an assistant that generates simple, descriptive agent summary. The summary should not exceed 256 characters and must be in the same language as the input data. The input data is the agent description, which explains what the agent does in detail. Please respond with only the summary, without any additional text. Do not repeat the agent name in your response.";
+      const userPrompt = `Agent Description: ${description}`;
+
+      try {
+        const message: Anthropic.Message = await anthropic.messages.create(
+          {
+            model: "claude-3-5-haiku-latest",
+            max_tokens: 80,
+            temperature: 0.9,
+            system: systemPrompt,
+            messages: [{ role: "user", content: userPrompt }],
+          },
+          {
+            maxRetries: 1,
+            timeout: 4000,
+          },
+        );
+        const textBlocks = message.content
+          .filter((c) => c.type === "text")
+          .map((c) => c.text);
+
+        if (textBlocks.length > 0) {
+          return textBlocks[0];
+        }
+        return null;
+      } catch (error) {
+        console.error("Anthropic agent summary generation failed:", error);
+        return null;
+      }
+    },
   };
 })();
