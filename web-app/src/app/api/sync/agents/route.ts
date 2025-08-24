@@ -139,12 +139,12 @@ async function syncAllEntries() {
     runningAgentsUpdates.push(
       ...entries.map(async (entry) => {
         const updateDbEntry = async () => {
-          let summary: string | null = null;
           const oldAgent = await prisma.agent.findUnique({
             where: { blockchainIdentifier: entry.agentIdentifier },
           });
+          let summary: string | null = oldAgent?.summary ?? null;
           const shouldUpdateSummary =
-            !oldAgent?.summary || oldAgent.description !== entry.description;
+            !summary || oldAgent?.description !== entry.description;
           if (shouldUpdateSummary && entry.description) {
             try {
               summary = await anthropicClient.generateAgentSummary(
@@ -163,7 +163,6 @@ async function syncAllEntries() {
               blockchainIdentifier: entry.agentIdentifier,
               name: entry.name,
               description: entry.description,
-              summary,
               apiBaseUrl: entry.apiBaseUrl,
               lastUptimeCheck: entry.lastUptimeCheck,
               uptimeCount: entry.uptimeCount,
@@ -231,6 +230,7 @@ async function syncAllEntries() {
               uptimeCount: entry.uptimeCount,
               uptimeCheckCount: entry.uptimeCheckCount,
               status: convertStatus(entry.status),
+              summary,
             },
           });
         };
