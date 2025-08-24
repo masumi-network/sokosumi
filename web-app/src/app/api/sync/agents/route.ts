@@ -143,7 +143,9 @@ async function syncAllEntries() {
           const oldAgent = await prisma.agent.findUnique({
             where: { blockchainIdentifier: entry.agentIdentifier },
           });
-          if (!oldAgent && entry.description) {
+          const shouldUpdateSummary =
+            !oldAgent?.summary || oldAgent.description !== entry.description;
+          if (shouldUpdateSummary && entry.description) {
             try {
               summary = await anthropicClient.generateAgentSummary(
                 entry.description,
