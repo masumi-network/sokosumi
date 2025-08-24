@@ -14,6 +14,7 @@ import {
   getAgentAuthorResolvedImage,
   getAgentName,
   getAgentResolvedImage,
+  getAgentSummary,
   getAgentTags,
   getShortAgentAuthorName,
 } from "@/lib/db";
@@ -27,6 +28,7 @@ import {
 import { AgentBookmarkButton } from "./agent-bookmark-button";
 import { AgentDetailLink } from "./agent-detail-link";
 import { AgentHireButton } from "./agent-hire-button";
+import AgentSummary from "./agent-summary";
 import { AgentVerifiedBadge } from "./agent-verified-badge";
 
 const agentCardVariants = cva("flex rounded-lg border-none p-1 shadow-none", {
@@ -132,6 +134,20 @@ const agentCardNameVariants = cva("text-foreground truncate font-medium", {
       sm: "text-sm leading-4",
       md: "text-base leading-6",
       lg: "text-2xl leading-8 md:text-3xl",
+    },
+  },
+  defaultVariants: {
+    size: "md",
+  },
+});
+
+const agentCardSummaryContainerVariants = cva("text-muted-foreground text-sm", {
+  variants: {
+    size: {
+      xs: "hidden",
+      sm: "hidden",
+      md: "block",
+      lg: "hidden",
     },
   },
   defaultVariants: {
@@ -259,6 +275,9 @@ function AgentCardSkeleton({
             <Skeleton className="h-4 w-12 rounded-lg" />
           </div>
           <Skeleton className="h-4 w-16" />
+          <div className={agentCardSummaryContainerVariants({ size })}>
+            <Skeleton className="h-8 w-full" />
+          </div>
         </div>
 
         {/* Pricing and Buttons */}
@@ -305,6 +324,7 @@ function AgentCard({
 
   const agentImage = getAgentResolvedImage(agent);
   const authorImage = getAgentAuthorResolvedImage(agent);
+  const summary = getAgentSummary(agent);
   const isDefault = !size || size === "md";
   const buttonSize = size === "xs" || size === "sm" ? "sm" : "lg";
 
@@ -380,6 +400,11 @@ function AgentCard({
                 </h3>
                 <AgentVerifiedBadge />
               </div>
+              {summary && (
+                <div className={agentCardSummaryContainerVariants({ size })}>
+                  <AgentSummary summary={summary} />
+                </div>
+              )}
               <p className={agentCardAuthorVariants({ size })}>
                 {getShortAgentAuthorName(agent)}
               </p>
