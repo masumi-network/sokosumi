@@ -30,7 +30,7 @@ model User {
   creditTransactions CreditTransaction[]
   fiatTransactions   FiatTransaction[]
   jobs               Job[]
-  blobs      Blob[] @relation("UserBlob")
+  blobs              Blob[]              @relation("UserBlob")
 
   stripeCustomerId String?
 
@@ -290,6 +290,9 @@ model Agent {
   authorName         String
   overrideAuthorName String?
 
+  authorImage         String?
+  overrideAuthorImage String?
+
   authorContactEmail         String?
   overrideAuthorContactEmail String?
 
@@ -340,6 +343,9 @@ model Agent {
   // Demo Input and Output
   demoInput  String?
   demoOutput String?
+
+  // Summary
+  summary String?
 }
 
 enum PaymentType {
@@ -609,8 +615,8 @@ model Blob {
   fileUrl   String
   createdAt DateTime @default(now())
 
-  user      User     @relation("UserBlob", fields: [userId], references: [id], onDelete: Cascade)
-  job       Job      @relation("JobBlob", fields: [jobId], references: [id], onDelete: Cascade)
+  user User @relation("UserBlob", fields: [userId], references: [id], onDelete: Cascade)
+  job  Job  @relation("JobBlob", fields: [jobId], references: [id], onDelete: Cascade)
 
   @@map("blob")
 }

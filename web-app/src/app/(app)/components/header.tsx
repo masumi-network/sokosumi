@@ -17,7 +17,7 @@ export default function Header({ session, className }: HeaderProps) {
   return (
     <header
       className={cn(
-        "border-grid bg-background/95 fixed top-0 z-50 flex w-full justify-between gap-2 border-b md:sticky md:items-center",
+        "border-grid bg-background/95 fixed top-0 z-100 flex w-full justify-between gap-2 border-b md:sticky md:items-center",
         className,
       )}
     >

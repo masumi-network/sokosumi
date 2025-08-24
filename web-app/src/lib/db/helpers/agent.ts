@@ -75,6 +75,15 @@ export function getFullAgentAuthorName(agent: Agent): string {
   return name;
 }
 
+export function getAgentAuthorResolvedImage(agent: Agent): string | null {
+  const image = agent.overrideAuthorImage ?? agent.authorImage;
+  return image ? ipfsUrlResolver(image) : null;
+}
+
+export function getAgentSummary(agent: Agent): string | null {
+  return agent.summary;
+}
+
 export function getAgentAuthorEmail(agent: Agent): string | null {
   return agent.overrideAuthorContactEmail ?? agent.authorContactEmail;
 }

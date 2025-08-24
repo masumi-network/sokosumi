@@ -3,6 +3,7 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 
 import ClickBlocker from "@/components/click-blocker";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,6 +11,7 @@ import {
   AgentWithCreditsPrice,
   AgentWithRelations,
   convertCentsToCredits,
+  getAgentAuthorResolvedImage,
   getAgentName,
   getAgentResolvedImage,
   getAgentTags,
@@ -92,6 +94,23 @@ const agentCardBadgesContainerVariants = cva(
   },
 );
 
+const agentCardAuthorImageContainerVariants = cva(
+  "absolute right-0 bottom-0 z-40 flex h-1/4 w-1/2 justify-end gap-4 p-3",
+  {
+    variants: {
+      size: {
+        xs: "hidden",
+        sm: "hidden",
+        md: "flex",
+        lg: "flex",
+      },
+    },
+    defaultVariants: {
+      size: "md",
+    },
+  },
+);
+
 const agentCardContentVariants = cva("flex w-full flex-col", {
   variants: {
     size: {
@@ -125,8 +144,8 @@ const agentCardAuthorVariants = cva("text-muted-foreground truncate", {
     size: {
       xs: "text-xs",
       sm: "text-sm",
-      md: "text-base",
-      lg: "text-2xl md:text-3xl",
+      md: "hidden",
+      lg: "hidden",
     },
   },
   defaultVariants: {
@@ -284,6 +303,8 @@ function AgentCard({
     (favoriteAgent) => favoriteAgent.id === agent.id,
   );
 
+  const agentImage = getAgentResolvedImage(agent);
+  const authorImage = getAgentAuthorResolvedImage(agent);
   const isDefault = !size || size === "md";
   const buttonSize = size === "xs" || size === "sm" ? "sm" : "lg";
 
@@ -295,7 +316,7 @@ function AgentCard({
           <div className={cn(agentCardImageContainerVariants({ size }))}>
             <AgentCardWrapper agentId={agent.id} isLink={size === "lg"}>
               <Image
-                src={getAgentResolvedImage(agent)}
+                src={agentImage}
                 alt={`${getAgentName(agent)} image`}
                 width={400}
                 height={250}
@@ -326,6 +347,27 @@ function AgentCard({
               {agent.isNew && <AgentNewBadge />}
               {/* Tags */}
               <AgentBadgeCloud tags={getAgentTags(agent)} />
+            </div>
+
+            {/* Author Image or Name */}
+            <div
+              className={cn(agentCardAuthorImageContainerVariants({ size }))}
+            >
+              {authorImage ? (
+                <Image
+                  src={authorImage}
+                  alt={`${getAgentName(agent)} author image`}
+                  width={400}
+                  height={400}
+                  className="h-full w-auto"
+                />
+              ) : (
+                <Badge variant="default" className="max-w-full">
+                  <p className="truncate text-xs">
+                    {getShortAgentAuthorName(agent)}
+                  </p>
+                </Badge>
+              )}
             </div>
           </div>
 
