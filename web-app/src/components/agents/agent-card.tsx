@@ -79,14 +79,14 @@ const agentCardImageHoverVariants = cva(
   },
 );
 
-const agentCardBadgesContainerVariants = cva(
-  "absolute inset-0 z-20 flex-col justify-between gap-4 p-3",
+const agentCardBadgesAndAuthorContainerVariants = cva(
+  "absolute inset-0 z-20 flex-row justify-between gap-2 p-3",
   {
     variants: {
       size: {
         xs: "hidden",
         sm: "hidden",
-        md: "flex transition-opacity group-hover:opacity-0",
+        md: "flex",
         lg: "flex",
       },
     },
@@ -96,8 +96,22 @@ const agentCardBadgesContainerVariants = cva(
   },
 );
 
+const agentCardBadgesContainerVariants = cva("flex-col justify-between gap-4", {
+  variants: {
+    size: {
+      xs: "hidden",
+      sm: "hidden",
+      md: "flex transition-opacity group-hover:opacity-0",
+      lg: "flex",
+    },
+  },
+  defaultVariants: {
+    size: "md",
+  },
+});
+
 const agentCardAuthorImageContainerVariants = cva(
-  "absolute right-0 bottom-0 z-40 flex h-1/4 w-1/2 justify-end gap-4 p-3",
+  "flex h-full max-w-2/3 items-end justify-end",
   {
     variants: {
       size: {
@@ -361,33 +375,40 @@ function AgentCard({
               </div>
             </div>
 
-            {/* Badges */}
-            <div className={cn(agentCardBadgesContainerVariants({ size }))}>
-              {/* New Badge */}
-              {agent.isNew && <AgentNewBadge />}
-              {/* Tags */}
-              <AgentBadgeCloud tags={getAgentTags(agent)} />
-            </div>
-
-            {/* Author Image or Name */}
+            {/* Badges and Author */}
             <div
-              className={cn(agentCardAuthorImageContainerVariants({ size }))}
-            >
-              {authorImage ? (
-                <Image
-                  src={authorImage}
-                  alt={`${getAgentName(agent)} author image`}
-                  width={400}
-                  height={400}
-                  className="h-full w-auto"
-                />
-              ) : (
-                <Badge variant="default" className="max-w-full">
-                  <p className="truncate text-xs">
-                    {getShortAgentAuthorName(agent)}
-                  </p>
-                </Badge>
+              className={cn(
+                agentCardBadgesAndAuthorContainerVariants({ size }),
               )}
+            >
+              {/* Badges */}
+              <div className={cn(agentCardBadgesContainerVariants({ size }))}>
+                {/* New Badge */}
+                {agent.isNew && <AgentNewBadge />}
+                {/* Tags */}
+                <AgentBadgeCloud tags={getAgentTags(agent)} />
+              </div>
+
+              {/* Author Image or Name */}
+              <div
+                className={cn(agentCardAuthorImageContainerVariants({ size }))}
+              >
+                {authorImage ? (
+                  <Image
+                    src={authorImage}
+                    alt={`${getAgentName(agent)} author image`}
+                    width={400}
+                    height={400}
+                    className="h-1/4 w-auto"
+                  />
+                ) : (
+                  <Badge variant="default" className="max-w-full">
+                    <p className="truncate text-xs">
+                      {getShortAgentAuthorName(agent)}
+                    </p>
+                  </Badge>
+                )}
+              </div>
             </div>
           </div>
 
