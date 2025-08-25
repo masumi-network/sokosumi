@@ -187,6 +187,7 @@ export const agentRepository = {
 
   /**
    * Get agents without a summary but have description to make a summary.
+   * Only shown agents are considered.
    *
    * @param limit - Maximum number of agents to return
    * @param tx - Optional Prisma transaction client (defaults to main Prisma client)
@@ -198,6 +199,7 @@ export const agentRepository = {
   ): Promise<Agent[]> {
     return await tx.agent.findMany({
       where: {
+        isShown: true,
         summary: null,
         OR: [
           { description: { not: null } },
