@@ -132,8 +132,8 @@ importers:
         specifier: 1.1.1
         version: 1.1.1
       ably:
-        specifier: 2.11.1
-        version: 2.11.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+        specifier: 2.12.0
+        version: 2.12.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       better-auth:
         specifier: 1.3.7
         version: 1.3.7(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(zod@3.25.76)
@@ -3084,8 +3084,8 @@ packages:
   '@xtuc/long@4.2.2':
     resolution: {integrity: sha512-NuHqBY1PB/D8xU6s/thBgOAiAP7HOYDQ32+BFZILJ8ivkUkAHQnWfn6WhL79Owj1qmUnoN/YPhktdIoucipkAQ==}
 
-  ably@2.11.1:
-    resolution: {integrity: sha512-S4twOMKUoA29J/QloAzA7imIEVpupt3ibqPcZzFFNtKlMra/1gmC2hxWaV0viu9nxPWHGdomTzr2js73KU6YNw==}
+  ably@2.12.0:
+    resolution: {integrity: sha512-sU2LSpXXxesYv+CbX/p/+w0dHUkn8+V92iusZVvhQBQpzUbENGvjsVlt5gph8Q/FzdY67lwTMFYQ6yo5od2SJw==}
     engines: {node: '>=16'}
     peerDependencies:
       react: '>=16.8.0'
@@ -6026,6 +6026,10 @@ packages:
 
   tapable@2.2.2:
     resolution: {integrity: sha512-Re10+NauLTMCudc7T5WLFLAwDhQ0JWdrMK+9B2M8zR5hRExKmsRDCBA7/aV/pNJFltmBFO5BAMlQFi/vq3nKOg==}
+    engines: {node: '>=6'}
+
+  tapable@2.2.3:
+    resolution: {integrity: sha512-ZL6DDuAlRlLGghwcfmSn9sK3Hr6ArtyudlSAiCqQ6IfE+b+HHbydbYDIG15IfS5do+7XQQBdBiubF/cV2dnDzg==}
     engines: {node: '>=6'}
 
   tar@6.2.1:
@@ -9394,7 +9398,7 @@ snapshots:
 
   '@xtuc/long@4.2.2': {}
 
-  ably@2.11.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
+  ably@2.12.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
     dependencies:
       '@ably/msgpack-js': 0.4.1
       dequal: 2.0.3
@@ -12741,6 +12745,8 @@ snapshots:
 
   tapable@2.2.2: {}
 
+  tapable@2.2.3: {}
+
   tar@6.2.1:
     dependencies:
       chownr: 2.0.0
@@ -13068,7 +13074,7 @@ snapshots:
       mime-types: 2.1.35
       neo-async: 2.6.2
       schema-utils: 4.3.2
-      tapable: 2.2.2
+      tapable: 2.2.3
       terser-webpack-plugin: 5.3.14(@swc/core@1.13.4(@swc/helpers@0.5.17))(webpack@5.101.3(@swc/core@1.13.4(@swc/helpers@0.5.17)))
       watchpack: 2.4.4
       webpack-sources: 3.3.3
