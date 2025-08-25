@@ -186,19 +186,19 @@ export const agentRepository = {
   },
 
   /**
-   * Get agents without a summary but have description to make a summary.
-   * Only shown agents are considered.
+   * Get available agents without a summary but have description to make a summary.
    *
    * @param limit - Maximum number of agents to return
    * @param tx - Optional Prisma transaction client (defaults to main Prisma client)
    * @returns Array of agents without a summary
    */
-  async getAgentsWithoutSummary(
+  async getAvailableAgentsWithoutSummary(
     limit: number | null,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<Agent[]> {
     return await tx.agent.findMany({
       where: {
+        status: AgentStatus.ONLINE,
         isShown: true,
         summary: null,
         OR: [

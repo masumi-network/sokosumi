@@ -67,7 +67,7 @@ async function agentSummarySync() {
 async function syncAgentSummaries() {
   const limit = 20;
   const agentsWithoutSummary =
-    await agentRepository.getAgentsWithoutSummary(limit);
+    await agentRepository.getAvailableAgentsWithoutSummary(limit);
 
   for (const agent of agentsWithoutSummary) {
     const description = getAgentDescription(agent);

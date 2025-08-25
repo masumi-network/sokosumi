@@ -57,7 +57,7 @@ export const anthropicClient = (() => {
 
     async generateAgentSummary(description: string): Promise<string | null> {
       const systemPrompt =
-        "You are an assistant that generates simple, descriptive agent summary. The summary should not exceed 256 characters and must be in the same language as the input data. The input data is the agent description, which explains what the agent does in detail. Please respond with only the summary, without any additional text. Do not repeat the agent name in your response.";
+        "You are an assistant that generates simple, descriptive agent summary. The summary should be between 240 ~ 256 characters and must be in the same language as the input data. The input data is the agent description, which explains what the agent does in detail. Please respond with only the summary, without any additional text. Do not repeat the agent name in your response.";
       const userPrompt = `Agent Description: ${description}`;
 
       try {
