@@ -6,6 +6,10 @@
       "schedule": "*/5 * * * *"
     },
     {
+      "path": "/api/sync/agents-summary",
+      "schedule": "*/5 * * * *"
+    },
+    {
       "path": "/api/sync/jobs",
       "schedule": "* * * * *"
     },
