@@ -132,8 +132,8 @@ importers:
         specifier: 1.1.1
         version: 1.1.1
       ably:
-        specifier: 2.11.1
-        version: 2.11.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+        specifier: 2.12.0
+        version: 2.12.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       better-auth:
         specifier: 1.3.7
         version: 1.3.7(react-dom@19.1.1(react@19.1.1))(react@19.1.1)(zod@3.25.76)
@@ -3084,8 +3084,8 @@ packages:
   '@xtuc/long@4.2.2':
     resolution: {integrity: sha512-NuHqBY1PB/D8xU6s/thBgOAiAP7HOYDQ32+BFZILJ8ivkUkAHQnWfn6WhL79Owj1qmUnoN/YPhktdIoucipkAQ==}
 
-  ably@2.11.1:
-    resolution: {integrity: sha512-S4twOMKUoA29J/QloAzA7imIEVpupt3ibqPcZzFFNtKlMra/1gmC2hxWaV0viu9nxPWHGdomTzr2js73KU6YNw==}
+  ably@2.12.0:
+    resolution: {integrity: sha512-sU2LSpXXxesYv+CbX/p/+w0dHUkn8+V92iusZVvhQBQpzUbENGvjsVlt5gph8Q/FzdY67lwTMFYQ6yo5od2SJw==}
     engines: {node: '>=16'}
     peerDependencies:
       react: '>=16.8.0'
@@ -9398,7 +9398,7 @@ snapshots:
 
   '@xtuc/long@4.2.2': {}
 
-  ably@2.11.1(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
+  ably@2.12.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
     dependencies:
       '@ably/msgpack-js': 0.4.1
       dequal: 2.0.3
