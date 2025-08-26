@@ -6,7 +6,7 @@ import { Session } from "@/lib/auth/auth";
 import { cn } from "@/lib/utils";
 
 interface HeaderProps {
-  session: Session;
+  session: Session | null;
   className?: string | undefined;
 }
 

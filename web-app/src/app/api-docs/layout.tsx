@@ -3,7 +3,6 @@ import { cookies } from "next/headers";
 import { getTranslations } from "next-intl/server";
 
 import HeaderApiDocs from "@/app/components/header-api-docs";
-import { getSessionOrRedirect } from "@/lib/auth/utils";
 
 interface AppLayoutProps {
   children: React.ReactNode;
@@ -25,12 +24,12 @@ export default async function ApiDocsLayout({ children }: AppLayoutProps) {
   const cookieStore = await cookies();
   const _defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
 
-  const session = await getSessionOrRedirect();
+  // const session = await getSessionOrRedirect();
 
   return (
     <>
       <div className="flex w-full flex-col overflow-clip">
-        <HeaderApiDocs session={session} className="h-16 p-4" />
+        <HeaderApiDocs session={null} className="h-16 p-4" />
         <main className="relative min-h-[calc(100svh-64px)] p-0 pt-20 md:pt-0">
           {children}
         </main>
