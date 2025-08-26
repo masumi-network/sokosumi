@@ -4,15 +4,18 @@ import { parseISOWeek, parseMonth } from "@/lib/utils";
 
 import {
   JobInputBooleanSchemaType,
+  JobInputCheckboxSchemaType,
   JobInputColorSchemaType,
   JobInputDateSchemaType,
   JobInputDatetimeSchemaType,
   JobInputEmailSchemaType,
   JobInputFileSchemaType,
   JobInputMonthSchemaType,
+  JobInputMultiselectSchemaType,
   JobInputNumberSchemaType,
   JobInputOptionSchemaType,
   JobInputPasswordSchemaType,
+  JobInputRadioGroupSchemaType,
   JobInputRangeSchemaType,
   JobInputSchemaType,
   JobInputSearchSchemaType,
@@ -38,10 +41,7 @@ export const makeZodSchemaFromJobInputSchema = (
     case ValidJobInputTypes.STRING:
       return makeZodSchemaFromJobInputStringSchema(jobInputSchema, t);
     case ValidJobInputTypes.TEL:
-      return makeZodSchemaFromJobInputTelSchema(
-        jobInputSchema as unknown as JobInputTelSchemaType,
-        t,
-      );
+      return makeZodSchemaFromJobInputTelSchema(jobInputSchema, t);
     case ValidJobInputTypes.PASSWORD:
       return makeZodSchemaFromJobInputStringSchema(jobInputSchema, t);
     case ValidJobInputTypes.EMAIL:
@@ -59,50 +59,25 @@ export const makeZodSchemaFromJobInputSchema = (
     case ValidJobInputTypes.BOOLEAN:
       return makeZodSchemaFromJobInputBooleanSchema(jobInputSchema, t);
     case ValidJobInputTypes.CHECKBOX:
-      return makeZodSchemaFromJobInputCheckboxSchema(
-        jobInputSchema as unknown as JobInputBooleanSchemaType,
-        t,
-      );
+      return makeZodSchemaFromJobInputCheckboxSchema(jobInputSchema, t);
     case ValidJobInputTypes.OPTION:
+    case ValidJobInputTypes.MULTISELECT:
+    case ValidJobInputTypes.RADIO_GROUP:
       return makeZodSchemaFromJobInputOptionSchema(jobInputSchema, t);
     case ValidJobInputTypes.FILE:
       return makeZodSchemaFromJobInputFileSchema(jobInputSchema, t);
-    case ValidJobInputTypes.MULTISELECT:
-    case ValidJobInputTypes.RADIO_GROUP:
-      return makeZodSchemaFromJobInputOptionSchema(
-        jobInputSchema as unknown as JobInputOptionSchemaType,
-        t,
-      );
     case ValidJobInputTypes.DATE:
-      return makeZodSchemaFromJobInputDateSchema(
-        jobInputSchema as JobInputDateSchemaType,
-        t,
-      );
+      return makeZodSchemaFromJobInputDateSchema(jobInputSchema, t);
     case ValidJobInputTypes.DATETIME:
-      return makeZodSchemaFromJobInputDatetimeSchema(
-        jobInputSchema as JobInputDatetimeSchemaType,
-        t,
-      );
+      return makeZodSchemaFromJobInputDatetimeSchema(jobInputSchema, t);
     case ValidJobInputTypes.TIME:
-      return makeZodSchemaFromJobInputTimeSchema(
-        jobInputSchema as JobInputTimeSchemaType,
-        t,
-      );
+      return makeZodSchemaFromJobInputTimeSchema(jobInputSchema, t);
     case ValidJobInputTypes.RANGE:
-      return makeZodSchemaFromJobInputRangeSchema(
-        jobInputSchema as JobInputRangeSchemaType,
-        t,
-      );
+      return makeZodSchemaFromJobInputRangeSchema(jobInputSchema, t);
     case ValidJobInputTypes.MONTH:
-      return makeZodSchemaFromJobInputMonthSchema(
-        jobInputSchema as JobInputMonthSchemaType,
-        t,
-      );
+      return makeZodSchemaFromJobInputMonthSchema(jobInputSchema, t);
     case ValidJobInputTypes.WEEK:
-      return makeZodSchemaFromJobInputWeekSchema(
-        jobInputSchema as JobInputWeekSchemaType,
-        t,
-      );
+      return makeZodSchemaFromJobInputWeekSchema(jobInputSchema, t);
     case ValidJobInputTypes.HIDDEN:
       return z.string().optional();
     case ValidJobInputTypes.NONE:
@@ -329,7 +304,7 @@ const makeZodSchemaFromJobInputBooleanSchema = (
 
 // Single checkbox behaves like boolean, but allows default in data
 const makeZodSchemaFromJobInputCheckboxSchema = (
-  jobInputSchema: JobInputBooleanSchemaType,
+  jobInputSchema: JobInputCheckboxSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
 ) => {
   const { name } = jobInputSchema;
@@ -339,7 +314,10 @@ const makeZodSchemaFromJobInputCheckboxSchema = (
 };
 
 const makeZodSchemaFromJobInputOptionSchema = (
-  jobInputOptionSchema: JobInputOptionSchemaType,
+  jobInputOptionSchema:
+    | JobInputOptionSchemaType
+    | JobInputMultiselectSchemaType
+    | JobInputRadioGroupSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
 ) => {
   const {
