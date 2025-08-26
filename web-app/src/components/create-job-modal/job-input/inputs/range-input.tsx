@@ -1,7 +1,9 @@
+import { useMemo } from "react";
+
 import { transformJobInputSchemaValidations } from "@/components/create-job-modal/job-input/util";
 import { Input } from "@/components/ui/input";
 import { Slider } from "@/components/ui/slider";
-import { JobInputRangeSchemaType } from "@/lib/job-input";
+import { JobInputRangeSchemaType, ValidJobInputTypes } from "@/lib/job-input";
 
 import { JobInputComponentProps } from "./types";
 
@@ -9,15 +11,18 @@ export function RangeInput({
   id,
   field,
   jobInputSchema,
-}: JobInputComponentProps) {
-  const { data } = jobInputSchema as JobInputRangeSchemaType;
-  const transformedValidations = transformJobInputSchemaValidations(
-    jobInputSchema as JobInputRangeSchemaType,
-  );
-  const min = Number(transformedValidations.min ?? 0);
-  const max = Number(transformedValidations.max ?? 100);
-  const step = Number(transformedValidations.step ?? data?.step ?? 1);
-  const defaultValue = data?.default;
+}: JobInputComponentProps<ValidJobInputTypes.RANGE, JobInputRangeSchemaType>) {
+  const { defaultValue, min, max, step } = useMemo(() => {
+    const { data } = jobInputSchema;
+    const transformedValidations =
+      transformJobInputSchemaValidations(jobInputSchema);
+    return {
+      defaultValue: data?.default,
+      min: Number(transformedValidations.min ?? 0),
+      max: Number(transformedValidations.max ?? 100),
+      step: Number(transformedValidations.step ?? data?.step ?? 1),
+    };
+  }, [jobInputSchema]);
 
   const sliderValue =
     typeof field.value === "number"

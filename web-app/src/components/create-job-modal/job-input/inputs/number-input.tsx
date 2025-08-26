@@ -1,5 +1,5 @@
 import { Input } from "@/components/ui/input";
-import { JobInputNumberSchemaType } from "@/lib/job-input";
+import { JobInputNumberSchemaType, ValidJobInputTypes } from "@/lib/job-input";
 
 import { JobInputComponentProps } from "./types";
 
@@ -7,8 +7,12 @@ export function NumberInput({
   id,
   field,
   jobInputSchema,
-}: JobInputComponentProps) {
-  const { data } = jobInputSchema as JobInputNumberSchemaType;
+}: JobInputComponentProps<
+  ValidJobInputTypes.NUMBER,
+  JobInputNumberSchemaType
+>) {
+  const { data } = jobInputSchema;
+
   return (
     <Input
       id={id}

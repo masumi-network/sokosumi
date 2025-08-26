@@ -1,3 +1,5 @@
+import { useMemo } from "react";
+
 import { transformJobInputSchemaValidations } from "@/components/create-job-modal/job-input/util";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -6,27 +8,28 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { JobInputDateSchemaType } from "@/lib/job-input";
+import { JobInputDateSchemaType, ValidJobInputTypes } from "@/lib/job-input";
 import { parseDate } from "@/lib/utils";
 
 import { JobInputComponentProps } from "./types";
 
 export function DateInput({
-  id: _id,
   field,
   jobInputSchema,
-}: JobInputComponentProps) {
-  const selectedDate: Date | undefined =
-    field.value instanceof Date ? (field.value as Date) : undefined;
-  const transformedValidations = transformJobInputSchemaValidations(
-    jobInputSchema as JobInputDateSchemaType,
-  );
-  const minDate = parseDate(
-    transformedValidations.min as string | number | undefined,
-  );
-  const maxDate = parseDate(
-    transformedValidations.max as string | number | undefined,
-  );
+}: JobInputComponentProps<ValidJobInputTypes.DATE, JobInputDateSchemaType>) {
+  const selectedDate = field.value instanceof Date ? field.value : undefined;
+
+  const { minDate, maxDate } = useMemo(() => {
+    const transformedValidations =
+      transformJobInputSchemaValidations(jobInputSchema);
+    const minDate = parseDate(
+      transformedValidations.min as string | number | undefined,
+    );
+    const maxDate = parseDate(
+      transformedValidations.max as string | number | undefined,
+    );
+    return { minDate, maxDate };
+  }, [jobInputSchema]);
 
   return (
     <Popover>

@@ -96,8 +96,9 @@ export function InputField({
       return (
         <PasswordInput
           id={id}
-          placeholder={jobInputSchema.data?.placeholder}
           field={field}
+          jobInputSchema={jobInputSchema}
+          form={form}
         />
       );
     case ValidJobInputTypes.TEXTAREA:

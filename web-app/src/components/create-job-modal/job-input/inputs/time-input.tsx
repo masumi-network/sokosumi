@@ -1,5 +1,5 @@
 import { Input } from "@/components/ui/input";
-import { JobInputTimeSchemaType } from "@/lib/job-input";
+import { JobInputTimeSchemaType, ValidJobInputTypes } from "@/lib/job-input";
 
 import { JobInputComponentProps } from "./types";
 
@@ -7,8 +7,9 @@ export function TimeInput({
   id,
   field,
   jobInputSchema,
-}: JobInputComponentProps) {
-  const { data } = jobInputSchema as JobInputTimeSchemaType;
+}: JobInputComponentProps<ValidJobInputTypes.TIME, JobInputTimeSchemaType>) {
+  const { data } = jobInputSchema;
+
   return (
     <Input
       id={id}

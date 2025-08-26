@@ -1,16 +1,22 @@
 import MultipleSelect from "@/components/multiple-select";
-import { JobInputMultiselectSchemaType } from "@/lib/job-input";
+import {
+  JobInputMultiselectSchemaType,
+  ValidJobInputTypes,
+} from "@/lib/job-input";
 
 import { JobInputComponentProps } from "./types";
 
 export function MultiselectInput({
   field,
   jobInputSchema,
-}: JobInputComponentProps) {
+}: JobInputComponentProps<
+  ValidJobInputTypes.MULTISELECT,
+  JobInputMultiselectSchemaType
+>) {
   const {
     name,
     data: { values },
-  } = jobInputSchema as JobInputMultiselectSchemaType;
+  } = jobInputSchema;
 
   return (
     <MultipleSelect

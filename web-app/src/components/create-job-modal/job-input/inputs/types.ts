@@ -1,10 +1,17 @@
 import { ControllerRenderProps, UseFormReturn } from "react-hook-form";
 
-import { JobInputSchemaType, JobInputsFormSchemaType } from "@/lib/job-input";
+import {
+  JobInputSchemaType,
+  JobInputsFormSchemaType,
+  ValidJobInputTypes,
+} from "@/lib/job-input";
 
-export interface JobInputComponentProps {
+export interface JobInputComponentProps<
+  T extends ValidJobInputTypes,
+  S extends JobInputSchemaType,
+> {
   id: string;
-  jobInputSchema: JobInputSchemaType;
+  jobInputSchema: S["type"] extends T ? S : never;
   field: ControllerRenderProps<JobInputsFormSchemaType>;
   form: UseFormReturn<JobInputsFormSchemaType>;
 }

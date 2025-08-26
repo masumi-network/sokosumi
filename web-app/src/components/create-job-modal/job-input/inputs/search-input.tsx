@@ -1,5 +1,5 @@
 import { Input } from "@/components/ui/input";
-import { JobInputSearchSchemaType } from "@/lib/job-input";
+import { JobInputSearchSchemaType, ValidJobInputTypes } from "@/lib/job-input";
 
 import { JobInputComponentProps } from "./types";
 
@@ -7,8 +7,11 @@ export function SearchInput({
   id,
   field,
   jobInputSchema,
-}: JobInputComponentProps) {
-  const { data } = jobInputSchema as JobInputSearchSchemaType;
+}: JobInputComponentProps<
+  ValidJobInputTypes.SEARCH,
+  JobInputSearchSchemaType
+>) {
+  const { data } = jobInputSchema;
   return (
     <Input
       id={id}

@@ -9,16 +9,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { JobInputOptionSchemaType } from "@/lib/job-input";
+import { JobInputOptionSchemaType, ValidJobInputTypes } from "@/lib/job-input";
 
 import { JobInputComponentProps } from "./types";
 
-export function OptionInput({ field, jobInputSchema }: JobInputComponentProps) {
-  const isSingle = isSingleOption(jobInputSchema as JobInputOptionSchemaType);
+export function OptionInput({
+  field,
+  jobInputSchema,
+}: JobInputComponentProps<
+  ValidJobInputTypes.OPTION,
+  JobInputOptionSchemaType
+>) {
+  const isSingle = isSingleOption(jobInputSchema);
   const {
     name,
     data: { values },
-  } = jobInputSchema as JobInputOptionSchemaType;
+  } = jobInputSchema;
 
   if (isSingle) {
     return (

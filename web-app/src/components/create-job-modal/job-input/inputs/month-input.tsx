@@ -1,5 +1,5 @@
 import { Input } from "@/components/ui/input";
-import { JobInputMonthSchemaType } from "@/lib/job-input";
+import { JobInputMonthSchemaType, ValidJobInputTypes } from "@/lib/job-input";
 
 import { JobInputComponentProps } from "./types";
 
@@ -7,8 +7,9 @@ export function MonthInput({
   id,
   field,
   jobInputSchema,
-}: JobInputComponentProps) {
-  const { data } = jobInputSchema as JobInputMonthSchemaType;
+}: JobInputComponentProps<ValidJobInputTypes.MONTH, JobInputMonthSchemaType>) {
+  const { data } = jobInputSchema;
+
   return (
     <Input
       id={id}

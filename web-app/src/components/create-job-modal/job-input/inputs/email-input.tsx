@@ -1,5 +1,5 @@
 import { Input } from "@/components/ui/input";
-import { JobInputEmailSchemaType } from "@/lib/job-input";
+import { JobInputEmailSchemaType, ValidJobInputTypes } from "@/lib/job-input";
 
 import { JobInputComponentProps } from "./types";
 
@@ -7,8 +7,9 @@ export function EmailInput({
   id,
   field,
   jobInputSchema,
-}: JobInputComponentProps) {
-  const { data } = jobInputSchema as JobInputEmailSchemaType;
+}: JobInputComponentProps<ValidJobInputTypes.EMAIL, JobInputEmailSchemaType>) {
+  const { data } = jobInputSchema;
+
   return (
     <Input
       id={id}

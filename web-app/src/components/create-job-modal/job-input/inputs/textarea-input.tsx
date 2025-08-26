@@ -1,5 +1,8 @@
 import { Textarea } from "@/components/ui/textarea";
-import { JobInputTextareaSchemaType } from "@/lib/job-input";
+import {
+  JobInputTextareaSchemaType,
+  ValidJobInputTypes,
+} from "@/lib/job-input";
 
 import { JobInputComponentProps } from "./types";
 
@@ -7,8 +10,12 @@ export function TextareaInput({
   id,
   field,
   jobInputSchema,
-}: JobInputComponentProps) {
-  const { data } = jobInputSchema as JobInputTextareaSchemaType;
+}: JobInputComponentProps<
+  ValidJobInputTypes.TEXTAREA,
+  JobInputTextareaSchemaType
+>) {
+  const { data } = jobInputSchema;
+
   return (
     <Textarea
       id={id}

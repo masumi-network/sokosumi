@@ -1,5 +1,8 @@
 import { Checkbox } from "@/components/ui/checkbox";
-import { JobInputBooleanSchemaType } from "@/lib/job-input";
+import {
+  JobInputCheckboxSchemaType,
+  ValidJobInputTypes,
+} from "@/lib/job-input";
 
 import { JobInputComponentProps } from "./types";
 
@@ -7,10 +10,12 @@ export function CheckboxInput({
   id,
   field,
   jobInputSchema,
-}: JobInputComponentProps) {
-  const data = (jobInputSchema as JobInputBooleanSchemaType).data as
-    | { label?: string }
-    | undefined;
+}: JobInputComponentProps<
+  ValidJobInputTypes.CHECKBOX,
+  JobInputCheckboxSchemaType
+>) {
+  const { data } = jobInputSchema;
+
   return (
     <label htmlFor={id} className="flex cursor-pointer items-center gap-2">
       <Checkbox

@@ -1,12 +1,15 @@
 import { ColorPicker } from "@/components/ui/color-picker";
-import { JobInputColorSchemaType } from "@/lib/job-input";
+import { JobInputColorSchemaType, ValidJobInputTypes } from "@/lib/job-input";
 
 import { JobInputComponentProps } from "./types";
 
-export function ColorInput({ field, jobInputSchema }: JobInputComponentProps) {
-  const { data } = jobInputSchema as JobInputColorSchemaType;
-  const defaultColor =
-    (data as { default?: string } | undefined)?.default ?? "#000000";
+export function ColorInput({
+  field,
+  jobInputSchema,
+}: JobInputComponentProps<ValidJobInputTypes.COLOR, JobInputColorSchemaType>) {
+  const { data } = jobInputSchema;
+  const defaultColor = data?.default ?? "#000000";
+
   return (
     <ColorPicker
       value={typeof field.value === "string" ? field.value : defaultColor}

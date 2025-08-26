@@ -2,6 +2,7 @@ import {
   JobInputFileSchemaType,
   JobInputOptionSchemaType,
   JobInputSchemaType,
+  ValidationSchemaType,
   ValidJobInputTypes,
   ValidJobInputValidationTypes,
 } from "@/lib/job-input";
@@ -31,8 +32,14 @@ export const isSingleOption = (
   );
 };
 
-export const transformJobInputSchemaValidations = (
-  jobInputSchema: JobInputSchemaType,
+export const transformJobInputSchemaValidations = <
+  T extends JobInputSchemaType,
+>(
+  jobInputSchema: T extends {
+    validations?: ValidationSchemaType[];
+  }
+    ? T
+    : never,
 ): Partial<Record<ValidJobInputValidationTypes, string | number>> => {
   const { validations } = jobInputSchema as {
     validations?: {

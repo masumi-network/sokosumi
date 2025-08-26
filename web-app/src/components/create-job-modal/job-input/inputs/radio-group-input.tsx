@@ -1,15 +1,21 @@
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { JobInputRadioGroupSchemaType } from "@/lib/job-input";
+import {
+  JobInputRadioGroupSchemaType,
+  ValidJobInputTypes,
+} from "@/lib/job-input";
 
 import { JobInputComponentProps } from "./types";
 
 export function RadioGroupInput({
   field,
   jobInputSchema,
-}: JobInputComponentProps) {
+}: JobInputComponentProps<
+  ValidJobInputTypes.RADIO_GROUP,
+  JobInputRadioGroupSchemaType
+>) {
   const {
     data: { values },
-  } = jobInputSchema as JobInputRadioGroupSchemaType;
+  } = jobInputSchema;
   const selectedIndex = Array.isArray(field.value)
     ? ((field.value as number[])[0] ?? -1)
     : -1;

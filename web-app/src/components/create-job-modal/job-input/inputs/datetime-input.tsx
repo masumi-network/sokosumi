@@ -1,3 +1,6 @@
+import { format } from "date-fns";
+import { useMemo } from "react";
+
 import { transformJobInputSchemaValidations } from "@/components/create-job-modal/job-input/util";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -7,7 +10,10 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { JobInputDatetimeSchemaType } from "@/lib/job-input";
+import {
+  JobInputDatetimeSchemaType,
+  ValidJobInputTypes,
+} from "@/lib/job-input";
 import { parseDate } from "@/lib/utils";
 
 import { JobInputComponentProps } from "./types";
@@ -16,12 +22,12 @@ export function DatetimeInput({
   id,
   field,
   jobInputSchema,
-}: JobInputComponentProps) {
-  const valueDate: Date | undefined =
-    field.value instanceof Date ? (field.value as Date) : undefined;
-  const timeString = valueDate
-    ? `${String(valueDate.getHours()).padStart(2, "0")}:${String(valueDate.getMinutes()).padStart(2, "0")}`
-    : "";
+}: JobInputComponentProps<
+  ValidJobInputTypes.DATETIME,
+  JobInputDatetimeSchemaType
+>) {
+  const valueDate = field.value instanceof Date ? field.value : undefined;
+  const timeString = valueDate ? format(valueDate, "HH:mm") : "";
 
   const handleSelectDate = (d?: Date) => {
     if (!d) return field.onChange(null);
@@ -44,15 +50,17 @@ export function DatetimeInput({
     field.onChange(next);
   };
 
-  const transformedValidations = transformJobInputSchemaValidations(
-    jobInputSchema as JobInputDatetimeSchemaType,
-  );
-  const minDate = parseDate(
-    transformedValidations.min as string | number | undefined,
-  );
-  const maxDate = parseDate(
-    transformedValidations.max as string | number | undefined,
-  );
+  const { minDate, maxDate } = useMemo(() => {
+    const transformedValidations =
+      transformJobInputSchemaValidations(jobInputSchema);
+    const minDate = parseDate(
+      transformedValidations.min as string | number | undefined,
+    );
+    const maxDate = parseDate(
+      transformedValidations.max as string | number | undefined,
+    );
+    return { minDate, maxDate };
+  }, [jobInputSchema]);
 
   return (
     <div className="flex flex-col gap-2">

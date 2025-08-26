@@ -2,18 +2,23 @@
 
 import { Eye, EyeOff } from "lucide-react";
 import * as React from "react";
-import { ControllerRenderProps } from "react-hook-form";
 
 import { Input } from "@/components/ui/input";
-import { JobInputsFormSchemaType } from "@/lib/job-input";
+import {
+  JobInputPasswordSchemaType,
+  ValidJobInputTypes,
+} from "@/lib/job-input";
 
-interface PasswordInputProps {
-  id: string;
-  placeholder?: string;
-  field: ControllerRenderProps<JobInputsFormSchemaType>;
-}
+import { JobInputComponentProps } from "./types";
 
-export function PasswordInput({ id, placeholder, field }: PasswordInputProps) {
+export function PasswordInput({
+  id,
+  field,
+  jobInputSchema,
+}: JobInputComponentProps<
+  ValidJobInputTypes.PASSWORD,
+  JobInputPasswordSchemaType
+>) {
   const [isVisible, setIsVisible] = React.useState(false);
   const handleToggleVisibility = () => setIsVisible((v) => !v);
 
@@ -21,7 +26,7 @@ export function PasswordInput({ id, placeholder, field }: PasswordInputProps) {
     <div className="relative">
       <Input
         id={id}
-        placeholder={placeholder}
+        placeholder={jobInputSchema.data?.placeholder}
         type={isVisible ? "text" : "password"}
         className="pr-10"
         {...field}

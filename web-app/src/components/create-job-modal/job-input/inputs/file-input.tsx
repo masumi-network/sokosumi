@@ -1,6 +1,7 @@
 import { Button } from "@react-email/components";
 import { CloudUpload, X } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { useMemo } from "react";
 
 import { transformJobInputFileSchema } from "@/components/create-job-modal/job-input/util";
 import {
@@ -13,7 +14,7 @@ import {
   FileUploadList,
   FileUploadTrigger,
 } from "@/components/ui/file-upload";
-import { JobInputFileSchemaType } from "@/lib/job-input";
+import { JobInputFileSchemaType, ValidJobInputTypes } from "@/lib/job-input";
 
 import { JobInputComponentProps } from "./types";
 
@@ -22,11 +23,12 @@ export function FileInput({
   field,
   jobInputSchema,
   form,
-}: JobInputComponentProps) {
+}: JobInputComponentProps<ValidJobInputTypes.FILE, JobInputFileSchemaType>) {
   const t = useTranslations("Library.JobInput.Form");
 
-  const transformedValidations = transformJobInputFileSchema(
-    jobInputSchema as JobInputFileSchemaType,
+  const transformedValidations = useMemo(
+    () => transformJobInputFileSchema(jobInputSchema),
+    [jobInputSchema],
   );
 
   const isSubmitting = form.formState.isSubmitting;

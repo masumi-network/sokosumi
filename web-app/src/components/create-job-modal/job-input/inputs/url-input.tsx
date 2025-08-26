@@ -1,5 +1,5 @@
 import { Input } from "@/components/ui/input";
-import { JobInputUrlSchemaType } from "@/lib/job-input";
+import { JobInputUrlSchemaType, ValidJobInputTypes } from "@/lib/job-input";
 
 import { JobInputComponentProps } from "./types";
 
@@ -7,8 +7,9 @@ export function UrlInput({
   id,
   field,
   jobInputSchema,
-}: JobInputComponentProps) {
-  const { data } = jobInputSchema as JobInputUrlSchemaType;
+}: JobInputComponentProps<ValidJobInputTypes.URL, JobInputUrlSchemaType>) {
+  const { data } = jobInputSchema;
+
   return (
     <Input
       id={id}

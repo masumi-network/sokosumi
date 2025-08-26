@@ -1,5 +1,5 @@
 import { Input } from "@/components/ui/input";
-import { JobInputTelSchemaType } from "@/lib/job-input";
+import { JobInputTelSchemaType, ValidJobInputTypes } from "@/lib/job-input";
 
 import { JobInputComponentProps } from "./types";
 
@@ -7,8 +7,9 @@ export function TelInput({
   id,
   field,
   jobInputSchema,
-}: JobInputComponentProps) {
-  const { data } = jobInputSchema as JobInputTelSchemaType;
+}: JobInputComponentProps<ValidJobInputTypes.TEL, JobInputTelSchemaType>) {
+  const { data } = jobInputSchema;
+
   return (
     <Input
       id={id}

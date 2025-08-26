@@ -199,3 +199,17 @@ export const stepValidationSchema = (
     }),
     value: z.coerce.number().min(0),
   });
+
+export const validationSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) =>
+  optionalValidationSchema(t)
+    .or(minValidationSchema(t))
+    .or(maxValidationSchema(t))
+    .or(formatUrlValidationSchema(t))
+    .or(formatEmailValidationSchema(t))
+    .or(formatIntegerValidationSchema(t))
+    .or(formatNonEmptyValidationSchema(t))
+    .or(acceptValidationSchema(t))
+    .or(formatTelPatternValidationSchema(t))
+    .or(maxSizeValidationSchema(t))
+    .or(stepValidationSchema(t));
+export type ValidationSchemaType = z.infer<ReturnType<typeof validationSchema>>;
