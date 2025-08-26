@@ -80,13 +80,30 @@ const agentCardImageHoverVariants = cva(
 );
 
 const agentCardBadgesAndAuthorContainerVariants = cva(
-  "absolute inset-0 z-20 flex-row justify-between gap-2 p-3",
+  "absolute inset-0 z-20 grid-cols-2 justify-between gap-2 p-3",
   {
     variants: {
       size: {
         xs: "hidden",
         sm: "hidden",
-        md: "flex",
+        md: "grid",
+        lg: "grid",
+      },
+    },
+    defaultVariants: {
+      size: "md",
+    },
+  },
+);
+
+const agentCardBadgesContainerVariants = cva(
+  "col-span-1 flex-col justify-between gap-4",
+  {
+    variants: {
+      size: {
+        xs: "hidden",
+        sm: "hidden",
+        md: "flex transition-opacity group-hover:opacity-0",
         lg: "flex",
       },
     },
@@ -96,22 +113,8 @@ const agentCardBadgesAndAuthorContainerVariants = cva(
   },
 );
 
-const agentCardBadgesContainerVariants = cva("flex-col justify-between gap-4", {
-  variants: {
-    size: {
-      xs: "hidden",
-      sm: "hidden",
-      md: "flex transition-opacity group-hover:opacity-0",
-      lg: "flex",
-    },
-  },
-  defaultVariants: {
-    size: "md",
-  },
-});
-
 const agentCardAuthorImageContainerVariants = cva(
-  "flex h-full w-1/2 items-end justify-end",
+  "col-span-1 items-end justify-end",
   {
     variants: {
       size: {
