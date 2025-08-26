@@ -111,7 +111,7 @@ const agentCardBadgesContainerVariants = cva("flex-col justify-between gap-4", {
 });
 
 const agentCardAuthorImageContainerVariants = cva(
-  "flex h-full max-w-2/3 items-end justify-end",
+  "flex h-full max-w-1/2 items-end justify-end",
   {
     variants: {
       size: {
@@ -398,8 +398,8 @@ function AgentCard({
                     src={authorImage}
                     alt={`${getAgentName(agent)} author image`}
                     width={400}
-                    height={400}
-                    className="h-1/4 w-auto"
+                    height={100}
+                    className="h-8 w-auto object-contain"
                   />
                 ) : (
                   <Badge variant="default" className="max-w-full">
