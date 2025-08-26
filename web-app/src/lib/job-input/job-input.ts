@@ -30,29 +30,29 @@ export type JobInputsDataSchemaType = z.infer<
 >;
 
 export const jobInputSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) =>
-  jobInputStringSchema(t)
+  jobInputNoneSchema(t)
+    .or(jobInputStringSchema(t))
     .or(jobInputTextareaSchema(t))
-    .or(jobInputTelSchema(t))
-    .or(jobInputEmailSchema(t))
-    .or(jobInputUrlSchema(t))
-    .or(jobInputColorSchema(t))
-    .or(jobInputMonthSchema(t))
-    .or(jobInputWeekSchema(t))
-    .or(jobInputSearchSchema(t))
-    .or(jobInputHiddenSchema(t))
     .or(jobInputNumberSchema(t))
     .or(jobInputBooleanSchema(t))
-    .or(jobInputCheckboxSchema(t))
-    .or(jobInputOptionSchema(t))
-    .or(jobInputFileSchema(t))
-    .or(jobInputMultiselectSchema(t))
-    .or(jobInputRadioGroupSchema(t))
+    .or(jobInputEmailSchema(t))
+    .or(jobInputPasswordSchema(t))
+    .or(jobInputTelSchema(t))
+    .or(jobInputUrlSchema(t))
     .or(jobInputDateSchema(t))
     .or(jobInputDatetimeSchema(t))
     .or(jobInputTimeSchema(t))
+    .or(jobInputMonthSchema(t))
+    .or(jobInputWeekSchema(t))
+    .or(jobInputColorSchema(t))
     .or(jobInputRangeSchema(t))
-    .or(jobInputPasswordSchema(t))
-    .or(jobInputNoneSchema(t));
+    .or(jobInputFileSchema(t))
+    .or(jobInputHiddenSchema(t))
+    .or(jobInputSearchSchema(t))
+    .or(jobInputCheckboxSchema(t))
+    .or(jobInputRadioGroupSchema(t))
+    .or(jobInputOptionSchema(t))
+    .or(jobInputMultiselectSchema(t));
 
 export type JobInputSchemaType = z.infer<ReturnType<typeof jobInputSchema>>;
 
