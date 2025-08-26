@@ -111,7 +111,7 @@ const agentCardBadgesContainerVariants = cva("flex-col justify-between gap-4", {
 });
 
 const agentCardAuthorImageContainerVariants = cva(
-  "flex h-full max-w-2/3 items-end justify-end",
+  "flex h-full w-1/2 items-end justify-end",
   {
     variants: {
       size: {
