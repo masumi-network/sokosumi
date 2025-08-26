@@ -38,50 +38,50 @@ export const makeZodSchemaFromJobInputSchema = (
   t?: IntlTranslation<JobInputFormIntlPath>,
 ) => {
   switch (jobInputSchema.type) {
+    case ValidJobInputTypes.NONE:
+      return z.never().nullable();
     case ValidJobInputTypes.STRING:
       return makeZodSchemaFromJobInputStringSchema(jobInputSchema, t);
-    case ValidJobInputTypes.TEL:
-      return makeZodSchemaFromJobInputTelSchema(jobInputSchema, t);
-    case ValidJobInputTypes.PASSWORD:
-      return makeZodSchemaFromJobInputStringSchema(jobInputSchema, t);
-    case ValidJobInputTypes.EMAIL:
-      return makeZodSchemaFromJobInputStringSchema(jobInputSchema, t);
-    case ValidJobInputTypes.URL:
-      return makeZodSchemaFromJobInputStringSchema(jobInputSchema, t);
-    case ValidJobInputTypes.COLOR:
-      return makeZodSchemaFromJobInputColorSchema(jobInputSchema, t);
     case ValidJobInputTypes.TEXTAREA:
       return makeZodSchemaFromJobInputTextareaSchema(jobInputSchema, t);
-    case ValidJobInputTypes.SEARCH:
-      return makeZodSchemaFromJobInputStringSchema(jobInputSchema, t);
     case ValidJobInputTypes.NUMBER:
       return makeZodSchemaFromJobInputNumberSchema(jobInputSchema, t);
     case ValidJobInputTypes.BOOLEAN:
       return makeZodSchemaFromJobInputBooleanSchema(jobInputSchema, t);
-    case ValidJobInputTypes.CHECKBOX:
-      return makeZodSchemaFromJobInputCheckboxSchema(jobInputSchema, t);
-    case ValidJobInputTypes.OPTION:
-    case ValidJobInputTypes.MULTISELECT:
-    case ValidJobInputTypes.RADIO_GROUP:
-      return makeZodSchemaFromJobInputOptionSchema(jobInputSchema, t);
-    case ValidJobInputTypes.FILE:
-      return makeZodSchemaFromJobInputFileSchema(jobInputSchema, t);
+    case ValidJobInputTypes.EMAIL:
+      return makeZodSchemaFromJobInputStringSchema(jobInputSchema, t);
+    case ValidJobInputTypes.PASSWORD:
+      return makeZodSchemaFromJobInputStringSchema(jobInputSchema, t);
+    case ValidJobInputTypes.TEL:
+      return makeZodSchemaFromJobInputTelSchema(jobInputSchema, t);
+    case ValidJobInputTypes.URL:
+      return makeZodSchemaFromJobInputStringSchema(jobInputSchema, t);
     case ValidJobInputTypes.DATE:
       return makeZodSchemaFromJobInputDateSchema(jobInputSchema, t);
     case ValidJobInputTypes.DATETIME:
       return makeZodSchemaFromJobInputDatetimeSchema(jobInputSchema, t);
     case ValidJobInputTypes.TIME:
       return makeZodSchemaFromJobInputTimeSchema(jobInputSchema, t);
-    case ValidJobInputTypes.RANGE:
-      return makeZodSchemaFromJobInputRangeSchema(jobInputSchema, t);
     case ValidJobInputTypes.MONTH:
       return makeZodSchemaFromJobInputMonthSchema(jobInputSchema, t);
     case ValidJobInputTypes.WEEK:
       return makeZodSchemaFromJobInputWeekSchema(jobInputSchema, t);
+    case ValidJobInputTypes.COLOR:
+      return makeZodSchemaFromJobInputColorSchema(jobInputSchema, t);
+    case ValidJobInputTypes.RANGE:
+      return makeZodSchemaFromJobInputRangeSchema(jobInputSchema, t);
+    case ValidJobInputTypes.FILE:
+      return makeZodSchemaFromJobInputFileSchema(jobInputSchema, t);
     case ValidJobInputTypes.HIDDEN:
       return z.string().optional();
-    case ValidJobInputTypes.NONE:
-      return z.never().nullable();
+    case ValidJobInputTypes.SEARCH:
+      return makeZodSchemaFromJobInputStringSchema(jobInputSchema, t);
+    case ValidJobInputTypes.CHECKBOX:
+      return makeZodSchemaFromJobInputCheckboxSchema(jobInputSchema, t);
+    case ValidJobInputTypes.RADIO_GROUP:
+    case ValidJobInputTypes.OPTION:
+    case ValidJobInputTypes.MULTISELECT:
+      return makeZodSchemaFromJobInputOptionSchema(jobInputSchema, t);
   }
 };
 const makeZodSchemaFromJobInputColorSchema = (
