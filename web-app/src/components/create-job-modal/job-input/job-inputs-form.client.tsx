@@ -151,6 +151,7 @@ export default function JobInputsFormClient({
   };
 
   const formattedDuration = formatDuration(averageExecutionDuration, tDuration);
+  const isDemo = !!demoValues;
 
   return (
     <Form {...form}>
@@ -164,7 +165,7 @@ export default function JobInputsFormClient({
               key={jobInputSchema.id}
               form={form}
               jobInputSchema={jobInputSchema}
-              disabled={!!demoValues}
+              disabled={isDemo}
             />
           ))}
           <div className="flex items-end justify-between gap-2">
@@ -172,7 +173,7 @@ export default function JobInputsFormClient({
               type="reset"
               variant="secondary"
               onClick={handleClear}
-              disabled={!!demoValues}
+              disabled={isDemo}
             >
               {t("clear")}
             </Button>
@@ -181,7 +182,9 @@ export default function JobInputsFormClient({
               <div className="flex items-center gap-2">
                 <div className="text-muted-foreground text-sm">
                   {t("price", {
-                    price: convertCentsToCredits(creditsPrice.cents),
+                    price: isDemo
+                      ? 0
+                      : convertCentsToCredits(creditsPrice.cents),
                   })}
                 </div>
                 <Button
@@ -199,7 +202,7 @@ export default function JobInputsFormClient({
                     )}
                     {t("submit")}
                   </div>
-                  {averageExecutionDuration > 0 && (
+                  {!isDemo && averageExecutionDuration > 0 && (
                     <span>{`(~${formattedDuration})`}</span>
                   )}
                   {!isMobile && (
