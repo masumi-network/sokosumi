@@ -8,6 +8,15 @@ import {
 } from "@/lib/api";
 import { agentService } from "@/lib/services";
 
+/**
+ * List agents
+ * @description Retrieves all available agents with credit pricing
+ * @response AgentsSuccessResponse
+ * @responseSet public
+ * @tag Agents
+ * @auth apikey
+ * @openapi
+ */
 export async function GET(request: NextRequest) {
   try {
     const _apiKey = await validateApiKey(request.headers);

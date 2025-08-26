@@ -39,6 +39,15 @@ async function updateUserAndFetch(
   return user;
 }
 
+/**
+ * Get current user
+ * @description Retrieves the authenticated user's profile
+ * @response UserSuccessResponse
+ * @responseSet public
+ * @tag Users
+ * @auth apikey
+ * @openapi
+ */
 export async function GET(request: NextRequest) {
   try {
     const apiKey = await validateApiKey(request.headers);
@@ -52,6 +61,17 @@ export async function GET(request: NextRequest) {
   }
 }
 
+/**
+ * Replace current user profile
+ * @description Replaces the authenticated user's profile with provided data
+ * @body UpdateUserProfileSchema
+ * @bodyDescription The full profile data to replace the current user profile (Required).
+ * @response UserSuccessResponse
+ * @responseSet public
+ * @tag Users
+ * @auth apikey
+ * @openapi
+ */
 export async function PUT(request: NextRequest) {
   try {
     const apiKey = await validateApiKey(request.headers);
@@ -71,6 +91,17 @@ export async function PUT(request: NextRequest) {
   }
 }
 
+/**
+ * Update current user profile
+ * @description Updates fields of the authenticated user's profile
+ * @body UpdateUserProfileSchema
+ * @bodyDescription The full profile data to replace the current user profile (Optional).
+ * @response UserSuccessResponse
+ * @responseSet public
+ * @tag Users
+ * @auth apikey
+ * @openapi
+ */
 export async function PATCH(request: NextRequest) {
   try {
     const apiKey = await validateApiKey(request.headers);
@@ -95,6 +126,16 @@ export async function PATCH(request: NextRequest) {
   }
 }
 
+/**
+ * Delete current user account
+ * @description Deletes the authenticated user's account after verifying password
+ * @body DeleteUserSchema
+ * @bodyDescription The current account password (Required).
+ * @response void
+ * @responseSet public
+ * @tag Users
+ * @auth apikey
+ */
 export async function DELETE(request: NextRequest) {
   try {
     const _apiKey = await validateApiKey(request.headers);

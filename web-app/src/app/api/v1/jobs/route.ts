@@ -10,11 +10,16 @@ import { jobRepository } from "@/lib/db/repositories";
 import { JobStatus } from "@/lib/db/types";
 
 /**
- * GET /api/v1/jobs
- * Retrieves all jobs that belong to the authenticated user
- * Supports optional query parameters for filtering:
+ * List jobs
+ * @description Retrieves all jobs that belong to the authenticated user. Supports optional query parameters for filtering:
  * - agentId: Filter by specific agent ID
  * - status: Filter by job status (completed, processing, etc.)
+ * @params JobQueryParams
+ * @response JobsSuccessResponse
+ * @responseSet public
+ * @tag Jobs
+ * @auth apikey
+ * @openapi
  */
 export async function GET(request: NextRequest): Promise<NextResponse> {
   try {

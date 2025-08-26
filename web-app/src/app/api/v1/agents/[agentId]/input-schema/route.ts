@@ -11,6 +11,16 @@ interface RouteParams {
   }>;
 }
 
+/**
+ * Get agent input schema
+ * @description Fetches the validated input schema for a specific agent
+ * @pathParams AgentParams
+ * @response AgentInputSchemaSuccessResponse
+ * @responseSet public
+ * @auth apikey
+ * @tag Agents
+ * @openapi
+ */
 export async function GET(
   request: NextRequest,
   { params }: RouteParams,
