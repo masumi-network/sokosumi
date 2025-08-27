@@ -11,6 +11,10 @@
       "description": "Production server"
     },
     {
+      "url": "https://preprod.sokosumi.com/api",
+      "description": "Pre-production server"
+    },
+    {
       "url": "http://localhost:3000/api",
       "description": "Local development server"
     }
