@@ -95,7 +95,7 @@ export default function Header({
           showBackButton={true}
           showShareButton={false}
           showCloseButton={false}
-        ></AgentActionButtons>
+        />
         <Button
           className="text-sm leading-tight font-medium"
           variant="ghost"
@@ -109,7 +109,7 @@ export default function Header({
         <h1 className="text-2xl leading-none font-light tracking-tighter text-nowrap md:text-3xl">
           {getAgentName(agent)}
         </h1>
-        <div className="hidden md:flex">
+        <div className="hidden gap-2 md:flex">
           <Button
             className="text-sm leading-tight font-medium"
             variant="ghost"
