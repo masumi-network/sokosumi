@@ -12,6 +12,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { CheckoutSessionData, stripeClient } from "@/lib/clients";
+import { AgentWithCreditsPrice } from "@/lib/db";
+import { agentService } from "@/lib/services";
 
 import PurchaseTracker from "./components/purchase-tracker";
 
@@ -34,13 +36,19 @@ export default async function BillingSuccessPage({
       checkoutSession = await stripeClient.getCheckoutSessionData(session_id);
     }
   } catch (error) {
-    console.error(error);
+    console.error("Failed to get checkout session", error);
   }
 
   if (!checkoutSession) {
     return notFound();
   }
-  console.log(checkoutSession);
+
+  let _agent: AgentWithCreditsPrice | null = null;
+  try {
+    _agent = await agentService.getRandomAvailableAgentWithCreditsPrice();
+  } catch (error) {
+    console.error("Failed to get random available agent", error);
+  }
 
   return (
     <div className="mx-auto max-w-xl p-6">

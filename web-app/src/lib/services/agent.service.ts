@@ -233,6 +233,19 @@ export const agentService = (() => {
         .map((result) => result.value);
     },
 
+    getRandomAvailableAgentWithCreditsPrice:
+      async (): Promise<AgentWithCreditsPrice | null> => {
+        const agents = await agentService.getAvailableAgents();
+        if (agents.length === 0) {
+          return null;
+        }
+        const randomIndex = Math.floor(Math.random() * agents.length);
+        const agent = agents[randomIndex];
+        const agentWithCreditsPrice =
+          await agentService.getAgentCreditsPrice(agent);
+        return agentWithCreditsPrice;
+      },
+
     /**
      * Retrieves all agents hired by the current user, ordered by the most recent job activity (newest first).
      *
