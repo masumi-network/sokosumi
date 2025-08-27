@@ -20,11 +20,6 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function ApiDocsLayout({ children }: AppLayoutProps) {
-  // const cookieStore = await cookies();
-  // const _defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
-
-  // const session = await getSessionOrRedirect();
-
   return (
     <>
       <div className="flex w-full flex-col overflow-clip">
@@ -32,18 +27,7 @@ export default async function ApiDocsLayout({ children }: AppLayoutProps) {
         <main className="relative min-h-[calc(100svh-64px)] p-0 pt-[50px] md:pt-0">
           {children}
         </main>
-        {/* <FooterSections className="p-4" /> */}
       </div>
-      {/* <SidebarProvider defaultOpen={defaultOpen}>
-        <Sidebar session={session} />
-        <div className="flex w-full flex-col overflow-clip">
-          <Header session={session} className="h-16 p-4" />
-          <main className="relative min-h-[calc(100svh-64px)] p-4 pt-20 md:pt-4">
-            {children}
-          </main>
-          <FooterSections className="p-4" />
-        </div>
-      </SidebarProvider> */}
     </>
   );
 }

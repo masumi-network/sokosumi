@@ -34,7 +34,6 @@ export default function HeaderApiDocs({
 
       <div className="hidden flex-1 flex-row gap-2 sm:flex">
         <BreadcrumbNavigation className="flex flex-1" />
-        {/* <UserCredits session={session} /> */}
       </div>
     </header>
   );
