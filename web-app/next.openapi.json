@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "https://api.sokosumi.com/api",
+      "url": "https://app.sokosumi.com/api",
       "description": "Production server"
     },
     {
