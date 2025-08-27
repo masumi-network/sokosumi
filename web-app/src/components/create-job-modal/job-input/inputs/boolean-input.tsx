@@ -1,8 +1,15 @@
 import { Switch } from "@/components/ui/switch";
+import { JobInputBooleanSchemaType, ValidJobInputTypes } from "@/lib/job-input";
 
 import { JobInputComponentProps } from "./types";
 
-export function BooleanInput({ id, field }: JobInputComponentProps) {
+export function BooleanInput({
+  id,
+  field,
+}: JobInputComponentProps<
+  ValidJobInputTypes.BOOLEAN,
+  JobInputBooleanSchemaType
+>) {
   return (
     <Switch
       id={id}

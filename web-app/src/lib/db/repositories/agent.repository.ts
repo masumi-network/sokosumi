@@ -11,7 +11,7 @@ import {
   AgentWithOrganizations,
   AgentWithRelations,
 } from "@/lib/db/types";
-import { AgentStatus, Prisma } from "@/prisma/generated/client";
+import { Agent, AgentStatus, Prisma } from "@/prisma/generated/client";
 
 import prisma from "./prisma";
 
@@ -182,6 +182,50 @@ export const agentRepository = {
           take: 1,
         },
       },
+    });
+  },
+
+  /**
+   * Get available agents without a summary but have description to make a summary.
+   *
+   * @param limit - Maximum number of agents to return
+   * @param tx - Optional Prisma transaction client (defaults to main Prisma client)
+   * @returns Array of agents without a summary
+   */
+  async getAvailableAgentsWithoutSummary(
+    limit: number | null,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<Agent[]> {
+    return await tx.agent.findMany({
+      where: {
+        status: AgentStatus.ONLINE,
+        isShown: true,
+        summary: null,
+        OR: [
+          { description: { not: null } },
+          { overrideDescription: { not: null } },
+        ],
+      },
+      take: limit ?? undefined,
+    });
+  },
+
+  /**
+   * Update the summary of an agent.
+   *
+   * @param id - Agent unique identifier
+   * @param summary - New summary
+   * @param tx - Optional Prisma transaction client (defaults to main Prisma client)
+   * @returns Updated agent
+   */
+  async updateAgentSummary(
+    id: string,
+    summary: string,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<Agent> {
+    return await tx.agent.update({
+      where: { id },
+      data: { summary },
     });
   },
 };

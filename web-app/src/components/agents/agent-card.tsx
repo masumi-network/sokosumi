@@ -3,6 +3,7 @@ import Image from "next/image";
 import { useTranslations } from "next-intl";
 
 import ClickBlocker from "@/components/click-blocker";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -10,8 +11,10 @@ import {
   AgentWithCreditsPrice,
   AgentWithRelations,
   convertCentsToCredits,
+  getAgentAuthorResolvedImage,
   getAgentName,
   getAgentResolvedImage,
+  getAgentSummary,
   getAgentTags,
   getShortAgentAuthorName,
 } from "@/lib/db";
@@ -25,6 +28,7 @@ import {
 import { AgentBookmarkButton } from "./agent-bookmark-button";
 import { AgentDetailLink } from "./agent-detail-link";
 import { AgentHireButton } from "./agent-hire-button";
+import AgentSummary from "./agent-summary";
 import { AgentVerifiedBadge } from "./agent-verified-badge";
 
 const agentCardVariants = cva("flex rounded-lg border-none p-1 shadow-none", {
@@ -75,14 +79,48 @@ const agentCardImageHoverVariants = cva(
   },
 );
 
+const agentCardBadgesAndAuthorContainerVariants = cva(
+  "absolute inset-0 z-20 grid-cols-2 justify-between gap-2 p-3",
+  {
+    variants: {
+      size: {
+        xs: "hidden",
+        sm: "hidden",
+        md: "grid",
+        lg: "grid",
+      },
+    },
+    defaultVariants: {
+      size: "md",
+    },
+  },
+);
+
 const agentCardBadgesContainerVariants = cva(
-  "absolute inset-0 z-20 flex-col justify-between gap-4 p-3",
+  "col-span-1 flex-col justify-between gap-4",
   {
     variants: {
       size: {
         xs: "hidden",
         sm: "hidden",
         md: "flex transition-opacity group-hover:opacity-0",
+        lg: "flex",
+      },
+    },
+    defaultVariants: {
+      size: "md",
+    },
+  },
+);
+
+const agentCardAuthorImageContainerVariants = cva(
+  "col-span-1 items-end justify-end",
+  {
+    variants: {
+      size: {
+        xs: "hidden",
+        sm: "hidden",
+        md: "flex",
         lg: "flex",
       },
     },
@@ -120,13 +158,27 @@ const agentCardNameVariants = cva("text-foreground truncate font-medium", {
   },
 });
 
+const agentCardSummaryContainerVariants = cva("text-muted-foreground text-sm", {
+  variants: {
+    size: {
+      xs: "hidden",
+      sm: "hidden",
+      md: "block",
+      lg: "hidden",
+    },
+  },
+  defaultVariants: {
+    size: "md",
+  },
+});
+
 const agentCardAuthorVariants = cva("text-muted-foreground truncate", {
   variants: {
     size: {
       xs: "text-xs",
       sm: "text-sm",
-      md: "text-base",
-      lg: "text-2xl md:text-3xl",
+      md: "hidden",
+      lg: "hidden",
     },
   },
   defaultVariants: {
@@ -240,6 +292,9 @@ function AgentCardSkeleton({
             <Skeleton className="h-4 w-12 rounded-lg" />
           </div>
           <Skeleton className="h-4 w-16" />
+          <div className={agentCardSummaryContainerVariants({ size })}>
+            <Skeleton className="h-8 w-full" />
+          </div>
         </div>
 
         {/* Pricing and Buttons */}
@@ -284,6 +339,9 @@ function AgentCard({
     (favoriteAgent) => favoriteAgent.id === agent.id,
   );
 
+  const agentImage = getAgentResolvedImage(agent);
+  const authorImage = getAgentAuthorResolvedImage(agent);
+  const summary = getAgentSummary(agent);
   const isDefault = !size || size === "md";
   const buttonSize = size === "xs" || size === "sm" ? "sm" : "lg";
 
@@ -295,7 +353,7 @@ function AgentCard({
           <div className={cn(agentCardImageContainerVariants({ size }))}>
             <AgentCardWrapper agentId={agent.id} isLink={size === "lg"}>
               <Image
-                src={getAgentResolvedImage(agent)}
+                src={agentImage}
                 alt={`${getAgentName(agent)} image`}
                 width={400}
                 height={250}
@@ -320,12 +378,40 @@ function AgentCard({
               </div>
             </div>
 
-            {/* Badges */}
-            <div className={cn(agentCardBadgesContainerVariants({ size }))}>
-              {/* New Badge */}
-              {agent.isNew && <AgentNewBadge />}
-              {/* Tags */}
-              <AgentBadgeCloud tags={getAgentTags(agent)} />
+            {/* Badges and Author */}
+            <div
+              className={cn(
+                agentCardBadgesAndAuthorContainerVariants({ size }),
+              )}
+            >
+              {/* Badges */}
+              <div className={cn(agentCardBadgesContainerVariants({ size }))}>
+                {/* New Badge */}
+                {agent.isNew && <AgentNewBadge />}
+                {/* Tags */}
+                <AgentBadgeCloud tags={getAgentTags(agent)} />
+              </div>
+
+              {/* Author Image or Name */}
+              <div
+                className={cn(agentCardAuthorImageContainerVariants({ size }))}
+              >
+                {authorImage ? (
+                  <Image
+                    src={authorImage}
+                    alt={`${getAgentName(agent)} author image`}
+                    width={400}
+                    height={100}
+                    className="h-8 w-auto object-contain"
+                  />
+                ) : (
+                  <Badge variant="default" className="max-w-full">
+                    <p className="truncate text-xs">
+                      {getShortAgentAuthorName(agent)}
+                    </p>
+                  </Badge>
+                )}
+              </div>
             </div>
           </div>
 
@@ -338,6 +424,11 @@ function AgentCard({
                 </h3>
                 <AgentVerifiedBadge />
               </div>
+              {summary && (
+                <div className={agentCardSummaryContainerVariants({ size })}>
+                  <AgentSummary summary={summary} />
+                </div>
+              )}
               <p className={agentCardAuthorVariants({ size })}>
                 {getShortAgentAuthorName(agent)}
               </p>

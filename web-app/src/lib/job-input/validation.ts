@@ -46,6 +46,16 @@ const formatIntegerValidationValueSchema = (
     }),
   });
 
+const formatTelPatternValidationValueSchema = (
+  t?: IntlTranslation<JobInputSchemaIntlPath>,
+) =>
+  z.enum([ValidJobInputFormatValues.TEL_PATTERN], {
+    message: t?.("Validations.Value.enum", {
+      options: Object.values(ValidJobInputFormatValues).join(", "),
+      validation: "format",
+    }),
+  });
+
 const optionalValidationValueSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
@@ -77,7 +87,7 @@ export const minValidationSchema = (
         options: Object.values(ValidJobInputValidationTypes).join(", "),
       }),
     }),
-    value: z.coerce.number().int().min(0),
+    value: z.union([z.coerce.number().int().min(0), z.string().min(1)]),
   });
 
 export const maxValidationSchema = (
@@ -89,7 +99,7 @@ export const maxValidationSchema = (
         options: Object.values(ValidJobInputValidationTypes).join(", "),
       }),
     }),
-    value: z.coerce.number().int().min(0),
+    value: z.union([z.coerce.number().int().min(0), z.string().min(1)]),
   });
 
 export const formatUrlValidationSchema = (
@@ -154,6 +164,18 @@ export const acceptValidationSchema = (
     }),
   });
 
+export const formatTelPatternValidationSchema = (
+  t?: IntlTranslation<JobInputSchemaIntlPath>,
+) =>
+  z.object({
+    validation: z.enum([ValidJobInputValidationTypes.FORMAT], {
+      message: t?.("Validations.Validation.enum", {
+        options: Object.values(ValidJobInputValidationTypes).join(", "),
+      }),
+    }),
+    value: formatTelPatternValidationValueSchema(t),
+  });
+
 export const maxSizeValidationSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
@@ -165,3 +187,29 @@ export const maxSizeValidationSchema = (
     }),
     value: z.coerce.number().int().min(0),
   });
+
+export const stepValidationSchema = (
+  t?: IntlTranslation<JobInputSchemaIntlPath>,
+) =>
+  z.object({
+    validation: z.enum([ValidJobInputValidationTypes.STEP], {
+      message: t?.("Validations.Validation.enum", {
+        options: Object.values(ValidJobInputValidationTypes).join(", "),
+      }),
+    }),
+    value: z.coerce.number().min(0),
+  });
+
+export const validationSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) =>
+  optionalValidationSchema(t)
+    .or(minValidationSchema(t))
+    .or(maxValidationSchema(t))
+    .or(formatUrlValidationSchema(t))
+    .or(formatEmailValidationSchema(t))
+    .or(formatIntegerValidationSchema(t))
+    .or(formatNonEmptyValidationSchema(t))
+    .or(acceptValidationSchema(t))
+    .or(formatTelPatternValidationSchema(t))
+    .or(maxSizeValidationSchema(t))
+    .or(stepValidationSchema(t));
+export type ValidationSchemaType = z.infer<ReturnType<typeof validationSchema>>;

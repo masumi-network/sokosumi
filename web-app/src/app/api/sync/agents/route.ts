@@ -44,7 +44,7 @@ async function agentSync() {
       const timingStart = Date.now();
       await pTimeout(syncAllEntries(), {
         milliseconds:
-          //give some buffer to unlock the lock before the timeout
+          // give some buffer to unlock the lock before the timeout
           getEnvSecrets().LOCK_TIMEOUT - getEnvSecrets().LOCK_TIMEOUT_BUFFER,
       });
       const timingEnd = Date.now();

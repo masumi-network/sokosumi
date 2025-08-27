@@ -1,23 +1,20 @@
 import { Input } from "@/components/ui/input";
-import { JobInputStringSchemaType, ValidJobInputTypes } from "@/lib/job-input";
+import { JobInputTelSchemaType, ValidJobInputTypes } from "@/lib/job-input";
 
 import { JobInputComponentProps } from "./types";
 
-export function StringInput({
+export function TelInput({
   id,
   field,
   jobInputSchema,
-}: JobInputComponentProps<
-  ValidJobInputTypes.STRING,
-  JobInputStringSchemaType
->) {
+}: JobInputComponentProps<ValidJobInputTypes.TEL, JobInputTelSchemaType>) {
   const { data } = jobInputSchema;
 
   return (
     <Input
       id={id}
       placeholder={data?.placeholder}
-      type="text"
+      type="tel"
       {...field}
       value={typeof field.value === "string" ? field.value : ""}
     />

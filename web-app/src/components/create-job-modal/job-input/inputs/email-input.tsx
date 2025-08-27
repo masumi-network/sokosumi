@@ -1,23 +1,20 @@
 import { Input } from "@/components/ui/input";
-import { JobInputStringSchemaType, ValidJobInputTypes } from "@/lib/job-input";
+import { JobInputEmailSchemaType, ValidJobInputTypes } from "@/lib/job-input";
 
 import { JobInputComponentProps } from "./types";
 
-export function StringInput({
+export function EmailInput({
   id,
   field,
   jobInputSchema,
-}: JobInputComponentProps<
-  ValidJobInputTypes.STRING,
-  JobInputStringSchemaType
->) {
+}: JobInputComponentProps<ValidJobInputTypes.EMAIL, JobInputEmailSchemaType>) {
   const { data } = jobInputSchema;
 
   return (
     <Input
       id={id}
       placeholder={data?.placeholder}
-      type="text"
+      type="email"
       {...field}
       value={typeof field.value === "string" ? field.value : ""}
     />

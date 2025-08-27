@@ -7,8 +7,7 @@ import publishJobStatusData from "@/lib/ably/publish";
 import { JobIndicatorStatus } from "@/lib/ably/schema";
 import { JobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { getAuthContext } from "@/lib/auth/utils";
-import { agentClient, paymentClient } from "@/lib/clients";
-import { anthropicClient } from "@/lib/clients/anthropic.client";
+import { agentClient, anthropicClient, paymentClient } from "@/lib/clients";
 import {
   computeJobStatus,
   getJobIndicatorStatus,

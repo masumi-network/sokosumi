@@ -1,23 +1,20 @@
 import { Input } from "@/components/ui/input";
-import { JobInputStringSchemaType, ValidJobInputTypes } from "@/lib/job-input";
+import { JobInputMonthSchemaType, ValidJobInputTypes } from "@/lib/job-input";
 
 import { JobInputComponentProps } from "./types";
 
-export function StringInput({
+export function MonthInput({
   id,
   field,
   jobInputSchema,
-}: JobInputComponentProps<
-  ValidJobInputTypes.STRING,
-  JobInputStringSchemaType
->) {
+}: JobInputComponentProps<ValidJobInputTypes.MONTH, JobInputMonthSchemaType>) {
   const { data } = jobInputSchema;
 
   return (
     <Input
       id={id}
+      type="month"
       placeholder={data?.placeholder}
-      type="text"
       {...field}
       value={typeof field.value === "string" ? field.value : ""}
     />
