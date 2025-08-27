@@ -199,7 +199,8 @@
       "agents": "Gallery",
       "billing": "Billing",
       "account": "Account",
-      "organizations": "Organizations"
+      "organizations": "Organizations",
+      "api-docs": "API Documentation"
     },
     "Organizations": {
       "Role": {

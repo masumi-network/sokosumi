@@ -7,9 +7,9 @@ export default async function ApiDocsPage() {
     <ApiReferenceReact
       configuration={{
         _integration: "nextjs",
-        url: "/openapi.json",
+        url: "openapi.json",
         hideClientButton: true,
-        title: "Sokosumi API",
+        title: "Sokosumi API Documentation",
       }}
     />
   );

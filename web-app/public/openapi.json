@@ -16,7 +16,6 @@
     }
   ],
   "components": {
-    "preferredSecurityScheme": "ApiKeyAuth",
     "securitySchemes": {
       "ApiKeyAuth": {
         "type": "apiKey",

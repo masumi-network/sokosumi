@@ -17,11 +17,11 @@ export default function HeaderApiDocs({
   return (
     <header
       className={cn(
-        "border-grid bg-background/95 fixed top-0 z-100 flex w-full justify-between gap-2 border-b md:sticky md:items-center",
+        "border-grid bg-background/95 fixed top-0 z-50 flex h-[50px] w-full justify-between gap-2 border-b pl-4 md:sticky md:h-16 md:items-center md:p-4",
         className,
       )}
     >
-      <div className="mr-4 flex h-[64px] w-full items-center justify-between gap-2 p-2 md:w-auto">
+      <div className="mr-4 flex h-[50px] w-full items-center justify-between gap-2 md:h-[64px] md:w-[264px] md:border-r md:p-2">
         <Link href="/">
           <ThemedLogo
             LogoComponent={SokosumiLogo}
