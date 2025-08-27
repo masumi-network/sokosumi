@@ -13,7 +13,7 @@
     "lint": "next lint --max-warnings=0",
     "lint:report": "next lint --output-file=lint-report.json --format json",
     "test:ci": "jest --ci",
-    "prepare": "prisma generate --no-hints",
+    "prepare": "prisma generate --no-hints && pnpm run generate:api-docs",
     "prisma:generate": "prisma generate --no-hints",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
@@ -28,7 +28,8 @@
     "format": "prettier --log-level silent --write src/**/*.ts",
     "generate:payment": "openapi-ts -f openapi-ts.payment.config.ts",
     "generate:registry": "openapi-ts -f openapi-ts.registry.config.ts",
-    "generate:api": "pnpm run generate:registry && pnpm run generate:payment"
+    "generate:api": "pnpm run generate:registry && pnpm run generate:payment",
+    "generate:api-docs": "pnpm dlx next-openapi-gen generate"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.60.0",
