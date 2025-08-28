@@ -813,6 +813,7 @@
         }
       },
       "Errors": {
+        "invalidInput": "Please enter either a credit amount or a coupon code",
         "invalidCredits": "Invalid credit amount",
         "invalidCoupon": "Invalid coupon",
         "couponNotFound": "Coupon not found",

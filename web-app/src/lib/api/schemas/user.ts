@@ -35,8 +35,8 @@ export function deleteUserSchema() {
  */
 export const userResponseSchema = z.object({
   id: z.string(),
-  createdAt: z.string().datetime(), // ISO date string
-  updatedAt: z.string().datetime(), // ISO date string
+  createdAt: z.iso.datetime(), // ISO date string
+  updatedAt: z.iso.datetime(), // ISO date string
   name: z.string(),
   email: z.string(),
   termsAccepted: z.boolean(),

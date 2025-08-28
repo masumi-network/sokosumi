@@ -42,7 +42,7 @@ export async function generateOrganizationSlug(
 
 const updateInvoiceEmailSchema = z.object({
   organizationId: z.string(),
-  invoiceEmail: z.string().email().nullable(),
+  invoiceEmail: z.email().nullable(),
 });
 
 export async function updateOrganizationInvoiceEmail(
@@ -53,7 +53,7 @@ export async function updateOrganizationInvoiceEmail(
   if (!parsedResult.success) {
     return Err({
       code: CommonErrorCode.BAD_INPUT,
-      message: parsedResult.error.errors[0]?.message,
+      message: parsedResult.error.issues[0]?.message,
     });
   }
 

@@ -61,15 +61,15 @@ export const jobInputNoneSchema = (
 ) =>
   z.object({
     id: z.string().min(1, {
-      message: t?.("Id.required"),
+      error: t?.("Id.required"),
     }),
     type: z.enum([ValidJobInputTypes.NONE], {
-      message: t?.("Type.enum", {
+      error: t?.("Type.enum", {
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
     }),
     name: z.string().min(1, {
-      message: t?.("Name.required"),
+      error: t?.("Name.required"),
     }),
     data: z
       .object({
@@ -87,15 +87,15 @@ export const jobInputStringSchema = (
 ) =>
   z.object({
     id: z.string().min(1, {
-      message: t?.("Id.required"),
+      error: t?.("Id.required"),
     }),
     type: z.enum([ValidJobInputTypes.STRING], {
-      message: t?.("Type.enum", {
+      error: t?.("Type.enum", {
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
     }),
     name: z.string().min(1, {
-      message: t?.("Name.required"),
+      error: t?.("Name.required"),
     }),
     data: z
       .object({
@@ -124,15 +124,15 @@ export const jobInputTextareaSchema = (
 ) =>
   z.object({
     id: z.string().min(1, {
-      message: t?.("Id.required"),
+      error: t?.("Id.required"),
     }),
     type: z.enum([ValidJobInputTypes.TEXTAREA], {
-      message: t?.("Type.enum", {
+      error: t?.("Type.enum", {
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
     }),
     name: z.string().min(1, {
-      message: t?.("Name.required"),
+      error: t?.("Name.required"),
     }),
     data: z
       .object({
@@ -159,15 +159,15 @@ export const jobInputNumberSchema = (
 ) =>
   z.object({
     id: z.string().min(1, {
-      message: t?.("Id.required"),
+      error: t?.("Id.required"),
     }),
     type: z.enum([ValidJobInputTypes.NUMBER], {
-      message: t?.("Type.enum", {
+      error: t?.("Type.enum", {
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
     }),
     name: z.string().min(1, {
-      message: t?.("Name.required"),
+      error: t?.("Name.required"),
     }),
     data: z
       .object({
@@ -194,15 +194,15 @@ export const jobInputBooleanSchema = (
 ) =>
   z.object({
     id: z.string().min(1, {
-      message: t?.("Id.required"),
+      error: t?.("Id.required"),
     }),
     type: z.enum([ValidJobInputTypes.BOOLEAN], {
-      message: t?.("Type.enum", {
+      error: t?.("Type.enum", {
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
     }),
     name: z.string().min(1, {
-      message: t?.("Name.required"),
+      error: t?.("Name.required"),
     }),
     data: z
       .object({
@@ -222,15 +222,15 @@ export const jobInputEmailSchema = (
 ) =>
   z.object({
     id: z.string().min(1, {
-      message: t?.("Id.required"),
+      error: t?.("Id.required"),
     }),
     type: z.enum([ValidJobInputTypes.EMAIL], {
-      message: t?.("Type.enum", {
+      error: t?.("Type.enum", {
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
     }),
     name: z.string().min(1, {
-      message: t?.("Name.required"),
+      error: t?.("Name.required"),
     }),
     data: z
       .object({
@@ -258,15 +258,15 @@ export const jobInputPasswordSchema = (
 ) =>
   z.object({
     id: z.string().min(1, {
-      message: t?.("Id.required"),
+      error: t?.("Id.required"),
     }),
     type: z.enum([ValidJobInputTypes.PASSWORD], {
-      message: t?.("Type.enum", {
+      error: t?.("Type.enum", {
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
     }),
     name: z.string().min(1, {
-      message: t?.("Name.required"),
+      error: t?.("Name.required"),
     }),
     data: z
       .object({
@@ -293,15 +293,15 @@ export const jobInputTelSchema = (
 ) =>
   z.object({
     id: z.string().min(1, {
-      message: t?.("Id.required"),
+      error: t?.("Id.required"),
     }),
     type: z.enum([ValidJobInputTypes.TEL], {
-      message: t?.("Type.enum", {
+      error: t?.("Type.enum", {
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
     }),
     name: z.string().min(1, {
-      message: t?.("Name.required"),
+      error: t?.("Name.required"),
     }),
     data: z
       .object({
@@ -328,15 +328,15 @@ export const jobInputUrlSchema = (
 ) =>
   z.object({
     id: z.string().min(1, {
-      message: t?.("Id.required"),
+      error: t?.("Id.required"),
     }),
     type: z.enum([ValidJobInputTypes.URL], {
-      message: t?.("Type.enum", {
+      error: t?.("Type.enum", {
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
     }),
     name: z.string().min(1, {
-      message: t?.("Name.required"),
+      error: t?.("Name.required"),
     }),
     data: z
       .object({
@@ -364,15 +364,15 @@ export const jobInputDateSchema = (
 ) =>
   z.object({
     id: z.string().min(1, {
-      message: t?.("Id.required"),
+      error: t?.("Id.required"),
     }),
     type: z.enum([ValidJobInputTypes.DATE], {
-      message: t?.("Type.enum", {
+      error: t?.("Type.enum", {
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
     }),
     name: z.string().min(1, {
-      message: t?.("Name.required"),
+      error: t?.("Name.required"),
     }),
     data: z
       .object({
@@ -398,15 +398,15 @@ export const jobInputDatetimeSchema = (
 ) =>
   z.object({
     id: z.string().min(1, {
-      message: t?.("Id.required"),
+      error: t?.("Id.required"),
     }),
     type: z.enum([ValidJobInputTypes.DATETIME], {
-      message: t?.("Type.enum", {
+      error: t?.("Type.enum", {
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
     }),
     name: z.string().min(1, {
-      message: t?.("Name.required"),
+      error: t?.("Name.required"),
     }),
     data: z
       .object({
@@ -432,15 +432,15 @@ export const jobInputTimeSchema = (
 ) =>
   z.object({
     id: z.string().min(1, {
-      message: t?.("Id.required"),
+      error: t?.("Id.required"),
     }),
     type: z.enum([ValidJobInputTypes.TIME], {
-      message: t?.("Type.enum", {
+      error: t?.("Type.enum", {
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
     }),
     name: z.string().min(1, {
-      message: t?.("Name.required"),
+      error: t?.("Name.required"),
     }),
     data: z
       .object({
@@ -465,13 +465,13 @@ export const jobInputMonthSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
   z.object({
-    id: z.string().min(1, { message: t?.("Id.required") }),
+    id: z.string().min(1, { error: t?.("Id.required") }),
     type: z.enum([ValidJobInputTypes.MONTH], {
-      message: t?.("Type.enum", {
+      error: t?.("Type.enum", {
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
     }),
-    name: z.string().min(1, { message: t?.("Name.required") }),
+    name: z.string().min(1, { error: t?.("Name.required") }),
     data: z
       .object({
         placeholder: z.string().optional(),
@@ -495,13 +495,13 @@ export const jobInputWeekSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
   z.object({
-    id: z.string().min(1, { message: t?.("Id.required") }),
+    id: z.string().min(1, { error: t?.("Id.required") }),
     type: z.enum([ValidJobInputTypes.WEEK], {
-      message: t?.("Type.enum", {
+      error: t?.("Type.enum", {
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
     }),
-    name: z.string().min(1, { message: t?.("Name.required") }),
+    name: z.string().min(1, { error: t?.("Name.required") }),
     data: z
       .object({
         placeholder: z.string().optional(),
@@ -526,15 +526,15 @@ export const jobInputColorSchema = (
 ) =>
   z.object({
     id: z.string().min(1, {
-      message: t?.("Id.required"),
+      error: t?.("Id.required"),
     }),
     type: z.enum([ValidJobInputTypes.COLOR], {
-      message: t?.("Type.enum", {
+      error: t?.("Type.enum", {
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
     }),
     name: z.string().min(1, {
-      message: t?.("Name.required"),
+      error: t?.("Name.required"),
     }),
     data: z
       .object({
@@ -554,15 +554,15 @@ export const jobInputRangeSchema = (
 ) =>
   z.object({
     id: z.string().min(1, {
-      message: t?.("Id.required"),
+      error: t?.("Id.required"),
     }),
     type: z.enum([ValidJobInputTypes.RANGE], {
-      message: t?.("Type.enum", {
+      error: t?.("Type.enum", {
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
     }),
     name: z.string().min(1, {
-      message: t?.("Name.required"),
+      error: t?.("Name.required"),
     }),
     data: z
       .object({
@@ -589,15 +589,15 @@ export const jobInputFileSchema = (
 ) =>
   z.object({
     id: z.string().min(1, {
-      message: t?.("Id.required"),
+      error: t?.("Id.required"),
     }),
     type: z.enum([ValidJobInputTypes.FILE], {
-      message: t?.("Type.enum", {
+      error: t?.("Type.enum", {
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
     }),
     name: z.string().min(1, {
-      message: t?.("Name.required"),
+      error: t?.("Name.required"),
     }),
     data: z.object({
       description: z.string().optional(),
@@ -623,7 +623,7 @@ export const jobInputFileSchema = (
           return true;
         },
         {
-          message: t?.("Validations.fileInvalid"),
+          error: t?.("Validations.fileInvalid"),
         },
       ),
   });
@@ -636,13 +636,13 @@ export const jobInputHiddenSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
   z.object({
-    id: z.string().min(1, { message: t?.("Id.required") }),
+    id: z.string().min(1, { error: t?.("Id.required") }),
     type: z.enum([ValidJobInputTypes.HIDDEN], {
-      message: t?.("Type.enum", {
+      error: t?.("Type.enum", {
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
     }),
-    name: z.string().min(1, { message: t?.("Name.required") }),
+    name: z.string().min(1, { error: t?.("Name.required") }),
     data: z
       .object({
         value: z.string().optional(),
@@ -660,13 +660,13 @@ export const jobInputSearchSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
   z.object({
-    id: z.string().min(1, { message: t?.("Id.required") }),
+    id: z.string().min(1, { error: t?.("Id.required") }),
     type: z.enum([ValidJobInputTypes.SEARCH], {
-      message: t?.("Type.enum", {
+      error: t?.("Type.enum", {
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
     }),
-    name: z.string().min(1, { message: t?.("Name.required") }),
+    name: z.string().min(1, { error: t?.("Name.required") }),
     data: z
       .object({
         placeholder: z.string().optional(),
@@ -692,15 +692,15 @@ export const jobInputCheckboxSchema = (
 ) =>
   z.object({
     id: z.string().min(1, {
-      message: t?.("Id.required"),
+      error: t?.("Id.required"),
     }),
     type: z.enum([ValidJobInputTypes.CHECKBOX], {
-      message: t?.("Type.enum", {
+      error: t?.("Type.enum", {
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
     }),
     name: z.string().min(1, {
-      message: t?.("Name.required"),
+      error: t?.("Name.required"),
     }),
     data: z.object({
       label: z.string().optional(),
@@ -719,26 +719,26 @@ export const jobInputRadioGroupSchema = (
 ) =>
   z.object({
     id: z.string().min(1, {
-      message: t?.("Id.required"),
+      error: t?.("Id.required"),
     }),
     type: z.enum([ValidJobInputTypes.RADIO_GROUP], {
-      message: t?.("Type.enum", {
+      error: t?.("Type.enum", {
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
     }),
     name: z.string().min(1, {
-      message: t?.("Name.required"),
+      error: t?.("Name.required"),
     }),
     data: z.object({
       values: z
         .array(
           z.string().min(1, {
-            message: t?.("Data.Values.value.required"),
+            error: t?.("Data.Values.value.required"),
           }),
         )
-        .min(1, { message: t?.("Data.Values.min") })
+        .min(1, { error: t?.("Data.Values.min") })
         .refine((items) => new Set(items).size === items.length, {
-          message: t?.("Data.Values.unique"),
+          error: t?.("Data.Values.unique"),
         }),
       description: z.string().optional(),
     }),
@@ -760,26 +760,26 @@ export const jobInputOptionSchema = (
 ) =>
   z.object({
     id: z.string().min(1, {
-      message: t?.("Id.required"),
+      error: t?.("Id.required"),
     }),
     type: z.enum([ValidJobInputTypes.OPTION], {
-      message: t?.("Type.enum", {
+      error: t?.("Type.enum", {
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
     }),
     name: z.string().min(1, {
-      message: t?.("Name.required"),
+      error: t?.("Name.required"),
     }),
     data: z.object({
       values: z
         .array(
           z.string().min(1, {
-            message: t?.("Data.Values.value.required"),
+            error: t?.("Data.Values.value.required"),
           }),
         )
-        .min(1, { message: t?.("Data.Values.min") })
+        .min(1, { error: t?.("Data.Values.min") })
         .refine((items) => new Set(items).size === items.length, {
-          message: t?.("Data.Values.unique"),
+          error: t?.("Data.Values.unique"),
         }),
       placeholder: z.string().optional(),
       description: z.string().optional(),
@@ -802,26 +802,26 @@ export const jobInputMultiselectSchema = (
 ) =>
   z.object({
     id: z.string().min(1, {
-      message: t?.("Id.required"),
+      error: t?.("Id.required"),
     }),
     type: z.enum([ValidJobInputTypes.MULTISELECT], {
-      message: t?.("Type.enum", {
+      error: t?.("Type.enum", {
         options: Object.values(ValidJobInputTypes).join(", "),
       }),
     }),
     name: z.string().min(1, {
-      message: t?.("Name.required"),
+      error: t?.("Name.required"),
     }),
     data: z.object({
       values: z
         .array(
           z.string().min(1, {
-            message: t?.("Data.Values.value.required"),
+            error: t?.("Data.Values.value.required"),
           }),
         )
-        .min(1, { message: t?.("Data.Values.min") })
+        .min(1, { error: t?.("Data.Values.min") })
         .refine((items) => new Set(items).size === items.length, {
-          message: t?.("Data.Values.unique"),
+          error: t?.("Data.Values.unique"),
         }),
       placeholder: z.string().optional(),
       description: z.string().optional(),

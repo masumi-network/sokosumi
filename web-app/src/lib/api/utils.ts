@@ -138,7 +138,7 @@ export function handleApiError(
       "Validation failed",
       {
         code: "VALIDATION_ERROR",
-        details: error.errors,
+        details: error.issues,
         path: options.path,
         requestId,
       },

@@ -17,11 +17,11 @@ export const agentTagSchema = z.object({
 // Main agent response schema
 export const agentResponseSchema = z.object({
   id: z.string(),
-  createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
   name: z.string(),
   description: z.string().nullable(),
-  status: z.nativeEnum(AgentStatus),
+  status: z.enum(AgentStatus),
   isNew: z.boolean(),
   isShown: z.boolean(),
   price: creditsPriceSchema,

@@ -15,13 +15,12 @@ const envSecretsSchema = z.object({
     .default("development"),
 
   // Database
-  DATABASE_URL: z.string().url(),
+  DATABASE_URL: z.url(),
   MIN_FEE_CREDITS: z.coerce.number().min(0).default(1),
   ALLOWED_EMAIL_DOMAINS: z
     .string()
-    .default("")
     .transform((val: string) => (val.trim() === "" ? [] : val.split(",")))
-    .pipe(z.array(z.string())),
+    .default([]),
 
   // Usercentrics
   USER_CENTRICS_DATA_SETTINGS_ID: z.string().min(1),
@@ -38,9 +37,8 @@ const envSecretsSchema = z.object({
   STRIPE_PRODUCT_ID: z.string().min(1),
   STRIPE_WELCOME_COUPONS: z
     .string()
-    .default("")
     .transform((val: string) => (val.trim() === "" ? [] : val.split(",")))
-    .pipe(z.array(z.string().min(1))),
+    .default([]),
 
   // Anthropic
   ANTHROPIC_API_KEY: z.string().min(1).startsWith("sk-"),
@@ -48,14 +46,14 @@ const envSecretsSchema = z.object({
   // Seed
   SEED_DATABASE: z
     .string()
-    .default("false")
-    .transform((val: string) => val === "true"),
-  SEED_USER_EMAIL: z.string().email().default("dev@sokosumi.com"),
+    .transform((val: string) => val === "true")
+    .default(false),
+  SEED_USER_EMAIL: z.email().default("dev@sokosumi.com"),
   SEED_USER_PASSWORD: z.string().min(8).default("password"),
 
   // Resend
   RESEND_API_KEY: z.string().min(1),
-  RESEND_FROM_EMAIL: z.string().email(),
+  RESEND_FROM_EMAIL: z.email(),
 
   // Vercel
   VERCEL_URL: z
@@ -63,23 +61,20 @@ const envSecretsSchema = z.object({
     .transform((val: string) =>
       val.startsWith("https://") ? val : `https://${val}`,
     )
-    .pipe(z.string().url())
+    .pipe(z.url())
     .optional(),
   VERCEL_BRANCH_URL: z
     .string()
     .transform((val: string) =>
       val.startsWith("https://") ? val : `https://${val}`,
     )
-    .pipe(z.string().url())
+    .pipe(z.url())
     .optional(),
 
   CRON_SECRET: z.string().optional(),
 
   PAYMENT_API_KEY: z.string().min(1),
-  PAYMENT_API_URL: z
-    .string()
-    .url()
-    .default("https://payment.masumi.network/api/v1"),
+  PAYMENT_API_URL: z.url().default("https://payment.masumi.network/api/v1"),
 
   // Social Secrets
   GOOGLE_CLIENT_ID: z.string().min(1),
@@ -89,9 +84,9 @@ const envSecretsSchema = z.object({
   MICROSOFT_CLIENT_SECRET: z.string().min(1),
 
   // Better Auth Settings
-  BETTER_AUTH_URL: z.string().url().default("http://localhost:3000"),
+  BETTER_AUTH_URL: z.url().default("http://localhost:3000"),
   BETTER_AUTH_SECRET: z.string().min(1),
-  BETTER_AUTH_TRUSTED_ORIGIN: z.string().url().default("http://localhost:3000"),
+  BETTER_AUTH_TRUSTED_ORIGIN: z.url().default("http://localhost:3000"),
   BETTER_AUTH_SESSION_COOKIE_CACHE_MAX_AGE: z.coerce
     .number()
     .min(0)
@@ -107,23 +102,19 @@ const envSecretsSchema = z.object({
     .min(1000)
     .default(1000 * 25), // 25 seconds
   INSTANCE_ID: z.string().min(1).default(uuidv4()),
-  REGISTRY_API_URL: z
-    .string()
-    .url()
-    .default("https://registry.masumi.network/api/v1"),
+  REGISTRY_API_URL: z.url().default("https://registry.masumi.network/api/v1"),
   REGISTRY_API_KEY: z.string().min(1),
   BLACKLISTED_AGENT_HOSTNAMES: z
     .string()
-    .default("")
     .transform((val: string) => (val.trim() === "" ? [] : val.split(",")))
-    .pipe(z.array(z.string())),
+    .default([]),
 
   // ably keys
   ABLY_AGENT_JOBS_SUBSCRIBE_ONLY_KEY: z.string().min(1),
   ABLY_AGENT_JOBS_PUBLISH_ONLY_KEY: z.string().min(1),
 
   // after agent hired webhook
-  AFTER_AGENT_HIRED_WEB_HOOK: z.string().url(),
+  AFTER_AGENT_HIRED_WEB_HOOK: z.url(),
 });
 
 let envSecrets: z.infer<typeof envSecretsSchema>;

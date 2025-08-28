@@ -30,21 +30,21 @@ export const jobCreditsSchema = z.object({
 // Main job response schema
 export const jobResponseSchema = z.object({
   id: z.string(),
-  createdAt: z.string().datetime(), // ISO date string
-  updatedAt: z.string().datetime(), // ISO date string
+  createdAt: z.iso.datetime(), // ISO date string
+  updatedAt: z.iso.datetime(), // ISO date string
   name: z.string().nullable(),
-  status: z.nativeEnum(JobStatus),
+  status: z.enum(JobStatus),
   agentId: z.string(),
   userId: z.string(),
   organizationId: z.string().nullable(),
   agentJobId: z.string(),
-  agentJobStatus: z.nativeEnum(AgentJobStatus).nullable(),
-  onChainStatus: z.nativeEnum(OnChainJobStatus).nullable(),
+  agentJobStatus: z.enum(AgentJobStatus).nullable(),
+  onChainStatus: z.enum(OnChainJobStatus).nullable(),
   input: z.string(), // JSON string
   output: z.string().nullable(),
-  startedAt: z.string().datetime(),
-  completedAt: z.string().datetime().nullable(),
-  resultSubmittedAt: z.string().datetime().nullable(),
+  startedAt: z.iso.datetime(),
+  completedAt: z.iso.datetime().nullable(),
+  resultSubmittedAt: z.iso.datetime().nullable(),
   isDemo: z.boolean(),
   price: jobCreditsSchema.nullable(),
   refund: jobCreditsSchema.nullable(),
