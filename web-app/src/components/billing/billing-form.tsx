@@ -81,8 +81,8 @@ export default function BillingForm({ price, organization }: BillingFormProps) {
   const form = useForm<BillingFormData>({
     resolver: zodResolver(billingFormSchema(t)),
     defaultValues: {
-      credits: undefined,
-      coupon: undefined,
+      credits: 0,
+      coupon: "",
     },
   });
 
