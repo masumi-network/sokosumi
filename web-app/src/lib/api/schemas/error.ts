@@ -18,7 +18,7 @@ export const apiErrorResponseSchema = z.object({
   details: z.array(z.unknown()).optional(),
 
   /** ISO timestamp when the error occurred */
-  timestamp: z.string().datetime(),
+  timestamp: z.iso.datetime(),
 
   /** Optional API endpoint path where the error occurred (for debugging) */
   path: z.string().optional(),

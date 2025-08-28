@@ -7,9 +7,8 @@ export const inviteFormSchema = (
 ) =>
   z.object({
     email: z
-      .string({ message: t?.("Email.invalid") })
-      .min(1, { message: t?.("Email.required") })
-      .email({ message: t?.("Email.invalid") }),
+      .email({ error: t?.("Email.invalid") })
+      .min(1, { error: t?.("Email.required") }),
   });
 
 export type InviteFormSchemaType = z.infer<ReturnType<typeof inviteFormSchema>>;

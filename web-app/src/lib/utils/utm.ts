@@ -22,7 +22,7 @@ export const utmDataSchema = z.object({
   utm_content: z.string().max(255).optional(),
   referrer: z.string().max(255).optional(),
   landingPage: z.string().max(255).optional(),
-  capturedAt: z.string().datetime(),
+  capturedAt: z.iso.datetime(),
 });
 
 export const UTM_COOKIE_NAME = "sokosumi_utm";

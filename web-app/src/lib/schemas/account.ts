@@ -33,7 +33,7 @@ export const passwordFormSchema = (
     })
     .refine((data) => data.newPassword === data.confirmNewPassword, {
       path: ["confirmNewPassword"],
-      message: t?.("ConfirmPassword.match"),
+      error: t?.("ConfirmPassword.match"),
     });
 
 export type PasswordFormType = z.infer<ReturnType<typeof passwordFormSchema>>;
@@ -48,7 +48,7 @@ export const newPasswordFormSchema = (
     })
     .refine((data) => data.newPassword === data.confirmNewPassword, {
       path: ["confirmNewPassword"],
-      message: t?.("ConfirmPassword.match"),
+      error: t?.("ConfirmPassword.match"),
     });
 
 export type NewPasswordFormType = z.infer<

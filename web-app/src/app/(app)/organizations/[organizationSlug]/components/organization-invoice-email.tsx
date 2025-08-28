@@ -33,11 +33,11 @@ import { Member } from "@/prisma/generated/client";
 
 const invoiceEmailFormSchema = z.object({
   invoiceEmail: z
-    .union([z.string().email(), z.literal("")])
+    .email()
+    .or(z.literal(""))
     .transform((val) => (val === "" ? null : val))
     .nullable(),
 });
-
 type InvoiceEmailFormData = z.infer<typeof invoiceEmailFormSchema>;
 
 interface OrganizationInvoiceEmailProps {

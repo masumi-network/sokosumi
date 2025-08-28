@@ -14,7 +14,7 @@ export const apiSuccessResponseSchema = z.object({
   data: z.any().optional(),
 
   /** ISO timestamp when the response was generated */
-  timestamp: z.string().datetime(),
+  timestamp: z.iso.datetime(),
 });
 
 /**
