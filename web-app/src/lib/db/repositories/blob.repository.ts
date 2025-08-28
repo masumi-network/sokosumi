@@ -13,6 +13,8 @@ export const blobRepository = {
     userId: string,
     jobId: string,
     fileUrl: string,
+    fileName?: string,
+    size?: bigint,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<Blob> {
     return tx.blob.create({
@@ -20,6 +22,8 @@ export const blobRepository = {
         user: { connect: { id: userId } },
         job: { connect: { id: jobId } },
         fileUrl,
+        fileName,
+        size,
       },
     });
   },

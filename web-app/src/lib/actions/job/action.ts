@@ -21,7 +21,11 @@ import {
   withAuthContext,
 } from "@/middleware/auth-middleware";
 
-import { handleInputDataFileUploads, saveUploadedFiles } from "./utils";
+import {
+  handleInputDataFileUploads,
+  saveUploadedFiles,
+  type UploadedFileWithMeta,
+} from "./utils";
 
 export async function startDemoJob(
   input: Omit<StartJobInputSchemaType, "userId" | "maxAcceptedCents">,
@@ -81,9 +85,12 @@ export const startJob = withAuthContext<
       });
 
       // Upload files if any
-      let fileUrls: string[] = [];
+      let uploadedFiles: UploadedFileWithMeta[] = [];
       if (input.inputData) {
-        fileUrls = await handleInputDataFileUploads(userId, input.inputData);
+        uploadedFiles = await handleInputDataFileUploads(
+          userId,
+          input.inputData,
+        );
       }
 
       // Set job context
@@ -129,7 +136,7 @@ export const startJob = withAuthContext<
       const job = await jobService.startJob(parsed);
 
       // Save files uploaded if any
-      await saveUploadedFiles(userId, job.id, fileUrls);
+      await saveUploadedFiles(userId, job.id, uploadedFiles);
 
       // Add success breadcrumb
       Sentry.addBreadcrumb({

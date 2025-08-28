@@ -4,6 +4,12 @@ import { uploadFile } from "@/lib/blob";
 import { blobRepository } from "@/lib/db/repositories";
 import { JobInputData } from "@/lib/job-input";
 
+export interface UploadedFileWithMeta {
+  url: string;
+  fileName: string;
+  size: number;
+}
+
 /**
  * This function upload files from inputData to blob storage and return the file urls
  *
@@ -14,27 +20,33 @@ import { JobInputData } from "@/lib/job-input";
 export async function handleInputDataFileUploads(
   userId: string,
   inputData: JobInputData,
-): Promise<string[]> {
-  const results: string[] = [];
+): Promise<UploadedFileWithMeta[]> {
+  const results: UploadedFileWithMeta[] = [];
   for (const [key, value] of inputData.entries()) {
     if (value instanceof File) {
       const blob = await uploadFile(userId, value);
       inputData.set(key, blob.url);
-      results.push(blob.url);
+      results.push({
+        url: blob.url,
+        fileName: value.name,
+        size: value.size,
+      });
     } else if (Array.isArray(value) && value.every((v) => v instanceof File)) {
-      const fileUrls = await Promise.all(
+      const uploaded = await Promise.all(
         value.map(async (file: File) => {
           const blob = await uploadFile(userId, file);
-          return blob.url;
+          return {
+            url: blob.url,
+            fileName: file.name,
+            size: file.size,
+          } satisfies UploadedFileWithMeta;
         }),
       );
-      results.push(...fileUrls);
+      results.push(...uploaded);
 
-      if (fileUrls.length === 1) {
-        inputData.set(key, fileUrls[0]);
-      } else {
-        inputData.set(key, fileUrls);
-      }
+      const fileUrls = uploaded.map((u) => u.url);
+      if (fileUrls.length === 1) inputData.set(key, fileUrls[0]);
+      else inputData.set(key, fileUrls);
     }
   }
   return results;
@@ -50,9 +62,15 @@ export async function handleInputDataFileUploads(
 export async function saveUploadedFiles(
   userId: string,
   jobId: string,
-  fileUrls: string[],
+  files: UploadedFileWithMeta[],
 ) {
-  for (const fileUrl of fileUrls) {
-    await blobRepository.createBlob(userId, jobId, fileUrl);
+  for (const file of files) {
+    await blobRepository.createBlob(
+      userId,
+      jobId,
+      file.url,
+      file.fileName,
+      BigInt(file.size),
+    );
   }
 }
