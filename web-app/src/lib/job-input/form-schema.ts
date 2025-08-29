@@ -91,10 +91,10 @@ const makeZodSchemaFromJobInputColorSchema = (
   const { name, validations } = jobInputColorSchema;
   const defaultSchema = z
     .string({
-      message: t?.("String.required", { name }),
+      error: t?.("String.required", { name }),
     })
     .refine((v) => /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(v), {
-      message: t?.("String.format", { name, value: "color" }),
+      error: t?.("String.format", { name, value: "color" }),
     });
 
   let canBeOptional = false;
@@ -112,7 +112,7 @@ const makeZodSchemaFromJobInputTextareaSchema = (
 ) => {
   const { name, validations } = jobInputTextareaSchema;
   const defaultSchema = z.string({
-    message: t?.("String.required", { name }),
+    error: t?.("String.required", { name }),
   });
   if (!validations) return defaultSchema;
 
@@ -122,17 +122,17 @@ const makeZodSchemaFromJobInputTextareaSchema = (
     switch (validation) {
       case ValidJobInputValidationTypes.MIN:
         return acc.min(Number(value), {
-          message: t?.("String.min", { name, value }),
+          error: t?.("String.min", { name, value }),
         });
       case ValidJobInputValidationTypes.MAX:
         return acc.max(Number(value), {
-          message: t?.("String.max", { name, value }),
+          error: t?.("String.max", { name, value }),
         });
       case ValidJobInputValidationTypes.FORMAT:
         switch (value) {
           case ValidJobInputFormatValues.NON_EMPTY:
             return acc.min(1, {
-              message: t?.("String.format", { name, value }),
+              error: t?.("String.format", { name, value }),
             });
           default:
             return acc;
@@ -157,7 +157,7 @@ const makeZodSchemaFromJobInputStringSchema = (
 ) => {
   const { name, validations } = jobInputStringSchema;
   const defaultSchema = z.string({
-    message: t?.("String.required", { name }),
+    error: t?.("String.required", { name }),
   });
   if (!validations) return defaultSchema;
 
@@ -167,25 +167,25 @@ const makeZodSchemaFromJobInputStringSchema = (
     switch (validation) {
       case ValidJobInputValidationTypes.MIN:
         return acc.min(Number(value), {
-          message: t?.("String.min", { name, value }),
+          error: t?.("String.min", { name, value }),
         });
       case ValidJobInputValidationTypes.MAX:
         return acc.max(Number(value), {
-          message: t?.("String.max", { name, value }),
+          error: t?.("String.max", { name, value }),
         });
       case ValidJobInputValidationTypes.FORMAT:
         switch (value) {
           case ValidJobInputFormatValues.URL:
             return acc.url({
-              message: t?.("String.format", { name, value }),
+              error: t?.("String.format", { name, value }),
             });
           case ValidJobInputFormatValues.EMAIL:
             return acc.email({
-              message: t?.("String.format", { name, value }),
+              error: t?.("String.format", { name, value }),
             });
           case ValidJobInputFormatValues.NON_EMPTY:
             return acc.min(1, {
-              message: t?.("String.format", { name, value }),
+              error: t?.("String.format", { name, value }),
             });
           default:
             return acc;
@@ -204,7 +204,7 @@ const makeZodSchemaFromJobInputTelSchema = (
   t?: IntlTranslation<JobInputFormIntlPath>,
 ) => {
   const { name, validations } = jobInputTelSchema;
-  const defaultSchema = z.string({ message: t?.("String.required", { name }) });
+  const defaultSchema = z.string({ error: t?.("String.required", { name }) });
   if (!validations) return defaultSchema;
 
   let canBeOptional = false;
@@ -225,7 +225,7 @@ const makeZodSchemaFromJobInputTelSchema = (
       case ValidJobInputValidationTypes.FORMAT:
         // Only one allowed value for tel format for now
         return acc.regex(telRegex, {
-          message: t?.("String.format", { name, value: "tel" }),
+          error: t?.("String.format", { name, value: "tel" }),
         });
       case ValidJobInputValidationTypes.OPTIONAL:
         canBeOptional = value === "true";
@@ -236,11 +236,11 @@ const makeZodSchemaFromJobInputTelSchema = (
   let withLength = schema;
   if (typeof min === "number")
     withLength = withLength.min(min, {
-      message: t?.("String.min", { name, value: String(min) }),
+      error: t?.("String.min", { name, value: String(min) }),
     });
   if (typeof max === "number")
     withLength = withLength.max(max, {
-      message: t?.("String.max", { name, value: String(max) }),
+      error: t?.("String.max", { name, value: String(max) }),
     });
 
   return canBeOptional ? withLength.optional() : withLength;
@@ -251,10 +251,8 @@ const makeZodSchemaFromJobInputNumberSchema = (
   t?: IntlTranslation<JobInputFormIntlPath>,
 ) => {
   const { name, validations } = jobInputNumberSchema;
-  const defaultSchema = z.coerce.number({
-    message: t?.("Number.required", { name }),
-    required_error: t?.("Number.required", { name }),
-    invalid_type_error: t?.("Number.required", { name }),
+  const defaultSchema = z.coerce.number<number>({
+    error: t?.("Number.required", { name }),
   });
   if (!validations) return defaultSchema;
 
@@ -264,17 +262,17 @@ const makeZodSchemaFromJobInputNumberSchema = (
     switch (validation) {
       case ValidJobInputValidationTypes.MIN:
         return acc.min(Number(value), {
-          message: t?.("Number.min", { name, value }),
+          error: t?.("Number.min", { name, value }),
         });
       case ValidJobInputValidationTypes.MAX:
         return acc.max(Number(value), {
-          message: t?.("Number.max", { name, value }),
+          error: t?.("Number.max", { name, value }),
         });
       case ValidJobInputValidationTypes.FORMAT:
         switch (value) {
           case ValidJobInputFormatValues.INTEGER:
             return acc.int({
-              message: t?.("Number.format", { name, value }),
+              error: t?.("Number.format", { name, value }),
             });
           default:
             return acc;
@@ -298,7 +296,7 @@ const makeZodSchemaFromJobInputBooleanSchema = (
 ) => {
   const { name } = jobInputSchema;
   return z.boolean({
-    message: t?.("Boolean.required", { name }),
+    error: t?.("Boolean.required", { name }),
   });
 };
 
@@ -309,7 +307,7 @@ const makeZodSchemaFromJobInputCheckboxSchema = (
 ) => {
   const { name } = jobInputSchema;
   return z.boolean({
-    message: t?.("Boolean.required", { name }),
+    error: t?.("Boolean.required", { name }),
   });
 };
 
@@ -327,17 +325,16 @@ const makeZodSchemaFromJobInputOptionSchema = (
   } = jobInputOptionSchema;
   const defaultSchema = z.array(
     z
-      .number()
       .int({
-        message: t?.("Option.integer", { name }),
+        error: t?.("Option.integer", { name }),
       })
       .nonnegative({
-        message: t?.("Option.nonnegative", { name }),
+        error: t?.("Option.nonnegative", { name }),
       })
       .max(values.length - 1, {
-        message: t?.("Option.invalid", { name, maxValue: values.length - 1 }),
+        error: t?.("Option.invalid", { name, maxValue: values.length - 1 }),
       }),
-    { message: t?.("Option.required", { name }) },
+    { error: t?.("Option.required", { name }) },
   );
   if (!validations) return defaultSchema;
 
@@ -347,11 +344,11 @@ const makeZodSchemaFromJobInputOptionSchema = (
     switch (validation) {
       case ValidJobInputValidationTypes.MIN:
         return acc.min(Number(value), {
-          message: t?.("Option.min", { name, value }),
+          error: t?.("Option.min", { name, value }),
         });
       case ValidJobInputValidationTypes.MAX:
         return acc.max(Number(value), {
-          message: t?.("Option.max", { name, value }),
+          error: t?.("Option.max", { name, value }),
         });
       case ValidJobInputValidationTypes.OPTIONAL:
         canBeOptional = value === "true";
@@ -376,11 +373,11 @@ const makeZodSchemaFromJobInputFileSchema = (
     switch (validation) {
       case ValidJobInputValidationTypes.MIN:
         return acc.min(Number(value), {
-          message: t?.("Number.min", { name, value }),
+          error: t?.("Number.min", { name, value }),
         });
       case ValidJobInputValidationTypes.MAX:
         return acc.max(Number(value), {
-          message: t?.("Number.max", { name, value }),
+          error: t?.("Number.max", { name, value }),
         });
       case ValidJobInputValidationTypes.MAX_SIZE:
         maxSize = Number(value);
@@ -396,7 +393,7 @@ const makeZodSchemaFromJobInputFileSchema = (
       return files.every((file) => file.size <= maxSize);
     },
     {
-      message: t?.("File.maxSize", { name, value: maxSize ?? "" }),
+      error: t?.("File.maxSize", { name, value: maxSize ?? "" }),
     },
   );
 };
@@ -422,14 +419,14 @@ const makeZodSchemaFromJobInputDateSchema = (
     });
   }
 
-  let schema = z.coerce.date({ message: t?.("String.required", { name }) });
+  let schema = z.coerce.date<Date>({ error: t?.("String.required", { name }) });
   if (minDate)
     schema = schema.min(minDate, {
-      message: t?.("Date.min", { name, value: minDate.toLocaleDateString() }),
+      error: t?.("Date.min", { name, value: minDate.toLocaleDateString() }),
     });
   if (maxDate)
     schema = schema.max(maxDate, {
-      message: t?.("Date.max", { name, value: maxDate.toLocaleDateString() }),
+      error: t?.("Date.max", { name, value: maxDate.toLocaleDateString() }),
     });
   return canBeOptional ? schema.optional() : schema;
 };
@@ -454,14 +451,14 @@ const makeZodSchemaFromJobInputDatetimeSchema = (
     });
   }
 
-  let schema = z.coerce.date({ message: t?.("String.required", { name }) });
+  let schema = z.coerce.date<Date>({ error: t?.("String.required", { name }) });
   if (minDate)
     schema = schema.min(minDate, {
-      message: t?.("Date.min", { name, value: minDate.toLocaleString() }),
+      error: t?.("Date.min", { name, value: minDate.toLocaleString() }),
     });
   if (maxDate)
     schema = schema.max(maxDate, {
-      message: t?.("Date.max", { name, value: maxDate.toLocaleString() }),
+      error: t?.("Date.max", { name, value: maxDate.toLocaleString() }),
     });
   return canBeOptional ? schema.optional() : schema;
 };
@@ -482,13 +479,13 @@ const makeZodSchemaFromJobInputMonthSchema = (
     if (validation === ValidJobInputValidationTypes.MAX) max = String(value);
   });
 
-  let schema: z.ZodTypeAny = z
-    .string({ message: t?.("String.required", { name }) })
+  let schema = z
+    .string({ error: t?.("String.required", { name }) })
     .regex(/^\d{4}-(0[1-9]|1[0-2])$/, {
-      message: t?.("String.format", { name, value: "month" }),
+      error: t?.("String.format", { name, value: "month" }),
     })
     .refine((v) => !!parseMonth(v), {
-      message: t?.("String.format", { name, value: "month" }),
+      error: t?.("String.format", { name, value: "month" }),
     });
 
   const minMonth = parseMonth(min);
@@ -499,7 +496,7 @@ const makeZodSchemaFromJobInputMonthSchema = (
         const d = parseMonth(v);
         return !!d && d.getTime() >= minMonth.getTime();
       },
-      { message: t?.("Date.min", { name, value: min }) },
+      { error: t?.("Date.min", { name, value: min }) },
     );
   if (max && maxMonth)
     schema = schema.refine(
@@ -507,7 +504,7 @@ const makeZodSchemaFromJobInputMonthSchema = (
         const d = parseMonth(v);
         return !!d && d.getTime() <= maxMonth.getTime();
       },
-      { message: t?.("Date.max", { name, value: max }) },
+      { error: t?.("Date.max", { name, value: max }) },
     );
 
   return canBeOptional ? schema.optional() : schema;
@@ -530,13 +527,13 @@ const makeZodSchemaFromJobInputWeekSchema = (
   });
 
   // HTML week input format: YYYY-Www (ISO week)
-  let schema: z.ZodTypeAny = z
-    .string({ message: t?.("String.required", { name }) })
+  let schema = z
+    .string({ error: t?.("String.required", { name }) })
     .regex(/^\d{4}-W(0[1-9]|[1-4]\d|5[0-3])$/, {
-      message: t?.("String.format", { name, value: "week" }),
+      error: t?.("String.format", { name, value: "week" }),
     })
     .refine((v) => !!parseISOWeek(v), {
-      message: t?.("String.format", { name, value: "week" }),
+      error: t?.("String.format", { name, value: "week" }),
     });
 
   const minWeek = parseISOWeek(min);
@@ -547,7 +544,7 @@ const makeZodSchemaFromJobInputWeekSchema = (
         const d = parseISOWeek(v);
         return !!d && d.getTime() >= minWeek.getTime();
       },
-      { message: t?.("Date.min", { name, value: min }) },
+      { error: t?.("Date.min", { name, value: min }) },
     );
   if (max && maxWeek)
     schema = schema.refine(
@@ -555,7 +552,7 @@ const makeZodSchemaFromJobInputWeekSchema = (
         const d = parseISOWeek(v);
         return !!d && d.getTime() <= maxWeek.getTime();
       },
-      { message: t?.("Date.max", { name, value: max }) },
+      { error: t?.("Date.max", { name, value: max }) },
     );
 
   return canBeOptional ? schema.optional() : schema;
@@ -606,19 +603,19 @@ const makeZodSchemaFromJobInputTimeSchema = (
     });
   }
 
-  let schema: z.ZodTypeAny = z
-    .string({ message: t?.("String.required", { name }) })
+  let schema = z
+    .string({ error: t?.("String.required", { name }) })
     .regex(/^([01]\d|2[0-3]):([0-5]\d)$/, {
-      message: t?.("String.format", { name, value: "time" }),
+      error: t?.("String.format", { name, value: "time" }),
     });
 
   if (typeof minMinutes === "number" && Number.isFinite(minMinutes))
     schema = schema.refine((v) => toMinutes(v) >= minMinutes!, {
-      message: t?.("Number.min", { name, value: minHours ?? "" }),
+      error: t?.("Number.min", { name, value: minHours ?? "" }),
     });
   if (typeof maxMinutes === "number" && Number.isFinite(maxMinutes))
     schema = schema.refine((v) => toMinutes(v) <= maxMinutes!, {
-      message: t?.("Number.max", { name, value: maxHours ?? "" }),
+      error: t?.("Number.max", { name, value: maxHours ?? "" }),
     });
 
   return canBeOptional ? schema.optional() : schema;
@@ -629,10 +626,8 @@ const makeZodSchemaFromJobInputRangeSchema = (
   t?: IntlTranslation<JobInputFormIntlPath>,
 ) => {
   const { name, validations } = jobInputSchema;
-  const defaultSchema = z.coerce.number({
-    message: t?.("Number.required", { name }),
-    required_error: t?.("Number.required", { name }),
-    invalid_type_error: t?.("Number.required", { name }),
+  const defaultSchema = z.coerce.number<number>({
+    error: t?.("Number.required", { name }),
   });
 
   // Step and default value are in data for Range
@@ -645,11 +640,11 @@ const makeZodSchemaFromJobInputRangeSchema = (
     switch (validation) {
       case ValidJobInputValidationTypes.MIN:
         return acc.min(Number(value), {
-          message: t?.("Number.min", { name, value }),
+          error: t?.("Number.min", { name, value }),
         });
       case ValidJobInputValidationTypes.MAX:
         return acc.max(Number(value), {
-          message: t?.("Number.max", { name, value }),
+          error: t?.("Number.max", { name, value }),
         });
       case ValidJobInputValidationTypes.OPTIONAL:
         canBeOptional = value === "true";
@@ -675,7 +670,7 @@ const makeZodSchemaFromJobInputRangeSchema = (
               (num - min) % step! === 0
             );
           },
-          { message: t?.("Number.format", { name, value: "step" }) },
+          { error: t?.("Number.format", { name, value: "step" }) },
         )
       : schema;
 

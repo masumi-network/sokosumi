@@ -5,24 +5,24 @@ import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
 import { Session } from "@/lib/auth/auth";
 import { cn } from "@/lib/utils";
 
-import CustomTrigger from "./sidebar/components/custom-trigger";
-import UserCredits from "./user-credits";
-
 interface HeaderProps {
-  session: Session;
+  session: Session | null;
   className?: string | undefined;
 }
 
-export default function Header({ session, className }: HeaderProps) {
+export default function HeaderApiDocs({
+  session: _session,
+  className,
+}: HeaderProps) {
   return (
     <header
       className={cn(
-        "border-grid bg-background/95 fixed top-0 z-50 flex w-full justify-between gap-2 border-b md:sticky md:items-center",
+        "border-grid bg-background/95 fixed top-0 z-50 flex h-[50px] w-full justify-between gap-2 border-b pl-4 md:sticky md:h-16 md:items-center md:p-4",
         className,
       )}
     >
-      <div className="flex w-full items-center justify-between gap-2 p-2 md:w-auto">
-        <Link href="/" className="md:hidden">
+      <div className="mr-4 flex h-[50px] w-full items-center justify-between gap-2 md:h-[64px] md:w-[264px] md:border-r md:p-2">
+        <Link href="/">
           <ThemedLogo
             LogoComponent={SokosumiLogo}
             priority
@@ -30,12 +30,10 @@ export default function Header({ session, className }: HeaderProps) {
             height={16}
           />
         </Link>
-        <CustomTrigger when="invisible" />
       </div>
 
       <div className="hidden flex-1 flex-row gap-2 sm:flex">
         <BreadcrumbNavigation className="flex flex-1" />
-        <UserCredits session={session} />
       </div>
     </header>
   );

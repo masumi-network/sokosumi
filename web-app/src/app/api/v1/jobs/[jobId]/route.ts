@@ -15,8 +15,14 @@ interface RouteParams {
 }
 
 /**
- * GET /api/v1/jobs/:jobId
- * Retrieves a specific job by ID that belongs to the authenticated user
+ * Get job by ID
+ * @description Retrieves a specific job by ID belonging to the authenticated user
+ * @pathParams JobParams
+ * @response JobSuccessResponse
+ * @responseSet public
+ * @tag Jobs
+ * @auth apikey
+ * @openapi
  */
 export async function GET(
   request: NextRequest,

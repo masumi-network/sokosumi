@@ -14,7 +14,7 @@ export function createApiKeySchema(t: TranslationFunction) {
         .max(100, t("Validation.nameMaxLength"))
         .regex(/^[a-zA-Z0-9\s\-_]+$/, t("Validation.namePattern")),
       scope: z.enum(["personal", "organization"], {
-        required_error: t("Validation.scopeRequired"),
+        error: t("Validation.scopeRequired"),
       }),
       organizationId: z.string().optional(),
     })
@@ -27,7 +27,7 @@ export function createApiKeySchema(t: TranslationFunction) {
         return true;
       },
       {
-        message: t("Validation.organizationRequired"),
+        error: t("Validation.organizationRequired"),
         path: ["organizationId"],
       },
     );

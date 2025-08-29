@@ -29,7 +29,7 @@ export const signUpFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
     })
     .refine(({ password, confirmPassword }) => password === confirmPassword, {
       path: ["confirmPassword"],
-      message: t?.("ConfirmPassword.match"),
+      error: t?.("ConfirmPassword.match"),
     });
 
 export type SignUpFormSchemaType = z.infer<ReturnType<typeof signUpFormSchema>>;
@@ -56,7 +56,7 @@ export const resetPasswordFormSchema = (
     })
     .refine(({ password, confirmPassword }) => password === confirmPassword, {
       path: ["confirmPassword"],
-      message: t?.("ConfirmPassword.match"),
+      error: t?.("ConfirmPassword.match"),
     });
 
 export type ResetPasswordFormSchemaType = z.infer<

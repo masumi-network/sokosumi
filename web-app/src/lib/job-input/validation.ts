@@ -10,7 +10,7 @@ const formatNonEmptyValidationValueSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
   z.enum([ValidJobInputFormatValues.NON_EMPTY], {
-    message: t?.("Validations.Value.enum", {
+    error: t?.("Validations.Value.enum", {
       options: Object.values(ValidJobInputFormatValues).join(", "),
       validation: "format",
     }),
@@ -20,7 +20,7 @@ const formatUrlValidationValueSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
   z.enum([ValidJobInputFormatValues.URL], {
-    message: t?.("Validations.Value.enum", {
+    error: t?.("Validations.Value.enum", {
       options: Object.values(ValidJobInputFormatValues).join(", "),
       validation: "format",
     }),
@@ -30,7 +30,7 @@ const formatEmailValidationValueSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
   z.enum([ValidJobInputFormatValues.EMAIL], {
-    message: t?.("Validations.Value.enum", {
+    error: t?.("Validations.Value.enum", {
       options: Object.values(ValidJobInputFormatValues).join(", "),
       validation: "format",
     }),
@@ -40,7 +40,7 @@ const formatIntegerValidationValueSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
   z.enum([ValidJobInputFormatValues.INTEGER], {
-    message: t?.("Validations.Value.enum", {
+    error: t?.("Validations.Value.enum", {
       options: Object.values(ValidJobInputFormatValues).join(", "),
       validation: "format",
     }),
@@ -50,7 +50,7 @@ const formatTelPatternValidationValueSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
   z.enum([ValidJobInputFormatValues.TEL_PATTERN], {
-    message: t?.("Validations.Value.enum", {
+    error: t?.("Validations.Value.enum", {
       options: Object.values(ValidJobInputFormatValues).join(", "),
       validation: "format",
     }),
@@ -60,7 +60,7 @@ const optionalValidationValueSchema = (
   t?: IntlTranslation<JobInputSchemaIntlPath>,
 ) =>
   z.enum(["true", "false"] as const, {
-    message: t?.("Validations.Value.enum", {
+    error: t?.("Validations.Value.enum", {
       options: ["true", "false"].join(", "),
       validation: "optional",
     }),
@@ -71,7 +71,7 @@ export const optionalValidationSchema = (
 ) =>
   z.object({
     validation: z.enum([ValidJobInputValidationTypes.OPTIONAL], {
-      message: t?.("Validations.Validation.enum", {
+      error: t?.("Validations.Validation.enum", {
         options: Object.values(ValidJobInputValidationTypes).join(", "),
       }),
     }),
@@ -83,7 +83,7 @@ export const minValidationSchema = (
 ) =>
   z.object({
     validation: z.enum([ValidJobInputValidationTypes.MIN], {
-      message: t?.("Validations.Validation.enum", {
+      error: t?.("Validations.Validation.enum", {
         options: Object.values(ValidJobInputValidationTypes).join(", "),
       }),
     }),
@@ -95,7 +95,7 @@ export const maxValidationSchema = (
 ) =>
   z.object({
     validation: z.enum([ValidJobInputValidationTypes.MAX], {
-      message: t?.("Validations.Validation.enum", {
+      error: t?.("Validations.Validation.enum", {
         options: Object.values(ValidJobInputValidationTypes).join(", "),
       }),
     }),
@@ -107,7 +107,7 @@ export const formatUrlValidationSchema = (
 ) =>
   z.object({
     validation: z.enum([ValidJobInputValidationTypes.FORMAT], {
-      message: t?.("Validations.Validation.enum", {
+      error: t?.("Validations.Validation.enum", {
         options: Object.values(ValidJobInputValidationTypes).join(", "),
       }),
     }),
@@ -119,7 +119,7 @@ export const formatEmailValidationSchema = (
 ) =>
   z.object({
     validation: z.enum([ValidJobInputValidationTypes.FORMAT], {
-      message: t?.("Validations.Validation.enum", {
+      error: t?.("Validations.Validation.enum", {
         options: Object.values(ValidJobInputValidationTypes).join(", "),
       }),
     }),
@@ -131,7 +131,7 @@ export const formatIntegerValidationSchema = (
 ) =>
   z.object({
     validation: z.enum([ValidJobInputValidationTypes.FORMAT], {
-      message: t?.("Validations.Validation.enum", {
+      error: t?.("Validations.Validation.enum", {
         options: Object.values(ValidJobInputValidationTypes).join(", "),
       }),
     }),
@@ -143,7 +143,7 @@ export const formatNonEmptyValidationSchema = (
 ) =>
   z.object({
     validation: z.enum([ValidJobInputValidationTypes.FORMAT], {
-      message: t?.("Validations.Validation.enum", {
+      error: t?.("Validations.Validation.enum", {
         options: Object.values(ValidJobInputValidationTypes).join(", "),
       }),
     }),
@@ -155,12 +155,12 @@ export const acceptValidationSchema = (
 ) =>
   z.object({
     validation: z.enum([ValidJobInputValidationTypes.ACCEPT], {
-      message: t?.("Validations.Validation.enum", {
+      error: t?.("Validations.Validation.enum", {
         options: Object.values(ValidJobInputValidationTypes).join(", "),
       }),
     }),
     value: z.string().min(1, {
-      message: t?.("Validations.Value.required", { validation: "accept" }),
+      error: t?.("Validations.Value.required", { validation: "accept" }),
     }),
   });
 
@@ -169,7 +169,7 @@ export const formatTelPatternValidationSchema = (
 ) =>
   z.object({
     validation: z.enum([ValidJobInputValidationTypes.FORMAT], {
-      message: t?.("Validations.Validation.enum", {
+      error: t?.("Validations.Validation.enum", {
         options: Object.values(ValidJobInputValidationTypes).join(", "),
       }),
     }),
@@ -181,7 +181,7 @@ export const maxSizeValidationSchema = (
 ) =>
   z.object({
     validation: z.enum([ValidJobInputValidationTypes.MAX_SIZE], {
-      message: t?.("Validations.Validation.enum", {
+      error: t?.("Validations.Validation.enum", {
         options: Object.values(ValidJobInputValidationTypes).join(", "),
       }),
     }),
@@ -193,7 +193,7 @@ export const stepValidationSchema = (
 ) =>
   z.object({
     validation: z.enum([ValidJobInputValidationTypes.STEP], {
-      message: t?.("Validations.Validation.enum", {
+      error: t?.("Validations.Validation.enum", {
         options: Object.values(ValidJobInputValidationTypes).join(", "),
       }),
     }),

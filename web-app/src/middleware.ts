@@ -8,8 +8,11 @@ const EXCLUDED_PATHS = [
   "/reset-password",
   "/accept-invitation",
   "/health",
+  "/api/v1",
+  "/api-docs",
   "/robots.txt",
   "/sitemap.xml",
+  "/openapi.json",
 ];
 
 export async function middleware(request: NextRequest) {

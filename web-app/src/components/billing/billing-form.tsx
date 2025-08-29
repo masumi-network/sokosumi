@@ -37,32 +37,32 @@ import { Price } from "@/lib/clients/stripe.client";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { Organization } from "@/prisma/generated/client";
 
-const billingFormSchema = z
-  .object({
-    credits: z.number().optional(),
-    coupon: z.string().optional(),
-  })
-  .refine(
-    (data) => {
+const billingFormSchema = (t: IntlTranslation<"App.Billing">) =>
+  z
+    .object({
+      credits: z.number().optional(),
+      coupon: z.string().optional(),
+    })
+    .superRefine((data, ctx) => {
       const hasValidCredits = data.credits != null && data.credits > 0;
       const hasValidCoupon =
         data.coupon != null && data.coupon.trim().length > 0;
-      return hasValidCredits || hasValidCoupon;
-    },
-    (data) => {
-      // Show error on the field that makes more sense contextually
       const hasCreditsAttempt = data.credits != null;
       const hasCouponAttempt =
         data.coupon != null && data.coupon.trim().length > 0;
+      const path =
+        hasCreditsAttempt && !hasCouponAttempt ? ["credits"] : ["coupon"];
 
-      return {
-        message: "Please enter either a credit amount or a coupon code",
-        path: hasCreditsAttempt && !hasCouponAttempt ? ["credits"] : ["coupon"],
-      };
-    },
-  );
+      if (!hasValidCredits && !hasValidCoupon) {
+        ctx.addIssue({
+          code: "custom",
+          message: t("Errors.invalidInput"),
+          path,
+        });
+      }
+    });
 
-type BillingFormData = z.infer<typeof billingFormSchema>;
+type BillingFormData = z.infer<ReturnType<typeof billingFormSchema>>;
 
 interface BillingFormProps {
   price: Price;
@@ -79,10 +79,10 @@ export default function BillingForm({ price, organization }: BillingFormProps) {
   );
 
   const form = useForm<BillingFormData>({
-    resolver: zodResolver(billingFormSchema),
+    resolver: zodResolver(billingFormSchema(t)),
     defaultValues: {
-      credits: undefined,
-      coupon: undefined,
+      credits: 0,
+      coupon: "",
     },
   });
 

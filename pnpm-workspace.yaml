@@ -4,12 +4,13 @@ packages:
 ignoredBuiltDependencies:
   - "@prisma/client"
   - "@prisma/engines"
+  - "@sentry/cli"
   - "@swc/core"
   - "@tailwindcss/oxide"
   - esbuild
-  - "@sentry/cli"
   - sharp
   - unrs-resolver
+  - vue-demi
 
 onlyBuiltDependencies:
   - prisma

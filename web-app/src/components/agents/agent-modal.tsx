@@ -21,7 +21,7 @@ export function AgentModal({ children, open }: AgentModalProps) {
         <DialogContent className="w-svw max-w-3xl! border-none bg-transparent p-0 focus:ring-0 focus:outline-none md:w-[80vw] [&>button]:hidden">
           <DialogTitle className="hidden" />
           <DialogDescription className="hidden" />
-          <ScrollArea className="max-h-svh pt-12 pr-4 pl-4 md:max-h-[90svh] md:p-0">
+          <ScrollArea className="max-h-svh w-svw p-4 pt-12 md:max-h-[90svh] md:p-0 [&>div>div]:block!">
             {children}
           </ScrollArea>
         </DialogContent>

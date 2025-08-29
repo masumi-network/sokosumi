@@ -20,8 +20,14 @@ interface RouteParams {
 }
 
 /**
- * GET /api/v1/agents/:agentId/jobs
- * Retrieves all jobs for a specific agent that belong to the authenticated user
+ * List jobs for agent
+ * @description Retrieves all jobs for the given agent belonging to the authenticated user
+ * @pathParams AgentParams
+ * @response JobsSuccessResponse
+ * @responseSet public
+ * @tag Agents
+ * @auth apikey
+ * @openapi
  */
 export async function GET(
   request: NextRequest,
@@ -55,8 +61,15 @@ export async function GET(
 }
 
 /**
- * POST /api/v1/agents/:agentId/jobs
- * Creates a new job for a specific agent
+ * Create job for agent
+ * @description Creates a new job for a specific agent with validated input data
+ * @pathParams AgentParams
+ * @body CreateJobBody
+ * @response JobSuccessResponse
+ * @responseSet public
+ * @tag Agents
+ * @auth apikey
+ * @openapi
  */
 export async function POST(
   request: NextRequest,

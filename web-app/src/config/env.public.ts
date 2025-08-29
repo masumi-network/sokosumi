@@ -15,9 +15,9 @@ const envPublicConfigSchema = z.object({
     .max(256)
     .default(256),
 
-  NEXT_PUBLIC_MASUMI_URL: z.string().url().default("https://masumi.network"),
-  NEXT_PUBLIC_KODOSUMI_URL: z.string().url().default("https://kodosumi.com"),
-  NEXT_PUBLIC_SOKOSUMI_URL: z.string().url().default("https://sokosumi.com"),
+  NEXT_PUBLIC_MASUMI_URL: z.url().default("https://masumi.network"),
+  NEXT_PUBLIC_KODOSUMI_URL: z.url().default("https://kodosumi.com"),
+  NEXT_PUBLIC_SOKOSUMI_URL: z.url().default("https://sokosumi.com"),
   NEXT_PUBLIC_NETWORK: z.literal("Preprod").or(z.literal("Mainnet")),
   NEXT_PUBLIC_FEE_PERCENTAGE: z.coerce.number().min(0).default(5),
   NEXT_PUBLIC_CREDITS_BASE: z.coerce.number().default(12),

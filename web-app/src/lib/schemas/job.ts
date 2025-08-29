@@ -30,9 +30,9 @@ export const jobDetailsNameFormSchema = (
 ) =>
   z.object({
     name: z
-      .string({ message: t?.("Name.invalid") })
-      .min(2, { message: t?.("Name.min") })
-      .max(80, { message: t?.("Name.max") })
+      .string({ error: t?.("Name.invalid") })
+      .min(2, { error: t?.("Name.min") })
+      .max(80, { error: t?.("Name.max") })
       .or(z.literal("")),
   });
 
@@ -72,7 +72,7 @@ export const jobStatusResponseSchema = z.object({
     "completed",
     "failed",
   ]),
-  message: z.string().nullish(),
+  error: z.string().nullish(),
   input_data: z.array(jobInputSchema()).nullish(),
   result: z.string().nullish(),
 });

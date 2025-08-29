@@ -4,37 +4,36 @@ import { getEnvPublicConfig } from "@/config/env.public";
 
 export const nameSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z
-    .string({ message: t?.("Name.invalid") })
-    .min(1, { message: t?.("Name.required") })
-    .min(2, { message: t?.("Name.min") })
+    .string({ error: t?.("Name.invalid") })
+    .min(1, { error: t?.("Name.required") })
+    .min(2, { error: t?.("Name.min") })
     .max(128, {
-      message: t?.("Name.max"),
+      error: t?.("Name.max"),
     });
 
 export const emailSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z
-    .string({ message: t?.("Email.invalid") })
-    .min(1, { message: t?.("Email.required") })
-    .email({ message: t?.("Email.invalid") });
+    .email({ error: t?.("Email.invalid") })
+    .min(1, { error: t?.("Email.required") });
 
 export const passwordSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z
-    .string({ message: t?.("Password.invalid") })
-    .min(1, { message: t?.("Password.required") })
+    .string({ error: t?.("Password.invalid") })
+    .min(1, { error: t?.("Password.required") })
     .min(getEnvPublicConfig().NEXT_PUBLIC_PASSWORD_MIN_LENGTH, {
-      message: t?.("Password.min"),
+      error: t?.("Password.min"),
     })
     .max(getEnvPublicConfig().NEXT_PUBLIC_PASSWORD_MAX_LENGTH, {
-      message: t?.("Password.max"),
+      error: t?.("Password.max"),
     })
     .refine((value) => /^(?=.*[a-z])/.test(value), {
-      message: t?.("Password.lowercase"),
+      error: t?.("Password.lowercase"),
     })
     .refine((value) => /^(?=.*[A-Z])/.test(value), {
-      message: t?.("Password.uppercase"),
+      error: t?.("Password.uppercase"),
     })
     .refine((value) => /^(?=.*\d)/.test(value), {
-      message: t?.("Password.number"),
+      error: t?.("Password.number"),
     });
 
 export const createOrganizationSchema = (
@@ -43,27 +42,27 @@ export const createOrganizationSchema = (
   z.object({
     name: z
       .string()
-      .min(2, { message: t?.("Organization.min") })
-      .max(50, { message: t?.("Organization.max") }),
+      .min(2, { error: t?.("Organization.min") })
+      .max(50, { error: t?.("Organization.max") }),
   });
 
 export const confirmPasswordSchema = (
   t?: IntlTranslation<"Library.Auth.Schema">,
 ) =>
   z
-    .string({ message: t?.("ConfirmPassword.invalid") })
-    .min(1, { message: t?.("ConfirmPassword.required") });
+    .string({ error: t?.("ConfirmPassword.invalid") })
+    .min(1, { error: t?.("ConfirmPassword.required") });
 
 export const currentPasswordSchema = (
   t?: IntlTranslation<"Library.Auth.Schema">,
 ) =>
   z
-    .string({ message: t?.("CurrentPassword.invalid") })
-    .min(1, { message: t?.("CurrentPassword.required") });
+    .string({ error: t?.("CurrentPassword.invalid") })
+    .min(1, { error: t?.("CurrentPassword.required") });
 
 export const inputPasswordSchema = (
   t?: IntlTranslation<"Library.Auth.Schema">,
 ) =>
   z
-    .string({ message: t?.("InputPassword.invalid") })
-    .min(1, { message: t?.("InputPassword.required") });
+    .string({ error: t?.("InputPassword.invalid") })
+    .min(1, { error: t?.("InputPassword.required") });
