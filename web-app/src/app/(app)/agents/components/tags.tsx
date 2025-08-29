@@ -2,8 +2,8 @@
 
 import { CirclePlus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import React, { useEffect, useState } from "react";
-import { FixedSizeList, ListChildComponentProps } from "react-window";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { List, RowComponentProps } from "react-window";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -36,28 +36,28 @@ export default function Tags({
     if (open) setTags(appliedTags);
   }, [open, appliedTags, setTags]);
 
-  const handleCheckTag = (tag: string, checked: boolean) => {
-    if (checked) {
-      setTags([...tags, tag]);
-    } else {
-      setTags(tags.filter((t) => t !== tag));
-    }
-  };
+  const handleCheckTag = useCallback(
+    (tag: string, checked: boolean) => {
+      if (checked) {
+        setTags([...tags, tag]);
+      } else {
+        setTags(tags.filter((t) => t !== tag));
+      }
+    },
+    [tags, setTags],
+  );
 
-  const Row = ({ index, style }: ListChildComponentProps) => {
-    const tag = validTags[index];
+  const MemoizedList = useMemo(() => {
     return (
-      <DropdownMenuCheckboxItem
-        key={tag}
-        onSelect={(e) => e.preventDefault()}
-        style={style}
-        checked={tags.includes(tag)}
-        onCheckedChange={(checked) => handleCheckTag(tag, checked)}
-      >
-        {tag}
-      </DropdownMenuCheckboxItem>
+      <List
+        rowComponent={TagRow}
+        rowCount={validTags.length}
+        className="h-80 w-full"
+        rowHeight={36}
+        rowProps={{ tags, validTags, handleCheckTag }}
+      />
     );
-  };
+  }, [tags, validTags, handleCheckTag]);
 
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
@@ -77,14 +77,7 @@ export default function Tags({
       <DropdownMenuContent className="w-56">
         <DropdownMenuLabel>{t("selectTags")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
-        <FixedSizeList
-          height={360}
-          itemCount={validTags.length}
-          width="100%"
-          itemSize={36}
-        >
-          {Row}
-        </FixedSizeList>
+        {MemoizedList}
         <DropdownMenuSeparator />
         <Button
           className="w-full"
@@ -100,3 +93,28 @@ export default function Tags({
     </DropdownMenu>
   );
 }
+
+const TagRow = ({
+  index,
+  validTags,
+  tags,
+  handleCheckTag,
+  style,
+}: RowComponentProps<{
+  validTags: string[];
+  tags: string[];
+  handleCheckTag: (tag: string, checked: boolean) => void;
+}>) => {
+  const tag = validTags[index];
+  return (
+    <DropdownMenuCheckboxItem
+      key={tag}
+      onSelect={(e) => e.preventDefault()}
+      style={style}
+      checked={tags.includes(tag)}
+      onCheckedChange={(checked) => handleCheckTag(tag, checked)}
+    >
+      <span className="truncate">{tag}</span>
+    </DropdownMenuCheckboxItem>
+  );
+};
