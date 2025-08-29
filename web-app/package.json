@@ -98,7 +98,7 @@
     "zod": "4.1.4"
   },
   "devDependencies": {
-    "@hey-api/openapi-ts": "0.81.1",
+    "@hey-api/openapi-ts": "0.82.0",
     "@types/humanize-duration": "3.27.4",
     "@types/node": "22.17.1",
     "@types/react": "19.1.11",
