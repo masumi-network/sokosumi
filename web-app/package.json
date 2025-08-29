@@ -102,7 +102,7 @@
     "@types/humanize-duration": "3.27.4",
     "@types/node": "22.17.1",
     "@types/react": "19.1.11",
-    "@types/react-dom": "19.1.8",
+    "@types/react-dom": "19.1.9",
     "@types/react-window": "1.8.8",
     "next-openapi-gen": "0.7.3",
     "prisma": "6.15.0"
