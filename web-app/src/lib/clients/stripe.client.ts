@@ -272,8 +272,8 @@ export const stripeClient = (() => {
         },
         billing_address_collection: "required",
         tax_id_collection: { enabled: true },
-        success_url: `${origin ?? getEnvSecrets().VERCEL_URL}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${origin ?? getEnvSecrets().VERCEL_URL}/billing/cancel`,
+        success_url: `${origin ?? getEnvSecrets().VERCEL_URL}/billing?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin ?? getEnvSecrets().VERCEL_URL}/billing?cancel=true`,
       });
       return session;
     },

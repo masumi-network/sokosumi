@@ -2,8 +2,9 @@ import { getTranslations } from "next-intl/server";
 
 import BillingForm from "@/components/billing/billing-form";
 import { getEnvSecrets } from "@/config/env.secrets";
-import { stripeClient } from "@/lib/clients/stripe.client";
-import { userService } from "@/lib/services";
+import { stripeClient } from "@/lib/clients";
+import { AgentWithCreditsPrice } from "@/lib/db";
+import { agentService, userService } from "@/lib/services";
 
 export default async function BillingPage() {
   const t = await getTranslations("App.Billing");
@@ -11,6 +12,13 @@ export default async function BillingPage() {
   const productId = getEnvSecrets().STRIPE_PRODUCT_ID;
   const price = await stripeClient.getPriceByProductId(productId);
   const activeOrganization = await userService.getActiveOrganization();
+
+  let _randomAgent: AgentWithCreditsPrice | null = null;
+  try {
+    _randomAgent = await agentService.getRandomAvailableAgentWithCreditsPrice();
+  } catch (error) {
+    console.error("Failed to get random available agent", error);
+  }
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 md:p-6">
