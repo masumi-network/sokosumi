@@ -12,6 +12,8 @@ import {
   FileVideoIcon,
 } from "lucide-react";
 import * as React from "react";
+import { formatBytes } from "@/lib/utils/format-bytes";
+import { getExtensionFromUrl } from "@/lib/utils/file";
 
 const ROOT_NAME = "FileUpload";
 const DROPZONE_NAME = "FileUploadDropzone";
@@ -1005,13 +1007,6 @@ function FileUploadItem(props: FileUploadItemProps) {
   );
 }
 
-function formatBytes(bytes: number) {
-  if (bytes === 0) return "0 B";
-  const sizes = ["B", "KB", "MB", "GB", "TB"];
-  const i = Math.floor(Math.log(bytes) / Math.log(1024));
-  return `${(bytes / 1024 ** i).toFixed(i ? 1 : 0)} ${sizes[i]}`;
-}
-
 function getFileIcon(file: File) {
   const type = file.type;
   const extension = file.name.split(".").pop()?.toLowerCase() ?? "";
@@ -1095,7 +1090,13 @@ function FileUploadItemPreview(props: FileUploadItemPreviewProps) {
         );
       }
 
-      return getFileIcon(file);
+      return (
+        <div className="flex size-full items-center justify-center">
+          <span className="text-muted-foreground text-xs uppercase">
+            {getExtensionFromUrl(file.name) }
+          </span>
+        </div>
+      );
     },
     [render, itemContext.fileState?.file.type, context.urlCache],
   );

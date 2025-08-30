@@ -613,6 +613,8 @@ model Blob {
   userId    String
   jobId     String
   fileUrl   String
+  fileName  String?
+  size      BigInt?
   createdAt DateTime @default(now())
 
   user User @relation("UserBlob", fields: [userId], references: [id], onDelete: Cascade)

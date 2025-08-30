@@ -103,7 +103,7 @@ const makeZodSchemaFromJobInputColorSchema = (
       canBeOptional = value === "true";
   });
 
-  return canBeOptional ? defaultSchema.optional() : defaultSchema;
+  return canBeOptional ? defaultSchema.nullish() : defaultSchema;
 };
 
 const makeZodSchemaFromJobInputTextareaSchema = (
@@ -143,7 +143,7 @@ const makeZodSchemaFromJobInputTextareaSchema = (
     }
   }, defaultSchema);
 
-  return canBeOptional ? schema.optional() : schema;
+  return canBeOptional ? schema.nullish() : schema;
 };
 
 const makeZodSchemaFromJobInputStringSchema = (
@@ -196,7 +196,7 @@ const makeZodSchemaFromJobInputStringSchema = (
     }
   }, defaultSchema);
 
-  return canBeOptional ? schema.optional() : schema;
+  return canBeOptional ? schema.nullish() : schema;
 };
 
 const makeZodSchemaFromJobInputTelSchema = (
@@ -243,7 +243,7 @@ const makeZodSchemaFromJobInputTelSchema = (
       error: t?.("String.max", { name, value: String(max) }),
     });
 
-  return canBeOptional ? withLength.optional() : withLength;
+  return canBeOptional ? withLength.nullish() : withLength;
 };
 
 const makeZodSchemaFromJobInputNumberSchema = (
@@ -283,7 +283,7 @@ const makeZodSchemaFromJobInputNumberSchema = (
     }
   }, defaultSchema);
 
-  return canBeOptional ? schema.optional() : schema;
+  return canBeOptional ? schema.nullish() : schema;
 };
 
 // For Boolean Schema we can ignore validations
@@ -356,7 +356,7 @@ const makeZodSchemaFromJobInputOptionSchema = (
     }
   }, defaultSchema);
 
-  return canBeOptional ? schema.optional() : schema;
+  return canBeOptional ? schema.nullish() : schema;
 };
 
 const makeZodSchemaFromJobInputFileSchema = (
@@ -428,7 +428,7 @@ const makeZodSchemaFromJobInputDateSchema = (
     schema = schema.max(maxDate, {
       error: t?.("Date.max", { name, value: maxDate.toLocaleDateString() }),
     });
-  return canBeOptional ? schema.optional() : schema;
+  return canBeOptional ? schema.nullish() : schema;
 };
 
 const makeZodSchemaFromJobInputDatetimeSchema = (
@@ -460,7 +460,7 @@ const makeZodSchemaFromJobInputDatetimeSchema = (
     schema = schema.max(maxDate, {
       error: t?.("Date.max", { name, value: maxDate.toLocaleString() }),
     });
-  return canBeOptional ? schema.optional() : schema;
+  return canBeOptional ? schema.nullish() : schema;
 };
 
 const makeZodSchemaFromJobInputMonthSchema = (
@@ -507,7 +507,7 @@ const makeZodSchemaFromJobInputMonthSchema = (
       { error: t?.("Date.max", { name, value: max }) },
     );
 
-  return canBeOptional ? schema.optional() : schema;
+  return canBeOptional ? schema.nullish() : schema;
 };
 
 const makeZodSchemaFromJobInputWeekSchema = (
@@ -555,7 +555,7 @@ const makeZodSchemaFromJobInputWeekSchema = (
       { error: t?.("Date.max", { name, value: max }) },
     );
 
-  return canBeOptional ? schema.optional() : schema;
+  return canBeOptional ? schema.nullish() : schema;
 };
 
 const makeZodSchemaFromJobInputTimeSchema = (
@@ -618,7 +618,7 @@ const makeZodSchemaFromJobInputTimeSchema = (
       error: t?.("Number.max", { name, value: maxHours ?? "" }),
     });
 
-  return canBeOptional ? schema.optional() : schema;
+  return canBeOptional ? schema.nullish() : schema;
 };
 
 const makeZodSchemaFromJobInputRangeSchema = (
@@ -674,5 +674,5 @@ const makeZodSchemaFromJobInputRangeSchema = (
         )
       : schema;
 
-  return canBeOptional ? withStep.optional() : withStep;
+  return canBeOptional ? withStep.nullish() : withStep;
 };

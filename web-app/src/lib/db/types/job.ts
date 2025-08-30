@@ -9,6 +9,7 @@ export const jobInclude = {
   user: true,
   creditTransaction: true,
   refundedCreditTransaction: true,
+  blobs: true,
 } as const;
 
 export const jobOrderBy = {
