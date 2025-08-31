@@ -33,7 +33,7 @@ function BillingCancelModalInner() {
   };
 
   return (
-    <Dialog defaultOpen={!!cancel} onOpenChange={handleOpenChange}>
+    <Dialog open={!!cancel} onOpenChange={handleOpenChange}>
       <DialogPortal>
         <DialogOverlay className="bg-background/50 backdrop-blur-lg md:bg-auto" />
         <DialogContent className="w-[96vw] max-w-3xl! border-none bg-transparent p-4 focus:ring-0 focus:outline-none [&>button]:hidden">
