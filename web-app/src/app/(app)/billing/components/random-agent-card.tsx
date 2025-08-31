@@ -19,13 +19,11 @@ interface RandomAgentCardProps {
 
 export default function RandomAgentCard(props: RandomAgentCardProps) {
   return (
-    <div className="mx-auto max-w-md p-2">
-      <Suspense fallback={<RandomAgentCardContentLoading />}>
-        <DefaultErrorBoundary fallback={null}>
-          <RandomAgentCardInner {...props} />
-        </DefaultErrorBoundary>
-      </Suspense>
-    </div>
+    <Suspense fallback={<RandomAgentCardContentLoading />}>
+      <DefaultErrorBoundary fallback={null}>
+        <RandomAgentCardInner {...props} />
+      </DefaultErrorBoundary>
+    </Suspense>
   );
 }
 

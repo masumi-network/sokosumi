@@ -1,10 +1,8 @@
 "use client";
 
 import { AlertCircle, CheckCircle } from "lucide-react";
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -19,30 +17,27 @@ import PurchaseTracker from "./purchase-tracker";
 
 interface SuccessCardProps {
   checkoutSession: CheckoutSessionData;
+  children: React.ReactNode;
 }
 
-export default function SuccessCard({ checkoutSession }: SuccessCardProps) {
+export default function SuccessCard({
+  checkoutSession,
+  children,
+}: SuccessCardProps) {
   const t = useTranslations("App.Billing.Success");
 
   return (
     <div className="mx-auto max-w-xl p-2">
       <PurchaseTracker checkoutSession={checkoutSession} />
-      <Card className="text-center">
-        <CardHeader>
+      <Card>
+        <CardHeader className="text-center">
           <div className="mx-auto mb-4 flex size-12 items-center justify-center rounded-full bg-green-100 dark:bg-green-900">
             <CheckCircle className="size-6 text-green-600 dark:text-green-400" />
           </div>
           <CardTitle>{t("title")}</CardTitle>
           <CardDescription>{t("description")}</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-muted-foreground text-sm">
-            {t("fulfillmentNote")}
-          </p>
-          <Button asChild>
-            <Link href="/">{t("backToDashboard")}</Link>
-          </Button>
-        </CardContent>
+        <CardContent className="flex flex-col gap-6">{children}</CardContent>
       </Card>
     </div>
   );
