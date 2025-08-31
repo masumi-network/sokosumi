@@ -40,8 +40,8 @@ import { Organization } from "@/prisma/generated/client";
 const billingFormSchema = (t: IntlTranslation<"App.Billing">) =>
   z
     .object({
-      credits: z.number().optional(),
-      coupon: z.string().optional(),
+      credits: z.number().nullish(),
+      coupon: z.string().nullish(),
     })
     .superRefine((data, ctx) => {
       const hasValidCredits = data.credits != null && data.credits > 0;
@@ -81,8 +81,8 @@ export default function BillingForm({ price, organization }: BillingFormProps) {
   const form = useForm<BillingFormData>({
     resolver: zodResolver(billingFormSchema(t)),
     defaultValues: {
-      credits: 0,
-      coupon: "",
+      credits: null,
+      coupon: null,
     },
   });
 
@@ -295,6 +295,7 @@ export default function BillingForm({ price, organization }: BillingFormProps) {
                       disabled={form.formState.isSubmitting}
                       autoComplete="off"
                       {...field}
+                      value={field.value ?? ""}
                       onChange={(e) => {
                         const value = e.target.value;
                         handleFieldChange("coupon", value);
