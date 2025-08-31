@@ -40,7 +40,7 @@ export default async function RootLayout({
   const gtmId = getEnvPublicConfig().NEXT_PUBLIC_GOOGLE_TAG_MANAGER_ID;
   const gaId = getEnvPublicConfig().NEXT_PUBLIC_GOOGLE_ANALYTICS_ID;
   const isProduction = getEnvSecrets().NODE_ENV === "production";
-  const isOnMainBranch = getEnvPublicConfig().NEXT_PUBLIC_IS_ON_MAIN_BRANCH;
+  const isOnMainBranch = getEnvSecrets().IS_ON_MAIN_BRANCH;
   const isMainnet = getEnvPublicConfig().NEXT_PUBLIC_NETWORK === "Mainnet";
 
   return (
