@@ -86,12 +86,12 @@ export const fireGTMEvent = {
   },
 
   purchase(checkoutSession: CheckoutSessionData) {
-    const { session, items, value } = checkoutSession;
+    const { session_id, currency, items, value } = checkoutSession;
     fireEvent({
       event: "purchase",
-      transaction_id: session.id,
+      transaction_id: session_id,
       value,
-      currency: session.currency,
+      currency,
       items,
     });
   },

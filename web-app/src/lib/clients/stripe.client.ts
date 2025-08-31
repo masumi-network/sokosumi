@@ -12,7 +12,8 @@ export interface Price {
 }
 
 export interface CheckoutSessionData {
-  session: Stripe.Checkout.Session;
+  session_id: string;
+  currency: string | null;
   items: {
     item_id: string;
     item_name: string;
@@ -231,7 +232,8 @@ export const stripeClient = (() => {
         ) ?? false;
 
       return {
-        session,
+        session_id: session.id,
+        currency: session.currency,
         items,
         value,
         isWelcomePromotion,
@@ -272,8 +274,8 @@ export const stripeClient = (() => {
         },
         billing_address_collection: "required",
         tax_id_collection: { enabled: true },
-        success_url: `${origin ?? getEnvSecrets().VERCEL_URL}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${origin ?? getEnvSecrets().VERCEL_URL}/billing/cancel`,
+        success_url: `${origin ?? getEnvSecrets().VERCEL_URL}/billing?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${origin ?? getEnvSecrets().VERCEL_URL}/billing?cancel=true`,
       });
       return session;
     },
