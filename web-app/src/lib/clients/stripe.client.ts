@@ -12,7 +12,8 @@ export interface Price {
 }
 
 export interface CheckoutSessionData {
-  session: Stripe.Checkout.Session;
+  session_id: string;
+  currency: string | null;
   items: {
     item_id: string;
     item_name: string;
@@ -231,7 +232,8 @@ export const stripeClient = (() => {
         ) ?? false;
 
       return {
-        session,
+        session_id: session.id,
+        currency: session.currency,
         items,
         value,
         isWelcomePromotion,

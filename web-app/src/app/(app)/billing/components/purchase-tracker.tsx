@@ -13,11 +13,11 @@ export default function PurchaseTracker({
   checkoutSession,
 }: PurchaseTrackerProps) {
   useEffect(() => {
-    const { session, isWelcomePromotion } = checkoutSession;
+    const { session_id, isWelcomePromotion } = checkoutSession;
 
     if (isWelcomePromotion) {
       console.log("Welcome promotion");
-      fireGTMEvent.freeCreditPurchase(session.id);
+      fireGTMEvent.freeCreditPurchase(session_id);
     } else {
       console.log("Paid purchase");
       fireGTMEvent.purchase(checkoutSession);

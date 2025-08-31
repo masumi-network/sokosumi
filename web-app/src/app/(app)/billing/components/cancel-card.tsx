@@ -1,6 +1,8 @@
+"use client";
+
 import { XCircle } from "lucide-react";
 import Link from "next/link";
-import { getTranslations } from "next-intl/server";
+import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -11,8 +13,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export default async function CancelCard() {
-  const t = await getTranslations("App.Billing.Cancel");
+export default function CancelCard() {
+  const t = useTranslations("App.Billing.Cancel");
 
   return (
     <Card className="text-center">

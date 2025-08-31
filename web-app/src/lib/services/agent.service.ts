@@ -15,6 +15,7 @@ import {
   agentListRepository,
   agentRepository,
   creditCostRepository,
+  jobRepository,
   mapAgentWithIsNew,
   memberRepository,
   prisma,
@@ -233,18 +234,28 @@ export const agentService = (() => {
         .map((result) => result.value);
     },
 
-    getRandomAvailableAgentWithCreditsPrice:
-      async (): Promise<AgentWithCreditsPrice | null> => {
-        const agents = await agentService.getAvailableAgents();
-        if (agents.length === 0) {
-          return null;
-        }
-        const randomIndex = Math.floor(Math.random() * agents.length);
-        const agent = agents[randomIndex];
-        const agentWithCreditsPrice =
-          await agentService.getAgentCreditsPrice(agent);
-        return agentWithCreditsPrice;
-      },
+    /**
+     * Retrieves a random available agent with its calculated credit price.
+     * And the average execution duration of the agent.
+     *
+     * @returns Promise resolving to an agent with its calculated credit price, or null if no agents are available.
+     */
+    getRandomAvailableAgentData: async (): Promise<{
+      agent: AgentWithCreditsPrice;
+      averageExecutionDuration: number;
+    } | null> => {
+      const agents = await agentService.getAvailableAgents();
+      if (agents.length === 0) {
+        return null;
+      }
+      const randomIndex = Math.floor(Math.random() * agents.length);
+      const agent = agents[randomIndex];
+      const agentWithCreditsPrice =
+        await agentService.getAgentCreditsPrice(agent);
+      const averageExecutionDuration =
+        await jobRepository.getAverageExecutionDurationByAgentId(agent.id);
+      return { agent: agentWithCreditsPrice, averageExecutionDuration };
+    },
 
     /**
      * Retrieves all agents hired by the current user, ordered by the most recent job activity (newest first).

@@ -796,7 +796,12 @@
         "title": "Payment Successful!",
         "description": "Your credit purchase was successful. Thank you!",
         "fulfillmentNote": "Your credits will be added to your account shortly. You can check your balance on the billing page.",
-        "backToDashboard": "Browse Agents"
+        "backToDashboard": "Browse Agents",
+        "Error": {
+          "title": "Something Went Wrong",
+          "description": "Your checkout session not found",
+          "failedNote": "Contact our support"
+        }
       },
       "Cancel": {
         "title": "Payment Cancelled",
