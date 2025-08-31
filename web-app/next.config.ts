@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-properties */
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
@@ -31,23 +32,19 @@ const withNextIntl = createNextIntlPlugin();
 
 export default withSentryConfig(withNextIntl(nextConfig), {
   // Disable telemetry to avoid sending data to Sentry
-  // eslint-disable-next-line no-restricted-properties
   telemetry: process.env.NODE_ENV === "production",
 
   // For all available options, see:
   // https://www.npmjs.com/package/@sentry/webpack-plugin#options
   org: "masumi",
-  // eslint-disable-next-line no-restricted-properties
   project: process.env.SENTRY_PROJECT ?? "sokosumi",
 
   // Pass the auth token
-  // eslint-disable-next-line no-restricted-properties
   authToken: process.env.SENTRY_AUTH_TOKEN,
   // Upload a larger set of source maps for prettier stack traces (increases build time)
   widenClientFileUpload: true,
 
   // Only print logs for uploading source maps in CI
-  // eslint-disable-next-line no-restricted-properties
   silent: !process.env.CI,
 
   // Route browser requests to Sentry through a Next.js rewrite to circumvent ad-blockers.
@@ -60,7 +57,6 @@ export default withSentryConfig(withNextIntl(nextConfig), {
 
   // Automatically instrument Next.js middleware with error and performance monitoring.
   // disable it on `dev mode` to reduce large middleware bundle size
-  // eslint-disable-next-line no-restricted-properties
   autoInstrumentMiddleware: process.env.NODE_ENV === "production",
 
   // Enable React component annotation for better error messages
