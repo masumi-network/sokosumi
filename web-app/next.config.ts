@@ -32,9 +32,7 @@ const withNextIntl = createNextIntlPlugin();
 
 export default withSentryConfig(withNextIntl(nextConfig), {
   // Disable telemetry to avoid sending data to Sentry
-  telemetry:
-    process.env.NODE_ENV === "production" &&
-    process.env.IS_ON_MAIN_BRANCH === "true",
+  telemetry: process.env.NODE_ENV === "production",
 
   // For all available options, see:
   // https://www.npmjs.com/package/@sentry/webpack-plugin#options
@@ -59,9 +57,7 @@ export default withSentryConfig(withNextIntl(nextConfig), {
 
   // Automatically instrument Next.js middleware with error and performance monitoring.
   // disable it on `dev mode` to reduce large middleware bundle size
-  autoInstrumentMiddleware:
-    process.env.NODE_ENV === "production" &&
-    process.env.IS_ON_MAIN_BRANCH === "true",
+  autoInstrumentMiddleware: process.env.NODE_ENV === "production",
 
   // Enable React component annotation for better error messages
   reactComponentAnnotation: {
