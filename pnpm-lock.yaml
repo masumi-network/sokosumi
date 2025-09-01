@@ -61,10 +61,10 @@ importers:
         version: 9.1.7
       jest:
         specifier: 30.1.1
-        version: 30.1.1(@types/node@22.17.1)
+        version: 30.1.1(@types/node@24.3.0)
       jest-environment-jsdom:
-        specifier: 30.1.1
-        version: 30.1.1
+        specifier: 30.1.2
+        version: 30.1.2
       postcss:
         specifier: 8.5.6
         version: 8.5.6
@@ -1062,8 +1062,8 @@ packages:
     resolution: {integrity: sha512-n5H8QLDJ47QqbCNn5SuFjCRDrOLEZ0h8vAHCK5RL9Ls7Xa8AQLa/YxAc9UjFqoEDM48muwtBGjtMY5cr0PLDCw==}
     engines: {node: ^18.14.0 || ^20.0.0 || ^22.0.0 || >=24.0.0}
 
-  '@jest/environment-jsdom-abstract@30.1.1':
-    resolution: {integrity: sha512-d7pP9SeIOI6qnrNIS/ds1hlS9jpqh8EywHK0dALSLODZKo2QEGnDNvnPvhRKI0FHWDnE2EMl8CDTP0jM9lhlOA==}
+  '@jest/environment-jsdom-abstract@30.1.2':
+    resolution: {integrity: sha512-u8kTh/ZBl97GOmnGJLYK/1GuwAruMC4hoP6xuk/kwltmVWsA9u/6fH1/CsPVGt2O+Wn2yEjs8n1B1zZJ62Cx0w==}
     engines: {node: ^18.14.0 || ^20.0.0 || ^22.0.0 || >=24.0.0}
     peerDependencies:
       canvas: ^3.0.0
@@ -1076,6 +1076,10 @@ packages:
     resolution: {integrity: sha512-yWHbU+3j7ehQE+NRpnxRvHvpUhoohIjMePBbIr8lfe0cWVb0WeTf80DNux1GPJa18CDHiIU5DtksGUfxcDE+Rw==}
     engines: {node: ^18.14.0 || ^20.0.0 || ^22.0.0 || >=24.0.0}
 
+  '@jest/environment@30.1.2':
+    resolution: {integrity: sha512-N8t1Ytw4/mr9uN28OnVf0SYE2dGhaIxOVYcwsf9IInBKjvofAjbFRvedvBBlyTYk2knbJTiEjEJ2PyyDIBnd9w==}
+    engines: {node: ^18.14.0 || ^20.0.0 || ^22.0.0 || >=24.0.0}
+
   '@jest/expect-utils@30.1.1':
     resolution: {integrity: sha512-5YUHr27fpJ64dnvtu+tt11ewATynrHkGYD+uSFgRr8V2eFJis/vEXgToyLwccIwqBihVfz9jwio+Zr1ab1Zihw==}
     engines: {node: ^18.14.0 || ^20.0.0 || ^22.0.0 || >=24.0.0}
@@ -1086,6 +1090,10 @@ packages:
 
   '@jest/fake-timers@30.1.1':
     resolution: {integrity: sha512-fK/25dNgBNYPw3eLi2CRs57g1H04qBAFNMsUY3IRzkfx/m4THe0E1zF+yGQBOMKKc2XQVdc9EYbJ4hEm7/2UtA==}
+    engines: {node: ^18.14.0 || ^20.0.0 || ^22.0.0 || >=24.0.0}
+
+  '@jest/fake-timers@30.1.2':
+    resolution: {integrity: sha512-Beljfv9AYkr9K+ETX9tvV61rJTY706BhBUtiaepQHeEGfe0DbpvUA5Z3fomwc5Xkhns6NWrcFDZn+72fLieUnA==}
     engines: {node: ^18.14.0 || ^20.0.0 || ^22.0.0 || >=24.0.0}
 
   '@jest/get-type@30.1.0':
@@ -3071,6 +3079,9 @@ packages:
 
   '@types/node@22.17.1':
     resolution: {integrity: sha512-y3tBaz+rjspDTylNjAX37jEC3TETEFGNJL6uQDxwF9/8GLLIjW1rvVHlynyuUKMnMr1Roq8jOv3vkopBjC4/VA==}
+
+  '@types/node@24.3.0':
+    resolution: {integrity: sha512-aPTXCrfwnDLj4VvXrm+UUCQjNEvJgNA8s5F1cvwQU+3KNltTOkBm1j30uNLyqqPNe7gE3KFzImYoZEfLhp4Yow==}
 
   '@types/pg-pool@2.0.6':
     resolution: {integrity: sha512-TaAUE5rq2VQYxab5Ts7WZhKNmuN78Q6PiFonTDdpbx8a1H0M1vhy3rhiMjl+e2iHmogyMw7jZF4FrE6eJUy5HQ==}
@@ -5164,8 +5175,8 @@ packages:
     resolution: {integrity: sha512-A+9FKzxPluqogNahpCv04UJvcZ9B3HamqpDNWNKDjtxVRYB8xbZLFuCr8JAJFpNp83CA0anGQFlpQna9Me+/tQ==}
     engines: {node: ^18.14.0 || ^20.0.0 || ^22.0.0 || >=24.0.0}
 
-  jest-environment-jsdom@30.1.1:
-    resolution: {integrity: sha512-fInyXsHSuPaERmRiub4V6jl6KERXowGqY8AISJrXZjOq7vdP46qecm+GnTngjcUPeHFqrxp1PfP0XuFfKTzA2A==}
+  jest-environment-jsdom@30.1.2:
+    resolution: {integrity: sha512-LXsfAh5+mDTuXDONGl1ZLYxtJEaS06GOoxJb2arcJTjIfh1adYg8zLD8f6P0df8VmjvCaMrLmc1PgHUI/YUTbg==}
     engines: {node: ^18.14.0 || ^20.0.0 || ^22.0.0 || >=24.0.0}
     peerDependencies:
       canvas: ^3.0.0
@@ -7027,6 +7038,9 @@ packages:
   undici-types@6.21.0:
     resolution: {integrity: sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ==}
 
+  undici-types@7.10.0:
+    resolution: {integrity: sha512-t5Fy/nfn+14LuOc2KNYg75vZqClpAiqscVvMygNnlsHBFpSXdJaYtXMcdNLpl/Qvc3P2cB3s6lOV51nqsFq4ag==}
+
   undici@5.29.0:
     resolution: {integrity: sha512-raqeBD6NQK4SkWhQzeYKd1KmIG6dllBOTt55Rmkt4HtI9mwdWtJljnrXjAFUBLTSN67HWrOIZ3EPF4kjUw80Bg==}
     engines: {node: '>=14.0'}
@@ -8107,14 +8121,14 @@ snapshots:
       '@jest/test-result': 30.1.1
       '@jest/transform': 30.1.1
       '@jest/types': 30.0.5
-      '@types/node': 22.17.1
+      '@types/node': 24.3.0
       ansi-escapes: 4.3.2
       chalk: 4.1.2
       ci-info: 4.3.0
       exit-x: 0.2.2
       graceful-fs: 4.2.11
       jest-changed-files: 30.0.5
-      jest-config: 30.1.1(@types/node@22.17.1)
+      jest-config: 30.1.1(@types/node@24.3.0)
       jest-haste-map: 30.1.0
       jest-message-util: 30.1.0
       jest-regex-util: 30.0.1
@@ -8137,10 +8151,10 @@ snapshots:
 
   '@jest/diff-sequences@30.0.1': {}
 
-  '@jest/environment-jsdom-abstract@30.1.1(jsdom@26.1.0)':
+  '@jest/environment-jsdom-abstract@30.1.2(jsdom@26.1.0)':
     dependencies:
-      '@jest/environment': 30.1.1
-      '@jest/fake-timers': 30.1.1
+      '@jest/environment': 30.1.2
+      '@jest/fake-timers': 30.1.2
       '@jest/types': 30.0.5
       '@types/jsdom': 21.1.7
       '@types/node': 22.17.1
@@ -8151,6 +8165,13 @@ snapshots:
   '@jest/environment@30.1.1':
     dependencies:
       '@jest/fake-timers': 30.1.1
+      '@jest/types': 30.0.5
+      '@types/node': 22.17.1
+      jest-mock: 30.0.5
+
+  '@jest/environment@30.1.2':
+    dependencies:
+      '@jest/fake-timers': 30.1.2
       '@jest/types': 30.0.5
       '@types/node': 22.17.1
       jest-mock: 30.0.5
@@ -8167,6 +8188,15 @@ snapshots:
       - supports-color
 
   '@jest/fake-timers@30.1.1':
+    dependencies:
+      '@jest/types': 30.0.5
+      '@sinonjs/fake-timers': 13.0.5
+      '@types/node': 22.17.1
+      jest-message-util: 30.1.0
+      jest-mock: 30.0.5
+      jest-util: 30.0.5
+
+  '@jest/fake-timers@30.1.2':
     dependencies:
       '@jest/types': 30.0.5
       '@sinonjs/fake-timers': 13.0.5
@@ -8276,7 +8306,7 @@ snapshots:
       '@jest/schemas': 30.0.5
       '@types/istanbul-lib-coverage': 2.0.6
       '@types/istanbul-reports': 3.0.4
-      '@types/node': 22.17.1
+      '@types/node': 24.3.0
       '@types/yargs': 17.0.33
       chalk: 4.1.2
 
@@ -10588,6 +10618,10 @@ snapshots:
   '@types/node@22.17.1':
     dependencies:
       undici-types: 6.21.0
+
+  '@types/node@24.3.0':
+    dependencies:
+      undici-types: 7.10.0
 
   '@types/pg-pool@2.0.6':
     dependencies:
@@ -13006,7 +13040,7 @@ snapshots:
       - babel-plugin-macros
       - supports-color
 
-  jest-cli@30.1.1(@types/node@22.17.1):
+  jest-cli@30.1.1(@types/node@24.3.0):
     dependencies:
       '@jest/core': 30.1.1
       '@jest/test-result': 30.1.1
@@ -13014,7 +13048,7 @@ snapshots:
       chalk: 4.1.2
       exit-x: 0.2.2
       import-local: 3.2.0
-      jest-config: 30.1.1(@types/node@22.17.1)
+      jest-config: 30.1.1(@types/node@24.3.0)
       jest-util: 30.0.5
       jest-validate: 30.1.0
       yargs: 17.7.2
@@ -13025,7 +13059,7 @@ snapshots:
       - supports-color
       - ts-node
 
-  jest-config@30.1.1(@types/node@22.17.1):
+  jest-config@30.1.1(@types/node@24.3.0):
     dependencies:
       '@babel/core': 7.28.3
       '@jest/get-type': 30.1.0
@@ -13052,7 +13086,7 @@ snapshots:
       slash: 3.0.0
       strip-json-comments: 3.1.1
     optionalDependencies:
-      '@types/node': 22.17.1
+      '@types/node': 24.3.0
     transitivePeerDependencies:
       - babel-plugin-macros
       - supports-color
@@ -13076,10 +13110,10 @@ snapshots:
       jest-util: 30.0.5
       pretty-format: 30.0.5
 
-  jest-environment-jsdom@30.1.1:
+  jest-environment-jsdom@30.1.2:
     dependencies:
-      '@jest/environment': 30.1.1
-      '@jest/environment-jsdom-abstract': 30.1.1(jsdom@26.1.0)
+      '@jest/environment': 30.1.2
+      '@jest/environment-jsdom-abstract': 30.1.2(jsdom@26.1.0)
       '@types/jsdom': 21.1.7
       '@types/node': 22.17.1
       jsdom: 26.1.0
@@ -13290,12 +13324,12 @@ snapshots:
       merge-stream: 2.0.0
       supports-color: 8.1.1
 
-  jest@30.1.1(@types/node@22.17.1):
+  jest@30.1.1(@types/node@24.3.0):
     dependencies:
       '@jest/core': 30.1.1
       '@jest/types': 30.0.5
       import-local: 3.2.0
-      jest-cli: 30.1.1(@types/node@22.17.1)
+      jest-cli: 30.1.1(@types/node@24.3.0)
     transitivePeerDependencies:
       - '@types/node'
       - babel-plugin-macros
@@ -15270,6 +15304,8 @@ snapshots:
   uncrypto@0.1.3: {}
 
   undici-types@6.21.0: {}
+
+  undici-types@7.10.0: {}
 
   undici@5.29.0:
     dependencies:
