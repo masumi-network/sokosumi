@@ -1,12 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
 import { Suspense, use } from "react";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
-import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
@@ -82,12 +80,6 @@ function SuccessCardContentInner({
       checkoutSession={checkoutSession}
       className="bg-background flex min-h-svh w-svw flex-col rounded-none p-2 md:min-h-auto md:w-auto md:rounded-xl md:p-4"
     >
-      <div className="space-y-2 text-center">
-        <p className="text-muted-foreground text-sm">{t("fulfillmentNote")}</p>
-        <Button asChild>
-          <Link href="/">{t("backToDashboard")}</Link>
-        </Button>
-      </div>
       <h1 className="text-foreground text-center text-lg font-light md:text-2xl">
         {t("getStarted")}
       </h1>
