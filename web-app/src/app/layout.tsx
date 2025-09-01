@@ -62,6 +62,7 @@ export default async function RootLayout({
               async
               strategy="beforeInteractive"
             />
+            <Script src="/js/before-gtm.js" strategy="beforeInteractive" />
           </>
         )}
         <UsersnapProvider>
