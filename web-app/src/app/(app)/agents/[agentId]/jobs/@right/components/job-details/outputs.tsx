@@ -11,6 +11,7 @@ import {
 
 import CopyMarkdown from "./copy-markdown";
 import DownloadMarkdown from "./download-markdown";
+import JobShareButton from "./job-share-button";
 import MaximizeMarkdown from "./maximize-markdown";
 import RequestRefundButton from "./refund-request";
 
@@ -58,6 +59,7 @@ function JobDetailsOutputsInner({ job }: JobDetailsOutputsProps) {
               <div className="flex gap-1">
                 <DownloadMarkdown markdown={output.result} />
                 <CopyMarkdown markdown={output.result} />
+                <JobShareButton job={job} />
               </div>
             </div>
             {!job.isDemo && <RequestRefundButton initialJob={job} />}
