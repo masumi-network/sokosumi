@@ -176,7 +176,10 @@ export const jobRepository = {
     return jobs.map(mapJobWithStatus);
   },
 
-  async getJobById(jobId: string, tx: Prisma.TransactionClient = prisma) {
+  async getJobById(
+    jobId: string,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<JobWithStatus | null> {
     const job = await tx.job.findUnique({
       where: { id: jobId },
       include: jobInclude,

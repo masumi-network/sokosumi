@@ -26,7 +26,7 @@ export const startJobInputSchema = z.object({
 export type StartJobInputSchemaType = z.infer<typeof startJobInputSchema>;
 
 export const jobDetailsNameFormSchema = (
-  t?: IntlTranslation<"App.Agents.Jobs.JobDetails.Header.JobName.Schema">,
+  t?: IntlTranslation<"Components.Jobs.JobDetails.Header.JobName.Schema">,
 ) =>
   z.object({
     name: z

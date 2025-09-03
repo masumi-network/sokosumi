@@ -24,8 +24,14 @@ import {
   JobDetailsNameFormSchemaType,
 } from "@/lib/schemas";
 
-export default function JobDetailsName({ job }: { job: JobWithStatus }) {
-  const t = useTranslations("App.Agents.Jobs.JobDetails.Header.JobName");
+export default function JobDetailsName({
+  job,
+  readOnly,
+}: {
+  job: JobWithStatus;
+  readOnly: boolean;
+}) {
+  const t = useTranslations("Components.Jobs.JobDetails.Header.JobName");
   const { name } = job;
 
   const router = useAsyncRouter();
@@ -34,7 +40,7 @@ export default function JobDetailsName({ job }: { job: JobWithStatus }) {
   const form = useForm<JobDetailsNameFormSchemaType>({
     resolver: zodResolver(
       jobDetailsNameFormSchema(
-        useTranslations("App.Agents.Jobs.JobDetails.Header.JobName.Schema"),
+        useTranslations("Components.Jobs.JobDetails.Header.JobName.Schema"),
       ),
     ),
     defaultValues: {
@@ -134,9 +140,11 @@ export default function JobDetailsName({ job }: { job: JobWithStatus }) {
       ) : (
         <>
           <p className="flex-1 truncate">{name ?? t("noName")}</p>
-          <Button variant="outline" size="sm" onClick={handleEdit}>
-            {t("edit")}
-          </Button>
+          {!readOnly && (
+            <Button variant="outline" size="sm" onClick={handleEdit}>
+              {t("edit")}
+            </Button>
+          )}
         </>
       )}
     </div>

@@ -19,7 +19,7 @@ export default function JobShareButton({
   job,
   className,
 }: JobShareButtonProps) {
-  const t = useTranslations("App.Agents.Jobs.JobDetails.JobShare");
+  const t = useTranslations("Components.Jobs.JobDetails.JobShare");
   const { showModal, Component } = useModal(({ open, onOpenChange }) => (
     <JobShareModal open={open} onOpenChange={onOpenChange} job={job} />
   ));

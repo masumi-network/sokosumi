@@ -68,7 +68,7 @@ function JobDetailsInputsInner({
   inputSchema,
   blobs,
 }: JobDetailsInputsProps) {
-  const t = useTranslations("App.Agents.Jobs.JobDetails.Input");
+  const t = useTranslations("Components.Jobs.JobDetails.Input");
   const input = rawInput ? JSON.parse(rawInput) : {};
 
   let idNameMap: Record<string, string> = {};
@@ -114,7 +114,7 @@ function JobDetailsInputsInner({
 }
 
 function JobDetailsInputsError() {
-  const t = useTranslations("App.Agents.Jobs.JobDetails.Input");
+  const t = useTranslations("Components.Jobs.JobDetails.Input");
 
   return (
     <div className="flex min-h-[120px] w-full items-center justify-center rounded-md border border-red-300 bg-red-50 p-4">

@@ -18,6 +18,7 @@ import {
 import {
   creditTransactionRepository,
   jobRepository,
+  jobShareRepository,
   prisma,
 } from "@/lib/db/repositories";
 import { JobInputData } from "@/lib/job-input";
@@ -873,11 +874,22 @@ export const jobService = (() => {
     );
   };
 
+  const getSharedJob = async (jobId: string): Promise<JobWithStatus | null> => {
+    const share = await jobShareRepository.getPublicJobShareByJobId(jobId);
+    if (!share) {
+      return null;
+    }
+
+    const job = await jobRepository.getJobById(jobId);
+    return job;
+  };
+
   return {
     startJob,
     startDemoJob,
     requestRefund,
     syncJob,
     getJobIndicatorStatuses,
+    getSharedJob,
   };
 })();

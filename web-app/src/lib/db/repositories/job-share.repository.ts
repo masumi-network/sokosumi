@@ -12,6 +12,19 @@ import {
 import prisma from "./prisma";
 
 export const jobShareRepository = {
+  async getPublicJobShareByJobId(
+    jobId: string,
+    tx: Prisma.TransactionClient = prisma,
+  ) {
+    return await tx.jobShare.findFirst({
+      where: {
+        jobId,
+        accessType: ShareAccessType.PUBLIC,
+        permission: SharePermission.READ,
+      },
+    });
+  },
+
   async createJobShare(
     jobId: string,
     creatorId: string,

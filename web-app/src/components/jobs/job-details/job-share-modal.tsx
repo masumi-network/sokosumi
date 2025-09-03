@@ -35,7 +35,7 @@ export default function JobShareModal({
   onOpenChange,
   job,
 }: JobShareModalProps) {
-  const t = useTranslations("App.Agents.Jobs.JobDetails.JobShare.Modal");
+  const t = useTranslations("Components.Jobs.JobDetails.JobShare.Modal");
   const { id: jobId, shares } = job;
 
   const router = useRouter();

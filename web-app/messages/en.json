@@ -202,6 +202,132 @@
       "organizations": "Organizations",
       "api-docs": "API Documentation"
     },
+    "Jobs": {
+      "StatusBadge": {
+        "demo": "Demo",
+        "completed": "Completed",
+        "failed": "Failed",
+        "paymentPending": "Hiring",
+        "paymentFailed": "Hiring Failed",
+        "processing": "Working",
+        "agentConnectionFailed": "Agent Connection Failed",
+        "paymentNodeConnectionFailed": "Node Connection Failed",
+        "inputRequired": "Input Required",
+        "disputeRequested": "Dispute Pending",
+        "disputeResolved": "Dispute Resolved",
+        "refundRequested": "Refund Requested",
+        "refundResolved": "Refunded",
+        "outputPending": "Output Missing",
+        "unknown": "Unknown"
+      },
+      "JobDetails": {
+        "Header": {
+          "JobName": {
+            "Schema": {
+              "Name": {
+                "invalid": "Name must be a valid string",
+                "min": "Name must be at least 2 characters",
+                "max": "Name must be at most 80 characters"
+              }
+            },
+            "Form": {
+              "Name": {
+                "placeholder": "Please input Job Name"
+              }
+            },
+            "edit": "Edit",
+            "save": "Save",
+            "cancel": "Cancel",
+            "noName": "No name",
+            "success": "Job name updated successfully",
+            "error": "Failed to update job name",
+            "Errors": {
+              "unauthenticated": "You must be logged in to update job name.",
+              "unauthenticatedAction": "Login",
+              "jobNotFound": "Job not found",
+              "unauthorized": "You are not the owner of this job."
+            }
+          }
+        },
+        "JobShare": {
+          "share": "Share",
+          "Modal": {
+            "title": "Share job",
+            "publicAccessTitle": "Public access",
+            "publicAccessDescription": "Anyone with the link can view",
+            "privateAccessTitle": "Private access",
+            "privateAccessDescription": "Only you can view",
+            "getLink": "Get the link",
+            "copyLink": "Copy link",
+            "close": "Close",
+            "Success": {
+              "share": "Successfully update share",
+              "copyLink": "Successfully copy link"
+            },
+            "Error": {
+              "share": "Failed to update share",
+              "copyLink": "Failed to copy link"
+            },
+            "Errors": {
+              "unauthenticated": "You must be logged in.",
+              "unauthenticatedAction": "Login",
+              "jobNotFound": "Job not found",
+              "unauthorized": "You are not the owner of this job."
+            }
+          }
+        },
+        "Input": {
+          "title": "Input",
+          "failedToParseInput": "Failed to parse input",
+          "none": "No input"
+        },
+        "Output": {
+          "title": "Output",
+          "failedToParseOutput": "Failed to parse output",
+          "none": "No output available",
+          "download": "Download",
+          "copy": "Copy",
+          "copySuccess": "Output copied to clipboard",
+          "copyError": "Failed to copy output",
+          "maximize": "Maximize",
+          "maximizeTitle": "Job Output",
+          "close": "Close",
+          "Refund": {
+            "error": "Failed to request refund",
+            "request": "Request Refund",
+            "requested": "Refund Requested",
+            "disputePending": "Dispute Pending",
+            "disputeResolved": "Dispute Resolved",
+            "refunded": "Refunded",
+            "confirmTitle": "Request Refund?",
+            "confirmDescription": "Are you sure you want to request a refund for this job?",
+            "learnMore": "Learn more about refunds and disputes",
+            "cancel": "Cancel",
+            "confirm": "Request Refund",
+            "Tooltip": {
+              "available": {
+                "title": "Refund available",
+                "description": "You can request a refund until {unlockAt}."
+              },
+              "unavailable": {
+                "title": "Refund no longer available",
+                "description": "You could have requested a refund until {unlockAt}."
+              },
+              "failed": {
+                "title": "Automatic refund pending",
+                "description": "An automatic refund will be processed at {unlockAt}"
+              }
+            },
+            "Errors": {
+              "unauthenticated": "You must be logged in to request a refund.",
+              "unauthenticatedAction": "Login",
+              "jobNotFound": "Job not found",
+              "unauthorized": "You must be job owner to request a refund"
+            }
+          }
+        }
+      }
+    },
     "Organizations": {
       "Role": {
         "owner": "Owner",
@@ -1090,130 +1216,6 @@
             "started": "Started",
             "status": "Status",
             "name": "Name"
-          }
-        },
-        "StatusBadge": {
-          "demo": "Demo",
-          "completed": "Completed",
-          "failed": "Failed",
-          "paymentPending": "Hiring",
-          "paymentFailed": "Hiring Failed",
-          "processing": "Working",
-          "agentConnectionFailed": "Agent Connection Failed",
-          "paymentNodeConnectionFailed": "Node Connection Failed",
-          "inputRequired": "Input Required",
-          "disputeRequested": "Dispute Pending",
-          "disputeResolved": "Dispute Resolved",
-          "refundRequested": "Refund Requested",
-          "refundResolved": "Refunded",
-          "outputPending": "Output Missing",
-          "unknown": "Unknown"
-        },
-        "JobDetails": {
-          "Header": {
-            "JobName": {
-              "Schema": {
-                "Name": {
-                  "invalid": "Name must be a valid string",
-                  "min": "Name must be at least 2 characters",
-                  "max": "Name must be at most 80 characters"
-                }
-              },
-              "Form": {
-                "Name": {
-                  "placeholder": "Please input Job Name"
-                }
-              },
-              "edit": "Edit",
-              "save": "Save",
-              "cancel": "Cancel",
-              "noName": "No name",
-              "success": "Job name updated successfully",
-              "error": "Failed to update job name",
-              "Errors": {
-                "unauthenticated": "You must be logged in to update job name.",
-                "unauthenticatedAction": "Login",
-                "jobNotFound": "Job not found",
-                "unauthorized": "You are not the owner of this job."
-              }
-            }
-          },
-          "JobShare": {
-            "share": "Share",
-            "Modal": {
-              "title": "Share job",
-              "publicAccessTitle": "Public access",
-              "publicAccessDescription": "Anyone with the link can view",
-              "privateAccessTitle": "Private access",
-              "privateAccessDescription": "Only you can view",
-              "getLink": "Get the link",
-              "copyLink": "Copy link",
-              "close": "Close",
-              "Success": {
-                "share": "Successfully update share",
-                "copyLink": "Successfully copy link"
-              },
-              "Error": {
-                "share": "Failed to update share",
-                "copyLink": "Failed to copy link"
-              },
-              "Errors": {
-                "unauthenticated": "You must be logged in.",
-                "unauthenticatedAction": "Login",
-                "jobNotFound": "Job not found",
-                "unauthorized": "You are not the owner of this job."
-              }
-            }
-          },
-          "Input": {
-            "title": "Input",
-            "failedToParseInput": "Failed to parse input",
-            "none": "No input"
-          },
-          "Output": {
-            "title": "Output",
-            "failedToParseOutput": "Failed to parse output",
-            "none": "No output available",
-            "download": "Download",
-            "copy": "Copy",
-            "copySuccess": "Output copied to clipboard",
-            "copyError": "Failed to copy output",
-            "maximize": "Maximize",
-            "maximizeTitle": "Job Output",
-            "close": "Close",
-            "Refund": {
-              "error": "Failed to request refund",
-              "request": "Request Refund",
-              "requested": "Refund Requested",
-              "disputePending": "Dispute Pending",
-              "disputeResolved": "Dispute Resolved",
-              "refunded": "Refunded",
-              "confirmTitle": "Request Refund?",
-              "confirmDescription": "Are you sure you want to request a refund for this job?",
-              "learnMore": "Learn more about refunds and disputes",
-              "cancel": "Cancel",
-              "confirm": "Request Refund",
-              "Tooltip": {
-                "available": {
-                  "title": "Refund available",
-                  "description": "You can request a refund until {unlockAt}."
-                },
-                "unavailable": {
-                  "title": "Refund no longer available",
-                  "description": "You could have requested a refund until {unlockAt}."
-                },
-                "failed": {
-                  "title": "Automatic refund pending",
-                  "description": "An automatic refund will be processed at {unlockAt}"
-                }
-              },
-              "Errors": {
-                "unauthenticated": "You must be logged in to request a refund.",
-                "unauthenticatedAction": "Login",
-                "jobNotFound": "Job not found",
-                "unauthorized": "You must be job owner to request a refund"
-              }
-            }
           }
         }
       }

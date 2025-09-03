@@ -23,7 +23,7 @@ export default function MaximizeMarkdown({
   markdown,
   className,
 }: MaximizeMarkdownProps) {
-  const t = useTranslations("App.Agents.Jobs.JobDetails.Output");
+  const t = useTranslations("Components.Jobs.JobDetails.Output");
 
   return (
     <Dialog>

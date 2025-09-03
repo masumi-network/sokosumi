@@ -1,7 +1,7 @@
 import { useFormatter, useTranslations } from "next-intl";
 
-import AccordionItemWrapper from "@/app/agents/[agentId]/jobs/components/accordion-wrapper";
-import JobStatusBadge from "@/app/agents/[agentId]/jobs/components/job-status-badge";
+import AccordionItemWrapper from "@/components/accordion-wrapper";
+import { JobStatusBadge } from "@/components/jobs/job-status-badge";
 import { Accordion } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { JobStatus, JobWithStatus } from "@/lib/db";
@@ -13,11 +13,16 @@ import JobDetailsOutputs from "./outputs";
 
 interface JobDetailsProps {
   job: JobWithStatus;
+  readOnly?: boolean;
   className?: string;
 }
 
-export default function JobDetails({ job, className }: JobDetailsProps) {
-  const t = useTranslations("App.Agents.Jobs.JobDetails");
+export default function JobDetails({
+  job,
+  readOnly = false,
+  className,
+}: JobDetailsProps) {
+  const t = useTranslations("Components.Jobs.JobDetails");
 
   const hasCompletedOutput = job.status === JobStatus.COMPLETED && !!job.output;
   const defaultAccordionValue = hasCompletedOutput
@@ -37,7 +42,7 @@ export default function JobDetails({ job, className }: JobDetailsProps) {
           defaultValue={defaultAccordionValue}
           className="w-full space-y-1.5"
         >
-          <JobDetailsHeader job={job} />
+          <JobDetailsHeader job={job} readOnly={readOnly} />
           <AccordionItemWrapper value="input" title={t("Input.title")}>
             <JobDetailsInputs
               rawInput={job.input}
@@ -46,7 +51,7 @@ export default function JobDetails({ job, className }: JobDetailsProps) {
             />
           </AccordionItemWrapper>
           <AccordionItemWrapper value="output" title={t("Output.title")}>
-            <JobDetailsOutputs job={job} />
+            <JobDetailsOutputs job={job} readOnly={readOnly} />
           </AccordionItemWrapper>
         </Accordion>
       </ScrollArea>
@@ -54,13 +59,19 @@ export default function JobDetails({ job, className }: JobDetailsProps) {
   );
 }
 
-function JobDetailsHeader({ job }: { job: JobWithStatus }) {
+function JobDetailsHeader({
+  job,
+  readOnly,
+}: {
+  job: JobWithStatus;
+  readOnly: boolean;
+}) {
   const formatter = useFormatter();
   const { createdAt, status, isDemo } = job;
 
   return (
     <div className="flex flex-col gap-2">
-      <JobDetailsName job={job} />
+      <JobDetailsName job={job} readOnly={readOnly} />
       <div className="bg-muted/50 flex items-center justify-between gap-2 rounded-xl p-4">
         <p>
           {formatter.dateTime(createdAt, {
