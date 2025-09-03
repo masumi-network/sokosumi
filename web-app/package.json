@@ -29,7 +29,7 @@
     "generate:payment": "openapi-ts -f openapi-ts.payment.config.ts",
     "generate:registry": "openapi-ts -f openapi-ts.registry.config.ts",
     "generate:api": "pnpm run generate:registry && pnpm run generate:payment",
-    "generate:api-docs": "pnpm dlx next-openapi-gen generate"
+    "generate:api-docs": "npx next-openapi-gen generate"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.60.0",
