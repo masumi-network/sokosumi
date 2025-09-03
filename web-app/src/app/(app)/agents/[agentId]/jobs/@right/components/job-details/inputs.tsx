@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import { FileChip } from "@/components/ui/file-chip";
-import { jobInputSchema } from "@/lib/job-input";
+import { jobInputSchema, ValidJobInputTypes } from "@/lib/job-input";
 import { isUrlArray, isUrlString } from "@/lib/utils/file";
 import type { Blob } from "@/prisma/generated/client";
 import { JsonValue } from "@/prisma/generated/client/runtime/library";
@@ -36,26 +36,35 @@ function findBlobByUrl(url: string, blobs?: Blob[]): Blob | undefined {
   return blobs.find((b) => b.fileUrl === url);
 }
 
-function renderInputValue(value: unknown, blobs?: Blob[]) {
-  if (isUrlString(value)) {
-    const blob = findBlobByUrl(value, blobs);
-    return <FileChip url={value} fileName={blob?.fileName} size={blob?.size} />;
+function renderInputValue(
+  value: unknown,
+  type: ValidJobInputTypes,
+  blobs?: Blob[],
+) {
+  if (type === ValidJobInputTypes.FILE) {
+    if (isUrlString(value)) {
+      const blob = findBlobByUrl(value, blobs);
+      return (
+        <FileChip url={value} fileName={blob?.fileName} size={blob?.size} />
+      );
+    }
+    if (isUrlArray(value)) {
+      if (value.length === 0) return <span>{"-"}</span>;
+      return (
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {value.map((url) => (
+            <FileChip
+              key={url}
+              url={url}
+              fileName={findBlobByUrl(url, blobs)?.fileName}
+              size={findBlobByUrl(url, blobs)?.size}
+            />
+          ))}
+        </div>
+      );
+    }
   }
-  if (isUrlArray(value)) {
-    if (value.length === 0) return <span>{"-"}</span>;
-    return (
-      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-        {value.map((url) => (
-          <FileChip
-            key={url}
-            url={url}
-            fileName={findBlobByUrl(url, blobs)?.fileName}
-            size={findBlobByUrl(url, blobs)?.size}
-          />
-        ))}
-      </div>
-    );
-  }
+
   return (
     <span className="break-all">
       {typeof value === "object" ? JSON.stringify(value) : String(value)}
@@ -71,17 +80,18 @@ function JobDetailsInputsInner({
   const t = useTranslations("App.Agents.Jobs.JobDetails.Input");
   const input = rawInput ? JSON.parse(rawInput) : {};
 
-  let idNameMap: Record<string, string> = {};
+  let inputsMap: Record<string, { name: string; type: ValidJobInputTypes }> =
+    {};
   if (Array.isArray(inputSchema)) {
-    idNameMap = z
+    inputsMap = z
       .array(jobInputSchema())
       .parse(inputSchema)
       .reduce(
         (acc, item) => {
-          acc[item.id] = item.name;
+          acc[item.id] = { name: item.name, type: item.type };
           return acc;
         },
-        {} as Record<string, string>,
+        {} as Record<string, { name: string; type: ValidJobInputTypes }>,
       );
   }
 
@@ -90,7 +100,8 @@ function JobDetailsInputsInner({
       {Object.keys(input).length > 0 ? (
         <div>
           {Object.entries(input).map(([key, value]) => {
-            const label = idNameMap[key] ?? key;
+            const label = inputsMap[key]?.name ?? key;
+            const type = inputsMap[key]?.type ?? ValidJobInputTypes.NONE;
             return (
               <div
                 className="grid grid-cols-1 items-start gap-4 pb-4 text-base md:grid-cols-3"
@@ -100,7 +111,7 @@ function JobDetailsInputsInner({
                   {label}
                 </span>
                 <div className="break-all md:col-span-2">
-                  {renderInputValue(value, blobs)}
+                  {renderInputValue(value, type, blobs)}
                 </div>
               </div>
             );
