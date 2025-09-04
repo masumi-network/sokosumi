@@ -650,13 +650,15 @@ model JobShare {
   permission SharePermission @default(READ)
 
   // Recipient User
-  recipientId String? // Recepient
+  recipientId String?
   recipient   User?   @relation("JobShareRecipient", fields: [recipientId], references: [id], onDelete: SetNull)
 
   // Recipient Organization
   recipientOrganizationId String?
   recipientOrganization   Organization? @relation(fields: [recipientOrganizationId], references: [id], onDelete: SetNull)
 
+  @@unique([jobId, recipientId])
+  @@unique([jobId, recipientOrganizationId])
   @@map("share")
 }
 
