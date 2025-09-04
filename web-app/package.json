@@ -29,10 +29,10 @@
     "generate:payment": "openapi-ts -f openapi-ts.payment.config.ts",
     "generate:registry": "openapi-ts -f openapi-ts.registry.config.ts",
     "generate:api": "pnpm run generate:registry && pnpm run generate:payment",
-    "generate:api-docs": "pnpm dlx next-openapi-gen generate"
+    "generate:api-docs": "next-openapi-gen generate"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "0.60.0",
+    "@anthropic-ai/sdk": "0.61.0",
     "@better-auth/utils": "0.2.6",
     "@hey-api/client-fetch": "0.13.1",
     "@hey-api/client-next": "0.5.1",
@@ -42,7 +42,6 @@
     "@prisma/client": "6.15.0",
     "@radix-ui/react-slot": "1.2.3",
     "@react-email/components": "0.5.1",
-    "@scalar/api-reference-react": "0.7.42",
     "@sentry/nextjs": "10.8.0",
     "@tanstack/react-table": "8.21.3",
     "@usersnap/browser": "1.0.2",
@@ -55,7 +54,7 @@
     "clsx": "2.1.1",
     "cmdk": "1.1.1",
     "date-fns": "4.1.0",
-    "dotenv": "17.2.1",
+    "dotenv": "17.2.2",
     "embla-carousel-react": "8.6.0",
     "gravatar-url": "4.0.1",
     "humanize-duration": "3.33.0",
@@ -92,7 +91,7 @@
     "tailwind-merge": "3.3.1",
     "tailwindcss-animate": "1.0.7",
     "tw-animate-css": "1.3.7",
-    "use-debounce": "10.0.5",
+    "use-debounce": "10.0.6",
     "uuid": "11.1.0",
     "vaul": "1.1.2",
     "zod": "4.1.4"
