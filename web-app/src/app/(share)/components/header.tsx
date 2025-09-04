@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-import { BreadcrumbNavigation } from "@/components/breadcrumb-navigation";
+import { SignUpButton } from "@/auth/components/buttons";
 import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +17,7 @@ export default function Header({ className }: HeaderProps) {
       )}
     >
       <div className="flex w-full items-center justify-between gap-2 p-2 md:w-auto">
-        <Link href="/" className="md:hidden">
+        <Link href="/">
           <ThemedLogo
             LogoComponent={SokosumiLogo}
             priority
@@ -27,8 +27,8 @@ export default function Header({ className }: HeaderProps) {
         </Link>
       </div>
 
-      <div className="hidden flex-1 flex-row gap-2 sm:flex">
-        <BreadcrumbNavigation className="flex flex-1" />
+      <div>
+        <SignUpButton />
       </div>
     </header>
   );

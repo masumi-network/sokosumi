@@ -1232,6 +1232,7 @@
     "Jobs": {
       "Metadata": {
         "title": "{name}",
+        "defaultTitle": "Untitled",
         "description": "Hire yourself an agent to finish the most time consuming tasks"
       }
     }
