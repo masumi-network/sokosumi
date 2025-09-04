@@ -104,7 +104,7 @@
     "@types/react": "19.1.12",
     "@types/react-dom": "19.1.9",
     "@types/react-window": "1.8.8",
-    "next-openapi-gen": "0.7.3",
+    "next-openapi-gen": "0.7.6",
     "prisma": "6.15.0"
   }
 }
