@@ -76,6 +76,7 @@ export default function JobShareModal({
       setLink(new URL(`/share/jobs/${job.id}`, window.location.origin));
       setSelectedAccessType(ShareAccessType.PUBLIC);
       toast.success(t("Success.share"));
+      router.refresh();
     } else {
       switch (result.error.code) {
         case CommonErrorCode.UNAUTHENTICATED:
@@ -109,6 +110,7 @@ export default function JobShareModal({
       setLink(null);
       setSelectedAccessType(ShareAccessType.RESTRICTED);
       toast.success(t("Success.share"));
+      router.refresh();
     } else {
       switch (result.error.code) {
         case CommonErrorCode.UNAUTHENTICATED:
