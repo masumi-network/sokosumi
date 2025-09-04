@@ -22,12 +22,15 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useAsyncRouter } from "@/hooks/use-async-router";
+import useModal from "@/hooks/use-modal";
 import { CommonErrorCode, JobErrorCode, updateJobName } from "@/lib/actions";
 import { isPubliclyShared, JobWithStatus } from "@/lib/db";
 import {
   jobDetailsNameFormSchema,
   JobDetailsNameFormSchemaType,
 } from "@/lib/schemas";
+
+import JobShareModal from "./job-share-modal";
 
 export default function JobDetailsName({
   job,
@@ -39,6 +42,10 @@ export default function JobDetailsName({
   const t = useTranslations("Components.Jobs.JobDetails.Header.JobName");
   const { name } = job;
   const sharedPublicly = isPubliclyShared(job);
+
+  const { showModal, Component } = useModal(({ open, onOpenChange }) => (
+    <JobShareModal open={open} onOpenChange={onOpenChange} job={job} />
+  ));
 
   const router = useAsyncRouter();
   const [editing, setEditing] = useState(false);
@@ -61,6 +68,13 @@ export default function JobDetailsName({
   const handleCancel = () => {
     setEditing(false);
     form.reset({ name: name ?? "" });
+  };
+
+  const handleShareIndicatorClick = () => {
+    if (readOnly) {
+      return;
+    }
+    showModal();
   };
 
   const handleSubmit = async (data: JobDetailsNameFormSchemaType) => {
@@ -150,11 +164,18 @@ export default function JobDetailsName({
               <p className="truncate">{name ?? t("noName")}</p>
               <Tooltip>
                 <TooltipTrigger>
-                  {sharedPublicly ? (
-                    <Users className="h-4 w-4" />
-                  ) : (
-                    <Lock className="h-4 w-4" />
-                  )}
+                  <Button
+                    asChild
+                    variant="ghost"
+                    size="icon"
+                    onClick={handleShareIndicatorClick}
+                  >
+                    {sharedPublicly ? (
+                      <Users className="h-4 w-4" />
+                    ) : (
+                      <Lock className="h-4 w-4" />
+                    )}
+                  </Button>
                 </TooltipTrigger>
                 <TooltipContent>
                   {sharedPublicly ? t("shared") : t("private")}
@@ -169,6 +190,7 @@ export default function JobDetailsName({
           </div>
         </>
       )}
+      {!readOnly && Component}
     </div>
   );
 }

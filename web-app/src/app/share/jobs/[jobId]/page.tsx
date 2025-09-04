@@ -20,6 +20,7 @@ export async function generateMetadata({
     return notFound();
   }
   const agentImage = getAgentResolvedImage(job.agent);
+  const userName = job.user.name;
   const jobName = job.name ?? t("defaultName");
 
   return {
@@ -30,6 +31,7 @@ export async function generateMetadata({
       description: t("description"),
       type: "article",
       url: `${siteConfig.url}/share/jobs/${jobId}`,
+      authors: [userName],
       images: [
         {
           url: agentImage,
