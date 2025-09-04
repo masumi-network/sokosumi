@@ -40,6 +40,5 @@ ALTER TABLE "public"."share" ADD CONSTRAINT "share_recipientOrganizationId_fkey"
 -- Add single recipient constraint
 ALTER TABLE "public"."share" ADD CONSTRAINT "single_recipient_constraint" 
 CHECK (
-  ("recipientId" IS NOT NULL AND "recipientOrganizationId" IS NULL) OR 
-  ("recipientId" IS NULL AND "recipientOrganizationId" IS NOT NULL)
+  NOT ("recipientId" IS NOT NULL AND "recipientOrganizationId" IS NOT NULL)
 );

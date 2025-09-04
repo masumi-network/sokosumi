@@ -1,7 +1,18 @@
+import { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
 import { JobDetails } from "@/components/jobs";
 import { jobService } from "@/lib/services";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations("Share.Jobs.Metadata");
+
+  return {
+    title: t("title"),
+    description: t("description"),
+  };
+}
 
 export default async function JobPage({
   params,

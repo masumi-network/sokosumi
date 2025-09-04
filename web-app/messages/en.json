@@ -326,6 +326,13 @@
             }
           }
         }
+      },
+      "JobsTable": {
+        "Header": {
+          "started": "Started",
+          "status": "Status",
+          "name": "Name"
+        }
       }
     },
     "Organizations": {
@@ -1210,14 +1217,22 @@
           "Input": {
             "title": "Input"
           }
-        },
-        "JobsTable": {
-          "Header": {
-            "started": "Started",
-            "status": "Status",
-            "name": "Name"
-          }
         }
+      }
+    }
+  },
+  "Share": {
+    "Metadata": {
+      "Title": {
+        "default": "Sōkosumi - Marketplace for human-to-agent interactions",
+        "template": "Sōkosumi - %s"
+      },
+      "description": "Hire yourself an agent to finish the most time consuming tasks"
+    },
+    "Jobs": {
+      "Metadata": {
+        "title": "{name}",
+        "description": "Hire yourself an agent to finish the most time consuming tasks"
       }
     }
   },

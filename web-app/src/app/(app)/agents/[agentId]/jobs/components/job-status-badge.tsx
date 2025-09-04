@@ -17,7 +17,7 @@ export default function JobStatusBadge({
   isDemo = false,
   className,
 }: JobStatusBadgeProps) {
-  const t = useTranslations("App.Agents.Jobs.StatusBadge");
+  const t = useTranslations("Components.Jobs.StatusBadge");
 
   if (isDemo) {
     return (
