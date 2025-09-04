@@ -163,19 +163,12 @@ export default function JobDetailsName({
             <div className="flex min-w-0 flex-1 items-center gap-2">
               <p className="truncate">{name ?? t("noName")}</p>
               <Tooltip>
-                <TooltipTrigger>
-                  <Button
-                    asChild
-                    variant="ghost"
-                    size="icon"
-                    onClick={handleShareIndicatorClick}
-                  >
-                    {sharedPublicly ? (
-                      <Users className="h-4 w-4" />
-                    ) : (
-                      <Lock className="h-4 w-4" />
-                    )}
-                  </Button>
+                <TooltipTrigger onClick={handleShareIndicatorClick}>
+                  {sharedPublicly ? (
+                    <Users className="h-4 w-4" />
+                  ) : (
+                    <Lock className="h-4 w-4" />
+                  )}
                 </TooltipTrigger>
                 <TooltipContent>
                   {sharedPublicly ? t("shared") : t("private")}
