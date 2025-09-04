@@ -1,5 +1,5 @@
 import { JobIndicatorStatus } from "@/lib/ably";
-import { JobStatus } from "@/lib/db/types";
+import { JobStatus, JobWithRelations } from "@/lib/db/types";
 import {
   AgentJobStatus,
   Job,
@@ -7,6 +7,8 @@ import {
   NextJobActionErrorType,
   OnChainJobStatus,
   OnChainTransactionStatus,
+  ShareAccessType,
+  SharePermission,
 } from "@/prisma/generated/client";
 
 const TEN_MINUTES_TIMESTAMP = 1000 * 60 * 10; // 10min
@@ -344,4 +346,12 @@ export function transactionStatusToOnChainTransactionStatus(
         `Unknown transaction status: ${currentTransactionStatus}`,
       );
   }
+}
+
+export function isPubliclyShared(job: JobWithRelations): boolean {
+  return job.shares.some(
+    (share) =>
+      share.accessType === ShareAccessType.PUBLIC &&
+      share.permission === SharePermission.READ,
+  );
 }

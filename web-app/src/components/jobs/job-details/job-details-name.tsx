@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
+import { Loader2, Lock, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -16,9 +16,14 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useAsyncRouter } from "@/hooks/use-async-router";
 import { CommonErrorCode, JobErrorCode, updateJobName } from "@/lib/actions";
-import { JobWithStatus } from "@/lib/db";
+import { isPubliclyShared, JobWithStatus } from "@/lib/db";
 import {
   jobDetailsNameFormSchema,
   JobDetailsNameFormSchemaType,
@@ -33,6 +38,7 @@ export default function JobDetailsName({
 }) {
   const t = useTranslations("Components.Jobs.JobDetails.Header.JobName");
   const { name } = job;
+  const sharedPublicly = isPubliclyShared(job);
 
   const router = useAsyncRouter();
   const [editing, setEditing] = useState(false);
@@ -139,12 +145,28 @@ export default function JobDetailsName({
         </>
       ) : (
         <>
-          <p className="flex-1 truncate">{name ?? t("noName")}</p>
-          {!readOnly && (
-            <Button variant="outline" size="sm" onClick={handleEdit}>
-              {t("edit")}
-            </Button>
-          )}
+          <div className="flex w-full items-center gap-2">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <p className="truncate">{name ?? t("noName")}</p>
+              <Tooltip>
+                <TooltipTrigger>
+                  {sharedPublicly ? (
+                    <Users className="h-4 w-4" />
+                  ) : (
+                    <Lock className="h-4 w-4" />
+                  )}
+                </TooltipTrigger>
+                <TooltipContent>
+                  {sharedPublicly ? t("shared") : t("private")}
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            {!readOnly && (
+              <Button variant="outline" size="sm" onClick={handleEdit}>
+                {t("edit")}
+              </Button>
+            )}
+          </div>
         </>
       )}
     </div>

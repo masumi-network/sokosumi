@@ -239,6 +239,8 @@
             "save": "Save",
             "cancel": "Cancel",
             "noName": "No name",
+            "shared": "Shared",
+            "private": "Private",
             "success": "Job name updated successfully",
             "error": "Failed to update job name",
             "Errors": {

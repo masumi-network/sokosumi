@@ -1,7 +1,7 @@
 import { Check, Copy, Globe, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -20,7 +20,7 @@ import {
   removeJobShare,
   shareJob,
 } from "@/lib/actions";
-import { JobWithRelations } from "@/lib/db";
+import { isPubliclyShared, JobWithRelations } from "@/lib/db";
 import { cn } from "@/lib/utils";
 import { ShareAccessType, SharePermission } from "@/prisma/generated/client";
 
@@ -36,7 +36,7 @@ export default function JobShareModal({
   job,
 }: JobShareModalProps) {
   const t = useTranslations("Components.Jobs.JobDetails.JobShare.Modal");
-  const { id: jobId, shares } = job;
+  const { id: jobId } = job;
 
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -44,26 +44,17 @@ export default function JobShareModal({
   const [selectedAccessType, setSelectedAccessType] = useState<ShareAccessType>(
     ShareAccessType.RESTRICTED,
   );
-
-  const publicShare = useMemo(
-    () =>
-      shares.find(
-        (share) =>
-          share.accessType === ShareAccessType.PUBLIC &&
-          share.permission === SharePermission.READ,
-      ),
-    [shares],
-  );
+  const sharedPublicly = isPubliclyShared(job);
 
   useEffect(() => {
-    if (publicShare) {
+    if (sharedPublicly) {
       setSelectedAccessType(ShareAccessType.PUBLIC);
       setLink(new URL(`/share/jobs/${jobId}`, window.location.origin));
     } else {
       setSelectedAccessType(ShareAccessType.RESTRICTED);
       setLink(null);
     }
-  }, [jobId, publicShare, setLink, setSelectedAccessType]);
+  }, [jobId, sharedPublicly, setLink, setSelectedAccessType]);
 
   const handleOnOpenChange = (open: boolean) => {
     if (loading) {
