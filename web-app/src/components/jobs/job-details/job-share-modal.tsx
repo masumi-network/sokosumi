@@ -58,7 +58,7 @@ export default function JobShareModal({
   useEffect(() => {
     if (publicShare) {
       setSelectedAccessType(ShareAccessType.PUBLIC);
-      setLink(new URL(`/jobs/${jobId}`, window.location.origin));
+      setLink(new URL(`/share/jobs/${jobId}`, window.location.origin));
     } else {
       setSelectedAccessType(ShareAccessType.RESTRICTED);
       setLink(null);
@@ -82,7 +82,7 @@ export default function JobShareModal({
       SharePermission.READ,
     );
     if (result.ok) {
-      setLink(new URL(`/jobs/${job.id}`, window.location.origin));
+      setLink(new URL(`/share/jobs/${job.id}`, window.location.origin));
       setSelectedAccessType(ShareAccessType.PUBLIC);
       toast.success(t("Success.share"));
     } else {

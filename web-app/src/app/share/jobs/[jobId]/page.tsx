@@ -29,7 +29,7 @@ export async function generateMetadata({
       title: t("title", { name: jobName }),
       description: t("description"),
       type: "article",
-      url: `${siteConfig.url}/jobs/${jobId}`,
+      url: `${siteConfig.url}/share/jobs/${jobId}`,
       images: [
         {
           url: agentImage,
