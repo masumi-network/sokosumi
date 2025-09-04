@@ -6,7 +6,11 @@ import { ActionError, CommonErrorCode } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { getAuthContext } from "@/lib/auth/utils";
 import { JobWithStatus } from "@/lib/db";
-import { jobRepository, jobShareRepository } from "@/lib/db/repositories";
+import {
+  jobRepository,
+  jobShareRepository,
+  prisma,
+} from "@/lib/db/repositories";
 import {
   jobDetailsNameFormSchema,
   JobDetailsNameFormSchemaType,
@@ -338,14 +342,16 @@ export async function shareJob(
       });
     }
 
-    await jobShareRepository.createJobShare(
-      jobId,
-      context.userId,
-      recipientId,
-      recipientOrganizationId,
-      shareAccessType,
-      sharePermission,
-    );
+    await prisma.$transaction(async (tx) => {
+      await jobShareRepository.deleteJobSharesByJobId(jobId, tx);
+      await jobShareRepository.createPublicJobShare(
+        jobId,
+        context.userId,
+        recipientId,
+        recipientOrganizationId,
+        tx,
+      );
+    });
     return Ok();
   } catch (error) {
     console.error("Failed to share job", error);
@@ -384,7 +390,7 @@ export async function removeJobShare(
       });
     }
 
-    await jobShareRepository.deleteJobShare(jobId);
+    await jobShareRepository.deleteJobSharesByJobId(jobId);
     return Ok();
   } catch (error) {
     console.error("Failed to remove job share", error);

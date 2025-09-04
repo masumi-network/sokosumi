@@ -25,13 +25,11 @@ export const jobShareRepository = {
     });
   },
 
-  async createJobShare(
+  async createPublicJobShare(
     jobId: string,
     creatorId: string,
     recipientId: string | null,
     recipientOrganizationId: string | null,
-    shareAccessType: ShareAccessType,
-    sharePermission: SharePermission,
     tx: Prisma.TransactionClient = prisma,
   ) {
     return await tx.jobShare.create({
@@ -42,13 +40,16 @@ export const jobShareRepository = {
         ...(recipientOrganizationId && {
           recipientOrganization: { connect: { id: recipientOrganizationId } },
         }),
-        accessType: shareAccessType,
-        permission: sharePermission,
+        accessType: ShareAccessType.PUBLIC,
+        permission: SharePermission.READ,
       },
     });
   },
 
-  async deleteJobShare(jobId: string, tx: Prisma.TransactionClient = prisma) {
+  async deleteJobSharesByJobId(
+    jobId: string,
+    tx: Prisma.TransactionClient = prisma,
+  ) {
     return await tx.jobShare.deleteMany({
       where: { jobId },
     });
