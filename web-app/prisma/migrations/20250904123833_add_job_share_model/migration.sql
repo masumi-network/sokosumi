@@ -19,6 +19,12 @@ CREATE TABLE "public"."share" (
     CONSTRAINT "share_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateIndex
+CREATE UNIQUE INDEX "share_jobId_recipientId_key" ON "public"."share"("jobId", "recipientId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "share_jobId_recipientOrganizationId_key" ON "public"."share"("jobId", "recipientOrganizationId");
+
 -- AddForeignKey
 ALTER TABLE "public"."share" ADD CONSTRAINT "share_creatorId_fkey" FOREIGN KEY ("creatorId") REFERENCES "public"."user"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
@@ -30,3 +36,10 @@ ALTER TABLE "public"."share" ADD CONSTRAINT "share_recipientId_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "public"."share" ADD CONSTRAINT "share_recipientOrganizationId_fkey" FOREIGN KEY ("recipientOrganizationId") REFERENCES "public"."organization"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- Add single recipient constraint
+ALTER TABLE "public"."share" ADD CONSTRAINT "single_recipient_constraint" 
+CHECK (
+  ("recipientId" IS NOT NULL AND "recipientOrganizationId" IS NULL) OR 
+  ("recipientId" IS NULL AND "recipientOrganizationId" IS NOT NULL)
+);
