@@ -49,6 +49,4 @@ next-env.d.ts
 .env.sentry-build-plugin
 
 # api-docs
-# TODO: ignore this file
-# after next-openapi-gen fixes generate issue
-# /public/openapi.json
+/public/openapi.json
