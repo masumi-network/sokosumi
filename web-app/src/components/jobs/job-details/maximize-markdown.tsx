@@ -23,7 +23,7 @@ export default function MaximizeMarkdown({
   markdown,
   className,
 }: MaximizeMarkdownProps) {
-  const t = useTranslations("App.Agents.Jobs.JobDetails.Output");
+  const t = useTranslations("Components.Jobs.JobDetails.Output");
 
   return (
     <Dialog>
@@ -37,10 +37,7 @@ export default function MaximizeMarkdown({
           <Maximize2 className="h-4 w-4" />
         </Button>
       </DialogTrigger>
-      <DialogContent
-        className="flex h-fit max-h-[90vh] w-fit max-w-[80vw] flex-col overflow-y-auto sm:max-w-[90vw]"
-        aria-describedby={undefined}
-      >
+      <DialogContent className="flex max-h-[90vh] max-w-[96vw] flex-col overflow-y-auto sm:max-w-[90vw]">
         <DialogHeader>
           <DialogTitle>{t("maximizeTitle")}</DialogTitle>
         </DialogHeader>

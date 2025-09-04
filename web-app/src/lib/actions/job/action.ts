@@ -6,7 +6,11 @@ import { ActionError, CommonErrorCode } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { getAuthContext } from "@/lib/auth/utils";
 import { JobWithStatus } from "@/lib/db";
-import { jobRepository } from "@/lib/db/repositories";
+import {
+  jobRepository,
+  jobShareRepository,
+  prisma,
+} from "@/lib/db/repositories";
 import {
   jobDetailsNameFormSchema,
   JobDetailsNameFormSchemaType,
@@ -20,6 +24,7 @@ import {
   AuthenticatedRequest,
   withAuthContext,
 } from "@/middleware/auth-middleware";
+import { ShareAccessType, SharePermission } from "@/prisma/generated/client";
 
 import {
   handleInputDataFileUploads,
@@ -293,4 +298,105 @@ export async function requestRefundJobByBlockchainIdentifier(
 
   const job = await jobService.requestRefund(blockchainIdentifier);
   return Ok({ job });
+}
+
+export async function shareJob(
+  jobId: string,
+  recipientId: string | null,
+  recipientOrganizationId: string | null,
+  shareAccessType: ShareAccessType,
+  sharePermission: SharePermission,
+): Promise<Result<void, ActionError>> {
+  try {
+    const context = await getAuthContext();
+    if (!context) {
+      return Err({
+        message: "Unauthenticated",
+        code: CommonErrorCode.UNAUTHENTICATED,
+      });
+    }
+
+    const job = await jobRepository.getJobById(jobId);
+    if (!job) {
+      return Err({
+        message: "Job not found",
+        code: JobErrorCode.JOB_NOT_FOUND,
+      });
+    }
+
+    // for now only public share is supported
+    if (!!recipientId || !!recipientOrganizationId) {
+      throw new Error("Only Public Share is supported");
+    }
+
+    // for now only Read access is supported
+    if (sharePermission !== SharePermission.READ) {
+      throw new Error("Only Read Permission is supported");
+    }
+
+    // must be job owner to share
+    if (context.userId !== job.userId) {
+      return Err({
+        message: "Unauthorized",
+        code: CommonErrorCode.UNAUTHORIZED,
+      });
+    }
+
+    await prisma.$transaction(async (tx) => {
+      await jobShareRepository.deleteJobSharesByJobId(jobId, tx);
+      await jobShareRepository.createPublicJobShare(
+        jobId,
+        context.userId,
+        recipientId,
+        recipientOrganizationId,
+        tx,
+      );
+    });
+    return Ok();
+  } catch (error) {
+    console.error("Failed to share job", error);
+    return Err({
+      message: "Internal server error",
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+    });
+  }
+}
+
+export async function removeJobShare(
+  jobId: string,
+): Promise<Result<void, ActionError>> {
+  try {
+    const context = await getAuthContext();
+    if (!context) {
+      return Err({
+        message: "Unauthenticated",
+        code: CommonErrorCode.UNAUTHENTICATED,
+      });
+    }
+
+    const job = await jobRepository.getJobById(jobId);
+    if (!job) {
+      return Err({
+        message: "Job not found",
+        code: JobErrorCode.JOB_NOT_FOUND,
+      });
+    }
+
+    // must be job owner to remove share
+    if (context.userId !== job.userId) {
+      return Err({
+        message: "Unauthorized",
+        code: CommonErrorCode.UNAUTHORIZED,
+      });
+    }
+
+    await jobShareRepository.deleteJobSharesByJobId(jobId);
+    return Ok();
+  } catch (error) {
+    console.error("Failed to remove job share", error);
+    return Err({
+      message: "Internal server error",
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+    });
+  }
 }

@@ -202,6 +202,148 @@
       "organizations": "Organizations",
       "api-docs": "API Documentation"
     },
+    "Jobs": {
+      "StatusBadge": {
+        "demo": "Demo",
+        "completed": "Completed",
+        "failed": "Failed",
+        "paymentPending": "Hiring",
+        "paymentFailed": "Hiring Failed",
+        "processing": "Working",
+        "agentConnectionFailed": "Agent Connection Failed",
+        "paymentNodeConnectionFailed": "Node Connection Failed",
+        "inputRequired": "Input Required",
+        "disputeRequested": "Dispute Pending",
+        "disputeResolved": "Dispute Resolved",
+        "refundRequested": "Refund Requested",
+        "refundResolved": "Refunded",
+        "outputPending": "Output Missing",
+        "unknown": "Unknown"
+      },
+      "JobDetails": {
+        "Header": {
+          "JobName": {
+            "Schema": {
+              "Name": {
+                "invalid": "Name must be a valid string",
+                "min": "Name must be at least 2 characters",
+                "max": "Name must be at most 80 characters"
+              }
+            },
+            "Form": {
+              "Name": {
+                "placeholder": "Please input Job Name"
+              }
+            },
+            "edit": "Edit",
+            "save": "Save",
+            "cancel": "Cancel",
+            "noName": "No name",
+            "shared": "Shared",
+            "private": "Private",
+            "success": "Job name updated successfully",
+            "error": "Failed to update job name",
+            "Errors": {
+              "unauthenticated": "You must be logged in to update job name.",
+              "unauthenticatedAction": "Login",
+              "jobNotFound": "Job not found",
+              "unauthorized": "You are not the owner of this job."
+            }
+          }
+        },
+        "JobShare": {
+          "share": "Share",
+          "Modal": {
+            "title": "Share job",
+            "publicAccessTitle": "Public access",
+            "publicAccessDescription": "Anyone with the link can view",
+            "privateAccessTitle": "Private access",
+            "privateAccessDescription": "Only you can view",
+            "getLink": "Get the link",
+            "copyLink": "Copy link",
+            "close": "Close",
+            "Success": {
+              "share": "Successfully update share",
+              "copyLink": "Successfully copy link"
+            },
+            "Error": {
+              "share": "Failed to update share",
+              "copyLink": "Failed to copy link"
+            },
+            "Errors": {
+              "unauthenticated": "You must be logged in.",
+              "unauthenticatedAction": "Login",
+              "jobNotFound": "Job not found",
+              "unauthorized": "You are not the owner of this job."
+            }
+          }
+        },
+        "Input": {
+          "title": "Input",
+          "failedToParseInput": "Failed to parse input",
+          "none": "No input"
+        },
+        "Output": {
+          "title": "Output",
+          "failedToParseOutput": "Failed to parse output",
+          "none": "No output available",
+          "download": "Download",
+          "copy": "Copy",
+          "copySuccess": "Output copied to clipboard",
+          "copyError": "Failed to copy output",
+          "maximize": "Maximize",
+          "maximizeTitle": "Job Output",
+          "close": "Close",
+          "Refund": {
+            "error": "Failed to request refund",
+            "request": "Request Refund",
+            "requested": "Refund Requested",
+            "disputePending": "Dispute Pending",
+            "disputeResolved": "Dispute Resolved",
+            "refunded": "Refunded",
+            "confirmTitle": "Request Refund?",
+            "confirmDescription": "Are you sure you want to request a refund for this job?",
+            "learnMore": "Learn more about refunds and disputes",
+            "cancel": "Cancel",
+            "confirm": "Request Refund",
+            "Tooltip": {
+              "available": {
+                "title": "Refund available",
+                "description": "You can request a refund until {unlockAt}."
+              },
+              "unavailable": {
+                "title": "Refund no longer available",
+                "description": "You could have requested a refund until {unlockAt}."
+              },
+              "failed": {
+                "title": "Automatic refund pending",
+                "description": "An automatic refund will be processed at {unlockAt}"
+              }
+            },
+            "Errors": {
+              "unauthenticated": "You must be logged in to request a refund.",
+              "unauthenticatedAction": "Login",
+              "jobNotFound": "Job not found",
+              "unauthorized": "You must be job owner to request a refund"
+            }
+          }
+        },
+        "Sources": {
+          "title": "Links"
+        },
+        "FileStatusBadge": {
+          "pending": "Pending",
+          "failed": "Failed"
+        }
+      },
+      "JobsTable": {
+        "Header": {
+          "started": "Started",
+          "status": "Status",
+          "name": "Name"
+        }
+      }
+    },
     "Organizations": {
       "Role": {
         "owner": "Owner",
@@ -796,7 +938,13 @@
         "title": "Payment Successful!",
         "description": "Your credit purchase was successful. Thank you!",
         "fulfillmentNote": "Your credits will be added to your account shortly. You can check your balance on the billing page.",
-        "backToDashboard": "Browse Agents"
+        "backToDashboard": "Browse Agents",
+        "getStarted": "Get started by hiring your first agent",
+        "Error": {
+          "title": "Something Went Wrong",
+          "description": "Your checkout session not found",
+          "failedNote": "Contact our support"
+        }
       },
       "Cancel": {
         "title": "Payment Cancelled",
@@ -1078,118 +1226,23 @@
           "Input": {
             "title": "Input"
           }
-        },
-        "JobsTable": {
-          "Header": {
-            "started": "Started",
-            "status": "Status",
-            "name": "Name"
-          }
-        },
-        "StatusBadge": {
-          "demo": "Demo",
-          "completed": "Completed",
-          "failed": "Failed",
-          "paymentPending": "Hiring",
-          "paymentFailed": "Hiring Failed",
-          "processing": "Working",
-          "agentConnectionFailed": "Agent Connection Failed",
-          "paymentNodeConnectionFailed": "Node Connection Failed",
-          "inputRequired": "Input Required",
-          "disputeRequested": "Dispute Pending",
-          "disputeResolved": "Dispute Resolved",
-          "refundRequested": "Refund Requested",
-          "refundResolved": "Refunded",
-          "outputPending": "Output Missing",
-          "unknown": "Unknown"
-        },
-        "JobDetails": {
-          "Header": {
-            "JobName": {
-              "Schema": {
-                "Name": {
-                  "invalid": "Name must be a valid string",
-                  "min": "Name must be at least 2 characters",
-                  "max": "Name must be at most 80 characters"
-                }
-              },
-              "Form": {
-                "Name": {
-                  "placeholder": "Please input Job Name"
-                }
-              },
-              "edit": "Edit",
-              "save": "Save",
-              "cancel": "Cancel",
-              "noName": "No name",
-              "success": "Job name updated successfully",
-              "error": "Failed to update job name",
-              "Errors": {
-                "unauthenticated": "You must be logged in to update job name.",
-                "unauthenticatedAction": "Login",
-                "jobNotFound": "Job not found",
-                "unauthorized": "You are not the owner of this job."
-              }
-            }
-          },
-          "Input": {
-            "title": "Input",
-            "failedToParseInput": "Failed to parse input",
-            "none": "No input"
-          },
-          "Output": {
-            "title": "Output",
-            "failedToParseOutput": "Failed to parse output",
-            "none": "No output available",
-            "download": "Download",
-            "copy": "Copy",
-            "copySuccess": "Output copied to clipboard",
-            "copyError": "Failed to copy output",
-            "maximize": "Maximize",
-            "maximizeTitle": "Job Output",
-            "close": "Close",
-            "Refund": {
-              "error": "Failed to request refund",
-              "request": "Request Refund",
-              "requested": "Refund Requested",
-              "disputePending": "Dispute Pending",
-              "disputeResolved": "Dispute Resolved",
-              "refunded": "Refunded",
-              "confirmTitle": "Request Refund?",
-              "confirmDescription": "Are you sure you want to request a refund for this job?",
-              "learnMore": "Learn more about refunds and disputes",
-              "cancel": "Cancel",
-              "confirm": "Request Refund",
-              "Tooltip": {
-                "available": {
-                  "title": "Refund available",
-                  "description": "You can request a refund until {unlockAt}."
-                },
-                "unavailable": {
-                  "title": "Refund no longer available",
-                  "description": "You could have requested a refund until {unlockAt}."
-                },
-                "failed": {
-                  "title": "Automatic refund pending",
-                  "description": "An automatic refund will be processed at {unlockAt}"
-                }
-              },
-              "Errors": {
-                "unauthenticated": "You must be logged in to request a refund.",
-                "unauthenticatedAction": "Login",
-                "jobNotFound": "Job not found",
-                "unauthorized": "You must be job owner to request a refund"
-              }
-            }
-          },
-          "Sources": {
-            "title": "Links"
-          },
-          "FileStatusBadge": {
-            "pending": "Pending",
-            "failed": "Failed"
-          }
         }
+      }
+    }
+  },
+  "Share": {
+    "Metadata": {
+      "Title": {
+        "default": "Sōkosumi - Marketplace for human-to-agent interactions",
+        "template": "Sōkosumi - %s"
+      },
+      "description": "Hire yourself an agent to finish the most time consuming tasks"
+    },
+    "Jobs": {
+      "Metadata": {
+        "title": "{name}",
+        "defaultName": "Untitled",
+        "description": "Hire yourself an agent to finish the most time consuming tasks"
       }
     }
   },

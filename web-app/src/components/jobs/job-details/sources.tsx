@@ -17,7 +17,7 @@ export default function Sources({ job }: SourcesProps) {
   );
 }
 function SourcesInner({ job }: SourcesProps) {
-  const t = useTranslations("App.Agents.Jobs.JobDetails.Sources");
+  const t = useTranslations("Components.Jobs.JobDetails.Sources");
   const blobs = (job.blobs ?? []).filter((blob) => {
     return (blob as unknown as { origin?: string }).origin === "OUTPUT";
   });

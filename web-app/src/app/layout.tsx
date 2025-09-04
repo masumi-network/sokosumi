@@ -40,6 +40,7 @@ export default async function RootLayout({
   const gtmId = getEnvPublicConfig().NEXT_PUBLIC_GOOGLE_TAG_MANAGER_ID;
   const gaId = getEnvPublicConfig().NEXT_PUBLIC_GOOGLE_ANALYTICS_ID;
   const isProduction = getEnvSecrets().NODE_ENV === "production";
+  const isOnMainBranch = getEnvSecrets().IS_ON_MAIN_BRANCH;
   const isMainnet = getEnvPublicConfig().NEXT_PUBLIC_NETWORK === "Mainnet";
 
   return (
@@ -47,7 +48,7 @@ export default async function RootLayout({
       {gtmId && <GoogleTagManager gtmId={gtmId} />}
       <body className="bg-background min-h-svh max-w-dvw antialiased">
         <Script src="/js/plain.js" strategy="afterInteractive" />
-        {isProduction && (
+        {isProduction && isOnMainBranch && (
           <>
             <Script
               src="https://web.cmp.usercentrics.eu/modules/autoblocker.js"
@@ -61,6 +62,7 @@ export default async function RootLayout({
               async
               strategy="beforeInteractive"
             />
+            <Script src="/js/before-gtm.js" strategy="beforeInteractive" />
           </>
         )}
         <UsersnapProvider>

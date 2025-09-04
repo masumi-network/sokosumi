@@ -11,7 +11,7 @@ export interface FileStatusBadgeProps {
 }
 
 export function FileStatusBadge({ status, className }: FileStatusBadgeProps) {
-  const t = useTranslations("App.Agents.Jobs.JobDetails.FileStatusBadge");
+  const t = useTranslations("Components.Jobs.JobDetails.FileStatusBadge");
   const normalized = (status ?? "").toUpperCase();
 
   if (normalized === "PENDING") {

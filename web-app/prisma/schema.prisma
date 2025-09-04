@@ -48,6 +48,10 @@ model User {
 
   apikeys Apikey[]
 
+  // JobShare
+  jobShares         JobShare[] @relation("JobShareCreator")
+  jobSharesReceived JobShare[] @relation("JobShareRecipient")
+
   @@unique([email])
   @@unique([stripeCustomerId])
   @@map("user")
@@ -117,6 +121,8 @@ model Organization {
 
   stripeCustomerId String?
   invoiceEmail     String?
+
+  jobSharesReceived JobShare[]
 
   @@unique([slug])
   @@unique([stripeCustomerId])
@@ -523,6 +529,9 @@ model Job {
 
   blobs Blob[] @relation("JobBlob")
   links Link[] @relation("JobLink")
+
+  // JobShares
+  shares JobShare[]
 }
 
 enum OnChainTransactionStatus {
@@ -655,4 +664,44 @@ enum BlobStatus {
   PENDING
   READY
   FAILED
+}
+
+model JobShare {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Who created this share
+  creatorId String
+  creator   User   @relation("JobShareCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+
+  // Job which is being shared
+  jobId String
+  job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  // Access Control
+  accessType ShareAccessType
+  permission SharePermission @default(READ)
+
+  // Recipient User
+  recipientId String?
+  recipient   User?   @relation("JobShareRecipient", fields: [recipientId], references: [id], onDelete: SetNull)
+
+  // Recipient Organization
+  recipientOrganizationId String?
+  recipientOrganization   Organization? @relation(fields: [recipientOrganizationId], references: [id], onDelete: SetNull)
+
+  @@unique([jobId, recipientId])
+  @@unique([jobId, recipientOrganizationId])
+  @@map("share")
+}
+
+enum ShareAccessType {
+  PUBLIC // Anyone can access
+  RESTRICTED // Only the recipient can access
+}
+
+enum SharePermission {
+  READ
+  WRITE
 }

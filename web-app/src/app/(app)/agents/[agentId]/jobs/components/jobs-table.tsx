@@ -20,7 +20,7 @@ interface JobsTableProps {
 }
 
 export default function JobsTable({ jobs, userId }: JobsTableProps) {
-  const t = useTranslations("App.Agents.Jobs.JobsTable");
+  const t = useTranslations("Components.Jobs.JobsTable");
   const dateFormatter = useFormatter();
   const params = useParams<{ agentId: string; jobId?: string | undefined }>();
 

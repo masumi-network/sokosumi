@@ -12,7 +12,7 @@ interface JobStatusBadgeProps {
   className?: string;
 }
 
-export default function JobStatusBadge({
+export function JobStatusBadge({
   status,
   isDemo = false,
   className,

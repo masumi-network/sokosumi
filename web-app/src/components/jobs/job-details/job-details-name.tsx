@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2 } from "lucide-react";
+import { Loader2, Lock, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -16,17 +16,36 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { useAsyncRouter } from "@/hooks/use-async-router";
+import useModal from "@/hooks/use-modal";
 import { CommonErrorCode, JobErrorCode, updateJobName } from "@/lib/actions";
-import { JobWithStatus } from "@/lib/db";
+import { isPubliclyShared, JobWithStatus } from "@/lib/db";
 import {
   jobDetailsNameFormSchema,
   JobDetailsNameFormSchemaType,
 } from "@/lib/schemas";
 
-export default function JobDetailsName({ job }: { job: JobWithStatus }) {
-  const t = useTranslations("App.Agents.Jobs.JobDetails.Header.JobName");
+import JobShareModal from "./job-share-modal";
+
+export default function JobDetailsName({
+  job,
+  readOnly,
+}: {
+  job: JobWithStatus;
+  readOnly: boolean;
+}) {
+  const t = useTranslations("Components.Jobs.JobDetails.Header.JobName");
   const { name } = job;
+  const sharedPublicly = isPubliclyShared(job);
+
+  const { showModal, Component } = useModal(({ open, onOpenChange }) => (
+    <JobShareModal open={open} onOpenChange={onOpenChange} job={job} />
+  ));
 
   const router = useAsyncRouter();
   const [editing, setEditing] = useState(false);
@@ -34,7 +53,7 @@ export default function JobDetailsName({ job }: { job: JobWithStatus }) {
   const form = useForm<JobDetailsNameFormSchemaType>({
     resolver: zodResolver(
       jobDetailsNameFormSchema(
-        useTranslations("App.Agents.Jobs.JobDetails.Header.JobName.Schema"),
+        useTranslations("Components.Jobs.JobDetails.Header.JobName.Schema"),
       ),
     ),
     defaultValues: {
@@ -49,6 +68,13 @@ export default function JobDetailsName({ job }: { job: JobWithStatus }) {
   const handleCancel = () => {
     setEditing(false);
     form.reset({ name: name ?? "" });
+  };
+
+  const handleShareIndicatorClick = () => {
+    if (readOnly) {
+      return;
+    }
+    showModal();
   };
 
   const handleSubmit = async (data: JobDetailsNameFormSchemaType) => {
@@ -133,12 +159,31 @@ export default function JobDetailsName({ job }: { job: JobWithStatus }) {
         </>
       ) : (
         <>
-          <p className="flex-1 truncate">{name ?? t("noName")}</p>
-          <Button variant="outline" size="sm" onClick={handleEdit}>
-            {t("edit")}
-          </Button>
+          <div className="flex w-full items-center gap-2">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <p className="truncate">{name ?? t("noName")}</p>
+              <Tooltip>
+                <TooltipTrigger onClick={handleShareIndicatorClick}>
+                  {sharedPublicly ? (
+                    <Users className="h-4 w-4" />
+                  ) : (
+                    <Lock className="h-4 w-4" />
+                  )}
+                </TooltipTrigger>
+                <TooltipContent>
+                  {sharedPublicly ? t("shared") : t("private")}
+                </TooltipContent>
+              </Tooltip>
+            </div>
+            {!readOnly && (
+              <Button variant="outline" size="sm" onClick={handleEdit}>
+                {t("edit")}
+              </Button>
+            )}
+          </div>
         </>
       )}
+      {!readOnly && Component}
     </div>
   );
 }

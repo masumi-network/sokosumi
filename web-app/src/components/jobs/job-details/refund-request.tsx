@@ -46,7 +46,7 @@ interface RequestRefundButtonProps {
 
 // Status configuration for simple button states
 type IntlKey<N extends IntlNestedKey> = Parameters<IntlTranslation<N>>[0];
-type RefundIntlKey = IntlKey<"App.Agents.Jobs.JobDetails.Output.Refund">;
+type RefundIntlKey = IntlKey<"Components.Jobs.JobDetails.Output.Refund">;
 
 interface StatusConfig {
   icon: LucideIcon;
@@ -108,7 +108,7 @@ function RefundErrorButton({
 }: {
   isLoading: boolean;
   onRetry: () => void;
-  t: IntlTranslation<"App.Agents.Jobs.JobDetails.Output.Refund">;
+  t: IntlTranslation<"Components.Jobs.JobDetails.Output.Refund">;
 }) {
   return (
     <button
@@ -142,7 +142,7 @@ function RefundErrorButton({
  */
 function makeTitleAndDescription(
   job: JobWithStatus,
-  t: IntlTranslation<"App.Agents.Jobs.JobDetails.Output.Refund">,
+  t: IntlTranslation<"Components.Jobs.JobDetails.Output.Refund">,
   formatter: IntlDateFormatter,
 ) {
   const isEnabled = isRefundEnabled(job);
@@ -213,7 +213,7 @@ export default function RequestRefundButton({
   initialJob,
   className,
 }: RequestRefundButtonProps) {
-  const t = useTranslations("App.Agents.Jobs.JobDetails.Output.Refund");
+  const t = useTranslations("Components.Jobs.JobDetails.Output.Refund");
   const router = useAsyncRouter();
 
   const [isLoading, setIsLoading] = useState(false);

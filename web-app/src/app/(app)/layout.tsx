@@ -35,7 +35,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
     <>
       <SidebarProvider defaultOpen={defaultOpen}>
         <Sidebar session={session} />
-        <div className="flex w-full flex-col overflow-clip">
+        <div className="flex w-full flex-col overflow-hidden">
           <Header session={session} className="h-16 p-4" />
           <main className="relative min-h-[calc(100svh-64px)] p-4 pt-20 md:pt-4">
             {children}

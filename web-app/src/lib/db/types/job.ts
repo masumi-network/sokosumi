@@ -11,6 +11,7 @@ export const jobInclude = {
   refundedCreditTransaction: true,
   blobs: true,
   links: true,
+  shares: true,
 } as const;
 
 export const jobOrderBy = {

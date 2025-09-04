@@ -16,7 +16,7 @@ export default function CopyMarkdown({
   markdown,
   className,
 }: CopyMarkdownProps) {
-  const t = useTranslations("App.Agents.Jobs.JobDetails.Output");
+  const t = useTranslations("Components.Jobs.JobDetails.Output");
 
   const copyToClipboard = async () => {
     try {

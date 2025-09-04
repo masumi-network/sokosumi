@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { JobDetails } from "@/app/agents/[agentId]/jobs/@right/components/job-details";
+import { JobDetails } from "@/components/jobs";
 import { getSession } from "@/lib/auth/utils";
 import { agentRepository, jobRepository } from "@/lib/db/repositories";
 

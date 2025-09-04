@@ -26,7 +26,7 @@ export default function DownloadMarkdown({
     URL.revokeObjectURL(url);
   };
 
-  const t = useTranslations("App.Agents.Jobs.JobDetails.Output");
+  const t = useTranslations("Components.Jobs.JobDetails.Output");
 
   return (
     <Button

@@ -210,7 +210,7 @@ const agentCardButtonsContainerVariants = cva(
       size: {
         xs: "block",
         sm: "block",
-        md: "block md:hidden",
+        md: "block",
         lg: "w-full md:w-auto",
       },
     },
@@ -234,21 +234,7 @@ const agentCardPricingVariants = cva("font-medium", {
   },
 });
 
-const agentShowDetailButtonVariants = cva("", {
-  variants: {
-    size: {
-      xs: "block",
-      sm: "block",
-      md: "hidden",
-      lg: "hidden md:block",
-    },
-  },
-  defaultVariants: {
-    size: "md",
-  },
-});
-
-const agentHireButtonVariants = cva("w-full md:w-auto", {
+const agentShowDetailsButtonVariants = cva("w-full md:w-auto", {
   variants: {
     size: {
       xs: "hidden",
@@ -270,8 +256,6 @@ function AgentCardSkeleton({
   className,
   size,
 }: AgentCardSkeletonProps & VariantProps<typeof agentCardVariants>) {
-  const isDefault = !size || size === "md";
-
   return (
     <Card className={cn(agentCardVariants({ size }), className)}>
       {/* Image */}
@@ -307,12 +291,7 @@ function AgentCardSkeleton({
           </div>
           {/* Buttons */}
           <div className={cn(agentCardButtonsContainerVariants({ size }))}>
-            {!isDefault && (
-              <div className={cn(agentShowDetailButtonVariants({ size }))}>
-                <Skeleton className="h-4 w-16" />
-              </div>
-            )}
-            <div className={cn(agentHireButtonVariants({ size }))}>
+            <div className={cn(agentShowDetailsButtonVariants({ size }))}>
               <Skeleton className="h-4 w-16" />
             </div>
           </div>
@@ -324,12 +303,14 @@ function AgentCardSkeleton({
 
 interface AgentCardProps {
   agent: AgentWithCreditsPrice;
+  showHireButton?: boolean | undefined;
   favoriteAgents?: AgentWithRelations[] | undefined;
   className?: string | undefined;
 }
 
 function AgentCard({
   agent,
+  showHireButton = false,
   favoriteAgents,
   className,
   size,
@@ -450,32 +431,21 @@ function AgentCard({
               </div>
               {/* Buttons */}
               <div className={cn(agentCardButtonsContainerVariants({ size }))}>
-                {!isDefault && (
-                  <div className={cn(agentShowDetailButtonVariants({ size }))}>
-                    <Button variant="secondary" size={buttonSize} asChild>
-                      <AgentDetailLink agentId={agent.id}>
-                        {t("view")}
-                      </AgentDetailLink>
+                {showHireButton ? (
+                  <ClickBlocker>
+                    <AgentHireButton agentId={agent.id} className="w-full" />
+                  </ClickBlocker>
+                ) : (
+                  <div className={cn(agentShowDetailsButtonVariants({ size }))}>
+                    <Button
+                      variant="primary"
+                      size={buttonSize}
+                      className="w-full cursor-pointer md:w-auto"
+                    >
+                      {t("view")}
                     </Button>
                   </div>
                 )}
-                <div className={cn(agentHireButtonVariants({ size }))}>
-                  <Button
-                    variant="primary"
-                    size={buttonSize}
-                    className="w-full cursor-pointer md:w-auto"
-                  >
-                    {t("view")}
-                  </Button>
-                </div>
-                <ClickBlocker
-                  className={cn(agentHireButtonVariants({ size }), "hidden")}
-                >
-                  <AgentHireButton
-                    agentId={agent.id}
-                    className="w-full md:w-auto"
-                  />
-                </ClickBlocker>
               </div>
             </div>
           </div>
