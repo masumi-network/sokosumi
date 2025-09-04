@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { JobDetails } from "@/components/jobs";
+import { siteConfig } from "@/config/site";
+import { getAgentResolvedImage } from "@/lib/db";
 import { jobService } from "@/lib/services";
 
 export async function generateMetadata({
@@ -17,10 +19,26 @@ export async function generateMetadata({
   if (!job) {
     return notFound();
   }
+  const agentImage = getAgentResolvedImage(job.agent);
+  const jobName = job.name ?? t("defaultName");
 
   return {
-    title: job.name ? t("title", { name: job.name }) : t("defaultTitle"),
+    title: t("title", { name: jobName }),
     description: t("description"),
+    openGraph: {
+      title: t("title", { name: jobName }),
+      description: t("description"),
+      type: "article",
+      url: `${siteConfig.url}/jobs/${jobId}`,
+      images: [
+        {
+          url: agentImage,
+          width: 400,
+          height: 250,
+          alt: jobName,
+        },
+      ],
+    },
   };
 }
 
