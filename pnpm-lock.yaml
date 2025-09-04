@@ -224,6 +224,9 @@ importers:
       react-fast-marquee:
         specifier: 1.6.5
         version: 1.6.5(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+      react-file-icon:
+        specifier: 1.6.0
+        version: 1.6.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       react-hook-form:
         specifier: 7.62.0
         version: 7.62.0(react@19.1.1)
@@ -294,6 +297,9 @@ importers:
       '@types/react-dom':
         specifier: 19.1.9
         version: 19.1.9(@types/react@19.1.11)
+      '@types/react-file-icon':
+        specifier: 1.0.4
+        version: 1.0.4
       '@types/react-window':
         specifier: 1.8.8
         version: 1.8.8
@@ -3083,6 +3089,9 @@ packages:
     peerDependencies:
       '@types/react': ^19.0.0
 
+  '@types/react-file-icon@1.0.4':
+    resolution: {integrity: sha512-c1mIklUDaxm9odxf8RTiy/EAxsblZliJ86EKIOAyuafP9eK3iudyn4ATv53DX6ZvgGymc7IttVNm97LTGnTiYA==}
+
   '@types/react-window@1.8.8':
     resolution: {integrity: sha512-8Ls660bHR1AUA2kuRvVG9D/4XpRC6wjAaPT9dil7Ckc76eP9TKWZwwmgfq8Q1LANX3QNDnoU4Zp48A3w+zK69Q==}
 
@@ -3893,6 +3902,9 @@ packages:
   color@4.2.3:
     resolution: {integrity: sha512-1rXeuUUiGGrykh+CeBdu5Ie7OJwinCgQY0bc7GCRxy5xVHy+moaqkpL/jqQq0MtQOeYcrqEz4abc5f0KtU7W4A==}
     engines: {node: '>=12.5.0'}
+
+  colord@2.9.3:
+    resolution: {integrity: sha512-jeC1axXpnb0/2nn/Y1LPuLdgXBLH7aDcHu4KEKfqw3CUhX7ZpfBSlPKyqXE6btIgEzfWtrX3/tyBCaCvXvMkOw==}
 
   comma-separated-tokens@2.0.3:
     resolution: {integrity: sha512-Fu4hJdvzeylCfQPp9SGWidpzrMs7tTrlu6Vb8XGaRGck8QSNZJJp538Wrb60Lax4fPwR64ViY468OIUTbRlGZg==}
@@ -6329,6 +6341,12 @@ packages:
     peerDependencies:
       react: '>= 16.8.0 || ^18.0.0'
       react-dom: '>= 16.8.0 || ^18.0.0'
+
+  react-file-icon@1.6.0:
+    resolution: {integrity: sha512-Ba4Qa2ya/kvhcCd4LJja77sV7JD7u1ZXcI1DUz+TII3nGmglG6QY+NZeHizThokgct3qI0glwb9eV8NqRGs5lw==}
+    peerDependencies:
+      react: ^19.0.0 || ^18.0.0 || ^17.0.0 || ^16.2.0
+      react-dom: ^19.0.0 || ^18.0.0 || ^17.0.0 || ^16.2.0
 
   react-hook-form@7.62.0:
     resolution: {integrity: sha512-7KWFejc98xqG/F4bAxpL41NB3o1nnvQO1RWZT3TqRZYL8RryQETGfEdVnJN2fy1crCiBLLjkRBVK05j24FxJGA==}
@@ -10615,6 +10633,10 @@ snapshots:
     dependencies:
       '@types/react': 19.1.11
 
+  '@types/react-file-icon@1.0.4':
+    dependencies:
+      '@types/react': 19.1.11
+
   '@types/react-window@1.8.8':
     dependencies:
       '@types/react': 19.1.11
@@ -11551,6 +11573,8 @@ snapshots:
       color-convert: 2.0.1
       color-string: 1.9.1
     optional: true
+
+  colord@2.9.3: {}
 
   comma-separated-tokens@2.0.3: {}
 
@@ -14479,6 +14503,13 @@ snapshots:
 
   react-fast-marquee@1.6.5(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
     dependencies:
+      react: 19.1.1
+      react-dom: 19.1.1(react@19.1.1)
+
+  react-file-icon@1.6.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
+    dependencies:
+      colord: 2.9.3
+      prop-types: 15.8.1
       react: 19.1.1
       react-dom: 19.1.1(react@19.1.1)
 

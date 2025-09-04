@@ -29,7 +29,7 @@
     "generate:payment": "openapi-ts -f openapi-ts.payment.config.ts",
     "generate:registry": "openapi-ts -f openapi-ts.registry.config.ts",
     "generate:api": "pnpm run generate:registry && pnpm run generate:payment",
-    "generate:api-docs": "pnpm dlx next-openapi-gen generate"
+    "generate:api-docs": "npx next-openapi-gen generate"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.60.0",
@@ -95,7 +95,8 @@
     "use-debounce": "10.0.5",
     "uuid": "11.1.0",
     "vaul": "1.1.2",
-    "zod": "4.1.4"
+    "zod": "4.1.4",
+    "react-file-icon": "1.6.0"
   },
   "devDependencies": {
     "@hey-api/openapi-ts": "0.82.0",
@@ -105,6 +106,7 @@
     "@types/react-dom": "19.1.9",
     "@types/react-window": "1.8.8",
     "next-openapi-gen": "0.7.3",
-    "prisma": "6.15.0"
+    "prisma": "6.15.0",
+    "@types/react-file-icon": "1.0.4"
   }
 }

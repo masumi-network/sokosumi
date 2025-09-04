@@ -31,6 +31,7 @@ model User {
   fiatTransactions   FiatTransaction[]
   jobs               Job[]
   blobs              Blob[]              @relation("UserBlob")
+  links              Link[]              @relation("UserLink")
 
   stripeCustomerId String?
 
@@ -521,6 +522,7 @@ model Job {
   isDemo Boolean @default(false)
 
   blobs Blob[] @relation("JobBlob")
+  links Link[] @relation("JobLink")
 }
 
 enum OnChainTransactionStatus {
@@ -612,13 +614,45 @@ model Blob {
   id        String   @id @default(uuid())
   userId    String
   jobId     String
-  fileUrl   String
+  fileUrl   String?
   fileName  String?
+  mime      String?
   size      BigInt?
-  createdAt DateTime @default(now())
+  origin    BlobOrigin @default(INPUT)
+  sourceUrl String?
+  status    BlobStatus @default(READY)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
 
   user User @relation("UserBlob", fields: [userId], references: [id], onDelete: Cascade)
   job  Job  @relation("JobBlob", fields: [jobId], references: [id], onDelete: Cascade)
 
   @@map("blob")
+}
+
+model Link {
+  id        String   @id @default(uuid())
+  userId    String
+  jobId     String
+  url       String
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation("UserLink", fields: [userId], references: [id], onDelete: Cascade)
+  job  Job  @relation("JobLink", fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, url])
+  @@map("link")
+}
+
+enum BlobOrigin {
+  INPUT
+  OUTPUT
+}
+
+enum BlobStatus {
+  PENDING
+  READY
+  FAILED
 }

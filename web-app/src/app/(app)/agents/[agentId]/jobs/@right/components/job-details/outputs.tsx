@@ -13,6 +13,7 @@ import CopyMarkdown from "./copy-markdown";
 import DownloadMarkdown from "./download-markdown";
 import MaximizeMarkdown from "./maximize-markdown";
 import RequestRefundButton from "./refund-request";
+import Sources from "./sources";
 
 interface JobDetailsOutputsProps {
   job: JobWithStatus;
@@ -52,6 +53,7 @@ function JobDetailsOutputsInner({ job }: JobDetailsOutputsProps) {
       {output?.result ? (
         <>
           <Markdown>{output.result}</Markdown>
+          <Sources job={job} />
           <div className="flex justify-between gap-2">
             <div className="flex gap-4">
               <MaximizeMarkdown markdown={output.result} />
