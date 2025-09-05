@@ -9,7 +9,6 @@ const EXCLUDED_PATHS = [
   "/accept-invitation",
   "/share/jobs",
   "/health",
-  "/api/v1",
   "/api-docs",
   "/robots.txt",
   "/sitemap.xml",
@@ -78,5 +77,6 @@ export const config = {
      * - js directory in /public (public static js files)
      */
     "/((?!api|_next/static|_next/image|images|public|legal|js).*)",
+    "/api/v1/:path*",
   ],
 };
