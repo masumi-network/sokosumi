@@ -19,6 +19,30 @@ const EXCLUDED_PATHS = [
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
+  const isApiV1Path = pathname.startsWith("/api/v1");
+
+  // Handle CORS for public API v1 endpoints
+  if (isApiV1Path) {
+    const corsHeaders = new Headers({
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers":
+        "Content-Type, Authorization, X-Requested-With, x-api-key",
+      "Access-Control-Max-Age": "86400",
+    });
+
+    if (request.method === "OPTIONS") {
+      return new NextResponse(null, { status: 204, headers: corsHeaders });
+    }
+
+    const response = NextResponse.next();
+    corsHeaders.forEach((value, key) => {
+      response.headers.set(key, value);
+    });
+
+    return response;
+  }
+
   // Skip middleware for excluded paths
   if (EXCLUDED_PATHS.some((path) => pathname.startsWith(path))) {
     return NextResponse.next();
