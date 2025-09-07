@@ -15,7 +15,7 @@ export async function generateMetadata({
   const t = await getTranslations("Share.Jobs.Metadata");
 
   const { jobId } = await params;
-  const job = await jobService.getSharedJob(jobId);
+  const job = await jobService.getPubliclySharedJob(jobId);
   if (!job) {
     return notFound();
   }
@@ -51,7 +51,7 @@ export default async function JobPage({
 }) {
   const { jobId } = await params;
 
-  const job = await jobService.getSharedJob(jobId);
+  const job = await jobService.getPubliclySharedJob(jobId);
   if (!job) {
     return notFound();
   }

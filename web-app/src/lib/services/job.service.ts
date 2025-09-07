@@ -874,7 +874,9 @@ export const jobService = (() => {
     );
   };
 
-  const getSharedJob = async (jobId: string): Promise<JobWithStatus | null> => {
+  const getPubliclySharedJob = async (
+    jobId: string,
+  ): Promise<JobWithStatus | null> => {
     const share = await jobShareRepository.getPublicJobShareByJobId(jobId);
     if (!share) {
       return null;
@@ -890,6 +892,6 @@ export const jobService = (() => {
     requestRefund,
     syncJob,
     getJobIndicatorStatuses,
-    getSharedJob,
+    getPubliclySharedJob,
   };
 })();
