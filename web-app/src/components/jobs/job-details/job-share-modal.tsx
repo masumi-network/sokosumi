@@ -1,7 +1,7 @@
 import { Check, Copy, Globe, Lock } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -49,6 +49,10 @@ export default function JobShareModal({
   const [loading, setLoading] = useState(false);
   const [jobShare, setJobShare] = useState<JobShare | null>(null);
   const [link, setLink] = useState<URL | null>(null);
+
+  // Need to refresh after modal is closed
+  const needRefresh = useRef(false);
+
   const publicJobShare = getPublicJobShare(job);
 
   useEffect(() => {
@@ -69,7 +73,7 @@ export default function JobShareModal({
     }
     // when close JobShareModal
     // refresh router to show updated job-share indicator
-    if (!open) {
+    if (!open && needRefresh.current) {
       router.refresh();
     }
     onOpenChange(open);
@@ -85,6 +89,7 @@ export default function JobShareModal({
       SharePermission.READ,
     );
     if (result.ok) {
+      needRefresh.current = true;
       setJobShare(result.data);
       setLink(
         new URL(`/share/jobs/${result.data.token}`, window.location.origin),
@@ -162,6 +167,7 @@ export default function JobShareModal({
     setLoading(true);
     const result = await removeJobShare(job.id);
     if (result.ok) {
+      needRefresh.current = true;
       setJobShare(null);
       setLink(null);
       toast.success(t("Success.share"));
