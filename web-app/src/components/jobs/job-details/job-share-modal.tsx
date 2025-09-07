@@ -67,6 +67,11 @@ export default function JobShareModal({
     if (loading) {
       return;
     }
+    // when close JobShareModal
+    // refresh router to show updated job-share indicator
+    if (!open) {
+      router.refresh();
+    }
     onOpenChange(open);
   };
 
@@ -85,7 +90,6 @@ export default function JobShareModal({
         new URL(`/share/jobs/${result.data.token}`, window.location.origin),
       );
       toast.success(t("Success.share"));
-      router.refresh();
     } else {
       switch (result.error.code) {
         case CommonErrorCode.UNAUTHENTICATED:
@@ -161,7 +165,6 @@ export default function JobShareModal({
       setJobShare(null);
       setLink(null);
       toast.success(t("Success.share"));
-      router.refresh();
     } else {
       switch (result.error.code) {
         case CommonErrorCode.UNAUTHENTICATED:
