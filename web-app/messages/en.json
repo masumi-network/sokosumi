@@ -333,7 +333,7 @@
         "Sources": {
           "title": "Links"
         },
-        "FileStatusBadge": {
+        "BlobStatusBadge": {
           "pending": "Pending",
           "failed": "Failed"
         }

@@ -14,7 +14,7 @@ import DownloadMarkdown from "./download-markdown";
 import JobShareButton from "./job-share-button";
 import MaximizeMarkdown from "./maximize-markdown";
 import RequestRefundButton from "./refund-request";
-import Sources from "./sources";
+import JotOutputSources from "./sources";
 
 interface JobDetailsOutputsProps {
   job: JobWithStatus;
@@ -58,7 +58,7 @@ function JobDetailsOutputsInner({ job, readOnly }: JobDetailsOutputsProps) {
       {output?.result ? (
         <>
           <Markdown>{output.result}</Markdown>
-          <Sources job={job} />
+          <JotOutputSources job={job} />
           <div className="flex justify-between gap-2">
             <div className="flex gap-4">
               <MaximizeMarkdown markdown={output.result} />

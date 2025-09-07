@@ -2,35 +2,22 @@ import { FileIcon } from "lucide-react";
 
 import { Favicon } from "@/components/ui/favicon";
 import { FileChip } from "@/components/ui/file-chip";
+import { getBlobFileName, getBlobKey, getBlobUrl } from "@/lib/db";
 import { cn } from "@/lib/utils";
 import { buildFaviconCandidates, getHostname } from "@/lib/utils/url";
+import { Blob, BlobStatus, Link } from "@/prisma/generated/client";
 
-import { FileStatusBadge } from "./file-status-badge";
-
-interface FileItem {
-  id?: string;
-  url: string;
-  fileName?: string | null;
-  size?: number | bigint | null;
-  status?: string | null;
-}
-
-interface LinkItem {
-  id?: string;
-  url: string;
-  title?: string | null;
-}
+import { BlobStatusBadge } from "./blob-status-badge";
 
 export interface SourcesGridProps {
   title?: string;
-  files?: FileItem[];
-  links?: LinkItem[];
+  blobs: Blob[];
+  links: Link[];
   className?: string;
 }
 
 export function SourcesGrid(props: SourcesGridProps) {
-  const { title, files = [], links = [], className } = props;
-  if (files.length === 0 && links.length === 0) return null;
+  const { title, blobs, links, className } = props;
 
   return (
     <div className={cn("mt-2", className)}>
@@ -40,15 +27,12 @@ export function SourcesGrid(props: SourcesGridProps) {
         </h3>
       ) : null}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-2">
-        {files.map((file) => (
-          <FileItemChip
-            key={file.id ?? `${file.url}-${file.fileName ?? ""}`}
-            item={file}
-          />
+        {blobs.map((blob) => (
+          <FileItemChip key={getBlobKey(blob)} blob={blob} />
         ))}
         {links.map((link) => (
           <a
-            key={link.id ?? link.url}
+            key={link.id}
             href={link.url}
             target="_blank"
             rel="noreferrer noopener"
@@ -72,24 +56,27 @@ export function SourcesGrid(props: SourcesGridProps) {
   );
 }
 
-function FileItemChip({ item }: { item: FileItem }) {
-  const status = (item.status ?? "READY").toUpperCase();
-  if (status !== "READY") {
+function FileItemChip({ blob }: { blob: Blob }) {
+  if (blob.status !== BlobStatus.READY) {
     return (
       <div className="inline-flex items-center gap-2 rounded-md border p-2">
         <div className="inline-flex items-center justify-center">
           <FileIcon className="text-muted-foreground size-4" />
         </div>
         <span className="text-foreground/80 w-full truncate text-sm">
-          {item.fileName ?? item.url ?? "file"}
+          {getBlobFileName(blob) ?? getBlobUrl(blob)}
         </span>
         <div className="inline-flex justify-end">
-          <FileStatusBadge status={status} />
+          <BlobStatusBadge status={blob.status} />
         </div>
       </div>
     );
   }
   return (
-    <FileChip url={item.url} fileName={item.fileName} sizeClass="size-4" />
+    <FileChip
+      url={getBlobUrl(blob)}
+      fileName={getBlobFileName(blob)}
+      sizeClass="size-4"
+    />
   );
 }

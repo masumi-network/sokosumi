@@ -15,5 +15,5 @@ ALTER TABLE "public"."blob" ADD COLUMN     "mime" TEXT,
 ADD COLUMN     "origin" "public"."BlobOrigin" NOT NULL DEFAULT 'INPUT',
 ADD COLUMN     "sourceUrl" TEXT,
 ADD COLUMN     "status" "public"."BlobStatus" NOT NULL DEFAULT 'READY',
-ADD COLUMN     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN     "updatedAt" TIMESTAMP(3) NOT NULL,
 ALTER COLUMN "fileUrl" DROP NOT NULL;

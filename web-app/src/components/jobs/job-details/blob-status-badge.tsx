@@ -4,17 +4,17 @@ import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { BlobStatus } from "@/prisma/generated/client";
 
-export interface FileStatusBadgeProps {
-  status?: string | null; // "PENDING" | "FAILED" | undefined
+export interface BlobStatusBadgeProps {
+  status?: BlobStatus;
   className?: string;
 }
 
-export function FileStatusBadge({ status, className }: FileStatusBadgeProps) {
+export function BlobStatusBadge({ status, className }: BlobStatusBadgeProps) {
   const t = useTranslations("Components.Jobs.JobDetails.FileStatusBadge");
-  const normalized = (status ?? "").toUpperCase();
 
-  if (normalized === "PENDING") {
+  if (status === BlobStatus.PENDING) {
     return (
       <Badge
         variant="default"
@@ -24,7 +24,7 @@ export function FileStatusBadge({ status, className }: FileStatusBadgeProps) {
       </Badge>
     );
   }
-  if (normalized === "FAILED") {
+  if (status === BlobStatus.FAILED) {
     return (
       <Badge
         variant="default"
