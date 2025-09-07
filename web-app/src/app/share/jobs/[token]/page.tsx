@@ -4,7 +4,7 @@ import { getTranslations } from "next-intl/server";
 
 import { JobDetails } from "@/components/jobs";
 import { siteConfig } from "@/config/site";
-import { getAgentResolvedImage } from "@/lib/db";
+import { getAgentName, getAgentResolvedImage } from "@/lib/db";
 import { jobService } from "@/lib/services";
 
 export async function generateMetadata({
@@ -72,10 +72,14 @@ export default async function JobPage({
   }
 
   const { job } = result;
+  const agentName = getAgentName(job.agent);
 
   return (
-    <div className="justify-content container mx-auto flex items-center p-4 md:p-8">
-      <JobDetails job={job} readOnly />
+    <div className="container mx-auto flex justify-center p-4 md:p-8">
+      <div className="space-y-4">
+        <h1 className="text-2xl font-light">{agentName}</h1>
+        <JobDetails job={job} className="w-full" readOnly />
+      </div>
     </div>
   );
 }
