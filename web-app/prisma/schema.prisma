@@ -646,7 +646,7 @@ model JobShare {
   job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   // Security & Access
-  token String? @unique
+  token String @unique
 
   // Access Control
   accessType ShareAccessType

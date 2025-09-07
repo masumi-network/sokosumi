@@ -24,7 +24,11 @@ import {
   AuthenticatedRequest,
   withAuthContext,
 } from "@/middleware/auth-middleware";
-import { ShareAccessType, SharePermission } from "@/prisma/generated/client";
+import {
+  JobShare,
+  ShareAccessType,
+  SharePermission,
+} from "@/prisma/generated/client";
 
 import {
   handleInputDataFileUploads,
@@ -306,7 +310,7 @@ export async function shareJob(
   recipientOrganizationId: string | null,
   shareAccessType: ShareAccessType,
   sharePermission: SharePermission,
-): Promise<Result<void, ActionError>> {
+): Promise<Result<JobShare, ActionError>> {
   try {
     const context = await getAuthContext();
     if (!context) {
@@ -329,6 +333,11 @@ export async function shareJob(
       throw new Error("Only Public Share is supported");
     }
 
+    // for now only Public Access is supported
+    if (shareAccessType !== ShareAccessType.PUBLIC) {
+      throw new Error("Only Public Access is supported");
+    }
+
     // for now only Read access is supported
     if (sharePermission !== SharePermission.READ) {
       throw new Error("Only Read Permission is supported");
@@ -342,19 +351,65 @@ export async function shareJob(
       });
     }
 
-    await prisma.$transaction(async (tx) => {
+    const jobShare = await prisma.$transaction(async (tx) => {
       await jobShareRepository.deleteJobSharesByJobId(jobId, tx);
-      await jobShareRepository.createPublicJobShare(
+      return await jobShareRepository.createJobShare(
         jobId,
         context.userId,
         recipientId,
         recipientOrganizationId,
+        shareAccessType,
+        sharePermission,
         tx,
       );
     });
-    return Ok();
+    return Ok(jobShare);
   } catch (error) {
     console.error("Failed to share job", error);
+    return Err({
+      message: "Internal server error",
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+    });
+  }
+}
+
+export async function updateAllowSearchIndexing(
+  jobShareId: string,
+  allowSearchIndexing: boolean,
+): Promise<Result<JobShare, ActionError>> {
+  try {
+    const context = await getAuthContext();
+    if (!context) {
+      return Err({
+        message: "Unauthenticated",
+        code: CommonErrorCode.UNAUTHENTICATED,
+      });
+    }
+
+    const share = await jobShareRepository.getJobShareById(jobShareId);
+    if (!share) {
+      return Err({
+        message: "Job Share not found",
+        code: JobErrorCode.JOB_SHARE_NOT_FOUND,
+      });
+    }
+
+    // must be job share creator to remove share
+    if (context.userId !== share.creatorId) {
+      return Err({
+        message: "Unauthorized",
+        code: CommonErrorCode.UNAUTHORIZED,
+      });
+    }
+
+    // update allow search indexing
+    const updated = await jobShareRepository.updateJobShareAllowSearchIndexing(
+      jobShareId,
+      allowSearchIndexing,
+    );
+    return Ok(updated);
+  } catch (error) {
+    console.error("Failed to update allow search indexing", error);
     return Err({
       message: "Internal server error",
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,

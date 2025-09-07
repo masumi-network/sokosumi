@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -13,16 +14,22 @@ import {
   DialogPortal,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   CommonErrorCode,
   JobErrorCode,
   removeJobShare,
   shareJob,
+  updateAllowSearchIndexing,
 } from "@/lib/actions";
-import { isPubliclyShared, JobWithRelations } from "@/lib/db";
+import { getPublicJobShare, JobWithRelations } from "@/lib/db";
 import { cn } from "@/lib/utils";
-import { ShareAccessType, SharePermission } from "@/prisma/generated/client";
+import {
+  JobShare,
+  ShareAccessType,
+  SharePermission,
+} from "@/prisma/generated/client";
 
 interface JobShareModalProps {
   open: boolean;
@@ -40,21 +47,21 @@ export default function JobShareModal({
 
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [jobShare, setJobShare] = useState<JobShare | null>(null);
   const [link, setLink] = useState<URL | null>(null);
-  const [selectedAccessType, setSelectedAccessType] = useState<ShareAccessType>(
-    ShareAccessType.RESTRICTED,
-  );
-  const sharedPublicly = isPubliclyShared(job);
+  const publicJobShare = getPublicJobShare(job);
 
   useEffect(() => {
-    if (sharedPublicly) {
-      setSelectedAccessType(ShareAccessType.PUBLIC);
-      setLink(new URL(`/share/jobs/${jobId}`, window.location.origin));
+    if (publicJobShare) {
+      setJobShare(publicJobShare);
+      setLink(
+        new URL(`/share/jobs/${publicJobShare.token}`, window.location.origin),
+      );
     } else {
-      setSelectedAccessType(ShareAccessType.RESTRICTED);
+      setJobShare(null);
       setLink(null);
     }
-  }, [jobId, sharedPublicly, setLink, setSelectedAccessType]);
+  }, [jobId, publicJobShare, setJobShare, setLink]);
 
   const handleOnOpenChange = (open: boolean) => {
     if (loading) {
@@ -73,8 +80,10 @@ export default function JobShareModal({
       SharePermission.READ,
     );
     if (result.ok) {
-      setLink(new URL(`/share/jobs/${job.id}`, window.location.origin));
-      setSelectedAccessType(ShareAccessType.PUBLIC);
+      setJobShare(result.data);
+      setLink(
+        new URL(`/share/jobs/${result.data.token}`, window.location.origin),
+      );
       toast.success(t("Success.share"));
       router.refresh();
     } else {
@@ -103,12 +112,54 @@ export default function JobShareModal({
     setLoading(false);
   };
 
+  const handleAllowSearchIndexingChange = async (
+    v: boolean | "indeterminate",
+  ) => {
+    const checked = v === true;
+    if (!jobShare) {
+      return;
+    }
+
+    setLoading(true);
+    const result = await updateAllowSearchIndexing(jobShare.id, checked);
+    if (result.ok) {
+      setJobShare(result.data);
+      toast.success(t("Success.share"));
+    } else {
+      switch (result.error.code) {
+        case CommonErrorCode.UNAUTHENTICATED:
+          toast.error(t("Errors.unauthenticated"), {
+            action: {
+              label: t("Errors.unauthenticatedAction"),
+              onClick: () => {
+                router.push(`/login`);
+              },
+            },
+          });
+          break;
+        case CommonErrorCode.UNAUTHORIZED:
+          toast.error(t("Errors.unauthorized"));
+          break;
+        case JobErrorCode.JOB_NOT_FOUND:
+          toast.error(t("Errors.jobNotFound"));
+          break;
+        case JobErrorCode.JOB_SHARE_NOT_FOUND:
+          toast.error(t("Errors.jobShareNotFound"));
+          break;
+        default:
+          toast.error(t("Error.share"));
+          break;
+      }
+    }
+    setLoading(false);
+  };
+
   const handleRemoveJobShare = async () => {
     setLoading(true);
     const result = await removeJobShare(job.id);
     if (result.ok) {
+      setJobShare(null);
       setLink(null);
-      setSelectedAccessType(ShareAccessType.RESTRICTED);
       toast.success(t("Success.share"));
       router.refresh();
     } else {
@@ -176,7 +227,7 @@ export default function JobShareModal({
                       {t("publicAccessDescription")}
                     </p>
                   </div>
-                  {selectedAccessType === ShareAccessType.PUBLIC && (
+                  {jobShare?.accessType === ShareAccessType.PUBLIC && (
                     <Check className="h-4 w-4 text-green-500" />
                   )}
                 </div>
@@ -196,7 +247,8 @@ export default function JobShareModal({
                       {t("privateAccessDescription")}
                     </p>
                   </div>
-                  {selectedAccessType === ShareAccessType.RESTRICTED && (
+                  {(!jobShare ||
+                    jobShare.accessType === ShareAccessType.RESTRICTED) && (
                     <Check className="h-4 w-4 text-green-500" />
                   )}
                 </div>
@@ -214,6 +266,22 @@ export default function JobShareModal({
                   <Button variant="ghost" size="icon" onClick={handleCopyLink}>
                     <Copy className="h-4 w-4" />
                   </Button>
+                </div>
+              )}
+              {jobShare?.accessType === ShareAccessType.PUBLIC && (
+                <div className="flex items-center gap-2">
+                  <Checkbox
+                    id="allow-search-indexing"
+                    disabled={loading}
+                    className={cn({
+                      "pointer-events-none animate-pulse opacity-60": loading,
+                    })}
+                    checked={jobShare?.allowSearchIndexing}
+                    onCheckedChange={(v) => handleAllowSearchIndexingChange(v)}
+                  />
+                  <Label htmlFor="allow-search-indexing">
+                    {t("allowSearchIndexing")}
+                  </Label>
                 </div>
               )}
               <div className="flex justify-end">
