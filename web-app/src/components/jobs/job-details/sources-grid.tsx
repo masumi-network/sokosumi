@@ -2,7 +2,7 @@ import { FileIcon } from "lucide-react";
 
 import { Favicon } from "@/components/ui/favicon";
 import { FileChip } from "@/components/ui/file-chip";
-import { getBlobFileName, getBlobKey, getBlobUrl } from "@/lib/db";
+import { getBlobFileName, getBlobUrl } from "@/lib/db";
 import { cn } from "@/lib/utils";
 import { buildFaviconCandidates, getHostname } from "@/lib/utils/url";
 import { Blob, BlobStatus, Link } from "@/prisma/generated/client";
@@ -28,7 +28,7 @@ export function SourcesGrid(props: SourcesGridProps) {
       ) : null}
       <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-2">
         {blobs.map((blob) => (
-          <FileItemChip key={getBlobKey(blob)} blob={blob} />
+          <FileItemChip key={blob.id} blob={blob} />
         ))}
         {links.map((link) => (
           <a
