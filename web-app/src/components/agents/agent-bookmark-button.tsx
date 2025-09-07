@@ -33,11 +33,11 @@ export function AgentBookmarkButton({
 
   const handleBookmarkToggle = async () => {
     setIsLoading(true);
-    const result = await toggleAgentInAgentList(
+    const result = await toggleAgentInAgentList({
       agentId,
-      AgentListType.FAVORITE,
+      listType: AgentListType.FAVORITE,
       isBookmarked,
-    );
+    });
 
     if (result.ok) {
       setIsBookmarked(!isBookmarked);

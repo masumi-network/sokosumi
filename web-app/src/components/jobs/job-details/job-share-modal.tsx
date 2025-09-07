@@ -65,13 +65,13 @@ export default function JobShareModal({
 
   const handleShareJob = async () => {
     setLoading(true);
-    const result = await shareJob(
-      job.id,
-      null,
-      null,
-      ShareAccessType.PUBLIC,
-      SharePermission.READ,
-    );
+    const result = await shareJob({
+      jobId: job.id,
+      recipientId: null,
+      recipientOrganizationId: null,
+      shareAccessType: ShareAccessType.PUBLIC,
+      sharePermission: SharePermission.READ,
+    });
     if (result.ok) {
       setLink(new URL(`/share/jobs/${job.id}`, window.location.origin));
       setSelectedAccessType(ShareAccessType.PUBLIC);
@@ -105,7 +105,7 @@ export default function JobShareModal({
 
   const handleRemoveJobShare = async () => {
     setLoading(true);
-    const result = await removeJobShare(job.id);
+    const result = await removeJobShare({ jobId: job.id });
     if (result.ok) {
       setLink(null);
       setSelectedAccessType(ShareAccessType.RESTRICTED);

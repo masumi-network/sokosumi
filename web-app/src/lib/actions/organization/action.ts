@@ -3,7 +3,6 @@
 import { z } from "zod";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions";
-import { getAuthContext } from "@/lib/auth/utils";
 import {
   memberRepository,
   organizationRepository,
@@ -15,6 +14,10 @@ import {
 } from "@/lib/schemas";
 import { organizationService, stripeService } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
+import {
+  AuthenticatedRequest,
+  withAuthContext,
+} from "@/middleware/auth-middleware";
 
 export async function generateOrganizationSlug(
   data: OrganizationInformationFormSchemaType,
@@ -44,64 +47,71 @@ const updateInvoiceEmailSchema = z.object({
   organizationId: z.string(),
   invoiceEmail: z.email().nullable(),
 });
+type UpdateOrganizationInvoiceEmailData = z.infer<
+  typeof updateInvoiceEmailSchema
+>;
+interface UpdateOrganizationInvoiceEmailParameters
+  extends AuthenticatedRequest {
+  data: UpdateOrganizationInvoiceEmailData;
+}
 
-export async function updateOrganizationInvoiceEmail(
-  data: z.infer<typeof updateInvoiceEmailSchema>,
-): Promise<Result<{ invoiceEmail: string | null }, ActionError>> {
-  // Validate input
-  const parsedResult = updateInvoiceEmailSchema.safeParse(data);
-  if (!parsedResult.success) {
-    return Err({
-      code: CommonErrorCode.BAD_INPUT,
-      message: parsedResult.error.issues[0]?.message,
-    });
-  }
+export const updateOrganizationInvoiceEmail = withAuthContext<
+  UpdateOrganizationInvoiceEmailParameters,
+  Result<{ invoiceEmail: string | null }, ActionError>
+>(
+  async ({ data, authContext }) => {
+    const { userId } = authContext;
 
-  // Get current user session
-  const context = await getAuthContext();
-  if (!context) {
-    return Err({
-      code: CommonErrorCode.UNAUTHENTICATED,
-      message: "Unauthenticated",
-    });
-  }
+    // Validate input
+    const parsedResult = updateInvoiceEmailSchema.safeParse(data);
+    if (!parsedResult.success) {
+      return Err({
+        code: CommonErrorCode.BAD_INPUT,
+        message: parsedResult.error.issues[0]?.message,
+      });
+    }
+    const { organizationId, invoiceEmail } = parsedResult.data;
 
-  const { organizationId, invoiceEmail } = parsedResult.data;
+    // Check if user is an owner or admin of the organization
+    const member = await memberRepository.getMemberByUserIdAndOrganizationId(
+      userId,
+      organizationId,
+    );
 
-  // Check if user is an owner or admin of the organization
-  const member = await memberRepository.getMemberByUserIdAndOrganizationId(
-    context.userId,
-    organizationId,
-  );
+    if (!member) {
+      return Err({
+        code: CommonErrorCode.UNAUTHORIZED,
+        message: "You are not a member of this organization",
+      });
+    }
 
-  if (!member) {
-    return Err({
-      code: CommonErrorCode.UNAUTHORIZED,
-      message: "You are not a member of this organization",
-    });
-  }
+    // Only owners and admins can update invoice email
+    if (member.role !== MemberRole.OWNER && member.role !== MemberRole.ADMIN) {
+      return Err({
+        code: CommonErrorCode.UNAUTHORIZED,
+        message:
+          "Only organization owners and admins can update the invoice email",
+      });
+    }
 
-  // Only owners and admins can update invoice email
-  if (member.role !== MemberRole.OWNER && member.role !== MemberRole.ADMIN) {
-    return Err({
-      code: CommonErrorCode.UNAUTHORIZED,
-      message:
-        "Only organization owners and admins can update the invoice email",
-    });
-  }
+    // Update the invoice email in the database
+    const updatedOrganization =
+      await organizationRepository.updateOrganizationInvoiceEmail(
+        organizationId,
+        invoiceEmail,
+      );
 
-  // Update the invoice email in the database
-  const updatedOrganization =
-    await organizationRepository.updateOrganizationInvoiceEmail(
+    // Sync with Stripe if the organization has a Stripe customer
+    await stripeService.syncOrganizationInvoiceEmailWithStripe(
       organizationId,
       invoiceEmail,
     );
 
-  // Sync with Stripe if the organization has a Stripe customer
-  await stripeService.syncOrganizationInvoiceEmailWithStripe(
-    organizationId,
-    invoiceEmail,
-  );
-
-  return Ok({ invoiceEmail: updatedOrganization.invoiceEmail });
-}
+    return Ok({ invoiceEmail: updatedOrganization.invoiceEmail });
+  },
+  async () =>
+    Err({
+      message: "Unauthenticated",
+      code: CommonErrorCode.UNAUTHENTICATED,
+    }),
+);
