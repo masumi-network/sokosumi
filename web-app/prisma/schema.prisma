@@ -679,6 +679,9 @@ model JobShare {
   jobId String
   job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
+  // Security & Access
+  token String @unique
+
   // Access Control
   accessType ShareAccessType
   permission SharePermission @default(READ)
@@ -690,6 +693,9 @@ model JobShare {
   // Recipient Organization
   recipientOrganizationId String?
   recipientOrganization   Organization? @relation(fields: [recipientOrganizationId], references: [id], onDelete: SetNull)
+
+  // SEO Control
+  allowSearchIndexing Boolean @default(true)
 
   @@unique([jobId, recipientId])
   @@unique([jobId, recipientOrganizationId])

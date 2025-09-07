@@ -34,7 +34,7 @@ export default function DisconnectModal({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
-  const { provider } = account;
+  const { providerId } = account;
 
   const handleOnOpenChange = (open: boolean) => {
     if (loading) {
@@ -46,10 +46,10 @@ export default function DisconnectModal({
   const handleDisconnect = async () => {
     setLoading(true);
     const result = await authClient.unlinkAccount({
-      providerId: provider,
+      providerId,
     });
     if (result.error) {
-      const errorMessage = result.error.message ?? t("error", { provider });
+      const errorMessage = result.error.message ?? t("error", { providerId });
       toast.error(errorMessage);
       setLoading(false);
     } else {
@@ -65,10 +65,10 @@ export default function DisconnectModal({
       <DialogContent className="w-[80vw] max-w-md!">
         <DialogHeader>
           <DialogTitle className="text-center text-lg font-medium">
-            {t("title", { provider })}
+            {t("title", { providerId })}
           </DialogTitle>
           <DialogDescription className="text-muted-foreground text-center text-base">
-            {t("description", { provider })}
+            {t("description", { providerId })}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="flex w-full items-center justify-around! gap-1.5">

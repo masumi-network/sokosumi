@@ -19,10 +19,10 @@ export function AccountSettings({ accounts }: AccountSettingsProps) {
   const t = useTranslations("App.Account");
 
   const socialAccounts = accounts.filter(
-    (account) => account.provider !== AccountProvider.CREDENTIAL,
+    (account) => account.providerId !== AccountProvider.CREDENTIAL,
   );
   const hasCredentialAccount = accounts.some(
-    (account) => account.provider === AccountProvider.CREDENTIAL,
+    (account) => account.providerId === AccountProvider.CREDENTIAL,
   );
 
   return (
