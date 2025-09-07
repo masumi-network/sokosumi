@@ -657,6 +657,9 @@ model JobShare {
   recipientOrganizationId String?
   recipientOrganization   Organization? @relation(fields: [recipientOrganizationId], references: [id], onDelete: SetNull)
 
+  // SEO Control
+  allowSearchIndexing Boolean @default(true)
+
   @@unique([jobId, recipientId])
   @@unique([jobId, recipientOrganizationId])
   @@map("share")
