@@ -130,7 +130,10 @@ export default function JobShareModal({
     }
 
     setLoading(true);
-    const result = await updateAllowSearchIndexing(jobShare.id, checked);
+    const result = await updateAllowSearchIndexing({
+      jobShareId: jobShare.id,
+      allowSearchIndexing: checked,
+    });
     if (result.ok) {
       setJobShare(result.data);
       toast.success(t("Success.share"));
