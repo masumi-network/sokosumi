@@ -31,9 +31,12 @@ import { getInputHash, getInputHashDeprecated } from "@/lib/utils";
 import {
   AgentJobStatus,
   Job,
+  JobShare,
   NextJobAction,
   OnChainJobStatus,
   Prisma,
+  ShareAccessType,
+  SharePermission,
 } from "@/prisma/generated/client";
 
 import { agentService } from "./agent.service";
@@ -874,14 +877,34 @@ export const jobService = (() => {
     );
   };
 
-  const getSharedJob = async (jobId: string): Promise<JobWithStatus | null> => {
-    const share = await jobShareRepository.getPublicJobShareByJobId(jobId);
+  /**
+   * Retrieves a job that is publicly shared by a token.
+   *
+   * @param token - The token of the job share to get the job for.
+   * @returns The job that is publicly shared by the token, or null if not found or not accessible.
+   */
+  const getPubliclySharedJob = async (
+    token: string,
+  ): Promise<{ job: JobWithStatus; share: JobShare } | null> => {
+    const share = await jobShareRepository.getJobShareByToken(token);
     if (!share) {
       return null;
     }
 
-    const job = await jobRepository.getJobById(jobId);
-    return job;
+    // must have Public Access and Read Permission
+    if (
+      share.accessType !== ShareAccessType.PUBLIC ||
+      share.permission !== SharePermission.READ
+    ) {
+      return null;
+    }
+
+    const job = await jobRepository.getJobById(share.jobId);
+    if (!job) {
+      return null;
+    }
+
+    return { job, share };
   };
 
   return {
@@ -890,6 +913,6 @@ export const jobService = (() => {
     requestRefund,
     syncJob,
     getJobIndicatorStatuses,
-    getSharedJob,
+    getPubliclySharedJob,
   };
 })();

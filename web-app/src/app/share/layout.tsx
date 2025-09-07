@@ -23,7 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function ShareLayout({ children }: ShareLayoutProps) {
   return (
-    <div className="flex w-full flex-col overflow-hidden">
+    <div className="flex w-full flex-col overflow-clip">
       <Header className="h-16 p-4" />
       <main className="relative min-h-[calc(100svh-64px)] p-4 pt-20 md:pt-4">
         {children}

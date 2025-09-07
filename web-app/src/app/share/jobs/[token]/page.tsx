@@ -4,24 +4,39 @@ import { getTranslations } from "next-intl/server";
 
 import { JobDetails } from "@/components/jobs";
 import { siteConfig } from "@/config/site";
-import { getAgentResolvedImage } from "@/lib/db";
+import { getAgentName, getAgentResolvedImage } from "@/lib/db";
 import { jobService } from "@/lib/services";
 
 export async function generateMetadata({
   params,
 }: {
-  params: Promise<{ jobId: string }>;
+  params: Promise<{ token: string }>;
 }): Promise<Metadata> {
   const t = await getTranslations("Share.Jobs.Metadata");
 
-  const { jobId } = await params;
-  const job = await jobService.getSharedJob(jobId);
-  if (!job) {
+  const { token } = await params;
+  const result = await jobService.getPubliclySharedJob(token);
+  if (!result) {
     return notFound();
   }
+
+  const { job, share } = result;
   const agentImage = getAgentResolvedImage(job.agent);
   const userName = job.user.name;
   const jobName = job.name ?? t("defaultName");
+
+  if (!share.allowSearchIndexing) {
+    return {
+      robots: {
+        index: false,
+        follow: false,
+        googleBot: {
+          index: false,
+          follow: false,
+        },
+      },
+    };
+  }
 
   return {
     title: t("title", { name: jobName }),
@@ -30,7 +45,7 @@ export async function generateMetadata({
       title: t("title", { name: jobName }),
       description: t("description"),
       type: "article",
-      url: `${siteConfig.url}/share/jobs/${jobId}`,
+      url: `${siteConfig.url}/share/jobs/${token}`,
       authors: [userName],
       images: [
         {
@@ -47,18 +62,24 @@ export async function generateMetadata({
 export default async function JobPage({
   params,
 }: {
-  params: Promise<{ jobId: string }>;
+  params: Promise<{ token: string }>;
 }) {
-  const { jobId } = await params;
+  const { token } = await params;
 
-  const job = await jobService.getSharedJob(jobId);
-  if (!job) {
+  const result = await jobService.getPubliclySharedJob(token);
+  if (!result) {
     return notFound();
   }
 
+  const { job } = result;
+  const agentName = getAgentName(job.agent);
+
   return (
-    <div className="justify-content container mx-auto flex items-center p-4 md:p-8">
-      <JobDetails job={job} readOnly />
+    <div className="container mx-auto flex justify-center p-4 md:p-8">
+      <div className="space-y-4">
+        <h1 className="text-2xl font-light">{agentName}</h1>
+        <JobDetails job={job} className="w-full" readOnly />
+      </div>
     </div>
   );
 }
