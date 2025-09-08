@@ -188,6 +188,25 @@ export const getParseAs = (
   return;
 };
 
+const checkForExistence = (
+  options: Pick<RequestOptions, 'auth' | 'query'> & {
+    headers: Headers;
+  },
+  name?: string,
+): boolean => {
+  if (!name) {
+    return false;
+  }
+  if (
+    options.headers.has(name) ||
+    options.query?.[name] ||
+    options.headers.get('Cookie')?.includes(`${name}=`)
+  ) {
+    return true;
+  }
+  return false;
+};
+
 export const setAuthParams = async ({
   security,
   ...options
@@ -196,6 +215,9 @@ export const setAuthParams = async ({
     headers: Headers;
   }) => {
   for (const auth of security) {
+    if (checkForExistence(options, auth.name)) {
+      continue;
+    }
     const token = await getAuthToken(auth, options.auth);
 
     if (!token) {
@@ -219,8 +241,6 @@ export const setAuthParams = async ({
         options.headers.set(name, token);
         break;
     }
-
-    return;
   }
 };
 
@@ -275,6 +295,14 @@ export const mergeConfigs = (a: Config, b: Config): Config => {
   return config;
 };
 
+const headersEntries = (headers: Headers): Array<[string, string]> => {
+  const entries: Array<[string, string]> = [];
+  headers.forEach((value, key) => {
+    entries.push([key, value]);
+  });
+  return entries;
+};
+
 export const mergeHeaders = (
   ...headers: Array<Required<Config>['headers'] | undefined>
 ): Headers => {
@@ -285,7 +313,9 @@ export const mergeHeaders = (
     }
 
     const iterator =
-      header instanceof Headers ? header.entries() : Object.entries(header);
+      header instanceof Headers
+        ? headersEntries(header)
+        : Object.entries(header);
 
     for (const [key, value] of iterator) {
       if (value === null) {
