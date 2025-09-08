@@ -161,7 +161,7 @@ export async function POST(request: NextRequest) {
       launchOptions = {
         args: chromium.args,
         executablePath,
-        headless: chromium.headless,
+        headless: true,
       };
     } else if (process.platform === "darwin") {
       const execPath = LOCAL_CHROME_PATHS_MACOS.find(
