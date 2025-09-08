@@ -73,10 +73,8 @@ export default function OrganizationInvoiceEmail({
 
   const onSubmit = async (data: InvoiceEmailFormData) => {
     const result = await updateOrganizationInvoiceEmail({
-      data: {
-        organizationId: organization.id,
-        invoiceEmail: data.invoiceEmail,
-      },
+      organizationId: organization.id,
+      invoiceEmail: data.invoiceEmail,
     });
 
     if (result.ok) {
