@@ -294,6 +294,9 @@
           "maximize": "Maximize",
           "maximizeTitle": "Job Output",
           "close": "Close",
+          "exportAsPdf": "Export as PDF",
+          "exportAsDocx": "Export as Word Document",
+          "exportAsMarkdown": "Export as Markdown",
           "Refund": {
             "error": "Failed to request refund",
             "request": "Request Refund",
