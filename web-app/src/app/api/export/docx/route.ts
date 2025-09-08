@@ -187,7 +187,23 @@ export async function POST(request: NextRequest) {
     );
 
     const fileName = sanitizeFileName(json.fileName ?? "output") + ".docx";
-    return new NextResponse(blob as Blob, {
+    const body =
+      blob instanceof Blob
+        ? blob
+        : new Blob(
+            [
+              ((blob as Uint8Array).buffer as ArrayBuffer).slice(
+                (blob as Uint8Array).byteOffset,
+                (blob as Uint8Array).byteOffset +
+                  (blob as Uint8Array).byteLength,
+              ),
+            ],
+            {
+              type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            },
+          );
+
+    return new Response(body, {
       status: 200,
       headers: {
         "content-type":

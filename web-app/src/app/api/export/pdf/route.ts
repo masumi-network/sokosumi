@@ -193,7 +193,20 @@ export async function POST(request: NextRequest) {
     });
 
     const fileName = sanitizeFileName(json.fileName ?? "output") + ".pdf";
-    return new NextResponse(pdfBuffer, {
+    const body =
+      pdfBuffer instanceof Blob
+        ? pdfBuffer
+        : new Blob(
+            [
+              (pdfBuffer.buffer as ArrayBuffer).slice(
+                pdfBuffer.byteOffset,
+                pdfBuffer.byteOffset + pdfBuffer.byteLength,
+              ),
+            ],
+            { type: "application/pdf" },
+          );
+
+    return new Response(body, {
       status: 200,
       headers: {
         "content-type": "application/pdf",
