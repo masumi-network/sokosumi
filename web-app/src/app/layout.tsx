@@ -39,8 +39,7 @@ export default async function RootLayout({
   const messages = await getMessages();
   const gtmId = getEnvPublicConfig().NEXT_PUBLIC_GOOGLE_TAG_MANAGER_ID;
   const gaId = getEnvPublicConfig().NEXT_PUBLIC_GOOGLE_ANALYTICS_ID;
-  const isProduction = getEnvSecrets().NODE_ENV === "production";
-  const isOnMainBranch = getEnvSecrets().IS_ON_MAIN_BRANCH;
+  const ucDataSettingsId = getEnvSecrets().USER_CENTRICS_DATA_SETTINGS_ID;
   const isMainnet = getEnvPublicConfig().NEXT_PUBLIC_NETWORK === "Mainnet";
 
   return (
@@ -48,7 +47,7 @@ export default async function RootLayout({
       {gtmId && <GoogleTagManager gtmId={gtmId} />}
       <body className="bg-background min-h-svh max-w-dvw antialiased">
         <Script src="/js/plain.js" strategy="afterInteractive" />
-        {isProduction && isOnMainBranch && (
+        {ucDataSettingsId && (
           <>
             <Script
               src="https://web.cmp.usercentrics.eu/modules/autoblocker.js"
@@ -58,7 +57,7 @@ export default async function RootLayout({
               id="usercentrics-cmp"
               src="https://web.cmp.usercentrics.eu/ui/loader.js"
               {...(!isMainnet && { "data-draft": "true" })}
-              data-settings-id={getEnvSecrets().USER_CENTRICS_DATA_SETTINGS_ID}
+              data-settings-id={ucDataSettingsId}
               async
               strategy="beforeInteractive"
             />

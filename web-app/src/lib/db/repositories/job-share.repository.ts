@@ -3,6 +3,8 @@
  * Provides methods for creating, retrieving, and updating JobShare records.
  */
 
+import { v4 as uuidv4 } from "uuid";
+
 import {
   Prisma,
   ShareAccessType,
@@ -12,24 +14,30 @@ import {
 import prisma from "./prisma";
 
 export const jobShareRepository = {
-  async getPublicJobShareByJobId(
-    jobId: string,
+  async getJobShareById(id: string, tx: Prisma.TransactionClient = prisma) {
+    return await tx.jobShare.findUnique({
+      where: { id },
+    });
+  },
+
+  async getJobShareByToken(
+    token: string,
     tx: Prisma.TransactionClient = prisma,
   ) {
-    return await tx.jobShare.findFirst({
+    return await tx.jobShare.findUnique({
       where: {
-        jobId,
-        accessType: ShareAccessType.PUBLIC,
-        permission: SharePermission.READ,
+        token,
       },
     });
   },
 
-  async createPublicJobShare(
+  async createJobShare(
     jobId: string,
     creatorId: string,
     recipientId: string | null,
     recipientOrganizationId: string | null,
+    shareAccessType: ShareAccessType,
+    sharePermission: SharePermission,
     tx: Prisma.TransactionClient = prisma,
   ) {
     return await tx.jobShare.create({
@@ -40,8 +48,9 @@ export const jobShareRepository = {
         ...(recipientOrganizationId && {
           recipientOrganization: { connect: { id: recipientOrganizationId } },
         }),
-        accessType: ShareAccessType.PUBLIC,
-        permission: SharePermission.READ,
+        token: uuidv4(),
+        accessType: shareAccessType,
+        permission: sharePermission,
       },
     });
   },
@@ -52,6 +61,17 @@ export const jobShareRepository = {
   ) {
     return await tx.jobShare.deleteMany({
       where: { jobId },
+    });
+  },
+
+  async updateJobShareAllowSearchIndexing(
+    jobShareId: string,
+    allowSearchIndexing: boolean,
+    tx: Prisma.TransactionClient = prisma,
+  ) {
+    return await tx.jobShare.update({
+      where: { id: jobShareId },
+      data: { allowSearchIndexing },
     });
   },
 };

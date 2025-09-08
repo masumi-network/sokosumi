@@ -13,10 +13,6 @@ const envSecretsSchema = z.object({
   NODE_ENV: z
     .enum(["development", "staging", "production"])
     .default("development"),
-  IS_ON_MAIN_BRANCH: z
-    .string()
-    .transform((val: string) => val.trim().toLowerCase() === "true")
-    .default(false),
 
   // Database
   DATABASE_URL: z.url(),
@@ -27,7 +23,7 @@ const envSecretsSchema = z.object({
     .default([]),
 
   // Usercentrics
-  USER_CENTRICS_DATA_SETTINGS_ID: z.string().min(1),
+  USER_CENTRICS_DATA_SETTINGS_ID: z.string().min(1).optional(),
 
   SHOW_AGENTS_BY_DEFAULT: z
     .string()

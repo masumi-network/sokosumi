@@ -259,6 +259,7 @@
             "publicAccessDescription": "Anyone with the link can view",
             "privateAccessTitle": "Private access",
             "privateAccessDescription": "Only you can view",
+            "allowSearchIndexing": "Allow this result to be indexed by Search Engines",
             "getLink": "Get the link",
             "copyLink": "Copy link",
             "close": "Close",
@@ -274,6 +275,7 @@
               "unauthenticated": "You must be logged in.",
               "unauthenticatedAction": "Login",
               "jobNotFound": "Job not found",
+              "jobShareNotFound": "Job Share not found",
               "unauthorized": "You are not the owner of this job."
             }
           }

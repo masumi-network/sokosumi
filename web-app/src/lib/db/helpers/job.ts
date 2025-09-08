@@ -3,6 +3,7 @@ import { JobStatus, JobWithRelations } from "@/lib/db/types";
 import {
   AgentJobStatus,
   Job,
+  JobShare,
   NextJobAction,
   NextJobActionErrorType,
   OnChainJobStatus,
@@ -354,4 +355,13 @@ export function isPubliclyShared(job: JobWithRelations): boolean {
       share.accessType === ShareAccessType.PUBLIC &&
       share.permission === SharePermission.READ,
   );
+}
+
+export function getPublicJobShare(job: JobWithRelations): JobShare | null {
+  const found = job.shares.find(
+    (share) =>
+      share.accessType === ShareAccessType.PUBLIC &&
+      share.permission === SharePermission.READ,
+  );
+  return found ?? null;
 }
