@@ -47,23 +47,25 @@ const updateInvoiceEmailSchema = z.object({
   organizationId: z.string(),
   invoiceEmail: z.email().nullable(),
 });
-type UpdateOrganizationInvoiceEmailData = z.infer<
-  typeof updateInvoiceEmailSchema
->;
+
 interface UpdateOrganizationInvoiceEmailParameters
   extends AuthenticatedRequest {
-  data: UpdateOrganizationInvoiceEmailData;
+  organizationId: string;
+  invoiceEmail: string | null;
 }
 
 export const updateOrganizationInvoiceEmail = withAuthContext<
   UpdateOrganizationInvoiceEmailParameters,
   Result<{ invoiceEmail: string | null }, ActionError>
 >(
-  async ({ data, authContext }) => {
-    const { userId } = authContext;
+  async (parameters) => {
+    const { userId } = parameters.authContext;
 
     // Validate input
-    const parsedResult = updateInvoiceEmailSchema.safeParse(data);
+    const parsedResult = updateInvoiceEmailSchema.safeParse({
+      organizationId: parameters.organizationId,
+      invoiceEmail: parameters.invoiceEmail,
+    });
     if (!parsedResult.success) {
       return Err({
         code: CommonErrorCode.BAD_INPUT,
