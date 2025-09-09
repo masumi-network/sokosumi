@@ -9,10 +9,10 @@ import {
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth/auth.client";
+import { SocialProviderId } from "@/lib/schemas";
 
-type SocialKey = "google" | "microsoft";
 const socialButtons: Array<{
-  key: SocialKey;
+  key: SocialProviderId;
   name: string;
   Button: React.FC<ComponentProps<typeof GoogleLoginButton>>;
 }> = [
@@ -31,7 +31,7 @@ const socialButtons: Array<{
 export default function SocialButtons() {
   const t = useTranslations("Auth.SocialButtons");
 
-  const handleClick = async (key: SocialKey) => {
+  const handleClick = async (key: SocialProviderId) => {
     const result = await authClient.signIn.social({
       provider: key,
     });

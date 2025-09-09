@@ -27,6 +27,7 @@ env:
   MICROSOFT_CLIENT_SECRET: ${{ vars.PUBLIC_DEFAULT_SECRET }}
   USER_CENTRICS_DATA_SETTINGS_ID: ${{ vars.PUBLIC_DEFAULT_SECRET }}
   AFTER_AGENT_HIRED_WEB_HOOK: https://after-agent-hired-web-hook.com
+  MARKETING_OPT_IN_WEB_HOOK: https://marketing-opt-in-web-hook.com
 
 jobs:
   build:

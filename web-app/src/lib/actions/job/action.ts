@@ -9,6 +9,7 @@ import {
   jobRepository,
   jobShareRepository,
   prisma,
+  userRepository,
 } from "@/lib/db/repositories";
 import {
   jobDetailsNameFormSchema,
@@ -17,7 +18,7 @@ import {
   startJobInputSchema,
   StartJobInputSchemaType,
 } from "@/lib/schemas";
-import { jobService } from "@/lib/services";
+import { callAfterAgentHiredWebHook, jobService } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import {
   AuthenticatedRequest,
@@ -84,6 +85,14 @@ export const startJob = withAuthContext<
         userId,
         organizationId,
       };
+
+      const user = await userRepository.getUserById(userId);
+      if (!user) {
+        return Err({
+          message: "Unauthenticated",
+          code: CommonErrorCode.UNAUTHENTICATED,
+        });
+      }
 
       // Set user context for Sentry
       Sentry.setUser({
@@ -154,6 +163,9 @@ export const startJob = withAuthContext<
           agentId: input.agentId,
         },
       });
+
+      // call after agent hired webhook
+      callAfterAgentHiredWebHook(user.email);
 
       return Ok({ jobId: job.id });
     } catch (error) {
