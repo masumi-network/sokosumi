@@ -84,14 +84,14 @@ export default function JobInputsFormClient({
     const transformedInputData = filterOutNullValues(values);
 
     if (demoValues) {
-      result = await startDemoJob(
-        {
+      result = await startDemoJob({
+        input: {
           agentId: agentId,
           inputSchema: input_data,
           inputData: filterOutNullValues(demoValues.input),
         },
-        demoValues.output,
-      );
+        jobStatusResponse: demoValues.output,
+      });
     } else {
       result = await startJob({
         input: {

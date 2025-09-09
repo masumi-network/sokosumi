@@ -2,26 +2,26 @@
 
 import { revalidatePath } from "next/cache";
 
-import { ActionError, CommonErrorCode } from "@/lib/actions";
-import { getAuthContext } from "@/lib/auth/utils";
+import { ActionError } from "@/lib/actions";
 import { agentListRepository } from "@/lib/db/repositories";
-import { Err, Ok, Result } from "@/lib/ts-res";
+import { Ok, Result } from "@/lib/ts-res";
+import {
+  AuthenticatedRequest,
+  withAuthContext,
+} from "@/middleware/auth-middleware";
 import { AgentListType } from "@/prisma/generated/client";
 
-export async function toggleAgentInAgentList(
-  agentId: string,
-  listType: AgentListType,
-  isBookmarked: boolean,
-): Promise<Result<void, ActionError>> {
-  const context = await getAuthContext();
-  if (!context) {
-    return Err({
-      message: "Unauthenticated",
-      code: CommonErrorCode.UNAUTHENTICATED,
-    });
-  }
-  const userId = context.userId;
+interface ToggleAgentInAgentListParameters extends AuthenticatedRequest {
+  agentId: string;
+  listType: AgentListType;
+  isBookmarked: boolean;
+}
 
+export const toggleAgentInAgentList = withAuthContext<
+  ToggleAgentInAgentListParameters,
+  Result<void, ActionError>
+>(async ({ agentId, listType, isBookmarked, authContext }) => {
+  const { userId } = authContext;
   if (isBookmarked) {
     await agentListRepository.removeAgentFromAgentList(
       agentId,
@@ -35,4 +35,4 @@ export async function toggleAgentInAgentList(
   // Revalidate the app to update the UI
   revalidatePath("/");
   return Ok();
-}
+});

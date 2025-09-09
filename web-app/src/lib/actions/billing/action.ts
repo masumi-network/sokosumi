@@ -6,23 +6,25 @@ import {
   BillingErrorCode,
   CommonErrorCode,
 } from "@/lib/actions/errors";
-import { getAuthContext } from "@/lib/auth/utils";
 import { stripeClient } from "@/lib/clients/stripe.client";
 import { CouponError } from "@/lib/errors/coupon-errors";
 import { userService } from "@/lib/services";
 import { stripeService } from "@/lib/services/stripe.service";
 import { Err, Ok, Result } from "@/lib/ts-res";
+import {
+  AuthenticatedRequest,
+  withAuthContext,
+} from "@/middleware/auth-middleware";
 
-export async function claimFreeCredits(
-  promotionCode: string,
-): Promise<Result<{ url: string }, ActionError>> {
-  const context = await getAuthContext();
-  if (!context) {
-    return Err({
-      message: "Unauthenticated",
-      code: CommonErrorCode.UNAUTHENTICATED,
-    });
-  }
+interface ClaimFreeCreditsParameters extends AuthenticatedRequest {
+  promotionCode: string;
+}
+
+export const claimFreeCredits = withAuthContext<
+  ClaimFreeCreditsParameters,
+  Result<{ url: string }, ActionError>
+>(async ({ promotionCode, authContext }) => {
+  const { userId } = authContext;
 
   try {
     const price = await stripeClient.getPriceByProductId(
@@ -35,7 +37,7 @@ export async function claimFreeCredits(
 
     // Create the checkout session
     const { url } = await stripeService.createStripeCheckoutSession(
-      context.userId,
+      userId,
       null,
       credits,
       price,
@@ -54,20 +56,19 @@ export async function claimFreeCredits(
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,
     });
   }
+});
+
+interface PurchaseCreditsParameters extends AuthenticatedRequest {
+  organizationId: string | null;
+  priceId: string;
+  credits: number;
 }
 
-export async function purchaseCredits(
-  organizationId: string | null,
-  priceId: string,
-  credits: number,
-): Promise<Result<{ url: string }, ActionError>> {
-  const context = await getAuthContext();
-  if (!context) {
-    return Err({
-      message: "Unauthenticated",
-      code: CommonErrorCode.UNAUTHENTICATED,
-    });
-  }
+export const purchaseCredits = withAuthContext<
+  PurchaseCreditsParameters,
+  Result<{ url: string }, ActionError>
+>(async ({ organizationId, priceId, credits, authContext }) => {
+  const { userId } = authContext;
 
   // Validate input
   if (!credits || credits <= 0) {
@@ -94,7 +95,7 @@ export async function purchaseCredits(
 
     // Create the checkout session
     const { url } = await stripeService.createStripeCheckoutSession(
-      context.userId,
+      userId,
       organizationId,
       credits,
       price,
@@ -107,20 +108,19 @@ export async function purchaseCredits(
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,
     });
   }
+});
+
+interface GetFreeCreditsWithCouponParameters extends AuthenticatedRequest {
+  organizationId: string | null;
+  priceId: string;
+  couponId: string;
 }
 
-export async function getFreeCreditsWithCoupon(
-  organizationId: string | null,
-  priceId: string,
-  couponId: string,
-): Promise<Result<{ url: string }, ActionError>> {
-  const context = await getAuthContext();
-  if (!context) {
-    return Err({
-      message: "Unauthenticated",
-      code: CommonErrorCode.UNAUTHENTICATED,
-    });
-  }
+export const getFreeCreditsWithCoupon = withAuthContext<
+  GetFreeCreditsWithCouponParameters,
+  Result<{ url: string }, ActionError>
+>(async ({ organizationId, priceId, couponId, authContext }) => {
+  const { userId } = authContext;
 
   // If organizationId is provided, verify user is a member
   if (organizationId) {
@@ -149,7 +149,7 @@ export async function getFreeCreditsWithCoupon(
 
     // Create the checkout session (for org if orgId provided, else personal)
     const { url } = await stripeService.createStripeCheckoutSession(
-      context.userId,
+      userId,
       organizationId ?? null,
       credits,
       price,
@@ -167,4 +167,4 @@ export async function getFreeCreditsWithCoupon(
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,
     });
   }
-}
+});

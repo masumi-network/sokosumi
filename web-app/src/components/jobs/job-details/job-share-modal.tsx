@@ -81,13 +81,13 @@ export default function JobShareModal({
 
   const handleShareJob = async () => {
     setLoading(true);
-    const result = await shareJob(
-      job.id,
-      null,
-      null,
-      ShareAccessType.PUBLIC,
-      SharePermission.READ,
-    );
+    const result = await shareJob({
+      jobId: job.id,
+      recipientId: null,
+      recipientOrganizationId: null,
+      shareAccessType: ShareAccessType.PUBLIC,
+      sharePermission: SharePermission.READ,
+    });
     if (result.ok) {
       needRefresh.current = true;
       setJobShare(result.data);
@@ -130,7 +130,10 @@ export default function JobShareModal({
     }
 
     setLoading(true);
-    const result = await updateAllowSearchIndexing(jobShare.id, checked);
+    const result = await updateAllowSearchIndexing({
+      jobShareId: jobShare.id,
+      allowSearchIndexing: checked,
+    });
     if (result.ok) {
       setJobShare(result.data);
       toast.success(t("Success.share"));
@@ -165,7 +168,7 @@ export default function JobShareModal({
 
   const handleRemoveJobShare = async () => {
     setLoading(true);
-    const result = await removeJobShare(job.id);
+    const result = await removeJobShare({ jobId: job.id });
     if (result.ok) {
       needRefresh.current = true;
       setJobShare(null);

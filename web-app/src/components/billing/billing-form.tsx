@@ -129,17 +129,17 @@ export default function BillingForm({ price, organization }: BillingFormProps) {
     async (data: BillingFormData) => {
       let result;
       if (data.coupon && data.coupon.trim().length > 0) {
-        result = await getFreeCreditsWithCoupon(
-          organization?.id ?? null,
-          price.id,
-          data.coupon.trim(),
-        );
+        result = await getFreeCreditsWithCoupon({
+          organizationId: organization?.id ?? null,
+          priceId: price.id,
+          couponId: data.coupon.trim(),
+        });
       } else if (data.credits && data.credits > 0) {
-        result = await purchaseCredits(
-          organization?.id ?? null,
-          price.id,
-          data.credits,
-        );
+        result = await purchaseCredits({
+          organizationId: organization?.id ?? null,
+          priceId: price.id,
+          credits: data.credits,
+        });
       } else {
         toast.error(t("invalidInput"));
         return;

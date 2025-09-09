@@ -4,7 +4,6 @@ import * as Sentry from "@sentry/nextjs";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
-import { getAuthContext } from "@/lib/auth/utils";
 import { JobWithStatus } from "@/lib/db";
 import {
   jobRepository,
@@ -36,19 +35,17 @@ import {
   type UploadedFileWithMeta,
 } from "./utils";
 
-export async function startDemoJob(
-  input: Omit<StartJobInputSchemaType, "userId" | "maxAcceptedCents">,
-  jobStatusResponse: JobStatusResponseSchemaType,
-): Promise<Result<{ jobId: string }, ActionError>> {
-  // Authentication
-  const context = await getAuthContext();
-  if (!context) {
-    return Err({
-      message: "Unauthenticated",
-      code: CommonErrorCode.UNAUTHENTICATED,
-    });
-  }
-  const userId = context.userId;
+interface StartDemoJobParameters extends AuthenticatedRequest {
+  input: Omit<StartJobInputSchemaType, "userId" | "maxAcceptedCents">;
+  jobStatusResponse: JobStatusResponseSchemaType;
+}
+
+export const startDemoJob = withAuthContext<
+  StartDemoJobParameters,
+  Result<{ jobId: string }, ActionError>
+>(async ({ input, jobStatusResponse, authContext }) => {
+  const { userId } = authContext;
+
   const inputDataForService: StartJobInputSchemaType = {
     ...input,
     userId,
@@ -69,7 +66,7 @@ export async function startDemoJob(
 
   const job = await jobService.startDemoJob(parsed, jobStatusResponse);
   return Ok({ jobId: job.id });
-}
+});
 
 interface StartJobParameters extends AuthenticatedRequest {
   input: Omit<StartJobInputSchemaType, "userId" | "organizationId">;
@@ -225,19 +222,16 @@ export const startJob = withAuthContext<
   });
 });
 
-export async function updateJobName(
-  jobId: string,
-  data: JobDetailsNameFormSchemaType,
-): Promise<Result<void, ActionError>> {
-  // Authentication
-  const context = await getAuthContext();
-  if (!context) {
-    return Err({
-      message: "Unauthenticated",
-      code: CommonErrorCode.UNAUTHENTICATED,
-    });
-  }
-  const userId = context.userId;
+interface UpdateJobNameParameters extends AuthenticatedRequest {
+  jobId: string;
+  data: JobDetailsNameFormSchemaType;
+}
+
+export const updateJobName = withAuthContext<
+  UpdateJobNameParameters,
+  Result<void, ActionError>
+>(async ({ jobId, data, authContext }) => {
+  const { userId } = authContext;
 
   const parsedResult = jobDetailsNameFormSchema().safeParse(data);
   if (!parsedResult.success) {
@@ -270,19 +264,18 @@ export async function updateJobName(
     parsed.name === "" ? null : parsed.name,
   );
   return Ok();
+});
+
+interface RequestRefundJobByBlockchainIdentifierParameters
+  extends AuthenticatedRequest {
+  blockchainIdentifier: string;
 }
 
-export async function requestRefundJobByBlockchainIdentifier(
-  blockchainIdentifier: string,
-): Promise<Result<{ job: JobWithStatus }, ActionError>> {
-  const context = await getAuthContext();
-  if (!context) {
-    return Err({
-      message: "Unauthenticated",
-      code: CommonErrorCode.UNAUTHENTICATED,
-    });
-  }
-
+export const requestRefundJobByBlockchainIdentifier = withAuthContext<
+  RequestRefundJobByBlockchainIdentifierParameters,
+  Result<{ job: JobWithStatus }, ActionError>
+>(async ({ blockchainIdentifier, authContext }) => {
+  const { userId } = authContext;
   const foundJob =
     await jobRepository.getJobByBlockchainIdentifier(blockchainIdentifier);
   if (!foundJob) {
@@ -293,7 +286,7 @@ export async function requestRefundJobByBlockchainIdentifier(
   }
 
   // check user is owner of job
-  if (foundJob.userId !== context.userId) {
+  if (foundJob.userId !== userId) {
     return Err({
       message: "Unauthorized",
       code: CommonErrorCode.UNAUTHORIZED,
@@ -302,90 +295,95 @@ export async function requestRefundJobByBlockchainIdentifier(
 
   const job = await jobService.requestRefund(blockchainIdentifier);
   return Ok({ job });
+});
+
+interface ShareJobParameters extends AuthenticatedRequest {
+  jobId: string;
+  recipientId: string | null;
+  recipientOrganizationId: string | null;
+  shareAccessType: ShareAccessType;
+  sharePermission: SharePermission;
 }
 
-export async function shareJob(
-  jobId: string,
-  recipientId: string | null,
-  recipientOrganizationId: string | null,
-  shareAccessType: ShareAccessType,
-  sharePermission: SharePermission,
-): Promise<Result<JobShare, ActionError>> {
-  try {
-    const context = await getAuthContext();
-    if (!context) {
+export const shareJob = withAuthContext<
+  ShareJobParameters,
+  Result<JobShare, ActionError>
+>(
+  async ({
+    jobId,
+    recipientId,
+    recipientOrganizationId,
+    shareAccessType,
+    sharePermission,
+    authContext,
+  }) => {
+    const { userId } = authContext;
+    try {
+      const job = await jobRepository.getJobById(jobId);
+      if (!job) {
+        return Err({
+          message: "Job not found",
+          code: JobErrorCode.JOB_NOT_FOUND,
+        });
+      }
+
+      // for now only public share is supported
+      if (!!recipientId || !!recipientOrganizationId) {
+        throw new Error("Only Public Share is supported");
+      }
+
+      // for now only Public Access is supported
+      if (shareAccessType !== ShareAccessType.PUBLIC) {
+        throw new Error("Only Public Access is supported");
+      }
+
+      // for now only Read access is supported
+      if (sharePermission !== SharePermission.READ) {
+        throw new Error("Only Read Permission is supported");
+      }
+
+      // must be job owner to share
+      if (userId !== job.userId) {
+        return Err({
+          message: "Unauthorized",
+          code: CommonErrorCode.UNAUTHORIZED,
+        });
+      }
+
+      const jobShare = await prisma.$transaction(async (tx) => {
+        await jobShareRepository.deleteJobSharesByJobId(jobId, tx);
+        return await jobShareRepository.createJobShare(
+          jobId,
+          userId,
+          recipientId,
+          recipientOrganizationId,
+          shareAccessType,
+          sharePermission,
+          tx,
+        );
+      });
+      return Ok(jobShare);
+    } catch (error) {
+      console.error("Failed to share job", error);
       return Err({
-        message: "Unauthenticated",
-        code: CommonErrorCode.UNAUTHENTICATED,
+        message: "Internal server error",
+        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
       });
     }
+  },
+);
 
-    const job = await jobRepository.getJobById(jobId);
-    if (!job) {
-      return Err({
-        message: "Job not found",
-        code: JobErrorCode.JOB_NOT_FOUND,
-      });
-    }
-
-    // for now only public share is supported
-    if (!!recipientId || !!recipientOrganizationId) {
-      throw new Error("Only Public Share is supported");
-    }
-
-    // for now only Public Access is supported
-    if (shareAccessType !== ShareAccessType.PUBLIC) {
-      throw new Error("Only Public Access is supported");
-    }
-
-    // for now only Read access is supported
-    if (sharePermission !== SharePermission.READ) {
-      throw new Error("Only Read Permission is supported");
-    }
-
-    // must be job owner to share
-    if (context.userId !== job.userId) {
-      return Err({
-        message: "Unauthorized",
-        code: CommonErrorCode.UNAUTHORIZED,
-      });
-    }
-
-    const jobShare = await prisma.$transaction(async (tx) => {
-      await jobShareRepository.deleteJobSharesByJobId(jobId, tx);
-      return await jobShareRepository.createJobShare(
-        jobId,
-        context.userId,
-        recipientId,
-        recipientOrganizationId,
-        shareAccessType,
-        sharePermission,
-        tx,
-      );
-    });
-    return Ok(jobShare);
-  } catch (error) {
-    console.error("Failed to share job", error);
-    return Err({
-      message: "Internal server error",
-      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-    });
-  }
+interface UpdateAllowSearchIndexingParameters extends AuthenticatedRequest {
+  jobShareId: string;
+  allowSearchIndexing: boolean;
 }
 
-export async function updateAllowSearchIndexing(
-  jobShareId: string,
-  allowSearchIndexing: boolean,
-): Promise<Result<JobShare, ActionError>> {
+export const updateAllowSearchIndexing = withAuthContext<
+  UpdateAllowSearchIndexingParameters,
+  Result<JobShare, ActionError>
+>(async ({ jobShareId, allowSearchIndexing, authContext }) => {
+  const { userId } = authContext;
   try {
-    const context = await getAuthContext();
-    if (!context) {
-      return Err({
-        message: "Unauthenticated",
-        code: CommonErrorCode.UNAUTHENTICATED,
-      });
-    }
-
     const share = await jobShareRepository.getJobShareById(jobShareId);
     if (!share) {
       return Err({
@@ -395,7 +393,7 @@ export async function updateAllowSearchIndexing(
     }
 
     // must be job share creator to remove share
-    if (context.userId !== share.creatorId) {
+    if (userId !== share.creatorId) {
       return Err({
         message: "Unauthorized",
         code: CommonErrorCode.UNAUTHORIZED,
@@ -415,20 +413,19 @@ export async function updateAllowSearchIndexing(
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,
     });
   }
+});
+
+interface RemoveJobShareParameters extends AuthenticatedRequest {
+  jobId: string;
 }
 
-export async function removeJobShare(
-  jobId: string,
-): Promise<Result<void, ActionError>> {
-  try {
-    const context = await getAuthContext();
-    if (!context) {
-      return Err({
-        message: "Unauthenticated",
-        code: CommonErrorCode.UNAUTHENTICATED,
-      });
-    }
+export const removeJobShare = withAuthContext<
+  RemoveJobShareParameters,
+  Result<void, ActionError>
+>(async ({ jobId, authContext }) => {
+  const { userId } = authContext;
 
+  try {
     const job = await jobRepository.getJobById(jobId);
     if (!job) {
       return Err({
@@ -438,7 +435,7 @@ export async function removeJobShare(
     }
 
     // must be job owner to remove share
-    if (context.userId !== job.userId) {
+    if (userId !== job.userId) {
       return Err({
         message: "Unauthorized",
         code: CommonErrorCode.UNAUTHORIZED,
@@ -454,4 +451,4 @@ export async function removeJobShare(
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,
     });
   }
-}
+});
