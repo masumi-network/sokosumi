@@ -3,6 +3,7 @@
 import { Download } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -93,58 +94,73 @@ export default function DownloadButton({
   }
 
   const handleDownloadMarkdown = useCallback(() => {
-    const url = URL.createObjectURL(
-      new Blob([markdown], { type: "text/markdown" }),
-    );
-    triggerFileDownload(url, `${FILE_NAME}.md`);
-    URL.revokeObjectURL(url);
-  }, [markdown]);
+    const id = toast.loading(t("exportingMarkdown"));
+    try {
+      const url = URL.createObjectURL(
+        new Blob([markdown], { type: "text/markdown" }),
+      );
+      triggerFileDownload(url, `${FILE_NAME}.md`);
+      URL.revokeObjectURL(url);
+    } finally {
+      toast.dismiss(id);
+    }
+  }, [markdown, t]);
 
   const handleDownloadPdf = async () => {
-    const html = await markdownToHtml(markdown);
-    const res = await fetch("/api/export/pdf", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        html,
-        fileName: FILE_NAME,
-      }),
-    });
-    if (!res.ok) return;
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    triggerFileDownload(url, `${FILE_NAME}.pdf`);
-    URL.revokeObjectURL(url);
+    const id = toast.loading(t("exportingPdf"));
+    try {
+      const html = await markdownToHtml(markdown);
+      const res = await fetch("/api/export/pdf", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          html,
+          fileName: FILE_NAME,
+        }),
+      });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      triggerFileDownload(url, `${FILE_NAME}.pdf`);
+      URL.revokeObjectURL(url);
+    } finally {
+      toast.dismiss(id);
+    }
   };
 
   const handleDownloadDocx = async () => {
-    const logoPng = await _fetchSvgAsPngDataUrl(
-      "/images/logos/sokosumi-logo-black.svg",
-      180,
-      30,
-    );
+    const id = toast.loading(t("exportingDocx"));
+    try {
+      const logoPng = await _fetchSvgAsPngDataUrl(
+        "/images/logos/sokosumi-logo-black.svg",
+        180,
+        30,
+      );
 
-    const kanjiLogoPng = await _fetchSvgAsPngDataUrl(
-      "/images/kanji/sokosumi-logo-kanji-black.svg",
-      20,
-      40,
-    );
+      const kanjiLogoPng = await _fetchSvgAsPngDataUrl(
+        "/images/kanji/sokosumi-logo-kanji-black.svg",
+        20,
+        40,
+      );
 
-    const res = await fetch("/api/export/docx", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        markdown,
-        fileName: FILE_NAME,
-        logoPng,
-        kanjiLogoPng,
-      }),
-    });
-    if (!res.ok) return;
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    triggerFileDownload(url, `${FILE_NAME}.docx`);
-    URL.revokeObjectURL(url);
+      const res = await fetch("/api/export/docx", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          markdown,
+          fileName: FILE_NAME,
+          logoPng,
+          kanjiLogoPng,
+        }),
+      });
+      if (!res.ok) return;
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      triggerFileDownload(url, `${FILE_NAME}.docx`);
+      URL.revokeObjectURL(url);
+    } finally {
+      toast.dismiss(id);
+    }
   };
 
   useEffect(() => {
