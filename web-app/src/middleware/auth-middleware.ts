@@ -7,7 +7,6 @@ export interface AuthenticatedRequest {
 
 export function withAuthContext<T extends AuthenticatedRequest, R>(
   handler: (params: T & { authContext: AuthContext }) => Promise<R>,
-  onUnauthenticated?: () => Promise<R>,
 ) {
   return async (params: T): Promise<R> => {
     // If auth is already provided, use it
@@ -18,9 +17,6 @@ export function withAuthContext<T extends AuthenticatedRequest, R>(
     // Otherwise, get the auth context
     const authContext = await getAuthContext();
     if (!authContext) {
-      if (onUnauthenticated) {
-        return await onUnauthenticated();
-      }
       throw new UnAuthenticatedError();
     }
 

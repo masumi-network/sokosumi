@@ -2,9 +2,9 @@
 
 import { revalidatePath } from "next/cache";
 
-import { ActionError, CommonErrorCode } from "@/lib/actions";
+import { ActionError } from "@/lib/actions";
 import { agentListRepository } from "@/lib/db/repositories";
-import { Err, Ok, Result } from "@/lib/ts-res";
+import { Ok, Result } from "@/lib/ts-res";
 import {
   AuthenticatedRequest,
   withAuthContext,
@@ -20,26 +20,19 @@ interface ToggleAgentInAgentListParameters extends AuthenticatedRequest {
 export const toggleAgentInAgentList = withAuthContext<
   ToggleAgentInAgentListParameters,
   Result<void, ActionError>
->(
-  async ({ agentId, listType, isBookmarked, authContext }) => {
-    const { userId } = authContext;
-    if (isBookmarked) {
-      await agentListRepository.removeAgentFromAgentList(
-        agentId,
-        userId,
-        listType,
-      );
-    } else {
-      await agentListRepository.addAgentToAgentList(agentId, userId, listType);
-    }
+>(async ({ agentId, listType, isBookmarked, authContext }) => {
+  const { userId } = authContext;
+  if (isBookmarked) {
+    await agentListRepository.removeAgentFromAgentList(
+      agentId,
+      userId,
+      listType,
+    );
+  } else {
+    await agentListRepository.addAgentToAgentList(agentId, userId, listType);
+  }
 
-    // Revalidate the app to update the UI
-    revalidatePath("/");
-    return Ok();
-  },
-  async () =>
-    Err({
-      message: "Unauthenticated",
-      code: CommonErrorCode.UNAUTHENTICATED,
-    }),
-);
+  // Revalidate the app to update the UI
+  revalidatePath("/");
+  return Ok();
+});

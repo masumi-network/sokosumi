@@ -57,63 +57,56 @@ interface UpdateOrganizationInvoiceEmailParameters
 export const updateOrganizationInvoiceEmail = withAuthContext<
   UpdateOrganizationInvoiceEmailParameters,
   Result<{ invoiceEmail: string | null }, ActionError>
->(
-  async (parameters) => {
-    const { userId } = parameters.authContext;
+>(async (parameters) => {
+  const { userId } = parameters.authContext;
 
-    // Validate input
-    const parsedResult = updateInvoiceEmailSchema.safeParse({
-      organizationId: parameters.organizationId,
-      invoiceEmail: parameters.invoiceEmail,
+  // Validate input
+  const parsedResult = updateInvoiceEmailSchema.safeParse({
+    organizationId: parameters.organizationId,
+    invoiceEmail: parameters.invoiceEmail,
+  });
+  if (!parsedResult.success) {
+    return Err({
+      code: CommonErrorCode.BAD_INPUT,
+      message: parsedResult.error.issues[0]?.message,
     });
-    if (!parsedResult.success) {
-      return Err({
-        code: CommonErrorCode.BAD_INPUT,
-        message: parsedResult.error.issues[0]?.message,
-      });
-    }
-    const { organizationId, invoiceEmail } = parsedResult.data;
+  }
+  const { organizationId, invoiceEmail } = parsedResult.data;
 
-    // Check if user is an owner or admin of the organization
-    const member = await memberRepository.getMemberByUserIdAndOrganizationId(
-      userId,
-      organizationId,
-    );
+  // Check if user is an owner or admin of the organization
+  const member = await memberRepository.getMemberByUserIdAndOrganizationId(
+    userId,
+    organizationId,
+  );
 
-    if (!member) {
-      return Err({
-        code: CommonErrorCode.UNAUTHORIZED,
-        message: "You are not a member of this organization",
-      });
-    }
+  if (!member) {
+    return Err({
+      code: CommonErrorCode.UNAUTHORIZED,
+      message: "You are not a member of this organization",
+    });
+  }
 
-    // Only owners and admins can update invoice email
-    if (member.role !== MemberRole.OWNER && member.role !== MemberRole.ADMIN) {
-      return Err({
-        code: CommonErrorCode.UNAUTHORIZED,
-        message:
-          "Only organization owners and admins can update the invoice email",
-      });
-    }
+  // Only owners and admins can update invoice email
+  if (member.role !== MemberRole.OWNER && member.role !== MemberRole.ADMIN) {
+    return Err({
+      code: CommonErrorCode.UNAUTHORIZED,
+      message:
+        "Only organization owners and admins can update the invoice email",
+    });
+  }
 
-    // Update the invoice email in the database
-    const updatedOrganization =
-      await organizationRepository.updateOrganizationInvoiceEmail(
-        organizationId,
-        invoiceEmail,
-      );
-
-    // Sync with Stripe if the organization has a Stripe customer
-    await stripeService.syncOrganizationInvoiceEmailWithStripe(
+  // Update the invoice email in the database
+  const updatedOrganization =
+    await organizationRepository.updateOrganizationInvoiceEmail(
       organizationId,
       invoiceEmail,
     );
 
-    return Ok({ invoiceEmail: updatedOrganization.invoiceEmail });
-  },
-  async () =>
-    Err({
-      message: "Unauthenticated",
-      code: CommonErrorCode.UNAUTHENTICATED,
-    }),
-);
+  // Sync with Stripe if the organization has a Stripe customer
+  await stripeService.syncOrganizationInvoiceEmailWithStripe(
+    organizationId,
+    invoiceEmail,
+  );
+
+  return Ok({ invoiceEmail: updatedOrganization.invoiceEmail });
+});

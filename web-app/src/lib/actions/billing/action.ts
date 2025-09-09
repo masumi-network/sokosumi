@@ -23,47 +23,40 @@ interface ClaimFreeCreditsParameters extends AuthenticatedRequest {
 export const claimFreeCredits = withAuthContext<
   ClaimFreeCreditsParameters,
   Result<{ url: string }, ActionError>
->(
-  async ({ promotionCode, authContext }) => {
-    const { userId } = authContext;
+>(async ({ promotionCode, authContext }) => {
+  const { userId } = authContext;
 
-    try {
-      const price = await stripeClient.getPriceByProductId(
-        getEnvSecrets().STRIPE_PRODUCT_ID,
-      );
-      const credits = await stripeService.getCreditsForPromotionCode(
-        promotionCode,
-        price,
-      );
+  try {
+    const price = await stripeClient.getPriceByProductId(
+      getEnvSecrets().STRIPE_PRODUCT_ID,
+    );
+    const credits = await stripeService.getCreditsForPromotionCode(
+      promotionCode,
+      price,
+    );
 
-      // Create the checkout session
-      const { url } = await stripeService.createStripeCheckoutSession(
-        userId,
-        null,
-        credits,
-        price,
-        promotionCode,
-      );
+    // Create the checkout session
+    const { url } = await stripeService.createStripeCheckoutSession(
+      userId,
+      null,
+      credits,
+      price,
+      promotionCode,
+    );
 
-      return Ok({ url });
-    } catch (error) {
-      console.error("Failed to claim free credits", error);
-      if (error instanceof CouponError) {
-        return Err({
-          code: error.code,
-        });
-      }
+    return Ok({ url });
+  } catch (error) {
+    console.error("Failed to claim free credits", error);
+    if (error instanceof CouponError) {
       return Err({
-        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+        code: error.code,
       });
     }
-  },
-  async () =>
-    Err({
-      message: "Unauthenticated",
-      code: CommonErrorCode.UNAUTHENTICATED,
-    }),
-);
+    return Err({
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+    });
+  }
+});
 
 interface PurchaseCreditsParameters extends AuthenticatedRequest {
   organizationId: string | null;
@@ -74,56 +67,48 @@ interface PurchaseCreditsParameters extends AuthenticatedRequest {
 export const purchaseCredits = withAuthContext<
   PurchaseCreditsParameters,
   Result<{ url: string }, ActionError>
->(
-  async ({ organizationId, priceId, credits, authContext }) => {
-    const { userId } = authContext;
+>(async ({ organizationId, priceId, credits, authContext }) => {
+  const { userId } = authContext;
 
-    // Validate input
-    if (!credits || credits <= 0) {
+  // Validate input
+  if (!credits || credits <= 0) {
+    return Err({
+      message: "Invalid credits",
+      code: BillingErrorCode.INVALID_CREDITS,
+    });
+  }
+
+  // Verify user is member of the organization
+  if (organizationId) {
+    const member = await userService.getMyMemberInOrganization(organizationId);
+    if (!member) {
       return Err({
-        message: "Invalid credits",
-        code: BillingErrorCode.INVALID_CREDITS,
+        message: "Unauthorized",
+        code: CommonErrorCode.UNAUTHORIZED,
       });
     }
+  }
 
-    // Verify user is member of the organization
-    if (organizationId) {
-      const member =
-        await userService.getMyMemberInOrganization(organizationId);
-      if (!member) {
-        return Err({
-          message: "Unauthorized",
-          code: CommonErrorCode.UNAUTHORIZED,
-        });
-      }
-    }
+  try {
+    // Fetch price server-side
+    const price = await stripeClient.getPriceById(priceId);
 
-    try {
-      // Fetch price server-side
-      const price = await stripeClient.getPriceById(priceId);
+    // Create the checkout session
+    const { url } = await stripeService.createStripeCheckoutSession(
+      userId,
+      organizationId,
+      credits,
+      price,
+    );
 
-      // Create the checkout session
-      const { url } = await stripeService.createStripeCheckoutSession(
-        userId,
-        organizationId,
-        credits,
-        price,
-      );
-
-      return Ok({ url });
-    } catch (error) {
-      console.error("Failed to purchase credits", error);
-      return Err({
-        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-      });
-    }
-  },
-  async () =>
-    Err({
-      message: "Unauthenticated",
-      code: CommonErrorCode.UNAUTHENTICATED,
-    }),
-);
+    return Ok({ url });
+  } catch (error) {
+    console.error("Failed to purchase credits", error);
+    return Err({
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+    });
+  }
+});
 
 interface GetFreeCreditsWithCouponParameters extends AuthenticatedRequest {
   organizationId: string | null;
@@ -134,60 +119,52 @@ interface GetFreeCreditsWithCouponParameters extends AuthenticatedRequest {
 export const getFreeCreditsWithCoupon = withAuthContext<
   GetFreeCreditsWithCouponParameters,
   Result<{ url: string }, ActionError>
->(
-  async ({ organizationId, priceId, couponId, authContext }) => {
-    const { userId } = authContext;
+>(async ({ organizationId, priceId, couponId, authContext }) => {
+  const { userId } = authContext;
 
-    // If organizationId is provided, verify user is a member
-    if (organizationId) {
-      const member =
-        await userService.getMyMemberInOrganization(organizationId);
-      if (!member) {
-        return Err({
-          message: "Unauthorized",
-          code: CommonErrorCode.UNAUTHORIZED,
-        });
-      }
-    }
-
-    try {
-      // Fetch price server-side
-      const price = await stripeClient.getPriceById(priceId);
-      const credits = await stripeService.getCreditsForCoupon(couponId, price);
-
-      // Validate and get the promotion code for this user and couponId
-      const promo = await stripeService.getPromotionCode(couponId, 1);
-      if (!promo || !promo.active) {
-        return Err({
-          message: "Invalid coupon",
-          code: BillingErrorCode.INVALID_COUPON,
-        });
-      }
-
-      // Create the checkout session (for org if orgId provided, else personal)
-      const { url } = await stripeService.createStripeCheckoutSession(
-        userId,
-        organizationId ?? null,
-        credits,
-        price,
-        promo.id,
-      );
-      return Ok({ url });
-    } catch (error) {
-      console.error("Failed to get free credits with coupon", error);
-      if (error instanceof CouponError) {
-        return Err({
-          code: error.code,
-        });
-      }
+  // If organizationId is provided, verify user is a member
+  if (organizationId) {
+    const member = await userService.getMyMemberInOrganization(organizationId);
+    if (!member) {
       return Err({
-        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+        message: "Unauthorized",
+        code: CommonErrorCode.UNAUTHORIZED,
       });
     }
-  },
-  async () =>
-    Err({
-      message: "Unauthenticated",
-      code: CommonErrorCode.UNAUTHENTICATED,
-    }),
-);
+  }
+
+  try {
+    // Fetch price server-side
+    const price = await stripeClient.getPriceById(priceId);
+    const credits = await stripeService.getCreditsForCoupon(couponId, price);
+
+    // Validate and get the promotion code for this user and couponId
+    const promo = await stripeService.getPromotionCode(couponId, 1);
+    if (!promo || !promo.active) {
+      return Err({
+        message: "Invalid coupon",
+        code: BillingErrorCode.INVALID_COUPON,
+      });
+    }
+
+    // Create the checkout session (for org if orgId provided, else personal)
+    const { url } = await stripeService.createStripeCheckoutSession(
+      userId,
+      organizationId ?? null,
+      credits,
+      price,
+      promo.id,
+    );
+    return Ok({ url });
+  } catch (error) {
+    console.error("Failed to get free credits with coupon", error);
+    if (error instanceof CouponError) {
+      return Err({
+        code: error.code,
+      });
+    }
+    return Err({
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+    });
+  }
+});
