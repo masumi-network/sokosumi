@@ -3,7 +3,6 @@
 import { z } from "zod";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions";
-import { getAuthContext } from "@/lib/auth/utils";
 import {
   memberRepository,
   organizationRepository,
@@ -15,6 +14,10 @@ import {
 } from "@/lib/schemas";
 import { organizationService, stripeService } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
+import {
+  AuthenticatedRequest,
+  withAuthContext,
+} from "@/middleware/auth-middleware";
 
 export async function generateOrganizationSlug(
   data: OrganizationInformationFormSchemaType,
@@ -45,32 +48,34 @@ const updateInvoiceEmailSchema = z.object({
   invoiceEmail: z.email().nullable(),
 });
 
-export async function updateOrganizationInvoiceEmail(
-  data: z.infer<typeof updateInvoiceEmailSchema>,
-): Promise<Result<{ invoiceEmail: string | null }, ActionError>> {
+interface UpdateOrganizationInvoiceEmailParameters
+  extends AuthenticatedRequest {
+  organizationId: string;
+  invoiceEmail: string | null;
+}
+
+export const updateOrganizationInvoiceEmail = withAuthContext<
+  UpdateOrganizationInvoiceEmailParameters,
+  Result<{ invoiceEmail: string | null }, ActionError>
+>(async (parameters) => {
+  const { userId } = parameters.authContext;
+
   // Validate input
-  const parsedResult = updateInvoiceEmailSchema.safeParse(data);
+  const parsedResult = updateInvoiceEmailSchema.safeParse({
+    organizationId: parameters.organizationId,
+    invoiceEmail: parameters.invoiceEmail,
+  });
   if (!parsedResult.success) {
     return Err({
       code: CommonErrorCode.BAD_INPUT,
       message: parsedResult.error.issues[0]?.message,
     });
   }
-
-  // Get current user session
-  const context = await getAuthContext();
-  if (!context) {
-    return Err({
-      code: CommonErrorCode.UNAUTHENTICATED,
-      message: "Unauthenticated",
-    });
-  }
-
   const { organizationId, invoiceEmail } = parsedResult.data;
 
   // Check if user is an owner or admin of the organization
   const member = await memberRepository.getMemberByUserIdAndOrganizationId(
-    context.userId,
+    userId,
     organizationId,
   );
 
@@ -104,4 +109,4 @@ export async function updateOrganizationInvoiceEmail(
   );
 
   return Ok({ invoiceEmail: updatedOrganization.invoiceEmail });
-}
+});

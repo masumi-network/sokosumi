@@ -245,9 +245,9 @@ export default function RequestRefundButton({
     setIsLoading(true);
     setError(null);
 
-    const result = await requestRefundJobByBlockchainIdentifier(
-      job.blockchainIdentifier,
-    );
+    const result = await requestRefundJobByBlockchainIdentifier({
+      blockchainIdentifier: job.blockchainIdentifier,
+    });
     if (result.ok) {
       setJob(result.data.job);
     } else {

@@ -14,7 +14,6 @@ import { Form } from "@/components/ui/form";
 import { useAsyncRouter } from "@/hooks/use-async-router";
 import usePreventEnterSubmit from "@/hooks/use-prevent-enter-submit";
 import {
-  callAfterAgentHiredWebHook,
   CommonErrorCode,
   JobErrorCode,
   startDemoJob,
@@ -84,14 +83,14 @@ export default function JobInputsFormClient({
     const transformedInputData = filterOutNullValues(values);
 
     if (demoValues) {
-      result = await startDemoJob(
-        {
+      result = await startDemoJob({
+        input: {
           agentId: agentId,
           inputSchema: input_data,
           inputData: filterOutNullValues(demoValues.input),
         },
-        demoValues.output,
-      );
+        jobStatusResponse: demoValues.output,
+      });
     } else {
       result = await startJob({
         input: {
@@ -110,8 +109,6 @@ export default function JobInputsFormClient({
         getAgentName(agent),
         convertCentsToCredits(creditsPrice.cents),
       );
-      // call after agent hired webhook
-      callAfterAgentHiredWebHook();
       // close modal
       handleClose();
       await router.push(`/agents/${agentId}/jobs/${result.data.jobId}`);

@@ -16,7 +16,7 @@ import { reactInviteUserEmail } from "@/lib/email/invitation";
 import { resend } from "@/lib/email/resend";
 import { reactResetPasswordEmail } from "@/lib/email/reset-password";
 import { reactVerificationEmail } from "@/lib/email/verification";
-import { stripeService } from "@/lib/services";
+import { callMarketingOptInWebHook, stripeService } from "@/lib/services";
 
 export type Session = typeof auth.$Infer.Session;
 export type SessionUser = typeof auth.$Infer.Session.user;
@@ -100,10 +100,17 @@ export const auth = betterAuth({
     after: createAuthMiddleware(async (ctx) => {
       if (ctx.path.startsWith("/callback")) {
         // if user signs in using social account
-        // set TERMS_ACCEPTED to true
-        const newUser = ctx.context.newSession?.user;
-        if (newUser && !(newUser as SessionUser).termsAccepted) {
-          await userRepository.updateUserTermsAccepted(newUser.id, true);
+        const newUser = ctx.context.newSession?.user as SessionUser | undefined;
+        if (newUser && !newUser.termsAccepted && !newUser.marketingOptIn) {
+          // if this is sign up (when termsAccepted and marketingOptIn are false)
+          // set TERMS_ACCEPTED, MARKETING_OPT_IN to true
+          await userRepository.updateUserTermsAcceptedAndMarketingOptIn(
+            newUser.id,
+            true,
+            true,
+          );
+          // call marketing opt in webhook
+          callMarketingOptInWebHook(newUser.email, newUser.name);
         }
       } else if (ctx.path.startsWith("/sign-in")) {
         const user = ctx.context.newSession?.user;
