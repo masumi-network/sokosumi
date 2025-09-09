@@ -12,7 +12,7 @@ export interface BlobStatusBadgeProps {
 }
 
 export function BlobStatusBadge({ status, className }: BlobStatusBadgeProps) {
-  const t = useTranslations("Components.Jobs.JobDetails.FileStatusBadge");
+  const t = useTranslations("Components.Jobs.JobDetails.BlobStatusBadge");
 
   if (status === BlobStatus.PENDING) {
     return (
