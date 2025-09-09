@@ -78,7 +78,7 @@ export default function JobDetailsName({
   };
 
   const handleSubmit = async (data: JobDetailsNameFormSchemaType) => {
-    const result = await updateJobName(job.id, data);
+    const result = await updateJobName({ jobId: job.id, data });
     if (result.ok) {
       setEditing(false);
       toast.success(t("success"));

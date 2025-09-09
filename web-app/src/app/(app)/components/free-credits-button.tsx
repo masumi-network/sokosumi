@@ -29,7 +29,7 @@ export default function FreeCreditsButton({
 
   const handleFreeClaim = async () => {
     setLoading(true);
-    const result = await claimFreeCredits(promotionCode);
+    const result = await claimFreeCredits({ promotionCode });
 
     if (result.ok) {
       fireGTMEvent.freeCreditStartCheckout();
