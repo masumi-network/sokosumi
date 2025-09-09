@@ -8,6 +8,9 @@ import {
   passwordSchema,
 } from "@/lib/auth/data";
 
+export const socialProviderIdSchema = z.enum(["google", "microsoft"]);
+export type SocialProviderId = z.infer<typeof socialProviderIdSchema>;
+
 export const signInFormSchema = (t?: IntlTranslation<"Library.Auth.Schema">) =>
   z.object({
     email: emailSchema(t),

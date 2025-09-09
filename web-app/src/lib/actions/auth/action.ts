@@ -16,6 +16,7 @@ import {
   signUpFormSchema,
   SignUpFormSchemaType,
 } from "@/lib/schemas";
+import { callMarketingOptInWebHook } from "@/lib/services";
 import { utmService } from "@/lib/services/utm.service";
 import { Err, Ok, Result } from "@/lib/ts-res";
 
@@ -102,6 +103,12 @@ export async function signUpEmail(
       await utmService.handleUTMConversion(user.id);
     } catch (error) {
       console.error("Failed to create utm attribution", error);
+    }
+
+    // call marketing opt in webhook
+    // if marketingOptIn is true
+    if (parsed.marketingOptIn) {
+      callMarketingOptInWebHook(parsed.email, parsed.name);
     }
 
     return Ok(user);

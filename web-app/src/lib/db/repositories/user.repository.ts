@@ -86,18 +86,23 @@ export const userRepository = {
   },
 
   /**
-   * Updates the terms accepted status for a user.
+   * Updates the terms accepted and marketing opt in for a user.
    *
    * @param userId - The unique identifier of the user.
    * @param termsAccepted - The new terms accepted status.
+   * @param marketingOptIn - The new marketing opt in status.
    * @param tx - (Optional) The Prisma transaction client to use. Defaults to the main Prisma client.
    * @returns A promise that resolves to the updated User object.
    */
-  updateUserTermsAccepted: async (
+  updateUserTermsAcceptedAndMarketingOptIn: async (
     userId: string,
     termsAccepted: boolean,
+    marketingOptIn: boolean,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<User> => {
-    return tx.user.update({ where: { id: userId }, data: { termsAccepted } });
+    return tx.user.update({
+      where: { id: userId },
+      data: { termsAccepted, marketingOptIn },
+    });
   },
 };

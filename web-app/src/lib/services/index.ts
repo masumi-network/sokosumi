@@ -1,4 +1,5 @@
 export * from "./agent.service";
+export * from "./gtm.service";
 export * from "./job.service";
 export * from "./lock.service";
 export * from "./organization.service";
