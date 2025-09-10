@@ -104,7 +104,7 @@ export const sourceImportService = (() => {
   /**
    * Import up to `limit` pending output blobs.
    */
-  async function importPending(): Promise<number> {
+  async function importPendingOutputBlobs(): Promise<number> {
     const pendingPromises: Promise<void>[] = [];
     const pendingBlobs = await blobRepository.getPendingOutputBlobs();
     const limit = pLimit(5);
@@ -120,5 +120,5 @@ export const sourceImportService = (() => {
     return pendingBlobs.length;
   }
 
-  return { enqueueFromMarkdown, importPending };
+  return { enqueueFromMarkdown, importPendingOutputBlobs };
 })();
