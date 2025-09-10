@@ -23,7 +23,15 @@ const inter = Inter({
 });
 
 export function generateMetadata(): Metadata {
+  const isMainnet = getEnvPublicConfig().NEXT_PUBLIC_NETWORK === "Mainnet";
+
   return {
+    ...(!isMainnet && {
+      robots: {
+        index: false,
+        follow: false,
+      },
+    }),
     other: {
       ...Sentry.getTraceData(),
     },
