@@ -1,5 +1,10 @@
 import prisma from "@/lib/db/repositories/prisma";
-import { Blob, Prisma } from "@/prisma/generated/client";
+import {
+  Blob,
+  BlobOrigin,
+  BlobStatus,
+  Prisma,
+} from "@/prisma/generated/client";
 
 /**
  * Repository for managing Blob entities and related queries.
@@ -24,6 +29,33 @@ export const blobRepository = {
         fileUrl,
         fileName,
         size,
+      },
+    });
+  },
+
+  /**
+   * Create a pending output Blob record from a source URL (extracted from markdown)
+   * Avoids duplicates by sourceUrl per job.
+   */
+  async createPendingOutputBlob(
+    userId: string,
+    jobId: string,
+    sourceUrl: string,
+    fileName?: string,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<Blob> {
+    const existing = await tx.blob.findFirst({
+      where: { jobId, sourceUrl },
+    });
+    if (existing) return existing;
+    return tx.blob.create({
+      data: {
+        user: { connect: { id: userId } },
+        job: { connect: { id: jobId } },
+        origin: BlobOrigin.OUTPUT,
+        status: BlobStatus.PENDING,
+        sourceUrl,
+        fileName,
       },
     });
   },
@@ -59,6 +91,20 @@ export const blobRepository = {
   },
 
   /**
+   * Get pending output blobs to import.
+   */
+  async getPendingOutputBlobs(
+    limit?: number,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<Blob[]> {
+    return tx.blob.findMany({
+      where: { status: BlobStatus.PENDING, origin: BlobOrigin.OUTPUT },
+      take: limit,
+      orderBy: { createdAt: "asc" },
+    });
+  },
+
+  /**
    * Update a Blob record by its ID
    */
   async updateBlobById(
@@ -67,6 +113,40 @@ export const blobRepository = {
     tx: Prisma.TransactionClient = prisma,
   ): Promise<Blob> {
     return tx.blob.update({ where: { id }, data });
+  },
+
+  async markBlobReady(
+    id: string,
+    updates: {
+      fileUrl: string;
+      mime?: string | null;
+      size?: bigint | null;
+      fileName?: string | null;
+    },
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<Blob> {
+    return tx.blob.update({
+      where: { id },
+      data: {
+        fileUrl: updates.fileUrl,
+        mime: updates.mime ?? undefined,
+        size: typeof updates.size !== "undefined" ? updates.size : undefined,
+        ...(typeof updates.fileName !== "undefined" && {
+          fileName: updates.fileName,
+        }),
+        status: BlobStatus.READY,
+      },
+    });
+  },
+
+  async markBlobFailed(
+    id: string,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<Blob> {
+    return tx.blob.update({
+      where: { id },
+      data: { status: BlobStatus.FAILED },
+    });
   },
 
   /**

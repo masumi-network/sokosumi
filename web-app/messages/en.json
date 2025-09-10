@@ -329,6 +329,13 @@
               "unauthorized": "You must be job owner to request a refund"
             }
           }
+        },
+        "Sources": {
+          "title": "Links"
+        },
+        "BlobStatusBadge": {
+          "pending": "Pending",
+          "failed": "Failed"
         }
       },
       "JobsTable": {

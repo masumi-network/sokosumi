@@ -3,11 +3,21 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { formatBytes } from "@/lib/utils/format-bytes";
 import { getExtensionFromUrl, isImageUrl } from "@/lib/utils/file";
+import { FileTypeIcon } from "@/components/ui/file-icon";
 
 export interface FileChipProps extends React.ComponentPropsWithoutRef<"a"> {
   url: string;
   fileName?: string | null;
   size?: number | bigint | null;
+  /**
+   * Tailwind size class (e.g., `size-8`, `size-10`). Defaults to `size-10`.
+   */
+  sizeClass?: string;
+  /**
+   * Approximate pixel size of the icon/thumbnail for layout hints.
+   * Used for next/image `sizes` attribute. Defaults to 40.
+   */
+  iconPx?: number;
 }
 
 export function FileChip(props: FileChipProps) {
@@ -16,11 +26,19 @@ export function FileChip(props: FileChipProps) {
     fileName: fileNameProp,
     size,
     className,
+    sizeClass = "size-10",
+    iconPx = 40,
     ...anchorProps
   } = props;
   const fileName = fileNameProp ?? url.split("/").pop() ?? url;
   const isImage = isImageUrl(url);
   const prettySize = formatBytes(size);
+  const containerSizeClass = sizeClass;
+  const shouldApplyIconPadding = (() => {
+    const match = containerSizeClass.match(/size-(\d+)/);
+    const numeric = match ? Number(match[1]) : NaN;
+    return Number.isFinite(numeric) && numeric > 6;
+  })();
 
   return (
     <a
@@ -33,20 +51,28 @@ export function FileChip(props: FileChipProps) {
         className,
       )}
     >
-      <div className="bg-accent/50 relative size-10 shrink-0 overflow-hidden rounded border">
+      <div
+        className={cn(
+          "bg-accent/50 relative shrink-0 rounded",
+          containerSizeClass,
+        )}
+      >
         {isImage ? (
-          <Image
-            src={url}
-            alt={fileName}
-            fill
-            sizes="40px"
-            className="object-cover"
-          />
+          <div className="relative size-full overflow-hidden rounded">
+            <Image
+              src={url}
+              alt={fileName}
+              fill
+              sizes={`${iconPx}px`}
+              className="object-cover"
+            />
+          </div>
         ) : (
-          <div className="flex size-full items-center justify-center">
-            <span className="text-muted-foreground text-xs uppercase">
-              {getExtensionFromUrl(url) || "file"}
-            </span>
+          <div className={cn("flex size-full items-center justify-center", shouldApplyIconPadding && "p-1")}>
+            {(() => {
+              const ext = getExtensionFromUrl(url) || "file";
+              return <FileTypeIcon extension={ext} />;
+            })()}
           </div>
         )}
       </div>

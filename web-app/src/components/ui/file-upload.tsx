@@ -14,6 +14,7 @@ import {
 import * as React from "react";
 import { formatBytes } from "@/lib/utils/format-bytes";
 import { getExtensionFromUrl } from "@/lib/utils/file";
+import { FileTypeIcon } from "./file-icon";
 
 const ROOT_NAME = "FileUpload";
 const DROPZONE_NAME = "FileUploadDropzone";
@@ -1091,10 +1092,8 @@ function FileUploadItemPreview(props: FileUploadItemPreviewProps) {
       }
 
       return (
-        <div className="flex size-full items-center justify-center">
-          <span className="text-muted-foreground text-xs uppercase">
-            {getExtensionFromUrl(file.name) }
-          </span>
+        <div className="flex size-full items-center justify-center p-1">
+          <FileTypeIcon extension={getExtensionFromUrl(file.name) || "file"} />
         </div>
       );
     },
@@ -1111,7 +1110,7 @@ function FileUploadItemPreview(props: FileUploadItemPreviewProps) {
       data-slot="file-upload-preview"
       {...previewProps}
       className={cn(
-        "relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded border bg-accent/50 [&>svg]:size-10",
+        "relative flex size-10 shrink-0 items-center justify-center overflow-hidden rounded bg-accent/50 [&>svg]:size-10",
         className,
       )}
     >

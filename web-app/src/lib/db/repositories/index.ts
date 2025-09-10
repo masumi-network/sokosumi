@@ -7,6 +7,7 @@ export * from "./fiatTransaction.repository";
 export * from "./invitation.repository";
 export * from "./job.repository";
 export * from "./job-share.repository";
+export * from "./link.repository";
 export * from "./lock.repository";
 export * from "./member.repository";
 export * from "./organization.repository";

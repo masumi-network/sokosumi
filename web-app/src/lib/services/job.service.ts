@@ -40,6 +40,7 @@ import {
 } from "@/prisma/generated/client";
 
 import { agentService } from "./agent.service";
+import { sourceImportService } from "./source-import.service";
 import { userService } from "./user.service";
 
 export const jobService = (() => {
@@ -241,6 +242,20 @@ export const jobService = (() => {
       completedAt:
         agentJobStatus === AgentJobStatus.COMPLETED ? new Date() : null,
     });
+
+    // Enqueue any sources from demo output
+    try {
+      if (job.output) {
+        const parsedOutput = JSON.parse(job.output);
+        if (parsedOutput?.result && typeof parsedOutput.result === "string") {
+          await sourceImportService.enqueueFromMarkdown(
+            userId,
+            job.id,
+            parsedOutput.result,
+          );
+        }
+      }
+    } catch {}
 
     return job;
   };
@@ -804,6 +819,15 @@ export const jobService = (() => {
             agentJobStatusResult.data,
             tx,
           );
+          // Fire and forget: enqueue extraction if output is present
+          try {
+            const output = agentJobStatusResult.data?.result;
+            if (typeof output === "string") {
+              sourceImportService
+                .enqueueFromMarkdown(job.userId, job.id, output)
+                .catch(() => {});
+            }
+          } catch {}
         }
         const jobStatus = computeJobStatus(job);
         switch (jobStatus) {
