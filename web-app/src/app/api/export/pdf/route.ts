@@ -1,9 +1,6 @@
-import fs from "node:fs";
-
-import chromium from "@sparticuz/chromium";
 import { NextRequest, NextResponse } from "next/server";
-import puppeteer, { Browser } from "puppeteer-core";
 
+import { getEnvSecrets } from "@/config/env.secrets";
 import { sanitizeFileName } from "@/lib/utils/file";
 
 export const runtime = "nodejs";
@@ -15,23 +12,6 @@ interface GeneratePdfRequest {
   footerHtml?: string;
   fileName?: string;
 }
-
-// Local Chrome executable fallback.
-const LOCAL_CHROME_PATHS_MACOS = [
-  "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-  "/Applications/Chromium.app/Contents/MacOS/Chromium",
-  "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
-  "/opt/homebrew/bin/chromium",
-  "/usr/local/bin/chromium",
-  "/usr/bin/chromium",
-];
-
-const LOCAL_CHROME_PATHS_WIN32 = [
-  "C:\\\\Program Files\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe",
-  "C:\\\\Program Files (x86)\\\\Google\\\\Chrome\\\\Application\\\\chrome.exe",
-  "C:\\\\Program Files\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe",
-  "C:\\\\Program Files (x86)\\\\Microsoft\\\\Edge\\\\Application\\\\msedge.exe",
-];
 
 const headerWithLogoHtml = `
       <div style="display:flex; align-items:center; gap:8px; margin-bottom:16px;width:100%; justify-content:space-between; padding:0 20mm;">
@@ -142,7 +122,7 @@ function wrapHtmlDocument(html: string, origin: string): string {
 }
 
 export async function POST(request: NextRequest) {
-  let browser: Browser | null = null;
+  let browser;
   try {
     const json = (await request.json()) as GeneratePdfRequest;
     const rawHtml = (json.html ?? "").toString();
@@ -153,34 +133,31 @@ export async function POST(request: NextRequest) {
     const origin = getOriginFromHeaders(request);
     const html = wrapHtmlDocument(rawHtml, origin);
 
-    let launchOptions: Parameters<typeof puppeteer.launch>[0] = {
-      headless: true,
-    };
-    if (process.platform === "linux") {
-      const executablePath = await chromium.executablePath();
-      launchOptions = {
+    const isVercel = !!getEnvSecrets().VERCEL_URL;
+
+    console.log("isVercel", isVercel);
+
+    let puppeteer: typeof import("puppeteer") | typeof import("puppeteer-core");
+
+    if (isVercel) {
+      const chromium = (await import("@sparticuz/chromium")).default;
+      puppeteer = await import("puppeteer-core");
+      const launchOptions: Parameters<typeof puppeteer.launch>[0] = {
+        headless: true,
         args: chromium.args,
-        executablePath,
+        executablePath: await chromium.executablePath(),
+      };
+      browser = await puppeteer.launch(launchOptions);
+    } else {
+      puppeteer = await import("puppeteer");
+      const launchOptions: Parameters<typeof puppeteer.launch>[0] = {
         headless: true,
       };
-    } else if (process.platform === "darwin") {
-      const execPath = LOCAL_CHROME_PATHS_MACOS.find(
-        (p) => p && fs.existsSync(p),
-      );
-      if (execPath)
-        launchOptions = { ...launchOptions, executablePath: execPath };
-    } else if (process.platform === "win32") {
-      const execPath = LOCAL_CHROME_PATHS_WIN32.find(
-        (p) => p && fs.existsSync(p),
-      );
-      if (execPath)
-        launchOptions = { ...launchOptions, executablePath: execPath };
+      browser = await puppeteer.launch(launchOptions);
     }
 
-    browser = await puppeteer.launch(launchOptions);
-
     const page = await browser.newPage();
-    await page.setContent(html, { waitUntil: "networkidle0" });
+    await page.setContent(html, { waitUntil: "networkidle2" });
     await page.emulateMediaType("print");
 
     const pdfBuffer = await page.pdf({
