@@ -133,7 +133,7 @@ export const sourceImportService = (() => {
    * Errors during individual blob imports are handled within the importOutputBlob function.
    * The function returns the total number of blobs that were attempted to be imported.
    *
-   * @returns {Promise<number>} The number of pending output blobs processed.
+   * @returns {Promise<number>} The number of pending output blobs found.
    */
   async function importPendingOutputBlobs(): Promise<number> {
     const pendingPromises: Promise<void>[] = [];
