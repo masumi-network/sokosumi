@@ -1,5 +1,5 @@
-import { NextResponse } from "next/server";
-import pLimit from "p-limit";
+import { after, NextResponse } from "next/server";
+import pTimeout from "p-timeout";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { authenticateCronSecret } from "@/lib/auth/utils";
@@ -13,7 +13,7 @@ export async function GET(request: Request) {
   const authResult = authenticateCronSecret(request);
   if (!authResult.ok) return authResult.response;
 
-  let unlocked = false;
+  const unlocked = false;
   let lock;
   try {
     lock = await lockService.acquireLock(LOCK_KEY, getEnvSecrets().INSTANCE_ID);
@@ -24,20 +24,36 @@ export async function GET(request: Request) {
     );
   }
 
-  try {
-    const limit = pLimit(1);
-    console.log("Importing pending source imports");
-    const processed = await limit(() => sourceImportService.importPending(10));
-    console.log("Imported", processed, "source imports");
-    return NextResponse.json({ processed });
-  } finally {
-    if (!unlocked) {
-      try {
-        await lockRepository.unlockByKey(lock.key);
-        unlocked = true;
-      } catch (error) {
-        console.error("Failed to unlock lock", error);
+  after(async () => {
+    try {
+      const timingStart = Date.now();
+      console.log("Importing pending source imports");
+      const pendingBlobsCount = await pTimeout(
+        sourceImportService.importPending(),
+        {
+          milliseconds:
+            getEnvSecrets().LOCK_TIMEOUT - getEnvSecrets().LOCK_TIMEOUT_BUFFER,
+        },
+      );
+      console.log("Pending Blobs: ", pendingBlobsCount);
+      const timingEnd = Date.now();
+      console.log(
+        "Source import sync took",
+        (timingEnd - timingStart) / 1000,
+        "seconds",
+      );
+    } catch (error) {
+      console.error("Error in sync operation:", error);
+    } finally {
+      if (!unlocked) {
+        try {
+          await lockRepository.unlockByKey(lock.key);
+        } catch (error) {
+          console.error("Failed to unlock lock:", error);
+        }
       }
     }
-  }
+  });
+
+  return NextResponse.json({ message: "Syncing started" }, { status: 200 });
 }

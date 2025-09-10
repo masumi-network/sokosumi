@@ -1,9 +1,12 @@
 import "server-only";
 
+import pLimit from "p-limit";
+
 import { uploadFile } from "@/lib/blob";
 import { extractFileLikeLinks, extractHttpLinks } from "@/lib/data/markdown";
 import { blobRepository, linkRepository, prisma } from "@/lib/db/repositories";
 import { isHttpUrl } from "@/lib/utils/file";
+import { Blob } from "@/prisma/generated/client";
 
 export const sourceImportService = (() => {
   function getBasename(url: string): string | null {
@@ -51,9 +54,7 @@ export const sourceImportService = (() => {
    * Process a single blob: download from sourceUrl and upload to public blob.
    * Uses streaming via fetch and File API.
    */
-  async function importOne(blobId: string): Promise<void> {
-    const blob = await blobRepository.getBlobById(blobId);
-    if (!blob) return;
+  async function importOne(blob: Blob): Promise<void> {
     const sourceUrl: string | null = blob.sourceUrl ?? null;
     if (!sourceUrl) return;
     try {
@@ -103,10 +104,20 @@ export const sourceImportService = (() => {
   /**
    * Import up to `limit` pending output blobs.
    */
-  async function importPending(limit = 10): Promise<number> {
-    const pending = await blobRepository.getPendingOutputBlobs(limit);
-    await Promise.allSettled(pending.map((b) => importOne(b.id)));
-    return pending.length;
+  async function importPending(): Promise<number> {
+    const pendingPromises: Promise<void>[] = [];
+    const pendingBlobs = await blobRepository.getPendingOutputBlobs();
+    const limit = pLimit(5);
+    for (const blob of pendingBlobs) {
+      pendingPromises.push(limit(() => importOne(blob)));
+    }
+    try {
+      await Promise.allSettled(pendingPromises);
+    } catch (error) {
+      console.error("Error in sync operation:", error);
+      throw error;
+    }
+    return pendingBlobs.length;
   }
 
   return { enqueueFromMarkdown, importPending };

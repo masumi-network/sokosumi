@@ -94,7 +94,7 @@ export const blobRepository = {
    * Get pending output blobs to import.
    */
   async getPendingOutputBlobs(
-    limit = 25,
+    limit?: number,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<Blob[]> {
     return tx.blob.findMany({
