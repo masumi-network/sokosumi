@@ -17,10 +17,16 @@ export async function GET(request: Request) {
   let lock;
   try {
     lock = await lockService.acquireLock(LOCK_KEY, getEnvSecrets().INSTANCE_ID);
-  } catch (_error) {
+  } catch (error) {
+    if (error instanceof Error && error.message === "LOCK_IS_LOCKED") {
+      return NextResponse.json(
+        { message: "Syncing already in progress" },
+        { status: 409 },
+      );
+    }
     return NextResponse.json(
-      { message: "Sync already in progress" },
-      { status: 409 },
+      { message: "Failed to acquire lock" },
+      { status: 500 },
     );
   }
 
