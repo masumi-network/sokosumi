@@ -101,6 +101,8 @@ export default function DownloadButton({
       );
       triggerFileDownload(url, `${FILE_NAME}.md`);
       URL.revokeObjectURL(url);
+    } catch (_err) {
+      toast.error(t("exportMarkdownError"));
     } finally {
       toast.dismiss(id);
     }
@@ -118,11 +120,16 @@ export default function DownloadButton({
           fileName: FILE_NAME,
         }),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        toast.error(t("exportPdfError"));
+        return;
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       triggerFileDownload(url, `${FILE_NAME}.pdf`);
       URL.revokeObjectURL(url);
+    } catch (_err) {
+      toast.error(t("exportPdfError"));
     } finally {
       toast.dismiss(id);
     }
@@ -153,11 +160,16 @@ export default function DownloadButton({
           kanjiLogoPng,
         }),
       });
-      if (!res.ok) return;
+      if (!res.ok) {
+        toast.error(t("exportDocxError"));
+        return;
+      }
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       triggerFileDownload(url, `${FILE_NAME}.docx`);
       URL.revokeObjectURL(url);
+    } catch (_err) {
+      toast.error(t("exportDocxError"));
     } finally {
       toast.dismiss(id);
     }
