@@ -27,3 +27,55 @@ export function isImageUrl(url: string): boolean {
 export function sanitizeFileName(value: string): string {
   return value.replace(/[^a-zA-Z0-9-_]/g, "_");
 }
+
+export const FILE_EXTENSION_ALLOWLIST = new Set([
+  // images
+  "png",
+  "jpg",
+  "jpeg",
+  "webp",
+  "svg",
+  "gif",
+  // docs
+  "pdf",
+  "txt",
+  "md",
+  "rtf",
+  "csv",
+  "json",
+  "xml",
+  // office
+  "doc",
+  "docx",
+  "xls",
+  "xlsx",
+  "ppt",
+  "pptx",
+  // archives
+  "zip",
+  "tar",
+  "gz",
+  // media
+  "mp3",
+  "mp4",
+  "wav",
+  "mov",
+]);
+
+export function isHttpUrl(url: string): boolean {
+  return /^https?:\/\//i.test(url);
+}
+
+export function isFileLikeUrl(url: string): boolean {
+  if (!isHttpUrl(url)) return false;
+  try {
+    const u = new URL(url);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return false;
+    if (u.hash) return false;
+    const ext = getExtensionFromUrl(url);
+    if (!ext) return false;
+    return FILE_EXTENSION_ALLOWLIST.has(ext);
+  } catch {
+    return false;
+  }
+}

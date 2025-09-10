@@ -10,6 +10,7 @@ export const jobInclude = {
   creditTransaction: true,
   refundedCreditTransaction: true,
   blobs: true,
+  links: true,
   shares: true,
 } as const;
 

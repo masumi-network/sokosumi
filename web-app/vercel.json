@@ -16,6 +16,10 @@
     {
       "path": "/api/sync/stripe-customers",
       "schedule": "0 * * * *"
+    },
+    {
+      "path": "/api/sync/source-import",
+      "schedule": "*/5 * * * *"
     }
   ]
 }
