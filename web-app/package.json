@@ -39,7 +39,7 @@
     "@hey-api/client-next": "0.5.1",
     "@hookform/resolvers": "5.2.1",
     "@icons-pack/react-simple-icons": "13.7.0",
-    "@next/third-parties": "15.5.2",
+    "@next/third-parties": "15.5.3",
     "@prisma/client": "6.15.0",
     "@radix-ui/react-slot": "1.2.3",
     "@react-email/components": "0.5.3",
