@@ -33,7 +33,7 @@
     "generate:api-docs": "next-openapi-gen generate"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "0.61.0",
+    "@anthropic-ai/sdk": "0.62.0",
     "@better-auth/utils": "0.2.6",
     "@hey-api/client-fetch": "0.13.1",
     "@hey-api/client-next": "0.5.1",
