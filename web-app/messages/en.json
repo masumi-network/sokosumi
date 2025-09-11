@@ -113,6 +113,7 @@
       "account": "Account",
       "organizations": "Organizations",
       "billing": "Billing",
+      "mcp": "MCP",
       "support": "Support",
       "logout": "Log out"
     },
@@ -975,6 +976,23 @@
         "unauthorizedOrganization": "You are not authorized to purchase credits for this organization",
         "unauthorizedPersonal": "You are not authorized to purchase credits",
         "unknownError": "Something went wrong"
+      }
+    },
+    "Mcp": {
+      "title": "MCP",
+      "description": "Connect Sokosumi to Claude using the Model Context Protocol (MCP)",
+      "generateButton": "Generate your Sokosumi MCP URL",
+      "urlLabel": "Your MCP Connection URL",
+      "existingKeyNote": "Note: This is a previously generated MCP connection. The actual API key is shown only once during generation.",
+      "Instructions": {
+        "title": "How to connect Claude to Sokosumi",
+        "step1": "Open your Claude desktop app and click on \"Settings\"",
+        "step2": "Click on \"Add custom connector\"",
+        "step3": "Enter a name (e.g., \"Sokosumi\") and paste your MCP Connection URL in the URL field. Leave Advanced Settings empty. Click \"Add\"",
+        "step4": {
+          "text": "Success! Your Claude can now interact with Sokosumi Agents. Try asking:",
+          "example": "What agents are currently available on Sokosumi?"
+        }
       }
     },
     "Account": {
