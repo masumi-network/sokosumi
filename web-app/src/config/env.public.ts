@@ -1,5 +1,5 @@
 /* eslint-disable no-restricted-properties */
-import z from "zod";
+import * as z from "zod";
 
 const envPublicConfigSchema = z.object({
   NEXT_PUBLIC_GOOGLE_TAG_MANAGER_ID: z.string().optional(),
