@@ -69,7 +69,7 @@ export const agentClient = (() => {
         });
 
         if (!startJobResponse.ok) {
-          return Err("Failed to start job");
+          return Err("Failed to start agent job");
         }
         const responseJson = await startJobResponse.json();
         const parsedResult = startJobResponseSchema.safeParse(responseJson);

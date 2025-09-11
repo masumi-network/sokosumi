@@ -3,6 +3,7 @@ import pTimeout from "p-timeout";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { authenticateCronSecret } from "@/lib/auth/utils";
+import { PostRegistryEntryResponse } from "@/lib/clients/generated/registry";
 import { registryClient } from "@/lib/clients/masumi-registry.client";
 import { lockRepository, prisma } from "@/lib/db/repositories";
 import { lockService } from "@/lib/services";
@@ -82,17 +83,6 @@ const convertStatus = (
   }
 };
 
-const convertPricingType = (pricingType: "Fixed" | "Free" | unknown) => {
-  switch (pricingType) {
-    case "Fixed":
-      return PricingType.FIXED;
-    case "Free":
-      return PricingType.FREE;
-    default:
-      return PricingType.UNKNOWN;
-  }
-};
-
 const convertPaymentType = (
   paymentType: "Web3CardanoV1" | "None" | unknown,
 ) => {
@@ -103,6 +93,45 @@ const convertPaymentType = (
       return PaymentType.NONE;
     default:
       return PaymentType.UNKNOWN;
+  }
+};
+
+const parseEntryAgentPricing = (
+  pricing: PostRegistryEntryResponse["data"]["entries"][number]["AgentPricing"],
+): {
+  pricingType: PricingType;
+  fixedPricingAmounts?: { amount: bigint; unit: string }[];
+} => {
+  switch (pricing.pricingType) {
+    case "Fixed": {
+      // check fixed pricing is all positive integer
+      const isValidFixedPricing = pricing.FixedPricing.Amounts.every(
+        (amount) => BigInt(amount.amount) > 0,
+      );
+      if (!isValidFixedPricing) {
+        return {
+          pricingType: PricingType.UNKNOWN,
+        };
+      } else {
+        return {
+          pricingType: PricingType.FIXED,
+          fixedPricingAmounts: pricing.FixedPricing.Amounts.map((amount) => ({
+            amount: BigInt(amount.amount),
+            unit: amount.unit,
+          })),
+        };
+      }
+    }
+    case "Free": {
+      return {
+        pricingType: PricingType.FREE,
+      };
+    }
+    default: {
+      return {
+        pricingType: PricingType.UNKNOWN,
+      };
+    }
   }
 };
 
@@ -138,6 +167,9 @@ async function syncAllEntries() {
     runningAgentsUpdates.push(
       ...entries.map(async (entry) => {
         const updateDbEntry = async () => {
+          const { pricingType, fixedPricingAmounts } = parseEntryAgentPricing(
+            entry.AgentPricing,
+          );
           await prisma.agent.upsert({
             where: { blockchainIdentifier: entry.agentIdentifier },
             create: {
@@ -172,20 +204,13 @@ async function syncAllEntries() {
               paymentType: convertPaymentType(entry.paymentType),
               pricing: {
                 create: {
-                  pricingType: convertPricingType(
-                    entry.AgentPricing.pricingType,
-                  ),
-                  ...(entry.AgentPricing.pricingType === "Fixed" && {
+                  pricingType,
+                  ...(!!fixedPricingAmounts && {
                     fixedPricing: {
                       create: {
                         amounts: {
                           createMany: {
-                            data: entry.AgentPricing.FixedPricing?.Amounts.map(
-                              (amount) => ({
-                                amount: BigInt(amount.amount),
-                                unit: amount.unit,
-                              }),
-                            ),
+                            data: fixedPricingAmounts,
                           },
                         },
                       },
