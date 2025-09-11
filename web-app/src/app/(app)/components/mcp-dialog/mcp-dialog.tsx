@@ -23,7 +23,7 @@ interface McpDialogProps {
 
 export function McpDialog({ open, onOpenChange }: McpDialogProps) {
   const t = useTranslations("App.Mcp");
-  const { mcpUrl, isGenerating, isLoading, generateMcpUrl, isKeyExisting } =
+  const { mcpUrl, isLoading, generateMcpUrl, isKeyExisting } =
     useMcpApiKey(open);
 
   return (
@@ -53,12 +53,10 @@ export function McpDialog({ open, onOpenChange }: McpDialogProps) {
             <div className="space-y-4">
               <Button
                 onClick={generateMcpUrl}
-                disabled={isGenerating}
+                disabled={isLoading}
                 className="w-full"
               >
-                {isGenerating && (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                )}
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {t("generateButton")}
               </Button>
             </div>

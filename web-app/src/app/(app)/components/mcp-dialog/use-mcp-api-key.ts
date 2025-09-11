@@ -9,7 +9,6 @@ import { Apikey } from "@/prisma/generated/client";
 
 interface UseMcpApiKeyReturn {
   mcpUrl: string | null;
-  isGenerating: boolean;
   isLoading: boolean;
   generateMcpUrl: () => Promise<void>;
   isKeyExisting: boolean;
@@ -19,7 +18,6 @@ const MCP_KEY_NAME = "MCP";
 
 export function useMcpApiKey(open: boolean): UseMcpApiKeyReturn {
   const [mcpUrl, setMcpUrl] = useState<string | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isKeyExisting, setIsExistingKey] = useState<boolean>(false);
 
@@ -60,9 +58,9 @@ export function useMcpApiKey(open: boolean): UseMcpApiKeyReturn {
   }, [open]);
 
   const generateMcpUrl = useCallback(async () => {
-    if (isGenerating) return;
+    if (isLoading) return;
 
-    setIsGenerating(true);
+    setIsLoading(true);
     try {
       // Generate new API key
       const result = await authClient.apiKey.create({
@@ -81,13 +79,12 @@ export function useMcpApiKey(open: boolean): UseMcpApiKeyReturn {
       console.error("Failed to generate MCP URL:", error);
       toast.error("Failed to generate MCP URL. Please try again.");
     } finally {
-      setIsGenerating(false);
+      setIsLoading(false);
     }
-  }, [isGenerating]);
+  }, [isLoading]);
 
   return {
     mcpUrl,
-    isGenerating,
     isLoading,
     generateMcpUrl,
     isKeyExisting,
