@@ -40,14 +40,8 @@ updates:
     open-pull-requests-limit: 10
     commit-message:
       prefix: "chore(deps)"
-
-  # Add ignore for @types/node version updates in the sync-function directory
-  - package-ecosystem: "npm"
-    directory: "/sync-function"
-    schedule:
-      interval: "daily"
-      time: "06:00"
-      timezone: "Europe/Berlin"
     ignore:
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "@sparticuz/chromium"
+      - dependency-name: "puppeteer-core"

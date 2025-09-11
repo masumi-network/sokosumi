@@ -24,6 +24,10 @@ export function isImageUrl(url: string): boolean {
   return ["png", "jpg", "jpeg", "gif", "webp", "bmp", "svg"].includes(ext);
 }
 
+export function sanitizeFileName(value: string): string {
+  return value.replace(/[^a-zA-Z0-9-_]/g, "_");
+}
+
 export const FILE_EXTENSION_ALLOWLIST = new Set([
   // images
   "png",
