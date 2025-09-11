@@ -40,7 +40,7 @@
     "@hookform/resolvers": "5.2.1",
     "@icons-pack/react-simple-icons": "13.7.0",
     "@next/third-parties": "15.5.3",
-    "@prisma/client": "6.15.0",
+    "@prisma/client": "6.16.0",
     "@radix-ui/react-slot": "1.2.3",
     "@react-email/components": "0.5.3",
     "@sentry/nextjs": "10.11.0",
@@ -107,6 +107,6 @@
     "@types/react-file-icon": "1.0.4",
     "@types/react-window": "1.8.8",
     "next-openapi-gen": "0.7.7",
-    "prisma": "6.15.0"
+    "prisma": "6.16.0"
   }
 }
