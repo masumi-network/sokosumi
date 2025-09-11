@@ -12,45 +12,52 @@ interface UseMcpApiKeyReturn {
   isGenerating: boolean;
   isLoading: boolean;
   generateMcpUrl: () => Promise<void>;
-  existingKey: Apikey | null;
+  isKeyExisting: boolean;
 }
 
 const MCP_KEY_NAME = "MCP";
 
-export function useMcpApiKey(): UseMcpApiKeyReturn {
+export function useMcpApiKey(open: boolean): UseMcpApiKeyReturn {
   const [mcpUrl, setMcpUrl] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
-  const [existingKey, setExistingKey] = useState<boolean>(false);
+  const [isKeyExisting, setIsExistingKey] = useState<boolean>(false);
 
-  // Check for existing MCP key on mount
+  // Check for existing MCP key when dialog opens
   useEffect(() => {
-    const checkExistingKey = async () => {
-      try {
-        const result = await authClient.apiKey.list();
-        if (result.data) {
-          const mcpKey = (result.data as Apikey[]).find(
-            (key) => key.name === MCP_KEY_NAME && key.enabled,
-          );
-          if (mcpKey) {
-            setExistingKey(true);
-            // Reconstruct URL for existing key (we don't store the actual key value)
-            const network =
-              getEnvPublicConfig().NEXT_PUBLIC_NETWORK.toLowerCase();
-            setMcpUrl(
-              `https://mcp.sokosumi.com/mcp?api_key=YOUR_EXISTING_KEY&network=${network}`,
-            );
-          }
-        }
-      } catch (error) {
-        console.error("Failed to check existing MCP key:", error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    if (open) {
+      // Reset states when dialog opens
+      setMcpUrl(null);
+      setIsExistingKey(false);
+      setIsLoading(true);
 
-    checkExistingKey();
-  }, []);
+      const checkExistingKey = async () => {
+        try {
+          const result = await authClient.apiKey.list();
+          if (result.data) {
+            const mcpKey = (result.data as Apikey[]).find(
+              (key) => key.name === MCP_KEY_NAME && key.enabled,
+            );
+            if (mcpKey) {
+              setIsExistingKey(true);
+              // Reconstruct URL for existing key (we don't store the actual key value)
+              const network =
+                getEnvPublicConfig().NEXT_PUBLIC_NETWORK.toLowerCase();
+              setMcpUrl(
+                `https://mcp.sokosumi.com/mcp?api_key=YOUR_EXISTING_KEY&network=${network}`,
+              );
+            }
+          }
+        } catch (error) {
+          console.error("Failed to check existing MCP key:", error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      checkExistingKey();
+    }
+  }, [open]);
 
   const generateMcpUrl = useCallback(async () => {
     if (isGenerating) return;
@@ -83,6 +90,6 @@ export function useMcpApiKey(): UseMcpApiKeyReturn {
     isGenerating,
     isLoading,
     generateMcpUrl,
-    existingKey,
+    isKeyExisting,
   };
 }

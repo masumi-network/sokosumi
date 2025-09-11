@@ -23,8 +23,8 @@ interface McpDialogProps {
 
 export function McpDialog({ open, onOpenChange }: McpDialogProps) {
   const t = useTranslations("App.Mcp");
-  const { mcpUrl, isGenerating, isLoading, generateMcpUrl, existingKey } =
-    useMcpApiKey();
+  const { mcpUrl, isGenerating, isLoading, generateMcpUrl, isKeyExisting } =
+    useMcpApiKey(open);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -42,7 +42,7 @@ export function McpDialog({ open, onOpenChange }: McpDialogProps) {
           ) : mcpUrl ? (
             <>
               <McpUrlDisplay url={mcpUrl} />
-              {existingKey && (
+              {isKeyExisting && (
                 <p className="text-muted-foreground text-xs">
                   {t("existingKeyNote")}
                 </p>
