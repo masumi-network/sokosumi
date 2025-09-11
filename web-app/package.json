@@ -34,7 +34,7 @@
     "build:browser": "pnpm dlx puppeteer browsers install"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "0.61.0",
+    "@anthropic-ai/sdk": "0.62.0",
     "@better-auth/utils": "0.2.6",
     "@hey-api/client-fetch": "0.13.1",
     "@hey-api/client-next": "0.5.1",
@@ -47,8 +47,8 @@
     "@m2d/math": "0.0.6",
     "@m2d/mdast": "0.2.4",
     "@m2d/table": "0.0.7",
-    "@next/third-parties": "15.5.2",
-    "@prisma/client": "6.15.0",
+    "@next/third-parties": "15.5.3",
+    "@prisma/client": "6.16.0",
     "@radix-ui/react-slot": "1.2.3",
     "@react-email/components": "0.5.3",
     "@sentry/nextjs": "10.11.0",
@@ -80,7 +80,7 @@
     "marked": "16.2.1",
     "mdast2docx": "1.4.2",
     "nanoid": "5.1.5",
-    "next": "15.5.2",
+    "next": "15.5.3",
     "next-intl": "4.3.7",
     "next-plausible": "3.12.4",
     "next-themes": "0.4.6",
@@ -120,7 +120,7 @@
     "react-file-icon": "1.6.0"
   },
   "devDependencies": {
-    "@hey-api/openapi-ts": "0.82.5",
+    "@hey-api/openapi-ts": "0.83.1",
     "@types/humanize-duration": "3.27.4",
     "@types/node": "22.18.1",
     "@types/react": "19.1.12",
@@ -128,7 +128,7 @@
     "@types/react-file-icon": "1.0.4",
     "@types/react-window": "1.8.8",
     "next-openapi-gen": "0.7.7",
-    "prisma": "6.15.0",
-    "puppeteer": "24.15.0"
+    "puppeteer": "24.15.0",
+    "prisma": "6.16.0"
   }
 }
