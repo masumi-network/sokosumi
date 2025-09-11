@@ -21,6 +21,11 @@ interface UseMcpApiKeyReturn {
 
 const MCP_KEY_NAME = "MCP";
 
+function buildMcpUrl(apiKey: string, network: string): string {
+  const baseUrl = getEnvPublicConfig().NEXT_PUBLIC_MCP_URL;
+  return `${baseUrl}/mcp?api_key=${apiKey}&network=${network}`;
+}
+
 export function useMcpApiKey(
   open: boolean,
   activeOrganizationId: string | null,
@@ -68,9 +73,7 @@ export function useMcpApiKey(
                 // Show URL for enabled key
                 const network =
                   getEnvPublicConfig().NEXT_PUBLIC_NETWORK.toLowerCase();
-                setMcpUrl(
-                  `https://mcp.sokosumi.com/mcp?api_key=${t("existingKey")}&network=${network}`,
-                );
+                setMcpUrl(buildMcpUrl(t("existingKey"), network));
               } else {
                 // Key exists but is disabled
                 setIsKeyDisabled(true);
@@ -117,7 +120,7 @@ export function useMcpApiKey(
 
       if (result.data) {
         const network = getEnvPublicConfig().NEXT_PUBLIC_NETWORK.toLowerCase();
-        const url = `https://mcp.sokosumi.com/mcp?api_key=${result.data.key}&network=${network}`;
+        const url = buildMcpUrl(result.data.key, network);
         setMcpUrl(url);
         setIsExistingKey(false); // This is a new key
         setIsKeyDisabled(false); // Reset disabled state
@@ -153,9 +156,7 @@ export function useMcpApiKey(
       if (result.data) {
         // Show the URL for the now-enabled key
         const network = getEnvPublicConfig().NEXT_PUBLIC_NETWORK.toLowerCase();
-        setMcpUrl(
-          `https://mcp.sokosumi.com/mcp?api_key=${t("existingKey")}&network=${network}`,
-        );
+        setMcpUrl(buildMcpUrl(t("existingKey"), network));
         setIsKeyDisabled(false);
         toast.success("MCP connection enabled successfully!");
       } else {
@@ -206,9 +207,7 @@ export function useMcpApiKey(
               // Show URL for enabled key
               const network =
                 getEnvPublicConfig().NEXT_PUBLIC_NETWORK.toLowerCase();
-              setMcpUrl(
-                `https://mcp.sokosumi.com/mcp?api_key=${t("existingKey")}&network=${network}`,
-              );
+              setMcpUrl(buildMcpUrl(t("existingKey"), network));
             } else {
               // Key exists but is disabled
               setIsKeyDisabled(true);
