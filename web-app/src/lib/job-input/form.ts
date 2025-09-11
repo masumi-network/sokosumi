@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod";
 
 import { makeZodSchemaFromJobInputSchema } from "./form-schema";
 import { JobInputSchemaType } from "./job-input";
