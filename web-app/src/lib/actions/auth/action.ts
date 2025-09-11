@@ -106,10 +106,7 @@ export async function signUpEmail(
     }
 
     // call marketing opt in webhook
-    // if marketingOptIn is true
-    if (parsed.marketingOptIn) {
-      callMarketingOptInWebHook(parsed.email, parsed.name);
-    }
+    callMarketingOptInWebHook(parsed.email, parsed.name, parsed.marketingOptIn);
 
     return Ok(user);
   } catch (error) {

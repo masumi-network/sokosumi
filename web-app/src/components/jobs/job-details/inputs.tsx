@@ -1,6 +1,6 @@
 "use client";
 import { useTranslations } from "next-intl";
-import { z } from "zod";
+import * as z from "zod";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import { FileChip } from "@/components/ui/file-chip";

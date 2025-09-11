@@ -3,7 +3,7 @@ import "server-only";
 import { APIError } from "better-auth/api";
 import { NextResponse } from "next/server";
 import { v4 as uuidv4 } from "uuid";
-import { z } from "zod";
+import * as z from "zod";
 
 import {
   ApiSuccessResponse,
