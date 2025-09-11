@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -13,16 +14,25 @@ interface UseMcpApiKeyReturn {
   error: string | null;
   generateMcpUrl: () => Promise<void>;
   retryLoad: () => void;
+  enableKey: () => Promise<void>;
   isKeyExisting: boolean;
+  isKeyDisabled: boolean;
 }
 
 const MCP_KEY_NAME = "MCP";
 
-export function useMcpApiKey(open: boolean): UseMcpApiKeyReturn {
+export function useMcpApiKey(
+  open: boolean,
+  activeOrganizationId: string | null,
+): UseMcpApiKeyReturn {
   const [mcpUrl, setMcpUrl] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isKeyExisting, setIsExistingKey] = useState<boolean>(false);
+  const [isKeyDisabled, setIsKeyDisabled] = useState<boolean>(false);
+  const [existingKeyId, setExistingKeyId] = useState<string | null>(null);
+
+  const t = useTranslations("App.Mcp");
 
   // Check for existing MCP key when dialog opens
   useEffect(() => {
@@ -30,6 +40,8 @@ export function useMcpApiKey(open: boolean): UseMcpApiKeyReturn {
       // Reset states when dialog opens
       setMcpUrl(null);
       setIsExistingKey(false);
+      setIsKeyDisabled(false);
+      setExistingKeyId(null);
       setError(null);
       setIsLoading(true);
 
@@ -38,17 +50,31 @@ export function useMcpApiKey(open: boolean): UseMcpApiKeyReturn {
         try {
           const result = await authClient.apiKey.list();
           if (result.data) {
-            const mcpKey = (result.data as Apikey[]).find(
-              (key) => key.name === MCP_KEY_NAME && key.enabled,
-            );
+            // Look for MCP key matching current organization context (regardless of enabled status)
+            const mcpKey = (result.data as Apikey[]).find((key) => {
+              if (key.name !== MCP_KEY_NAME) return false;
+
+              // Check organization context match
+              const keyOrgId =
+                (key.metadata as { organizationId?: string })?.organizationId ??
+                null;
+              return keyOrgId === activeOrganizationId;
+            });
             if (mcpKey) {
               setIsExistingKey(true);
-              // Reconstruct URL for existing key (we don't store the actual key value)
-              const network =
-                getEnvPublicConfig().NEXT_PUBLIC_NETWORK.toLowerCase();
-              setMcpUrl(
-                `https://mcp.sokosumi.com/mcp?api_key=sk_****...****&network=${network}`,
-              );
+              setExistingKeyId(mcpKey.id);
+
+              if (mcpKey.enabled) {
+                // Show URL for enabled key
+                const network =
+                  getEnvPublicConfig().NEXT_PUBLIC_NETWORK.toLowerCase();
+                setMcpUrl(
+                  `https://mcp.sokosumi.com/mcp?api_key=${t("existingKey")}&network=${network}`,
+                );
+              } else {
+                // Key exists but is disabled
+                setIsKeyDisabled(true);
+              }
             }
           }
         } catch (error) {
@@ -64,7 +90,7 @@ export function useMcpApiKey(open: boolean): UseMcpApiKeyReturn {
 
       checkExistingKey();
     }
-  }, [open]);
+  }, [open, activeOrganizationId, t]);
 
   const generateMcpUrl = useCallback(async () => {
     if (isLoading) return;
@@ -72,9 +98,21 @@ export function useMcpApiKey(open: boolean): UseMcpApiKeyReturn {
     setIsLoading(true);
     setError(null);
     try {
-      // Generate new API key
+      // If there's an existing key (disabled or enabled), delete it first
+      if (existingKeyId) {
+        await authClient.apiKey.delete({
+          keyId: existingKeyId,
+        });
+      }
+
+      // Generate new API key with organization scope if active
+      const metadata = activeOrganizationId
+        ? { organizationId: activeOrganizationId }
+        : undefined;
+
       const result = await authClient.apiKey.create({
         name: MCP_KEY_NAME,
+        metadata,
       });
 
       if (result.data) {
@@ -82,6 +120,8 @@ export function useMcpApiKey(open: boolean): UseMcpApiKeyReturn {
         const url = `https://mcp.sokosumi.com/mcp?api_key=${result.data.key}&network=${network}`;
         setMcpUrl(url);
         setIsExistingKey(false); // This is a new key
+        setIsKeyDisabled(false); // Reset disabled state
+        setExistingKeyId(result.data.id); // Store new key ID
         toast.success("MCP connection URL generated successfully!");
       } else {
         const errorMessage =
@@ -97,12 +137,49 @@ export function useMcpApiKey(open: boolean): UseMcpApiKeyReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [isLoading]);
+  }, [isLoading, activeOrganizationId, existingKeyId]);
+
+  const enableKey = useCallback(async () => {
+    if (!existingKeyId || isLoading) return;
+
+    setIsLoading(true);
+    setError(null);
+    try {
+      const result = await authClient.apiKey.update({
+        keyId: existingKeyId,
+        enabled: true,
+      });
+
+      if (result.data) {
+        // Show the URL for the now-enabled key
+        const network = getEnvPublicConfig().NEXT_PUBLIC_NETWORK.toLowerCase();
+        setMcpUrl(
+          `https://mcp.sokosumi.com/mcp?api_key=sk_****...****&network=${network}`,
+        );
+        setIsKeyDisabled(false);
+        toast.success("MCP connection enabled successfully!");
+      } else {
+        const errorMessage =
+          result.error?.message ?? "Failed to enable MCP key";
+        setError(errorMessage);
+        toast.error(errorMessage);
+      }
+    } catch (error) {
+      console.error("Failed to enable MCP key:", error);
+      const errorMessage = "Failed to enable MCP key. Please try again.";
+      setError(errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [existingKeyId, isLoading]);
 
   const retryLoad = useCallback(() => {
     setError(null);
     setMcpUrl(null);
     setIsExistingKey(false);
+    setIsKeyDisabled(false);
+    setExistingKeyId(null);
     setIsLoading(true);
 
     // Re-run the check for existing keys
@@ -111,17 +188,31 @@ export function useMcpApiKey(open: boolean): UseMcpApiKeyReturn {
       try {
         const result = await authClient.apiKey.list();
         if (result.data) {
-          const mcpKey = (result.data as Apikey[]).find(
-            (key) => key.name === MCP_KEY_NAME && key.enabled,
-          );
+          // Look for MCP key matching current organization context (regardless of enabled status)
+          const mcpKey = (result.data as Apikey[]).find((key) => {
+            if (key.name !== MCP_KEY_NAME) return false;
+
+            // Check organization context match
+            const keyOrgId =
+              (key.metadata as { organizationId?: string })?.organizationId ??
+              null;
+            return keyOrgId === activeOrganizationId;
+          });
           if (mcpKey) {
             setIsExistingKey(true);
-            // Reconstruct URL for existing key (we don't store the actual key value)
-            const network =
-              getEnvPublicConfig().NEXT_PUBLIC_NETWORK.toLowerCase();
-            setMcpUrl(
-              `https://mcp.sokosumi.com/mcp?api_key=sk_****...****&network=${network}`,
-            );
+            setExistingKeyId(mcpKey.id);
+
+            if (mcpKey.enabled) {
+              // Show URL for enabled key
+              const network =
+                getEnvPublicConfig().NEXT_PUBLIC_NETWORK.toLowerCase();
+              setMcpUrl(
+                `https://mcp.sokosumi.com/mcp?api_key=sk_****...****&network=${network}`,
+              );
+            } else {
+              // Key exists but is disabled
+              setIsKeyDisabled(true);
+            }
           }
         }
       } catch (error) {
@@ -136,7 +227,7 @@ export function useMcpApiKey(open: boolean): UseMcpApiKeyReturn {
     };
 
     checkExistingKey();
-  }, []);
+  }, [activeOrganizationId]);
 
   return {
     mcpUrl,
@@ -144,6 +235,8 @@ export function useMcpApiKey(open: boolean): UseMcpApiKeyReturn {
     error,
     generateMcpUrl,
     retryLoad,
+    enableKey,
     isKeyExisting,
+    isKeyDisabled,
   };
 }

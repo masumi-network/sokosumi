@@ -158,7 +158,11 @@ export default function UserAvatarClient({
         </DropdownMenuContent>
       </DropdownMenu>
 
-      <McpDialog open={mcpDialogOpen} onOpenChange={setMcpDialogOpen} />
+      <McpDialog
+        open={mcpDialogOpen}
+        onOpenChange={setMcpDialogOpen}
+        activeOrganizationId={activeOrganizationId}
+      />
     </>
   );
 }
