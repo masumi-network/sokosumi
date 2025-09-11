@@ -135,27 +135,25 @@ export async function POST(request: NextRequest) {
 
     const isVercel = !!getEnvSecrets().VERCEL_URL;
 
-    console.log("isVercel", isVercel);
-
     let puppeteer: typeof import("puppeteer") | typeof import("puppeteer-core");
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let launchOptions: any = {
+      headless: true,
+    };
 
     if (isVercel) {
       const chromium = (await import("@sparticuz/chromium")).default;
       puppeteer = await import("puppeteer-core");
-      const launchOptions: Parameters<typeof puppeteer.launch>[0] = {
-        headless: true,
+      launchOptions = {
+        ...launchOptions,
         args: chromium.args,
         executablePath: await chromium.executablePath(),
       };
-      browser = await puppeteer.launch(launchOptions);
     } else {
       puppeteer = await import("puppeteer");
-      const launchOptions: Parameters<typeof puppeteer.launch>[0] = {
-        headless: true,
-      };
-      browser = await puppeteer.launch(launchOptions);
     }
 
+    browser = await puppeteer.launch(launchOptions);
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle2" });
     await page.emulateMediaType("print");
