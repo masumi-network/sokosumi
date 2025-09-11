@@ -154,7 +154,7 @@ export function useMcpApiKey(
         // Show the URL for the now-enabled key
         const network = getEnvPublicConfig().NEXT_PUBLIC_NETWORK.toLowerCase();
         setMcpUrl(
-          `https://mcp.sokosumi.com/mcp?api_key=sk_****...****&network=${network}`,
+          `https://mcp.sokosumi.com/mcp?api_key=${t("existingKey")}&network=${network}`,
         );
         setIsKeyDisabled(false);
         toast.success("MCP connection enabled successfully!");
@@ -172,7 +172,7 @@ export function useMcpApiKey(
     } finally {
       setIsLoading(false);
     }
-  }, [existingKeyId, isLoading]);
+  }, [existingKeyId, isLoading, t]);
 
   const retryLoad = useCallback(() => {
     setError(null);
@@ -207,7 +207,7 @@ export function useMcpApiKey(
               const network =
                 getEnvPublicConfig().NEXT_PUBLIC_NETWORK.toLowerCase();
               setMcpUrl(
-                `https://mcp.sokosumi.com/mcp?api_key=sk_****...****&network=${network}`,
+                `https://mcp.sokosumi.com/mcp?api_key=${t("existingKey")}&network=${network}`,
               );
             } else {
               // Key exists but is disabled
@@ -227,7 +227,7 @@ export function useMcpApiKey(
     };
 
     checkExistingKey();
-  }, [activeOrganizationId]);
+  }, [activeOrganizationId, t]);
 
   return {
     mcpUrl,
