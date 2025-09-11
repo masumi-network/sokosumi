@@ -30,8 +30,7 @@
     "generate:payment": "openapi-ts -f openapi-ts.payment.config.ts",
     "generate:registry": "openapi-ts -f openapi-ts.registry.config.ts",
     "generate:api": "pnpm run generate:registry && pnpm run generate:payment",
-    "generate:api-docs": "next-openapi-gen generate",
-    "build:browser": "pnpm dlx puppeteer browsers install"
+    "generate:api-docs": "next-openapi-gen generate"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "0.62.0",
