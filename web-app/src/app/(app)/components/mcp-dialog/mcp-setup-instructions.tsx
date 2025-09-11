@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 
 export function McpSetupInstructions() {
-  const t = useTranslations("App.Mcp.Instructions");
+  const t = useTranslations("App.MCP.Instructions");
 
   return (
     <div className="space-y-4">

@@ -27,7 +27,7 @@ export function McpDialog({
   onOpenChange,
   activeOrganizationId,
 }: McpDialogProps) {
-  const t = useTranslations("App.Mcp");
+  const t = useTranslations("App.MCP");
   const {
     mcpUrl,
     isLoading,

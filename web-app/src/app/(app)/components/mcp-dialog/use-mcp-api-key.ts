@@ -32,7 +32,7 @@ export function useMcpApiKey(
   const [isKeyDisabled, setIsKeyDisabled] = useState<boolean>(false);
   const [existingKeyId, setExistingKeyId] = useState<string | null>(null);
 
-  const t = useTranslations("App.Mcp");
+  const t = useTranslations("App.MCP");
 
   // Check for existing MCP key when dialog opens
   useEffect(() => {

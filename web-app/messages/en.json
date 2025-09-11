@@ -987,7 +987,7 @@
         "unknownError": "Something went wrong"
       }
     },
-    "Mcp": {
+    "MCP": {
       "title": "Model Context Protocol (MCP)",
       "description": "Connect Sokosumi to Claude using the Model Context Protocol (MCP)",
       "generateButton": "Generate your Sokosumi MCP URL",

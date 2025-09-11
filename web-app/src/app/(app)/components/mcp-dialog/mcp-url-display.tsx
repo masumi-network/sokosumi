@@ -12,7 +12,7 @@ interface McpUrlDisplayProps {
 }
 
 export function McpUrlDisplay({ url }: McpUrlDisplayProps) {
-  const t = useTranslations("App.Mcp");
+  const t = useTranslations("App.MCP");
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
