@@ -1,6 +1,6 @@
 "use client";
 
-import { Loader2 } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
@@ -23,7 +23,7 @@ interface McpDialogProps {
 
 export function McpDialog({ open, onOpenChange }: McpDialogProps) {
   const t = useTranslations("App.Mcp");
-  const { mcpUrl, isLoading, generateMcpUrl, isKeyExisting } =
+  const { mcpUrl, isLoading, error, generateMcpUrl, retryLoad, isKeyExisting } =
     useMcpApiKey(open);
 
   return (
@@ -38,6 +38,18 @@ export function McpDialog({ open, onOpenChange }: McpDialogProps) {
           {isLoading ? (
             <div className="flex items-center justify-center py-8">
               <Loader2 className="text-muted-foreground h-8 w-8 animate-spin" />
+            </div>
+          ) : error ? (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 p-4">
+                <AlertCircle className="h-5 w-5 shrink-0 text-red-500" />
+                <div>
+                  <p className="text-sm text-red-700">{t("loadError")}</p>
+                </div>
+              </div>
+              <Button onClick={retryLoad} variant="outline" className="w-full">
+                {t("retry")}
+              </Button>
             </div>
           ) : mcpUrl ? (
             <>

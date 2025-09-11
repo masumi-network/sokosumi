@@ -992,7 +992,10 @@
       "description": "Connect Sokosumi to Claude using the Model Context Protocol (MCP)",
       "generateButton": "Generate your Sokosumi MCP URL",
       "urlLabel": "Your MCP Connection URL",
-      "existingKeyNote": "Note: This is a previously generated MCP connection. The actual API key is shown only once during generation.",
+      "existingKeyNote": "Note: This is a previously generated MCP connection. The actual API key is hidden for security reasons.",
+      "loadError": "Failed to load MCP connection information. Please try again.",
+      "copyError": "Failed to copy URL to clipboard",
+      "retry": "Retry",
       "Instructions": {
         "title": "How to connect Claude to Sokosumi",
         "step1": "Open your Claude desktop app and click on \"Settings\"",
