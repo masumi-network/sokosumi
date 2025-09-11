@@ -2,7 +2,7 @@ import "server-only";
 
 /* eslint-disable no-restricted-properties */
 import { v4 as uuidv4 } from "uuid";
-import z from "zod";
+import * as z from "zod";
 
 /**
  * Specify your environment variables schema here.
