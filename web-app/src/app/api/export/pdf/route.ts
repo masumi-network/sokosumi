@@ -153,6 +153,8 @@ export async function POST(request: NextRequest) {
       puppeteer = await import("puppeteer");
     }
 
+    // Crashes locally? Probably because of missing chromium.
+    // pnpm dlx puppeteer browsers install chrome@138.0.7204.168
     browser = await puppeteer.launch(launchOptions);
     const page = await browser.newPage();
     await page.setContent(html, { waitUntil: "networkidle2" });
