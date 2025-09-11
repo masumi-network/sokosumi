@@ -110,7 +110,7 @@ export const auth = betterAuth({
             true,
           );
           // call marketing opt in webhook
-          callMarketingOptInWebHook(newUser.email, newUser.name);
+          callMarketingOptInWebHook(newUser.email, newUser.name, true);
         }
       } else if (ctx.path.startsWith("/sign-in")) {
         const user = ctx.context.newSession?.user;
