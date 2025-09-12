@@ -76,7 +76,7 @@ export default async function JobPage({
 
   return (
     <div className="container mx-auto flex justify-center p-4 md:p-8">
-      <div className="space-y-4">
+      <div className="w-full space-y-4">
         <h1 className="text-2xl font-light">{agentName}</h1>
         <JobDetails job={job} className="w-full" readOnly />
       </div>
