@@ -8,8 +8,7 @@ export default function manifest(): MetadataRoute.Manifest {
       "Hire yourself an agent to finish the most time consuming tasks",
     start_url: "https://app.sokosumi.com",
     display: "standalone",
-    background_color: "#fff",
-    theme_color: "#fff",
+    background_color: "#6400FF",
     icons: [
       {
         src: "images/icons/sokosumi-icon-square.svg",
