@@ -42,7 +42,41 @@ export async function GET(
     }
 
     const inputSchema = jobInputsDataSchema().parse(inputSchemaResult.data);
-    return createApiSuccessResponse(inputSchema);
+    console.log(inputSchema);
+
+    const debugInputSchema = {
+      input_data: [
+        {
+          id: "blob",
+          type: "file",
+          name: "blob",
+          data: {
+            description: "Select either Image or Video",
+          },
+          validations: [
+            { validation: "min", value: "1" },
+            { validation: "max", value: "1" },
+            { validation: "accept", value: "image/*" },
+            { validation: "maxSize", value: "1000000" },
+          ],
+        },
+        {
+          id: "mediaType",
+          type: "option",
+          name: "mediaType",
+          data: {
+            values: ["image", "video"],
+            description: "Select either Image or Video",
+          },
+          validations: [
+            { validation: "min", value: "1" },
+            { validation: "max", value: "1" },
+          ],
+        },
+      ],
+    };
+    console.log(debugInputSchema);
+    return createApiSuccessResponse(debugInputSchema);
   } catch (error) {
     return handleApiError(error, "retrieve agent input schema", {
       path: request.nextUrl.pathname,

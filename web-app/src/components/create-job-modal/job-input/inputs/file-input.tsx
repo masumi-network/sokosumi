@@ -1,9 +1,9 @@
-import { Button } from "@react-email/components";
 import { CloudUpload, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 
 import { transformJobInputFileSchema } from "@/components/create-job-modal/job-input/util";
+import { Button } from "@/components/ui/button";
 import {
   FileUpload,
   FileUploadDropzone,
@@ -32,21 +32,42 @@ export function FileInput({
   );
 
   const isSubmitting = form.formState.isSubmitting;
+  const maxFiles = Number(transformedValidations.max);
+  const currentFiles = (field.value as File[]) ?? [];
+  const hasValidFiles =
+    currentFiles.length > 0 && currentFiles.length <= maxFiles;
+
+  useEffect(() => {
+    if (hasValidFiles && form.formState.errors[id]) {
+      form.clearErrors(id);
+    }
+  }, [hasValidFiles, form, id]);
 
   return (
     <FileUpload
       id={id}
-      value={(field.value as File[]) ?? []}
+      value={currentFiles}
       onValueChange={field.onChange}
       disabled={isSubmitting}
       accept={transformedValidations.accept.toString()}
       maxSize={Number(transformedValidations.maxSize)}
-      maxFiles={Number(transformedValidations.max)}
-      multiple={Number(transformedValidations.max) > 1}
+      maxFiles={maxFiles}
+      multiple={maxFiles > 1}
       onFileReject={(_, message) => {
-        form.setError(id, {
-          message,
-        });
+        if (!hasValidFiles) {
+          form.setError(id, {
+            message,
+          });
+        } else {
+          form.setError(id, {
+            message,
+          });
+          setTimeout(() => {
+            if (hasValidFiles && form.formState.errors[id]) {
+              form.clearErrors(id);
+            }
+          }, 2500);
+        }
       }}
     >
       <FileUploadDropzone
@@ -55,7 +76,7 @@ export function FileInput({
         }`}
       >
         <FileUploadTrigger asChild>
-          <Button className="cursor-pointer p-0">
+          <Button variant="ghost" className="cursor-pointer p-0">
             <span className="flex flex-row items-center gap-2">
               <CloudUpload className="size-4" />
               {t("File.description")}
@@ -64,23 +85,22 @@ export function FileInput({
         </FileUploadTrigger>
       </FileUploadDropzone>
       <FileUploadList>
-        {Array.isArray(field.value) &&
-          field.value
-            .filter((file): file is File => file instanceof File)
-            .map((file, index) => (
-              <FileUploadItem key={index} value={file}>
-                <FileUploadItemPreview />
-                <FileUploadItemMetadata />
-                {!isSubmitting && (
-                  <FileUploadItemDelete asChild>
-                    <Button className="size-7 cursor-pointer">
-                      <X />
-                      <span className="sr-only">{t("File.delete")}</span>
-                    </Button>
-                  </FileUploadItemDelete>
-                )}
-              </FileUploadItem>
-            ))}
+        {currentFiles
+          .filter((file): file is File => file instanceof File)
+          .map((file, index) => (
+            <FileUploadItem key={index} value={file}>
+              <FileUploadItemPreview />
+              <FileUploadItemMetadata />
+              {!isSubmitting && (
+                <FileUploadItemDelete asChild>
+                  <Button className="size-7 cursor-pointer">
+                    <X />
+                    <span className="sr-only">{t("File.delete")}</span>
+                  </Button>
+                </FileUploadItemDelete>
+              )}
+            </FileUploadItem>
+          ))}
       </FileUploadList>
     </FileUpload>
   );
