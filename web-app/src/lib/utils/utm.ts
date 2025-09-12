@@ -1,4 +1,4 @@
-import z from "zod";
+import * as z from "zod";
 
 export interface UTMParams {
   utm_source: string;

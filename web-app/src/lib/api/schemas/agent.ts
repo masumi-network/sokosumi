@@ -1,4 +1,4 @@
-import { z } from "zod";
+import * as z from "zod";
 
 import { jobInputsDataSchema } from "@/lib/job-input";
 import { AgentStatus } from "@/prisma/generated/client";

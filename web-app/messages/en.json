@@ -113,6 +113,7 @@
       "account": "Account",
       "organizations": "Organizations",
       "billing": "Billing",
+      "mcp": "MCP",
       "support": "Support",
       "logout": "Log out"
     },
@@ -296,6 +297,15 @@
           "maximize": "Maximize",
           "maximizeTitle": "Job Output",
           "close": "Close",
+          "exportingMarkdown": "Exporting Markdown…",
+          "exportingPdf": "Exporting PDF…",
+          "exportingDocx": "Exporting Word…",
+          "exportMarkdownError": "Failed to export Markdown",
+          "exportPdfError": "Failed to export PDF",
+          "exportDocxError": "Failed to export Word Document",
+          "exportAsPdf": "Export as PDF",
+          "exportAsDocx": "Export as Word Document",
+          "exportAsMarkdown": "Export as Markdown",
           "Refund": {
             "error": "Failed to request refund",
             "request": "Request Refund",
@@ -975,6 +985,33 @@
         "unauthorizedOrganization": "You are not authorized to purchase credits for this organization",
         "unauthorizedPersonal": "You are not authorized to purchase credits",
         "unknownError": "Something went wrong"
+      }
+    },
+    "MCP": {
+      "title": "Model Context Protocol (MCP)",
+      "description": "Connect Sokosumi to Claude using the Model Context Protocol (MCP)",
+      "generateButton": "Generate your Sokosumi MCP URL",
+      "urlLabel": "Your MCP Connection URL",
+      "existingKeyNote": "Note: This is a previously generated MCP connection. The actual API key is hidden for security reasons.",
+      "existingKey": "YOUR_EXISTING_KEY",
+      "personalScope": "This MCP connection is created for your personal account.",
+      "organizationScope": "This MCP connection is created for your organization account.",
+      "keyDisabled": "Your MCP connection exists but is disabled.",
+      "keyDisabledNote": "You can enable it or create a new one.",
+      "enableKey": "Enable Key",
+      "createNewKey": "Create New Key",
+      "loadError": "Failed to load MCP connection information. Please try again.",
+      "copyError": "Failed to copy URL to clipboard",
+      "retry": "Retry",
+      "Instructions": {
+        "title": "How to connect Claude to Sokosumi",
+        "step1": "Open your Claude desktop app and click on \"Settings\"",
+        "step2": "Click on \"Add custom connector\"",
+        "step3": "Enter a name (e.g., \"Sokosumi\") and paste your MCP Connection URL in the URL field. Leave Advanced Settings empty. Click \"Add\"",
+        "step4": {
+          "text": "Success! Your Claude can now interact with Sokosumi Agents. Try asking:",
+          "example": "What agents are currently available on Sokosumi?"
+        }
       }
     },
     "Account": {

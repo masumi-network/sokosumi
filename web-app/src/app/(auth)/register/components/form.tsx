@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { track } from "@vercel/analytics";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -66,6 +67,7 @@ export default function SignUpForm({ prefilledEmail }: SignUpFormProps) {
     if (result.ok) {
       // when user creates a new account
       fireGTMEvent.signUp();
+      track("signUp");
       // show toast and redirect to login page
       toast.success(t("success"));
       router.push("/login");

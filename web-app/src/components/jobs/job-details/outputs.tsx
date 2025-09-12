@@ -10,7 +10,7 @@ import {
 } from "@/lib/schemas";
 
 import CopyMarkdown from "./copy-markdown";
-import DownloadMarkdown from "./download-markdown";
+import DownloadButton from "./download-button";
 import JobShareButton from "./job-share-button";
 import MaximizeMarkdown from "./maximize-markdown";
 import RequestRefundButton from "./refund-request";
@@ -63,7 +63,7 @@ function JobDetailsOutputsInner({ job, readOnly }: JobDetailsOutputsProps) {
             <div className="flex gap-4">
               <MaximizeMarkdown markdown={output.result} />
               <div className="flex gap-1">
-                <DownloadMarkdown markdown={output.result} />
+                <DownloadButton markdown={output.result} />
                 <CopyMarkdown markdown={output.result} />
                 {!readOnly && <JobShareButton job={job} />}
               </div>

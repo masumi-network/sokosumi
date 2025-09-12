@@ -3,6 +3,7 @@
 import gravatarUrl from "gravatar-url";
 import {
   Building2,
+  Cable,
   CircleHelp,
   CreditCardIcon,
   LogOut,
@@ -10,7 +11,9 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { useState } from "react";
 
+import { McpDialog } from "@/app/components/mcp-dialog/mcp-dialog";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { Button } from "@/components/ui/button";
 import {
@@ -46,6 +49,7 @@ export default function UserAvatarClient({
   activeOrganizationId,
 }: UserAvatarClientProps) {
   const t = useTranslations("Components.UserAvatar");
+  const [mcpDialogOpen, setMcpDialogOpen] = useState(false);
 
   const { showLogoutModal } = useGlobalModalsContext();
   const handleSupport = () => {
@@ -70,80 +74,95 @@ export default function UserAvatarClient({
   };
 
   return (
-    <DropdownMenu>
-      <TooltipProvider disableHoverableContent>
-        <Tooltip delayDuration={100}>
-          <TooltipTrigger asChild>
-            <DropdownMenuTrigger asChild>
-              <Button
-                variant="outline"
-                className="relative h-8 w-8 rounded-full px-2 md:h-10 md:w-10 md:px-4"
-                aria-label={`User profile for ${sessionUser.name ?? "current user"}`}
-              >
-                <UserAvatarContent
-                  imageUrl={
-                    sessionUser.image ??
-                    gravatarUrl(sessionUser.email, {
-                      size: 80,
-                      default: "404",
-                    })
-                  }
-                  imageAlt={sessionUser.name ?? "User avatar"}
-                />
-              </Button>
-            </DropdownMenuTrigger>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">{sessionUser.email}</TooltipContent>
-        </Tooltip>
-      </TooltipProvider>
+    <>
+      <DropdownMenu>
+        <TooltipProvider disableHoverableContent>
+          <Tooltip delayDuration={100}>
+            <TooltipTrigger asChild>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="relative h-8 w-8 rounded-full px-2 md:h-10 md:w-10 md:px-4"
+                  aria-label={`User profile for ${sessionUser.name ?? "current user"}`}
+                >
+                  <UserAvatarContent
+                    imageUrl={
+                      sessionUser.image ??
+                      gravatarUrl(sessionUser.email, {
+                        size: 80,
+                        default: "404",
+                      })
+                    }
+                    imageAlt={sessionUser.name ?? "User avatar"}
+                  />
+                </Button>
+              </DropdownMenuTrigger>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">{sessionUser.email}</TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
 
-      <DropdownMenuContent className="w-60" align="end">
-        <OrganizationSwitcher
-          members={members}
-          activeOrganizationId={activeOrganizationId}
-          sessionUserName={sessionUser.name}
-        />
-        <DropdownMenuSeparator />
-        <DropdownMenuGroup>
+        <DropdownMenuContent className="w-60" align="end">
+          <OrganizationSwitcher
+            members={members}
+            activeOrganizationId={activeOrganizationId}
+            sessionUserName={sessionUser.name}
+          />
+          <DropdownMenuSeparator />
+          <DropdownMenuGroup>
+            <DropdownMenuItem
+              className="flex cursor-pointer items-center gap-2"
+              onClick={(e) => handleClick(e, "/account")}
+            >
+              <UserIcon className="text-muted-foreground" />
+              {t("account")}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="flex cursor-pointer items-center gap-2"
+              onClick={(e) => handleClick(e, "/organizations")}
+            >
+              <Building2 className="text-muted-foreground" />
+              {t("organizations")}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="flex cursor-pointer items-center gap-2"
+              onClick={(e) => handleClick(e, "/billing")}
+            >
+              <CreditCardIcon className="text-muted-foreground" />
+              {t("billing")}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              className="flex cursor-pointer items-center gap-2"
+              onClick={() => setMcpDialogOpen(true)}
+            >
+              <Cable className="text-muted-foreground" />
+              {t("mcp")}
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
           <DropdownMenuItem
             className="flex cursor-pointer items-center gap-2"
-            onClick={(e) => handleClick(e, "/account")}
+            onClick={handleSupport}
           >
-            <UserIcon className="text-muted-foreground" />
-            {t("account")}
+            <CircleHelp className="text-muted-foreground" />
+            {t("support")}
           </DropdownMenuItem>
+          <DropdownMenuSeparator />
           <DropdownMenuItem
             className="flex cursor-pointer items-center gap-2"
-            onClick={(e) => handleClick(e, "/organizations")}
+            onClick={() => showLogoutModal(sessionUser.email)}
           >
-            <Building2 className="text-muted-foreground" />
-            {t("organizations")}
+            <LogOut className="text-muted-foreground" />
+            {t("logout")}
           </DropdownMenuItem>
-          <DropdownMenuItem
-            className="flex cursor-pointer items-center gap-2"
-            onClick={(e) => handleClick(e, "/billing")}
-          >
-            <CreditCardIcon className="text-muted-foreground" />
-            {t("billing")}
-          </DropdownMenuItem>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="flex cursor-pointer items-center gap-2"
-          onClick={handleSupport}
-        >
-          <CircleHelp className="text-muted-foreground" />
-          {t("support")}
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          className="flex cursor-pointer items-center gap-2"
-          onClick={() => showLogoutModal(sessionUser.email)}
-        >
-          <LogOut className="text-muted-foreground" />
-          {t("logout")}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+        </DropdownMenuContent>
+      </DropdownMenu>
+
+      <McpDialog
+        open={mcpDialogOpen}
+        onOpenChange={setMcpDialogOpen}
+        activeOrganizationId={activeOrganizationId}
+      />
+    </>
   );
 }

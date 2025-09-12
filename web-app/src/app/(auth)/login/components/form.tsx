@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as Sentry from "@sentry/nextjs";
+import { track } from "@vercel/analytics";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef } from "react";
@@ -97,6 +98,7 @@ export default function SignInForm({
     }
 
     fireGTMEvent.login();
+    track("login");
     toast.success(t("success"));
 
     // Redirect to the original URL if provided, otherwise go to /agents

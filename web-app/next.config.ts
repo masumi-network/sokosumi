@@ -25,7 +25,7 @@ const nextConfig: NextConfig = {
       bodySizeLimit: "20mb",
     },
   },
-  serverExternalPackages: ["ably"],
+  serverExternalPackages: ["ably", "@sparticuz/chromium", "puppeteer-core"],
 };
 
 const withNextIntl = createNextIntlPlugin();

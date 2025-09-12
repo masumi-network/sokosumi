@@ -1,6 +1,6 @@
 "use server";
 
-import { z } from "zod";
+import * as z from "zod";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions";
 import {

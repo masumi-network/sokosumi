@@ -2,6 +2,8 @@ import "./globals.css";
 
 import { GoogleAnalytics, GoogleTagManager } from "@next/third-parties/google";
 import * as Sentry from "@sentry/nextjs";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Metadata } from "next";
 import { Inter } from "next/font/google";
 import Script from "next/script";
@@ -85,6 +87,8 @@ export default async function RootLayout({
             </ThemeProvider>
           </NuqsAdapter>
         </UsersnapProvider>
+        <Analytics />
+        <SpeedInsights />
       </body>
       {gaId && <GoogleAnalytics gaId={gaId} />}
     </html>
