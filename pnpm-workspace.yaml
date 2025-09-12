@@ -13,7 +13,9 @@ ignoredBuiltDependencies:
   - vue-demi
 
 onlyBuiltDependencies:
+  - "@vercel/speed-insights"
   - prisma
+  - "puppeteer-core"
 
 publicHoistPattern:
   - "*eslint*"
