@@ -11,9 +11,28 @@ export default function manifest(): MetadataRoute.Manifest {
     background_color: "#6400FF",
     icons: [
       {
-        src: "images/icons/sokosumi-icon-square.svg",
-        sizes: "any",
-        type: "image/svg+xml",
+        src: "public/images/app-icons/manifest-icon-192.maskable.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "public/images/app-icons/manifest-icon-192.maskable.png",
+        sizes: "192x192",
+        type: "image/png",
+        purpose: "maskable",
+      },
+      {
+        src: "public/images/app-icons/manifest-icon-512.maskable.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "any",
+      },
+      {
+        src: "public/images/app-icons/manifest-icon-512.maskable.png",
+        sizes: "512x512",
+        type: "image/png",
+        purpose: "maskable",
       },
     ],
   };
