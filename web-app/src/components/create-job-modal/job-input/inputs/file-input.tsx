@@ -40,6 +40,7 @@ export function FileInput({
   useEffect(() => {
     if (hasValidFiles && form.formState.errors[id]) {
       form.clearErrors(id);
+      form.trigger(id);
     }
   }, [hasValidFiles, form, id]);
 
@@ -54,18 +55,13 @@ export function FileInput({
       maxFiles={maxFiles}
       multiple={maxFiles > 1}
       onFileReject={(_, message) => {
-        if (!hasValidFiles) {
-          form.setError(id, {
-            message,
-          });
-        } else {
-          form.setError(id, {
-            message,
-          });
+        form.setError(id, {
+          message,
+        });
+        if (hasValidFiles) {
           setTimeout(() => {
-            if (hasValidFiles && form.formState.errors[id]) {
-              form.clearErrors(id);
-            }
+            form.clearErrors(id);
+            form.trigger(id);
           }, 2500);
         }
       }}
