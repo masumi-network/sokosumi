@@ -59,23 +59,25 @@ export function FileInput({
         }
       }}
     >
-      <FileUploadDropzone
-        className={`flex-row flex-wrap border-dotted text-center ${
-          isSubmitting ? "opacity-50" : ""
-        }`}
-      >
-        <FileUploadTrigger asChild>
-          <Button
-            variant="ghost"
-            className="cursor-pointer p-0 hover:!bg-transparent hover:!text-current"
-          >
-            <span className="flex flex-row items-center gap-2">
-              <CloudUpload className="size-4" />
-              {t("File.description")}
-            </span>
-          </Button>
-        </FileUploadTrigger>
-      </FileUploadDropzone>
+      {currentFiles.length < maxFiles && (
+        <FileUploadDropzone
+          className={`flex-row flex-wrap border-dotted text-center ${
+            isSubmitting ? "opacity-50" : ""
+          }`}
+        >
+          <FileUploadTrigger asChild>
+            <Button
+              variant="ghost"
+              className="cursor-pointer p-0 hover:!bg-transparent hover:!text-current"
+            >
+              <span className="flex flex-row items-center gap-2">
+                <CloudUpload className="size-4" />
+                {t("File.description")}
+              </span>
+            </Button>
+          </FileUploadTrigger>
+        </FileUploadDropzone>
+      )}
       <FileUploadList>
         {currentFiles
           .filter((file): file is File => file instanceof File)
