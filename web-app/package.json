@@ -47,7 +47,7 @@
     "@m2d/mdast": "0.2.4",
     "@m2d/table": "0.0.7",
     "@next/third-parties": "15.5.3",
-    "@prisma/client": "6.16.0",
+    "@prisma/client": "6.16.1",
     "@radix-ui/react-slot": "1.2.3",
     "@react-email/components": "0.5.3",
     "@sentry/nextjs": "10.11.0",
@@ -129,7 +129,7 @@
     "@types/react-file-icon": "1.0.4",
     "@types/react-window": "1.8.8",
     "next-openapi-gen": "0.7.7",
-    "prisma": "6.16.0",
+    "prisma": "6.16.1",
     "puppeteer": "24.15.0"
   }
 }
