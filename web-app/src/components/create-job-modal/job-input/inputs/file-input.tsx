@@ -1,6 +1,6 @@
 import { CloudUpload, X } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo } from "react";
+import { useMemo } from "react";
 
 import { transformJobInputFileSchema } from "@/components/create-job-modal/job-input/util";
 import { Button } from "@/components/ui/button";
@@ -36,13 +36,6 @@ export function FileInput({
   const currentFiles = (field.value as File[]) ?? [];
   const hasValidFiles =
     currentFiles.length > 0 && currentFiles.length <= maxFiles;
-
-  useEffect(() => {
-    if (hasValidFiles && form.formState.errors[id]) {
-      form.clearErrors(id);
-      form.trigger(id);
-    }
-  }, [hasValidFiles, form, id]);
 
   return (
     <FileUpload
