@@ -6,9 +6,9 @@ import {
   agentOrderBy,
   agentOrganizationsInclude,
   agentPricingInclude,
-  AgentWithFixedPricing,
   AgentWithJobs,
   AgentWithOrganizations,
+  AgentWithPricing,
   AgentWithRelations,
 } from "@/lib/db/types";
 import { Agent, AgentStatus, Prisma } from "@/prisma/generated/client";
@@ -68,12 +68,12 @@ export const agentRepository = {
    *
    * @param id - Agent unique identifier
    * @param tx - Optional Prisma transaction client (defaults to main Prisma client)
-   * @returns Agent with fixed pricing data, or null if not found
+   * @returns Agent with pricing data, or null if not found
    */
-  async getAgentWithFixedPricingById(
+  async getAgentWithPricingById(
     id: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<AgentWithFixedPricing | null> {
+  ): Promise<AgentWithPricing | null> {
     return await tx.agent.findUnique({
       where: { id },
       include: agentPricingInclude,

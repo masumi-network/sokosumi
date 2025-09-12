@@ -5,9 +5,9 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import { getAuthContext } from "@/lib/auth/utils";
 import {
   AgentWithCreditsPrice,
-  AgentWithFixedPricing,
   AgentWithJobs,
   AgentWithOrganizations,
+  AgentWithPricing,
   AgentWithRelations,
   convertCreditsToCents,
 } from "@/lib/db";
@@ -25,6 +25,7 @@ import {
   AgentListType,
   AgentStatus,
   CreditCost,
+  PricingType,
   Prisma,
 } from "@/prisma/generated/client";
 
@@ -49,25 +50,40 @@ export const agentService = (() => {
   }
 
   /**
-   * Utility: Checks if an agent's fixed pricing units are all valid according to the provided credit costs.
+   * Utility: Checks if an agent's pricing unit values are all valid according to the provided credit costs.
    *
-   * @param agent - Agent with fixed pricing information.
+   * @param agent - Agent with pricing information.
    * @param creditCosts - Array of valid credit cost objects.
    * @returns True if all pricing units are valid or if there are no amounts, false otherwise.
    */
   function hasValidPricing(
-    agent: AgentWithFixedPricing,
+    agent: AgentWithPricing,
     creditCosts: CreditCost[],
   ): boolean {
-    const units = creditCosts.map(({ unit }) => unit);
-    const amounts = agent.pricing.fixedPricing?.amounts?.map((amount) => ({
-      unit: amount.unit,
-      amount: Number(amount.amount),
-    }));
-    if (!amounts) {
-      return true;
+    switch (agent.pricing.pricingType) {
+      case PricingType.FIXED: {
+        const units = creditCosts.map(({ unit }) => unit);
+        const amounts = agent.pricing.fixedPricing?.amounts?.map((amount) => ({
+          unit: amount.unit,
+          amount: Number(amount.amount),
+        }));
+        if (!amounts) {
+          // There must be fixedPricing for FIXED pricing type
+          return false;
+        }
+
+        const areAmountsValid = amounts.every(
+          ({ unit, amount }) => units.includes(unit) && amount > 0,
+        );
+        return areAmountsValid;
+      }
+      case PricingType.FREE: {
+        return true;
+      }
+      case PricingType.UNKNOWN: {
+        return false;
+      }
     }
-    return amounts.every(({ unit }) => units.includes(unit));
   }
 
   /**

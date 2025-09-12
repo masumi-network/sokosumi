@@ -72,7 +72,7 @@ export type AgentWithRelations = Prisma.AgentGetPayload<{
   include: typeof agentInclude;
 }> & { isNew: boolean };
 
-export type AgentWithFixedPricing = Prisma.AgentGetPayload<{
+export type AgentWithPricing = Prisma.AgentGetPayload<{
   include: typeof agentPricingInclude;
 }>;
 
