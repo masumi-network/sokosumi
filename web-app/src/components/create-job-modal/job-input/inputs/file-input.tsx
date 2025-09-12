@@ -34,8 +34,6 @@ export function FileInput({
   const isSubmitting = form.formState.isSubmitting;
   const maxFiles = Number(transformedValidations.max);
   const currentFiles = (field.value as File[]) ?? [];
-  const hasValidFiles =
-    currentFiles.length > 0 && currentFiles.length <= maxFiles;
 
   return (
     <FileUpload
@@ -51,12 +49,6 @@ export function FileInput({
         form.setError(id, {
           message,
         });
-        if (hasValidFiles) {
-          setTimeout(() => {
-            form.clearErrors(id);
-            form.trigger(id);
-          }, 2500);
-        }
       }}
     >
       {currentFiles.length < maxFiles && (
