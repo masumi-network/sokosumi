@@ -7,15 +7,16 @@ ignoredBuiltDependencies:
   - "@sentry/cli"
   - "@swc/core"
   - "@tailwindcss/oxide"
+  - "@vercel/speed-insights"
   - esbuild
+  - puppeteer
+  - puppeteer-core
   - sharp
   - unrs-resolver
   - vue-demi
 
 onlyBuiltDependencies:
-  - "@vercel/speed-insights"
   - prisma
-  - "puppeteer-core"
 
 publicHoistPattern:
   - "*eslint*"

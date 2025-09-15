@@ -12,6 +12,7 @@ import { getLocale, getMessages } from "next-intl/server";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
 import { GlobalModalsContextProvider } from "@/components/modals/global-modals-context";
+import { ApplePwaHead } from "@/components/pwa/apple-pwa-head";
 import { Toaster } from "@/components/ui/sonner";
 import { UsersnapProvider } from "@/components/usersnap/usersnap-provider";
 import { getEnvPublicConfig } from "@/config/env.public";
@@ -55,6 +56,9 @@ export default async function RootLayout({
   return (
     <html lang={locale} suppressHydrationWarning className={inter.className}>
       {gtmId && <GoogleTagManager gtmId={gtmId} />}
+      <head>
+        <ApplePwaHead />
+      </head>
       <body className="bg-background min-h-svh max-w-dvw antialiased">
         <Script src="/js/plain.js" strategy="afterInteractive" />
         {ucDataSettingsId && (

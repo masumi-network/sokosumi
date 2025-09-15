@@ -1082,6 +1082,7 @@
       "ApiKeys": {
         "title": "API Keys",
         "description": "Manage your API keys for programmatic access",
+        "apiDocsLink": "View API Documentation",
         "createButton": "Create",
         "loading": "Loading API keys...",
         "noKeysFound": "Create your first API key to get started.",

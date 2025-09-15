@@ -13,6 +13,10 @@ const EXCLUDED_PATHS = [
   "/robots.txt",
   "/sitemap.xml",
   "/openapi.json",
+  "/manifest.json",
+  "/manifest.webmanifest",
+  "/favicon.ico",
+  "/apple-touch-icon",
 ];
 
 export async function middleware(request: NextRequest) {
