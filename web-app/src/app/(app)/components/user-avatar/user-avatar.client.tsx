@@ -11,9 +11,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
 
-import { McpDialog } from "@/app/components/mcp-dialog/mcp-dialog";
 import { useGlobalModalsContext } from "@/components/modals/global-modals-context";
 import { Button } from "@/components/ui/button";
 import {
@@ -49,7 +47,6 @@ export default function UserAvatarClient({
   activeOrganizationId,
 }: UserAvatarClientProps) {
   const t = useTranslations("Components.UserAvatar");
-  const [mcpDialogOpen, setMcpDialogOpen] = useState(false);
 
   const { showLogoutModal } = useGlobalModalsContext();
   const handleSupport = () => {
@@ -133,7 +130,7 @@ export default function UserAvatarClient({
             </DropdownMenuItem>
             <DropdownMenuItem
               className="flex cursor-pointer items-center gap-2"
-              onClick={() => setMcpDialogOpen(true)}
+              onClick={(e) => handleClick(e, "/mcp")}
             >
               <Cable className="text-muted-foreground" />
               {t("mcp")}
@@ -157,12 +154,6 @@ export default function UserAvatarClient({
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
-
-      <McpDialog
-        open={mcpDialogOpen}
-        onOpenChange={setMcpDialogOpen}
-        activeOrganizationId={activeOrganizationId}
-      />
     </>
   );
 }
