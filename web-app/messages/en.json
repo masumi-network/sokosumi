@@ -201,7 +201,8 @@
       "billing": "Billing",
       "account": "Account",
       "organizations": "Organizations",
-      "api-docs": "API Documentation"
+      "api-docs": "API Documentation",
+      "mcp": "Model Context Protocol (MCP)"
     },
     "Jobs": {
       "StatusBadge": {
