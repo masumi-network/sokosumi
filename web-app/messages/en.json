@@ -1393,15 +1393,6 @@
           "button": "Accept Invitation",
           "linkInstructions": "Or copy and paste this URL into your browser:",
           "footer": "If you didn't request this invitation, you can safely ignore this email."
-        },
-        "ReferralInvitation": {
-          "subject": "{name} invited you to join Sokosumi",
-          "title": "You've been invited to join Sokosumi",
-          "greeting": "Hello",
-          "message": "{inviterName} has invited you to join their organization {organizationName} on Sokosumi. By joining through this invitation, both you and {inviterName} will receive $10 in credits!",
-          "button": "Accept Invitation",
-          "linkInstructions": "Or copy and paste this URL into your browser:",
-          "footer": "This invitation was sent to you by {inviterName} from {organizationName}. If you were not expecting this invitation, you can ignore this email."
         }
       }
     },
