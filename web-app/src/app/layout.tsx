@@ -73,9 +73,11 @@ export default async function RootLayout({
             />
           </>
         )}
-        <Script src="/js/plain.js" strategy="afterInteractive" />
         <ApplePwaHead />
       </head>
+      {gtmId && <GoogleTagManager gtmId={gtmId} />}
+      {gaId && <GoogleAnalytics gaId={gaId} />}
+      <Script src="/js/plain.js" strategy="afterInteractive" />
       <body className="bg-background min-h-svh max-w-dvw antialiased">
         <UsersnapProvider>
           <NuqsAdapter>
@@ -93,8 +95,6 @@ export default async function RootLayout({
         <Analytics />
         <SpeedInsights />
       </body>
-      {gtmId && <GoogleTagManager gtmId={gtmId} />}
-      {gaId && <GoogleAnalytics gaId={gaId} />}
     </html>
   );
 }
