@@ -9,8 +9,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogOverlay,
-  DialogPortal,
   DialogTitle,
 } from "@/components/ui/dialog";
 import {
@@ -65,20 +63,17 @@ export default function OrganizationInformationModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogPortal>
-        <DialogOverlay className="backdrop-blur-lg" />
-        <DialogContent className="max-h-[80svh] w-[30vw] max-w-2xl!">
-          <DialogTitle className="text-center">
-            {isCreating ? t("create") : t("edit")}
-          </DialogTitle>
-          <DialogDescription className="hidden" />
-          <OrganizationInformationForm
-            organization={organization}
-            form={form}
-            onOpenChange={onOpenChange}
-          />
-        </DialogContent>
-      </DialogPortal>
+      <DialogContent className="max-h-[80svh] w-[30vw] max-w-2xl!">
+        <DialogTitle className="text-center">
+          {isCreating ? t("create") : t("edit")}
+        </DialogTitle>
+        <DialogDescription className="hidden" />
+        <OrganizationInformationForm
+          organization={organization}
+          form={form}
+          onOpenChange={onOpenChange}
+        />
+      </DialogContent>
     </Dialog>
   );
 }

@@ -14,8 +14,6 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogOverlay,
-  DialogPortal,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Account } from "@/lib/auth/auth";
@@ -64,34 +62,31 @@ export default function DisconnectModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOnOpenChange}>
-      <DialogPortal>
-        <DialogOverlay className="bg-background/50 backdrop-blur-lg md:bg-auto" />
-        <DialogContent className="w-[80vw] max-w-md!">
-          <DialogHeader>
-            <DialogTitle className="text-center text-lg font-medium">
-              {t("title", { providerId })}
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground text-center text-base">
-              {t("description", { providerId })}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="flex w-full items-center justify-around! gap-1.5">
-            <Button
-              variant="primary"
-              onClick={handleDisconnect}
-              disabled={loading}
-            >
-              {loading && <Loader2 className="h-4 w-4 animate-spin" />}
-              {t("confirm")}
+      <DialogContent className="w-[80vw] max-w-md!">
+        <DialogHeader>
+          <DialogTitle className="text-center text-lg font-medium">
+            {t("title", { providerId })}
+          </DialogTitle>
+          <DialogDescription className="text-muted-foreground text-center text-base">
+            {t("description", { providerId })}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="flex w-full items-center justify-around! gap-1.5">
+          <Button
+            variant="primary"
+            onClick={handleDisconnect}
+            disabled={loading}
+          >
+            {loading && <Loader2 className="h-4 w-4 animate-spin" />}
+            {t("confirm")}
+          </Button>
+          <DialogClose asChild>
+            <Button variant="secondary" disabled={loading}>
+              {t("cancel")}
             </Button>
-            <DialogClose asChild>
-              <Button variant="secondary" disabled={loading}>
-                {t("cancel")}
-              </Button>
-            </DialogClose>
-          </DialogFooter>
-        </DialogContent>
-      </DialogPortal>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
     </Dialog>
   );
 }

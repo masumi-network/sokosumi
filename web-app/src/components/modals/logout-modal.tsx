@@ -13,8 +13,6 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
-  DialogOverlay,
-  DialogPortal,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useAsyncRouter } from "@/hooks/use-async-router";
@@ -52,37 +50,34 @@ export default function LogoutModal({
 
   return (
     <Dialog open={loading || open} onOpenChange={onOpenChange}>
-      <DialogPortal>
-        <DialogOverlay className="bg-background/50 backdrop-blur-lg md:bg-auto" />
-        <DialogContent className="w-sm">
-          <DialogHeader>
-            <DialogTitle className="text-center text-lg font-medium">
-              {t("title")}
-            </DialogTitle>
-            <DialogDescription className="text-muted-foreground text-center text-base">
-              {t("description", { email })}
-            </DialogDescription>
-          </DialogHeader>
-          <DialogFooter className="block space-y-1.5">
-            <DialogClose asChild>
-              <Button
-                variant="primary"
-                className="w-full"
-                onClick={handleLogout}
-                disabled={loading}
-              >
-                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {t("logout")}
-              </Button>
-            </DialogClose>
-            <DialogClose asChild>
-              <Button variant="secondary" className="w-full" disabled={loading}>
-                {t("cancel")}
-              </Button>
-            </DialogClose>
-          </DialogFooter>
-        </DialogContent>
-      </DialogPortal>
+      <DialogContent className="w-sm">
+        <DialogHeader>
+          <DialogTitle className="text-center text-lg font-medium">
+            {t("title")}
+          </DialogTitle>
+          <DialogDescription className="text-muted-foreground text-center text-base">
+            {t("description", { email })}
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter className="block space-y-1.5">
+          <DialogClose asChild>
+            <Button
+              variant="primary"
+              className="w-full"
+              onClick={handleLogout}
+              disabled={loading}
+            >
+              {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {t("logout")}
+            </Button>
+          </DialogClose>
+          <DialogClose asChild>
+            <Button variant="secondary" className="w-full" disabled={loading}>
+              {t("cancel")}
+            </Button>
+          </DialogClose>
+        </DialogFooter>
+      </DialogContent>
     </Dialog>
   );
 }
