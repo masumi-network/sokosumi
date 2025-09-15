@@ -9,6 +9,8 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
+  DialogOverlay,
+  DialogPortal,
   DialogTitle,
 } from "@/components/ui/dialog";
 
@@ -25,28 +27,31 @@ export default function AuthenticationModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-sm">
-        <DialogHeader>
-          <DialogTitle className="text-center text-lg font-medium">
-            {t("title")}
-          </DialogTitle>
-          <DialogDescription className="text-muted-foreground text-center text-base">
-            {t("description")}
-          </DialogDescription>
-        </DialogHeader>
-        <DialogFooter className="block space-y-1.5">
-          <DialogClose asChild>
-            <Button variant="primary" className="w-full" asChild>
-              <Link href="/login">{t("login")}</Link>
-            </Button>
-          </DialogClose>
-          <DialogClose asChild>
-            <Button variant="secondary" className="w-full" asChild>
-              <Link href="/register">{t("register")}</Link>
-            </Button>
-          </DialogClose>
-        </DialogFooter>
-      </DialogContent>
+      <DialogPortal>
+        <DialogOverlay className="bg-background/50 backdrop-blur-lg md:bg-auto" />
+        <DialogContent className="w-sm">
+          <DialogHeader>
+            <DialogTitle className="text-center text-lg font-medium">
+              {t("title")}
+            </DialogTitle>
+            <DialogDescription className="text-muted-foreground text-center text-base">
+              {t("description")}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter className="block space-y-1.5">
+            <DialogClose asChild>
+              <Button variant="primary" className="w-full" asChild>
+                <Link href="/login">{t("login")}</Link>
+              </Button>
+            </DialogClose>
+            <DialogClose asChild>
+              <Button variant="secondary" className="w-full" asChild>
+                <Link href="/register">{t("register")}</Link>
+              </Button>
+            </DialogClose>
+          </DialogFooter>
+        </DialogContent>
+      </DialogPortal>
     </Dialog>
   );
 }
