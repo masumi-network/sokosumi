@@ -20,6 +20,8 @@ import {
   DialogDescription,
   DialogFooter,
   DialogHeader,
+  DialogOverlay,
+  DialogPortal,
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
@@ -74,46 +76,49 @@ export function DeleteAccountForm() {
           <DialogTrigger asChild>
             <Button variant="destructive">{t("button")}</Button>
           </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>{t("confirmTitle")}</DialogTitle>
-              <DialogDescription>{t("confirmDescription")}</DialogDescription>
-            </DialogHeader>
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(handleSubmit)}>
-                <fieldset
-                  className="space-y-4"
-                  disabled={form.formState.isSubmitting}
-                >
-                  <FormField
-                    control={form.control}
-                    name="currentPassword"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>{t("currentPassword")}</FormLabel>
-                        <FormControl>
-                          <Input type="password" {...field} />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <DialogFooter>
-                    <Button
-                      type="submit"
-                      variant="destructive"
-                      disabled={form.formState.isSubmitting}
-                    >
-                      {form.formState.isSubmitting && (
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+          <DialogPortal>
+            <DialogOverlay className="bg-background/50 backdrop-blur-lg md:bg-auto" />
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>{t("confirmTitle")}</DialogTitle>
+                <DialogDescription>{t("confirmDescription")}</DialogDescription>
+              </DialogHeader>
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleSubmit)}>
+                  <fieldset
+                    className="space-y-4"
+                    disabled={form.formState.isSubmitting}
+                  >
+                    <FormField
+                      control={form.control}
+                      name="currentPassword"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t("currentPassword")}</FormLabel>
+                          <FormControl>
+                            <Input type="password" {...field} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
                       )}
-                      {t("confirm")}
-                    </Button>
-                  </DialogFooter>
-                </fieldset>
-              </form>
-            </Form>
-          </DialogContent>
+                    />
+                    <DialogFooter>
+                      <Button
+                        type="submit"
+                        variant="destructive"
+                        disabled={form.formState.isSubmitting}
+                      >
+                        {form.formState.isSubmitting && (
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        )}
+                        {t("confirm")}
+                      </Button>
+                    </DialogFooter>
+                  </fieldset>
+                </form>
+              </Form>
+            </DialogContent>
+          </DialogPortal>
         </Dialog>
       </CardContent>
     </Card>
