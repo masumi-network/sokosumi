@@ -55,7 +55,6 @@ export default async function RootLayout({
 
   return (
     <html lang={locale} suppressHydrationWarning className={inter.className}>
-      {gtmId && <GoogleTagManager gtmId={gtmId} />}
       <head>
         {ucDataSettingsId && (
           <>
@@ -74,10 +73,11 @@ export default async function RootLayout({
             />
           </>
         )}
+        <Script src="/js/plain.js" strategy="afterInteractive" />
+        {gtmId && <GoogleTagManager gtmId={gtmId} />}
         <ApplePwaHead />
       </head>
       <body className="bg-background min-h-svh max-w-dvw antialiased">
-        <Script src="/js/plain.js" strategy="afterInteractive" />
         <UsersnapProvider>
           <NuqsAdapter>
             <ThemeProvider>
