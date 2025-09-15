@@ -124,7 +124,7 @@
     "@hey-api/openapi-ts": "0.83.1",
     "@types/humanize-duration": "3.27.4",
     "@types/node": "22.18.1",
-    "@types/react": "19.1.12",
+    "@types/react": "19.1.13",
     "@types/react-dom": "19.1.9",
     "@types/react-file-icon": "1.0.4",
     "@types/react-window": "1.8.8",
