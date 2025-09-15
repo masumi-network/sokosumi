@@ -37,7 +37,7 @@
     "@better-auth/utils": "0.3.0",
     "@hey-api/client-fetch": "0.13.1",
     "@hey-api/client-next": "0.5.1",
-    "@hookform/resolvers": "5.2.1",
+    "@hookform/resolvers": "5.2.2",
     "@icons-pack/react-simple-icons": "13.7.0",
     "@m2d/core": "1.5.0",
     "@m2d/html": "1.1.10",
