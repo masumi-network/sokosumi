@@ -53,4 +53,20 @@ export const invitationRepository = {
       include: invitationInclude,
     });
   },
+  /**
+   * Checks if there is at least one valid (not expired) pending invitation for a given email.
+   */
+  async hasPendingInvitationByEmail(
+    email: string,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<boolean> {
+    const count = await tx.invitation.count({
+      where: {
+        email,
+        status: InvitationStatus.PENDING,
+      },
+      take: 1,
+    });
+    return count > 0;
+  },
 };

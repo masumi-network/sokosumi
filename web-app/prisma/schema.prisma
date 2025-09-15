@@ -52,6 +52,9 @@ model User {
   jobShares         JobShare[] @relation("JobShareCreator")
   jobSharesReceived JobShare[] @relation("JobShareRecipient")
 
+  // Onboarding
+  onboardingCompleted   Boolean   @default(false)
+
   @@unique([email])
   @@unique([stripeCustomerId])
   @@map("user")

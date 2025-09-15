@@ -17,6 +17,7 @@ const EXCLUDED_PATHS = [
   "/manifest.webmanifest",
   "/favicon.ico",
   "/apple-touch-icon",
+  "/onboarding",
 ];
 
 export async function middleware(request: NextRequest) {
@@ -65,6 +66,9 @@ export async function middleware(request: NextRequest) {
       new URL(`/login?returnUrl=${returnUrl}`, request.url),
     );
   }
+
+  // Check if user needs onboarding (this will be checked server-side in the onboarding page)
+  // The actual onboarding status check happens in the page component
 
   return response;
 }

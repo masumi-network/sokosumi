@@ -24,11 +24,10 @@ export const agentListRepository = {
     type: AgentListType,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<AgentListWithAgents> {
-    return await tx.agentList.create({
-      data: {
-        userId,
-        type,
-      },
+    return await tx.agentList.upsert({
+      where: { userId_type: { userId, type } },
+      create: { userId, type },
+      update: {},
       include: agentListInclude,
     });
   },

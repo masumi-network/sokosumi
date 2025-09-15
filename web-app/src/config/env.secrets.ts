@@ -39,6 +39,8 @@ const envSecretsSchema = z.object({
     .string()
     .transform((val: string) => (val.trim() === "" ? [] : val.split(",")))
     .default([]),
+  STRIPE_ONBOARD_PERSONAL_COUPON: z.string().min(1),
+  STRIPE_ONBOARD_ORGANIZATION_COUPON: z.string().min(1),
 
   // Anthropic
   ANTHROPIC_API_KEY: z.string().min(1).startsWith("sk-"),

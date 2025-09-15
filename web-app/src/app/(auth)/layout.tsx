@@ -28,7 +28,9 @@ export default async function AuthLayout({
 }>) {
   const session = await getSession();
   if (session) {
-    redirect("/agents");
+    if (session.user.onboardingCompleted) {
+      redirect("/agents");
+    }
   }
 
   return (
@@ -42,9 +44,7 @@ export default async function AuthLayout({
         </div>
         <AuthLayoutFooter />
       </div>
-      <div className="hidden h-full w-1/2 lg:block">
-        <AuthBackground />
-      </div>
+      <AuthBackground />
     </div>
   );
 }
