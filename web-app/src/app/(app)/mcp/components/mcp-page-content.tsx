@@ -53,13 +53,6 @@ export function McpPageContent({
               <p className="text-xs text-amber-600">{t("keyDisabledNote")}</p>
             </div>
           </div>
-          <div className="space-y-2">
-            <p className="text-muted-foreground text-xs">
-              {activeOrganizationId
-                ? t("organizationScope")
-                : t("personalScope")}
-            </p>
-          </div>
           <div className="flex gap-2">
             <Button
               onClick={enableKey}
@@ -82,19 +75,33 @@ export function McpPageContent({
         </div>
       ) : mcpUrl ? (
         <>
-          <McpUrlDisplay url={mcpUrl} />
           <div className="space-y-2">
+            <p className="text-sm font-medium">{t("urlLabel")}</p>
+            <McpUrlDisplay url={mcpUrl} />
             {isKeyExisting && (
-              <p className="text-muted-foreground text-xs">
-                {t("existingKeyNote")}
-              </p>
+              <>
+                <p className="text-muted-foreground text-xs">
+                  {t("existingKeyNote")}
+                </p>
+                <p className="text-muted-foreground mt-2 text-xs">
+                  {t("existingKeyNote2")}
+                </p>
+              </>
             )}
-            <p className="text-muted-foreground text-xs">
-              {activeOrganizationId
-                ? t("organizationScope")
-                : t("personalScope")}
-            </p>
           </div>
+          {isKeyExisting && (
+            <div className="flex justify-end">
+              <Button
+                onClick={generateMcpUrl}
+                disabled={isLoading}
+                variant="outline"
+                size="sm"
+              >
+                {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {t("regenerateKey")}
+              </Button>
+            </div>
+          )}
           <McpSetupInstructions />
         </>
       ) : (
