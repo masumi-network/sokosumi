@@ -57,12 +57,9 @@ export default async function RootLayout({
     <html lang={locale} suppressHydrationWarning className={inter.className}>
       {gtmId && <GoogleTagManager gtmId={gtmId} />}
       <head>
-        <ApplePwaHead />
-      </head>
-      <body className="bg-background min-h-svh max-w-dvw antialiased">
-        <Script src="/js/plain.js" strategy="afterInteractive" />
         {ucDataSettingsId && (
           <>
+            <Script src="/js/before-gtm.js" strategy="beforeInteractive" />
             <Script
               src="https://web.cmp.usercentrics.eu/modules/autoblocker.js"
               strategy="beforeInteractive"
@@ -75,9 +72,12 @@ export default async function RootLayout({
               async
               strategy="beforeInteractive"
             />
-            <Script src="/js/before-gtm.js" strategy="beforeInteractive" />
           </>
         )}
+        <ApplePwaHead />
+      </head>
+      <body className="bg-background min-h-svh max-w-dvw antialiased">
+        <Script src="/js/plain.js" strategy="afterInteractive" />
         <UsersnapProvider>
           <NuqsAdapter>
             <ThemeProvider>
