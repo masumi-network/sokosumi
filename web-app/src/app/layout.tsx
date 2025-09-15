@@ -74,7 +74,6 @@ export default async function RootLayout({
           </>
         )}
         <Script src="/js/plain.js" strategy="afterInteractive" />
-        {gtmId && <GoogleTagManager gtmId={gtmId} />}
         <ApplePwaHead />
       </head>
       <body className="bg-background min-h-svh max-w-dvw antialiased">
@@ -94,6 +93,7 @@ export default async function RootLayout({
         <Analytics />
         <SpeedInsights />
       </body>
+      {gtmId && <GoogleTagManager gtmId={gtmId} />}
       {gaId && <GoogleAnalytics gaId={gaId} />}
     </html>
   );
