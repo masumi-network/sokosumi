@@ -1,6 +1,5 @@
 import "./globals.css";
 
-import { GoogleAnalytics, GoogleTagManager } from "@next/third-parties/google";
 import * as Sentry from "@sentry/nextjs";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -11,7 +10,10 @@ import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
+import { GoogleAnalytics } from "@/components/ga";
+import { GoogleTagManager } from "@/components/gtm";
 import { GlobalModalsContextProvider } from "@/components/modals/global-modals-context";
+import { PlainChat } from "@/components/plain-chat";
 import { ApplePwaHead } from "@/components/pwa/apple-pwa-head";
 import { Toaster } from "@/components/ui/sonner";
 import { UsersnapProvider } from "@/components/usersnap/usersnap-provider";
@@ -61,10 +63,6 @@ export default async function RootLayout({
           <>
             <Script src="/js/before-gtm.js" strategy="beforeInteractive" />
             <Script
-              src="https://web.cmp.usercentrics.eu/modules/autoblocker.js"
-              strategy="beforeInteractive"
-            />
-            <Script
               id="usercentrics-cmp"
               src="https://web.cmp.usercentrics.eu/ui/loader.js"
               {...(draftUserCentrics && { "data-draft": "true" })}
@@ -78,7 +76,7 @@ export default async function RootLayout({
       </head>
       {gtmId && <GoogleTagManager gtmId={gtmId} />}
       {gaId && <GoogleAnalytics gaId={gaId} />}
-      <Script src="/js/plain.js" strategy="afterInteractive" />
+      <PlainChat />
       <body className="bg-background min-h-svh max-w-dvw antialiased">
         <UsersnapProvider usersnapSpaceApiKey={usersnapSpaceApiKey}>
           <NuqsAdapter>
