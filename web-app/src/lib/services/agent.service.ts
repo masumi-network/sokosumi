@@ -10,6 +10,7 @@ import {
   AgentWithPricing,
   AgentWithRelations,
   convertCreditsToCents,
+  getAgentPricingAmounts,
 } from "@/lib/db";
 import {
   agentListRepository,
@@ -313,21 +314,15 @@ export const agentService = (() => {
      * @param agent - The agent with pricing and relations data.
      * @param tx - Optional Prisma transaction client for DB operations (defaults to main Prisma client).
      * @returns The agent object with an added `creditsPrice` property.
-     * @throws If the fee percentage is negative or if a credit cost for a unit is not found.
+     * @throws If the fee percentage is negative or if a credit cost for a unit is not found or if the agent has invalid or unknown pricing.
      */
     getAgentCreditsPrice: async (
       agent: AgentWithRelations,
       tx: Prisma.TransactionClient = prisma,
     ): Promise<AgentWithCreditsPrice> => {
-      const amounts = agent.pricing?.fixedPricing?.amounts?.map((amount) => ({
-        unit: amount.unit,
-        amount: Number(amount.amount),
-      }));
+      const amounts = getAgentPricingAmounts(agent);
       if (!amounts) {
-        return {
-          ...agent,
-          creditsPrice: { cents: BigInt(0), includedFee: BigInt(0) },
-        };
+        throw new Error("Agent has invalid or unknown pricing");
       }
       const feePercentagePoints =
         getEnvPublicConfig().NEXT_PUBLIC_FEE_PERCENTAGE;

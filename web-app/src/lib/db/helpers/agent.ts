@@ -3,12 +3,16 @@ import {
   AgentDemoValues,
   AgentLegal,
   AgentWithExampleOutput,
+  AgentWithPricing,
   AgentWithTags,
 } from "@/lib/db/types";
 import { ipfsUrlResolver } from "@/lib/ipfs";
 import { JobInputsDataSchemaType, jobInputsFormSchema } from "@/lib/job-input";
-import { jobStatusResponseSchema } from "@/lib/schemas";
-import { Agent, ExampleOutput } from "@/prisma/generated/client";
+import {
+  jobStatusResponseSchema,
+  PricingAmountsSchemaType,
+} from "@/lib/schemas";
+import { Agent, ExampleOutput, PricingType } from "@/prisma/generated/client";
 
 export function getAgentName(agent: Agent): string {
   return agent.overrideName ?? agent.name;
@@ -104,6 +108,33 @@ export function getAgentResolvedExampleOutputUrl(
   exampleOutput: ExampleOutput,
 ): string {
   return ipfsUrlResolver(exampleOutput.url);
+}
+
+/**
+ * Get the pricing amounts for an agent.
+ * @param agent - The agent with pricing.
+ * @returns The pricing amounts or null if pricing is invalid or unknown.
+ */
+export function getAgentPricingAmounts(
+  agent: AgentWithPricing,
+): PricingAmountsSchemaType | null {
+  switch (agent.pricing.pricingType) {
+    case PricingType.FIXED: {
+      if (!agent.pricing.fixedPricing) {
+        return null;
+      }
+      return agent.pricing.fixedPricing.amounts.map((amount) => ({
+        unit: amount.unit,
+        amount: Number(amount.amount),
+      }));
+    }
+    case PricingType.FREE: {
+      return [];
+    }
+    case PricingType.UNKNOWN: {
+      return null;
+    }
+  }
 }
 
 export function getAgentDemoValues(

@@ -10,6 +10,7 @@ import { getAuthContext } from "@/lib/auth/utils";
 import { agentClient, anthropicClient, paymentClient } from "@/lib/clients";
 import {
   computeJobStatus,
+  getAgentPricingAmounts,
   getJobIndicatorStatus,
   JobStatus,
   jobStatusToAgentJobStatus,
@@ -479,35 +480,37 @@ export const jobService = (() => {
     }
 
     // Check if amounts are correct
-    const jobAmountsPrice: PricingAmountsSchemaType =
+    const jobPricingAmounts: PricingAmountsSchemaType =
       startJobResponse.amounts.map((amount) => ({
         unit: amount.unit,
         amount: Number(amount.amount),
       }));
 
     // Add breadcrumb for pricing validation
-    const amountsPrice =
-      agentWithCreditsPrice.pricing?.fixedPricing?.amounts.map((amount) => ({
-        unit: amount.unit,
-        amount: Number(amount.amount),
-      })) ?? [];
+    const agentPricingAmounts = getAgentPricingAmounts(agentWithCreditsPrice);
+    if (!agentPricingAmounts) {
+      throw new JobError(
+        JobErrorCode.AGENT_PRICING_NOT_FOUND,
+        "Agent pricing not found",
+      );
+    }
     try {
       Sentry.addBreadcrumb({
         category: "Job Service",
         message: "Validating pricing schema",
         level: "info",
         data: {
-          agentAmountsCount: amountsPrice.length,
-          jobAmountsCount: jobAmountsPrice.length,
+          agentAmountsCount: agentPricingAmounts.length,
+          jobAmountsCount: jobPricingAmounts.length,
         },
       });
-      tryValidatePricing(amountsPrice, jobAmountsPrice);
+      tryValidatePricing(agentPricingAmounts, jobPricingAmounts);
     } catch (error) {
       Sentry.setTag("error_type", "pricing_schema_mismatch");
       Sentry.setContext("pricing_validation", {
         agentId,
-        agentAmounts: amountsPrice,
-        jobAmounts: jobAmountsPrice,
+        agentAmounts: agentPricingAmounts,
+        jobAmounts: jobPricingAmounts,
         agentJobId: startJobResponse.job_id,
       });
       throw error;
