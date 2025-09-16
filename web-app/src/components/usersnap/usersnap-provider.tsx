@@ -8,18 +8,21 @@ import { authClient } from "@/lib/auth/auth.client";
 
 import { UsersnapContext } from "./usersnap-context";
 
-const USERSNAP_SPACE_API_KEY = "47863920-74cf-4d78-a138-932773f40a47";
-
 export const UsersnapProvider = ({
   children,
+  usersnapSpaceApiKey,
 }: {
   children: React.ReactNode;
+  usersnapSpaceApiKey?: string | undefined;
 }) => {
   const [usersnapApi, setUsersnapApi] = useState<SpaceApi | null>(null);
   const { data: session } = authClient.useSession();
 
   useEffect(() => {
-    loadSpace(USERSNAP_SPACE_API_KEY).then((api) => {
+    if (!usersnapSpaceApiKey) {
+      return;
+    }
+    loadSpace(usersnapSpaceApiKey).then((api) => {
       let userPromps = {};
       const user = session?.user;
       if (user) {
@@ -35,7 +38,7 @@ export const UsersnapProvider = ({
       });
       setUsersnapApi(api);
     });
-  }, [session]);
+  }, [session, usersnapSpaceApiKey]);
 
   return (
     <UsersnapContext.Provider value={usersnapApi}>
