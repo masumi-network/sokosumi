@@ -32,7 +32,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
 
   const session = await getSessionOrRedirect();
-  const shouldShowOnboarding = await userService.showOnboarding();
+  const shouldShowOnboarding = await userService.showOnboarding(session);
 
   if (shouldShowOnboarding) {
     redirect("/onboarding");
