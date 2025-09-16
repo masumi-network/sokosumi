@@ -35,14 +35,6 @@ export default function FreeCreditsButton({
       couponId,
     });
 
-    if (!result) {
-      toast.error(
-        "Invalid configuration - no promotion code or coupon ID provided",
-      );
-      setLoading(false);
-      return;
-    }
-
     if (result.ok) {
       fireGTMEvent.freeCreditStartCheckout();
       window.location.href = result.data.url;
