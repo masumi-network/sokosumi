@@ -17,7 +17,6 @@ const EXCLUDED_PATHS = [
   "/manifest.webmanifest",
   "/favicon.ico",
   "/apple-touch-icon",
-  "/onboarding",
 ];
 
 export async function middleware(request: NextRequest) {

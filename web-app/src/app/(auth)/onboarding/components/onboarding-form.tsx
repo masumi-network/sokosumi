@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -33,7 +33,6 @@ export default function OnboardingForm({
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSkipping, setIsSkipping] = useState(false);
-  const [additionalEmails, setAdditionalEmails] = useState<string[]>([]);
 
   const emailFieldNames = ["email1", "email2", "email3", "email4"] as const;
 
@@ -50,28 +49,58 @@ export default function OnboardingForm({
       email2: z.string().trim(),
       email3: z.string().trim(),
       email4: z.string().trim(),
+      extraEmails: z.array(z.object({ value: z.string().trim() })).default([]),
     })
     .superRefine((data, ctx) => {
-      const emails = [data.email1, data.email2, data.email3, data.email4];
-      const trimmedEmails = emails.map((e) => e.trim());
-      const presentEmails = trimmedEmails.filter((e) => e.length > 0);
+      const baseEmails = [data.email1, data.email2, data.email3, data.email4];
+      const extraEmails = (data.extraEmails ?? []).map((e) => e.value);
+
+      const allEntries: Array<{
+        value: string;
+        path: (string | number)[];
+      }> = [];
+      baseEmails.forEach((value, index) => {
+        allEntries.push({
+          value: (value ?? "").trim(),
+          path: [emailFieldNames[index]],
+        });
+      });
+      extraEmails.forEach((value, index) => {
+        allEntries.push({
+          value: (value ?? "").trim(),
+          path: ["extraEmails", index, "value"],
+        });
+      });
+
+      const presentEntries = allEntries.filter((e) => e.value.length > 0);
       const hasOrgName = data.organizationName.trim().length > 0;
 
       // Validate individual email formats when present
-      trimmedEmails.forEach((email, index) => {
-        if (email.length === 0) return;
-        const parsed = z.string().email().safeParse(email);
+      presentEntries.forEach(({ value, path }) => {
+        const parsed = z.string().email().safeParse(value);
         if (!parsed.success) {
-          ctx.addIssue({
-            code: "custom",
-            message: "Invalid email",
-            path: [emailFieldNames[index]],
-          });
+          ctx.addIssue({ code: "custom", message: "Invalid email", path });
         }
       });
 
-      const hasAnyValidEmail = presentEmails.some(
-        (email) => z.string().email().safeParse(email).success,
+      // Duplicate validation across all fields (case-insensitive)
+      const lowerToPaths = new Map<string, (string | number)[][]>();
+      presentEntries.forEach(({ value, path }) => {
+        const key = value.toLowerCase();
+        const list = lowerToPaths.get(key) ?? [];
+        list.push(path);
+        lowerToPaths.set(key, list);
+      });
+      for (const [, paths] of lowerToPaths) {
+        if (paths.length > 1) {
+          paths.forEach((path) => {
+            ctx.addIssue({ code: "custom", message: "Duplicate email", path });
+          });
+        }
+      }
+
+      const hasAnyValidEmail = presentEntries.some(
+        ({ value }) => z.string().email().safeParse(value).success,
       );
 
       // Cross-field validation: both required together when proceeding
@@ -82,7 +111,7 @@ export default function OnboardingForm({
           path: ["email1"],
         });
       }
-      if (!hasOrgName && presentEmails.length > 0) {
+      if (!hasOrgName && presentEntries.length > 0) {
         ctx.addIssue({
           code: "custom",
           message: "Organization name is required to invite colleagues",
@@ -91,42 +120,68 @@ export default function OnboardingForm({
       }
     });
 
-  type OnboardingFormData = z.infer<typeof onboardingFormSchema>;
+  type OnboardingFormInput = z.input<typeof onboardingFormSchema>;
+  // Keeping the output type for future use if needed
+  type _OnboardingFormData = z.output<typeof onboardingFormSchema>;
 
-  const form = useForm<OnboardingFormData>({
-    resolver: zodResolver(onboardingFormSchema),
+  const form = useForm<OnboardingFormInput>({
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    resolver: zodResolver(onboardingFormSchema as any),
     defaultValues: {
       organizationName: "",
       email1: "",
       email2: "",
       email3: "",
       email4: "",
+      extraEmails: [],
     },
     mode: "onChange",
   });
+
+  const { fields: extraEmailFields, append: appendExtraEmail } =
+    useFieldArray<OnboardingFormInput>({
+      control: form.control,
+      name: "extraEmails",
+    });
 
   const organizationName = form.watch("organizationName");
   const email1 = form.watch("email1");
   const email2 = form.watch("email2");
   const email3 = form.watch("email3");
   const email4 = form.watch("email4");
+  const extraEmails = form.watch("extraEmails") ?? [];
 
   const trimmedEmails = [email1, email2, email3, email4].map((e) =>
     (e ?? "").trim(),
   );
-  const presentEmails = trimmedEmails.filter((e) => e.length > 0);
+  const extraTrimmed = (extraEmails as Array<{ value: string }>).map((e) =>
+    (e?.value ?? "").trim(),
+  );
+  const presentEmails = [...trimmedEmails, ...extraTrimmed].filter(
+    (e) => e.length > 0,
+  );
   const validEmails = presentEmails.filter(
     (email) => z.string().email().safeParse(email).success,
   );
   const hasValidEmails = validEmails.length > 0;
-  const hasOrgName = (organizationName ?? "").trim().length > 0;
+  const _hasOrgName = (organizationName ?? "").trim().length > 0;
   const isFourthEmailFilled = (email4 ?? "").trim().length > 0;
 
-  // Continue is enabled ONLY when we have org name AND at least one valid email
-  const isContinueDisabled =
-    !hasOrgName || !hasValidEmails || isSubmitting || isSkipping;
+  const hasDuplicateEmails = (() => {
+    const lowered = presentEmails.map((e) => e.toLowerCase());
+    return new Set(lowered).size !== lowered.length;
+  })();
 
-  const handleSubmit = async (values: OnboardingFormData) => {
+  // Disable when any error exists or when there is no valid email entered
+  const hasFormErrors = Object.keys(form.formState.errors).length > 0;
+  const isContinueDisabled =
+    !hasValidEmails ||
+    hasDuplicateEmails ||
+    hasFormErrors ||
+    isSubmitting ||
+    isSkipping;
+
+  const handleSubmit = async (values: OnboardingFormInput) => {
     const currentEmails = [
       values.email1,
       values.email2,
@@ -136,24 +191,34 @@ export default function OnboardingForm({
       .map((e) => e.trim())
       .filter((e) => e.length > 0 && z.string().email().safeParse(e).success);
 
-    const extraEmails = additionalEmails
-      .map((e) => e.trim())
+    const extra = (values.extraEmails ?? [])
+      .map((e) => (e?.value ?? "").trim())
       .filter((e) => e.length > 0 && z.string().email().safeParse(e).success);
 
-    const allEmails = [...currentEmails, ...extraEmails];
+    const allEmails = [...currentEmails, ...extra];
 
-    if (!values.organizationName.trim() || allEmails.length === 0) return;
+    // Deduplicate while preserving original casing
+    const seen = new Set<string>();
+    const uniqueEmails: string[] = [];
+    for (const email of allEmails) {
+      const key = email.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      uniqueEmails.push(email);
+    }
+
+    if (!values.organizationName.trim() || uniqueEmails.length === 0) return;
 
     setIsSubmitting(true);
     try {
       const result = await completeOnboarding(
         values.organizationName.trim(),
-        allEmails,
+        uniqueEmails,
       );
 
       if (result.ok) {
         toast.success(
-          `Organization created and ${allEmails.length} invitation(s) sent.`,
+          `Organization created and ${uniqueEmails.length} invitation(s) sent.`,
         );
         router.push(result.data.redirectUrl ?? "/agents");
       } else {
@@ -252,20 +317,27 @@ export default function OnboardingForm({
               />
             ))}
 
-            {additionalEmails.map((value, index) => (
-              <div key={`extra-${index}`} className="relative">
-                <Input
-                  type="email"
-                  placeholder={t("CoWorkers.placeholder")}
-                  disabled={isSubmitting || isSkipping}
-                  value={value}
-                  onChange={(e) => {
-                    const next = [...additionalEmails];
-                    next[index] = e.target.value;
-                    setAdditionalEmails(next);
-                  }}
-                />
-              </div>
+            {extraEmailFields.map((field, index) => (
+              <FormField
+                key={field.id}
+                control={form.control}
+                name={`extraEmails.${index}.value`}
+                render={({ field }) => (
+                  <FormItem>
+                    <div className="relative">
+                      <FormControl>
+                        <Input
+                          type="email"
+                          placeholder={t("CoWorkers.placeholder")}
+                          disabled={isSubmitting || isSkipping}
+                          {...field}
+                        />
+                      </FormControl>
+                    </div>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             ))}
 
             {isFourthEmailFilled && (
@@ -274,7 +346,7 @@ export default function OnboardingForm({
                 variant="link"
                 className="w-full px-0"
                 disabled={isSubmitting || isSkipping}
-                onClick={() => setAdditionalEmails((prev) => [...prev, ""])}
+                onClick={() => appendExtraEmail({ value: "" })}
               >
                 {t("inviteMoreCoWorkers")}
               </Button>

@@ -17,12 +17,17 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function OnboardingPage() {
   const session = await getSession();
+  const t = await getTranslations("Onboarding.Metadata");
 
   if (!session) {
     redirect("/login");
   }
 
   // Check if user has already completed onboarding
+  console.log(
+    "session.user.onboardingCompleted",
+    session.user.onboardingCompleted,
+  );
   if (session.user.onboardingCompleted) {
     redirect("/agents");
   }
@@ -31,10 +36,8 @@ export default async function OnboardingPage() {
     <div className="flex min-h-screen flex-col items-center justify-center">
       <div className="w-full max-w-2xl">
         <div className="mb-8 text-center">
-          <h1 className="mb-4 text-3xl font-bold">{"Welcome to Sokosumi"}</h1>
-          <p className="text-gray-600">
-            {"Invite your colleagues and get 10$ credits for each invite."}
-          </p>
+          <h1 className="mb-4 text-3xl font-bold">{t("title")}</h1>
+          <p className="text-gray-600">{t("description")}</p>
         </div>
 
         <OnboardingForm userId={session.user.id} />

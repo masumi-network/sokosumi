@@ -1,13 +1,14 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { FooterSections } from "@/components/footer";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
+import { userService } from "@/lib/services";
 
 import Header from "./components/header";
-import { OnboardingGate } from "./components/onboarding-gate";
 import Sidebar from "./components/sidebar";
 
 interface AppLayoutProps {
@@ -31,12 +32,16 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
 
   const session = await getSessionOrRedirect();
+  const shouldShowOnboarding = await userService.showOnboarding();
+
+  if (shouldShowOnboarding) {
+    redirect("/onboarding");
+  }
 
   return (
     <>
       <SidebarProvider defaultOpen={defaultOpen}>
         <Sidebar session={session} />
-        <OnboardingGate session={session} />
         <div className="flex w-full flex-col overflow-clip">
           <Header session={session} className="h-16 p-4" />
           <main className="relative min-h-[calc(100svh-64px)] p-4 pt-20 md:pt-4">
