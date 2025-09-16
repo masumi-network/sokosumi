@@ -1001,6 +1001,7 @@
       "enableKey": "Enable Key",
       "createNewKey": "Create New Key",
       "regenerateKey": "Regenerate Key",
+      "setupPreviewTitle": "How to use your MCP URL with Claude",
       "docsLink": "View MCP Documentation",
       "loadError": "Failed to load MCP connection information. Please try again.",
       "copyError": "Failed to copy URL to clipboard",
