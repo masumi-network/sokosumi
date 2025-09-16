@@ -53,7 +53,7 @@ export const stripeClient = (() => {
           metadata: { userId: user.id, type: "user" },
         },
         {
-          idempotencyKey: `${user.id}-${user.email}`,
+          idempotencyKey: `${user.id}`,
         },
       );
       return customer;
@@ -75,7 +75,7 @@ export const stripeClient = (() => {
           },
         },
         {
-          idempotencyKey: `${organization.id}-${organization.slug}`,
+          idempotencyKey: `${organization.id}`,
         },
       );
       return customer;
