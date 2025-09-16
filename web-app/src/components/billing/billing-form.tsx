@@ -29,8 +29,8 @@ import { Input } from "@/components/ui/input";
 import { useAsyncRouter } from "@/hooks/use-async-router";
 import {
   BillingErrorCode,
+  claimFreeCreditsWithCoupon,
   CommonErrorCode,
-  getFreeCreditsWithCoupon,
   purchaseCredits,
 } from "@/lib/actions";
 import { Price } from "@/lib/clients/stripe.client";
@@ -129,7 +129,7 @@ export default function BillingForm({ price, organization }: BillingFormProps) {
     async (data: BillingFormData) => {
       let result;
       if (data.coupon && data.coupon.trim().length > 0) {
-        result = await getFreeCreditsWithCoupon({
+        result = await claimFreeCreditsWithCoupon({
           organizationId: organization?.id ?? null,
           priceId: price.id,
           couponId: data.coupon.trim(),

@@ -110,14 +110,14 @@ export const purchaseCredits = withAuthContext<
   }
 });
 
-interface GetFreeCreditsWithCouponParameters extends AuthenticatedRequest {
+interface ClaimFreeCreditsWithCouponParameters extends AuthenticatedRequest {
   organizationId: string | null;
-  priceId: string;
+  priceId?: string;
   couponId: string;
 }
 
-export const getFreeCreditsWithCoupon = withAuthContext<
-  GetFreeCreditsWithCouponParameters,
+export const claimFreeCreditsWithCoupon = withAuthContext<
+  ClaimFreeCreditsWithCouponParameters,
   Result<{ url: string }, ActionError>
 >(async ({ organizationId, priceId, couponId, authContext }) => {
   const { userId } = authContext;
@@ -134,8 +134,12 @@ export const getFreeCreditsWithCoupon = withAuthContext<
   }
 
   try {
-    // Fetch price server-side
-    const price = await stripeClient.getPriceById(priceId);
+    // Fetch price server-side (default to product price if not provided)
+    const price = priceId
+      ? await stripeClient.getPriceById(priceId)
+      : await stripeClient.getPriceByProductId(
+          getEnvSecrets().STRIPE_PRODUCT_ID,
+        );
     const credits = await stripeService.getCreditsForCoupon(couponId, price);
 
     // Claim the coupon for this user (creates/gets promotion code)
@@ -158,54 +162,6 @@ export const getFreeCreditsWithCoupon = withAuthContext<
     return Ok({ url });
   } catch (error) {
     console.error("Failed to get free credits with coupon", error);
-    if (error instanceof CouponError) {
-      return Err({
-        code: error.code,
-      });
-    }
-    return Err({
-      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-    });
-  }
-});
-
-interface ClaimWelcomeCreditsParameters extends AuthenticatedRequest {
-  couponId: string;
-}
-
-export const claimWelcomeCredits = withAuthContext<
-  ClaimWelcomeCreditsParameters,
-  Result<{ url: string }, ActionError>
->(async ({ couponId, authContext }) => {
-  const { userId } = authContext;
-
-  try {
-    const price = await stripeClient.getPriceByProductId(
-      getEnvSecrets().STRIPE_PRODUCT_ID,
-    );
-    const credits = await stripeService.getCreditsForCoupon(couponId, price);
-
-    // Claim the coupon for this user (creates/gets promotion code)
-    const promo = await stripeService.claimCoupon(couponId, 1);
-    if (!promo || !promo.active) {
-      return Err({
-        message: "Invalid coupon",
-        code: BillingErrorCode.INVALID_COUPON,
-      });
-    }
-
-    // Create the checkout session for personal account
-    const { url } = await stripeService.createStripeCheckoutSession(
-      userId,
-      null, // Welcome credits are always for personal accounts
-      credits,
-      price,
-      promo.id,
-    );
-
-    return Ok({ url });
-  } catch (error) {
-    console.error("Failed to claim welcome credits", error);
     if (error instanceof CouponError) {
       return Err({
         code: error.code,

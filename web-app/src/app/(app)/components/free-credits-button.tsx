@@ -10,7 +10,7 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { useAsyncRouter } from "@/hooks/use-async-router";
 import {
   BillingErrorCode,
-  claimWelcomeCredits,
+  claimFreeCreditsWithCoupon,
   CommonErrorCode,
 } from "@/lib/actions";
 import { fireGTMEvent } from "@/lib/gtm-events";
@@ -30,8 +30,10 @@ export default function FreeCreditsButton({
   const handleFreeClaim = async () => {
     setLoading(true);
 
-    // Call appropriate action based on which prop is provided
-    const result = await claimWelcomeCredits({ couponId });
+    const result = await claimFreeCreditsWithCoupon({
+      organizationId: null, // Welcome credits are always for personal accounts
+      couponId,
+    });
 
     if (!result) {
       toast.error(
