@@ -51,7 +51,8 @@ export default async function RootLayout({
   const gtmId = getEnvPublicConfig().NEXT_PUBLIC_GOOGLE_TAG_MANAGER_ID;
   const gaId = getEnvPublicConfig().NEXT_PUBLIC_GOOGLE_ANALYTICS_ID;
   const ucDataSettingsId = getEnvSecrets().USER_CENTRICS_DATA_SETTINGS_ID;
-  const isMainnet = getEnvPublicConfig().NEXT_PUBLIC_NETWORK === "Mainnet";
+  const draftUserCentrics = getEnvSecrets().DRAFT_USER_CENTRICS;
+  const usersnapSpaceApiKey = getEnvSecrets().USERSNAP_SPACE_API_KEY;
 
   return (
     <html lang={locale} suppressHydrationWarning className={inter.className}>
@@ -66,7 +67,7 @@ export default async function RootLayout({
             <Script
               id="usercentrics-cmp"
               src="https://web.cmp.usercentrics.eu/ui/loader.js"
-              {...(!isMainnet && { "data-draft": "true" })}
+              {...(draftUserCentrics && { "data-draft": "true" })}
               data-settings-id={ucDataSettingsId}
               async
               strategy="beforeInteractive"
@@ -79,7 +80,7 @@ export default async function RootLayout({
       {gaId && <GoogleAnalytics gaId={gaId} />}
       <Script src="/js/plain.js" strategy="afterInteractive" />
       <body className="bg-background min-h-svh max-w-dvw antialiased">
-        <UsersnapProvider>
+        <UsersnapProvider usersnapSpaceApiKey={usersnapSpaceApiKey}>
           <NuqsAdapter>
             <ThemeProvider>
               <NextIntlClientProvider messages={messages}>

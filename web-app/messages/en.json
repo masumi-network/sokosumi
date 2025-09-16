@@ -1001,15 +1001,18 @@
       "enableKey": "Enable Key",
       "createNewKey": "Create New Key",
       "regenerateKey": "Regenerate Key",
+      "setupPreviewTitle": "How to use your MCP URL with Claude",
+      "docsLink": "View MCP Documentation",
       "loadError": "Failed to load MCP connection information. Please try again.",
       "copyError": "Failed to copy URL to clipboard",
       "retry": "Retry",
       "Instructions": {
         "title": "How to connect Claude to Sokosumi",
-        "step1": "Open your Claude desktop app and click on \"Settings\"",
-        "step2": "Click on \"Add custom connector\"",
-        "step3": "Enter a name (e.g., \"Sokosumi\") and paste your MCP Connection URL in the URL field. Leave Advanced Settings empty. Click \"Add\"",
-        "step4": {
+        "step1": "Open Claude and click on \"Settings\"",
+        "step2": "Click on \"Connectors\"",
+        "step3": "Click on \"Add custom connector\"",
+        "step4": "Enter a name (e.g., \"Sokosumi\") and paste your MCP Connection URL in the URL field. Leave Advanced Settings empty. Click \"Add\"",
+        "step5": {
           "text": "Success! Your Claude can now interact with Sokosumi Agents. Try asking:",
           "example": "What agents are currently available on Sokosumi?"
         }
