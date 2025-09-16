@@ -10,8 +10,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogOverlay,
-  DialogPortal,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -214,100 +212,97 @@ export default function JobShareModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOnOpenChange}>
-      <DialogPortal>
-        <DialogOverlay className="backdrop-blur-lg md:bg-auto" />
-        <DialogContent className="w-svw max-w-lg! border-none bg-transparent p-0 focus:ring-0 focus:outline-none md:w-[80vw] [&>button]:hidden">
-          <DialogTitle className="hidden" />
-          <DialogDescription className="hidden" />
-          <ScrollArea className="max-h-svh md:max-h-[90svh]">
-            <div className="bg-background min-h-svh w-svw space-y-4 rounded-none p-4 md:min-h-auto md:w-lg md:rounded-xl md:p-8">
-              <h1 className="text-xl font-light">{t("title")}</h1>
-              <div className="divide-y rounded-md border">
-                <div
-                  className={cn(
-                    "hover:bg-muted/50 flex cursor-pointer items-center gap-2 rounded-t-md p-4 transition-all",
-                    {
-                      "pointer-events-none animate-pulse opacity-60": loading,
-                    },
-                  )}
-                  onClick={handleShareJob}
-                >
-                  <Globe />
-                  <div className="flex-1">
-                    <p className="text-sm">{t("publicAccessTitle")}</p>
-                    <p className="text-muted-foreground text-xs">
-                      {t("publicAccessDescription")}
-                    </p>
-                  </div>
-                  {jobShare?.accessType === ShareAccessType.PUBLIC && (
-                    <Check className="h-4 w-4 text-green-500" />
-                  )}
+      <DialogContent className="w-svw max-w-lg! border-none bg-transparent p-0 focus:ring-0 focus:outline-none md:w-[80vw] [&>button]:hidden">
+        <DialogTitle className="hidden" />
+        <DialogDescription className="hidden" />
+        <ScrollArea className="max-h-svh md:max-h-[90svh]">
+          <div className="bg-background min-h-svh w-svw space-y-4 rounded-none p-4 md:min-h-auto md:w-lg md:rounded-xl md:p-8">
+            <h1 className="text-xl font-light">{t("title")}</h1>
+            <div className="divide-y rounded-md border">
+              <div
+                className={cn(
+                  "hover:bg-muted/50 flex cursor-pointer items-center gap-2 rounded-t-md p-4 transition-all",
+                  {
+                    "pointer-events-none animate-pulse opacity-60": loading,
+                  },
+                )}
+                onClick={handleShareJob}
+              >
+                <Globe />
+                <div className="flex-1">
+                  <p className="text-sm">{t("publicAccessTitle")}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {t("publicAccessDescription")}
+                  </p>
                 </div>
-                <div
-                  className={cn(
-                    "hover:bg-muted/50 flex cursor-pointer items-center gap-2 rounded-b-md p-4 transition-all",
-                    {
-                      "pointer-events-none animate-pulse opacity-60": loading,
-                    },
-                  )}
-                  onClick={handleRemoveJobShare}
-                >
-                  <Lock />
-                  <div className="flex-1">
-                    <p className="text-sm">{t("privateAccessTitle")}</p>
-                    <p className="text-muted-foreground text-xs">
-                      {t("privateAccessDescription")}
-                    </p>
-                  </div>
-                  {(!jobShare ||
-                    jobShare.accessType === ShareAccessType.RESTRICTED) && (
-                    <Check className="h-4 w-4 text-green-500" />
-                  )}
-                </div>
+                {jobShare?.accessType === ShareAccessType.PUBLIC && (
+                  <Check className="h-4 w-4 text-green-500" />
+                )}
               </div>
-              {link && (
-                <div className="flex w-full items-center gap-2 rounded-md border p-2">
-                  <a
-                    href={link.toString()}
-                    target="_blank"
-                    rel="noreferrer noopener"
-                    className="text-muted-foreground truncate text-sm hover:underline"
-                  >
-                    {link.toString()}
-                  </a>
-                  <Button variant="ghost" size="icon" onClick={handleCopyLink}>
-                    <Copy className="h-4 w-4" />
-                  </Button>
+              <div
+                className={cn(
+                  "hover:bg-muted/50 flex cursor-pointer items-center gap-2 rounded-b-md p-4 transition-all",
+                  {
+                    "pointer-events-none animate-pulse opacity-60": loading,
+                  },
+                )}
+                onClick={handleRemoveJobShare}
+              >
+                <Lock />
+                <div className="flex-1">
+                  <p className="text-sm">{t("privateAccessTitle")}</p>
+                  <p className="text-muted-foreground text-xs">
+                    {t("privateAccessDescription")}
+                  </p>
                 </div>
-              )}
-              {jobShare?.accessType === ShareAccessType.PUBLIC && (
-                <div className="flex items-center gap-2">
-                  <Checkbox
-                    id="allow-search-indexing"
-                    disabled={loading}
-                    className={cn({
-                      "pointer-events-none animate-pulse opacity-60": loading,
-                    })}
-                    checked={jobShare?.allowSearchIndexing}
-                    onCheckedChange={(v) => handleAllowSearchIndexingChange(v)}
-                  />
-                  <Label htmlFor="allow-search-indexing">
-                    {t("allowSearchIndexing")}
-                  </Label>
-                </div>
-              )}
-              <div className="flex justify-end">
-                <Button
-                  variant="secondary"
-                  onClick={() => handleOnOpenChange(false)}
-                >
-                  {t("close")}
-                </Button>
+                {(!jobShare ||
+                  jobShare.accessType === ShareAccessType.RESTRICTED) && (
+                  <Check className="h-4 w-4 text-green-500" />
+                )}
               </div>
             </div>
-          </ScrollArea>
-        </DialogContent>
-      </DialogPortal>
+            {link && (
+              <div className="flex w-full items-center gap-2 rounded-md border p-2">
+                <a
+                  href={link.toString()}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="text-muted-foreground truncate text-sm hover:underline"
+                >
+                  {link.toString()}
+                </a>
+                <Button variant="ghost" size="icon" onClick={handleCopyLink}>
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+            {jobShare?.accessType === ShareAccessType.PUBLIC && (
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="allow-search-indexing"
+                  disabled={loading}
+                  className={cn({
+                    "pointer-events-none animate-pulse opacity-60": loading,
+                  })}
+                  checked={jobShare?.allowSearchIndexing}
+                  onCheckedChange={(v) => handleAllowSearchIndexingChange(v)}
+                />
+                <Label htmlFor="allow-search-indexing">
+                  {t("allowSearchIndexing")}
+                </Label>
+              </div>
+            )}
+            <div className="flex justify-end">
+              <Button
+                variant="secondary"
+                onClick={() => handleOnOpenChange(false)}
+              >
+                {t("close")}
+              </Button>
+            </div>
+          </div>
+        </ScrollArea>
+      </DialogContent>
     </Dialog>
   );
 }

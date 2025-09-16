@@ -201,7 +201,8 @@
       "billing": "Billing",
       "account": "Account",
       "organizations": "Organizations",
-      "api-docs": "API Documentation"
+      "api-docs": "API Documentation",
+      "mcp": "Model Context Protocol (MCP)"
     },
     "Jobs": {
       "StatusBadge": {
@@ -989,17 +990,17 @@
     },
     "MCP": {
       "title": "Model Context Protocol (MCP)",
-      "description": "Connect Sokosumi to Claude using the Model Context Protocol (MCP)",
+      "description": "Connect Sokosumi to any large language model using the Model Context Protocol",
       "generateButton": "Generate your Sokosumi MCP URL",
       "urlLabel": "Your MCP Connection URL",
       "existingKeyNote": "Note: This is a previously generated MCP connection. The actual API key is hidden for security reasons.",
+      "existingKeyNote2": "You can regenerate the key to obtain a new one.",
       "existingKey": "YOUR_EXISTING_KEY",
-      "personalScope": "This MCP connection is created for your personal account.",
-      "organizationScope": "This MCP connection is created for your organization account.",
       "keyDisabled": "Your MCP connection exists but is disabled.",
       "keyDisabledNote": "You can enable it or create a new one.",
       "enableKey": "Enable Key",
       "createNewKey": "Create New Key",
+      "regenerateKey": "Regenerate Key",
       "loadError": "Failed to load MCP connection information. Please try again.",
       "copyError": "Failed to copy URL to clipboard",
       "retry": "Retry",

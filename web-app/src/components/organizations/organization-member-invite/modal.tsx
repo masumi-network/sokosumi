@@ -9,8 +9,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogOverlay,
-  DialogPortal,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { inviteFormSchema, InviteFormSchemaType } from "@/lib/schemas";
@@ -57,18 +55,15 @@ export default function OrganizationMemberInviteModal({
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogPortal>
-        <DialogOverlay className="backdrop-blur-lg" />
-        <DialogContent className="max-h-[80svh] w-[80vw] max-w-md!">
-          <DialogTitle className="text-center">{t("title")}</DialogTitle>
-          <DialogDescription className="hidden" />
-          <OrganizationMemberInviteForm
-            organizationId={organizationId}
-            form={form}
-            onOpenChange={onOpenChange}
-          />
-        </DialogContent>
-      </DialogPortal>
+      <DialogContent className="max-h-[80svh] w-[80vw] max-w-md!">
+        <DialogTitle className="text-center">{t("title")}</DialogTitle>
+        <DialogDescription className="hidden" />
+        <OrganizationMemberInviteForm
+          organizationId={organizationId}
+          form={form}
+          onOpenChange={onOpenChange}
+        />
+      </DialogContent>
     </Dialog>
   );
 }

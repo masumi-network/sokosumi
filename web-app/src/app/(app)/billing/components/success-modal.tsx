@@ -9,8 +9,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogOverlay,
-  DialogPortal,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -50,20 +48,17 @@ function BillingSuccessModalInner(props: BillingSuccessModalProps) {
 
   return (
     <Dialog open={!!sessionId} onOpenChange={handleOpenChange}>
-      <DialogPortal>
-        <DialogOverlay className="bg-background/50 backdrop-blur-lg md:bg-auto" />
-        <DialogContent className="w-svw max-w-xl! border-none bg-transparent p-0 focus:ring-0 focus:outline-none md:w-[80vw] [&>button]:hidden">
-          <DialogTitle className="hidden" />
-          <DialogDescription className="hidden" />
-          <ScrollArea className="max-h-svh md:max-h-[90svh]">
-            <Suspense fallback={<SuccessCardContentLoading />}>
-              <DefaultErrorBoundary fallback={<SuccessCardContentError />}>
-                <SuccessCardContentInner {...props} />
-              </DefaultErrorBoundary>
-            </Suspense>
-          </ScrollArea>
-        </DialogContent>
-      </DialogPortal>
+      <DialogContent className="w-svw max-w-xl! border-none bg-transparent p-0 focus:ring-0 focus:outline-none md:w-[80vw] [&>button]:hidden">
+        <DialogTitle className="hidden" />
+        <DialogDescription className="hidden" />
+        <ScrollArea className="max-h-svh md:max-h-[90svh]">
+          <Suspense fallback={<SuccessCardContentLoading />}>
+            <DefaultErrorBoundary fallback={<SuccessCardContentError />}>
+              <SuccessCardContentInner {...props} />
+            </DefaultErrorBoundary>
+          </Suspense>
+        </ScrollArea>
+      </DialogContent>
     </Dialog>
   );
 }
