@@ -10,17 +10,17 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { useAsyncRouter } from "@/hooks/use-async-router";
 import {
   BillingErrorCode,
-  claimFreeCredits,
+  claimWelcomeCredits,
   CommonErrorCode,
 } from "@/lib/actions";
 import { fireGTMEvent } from "@/lib/gtm-events";
 
 interface FreeCreditsButtonProps {
-  promotionCode: string;
+  couponId: string;
 }
 
 export default function FreeCreditsButton({
-  promotionCode,
+  couponId,
 }: FreeCreditsButtonProps) {
   const [loading, setLoading] = useState(false);
   const router = useAsyncRouter();
@@ -29,7 +29,17 @@ export default function FreeCreditsButton({
 
   const handleFreeClaim = async () => {
     setLoading(true);
-    const result = await claimFreeCredits({ promotionCode });
+
+    // Call appropriate action based on which prop is provided
+    const result = await claimWelcomeCredits({ couponId });
+
+    if (!result) {
+      toast.error(
+        "Invalid configuration - no promotion code or coupon ID provided",
+      );
+      setLoading(false);
+      return;
+    }
 
     if (result.ok) {
       fireGTMEvent.freeCreditStartCheckout();
