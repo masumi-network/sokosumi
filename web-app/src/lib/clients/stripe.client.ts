@@ -46,26 +46,38 @@ export const stripeClient = (() => {
 
   return {
     async createUserCustomer(user: User): Promise<Stripe.Customer> {
-      const customer = await stripe.customers.create({
-        name: user.name,
-        email: user.email,
-        metadata: { userId: user.id, type: "user" },
-      });
+      const customer = await stripe.customers.create(
+        {
+          name: user.name,
+          email: user.email,
+          metadata: { userId: user.id, type: "user" },
+        },
+        {
+          idempotencyKey: `${user.id}-${user.email}`,
+        },
+      );
       return customer;
     },
 
     async createOrganizationCustomer(
       organization: Organization,
     ): Promise<Stripe.Customer> {
-      const customer = await stripe.customers.create({
-        name: organization.name,
-        ...(organization.invoiceEmail && { email: organization.invoiceEmail }),
-        metadata: {
-          organizationId: organization.id,
-          organizationSlug: organization.slug,
-          type: "organization",
+      const customer = await stripe.customers.create(
+        {
+          name: organization.name,
+          ...(organization.invoiceEmail && {
+            email: organization.invoiceEmail,
+          }),
+          metadata: {
+            organizationId: organization.id,
+            organizationSlug: organization.slug,
+            type: "organization",
+          },
         },
-      });
+        {
+          idempotencyKey: `${organization.id}-${organization.slug}`,
+        },
+      );
       return customer;
     },
 
@@ -73,9 +85,15 @@ export const stripeClient = (() => {
       customerId: string,
       email: string | null,
     ): Promise<Stripe.Customer> {
-      return await stripe.customers.update(customerId, {
-        email: email ?? undefined,
-      });
+      return await stripe.customers.update(
+        customerId,
+        {
+          email: email ?? undefined,
+        },
+        {
+          idempotencyKey: `${customerId}-${email ?? "null"}`,
+        },
+      );
     },
 
     async deleteCustomer(customerId: string): Promise<void> {
@@ -105,12 +123,17 @@ export const stripeClient = (() => {
       maxRedemptions: number = 1,
       metadata?: Record<string, string>,
     ): Promise<Stripe.PromotionCode | null> {
-      const promotionCode = await stripe.promotionCodes.create({
-        customer: customerId,
-        coupon: couponId,
-        max_redemptions: maxRedemptions,
-        metadata,
-      });
+      const promotionCode = await stripe.promotionCodes.create(
+        {
+          customer: customerId,
+          coupon: couponId,
+          max_redemptions: maxRedemptions,
+          metadata,
+        },
+        {
+          idempotencyKey: `${customerId}-${couponId}`,
+        },
+      );
       return promotionCode;
     },
 
