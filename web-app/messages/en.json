@@ -1001,6 +1001,7 @@
       "enableKey": "Enable Key",
       "createNewKey": "Create New Key",
       "regenerateKey": "Regenerate Key",
+      "docsLink": "View MCP Documentation",
       "loadError": "Failed to load MCP connection information. Please try again.",
       "copyError": "Failed to copy URL to clipboard",
       "retry": "Retry",

@@ -1,4 +1,5 @@
-import { Loader2 } from "lucide-react";
+import { ExternalLink, Loader2 } from "lucide-react";
+import Link from "next/link";
 import { useTranslations } from "next-intl";
 
 import { McpSetupInstructions } from "@/app/components/MCP/mcp-setup-instructions";
@@ -27,6 +28,17 @@ export function McpActiveKeyView({
       <div className="space-y-2">
         <p className="text-sm font-medium">{t("urlLabel")}</p>
         <McpUrlDisplay url={mcpUrl} />
+        <div className="text-muted-foreground text-sm">
+          <Link
+            href="https://docs.sokosumi.com/mcp"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary hover:text-primary/80 inline-flex items-center gap-1 underline underline-offset-4"
+          >
+            {t("docsLink")}
+            <ExternalLink className="size-3" />
+          </Link>
+        </div>
         <McpKeyNotes isKeyExisting={isKeyExisting} />
       </div>
       {isKeyExisting && (
