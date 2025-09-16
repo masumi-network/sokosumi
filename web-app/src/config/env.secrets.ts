@@ -24,6 +24,13 @@ const envSecretsSchema = z.object({
 
   // Usercentrics
   USER_CENTRICS_DATA_SETTINGS_ID: z.string().min(1).optional(),
+  DRAFT_USER_CENTRICS: z
+    .string()
+    .transform((val: string) => val.trim().toLowerCase() === "true")
+    .default(false),
+
+  // Usersnap
+  USERSNAP_SPACE_API_KEY: z.string().min(1).optional(),
 
   SHOW_AGENTS_BY_DEFAULT: z
     .string()

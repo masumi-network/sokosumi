@@ -14,7 +14,7 @@ export default async function McpPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-2xl p-6">
+    <div className="max-w-3xl p-6">
       <div className="space-y-6">
         <div className="space-y-2">
           <h1 className="text-2xl font-light">{t("title")}</h1>
