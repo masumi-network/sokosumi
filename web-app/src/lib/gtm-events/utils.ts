@@ -1,4 +1,4 @@
-import { sendGTMEvent } from "@next/third-parties/google";
+import { sendGTMEvent } from "@/components/gtm";
 
 import { GTMEvent } from "./types";
 
