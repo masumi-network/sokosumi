@@ -33,7 +33,7 @@ export default async function OnboardingPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center">
+    <div className="flex flex-col items-center justify-center">
       <div className="w-full max-w-2xl">
         <div className="mb-8 text-center">
           <h1 className="mb-4 text-3xl font-bold">{t("title")}</h1>
