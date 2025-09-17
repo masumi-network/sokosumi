@@ -120,7 +120,10 @@ export function getAgentPricingAmounts(
 ): PricingAmountsSchemaType | null {
   switch (agent.pricing.pricingType) {
     case PricingType.FIXED: {
-      if (!agent.pricing.fixedPricing) {
+      if (
+        !agent.pricing.fixedPricing ||
+        agent.pricing.fixedPricing.amounts.length === 0
+      ) {
         return null;
       }
       return agent.pricing.fixedPricing.amounts.map((amount) => ({
