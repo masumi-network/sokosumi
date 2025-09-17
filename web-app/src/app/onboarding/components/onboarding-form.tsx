@@ -127,6 +127,21 @@ export default function OnboardingForm({
   // Show add more button when 4th field is filled
   const shouldShowAddMore = watchedData.emails[3]?.trim().length > 0;
 
+  // Helper text for disabled button
+  const getButtonHelperText = (): string | null => {
+    if (!isContinueDisabled || isSubmitting || isSkipping) return null;
+
+    if (hasFormErrors) return "Fix the errors above";
+
+    if (!hasOrgName && !hasValidEmails) {
+      return "Enter an organization name and add at least one valid email";
+    }
+    if (!hasOrgName) return "Enter an organization name";
+    if (!hasValidEmails) return "Add at least one valid email";
+
+    return null;
+  };
+
   const handleSubmit = async (values: OnboardingFormData) => {
     const validEmails = normalizeEmails(values.emails).filter(isValidEmail);
     const uniqueEmails = deduplicateEmails(validEmails);
@@ -256,6 +271,11 @@ export default function OnboardingForm({
       </div>
 
       {/* Actions */}
+      {getButtonHelperText() && (
+        <p className="mb-2 text-center text-xs text-gray-500">
+          {getButtonHelperText()}
+        </p>
+      )}
       <div className="flex gap-4 pt-4">
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="flex-1">
