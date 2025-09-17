@@ -10,17 +10,17 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { useAsyncRouter } from "@/hooks/use-async-router";
 import {
   BillingErrorCode,
-  claimFreeCredits,
+  claimFreeCreditsWithCoupon,
   CommonErrorCode,
 } from "@/lib/actions";
 import { fireGTMEvent } from "@/lib/gtm-events";
 
 interface FreeCreditsButtonProps {
-  promotionCode: string;
+  couponId: string;
 }
 
 export default function FreeCreditsButton({
-  promotionCode,
+  couponId,
 }: FreeCreditsButtonProps) {
   const [loading, setLoading] = useState(false);
   const router = useAsyncRouter();
@@ -29,7 +29,11 @@ export default function FreeCreditsButton({
 
   const handleFreeClaim = async () => {
     setLoading(true);
-    const result = await claimFreeCredits({ promotionCode });
+
+    const result = await claimFreeCreditsWithCoupon({
+      organizationId: null, // Welcome credits are always for personal accounts
+      couponId,
+    });
 
     if (result.ok) {
       fireGTMEvent.freeCreditStartCheckout();

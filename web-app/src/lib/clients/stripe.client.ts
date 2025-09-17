@@ -46,26 +46,38 @@ export const stripeClient = (() => {
 
   return {
     async createUserCustomer(user: User): Promise<Stripe.Customer> {
-      const customer = await stripe.customers.create({
-        name: user.name,
-        email: user.email,
-        metadata: { userId: user.id, type: "user" },
-      });
+      const customer = await stripe.customers.create(
+        {
+          name: user.name,
+          email: user.email,
+          metadata: { userId: user.id, type: "user" },
+        },
+        {
+          idempotencyKey: `${user.id}`,
+        },
+      );
       return customer;
     },
 
     async createOrganizationCustomer(
       organization: Organization,
     ): Promise<Stripe.Customer> {
-      const customer = await stripe.customers.create({
-        name: organization.name,
-        ...(organization.invoiceEmail && { email: organization.invoiceEmail }),
-        metadata: {
-          organizationId: organization.id,
-          organizationSlug: organization.slug,
-          type: "organization",
+      const customer = await stripe.customers.create(
+        {
+          name: organization.name,
+          ...(organization.invoiceEmail && {
+            email: organization.invoiceEmail,
+          }),
+          metadata: {
+            organizationId: organization.id,
+            organizationSlug: organization.slug,
+            type: "organization",
+          },
         },
-      });
+        {
+          idempotencyKey: `${organization.id}`,
+        },
+      );
       return customer;
     },
 
@@ -73,9 +85,15 @@ export const stripeClient = (() => {
       customerId: string,
       email: string | null,
     ): Promise<Stripe.Customer> {
-      return await stripe.customers.update(customerId, {
-        email: email ?? undefined,
-      });
+      return await stripe.customers.update(
+        customerId,
+        {
+          email: email ?? undefined,
+        },
+        {
+          idempotencyKey: `${customerId}-${email ?? "null"}`,
+        },
+      );
     },
 
     async deleteCustomer(customerId: string): Promise<void> {
@@ -105,12 +123,17 @@ export const stripeClient = (() => {
       maxRedemptions: number = 1,
       metadata?: Record<string, string>,
     ): Promise<Stripe.PromotionCode | null> {
-      const promotionCode = await stripe.promotionCodes.create({
-        customer: customerId,
-        coupon: couponId,
-        max_redemptions: maxRedemptions,
-        metadata,
-      });
+      const promotionCode = await stripe.promotionCodes.create(
+        {
+          customer: customerId,
+          coupon: couponId,
+          max_redemptions: maxRedemptions,
+          metadata,
+        },
+        {
+          idempotencyKey: `${customerId}-${couponId}`,
+        },
+      );
       return promotionCode;
     },
 
@@ -253,30 +276,35 @@ export const stripeClient = (() => {
           "Price amountPerCredit is 0 – cannot create checkout session for free product",
         );
       }
-      const session = await stripe.checkout.sessions.create({
-        mode: "payment",
-        line_items: [
-          {
-            price: price.id,
-            quantity: Math.floor(
-              Number(fiatTransaction.amount) / price.amountPerCredit,
-            ),
+      const session = await stripe.checkout.sessions.create(
+        {
+          mode: "payment",
+          line_items: [
+            {
+              price: price.id,
+              quantity: Math.floor(
+                Number(fiatTransaction.amount) / price.amountPerCredit,
+              ),
+            },
+          ],
+          ...(promotionCode
+            ? { discounts: [{ promotion_code: promotionCode }] }
+            : { allow_promotion_codes: false }),
+          client_reference_id: fiatTransaction.id,
+          customer: stripeCustomerId,
+          customer_update: {
+            address: "auto",
+            name: "auto",
           },
-        ],
-        ...(promotionCode
-          ? { discounts: [{ promotion_code: promotionCode }] }
-          : { allow_promotion_codes: false }),
-        client_reference_id: fiatTransaction.id,
-        customer: stripeCustomerId,
-        customer_update: {
-          address: "auto",
-          name: "auto",
+          billing_address_collection: "required",
+          tax_id_collection: { enabled: true },
+          success_url: `${origin ?? getEnvSecrets().VERCEL_URL}/billing?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${origin ?? getEnvSecrets().VERCEL_URL}/billing?cancel=true`,
         },
-        billing_address_collection: "required",
-        tax_id_collection: { enabled: true },
-        success_url: `${origin ?? getEnvSecrets().VERCEL_URL}/billing?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${origin ?? getEnvSecrets().VERCEL_URL}/billing?cancel=true`,
-      });
+        {
+          idempotencyKey: `${stripeCustomerId}-${fiatTransaction.id}`,
+        },
+      );
       return session;
     },
   };
