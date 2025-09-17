@@ -105,33 +105,34 @@ export const stripeService = (() => {
     },
 
     /**
-     * Retrieves a welcome promotion code for the current user if eligible.
+     * Checks if the current user is eligible to claim welcome credits.
      *
-     * This function checks if the user is eligible for a welcome promotion code based on the following criteria:
+     * This function checks if the user is eligible for welcome credits based on the following criteria:
      * - The environment variable STRIPE_WELCOME_COUPONS must contain at least one coupon ID.
      * - The user must be authenticated (session exists).
      * - The user must not be part of an active organization (promotion is for individual users only).
      * - The user must have a valid Stripe customer ID.
      * - The user must not have already redeemed any of the welcome coupons.
      *
-     * If all criteria are met, the function attempts to retrieve or create a promotion code for the last coupon ID in the list.
-     *
-     * @returns {Promise<Stripe.PromotionCode | null>} The promotion code if eligible, otherwise null.
+     * @returns {Promise<{ canClaim: boolean; couponId?: string }>} Object indicating if user can claim and which coupon ID.
      */
-    async getWelcomePromotionCode(): Promise<Stripe.PromotionCode | null> {
+    async canClaimWelcomeCredits(): Promise<{
+      canClaim: boolean;
+      couponId?: string;
+    }> {
       const couponIds = getEnvSecrets().STRIPE_WELCOME_COUPONS;
       if (couponIds.length === 0) {
-        return null;
+        return { canClaim: false };
       }
 
       const context = await getAuthContext();
       if (!context) {
-        return null;
+        return { canClaim: false };
       }
 
-      // If user is in an organization, we don't need to create a promotion code
+      // If user is in an organization, they can't claim welcome credits
       if (context.organizationId) {
-        return null;
+        return { canClaim: false };
       }
 
       const stripeCustomerId = await getStripeCustomerId(
@@ -139,9 +140,10 @@ export const stripeService = (() => {
         context.organizationId,
       );
       if (!stripeCustomerId) {
-        return null;
+        return { canClaim: false };
       }
 
+      // Check if any welcome coupon has been claimed
       for (const couponId of couponIds) {
         try {
           const promotionCode = await stripeClient.getPromotionCode(
@@ -152,22 +154,31 @@ export const stripeService = (() => {
             promotionCode?.times_redeemed &&
             promotionCode.times_redeemed >= 1
           ) {
-            return null;
+            return { canClaim: false }; // Already claimed
           }
         } catch {
-          return null;
+          return { canClaim: false };
         }
       }
 
+      // Return the last coupon ID they can claim
       const lastCouponId = couponIds.at(-1);
-      if (!lastCouponId) {
-        return null;
-      }
-
-      return await this.getPromotionCode(lastCouponId, 1);
+      return {
+        canClaim: true,
+        couponId: lastCouponId,
+      };
     },
 
-    async getPromotionCode(
+    /**
+     * Claims a coupon for the current user by creating/retrieving a promotion code.
+     * This function handles the actual claiming process and prevents duplicate promotion codes.
+     *
+     * @param couponId - The ID of the coupon to claim
+     * @param maxRedemptions - Maximum number of times this promotion code can be redeemed (default: 1)
+     * @param metadata - Optional metadata to attach to the promotion code
+     * @returns {Promise<Stripe.PromotionCode | null>} The promotion code if successfully claimed, otherwise null.
+     */
+    async claimCoupon(
       couponId: string,
       maxRedemptions: number = 1,
       metadata?: Record<string, string>,
@@ -177,26 +188,37 @@ export const stripeService = (() => {
         return null;
       }
 
-      const stripeCustomerId = await getStripeCustomerId(
+      let stripeCustomerId = await getStripeCustomerId(
         context.userId,
         context.organizationId,
       );
+
+      // Create Stripe customer if doesn't exist
       if (!stripeCustomerId) {
-        return null;
+        const customer = context.organizationId
+          ? await this.createStripeCustomerForOrganization(
+              context.organizationId,
+            )
+          : await this.createStripeCustomerForUser(context.userId);
+
+        if (!customer) {
+          return null;
+        }
+        stripeCustomerId = customer.id;
       }
 
       try {
-        // Check for existing promotion codes
-        let promotionCode = await stripeClient.getPromotionCode(
+        // Check if promotion code already exists (idempotency)
+        const existingPromotionCode = await stripeClient.getPromotionCode(
           stripeCustomerId,
           couponId,
         );
-        if (promotionCode) {
-          return promotionCode;
+        if (existingPromotionCode) {
+          return existingPromotionCode; // Return existing, don't create duplicate
         }
 
         // Create new promotion code
-        promotionCode = await stripeClient.createPromotionCode(
+        const promotionCode = await stripeClient.createPromotionCode(
           stripeCustomerId,
           couponId,
           maxRedemptions,
@@ -205,8 +227,17 @@ export const stripeService = (() => {
 
         return promotionCode;
       } catch (error) {
-        console.error("Error in getPromotionCode:", error);
-        return null;
+        console.error("Error in claimCoupon:", error);
+
+        // If creation failed due to race condition, try to fetch existing one
+        try {
+          return await stripeClient.getPromotionCode(
+            stripeCustomerId,
+            couponId,
+          );
+        } catch {
+          return null;
+        }
       }
     },
 

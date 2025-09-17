@@ -110,14 +110,14 @@ export const purchaseCredits = withAuthContext<
   }
 });
 
-interface GetFreeCreditsWithCouponParameters extends AuthenticatedRequest {
+interface ClaimFreeCreditsWithCouponParameters extends AuthenticatedRequest {
   organizationId: string | null;
-  priceId: string;
+  priceId?: string;
   couponId: string;
 }
 
-export const getFreeCreditsWithCoupon = withAuthContext<
-  GetFreeCreditsWithCouponParameters,
+export const claimFreeCreditsWithCoupon = withAuthContext<
+  ClaimFreeCreditsWithCouponParameters,
   Result<{ url: string }, ActionError>
 >(async ({ organizationId, priceId, couponId, authContext }) => {
   const { userId } = authContext;
@@ -134,12 +134,16 @@ export const getFreeCreditsWithCoupon = withAuthContext<
   }
 
   try {
-    // Fetch price server-side
-    const price = await stripeClient.getPriceById(priceId);
+    // Fetch price server-side (default to product price if not provided)
+    const price = priceId
+      ? await stripeClient.getPriceById(priceId)
+      : await stripeClient.getPriceByProductId(
+          getEnvSecrets().STRIPE_PRODUCT_ID,
+        );
     const credits = await stripeService.getCreditsForCoupon(couponId, price);
 
-    // Validate and get the promotion code for this user and couponId
-    const promo = await stripeService.getPromotionCode(couponId, 1);
+    // Claim the coupon for this user (creates/gets promotion code)
+    const promo = await stripeService.claimCoupon(couponId, 1);
     if (!promo || !promo.active) {
       return Err({
         message: "Invalid coupon",
