@@ -1,13 +1,9 @@
 "use client";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
 
 import { KanjiLogo, ThemedLogo } from "@/components/masumi-logos";
 
 export default function AuthBackground() {
-  const pathname = usePathname();
-  if (pathname.startsWith("/onboarding")) return null;
-
   return (
     <div className="hidden h-full w-1/2 lg:block">
       <div className="relative h-full w-full">

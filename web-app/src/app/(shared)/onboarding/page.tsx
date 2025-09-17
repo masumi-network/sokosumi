@@ -17,20 +17,16 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function OnboardingPage() {
   const session = await getSession();
-  const t = await getTranslations("Onboarding.Metadata");
 
   if (!session) {
     redirect("/login");
   }
 
-  // Check if user has already completed onboarding
-  console.log(
-    "session.user.onboardingCompleted",
-    session.user.onboardingCompleted,
-  );
   if (session.user.onboardingCompleted) {
     redirect("/agents");
   }
+
+  const t = await getTranslations("Onboarding.Metadata");
 
   return (
     <div className="flex flex-col items-center justify-center">

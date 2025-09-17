@@ -28,9 +28,7 @@ export default async function AuthLayout({
 }>) {
   const session = await getSession();
   if (session) {
-    if (session.user.onboardingCompleted) {
-      redirect("/agents");
-    }
+    redirect("/agents");
   }
 
   return (
