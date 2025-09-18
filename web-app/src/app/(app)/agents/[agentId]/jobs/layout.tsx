@@ -70,7 +70,7 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
       agentsWithPrice={[agentWithCreditsPrice]}
       averageExecutionDuration={averageExecutionDuration}
     >
-      <div className="flex flex-col lg:h-[calc(100svh-96px)]">
+      <div className="flex w-full flex-col lg:h-[calc(100svh-96px)]">
         <Header
           agent={agentWithCreditsPrice}
           executedJobsCount={executedJobsCount}

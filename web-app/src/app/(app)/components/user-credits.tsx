@@ -50,12 +50,12 @@ export default async function UserCredits({ session }: UserCreditsProps) {
     creditLabel = t("userBalance", { credits: credits });
   }
 
-  const promotionCode = await stripeService.getWelcomePromotionCode();
+  const welcomeCredits = await stripeService.canClaimWelcomeCredits();
 
   return (
     <div className="flex flex-1 flex-col-reverse gap-4 md:flex-initial md:flex-row md:items-center">
-      {promotionCode?.active ? (
-        <FreeCreditsButton promotionCode={promotionCode.id} />
+      {welcomeCredits.canClaim && welcomeCredits.couponId ? (
+        <FreeCreditsButton couponId={welcomeCredits.couponId} />
       ) : (
         credits <= 50.0 && <BuyCreditsButton label={t("buy")} path="/billing" />
       )}
