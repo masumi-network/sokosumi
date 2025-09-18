@@ -182,9 +182,7 @@ export const userService = (() => {
     } else {
       try {
         const hasPendingInvitation =
-          await invitationRepository.hasValidPendingInvitationByEmail(
-            user.email,
-          );
+          await invitationRepository.hasPendingInvitationByEmail(user.email);
         shouldComplete = hasPendingInvitation;
       } catch (error) {
         console.error(
