@@ -102,15 +102,6 @@ export async function skipOnboarding(): Promise<
   Result<{ redirectUrl: string }, ActionError>
 > {
   try {
-    const t = await getTranslations("Onboarding.Actions.Errors");
-    const session = await getSession();
-    if (!session) {
-      return Err({
-        code: CommonErrorCode.UNAUTHENTICATED,
-        message: t("notAuthenticated"),
-      });
-    }
-
     // Mark onboarding as completed without creating anything
     await userService.markOnboardingCompleteForMe();
 
