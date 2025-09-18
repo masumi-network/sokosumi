@@ -397,10 +397,6 @@ export const stripeService = (() => {
       personalCoupon?: Stripe.Coupon;
       orgCoupon?: Stripe.Coupon;
     }> {
-      const amountPerReferral = 1000; // $10 in cents
-      const totalAmount = amountPerReferral * referralCount;
-      const _cents = convertCreditsToCents(totalAmount / 100);
-
       const user = await userRepository.getUserById(userId);
       if (!user || !user.stripeCustomerId) {
         throw new Error("User or Stripe customer not found");
