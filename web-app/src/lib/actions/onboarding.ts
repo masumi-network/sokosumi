@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { getTranslations } from "next-intl/server";
 
 import { auth } from "@/lib/auth/auth";
 import { authClient } from "@/lib/auth/auth.client";
@@ -18,11 +19,12 @@ export async function completeOnboarding(
   invitedEmails: string[],
 ): Promise<Result<{ redirectUrl: string }, ActionError>> {
   try {
+    const t = await getTranslations("Onboarding.Actions.Errors");
     const session = await getSession();
     if (!session) {
       return Err({
         code: CommonErrorCode.UNAUTHENTICATED,
-        message: "Not authenticated",
+        message: t("notAuthenticated"),
       });
     }
 
@@ -49,7 +51,9 @@ export async function completeOnboarding(
       if (existingUserEmails.length > 0) {
         return Err({
           code: CommonErrorCode.BAD_INPUT,
-          message: `Already registered users: ${existingUserEmails.join(", ")}`,
+          message: t("alreadyRegisteredUsers", {
+            emails: existingUserEmails.join(", "),
+          }),
         });
       }
     }
@@ -58,8 +62,7 @@ export async function completeOnboarding(
     if (hasOrgName !== hasEmails) {
       return Err({
         code: CommonErrorCode.BAD_INPUT,
-        message:
-          "Organization name and colleague emails must be provided together",
+        message: t("orgAndEmailsRequired"),
       });
     }
 
@@ -69,7 +72,7 @@ export async function completeOnboarding(
         name: organizationName,
       });
       if (!slugResult.ok) {
-        throw new Error("Failed to create organization slug");
+        throw new Error(t("failedToCreateSlug"));
       }
 
       const slug = slugResult.data;
@@ -85,7 +88,7 @@ export async function completeOnboarding(
         },
       });
 
-      if (!organization) throw new Error("Failed to create organization");
+      if (!organization) throw new Error(t("failedToCreateOrganization"));
 
       // 2) Create and apply referral credits (Stripe) based on invite count
       await stripeService.createAndApplyReferralCredits(
@@ -132,12 +135,10 @@ export async function completeOnboarding(
     }
   } catch (error) {
     console.error("Error completing onboarding:", error);
+    const t = await getTranslations("Onboarding.Actions.Errors");
     return Err({
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-      message:
-        error instanceof Error
-          ? error.message
-          : "Failed to complete onboarding",
+      message: error instanceof Error ? error.message : t("failedToComplete"),
     });
   }
 }
@@ -146,11 +147,12 @@ export async function skipOnboarding(): Promise<
   Result<{ redirectUrl: string }, ActionError>
 > {
   try {
+    const t = await getTranslations("Onboarding.Actions.Errors");
     const session = await getSession();
     if (!session) {
       return Err({
         code: CommonErrorCode.UNAUTHENTICATED,
-        message: "Not authenticated",
+        message: t("notAuthenticated"),
       });
     }
 
@@ -164,10 +166,10 @@ export async function skipOnboarding(): Promise<
     return Ok({ redirectUrl: "/agents" });
   } catch (error) {
     console.error("Error skipping onboarding:", error);
+    const t = await getTranslations("Onboarding.Actions.Errors");
     return Err({
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-      message:
-        error instanceof Error ? error.message : "Failed to skip onboarding",
+      message: error instanceof Error ? error.message : t("failedToSkip"),
     });
   }
 }

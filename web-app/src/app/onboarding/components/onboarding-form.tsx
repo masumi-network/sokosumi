@@ -49,32 +49,38 @@ const deduplicateEmails = (emails: string[]): string[] => {
 };
 
 // Simplified schema with focused validation
-const onboardingFormSchema = z
-  .object({
-    organizationName: z.string().trim().min(1, "Organization name is required"),
-    emails: z.array(z.union([z.literal(""), z.email("Invalid email address")])),
-  })
-  .superRefine((data, ctx) => {
-    const emails = data.emails.map((email) => email.trim().toLowerCase());
-    const seenEmails = new Set<string>();
+const getOnboardingFormSchema = (t: (key: string) => string) =>
+  z
+    .object({
+      organizationName: z
+        .string()
+        .trim()
+        .min(1, t("Validation.organizationNameRequired")),
+      emails: z.array(
+        z.union([z.literal(""), z.email(t("Validation.invalidEmailAddress"))]),
+      ),
+    })
+    .superRefine((data, ctx) => {
+      const emails = data.emails.map((email) => email.trim().toLowerCase());
+      const seenEmails = new Set<string>();
 
-    emails.forEach((email, index) => {
-      if (email) {
-        // Check for duplicates
-        if (seenEmails.has(email)) {
-          ctx.addIssue({
-            code: "custom",
-            message: "Email already added",
-            path: ["emails", index],
-          });
-        } else {
-          seenEmails.add(email);
+      emails.forEach((email, index) => {
+        if (email) {
+          // Check for duplicates
+          if (seenEmails.has(email)) {
+            ctx.addIssue({
+              code: "custom",
+              message: t("Validation.emailAlreadyAdded"),
+              path: ["emails", index],
+            });
+          } else {
+            seenEmails.add(email);
+          }
         }
-      }
+      });
     });
-  });
 
-type OnboardingFormData = z.infer<typeof onboardingFormSchema>;
+type OnboardingFormData = z.infer<ReturnType<typeof getOnboardingFormSchema>>;
 
 export default function OnboardingForm({
   userId: _userId,
@@ -83,6 +89,8 @@ export default function OnboardingForm({
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSkipping, setIsSkipping] = useState(false);
+
+  const onboardingFormSchema = getOnboardingFormSchema(t);
 
   const form = useForm<OnboardingFormData>({
     resolver: zodResolver(onboardingFormSchema),
@@ -159,14 +167,14 @@ export default function OnboardingForm({
 
       if (result.ok) {
         toast.success(
-          `Organization created and ${uniqueEmails.length} invitation(s) sent.`,
+          t("Toast.organizationCreated", { count: uniqueEmails.length }),
         );
         router.push(result.data.redirectUrl ?? "/agents");
       } else {
-        toast.error(result.error.message ?? "Failed to complete onboarding");
+        toast.error(result.error.message ?? t("Toast.failedToComplete"));
       }
     } catch (_error) {
-      toast.error("An unexpected error occurred");
+      toast.error(t("Toast.unexpectedError"));
     } finally {
       setIsSubmitting(false);
     }
@@ -179,10 +187,10 @@ export default function OnboardingForm({
       if (result.ok) {
         router.push(result.data.redirectUrl ?? "/agents");
       } else {
-        toast.error(result.error.message ?? "Failed to skip onboarding");
+        toast.error(result.error.message ?? t("Toast.failedToSkip"));
       }
     } catch (_error) {
-      toast.error("An unexpected error occurred");
+      toast.error(t("Toast.unexpectedError"));
     } finally {
       setIsSkipping(false);
     }
