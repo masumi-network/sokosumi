@@ -13,6 +13,7 @@ import { NuqsAdapter } from "nuqs/adapters/next/app";
 
 import { GlobalModalsContextProvider } from "@/components/modals/global-modals-context";
 import { ApplePwaHead } from "@/components/pwa/apple-pwa-head";
+import { PlainChat } from "@/components/scripts/plain-chat";
 import { Toaster } from "@/components/ui/sonner";
 import { UsersnapProvider } from "@/components/usersnap/usersnap-provider";
 import { getEnvPublicConfig } from "@/config/env.public";
@@ -59,9 +60,15 @@ export default async function RootLayout({
       <head>
         {ucDataSettingsId && (
           <>
-            <Script src="/js/before-gtm.js" strategy="beforeInteractive" />
             <Script
-              src="https://web.cmp.usercentrics.eu/modules/autoblocker.js"
+              id="_before-gtm"
+              dangerouslySetInnerHTML={{
+                __html: `
+                (function(w,l){
+                  w[l]=w[l]||[];
+                  w[l].push('consent','default',{'ad_personalization':'denied','ad_storage':'denied','ad_user_data':'denied','analytics_storage':'denied','wait_for_update':2000});
+                })(window,'dataLayer');`,
+              }}
               strategy="beforeInteractive"
             />
             <Script
@@ -78,7 +85,7 @@ export default async function RootLayout({
       </head>
       {gtmId && <GoogleTagManager gtmId={gtmId} />}
       {gaId && <GoogleAnalytics gaId={gaId} />}
-      <Script src="/js/plain.js" strategy="afterInteractive" />
+      <PlainChat />
       <body className="bg-background min-h-svh max-w-dvw antialiased">
         <UsersnapProvider usersnapSpaceApiKey={usersnapSpaceApiKey}>
           <NuqsAdapter>
