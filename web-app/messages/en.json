@@ -891,6 +891,12 @@
       "CoWorkers": {
         "placeholder": "Co-worker's email..."
       },
+      "Validation": {
+        "fixErrors": "Fix the errors above",
+        "enterBoth": "Enter an organization name and add at least one valid email",
+        "enterOrgName": "Enter an organization name",
+        "addValidEmail": "Add at least one valid email"
+      },
       "skip": "Skip"
     }
   },

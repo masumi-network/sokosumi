@@ -131,13 +131,13 @@ export default function OnboardingForm({
   const getButtonHelperText = (): string | null => {
     if (!isContinueDisabled || isSubmitting || isSkipping) return null;
 
-    if (hasFormErrors) return "Fix the errors above";
+    if (hasFormErrors) return t("Validation.fixErrors");
 
     if (!hasOrgName && !hasValidEmails) {
-      return "Enter an organization name and add at least one valid email";
+      return t("Validation.enterBoth");
     }
-    if (!hasOrgName) return "Enter an organization name";
-    if (!hasValidEmails) return "Add at least one valid email";
+    if (!hasOrgName) return t("Validation.enterOrgName");
+    if (!hasValidEmails) return t("Validation.addValidEmail");
 
     return null;
   };
