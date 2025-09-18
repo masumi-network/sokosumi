@@ -179,19 +179,17 @@ export const organizationService = (() => {
   ): Promise<void> {
     const headersList = await headers();
 
-    await Promise.all(
-      emails.map((email) =>
-        auth.api.createInvitation({
-          body: {
-            email,
-            role,
-            organizationId,
-            resend: true,
-          },
-          headers: headersList,
-        }),
-      ),
-    );
+    for (const email of emails) {
+      await auth.api.createInvitation({
+        body: {
+          email,
+          role,
+          organizationId,
+          resend: true,
+        },
+        headers: headersList,
+      });
+    }
   }
 
   return {
