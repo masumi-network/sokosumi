@@ -364,6 +364,7 @@ export const stripeClient = (() => {
       // 2) Create & finalize zero-total invoice with the coupon discount
       const invoice = await stripe.invoices.create({
         customer: customerId,
+        currency: price.currency,
         pending_invoice_items_behavior: "include",
         collection_method: "charge_automatically",
         auto_advance: true,
