@@ -154,17 +154,18 @@ export const agentService = (() => {
    * Adds the difference to the total fee.
    * @param totalCents - The total cents to round up.
    * @param totalFee - The total fee.
-   * @returns The rounded total cents and the total fee which also includes difference.
+   * @returns The rounded total cents with fee and the total fee which also includes difference.
    */
   const roundUpTotalCents = (
     totalCents: bigint,
     totalFee: bigint,
   ): [bigint, bigint] => {
-    const roundedTotalCents = convertCreditsToCents(
-      Math.ceil(convertCentsToCredits(totalCents)),
+    const totalCentsWithFee = totalCents + totalFee;
+    const roundedTotalCentsWithFee = convertCreditsToCents(
+      Math.ceil(convertCentsToCredits(totalCentsWithFee)),
     );
-    const diff = roundedTotalCents - totalCents;
-    return [roundedTotalCents, totalFee + diff];
+    const diff = roundedTotalCentsWithFee - totalCentsWithFee;
+    return [roundedTotalCentsWithFee, totalFee + diff];
   };
 
   // Public API
@@ -365,11 +366,17 @@ export const agentService = (() => {
       if (totalFee < minFeeCents) {
         totalFee = minFeeCents;
       }
-      [totalCents, totalFee] = roundUpTotalCents(totalCents, totalFee);
+      const [totalCentsWithFee, updatedTotalFee] = roundUpTotalCents(
+        totalCents,
+        totalFee,
+      );
 
       return {
         ...agent,
-        creditsPrice: { cents: totalCents + totalFee, includedFee: totalFee },
+        creditsPrice: {
+          cents: totalCentsWithFee,
+          includedFee: updatedTotalFee,
+        },
       };
     },
   };
