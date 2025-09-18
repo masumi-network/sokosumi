@@ -139,7 +139,7 @@ export const agentService = (() => {
             isAgentAvailable(agent, userOrganizationIds, creditCosts),
           );
       }
-      const list = await agentListRepository.createAgentListForUserId(
+      const list = await agentListRepository.upsertAgentListForUserId(
         context.userId,
         type,
         tx,
