@@ -315,7 +315,6 @@ export const stripeClient = (() => {
       metadata?: Record<string, string>,
       referralCount: number = 1,
     ): Promise<Stripe.Invoice> {
-      // const customer = await stripe.customers.retrieve(customerId);
       const productId = getEnvSecrets().STRIPE_PRODUCT_ID;
       const price = await stripeClient.getPriceByProductId(productId);
 
@@ -349,6 +348,7 @@ export const stripeClient = (() => {
           stripe.invoiceItems.create({
             customer: customerId,
             pricing: { price: price.id },
+            currency: price.currency,
             quantity,
             description: `Referral credit redemption (${quantity} credits) - ${index + 1} of ${itemsToCreate}`,
             metadata: {
