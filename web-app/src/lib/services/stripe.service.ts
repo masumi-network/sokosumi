@@ -375,20 +375,6 @@ export const stripeService = (() => {
       return coupon;
     },
 
-    async applyReferralCredits(
-      customerId: string,
-      couponId: string,
-      metadata?: Record<string, string>,
-      referralCount?: number,
-    ): Promise<Stripe.Invoice> {
-      return await stripeClient.applyReferralCreditsToCustomer(
-        customerId,
-        couponId,
-        metadata,
-        referralCount,
-      );
-    },
-
     async createAndApplyReferralCredits(
       userId: string,
       organizationId: string | null,
@@ -406,7 +392,7 @@ export const stripeService = (() => {
         getEnvSecrets().STRIPE_ONBOARD_PERSONAL_COUPON,
       );
 
-      const personalInvoice = await this.applyReferralCredits(
+      const personalInvoice = await stripeClient.applyReferralCreditsToCustomer(
         user.stripeCustomerId,
         personalCoupon.id,
         {
@@ -435,7 +421,7 @@ export const stripeService = (() => {
             getEnvSecrets().STRIPE_ONBOARD_ORGANIZATION_COUPON,
           );
 
-          const orgInvoice = await this.applyReferralCredits(
+          const orgInvoice = await stripeClient.applyReferralCreditsToCustomer(
             organization.stripeCustomerId,
             orgCoupon.id,
             {
