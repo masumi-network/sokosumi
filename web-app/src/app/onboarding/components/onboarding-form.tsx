@@ -51,15 +51,16 @@ const deduplicateEmails = (emails: string[]): string[] => {
 // Simplified schema with focused validation
 const onboardingFormSchema = z
   .object({
-    organizationName: z.string().trim(),
-    emails: z.array(z.string().trim()),
+    organizationName: z.string().trim().min(1, "Organization name is required"),
+    emails: z.array(z.union([z.literal(""), z.email("Invalid email address")])),
   })
   .superRefine((data, ctx) => {
     const emails = data.emails.map((email) => email.trim().toLowerCase());
     const seenEmails = new Set<string>();
 
     emails.forEach((email, index) => {
-      if (email && isValidEmail(email)) {
+      if (email) {
+        // Check for duplicates
         if (seenEmails.has(email)) {
           ctx.addIssue({
             code: "custom",
