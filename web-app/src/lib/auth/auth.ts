@@ -290,6 +290,8 @@ export const auth = betterAuth({
         return user.emailVerified;
       },
       organizationLimit: getEnvSecrets().BETTER_AUTH_ORG_LIMIT,
+      invitationExpiresIn:
+        getEnvSecrets().BETTER_AUTH_ORG_INVITATION_EXPIRES_IN,
     }),
     localization({
       defaultLocale: "default",
