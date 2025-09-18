@@ -90,7 +90,8 @@ export default function OnboardingForm({
       organizationName: "",
       emails: [], // Will be populated by useFieldArray
     },
-    mode: "onChange",
+    mode: "onBlur",
+    reValidateMode: "onChange",
   });
 
   const {
