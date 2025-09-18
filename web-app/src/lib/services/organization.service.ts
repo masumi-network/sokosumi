@@ -154,7 +154,7 @@ export const organizationService = (() => {
     const slug = await generateOrganizationSlugFromName(name);
     const headersList = await headers();
 
-    const organization = await auth.api.createOrganization({
+    return await auth.api.createOrganization({
       body: {
         name,
         slug,
@@ -162,8 +162,6 @@ export const organizationService = (() => {
       },
       headers: headersList,
     });
-
-    return organization;
   }
 
   /**
