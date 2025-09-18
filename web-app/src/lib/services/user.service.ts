@@ -1,6 +1,8 @@
 import "server-only";
 
-import { Session } from "@/lib/auth/auth";
+import { headers } from "next/headers";
+
+import { auth, Session } from "@/lib/auth/auth";
 import { getAuthContext } from "@/lib/auth/utils";
 import {
   InvitationWithRelations,
@@ -201,7 +203,10 @@ export const userService = (() => {
       }
 
       if (shouldComplete) {
-        await userRepository.updateUserOnboardingCompleted(user.id, true, tx);
+        await auth.api.updateUser({
+          headers: await headers(),
+          body: { onboardingCompleted: true },
+        });
         return false;
       }
 
