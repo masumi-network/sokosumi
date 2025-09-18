@@ -183,9 +183,11 @@ export const userService = (() => {
       shouldComplete = true;
     } else {
       try {
-        const hasPending =
-          await invitationRepository.hasPendingInvitationByEmail(user.email);
-        shouldComplete = hasPending;
+        const hasPendingInvitation =
+          await invitationRepository.hasValidPendingInvitationByEmail(
+            user.email,
+          );
+        shouldComplete = hasPendingInvitation;
       } catch (error) {
         console.error(
           "Failed to fetch pending invitations for showOnboarding",

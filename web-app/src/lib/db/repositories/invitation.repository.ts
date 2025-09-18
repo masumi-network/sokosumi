@@ -55,8 +55,12 @@ export const invitationRepository = {
   },
   /**
    * Checks if there is at least one valid (not expired) pending invitation for a given email.
+   *
+   * @param email - The email address to search invitations for.
+   * @param tx - Optional Prisma transaction client.
+   * @returns Promise resolving to true if there is at least one valid (not expired) pending invitation for the given email, false otherwise.
    */
-  async hasPendingInvitationByEmail(
+  async hasValidPendingInvitationByEmail(
     email: string,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<boolean> {
@@ -64,6 +68,9 @@ export const invitationRepository = {
       where: {
         email,
         status: InvitationStatus.PENDING,
+        expiresAt: {
+          gt: new Date(),
+        },
       },
       take: 1,
     });
