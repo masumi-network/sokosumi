@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useLayoutEffect, useState } from "react";
 import { useFieldArray, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -96,7 +96,7 @@ export default function OnboardingForm({
     resolver: zodResolver(onboardingFormSchema),
     defaultValues: {
       organizationName: "",
-      emails: [], // Will be populated by useFieldArray
+      emails: [],
     },
     mode: "onBlur",
     reValidateMode: "onChange",
@@ -112,14 +112,13 @@ export default function OnboardingForm({
     name: "emails",
   });
 
-  // Initialize with 4 empty email fields on mount
-  useEffect(() => {
-    // Only initialize if no fields exist yet
+  // Initialize with 4 empty email fields using useLayoutEffect for faster sync
+  useLayoutEffect(() => {
     if (emailFields.length === 0) {
       replace(["", "", "", ""]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty dependency - only run once on mount
+  }, []); // Only run once on mount
 
   // Watch form values for validation state
   const watchedData = form.watch();
