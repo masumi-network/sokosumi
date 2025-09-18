@@ -324,6 +324,15 @@ export const agentService = (() => {
       if (!amounts) {
         throw new Error("Agent has invalid or unknown pricing");
       }
+
+      // if amounts is empty (in case of free agent)
+      if (amounts.length === 0) {
+        return {
+          ...agent,
+          creditsPrice: { cents: BigInt(0), includedFee: BigInt(0) },
+        };
+      }
+
       const feePercentagePoints =
         getEnvPublicConfig().NEXT_PUBLIC_FEE_PERCENTAGE;
       if (feePercentagePoints < 0) {
