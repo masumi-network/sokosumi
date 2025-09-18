@@ -207,6 +207,43 @@ export const userService = (() => {
     return true;
   }
 
+  /**
+   * Checks which of the provided emails already have user accounts.
+   *
+   * @param emails - Array of email addresses to check.
+   * @returns Promise resolving to array of emails that already have user accounts.
+   */
+  async function checkExistingUsers(emails: string[]): Promise<string[]> {
+    const normalizedEmails = Array.from(
+      new Set(
+        emails.map((e) => e.trim().toLowerCase()).filter((e) => e.length > 0),
+      ),
+    );
+
+    const users = await Promise.all(
+      normalizedEmails.map((email) => userRepository.getUserByEmail(email)),
+    );
+
+    return users
+      .filter((u): u is NonNullable<typeof u> => !!u)
+      .map((u) => u.email.toLowerCase());
+  }
+
+  /**
+   * Marks the onboarding as completed for a specific user.
+   *
+   * @param userId - The ID of the user to update.
+   * @param cookie - Session cookie for authentication.
+   * @returns Promise that resolves when the update is complete.
+   */
+  async function markOnboardingCompleteForMe(): Promise<void> {
+    const context = await getAuthContext();
+    if (!context) {
+      return;
+    }
+    await userRepository.updateUserOnboardingCompleted(context.userId, true);
+  }
+
   return {
     getMe,
     getActiveOrganizationId,
@@ -216,5 +253,7 @@ export const userService = (() => {
     getMyMemberInOrganization,
     getMyValidPendingInvitations,
     showOnboarding,
+    checkExistingUsers,
+    markOnboardingCompleteForMe,
   };
 })();
