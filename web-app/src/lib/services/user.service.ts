@@ -181,7 +181,7 @@ export const userService = (() => {
     let shouldComplete = false;
     if (membershipOrgIds.length > 0) {
       shouldComplete = true;
-    } else if (user.email) {
+    } else {
       try {
         const hasPending =
           await invitationRepository.hasPendingInvitationByEmail(user.email);
