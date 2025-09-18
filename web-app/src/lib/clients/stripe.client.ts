@@ -344,7 +344,7 @@ export const stripeClient = (() => {
       // 1) Add invoice items representing the free credits
       const itemsToCreate = Math.min(referralCount!, MAX_REFERRAL_COUNT);
       await Promise.all(
-        Array.from<number>({ length: itemsToCreate }).map((index: number) =>
+        Array.from({ length: itemsToCreate }).map((_, index) =>
           stripe.invoiceItems.create({
             customer: customerId,
             pricing: { price: price.id },
