@@ -59,6 +59,15 @@ const defaultOptions: MarkdownToJSX.Options = {
         </video>
       ),
     },
+    table: {
+      component: ({ children, ...props }) => (
+        <div className="overflow-x-auto">
+          <table {...props} className="w-full min-w-full">
+            {children}
+          </table>
+        </div>
+      ),
+    },
   },
 };
 
