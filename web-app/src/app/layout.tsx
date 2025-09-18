@@ -61,10 +61,6 @@ export default async function RootLayout({
           <>
             <Script src="/js/before-gtm.js" strategy="beforeInteractive" />
             <Script
-              src="https://web.cmp.usercentrics.eu/modules/autoblocker.js"
-              strategy="beforeInteractive"
-            />
-            <Script
               id="usercentrics-cmp"
               src="https://web.cmp.usercentrics.eu/ui/loader.js"
               {...(draftUserCentrics && { "data-draft": "true" })}
