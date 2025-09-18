@@ -140,15 +140,18 @@ export const userService = (() => {
     if (!context) {
       return [];
     }
-    const user = await userRepository.getUserById(context.userId);
-    if (!user?.email) {
-      console.error("User email not found");
-      return [];
-    }
+    return await prisma.$transaction(async (tx) => {
+      const user = await userRepository.getUserById(context.userId, tx);
+      if (!user?.email) {
+        console.error("User email not found");
+        return [];
+      }
 
-    return await invitationRepository.getValidPendingInvitationsByEmail(
-      user.email,
-    );
+      return await invitationRepository.getValidPendingInvitationsByEmail(
+        user.email,
+        tx,
+      );
+    });
   }
 
   /**
