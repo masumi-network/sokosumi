@@ -678,8 +678,8 @@ model JobShare {
   updatedAt DateTime @updatedAt
 
   // Who created this share
-  creatorId String
-  creator   User   @relation("JobShareCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation("JobShareCreator", fields: [userId], references: [id], onDelete: Cascade)
 
   // Job which is being shared
   jobId String

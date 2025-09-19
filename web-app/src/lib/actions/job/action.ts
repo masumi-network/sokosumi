@@ -384,8 +384,8 @@ export const updateAllowSearchIndexing = withAuthContext<
 >(async ({ jobShareId, allowSearchIndexing, authContext }) => {
   const { userId } = authContext;
   try {
-    const share = await jobShareRepository.getJobShareById(jobShareId);
-    if (!share) {
+    const jobShare = await jobShareRepository.getJobShareById(jobShareId);
+    if (!jobShare) {
       return Err({
         message: "Job Share not found",
         code: JobErrorCode.JOB_SHARE_NOT_FOUND,
@@ -393,7 +393,7 @@ export const updateAllowSearchIndexing = withAuthContext<
     }
 
     // must be job share creator to remove share
-    if (userId !== share.creatorId) {
+    if (userId !== jobShare.userId) {
       return Err({
         message: "Unauthorized",
         code: CommonErrorCode.UNAUTHORIZED,

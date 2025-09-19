@@ -29,7 +29,7 @@ export const jobShareRepository = {
 
   async createJobShare(
     jobId: string,
-    creatorId: string,
+    userId: string,
     recipientId: string | null,
     recipientOrganizationId: string | null,
     shareAccessType: ShareAccessType,
@@ -38,7 +38,7 @@ export const jobShareRepository = {
     return await tx.jobShare.create({
       data: {
         job: { connect: { id: jobId } },
-        creator: { connect: { id: creatorId } },
+        user: { connect: { id: userId } },
         ...(recipientId && { recipient: { connect: { id: recipientId } } }),
         ...(recipientOrganizationId && {
           recipientOrganization: { connect: { id: recipientOrganizationId } },
