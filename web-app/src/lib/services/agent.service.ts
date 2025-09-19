@@ -9,6 +9,7 @@ import {
   AgentWithJobs,
   AgentWithOrganizations,
   AgentWithRelations,
+  convertCentsToCredits,
   convertCreditsToCents,
 } from "@/lib/db";
 import {
@@ -146,6 +147,25 @@ export const agentService = (() => {
       );
       return list.agents.map(mapAgentWithIsNew);
     });
+  };
+
+  /**
+   * This function rounds up the total cents to show credits as integer.
+   * Adds the difference to the total fee.
+   * @param totalCents - The total cents to round up.
+   * @param totalFee - The total fee.
+   * @returns The rounded total cents with fee and the total fee which also includes difference.
+   */
+  const roundUpTotalCents = (
+    totalCents: bigint,
+    totalFee: bigint,
+  ): [bigint, bigint] => {
+    const totalCentsWithFee = totalCents + totalFee;
+    const roundedTotalCentsWithFee = convertCreditsToCents(
+      Math.ceil(convertCentsToCredits(totalCentsWithFee)),
+    );
+    const diff = roundedTotalCentsWithFee - totalCentsWithFee;
+    return [roundedTotalCentsWithFee, totalFee + diff];
   };
 
   // Public API
@@ -346,9 +366,17 @@ export const agentService = (() => {
       if (totalFee < minFeeCents) {
         totalFee = minFeeCents;
       }
+      const [totalCentsWithFee, updatedTotalFee] = roundUpTotalCents(
+        totalCents,
+        totalFee,
+      );
+
       return {
         ...agent,
-        creditsPrice: { cents: totalCents + totalFee, includedFee: totalFee },
+        creditsPrice: {
+          cents: totalCentsWithFee,
+          includedFee: updatedTotalFee,
+        },
       };
     },
   };
