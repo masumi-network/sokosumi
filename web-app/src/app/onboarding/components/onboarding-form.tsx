@@ -20,6 +20,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { completeOnboarding, skipOnboarding } from "@/lib/actions/onboarding";
+import { onboardingFormSchema, OnboardingFormSchemaType } from "@/lib/schemas";
 
 interface OnboardingFormProps {
   userId: string;
@@ -41,40 +42,6 @@ const normalizeEmails = (emails: string[]): string[] => {
 const deduplicateEmails = (emails: string[]): string[] =>
   Array.from(new Set(emails));
 
-// Simplified schema with focused validation
-const getOnboardingFormSchema = (t: (key: string) => string) =>
-  z
-    .object({
-      organizationName: z
-        .string()
-        .trim()
-        .min(1, t("Validation.organizationNameRequired")),
-      emails: z.array(
-        z.union([z.literal(""), z.email(t("Validation.invalidEmailAddress"))]),
-      ),
-    })
-    .superRefine((data, ctx) => {
-      const emails = data.emails.map((email) => email.trim().toLowerCase());
-      const seenEmails = new Set<string>();
-
-      emails.forEach((email, index) => {
-        if (email) {
-          // Check for duplicates
-          if (seenEmails.has(email)) {
-            ctx.addIssue({
-              code: "custom",
-              message: t("Validation.emailAlreadyAdded"),
-              path: ["emails", index],
-            });
-          } else {
-            seenEmails.add(email);
-          }
-        }
-      });
-    });
-
-type OnboardingFormData = z.infer<ReturnType<typeof getOnboardingFormSchema>>;
-
 export default function OnboardingForm({
   userId: _userId,
 }: OnboardingFormProps) {
@@ -83,10 +50,8 @@ export default function OnboardingForm({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSkipping, setIsSkipping] = useState(false);
 
-  const onboardingFormSchema = getOnboardingFormSchema(t);
-
-  const form = useForm<OnboardingFormData>({
-    resolver: zodResolver(onboardingFormSchema),
+  const form = useForm<OnboardingFormSchemaType>({
+    resolver: zodResolver(onboardingFormSchema(t)),
     defaultValues: {
       organizationName: "",
       emails: [],
@@ -144,7 +109,7 @@ export default function OnboardingForm({
     return null;
   };
 
-  const handleSubmit = async (values: OnboardingFormData) => {
+  const handleSubmit = async (values: OnboardingFormSchemaType) => {
     const validEmails = normalizeEmails(values.emails).filter(isValidEmail);
     const uniqueEmails = deduplicateEmails(validEmails);
 

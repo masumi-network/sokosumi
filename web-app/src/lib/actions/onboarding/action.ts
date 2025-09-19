@@ -68,13 +68,6 @@ export async function completeOnboarding(
         throw new Error(t("failedToCreateOrganization"));
       }
 
-      // Create and apply referral credits based on invite count
-      await stripeService.createAndApplyReferralCredits(
-        session.user.id,
-        organization.id,
-        deduplicatedInvitedEmails.length,
-      );
-
       // Invite members in batch
       await organizationService.inviteMultipleMembers(
         organization.id,
@@ -82,7 +75,12 @@ export async function completeOnboarding(
         MemberRole.MEMBER,
       );
 
-      console.log("Invitations sent", deduplicatedInvitedEmails);
+      // Create and apply referral credits based on invite count
+      await stripeService.createAndApplyReferralCredits(
+        session.user.id,
+        organization.id,
+        deduplicatedInvitedEmails.length,
+      );
     }
 
     // Mark onboarding as completed
