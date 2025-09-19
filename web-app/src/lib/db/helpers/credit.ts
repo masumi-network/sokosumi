@@ -16,7 +16,7 @@ export function convertCreditsToCents(credits: number): bigint {
   return BigInt(
     new Decimal(credits)
       .mul(10 ** getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BASE)
-      .floor()
+      .toFixed(0)
       .toString(),
   );
 }
