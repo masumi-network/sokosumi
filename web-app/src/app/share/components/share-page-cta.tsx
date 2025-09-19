@@ -26,7 +26,7 @@ export default function SharePageCTA({ className }: SharePageCTAProps) {
         <div className="absolute inset-0 bg-black/20" />
       </div>
 
-      <div className="relative flex flex-col items-start justify-between px-6 py-12 text-white md:flex-row md:items-center md:px-12 md:py-16">
+      <div className="text-background-primary relative flex flex-col items-start justify-between px-6 py-12 md:flex-row md:items-center md:px-12 md:py-16">
         <div className="mb-8 md:mb-0">
           <h2 className="mb-4 text-2xl font-bold md:text-3xl lg:text-4xl">
             {t("title")}
