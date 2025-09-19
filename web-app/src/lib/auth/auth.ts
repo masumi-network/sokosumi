@@ -172,6 +172,8 @@ export const auth = betterAuth({
       });
     },
     sendOnSignUp: true,
+    sendOnSignIn: true,
+    expiresIn: getEnvSecrets().BETTER_AUTH_EMAIL_VERIFICATION_EXPIRES_IN,
     autoSignInAfterVerification: true,
   },
   user: {
