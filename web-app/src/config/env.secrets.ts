@@ -100,6 +100,10 @@ const envSecretsSchema = z.object({
     .default(60 * 5), // 5 minutes
   BETTER_AUTH_ORG_INVITATION_LIMIT: z.coerce.number().min(0).default(100),
   BETTER_AUTH_ORG_LIMIT: z.coerce.number().min(0).default(100),
+  BETTER_AUTH_EMAIL_VERIFICATION_EXPIRES_IN: z.coerce
+    .number()
+    .min(3600)
+    .default(86400), // 1 day
   LOCK_TIMEOUT: z.coerce
     .number()
     .min(1 * 60 * 1000)
