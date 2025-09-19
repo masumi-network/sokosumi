@@ -26,10 +26,14 @@ export default async function ShareLayout({ children }: ShareLayoutProps) {
   return (
     <div className="flex w-full flex-col overflow-clip">
       <Header className="h-16 p-4" />
-      <main className="relative min-h-[calc(100svh-64px)] p-4 pt-20 md:pt-4">
+      <main className="relative min-h-[calc(100svh-64px)] pt-20 md:pt-4">
         {children}
       </main>
-      <SharePageCTA className="mx-4 mb-8" />
+      <div className="container mx-auto flex justify-center p-4 md:p-8">
+        <div className="w-full">
+          <SharePageCTA />
+        </div>
+      </div>
       <FooterSections className="p-4" />
     </div>
   );
