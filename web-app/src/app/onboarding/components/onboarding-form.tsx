@@ -38,15 +38,8 @@ const normalizeEmails = (emails: string[]): string[] => {
     .filter((email) => email.length > 0);
 };
 
-const deduplicateEmails = (emails: string[]): string[] => {
-  const seen = new Set<string>();
-  return emails.filter((email) => {
-    const key = email.toLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  });
-};
+const deduplicateEmails = (emails: string[]): string[] =>
+  Array.from(new Set(emails));
 
 // Simplified schema with focused validation
 const getOnboardingFormSchema = (t: (key: string) => string) =>

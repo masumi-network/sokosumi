@@ -29,12 +29,14 @@ export async function completeOnboarding(
     }
 
     const hasOrgName = organizationName && organizationName.trim().length > 0;
-    const hasEmails = invitedEmails.length > 0;
+    const deduplicatedInvitedEmails = Array.from(new Set(invitedEmails));
+    const hasEmails = deduplicatedInvitedEmails.length > 0;
 
     // Check if any invited emails already have user accounts
     if (hasEmails) {
-      const existingUserEmails =
-        await userService.checkExistingUsers(invitedEmails);
+      const existingUserEmails = await userService.checkExistingUsers(
+        deduplicatedInvitedEmails,
+      );
 
       if (existingUserEmails.length > 0) {
         return Err({
@@ -70,17 +72,17 @@ export async function completeOnboarding(
       await stripeService.createAndApplyReferralCredits(
         session.user.id,
         organization.id,
-        invitedEmails.length,
+        deduplicatedInvitedEmails.length,
       );
 
       // Invite members in batch
       await organizationService.inviteMultipleMembers(
         organization.id,
-        invitedEmails,
+        deduplicatedInvitedEmails,
         MemberRole.MEMBER,
       );
 
-      console.log("Invitations sent", invitedEmails);
+      console.log("Invitations sent", deduplicatedInvitedEmails);
     }
 
     // Mark onboarding as completed
