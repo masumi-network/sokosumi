@@ -367,8 +367,8 @@ importers:
         specifier: 2.0.0
         version: 2.0.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       next-openapi-gen:
-        specifier: 0.7.7
-        version: 0.7.7
+        specifier: 0.7.8
+        version: 0.7.8
       prisma:
         specifier: 6.16.2
         version: 6.16.2(typescript@5.9.2)
@@ -4804,8 +4804,8 @@ packages:
   forwarded-parse@2.1.2:
     resolution: {integrity: sha512-alTFZZQDKMporBH77856pXgzhEzaUVmLCDk+egLgIgHst3Tpndzz8MnKe+GzRJRfvVdn69HhpW7cmXzvtLvJAw==}
 
-  fs-extra@11.3.1:
-    resolution: {integrity: sha512-eXvGGwZ5CL17ZSwHWd3bbgk7UUpF6IFHtP57NYYakPvHOs8GDgDe5KJI36jIJzDkJ6eJjuzRA8eBQb6SkKue0g==}
+  fs-extra@11.3.2:
+    resolution: {integrity: sha512-Xr9F6z6up6Ws+NjzMCZc6WXg2YFRlrLP9NQDO3VQrWrfiojdhS56TzueT88ze0uBdCTwEIhQ3ptnmKeWGFAe0A==}
     engines: {node: '>=14.14'}
 
   fs-minipass@2.1.0:
@@ -6033,8 +6033,8 @@ packages:
       typescript:
         optional: true
 
-  next-openapi-gen@0.7.7:
-    resolution: {integrity: sha512-THwBzgRJduoQoN8Y/5GogXRMQQrIuyih0sHtuU3K4isaeEfurSf/s60echZtsDcj7+SxCSuyg7H38KU9CGNqdQ==}
+  next-openapi-gen@0.7.8:
+    resolution: {integrity: sha512-ByWzz1qa4082zYPvENJmyDTSeZPrMqKplT90V1xPXT762CWP3kje6Aazpn9uQTYKL8FbjjHjF5Ax8RUHSbAGdQ==}
     engines: {node: '>=18.0.0'}
     hasBin: true
 
@@ -12475,7 +12475,7 @@ snapshots:
 
   forwarded-parse@2.1.2: {}
 
-  fs-extra@11.3.1:
+  fs-extra@11.3.2:
     dependencies:
       graceful-fs: 4.2.11
       jsonfile: 6.2.0
@@ -14102,13 +14102,13 @@ snapshots:
     optionalDependencies:
       typescript: 5.9.2
 
-  next-openapi-gen@0.7.7:
+  next-openapi-gen@0.7.8:
     dependencies:
       '@babel/parser': 7.28.4
       '@babel/traverse': 7.28.4
       '@babel/types': 7.28.4
       commander: 14.0.1
-      fs-extra: 11.3.1
+      fs-extra: 11.3.2
       ora: 8.2.0
     transitivePeerDependencies:
       - supports-color
