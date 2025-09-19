@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { FooterSections } from "@/components/footer";
 
 import Header from "./components/header";
+import SharePageCTA from "./components/share-page-cta";
 
 interface ShareLayoutProps {
   children: React.ReactNode;
@@ -28,6 +29,7 @@ export default async function ShareLayout({ children }: ShareLayoutProps) {
       <main className="relative min-h-[calc(100svh-64px)] p-4 pt-20 md:pt-4">
         {children}
       </main>
+      <SharePageCTA className="mx-4 mb-8" />
       <FooterSections className="p-4" />
     </div>
   );

@@ -1288,6 +1288,11 @@
         "defaultName": "Untitled",
         "description": "Hire yourself an agent to finish the most time consuming tasks"
       }
+    },
+    "CTA": {
+      "title": "Discover how the agents work",
+      "description": "Browse others, designed to help you!",
+      "buttonText": "Explore Agents"
     }
   },
   "NotFound": {
