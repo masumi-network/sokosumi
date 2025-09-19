@@ -26,17 +26,15 @@ export default function SharePageCTA({ className }: SharePageCTAProps) {
         <div className="absolute inset-0 bg-black/20" />
       </div>
 
-      <div className="relative flex flex-col items-start justify-between px-6 py-12 text-white md:flex-row md:items-end md:px-12 md:py-16">
+      <div className="relative flex flex-col items-start justify-between px-6 py-12 text-black md:flex-row md:items-end md:px-12 md:py-16">
         <div className="mb-8 md:mb-0">
-          <h2 className="mb-2 text-2xl font-bold md:text-3xl lg:text-4xl">
-            {t("title")}
-          </h2>
-          <p className="text-lg opacity-90 md:text-xl">{t("description")}</p>
+          <h2 className="font-regular mb-2 text-3xl">{t("title")}</h2>
+          <p className="text-lg font-light opacity-90">{t("description")}</p>
         </div>
         <Button
           asChild
           size="lg"
-          className="shrink-0 gap-2 bg-black text-white hover:bg-black/90"
+          className="shrink-0 gap-8 bg-black px-8 text-white hover:bg-black/90"
         >
           <Link href="https://www.sokosumi.com/agents">
             {t("buttonText")}
