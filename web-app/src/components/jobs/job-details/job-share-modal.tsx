@@ -23,11 +23,7 @@ import {
 } from "@/lib/actions";
 import { getPublicJobShare, JobWithRelations } from "@/lib/db";
 import { cn } from "@/lib/utils";
-import {
-  JobShare,
-  ShareAccessType,
-  SharePermission,
-} from "@/prisma/generated/client";
+import { JobShare, ShareAccessType } from "@/prisma/generated/client";
 
 interface JobShareModalProps {
   open: boolean;
@@ -84,7 +80,6 @@ export default function JobShareModal({
       recipientId: null,
       recipientOrganizationId: null,
       shareAccessType: ShareAccessType.PUBLIC,
-      sharePermission: SharePermission.READ,
     });
     if (result.ok) {
       needRefresh.current = true;

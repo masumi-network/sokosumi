@@ -620,7 +620,7 @@ model Apikey {
 }
 
 model Blob {
-  id        String   @id @default(uuid())
+  id        String     @id @default(uuid())
   userId    String
   jobId     String
   fileUrl   String?
@@ -638,10 +638,9 @@ model Blob {
 
   // Performance indexes
   @@index([status, origin, createdAt]) // For getPendingOutputBlobs query
-  @@index([jobId, origin])              // For fetching blobs by job with origin filter
-  @@index([jobId, sourceUrl])           // For deduplication checks
-  @@index([userId, status])             // For user-specific blob queries
-
+  @@index([jobId, origin]) // For fetching blobs by job with origin filter
+  @@index([jobId, sourceUrl]) // For deduplication checks
+  @@index([userId, status]) // For user-specific blob queries
   @@map("blob")
 }
 
@@ -691,7 +690,6 @@ model JobShare {
 
   // Access Control
   accessType ShareAccessType
-  permission SharePermission @default(READ)
 
   // Recipient User
   recipientId String?
@@ -706,15 +704,12 @@ model JobShare {
 
   @@unique([jobId, recipientId])
   @@unique([jobId, recipientOrganizationId])
+  @@index([recipientOrganizationId])
+  @@index([recipientId])
   @@map("share")
 }
 
 enum ShareAccessType {
   PUBLIC // Anyone can access
   RESTRICTED // Only the recipient can access
-}
-
-enum SharePermission {
-  READ
-  WRITE
 }

@@ -9,7 +9,6 @@ import {
   OnChainJobStatus,
   OnChainTransactionStatus,
   ShareAccessType,
-  SharePermission,
 } from "@/prisma/generated/client";
 
 const TEN_MINUTES_TIMESTAMP = 1000 * 60 * 10; // 10min
@@ -351,17 +350,13 @@ export function transactionStatusToOnChainTransactionStatus(
 
 export function isPubliclyShared(job: JobWithRelations): boolean {
   return job.shares.some(
-    (share) =>
-      share.accessType === ShareAccessType.PUBLIC &&
-      share.permission === SharePermission.READ,
+    (share) => share.accessType === ShareAccessType.PUBLIC,
   );
 }
 
 export function getPublicJobShare(job: JobWithRelations): JobShare | null {
   const found = job.shares.find(
-    (share) =>
-      share.accessType === ShareAccessType.PUBLIC &&
-      share.permission === SharePermission.READ,
+    (share) => share.accessType === ShareAccessType.PUBLIC,
   );
   return found ?? null;
 }

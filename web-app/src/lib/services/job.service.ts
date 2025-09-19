@@ -36,7 +36,6 @@ import {
   OnChainJobStatus,
   Prisma,
   ShareAccessType,
-  SharePermission,
 } from "@/prisma/generated/client";
 
 import { agentService } from "./agent.service";
@@ -864,12 +863,12 @@ export const jobService = (() => {
       return null;
     }
 
-    // must have Public Access and Read Permission
-    if (
-      share.accessType !== ShareAccessType.PUBLIC ||
-      share.permission !== SharePermission.READ
-    ) {
-      return null;
+    // must have Public Access
+    switch (share.accessType) {
+      case ShareAccessType.PUBLIC:
+        break;
+      case ShareAccessType.RESTRICTED:
+        return null;
     }
 
     const job = await jobRepository.getJobById(share.jobId);

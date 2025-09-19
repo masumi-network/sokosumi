@@ -24,11 +24,7 @@ import {
   AuthenticatedRequest,
   withAuthContext,
 } from "@/middleware/auth-middleware";
-import {
-  JobShare,
-  ShareAccessType,
-  SharePermission,
-} from "@/prisma/generated/client";
+import { JobShare, ShareAccessType } from "@/prisma/generated/client";
 
 import {
   handleInputDataFileUploads,
@@ -314,7 +310,6 @@ interface ShareJobParameters extends AuthenticatedRequest {
   recipientId: string | null;
   recipientOrganizationId: string | null;
   shareAccessType: ShareAccessType;
-  sharePermission: SharePermission;
 }
 
 export const shareJob = withAuthContext<
@@ -326,7 +321,6 @@ export const shareJob = withAuthContext<
     recipientId,
     recipientOrganizationId,
     shareAccessType,
-    sharePermission,
     authContext,
   }) => {
     const { userId } = authContext;
@@ -349,11 +343,6 @@ export const shareJob = withAuthContext<
         throw new Error("Only Public Access is supported");
       }
 
-      // for now only Read access is supported
-      if (sharePermission !== SharePermission.READ) {
-        throw new Error("Only Read Permission is supported");
-      }
-
       // must be job owner to share
       if (userId !== job.userId) {
         return Err({
@@ -370,7 +359,6 @@ export const shareJob = withAuthContext<
           recipientId,
           recipientOrganizationId,
           shareAccessType,
-          sharePermission,
           tx,
         );
       });

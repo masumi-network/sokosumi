@@ -5,11 +5,7 @@
 
 import { v4 as uuidv4 } from "uuid";
 
-import {
-  Prisma,
-  ShareAccessType,
-  SharePermission,
-} from "@/prisma/generated/client";
+import { Prisma, ShareAccessType } from "@/prisma/generated/client";
 
 import prisma from "./prisma";
 
@@ -37,7 +33,6 @@ export const jobShareRepository = {
     recipientId: string | null,
     recipientOrganizationId: string | null,
     shareAccessType: ShareAccessType,
-    sharePermission: SharePermission,
     tx: Prisma.TransactionClient = prisma,
   ) {
     return await tx.jobShare.create({
@@ -50,7 +45,6 @@ export const jobShareRepository = {
         }),
         token: uuidv4(),
         accessType: shareAccessType,
-        permission: sharePermission,
       },
     });
   },
