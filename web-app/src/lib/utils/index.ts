@@ -3,6 +3,7 @@ import crypto from "crypto";
 import { canonicalizeEx } from "json-canonicalize";
 import { twMerge } from "tailwind-merge";
 
+import type { JobWithStatus } from "@/lib/db";
 import { JobInputData } from "@/lib/job-input";
 import { JobStatusResponseSchemaType } from "@/lib/schemas";
 
@@ -117,6 +118,51 @@ export function getMatchedHash(
     identifierFromPurchaser,
   );
   return hashToMatch === outputHash ? outputHash : null;
+}
+
+/**
+ * Verifies whether a job's stored input or output hash matches the hash
+ * computed from the provided purchaser identifier and parsed job data.
+ *
+ * Behavior:
+ * - For "input": tries current hash format, then falls back to deprecated format
+ *   for backward compatibility. Returns true if either matches.
+ * - For "output": uses only the current output hash format.
+ * - Returns false if required fields are missing or JSON cannot be parsed.
+ *
+ * @param direction - Which side of the job to verify: "input" or "output"
+ * @param job - Job record including `input`, `output`, `inputHash`, `outputHash`
+ * @param identifier - Purchaser-provided identifier used in hash computation
+ * @returns true if the computed hash matches the stored hash; otherwise false
+ */
+export function isJobVerified(
+  direction: "input" | "output",
+  job: JobWithStatus,
+  identifier: string,
+): boolean {
+  if (direction === "input") {
+    if (!job.inputHash) return false;
+    const inputObj = tryParseJson<Record<string, unknown>>(job.input);
+    const inputData = inputObj ? toJobInputData(inputObj) : null;
+    if (!inputData) return false;
+    const matched = getMatchedHash(
+      "input",
+      inputData,
+      identifier,
+      job.inputHash,
+    );
+    return matched !== null;
+  }
+  if (!job.outputHash) return false;
+  const outputObj = tryParseJson<JobStatusResponseSchemaType>(job.output);
+  if (!outputObj) return false;
+  const matched = getMatchedHash(
+    "output",
+    outputObj,
+    identifier,
+    job.outputHash,
+  );
+  return matched !== null;
 }
 
 /**

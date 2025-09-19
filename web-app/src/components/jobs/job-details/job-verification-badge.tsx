@@ -12,8 +12,7 @@ import {
 } from "@/components/ui/tooltip";
 import { siteConfig } from "@/config/site";
 import type { JobWithStatus } from "@/lib/db";
-import type { JobStatusResponseSchemaType } from "@/lib/schemas";
-import { cn, getMatchedHash, toJobInputData, tryParseJson } from "@/lib/utils";
+import { cn, isJobVerified } from "@/lib/utils";
 
 interface JobVerificationBadgeProps {
   direction: "input" | "output";
@@ -32,38 +31,6 @@ export function JobVerificationBadge({
 
   const identifier = job.identifierFromPurchaser;
 
-  const isJobVerified = (
-    direction: "input" | "output",
-    job: JobWithStatus,
-    identifier: string,
-  ): boolean => {
-    // input
-    if (direction === "input") {
-      if (!job.inputHash) return false;
-      const inputObj = tryParseJson<Record<string, unknown>>(job.input);
-      const inputData = inputObj ? toJobInputData(inputObj) : null;
-      if (!inputData) return false;
-      const matched = getMatchedHash(
-        "input",
-        inputData,
-        identifier,
-        job.inputHash,
-      );
-      return matched !== null;
-    }
-    // output
-    if (!job.outputHash) return false;
-    const outputObj = tryParseJson<JobStatusResponseSchemaType>(job.output);
-    if (!outputObj) return false;
-    const matched = getMatchedHash(
-      "output",
-      outputObj,
-      identifier,
-      job.outputHash,
-    );
-    return matched !== null;
-  };
-
   const isVerified = useMemo(() => {
     if (!identifier) return false;
     return isJobVerified(direction, job, identifier);
@@ -71,34 +38,31 @@ export function JobVerificationBadge({
 
   const Icon = isVerified ? CheckCheck : X;
   const colorClass = isVerified ? "text-green-500" : "text-red-500";
+  const label = isVerified
+    ? t("VerificationBadge.verified", { direction: directionText })
+    : t("VerificationBadge.unverified", { direction: directionText });
 
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <span
-          aria-label={
-            isVerified
-              ? t("VerificationBadge.verifiedAria", {
-                  direction: directionText,
-                })
-              : t("VerificationBadge.unverifiedAria", {
-                  direction: directionText,
-                })
-          }
-          className={cn("inline-flex items-center pl-4", className)}
-        >
-          <Icon className={cn("h-4 w-4", colorClass)} />
-        </span>
-      </TooltipTrigger>
-      <TooltipContent>
-        <Link
-          href={siteConfig.links.mip004Docs}
-          target="_blank"
-          rel="noreferrer noopener"
-        >
-          {t("VerificationBadge.tooltip", { direction: directionText })}
-        </Link>
-      </TooltipContent>
-    </Tooltip>
+    <div className="inline-flex items-center pl-4">
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <span
+            aria-label={label}
+            className={cn("inline-flex items-center", className)}
+          >
+            <Icon className={cn("h-4 w-4", colorClass)} />
+          </span>
+        </TooltipTrigger>
+        <TooltipContent>
+          <Link
+            href={siteConfig.links.mip004Docs}
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            {label}
+          </Link>
+        </TooltipContent>
+      </Tooltip>
+    </div>
   );
 }

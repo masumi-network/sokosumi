@@ -1,3 +1,4 @@
+import { type JobWithStatus } from "@/lib/db";
 import { JobInputData } from "@/lib/job-input";
 import { JobStatusResponseSchemaType } from "@/lib/schemas";
 import {
@@ -5,6 +6,7 @@ import {
   getInputHashDeprecated,
   getMatchedHash,
   getOutputHash,
+  isJobVerified,
   toJobInputData,
   tryParseJson,
 } from "@/lib/utils";
@@ -373,6 +375,235 @@ describe("getMatchedHash", () => {
         upperCaseHash,
       );
       expect(result).toBeNull();
+    });
+  });
+});
+
+describe("isJobVerified", () => {
+  const mockIdentifier = "test-identifier-123";
+
+  // Helper function to create a mock job
+  function createMockJob(
+    overrides: Partial<JobWithStatus> = {},
+  ): JobWithStatus {
+    return {
+      id: "job_1",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      agentId: "agent_1",
+      userId: "user_1",
+      organizationId: "org_1",
+      input: null,
+      inputHash: null,
+      output: null,
+      outputHash: null,
+      identifierFromPurchaser: mockIdentifier,
+      status: "completed",
+      jobStatusSettled: true,
+      // Required relations with proper types
+      agent: {
+        id: "agent_1",
+        name: "Test Agent",
+        description: null,
+        imageUrl: null,
+        verified: false,
+        featured: false,
+        isActive: true,
+        inputSchema: null,
+        outputSchema: null,
+        blockchainIdentifier: "test",
+        agentId: "agent_1",
+        sellerId: "seller_1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        ratings: [],
+        bookmarks: [],
+        jobs: [],
+      },
+      user: {
+        id: "user_1",
+        email: "test@example.com",
+        emailVerified: false,
+        name: "Test User",
+        image: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        updatedAvatar: false,
+        organizationId: "org_1",
+      },
+      creditTransaction: null,
+      refundedCreditTransaction: null,
+      blobs: [],
+      links: [],
+      shares: [],
+      ...overrides,
+    } as JobWithStatus;
+  }
+
+  describe("input verification", () => {
+    it("should return false when input hash is missing", () => {
+      const job = createMockJob({
+        input: JSON.stringify({ field1: "value1" }),
+        inputHash: null,
+      });
+      expect(isJobVerified("input", job, mockIdentifier)).toBe(false);
+    });
+
+    it("should return false when input is null", () => {
+      const job = createMockJob({
+        input: null,
+        inputHash: "somehash",
+      });
+      expect(isJobVerified("input", job, mockIdentifier)).toBe(false);
+    });
+
+    it("should return false when input JSON is malformed", () => {
+      const job = createMockJob({
+        input: "{malformed json",
+        inputHash: "somehash",
+      });
+      expect(isJobVerified("input", job, mockIdentifier)).toBe(false);
+    });
+
+    it("should return true when input hash matches current format", () => {
+      const inputData = { field1: "value1", field2: 123 };
+      const inputMap = new Map(Object.entries(inputData)) as JobInputData;
+      const inputHash = getInputHash(inputMap, mockIdentifier);
+
+      const job = createMockJob({
+        input: JSON.stringify(inputData),
+        inputHash: inputHash,
+      });
+      expect(isJobVerified("input", job, mockIdentifier)).toBe(true);
+    });
+
+    it("should return true when input hash matches deprecated format", () => {
+      const inputData = { field1: "value1", field2: 456 };
+      const inputMap = new Map(Object.entries(inputData)) as JobInputData;
+      const deprecatedHash = getInputHashDeprecated(inputMap, mockIdentifier);
+
+      const job = createMockJob({
+        input: JSON.stringify(inputData),
+        inputHash: deprecatedHash,
+      });
+      expect(isJobVerified("input", job, mockIdentifier)).toBe(true);
+    });
+
+    it("should return false when input hash does not match", () => {
+      const job = createMockJob({
+        input: JSON.stringify({ field1: "value1" }),
+        inputHash: "non-matching-hash",
+      });
+      expect(isJobVerified("input", job, mockIdentifier)).toBe(false);
+    });
+  });
+
+  describe("output verification", () => {
+    it("should return false when output hash is missing", () => {
+      const job = createMockJob({
+        output: JSON.stringify({ status: "completed" }),
+        outputHash: null,
+      });
+      expect(isJobVerified("output", job, mockIdentifier)).toBe(false);
+    });
+
+    it("should return false when output is null", () => {
+      const job = createMockJob({
+        output: null,
+        outputHash: "somehash",
+      });
+      expect(isJobVerified("output", job, mockIdentifier)).toBe(false);
+    });
+
+    it("should return false when output JSON is malformed", () => {
+      const job = createMockJob({
+        output: "{broken json",
+        outputHash: "somehash",
+      });
+      expect(isJobVerified("output", job, mockIdentifier)).toBe(false);
+    });
+
+    it("should return true when output hash matches", () => {
+      const outputData: JobStatusResponseSchemaType = {
+        status: "completed",
+        output_data: { result: "success" },
+        error: null,
+        error_trace: null,
+        compute_time: 1000,
+        output_blobs: [],
+      };
+      const outputHash = getOutputHash(outputData, mockIdentifier);
+
+      const job = createMockJob({
+        output: JSON.stringify(outputData),
+        outputHash: outputHash,
+      });
+      expect(isJobVerified("output", job, mockIdentifier)).toBe(true);
+    });
+
+    it("should return false when output hash does not match", () => {
+      const outputData: JobStatusResponseSchemaType = {
+        status: "completed",
+        output_data: { result: "success" },
+        error: null,
+        error_trace: null,
+        compute_time: 1000,
+        output_blobs: [],
+      };
+
+      const job = createMockJob({
+        output: JSON.stringify(outputData),
+        outputHash: "non-matching-hash",
+      });
+      expect(isJobVerified("output", job, mockIdentifier)).toBe(false);
+    });
+
+    it("should not use deprecated hash for output verification", () => {
+      const outputData: JobStatusResponseSchemaType = {
+        status: "completed",
+        output_data: { result: "test" },
+        error: null,
+        error_trace: null,
+        compute_time: 500,
+        output_blobs: [],
+      };
+
+      // Create a fake "deprecated" hash
+      const job = createMockJob({
+        output: JSON.stringify(outputData),
+        outputHash: "fake-deprecated-hash",
+      });
+      expect(isJobVerified("output", job, mockIdentifier)).toBe(false);
+    });
+  });
+
+  describe("edge cases", () => {
+    it("should handle empty input data", () => {
+      const inputData = {};
+      const inputMap = new Map() as JobInputData;
+      const inputHash = getInputHash(inputMap, mockIdentifier);
+
+      const job = createMockJob({
+        input: JSON.stringify(inputData),
+        inputHash: inputHash,
+      });
+      expect(isJobVerified("input", job, mockIdentifier)).toBe(true);
+    });
+
+    it("should handle different identifiers correctly", () => {
+      const inputData = { field1: "test" };
+      const inputMap = new Map(Object.entries(inputData)) as JobInputData;
+      const hashForDifferentId = getInputHash(inputMap, "different-id");
+
+      const job = createMockJob({
+        input: JSON.stringify(inputData),
+        inputHash: hashForDifferentId,
+      });
+      // Using mockIdentifier but hash was created with "different-id"
+      expect(isJobVerified("input", job, mockIdentifier)).toBe(false);
+
+      // Should work with correct identifier
+      expect(isJobVerified("input", job, "different-id")).toBe(true);
     });
   });
 });

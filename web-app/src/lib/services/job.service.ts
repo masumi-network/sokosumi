@@ -21,7 +21,6 @@ import {
   jobShareRepository,
   prisma,
 } from "@/lib/db/repositories";
-// import removed: JobInputData is no longer needed here
 import {
   JobStatusResponseSchemaType,
   PricingAmountsSchemaType,

@@ -283,9 +283,8 @@
           }
         },
         "VerificationBadge": {
-          "tooltip": "{direction}-Hash verified on blockchain. Click here to learn more",
-          "verifiedAria": "{direction}-Hash verified",
-          "unverifiedAria": "{direction}-Hash not verified"
+          "verified": "{direction} hash is verified. Click here to learn more",
+          "unverified": "{direction} hash is unverified. Click here to learn more"
         },
         "Input": {
           "title": "Input",
