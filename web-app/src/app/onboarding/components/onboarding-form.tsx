@@ -210,7 +210,7 @@ export default function OnboardingForm({
                           {...field}
                         />
                       </FormControl>
-                      {isValidEmail(field.value || "") && (
+                      {isValidEmail(field.value || "") && index <= 3 && (
                         <span className="pointer-events-none absolute top-1/2 right-3 -translate-y-1/2 text-sm text-purple-500">
                           {t("credits")}
                         </span>
