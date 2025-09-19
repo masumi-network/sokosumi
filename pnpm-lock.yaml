@@ -207,7 +207,7 @@ importers:
         specifier: 4.0.1
         version: 4.0.1
       happy-dom:
-        specifier: ^18.0.1
+        specifier: 18.0.1
         version: 18.0.1
       humanize-duration:
         specifier: 3.33.1
