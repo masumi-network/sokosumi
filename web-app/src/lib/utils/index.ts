@@ -77,6 +77,77 @@ export const getOutputHash = (
 };
 
 /**
+ * Returns the matching hash (input or output) supporting deprecated input hash.
+ *
+ * For input verification:
+ * - First attempts to match using the current hash format (getInputHash)
+ * - Falls back to deprecated hash format (getInputHashDeprecated) for backward compatibility
+ *
+ * For output verification:
+ * - Uses getOutputHash only (no deprecated format)
+ *
+ * @param mode - "input" or "output" to determine which hash function to use
+ * @param data - JobInputData for input mode, JobStatusResponseSchemaType for output mode
+ * @param identifierFromPurchaser - Unique identifier from the purchaser used in hash computation
+ * @param hashToMatch - The hash value to verify against
+ * @returns The matched hash string if verification succeeds, null if no match found
+ */
+export function getMatchedHash(
+  mode: "input" | "output",
+  data: JobInputData | JobStatusResponseSchemaType,
+  identifierFromPurchaser: string,
+  hashToMatch: string,
+): string | null {
+  if (mode === "input") {
+    const inputHash = getInputHash(
+      data as JobInputData,
+      identifierFromPurchaser,
+    );
+    if (hashToMatch === inputHash) return inputHash;
+    const deprecated = getInputHashDeprecated(
+      data as JobInputData,
+      identifierFromPurchaser,
+    );
+    if (hashToMatch === deprecated) return deprecated;
+    return null;
+  }
+  // output
+  const outputHash = getOutputHash(
+    data as JobStatusResponseSchemaType,
+    identifierFromPurchaser,
+  );
+  return hashToMatch === outputHash ? outputHash : null;
+}
+
+/**
+ * Converts a plain object to JobInputData (Map), or returns null for invalid input.
+ *
+ * @param input - Plain object to convert to JobInputData Map
+ * @returns JobInputData Map if conversion succeeds, null otherwise
+ */
+export function toJobInputData(input: unknown): JobInputData | null {
+  if (!input || typeof input !== "object") return null;
+  return new Map(
+    Object.entries(input as Record<string, unknown>),
+  ) as unknown as JobInputData;
+}
+
+/**
+ * Safe JSON.parse returning null on failure.
+ *
+ * @param value - JSON string to parse
+ * @returns Parsed object of type T if successful, null otherwise
+ */
+export function tryParseJson<T>(value: string | null): T | null {
+  if (!value) return null;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Creates a SHA-256 hash of the input string.
  *
  * @param input - The input string to hash

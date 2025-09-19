@@ -20,7 +20,11 @@ import {
 } from "@/lib/db/types";
 import { JobInputSchemaType } from "@/lib/job-input";
 import { JobStatusResponseSchemaType } from "@/lib/schemas";
-import { generateRandomHexString } from "@/lib/utils";
+import {
+  generateRandomHexString,
+  getMatchedHash,
+  tryParseJson,
+} from "@/lib/utils";
 import {
   AgentJobStatus,
   Job,
@@ -92,7 +96,27 @@ export const jobRepository = {
       where: jobsNotFinishedWhereQuery(),
       include: jobInclude,
     });
-    return jobs.map(mapJobWithStatus);
+    // Filter out jobs that have already been verified on the blockchain.
+    // This post-query filtering is necessary because the verification logic
+    // requires parsing JSON and computing hashes, which cannot be efficiently
+    // done at the database level. Jobs without complete verification data
+    // (missing identifier, hash, or output) are kept for processing.
+    const filtered = jobs.filter((job) => {
+      if (!job.identifierFromPurchaser || !job.outputHash || !job.output) {
+        return true;
+      }
+      const outputObj = tryParseJson<JobStatusResponseSchemaType>(job.output);
+      if (!outputObj) return true;
+      const matched = getMatchedHash(
+        "output",
+        outputObj,
+        job.identifierFromPurchaser,
+        job.outputHash,
+      );
+      // Keep jobs where hash verification failed (not yet verified on blockchain)
+      return matched === null;
+    });
+    return filtered.map(mapJobWithStatus);
   },
   /**
    * Retrieves all jobs associated with a specific user

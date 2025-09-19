@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 
 import JobDetailsInputs from "./inputs";
 import JobDetailsName from "./job-details-name";
+import { JobVerificationBadge } from "./job-verification-badge";
 import JobDetailsOutputs from "./outputs";
 
 interface JobDetailsProps {
@@ -43,14 +44,26 @@ export default function JobDetails({
           className="w-full space-y-1.5"
         >
           <JobDetailsHeader job={job} readOnly={readOnly} />
-          <AccordionItemWrapper value="input" title={t("Input.title")}>
+          <AccordionItemWrapper
+            value="input"
+            title={t("Input.title")}
+            verificationBadge={
+              <JobVerificationBadge direction="input" job={job} />
+            }
+          >
             <JobDetailsInputs
               rawInput={job.input}
               inputSchema={job.inputSchema}
               blobs={job.blobs}
             />
           </AccordionItemWrapper>
-          <AccordionItemWrapper value="output" title={t("Output.title")}>
+          <AccordionItemWrapper
+            value="output"
+            title={t("Output.title")}
+            verificationBadge={
+              <JobVerificationBadge direction="output" job={job} />
+            }
+          >
             <JobDetailsOutputs job={job} readOnly={readOnly} />
           </AccordionItemWrapper>
         </Accordion>
