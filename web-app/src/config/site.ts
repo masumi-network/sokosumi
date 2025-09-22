@@ -5,7 +5,8 @@ export const siteConfig = {
   links: {
     twitter: "https://twitter.com/sokosumi",
     github: "https://github.com/masumi-network/sokosumi",
-    mip004Docs: "https://docs.masumi.network/mips/_mip-004",
+    decisionLoggingDocs:
+      "https://docs.masumi.network/core-concepts/decision-logging",
   },
 };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCheck, X } from "lucide-react";
+import { CheckCheck, Loader2, X } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
@@ -13,6 +13,11 @@ import {
 import { siteConfig } from "@/config/site";
 import type { JobWithStatus } from "@/lib/db";
 import { cn, isJobVerified } from "@/lib/utils";
+
+interface VerificationState {
+  isPending: boolean;
+  isVerified: boolean;
+}
 
 interface JobVerificationBadgeProps {
   direction: "input" | "output";
@@ -31,16 +36,29 @@ export function JobVerificationBadge({
 
   const identifier = job.identifierFromPurchaser;
 
-  const isVerified = useMemo(() => {
-    if (!identifier) return false;
-    return isJobVerified(direction, job, identifier);
+  const verificationState = useMemo<VerificationState>(() => {
+    if (!identifier) {
+      return { isPending: false, isVerified: false };
+    }
+    const verified = isJobVerified(direction, job, identifier);
+    const pending =
+      direction === "output" && job.resultSubmittedAt == null && !verified;
+    return { isPending: pending, isVerified: verified };
   }, [direction, job, identifier]);
 
-  const Icon = isVerified ? CheckCheck : X;
-  const colorClass = isVerified ? "text-green-500" : "text-red-500";
-  const label = isVerified
-    ? t("VerificationBadge.verified", { direction: directionText })
-    : t("VerificationBadge.unverified", { direction: directionText });
+  const { isPending, isVerified } = verificationState;
+
+  const Icon = isPending ? Loader2 : isVerified ? CheckCheck : X;
+  const colorClass = isPending
+    ? "text-primary"
+    : isVerified
+      ? "text-green-500"
+      : "text-red-500";
+  const label = isPending
+    ? t("VerificationBadge.pending", { direction: directionText })
+    : isVerified
+      ? t("VerificationBadge.verified", { direction: directionText })
+      : t("VerificationBadge.unverified", { direction: directionText });
 
   return (
     <div className="inline-flex items-center pl-4">
@@ -49,13 +67,20 @@ export function JobVerificationBadge({
           <span
             aria-label={label}
             className={cn("inline-flex items-center", className)}
+            aria-busy={isPending}
           >
-            <Icon className={cn("h-4 w-4", colorClass)} />
+            <Icon
+              className={cn(
+                "h-4 w-4",
+                colorClass,
+                isPending ? "animate-spin" : undefined,
+              )}
+            />
           </span>
         </TooltipTrigger>
         <TooltipContent>
           <Link
-            href={siteConfig.links.mip004Docs}
+            href={siteConfig.links.decisionLoggingDocs}
             target="_blank"
             rel="noreferrer noopener"
           >
