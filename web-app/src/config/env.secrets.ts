@@ -46,6 +46,8 @@ const envSecretsSchema = z.object({
     .string()
     .transform((val: string) => (val.trim() === "" ? [] : val.split(",")))
     .default([]),
+  STRIPE_ONBOARD_PERSONAL_COUPON: z.string().min(1),
+  STRIPE_ONBOARD_ORGANIZATION_COUPON: z.string().min(1),
 
   // Anthropic
   ANTHROPIC_API_KEY: z.string().min(1).startsWith("sk-"),
@@ -100,6 +102,7 @@ const envSecretsSchema = z.object({
     .default(60 * 5), // 5 minutes
   BETTER_AUTH_ORG_INVITATION_LIMIT: z.coerce.number().min(0).default(100),
   BETTER_AUTH_ORG_LIMIT: z.coerce.number().min(0).default(100),
+  BETTER_AUTH_ORG_INVITATION_EXPIRES_IN: z.coerce.number().min(24).default(168), // 7 days
   BETTER_AUTH_EMAIL_VERIFICATION_EXPIRES_IN: z.coerce
     .number()
     .min(3600)

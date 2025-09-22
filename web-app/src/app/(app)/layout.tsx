@@ -1,10 +1,12 @@
-import { Metadata } from "next";
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { FooterSections } from "@/components/footer";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
+import { userService } from "@/lib/services";
 
 import Header from "./components/header";
 import Sidebar from "./components/sidebar";
@@ -30,6 +32,11 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
 
   const session = await getSessionOrRedirect();
+  const shouldShowOnboarding = await userService.showOnboarding(session);
+
+  if (shouldShowOnboarding) {
+    redirect("/onboarding");
+  }
 
   return (
     <>

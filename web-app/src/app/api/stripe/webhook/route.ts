@@ -401,7 +401,7 @@ const handleInvoicePaidEvent = async (
       );
     }
 
-    if (invoice.amount_paid === null || invoice.amount_paid === 0) {
+    if (invoice.amount_paid === null) {
       console.log(`Invoice ${invoiceId} has no amount paid`);
       return NextResponse.json(
         { message: "Invoice has no amount paid" },

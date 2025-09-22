@@ -12,23 +12,22 @@ import prisma from "./prisma";
  */
 export const agentListRepository = {
   /**
-   * Creates a new agent list for a user of a specific type.
+   * Upserts a new agent list for a user of a specific type.
    *
    * @param userId - The ID of the user.
    * @param type - The type of the agent list (e.g., FAVORITE).
    * @param tx - Optional Prisma transaction client.
    * @returns The created agent list with included agents.
    */
-  async createAgentListForUserId(
+  async upsertAgentListForUserId(
     userId: string,
     type: AgentListType,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<AgentListWithAgents> {
-    return await tx.agentList.create({
-      data: {
-        userId,
-        type,
-      },
+    return await tx.agentList.upsert({
+      where: { userId_type: { userId, type } },
+      create: { userId, type },
+      update: {},
       include: agentListInclude,
     });
   },

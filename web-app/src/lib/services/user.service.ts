@@ -1,5 +1,6 @@
 import "server-only";
 
+import { Session } from "@/lib/auth/auth";
 import { getAuthContext } from "@/lib/auth/utils";
 import {
   InvitationWithRelations,
@@ -12,6 +13,7 @@ import {
   jobRepository,
   memberRepository,
   organizationRepository,
+  prisma,
   userRepository,
 } from "@/lib/db/repositories";
 import { Member, User } from "@/prisma/generated/client";
@@ -138,15 +140,110 @@ export const userService = (() => {
     if (!context) {
       return [];
     }
-    const user = await userRepository.getUserById(context.userId);
-    if (!user?.email) {
-      console.error("User email not found");
-      return [];
-    }
+    return await prisma.$transaction(async (tx) => {
+      const user = await userRepository.getUserById(context.userId, tx);
+      if (!user?.email) {
+        console.error("User email not found");
+        return [];
+      }
 
-    return await invitationRepository.getValidPendingInvitationsByEmail(
-      user.email,
+      return await invitationRepository.getValidPendingInvitationsByEmail(
+        user.email,
+        tx,
+      );
+    });
+  }
+
+  /**
+   * Determines whether the onboarding flow should be shown for the current user.
+   *
+   * Logic:
+   * - If the user's `onboardingCompleted` is already true → returns false
+   * - If the user is a member of any organization → sets `onboardingCompleted` and returns false
+   * - If the user has at least one pending invitation → sets `onboardingCompleted` and returns false
+   * - Otherwise → returns true (show onboarding)
+   */
+  async function showOnboarding(session: Session): Promise<boolean> {
+    return await prisma.$transaction(async (tx) => {
+      if (!session) {
+        return false;
+      }
+
+      const user = session.user;
+      if (!user) {
+        return false;
+      }
+
+      if (user.onboardingCompleted) {
+        return false;
+      }
+
+      const membershipOrgIds =
+        await memberRepository.getMembersOrganizationIdsByUserId(user.id, tx);
+
+      let shouldComplete = false;
+      if (membershipOrgIds.length > 0) {
+        shouldComplete = true;
+      } else {
+        try {
+          const hasPendingInvitation =
+            await invitationRepository.hasPendingInvitationByEmail(
+              user.email,
+              tx,
+            );
+          shouldComplete = hasPendingInvitation;
+        } catch (error) {
+          console.error(
+            "Failed to fetch pending invitations for showOnboarding",
+            error,
+          );
+        }
+      }
+
+      if (shouldComplete) {
+        await userRepository.updateUserOnboardingCompleted(user.id, true, tx);
+        return false;
+      }
+
+      return true;
+    });
+  }
+
+  /**
+   * Checks which of the provided emails already have user accounts.
+   *
+   * @param emails - Array of email addresses to check.
+   * @returns Promise resolving to array of emails that already have user accounts.
+   */
+  async function checkExistingUsers(emails: string[]): Promise<string[]> {
+    const normalizedEmails = Array.from(
+      new Set(
+        emails.map((e) => e.trim().toLowerCase()).filter((e) => e.length > 0),
+      ),
     );
+
+    const users = await Promise.all(
+      normalizedEmails.map((email) => userRepository.getUserByEmail(email)),
+    );
+
+    return users
+      .filter((u): u is NonNullable<typeof u> => !!u)
+      .map((u) => u.email.toLowerCase());
+  }
+
+  /**
+   * Marks the onboarding as completed for a specific user.
+   *
+   * @param userId - The ID of the user to update.
+   * @param cookie - Session cookie for authentication.
+   * @returns Promise that resolves when the update is complete.
+   */
+  async function markOnboardingCompleteForMe(): Promise<void> {
+    const context = await getAuthContext();
+    if (!context) {
+      return;
+    }
+    await userRepository.updateUserOnboardingCompleted(context.userId, true);
   }
 
   return {
@@ -157,5 +254,8 @@ export const userService = (() => {
     getMyMembersWithOrganizations,
     getMyMemberInOrganization,
     getMyValidPendingInvitations,
+    showOnboarding,
+    checkExistingUsers,
+    markOnboardingCompleteForMe,
   };
 })();
