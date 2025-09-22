@@ -26,6 +26,7 @@ import {
   PricingAmountsSchemaType,
   StartJobInputSchemaType,
 } from "@/lib/schemas";
+import { getInputHash, getOutputHash } from "@/lib/utils";
 import {
   AgentJobStatus,
   Job,
@@ -192,6 +193,14 @@ export const jobService = (() => {
     const output = JSON.stringify(jobStatusResponse);
     const agentJobStatus = jobStatusToAgentJobStatus(jobStatusResponse.status);
 
+    // Generate identifier and hashes for demo parity
+    const identifierFromPurchaser = uuidv4().replace(/-/g, "").substring(0, 20);
+    const inputHash = getInputHash(inputData, identifierFromPurchaser);
+    const outputHash = getOutputHash(
+      jobStatusResponse,
+      identifierFromPurchaser,
+    );
+
     const job = await jobRepository.createDemoJob({
       agentJobId: uuidv4(),
       agentId,
@@ -202,6 +211,9 @@ export const jobService = (() => {
       name: "Demo Job",
       agentJobStatus,
       output,
+      identifierFromPurchaser,
+      inputHash,
+      outputHash,
       completedAt:
         agentJobStatus === AgentJobStatus.COMPLETED ? new Date() : null,
     });
