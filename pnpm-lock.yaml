@@ -370,8 +370,8 @@ importers:
         specifier: 2.0.0
         version: 2.0.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       next-openapi-gen:
-        specifier: 0.7.8
-        version: 0.7.8
+        specifier: 0.7.9
+        version: 0.7.9
       prisma:
         specifier: 6.16.2
         version: 6.16.2(typescript@5.9.2)
@@ -6036,8 +6036,8 @@ packages:
       typescript:
         optional: true
 
-  next-openapi-gen@0.7.8:
-    resolution: {integrity: sha512-ByWzz1qa4082zYPvENJmyDTSeZPrMqKplT90V1xPXT762CWP3kje6Aazpn9uQTYKL8FbjjHjF5Ax8RUHSbAGdQ==}
+  next-openapi-gen@0.7.9:
+    resolution: {integrity: sha512-0yHKw5XncKYgR2faFYI2cScO85JRQICEkF2XKn2QJtfpBjET6a6AXTp08TruPIjnetLs8LsLJJr9b6HvhycRgw==}
     engines: {node: '>=18.0.0'}
     hasBin: true
 
@@ -14105,7 +14105,7 @@ snapshots:
     optionalDependencies:
       typescript: 5.9.2
 
-  next-openapi-gen@0.7.8:
+  next-openapi-gen@0.7.9:
     dependencies:
       '@babel/parser': 7.28.4
       '@babel/traverse': 7.28.4
