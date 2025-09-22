@@ -162,8 +162,8 @@ importers:
         specifier: 1.2.0
         version: 1.2.0(next@15.5.3(@babel/core@7.28.4)(@opentelemetry/api@1.9.0)(react-dom@19.1.1(react@19.1.1))(react@19.1.1))(react@19.1.1)
       ably:
-        specifier: 2.12.0
-        version: 2.12.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+        specifier: 2.13.0
+        version: 2.13.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       better-auth:
         specifier: 1.3.12
         version: 1.3.12(next@15.5.3(@babel/core@7.28.4)(@opentelemetry/api@1.9.0)(react-dom@19.1.1(react@19.1.1))(react@19.1.1))(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
@@ -3440,8 +3440,8 @@ packages:
   '@xtuc/long@4.2.2':
     resolution: {integrity: sha512-NuHqBY1PB/D8xU6s/thBgOAiAP7HOYDQ32+BFZILJ8ivkUkAHQnWfn6WhL79Owj1qmUnoN/YPhktdIoucipkAQ==}
 
-  ably@2.12.0:
-    resolution: {integrity: sha512-sU2LSpXXxesYv+CbX/p/+w0dHUkn8+V92iusZVvhQBQpzUbENGvjsVlt5gph8Q/FzdY67lwTMFYQ6yo5od2SJw==}
+  ably@2.13.0:
+    resolution: {integrity: sha512-fgrzWlUWRCOCqCNq1szMZNsa/VXYwS3DParDpMuhCBPxmsDL2Y1fMpppfHtQiFRvNFcInY9bPQXuPFjJpmqSHw==}
     engines: {node: '>=16'}
     peerDependencies:
       react: '>=16.8.0'
@@ -10918,7 +10918,7 @@ snapshots:
 
   '@xtuc/long@4.2.2': {}
 
-  ably@2.12.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
+  ably@2.13.0(react-dom@19.1.1(react@19.1.1))(react@19.1.1):
     dependencies:
       '@ably/msgpack-js': 0.4.1
       dequal: 2.0.3
