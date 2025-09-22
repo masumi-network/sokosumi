@@ -116,6 +116,7 @@ export const paymentClient = (() => {
             blockchainIdentifier: startJobResponse.blockchainIdentifier,
             network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
             sellerVkey: startJobResponse.sellerVKey,
+            paymentType: "Web3CardanoV1",
             identifierFromPurchaser,
             payByTime: startJobResponse.payByTime.toString(),
             externalDisputeUnlockTime:
