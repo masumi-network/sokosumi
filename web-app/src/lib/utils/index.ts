@@ -71,7 +71,13 @@ export const getOutputHash = (
   outputData: JobStatusResponseSchemaType,
   identifierFromPurchaser: string,
 ) => {
-  const outputString = canonicalizeEx(outputData.result, {
+  // Support both current shape (result) and legacy shape (output_data)
+  const selectedOutput =
+    (outputData as unknown as { result?: unknown }).result !== undefined
+      ? (outputData as unknown as { result?: unknown }).result
+      : (outputData as unknown as { output_data?: unknown }).output_data;
+
+  const outputString = canonicalizeEx(selectedOutput, {
     filterUndefined: true,
   });
   return createHash(identifierFromPurchaser + ";" + outputString);
