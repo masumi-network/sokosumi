@@ -70,8 +70,8 @@ export default async function JobDetailsPage({
     notFound();
   }
 
-  // Determine if the user is the owner of the job
-  const isOwner = job.userId === session.user.id;
+  // Determine if the job should be read-only (user is not the owner)
+  const readOnly = job.userId !== session.user.id;
 
-  return <JobDetails job={job} isOwner={isOwner} />;
+  return <JobDetails job={job} readOnly={readOnly} />;
 }
