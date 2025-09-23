@@ -5,18 +5,11 @@ import { useFormatter, useTranslations } from "next-intl";
 
 import { DataTableColumnHeader } from "@/components/data-table";
 import { MiddleTruncate } from "@/components/middle-truncate";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import useAgentJobStatus from "@/hooks/use-agent-job-status";
 import { JobIndicatorStatus } from "@/lib/ably";
 import { JobWithStatus } from "@/lib/db";
 
+import JobSharedBadge from "./job-shared-badge";
 import JobStatusBadge from "./job-status-badge";
 
 const columnHelper = createColumnHelper<JobWithStatus>();
@@ -63,30 +56,10 @@ export function getJobColumns(
         if (isSharedJob && orgShare) {
           return (
             <div className="p-2">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div className="flex items-center gap-1">
-                      <Avatar className="h-6 w-6">
-                        <AvatarImage
-                          src={orgShare.creator.image ?? undefined}
-                        />
-                        <AvatarFallback className="text-xs">
-                          {orgShare.creator.name.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      <Badge variant="secondary" className="text-xs">
-                        {"Shared"}
-                      </Badge>
-                    </div>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>
-                      {"Shared by"} {orgShare.creator.name}
-                    </p>
-                  </TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <JobSharedBadge
+                creatorName={orgShare.creator.name}
+                creatorImage={orgShare.creator.image}
+              />
             </div>
           );
         }

@@ -222,6 +222,10 @@
         "outputPending": "Output Missing",
         "unknown": "Unknown"
       },
+      "SharedBadge": {
+        "shared": "Shared",
+        "sharedBy": "Shared by"
+      },
       "JobDetails": {
         "Header": {
           "JobName": {
@@ -891,7 +895,7 @@
       "continueAndInviteCoWorkers": "Continue & Invite Co-Workers",
       "divider": "or",
       "Organisation": {
-        "name": "Your organisation's name", 
+        "name": "Your organisation's name",
         "placeholder": "Enter your organisation name"
       },
       "CoWorkers": {
