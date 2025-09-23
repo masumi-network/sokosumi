@@ -32,33 +32,36 @@ export function JobVerificationBadge({
   className,
 }: JobVerificationBadgeProps) {
   const t = useTranslations("Components.Jobs.JobDetails");
+
   const directionText =
     direction === "input" ? t("Input.title") : t("Output.title");
 
-  const identifier = job.identifierFromPurchaser;
-
   const verificationState = useMemo<VerificationState>(() => {
-    if (!identifier) {
+    if (job.isDemo) {
+      return { isPending: false, isVerified: true };
+    }
+
+    if (!job.identifierFromPurchaser) {
       return { isPending: false, isVerified: false };
     }
-    // Direction: output → pending only when on-chain state is FUNDS_LOCKED
-    // Otherwise, try to verify the hash
-    if (direction === "output") {
-      const isFundsLocked = job.onChainStatus === OnChainJobStatus.FUNDS_LOCKED;
-      if (isFundsLocked && !job.isDemo) {
-        return { isPending: true, isVerified: false };
-      }
-      return {
-        isPending: false,
-        isVerified: isJobVerified("output", job, identifier),
-      };
+
+    switch (direction) {
+      case "output":
+        // Direction: output → pending only when on-chain state is FUNDS_LOCKED
+        // Otherwise, try to verify the hash
+        const isFundsLocked =
+          job.onChainStatus === OnChainJobStatus.FUNDS_LOCKED;
+        if (isFundsLocked) {
+          return { isPending: true, isVerified: false };
+        } else {
+          return { isPending: false, isVerified: isJobVerified("output", job) };
+        }
+      case "input":
+        return { isPending: false, isVerified: isJobVerified("input", job) };
+      default:
+        return { isPending: false, isVerified: false };
     }
-    // Direction: input keeps existing verification behavior
-    return {
-      isPending: false,
-      isVerified: isJobVerified("input", job, identifier),
-    };
-  }, [direction, job, identifier]);
+  }, [direction, job]);
 
   const { isPending, isVerified } = verificationState;
 

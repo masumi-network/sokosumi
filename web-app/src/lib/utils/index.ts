@@ -139,7 +139,6 @@ export function getMatchedHash(
 export function isJobVerified(
   direction: "input" | "output",
   job: JobWithStatus,
-  identifier: string,
 ): boolean {
   if (direction === "input") {
     if (!job.inputHash) return false;
@@ -149,7 +148,7 @@ export function isJobVerified(
     const matched = getMatchedHash(
       "input",
       inputData,
-      identifier,
+      job.identifierFromPurchaser,
       job.inputHash,
     );
     return matched !== null;
@@ -160,7 +159,7 @@ export function isJobVerified(
   const matched = getMatchedHash(
     "output",
     outputObj,
-    identifier,
+    job.identifierFromPurchaser,
     job.outputHash,
   );
   return matched !== null;
