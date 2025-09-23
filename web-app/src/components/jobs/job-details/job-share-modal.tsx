@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   CommonErrorCode,
   getActiveOrganization,
@@ -46,6 +47,7 @@ export default function JobShareModal({
 
   const router = useRouter();
   const [loading, setLoading] = useState(false);
+  const [organizationLoading, setOrganizationLoading] = useState(false);
   const [jobShare, setJobShare] = useState<JobShare | null>(null);
   const [organizationJobShare, setOrganizationJobShare] =
     useState<JobShare | null>(null);
@@ -63,6 +65,7 @@ export default function JobShareModal({
   // Fetch organization data
   useEffect(() => {
     const fetchOrganization = async () => {
+      setOrganizationLoading(true);
       try {
         const result = await getActiveOrganization({});
         if (result.ok) {
@@ -72,6 +75,8 @@ export default function JobShareModal({
         }
       } catch (error) {
         console.error("Failed to fetch organization:", error);
+      } finally {
+        setOrganizationLoading(false);
       }
     };
 
@@ -312,7 +317,15 @@ export default function JobShareModal({
                   <Check className="h-4 w-4 text-green-500" />
                 )}
               </div>
-              {organization && (
+              {organizationLoading ? (
+                <div className="flex items-center gap-2 p-4">
+                  <Skeleton className="h-6 w-6 rounded-full" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-48" />
+                  </div>
+                </div>
+              ) : organization ? (
                 <div
                   className={cn(
                     "hover:bg-muted/50 flex cursor-pointer items-center gap-2 p-4 transition-all",
@@ -339,7 +352,7 @@ export default function JobShareModal({
                     <Check className="h-4 w-4 text-green-500" />
                   )}
                 </div>
-              )}
+              ) : null}
               <div
                 className={cn(
                   "hover:bg-muted/50 flex cursor-pointer items-center gap-2 rounded-b-md p-4 transition-all",
