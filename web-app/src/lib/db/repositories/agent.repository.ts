@@ -161,21 +161,34 @@ export const agentRepository = {
     tx: Prisma.TransactionClient = prisma,
   ): Promise<AgentWithJobs[]> {
     const normalizedOrganizationId = organizationId ?? null;
+
+    // Build the where condition based on whether user has an organization
+    const jobWhereCondition = normalizedOrganizationId
+      ? {
+          OR: [
+            // User's own jobs
+            { userId },
+            // Jobs shared with user's organization
+            {
+              shares: {
+                some: {
+                  recipientOrganizationId: normalizedOrganizationId,
+                },
+              },
+            },
+          ],
+        }
+      : { userId }; // If no organization, only show user's own jobs
+
     return await tx.agent.findMany({
       where: {
         jobs: {
-          some: {
-            userId,
-            organizationId: normalizedOrganizationId,
-          },
+          some: jobWhereCondition,
         },
       },
       include: {
         jobs: {
-          where: {
-            userId,
-            organizationId: normalizedOrganizationId,
-          },
+          where: jobWhereCondition,
           orderBy: {
             startedAt: "desc",
           },
