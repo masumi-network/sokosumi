@@ -61,7 +61,9 @@ export default function JobDetails({
             value="output"
             title={t("Output.title")}
             verificationBadge={
-              <JobVerificationBadge direction="output" job={job} />
+              job.status === JobStatus.COMPLETED ? (
+                <JobVerificationBadge direction="output" job={job} />
+              ) : null
             }
           >
             <JobDetailsOutputs job={job} readOnly={readOnly} />

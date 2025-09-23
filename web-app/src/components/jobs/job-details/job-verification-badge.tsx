@@ -13,6 +13,7 @@ import {
 import { siteConfig } from "@/config/site";
 import type { JobWithStatus } from "@/lib/db";
 import { cn, isJobVerified } from "@/lib/utils";
+import { OnChainJobStatus } from "@/prisma/generated/client";
 
 interface VerificationState {
   isPending: boolean;
@@ -40,10 +41,23 @@ export function JobVerificationBadge({
     if (!identifier) {
       return { isPending: false, isVerified: false };
     }
-    const verified = isJobVerified(direction, job, identifier);
-    const pending =
-      direction === "output" && job.resultSubmittedAt == null && !verified;
-    return { isPending: pending, isVerified: verified };
+    // Direction: output → pending only when on-chain state is FUNDS_LOCKED
+    // Otherwise, try to verify the hash
+    if (direction === "output") {
+      const isFundsLocked = job.onChainStatus === OnChainJobStatus.FUNDS_LOCKED;
+      if (isFundsLocked) {
+        return { isPending: true, isVerified: false };
+      }
+      return {
+        isPending: false,
+        isVerified: isJobVerified("output", job, identifier),
+      };
+    }
+    // Direction: input keeps existing verification behavior
+    return {
+      isPending: false,
+      isVerified: isJobVerified("input", job, identifier),
+    };
   }, [direction, job, identifier]);
 
   const { isPending, isVerified } = verificationState;
@@ -61,7 +75,7 @@ export function JobVerificationBadge({
       : t("VerificationBadge.unverified", { direction: directionText });
 
   return (
-    <div className="inline-flex items-center pl-4">
+    <span className="inline-flex items-center pl-4">
       <Tooltip>
         <TooltipTrigger asChild>
           <span
@@ -88,6 +102,6 @@ export function JobVerificationBadge({
           </Link>
         </TooltipContent>
       </Tooltip>
-    </div>
+    </span>
   );
 }
