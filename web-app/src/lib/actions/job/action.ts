@@ -18,7 +18,11 @@ import {
   startJobInputSchema,
   StartJobInputSchemaType,
 } from "@/lib/schemas";
-import { callAfterAgentHiredWebHook, jobService } from "@/lib/services";
+import {
+  callAfterAgentHiredWebHook,
+  jobService,
+  userService,
+} from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import {
   AuthenticatedRequest,
@@ -325,16 +329,6 @@ export const shareJob = withAuthContext<
       });
     }
 
-    // for now only public share is supported
-    if (!!recipientOrganizationId) {
-      throw new Error("Only Public Share is supported");
-    }
-
-    // for now only Public Access is supported
-    if (shareAccessType !== ShareAccessType.PUBLIC) {
-      throw new Error("Only Public Access is supported");
-    }
-
     // must be job owner to share
     if (userId !== job.userId) {
       return Err({
@@ -344,7 +338,13 @@ export const shareJob = withAuthContext<
     }
 
     const jobShare = await prisma.$transaction(async (tx) => {
-      await jobShareRepository.deleteJobSharesByJobId(jobId, tx);
+      // Remove existing share with the same organization and access type to avoid duplicates
+      await jobShareRepository.deleteJobShare(
+        jobId,
+        recipientOrganizationId,
+        tx,
+      );
+
       return await jobShareRepository.createJobShare(
         jobId,
         userId,
@@ -407,12 +407,13 @@ export const updateAllowSearchIndexing = withAuthContext<
 
 interface RemoveJobShareParameters extends AuthenticatedRequest {
   jobId: string;
+  recipientOrganizationId?: string | null;
 }
 
 export const removeJobShare = withAuthContext<
   RemoveJobShareParameters,
   Result<void, ActionError>
->(async ({ jobId, authContext }) => {
+>(async ({ jobId, recipientOrganizationId, authContext }) => {
   const { userId } = authContext;
 
   try {
@@ -432,10 +433,35 @@ export const removeJobShare = withAuthContext<
       });
     }
 
-    await jobShareRepository.deleteJobSharesByJobId(jobId);
+    if (recipientOrganizationId !== undefined) {
+      // Remove specific share
+      await jobShareRepository.deleteJobShare(jobId, recipientOrganizationId);
+    } else {
+      // Remove all shares for the job (legacy behavior)
+      await jobShareRepository.deleteJobSharesByJobId(jobId);
+    }
     return Ok();
   } catch (error) {
     console.error("Failed to remove job share", error);
+    return Err({
+      message: "Internal server error",
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+    });
+  }
+});
+
+export const getActiveOrganization = withAuthContext<
+  AuthenticatedRequest,
+  Result<{ id: string; name: string } | null, ActionError>
+>(async ({ authContext: _authContext }) => {
+  try {
+    const organization = await userService.getActiveOrganization();
+    if (!organization) {
+      return Ok(null);
+    }
+    return Ok({ id: organization.id, name: organization.name });
+  } catch (error) {
+    console.error("Failed to get active organization", error);
     return Err({
       message: "Internal server error",
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,

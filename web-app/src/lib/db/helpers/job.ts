@@ -360,3 +360,22 @@ export function getPublicJobShare(job: JobWithRelations): JobShare | null {
   );
   return found ?? null;
 }
+
+export function getOrganizationJobShare(
+  job: JobWithRelations,
+  organizationId: string,
+): JobShare | null {
+  const found = job.shares.find(
+    (share) => share.recipientOrganizationId === organizationId,
+  );
+  return found ?? null;
+}
+
+export function isSharedWithOrganization(
+  job: JobWithRelations,
+  organizationId: string,
+): boolean {
+  return job.shares.some(
+    (share) => share.recipientOrganizationId === organizationId,
+  );
+}

@@ -82,11 +82,30 @@ export const userService = (() => {
     const userId = context.userId;
     const activeOrganizationId = context.organizationId;
 
-    return await jobRepository.getJobs({
+    // Get owned jobs
+    const ownedJobs = await jobRepository.getJobs({
       agentId,
       userId,
       organizationId: activeOrganizationId,
     });
+
+    // Get shared jobs from organization if user is in an organization
+    let sharedJobs: JobWithStatus[] = [];
+    if (activeOrganizationId) {
+      sharedJobs = await jobRepository.getJobsSharedWithOrganization(
+        activeOrganizationId,
+        agentId,
+      );
+      // Filter out jobs owned by the current user to avoid duplicates
+      sharedJobs = sharedJobs.filter((job) => job.userId !== userId);
+    }
+
+    // Combine and sort all jobs
+    const allJobs = [...ownedJobs, ...sharedJobs];
+    return allJobs.sort(
+      (a, b) =>
+        new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime(),
+    );
   }
 
   /**

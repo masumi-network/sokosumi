@@ -5,6 +5,14 @@ import { useFormatter, useTranslations } from "next-intl";
 
 import { DataTableColumnHeader } from "@/components/data-table";
 import { MiddleTruncate } from "@/components/middle-truncate";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import useAgentJobStatus from "@/hooks/use-agent-job-status";
 import { JobIndicatorStatus } from "@/lib/ably";
 import { JobWithStatus } from "@/lib/db";
@@ -76,18 +84,54 @@ export function getJobColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("Header.name")} />
       ),
-      cell: ({ row }) => (
-        <div className="p-2">
-          {!!row.original.name ? (
-            <p className="max-w-28 truncate md:max-w-40">{row.original.name}</p>
-          ) : (
-            <MiddleTruncate
-              text={row.original.name ?? row.original.id}
-              className="font-mono text-xs"
-            />
-          )}
-        </div>
-      ),
+      cell: ({ row }) => {
+        const job = row.original;
+        const isSharedJob = job.userId !== userId;
+        const orgShare = job.shares?.find(
+          (share) => share.recipientOrganizationId && share.creator,
+        );
+
+        return (
+          <div className="flex items-center gap-2 p-2">
+            <div className="flex-1">
+              {!!job.name ? (
+                <p className="max-w-28 truncate md:max-w-40">{job.name}</p>
+              ) : (
+                <MiddleTruncate
+                  text={job.name ?? job.id}
+                  className="font-mono text-xs"
+                />
+              )}
+            </div>
+            {isSharedJob && orgShare && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div className="flex items-center gap-1">
+                      <Avatar className="h-6 w-6">
+                        <AvatarImage
+                          src={orgShare.creator.image ?? undefined}
+                        />
+                        <AvatarFallback className="text-xs">
+                          {orgShare.creator.name.charAt(0).toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <Badge variant="secondary" className="text-xs">
+                        {"Shared"}
+                      </Badge>
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    <p>
+                      {"Shared by"} {orgShare.creator.name}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+          </div>
+        );
+      },
       enableSorting: true,
       enableHiding: false,
     }) as ColumnDef<JobWithStatus>,

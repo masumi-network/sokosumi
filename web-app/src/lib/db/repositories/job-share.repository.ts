@@ -56,6 +56,19 @@ export const jobShareRepository = {
     });
   },
 
+  async deleteJobShare(
+    jobId: string,
+    recipientOrganizationId: string | null,
+    tx: Prisma.TransactionClient = prisma,
+  ) {
+    return await tx.jobShare.deleteMany({
+      where: {
+        jobId,
+        recipientOrganizationId,
+      },
+    });
+  },
+
   async updateJobShareAllowSearchIndexing(
     jobShareId: string,
     allowSearchIndexing: boolean,
