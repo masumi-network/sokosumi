@@ -523,11 +523,9 @@ describe("isJobVerified", () => {
     it("should return true when output hash matches", () => {
       const outputData: JobStatusResponseSchemaType = {
         status: "completed",
-        output_data: { result: "success" },
+        result: "success",
         error: null,
-        error_trace: null,
-        compute_time: 1000,
-        output_blobs: [],
+        job_id: "job_1",
       };
       const outputHash = getOutputHash(outputData, mockIdentifier);
 
@@ -540,12 +538,10 @@ describe("isJobVerified", () => {
 
     it("should return false when output hash does not match", () => {
       const outputData: JobStatusResponseSchemaType = {
+        job_id: "job_1",
         status: "completed",
-        output_data: { result: "success" },
         error: null,
-        error_trace: null,
-        compute_time: 1000,
-        output_blobs: [],
+        result: "success",
       };
 
       const job = createMockJob({
@@ -557,12 +553,10 @@ describe("isJobVerified", () => {
 
     it("should not use deprecated hash for output verification", () => {
       const outputData: JobStatusResponseSchemaType = {
+        job_id: "job_1",
         status: "completed",
-        output_data: { result: "test" },
+        result: "test",
         error: null,
-        error_trace: null,
-        compute_time: 500,
-        output_blobs: [],
       };
 
       // Create a fake "deprecated" hash
