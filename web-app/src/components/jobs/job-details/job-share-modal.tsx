@@ -37,6 +37,14 @@ interface JobShareModalProps {
   job: JobWithRelations;
 }
 
+type LoadingState = {
+  organization: boolean;
+  sharePublic: boolean;
+  shareOrganization: boolean;
+  removeShare: boolean;
+  updateIndexing: boolean;
+};
+
 export default function JobShareModal({
   open,
   onOpenChange,
@@ -46,8 +54,13 @@ export default function JobShareModal({
   const { id: jobId } = job;
 
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [organizationLoading, setOrganizationLoading] = useState(false);
+  const [loadingState, setLoadingState] = useState<LoadingState>({
+    organization: false,
+    sharePublic: false,
+    shareOrganization: false,
+    removeShare: false,
+    updateIndexing: false,
+  });
   const [jobShare, setJobShare] = useState<JobShare | null>(null);
   const [organizationJobShare, setOrganizationJobShare] =
     useState<JobShare | null>(null);
@@ -57,6 +70,9 @@ export default function JobShareModal({
     name: string;
   } | null>(null);
 
+  // Helper function to check if any operation is loading
+  const isAnyLoading = () => Object.values(loadingState).some((v) => v);
+
   // Need to refresh after modal is closed
   const needRefresh = useRef(false);
 
@@ -65,7 +81,7 @@ export default function JobShareModal({
   // Fetch organization data
   useEffect(() => {
     const fetchOrganization = async () => {
-      setOrganizationLoading(true);
+      setLoadingState((prev) => ({ ...prev, organization: true }));
       try {
         const result = await getActiveOrganization({});
         if (result.ok) {
@@ -76,7 +92,7 @@ export default function JobShareModal({
       } catch (error) {
         console.error("Failed to fetch organization:", error);
       } finally {
-        setOrganizationLoading(false);
+        setLoadingState((prev) => ({ ...prev, organization: false }));
       }
     };
 
@@ -103,7 +119,7 @@ export default function JobShareModal({
   }, [jobId, publicJobShare, organization, job, setJobShare, setLink]);
 
   const handleOnOpenChange = (open: boolean) => {
-    if (loading) {
+    if (isAnyLoading()) {
       return;
     }
     // when close JobShareModal
@@ -115,7 +131,7 @@ export default function JobShareModal({
   };
 
   const handleShareJob = async () => {
-    setLoading(true);
+    setLoadingState((prev) => ({ ...prev, sharePublic: true }));
     const result = await shareJob({
       jobId: job.id,
       recipientOrganizationId: null,
@@ -151,13 +167,13 @@ export default function JobShareModal({
           break;
       }
     }
-    setLoading(false);
+    setLoadingState((prev) => ({ ...prev, sharePublic: false }));
   };
 
   const handleShareWithOrganization = async () => {
     if (!organization) return;
 
-    setLoading(true);
+    setLoadingState((prev) => ({ ...prev, shareOrganization: true }));
     const result = await shareJob({
       jobId: job.id,
       recipientOrganizationId: organization.id,
@@ -190,7 +206,7 @@ export default function JobShareModal({
           break;
       }
     }
-    setLoading(false);
+    setLoadingState((prev) => ({ ...prev, shareOrganization: false }));
   };
 
   const handleAllowSearchIndexingChange = async (
@@ -201,7 +217,7 @@ export default function JobShareModal({
       return;
     }
 
-    setLoading(true);
+    setLoadingState((prev) => ({ ...prev, updateIndexing: true }));
     const result = await updateAllowSearchIndexing({
       jobShareId: jobShare.id,
       allowSearchIndexing: checked,
@@ -235,13 +251,13 @@ export default function JobShareModal({
           break;
       }
     }
-    setLoading(false);
+    setLoadingState((prev) => ({ ...prev, updateIndexing: false }));
   };
 
   const handleRemoveOrganizationShare = async () => {
     if (!organization) return;
 
-    setLoading(true);
+    setLoadingState((prev) => ({ ...prev, removeShare: true }));
     const result = await removeJobShare({
       jobId: job.id,
       recipientOrganizationId: organization.id,
@@ -273,7 +289,7 @@ export default function JobShareModal({
           break;
       }
     }
-    setLoading(false);
+    setLoadingState((prev) => ({ ...prev, removeShare: false }));
   };
 
   const handleCopyLink = async () => {
@@ -301,7 +317,8 @@ export default function JobShareModal({
                 className={cn(
                   "hover:bg-muted/50 flex cursor-pointer items-center gap-2 rounded-t-md p-4 transition-all",
                   {
-                    "pointer-events-none animate-pulse opacity-60": loading,
+                    "pointer-events-none animate-pulse opacity-60":
+                      loadingState.sharePublic,
                   },
                 )}
                 onClick={handleShareJob}
@@ -317,7 +334,7 @@ export default function JobShareModal({
                   <Check className="h-4 w-4 text-green-500" />
                 )}
               </div>
-              {organizationLoading ? (
+              {loadingState.organization ? (
                 <div className="flex items-center gap-2 p-4">
                   <Skeleton className="h-6 w-6 rounded-full" />
                   <div className="flex-1 space-y-2">
@@ -330,7 +347,9 @@ export default function JobShareModal({
                   className={cn(
                     "hover:bg-muted/50 flex cursor-pointer items-center gap-2 p-4 transition-all",
                     {
-                      "pointer-events-none animate-pulse opacity-60": loading,
+                      "pointer-events-none animate-pulse opacity-60":
+                        loadingState.shareOrganization ||
+                        loadingState.removeShare,
                     },
                   )}
                   onClick={
@@ -357,11 +376,12 @@ export default function JobShareModal({
                 className={cn(
                   "hover:bg-muted/50 flex cursor-pointer items-center gap-2 rounded-b-md p-4 transition-all",
                   {
-                    "pointer-events-none animate-pulse opacity-60": loading,
+                    "pointer-events-none animate-pulse opacity-60":
+                      loadingState.removeShare,
                   },
                 )}
                 onClick={async () => {
-                  setLoading(true);
+                  setLoadingState((prev) => ({ ...prev, removeShare: true }));
                   const promises = [];
 
                   if (jobShare) {
@@ -395,7 +415,7 @@ export default function JobShareModal({
                     }
                   }
 
-                  setLoading(false);
+                  setLoadingState((prev) => ({ ...prev, removeShare: false }));
                 }}
               >
                 <Lock />
@@ -429,9 +449,10 @@ export default function JobShareModal({
               <div className="flex items-center gap-2">
                 <Checkbox
                   id="allow-search-indexing"
-                  disabled={loading}
+                  disabled={loadingState.updateIndexing}
                   className={cn({
-                    "pointer-events-none animate-pulse opacity-60": loading,
+                    "pointer-events-none animate-pulse opacity-60":
+                      loadingState.updateIndexing,
                   })}
                   checked={jobShare?.allowSearchIndexing}
                   onCheckedChange={(v) => handleAllowSearchIndexingChange(v)}
