@@ -77,7 +77,6 @@ export default function JobShareModal({
     setLoading(true);
     const result = await shareJob({
       jobId: job.id,
-      recipientId: null,
       recipientOrganizationId: null,
       shareAccessType: ShareAccessType.PUBLIC,
     });

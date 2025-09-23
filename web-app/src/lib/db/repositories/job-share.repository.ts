@@ -30,7 +30,6 @@ export const jobShareRepository = {
   async createJobShare(
     jobId: string,
     userId: string,
-    recipientId: string | null,
     recipientOrganizationId: string | null,
     shareAccessType: ShareAccessType,
     tx: Prisma.TransactionClient = prisma,
@@ -38,8 +37,7 @@ export const jobShareRepository = {
     return await tx.jobShare.create({
       data: {
         job: { connect: { id: jobId } },
-        user: { connect: { id: userId } },
-        ...(recipientId && { recipient: { connect: { id: recipientId } } }),
+        creator: { connect: { id: userId } },
         ...(recipientOrganizationId && {
           recipientOrganization: { connect: { id: recipientOrganizationId } },
         }),

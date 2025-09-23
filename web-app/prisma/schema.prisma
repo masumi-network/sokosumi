@@ -49,11 +49,10 @@ model User {
   apikeys Apikey[]
 
   // JobShare
-  jobShares         JobShare[] @relation("JobShareCreator")
-  jobSharesReceived JobShare[] @relation("JobShareRecipient")
+  jobShares JobShare[] @relation("JobShareCreator")
 
   // Onboarding
-  onboardingCompleted   Boolean   @default(false)
+  onboardingCompleted Boolean @default(false)
 
   @@unique([email])
   @@unique([stripeCustomerId])
@@ -681,8 +680,8 @@ model JobShare {
   updatedAt DateTime @updatedAt
 
   // Who created this share
-  userId String
-  user   User   @relation("JobShareCreator", fields: [userId], references: [id], onDelete: Cascade)
+  creatorId String
+  creator   User   @relation("JobShareCreator", fields: [creatorId], references: [id], onDelete: Cascade)
 
   // Job which is being shared
   jobId String
@@ -694,10 +693,6 @@ model JobShare {
   // Access Control
   accessType ShareAccessType
 
-  // Recipient User
-  recipientId String?
-  recipient   User?   @relation("JobShareRecipient", fields: [recipientId], references: [id], onDelete: SetNull)
-
   // Recipient Organization
   recipientOrganizationId String?
   recipientOrganization   Organization? @relation(fields: [recipientOrganizationId], references: [id], onDelete: SetNull)
@@ -705,10 +700,8 @@ model JobShare {
   // SEO Control
   allowSearchIndexing Boolean @default(true)
 
-  @@unique([jobId, recipientId])
   @@unique([jobId, recipientOrganizationId])
   @@index([recipientOrganizationId])
-  @@index([recipientId])
   @@map("share")
 }
 
