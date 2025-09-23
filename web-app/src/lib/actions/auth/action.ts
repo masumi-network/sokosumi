@@ -86,6 +86,7 @@ export async function signUpEmail(
         password: parsed.password,
         callbackURL: "/",
         termsAccepted: parsed.termsAccepted,
+        onboardingCompleted: false,
       },
     });
     const user = signUpResult.user;

@@ -15,7 +15,7 @@ import {
   Paragraph,
   TextRun,
 } from "docx";
-import { toDocx } from "mdast2docx";
+import { EmptyNode, IPlugin, toDocx } from "mdast2docx";
 import { NextRequest, NextResponse } from "next/server";
 import remarkFrontmatter from "remark-frontmatter";
 import remarkGfm from "remark-gfm";
@@ -23,7 +23,9 @@ import remarkMath from "remark-math";
 import remarkParse from "remark-parse";
 import { unified } from "unified";
 
+import { setupDomContext } from "@/lib/utils/dom-context";
 import { sanitizeFileName } from "@/lib/utils/file";
+import { hasHtmlContent } from "@/lib/utils/html-detection";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -127,6 +129,9 @@ function createHeaderElements(
 }
 
 export async function POST(request: NextRequest) {
+  // Set up DOM context for server-side HTML processing
+  const cleanup = await setupDomContext();
+
   try {
     const json = (await request.json()) as GenerateDocxRequest;
     const markdown = (json.markdown ?? "").toString();
@@ -137,6 +142,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check if markdown contains HTML content
+    const hasHtml = hasHtmlContent(markdown);
     const logoBuffer = dataUrlToBuffer(json.logoPng);
     const kanjiLogoBuffer = dataUrlToBuffer(json.kanjiLogoPng);
     const mdast = unified()
@@ -163,7 +170,6 @@ export async function POST(request: NextRequest) {
       alignment: AlignmentType.RIGHT,
       children: [new TextRun({ children: [PageNumber.CURRENT] })],
     });
-
     const blob = await toDocx(
       mdast,
       {
@@ -174,11 +180,11 @@ export async function POST(request: NextRequest) {
       {
         plugins: [
           tablePlugin(),
-          htmlPlugin(),
           imagePlugin(),
           listPlugin(),
           mathPlugin(),
-        ],
+          ...(hasHtml ? [htmlPlugin()] : []),
+        ] as IPlugin<EmptyNode>[],
         headers: { default: new Header({ children: headerElements }) },
         footers: {
           default: new Footer({ children: [footerLeft, footerRight] }),
@@ -218,5 +224,8 @@ export async function POST(request: NextRequest) {
       { error: "Failed to generate DOCX" },
       { status: 500 },
     );
+  } finally {
+    // Clean up DOM context
+    cleanup();
   }
 }

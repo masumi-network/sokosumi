@@ -22,13 +22,12 @@ import {
   jobShareRepository,
   prisma,
 } from "@/lib/db/repositories";
-import { JobInputData } from "@/lib/job-input";
 import {
   JobStatusResponseSchemaType,
   PricingAmountsSchemaType,
   StartJobInputSchemaType,
 } from "@/lib/schemas";
-import { getInputHash, getInputHashDeprecated } from "@/lib/utils";
+import { getInputHash, getOutputHash } from "@/lib/utils";
 import {
   AgentJobStatus,
   Job,
@@ -66,41 +65,6 @@ export const jobService = (() => {
    */
   function shouldSyncMasumiStatus(job: Job): boolean {
     return job.refundedCreditTransactionId === null;
-  }
-
-  /**
-   * Returns the matching input hash for a job, supporting both current and deprecated hash formats.
-   *
-   * This function computes the input hash for the provided job input data and purchaser identifier,
-   * and compares it to the given hash to match. If the current hash does not match, it also checks
-   * against a deprecated hash format for backward compatibility. If neither matches, a JobError is thrown.
-   *
-   * @param inputData - The job input data used to compute the hash.
-   * @param identifierFromPurchaser - The unique identifier from the purchaser, used in hash computation.
-   * @param inputHashToMatch - The hash value to match against (could be current or deprecated).
-   * @returns The matched input hash string (current or deprecated).
-   * @throws {JobError} If neither the current nor deprecated input hash matches the provided value.
-   */
-  function getMatchedInputHash(
-    inputData: JobInputData,
-    identifierFromPurchaser: string,
-    inputHashToMatch: string,
-  ): string {
-    const inputHash = getInputHash(inputData, identifierFromPurchaser);
-    if (inputHashToMatch === inputHash) {
-      return inputHash;
-    }
-    const inputHashDeprecated = getInputHashDeprecated(
-      inputData,
-      identifierFromPurchaser,
-    );
-    if (inputHashToMatch === inputHashDeprecated) {
-      return inputHashDeprecated;
-    }
-    throw new JobError(
-      JobErrorCode.INPUT_HASH_MISMATCH,
-      "Input data hash mismatch",
-    );
   }
 
   /**
@@ -230,6 +194,14 @@ export const jobService = (() => {
     const output = JSON.stringify(jobStatusResponse);
     const agentJobStatus = jobStatusToAgentJobStatus(jobStatusResponse.status);
 
+    // Generate identifier and hashes for demo parity
+    const identifierFromPurchaser = uuidv4().replace(/-/g, "").substring(0, 20);
+    const inputHash = getInputHash(inputData, identifierFromPurchaser);
+    const outputHash = getOutputHash(
+      jobStatusResponse,
+      identifierFromPurchaser,
+    );
+
     const job = await jobRepository.createDemoJob({
       agentJobId: uuidv4(),
       agentId,
@@ -240,6 +212,9 @@ export const jobService = (() => {
       name: "Demo Job",
       agentJobStatus,
       output,
+      identifierFromPurchaser,
+      inputHash,
+      outputHash,
       completedAt:
         agentJobStatus === AgentJobStatus.COMPLETED ? new Date() : null,
     });
@@ -461,24 +436,6 @@ export const jobService = (() => {
       },
     });
 
-    let matchedInputHash: string;
-    try {
-      matchedInputHash = getMatchedInputHash(
-        inputData,
-        identifierFromPurchaser,
-        startJobResponse.input_hash,
-      );
-    } catch (error) {
-      Sentry.setTag("error_type", "input_hash_mismatch");
-      Sentry.setContext("input_hash_validation", {
-        agentId,
-        identifierFromPurchaser,
-        expectedHash: startJobResponse.input_hash,
-        agentJobId: startJobResponse.job_id,
-      });
-      throw error;
-    }
-
     // Check if amounts are correct
     const jobPricingAmounts: PricingAmountsSchemaType =
       startJobResponse.amounts.map((amount) => ({
@@ -607,7 +564,6 @@ export const jobService = (() => {
       agentWithCreditsPrice.blockchainIdentifier,
       startJobResponse,
       inputData,
-      matchedInputHash,
       identifierFromPurchaser,
     );
     if (createPurchaseResult.ok) {

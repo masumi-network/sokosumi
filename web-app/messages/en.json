@@ -282,6 +282,10 @@
             }
           }
         },
+        "VerificationBadge": {
+          "verified": "{direction} hash is verified. Click here to learn more",
+          "unverified": "{direction} hash is unverified. Click here to learn more"
+        },
         "Input": {
           "title": "Input",
           "failedToParseInput": "Failed to parse input",
@@ -871,6 +875,55 @@
       }
     }
   },
+  "Onboarding": {
+    "Metadata": {
+      "title": "Welcome to Sokosumi",
+      "description": "Invite your colleagues and earn $10 in credits for each, up to a maximum of $40."
+    },
+    "Form": {
+      "step1": "Step 1: Create your Organisation",
+      "step2": "Step 2: Invite Co-Workers",
+      "credits": "+ 10$ Credits",
+      "createYourOrganisation": "Create your Organisation",
+      "inviteMoreCoWorkers": "+ Invite more co-workers",
+      "continueAndInviteCoWorkers": "Continue & Invite Co-Workers",
+      "divider": "or",
+      "Organisation": {
+        "name": "Your organisation's name", 
+        "placeholder": "Enter your organisation name"
+      },
+      "CoWorkers": {
+        "placeholder": "Co-worker's email..."
+      },
+      "Validation": {
+        "fixErrors": "Fix the errors above",
+        "enterBoth": "Enter an organization name and add at least one valid email",
+        "enterOrgName": "Enter an organization name",
+        "addValidEmail": "Add at least one valid email",
+        "organizationNameRequired": "Organization name is required",
+        "invalidEmailAddress": "Invalid email address",
+        "emailAlreadyAdded": "Email already added"
+      },
+      "Toast": {
+        "organizationCreated": "Organization created and {count} invitation(s) sent.",
+        "failedToComplete": "Failed to complete onboarding",
+        "failedToSkip": "Failed to skip onboarding",
+        "unexpectedError": "An unexpected error occurred"
+      },
+      "skip": "Skip"
+    },
+    "Actions": {
+      "Errors": {
+        "notAuthenticated": "Not authenticated",
+        "alreadyRegisteredUsers": "Already registered users: {emails}",
+        "orgAndEmailsRequired": "Organization name and colleague emails must be provided together",
+        "failedToCreateSlug": "Failed to create organization slug",
+        "failedToCreateOrganization": "Failed to create organization",
+        "failedToComplete": "Failed to complete onboarding",
+        "failedToSkip": "Failed to skip onboarding"
+      }
+    }
+  },
   "App": {
     "Error": {
       "title": "Something went wrong",
@@ -1288,6 +1341,11 @@
         "defaultName": "Untitled",
         "description": "Hire yourself an agent to finish the most time consuming tasks"
       }
+    },
+    "CTA": {
+      "title": "Explorer how the agents work",
+      "description": "Browse others, designed to help you!",
+      "buttonText": "Explore Agents"
     }
   },
   "NotFound": {

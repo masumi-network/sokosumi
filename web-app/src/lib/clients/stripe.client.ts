@@ -24,6 +24,7 @@ export interface CheckoutSessionData {
 }
 export const stripeClient = (() => {
   const stripe = new Stripe(getEnvSecrets().STRIPE_SECRET_KEY);
+  const MAX_REFERRAL_COUNT = 4; // max number of referral credits to apply
 
   function validatePrice(price: Stripe.Price): Price {
     if (price.currency !== "usd") {
@@ -306,6 +307,76 @@ export const stripeClient = (() => {
         },
       );
       return session;
+    },
+
+    async applyReferralCreditsToCustomer(
+      customerId: string,
+      couponId: string,
+      metadata?: Record<string, string>,
+      referralCount: number = 1,
+    ): Promise<Stripe.Invoice> {
+      const productId = getEnvSecrets().STRIPE_PRODUCT_ID;
+      const price = await this.getPriceByProductId(productId);
+
+      // Validate coupon and compute quantity of credits
+      const coupon = await stripe.coupons.retrieve(couponId);
+      if (!coupon) throw new Error("Coupon not found");
+      if (coupon.percent_off)
+        throw new Error("Only fixed-amount coupons are supported");
+      if (!coupon.amount_off)
+        throw new Error("Coupon must have a fixed amount");
+      if (coupon.currency?.toLowerCase() !== price.currency.toLowerCase()) {
+        throw new Error(
+          `Coupon currency ${coupon.currency ?? "unknown"} does not match price currency ${price.currency}`,
+        );
+      }
+      if (price.amountPerCredit === 0) {
+        throw new Error(
+          "Price amountPerCredit is 0 – cannot calculate credits for free product",
+        );
+      }
+
+      const quantity = Math.floor(coupon.amount_off / price.amountPerCredit);
+      if (quantity < 1) {
+        throw new Error("Coupon amount is too low to redeem any credits");
+      }
+
+      // 1) Add invoice items representing the free credits
+      const itemsToCreate = Math.min(referralCount!, MAX_REFERRAL_COUNT);
+      await Promise.all(
+        Array.from({ length: itemsToCreate }).map((_, index) =>
+          stripe.invoiceItems.create({
+            customer: customerId,
+            pricing: { price: price.id },
+            currency: price.currency,
+            quantity,
+            description: `Referral credit redemption (${quantity} credits) - ${index + 1} of ${itemsToCreate}`,
+            metadata: {
+              coupon_id: couponId,
+              redemption_type: "free_coupon",
+              ...(metadata ?? {}),
+            },
+            discounts: [{ coupon: couponId }],
+          }),
+        ),
+      );
+
+      // 2) Create & finalize zero-total invoice with the coupon discount
+      const invoice = await stripe.invoices.create({
+        customer: customerId,
+        currency: price.currency,
+        pending_invoice_items_behavior: "include",
+        collection_method: "charge_automatically",
+        auto_advance: true,
+        metadata: { coupon_id: couponId, price_id: price.id },
+        expand: ["lines.data.price.product"],
+      });
+
+      const finalizedInvoice = await stripe.invoices.finalizeInvoice(
+        invoice.id!,
+      );
+
+      return finalizedInvoice;
     },
   };
 })();

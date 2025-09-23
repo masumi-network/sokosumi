@@ -23,6 +23,17 @@ interface DownloadButtonProps {
 
 const FILE_NAME = "output";
 
+// Constants for document export styling
+const EXPORT_STYLES = {
+  container:
+    "font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; line-height: 1.6; color: black; background: white;",
+  table: `
+    table { border-collapse: collapse; }
+    table, th, td { border: 1px solid currentColor; }
+    td { padding: 0.5em; }
+  `,
+} as const;
+
 export default function DownloadButton({
   markdown,
   className,
@@ -51,7 +62,8 @@ export default function DownloadButton({
     const html = marked.parse(sanitized, { async: false }) as string;
 
     return `
-      <div style="font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; line-height: 1.6; color: black; background: white;">
+      <div style="${EXPORT_STYLES.container}">
+        <style>${EXPORT_STYLES.table}</style>
         <div>${html}</div>
       </div>
     `;

@@ -1,7 +1,5 @@
 import "server-only";
 
-import { v4 as uuidv4 } from "uuid";
-
 // Purchase type is declared globally in types/hey-api.d.ts
 import {
   computeJobStatus,
@@ -53,6 +51,10 @@ interface CreateDemoJobData {
   agentJobStatus: AgentJobStatus;
   output: string;
   completedAt: Date | null;
+  // Hashing and identifier (for demo parity with on-chain jobs)
+  identifierFromPurchaser: string;
+  inputHash: string | null;
+  outputHash: string | null;
 }
 
 interface CreateJobData {
@@ -248,7 +250,7 @@ export const jobRepository = {
         },
         inputSchema: data.inputSchema,
         input: data.input,
-        identifierFromPurchaser: uuidv4(),
+        identifierFromPurchaser: data.identifierFromPurchaser,
         payByTime: new Date(Date.now() + 60 * 60 * 1000),
         submitResultTime: new Date(Date.now() + 2 * 60 * 60 * 1000),
         unlockTime: new Date(Date.now() + 3 * 60 * 60 * 1000),
@@ -258,6 +260,9 @@ export const jobRepository = {
         name: data.name,
         agentJobStatus: data.agentJobStatus,
         output: data.output,
+        // Persist demo hashes for verification badge parity
+        ...(data.inputHash && { inputHash: data.inputHash }),
+        ...(data.outputHash && { outputHash: data.outputHash }),
         completedAt: data.completedAt,
         isDemo: true,
       },

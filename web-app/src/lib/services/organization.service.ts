@@ -6,7 +6,7 @@ import slugify from "slugify";
 
 import { auth, Invitation } from "@/lib/auth/auth";
 import { getAuthContext } from "@/lib/auth/utils";
-import { InvitationWithRelations, MemberWithUser } from "@/lib/db";
+import { InvitationWithRelations, MemberRole, MemberWithUser } from "@/lib/db";
 import { invitationRepository, memberRepository } from "@/lib/db/repositories";
 
 /**
@@ -143,11 +143,62 @@ export const organizationService = (() => {
     return Array.from(emailMap.values());
   }
 
+  /**
+   * Creates an organization with the specified user as owner.
+   *
+   * @param name - The name of the organization.
+   * @param userId - The ID of the user who will own the organization.
+   * @returns Promise that resolves to the created organization or null if failed.
+   */
+  async function createOrganizationWithOwner(name: string, userId: string) {
+    const slug = await generateOrganizationSlugFromName(name);
+    const headersList = await headers();
+
+    return await auth.api.createOrganization({
+      body: {
+        name,
+        slug,
+        userId,
+      },
+      headers: headersList,
+    });
+  }
+
+  /**
+   * Invites multiple members to an organization in batch.
+   *
+   * @param organizationId - The ID of the organization.
+   * @param emails - Array of email addresses to invite.
+   * @param role - The role to assign to invited members.
+   * @returns Promise that resolves when all invitations are sent.
+   */
+  async function inviteMultipleMembers(
+    organizationId: string,
+    emails: string[],
+    role: MemberRole,
+  ): Promise<void> {
+    const headersList = await headers();
+
+    for (const email of emails) {
+      await auth.api.createInvitation({
+        body: {
+          email,
+          role,
+          organizationId,
+          resend: true,
+        },
+        headers: headersList,
+      });
+    }
+  }
+
   return {
     generateOrganizationSlugFromName,
     getPendingInvitation,
     getPendingInvitations,
     getOrganizationMembersWithUser,
+    createOrganizationWithOwner,
+    inviteMultipleMembers,
   };
 })();
 
