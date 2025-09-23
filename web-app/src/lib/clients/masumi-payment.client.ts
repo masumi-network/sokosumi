@@ -105,7 +105,6 @@ export const paymentClient = (() => {
       agentBlockchainIdentifier: string,
       startJobResponse: StartJobResponseSchemaType,
       inputData: JobInputData,
-      inputHash: string,
       identifierFromPurchaser: string,
     ): Promise<Result<Purchase, string>> {
       try {
@@ -113,7 +112,7 @@ export const paymentClient = (() => {
           client: client(),
           body: {
             agentIdentifier: agentBlockchainIdentifier,
-            inputHash: inputHash,
+            inputHash: startJobResponse.input_hash,
             blockchainIdentifier: startJobResponse.blockchainIdentifier,
             network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
             sellerVkey: startJobResponse.sellerVKey,

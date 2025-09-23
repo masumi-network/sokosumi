@@ -366,5 +366,77 @@ export const stripeService = (() => {
         return false;
       }
     },
+
+    async getReferralCoupon(couponId: string): Promise<Stripe.Coupon> {
+      const coupon = await stripeClient.getCouponById(couponId);
+      if (!coupon) {
+        throw new CouponNotFoundError(couponId);
+      }
+      return coupon;
+    },
+
+    async createAndApplyReferralCredits(
+      userId: string,
+      organizationId: string | null,
+      referralCount: number,
+    ): Promise<{
+      personalCoupon?: Stripe.Coupon;
+      orgCoupon?: Stripe.Coupon;
+    }> {
+      const user = await userRepository.getUserById(userId);
+      if (!user || !user.stripeCustomerId) {
+        throw new Error("User or Stripe customer not found");
+      }
+
+      const personalCoupon = await this.getReferralCoupon(
+        getEnvSecrets().STRIPE_ONBOARD_PERSONAL_COUPON,
+      );
+
+      const personalInvoice = await stripeClient.applyReferralCreditsToCustomer(
+        user.stripeCustomerId,
+        personalCoupon.id,
+        {
+          referral_user_id: String(user.id),
+          referral_email: String(user.email ?? ""),
+        },
+        referralCount,
+      );
+      if (!personalInvoice || !personalInvoice?.id) {
+        throw new Error("Failed to apply personal coupon");
+      }
+
+      if (personalInvoice.status !== "paid") {
+        throw new Error("Personal invoice is not paid");
+      }
+
+      // Create and apply organization coupon if organizationId provided
+      let orgCoupon: Stripe.Coupon | undefined;
+      if (organizationId) {
+        const organization =
+          await organizationRepository.getOrganizationWithRelationsById(
+            organizationId,
+          );
+        if (organization && organization.stripeCustomerId) {
+          orgCoupon = await this.getReferralCoupon(
+            getEnvSecrets().STRIPE_ONBOARD_ORGANIZATION_COUPON,
+          );
+
+          const orgInvoice = await stripeClient.applyReferralCreditsToCustomer(
+            organization.stripeCustomerId,
+            orgCoupon.id,
+            {
+              referral_user_id: String(userId),
+              referral_email: String(user?.email ?? ""),
+            },
+            referralCount,
+          );
+          if (!orgInvoice || !orgInvoice?.id) {
+            throw new Error("Failed to apply organization coupon");
+          }
+        }
+      }
+
+      return { personalCoupon, orgCoupon };
+    },
   };
 })();

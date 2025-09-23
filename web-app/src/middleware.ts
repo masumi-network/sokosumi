@@ -66,6 +66,9 @@ export async function middleware(request: NextRequest) {
     );
   }
 
+  // Check if user needs onboarding (this will be checked server-side in the onboarding page)
+  // The actual onboarding status check happens in the page component
+
   return response;
 }
 
