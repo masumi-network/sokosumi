@@ -221,9 +221,7 @@ describe("getMatchedHash", () => {
       status: "completed",
       result: "success",
       error: null,
-      error_trace: null,
-      compute_time: 1000,
-      output_blobs: [],
+      job_id: "job_1",
     };
 
     it("should return output hash when it matches", () => {
@@ -232,7 +230,7 @@ describe("getMatchedHash", () => {
         "output",
         mockOutputData,
         mockIdentifier,
-        outputHash,
+        outputHash ?? "",
       );
       expect(result).toBe(outputHash);
     });
@@ -269,7 +267,7 @@ describe("getMatchedHash", () => {
         "output",
         outputData1,
         mockIdentifier,
-        hash1,
+        hash1 ?? "",
       );
       expect(result1).toBe(hash1);
 
@@ -277,7 +275,7 @@ describe("getMatchedHash", () => {
         "output",
         outputData2,
         mockIdentifier,
-        hash2,
+        hash2 ?? "",
       );
       expect(result2).toBe(hash2);
 
@@ -286,7 +284,7 @@ describe("getMatchedHash", () => {
         "output",
         outputData1,
         mockIdentifier,
-        hash2,
+        hash2 ?? "",
       );
       expect(result3).toBeNull();
     });
@@ -310,7 +308,7 @@ describe("getMatchedHash", () => {
         "output",
         mockOutputData,
         mockIdentifier,
-        outputHash,
+        outputHash ?? "",
       );
       expect(result2).toBe(outputHash);
     });
@@ -331,19 +329,17 @@ describe("getMatchedHash", () => {
 
     it("should handle output data with null fields", () => {
       const outputWithNulls: JobStatusResponseSchemaType = {
+        job_id: "job_1",
         status: "completed",
         result: null,
         error: null,
-        error_trace: null,
-        compute_time: 0,
-        output_blobs: [],
       };
       const hash = getOutputHash(outputWithNulls, mockIdentifier);
       const result = getMatchedHash(
         "output",
         outputWithNulls,
         mockIdentifier,
-        hash,
+        hash ?? "",
       );
       expect(result).toBe(hash);
     });
@@ -448,7 +444,6 @@ describe("isJobVerified", () => {
 
     it("should return false when input is null", () => {
       const job = createMockJob({
-        input: null,
         inputHash: "somehash",
       });
       expect(isJobVerified("input", job)).toBe(false);
