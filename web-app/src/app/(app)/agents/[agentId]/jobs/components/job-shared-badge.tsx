@@ -36,7 +36,10 @@ export default function JobSharedBadge({
                 {creatorName.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
-            <Badge variant="secondary" className="text-xs">
+            <Badge
+              variant="default"
+              className={cn("bg-orange-100 text-orange-800", className)}
+            >
               {t("shared")}
             </Badge>
           </div>
