@@ -35,9 +35,11 @@ import JobShareModal from "./job-share-modal";
 export default function JobDetailsName({
   job,
   readOnly,
+  isOwner = true,
 }: {
   job: JobWithStatus;
   readOnly: boolean;
+  isOwner?: boolean;
 }) {
   const t = useTranslations("Components.Jobs.JobDetails.Header.JobName");
   const { name } = job;
@@ -71,7 +73,7 @@ export default function JobDetailsName({
   };
 
   const handleShareIndicatorClick = () => {
-    if (readOnly) {
+    if (readOnly || !isOwner) {
       return;
     }
     showModal();

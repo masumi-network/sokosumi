@@ -19,6 +19,7 @@ import JotOutputSources from "./sources";
 interface JobDetailsOutputsProps {
   job: JobWithStatus;
   readOnly?: boolean;
+  isOwner?: boolean;
 }
 
 interface JobDetailsOutputsLayoutProps {
@@ -32,15 +33,20 @@ function JobDetailsOutputsLayout({ children }: JobDetailsOutputsLayoutProps) {
 export default function JobDetailsOutputs({
   job,
   readOnly = false,
+  isOwner = true,
 }: JobDetailsOutputsProps) {
   return (
     <DefaultErrorBoundary fallback={<JobDetailsOutputsError />}>
-      <JobDetailsOutputsInner job={job} readOnly={readOnly} />
+      <JobDetailsOutputsInner job={job} readOnly={readOnly} isOwner={isOwner} />
     </DefaultErrorBoundary>
   );
 }
 
-function JobDetailsOutputsInner({ job, readOnly }: JobDetailsOutputsProps) {
+function JobDetailsOutputsInner({
+  job,
+  readOnly,
+  isOwner = true,
+}: JobDetailsOutputsProps) {
   const t = useTranslations("Components.Jobs.JobDetails.Output");
 
   let output: JobStatusResponseSchemaType | null = null;
@@ -65,10 +71,10 @@ function JobDetailsOutputsInner({ job, readOnly }: JobDetailsOutputsProps) {
               <div className="flex gap-1">
                 <DownloadButton markdown={output.result} />
                 <CopyMarkdown markdown={output.result} />
-                {!readOnly && <JobShareButton job={job} />}
+                {!readOnly && isOwner && <JobShareButton job={job} />}
               </div>
             </div>
-            {!job.isDemo && !readOnly && (
+            {!job.isDemo && !readOnly && isOwner && (
               <RequestRefundButton initialJob={job} />
             )}
           </div>
@@ -76,11 +82,14 @@ function JobDetailsOutputsInner({ job, readOnly }: JobDetailsOutputsProps) {
       ) : (
         <>
           <p className="text-base">{t("none")}</p>
-          {!job.isDemo && job.status === JobStatus.FAILED && !readOnly && (
-            <div className="flex justify-end">
-              <RequestRefundButton initialJob={job} />
-            </div>
-          )}
+          {!job.isDemo &&
+            job.status === JobStatus.FAILED &&
+            !readOnly &&
+            isOwner && (
+              <div className="flex justify-end">
+                <RequestRefundButton initialJob={job} />
+              </div>
+            )}
         </>
       )}
     </JobDetailsOutputsLayout>

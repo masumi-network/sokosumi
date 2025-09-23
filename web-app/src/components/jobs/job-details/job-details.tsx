@@ -16,12 +16,14 @@ interface JobDetailsProps {
   job: JobWithStatus;
   readOnly?: boolean;
   className?: string;
+  isOwner?: boolean;
 }
 
 export default function JobDetails({
   job,
   readOnly = false,
   className,
+  isOwner = true,
 }: JobDetailsProps) {
   const t = useTranslations("Components.Jobs.JobDetails");
 
@@ -43,7 +45,7 @@ export default function JobDetails({
           defaultValue={defaultAccordionValue}
           className="w-full space-y-1.5"
         >
-          <JobDetailsHeader job={job} readOnly={readOnly} />
+          <JobDetailsHeader job={job} readOnly={readOnly} isOwner={isOwner} />
           <AccordionItemWrapper
             value="input"
             title={t("Input.title")}
@@ -64,7 +66,11 @@ export default function JobDetails({
               <JobVerificationBadge direction="output" job={job} />
             }
           >
-            <JobDetailsOutputs job={job} readOnly={readOnly} />
+            <JobDetailsOutputs
+              job={job}
+              readOnly={readOnly}
+              isOwner={isOwner}
+            />
           </AccordionItemWrapper>
         </Accordion>
       </ScrollArea>
@@ -75,16 +81,18 @@ export default function JobDetails({
 function JobDetailsHeader({
   job,
   readOnly,
+  isOwner,
 }: {
   job: JobWithStatus;
   readOnly: boolean;
+  isOwner: boolean;
 }) {
   const formatter = useFormatter();
   const { createdAt, status, isDemo } = job;
 
   return (
     <div className="flex flex-col gap-2">
-      <JobDetailsName job={job} readOnly={readOnly} />
+      <JobDetailsName job={job} readOnly={readOnly} isOwner={isOwner} />
       <div className="bg-muted/50 flex items-center justify-between gap-2 rounded-xl p-4">
         <p>
           {formatter.dateTime(createdAt, {

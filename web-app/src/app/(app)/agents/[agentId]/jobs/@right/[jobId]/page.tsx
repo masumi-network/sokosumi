@@ -70,5 +70,8 @@ export default async function JobDetailsPage({
     notFound();
   }
 
-  return <JobDetails job={job} />;
+  // Determine if the user is the owner of the job
+  const isOwner = job.userId === session.user.id;
+
+  return <JobDetails job={job} isOwner={isOwner} />;
 }
