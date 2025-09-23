@@ -69,8 +69,8 @@ export function JobVerificationBadge({
   const colorClass = isPending
     ? "text-primary"
     : isVerified
-      ? "text-green-500"
-      : "text-red-500";
+      ? "text-semantic-success"
+      : "text-semantic-destructive";
   const label = isPending
     ? t("VerificationBadge.pending", { direction: directionText })
     : isVerified
