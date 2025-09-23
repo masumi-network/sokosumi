@@ -219,10 +219,7 @@ describe("getMatchedHash", () => {
   describe("output hash matching", () => {
     const mockOutputData: JobStatusResponseSchemaType = {
       status: "completed",
-      output_data: {
-        result: "success",
-        value: 42,
-      },
+      result: "success",
       error: null,
       error_trace: null,
       compute_time: 1000,
@@ -254,11 +251,11 @@ describe("getMatchedHash", () => {
     it("should handle different output data correctly", () => {
       const outputData1: JobStatusResponseSchemaType = {
         ...mockOutputData,
-        output_data: { result: "different" },
+        result: "different",
       };
       const outputData2: JobStatusResponseSchemaType = {
         ...mockOutputData,
-        output_data: { result: "another" },
+        result: "another",
       };
 
       const hash1 = getOutputHash(outputData1, mockIdentifier);
@@ -335,7 +332,7 @@ describe("getMatchedHash", () => {
     it("should handle output data with null fields", () => {
       const outputWithNulls: JobStatusResponseSchemaType = {
         status: "completed",
-        output_data: null,
+        result: null,
         error: null,
         error_trace: null,
         compute_time: 0,
