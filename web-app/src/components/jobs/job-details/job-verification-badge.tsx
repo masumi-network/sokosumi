@@ -45,7 +45,7 @@ export function JobVerificationBadge({
     // Otherwise, try to verify the hash
     if (direction === "output") {
       const isFundsLocked = job.onChainStatus === OnChainJobStatus.FUNDS_LOCKED;
-      if (isFundsLocked) {
+      if (isFundsLocked && !job.isDemo) {
         return { isPending: true, isVerified: false };
       }
       return {
