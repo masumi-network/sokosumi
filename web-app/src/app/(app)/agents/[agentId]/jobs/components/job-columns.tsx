@@ -52,38 +52,6 @@ export function getJobColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("Header.status")} />
       ),
-      cell: ({ row }) => (
-        <div className="p-2">
-          {row.original.isDemo ? (
-            <JobStatusBadge
-              status={row.original.status}
-              isDemo={row.original.isDemo}
-            />
-          ) : (
-            <RealTimeJobStatusBadge
-              agentId={row.original.agentId}
-              userId={userId}
-              jobId={row.original.id}
-              initialJobIndicatorStatus={{
-                jobId: row.original.id,
-                jobStatus: row.original.status,
-                jobStatusSettled: row.original.jobStatusSettled,
-              }}
-              isDemo={row.original.isDemo}
-            />
-          )}
-        </div>
-      ),
-      enableSorting: true,
-      enableHiding: false,
-    }) as ColumnDef<JobWithStatus>,
-
-    nameColumn: columnHelper.accessor("name", {
-      id: "name",
-      minSize: 180,
-      header: ({ column }) => (
-        <DataTableColumnHeader column={column} title={t("Header.name")} />
-      ),
       cell: ({ row }) => {
         const job = row.original;
         const isSharedJob = job.userId !== userId;
@@ -91,19 +59,10 @@ export function getJobColumns(
           (share) => share.recipientOrganizationId && share.creator,
         );
 
-        return (
-          <div className="flex items-center gap-2 p-2">
-            <div className="flex-1">
-              {!!job.name ? (
-                <p className="max-w-28 truncate md:max-w-40">{job.name}</p>
-              ) : (
-                <MiddleTruncate
-                  text={job.name ?? job.id}
-                  className="font-mono text-xs"
-                />
-              )}
-            </div>
-            {isSharedJob && orgShare && (
+        // If it's a shared job, show the sharing indicator instead of status
+        if (isSharedJob && orgShare) {
+          return (
+            <div className="p-2">
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>
@@ -128,10 +87,56 @@ export function getJobColumns(
                   </TooltipContent>
                 </Tooltip>
               </TooltipProvider>
+            </div>
+          );
+        }
+
+        // For owned jobs, show the status badge as normal
+        return (
+          <div className="p-2">
+            {row.original.isDemo ? (
+              <JobStatusBadge
+                status={row.original.status}
+                isDemo={row.original.isDemo}
+              />
+            ) : (
+              <RealTimeJobStatusBadge
+                agentId={row.original.agentId}
+                userId={userId}
+                jobId={row.original.id}
+                initialJobIndicatorStatus={{
+                  jobId: row.original.id,
+                  jobStatus: row.original.status,
+                  jobStatusSettled: row.original.jobStatusSettled,
+                }}
+                isDemo={row.original.isDemo}
+              />
             )}
           </div>
         );
       },
+      enableSorting: true,
+      enableHiding: false,
+    }) as ColumnDef<JobWithStatus>,
+
+    nameColumn: columnHelper.accessor("name", {
+      id: "name",
+      minSize: 180,
+      header: ({ column }) => (
+        <DataTableColumnHeader column={column} title={t("Header.name")} />
+      ),
+      cell: ({ row }) => (
+        <div className="p-2">
+          {!!row.original.name ? (
+            <p className="max-w-28 truncate md:max-w-40">{row.original.name}</p>
+          ) : (
+            <MiddleTruncate
+              text={row.original.name ?? row.original.id}
+              className="font-mono text-xs"
+            />
+          )}
+        </div>
+      ),
       enableSorting: true,
       enableHiding: false,
     }) as ColumnDef<JobWithStatus>,
