@@ -71,11 +71,12 @@ export const getOutputHash = (
   outputData: JobStatusResponseSchemaType,
   identifierFromPurchaser: string,
 ) => {
-  const outputValue = (outputData as unknown as { result?: unknown }).result;
-  // Output is always a string; coerce defensively
-  const outputString = String(outputValue);
+  const outputValue = outputData.result;
+  if (typeof outputValue !== "string") {
+    return null;
+  }
 
-  return createHash(identifierFromPurchaser + ";" + outputString);
+  return createHash(identifierFromPurchaser + ";" + outputValue);
 };
 
 /**
