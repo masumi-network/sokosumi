@@ -71,7 +71,7 @@ export const getOutputHash = (
   outputData: JobStatusResponseSchemaType,
   identifierFromPurchaser: string,
 ) => {
-  const outputString = canonicalizeEx(outputData, {
+  const outputString = canonicalizeEx(outputData.result, {
     filterUndefined: true,
   });
   return createHash(identifierFromPurchaser + ";" + outputString);
