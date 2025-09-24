@@ -270,7 +270,7 @@ export default function OnboardingForm({
         variant="ghost"
         onClick={handleSkip}
         disabled={isSubmitting || isSkipping}
-        className="w-full"
+        className="bg-senary hover:bg-quinary text-foreground w-full rounded-md px-4 py-2 text-sm shadow-none transition-colors duration-300"
       >
         {t("skip")}
       </Button>

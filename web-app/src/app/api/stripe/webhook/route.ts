@@ -15,6 +15,7 @@ import {
   prisma,
   userRepository,
 } from "@/lib/db/repositories";
+import { stripeService } from "@/lib/services/stripe.service";
 import { FiatTransactionStatus } from "@/prisma/generated/client";
 
 export async function POST(req: Request) {
@@ -242,6 +243,13 @@ const handleCustomerCreatedEvent = async (
               { status: 200 },
             );
           }
+
+          await stripeService.applyWelcomeCoupon(
+            userId,
+            customer.id,
+            user.email,
+          );
+
           if (user.email !== customer.email) {
             await stripeClient.updateCustomerEmail(customer.id, user.email);
           }
@@ -258,7 +266,9 @@ const handleCustomerCreatedEvent = async (
               { status: 200 },
             );
           }
+
           await userRepository.setUserStripeCustomerId(userId, customer.id, tx);
+
           return NextResponse.json(
             {
               message: `✅ Updated user ${userId} stripe customer id to ${customer.id}`,

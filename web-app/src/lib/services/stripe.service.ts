@@ -109,14 +109,16 @@ export const stripeService = (() => {
      *
      * This function checks if the user is eligible for welcome credits based on the following criteria:
      * - The environment variable STRIPE_WELCOME_COUPONS must contain at least one coupon ID.
-     * - The user must be authenticated (session exists).
      * - The user must not be part of an active organization (promotion is for individual users only).
      * - The user must have a valid Stripe customer ID.
      * - The user must not have already redeemed any of the welcome coupons.
      *
      * @returns {Promise<{ canClaim: boolean; couponId?: string }>} Object indicating if user can claim and which coupon ID.
      */
-    async canClaimWelcomeCredits(): Promise<{
+    async canClaimWelcomeCredits(
+      userId?: string,
+      organizationId?: string | null,
+    ): Promise<{
       canClaim: boolean;
       couponId?: string;
     }> {
@@ -125,19 +127,16 @@ export const stripeService = (() => {
         return { canClaim: false };
       }
 
-      const context = await getAuthContext();
-      if (!context) {
-        return { canClaim: false };
-      }
+      if (!userId) return { canClaim: false };
 
-      // If user is in an organization, they can't claim welcome credits
-      if (context.organizationId) {
+      // If params provided, enforce organization restriction with provided value
+      if (organizationId) {
         return { canClaim: false };
       }
 
       const stripeCustomerId = await getStripeCustomerId(
-        context.userId,
-        context.organizationId,
+        userId,
+        organizationId ?? null,
       );
       if (!stripeCustomerId) {
         return { canClaim: false };
@@ -367,7 +366,7 @@ export const stripeService = (() => {
       }
     },
 
-    async getReferralCoupon(couponId: string): Promise<Stripe.Coupon> {
+    async getCoupon(couponId: string): Promise<Stripe.Coupon> {
       const coupon = await stripeClient.getCouponById(couponId);
       if (!coupon) {
         throw new CouponNotFoundError(couponId);
@@ -388,11 +387,11 @@ export const stripeService = (() => {
         throw new Error("User or Stripe customer not found");
       }
 
-      const personalCoupon = await this.getReferralCoupon(
+      const personalCoupon = await this.getCoupon(
         getEnvSecrets().STRIPE_ONBOARD_PERSONAL_COUPON,
       );
 
-      const personalInvoice = await stripeClient.applyReferralCreditsToCustomer(
+      const personalInvoice = await stripeClient.applyInvoiceCreditsToCustomer(
         user.stripeCustomerId,
         personalCoupon.id,
         {
@@ -417,11 +416,11 @@ export const stripeService = (() => {
             organizationId,
           );
         if (organization && organization.stripeCustomerId) {
-          orgCoupon = await this.getReferralCoupon(
+          orgCoupon = await this.getCoupon(
             getEnvSecrets().STRIPE_ONBOARD_ORGANIZATION_COUPON,
           );
 
-          const orgInvoice = await stripeClient.applyReferralCreditsToCustomer(
+          const orgInvoice = await stripeClient.applyInvoiceCreditsToCustomer(
             organization.stripeCustomerId,
             orgCoupon.id,
             {
@@ -437,6 +436,51 @@ export const stripeService = (() => {
       }
 
       return { personalCoupon, orgCoupon };
+    },
+
+    /**
+     * Applies a welcome coupon to a customer.
+     * @param userId - The ID of the user.
+     * @param customerId - The ID of the customer.
+     * @param userEmail - The email of the user.
+     */
+    async applyWelcomeCoupon(
+      userId: string,
+      customerId: string,
+      userEmail: string | null,
+    ): Promise<void> {
+      const userCanClaim = await this.canClaimWelcomeCredits(userId, null);
+      console.log(`User ${userId} can claim welcome coupon:`, userCanClaim);
+
+      if (!userCanClaim.canClaim) {
+        console.log(`User ${userId} cannot claim welcome coupon`);
+        return;
+      }
+
+      const welcomeCouponId = getEnvSecrets().STRIPE_WELCOME_COUPONS?.at(-1);
+      if (welcomeCouponId && userEmail) {
+        try {
+          const coupon = await stripeService.getCoupon(welcomeCouponId);
+          const invoice = await stripeClient.applyInvoiceCreditsToCustomer(
+            customerId,
+            coupon.id,
+            {
+              redemption_type: "welcome_coupon",
+              welcome_source: "customer.created",
+              user_id: userId,
+              user_email: userEmail,
+            },
+          );
+          if (!invoice || !invoice?.id) {
+            throw new Error("Failed to apply welcome coupon");
+          }
+        } catch (error) {
+          console.error(
+            `Failed to apply welcome coupon for user ${userId}:`,
+            error,
+          );
+        }
+      }
     },
   };
 })();

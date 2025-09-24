@@ -309,7 +309,7 @@ export const stripeClient = (() => {
       return session;
     },
 
-    async applyReferralCreditsToCustomer(
+    async applyInvoiceCreditsToCustomer(
       customerId: string,
       couponId: string,
       metadata?: Record<string, string>,
