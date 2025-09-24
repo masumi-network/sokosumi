@@ -6,6 +6,7 @@ import { Accordion } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { JobStatus, JobWithStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
+import { AgentJobStatus } from "@/prisma/generated/client";
 
 import JobDetailsInputs from "./inputs";
 import JobDetailsName from "./job-details-name";
@@ -61,7 +62,9 @@ export default function JobDetails({
             value="output"
             title={t("Output.title")}
             verificationBadge={
-              <JobVerificationBadge direction="output" job={job} />
+              job.agentJobStatus === AgentJobStatus.COMPLETED ? (
+                <JobVerificationBadge direction="output" job={job} />
+              ) : null
             }
           >
             <JobDetailsOutputs job={job} readOnly={readOnly} />
