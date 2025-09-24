@@ -172,7 +172,7 @@ export const auth = betterAuth({
     sendVerificationEmail: async ({ user, url }) => {
       const t = await getTranslations("Library.Auth.Email.Verification");
 
-      await postmarkClient.sendEmail({
+      postmarkClient.sendEmail({
         From: fromEmail,
         To: user.email,
         Tag: "verification-email",
@@ -195,7 +195,7 @@ export const auth = betterAuth({
       sendChangeEmailVerification: async ({ user, url }) => {
         const t = await getTranslations("Library.Auth.Email.ChangeEmail");
 
-        await postmarkClient.sendEmail({
+        postmarkClient.sendEmail({
           From: fromEmail,
           To: user.email,
           Tag: "change-email",
@@ -281,7 +281,7 @@ export const auth = betterAuth({
         const inviteLink = `${getEnvSecrets().BETTER_AUTH_URL}/accept-invitation/${data.id}`;
         const t = await getTranslations("Library.Auth.Email.InviteUserEmail");
 
-        await postmarkClient.sendEmail({
+        postmarkClient.sendEmail({
           From: fromEmail,
           To: data.email,
           Tag: "invitation-email",
