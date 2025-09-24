@@ -94,10 +94,10 @@ importers:
         version: 0.3.0
       '@hey-api/client-fetch':
         specifier: 0.13.1
-        version: 0.13.1(@hey-api/openapi-ts@0.84.1(typescript@5.9.2))
+        version: 0.13.1(@hey-api/openapi-ts@0.84.2(typescript@5.9.2))
       '@hey-api/client-next':
         specifier: 0.5.1
-        version: 0.5.1(@hey-api/openapi-ts@0.84.1(typescript@5.9.2))
+        version: 0.5.1(@hey-api/openapi-ts@0.84.2(typescript@5.9.2))
       '@hookform/resolvers':
         specifier: 5.2.2
         version: 5.2.2(react-hook-form@7.63.0(react@19.1.1))
@@ -352,8 +352,8 @@ importers:
         version: 4.1.11
     devDependencies:
       '@hey-api/openapi-ts':
-        specifier: 0.84.1
-        version: 0.84.1(typescript@5.9.2)
+        specifier: 0.84.2
+        version: 0.84.2(typescript@5.9.2)
       '@types/humanize-duration':
         specifier: 3.27.4
         version: 3.27.4
@@ -901,8 +901,8 @@ packages:
     resolution: {integrity: sha512-+5eg9pgAAM9oSqJQuUtfTKbLz8yieFKN91myyXiLnprqFj8ROfxUKJLr9DKq/hGKyybKT1WxFSetDqCFm80pCA==}
     engines: {node: '>= 16'}
 
-  '@hey-api/openapi-ts@0.84.1':
-    resolution: {integrity: sha512-tgqP8WQtrGrg+WUYQJA4DmFTlWZq19H+8S/cuEAcPjBRkLZO6SdSnZzF0wfnk8AKcF8F/BLDZoPAiGt0mMnDdA==}
+  '@hey-api/openapi-ts@0.84.2':
+    resolution: {integrity: sha512-wfILeH3R3IKLdWwm0BB00wQMHYrDz4Ot8B2hPAd3QqlrsSSPDnRXatZ/Cya5tbcTqoUjXuBP2oXfbvndcNPIZQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=22.10.0}
     hasBin: true
     peerDependencies:
@@ -8065,13 +8065,13 @@ snapshots:
 
   '@hexagon/base64@1.1.28': {}
 
-  '@hey-api/client-fetch@0.13.1(@hey-api/openapi-ts@0.84.1(typescript@5.9.2))':
+  '@hey-api/client-fetch@0.13.1(@hey-api/openapi-ts@0.84.2(typescript@5.9.2))':
     dependencies:
-      '@hey-api/openapi-ts': 0.84.1(typescript@5.9.2)
+      '@hey-api/openapi-ts': 0.84.2(typescript@5.9.2)
 
-  '@hey-api/client-next@0.5.1(@hey-api/openapi-ts@0.84.1(typescript@5.9.2))':
+  '@hey-api/client-next@0.5.1(@hey-api/openapi-ts@0.84.2(typescript@5.9.2))':
     dependencies:
-      '@hey-api/openapi-ts': 0.84.1(typescript@5.9.2)
+      '@hey-api/openapi-ts': 0.84.2(typescript@5.9.2)
 
   '@hey-api/codegen-core@0.2.0(typescript@5.9.2)':
     dependencies:
@@ -8084,7 +8084,7 @@ snapshots:
       js-yaml: 4.1.0
       lodash: 4.17.21
 
-  '@hey-api/openapi-ts@0.84.1(typescript@5.9.2)':
+  '@hey-api/openapi-ts@0.84.2(typescript@5.9.2)':
     dependencies:
       '@hey-api/codegen-core': 0.2.0(typescript@5.9.2)
       '@hey-api/json-schema-ref-parser': 1.1.0
