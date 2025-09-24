@@ -244,12 +244,6 @@ const handleCustomerCreatedEvent = async (
             );
           }
 
-          await stripeService.applyWelcomeCoupon(
-            userId,
-            customer.id,
-            user.email,
-          );
-
           if (user.email !== customer.email) {
             await stripeClient.updateCustomerEmail(customer.id, user.email);
           }
@@ -268,6 +262,13 @@ const handleCustomerCreatedEvent = async (
           }
 
           await userRepository.setUserStripeCustomerId(userId, customer.id, tx);
+
+          // Apply welcome coupon after setting the stripe customer id
+          await stripeService.applyWelcomeCoupon(
+            userId,
+            customer.id,
+            user.email,
+          );
 
           return NextResponse.json(
             {
