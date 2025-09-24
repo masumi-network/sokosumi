@@ -284,7 +284,8 @@
         },
         "VerificationBadge": {
           "verified": "{direction} hash is verified. Click here to learn more",
-          "unverified": "{direction} hash is unverified. Click here to learn more"
+          "unverified": "{direction} hash is unverified. Click here to learn more",
+          "pending": "{direction} hash verification is pending. Click here to learn more"
         },
         "Input": {
           "title": "Input",
