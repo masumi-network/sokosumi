@@ -158,7 +158,7 @@ export const auth = betterAuth({
       postmarkClient.sendEmail({
         From: fromEmail,
         To: user.email,
-
+        Tag: "reset-password",
         Subject: t("subject"),
         HtmlBody: await reactResetPasswordEmail({
           name: user.name,
@@ -175,7 +175,7 @@ export const auth = betterAuth({
       await postmarkClient.sendEmail({
         From: fromEmail,
         To: user.email,
-        Tag: "registration",
+        Tag: "verification-email",
         Subject: t("subject"),
         HtmlBody: await reactVerificationEmail({
           name: user.name,
@@ -198,6 +198,7 @@ export const auth = betterAuth({
         await postmarkClient.sendEmail({
           From: fromEmail,
           To: user.email,
+          Tag: "change-email",
           Subject: t("subject"),
           HtmlBody: await reactChangeEmailVerificationEmail({
             name: user.name,
@@ -283,6 +284,7 @@ export const auth = betterAuth({
         await postmarkClient.sendEmail({
           From: fromEmail,
           To: data.email,
+          Tag: "invitation-email",
           Subject: t("subject"),
           HtmlBody: await reactInviteUserEmail({
             organizationName: data.organization.name,
