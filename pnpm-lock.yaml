@@ -126,8 +126,8 @@ importers:
         specifier: 0.1.1
         version: 0.1.1(docx@9.5.1)
       '@next/third-parties':
-        specifier: 15.5.3
-        version: 15.5.3(next@15.5.3(@babel/core@7.28.4)(@opentelemetry/api@1.9.0)(react-dom@19.1.1(react@19.1.1))(react@19.1.1))(react@19.1.1)
+        specifier: 15.5.4
+        version: 15.5.4(next@15.5.3(@babel/core@7.28.4)(@opentelemetry/api@1.9.0)(react-dom@19.1.1(react@19.1.1))(react@19.1.1))(react@19.1.1)
       '@prisma/client':
         specifier: 6.16.2
         version: 6.16.2(prisma@6.16.2(typescript@5.9.2))(typescript@5.9.2)
@@ -1310,8 +1310,8 @@ packages:
     cpu: [x64]
     os: [win32]
 
-  '@next/third-parties@15.5.3':
-    resolution: {integrity: sha512-DSKz1N6/WmacV8JAPizHt8dqTP6RljcOgtrnLDEIEI7TGpX1lSfoHwY0TxXVhVoN1WwUHGDo6XUJsSjaLpcMoQ==}
+  '@next/third-parties@15.5.4':
+    resolution: {integrity: sha512-l3T1M/EA32phPzZx+gkQAWOF3E5iAULL1nX4Ej0JZQOXaBwwJzb/rd2uefr5TAshJj/+HjjwmdFu7olXudvgVg==}
     peerDependencies:
       next: ^13.0.0 || ^14.0.0 || ^15.0.0
       react: ^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ^19.0.0
@@ -8559,7 +8559,7 @@ snapshots:
   '@next/swc-win32-x64-msvc@15.5.3':
     optional: true
 
-  '@next/third-parties@15.5.3(next@15.5.3(@babel/core@7.28.4)(@opentelemetry/api@1.9.0)(react-dom@19.1.1(react@19.1.1))(react@19.1.1))(react@19.1.1)':
+  '@next/third-parties@15.5.4(next@15.5.3(@babel/core@7.28.4)(@opentelemetry/api@1.9.0)(react-dom@19.1.1(react@19.1.1))(react@19.1.1))(react@19.1.1)':
     dependencies:
       next: 15.5.3(@babel/core@7.28.4)(@opentelemetry/api@1.9.0)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
       react: 19.1.1
