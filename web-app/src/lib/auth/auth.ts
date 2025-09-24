@@ -155,16 +155,6 @@ export const auth = betterAuth({
     sendResetPassword: async ({ user, url }) => {
       const t = await getTranslations("Library.Auth.Email.ResetPassword");
 
-      // postmarkClient.sendEmailWithTemplate({
-      //   From: fromEmail,
-      //   To: user.email,
-      //   TemplateId: getEnvSecrets().POSTMARK_RESET_PASSWORD_TEMPLATE_ID,
-      //   TemplateModel: {
-      //     name: user.name,
-      //     resetLink: url,
-      //   },
-      //   MessageStream: "authentication",
-      // });
       postmarkClient.sendEmail({
         From: fromEmail,
         To: user.email,
