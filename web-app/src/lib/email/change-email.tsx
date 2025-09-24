@@ -8,6 +8,7 @@ import {
   Html,
   Link,
   Preview,
+  render,
   Section,
   Tailwind,
   Text,
@@ -69,8 +70,8 @@ export const ChangeEmailVerificationEmail = async ({
   );
 };
 
-export function reactChangeEmailVerificationEmail(
+export async function reactChangeEmailVerificationEmail(
   props: ChangeEmailVerificationProps,
 ) {
-  return <ChangeEmailVerificationEmail {...props} />;
+  return await render(<ChangeEmailVerificationEmail {...props} />);
 }

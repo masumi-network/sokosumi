@@ -17,7 +17,7 @@ import {
 } from "@/lib/db/repositories";
 import { reactChangeEmailVerificationEmail } from "@/lib/email/change-email";
 import { reactInviteUserEmail } from "@/lib/email/invitation";
-import { resend } from "@/lib/email/resend";
+import { postmarkClient } from "@/lib/email/postmark";
 import { reactResetPasswordEmail } from "@/lib/email/reset-password";
 import { reactVerificationEmail } from "@/lib/email/verification";
 import { callMarketingOptInWebHook, stripeService } from "@/lib/services";
@@ -29,7 +29,7 @@ export type Account = Awaited<
   ReturnType<typeof auth.api.listUserAccounts>
 >[number];
 
-const fromEmail = getEnvSecrets().RESEND_FROM_EMAIL;
+const fromEmail = getEnvSecrets().POSTMARK_FROM_EMAIL;
 
 export const auth = betterAuth({
   session: {
@@ -155,14 +155,16 @@ export const auth = betterAuth({
     sendResetPassword: async ({ user, url }) => {
       const t = await getTranslations("Library.Auth.Email.ResetPassword");
 
-      await resend.emails.send({
-        from: fromEmail,
-        to: user.email,
-        subject: t("subject"),
-        react: reactResetPasswordEmail({
+      postmarkClient.sendEmail({
+        From: fromEmail,
+        To: user.email,
+        Tag: "reset-password",
+        Subject: t("subject"),
+        HtmlBody: await reactResetPasswordEmail({
           name: user.name,
           resetLink: url,
         }),
+        MessageStream: "authentications",
       });
     },
   },
@@ -170,14 +172,16 @@ export const auth = betterAuth({
     sendVerificationEmail: async ({ user, url }) => {
       const t = await getTranslations("Library.Auth.Email.Verification");
 
-      await resend.emails.send({
-        from: fromEmail,
-        to: user.email,
-        subject: t("subject"),
-        react: reactVerificationEmail({
+      postmarkClient.sendEmail({
+        From: fromEmail,
+        To: user.email,
+        Tag: "verification-email",
+        Subject: t("subject"),
+        HtmlBody: await reactVerificationEmail({
           name: user.name,
           verificationLink: url,
         }),
+        MessageStream: "authentications",
       });
     },
     sendOnSignUp: true,
@@ -191,14 +195,16 @@ export const auth = betterAuth({
       sendChangeEmailVerification: async ({ user, url }) => {
         const t = await getTranslations("Library.Auth.Email.ChangeEmail");
 
-        await resend.emails.send({
-          from: fromEmail,
-          to: user.email,
-          subject: t("subject"),
-          react: reactChangeEmailVerificationEmail({
+        postmarkClient.sendEmail({
+          From: fromEmail,
+          To: user.email,
+          Tag: "change-email",
+          Subject: t("subject"),
+          HtmlBody: await reactChangeEmailVerificationEmail({
             name: user.name,
             changeEmailLink: url,
           }),
+          MessageStream: "authentications",
         });
       },
     },
@@ -275,15 +281,17 @@ export const auth = betterAuth({
         const inviteLink = `${getEnvSecrets().BETTER_AUTH_URL}/accept-invitation/${data.id}`;
         const t = await getTranslations("Library.Auth.Email.InviteUserEmail");
 
-        await resend.emails.send({
-          from: fromEmail,
-          to: data.email,
-          subject: t("subject"),
-          react: reactInviteUserEmail({
+        postmarkClient.sendEmail({
+          From: fromEmail,
+          To: data.email,
+          Tag: "invitation-email",
+          Subject: t("subject"),
+          HtmlBody: await reactInviteUserEmail({
             organizationName: data.organization.name,
             invitorUsername: data.inviter.user.name,
             inviteLink,
           }),
+          MessageStream: "organizations",
         });
       },
       invitationLimit: getEnvSecrets().BETTER_AUTH_ORG_INVITATION_LIMIT,

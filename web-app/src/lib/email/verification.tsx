@@ -8,6 +8,7 @@ import {
   Html,
   Link,
   Preview,
+  render,
   Section,
   Tailwind,
   Text,
@@ -69,8 +70,8 @@ export const VerificationEmail = async ({
   );
 };
 
-export function reactVerificationEmail(
+export async function reactVerificationEmail(
   props: BetterAuthVerificationEmailProps,
 ) {
-  return <VerificationEmail {...props} />;
+  return await render(<VerificationEmail {...props} />);
 }
