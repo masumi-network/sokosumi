@@ -60,9 +60,9 @@ const envSecretsSchema = z.object({
   SEED_USER_EMAIL: z.email().default("dev@sokosumi.com"),
   SEED_USER_PASSWORD: z.string().min(8).default("password"),
 
-  // Resend
-  RESEND_API_KEY: z.string().min(1),
-  RESEND_FROM_EMAIL: z.email(),
+  // Postmark
+  POSTMARK_SERVER_ID: z.string().min(1),
+  POSTMARK_FROM_EMAIL: z.email(),
 
   // Vercel
   VERCEL_URL: z

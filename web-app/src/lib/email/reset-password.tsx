@@ -8,6 +8,7 @@ import {
   Html,
   Link,
   Preview,
+  render,
   Section,
   Tailwind,
   Text,
@@ -66,8 +67,8 @@ export const ResetPasswordEmail = async ({
   );
 };
 
-export function reactResetPasswordEmail(
+export async function reactResetPasswordEmail(
   props: BetterAuthResetPasswordEmailProps,
 ) {
-  return <ResetPasswordEmail {...props} />;
+  return await render(<ResetPasswordEmail {...props} />);
 }

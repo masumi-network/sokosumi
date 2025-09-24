@@ -8,6 +8,7 @@ import {
   Html,
   Link,
   Preview,
+  render,
   Section,
   Tailwind,
   Text,
@@ -68,6 +69,8 @@ export const InviteUserEmail = async ({
   );
 };
 
-export function reactInviteUserEmail(props: BetterAuthInviteUserEmailProps) {
-  return <InviteUserEmail {...props} />;
+export async function reactInviteUserEmail(
+  props: BetterAuthInviteUserEmailProps,
+) {
+  return await render(<InviteUserEmail {...props} />);
 }
