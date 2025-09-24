@@ -444,7 +444,7 @@ export const stripeService = (() => {
         return { couponApplied: false, invoiceId: null };
       }
 
-      const welcomeCouponId = getEnvSecrets().STRIPE_WELCOME_COUPONS?.at(-1);
+      const welcomeCouponId = userCanClaim.couponId;
       if (welcomeCouponId && userEmail) {
         try {
           const coupon = await stripeService.getCoupon(welcomeCouponId);
