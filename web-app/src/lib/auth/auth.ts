@@ -164,7 +164,7 @@ export const auth = betterAuth({
           name: user.name,
           resetLink: url,
         }),
-        MessageStream: "authentication",
+        MessageStream: "authentications",
       });
     },
   },
@@ -181,7 +181,7 @@ export const auth = betterAuth({
           name: user.name,
           verificationLink: url,
         }),
-        MessageStream: "authentication",
+        MessageStream: "authentications",
       });
     },
     sendOnSignUp: true,
@@ -204,7 +204,7 @@ export const auth = betterAuth({
             name: user.name,
             changeEmailLink: url,
           }),
-          MessageStream: "authentication",
+          MessageStream: "authentications",
         });
       },
     },
