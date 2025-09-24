@@ -16,48 +16,6 @@ import {
   withAuthContext,
 } from "@/middleware/auth-middleware";
 
-interface ClaimFreeCreditsParameters extends AuthenticatedRequest {
-  promotionCode: string;
-}
-
-export const claimFreeCredits = withAuthContext<
-  ClaimFreeCreditsParameters,
-  Result<{ url: string }, ActionError>
->(async ({ promotionCode, authContext }) => {
-  const { userId } = authContext;
-
-  try {
-    const price = await stripeClient.getPriceByProductId(
-      getEnvSecrets().STRIPE_PRODUCT_ID,
-    );
-    const credits = await stripeService.getCreditsForPromotionCode(
-      promotionCode,
-      price,
-    );
-
-    // Create the checkout session
-    const { url } = await stripeService.createStripeCheckoutSession(
-      userId,
-      null,
-      credits,
-      price,
-      promotionCode,
-    );
-
-    return Ok({ url });
-  } catch (error) {
-    console.error("Failed to claim free credits", error);
-    if (error instanceof CouponError) {
-      return Err({
-        code: error.code,
-      });
-    }
-    return Err({
-      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-    });
-  }
-});
-
 interface PurchaseCreditsParameters extends AuthenticatedRequest {
   organizationId: string | null;
   priceId: string;
