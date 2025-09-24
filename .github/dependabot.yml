@@ -8,6 +8,11 @@ updates:
       time: "06:00"
       timezone: "Europe/Berlin"
     groups:
+      next:
+        patterns:
+          - "next"
+          - "@next/third-parties"
+          - "eslint-config-next"
       hey-api:
         patterns:
           - "@hey-api*"
