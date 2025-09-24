@@ -432,16 +432,16 @@ export const stripeService = (() => {
      * @param customerId - The ID of the customer.
      * @param userEmail - The email of the user.
      */
-    async applyWelcomeCoupon(
+    async tryToApplyWelcomeCoupon(
       userId: string,
       customerId: string,
       userEmail: string | null,
-    ): Promise<void> {
+    ): Promise<{ couponApplied: boolean; invoiceId: string | null }> {
       const userCanClaim = await this.canClaimWelcomeCredits(userId);
 
       if (!userCanClaim.canClaim) {
         console.log(`User ${userId} cannot claim welcome coupon`);
-        return;
+        return { couponApplied: false, invoiceId: null };
       }
 
       const welcomeCouponId = getEnvSecrets().STRIPE_WELCOME_COUPONS?.at(-1);
@@ -461,6 +461,7 @@ export const stripeService = (() => {
           if (!invoice || !invoice?.id) {
             throw new Error("Failed to apply welcome coupon");
           }
+          return { couponApplied: true, invoiceId: invoice?.id ?? null };
         } catch (error) {
           console.error(
             `Failed to apply welcome coupon for user ${userId}:`,
@@ -468,6 +469,7 @@ export const stripeService = (() => {
           );
         }
       }
+      return { couponApplied: false, invoiceId: null };
     },
   };
 })();

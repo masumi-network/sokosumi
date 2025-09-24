@@ -264,10 +264,14 @@ const handleCustomerCreatedEvent = async (
           await userRepository.setUserStripeCustomerId(userId, customer.id, tx);
 
           // Apply welcome coupon after setting the stripe customer id
-          await stripeService.applyWelcomeCoupon(
-            userId,
-            customer.id,
-            user.email,
+          const { couponApplied, invoiceId } =
+            await stripeService.tryToApplyWelcomeCoupon(
+              userId,
+              customer.id,
+              user.email,
+            );
+          console.info(
+            `Welcome coupon applied (${couponApplied}) for invoice ${invoiceId}`,
           );
 
           return NextResponse.json(
