@@ -109,16 +109,12 @@ export const stripeService = (() => {
      *
      * This function checks if the user is eligible for welcome credits based on the following criteria:
      * - The environment variable STRIPE_WELCOME_COUPONS must contain at least one coupon ID.
-     * - The user must not be part of an active organization (promotion is for individual users only).
      * - The user must have a valid Stripe customer ID.
      * - The user must not have already redeemed any of the welcome coupons.
      *
      * @returns {Promise<{ canClaim: boolean; couponId?: string }>} Object indicating if user can claim and which coupon ID.
      */
-    async canClaimWelcomeCredits(
-      userId?: string,
-      organizationId?: string | null,
-    ): Promise<{
+    async canClaimWelcomeCredits(userId?: string): Promise<{
       canClaim: boolean;
       couponId?: string;
     }> {
@@ -129,15 +125,7 @@ export const stripeService = (() => {
 
       if (!userId) return { canClaim: false };
 
-      // If params provided, enforce organization restriction with provided value
-      if (organizationId) {
-        return { canClaim: false };
-      }
-
-      const stripeCustomerId = await getStripeCustomerId(
-        userId,
-        organizationId ?? null,
-      );
+      const stripeCustomerId = await getStripeCustomerId(userId, null);
       if (!stripeCustomerId) {
         return { canClaim: false };
       }
@@ -449,8 +437,7 @@ export const stripeService = (() => {
       customerId: string,
       userEmail: string | null,
     ): Promise<void> {
-      const userCanClaim = await this.canClaimWelcomeCredits(userId, null);
-      console.log(`User ${userId} can claim welcome coupon:`, userCanClaim);
+      const userCanClaim = await this.canClaimWelcomeCredits(userId);
 
       if (!userCanClaim.canClaim) {
         console.log(`User ${userId} cannot claim welcome coupon`);
