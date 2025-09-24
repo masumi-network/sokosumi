@@ -158,6 +158,7 @@ export const auth = betterAuth({
       postmarkClient.sendEmail({
         From: fromEmail,
         To: user.email,
+
         Subject: t("subject"),
         HtmlBody: await reactResetPasswordEmail({
           name: user.name,
@@ -174,6 +175,7 @@ export const auth = betterAuth({
       await postmarkClient.sendEmail({
         From: fromEmail,
         To: user.email,
+        Tag: "registration",
         Subject: t("subject"),
         HtmlBody: await reactVerificationEmail({
           name: user.name,
