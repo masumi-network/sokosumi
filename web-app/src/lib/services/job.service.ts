@@ -191,10 +191,19 @@ export const jobService = (() => {
         Tag: "job-final-status",
       });
     } catch (error) {
-      console.error("Failed to send job status notification", {
-        jobId: job.id,
-        jobStatus,
-        error,
+      Sentry.captureException(error, {
+        contexts: {
+          error_classification: {
+            severity: "error",
+            domain: "job_status_notification",
+            category: "service_layer",
+          },
+        },
+        extra: {
+          jobId: job.id,
+          jobStatus,
+          userId: job.userId,
+        },
       });
     }
   }
