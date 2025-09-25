@@ -185,10 +185,10 @@ export const jobService = (() => {
       postmarkClient.sendEmail({
         From: POSTMARK_FROM_EMAIL,
         To: job.user.email,
+        Tag: "job-final-status",
         Subject: t("subject", { agentName, status: statusLabel }),
         HtmlBody: htmlBody,
         MessageStream: "outbound",
-        Tag: "job-final-status",
       });
     } catch (error) {
       Sentry.captureException(error, {
