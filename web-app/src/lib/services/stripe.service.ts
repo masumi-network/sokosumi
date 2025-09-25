@@ -18,7 +18,6 @@ import {
   CouponCurrencyError,
   CouponNotFoundError,
   CouponTypeError,
-  PromotionCodeNotFoundError,
 } from "@/lib/errors/coupon-errors";
 
 export const stripeService = (() => {
@@ -105,58 +104,6 @@ export const stripeService = (() => {
     },
 
     /**
-     * Checks if the current user is eligible to claim welcome credits.
-     *
-     * This function checks if the user is eligible for welcome credits based on the following criteria:
-     * - The environment variable STRIPE_WELCOME_COUPONS must contain at least one coupon ID.
-     * - The user must have a valid Stripe customer ID.
-     * - The user must not have already redeemed any of the welcome coupons.
-     *
-     * @returns {Promise<{ canClaim: boolean; couponId?: string }>} Object indicating if user can claim and which coupon ID.
-     */
-    async canClaimWelcomeCredits(userId?: string): Promise<{
-      canClaim: boolean;
-      couponId?: string;
-    }> {
-      const couponIds = getEnvSecrets().STRIPE_WELCOME_COUPONS;
-      if (couponIds.length === 0) {
-        return { canClaim: false };
-      }
-
-      if (!userId) return { canClaim: false };
-
-      const stripeCustomerId = await getStripeCustomerId(userId, null);
-      if (!stripeCustomerId) {
-        return { canClaim: false };
-      }
-
-      // Check if any welcome coupon has been claimed
-      for (const couponId of couponIds) {
-        try {
-          const promotionCode = await stripeClient.getPromotionCode(
-            stripeCustomerId,
-            couponId,
-          );
-          if (
-            promotionCode?.times_redeemed &&
-            promotionCode.times_redeemed >= 1
-          ) {
-            return { canClaim: false }; // Already claimed
-          }
-        } catch {
-          return { canClaim: false };
-        }
-      }
-
-      // Return the last coupon ID they can claim
-      const lastCouponId = couponIds.at(-1);
-      return {
-        canClaim: true,
-        couponId: lastCouponId,
-      };
-    },
-
-    /**
      * Claims a coupon for the current user by creating/retrieving a promotion code.
      * This function handles the actual claiming process and prevents duplicate promotion codes.
      *
@@ -226,17 +173,6 @@ export const stripeService = (() => {
           return null;
         }
       }
-    },
-
-    async getCreditsForPromotionCode(
-      promotionCode: string,
-      price: Price,
-    ): Promise<number> {
-      const coupon = await stripeClient.getCouponByPromotionCode(promotionCode);
-      if (!coupon) {
-        throw new PromotionCodeNotFoundError(promotionCode);
-      }
-      return this.getCreditsForCoupon(coupon.id, price);
     },
 
     async getCreditsForCoupon(couponId: string, price: Price): Promise<number> {
@@ -437,14 +373,7 @@ export const stripeService = (() => {
       customerId: string,
       userEmail: string | null,
     ): Promise<{ couponApplied: boolean; invoiceId: string | null }> {
-      const userCanClaim = await this.canClaimWelcomeCredits(userId);
-
-      if (!userCanClaim.canClaim) {
-        console.log(`User ${userId} cannot claim welcome coupon`);
-        return { couponApplied: false, invoiceId: null };
-      }
-
-      const welcomeCouponId = userCanClaim.couponId;
+      const welcomeCouponId = getEnvSecrets().STRIPE_WELCOME_COUPON;
       if (welcomeCouponId && userEmail) {
         try {
           const coupon = await this.getCoupon(welcomeCouponId);

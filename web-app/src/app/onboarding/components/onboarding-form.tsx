@@ -248,6 +248,7 @@ export default function OnboardingForm({
           <form onSubmit={form.handleSubmit(handleSubmit)} className="flex-1">
             <Button
               type="submit"
+              variant="default"
               disabled={isContinueDisabled}
               className="w-full"
             >
@@ -267,10 +268,10 @@ export default function OnboardingForm({
       </div>
 
       <Button
-        variant="ghost"
+        variant="secondary"
         onClick={handleSkip}
         disabled={isSubmitting || isSkipping}
-        className="bg-senary hover:bg-quinary text-foreground w-full rounded-md px-4 py-2 text-sm shadow-none transition-colors duration-300"
+        className="w-full"
       >
         {t("skip")}
       </Button>

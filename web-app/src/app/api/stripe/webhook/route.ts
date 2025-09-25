@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -263,16 +263,22 @@ const handleCustomerCreatedEvent = async (
 
           await userRepository.setUserStripeCustomerId(userId, customer.id, tx);
 
-          // Apply welcome coupon after setting the stripe customer id
-          const { couponApplied, invoiceId } =
-            await stripeService.tryToApplyWelcomeCoupon(
-              userId,
-              customer.id,
-              user.email,
-            );
-          console.info(
-            `Welcome coupon applied (${couponApplied}) for invoice ${invoiceId}`,
-          );
+          after(async () => {
+            try {
+              // Apply welcome coupon after setting the stripe customer id
+              const { couponApplied, invoiceId } =
+                await stripeService.tryToApplyWelcomeCoupon(
+                  userId,
+                  customer.id,
+                  user.email,
+                );
+              console.info(
+                `Welcome coupon applied (${couponApplied}) for invoice ${invoiceId}`,
+              );
+            } catch (err) {
+              console.error("Error applying welcome coupon", err);
+            }
+          });
 
           return NextResponse.json(
             {
@@ -312,6 +318,18 @@ const handleCustomerCreatedEvent = async (
             customer.id,
             tx,
           );
+          after(async () => {
+            try {
+              console.info(
+                `Post-response task: handled customer.created for organization ${organizationId} with customer ${customer.id}`,
+              );
+            } catch (err) {
+              console.error(
+                "Post-response task failed (customer.created:organization)",
+                err,
+              );
+            }
+          });
           return NextResponse.json(
             {
               message: `✅ Updated organization ${organizationId} stripe customer id to ${customer.id}`,
