@@ -6,6 +6,7 @@ import { AccountProvider } from "@/lib/auth/types";
 import { ApiKeysSection } from "./api-keys";
 import { DeleteAccountForm } from "./delete-account-form";
 import { EmailForm } from "./email-form";
+import { JobStatusEmailPreferences } from "./job-status-email-preferences";
 import { NameForm } from "./name-form";
 import { NewPasswordForm } from "./new-password-form";
 import { PasswordForm } from "./password-form";
@@ -45,6 +46,10 @@ export function AccountSettings({ accounts }: AccountSettingsProps) {
 
         <div className="border-t pt-8">
           <SocialAccounts socialAccounts={socialAccounts} />
+        </div>
+
+        <div className="border-t pt-8">
+          <JobStatusEmailPreferences />
         </div>
 
         <div className="border-t pt-8">

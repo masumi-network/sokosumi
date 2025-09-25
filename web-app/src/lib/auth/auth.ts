@@ -220,6 +220,11 @@ export const auth = betterAuth({
         type: "boolean",
         required: false,
       },
+      jobStatusEmailNotificationsEnabled: {
+        type: "boolean",
+        required: false,
+        defaultValue: true,
+      },
       stripeCustomerId: {
         type: "string",
         required: false,

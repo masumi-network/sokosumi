@@ -7,6 +7,7 @@ export type UserResponse = {
   email: string;
   termsAccepted: boolean;
   marketingOptIn: boolean;
+  jobStatusEmailNotificationsEnabled: boolean;
   stripeCustomerId: string | null;
 };
 
@@ -19,6 +20,7 @@ export type UserSuccessResponse = {
 export type UpdateUserProfileSchema = {
   name: string; // Full name
   marketingOptIn: boolean; // Marketing opt-in status
+  jobStatusEmailNotificationsEnabled: boolean; // Job status notification preference
 };
 
 export type DeleteUserSchema = {
