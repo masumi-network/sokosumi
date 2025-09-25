@@ -314,18 +314,7 @@ const handleCustomerCreatedEvent = async (
             customer.id,
             tx,
           );
-          after(async () => {
-            try {
-              console.info(
-                `Post-response task: handled customer.created for organization ${organizationId} with customer ${customer.id}`,
-              );
-            } catch (err) {
-              console.error(
-                "Post-response task failed (customer.created:organization)",
-                err,
-              );
-            }
-          });
+
           return NextResponse.json(
             {
               message: `✅ Updated organization ${organizationId} stripe customer id to ${customer.id}`,
