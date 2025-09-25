@@ -276,7 +276,7 @@ const handleCustomerCreatedEvent = async (
                 `Welcome coupon applied (${couponApplied}) for invoice ${invoiceId}`,
               );
             } catch (err) {
-              console.error("Error applying welcome coupon", err);
+              console.error("Error applying welcome coupon for user", err);
             }
           });
 
