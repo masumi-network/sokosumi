@@ -1,5 +1,6 @@
 import "server-only";
 
+import * as Sentry from "@sentry/nextjs";
 import { headers } from "next/headers";
 import Stripe from "stripe";
 
@@ -18,7 +19,6 @@ import {
   CouponCurrencyError,
   CouponNotFoundError,
   CouponTypeError,
-  PromotionCodeNotFoundError,
 } from "@/lib/errors/coupon-errors";
 
 export const stripeService = (() => {
@@ -105,71 +105,6 @@ export const stripeService = (() => {
     },
 
     /**
-     * Checks if the current user is eligible to claim welcome credits.
-     *
-     * This function checks if the user is eligible for welcome credits based on the following criteria:
-     * - The environment variable STRIPE_WELCOME_COUPONS must contain at least one coupon ID.
-     * - The user must be authenticated (session exists).
-     * - The user must not be part of an active organization (promotion is for individual users only).
-     * - The user must have a valid Stripe customer ID.
-     * - The user must not have already redeemed any of the welcome coupons.
-     *
-     * @returns {Promise<{ canClaim: boolean; couponId?: string }>} Object indicating if user can claim and which coupon ID.
-     */
-    async canClaimWelcomeCredits(): Promise<{
-      canClaim: boolean;
-      couponId?: string;
-    }> {
-      const couponIds = getEnvSecrets().STRIPE_WELCOME_COUPONS;
-      if (couponIds.length === 0) {
-        return { canClaim: false };
-      }
-
-      const context = await getAuthContext();
-      if (!context) {
-        return { canClaim: false };
-      }
-
-      // If user is in an organization, they can't claim welcome credits
-      if (context.organizationId) {
-        return { canClaim: false };
-      }
-
-      const stripeCustomerId = await getStripeCustomerId(
-        context.userId,
-        context.organizationId,
-      );
-      if (!stripeCustomerId) {
-        return { canClaim: false };
-      }
-
-      // Check if any welcome coupon has been claimed
-      for (const couponId of couponIds) {
-        try {
-          const promotionCode = await stripeClient.getPromotionCode(
-            stripeCustomerId,
-            couponId,
-          );
-          if (
-            promotionCode?.times_redeemed &&
-            promotionCode.times_redeemed >= 1
-          ) {
-            return { canClaim: false }; // Already claimed
-          }
-        } catch {
-          return { canClaim: false };
-        }
-      }
-
-      // Return the last coupon ID they can claim
-      const lastCouponId = couponIds.at(-1);
-      return {
-        canClaim: true,
-        couponId: lastCouponId,
-      };
-    },
-
-    /**
      * Claims a coupon for the current user by creating/retrieving a promotion code.
      * This function handles the actual claiming process and prevents duplicate promotion codes.
      *
@@ -239,17 +174,6 @@ export const stripeService = (() => {
           return null;
         }
       }
-    },
-
-    async getCreditsForPromotionCode(
-      promotionCode: string,
-      price: Price,
-    ): Promise<number> {
-      const coupon = await stripeClient.getCouponByPromotionCode(promotionCode);
-      if (!coupon) {
-        throw new PromotionCodeNotFoundError(promotionCode);
-      }
-      return this.getCreditsForCoupon(coupon.id, price);
     },
 
     async getCreditsForCoupon(couponId: string, price: Price): Promise<number> {
@@ -367,7 +291,7 @@ export const stripeService = (() => {
       }
     },
 
-    async getReferralCoupon(couponId: string): Promise<Stripe.Coupon> {
+    async getCoupon(couponId: string): Promise<Stripe.Coupon> {
       const coupon = await stripeClient.getCouponById(couponId);
       if (!coupon) {
         throw new CouponNotFoundError(couponId);
@@ -388,11 +312,11 @@ export const stripeService = (() => {
         throw new Error("User or Stripe customer not found");
       }
 
-      const personalCoupon = await this.getReferralCoupon(
+      const personalCoupon = await this.getCoupon(
         getEnvSecrets().STRIPE_ONBOARD_PERSONAL_COUPON,
       );
 
-      const personalInvoice = await stripeClient.applyReferralCreditsToCustomer(
+      const personalInvoice = await stripeClient.applyInvoiceCreditsToCustomer(
         user.stripeCustomerId,
         personalCoupon.id,
         {
@@ -417,11 +341,11 @@ export const stripeService = (() => {
             organizationId,
           );
         if (organization && organization.stripeCustomerId) {
-          orgCoupon = await this.getReferralCoupon(
+          orgCoupon = await this.getCoupon(
             getEnvSecrets().STRIPE_ONBOARD_ORGANIZATION_COUPON,
           );
 
-          const orgInvoice = await stripeClient.applyReferralCreditsToCustomer(
+          const orgInvoice = await stripeClient.applyInvoiceCreditsToCustomer(
             organization.stripeCustomerId,
             orgCoupon.id,
             {
@@ -437,6 +361,54 @@ export const stripeService = (() => {
       }
 
       return { personalCoupon, orgCoupon };
+    },
+
+    /**
+     * Claims a welcome coupon for a customer.
+     * @param userId - The ID of the user.
+     */
+    async claimWelcomeCoupon(
+      userId: string,
+    ): Promise<{ couponApplied: boolean; invoiceId: string | null }> {
+      const welcomeCouponId = getEnvSecrets().STRIPE_WELCOME_COUPON;
+      try {
+        const user = await userRepository.getUserById(userId);
+        if (!user) {
+          throw new Error("User not found");
+        }
+        if (!user.stripeCustomerId) {
+          throw new Error("User does not have a stripe customer id");
+        }
+        const coupon = await this.getCoupon(welcomeCouponId);
+        const invoice = await stripeClient.applyInvoiceCreditsToCustomer(
+          user.stripeCustomerId,
+          coupon.id,
+          {
+            redemption_type: "welcome_coupon",
+            welcome_source: "customer.created",
+            user_id: user.id,
+            user_email: user.email,
+          },
+        );
+        if (!invoice || !invoice?.id) {
+          throw new Error("Failed to apply welcome coupon");
+        }
+        return { couponApplied: true, invoiceId: invoice?.id ?? null };
+      } catch (error) {
+        Sentry.captureException(error, {
+          contexts: {
+            error_classification: {
+              severity: "error",
+              domain: "stripe_welcome_coupon",
+              category: "service_layer",
+            },
+            extra: {
+              userId,
+            },
+          },
+        });
+        return { couponApplied: false, invoiceId: null };
+      }
     },
   };
 })();

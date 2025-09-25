@@ -45,12 +45,6 @@ export const fireGTMEvent = {
     });
   },
 
-  freeCreditStartCheckout() {
-    fireEvent({
-      event: "free_credit_start_checkout",
-    });
-  },
-
   /**
    * @param sessionId - The ID of the checkout session.
    */

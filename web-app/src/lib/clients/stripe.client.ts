@@ -246,13 +246,14 @@ export const stripeClient = (() => {
       // NOTE:
       // we only allow support for USD for now
       const value = (session.amount_total ?? 0) / 100;
+      const welcomeCouponId = getEnvSecrets().STRIPE_WELCOME_COUPON;
       const isWelcomePromotion =
         session.discounts?.some(
           (discount) =>
             typeof discount.coupon === "object" &&
             discount.coupon &&
             "id" in discount.coupon &&
-            getEnvSecrets().STRIPE_WELCOME_COUPONS.includes(discount.coupon.id),
+            discount.coupon.id === welcomeCouponId,
         ) ?? false;
 
       return {
@@ -309,7 +310,7 @@ export const stripeClient = (() => {
       return session;
     },
 
-    async applyReferralCreditsToCustomer(
+    async applyInvoiceCreditsToCustomer(
       customerId: string,
       couponId: string,
       metadata?: Record<string, string>,
