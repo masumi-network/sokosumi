@@ -1,6 +1,8 @@
 import "server-only";
 
-import { Session } from "@/lib/auth/auth";
+import { headers } from "next/headers";
+
+import { auth, type Session } from "@/lib/auth/auth";
 import { getAuthContext } from "@/lib/auth/utils";
 import {
   InvitationWithRelations,
@@ -16,7 +18,7 @@ import {
   prisma,
   userRepository,
 } from "@/lib/db/repositories";
-import { Member, User } from "@/prisma/generated/client";
+import type { Member, User } from "@/prisma/generated/client";
 
 /**
  * Service for user-related operations.
@@ -243,7 +245,13 @@ export const userService = (() => {
     if (!context) {
       return;
     }
-    await userRepository.updateUserOnboardingCompleted(context.userId, true);
+
+    // Update via Better Auth to keep session in sync (cookie cache, etc.)
+    // This has to be done, because the screen wasn't getting synced with the DB causing users to keep in the same screen.
+    await auth.api.updateUser({
+      headers: await headers(),
+      body: { onboardingCompleted: true },
+    });
   }
 
   return {

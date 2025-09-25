@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { after, NextResponse } from "next/server";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -15,6 +15,7 @@ import {
   prisma,
   userRepository,
 } from "@/lib/db/repositories";
+import { stripeService } from "@/lib/services/stripe.service";
 import { FiatTransactionStatus } from "@/prisma/generated/client";
 
 export async function POST(req: Request) {
@@ -242,6 +243,7 @@ const handleCustomerCreatedEvent = async (
               { status: 200 },
             );
           }
+
           if (user.email !== customer.email) {
             await stripeClient.updateCustomerEmail(customer.id, user.email);
           }
@@ -258,7 +260,22 @@ const handleCustomerCreatedEvent = async (
               { status: 200 },
             );
           }
+
           await userRepository.setUserStripeCustomerId(userId, customer.id, tx);
+
+          after(async () => {
+            try {
+              // Apply welcome coupon after setting the stripe customer id
+              const { couponApplied, invoiceId } =
+                await stripeService.claimWelcomeCoupon(userId);
+              console.info(
+                `Welcome coupon applied (${couponApplied}) for invoice ${invoiceId}`,
+              );
+            } catch (err) {
+              console.error("Error applying welcome coupon for user", err);
+            }
+          });
+
           return NextResponse.json(
             {
               message: `✅ Updated user ${userId} stripe customer id to ${customer.id}`,
@@ -297,6 +314,7 @@ const handleCustomerCreatedEvent = async (
             customer.id,
             tx,
           );
+
           return NextResponse.json(
             {
               message: `✅ Updated organization ${organizationId} stripe customer id to ${customer.id}`,

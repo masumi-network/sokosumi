@@ -1018,15 +1018,6 @@
         "description": "Your payment process was cancelled. You have not been charged.",
         "backToBilling": "Back to Billing"
       },
-      "FreeClaim": {
-        "button": "Get 30 free credits",
-        "error": "Failed to claim free credits",
-        "Errors": {
-          "unauthenticated": "You must log in to claim free credits.",
-          "unauthenticatedAction": "Login",
-          "promotionCodeNotFound": "Promotion code not found"
-        }
-      },
       "Errors": {
         "invalidInput": "Please enter either a credit amount or a coupon code",
         "invalidCredits": "Invalid credit amount",
