@@ -39,7 +39,9 @@ export function JobStatusEmailPreferences({
     setIsSaving(true);
 
     const updatePromise = authClient
-      .updateUser({ jobStatusEmailNotificationsEnabled: nextValue })
+      .updateUser({
+        jobStatusEmailNotificationsEnabled: nextValue,
+      })
       .then((result) => {
         if (result.error) {
           throw new Error(result.error.message ?? "update_failed");
