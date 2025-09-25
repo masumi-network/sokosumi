@@ -116,7 +116,6 @@ export default function OnboardingForm({
 
     if (!values.organizationName.trim() || uniqueEmails.length === 0) return;
 
-    track("onboarding_submitted");
     setIsSubmitting(true);
 
     try {
@@ -126,6 +125,7 @@ export default function OnboardingForm({
       );
 
       if (result.ok) {
+        track("onboarding_submitted");
         toast.success(
           t("Toast.organizationCreated", { count: uniqueEmails.length }),
         );
@@ -141,12 +141,12 @@ export default function OnboardingForm({
   };
 
   const handleSkip = async () => {
-    track("onboarding_skipped");
     setIsSkipping(true);
 
     try {
       const result = await skipOnboarding();
       if (result.ok) {
+        track("onboarding_skipped");
         router.push(result.data.redirectUrl ?? "/agents");
       } else {
         toast.error(result.error.message ?? t("Toast.failedToSkip"));
