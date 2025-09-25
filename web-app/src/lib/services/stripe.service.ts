@@ -447,7 +447,7 @@ export const stripeService = (() => {
       const welcomeCouponId = userCanClaim.couponId;
       if (welcomeCouponId && userEmail) {
         try {
-          const coupon = await stripeService.getCoupon(welcomeCouponId);
+          const coupon = await this.getCoupon(welcomeCouponId);
           const invoice = await stripeClient.applyInvoiceCreditsToCustomer(
             customerId,
             coupon.id,
