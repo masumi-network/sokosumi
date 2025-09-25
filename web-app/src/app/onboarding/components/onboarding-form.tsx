@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { track } from "@vercel/analytics";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -115,7 +116,9 @@ export default function OnboardingForm({
 
     if (!values.organizationName.trim() || uniqueEmails.length === 0) return;
 
+    track("onboarding_submitted");
     setIsSubmitting(true);
+
     try {
       const result = await completeOnboarding(
         values.organizationName.trim(),
@@ -138,7 +141,9 @@ export default function OnboardingForm({
   };
 
   const handleSkip = async () => {
+    track("onboarding_skipped");
     setIsSkipping(true);
+
     try {
       const result = await skipOnboarding();
       if (result.ok) {
