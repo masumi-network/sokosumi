@@ -6,11 +6,9 @@ import {
   creditTransactionRepository,
   userRepository,
 } from "@/lib/db/repositories";
-import { stripeService } from "@/lib/services";
 import { userService } from "@/lib/services/user.service";
 
 import BuyCreditsButton from "./buy-credits-button";
-import FreeCreditsButton from "./free-credits-button";
 import UserAvatar from "./user-avatar";
 
 interface UserCreditsProps {
@@ -50,15 +48,9 @@ export default async function UserCredits({ session }: UserCreditsProps) {
     creditLabel = t("userBalance", { credits: credits });
   }
 
-  const welcomeCredits = await stripeService.canClaimWelcomeCredits();
-
   return (
     <div className="flex flex-1 flex-col-reverse gap-4 md:flex-initial md:flex-row md:items-center">
-      {welcomeCredits.canClaim && welcomeCredits.couponId ? (
-        <FreeCreditsButton couponId={welcomeCredits.couponId} />
-      ) : (
-        credits <= 50.0 && <BuyCreditsButton label={t("buy")} path="/billing" />
-      )}
+      {credits <= 50.0 && <BuyCreditsButton label={t("buy")} path="/billing" />}
       <div className="flex items-center gap-2 md:flex-row-reverse">
         <UserAvatar session={session} />
         <div className="flex flex-col gap-0.5 md:items-end">
