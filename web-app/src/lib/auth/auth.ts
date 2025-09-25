@@ -10,11 +10,7 @@ import { getTranslations } from "next-intl/server";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
-import {
-  organizationRepository,
-  prisma,
-  userRepository,
-} from "@/lib/db/repositories";
+import { prisma, userRepository } from "@/lib/db/repositories";
 import { reactChangeEmailVerificationEmail } from "@/lib/email/change-email";
 import { reactInviteUserEmail } from "@/lib/email/invitation";
 import { postmarkClient } from "@/lib/email/postmark";
@@ -59,12 +55,7 @@ export const auth = betterAuth({
     user: {
       create: {
         after: async (user: User) => {
-          const customer = await stripeService.createStripeCustomerForUser(
-            user.id,
-          );
-          if (customer) {
-            await userRepository.setUserStripeCustomerId(user.id, customer.id);
-          }
+          await stripeService.createStripeCustomerForUser(user.id);
         },
       },
     },
@@ -247,16 +238,9 @@ export const auth = betterAuth({
     organization({
       organizationCreation: {
         afterCreate: async ({ organization }) => {
-          const customer =
-            await stripeService.createStripeCustomerForOrganization(
-              organization.id,
-            );
-          if (customer) {
-            await organizationRepository.setOrganizationStripeCustomerId(
-              organization.id,
-              customer.id,
-            );
-          }
+          await stripeService.createStripeCustomerForOrganization(
+            organization.id,
+          );
         },
       },
       schema: {

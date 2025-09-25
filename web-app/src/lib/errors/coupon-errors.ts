@@ -14,15 +14,6 @@ export class CouponNotFoundError extends CouponError {
   }
 }
 
-export class PromotionCodeNotFoundError extends CouponError {
-  constructor(promotionCode: string) {
-    super(
-      `Promotion code ${promotionCode} not found`,
-      "PROMOTION_CODE_NOT_FOUND",
-    );
-  }
-}
-
 export class CouponTypeError extends CouponError {
   constructor(message: string) {
     super(message, "COUPON_TYPE_ERROR");

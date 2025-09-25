@@ -248,6 +248,7 @@ export default function OnboardingForm({
           <form onSubmit={form.handleSubmit(handleSubmit)} className="flex-1">
             <Button
               type="submit"
+              variant="default"
               disabled={isContinueDisabled}
               className="w-full"
             >
@@ -267,7 +268,7 @@ export default function OnboardingForm({
       </div>
 
       <Button
-        variant="ghost"
+        variant="secondary"
         onClick={handleSkip}
         disabled={isSubmitting || isSkipping}
         className="w-full"
