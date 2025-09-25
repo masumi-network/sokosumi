@@ -1,3 +1,4 @@
+export * from "./account";
 export * from "./agent";
 export * from "./auth";
 export * from "./billing";

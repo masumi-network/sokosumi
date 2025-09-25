@@ -14,9 +14,13 @@ import { SocialAccounts } from "./social-accounts";
 
 interface AccountSettingsProps {
   accounts: Account[];
+  jobStatusEmailNotificationsEnabled: boolean;
 }
 
-export function AccountSettings({ accounts }: AccountSettingsProps) {
+export function AccountSettings({
+  accounts,
+  jobStatusEmailNotificationsEnabled,
+}: AccountSettingsProps) {
   const t = useTranslations("App.Account");
 
   const socialAccounts = accounts.filter(
@@ -49,7 +53,9 @@ export function AccountSettings({ accounts }: AccountSettingsProps) {
         </div>
 
         <div className="border-t pt-8">
-          <JobStatusEmailPreferences />
+          <JobStatusEmailPreferences
+            initialEnabled={jobStatusEmailNotificationsEnabled}
+          />
         </div>
 
         <div className="border-t pt-8">

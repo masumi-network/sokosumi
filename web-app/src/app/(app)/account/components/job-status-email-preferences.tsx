@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
 
 import {
@@ -12,40 +12,53 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
-import { authClient } from "@/lib/auth/auth.client";
+import { setJobStatusEmailNotificationsEnabled } from "@/lib/actions";
 
-export function JobStatusEmailPreferences() {
+interface JobStatusEmailPreferencesProps {
+  initialEnabled: boolean;
+}
+
+export function JobStatusEmailPreferences({
+  initialEnabled,
+}: JobStatusEmailPreferencesProps) {
   const t = useTranslations("App.Account.Notifications");
-  const { data: session, isPending } = authClient.useSession();
-
-  const currentEnabled = useMemo(
-    () => session?.user.jobStatusEmailNotificationsEnabled ?? true,
-    [session?.user.jobStatusEmailNotificationsEnabled],
-  );
   const [pending, startTransition] = useTransition();
-  const [localEnabled, setLocalEnabled] = useState(currentEnabled);
+  const [enabled, setEnabled] = useState(initialEnabled);
 
   useEffect(() => {
-    setLocalEnabled(currentEnabled);
-  }, [currentEnabled]);
+    setEnabled(initialEnabled);
+  }, [initialEnabled]);
 
   const handleToggle = (nextValue: boolean) => {
-    setLocalEnabled(nextValue);
+    const previous = enabled;
+    setEnabled(nextValue);
     startTransition(async () => {
-      const result = await authClient.updateUser({
-        jobStatusEmailNotificationsEnabled: nextValue,
+      const actionPromise = setJobStatusEmailNotificationsEnabled(nextValue);
+      const wrappedPromise = actionPromise.then((result) => {
+        if (!result.success) {
+          throw new Error("failed to update job status email notifications");
+        }
+        return result;
       });
-      if (result.error) {
-        setLocalEnabled((prev) => !prev);
-        toast.error(t("error"));
-        return;
+      toast.promise(wrappedPromise, {
+        loading: t("loading"),
+        success: () => {
+          return nextValue ? t("enabledSuccess") : t("disabledSuccess");
+        },
+        error: () => {
+          setEnabled(previous);
+          return t("error");
+        },
+      });
+      try {
+        await wrappedPromise;
+      } catch (error) {
+        console.error(error);
       }
-
-      toast.success(nextValue ? t("enabledSuccess") : t("disabledSuccess"));
     });
   };
 
-  const isLoading = isPending || pending;
+  const isLoading = pending;
 
   return (
     <Card className="flex h-full flex-col">
@@ -63,7 +76,7 @@ export function JobStatusEmailPreferences() {
           </p>
         </div>
         <Switch
-          checked={localEnabled}
+          checked={enabled}
           onCheckedChange={handleToggle}
           disabled={isLoading}
           aria-label={t("jobStatusEmailsAriaLabel")}

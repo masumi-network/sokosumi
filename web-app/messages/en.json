@@ -890,7 +890,7 @@
       "continueAndInviteCoWorkers": "Continue & Invite Co-Workers",
       "divider": "or",
       "Organisation": {
-        "name": "Your organisation's name", 
+        "name": "Your organisation's name",
         "placeholder": "Enter your organisation name"
       },
       "CoWorkers": {
@@ -1130,8 +1130,9 @@
         "title": "Email notifications",
         "description": "Choose which job updates we send to your inbox",
         "jobStatusEmailsTitle": "Job finished emails",
-        "jobStatusEmailsDescription": "Get an email when a job completes, fails, or refunds so you never miss the final state.",
+        "jobStatusEmailsDescription": "Get an email when a job completes, fails, or refunds.",
         "jobStatusEmailsAriaLabel": "Toggle job finished email notifications",
+        "loading": "Saving preference...",
         "enabledSuccess": "Job finished emails enabled",
         "disabledSuccess": "Job finished emails disabled",
         "error": "Failed to update notification preference"
@@ -1435,15 +1436,15 @@
           "linkInstructions": "Or copy and paste this URL into your browser:",
           "footer": "If you didn't request this email change, you can safely ignore this email."
         },
-      "InviteUserEmail": {
-        "subject": "Sōkosumi - Organization Invitation",
-        "title": "Join {invitorUsername} on {organizationName}",
-        "greeting": "Hello there",
-        "message": "You've been invited to join {organizationName} on Sōkosumi. Click the button below to accept the invitation.",
-        "button": "Accept Invitation",
-        "linkInstructions": "Or copy and paste this URL into your browser:",
-        "footer": "If you didn't request this invitation, you can safely ignore this email."
-      }
+        "InviteUserEmail": {
+          "subject": "Sōkosumi - Organization Invitation",
+          "title": "Join {invitorUsername} on {organizationName}",
+          "greeting": "Hello there",
+          "message": "You've been invited to join {organizationName} on Sōkosumi. Click the button below to accept the invitation.",
+          "button": "Accept Invitation",
+          "linkInstructions": "Or copy and paste this URL into your browser:",
+          "footer": "If you didn't request this invitation, you can safely ignore this email."
+        }
       }
     },
     "Email": {
