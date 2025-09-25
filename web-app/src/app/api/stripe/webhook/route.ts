@@ -267,11 +267,7 @@ const handleCustomerCreatedEvent = async (
             try {
               // Apply welcome coupon after setting the stripe customer id
               const { couponApplied, invoiceId } =
-                await stripeService.tryToApplyWelcomeCoupon(
-                  userId,
-                  customer.id,
-                  user.email,
-                );
+                await stripeService.claimWelcomeCoupon(userId);
               console.info(
                 `Welcome coupon applied (${couponApplied}) for invoice ${invoiceId}`,
               );
