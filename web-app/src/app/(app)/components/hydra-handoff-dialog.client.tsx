@@ -6,8 +6,6 @@ import { getEnvPublicConfig } from "@/config/env.public";
 
 import HydraDialog from "./hydra-dialog";
 
-const HYDRA_LINK =
-  "https://app.hydra.events/bd923855-d2de-46e6-b0cd-22e96e2c8fd5/?qr=LO-01K5Y5YH04J422AZ8CATBA4HCR";
 const STORAGE_KEY = "hydra-handoff-dialog:seen";
 const FEATURE_FLAG =
   getEnvPublicConfig().NEXT_PUBLIC_ENABLE_MOBILE_HYDRA_DIALOG;
