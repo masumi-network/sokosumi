@@ -27,7 +27,12 @@ export default function HydraHandoffDialog() {
       return;
     }
 
-    const hasSeenDialog = window.localStorage.getItem(STORAGE_KEY) === "true";
+    let hasSeenDialog = false;
+    try {
+      hasSeenDialog = window.localStorage.getItem(STORAGE_KEY) === "true";
+    } catch (error) {
+      console.warn("Failed to read dialog state from localStorage:", error);
+    }
 
     if (!hasSeenDialog) {
       setOpen(true);
@@ -42,7 +47,11 @@ export default function HydraHandoffDialog() {
     }
 
     if (!nextOpen) {
-      window.localStorage.setItem(STORAGE_KEY, "true");
+      try {
+        window.localStorage.setItem(STORAGE_KEY, "true");
+      } catch (error) {
+        console.warn("Failed to save dialog state to localStorage:", error);
+      }
     }
   }, []);
 
