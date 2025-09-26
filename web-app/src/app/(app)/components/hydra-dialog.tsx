@@ -37,7 +37,7 @@ export default function HydraDialog({ open, onOpenChange }: HydraDialogProps) {
               value={HYDRA_LINK}
               size={192}
               viewBox="0 0 256 256"
-              className="h-48 w-48"
+              className="size-48"
               aria-label="QR code for Hydra vending machine"
             />
           </div>
