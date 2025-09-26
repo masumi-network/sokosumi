@@ -31,7 +31,6 @@ export default function HydraHandoffDialog() {
 
     if (!hasSeenDialog) {
       setOpen(true);
-      // window.sessionStorage.setItem(STORAGE_KEY, "true");
     }
   }, [isHydrated]);
 
