@@ -6,7 +6,7 @@ import { getEnvPublicConfig } from "@/config/env.public";
 
 import HydraDialog from "./hydra-dialog";
 
-const STORAGE_KEY = "hydra-vending-machine-dialog:seen";
+const STORAGE_KEY = "hydra-handoff-dialog:seen";
 const FEATURE_FLAG =
   getEnvPublicConfig().NEXT_PUBLIC_ENABLE_MOBILE_HYDRA_DIALOG;
 
