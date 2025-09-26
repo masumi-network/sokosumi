@@ -27,7 +27,7 @@ export default function HydraHandoffDialog() {
       return;
     }
 
-    const hasSeenDialog = window.sessionStorage.getItem(STORAGE_KEY) === "true";
+    const hasSeenDialog = window.localStorage.getItem(STORAGE_KEY) === "true";
 
     if (!hasSeenDialog) {
       setOpen(true);
@@ -42,7 +42,7 @@ export default function HydraHandoffDialog() {
     }
 
     if (!nextOpen) {
-      window.sessionStorage.setItem(STORAGE_KEY, "true");
+      window.localStorage.setItem(STORAGE_KEY, "true");
     }
   }, []);
 
