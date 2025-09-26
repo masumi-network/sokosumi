@@ -983,7 +983,8 @@
       "title": "Hydra Vending Machine",
       "description": "Scan the QR code",
       "button": "Open directly",
-      "claimButton": "Claim Hydra Points"
+      "claimButton": "Claim Hydra Points",
+      "qrError": "QR code could not be generated"
     },
     "Billing": {
       "title": "Billing",

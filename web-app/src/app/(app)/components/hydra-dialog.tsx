@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import * as React from "react";
 import QRCode from "react-qr-code";
 
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,13 @@ interface HydraDialogProps {
 
 export default function HydraDialog({ open, onOpenChange }: HydraDialogProps) {
   const t = useTranslations("App.HydraHandoffDialog");
+  const [qrError, setQrError] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!open) {
+      setQrError(false);
+    }
+  }, [open]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -33,12 +41,20 @@ export default function HydraDialog({ open, onOpenChange }: HydraDialogProps) {
 
         <div className="flex justify-center">
           <div className="border-border rounded-md border bg-white p-4">
-            <QRCode
-              value={HYDRA_LINK}
-              size={192}
-              viewBox="0 0 256 256"
-              className="h-48 w-48"
-            />
+            {qrError ? (
+              <div className="flex h-48 w-48 items-center justify-center bg-gray-100 text-sm text-gray-500">
+                <p className="text-center">{t("qrError")}</p>
+              </div>
+            ) : (
+              <QRCode
+                value={HYDRA_LINK}
+                size={192}
+                viewBox="0 0 256 256"
+                className="h-48 w-48"
+                onError={() => setQrError(true)}
+                aria-label="QR code for Hydra vending machine"
+              />
+            )}
           </div>
         </div>
 
