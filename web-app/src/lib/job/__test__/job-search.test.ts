@@ -1,4 +1,4 @@
-import { JobWithStatus } from "@/lib/db";
+import { JobStatus, JobWithStatus } from "@/lib/db";
 import { jobMatchesQuery } from "@/lib/job/job-search";
 
 describe("Job search functionality", () => {
@@ -8,16 +8,27 @@ describe("Job search functionality", () => {
     agentId: "agent-1",
     input: JSON.stringify({ query: "hello world" }),
     output: JSON.stringify({ result: "Hello World Response" }),
-    links: [{ title: "Example", url: "https://example.com" }],
-    status: "completed",
+    links: [
+      {
+        title: "Example",
+        url: "https://example.com",
+        id: "",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        userId: "",
+        jobId: "",
+      },
+    ],
+    status: JobStatus.COMPLETED,
     identifierFromPurchaser: "test-1",
     inputHash: "hash-1",
     outputHash: "hash-1",
     startedAt: new Date(),
-    finishedAt: new Date(),
-    errorMessage: null,
+    completedAt: new Date(),
     userId: "user-1",
-  };
+    blobs: [],
+    shares: [],
+  } as unknown as JobWithStatus;
 
   it("should return true when no query is provided", () => {
     expect(jobMatchesQuery(mockJob, "")).toBe(true);
