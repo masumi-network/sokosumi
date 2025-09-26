@@ -982,7 +982,8 @@
     "HydraHandoffDialog": {
       "title": "Hydra Vending Machine",
       "description": "Scan the QR code",
-      "button": "Open the link directly."
+      "button": "Open directly",
+      "claimButton": "Claim Hydra Points"
     },
     "Billing": {
       "title": "Billing",
