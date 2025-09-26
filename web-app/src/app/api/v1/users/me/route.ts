@@ -18,7 +18,11 @@ import { User } from "@/prisma/generated/client";
 async function updateUserAndFetch(
   userId: string,
   headers: Headers,
-  data: { name?: string; marketingOptIn?: boolean },
+  data: {
+    name?: string;
+    marketingOptIn?: boolean;
+    jobStatusEmailNotificationsEnabled?: boolean;
+  },
 ): Promise<User> {
   // Update via Better Auth API (fires hooks, updates session cache)
   const result = await auth.api.updateUser({

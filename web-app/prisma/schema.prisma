@@ -43,6 +43,9 @@ model User {
   // terms
   termsAccepted Boolean @default(false)
 
+  // Notifications
+  jobStatusEmailNotificationsEnabled Boolean @default(true)
+
   // UTM Attribution
   utmAttribution UTMAttribution?
 

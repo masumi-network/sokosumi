@@ -1,5 +1,6 @@
 import {
   apiKeyClient,
+  inferAdditionalFields,
   inferOrgAdditionalFields,
   organizationClient,
 } from "better-auth/client/plugins";
@@ -10,6 +11,7 @@ import { auth } from "./auth";
 export const authClient = createAuthClient({
   plugins: [
     apiKeyClient(),
+    inferAdditionalFields<typeof auth>(),
     organizationClient({
       schema: inferOrgAdditionalFields<typeof auth>(),
     }),
