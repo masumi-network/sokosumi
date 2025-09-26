@@ -895,7 +895,7 @@
       "continueAndInviteCoWorkers": "Continue & Invite Co-Workers",
       "divider": "or",
       "Organisation": {
-        "name": "Your organisation's name", 
+        "name": "Your organisation's name",
         "placeholder": "Enter your organisation name"
       },
       "CoWorkers": {
@@ -1121,6 +1121,17 @@
           "success": "Account disconnected successfully",
           "error": "Failed to disconnect {provider}"
         }
+      },
+      "Notifications": {
+        "title": "Email notifications",
+        "description": "Choose which job updates we send to your inbox",
+        "jobStatusEmailsTitle": "Job finished emails",
+        "jobStatusEmailsDescription": "Get an email when a job completes, fails, or refunds.",
+        "jobStatusEmailsAriaLabel": "Toggle job finished email notifications",
+        "loading": "Saving preference...",
+        "enabledSuccess": "Job finished emails enabled",
+        "disabledSuccess": "Job finished emails disabled",
+        "error": "Failed to update notification preference"
       },
       "Delete": {
         "title": "Delete account",
@@ -1429,6 +1440,26 @@
           "button": "Accept Invitation",
           "linkInstructions": "Or copy and paste this URL into your browser:",
           "footer": "If you didn't request this invitation, you can safely ignore this email."
+        }
+      }
+    },
+    "Email": {
+      "JobStatus": {
+        "subject": "Sōkosumi - {agentName} job {status}",
+        "preview": "Your job for {agentName} is now {status}.",
+        "title": "Job {status}",
+        "greeting": "Hi {name}",
+        "body": "{jobName} for {agentName} is now {status}.",
+        "button": "View job",
+        "linkInstructions": "Or copy and paste this URL into your browser:",
+        "footer": "You're receiving this email because job notifications are enabled for your account.",
+        "fallbackJobName": "Your job",
+        "status": {
+          "completed": "completed",
+          "failed": "failed",
+          "payment_failed": "payment failed",
+          "refund_resolved": "refunded",
+          "dispute_resolved": "dispute resolved"
         }
       }
     },

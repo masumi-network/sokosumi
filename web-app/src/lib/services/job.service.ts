@@ -1,8 +1,11 @@
 import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
+import { getTranslations } from "next-intl/server";
 import { v4 as uuidv4 } from "uuid";
 
+import { getEnvPublicConfig } from "@/config/env.public";
+import { getEnvSecrets } from "@/config/env.secrets";
 import publishJobStatusData from "@/lib/ably/publish";
 import { JobIndicatorStatus } from "@/lib/ably/schema";
 import { JobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
@@ -10,6 +13,7 @@ import { getAuthContext } from "@/lib/auth/utils";
 import { agentClient, anthropicClient, paymentClient } from "@/lib/clients";
 import {
   computeJobStatus,
+  getAgentName,
   getJobIndicatorStatus,
   JobStatus,
   jobStatusToAgentJobStatus,
@@ -21,6 +25,8 @@ import {
   jobShareRepository,
   prisma,
 } from "@/lib/db/repositories";
+import { reactJobStatusEmail } from "@/lib/email/job-status";
+import { postmarkClient } from "@/lib/email/postmark";
 import {
   JobStatusResponseSchemaType,
   PricingAmountsSchemaType,
@@ -41,6 +47,17 @@ import {
 import { agentService } from "./agent.service";
 import { sourceImportService } from "./source-import.service";
 import { userService } from "./user.service";
+
+const { POSTMARK_FROM_EMAIL } = getEnvSecrets();
+const { NEXT_PUBLIC_SOKOSUMI_URL } = getEnvPublicConfig();
+
+const finalJobStatuses = new Set<JobStatus>([
+  JobStatus.COMPLETED,
+  JobStatus.FAILED,
+  JobStatus.PAYMENT_FAILED,
+  JobStatus.REFUND_RESOLVED,
+  JobStatus.DISPUTE_RESOLVED,
+]);
 
 export const jobService = (() => {
   /**
@@ -138,6 +155,58 @@ export const jobService = (() => {
       );
     }
   };
+
+  async function dispatchFinalStatusNotification(
+    job: JobWithStatus,
+    jobStatus: JobStatus,
+  ) {
+    if (job.isDemo || !job.user.jobStatusEmailNotificationsEnabled) {
+      return;
+    }
+
+    try {
+      const t = await getTranslations({
+        locale: "en",
+        namespace: "Library.Email.JobStatus",
+      });
+
+      const agentName = getAgentName(job.agent);
+      const jobLink = `${NEXT_PUBLIC_SOKOSUMI_URL}/agents/${job.agentId}/jobs/${job.id}`;
+      const statusLabel = t(`status.${jobStatus}`);
+
+      const htmlBody = await reactJobStatusEmail({
+        recipientName: job.user.name,
+        agentName,
+        jobName: job.name,
+        jobStatus,
+        jobLink,
+      });
+
+      postmarkClient.sendEmail({
+        From: POSTMARK_FROM_EMAIL,
+        To: job.user.email,
+        Tag: "job-final-status",
+        Subject: t("subject", { agentName, status: statusLabel }),
+        HtmlBody: htmlBody,
+        MessageStream: "outbound",
+      });
+    } catch (error) {
+      Sentry.captureException(error, {
+        contexts: {
+          error_classification: {
+            severity: "error",
+            domain: "job_status_notification",
+            category: "service_layer",
+          },
+        },
+        extra: {
+          jobId: job.id,
+          jobStatus,
+          userId: job.userId,
+        },
+      });
+    }
+  }
 
   /**
    * Validates that an organization has sufficient credit balance (in cents) to cover a specified amount.
@@ -756,6 +825,10 @@ export const jobService = (() => {
       console.log(
         `Job ${job.id} status changed from ${oldJobStatus} to ${newJobStatus}`,
       );
+
+      if (finalJobStatuses.has(newJobStatus)) {
+        await dispatchFinalStatusNotification(job, newJobStatus);
+      }
 
       try {
         await publishJobStatusData(job);
