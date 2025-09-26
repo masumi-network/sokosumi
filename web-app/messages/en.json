@@ -253,6 +253,13 @@
             }
           }
         },
+        "Meta": {
+          "jobId": "Job ID",
+          "txId": "Txn ID",
+          "started": "Started",
+          "finished": "Finished",
+          "cost": "Cost"
+        },
         "JobShare": {
           "share": "Share",
           "Modal": {

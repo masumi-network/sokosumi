@@ -7,6 +7,9 @@ export const siteConfig = {
     github: "https://github.com/masumi-network/sokosumi",
     decisionLoggingDocs:
       "https://docs.masumi.network/core-concepts/decision-logging",
+    jobDetails: "https://app.sokosumi.com/jobs/",
+    jobTransactionMainnet: "https://cardanoscan.io/transaction/",
+    jobTransactionPreprod: "https://preprod.cardanoscan.io/transaction/",
   },
 };
 
