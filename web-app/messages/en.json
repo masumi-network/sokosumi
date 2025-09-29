@@ -360,6 +360,11 @@
           "status": "Status",
           "name": "Name"
         }
+      },
+      "JobsSearch": {
+        "placeholder": "Search jobs...",
+        "clear": "Clear search",
+        "resultsCount": "{found} of {total} results found"
       }
     },
     "Organizations": {
