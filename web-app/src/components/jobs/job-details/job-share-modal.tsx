@@ -80,14 +80,13 @@ export default function JobShareModal({
 
   // Fetch organization data
   useEffect(() => {
+    let mounted = true;
     const fetchOrganization = async () => {
       setLoadingState((prev) => ({ ...prev, organization: true }));
       try {
         const result = await getActiveOrganization({});
-        if (result.ok) {
+        if (mounted && result.ok) {
           setOrganization(result.data);
-        } else {
-          console.error("Failed to fetch organization:", result.error);
         }
       } catch (error) {
         console.error("Failed to fetch organization:", error);
@@ -96,9 +95,10 @@ export default function JobShareModal({
       }
     };
 
-    if (open) {
-      fetchOrganization();
-    }
+    if (open) fetchOrganization();
+    return () => {
+      mounted = false;
+    };
   }, [open]);
 
   useEffect(() => {
