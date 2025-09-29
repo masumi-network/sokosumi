@@ -7,6 +7,8 @@ export const siteConfig = {
     github: "https://github.com/masumi-network/sokosumi",
     decisionLoggingDocs:
       "https://docs.masumi.network/core-concepts/decision-logging",
+    hydra:
+      "https://app.hydra.events/bd923855-d2de-46e6-b0cd-22e96e2c8fd5/?qr=LO-01K5Y5YH04J422AZ8CATBA4HCR",
   },
 };
 

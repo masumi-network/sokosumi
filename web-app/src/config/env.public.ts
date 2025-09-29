@@ -23,6 +23,7 @@ const envPublicConfigSchema = z.object({
   NEXT_PUBLIC_FEE_PERCENTAGE: z.coerce.number().min(0).default(5),
   NEXT_PUBLIC_CREDITS_BASE: z.coerce.number().default(12),
   NEXT_PUBLIC_AGENT_NEW_THRESHOLD_DAYS: z.coerce.number().min(0).default(7),
+  NEXT_PUBLIC_ENABLE_MOBILE_HYDRA_DIALOG: z.coerce.boolean().default(false),
 });
 
 let envPublicConfig: z.infer<typeof envPublicConfigSchema>;
@@ -48,6 +49,8 @@ function validateEnv() {
     NEXT_PUBLIC_CREDITS_BASE: process.env.NEXT_PUBLIC_CREDITS_BASE,
     NEXT_PUBLIC_AGENT_NEW_THRESHOLD_DAYS:
       process.env.NEXT_PUBLIC_AGENT_NEW_THRESHOLD_DAYS,
+    NEXT_PUBLIC_ENABLE_MOBILE_HYDRA_DIALOG:
+      process.env.NEXT_PUBLIC_ENABLE_MOBILE_HYDRA_DIALOG,
   });
   if (!parsedConfig.success) {
     console.error(
