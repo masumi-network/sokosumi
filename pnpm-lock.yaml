@@ -228,8 +228,8 @@ importers:
         specifier: 16.3.0
         version: 16.3.0
       mdast2docx:
-        specifier: 1.5.1
-        version: 1.5.1(remark-math@6.0.0)(sharp@0.34.4)
+        specifier: 1.6.0
+        version: 1.6.0(remark-math@6.0.0)(sharp@0.34.4)
       nanoid:
         specifier: 5.1.6
         version: 5.1.6
@@ -4750,6 +4750,7 @@ packages:
   fast-equals@5.3.0:
     resolution: {integrity: sha512-xwP+dG/in/nJelMOUEQBiIYeOoHKihWPB2sNZ8ZeDbZFoGb1OwTGMggGRgg6CRitNx7kmHgtIz2dOHDQ8Ap7Bw==}
     engines: {node: '>=6.0.0'}
+    deprecated: Please upgrade to `5.3.1`; this version incorrectly installs the internal `.yarn` package, which balloons installation size, and can cause errors with pnpm installs.
 
   fast-fifo@1.3.2:
     resolution: {integrity: sha512-/d9sfos4yxzpwkDkuN7k2SqFKtYNmCTzgfEpz82x34IM9/zc8KGxQoXg1liNC/izpRM/MBdt44Nmx41ZWqk+FQ==}
@@ -5824,8 +5825,8 @@ packages:
   mdast-util-to-string@4.0.0:
     resolution: {integrity: sha512-0H44vDimn51F0YwvxSJSm0eCDOJTRlmN0R1yBh4HLj9wiV1Dn0QoXGbvFAWj2hSItVTlCmBF1hqKlIyUBVFLPg==}
 
-  mdast2docx@1.5.1:
-    resolution: {integrity: sha512-Wlx1MEEGGJYVhCTcHcHBiQWvsGCXKe/Uo4nzTO5g31lWbmVkYpjALQ0ie9VFQLddxoJNKfGV6wP31J3cGDZ81A==}
+  mdast2docx@1.6.0:
+    resolution: {integrity: sha512-eYCelupO95LUb2fzFgz8y5yrm2AbLgAGgkSMZqAMxwDHhpp8qMEZi9GsdE8FceALApKDzuVcvfoqmqwvGhNcEw==}
 
   merge-stream@2.0.0:
     resolution: {integrity: sha512-abv/qOcuPfk3URPfDzmZU1LKmuw8kT+0nIHvKrKgFrwifol/doWcdA4ZqsWQ8ENrFKkd67Mfpo/LovbIUsbt3w==}
@@ -13798,7 +13799,7 @@ snapshots:
     dependencies:
       '@types/mdast': 4.0.4
 
-  mdast2docx@1.5.1(remark-math@6.0.0)(sharp@0.34.4):
+  mdast2docx@1.6.0(remark-math@6.0.0)(sharp@0.34.4):
     dependencies:
       '@m2d/core': 1.7.0(docx@9.5.1)
       '@m2d/emoji': 0.1.3(docx@9.5.1)
