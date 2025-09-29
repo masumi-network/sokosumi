@@ -27,6 +27,8 @@ export function sanitizeMarkdown(markdown: string): string {
       "img",
       "video",
       "code",
+      "mark",
+      "span",
     ],
     ALLOWED_ATTR: [
       "href",
@@ -42,6 +44,7 @@ export function sanitizeMarkdown(markdown: string): string {
       "frameborder",
       "alt",
       "title",
+      "class",
     ],
   });
 }
