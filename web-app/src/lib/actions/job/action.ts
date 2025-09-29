@@ -433,13 +433,7 @@ export const removeJobShare = withAuthContext<
       });
     }
 
-    if (recipientOrganizationId !== undefined) {
-      // Remove specific share
-      await jobShareRepository.deleteJobShare(jobId, recipientOrganizationId);
-    } else {
-      // Remove all shares for the job (legacy behavior)
-      await jobShareRepository.deleteJobSharesByJobId(jobId);
-    }
+    await jobShareRepository.deleteJobShare(jobId, recipientOrganizationId);
     return Ok();
   } catch (error) {
     console.error("Failed to remove job share", error);
