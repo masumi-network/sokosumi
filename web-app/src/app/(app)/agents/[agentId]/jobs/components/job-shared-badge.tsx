@@ -33,7 +33,7 @@ export default function JobSharedBadge({
             <Avatar className="h-6 w-6">
               <AvatarImage src={creatorImage ?? undefined} />
               <AvatarFallback className="text-xs">
-                {creatorName.charAt(0)?.toUpperCase() || "?"}
+                {creatorName?.charAt(0)?.toUpperCase() || "?"}
               </AvatarFallback>
             </Avatar>
             <Badge
