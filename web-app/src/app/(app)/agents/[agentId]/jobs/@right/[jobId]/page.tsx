@@ -66,7 +66,6 @@ export default async function JobDetailsPage({
   // Check if user can access this job (either owns it or it's shared with their organization)
   const canAccessJob = await checkJobAccess(job, session.user.id);
   if (!canAccessJob) {
-    console.warn("job not found in job detail page - unauthorized access");
     notFound();
   }
 
