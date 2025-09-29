@@ -21,9 +21,18 @@ export async function setupDomContext(): Promise<() => void> {
     return () => {};
   }
 
-  // Import happy-dom for lightweight DOM implementation
-  const { Window } = await import("happy-dom");
-  const happyWindow = new Window();
+  // Try to use happy-dom (ESM). If Jest can't transpile ESM from node_modules,
+  // fall back to jsdom to keep tests working.
+  let createdWindow: (Window & { close?: () => void }) | null = null;
+
+  try {
+    const { Window } = await import("happy-dom");
+    createdWindow = new Window() as unknown as Window & { close?: () => void };
+  } catch (_) {
+    const { JSDOM } = await import("jsdom");
+    const dom = new JSDOM("<!doctype html><html><body></body></html>");
+    createdWindow = dom.window as unknown as Window & { close?: () => void };
+  }
 
   // Store original global values
   const originalGlobals = {
@@ -34,14 +43,21 @@ export async function setupDomContext(): Promise<() => void> {
   };
 
   // Set up globals for libraries that require DOM APIs
-  (global as Record<string, unknown>).window = happyWindow;
-  (global as Record<string, unknown>).document = happyWindow.document;
-  (global as Record<string, unknown>).HTMLElement = happyWindow.HTMLElement;
-  (global as Record<string, unknown>).SVGElement = happyWindow.SVGElement;
+  (global as Record<string, unknown>).window =
+    createdWindow as unknown as Window;
+  (global as Record<string, unknown>).document = (
+    createdWindow as unknown as Window
+  ).document;
+  (global as Record<string, unknown>).HTMLElement = (
+    createdWindow as unknown as Window & { HTMLElement: typeof HTMLElement }
+  ).HTMLElement;
+  (global as Record<string, unknown>).SVGElement = (
+    createdWindow as unknown as Window & { SVGElement: typeof SVGElement }
+  ).SVGElement;
 
   return () => {
     // Close happy-dom window
-    happyWindow.close();
+    createdWindow?.close();
 
     // Restore original globals
     if (originalGlobals.window !== undefined) {

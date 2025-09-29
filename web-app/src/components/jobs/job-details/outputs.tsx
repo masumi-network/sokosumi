@@ -1,4 +1,5 @@
 "use client";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
@@ -42,6 +43,7 @@ export default function JobDetailsOutputs({
 
 function JobDetailsOutputsInner({ job, readOnly }: JobDetailsOutputsProps) {
   const t = useTranslations("Components.Jobs.JobDetails.Output");
+  const searchParams = useSearchParams();
 
   let output: JobStatusResponseSchemaType | null = null;
   if (job.output) {
@@ -57,7 +59,9 @@ function JobDetailsOutputsInner({ job, readOnly }: JobDetailsOutputsProps) {
     <JobDetailsOutputsLayout>
       {output?.result ? (
         <>
-          <Markdown>{output.result}</Markdown>
+          <Markdown highlightTerm={(searchParams?.get("query") ?? "").trim()}>
+            {output.result}
+          </Markdown>
           <JotOutputSources job={job} />
           <div className="flex justify-between gap-2">
             <div className="flex gap-4">

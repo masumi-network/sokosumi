@@ -372,6 +372,11 @@
           "status": "Status",
           "name": "Name"
         }
+      },
+      "JobsSearch": {
+        "placeholder": "Search jobs...",
+        "clear": "Clear search",
+        "resultsCount": "{found} of {total} results found"
       }
     },
     "Organizations": {
@@ -995,6 +1000,12 @@
         "organizationBalance": "{credits, plural, =0 {No credits} =1 {1 credit} other {# credits}} ({organization})",
         "unavailable": "Credits unavailable"
       }
+    },
+    "HydraHandoffDialog": {
+      "title": "Hydra Vending Machine",
+      "description": "Scan the QR code",
+      "button": "Open directly",
+      "claimButton": "Claim Hydra Points"
     },
     "Billing": {
       "title": "Billing",
