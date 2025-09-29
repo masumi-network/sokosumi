@@ -256,6 +256,11 @@
         "Meta": {
           "jobId": "Job ID",
           "txId": "Txn ID",
+          "inputHash": "Input Hash",
+          "outputHash": "Output Hash",
+          "onChain": "On-Chain",
+          "calculated": "Sōkosumi",
+          "missing": "Missing",
           "started": "Started",
           "finished": "Finished",
           "cost": "Cost"
@@ -495,6 +500,11 @@
         "cancel": "Cancel",
         "error": "Failed to log out"
       }
+    },
+    "HashValue": {
+      "copy": "Copy",
+      "copySuccess": "Copied to clipboard",
+      "copyError": "Failed to copy"
     }
   },
   "AcceptInvitation": {

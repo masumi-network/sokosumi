@@ -1,3 +1,5 @@
+import { siteConfig } from "@/config/site";
+
 export function safeAddPathComponent(url: URL, pathComponent: string): URL {
   try {
     // Handle empty or whitespace-only path components
@@ -41,4 +43,13 @@ export function buildFaviconCandidates(rawUrl: string): string[] {
   } catch {
     return [];
   }
+}
+
+export function buildJobTransactionUrl(
+  hash: string,
+  isMainnet: boolean,
+): string {
+  return isMainnet
+    ? siteConfig.links.jobTransactionMainnet.concat(hash)
+    : siteConfig.links.jobTransactionPreprod.concat(hash);
 }
