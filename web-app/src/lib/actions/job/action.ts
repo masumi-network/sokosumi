@@ -4,10 +4,13 @@ import * as Sentry from "@sentry/nextjs";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
+import { OrganizationErrorCode } from "@/lib/actions/errors/error-codes/organization";
 import { JobWithStatus } from "@/lib/db";
 import {
   jobRepository,
   jobShareRepository,
+  memberRepository,
+  organizationRepository,
   prisma,
   userRepository,
 } from "@/lib/db/repositories";
@@ -335,6 +338,35 @@ export const shareJob = withAuthContext<
         message: "Unauthorized",
         code: CommonErrorCode.UNAUTHORIZED,
       });
+    }
+
+    // Validate organization membership if sharing with an organization
+    if (recipientOrganizationId) {
+      // Check if organization exists
+      const organization =
+        await organizationRepository.getOrganizationWithRelationsById(
+          recipientOrganizationId,
+        );
+      if (!organization) {
+        return Err({
+          message: "Organization not found",
+          code: OrganizationErrorCode.ORGANIZATION_NOT_FOUND,
+        });
+      }
+
+      // Check if user is a member of the organization
+      const membership =
+        await memberRepository.getMemberByUserIdAndOrganizationId(
+          userId,
+          recipientOrganizationId,
+        );
+      if (!membership) {
+        return Err({
+          message:
+            "You must be a member of the organization to share jobs with it",
+          code: OrganizationErrorCode.NOT_ORGANIZATION_MEMBER,
+        });
+      }
     }
 
     const jobShare = await prisma.$transaction(async (tx) => {
