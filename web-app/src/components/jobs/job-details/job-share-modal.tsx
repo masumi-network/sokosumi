@@ -319,7 +319,7 @@ export default function JobShareModal({
                   </p>
                 </div>
                 {jobShare?.accessType === ShareAccessType.PUBLIC && (
-                  <Check className="text-semantic-success h-4 w-4" />
+                  <Check className="text-semantic-success size-4" />
                 )}
               </div>
               {activeOrganizationId && !organization ? (
@@ -354,7 +354,7 @@ export default function JobShareModal({
                     </p>
                   </div>
                   {organizationJobShare && (
-                    <Check className="text-semantic-success h-4 w-4" />
+                    <Check className="text-semantic-success size-4" />
                   )}
                 </div>
               ) : null}
@@ -411,7 +411,7 @@ export default function JobShareModal({
                   </p>
                 </div>
                 {!jobShare && !organizationJobShare && (
-                  <Check className="text-semantic-success h-4 w-4" />
+                  <Check className="text-semantic-success size-4" />
                 )}
               </div>
             </div>
@@ -426,7 +426,7 @@ export default function JobShareModal({
                   {link.toString()}
                 </a>
                 <Button variant="ghost" size="icon" onClick={handleCopyLink}>
-                  <Copy className="h-4 w-4" />
+                  <Copy className="size-4" />
                 </Button>
               </div>
             )}
