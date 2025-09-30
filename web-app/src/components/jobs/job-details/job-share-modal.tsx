@@ -324,7 +324,7 @@ export default function JobShareModal({
               </div>
               {activeOrganizationId && !organization ? (
                 <div className="flex items-center gap-2 p-4">
-                  <Skeleton className="h-6 w-6 rounded-full" />
+                  <Skeleton className="size-6 rounded-full" />
                   <div className="flex-1 space-y-2">
                     <Skeleton className="h-4 w-32" />
                     <Skeleton className="h-3 w-48" />
