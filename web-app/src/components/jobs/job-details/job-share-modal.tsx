@@ -343,7 +343,7 @@ export default function JobShareModal({
                   <Check className="h-4 w-4 text-green-500" />
                 )}
               </div>
-              {loadingState.organization ? (
+              {activeOrganizationId && !organization ? (
                 <div className="flex items-center gap-2 p-4">
                   <Skeleton className="h-6 w-6 rounded-full" />
                   <div className="flex-1 space-y-2">
