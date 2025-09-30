@@ -99,7 +99,7 @@ export default function JobShareModal({
     return () => {
       mounted = false;
     };
-  }, [open]);
+  }, [open, jobId]);
 
   useEffect(() => {
     if (publicJobShare) {
