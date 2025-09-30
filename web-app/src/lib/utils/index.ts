@@ -77,6 +77,7 @@ export const getOutputHash = (
   }
 
   // JSON.stringify escapes \n, \r, \t, backslashes, quotes, etc.
+  // Slicing to remove the quotes
   const escaped = JSON.stringify(outputValue).slice(1, -1);
 
   return createHash(identifierFromPurchaser + ";" + escaped);
