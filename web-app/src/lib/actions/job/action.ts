@@ -505,3 +505,20 @@ export const getActiveOrganization = withAuthContext<
     });
   }
 });
+
+export const getActiveOrganizationId = withAuthContext<
+  AuthenticatedRequest,
+  Result<string | null, ActionError>
+>(async ({ authContext: _authContext }) => {
+  try {
+    const organizationId = await userService.getActiveOrganizationId();
+    // Ensure undefined is converted to null for correct Result type
+    return Ok(organizationId ?? null);
+  } catch (error) {
+    console.error("Failed to get active organization id", error);
+    return Err({
+      message: "Internal server error",
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+    });
+  }
+});

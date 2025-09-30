@@ -19,6 +19,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   CommonErrorCode,
   getActiveOrganization,
+  getActiveOrganizationId,
   JobErrorCode,
   removeJobShare,
   shareJob,
@@ -83,16 +84,19 @@ export default function JobShareModal({
   useEffect(() => {
     let mounted = true;
     const fetchOrganization = async () => {
-      setLoadingState((prev) => ({ ...prev, organization: true }));
-      try {
-        const result = await getActiveOrganization({});
-        if (mounted && result.ok) {
-          setOrganization(result.data);
+      const orgIdData = await getActiveOrganizationId({});
+      if (orgIdData.ok && orgIdData.data) {
+        setLoadingState((prev) => ({ ...prev, organization: true }));
+        try {
+          const result = await getActiveOrganization({});
+          if (mounted && result.ok) {
+            setOrganization(result.data);
+          }
+        } catch (error) {
+          console.error("Failed to fetch organization:", error);
+        } finally {
+          setLoadingState((prev) => ({ ...prev, organization: false }));
         }
-      } catch (error) {
-        console.error("Failed to fetch organization:", error);
-      } finally {
-        setLoadingState((prev) => ({ ...prev, organization: false }));
       }
     };
 
