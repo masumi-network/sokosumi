@@ -72,5 +72,14 @@ export default async function JobDetailsPage({
   // Determine if the job should be read-only (user is not the owner)
   const readOnly = job.userId !== session.user.id;
 
-  return <JobDetails job={job} readOnly={readOnly} />;
+  // Fetch active organization ID to pass to JobDetails
+  const activeOrganizationId = await userService.getActiveOrganizationId();
+
+  return (
+    <JobDetails
+      job={job}
+      readOnly={readOnly}
+      activeOrganizationId={activeOrganizationId}
+    />
+  );
 }

@@ -19,7 +19,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   CommonErrorCode,
   getActiveOrganization,
-  getActiveOrganizationId,
   JobErrorCode,
   removeJobShare,
   shareJob,
@@ -37,6 +36,7 @@ interface JobShareModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   job: JobWithRelations;
+  activeOrganizationId?: string | null;
 }
 
 type LoadingState = {
@@ -51,6 +51,7 @@ export default function JobShareModal({
   open,
   onOpenChange,
   job,
+  activeOrganizationId,
 }: JobShareModalProps) {
   const t = useTranslations("Components.Jobs.JobDetails.JobShare.Modal");
   const { id: jobId } = job;
@@ -80,23 +81,26 @@ export default function JobShareModal({
 
   const publicJobShare = getPublicJobShare(job);
 
-  // Fetch organization data
+  // Fetch organization data only if activeOrganizationId is provided
   useEffect(() => {
     let mounted = true;
+
+    // If no active organization ID, don't fetch anything
+    if (!activeOrganizationId) {
+      return;
+    }
+
     const fetchOrganization = async () => {
-      const orgIdData = await getActiveOrganizationId({});
-      if (orgIdData.ok && orgIdData.data) {
-        setLoadingState((prev) => ({ ...prev, organization: true }));
-        try {
-          const result = await getActiveOrganization({});
-          if (mounted && result.ok) {
-            setOrganization(result.data);
-          }
-        } catch (error) {
-          console.error("Failed to fetch organization:", error);
-        } finally {
-          setLoadingState((prev) => ({ ...prev, organization: false }));
+      setLoadingState((prev) => ({ ...prev, organization: true }));
+      try {
+        const result = await getActiveOrganization({});
+        if (mounted && result.ok) {
+          setOrganization(result.data);
         }
+      } catch (error) {
+        console.error("Failed to fetch organization:", error);
+      } finally {
+        setLoadingState((prev) => ({ ...prev, organization: false }));
       }
     };
 
@@ -104,7 +108,7 @@ export default function JobShareModal({
     return () => {
       mounted = false;
     };
-  }, [open, jobId]);
+  }, [open, activeOrganizationId]);
 
   useEffect(() => {
     if (publicJobShare) {

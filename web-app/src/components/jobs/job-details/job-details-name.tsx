@@ -39,9 +39,11 @@ import JobShareModal from "./job-share-modal";
 export default function JobDetailsName({
   job,
   readOnly,
+  activeOrganizationId,
 }: {
   job: JobWithStatus;
   readOnly: boolean;
+  activeOrganizationId?: string | null;
 }) {
   const t = useTranslations("Components.Jobs.JobDetails.Header.JobName");
   const { name } = job;
@@ -49,7 +51,12 @@ export default function JobDetailsName({
   const sharedWithOrganization = isOrganizationShared(job);
 
   const { showModal, Component } = useModal(({ open, onOpenChange }) => (
-    <JobShareModal open={open} onOpenChange={onOpenChange} job={job} />
+    <JobShareModal
+      open={open}
+      onOpenChange={onOpenChange}
+      job={job}
+      activeOrganizationId={activeOrganizationId}
+    />
   ));
 
   const router = useAsyncRouter();
