@@ -34,9 +34,9 @@ export interface JobMetaDetailsProps {
 
 interface HashVerificationResult {
   onChainInputHash: string | null;
-  onChainOutputHash: string | null;
+  onChainResultHash: string | null;
   calculatedInputHash: string | null;
-  calculatedOutputHash: string | null;
+  calculatedResultHash: string | null;
 }
 
 export function JobMetaDetails({ job }: JobMetaDetailsProps) {
@@ -59,17 +59,17 @@ export function JobMetaDetails({ job }: JobMetaDetailsProps) {
 
     return {
       onChainInputHash: job.inputHash ?? null,
-      onChainOutputHash: job.outputHash ?? null,
+      onChainResultHash: job.resultHash ?? null,
       calculatedInputHash: calcInput,
-      calculatedOutputHash: calcOutput,
+      calculatedResultHash: calcOutput,
     };
   }, [job]);
 
   const {
     onChainInputHash,
-    onChainOutputHash,
+    onChainResultHash,
     calculatedInputHash,
-    calculatedOutputHash,
+    calculatedResultHash,
   } = hashVerification;
 
   const cost = Math.abs(convertCentsToCredits(job.creditTransaction.amount));
@@ -106,7 +106,7 @@ export function JobMetaDetails({ job }: JobMetaDetailsProps) {
     },
     {
       key: "outputHashGroup",
-      label: t("outputHash"),
+      label: t("resultHash"),
       rowClassName: "pb-1",
       content: null,
     },
@@ -140,9 +140,9 @@ export function JobMetaDetails({ job }: JobMetaDetailsProps) {
         if (isHashGroup) {
           const direction = item.key === "inputHashGroup" ? "input" : "output";
           const onChainHash =
-            direction === "input" ? onChainInputHash : onChainOutputHash;
+            direction === "input" ? onChainInputHash : onChainResultHash;
           const calculatedHash =
-            direction === "input" ? calculatedInputHash : calculatedOutputHash;
+            direction === "input" ? calculatedInputHash : calculatedResultHash;
           return (
             <Fragment key={item.key}>
               <HashGroupRow

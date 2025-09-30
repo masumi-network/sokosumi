@@ -119,11 +119,11 @@ export function getMatchedHash(
     return null;
   }
   // output
-  const outputHash = getOutputHash(
+  const resultHash = getOutputHash(
     data as JobStatusResponseSchemaType,
     identifierFromPurchaser,
   );
-  return hashToMatch === outputHash ? outputHash : null;
+  return hashToMatch === resultHash ? resultHash : null;
 }
 
 /**
@@ -137,7 +137,7 @@ export function getMatchedHash(
  * - Returns false if required fields are missing or JSON cannot be parsed.
  *
  * @param direction - Which side of the job to verify: "input" or "output"
- * @param job - Job record including `input`, `output`, `inputHash`, `outputHash`
+ * @param job - Job record including `input`, `output`, `inputHash`, `resultHash`
  * @param identifier - Purchaser-provided identifier used in hash computation
  * @returns true if the computed hash matches the stored hash; otherwise false
  */
@@ -158,14 +158,14 @@ export function isJobVerified(
     );
     return matched !== null;
   }
-  if (!job.outputHash) return false;
+  if (!job.resultHash) return false;
   const outputObj = tryParseJson<JobStatusResponseSchemaType>(job.output);
   if (!outputObj) return false;
   const matched = getMatchedHash(
     "output",
     outputObj,
     job.identifierFromPurchaser,
-    job.outputHash,
+    job.resultHash,
   );
   return matched !== null;
 }

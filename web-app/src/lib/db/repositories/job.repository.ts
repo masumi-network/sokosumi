@@ -54,7 +54,7 @@ interface CreateDemoJobData {
   // Hashing and identifier (for demo parity with on-chain jobs)
   identifierFromPurchaser: string;
   inputHash: string | null;
-  outputHash: string | null;
+  resultHash: string | null;
 }
 
 interface CreateJobData {
@@ -262,7 +262,7 @@ export const jobRepository = {
         output: data.output,
         // Persist demo hashes for verification badge parity
         ...(data.inputHash && { inputHash: data.inputHash }),
-        ...(data.outputHash && { outputHash: data.outputHash }),
+        ...(data.resultHash && { resultHash: data.resultHash }),
         completedAt: data.completedAt,
         isDemo: true,
       },
@@ -415,7 +415,7 @@ export const jobRepository = {
       purchaseId: purchase.id,
       onChainStatus,
       inputHash: purchase.inputHash,
-      outputHash: purchase.resultHash,
+      resultHash: purchase.resultHash,
     };
     if (onChainStatus === OnChainJobStatus.RESULT_SUBMITTED) {
       data.resultSubmittedAt = new Date();

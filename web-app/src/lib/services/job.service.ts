@@ -265,7 +265,7 @@ export const jobService = (() => {
     // Generate identifier and hashes for demo parity
     const identifierFromPurchaser = uuidv4().replace(/-/g, "").substring(0, 20);
     const inputHash = getInputHash(inputData, identifierFromPurchaser);
-    const outputHash = getOutputHash(
+    const resultHash = getOutputHash(
       jobStatusResponse,
       identifierFromPurchaser,
     );
@@ -282,7 +282,7 @@ export const jobService = (() => {
       output,
       identifierFromPurchaser,
       inputHash,
-      outputHash,
+      resultHash,
       completedAt:
         agentJobStatus === AgentJobStatus.COMPLETED ? new Date() : null,
     });
