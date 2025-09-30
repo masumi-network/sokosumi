@@ -12,6 +12,7 @@ import JobDetailsInputs from "./inputs";
 import JobDetailsName from "./job-details-name";
 import { JobVerificationBadge } from "./job-verification-badge";
 import JobDetailsOutputs from "./outputs";
+import JotOutputSources from "./sources";
 
 interface JobDetailsProps {
   job: JobWithStatus;
@@ -29,9 +30,11 @@ export default function JobDetails({
   const t = useTranslations("Components.Jobs.JobDetails");
 
   const hasCompletedOutput = job.status === JobStatus.COMPLETED && !!job.output;
+  const hasSources = job.blobs.length > 0 || job.links.length > 0;
+  console.log("hasSources", hasSources);
   const defaultAccordionValue = hasCompletedOutput
-    ? ["output"]
-    : ["input", "output"];
+    ? ["output", ...(hasSources ? ["sources"] : [])]
+    : ["input", "output", ...(hasSources ? ["sources"] : [])];
 
   return (
     <div
@@ -79,6 +82,11 @@ export default function JobDetails({
               activeOrganizationId={activeOrganizationId}
             />
           </AccordionItemWrapper>
+          {hasSources ? (
+            <AccordionItemWrapper value="sources" title={t("Sources.title")}>
+              <JotOutputSources job={job} />
+            </AccordionItemWrapper>
+          ) : null}
         </Accordion>
       </ScrollArea>
     </div>

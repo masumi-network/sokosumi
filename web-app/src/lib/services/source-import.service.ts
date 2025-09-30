@@ -2,6 +2,7 @@ import "server-only";
 
 import pLimit from "p-limit";
 
+import publishJobStatusData from "@/lib/ably/publish";
 import { uploadFile } from "@/lib/blob";
 import { extractFileLikeLinks, extractHttpLinks } from "@/lib/data/markdown";
 import { blobRepository, linkRepository, prisma } from "@/lib/db/repositories";
@@ -109,8 +110,18 @@ export const sourceImportService = (() => {
         size: Number.isFinite(sizeNumber) ? BigInt(sizeNumber) : undefined,
         fileName: suggestedName,
       });
+      // Notify client that sources for this job may have changed
+      try {
+        const job = await prisma.job.findUnique({ where: { id: blob.jobId } });
+        if (job) await publishJobStatusData(job);
+      } catch {}
     } catch {
       await blobRepository.markBlobFailed(blob.id);
+      // Notify client on failure as well
+      try {
+        const job = await prisma.job.findUnique({ where: { id: blob.jobId } });
+        if (job) await publishJobStatusData(job);
+      } catch {}
     }
   }
 
