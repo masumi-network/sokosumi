@@ -354,6 +354,10 @@ export function isPubliclyShared(job: JobWithRelations): boolean {
   );
 }
 
+export function isOrganizationShared(job: JobWithRelations): boolean {
+  return job.shares.some((share) => share.recipientOrganizationId !== null);
+}
+
 export function getPublicJobShare(job: JobWithRelations): JobShare | null {
   const found = job.shares.find(
     (share) => share.accessType === ShareAccessType.PUBLIC,
