@@ -10,6 +10,7 @@ import useAgentJobStatus from "@/hooks/use-agent-job-status";
 import { JobIndicatorStatus } from "@/lib/ably";
 import { JobWithStatus } from "@/lib/db";
 
+import JobSharedBadge from "./job-shared-badge";
 import JobStatusBadge from "./job-status-badge";
 
 const columnHelper = createColumnHelper<JobWithStatus>();
@@ -46,28 +47,49 @@ export function getJobColumns(
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("Header.status")} />
       ),
-      cell: ({ row }) => (
-        <div className="p-2">
-          {row.original.isDemo ? (
-            <JobStatusBadge
-              status={row.original.status}
-              isDemo={row.original.isDemo}
-            />
-          ) : (
-            <RealTimeJobStatusBadge
-              agentId={row.original.agentId}
-              userId={userId}
-              jobId={row.original.id}
-              initialJobIndicatorStatus={{
-                jobId: row.original.id,
-                jobStatus: row.original.status,
-                jobStatusSettled: row.original.jobStatusSettled,
-              }}
-              isDemo={row.original.isDemo}
-            />
-          )}
-        </div>
-      ),
+      cell: ({ row }) => {
+        const job = row.original;
+        const isSharedJob = job.userId !== userId;
+        const orgShare = job.shares?.find(
+          (share) => share.recipientOrganizationId && share.creator,
+        );
+
+        // If it's a shared job, show the sharing indicator instead of status
+        if (isSharedJob && orgShare) {
+          return (
+            <div className="p-2">
+              <JobSharedBadge
+                creatorName={orgShare.creator.name}
+                creatorImage={orgShare.creator.image}
+              />
+            </div>
+          );
+        }
+
+        // For owned jobs, show the status badge as normal
+        return (
+          <div className="p-2">
+            {row.original.isDemo ? (
+              <JobStatusBadge
+                status={row.original.status}
+                isDemo={row.original.isDemo}
+              />
+            ) : (
+              <RealTimeJobStatusBadge
+                agentId={row.original.agentId}
+                userId={userId}
+                jobId={row.original.id}
+                initialJobIndicatorStatus={{
+                  jobId: row.original.id,
+                  jobStatus: row.original.status,
+                  jobStatusSettled: row.original.jobStatusSettled,
+                }}
+                isDemo={row.original.isDemo}
+              />
+            )}
+          </div>
+        );
+      },
       enableSorting: true,
       enableHiding: false,
     }) as ColumnDef<JobWithStatus>,

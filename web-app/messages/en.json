@@ -222,6 +222,10 @@
         "outputPending": "Output Missing",
         "unknown": "Unknown"
       },
+      "SharedBadge": {
+        "shared": "Shared",
+        "sharedBy": "Shared by"
+      },
       "JobDetails": {
         "Header": {
           "JobName": {
@@ -241,7 +245,8 @@
             "save": "Save",
             "cancel": "Cancel",
             "noName": "No name",
-            "shared": "Shared",
+            "shared": "Shared publicly",
+            "organizationShared": "Shared with organization",
             "private": "Private",
             "success": "Job name updated successfully",
             "error": "Failed to update job name",
@@ -271,6 +276,8 @@
             "title": "Share job",
             "publicAccessTitle": "Public access",
             "publicAccessDescription": "Anyone with the link can view",
+            "organizationAccessTitle": "Organization access",
+            "organizationAccessDescription": "Anyone inside {organizationName} can view",
             "privateAccessTitle": "Private access",
             "privateAccessDescription": "Only you can view",
             "allowSearchIndexing": "Allow this result to be indexed by Search Engines",

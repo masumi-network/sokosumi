@@ -20,6 +20,7 @@ import JotOutputSources from "./sources";
 interface JobDetailsOutputsProps {
   job: JobWithStatus;
   readOnly?: boolean;
+  activeOrganizationId?: string | null;
 }
 
 interface JobDetailsOutputsLayoutProps {
@@ -33,15 +34,24 @@ function JobDetailsOutputsLayout({ children }: JobDetailsOutputsLayoutProps) {
 export default function JobDetailsOutputs({
   job,
   readOnly = false,
+  activeOrganizationId,
 }: JobDetailsOutputsProps) {
   return (
     <DefaultErrorBoundary fallback={<JobDetailsOutputsError />}>
-      <JobDetailsOutputsInner job={job} readOnly={readOnly} />
+      <JobDetailsOutputsInner
+        job={job}
+        readOnly={readOnly}
+        activeOrganizationId={activeOrganizationId}
+      />
     </DefaultErrorBoundary>
   );
 }
 
-function JobDetailsOutputsInner({ job, readOnly }: JobDetailsOutputsProps) {
+function JobDetailsOutputsInner({
+  job,
+  readOnly,
+  activeOrganizationId,
+}: JobDetailsOutputsProps) {
   const t = useTranslations("Components.Jobs.JobDetails.Output");
   const searchParams = useSearchParams();
 
@@ -69,7 +79,12 @@ function JobDetailsOutputsInner({ job, readOnly }: JobDetailsOutputsProps) {
               <div className="flex gap-1">
                 <DownloadButton markdown={output.result} />
                 <CopyMarkdown markdown={output.result} />
-                {!readOnly && <JobShareButton job={job} />}
+                {!readOnly && (
+                  <JobShareButton
+                    job={job}
+                    activeOrganizationId={activeOrganizationId}
+                  />
+                )}
               </div>
             </div>
             {!job.isDemo && !readOnly && (

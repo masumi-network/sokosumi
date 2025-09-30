@@ -1,4 +1,5 @@
-import { Check, Copy, Globe, Lock } from "lucide-react";
+"use client";
+import { Check, Copy, Globe, Lock, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
@@ -14,44 +15,80 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   CommonErrorCode,
+  getActiveOrganization,
   JobErrorCode,
   removeJobShare,
   shareJob,
   updateAllowSearchIndexing,
 } from "@/lib/actions";
-import { getPublicJobShare, JobWithRelations } from "@/lib/db";
-import { cn } from "@/lib/utils";
 import {
-  JobShare,
-  ShareAccessType,
-  SharePermission,
-} from "@/prisma/generated/client";
+  getOrganizationJobShare,
+  getPublicJobShare,
+  JobWithRelations,
+} from "@/lib/db";
+import { cn } from "@/lib/utils";
+import { JobShare, ShareAccessType } from "@/prisma/generated/client";
 
 interface JobShareModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   job: JobWithRelations;
+  activeOrganizationId?: string | null;
 }
 
 export default function JobShareModal({
   open,
   onOpenChange,
   job,
+  activeOrganizationId,
 }: JobShareModalProps) {
   const t = useTranslations("Components.Jobs.JobDetails.JobShare.Modal");
   const { id: jobId } = job;
 
   const router = useRouter();
-  const [loading, setLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [jobShare, setJobShare] = useState<JobShare | null>(null);
+  const [organizationJobShare, setOrganizationJobShare] =
+    useState<JobShare | null>(null);
   const [link, setLink] = useState<URL | null>(null);
+  const [organization, setOrganization] = useState<{
+    id: string;
+    name: string;
+  } | null>(null);
 
   // Need to refresh after modal is closed
   const needRefresh = useRef(false);
 
   const publicJobShare = getPublicJobShare(job);
+
+  // Fetch organization data only if activeOrganizationId is provided
+  useEffect(() => {
+    let mounted = true;
+
+    // If no active organization ID, don't fetch anything
+    if (!activeOrganizationId) {
+      return;
+    }
+
+    const fetchOrganization = async () => {
+      try {
+        const result = await getActiveOrganization({});
+        if (mounted && result.ok) {
+          setOrganization(result.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch organization:", error);
+      }
+    };
+
+    if (open) fetchOrganization();
+    return () => {
+      mounted = false;
+    };
+  }, [open, activeOrganizationId]);
 
   useEffect(() => {
     if (publicJobShare) {
@@ -63,10 +100,15 @@ export default function JobShareModal({
       setJobShare(null);
       setLink(null);
     }
-  }, [jobId, publicJobShare, setJobShare, setLink]);
+
+    if (organization) {
+      const orgJobShare = getOrganizationJobShare(job, organization.id);
+      setOrganizationJobShare(orgJobShare);
+    }
+  }, [jobId, publicJobShare, organization, job, setJobShare, setLink]);
 
   const handleOnOpenChange = (open: boolean) => {
-    if (loading) {
+    if (isLoading) {
       return;
     }
     // when close JobShareModal
@@ -78,13 +120,11 @@ export default function JobShareModal({
   };
 
   const handleShareJob = async () => {
-    setLoading(true);
+    setIsLoading(true);
     const result = await shareJob({
       jobId: job.id,
-      recipientId: null,
       recipientOrganizationId: null,
       shareAccessType: ShareAccessType.PUBLIC,
-      sharePermission: SharePermission.READ,
     });
     if (result.ok) {
       needRefresh.current = true;
@@ -116,7 +156,46 @@ export default function JobShareModal({
           break;
       }
     }
-    setLoading(false);
+    setIsLoading(false);
+  };
+
+  const handleShareWithOrganization = async () => {
+    if (!organization) return;
+
+    setIsLoading(true);
+    const result = await shareJob({
+      jobId: job.id,
+      recipientOrganizationId: organization.id,
+      shareAccessType: ShareAccessType.RESTRICTED,
+    });
+    if (result.ok) {
+      needRefresh.current = true;
+      setOrganizationJobShare(result.data);
+      toast.success(t("Success.share"));
+    } else {
+      switch (result.error.code) {
+        case CommonErrorCode.UNAUTHENTICATED:
+          toast.error(t("Errors.unauthenticated"), {
+            action: {
+              label: t("Errors.unauthenticatedAction"),
+              onClick: () => {
+                router.push(`/login`);
+              },
+            },
+          });
+          break;
+        case CommonErrorCode.UNAUTHORIZED:
+          toast.error(t("Errors.unauthorized"));
+          break;
+        case JobErrorCode.JOB_NOT_FOUND:
+          toast.error(t("Errors.jobNotFound"));
+          break;
+        default:
+          toast.error(t("Error.share"));
+          break;
+      }
+    }
+    setIsLoading(false);
   };
 
   const handleAllowSearchIndexingChange = async (
@@ -127,7 +206,7 @@ export default function JobShareModal({
       return;
     }
 
-    setLoading(true);
+    setIsLoading(true);
     const result = await updateAllowSearchIndexing({
       jobShareId: jobShare.id,
       allowSearchIndexing: checked,
@@ -161,16 +240,20 @@ export default function JobShareModal({
           break;
       }
     }
-    setLoading(false);
+    setIsLoading(false);
   };
 
-  const handleRemoveJobShare = async () => {
-    setLoading(true);
-    const result = await removeJobShare({ jobId: job.id });
+  const handleRemoveOrganizationShare = async () => {
+    if (!organization) return;
+
+    setIsLoading(true);
+    const result = await removeJobShare({
+      jobId: job.id,
+      recipientOrganizationId: organization.id,
+    });
     if (result.ok) {
       needRefresh.current = true;
-      setJobShare(null);
-      setLink(null);
+      setOrganizationJobShare(null);
       toast.success(t("Success.share"));
     } else {
       switch (result.error.code) {
@@ -195,7 +278,7 @@ export default function JobShareModal({
           break;
       }
     }
-    setLoading(false);
+    setIsLoading(false);
   };
 
   const handleCopyLink = async () => {
@@ -223,7 +306,7 @@ export default function JobShareModal({
                 className={cn(
                   "hover:bg-muted/50 flex cursor-pointer items-center gap-2 rounded-t-md p-4 transition-all",
                   {
-                    "pointer-events-none animate-pulse opacity-60": loading,
+                    "pointer-events-none animate-pulse opacity-60": isLoading,
                   },
                 )}
                 onClick={handleShareJob}
@@ -236,17 +319,89 @@ export default function JobShareModal({
                   </p>
                 </div>
                 {jobShare?.accessType === ShareAccessType.PUBLIC && (
-                  <Check className="h-4 w-4 text-green-500" />
+                  <Check className="text-semantic-success size-4" />
                 )}
               </div>
+              {activeOrganizationId && !organization ? (
+                <div className="flex items-center gap-2 p-4">
+                  <Skeleton className="size-6 rounded-full" />
+                  <div className="flex-1 space-y-2">
+                    <Skeleton className="h-4 w-32" />
+                    <Skeleton className="h-3 w-48" />
+                  </div>
+                </div>
+              ) : organization ? (
+                <div
+                  className={cn(
+                    "hover:bg-muted/50 flex cursor-pointer items-center gap-2 p-4 transition-all",
+                    {
+                      "pointer-events-none animate-pulse opacity-60": isLoading,
+                    },
+                  )}
+                  onClick={
+                    organizationJobShare
+                      ? handleRemoveOrganizationShare
+                      : handleShareWithOrganization
+                  }
+                >
+                  <Users />
+                  <div className="flex-1">
+                    <p className="text-sm">{t("organizationAccessTitle")}</p>
+                    <p className="text-muted-foreground text-xs">
+                      {t("organizationAccessDescription", {
+                        organizationName: organization.name,
+                      })}
+                    </p>
+                  </div>
+                  {organizationJobShare && (
+                    <Check className="text-semantic-success size-4" />
+                  )}
+                </div>
+              ) : null}
               <div
                 className={cn(
                   "hover:bg-muted/50 flex cursor-pointer items-center gap-2 rounded-b-md p-4 transition-all",
                   {
-                    "pointer-events-none animate-pulse opacity-60": loading,
+                    "pointer-events-none animate-pulse opacity-60": isLoading,
                   },
                 )}
-                onClick={handleRemoveJobShare}
+                onClick={async () => {
+                  setIsLoading(true);
+                  const promises = [];
+
+                  if (jobShare) {
+                    promises.push(
+                      removeJobShare({
+                        jobId: job.id,
+                        recipientOrganizationId: null,
+                      }),
+                    );
+                  }
+
+                  if (organizationJobShare && organization) {
+                    promises.push(
+                      removeJobShare({
+                        jobId: job.id,
+                        recipientOrganizationId: organization.id,
+                      }),
+                    );
+                  }
+
+                  if (promises.length > 0) {
+                    try {
+                      await Promise.all(promises);
+                      needRefresh.current = true;
+                      setJobShare(null);
+                      setOrganizationJobShare(null);
+                      setLink(null);
+                      toast.success(t("Success.share"));
+                    } catch (_error) {
+                      toast.error(t("Error.share"));
+                    }
+                  }
+
+                  setIsLoading(false);
+                }}
               >
                 <Lock />
                 <div className="flex-1">
@@ -255,9 +410,8 @@ export default function JobShareModal({
                     {t("privateAccessDescription")}
                   </p>
                 </div>
-                {(!jobShare ||
-                  jobShare.accessType === ShareAccessType.RESTRICTED) && (
-                  <Check className="h-4 w-4 text-green-500" />
+                {!jobShare && !organizationJobShare && (
+                  <Check className="text-semantic-success size-4" />
                 )}
               </div>
             </div>
@@ -272,7 +426,7 @@ export default function JobShareModal({
                   {link.toString()}
                 </a>
                 <Button variant="ghost" size="icon" onClick={handleCopyLink}>
-                  <Copy className="h-4 w-4" />
+                  <Copy className="size-4" />
                 </Button>
               </div>
             )}
@@ -280,9 +434,9 @@ export default function JobShareModal({
               <div className="flex items-center gap-2">
                 <Checkbox
                   id="allow-search-indexing"
-                  disabled={loading}
+                  disabled={isLoading}
                   className={cn({
-                    "pointer-events-none animate-pulse opacity-60": loading,
+                    "pointer-events-none animate-pulse opacity-60": isLoading,
                   })}
                   checked={jobShare?.allowSearchIndexing}
                   onCheckedChange={(v) => handleAllowSearchIndexingChange(v)}

@@ -5,11 +5,7 @@
 
 import { v4 as uuidv4 } from "uuid";
 
-import {
-  Prisma,
-  ShareAccessType,
-  SharePermission,
-} from "@/prisma/generated/client";
+import { Prisma, ShareAccessType } from "@/prisma/generated/client";
 
 import prisma from "./prisma";
 
@@ -33,34 +29,34 @@ export const jobShareRepository = {
 
   async createJobShare(
     jobId: string,
-    creatorId: string,
-    recipientId: string | null,
+    userId: string,
     recipientOrganizationId: string | null,
     shareAccessType: ShareAccessType,
-    sharePermission: SharePermission,
     tx: Prisma.TransactionClient = prisma,
   ) {
     return await tx.jobShare.create({
       data: {
         job: { connect: { id: jobId } },
-        creator: { connect: { id: creatorId } },
-        ...(recipientId && { recipient: { connect: { id: recipientId } } }),
+        creator: { connect: { id: userId } },
         ...(recipientOrganizationId && {
           recipientOrganization: { connect: { id: recipientOrganizationId } },
         }),
         token: uuidv4(),
         accessType: shareAccessType,
-        permission: sharePermission,
       },
     });
   },
 
-  async deleteJobSharesByJobId(
+  async deleteJobShare(
     jobId: string,
+    recipientOrganizationId: string | null,
     tx: Prisma.TransactionClient = prisma,
   ) {
     return await tx.jobShare.deleteMany({
-      where: { jobId },
+      where: {
+        jobId,
+        recipientOrganizationId,
+      },
     });
   },
 

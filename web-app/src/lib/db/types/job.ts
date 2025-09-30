@@ -11,7 +11,17 @@ export const jobInclude = {
   refundedCreditTransaction: true,
   blobs: true,
   links: true,
-  shares: true,
+  shares: {
+    include: {
+      creator: {
+        select: {
+          id: true,
+          name: true,
+          image: true,
+        },
+      },
+    },
+  },
 } as const;
 
 export const jobOrderBy = {
