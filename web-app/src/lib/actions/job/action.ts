@@ -512,8 +512,7 @@ export const getActiveOrganizationId = withAuthContext<
 >(async ({ authContext: _authContext }) => {
   try {
     const organizationId = await userService.getActiveOrganizationId();
-    // Ensure undefined is converted to null for correct Result type
-    return Ok(organizationId ?? null);
+    return Ok(organizationId);
   } catch (error) {
     console.error("Failed to get active organization id", error);
     return Err({

@@ -44,9 +44,9 @@ export const userService = (() => {
    * - Returns the organization ID if the user has an active organization in their session.
    * - Returns null or undefined if there is no active organization or no session.
    *
-   * @returns {Promise<string | null | undefined>} The active organization ID, or null/undefined if not set.
+   * @returns {Promise<string | null>} The active organization ID, or null if not set.
    */
-  async function getActiveOrganizationId(): Promise<string | null | undefined> {
+  async function getActiveOrganizationId(): Promise<string | null> {
     const context = await getAuthContext();
     if (!context) {
       return null;
