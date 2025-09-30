@@ -111,8 +111,8 @@ importers:
         specifier: 1.4.1
         version: 1.4.1(docx@9.5.1)(sharp@0.34.4)
       '@m2d/list':
-        specifier: 0.0.8
-        version: 0.0.8(docx@9.5.1)
+        specifier: 0.0.9
+        version: 0.0.9(docx@9.5.1)
       '@m2d/math':
         specifier: 0.0.6
         version: 0.0.6(docx@9.5.1)(remark-math@6.0.0)
@@ -1256,6 +1256,11 @@ packages:
 
   '@m2d/list@0.0.8':
     resolution: {integrity: sha512-5UCRxA2sd45O86ipaITMixWAThJtwdvE2xnL7kPZ6tgfH217uK3q3jm2kuFoiFDe58yf3TPj5NtWpwZ6byx/FQ==}
+    peerDependencies:
+      docx: ^9.3.0
+
+  '@m2d/list@0.0.9':
+    resolution: {integrity: sha512-wPSmeNq9VwQLgaSUxegmhpJIMlLrFfEG5WzMGui4tf9FcvtntwKJUM6y8cd9OXZoWbfJjkl4/ubTAXE5BYx/tw==}
     peerDependencies:
       docx: ^9.3.0
 
@@ -8683,6 +8688,11 @@ snapshots:
       - sharp
 
   '@m2d/list@0.0.8(docx@9.5.1)':
+    dependencies:
+      '@m2d/core': 1.7.0(docx@9.5.1)
+      docx: 9.5.1
+
+  '@m2d/list@0.0.9(docx@9.5.1)':
     dependencies:
       '@m2d/core': 1.7.0(docx@9.5.1)
       docx: 9.5.1
