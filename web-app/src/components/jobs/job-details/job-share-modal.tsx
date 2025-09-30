@@ -1,3 +1,4 @@
+"use client";
 import { Check, Copy, Globe, Lock, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
