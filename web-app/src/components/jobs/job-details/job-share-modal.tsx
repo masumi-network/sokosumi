@@ -360,9 +360,9 @@ export default function JobShareModal({
                 >
                   <Users />
                   <div className="flex-1">
-                    <p className="text-sm">{t("organisationAccessTitle")}</p>
+                    <p className="text-sm">{t("organizationAccessTitle")}</p>
                     <p className="text-muted-foreground text-xs">
-                      {t("organisationAccessDescription", {
+                      {t("organizationAccessDescription", {
                         organizationName: organization.name,
                       })}
                     </p>
