@@ -9,6 +9,7 @@ import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { userService } from "@/lib/services";
 
 import Header from "./components/header";
+import HydraHandoffDialog from "./components/hydra-handoff-dialog.client";
 import Sidebar from "./components/sidebar";
 
 interface AppLayoutProps {
@@ -47,6 +48,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
         <Sidebar session={session} />
         <div className="flex min-w-0 flex-1 flex-col overflow-clip">
           <Header session={session} className="h-16 p-4" />
+          <HydraHandoffDialog />
           <main className="relative min-h-[calc(100svh-64px)] p-4 pt-20 md:pt-4">
             {children}
           </main>

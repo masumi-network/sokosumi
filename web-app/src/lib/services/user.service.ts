@@ -44,9 +44,9 @@ export const userService = (() => {
    * - Returns the organization ID if the user has an active organization in their session.
    * - Returns null or undefined if there is no active organization or no session.
    *
-   * @returns {Promise<string | null | undefined>} The active organization ID, or null/undefined if not set.
+   * @returns {Promise<string | null>} The active organization ID, or null if not set.
    */
-  async function getActiveOrganizationId(): Promise<string | null | undefined> {
+  async function getActiveOrganizationId(): Promise<string | null> {
     const context = await getAuthContext();
     if (!context) {
       return null;
@@ -84,11 +84,30 @@ export const userService = (() => {
     const userId = context.userId;
     const activeOrganizationId = context.organizationId;
 
-    return await jobRepository.getJobs({
+    // Get owned jobs
+    const ownedJobs = await jobRepository.getJobs({
       agentId,
       userId,
       organizationId: activeOrganizationId,
     });
+
+    // Get shared jobs from organization if user is in an organization
+    let sharedJobs: JobWithStatus[] = [];
+    if (activeOrganizationId) {
+      sharedJobs = await jobRepository.getJobsSharedWithOrganization(
+        activeOrganizationId,
+        agentId,
+      );
+      // Filter out jobs owned by the current user to avoid duplicates
+      sharedJobs = sharedJobs.filter((job) => job.userId !== userId);
+    }
+
+    // Combine and sort all jobs
+    const allJobs = [...ownedJobs, ...sharedJobs];
+    return allJobs.sort(
+      (a, b) =>
+        new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime(),
+    );
   }
 
   /**

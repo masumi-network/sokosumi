@@ -1,7 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Lock, Users } from "lucide-react";
+import { Globe, Loader2, Lock, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
@@ -24,7 +24,11 @@ import {
 import { useAsyncRouter } from "@/hooks/use-async-router";
 import useModal from "@/hooks/use-modal";
 import { CommonErrorCode, JobErrorCode, updateJobName } from "@/lib/actions";
-import { isPubliclyShared, JobWithStatus } from "@/lib/db";
+import {
+  isOrganizationShared,
+  isPubliclyShared,
+  JobWithStatus,
+} from "@/lib/db";
 import {
   jobDetailsNameFormSchema,
   JobDetailsNameFormSchemaType,
@@ -35,16 +39,24 @@ import JobShareModal from "./job-share-modal";
 export default function JobDetailsName({
   job,
   readOnly,
+  activeOrganizationId,
 }: {
   job: JobWithStatus;
   readOnly: boolean;
+  activeOrganizationId?: string | null;
 }) {
   const t = useTranslations("Components.Jobs.JobDetails.Header.JobName");
   const { name } = job;
   const sharedPublicly = isPubliclyShared(job);
+  const sharedWithOrganization = isOrganizationShared(job);
 
   const { showModal, Component } = useModal(({ open, onOpenChange }) => (
-    <JobShareModal open={open} onOpenChange={onOpenChange} job={job} />
+    <JobShareModal
+      open={open}
+      onOpenChange={onOpenChange}
+      job={job}
+      activeOrganizationId={activeOrganizationId}
+    />
   ));
 
   const router = useAsyncRouter();
@@ -165,13 +177,19 @@ export default function JobDetailsName({
               <Tooltip>
                 <TooltipTrigger onClick={handleShareIndicatorClick}>
                   {sharedPublicly ? (
+                    <Globe className="h-4 w-4" />
+                  ) : sharedWithOrganization ? (
                     <Users className="h-4 w-4" />
                   ) : (
                     <Lock className="h-4 w-4" />
                   )}
                 </TooltipTrigger>
                 <TooltipContent>
-                  {sharedPublicly ? t("shared") : t("private")}
+                  {sharedPublicly
+                    ? t("shared")
+                    : sharedWithOrganization
+                      ? t("organizationShared")
+                      : t("private")}
                 </TooltipContent>
               </Tooltip>
             </div>

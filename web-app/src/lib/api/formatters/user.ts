@@ -16,6 +16,7 @@ export function formatUserResponse(user: User): UserResponse {
     email: user.email,
     termsAccepted: user.termsAccepted,
     marketingOptIn: user.marketingOptIn,
+    jobStatusEmailNotificationsEnabled: user.jobStatusEmailNotificationsEnabled,
     stripeCustomerId: user.stripeCustomerId,
   };
 

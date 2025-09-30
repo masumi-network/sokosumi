@@ -1,4 +1,5 @@
 "use client";
+import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
@@ -19,6 +20,7 @@ import JotOutputSources from "./sources";
 interface JobDetailsOutputsProps {
   job: JobWithStatus;
   readOnly?: boolean;
+  activeOrganizationId?: string | null;
 }
 
 interface JobDetailsOutputsLayoutProps {
@@ -32,16 +34,26 @@ function JobDetailsOutputsLayout({ children }: JobDetailsOutputsLayoutProps) {
 export default function JobDetailsOutputs({
   job,
   readOnly = false,
+  activeOrganizationId,
 }: JobDetailsOutputsProps) {
   return (
     <DefaultErrorBoundary fallback={<JobDetailsOutputsError />}>
-      <JobDetailsOutputsInner job={job} readOnly={readOnly} />
+      <JobDetailsOutputsInner
+        job={job}
+        readOnly={readOnly}
+        activeOrganizationId={activeOrganizationId}
+      />
     </DefaultErrorBoundary>
   );
 }
 
-function JobDetailsOutputsInner({ job, readOnly }: JobDetailsOutputsProps) {
+function JobDetailsOutputsInner({
+  job,
+  readOnly,
+  activeOrganizationId,
+}: JobDetailsOutputsProps) {
   const t = useTranslations("Components.Jobs.JobDetails.Output");
+  const searchParams = useSearchParams();
 
   let output: JobStatusResponseSchemaType | null = null;
   if (job.output) {
@@ -57,7 +69,9 @@ function JobDetailsOutputsInner({ job, readOnly }: JobDetailsOutputsProps) {
     <JobDetailsOutputsLayout>
       {output?.result ? (
         <>
-          <Markdown>{output.result}</Markdown>
+          <Markdown highlightTerm={(searchParams?.get("query") ?? "").trim()}>
+            {output.result}
+          </Markdown>
           <JotOutputSources job={job} />
           <div className="flex justify-between gap-2">
             <div className="flex gap-4">
@@ -65,7 +79,12 @@ function JobDetailsOutputsInner({ job, readOnly }: JobDetailsOutputsProps) {
               <div className="flex gap-1">
                 <DownloadButton markdown={output.result} />
                 <CopyMarkdown markdown={output.result} />
-                {!readOnly && <JobShareButton job={job} />}
+                {!readOnly && (
+                  <JobShareButton
+                    job={job}
+                    activeOrganizationId={activeOrganizationId}
+                  />
+                )}
               </div>
             </div>
             {!job.isDemo && !readOnly && (

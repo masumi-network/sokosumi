@@ -1,11 +1,13 @@
 import DefaultMarkdown, { MarkdownToJSX } from "markdown-to-jsx";
 
+import { applyMarkdownHighlighting } from "@/components/markdown-highlight";
 import { sanitizeMarkdown } from "@/lib/utils/sanitizeMarkdown";
 
 interface MarkdownProps {
   children: string;
   options?: MarkdownToJSX.Options | undefined;
   className?: string | undefined;
+  highlightTerm?: string | undefined;
 }
 
 const defaultOptions: MarkdownToJSX.Options = {
@@ -75,8 +77,12 @@ export default function Markdown({
   children,
   options = defaultOptions,
   className,
+  highlightTerm,
 }: MarkdownProps) {
-  const sanitizedChildren = sanitizeMarkdown(children);
+  const highlightedChildren = applyMarkdownHighlighting(children, {
+    term: highlightTerm,
+  });
+  const sanitizedChildren = sanitizeMarkdown(highlightedChildren);
 
   return (
     <DefaultMarkdown options={options} className={className}>
