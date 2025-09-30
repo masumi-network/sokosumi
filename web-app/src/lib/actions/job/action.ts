@@ -407,7 +407,7 @@ export const updateAllowSearchIndexing = withAuthContext<
 
 interface RemoveJobShareParameters extends AuthenticatedRequest {
   jobId: string;
-  recipientOrganizationId?: string | null;
+  recipientOrganizationId: string | null;
 }
 
 export const removeJobShare = withAuthContext<

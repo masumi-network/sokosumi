@@ -49,7 +49,7 @@ export const jobShareRepository = {
 
   async deleteJobShare(
     jobId: string,
-    recipientOrganizationId?: string | null,
+    recipientOrganizationId: string | null,
     tx: Prisma.TransactionClient = prisma,
   ) {
     return await tx.jobShare.deleteMany({
