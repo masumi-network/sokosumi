@@ -313,7 +313,7 @@
         },
         "Output": {
           "title": "Result",
-          "failedToParseOutput": "Failed to parse result",
+          "failedToParseResult": "Failed to parse result",
           "none": "No result available",
           "download": "Download",
           "copy": "Copy",
