@@ -264,9 +264,9 @@ function HashGroupRow({
             </div>
             <span className="text-muted-foreground inline-flex h-4 w-4 flex-shrink-0 items-center justify-center">
               {isOpen ? (
-                <ChevronUp className="h-4 w-4" />
+                <ChevronUp className="size-4" />
               ) : (
-                <ChevronDown className="h-4 w-4" />
+                <ChevronDown className="size-4" />
               )}
             </span>
           </div>
