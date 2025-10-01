@@ -366,7 +366,9 @@
           }
         },
         "Sources": {
-          "title": "Links"
+          "title": "Links & Files",
+          "files": "Files",
+          "links": "Links"
         },
         "BlobStatusBadge": {
           "pending": "Pending",
