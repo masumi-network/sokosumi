@@ -497,7 +497,7 @@ model Job {
   input             String
   inputHash         String? // On-Chain hash of the input data
   output            String?
-  outputHash        String? // On-Chain hash of the output data
+  resultHash        String? // On-Chain hash of the result data
   startedAt         DateTime  @default(now())
   completedAt       DateTime? // when the job was completed on the agent side
   resultSubmittedAt DateTime? // when the job on-chain status was `RESULT_SUBMITTED`

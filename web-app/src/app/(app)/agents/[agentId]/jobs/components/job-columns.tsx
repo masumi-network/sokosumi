@@ -4,14 +4,12 @@ import { ColumnDef, createColumnHelper } from "@tanstack/react-table";
 import { useFormatter, useTranslations } from "next-intl";
 
 import { DataTableColumnHeader } from "@/components/data-table";
+import { JobSharedBadge, JobStatusBadge } from "@/components/jobs";
 import { MiddleTruncate } from "@/components/middle-truncate";
 import { HighlightedText } from "@/components/ui/highlighted-text";
 import useAgentJobStatus from "@/hooks/use-agent-job-status";
 import { JobIndicatorStatus } from "@/lib/ably";
 import { JobWithStatus } from "@/lib/db";
-
-import JobSharedBadge from "./job-shared-badge";
-import JobStatusBadge from "./job-status-badge";
 
 const columnHelper = createColumnHelper<JobWithStatus>();
 

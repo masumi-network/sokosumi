@@ -76,7 +76,7 @@ function AgentJobStatusIndicatorIcon({
       return <Circle className={cn(className)} fill="currentColor" />;
     case JobStatus.PAYMENT_PENDING:
     case JobStatus.PROCESSING:
-    case JobStatus.OUTPUT_PENDING:
+    case JobStatus.RESULT_PENDING:
     case JobStatus.REFUND_PENDING:
     case JobStatus.DISPUTE_PENDING:
       return <Loader2 className={cn("animate-spin", className)} />;
@@ -118,8 +118,8 @@ function AgentJobStatusIndicatorContent({
       return <p>{t("refundRequested")}</p>;
     case JobStatus.DISPUTE_PENDING:
       return <p>{t("disputeRequested")}</p>;
-    case JobStatus.OUTPUT_PENDING:
-      return <p>{t("outputPending")}</p>;
+    case JobStatus.RESULT_PENDING:
+      return <p>{t("resultPending")}</p>;
     default:
       return null;
   }
