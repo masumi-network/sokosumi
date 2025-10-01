@@ -6,7 +6,7 @@ import {
   getInputHash,
   getInputHashDeprecated,
   getMatchedHash,
-  getOutputHash,
+  getResultHash,
   isJobVerified,
   toJobInputData,
   tryParseJson,
@@ -226,14 +226,14 @@ describe("getMatchedHash", () => {
     };
 
     it("should return output hash when it matches", () => {
-      const outputHash = getOutputHash(mockOutputData, mockIdentifier);
+      const resultHash = getResultHash(mockOutputData, mockIdentifier);
       const result = getMatchedHash(
         "output",
         mockOutputData,
         mockIdentifier,
-        outputHash ?? "",
+        resultHash ?? "",
       );
-      expect(result).toBe(outputHash);
+      expect(result).toBe(resultHash);
     });
 
     it("should return null when output hash does not match", () => {
@@ -257,8 +257,8 @@ describe("getMatchedHash", () => {
         result: "another",
       };
 
-      const hash1 = getOutputHash(outputData1, mockIdentifier);
-      const hash2 = getOutputHash(outputData2, mockIdentifier);
+      const hash1 = getResultHash(outputData1, mockIdentifier);
+      const hash2 = getResultHash(outputData2, mockIdentifier);
 
       // Different data should produce different hashes
       expect(hash1).not.toBe(hash2);
@@ -292,7 +292,7 @@ describe("getMatchedHash", () => {
 
     it("should not have deprecated fallback for output mode", () => {
       // Output mode does not use deprecated hash, only input mode does
-      const outputHash = getOutputHash(mockOutputData, mockIdentifier);
+      const resultHash = getResultHash(mockOutputData, mockIdentifier);
       const fakeDeprecatedHash = "fake-deprecated-hash";
 
       // Even if we pass a "deprecated" style hash, it should not match
@@ -309,9 +309,9 @@ describe("getMatchedHash", () => {
         "output",
         mockOutputData,
         mockIdentifier,
-        outputHash ?? "",
+        resultHash ?? "",
       );
-      expect(result2).toBe(outputHash);
+      expect(result2).toBe(resultHash);
     });
   });
 
@@ -335,7 +335,7 @@ describe("getMatchedHash", () => {
         result: null,
         error: null,
       };
-      const hash = getOutputHash(outputWithNulls, mockIdentifier);
+      const hash = getResultHash(outputWithNulls, mockIdentifier);
       const result = getMatchedHash(
         "output",
         outputWithNulls,
@@ -390,7 +390,7 @@ describe("isJobVerified", () => {
       input: null,
       inputHash: null,
       output: null,
-      outputHash: null,
+      resultHash: null,
       identifierFromPurchaser: mockIdentifier,
       status: "completed",
       jobStatusSettled: true,
@@ -495,7 +495,7 @@ describe("isJobVerified", () => {
     it("should return false when output hash is missing", () => {
       const job = createMockJob({
         output: JSON.stringify({ status: "completed" }),
-        outputHash: null,
+        resultHash: null,
       });
       expect(isJobVerified("output", job)).toBe(false);
     });
@@ -503,7 +503,7 @@ describe("isJobVerified", () => {
     it("should return false when output is null", () => {
       const job = createMockJob({
         output: null,
-        outputHash: "somehash",
+        resultHash: "somehash",
       });
       expect(isJobVerified("output", job)).toBe(false);
     });
@@ -511,7 +511,7 @@ describe("isJobVerified", () => {
     it("should return false when output JSON is malformed", () => {
       const job = createMockJob({
         output: "{broken json",
-        outputHash: "somehash",
+        resultHash: "somehash",
       });
       expect(isJobVerified("output", job)).toBe(false);
     });
@@ -523,11 +523,11 @@ describe("isJobVerified", () => {
         error: null,
         job_id: "job_1",
       };
-      const outputHash = getOutputHash(outputData, mockIdentifier);
+      const resultHash = getResultHash(outputData, mockIdentifier);
 
       const job = createMockJob({
         output: JSON.stringify(outputData),
-        outputHash: outputHash,
+        resultHash: resultHash,
       });
       expect(isJobVerified("output", job)).toBe(true);
     });
@@ -542,7 +542,7 @@ describe("isJobVerified", () => {
 
       const job = createMockJob({
         output: JSON.stringify(outputData),
-        outputHash: "non-matching-hash",
+        resultHash: "non-matching-hash",
       });
       expect(isJobVerified("output", job)).toBe(false);
     });
@@ -558,7 +558,7 @@ describe("isJobVerified", () => {
       // Create a fake "deprecated" hash
       const job = createMockJob({
         output: JSON.stringify(outputData),
-        outputHash: "fake-deprecated-hash",
+        resultHash: "fake-deprecated-hash",
       });
       expect(isJobVerified("output", job)).toBe(false);
     });

@@ -15,7 +15,6 @@ import DownloadButton from "./download-button";
 import JobShareButton from "./job-share-button";
 import MaximizeMarkdown from "./maximize-markdown";
 import RequestRefundButton from "./refund-request";
-import JotOutputSources from "./sources";
 
 interface JobDetailsOutputsProps {
   job: JobWithStatus;
@@ -72,7 +71,6 @@ function JobDetailsOutputsInner({
           <Markdown highlightTerm={(searchParams?.get("query") ?? "").trim()}>
             {output.result}
           </Markdown>
-          <JotOutputSources job={job} />
           <div className="flex justify-between gap-2">
             <div className="flex gap-4">
               <MaximizeMarkdown markdown={output.result} />
@@ -112,7 +110,7 @@ function JobDetailsOutputsError() {
   return (
     <div className="border-semantic-destructive bg-semantic-destructive/10 flex min-h-[120px] w-full items-center justify-center rounded-md border p-4">
       <span className="text-semantic-destructive text-lg">
-        {t("failedToParseOutput")}
+        {t("failedToParseResult")}
       </span>
     </div>
   );

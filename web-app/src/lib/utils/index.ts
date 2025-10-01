@@ -67,7 +67,7 @@ export const getInputHash = (
  * @param identifierFromPurchaser - Unique identifier from the purchaser
  * @returns SHA-256 hash of the combined data
  */
-export const getOutputHash = (
+export const getResultHash = (
   outputData: JobStatusResponseSchemaType,
   identifierFromPurchaser: string,
 ) => {
@@ -91,7 +91,7 @@ export const getOutputHash = (
  * - Falls back to deprecated hash format (getInputHashDeprecated) for backward compatibility
  *
  * For output verification:
- * - Uses getOutputHash only (no deprecated format)
+ * - Uses getResultHash only (no deprecated format)
  *
  * @param mode - "input" or "output" to determine which hash function to use
  * @param data - JobInputData for input mode, JobStatusResponseSchemaType for output mode
@@ -117,13 +117,14 @@ export function getMatchedHash(
     );
     if (hashToMatch === deprecated) return deprecated;
     return null;
+  } else {
+    // result hash
+    const resultHash = getResultHash(
+      data as JobStatusResponseSchemaType,
+      identifierFromPurchaser,
+    );
+    return hashToMatch === resultHash ? resultHash : null;
   }
-  // output
-  const outputHash = getOutputHash(
-    data as JobStatusResponseSchemaType,
-    identifierFromPurchaser,
-  );
-  return hashToMatch === outputHash ? outputHash : null;
 }
 
 /**
@@ -137,7 +138,7 @@ export function getMatchedHash(
  * - Returns false if required fields are missing or JSON cannot be parsed.
  *
  * @param direction - Which side of the job to verify: "input" or "output"
- * @param job - Job record including `input`, `output`, `inputHash`, `outputHash`
+ * @param job - Job record including `input`, `output`, `inputHash`, `resultHash`
  * @param identifier - Purchaser-provided identifier used in hash computation
  * @returns true if the computed hash matches the stored hash; otherwise false
  */
@@ -158,14 +159,14 @@ export function isJobVerified(
     );
     return matched !== null;
   }
-  if (!job.outputHash) return false;
+  if (!job.resultHash) return false;
   const outputObj = tryParseJson<JobStatusResponseSchemaType>(job.output);
   if (!outputObj) return false;
   const matched = getMatchedHash(
     "output",
     outputObj,
     job.identifierFromPurchaser,
-    job.outputHash,
+    job.resultHash,
   );
   return matched !== null;
 }

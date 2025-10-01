@@ -121,13 +121,13 @@ export function JobStatusBadge({
           {t("disputeResolved")}
         </Badge>
       );
-    case JobStatus.OUTPUT_PENDING:
+    case JobStatus.RESULT_PENDING:
       return (
         <Badge
           variant="default"
           className={cn("bg-red-100 text-red-800", className)}
         >
-          {t("outputPending")}
+          {t("resultPending")}
         </Badge>
       );
     default:

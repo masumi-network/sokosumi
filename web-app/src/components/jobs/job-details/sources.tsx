@@ -24,5 +24,14 @@ function JobOutputSourcesInner({ job }: JobOutputSourcesProps) {
   const links = job.links;
   if (blobs.length === 0 && links.length === 0) return null;
 
-  return <SourcesGrid title={t("title")} blobs={blobs} links={links} />;
+  return (
+    <div className="flex flex-col gap-4">
+      {blobs.length > 0 ? (
+        <SourcesGrid title={t("files")} blobs={blobs} />
+      ) : null}
+      {links.length > 0 ? (
+        <SourcesGrid title={t("links")} links={links} />
+      ) : null}
+    </div>
+  );
 }

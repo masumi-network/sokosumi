@@ -10,22 +10,18 @@ import { Blob, BlobStatus, Link } from "@/prisma/generated/client";
 import { BlobStatusBadge } from "./blob-status-badge";
 
 export interface SourcesGridProps {
-  title?: string;
-  blobs: Blob[];
-  links: Link[];
+  title: string;
+  blobs?: Blob[];
+  links?: Link[];
   className?: string;
 }
 
 export function SourcesGrid(props: SourcesGridProps) {
-  const { title, blobs, links, className } = props;
+  const { title, blobs = [], links = [], className } = props;
 
   return (
     <div className={cn("mt-2", className)}>
-      {title ? (
-        <h3 className="text-foreground/80 mb-1 text-sm font-semibold">
-          {title}
-        </h3>
-      ) : null}
+      <h3 className="text-foreground/80 mb-1 text-sm font-semibold">{title}</h3>
       <div className="grid grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-2">
         {blobs.map((blob) => (
           <FileItemChip key={blob.id} blob={blob} />

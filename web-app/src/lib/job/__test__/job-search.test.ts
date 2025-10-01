@@ -22,7 +22,7 @@ describe("Job search functionality", () => {
     status: JobStatus.COMPLETED,
     identifierFromPurchaser: "test-1",
     inputHash: "hash-1",
-    outputHash: "hash-1",
+    resultHash: "hash-1",
     startedAt: new Date(),
     completedAt: new Date(),
     userId: "user-1",
