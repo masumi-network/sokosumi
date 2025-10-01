@@ -1,7 +1,7 @@
 import { useFormatter, useTranslations } from "next-intl";
 
 import AccordionItemWrapper from "@/components/accordion-wrapper";
-import { JobStatusBadge } from "@/components/jobs/job-status-badge";
+import { JobStatusBadge } from "@/components/jobs";
 import { Accordion } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { JobStatus, JobWithStatus } from "@/lib/db";

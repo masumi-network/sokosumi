@@ -119,7 +119,7 @@ function AgentJobStatusIndicatorContent({
     case JobStatus.DISPUTE_PENDING:
       return <p>{t("disputeRequested")}</p>;
     case JobStatus.OUTPUT_PENDING:
-      return <p>{t("outputPending")}</p>;
+      return <p>{t("resultPending")}</p>;
     default:
       return null;
   }

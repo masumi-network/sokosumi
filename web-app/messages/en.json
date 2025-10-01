@@ -219,7 +219,7 @@
         "disputeResolved": "Dispute Resolved",
         "refundRequested": "Refund Requested",
         "refundResolved": "Refunded",
-        "outputPending": "Output Missing",
+        "resultPending": "Result Missing",
         "unknown": "Unknown"
       },
       "SharedBadge": {

@@ -18,7 +18,7 @@ interface JobSharedBadgeProps {
   className?: string;
 }
 
-export default function JobSharedBadge({
+export function JobSharedBadge({
   creatorName,
   creatorImage,
   className,
