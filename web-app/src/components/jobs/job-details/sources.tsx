@@ -27,10 +27,10 @@ function JobOutputSourcesInner({ job }: JobOutputSourcesProps) {
   return (
     <div className="flex flex-col gap-4">
       {blobs.length > 0 ? (
-        <SourcesGrid title={t("files")} blobs={blobs} links={[]} />
+        <SourcesGrid title={t("files")} blobs={blobs} />
       ) : null}
       {links.length > 0 ? (
-        <SourcesGrid title={t("links")} blobs={[]} links={links} />
+        <SourcesGrid title={t("links")} links={links} />
       ) : null}
     </div>
   );
