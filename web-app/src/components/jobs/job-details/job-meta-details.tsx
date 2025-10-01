@@ -72,8 +72,6 @@ export function JobMetaDetails({ job }: JobMetaDetailsProps) {
     calculatedResultHash,
   } = hashVerification;
 
-  const cost = Math.abs(convertCentsToCredits(job.creditTransaction.amount));
-
   const items = [
     {
       key: "jobId",
@@ -125,10 +123,10 @@ export function JobMetaDetails({ job }: JobMetaDetailsProps) {
         : "-",
     },
     {
-      key: "cost",
-      label: t("cost"),
+      key: "credits",
+      label: t("credits"),
       rowClassName: "",
-      content: cost,
+      content: convertCentsToCredits(job.creditTransaction.amount),
     },
   ] as const;
 
