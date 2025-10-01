@@ -121,7 +121,7 @@ export function JobStatusBadge({
           {t("disputeResolved")}
         </Badge>
       );
-    case JobStatus.OUTPUT_PENDING:
+    case JobStatus.RESULT_PENDING:
       return (
         <Badge
           variant="default"
