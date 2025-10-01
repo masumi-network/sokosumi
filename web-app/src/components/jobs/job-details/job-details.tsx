@@ -6,7 +6,7 @@ import { Accordion } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { JobStatus, JobWithStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
-import { AgentJobStatus } from "@/prisma/generated/client";
+import { AgentJobStatus, BlobOrigin } from "@/prisma/generated/client";
 
 import JobDetailsInputs from "./inputs";
 import JobDetailsName from "./job-details-name";
@@ -30,7 +30,13 @@ export default function JobDetails({
   const t = useTranslations("Components.Jobs.JobDetails");
 
   const hasCompletedOutput = job.status === JobStatus.COMPLETED && !!job.output;
-  const hasSources = job.blobs.length > 0 || job.links.length > 0;
+  // Only show Sources accordion if there are OUTPUT blobs or links
+  // Note: Only output blobs are shown in the Sources section
+  const hasOutputBlobs = job.blobs.some(
+    (blob) => blob.origin === BlobOrigin.OUTPUT,
+  );
+  const hasOutputLinks = job.links.length > 0;
+  const hasSources = hasOutputBlobs || hasOutputLinks;
   const baseAccordion = hasCompletedOutput ? ["output"] : ["input", "output"];
   const defaultAccordionValue = hasSources
     ? [...baseAccordion, "sources"]
