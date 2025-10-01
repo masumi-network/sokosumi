@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Shell(ls)",
+      "Shell(git)",
+      "Shell(gh)",
+      "Shell(pnpm)",
+      "Read(**/*.ts)",
+      "Read(**/*.md)",
+      "Write(package.json)"
+    ],
+    "deny": ["Shell(rm)", "Read(.env*)", "Write(**/*.key)"]
+  }
+}
