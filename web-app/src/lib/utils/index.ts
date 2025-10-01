@@ -67,7 +67,7 @@ export const getInputHash = (
  * @param identifierFromPurchaser - Unique identifier from the purchaser
  * @returns SHA-256 hash of the combined data
  */
-export const getOutputHash = (
+export const getResultHash = (
   outputData: JobStatusResponseSchemaType,
   identifierFromPurchaser: string,
 ) => {
@@ -91,7 +91,7 @@ export const getOutputHash = (
  * - Falls back to deprecated hash format (getInputHashDeprecated) for backward compatibility
  *
  * For output verification:
- * - Uses getOutputHash only (no deprecated format)
+ * - Uses getResultHash only (no deprecated format)
  *
  * @param mode - "input" or "output" to determine which hash function to use
  * @param data - JobInputData for input mode, JobStatusResponseSchemaType for output mode
@@ -117,13 +117,14 @@ export function getMatchedHash(
     );
     if (hashToMatch === deprecated) return deprecated;
     return null;
+  } else {
+    // result hash
+    const resultHash = getResultHash(
+      data as JobStatusResponseSchemaType,
+      identifierFromPurchaser,
+    );
+    return hashToMatch === resultHash ? resultHash : null;
   }
-  // output
-  const resultHash = getOutputHash(
-    data as JobStatusResponseSchemaType,
-    identifierFromPurchaser,
-  );
-  return hashToMatch === resultHash ? resultHash : null;
 }
 
 /**

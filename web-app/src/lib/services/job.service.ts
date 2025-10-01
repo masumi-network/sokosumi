@@ -32,7 +32,7 @@ import {
   PricingAmountsSchemaType,
   StartJobInputSchemaType,
 } from "@/lib/schemas";
-import { getInputHash, getOutputHash } from "@/lib/utils";
+import { getInputHash, getResultHash } from "@/lib/utils";
 import {
   AgentJobStatus,
   Job,
@@ -264,7 +264,7 @@ export const jobService = (() => {
     // Generate identifier and hashes for demo parity
     const identifierFromPurchaser = uuidv4().replace(/-/g, "").substring(0, 20);
     const inputHash = getInputHash(inputData, identifierFromPurchaser);
-    const resultHash = getOutputHash(
+    const resultHash = getResultHash(
       jobStatusResponse,
       identifierFromPurchaser,
     );

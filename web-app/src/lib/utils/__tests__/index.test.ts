@@ -6,7 +6,7 @@ import {
   getInputHash,
   getInputHashDeprecated,
   getMatchedHash,
-  getOutputHash,
+  getResultHash,
   isJobVerified,
   toJobInputData,
   tryParseJson,
@@ -226,7 +226,7 @@ describe("getMatchedHash", () => {
     };
 
     it("should return output hash when it matches", () => {
-      const resultHash = getOutputHash(mockOutputData, mockIdentifier);
+      const resultHash = getResultHash(mockOutputData, mockIdentifier);
       const result = getMatchedHash(
         "output",
         mockOutputData,
@@ -257,8 +257,8 @@ describe("getMatchedHash", () => {
         result: "another",
       };
 
-      const hash1 = getOutputHash(outputData1, mockIdentifier);
-      const hash2 = getOutputHash(outputData2, mockIdentifier);
+      const hash1 = getResultHash(outputData1, mockIdentifier);
+      const hash2 = getResultHash(outputData2, mockIdentifier);
 
       // Different data should produce different hashes
       expect(hash1).not.toBe(hash2);
@@ -292,7 +292,7 @@ describe("getMatchedHash", () => {
 
     it("should not have deprecated fallback for output mode", () => {
       // Output mode does not use deprecated hash, only input mode does
-      const resultHash = getOutputHash(mockOutputData, mockIdentifier);
+      const resultHash = getResultHash(mockOutputData, mockIdentifier);
       const fakeDeprecatedHash = "fake-deprecated-hash";
 
       // Even if we pass a "deprecated" style hash, it should not match
@@ -335,7 +335,7 @@ describe("getMatchedHash", () => {
         result: null,
         error: null,
       };
-      const hash = getOutputHash(outputWithNulls, mockIdentifier);
+      const hash = getResultHash(outputWithNulls, mockIdentifier);
       const result = getMatchedHash(
         "output",
         outputWithNulls,
@@ -523,7 +523,7 @@ describe("isJobVerified", () => {
         error: null,
         job_id: "job_1",
       };
-      const resultHash = getOutputHash(outputData, mockIdentifier);
+      const resultHash = getResultHash(outputData, mockIdentifier);
 
       const job = createMockJob({
         output: JSON.stringify(outputData),

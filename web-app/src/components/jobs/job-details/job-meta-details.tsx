@@ -19,7 +19,7 @@ import { JobStatusResponseSchemaType } from "@/lib/schemas";
 import {
   cn,
   getInputHash,
-  getOutputHash,
+  getResultHash,
   toJobInputData,
   tryParseJson,
 } from "@/lib/utils";
@@ -54,7 +54,7 @@ export function JobMetaDetails({ job }: JobMetaDetailsProps) {
       ? getInputHash(inputData, job.identifierFromPurchaser)
       : null;
     const calcOutput = outputObj
-      ? getOutputHash(outputObj, job.identifierFromPurchaser)
+      ? getResultHash(outputObj, job.identifierFromPurchaser)
       : null;
 
     return {
