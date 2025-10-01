@@ -127,7 +127,10 @@ export const stripeClient = (() => {
       const promotionCode = await stripe.promotionCodes.create(
         {
           customer: customerId,
-          coupon: couponId,
+          promotion: {
+            coupon: couponId,
+            type: "coupon",
+          },
           max_redemptions: maxRedemptions,
           metadata,
         },
@@ -143,7 +146,17 @@ export const stripeClient = (() => {
     ): Promise<Stripe.Coupon | null> {
       try {
         const promotionCode = await stripe.promotionCodes.retrieve(code);
-        return promotionCode.coupon;
+        const promotion = promotionCode.promotion;
+        if (!promotion) {
+          return null;
+        }
+        if (!promotion.coupon) {
+          return null;
+        }
+        if (promotion.type !== "coupon") {
+          return null;
+        }
+        return promotionCode.promotion.coupon as Stripe.Coupon;
       } catch {
         return null;
       }
