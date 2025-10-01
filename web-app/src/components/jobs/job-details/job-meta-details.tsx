@@ -126,7 +126,7 @@ export function JobMetaDetails({ job }: JobMetaDetailsProps) {
       key: "credits",
       label: t("credits"),
       rowClassName: "",
-      content: convertCentsToCredits(job.creditTransaction.amount),
+      content: Math.abs(convertCentsToCredits(job.creditTransaction.amount)),
     },
   ] as const;
 
@@ -252,20 +252,24 @@ function HashGroupRow({
       <CollapsibleTrigger asChild>
         <div
           className={cn(
-            `flex h-9 cursor-default items-center justify-between gap-4 select-none`,
+            `grid h-9 grid-cols-2 items-center gap-4 md:grid-cols-3`,
             rowClassName,
           )}
         >
-          <span className="inline-flex items-center font-bold break-all">
-            {label} <JobVerificationBadge direction={direction} job={job} />
-          </span>
-          <span className="text-muted-foreground ml-auto inline-flex h-4 w-4 items-center justify-center">
-            {isOpen ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <ChevronDown className="h-4 w-4" />
-            )}
-          </span>
+          <span className="font-bold break-all md:col-span-1">{label}</span>
+          <div className="flex items-center justify-between gap-2 break-all md:col-span-2">
+            <div className="flex items-center gap-2">
+              <HashValue value={onChainHash ?? calculatedHash} />
+              <JobVerificationBadge direction={direction} job={job} />
+            </div>
+            <span className="text-muted-foreground inline-flex h-4 w-4 flex-shrink-0 items-center justify-center">
+              {isOpen ? (
+                <ChevronUp className="h-4 w-4" />
+              ) : (
+                <ChevronDown className="h-4 w-4" />
+              )}
+            </span>
+          </div>
         </div>
       </CollapsibleTrigger>
       <CollapsibleContent>
