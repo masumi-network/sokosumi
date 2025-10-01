@@ -1,10 +1,10 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 import { JobDetails } from "@/components/jobs";
+import { Session } from "@/lib/auth/auth";
 import { getSession } from "@/lib/auth/utils";
 import { isSharedWithOrganization, JobWithStatus } from "@/lib/db";
 import { agentRepository, jobRepository } from "@/lib/db/repositories";
-import { userService } from "@/lib/services";
 
 interface JobDetailsPageParams {
   agentId: string;
@@ -13,24 +13,24 @@ interface JobDetailsPageParams {
 
 async function checkJobAccess(
   job: JobWithStatus,
-  userId: string,
+  session: Session,
 ): Promise<boolean> {
-  // User owns the job
-  if (job.userId === userId) {
-    return true;
-  }
-
-  // Check if job is shared with user's organization
-  try {
-    const activeOrganization = await userService.getActiveOrganization();
-    if (
-      activeOrganization &&
-      isSharedWithOrganization(job, activeOrganization.id)
-    ) {
+  // Check if user owns the job AND it belongs to current scope
+  if (job.userId === session.user.id) {
+    // Job must belong to the same scope (matching organizationId)
+    if (job.organizationId === session.session.activeOrganizationId) {
       return true;
     }
-  } catch (error) {
-    console.error("Error checking organization access:", error);
+    // If we reach here: user owns job but it's in different scope
+    return false;
+  }
+
+  // Check if job is shared with user's active organization
+  if (
+    session.session.activeOrganizationId &&
+    isSharedWithOrganization(job, session.session.activeOrganizationId)
+  ) {
+    return true;
   }
 
   return false;
@@ -64,22 +64,19 @@ export default async function JobDetailsPage({
   }
 
   // Check if user can access this job (either owns it or it's shared with their organization)
-  const canAccessJob = await checkJobAccess(job, session.user.id);
+  const canAccessJob = await checkJobAccess(job, session);
   if (!canAccessJob) {
-    notFound();
+    redirect(`/agents/${agentId}/jobs`);
   }
 
   // Determine if the job should be read-only (user is not the owner)
   const readOnly = job.userId !== session.user.id;
 
-  // Fetch active organization ID to pass to JobDetails
-  const activeOrganizationId = await userService.getActiveOrganizationId();
-
   return (
     <JobDetails
       job={job}
       readOnly={readOnly}
-      activeOrganizationId={activeOrganizationId}
+      activeOrganizationId={session.session.activeOrganizationId}
     />
   );
 }
