@@ -31,9 +31,10 @@ export default function JobDetails({
 
   const hasCompletedOutput = job.status === JobStatus.COMPLETED && !!job.output;
   const hasSources = job.blobs.length > 0 || job.links.length > 0;
-  const defaultAccordionValue = hasCompletedOutput
-    ? ["output", ...(hasSources ? ["sources"] : [])]
-    : ["input", "output", ...(hasSources ? ["sources"] : [])];
+  const baseAccordion = hasCompletedOutput ? ["output"] : ["input", "output"];
+  const defaultAccordionValue = hasSources
+    ? [...baseAccordion, "sources"]
+    : baseAccordion;
 
   return (
     <div
