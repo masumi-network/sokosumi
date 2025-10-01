@@ -219,7 +219,7 @@
         "disputeResolved": "Dispute Resolved",
         "refundRequested": "Refund Requested",
         "refundResolved": "Refunded",
-        "outputPending": "Output Missing",
+        "resultPending": "Result Missing",
         "unknown": "Unknown"
       },
       "SharedBadge": {
@@ -257,6 +257,18 @@
               "unauthorized": "You are not the owner of this job."
             }
           }
+        },
+        "Meta": {
+          "jobId": "Job ID",
+          "txId": "Txn ID",
+          "inputHash": "Input Hash",
+          "resultHash": "Result Hash",
+          "onChain": "On-Chain",
+          "calculated": "Sōkosumi",
+          "missing": "Missing",
+          "started": "Started",
+          "finished": "Finished",
+          "credits": "Credits"
         },
         "JobShare": {
           "share": "Share",
@@ -300,15 +312,15 @@
           "none": "No input"
         },
         "Output": {
-          "title": "Output",
-          "failedToParseOutput": "Failed to parse output",
-          "none": "No output available",
+          "title": "Result",
+          "failedToParseResult": "Failed to parse result",
+          "none": "No result available",
           "download": "Download",
           "copy": "Copy",
-          "copySuccess": "Output copied to clipboard",
-          "copyError": "Failed to copy output",
+          "copySuccess": "Result copied to clipboard",
+          "copyError": "Failed to copy result",
           "maximize": "Maximize",
-          "maximizeTitle": "Job Output",
+          "maximizeTitle": "Job Result",
           "close": "Close",
           "exportingMarkdown": "Exporting Markdown…",
           "exportingPdf": "Exporting PDF…",
@@ -502,6 +514,11 @@
         "cancel": "Cancel",
         "error": "Failed to log out"
       }
+    },
+    "HashValue": {
+      "copy": "Copy",
+      "copySuccess": "Copied to clipboard",
+      "copyError": "Failed to copy"
     }
   },
   "AcceptInvitation": {

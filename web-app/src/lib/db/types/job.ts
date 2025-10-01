@@ -41,7 +41,7 @@ export enum JobStatus {
   COMPLETED = "completed",
   PROCESSING = "processing",
   INPUT_REQUIRED = "input_required",
-  OUTPUT_PENDING = "output_pending", // Result is submitted on-chain, but not available by the agent
+  RESULT_PENDING = "result_pending", // Result is submitted on-chain, but not available by the agent
   FAILED = "failed",
 
   PAYMENT_PENDING = "payment_pending",

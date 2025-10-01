@@ -69,7 +69,7 @@ function checkNextAction(job: Job): JobStatus | null {
  * 3. If the agent status is FAILED, return FAILED.
  * 4. If none of the above, check for time-based failure or output pending:
  *    - If `externalDisputeUnlockTime` is set and has passed (with a 10-minute grace period), return FAILED.
- *    - If `submitResultTime` is set and has passed (with a 10-minute grace period), return OUTPUT_PENDING.
+ *    - If `submitResultTime` is set and has passed (with a 10-minute grace period), return RESULT_PENDING.
  * 5. If none of the above, return PROCESSING.
  *
  * @param job - The job object containing relevant timestamps and metadata.
@@ -99,12 +99,12 @@ function getFundsLockedJobStatus(
         return JobStatus.FAILED;
       }
 
-      // Check for OUTPUT_PENDING status (after submit result time with 10min grace period)
+      // Check for RESULT_PENDING status (after submit result time with 10min grace period)
       if (
         job.submitResultTime &&
         job.submitResultTime.getTime() < now.getTime() - TEN_MINUTES_TIMESTAMP
       ) {
-        return JobStatus.OUTPUT_PENDING;
+        return JobStatus.RESULT_PENDING;
       }
 
       return JobStatus.PROCESSING;
@@ -124,7 +124,7 @@ function getFundsLockedJobStatus(
  * 5. Otherwise, resolve based on the on-chain status and agent status:
  *    - null: If `payByTime` expired (with grace), return FAILED; else PAYMENT_PENDING.
  *    - FUNDS_LOCKED: Use `getFundsLockedJobStatus` for further resolution.
- *    - RESULT_SUBMITTED: If agent completed, return COMPLETED; else OUTPUT_PENDING.
+ *    - RESULT_SUBMITTED: If agent completed, return COMPLETED; else RESULT_PENDING.
  *    - FUNDS_WITHDRAWN: If agent completed, return COMPLETED; else FAILED.
  *    - FUNDS_OR_DATUM_INVALID: return PAYMENT_FAILED.
  *    - REFUND_REQUESTED: return REFUND_PENDING.
@@ -179,7 +179,7 @@ export function computeJobStatus(job: Job): JobStatus {
         case AgentJobStatus.COMPLETED:
           return JobStatus.COMPLETED;
         default:
-          return JobStatus.OUTPUT_PENDING;
+          return JobStatus.RESULT_PENDING;
       }
     case OnChainJobStatus.FUNDS_WITHDRAWN:
       switch (agentJobStatus) {
