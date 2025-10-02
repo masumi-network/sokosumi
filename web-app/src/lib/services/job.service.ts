@@ -78,10 +78,8 @@ export const jobService = (() => {
   /**
    * Helper function to determine if Masumi payment status should be synchronized for a job.
    */
-  function shouldSyncMasumiStatus(job: Job): string | null {
-    return job.refundedCreditTransactionId === null && job.purchaseId !== null
-      ? job.purchaseId
-      : null;
+  function shouldSyncMasumiStatus(job: Job): boolean {
+    return job.refundedCreditTransactionId === null && job.purchaseId !== null;
   }
 
   /**
@@ -773,10 +771,10 @@ export const jobService = (() => {
     const [agentJobStatusResult, onChainPurchaseResult] = await Promise.all([
       shouldSyncAgentStatus(job)
         ? await agentClient.fetchAgentJobStatus(job.agent, job.agentJobId)
-        : null,
+        : Promise.resolve(null),
       shouldSyncMasumiStatus(job)
         ? await paymentClient.getPurchaseById(job.purchaseId!)
-        : null,
+        : Promise.resolve(null),
     ]);
 
     const newJobStatus = await prisma.$transaction(
