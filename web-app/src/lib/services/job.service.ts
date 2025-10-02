@@ -789,14 +789,14 @@ export const jobService = (() => {
 
     const newJobStatus = await prisma.$transaction(
       async (tx) => {
-        if (onChainPurchaseResult && onChainPurchaseResult.ok) {
+        if (onChainPurchaseResult.ok) {
           job = await jobRepository.updateJobWithPurchase(
             job.id,
             onChainPurchaseResult.data,
             tx,
           );
         }
-        if (agentJobStatusResult && agentJobStatusResult.ok) {
+        if (agentJobStatusResult.ok) {
           job = await jobRepository.updateJobWithAgentJobStatus(
             job,
             agentJobStatusResult.data,
