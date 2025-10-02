@@ -8,7 +8,7 @@ Create a pull request for the current changes compared to the main branch using 
 2. Determine the appropriate Conventional Commits type (feat, fix, docs, style, refactor, test, chore, etc.)
 3. Create a concise, descriptive PR title following the pattern: `type(scope): description`
 4. Generate a comprehensive PR body with a summary, key changes, architecture benefits if necessary, technical details, and testing information.
-5. Create the pull request as draft using GitHub CLI
+5. Create the pull request as draft using GitHub CLI. Please ensure that you use proper escaping.
 
 ## Conventional Commits Types
 
