@@ -78,8 +78,10 @@ export const jobService = (() => {
   /**
    * Helper function to determine if Masumi payment status should be synchronized for a job.
    */
-  function shouldSyncMasumiStatus(job: Job): boolean {
-    return job.refundedCreditTransactionId === null;
+  function shouldSyncMasumiStatus(job: Job): string | null {
+    return job.refundedCreditTransactionId === null && job.purchaseId !== null
+      ? job.purchaseId
+      : null;
   }
 
   /**
