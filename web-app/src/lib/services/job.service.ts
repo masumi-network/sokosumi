@@ -33,6 +33,7 @@ import {
   PricingAmountsSchemaType,
   StartJobInputSchemaType,
 } from "@/lib/schemas";
+import { Err } from "@/lib/ts-res";
 import { getInputHash, getResultHash } from "@/lib/utils";
 import {
   AgentJobStatus,
@@ -63,24 +64,30 @@ export const jobService = (() => {
   /**
    * Helper function to determine if agent status should be synchronized for a job.
    */
-  function shouldSyncAgentStatus(job: Job): boolean {
+  function shouldSyncAgentStatus(job: Job): string | null {
     if (job.refundedCreditTransactionId) {
-      return false;
+      return null;
     }
     if (
       job.onChainStatus === OnChainJobStatus.RESULT_SUBMITTED &&
       job.agentJobStatus === AgentJobStatus.COMPLETED
     ) {
-      return false;
+      return null;
     }
-    return true;
+    return job.agentJobId;
   }
 
   /**
    * Helper function to determine if Masumi payment status should be synchronized for a job.
    */
-  function shouldSyncMasumiStatus(job: Job): boolean {
-    return job.refundedCreditTransactionId === null;
+  function shouldSyncMasumiStatus(job: Job): string | null {
+    if (job.refundedCreditTransactionId) {
+      return null;
+    }
+    if (job.purchaseId === null) {
+      return null;
+    }
+    return job.purchaseId;
   }
 
   /**
@@ -771,25 +778,28 @@ export const jobService = (() => {
         );
       }
     }
+    const agentJobIdToSync = shouldSyncAgentStatus(job);
+    const purchaseIdToSync = shouldSyncMasumiStatus(job);
+
     const [agentJobStatusResult, onChainPurchaseResult] = await Promise.all([
-      shouldSyncAgentStatus(job)
-        ? await agentClient.fetchAgentJobStatus(job.agent, job.agentJobId)
-        : null,
-      shouldSyncMasumiStatus(job)
-        ? await paymentClient.getPurchaseById(job.purchaseId!)
-        : null,
+      agentJobIdToSync
+        ? await agentClient.fetchAgentJobStatus(job.agent, agentJobIdToSync)
+        : Promise.resolve(Err("No agent job ID to sync")),
+      purchaseIdToSync
+        ? await paymentClient.getPurchaseById(purchaseIdToSync)
+        : Promise.resolve(Err("No purchase ID to sync")),
     ]);
 
     const newJobStatus = await prisma.$transaction(
       async (tx) => {
-        if (onChainPurchaseResult && onChainPurchaseResult.ok) {
+        if (onChainPurchaseResult.ok) {
           job = await jobRepository.updateJobWithPurchase(
             job.id,
             onChainPurchaseResult.data,
             tx,
           );
         }
-        if (agentJobStatusResult && agentJobStatusResult.ok) {
+        if (agentJobStatusResult.ok) {
           job = await jobRepository.updateJobWithAgentJobStatus(
             job,
             agentJobStatusResult.data,
