@@ -377,11 +377,11 @@ export const agentService = (() => {
           throw new Error(`Credit cost not found for unit ${amount.unit}`);
         }
         const cents = amount.amount * creditCost.centsPerUnit;
-        const fee = Number(cents) * feeMultiplier;
+        const fee = BigInt(Math.ceil(Number(cents) * feeMultiplier));
 
         // round up to the nearest integer
         totalCents += cents;
-        totalFee += BigInt(Math.ceil(fee));
+        totalFee += fee;
       }
       if (totalFee < minFeeCents) {
         totalFee = minFeeCents;
