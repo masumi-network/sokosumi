@@ -508,7 +508,7 @@ export const jobService = (() => {
     const jobPricingAmounts: PricingAmountsSchemaType =
       startJobResponse.amounts.map((amount) => ({
         unit: amount.unit,
-        amount: Number(amount.amount),
+        amount: amount.amount,
       }));
 
     // Add breadcrumb for pricing validation

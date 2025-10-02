@@ -128,7 +128,7 @@ export function getAgentPricingAmounts(
       }
       return agent.pricing.fixedPricing.amounts.map((amount) => ({
         unit: amount.unit,
-        amount: Number(amount.amount),
+        amount: amount.amount,
       }));
     }
     case PricingType.FREE: {

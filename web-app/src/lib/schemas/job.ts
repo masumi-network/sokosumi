@@ -55,7 +55,7 @@ export const startJobResponseSchema = z.object({
   amounts: z.array(
     z.object({
       unit: z.string(),
-      amount: z.coerce.number().int().positive(),
+      amount: z.coerce.bigint().positive(),
     }),
   ),
   input_hash: z.string().min(1),

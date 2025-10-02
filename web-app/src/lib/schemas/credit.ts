@@ -4,7 +4,7 @@ import * as z from "zod";
 export const pricingAmountsSchema = z.array(
   z.object({
     unit: z.string(),
-    amount: z.coerce.number().int().positive(),
+    amount: z.bigint().positive(),
   }),
 );
 
