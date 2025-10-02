@@ -1010,12 +1010,6 @@
         "unavailable": "Credits unavailable"
       }
     },
-    "HydraHandoffDialog": {
-      "title": "Hydra Vending Machine",
-      "description": "Scan the QR code",
-      "button": "Open directly",
-      "claimButton": "Claim Hydra Points"
-    },
     "Billing": {
       "title": "Billing",
       "description": "Manage your billing settings and preferences",

@@ -9,8 +9,6 @@ export const siteConfig = {
       "https://docs.masumi.network/core-concepts/decision-logging",
     jobTransactionMainnet: "https://cardanoscan.io/transaction/",
     jobTransactionPreprod: "https://preprod.cardanoscan.io/transaction/",
-    hydra:
-      "https://app.hydra.events/bd923855-d2de-46e6-b0cd-22e96e2c8fd5/?qr=LO-01K5Y5YH04J422AZ8CATBA4HCR",
   },
 };
 
