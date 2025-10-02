@@ -2,7 +2,7 @@
 
 import type { Client, Options as Options2, TDataShape } from './client';
 import { client } from './client.gen';
-import type { DeleteApiKeyData, DeleteApiKeyErrors, DeleteApiKeyResponses, DeletePaymentSourceExtendedData, DeletePaymentSourceExtendedResponses, DeleteRegistryData, DeleteRegistryResponses, GetApiKeyData, GetApiKeyErrors, GetApiKeyResponses, GetApiKeyStatusData, GetApiKeyStatusResponses, GetHealthData, GetHealthResponses, GetPaymentData, GetPaymentErrors, GetPaymentResponses, GetPaymentSourceData, GetPaymentSourceExtendedData, GetPaymentSourceExtendedResponses, GetPaymentSourceResponses, GetPurchaseData, GetPurchaseErrors, GetPurchaseResponses, GetRegistryData, GetRegistryResponses, GetRegistryWalletData, GetRegistryWalletResponses, GetRpcApiKeysData, GetRpcApiKeysResponses, GetUtxosData, GetUtxosResponses, GetWalletData, GetWalletResponses, PatchApiKeyData, PatchApiKeyErrors, PatchApiKeyResponses, PatchPaymentSourceExtendedData, PatchPaymentSourceExtendedResponses, PostApiKeyData, PostApiKeyErrors, PostApiKeyResponses, PostPaymentAuthorizeRefundData, PostPaymentAuthorizeRefundErrors, PostPaymentAuthorizeRefundResponses, PostPaymentData, PostPaymentErrors, PostPaymentResolveBlockchainIdentifierData, PostPaymentResolveBlockchainIdentifierErrors, PostPaymentResolveBlockchainIdentifierResponses, PostPaymentResponses, PostPaymentSourceExtendedData, PostPaymentSourceExtendedResponses, PostPaymentSubmitResultData, PostPaymentSubmitResultErrors, PostPaymentSubmitResultResponses, PostPurchaseCancelRefundRequestData, PostPurchaseCancelRefundRequestErrors, PostPurchaseCancelRefundRequestResponses, PostPurchaseData, PostPurchaseErrors, PostPurchaseRequestRefundData, PostPurchaseRequestRefundErrors, PostPurchaseRequestRefundResponses, PostPurchaseResolveBlockchainIdentifierData, PostPurchaseResolveBlockchainIdentifierErrors, PostPurchaseResolveBlockchainIdentifierResponses, PostPurchaseResponses, PostRegistryData, PostRegistryResponses, PostWalletData, PostWalletResponses } from './types.gen';
+import type { DeleteApiKeyData, DeleteApiKeyErrors, DeleteApiKeyResponses, DeletePaymentSourceExtendedData, DeletePaymentSourceExtendedResponses, DeleteRegistryData, DeleteRegistryErrors, DeleteRegistryResponses, GetApiKeyData, GetApiKeyErrors, GetApiKeyResponses, GetApiKeyStatusData, GetApiKeyStatusResponses, GetHealthData, GetHealthResponses, GetPaymentData, GetPaymentErrors, GetPaymentResponses, GetPaymentSourceData, GetPaymentSourceExtendedData, GetPaymentSourceExtendedResponses, GetPaymentSourceResponses, GetPurchaseData, GetPurchaseErrors, GetPurchaseResponses, GetRegistryData, GetRegistryResponses, GetRegistryWalletData, GetRegistryWalletResponses, GetRpcApiKeysData, GetRpcApiKeysResponses, GetUtxosData, GetUtxosResponses, GetWalletData, GetWalletResponses, PatchApiKeyData, PatchApiKeyErrors, PatchApiKeyResponses, PatchPaymentSourceExtendedData, PatchPaymentSourceExtendedResponses, PatchWalletData, PatchWalletResponses, PostApiKeyData, PostApiKeyErrors, PostApiKeyResponses, PostPaymentAuthorizeRefundData, PostPaymentAuthorizeRefundErrors, PostPaymentAuthorizeRefundResponses, PostPaymentData, PostPaymentErrors, PostPaymentResolveBlockchainIdentifierData, PostPaymentResolveBlockchainIdentifierErrors, PostPaymentResolveBlockchainIdentifierResponses, PostPaymentResponses, PostPaymentSourceExtendedData, PostPaymentSourceExtendedResponses, PostPaymentSubmitResultData, PostPaymentSubmitResultErrors, PostPaymentSubmitResultResponses, PostPurchaseCancelRefundRequestData, PostPurchaseCancelRefundRequestErrors, PostPurchaseCancelRefundRequestResponses, PostPurchaseData, PostPurchaseErrors, PostPurchaseRequestRefundData, PostPurchaseRequestRefundErrors, PostPurchaseRequestRefundResponses, PostPurchaseResolveBlockchainIdentifierData, PostPurchaseResolveBlockchainIdentifierErrors, PostPurchaseResolveBlockchainIdentifierResponses, PostPurchaseResponses, PostRegistryData, PostRegistryDeregisterData, PostRegistryDeregisterResponses, PostRegistryResponses, PostRevealDataData, PostRevealDataResponses, PostWalletData, PostWalletResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean> = Options2<TData, ThrowOnError> & {
     /**
@@ -63,6 +63,27 @@ export const getWallet = <ThrowOnError extends boolean = false>(options: Options
 };
 
 /**
+ * Update a wallet. (admin access required)
+ * Updates a wallet
+ */
+export const patchWallet = <ThrowOnError extends boolean = false>(options?: Options<PatchWalletData, ThrowOnError>) => {
+    return (options?.client ?? client).patch<PatchWalletResponses, unknown, ThrowOnError>({
+        security: [
+            {
+                name: 'token',
+                type: 'apiKey'
+            }
+        ],
+        url: '/wallet/',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options?.headers
+        }
+    });
+};
+
+/**
  * Create a new wallet. (admin access required)
  * Creates a wallet, it will not be saved in the database, please ensure to remember the mnemonic
  */
@@ -75,6 +96,27 @@ export const postWallet = <ThrowOnError extends boolean = false>(options?: Optio
             }
         ],
         url: '/wallet/',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options?.headers
+        }
+    });
+};
+
+/**
+ * Verifies the reveal data signature is valid. (read access required)
+ * Verifies the reveal data signature is valid.
+ */
+export const postRevealData = <ThrowOnError extends boolean = false>(options?: Options<PostRevealDataData, ThrowOnError>) => {
+    return (options?.client ?? client).post<PostRevealDataResponses, unknown, ThrowOnError>({
+        security: [
+            {
+                name: 'token',
+                type: 'apiKey'
+            }
+        ],
+        url: '/reveal-data/',
         ...options,
         headers: {
             'Content-Type': 'application/json',
@@ -383,11 +425,11 @@ export const getRegistryWallet = <ThrowOnError extends boolean = false>(options:
 };
 
 /**
- * Deregisters an agent from the specified registry. (admin access required +PAY)
- * Deregisters a agent from the specified registry (Please note that while the command is put on-chain, the transaction is not yet finalized by the blockchain, as designed finality is only eventually reached. If you need certainty, please check status via the registry(GET) or if you require custom logic, the transaction directly using the txHash)
+ * Delete an agent registration record. (admin access required)
+ * Permanently deletes an agent registration record from the database. This action is irreversible and should only be used for registrations in specific failed or completed states.
  */
 export const deleteRegistry = <ThrowOnError extends boolean = false>(options?: Options<DeleteRegistryData, ThrowOnError>) => {
-    return (options?.client ?? client).delete<DeleteRegistryResponses, unknown, ThrowOnError>({
+    return (options?.client ?? client).delete<DeleteRegistryResponses, DeleteRegistryErrors, ThrowOnError>({
         security: [
             {
                 name: 'token',
@@ -433,6 +475,27 @@ export const postRegistry = <ThrowOnError extends boolean = false>(options?: Opt
             }
         ],
         url: '/registry/',
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options?.headers
+        }
+    });
+};
+
+/**
+ * Deregisters an agent from the specified registry. (admin access required +PAY)
+ * Deregisters a agent from the specified registry (Please note that while the command is put on-chain, the transaction is not yet finalized by the blockchain, as designed finality is only eventually reached. If you need certainty, please check status via the registry(GET) or if you require custom logic, the transaction directly using the txHash)
+ */
+export const postRegistryDeregister = <ThrowOnError extends boolean = false>(options?: Options<PostRegistryDeregisterData, ThrowOnError>) => {
+    return (options?.client ?? client).post<PostRegistryDeregisterResponses, unknown, ThrowOnError>({
+        security: [
+            {
+                name: 'token',
+                type: 'apiKey'
+            }
+        ],
+        url: '/registry/deregister',
         ...options,
         headers: {
             'Content-Type': 'application/json',

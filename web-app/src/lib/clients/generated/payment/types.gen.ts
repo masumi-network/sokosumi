@@ -98,6 +98,38 @@ export type GetWalletResponses = {
 
 export type GetWalletResponse = GetWalletResponses[keyof GetWalletResponses];
 
+export type PatchWalletData = {
+    body?: {
+        /**
+         * The id of the wallet to update
+         */
+        id: string;
+        /**
+         * The new collection address to set for this wallet. Pass null to clear.
+         */
+        newCollectionAddress: string | null;
+    };
+    path?: never;
+    query?: never;
+    url: '/wallet/';
+};
+
+export type PatchWalletResponses = {
+    /**
+     * Wallet updated
+     */
+    200: {
+        id: string;
+        walletVkey: string;
+        walletAddress: string;
+        collectionAddress: string | null;
+        type: 'Selling' | 'Purchasing';
+        note: string | null;
+    };
+};
+
+export type PatchWalletResponse = PatchWalletResponses[keyof PatchWalletResponses];
+
 export type PostWalletData = {
     body?: {
         /**
@@ -122,6 +154,37 @@ export type PostWalletResponses = {
 };
 
 export type PostWalletResponse = PostWalletResponses[keyof PostWalletResponses];
+
+export type PostRevealDataData = {
+    body?: {
+        signature: string;
+        key: string;
+        walletAddress: string;
+        validUntil: number;
+        /**
+         * The blockchain identifier, for which the data should be revealed
+         */
+        blockchainIdentifier: string;
+        /**
+         * The action to perform
+         */
+        action: 'reveal_data';
+    };
+    path?: never;
+    query?: never;
+    url: '/reveal-data/';
+};
+
+export type PostRevealDataResponses = {
+    /**
+     * Revealed data
+     */
+    200: {
+        isValid: boolean;
+    };
+};
+
+export type PostRevealDataResponse = PostRevealDataResponses[keyof PostRevealDataResponses];
 
 export type DeleteApiKeyData = {
     body?: {
@@ -458,7 +521,6 @@ export type GetPaymentResponses = {
                     network: 'Preprod' | 'Mainnet';
                     smartContractAddress: string;
                     policyId: string | null;
-                    paymentType: 'Web3CardanoV1';
                 };
                 BuyerWallet: {
                     id: string;
@@ -498,10 +560,6 @@ export type PostPaymentData = {
             amount: string;
             unit: string;
         }>;
-        /**
-         * The type of payment contract used
-         */
-        paymentType: 'Web3CardanoV1';
         /**
          * The time after which the payment has to be submitted to the smart contract
          */
@@ -589,7 +647,6 @@ export type PostPaymentResponses = {
                 network: 'Preprod' | 'Mainnet';
                 smartContractAddress: string;
                 policyId: string | null;
-                paymentType: 'Web3CardanoV1';
             };
             BuyerWallet: {
                 id: string;
@@ -685,7 +742,6 @@ export type PostPaymentSubmitResultResponses = {
                 network: 'Preprod' | 'Mainnet';
                 policyId: string | null;
                 smartContractAddress: string;
-                paymentType: 'Web3CardanoV1';
             };
             BuyerWallet: {
                 id: string;
@@ -777,7 +833,6 @@ export type PostPaymentAuthorizeRefundResponses = {
                 network: 'Preprod' | 'Mainnet';
                 smartContractAddress: string;
                 policyId: string | null;
-                paymentType: 'Web3CardanoV1';
             };
             BuyerWallet: {
                 id: string;
@@ -900,7 +955,6 @@ export type GetPurchaseResponses = {
                     network: 'Preprod' | 'Mainnet';
                     smartContractAddress: string;
                     policyId: string | null;
-                    paymentType: 'Web3CardanoV1';
                 };
                 SellerWallet: {
                     id: string;
@@ -948,10 +1002,6 @@ export type PostPurchaseData = {
             amount: string;
             unit: string;
         }>;
-        /**
-         * The payment type of smart contract used
-         */
-        paymentType: 'Web3CardanoV1';
         /**
          * The time after which the purchase will be unlocked. In unix time (number)
          */
@@ -1043,7 +1093,6 @@ export type PostPurchaseErrors = {
                 network: 'Preprod' | 'Mainnet';
                 policyId: string | null;
                 smartContractAddress: string;
-                paymentType: 'Web3CardanoV1';
             };
             SellerWallet: {
                 id: string;
@@ -1113,7 +1162,6 @@ export type PostPurchaseResponses = {
                 network: 'Preprod' | 'Mainnet';
                 policyId: string | null;
                 smartContractAddress: string;
-                paymentType: 'Web3CardanoV1';
             };
             SellerWallet: {
                 id: string;
@@ -1210,7 +1258,6 @@ export type PostPurchaseRequestRefundResponses = {
                 network: 'Preprod' | 'Mainnet';
                 policyId: string | null;
                 smartContractAddress: string;
-                paymentType: 'Web3CardanoV1';
             };
             SellerWallet: {
                 id: string;
@@ -1307,7 +1354,6 @@ export type PostPurchaseCancelRefundRequestResponses = {
                 network: 'Preprod' | 'Mainnet';
                 policyId: string | null;
                 smartContractAddress: string;
-                paymentType: 'Web3CardanoV1';
             };
             SellerWallet: {
                 id: string;
@@ -1427,7 +1473,6 @@ export type PostPaymentResolveBlockchainIdentifierResponses = {
                 network: 'Preprod' | 'Mainnet';
                 smartContractAddress: string;
                 policyId: string | null;
-                paymentType: 'Web3CardanoV1';
             };
             BuyerWallet: {
                 id: string;
@@ -1548,7 +1593,6 @@ export type PostPurchaseResolveBlockchainIdentifierResponses = {
                 network: 'Preprod' | 'Mainnet';
                 smartContractAddress: string;
                 policyId: string | null;
-                paymentType: 'Web3CardanoV1';
             };
             SellerWallet: {
                 id: string;
@@ -1628,6 +1672,8 @@ export type GetRegistryWalletResponses = {
                             amount: string;
                             unit: string;
                         }>;
+                    } | {
+                        pricingType: 'Free';
                     };
                     image: string;
                     metadataVersion: number;
@@ -1642,67 +1688,54 @@ export type GetRegistryWalletResponse = GetRegistryWalletResponses[keyof GetRegi
 export type DeleteRegistryData = {
     body?: {
         /**
-         * The identifier of the registration (asset) to be deregistered
+         * The database ID of the agent registration record to be deleted.
          */
-        agentIdentifier: string;
-        /**
-         * The network the registration was made on
-         */
-        network: 'Preprod' | 'Mainnet';
-        /**
-         * The smart contract address of the payment contract to which the registration belongs
-         */
-        smartContractAddress?: string;
+        id: string;
     };
     path?: never;
     query?: never;
     url: '/registry/';
 };
 
+export type DeleteRegistryErrors = {
+    /**
+     * Bad Request - Invalid state for deletion
+     */
+    400: {
+        status: string;
+        error: {
+            message: string;
+        };
+    };
+    /**
+     * Unauthorized
+     */
+    401: unknown;
+    /**
+     * Agent Registration not found
+     */
+    404: {
+        status: string;
+        error: {
+            message: string;
+        };
+    };
+    /**
+     * Internal Server Error
+     */
+    500: unknown;
+};
+
+export type DeleteRegistryError = DeleteRegistryErrors[keyof DeleteRegistryErrors];
+
 export type DeleteRegistryResponses = {
     /**
-     * Payment source deleted
+     * Agent registration deleted successfully
      */
     200: {
         status: string;
         data: {
             id: string;
-            name: string;
-            apiBaseUrl: string;
-            Capability: {
-                name: string | null;
-                version: string | null;
-            };
-            Author: {
-                name: string;
-                contactEmail: string | null;
-                contactOther: string | null;
-                organization: string | null;
-            };
-            Legal: {
-                privacyPolicy: string | null;
-                terms: string | null;
-                other: string | null;
-            };
-            description: string | null;
-            Tags: Array<string>;
-            SmartContractWallet: {
-                walletVkey: string;
-                walletAddress: string;
-            };
-            state: 'RegistrationRequested' | 'RegistrationInitiated' | 'RegistrationConfirmed' | 'RegistrationFailed' | 'DeregistrationRequested' | 'DeregistrationInitiated' | 'DeregistrationConfirmed' | 'DeregistrationFailed';
-            ExampleOutputs: Array<{
-                name: string;
-                url: string;
-                mimeType: string;
-            }>;
-            AgentPricing: {
-                pricingType: 'Fixed';
-                Pricing: Array<{
-                    unit: string;
-                    amount: string;
-                }>;
-            };
         };
     };
 };
@@ -1774,6 +1807,8 @@ export type GetRegistryResponses = {
                         amount: string;
                         unit: string;
                     }>;
+                } | {
+                    pricingType: 'Free';
                 };
                 SmartContractWallet: {
                     walletVkey: string;
@@ -1837,6 +1872,8 @@ export type PostRegistryData = {
                 unit: string;
                 amount: string;
             }>;
+        } | {
+            pricingType: 'Free';
         };
         /**
          * Legal information about the agent
@@ -1904,12 +1941,86 @@ export type PostRegistryResponses = {
                     unit: string;
                     amount: string;
                 }>;
+            } | {
+                pricingType: 'Free';
             };
         };
     };
 };
 
 export type PostRegistryResponse = PostRegistryResponses[keyof PostRegistryResponses];
+
+export type PostRegistryDeregisterData = {
+    body?: {
+        /**
+         * The identifier of the registration (asset) to be deregistered
+         */
+        agentIdentifier: string;
+        /**
+         * The network the registration was made on
+         */
+        network: 'Preprod' | 'Mainnet';
+        /**
+         * The smart contract address of the payment contract to which the registration belongs
+         */
+        smartContractAddress?: string;
+    };
+    path?: never;
+    query?: never;
+    url: '/registry/deregister';
+};
+
+export type PostRegistryDeregisterResponses = {
+    /**
+     * Payment source deleted
+     */
+    200: {
+        status: string;
+        data: {
+            id: string;
+            name: string;
+            apiBaseUrl: string;
+            Capability: {
+                name: string | null;
+                version: string | null;
+            };
+            Author: {
+                name: string;
+                contactEmail: string | null;
+                contactOther: string | null;
+                organization: string | null;
+            };
+            Legal: {
+                privacyPolicy: string | null;
+                terms: string | null;
+                other: string | null;
+            };
+            description: string | null;
+            Tags: Array<string>;
+            SmartContractWallet: {
+                walletVkey: string;
+                walletAddress: string;
+            };
+            state: 'RegistrationRequested' | 'RegistrationInitiated' | 'RegistrationConfirmed' | 'RegistrationFailed' | 'DeregistrationRequested' | 'DeregistrationInitiated' | 'DeregistrationConfirmed' | 'DeregistrationFailed';
+            ExampleOutputs: Array<{
+                name: string;
+                url: string;
+                mimeType: string;
+            }>;
+            AgentPricing: {
+                pricingType: 'Fixed';
+                Pricing: Array<{
+                    unit: string;
+                    amount: string;
+                }>;
+            } | {
+                pricingType: 'Free';
+            };
+        };
+    };
+};
+
+export type PostRegistryDeregisterResponse = PostRegistryDeregisterResponses[keyof PostRegistryDeregisterResponses];
 
 export type GetPaymentSourceData = {
     body?: never;
@@ -1941,7 +2052,6 @@ export type GetPaymentSourceResponses = {
                 network: 'Preprod' | 'Mainnet';
                 policyId: string | null;
                 smartContractAddress: string;
-                paymentType: 'Web3CardanoV1';
                 lastIdentifierChecked: string | null;
                 lastCheckedAt: string | null;
                 AdminWallets: Array<{
@@ -2029,7 +2139,6 @@ export type GetPaymentSourceExtendedResponses = {
                 network: 'Preprod' | 'Mainnet';
                 policyId: string | null;
                 smartContractAddress: string;
-                paymentType: 'Web3CardanoV1';
                 PaymentSourceConfig: {
                     rpcProviderApiKey: string;
                     rpcProvider: 'Blockfrost';
@@ -2138,7 +2247,6 @@ export type PatchPaymentSourceExtendedResponses = {
             updatedAt: string;
             network: 'Preprod' | 'Mainnet';
             smartContractAddress: string;
-            paymentType: 'Web3CardanoV1';
             PaymentSourceConfig: {
                 rpcProviderApiKey: string;
                 rpcProvider: 'Blockfrost';
@@ -2180,10 +2288,6 @@ export type PostPaymentSourceExtendedData = {
          * The network the payment source will be used on
          */
         network: 'Preprod' | 'Mainnet';
-        /**
-         * The type of payment source used
-         */
-        paymentType: 'Web3CardanoV1';
         PaymentSourceConfig: {
             /**
              * The rpc provider (blockfrost) api key to be used for the payment source
@@ -2262,7 +2366,6 @@ export type PostPaymentSourceExtendedResponses = {
             updatedAt: string;
             network: 'Preprod' | 'Mainnet';
             smartContractAddress: string;
-            paymentType: 'Web3CardanoV1';
             PaymentSourceConfig: {
                 rpcProviderApiKey: string;
                 rpcProvider: 'Blockfrost';
