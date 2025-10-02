@@ -1,23 +1,29 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-Sokosumi is a pnpm workspace; most development happens in `web-app/`. Routes live under `web-app/src/app`, shared UI in `src/components`, domain services in `src/lib`, and Prisma schema plus migrations in `web-app/prisma`. Generated API clients target `src/lib/clients/generated`, shadcn primitives live in `src/components/ui`, and messaging assets sit in `web-app/messages`. Tests stay beside features in `__tests__` directories such as `src/lib/job-input/__tests__/job-input.test.ts`.
+
+Sokosumi is a pnpm workspace with the Next.js app in `web-app/`. App Router routes, server actions, and API handlers live in `src/app`; shared UI in `src/components`, hooks in `src/hooks`, and contexts in `src/contexts`. Domain adapters, repositories, services, and actions belong under `src/lib/**` with domain tests in sibling `__tests__/`. Static assets go to `public/`, Prisma schema and migrations to `prisma/`, translations to `messages/`, and reusable mocks to `__mocks__/`.
+
+## Architecture Snapshot
+
+Next.js 15 App Router with strict TypeScript underpins the app. The core library follows a three-layer pattern: repositories (`src/lib/db/repositories/`) wrap Prisma/Postgres access, services (`src/lib/services/`) coordinate domain flows and external API clients, and actions (`src/lib/actions/`) expose typed server mutations. Tailwind plus shadcn/ui drive styling, `next-intl` covers i18n, and Better Auth provides organization-aware sessions.
+
+## Environment & Tooling
+
+Install Node 22+ and pnpm. Run `pnpm install`, copy `web-app/.env.example` to `web-app/.env`, then bootstrap the database with `pnpm prisma:migrate:dev`. Regenerate Prisma clients via `pnpm prisma:generate` and refresh external API clients when specs change using `pnpm generate:api`.
 
 ## Build, Test, and Development Commands
-Run `pnpm install` at the repo root. Within `web-app/`:
-- `pnpm dev`: start the Next.js dev server on `http://localhost:3000`.
-- `pnpm build`: create a production bundle and regenerate Prisma artifacts.
-- `pnpm start`: serve the compiled bundle locally.
-- `pnpm lint`: enforce ESLint rules with zero warning tolerance.
-- `pnpm format`: apply Prettier (Tailwind plugin included).
-- `pnpm test:ci`: run the Jest suite in CI mode.
-Prisma utilities include `pnpm prisma:generate`, `pnpm prisma:migrate:dev`, `pnpm prisma:migrate:deploy`, and `pnpm prisma:seed`. Run `pnpm generate:api` after touching OpenAPI contracts.
+
+`pnpm sokosumi-web:dev` runs the web app dev server; `pnpm dev` watches every workspace package. Build for production with `pnpm build` and smoke test using `pnpm sokosumi-web:start`. Lint through `pnpm lint` or the CI-friendly `pnpm sokosumi-web:lint:report`. Execute tests locally with `pnpm test`; CI mirrors `pnpm sokosumi-web:test:ci`.
 
 ## Coding Style & Naming Conventions
-TypeScript is mandatory; prefer interfaces over types and avoid enums in favor of objects or unions. Files and directories use kebab-case, while React components adopt PascalCase filenames with named exports. Favor server components and add `'use client'` only when browser APIs require it. Event handlers follow the `handleX` pattern, helpers use the `function` keyword, and state flags read `isLoading` or `hasError`. Imports auto-sort via `simple-import-sort`; cross-folder imports use aliases like `@/components`, `@/lib`, `@/services`, `@/types`, and `@/messages`. Access environment values through `getEnvSecrets` or `getEnvConfig`, and lean on `nuqs` for URL search parameter state.
+
+TypeScript everywhere, semicolons and two-space indentation enforced by the shared Prettier profile—run `pnpm sokosumi-web:format` after sizable edits. React components and exported types are PascalCase, helpers stay camelCase, constants are SCREAMING_SNAKE_CASE, and Prisma models remain singular. Default to Server Components; add `'use client'` only for browser APIs. Keep imports relative within a feature or use configured aliases such as `@/lib/*`.
 
 ## Testing Guidelines
-Write Jest + Testing Library specs in feature-level `__tests__` folders with `.test.ts` suffixes. Mock external services with existing fixtures. Pair schema changes with matching `data-migration` scripts, then run `pnpm test:ci`, `pnpm lint`, and relevant Prisma commands before opening a PR.
+
+Jest with happy-dom and Testing Library power unit and integration suites. Name test files `*.test.ts(x)` and colocate them under the nearest `__tests__/`. When touching `src/lib`, cover both success and failure paths, mocking externals through `__mocks__` or Prisma factories. No watch mode—run `pnpm test` and refresh snapshots before pushing.
 
 ## Commit & Pull Request Guidelines
-Commits and PR titles follow Conventional Commit syntax (`feat(auth): add passkey login`). Branch from `main`, push early, and open draft PRs for discussion. Include change summaries, linked issues, and UI screenshots or Looms when applicable. Confirm linting, tests, migrations, and API client generation succeed locally before marking a PR ready for review.
+
+Commits follow Conventional Commit syntax, e.g., `feat(auth): add refresh token (#1234)`. PRs explain user-facing impact, link Linear or GitHub issues, list verification steps (e.g., `pnpm test`, `pnpm build`), and attach screenshots for UI updates. Flag schema changes with migration filenames and mention any related data scripts (`pnpm data-migration:<name>`) so reviewers can plan verification.
