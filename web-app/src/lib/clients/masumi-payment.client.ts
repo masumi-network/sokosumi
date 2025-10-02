@@ -115,6 +115,10 @@ export const paymentClient = (() => {
             inputHash: startJobResponse.input_hash,
             blockchainIdentifier: startJobResponse.blockchainIdentifier,
             network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
+            Amounts: startJobResponse.amounts.map((amount) => ({
+              amount: amount.amount.toString(),
+              unit: amount.unit,
+            })),
             sellerVkey: startJobResponse.sellerVKey,
             identifierFromPurchaser,
             payByTime: startJobResponse.payByTime.toString(),
