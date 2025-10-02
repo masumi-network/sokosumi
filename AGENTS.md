@@ -1,23 +1,165 @@
-# Repository Guidelines
+# Sokosumi Agent Guidelines
 
-## Project Structure & Module Organization
-Sokosumi is a pnpm workspace; most development happens in `web-app/`. Routes live under `web-app/src/app`, shared UI in `src/components`, domain services in `src/lib`, and Prisma schema plus migrations in `web-app/prisma`. Generated API clients target `src/lib/clients/generated`, shadcn primitives live in `src/components/ui`, and messaging assets sit in `web-app/messages`. Tests stay beside features in `__tests__` directories such as `src/lib/job-input/__tests__/job-input.test.ts`.
+> **Purpose**: This document provides comprehensive guidelines for AI agents working on the Sokosumi monorepo. For app-specific details, see [`web-app/AGENTS.md`](./web-app/AGENTS.md).
 
-## Build, Test, and Development Commands
-Run `pnpm install` at the repo root. Within `web-app/`:
-- `pnpm dev`: start the Next.js dev server on `http://localhost:3000`.
-- `pnpm build`: create a production bundle and regenerate Prisma artifacts.
-- `pnpm start`: serve the compiled bundle locally.
-- `pnpm lint`: enforce ESLint rules with zero warning tolerance.
-- `pnpm format`: apply Prettier (Tailwind plugin included).
-- `pnpm test:ci`: run the Jest suite in CI mode.
-Prisma utilities include `pnpm prisma:generate`, `pnpm prisma:migrate:dev`, `pnpm prisma:migrate:deploy`, and `pnpm prisma:seed`. Run `pnpm generate:api` after touching OpenAPI contracts.
+## Tech Stack & Architecture
 
-## Coding Style & Naming Conventions
-TypeScript is mandatory; prefer interfaces over types and avoid enums in favor of objects or unions. Files and directories use kebab-case, while React components adopt PascalCase filenames with named exports. Favor server components and add `'use client'` only when browser APIs require it. Event handlers follow the `handleX` pattern, helpers use the `function` keyword, and state flags read `isLoading` or `hasError`. Imports auto-sort via `simple-import-sort`; cross-folder imports use aliases like `@/components`, `@/lib`, `@/services`, `@/types`, and `@/messages`. Access environment values through `getEnvSecrets` or `getEnvConfig`, and lean on `nuqs` for URL search parameter state.
+**Core Stack**: Next.js 15 (App Router), React 19, TypeScript, pnpm workspace
+**Architecture**: Three-layer pattern with repositories (`src/lib/db/repositories/`) wrapping Prisma/Postgres, services (`src/lib/services/`) coordinating domain flows, and actions (`src/lib/actions/`) exposing typed server mutations
+**Styling**: Tailwind CSS + shadcn/ui + Radix UI primitives
+**Auth**: Better Auth with organization-aware sessions
+**i18n**: next-intl for internationalization
+
+## Project Layout
+
+```
+sokosumi/
+├── web-app/                    # Next.js application
+│   ├── src/app/               # App Router routes, server actions, API handlers
+│   ├── src/components/        # Shared UI components
+│   ├── src/hooks/            # Custom React hooks
+│   ├── src/contexts/         # React contexts
+│   ├── src/lib/              # Domain logic (repositories, services, actions)
+│   │   ├── db/repositories/  # Prisma/Postgres access layer
+│   │   ├── services/         # Business logic coordination
+│   │   └── actions/          # Server mutations
+│   ├── __tests__/            # Colocated tests
+│   ├── __mocks__/            # Reusable test doubles
+│   ├── public/               # Static assets
+│   ├── prisma/               # Database schema and migrations
+│   └── messages/             # Translation catalogs
+```
+
+## Authoritative Conventions
+
+### UI & Styling
+
+- **Components**: Use Shadcn UI and Radix UI primitives
+- **Styling**: Tailwind CSS with responsive design
+- **Colors**: Use semantic colors from `globals.css`; never hardcode hex values
+- **Sizing**: Use `size-4` instead of `h-4 w-4`
+- **Themes**: Ensure compatibility with both dark and light modes
+
+### TypeScript Usage
+
+- **Mandatory**: Use TypeScript for all code
+- **Interfaces**: Prefer interfaces over types
+- **Enums**: Avoid enums; use maps instead
+- **Components**: Use functional components with TypeScript interfaces
+- **Inference**: Leverage Prisma type inference when possible
+
+### Key Conventions
+
+- **URL State**: Use `nuqs` for URL search parameter state management
+- **Client Components**: Limit `'use client'` usage
+  - Favor server components and Next.js SSR
+  - Use only for Web API access in small components
+  - Avoid for data fetching or state management
+- **Async Operations**: Use Suspense for async operations
+- **Data Fetching**: Follow Next.js docs for Data Fetching, Rendering, and Routing
+
+### Naming & Patterns
+
+- **Components**: PascalCase (e.g., `UserProfile`)
+- **Types/Interfaces**: PascalCase (e.g., `UserData`)
+- **Functions**: camelCase (e.g., `getUserData`)
+- **Constants**: SCREAMING_SNAKE_CASE (e.g., `API_BASE_URL`)
+- **Directories**: kebab-case (e.g., `user-profile`)
+- **Prisma Models**: Singular (e.g., `User`, not `Users`)
+- **Event Handlers**: Prefix with `handle` (e.g., `handleSubmit`)
+- **Exports**: Prefer named exports
+- **Functions**: Use `function` keyword for pure functions
+
+### Code Style
+
+- **Indentation**: Two spaces, semicolons enforced by Prettier
+- **Formatting**: Run `pnpm sokosumi-web:format` after substantial edits
+- **Imports**: Relative within features, use aliases (`@/lib/*`) otherwise
+- **Components**: Default to Server Components; add `'use client'` only for browser APIs
+
+## Environment & Tooling
+
+### Prerequisites
+
+- Node.js 22+
+- pnpm package manager
+
+### Setup
+
+1. Run `pnpm install` at repo root
+2. Copy `web-app/.env.example` to `web-app/.env`
+3. Bootstrap database: `pnpm prisma:migrate:dev`
+4. Generate Prisma clients: `pnpm prisma:generate`
+5. Generate API clients: `pnpm generate:api` (when specs change)
+
+## Commands
+
+| Command                         | Purpose                      |
+| ------------------------------- | ---------------------------- |
+| `pnpm install`                  | Install dependencies         |
+| `pnpm dev`                      | Watch all workspace packages |
+| `pnpm sokosumi-web:dev`         | Run web app dev server       |
+| `pnpm build`                    | Build for production         |
+| `pnpm sokosumi-web:start`       | Smoke test production build  |
+| `pnpm lint`                     | Lint codebase                |
+| `pnpm sokosumi-web:lint:report` | CI-friendly lint report      |
+| `pnpm test`                     | Run tests locally            |
+| `pnpm sokosumi-web:test:ci`     | CI test execution            |
+| `pnpm sokosumi-web:format`      | Format code with Prettier    |
 
 ## Testing Guidelines
-Write Jest + Testing Library specs in feature-level `__tests__` folders with `.test.ts` suffixes. Mock external services with existing fixtures. Pair schema changes with matching `data-migration` scripts, then run `pnpm test:ci`, `pnpm lint`, and relevant Prisma commands before opening a PR.
+
+- **Framework**: Jest with happy-dom and Testing Library
+- **Test Files**: Name as `*.test.ts(x)` and colocate under nearest `__tests__/`
+- **Coverage**: Cover both success and failure paths when touching `src/lib`
+- **Mocking**: Use `__mocks__` or Prisma factories for external services
+- **Execution**: No watch mode—run `pnpm test` and refresh snapshots before pushing
 
 ## Commit & Pull Request Guidelines
-Commits and PR titles follow Conventional Commit syntax (`feat(auth): add passkey login`). Branch from `main`, push early, and open draft PRs for discussion. Include change summaries, linked issues, and UI screenshots or Looms when applicable. Confirm linting, tests, migrations, and API client generation succeed locally before marking a PR ready for review.
+
+### Commits
+
+Follow [Conventional Commit](https://www.conventionalcommits.org/en/v1.0.0/) syntax:
+
+```
+feat(auth): add refresh token (#1234)
+fix(ui): resolve button alignment issue
+docs(readme): update setup instructions
+```
+
+### Pull Requests
+
+- **Description**: Explain user-facing impact
+- **Links**: Reference Linear or GitHub issues
+- **Verification**: List steps (e.g., `pnpm test`, `pnpm build`)
+- **Screenshots**: Attach for UI updates
+- **Schema Changes**: Flag migration filenames and mention data scripts (`pnpm data-migration:<name>`)
+
+## Agent Operating Rules
+
+### Status Updates
+
+- Provide clear status updates during long-running tasks
+- Use todo lists for complex multi-step tasks
+- Mark tasks as complete immediately after finishing
+
+### Code Changes
+
+- Prefer editing existing files over creating new ones
+- Use semantic search to understand codebase before making changes
+- Follow the three-layer architecture pattern
+- Minimize `'use client'` usage; prefer Server Components and server actions
+
+### Code References
+
+- Use backticks for file, directory, function, and class names
+- Reference existing code rather than duplicating it
+- Use `@/lib/*` aliases for imports
+
+## References
+
+- [Cursor Agents Documentation](https://cursor.com/docs/context/rules#agentsmd)
+- [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
+- [Next.js App Router](https://nextjs.org/docs/app)
+- [Shadcn UI](https://ui.shadcn.com/)
+- [Tailwind CSS](https://tailwindcss.com/)
