@@ -1,10 +1,13 @@
 ---
 description: UI and Styling
-globs: 
+globs:
 alwaysApply: true
 ---
+
 - Use Shadcn UI, Radix, and Tailwind for components and styling.
 - Implement responsive design with Tailwind CSS.
 - Never use hardcoded colors such as hex values.
+- Use semantic colors defined in `globals.css`.
+- Don't use h-4 and w-4. Use size-4 instead.
 - Ensure compatibility with both dark and light modes.
 - Use `next-intl` for Internationalization for Next.js
