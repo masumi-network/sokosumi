@@ -1,5 +1,7 @@
 import "server-only";
 
+import { Decimal } from "decimal.js";
+
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { getAuthContext } from "@/lib/auth/utils";
@@ -377,7 +379,12 @@ export const agentService = (() => {
           throw new Error(`Credit cost not found for unit ${amount.unit}`);
         }
         const cents = amount.amount * creditCost.centsPerUnit;
-        const fee = BigInt(Math.ceil(Number(cents) * feeMultiplier));
+        const fee = BigInt(
+          new Decimal(cents.toString())
+            .mul(feeMultiplier) // feeMultiplier = feePercentagePoints / 100
+            .ceil()
+            .toFixed(0),
+        );
 
         // round up to the nearest integer
         totalCents += cents;
