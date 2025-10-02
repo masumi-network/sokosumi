@@ -69,7 +69,7 @@ export const agentService = (() => {
         const units = creditCosts.map(({ unit }) => unit);
         const amounts = agent.pricing.fixedPricing?.amounts?.map((amount) => ({
           unit: amount.unit,
-          amount: Number(amount.amount),
+          amount: amount.amount,
         }));
         if (!amounts) {
           // There must be fixedPricing for FIXED pricing type
