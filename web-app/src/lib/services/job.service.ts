@@ -2,6 +2,7 @@ import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
 import { getTranslations } from "next-intl/server";
+import { Err } from "src/lib/ts-res";
 import { v4 as uuidv4 } from "uuid";
 
 import { getEnvPublicConfig } from "@/config/env.public";
@@ -780,10 +781,10 @@ export const jobService = (() => {
     const [agentJobStatusResult, onChainPurchaseResult] = await Promise.all([
       agentJobIdToSync
         ? await agentClient.fetchAgentJobStatus(job.agent, agentJobIdToSync)
-        : Promise.resolve(null),
+        : Promise.resolve(Err("No agent job ID to sync")),
       purchaseIdToSync
         ? await paymentClient.getPurchaseById(purchaseIdToSync)
-        : Promise.resolve(null),
+        : Promise.resolve(Err("No purchase ID to sync")),
     ]);
 
     const newJobStatus = await prisma.$transaction(
