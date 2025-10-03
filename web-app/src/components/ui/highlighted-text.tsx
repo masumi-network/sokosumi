@@ -36,19 +36,21 @@ export function HighlightedText({
   const after = text.slice(index + q.length);
 
   return (
-    <span className={cn(truncate && "flex w-full", className)}>
-      {before && <span>{before}</span>}
-      <mark className="bg-primary/50 text-foreground rounded-sm px-0.5">
-        {match}
-      </mark>
-      {after && <span className="truncate">{after}</span>}
+    <span className={cn(truncate && "inline-flex w-full", className)}>
+      <span className="truncate">
+        {before && <span>{before}</span>}
+        <mark className="bg-primary/50 text-foreground rounded-sm px-0.5">
+          {match}
+        </mark>
+        {after && <span>{after}</span>}
+      </span>
     </span>
   );
 }
 
 function renderNoHighlight(text: string, truncate: boolean, className?: string) {
   return (
-    <span className={cn(truncate && "flex w-full", className)}>
+    <span className={cn(truncate && "inline-flex w-full", className)}>
       <span className={cn(truncate && "truncate")}>{text}</span>
     </span>
   );

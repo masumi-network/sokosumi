@@ -1,5 +1,5 @@
 import { isToday, isYesterday } from "date-fns";
-import type { useTranslations } from "next-intl";
+import type { createTranslator } from "next-intl";
 
 interface HumanReadableDateOptions {
   locale?: string;
@@ -7,7 +7,7 @@ interface HumanReadableDateOptions {
 
 export function getHumanReadableDate(
   dateInput: Date | number,
-  t: ReturnType<typeof useTranslations>,
+  t: ReturnType<typeof createTranslator>,
   options?: HumanReadableDateOptions,
 ): string {
   const date = new Date(dateInput);

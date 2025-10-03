@@ -16,6 +16,7 @@ import {
 } from "@tanstack/react-table";
 import { useTranslations } from "next-intl";
 import * as React from "react";
+import { useMemo } from "react";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -107,6 +108,70 @@ export default function DataTable<TData, TValue>({
 
   const rowModel = table.getRowModel();
 
+  const visibleLeafColumnsCount = useMemo(
+    () => table.getVisibleLeafColumns().length,
+    [table],
+  );
+
+  const renderedRows = useMemo(() => {
+    let lastGroupKey: string | null = null;
+    const colSpan = visibleLeafColumnsCount;
+
+    return rowModel.rows.map((row) => {
+      const onClick = onRowClick?.(row.original);
+      const currentKey = getGroupKey?.(row.original) ?? null;
+      const needsHeader = currentKey !== null && currentKey !== lastGroupKey;
+      if (currentKey !== null) lastGroupKey = currentKey;
+
+      return (
+        <React.Fragment key={row.id}>
+          {needsHeader ? (
+            <TableRow>
+              <TableCell
+                aria-label={`Group header for ${currentKey}`}
+                colSpan={colSpan}
+                className="text-muted-foreground p-2 text-xs font-medium tracking-wide uppercase"
+              >
+                {renderGroupHeader
+                  ? renderGroupHeader(currentKey as string)
+                  : (currentKey as string)}
+              </TableCell>
+            </TableRow>
+          ) : null}
+          <TableRow
+            data-state={row.getIsSelected() && "selected"}
+            className={cn(
+              rowClassName?.(row.original),
+              onClick != undefined && "cursor-pointer",
+              disableHover && "hover:bg-transparent",
+            )}
+            onClick={onClick}
+          >
+            {row.getVisibleCells().map((cell) => (
+              <TableCell
+                key={cell.id}
+                className="p-2"
+                style={{
+                  width: cell.column.getSize(),
+                }}
+              >
+                {flexRender(cell.column.columnDef.cell, cell.getContext())}
+              </TableCell>
+            ))}
+          </TableRow>
+        </React.Fragment>
+      );
+    });
+  }, [
+    rowModel.rows,
+    onRowClick,
+    getGroupKey,
+    renderGroupHeader,
+    rowClassName,
+    disableHover,
+    visibleLeafColumnsCount,
+  ]);
+
   const tableElements = (
     <div
       className={cn(
@@ -146,58 +211,7 @@ export default function DataTable<TData, TValue>({
             </TableHeader>
             <TableBody className={cn(tableBodyClassName)}>
               {rowModel.rows?.length ? (
-                (() => {
-                  let lastGroupKey: string | null = null;
-                  const colSpan = table.getVisibleLeafColumns().length;
-                  return rowModel.rows.map((row) => {
-                    const onClick = onRowClick?.(row.original);
-                    const currentKey = getGroupKey?.(row.original) ?? null;
-                    const needsHeader =
-                      currentKey !== null && currentKey !== lastGroupKey;
-                    if (currentKey !== null) lastGroupKey = currentKey;
-                    return (
-                      <React.Fragment key={row.id}>
-                        {needsHeader ? (
-                          <TableRow>
-                            <TableCell
-                              aria-label={`Group header for ${currentKey}`}
-                              colSpan={colSpan}
-                              className="text-muted-foreground p-2 text-xs font-medium tracking-wide uppercase"
-                            >
-                              {renderGroupHeader
-                                ? renderGroupHeader(currentKey as string)
-                                : (currentKey as string)}
-                            </TableCell>
-                          </TableRow>
-                        ) : null}
-                        <TableRow
-                          data-state={row.getIsSelected() && "selected"}
-                          className={cn(
-                            rowClassName?.(row.original),
-                            onClick != undefined && "cursor-pointer",
-                            disableHover && "hover:bg-transparent",
-                          )}
-                          onClick={onClick}
-                        >
-                          {row.getVisibleCells().map((cell) => (
-                            <TableCell
-                              key={cell.id}
-                              className="p-2"
-                              style={{
-                                width: cell.column.getSize(),
-                              }}
-                            >
-                              {flexRender(
-                                cell.column.columnDef.cell,
-                                cell.getContext(),
-                              )}
-                            </TableCell>
-                          ))}
-                        </TableRow>
-                      </React.Fragment>
-                    );
-                  });
-                })()
+                renderedRows
               ) : (
                 <TableRow>
                   <TableCell

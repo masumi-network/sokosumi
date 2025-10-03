@@ -83,15 +83,14 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
                 desc: true,
               },
             ]}
-            getGroupKey={(row) =>
-              getHumanReadableDate(
-                new Date((row as JobWithStatus).startedAt),
-                tDatetime,
-                {
-                  locale,
-                },
-              )
-            }
+            getGroupKey={(row) => {
+              const startedAt = (row as JobWithStatus).startedAt;
+              return startedAt
+                ? getHumanReadableDate(new Date(startedAt), tDatetime, {
+                    locale,
+                  })
+                : null;
+            }}
             renderGroupHeader={(label) => (
               <div className="px-2 py-1">{label}</div>
             )}
