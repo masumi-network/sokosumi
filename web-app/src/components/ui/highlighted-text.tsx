@@ -19,9 +19,7 @@ export function HighlightedText({
 
   // No highlighting if query is empty or too long
   if (!q || q.length > MAX_HIGHLIGHT_LENGTH) {
-    return (
-      <span className={cn(truncate && "truncate", className)}>{text}</span>
-    );
+    return renderNoHighlight(text, truncate, className);
   }
 
   const lower = text.toLowerCase();
@@ -30,9 +28,7 @@ export function HighlightedText({
 
   // No match found
   if (index === -1) {
-    return (
-      <span className={cn(truncate && "truncate", className)}>{text}</span>
-    );
+    return renderNoHighlight(text, truncate, className);
   }
 
   const before = text.slice(0, index);
@@ -40,12 +36,20 @@ export function HighlightedText({
   const after = text.slice(index + q.length);
 
   return (
-    <span className={cn(truncate && "truncate", className)}>
+    <span className={cn(truncate && "flex w-full", className)}>
       {before && <span>{before}</span>}
       <mark className="bg-primary/50 text-foreground rounded-sm px-0.5">
         {match}
       </mark>
-      {after && <span>{after}</span>}
+      {after && <span className="truncate">{after}</span>}
+    </span>
+  );
+}
+
+function renderNoHighlight(text: string, truncate: boolean, className?: string) {
+  return (
+    <span className={cn(truncate && "flex w-full", className)}>
+      <span className={cn(truncate && "truncate")}>{text}</span>
     </span>
   );
 }

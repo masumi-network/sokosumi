@@ -45,6 +45,9 @@ interface DataTableProps<TData, TValue> {
   defaultSort?: { id: string; desc: boolean }[];
   onRowClick?: (row: TData) => () => void | Promise<void>;
   rowClassName?: (row: TData) => string | undefined;
+  // Optional grouping support: render headers inside tbody before first row of each group
+  getGroupKey?: (row: TData) => string | null | undefined;
+  renderGroupHeader?: (groupKey: string) => React.ReactNode;
 }
 
 export default function DataTable<TData, TValue>({
@@ -62,6 +65,8 @@ export default function DataTable<TData, TValue>({
   defaultSort,
   onRowClick,
   rowClassName,
+  getGroupKey,
+  renderGroupHeader,
 }: DataTableProps<TData, TValue>) {
   const t = useTranslations("Components.DataTable.Data");
 
@@ -141,36 +146,58 @@ export default function DataTable<TData, TValue>({
             </TableHeader>
             <TableBody className={cn(tableBodyClassName)}>
               {rowModel.rows?.length ? (
-                rowModel.rows.map((row) => {
-                  const onClick = onRowClick?.(row.original);
-                  return (
-                    <TableRow
-                      key={row.id}
-                      data-state={row.getIsSelected() && "selected"}
-                      className={cn(
-                        rowClassName?.(row.original),
-                        onClick != undefined && "cursor-pointer",
-                        disableHover && "hover:bg-transparent",
-                      )}
-                      onClick={onClick}
-                    >
-                      {row.getVisibleCells().map((cell) => (
-                        <TableCell
-                          key={cell.id}
-                          className="p-2"
-                          style={{
-                            width: cell.column.getSize(),
-                          }}
-                        >
-                          {flexRender(
-                            cell.column.columnDef.cell,
-                            cell.getContext(),
+                (() => {
+                  let lastGroupKey: string | null = null;
+                  const colSpan = table.getVisibleLeafColumns().length;
+                  return rowModel.rows.map((row) => {
+                    const onClick = onRowClick?.(row.original);
+                    const currentKey = getGroupKey?.(row.original) ?? null;
+                    const needsHeader =
+                      currentKey !== null && currentKey !== lastGroupKey;
+                    if (currentKey !== null) lastGroupKey = currentKey;
+                    return (
+                      <React.Fragment key={row.id}>
+                        {needsHeader ? (
+                          <TableRow>
+                            <TableCell
+                              aria-label={`Group header for ${currentKey}`}
+                              colSpan={colSpan}
+                              className="text-muted-foreground p-2 text-xs font-medium tracking-wide uppercase"
+                            >
+                              {renderGroupHeader
+                                ? renderGroupHeader(currentKey as string)
+                                : (currentKey as string)}
+                            </TableCell>
+                          </TableRow>
+                        ) : null}
+                        <TableRow
+                          data-state={row.getIsSelected() && "selected"}
+                          className={cn(
+                            rowClassName?.(row.original),
+                            onClick != undefined && "cursor-pointer",
+                            disableHover && "hover:bg-transparent",
                           )}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  );
-                })
+                          onClick={onClick}
+                        >
+                          {row.getVisibleCells().map((cell) => (
+                            <TableCell
+                              key={cell.id}
+                              className="p-2"
+                              style={{
+                                width: cell.column.getSize(),
+                              }}
+                            >
+                              {flexRender(
+                                cell.column.columnDef.cell,
+                                cell.getContext(),
+                              )}
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      </React.Fragment>
+                    );
+                  });
+                })()
               ) : (
                 <TableRow>
                   <TableCell
