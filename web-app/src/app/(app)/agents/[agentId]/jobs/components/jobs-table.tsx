@@ -11,7 +11,7 @@ import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 import { useAsyncRouter } from "@/hooks/use-async-router";
 import { makeAgentJobsChannel } from "@/lib/ably";
 import { JobWithStatus } from "@/lib/db";
-import { cn, getHumanReadableDate } from "@/lib/utils";
+import { cn, getDateGroupKey, getDateGroupLabel } from "@/lib/utils";
 
 import { getJobColumns } from "./job-columns";
 import { JobsSearch } from "./jobs-search";
@@ -84,13 +84,12 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
               },
             ]}
             getGroupKey={(row) => {
-              return getHumanReadableDate(row.startedAt, tDatetime, {
-                locale,
-              });
+              return getDateGroupKey(row.startedAt);
             }}
-            renderGroupHeader={(label) => (
-              <div className="px-2 py-1">{label}</div>
-            )}
+            renderGroupHeader={(groupKey) => {
+              const label = getDateGroupLabel(groupKey, tDatetime, { locale });
+              return <div className="px-2 py-1">{label}</div>;
+            }}
           />
         </div>
       </ChannelProvider>

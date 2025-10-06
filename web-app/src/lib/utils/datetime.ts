@@ -29,6 +29,36 @@ export function getHumanReadableDate(
   return rtf.format(value, unit);
 }
 
+/**
+ * Returns a stable date key for grouping purposes.
+ * Uses calendar day boundaries to ensure consistent grouping.
+ */
+export function getDateGroupKey(dateInput: Date | number): string | null {
+  const date = new Date(dateInput);
+  if (isNaN(date.getTime())) return null;
+
+  // Return YYYY-MM-DD format for stable grouping
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Converts a date group key (YYYY-MM-DD) to a human-readable label.
+ */
+export function getDateGroupLabel(
+  groupKey: string,
+  t: ReturnType<typeof createTranslator>,
+  options?: HumanReadableDateOptions,
+): string {
+  const date = new Date(groupKey + "T00:00:00");
+  if (isNaN(date.getTime())) return groupKey;
+
+  return getHumanReadableDate(date, t, options) ?? groupKey;
+}
+
 // Helper to get largest time unit and value
 function getRelativeTimeParts(seconds: number): {
   value: number;
