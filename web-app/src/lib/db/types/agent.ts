@@ -34,6 +34,7 @@ export const agentJobsInclude = {
 
 export const agentOrganizationsInclude = {
   organizations: true,
+  blacklistedOrganizations: true,
 } as const;
 
 export const agentInclude = {

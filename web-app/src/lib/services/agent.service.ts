@@ -45,6 +45,13 @@ export const agentService = (() => {
     agent: AgentWithOrganizations,
     userOrganizationIds: string[],
   ): boolean {
+    // Blacklist: deny if user belongs to any organization that blacklisted this agent
+    const isBlacklisted = agent.blacklistedOrganizations.some((org) =>
+      userOrganizationIds.includes(org.id),
+    );
+    if (isBlacklisted) return false;
+
+    // Visibility: deny if agent is not shown
     if (!agent.isShown) return false;
     if (agent.organizations.length === 0) return true;
     if (userOrganizationIds.length === 0) return false;
