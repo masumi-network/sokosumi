@@ -9,10 +9,11 @@ export function getHumanReadableDate(
   dateInput: Date | number,
   t: ReturnType<typeof createTranslator>,
   options?: HumanReadableDateOptions,
-): string {
+): string | null {
   const date = new Date(dateInput);
-  if (isToday(date)) return t("today") ?? "today";
-  if (isYesterday(date)) return t("yesterday") ?? "yesterday";
+  if (isNaN(date.getTime())) return null;
+  if (isToday(date)) return t("today");
+  if (isYesterday(date)) return t("yesterday");
 
   // Use next-intl's t for today/yesterday, otherwise use Intl.RelativeTimeFormat for relative dates
   const now = new Date();
