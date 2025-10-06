@@ -73,9 +73,9 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
           <DataTable
             tableClassName="[&>div>div>div]:flex! [&>div>div>div]:md:table!"
             columns={columns}
-            onRowClick={(row) => getOnRowClick(row as JobWithStatus)}
+            onRowClick={(row) => getOnRowClick(row)}
             data={filteredJobs}
-            rowClassName={(row) => getRowClassName(row as JobWithStatus)}
+            rowClassName={(row) => getRowClassName(row)}
             containerClassName={cn("min-h-[300px] bg-transparent")}
             defaultSort={[
               {
@@ -84,12 +84,9 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
               },
             ]}
             getGroupKey={(row) => {
-              const startedAt = (row as JobWithStatus).startedAt;
-              return startedAt
-                ? getHumanReadableDate(new Date(startedAt), tDatetime, {
-                    locale,
-                  })
-                : null;
+              return getHumanReadableDate(row.startedAt, tDatetime, {
+                locale,
+              });
             }}
             renderGroupHeader={(label) => (
               <div className="px-2 py-1">{label}</div>
