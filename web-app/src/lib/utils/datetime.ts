@@ -37,10 +37,10 @@ export function getDateGroupKey(dateInput: Date | number): string | null {
   const date = new Date(dateInput);
   if (isNaN(date.getTime())) return null;
 
-  // Return YYYY-MM-DD format for stable grouping
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
+  // Use UTC to match database storage
+  const year = date.getUTCFullYear();
+  const month = String(date.getUTCMonth() + 1).padStart(2, "0");
+  const day = String(date.getUTCDate()).padStart(2, "0");
 
   return `${year}-${month}-${day}`;
 }
@@ -53,7 +53,8 @@ export function getDateGroupLabel(
   t: ReturnType<typeof createTranslator>,
   options?: HumanReadableDateOptions,
 ): string {
-  const date = new Date(groupKey + "T00:00:00");
+  // Parse as UTC date to match database storage
+  const date = new Date(groupKey + "T00:00:00Z"); // Note the Z
   if (isNaN(date.getTime())) return groupKey;
 
   return getHumanReadableDate(date, t, options) ?? groupKey;

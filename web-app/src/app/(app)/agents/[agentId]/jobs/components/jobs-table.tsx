@@ -84,7 +84,7 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
               },
             ]}
             getGroupKey={(row) => {
-              return getDateGroupKey(row.startedAt);
+              return row.startedAt ? getDateGroupKey(row.startedAt) : null;
             }}
             renderGroupHeader={(groupKey) => {
               const label = getDateGroupLabel(groupKey, tDatetime, { locale });
