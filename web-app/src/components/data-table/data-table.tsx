@@ -126,7 +126,7 @@ export default function DataTable<TData, TValue>({
       return (
         <React.Fragment key={row.id}>
           {needsHeader ? (
-            <TableRow>
+            <TableRow className="border-b-0">
               <TableCell
                 aria-label={`Group header for ${currentKey}`}
                 colSpan={colSpan}
