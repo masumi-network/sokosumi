@@ -210,6 +210,7 @@ export const createHash = (input: string) => {
 };
 
 export * from "./crypto";
+export * from "./datetime";
 export * from "./duration";
 export * from "./email";
 export * from "./parse-date";

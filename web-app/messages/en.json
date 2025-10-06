@@ -519,6 +519,12 @@
       "copy": "Copy",
       "copySuccess": "Copied to clipboard",
       "copyError": "Failed to copy"
+    },
+    "Utils": {  
+      "HumanReadableDate": {
+        "today": "Today",
+        "yesterday": "Yesterday"
+      }
     }
   },
   "AcceptInvitation": {

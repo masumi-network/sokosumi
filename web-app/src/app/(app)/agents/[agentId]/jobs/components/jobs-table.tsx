@@ -2,16 +2,16 @@
 
 import { ChannelProvider } from "ably/react";
 import { useParams, useSearchParams } from "next/navigation";
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 import { DataTable } from "@/components/data-table";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 import { useAsyncRouter } from "@/hooks/use-async-router";
 import { makeAgentJobsChannel } from "@/lib/ably";
 import { JobWithStatus } from "@/lib/db";
-import { cn } from "@/lib/utils";
+import { cn, getDateGroupKey, getDateGroupLabel } from "@/lib/utils";
 
 import { getJobColumns } from "./job-columns";
 import { JobsSearch } from "./jobs-search";
@@ -23,6 +23,8 @@ interface JobsTableProps {
 
 export default function JobsTable({ jobs, userId }: JobsTableProps) {
   const t = useTranslations("Components.Jobs.JobsTable");
+  const tDatetime = useTranslations("Components.Utils.HumanReadableDate");
+  const locale = useLocale();
   const dateFormatter = useFormatter();
   const params = useParams<{ agentId: string; jobId?: string | undefined }>();
   const searchParams = useSearchParams();
@@ -43,6 +45,21 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
     setRouterLoading(false);
   };
 
+  const columns = useMemo(
+    () => getColumns(userId, t, dateFormatter, queryParam),
+    [userId, t, dateFormatter, queryParam],
+  );
+  const getRowClassName = (row: JobWithStatus) =>
+    cn({
+      "text-primary-foreground bg-primary hover:bg-primary active:bg-primary":
+        params.jobId === row.id,
+      "text-foreground active:bg-muted hover:bg-muted": params.jobId !== row.id,
+    });
+  const getOnRowClick = (row: JobWithStatus) => async () => {
+    if (routerLoading) return;
+    await handleRowClick(row);
+  };
+
   return (
     <DynamicAblyProvider>
       <ChannelProvider
@@ -55,20 +72,10 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
           />
           <DataTable
             tableClassName="[&>div>div>div]:flex! [&>div>div>div]:md:table!"
-            columns={getColumns(userId, t, dateFormatter, queryParam)}
-            onRowClick={(row) => async () => {
-              if (routerLoading) return;
-              await handleRowClick(row as JobWithStatus);
-            }}
+            columns={columns}
+            onRowClick={(row) => getOnRowClick(row)}
             data={filteredJobs}
-            rowClassName={(row) => {
-              return cn({
-                "text-primary-foreground bg-primary hover:bg-primary active:bg-primary":
-                  params.jobId === row.id,
-                "text-foreground active:bg-muted hover:bg-muted":
-                  params.jobId !== row.id,
-              });
-            }}
+            rowClassName={(row) => getRowClassName(row)}
             containerClassName={cn("min-h-[300px] bg-transparent")}
             defaultSort={[
               {
@@ -76,6 +83,13 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
                 desc: true,
               },
             ]}
+            getGroupKey={(row) => {
+              return row.startedAt ? getDateGroupKey(row.startedAt) : null;
+            }}
+            renderGroupHeader={(groupKey) => {
+              const label = getDateGroupLabel(groupKey, tDatetime, { locale });
+              return <div className="px-2 py-1">{label}</div>;
+            }}
           />
         </div>
       </ChannelProvider>
@@ -95,6 +109,5 @@ function getColumns(
     dateFormatter,
     highlightQuery,
   );
-
   return [startedAtColumn, statusColumn, nameColumn];
 }
