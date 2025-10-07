@@ -475,6 +475,11 @@ enum FiatService {
   STRIPE
 }
 
+enum JobType {
+  FREE
+  PAID
+}
+
 model Job {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
@@ -499,8 +504,8 @@ model Job {
   output            String?
   resultHash        String? // On-Chain hash of the result data
   startedAt         DateTime  @default(now())
-  completedAt       DateTime? // when the job was completed on the agent side
-  resultSubmittedAt DateTime? // when the job on-chain status was `RESULT_SUBMITTED`
+  completedAt       DateTime?
+  resultSubmittedAt DateTime?
 
   nextAction          NextJobAction           @default(NONE)
   nextActionErrorType NextJobActionErrorType?
@@ -509,13 +514,15 @@ model Job {
   errorNote    String?
   errorNoteKey String?
 
-  blockchainIdentifier      String   @unique
-  payByTime                 DateTime
-  submitResultTime          DateTime
-  unlockTime                DateTime
-  externalDisputeUnlockTime DateTime
-  sellerVkey                String
-  identifierFromPurchaser   String
+  jobType JobType
+
+  blockchainIdentifier      String?
+  payByTime                 DateTime?
+  submitResultTime          DateTime?
+  unlockTime                DateTime?
+  externalDisputeUnlockTime DateTime?
+  sellerVkey                String?
+  identifierFromPurchaser   String?
 
   onChainStatus OnChainJobStatus?
 
@@ -527,16 +534,16 @@ model Job {
   refundedCreditTransaction   CreditTransaction? @relation("RefundedCreditTransactionJob", fields: [refundedCreditTransactionId], references: [id])
   refundedCreditTransactionId String?            @unique
 
-  name String? // user-defined job name
+  name String?
 
-  // is demo job?
   isDemo Boolean @default(false)
 
   blobs Blob[] @relation("JobBlob")
   links Link[] @relation("JobLink")
 
-  // JobShares
   shares JobShare[]
+
+  @@index([blockchainIdentifier])
 }
 
 enum OnChainTransactionStatus {
