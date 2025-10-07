@@ -37,8 +37,15 @@ export const agentService = (() => {
   /**
    * Utility: Checks if a user can access an agent based on organization membership and agent visibility.
    *
-   * @param agent - Agent with organization data.
+   * Blacklist behavior:
+   * - When viewing in an organization context (activeOrganizationId present), that organization's
+   *   blacklist is enforced, hiding agents they've explicitly blocked.
+   * - When viewing in personal context (activeOrganizationId is null), no blacklists apply.
+   * - Users in multiple organizations see different agents depending on their active context.
+   *
+   * @param agent - Agent with organization and blacklist data.
    * @param userOrganizationIds - Organization IDs the user is a member of.
+   * @param activeOrganizationId - The currently active organization ID, or null for personal context.
    * @returns True if the user can access the agent, false otherwise.
    */
   function canUserAccessAgent(
@@ -47,6 +54,7 @@ export const agentService = (() => {
     activeOrganizationId: string | null,
   ): boolean {
     // Blacklist: only enforce when organization scope is active
+    // Personal context (null) is not affected by organizational blacklist decisions
     if (activeOrganizationId) {
       const isBlacklisted = agent.blacklistedOrganizations.some(
         ({ id }) => id === activeOrganizationId,
