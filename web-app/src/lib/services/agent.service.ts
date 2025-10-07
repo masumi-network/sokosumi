@@ -44,12 +44,15 @@ export const agentService = (() => {
   function canUserAccessAgent(
     agent: AgentWithOrganizations,
     userOrganizationIds: string[],
+    activeOrganizationId: string | null,
   ): boolean {
-    // Blacklist: deny if user belongs to any organization that blacklisted this agent
-    const isBlacklisted = agent.blacklistedOrganizations.some((org) =>
-      userOrganizationIds.includes(org.id),
-    );
-    if (isBlacklisted) return false;
+    // Blacklist: only enforce when organization scope is active
+    if (activeOrganizationId) {
+      const isBlacklisted = agent.blacklistedOrganizations.some(
+        ({ id }) => id === activeOrganizationId,
+      );
+      if (isBlacklisted) return false;
+    }
 
     // Visibility: deny if agent is not shown
     if (!agent.isShown) return false;
@@ -109,9 +112,10 @@ export const agentService = (() => {
     agent: AgentWithRelations,
     organizationIds: string[],
     creditCosts: CreditCost[],
+    activeOrganizationId: string | null,
   ): boolean {
     return (
-      canUserAccessAgent(agent, organizationIds) &&
+      canUserAccessAgent(agent, organizationIds, activeOrganizationId) &&
       hasValidPricing(agent, creditCosts)
     );
   }
@@ -126,6 +130,7 @@ export const agentService = (() => {
   ): Promise<{
     userOrganizationIds: string[];
     creditCosts: CreditCost[];
+    activeOrganizationId: string | null;
   }> => {
     const context = await getAuthContext();
     const creditCosts = await creditCostRepository.getCreditCosts(tx);
@@ -135,7 +140,8 @@ export const agentService = (() => {
           tx,
         )
       : [];
-    return { userOrganizationIds, creditCosts };
+    const activeOrganizationId = context?.organizationId ?? null;
+    return { userOrganizationIds, creditCosts, activeOrganizationId };
   };
 
   /**
@@ -158,12 +164,17 @@ export const agentService = (() => {
         tx,
       );
       if (existingList) {
-        const { userOrganizationIds, creditCosts } =
+        const { userOrganizationIds, creditCosts, activeOrganizationId } =
           await getAgentAccessContext(tx);
         return existingList.agents
           .map(mapAgentWithIsNew)
           .filter((agent) =>
-            isAgentAvailable(agent, userOrganizationIds, creditCosts),
+            isAgentAvailable(
+              agent,
+              userOrganizationIds,
+              creditCosts,
+              activeOrganizationId,
+            ),
           );
       }
       const list = await agentListRepository.upsertAgentListForUserId(
@@ -214,7 +225,7 @@ export const agentService = (() => {
      */
     getAvailableAgents: async (): Promise<AgentWithRelations[]> => {
       return await prisma.$transaction(async (tx) => {
-        const { userOrganizationIds, creditCosts } =
+        const { userOrganizationIds, creditCosts, activeOrganizationId } =
           await getAgentAccessContext(tx);
         const onlineAgents =
           await agentRepository.getShownAgentsWithRelationsByStatus(
@@ -222,7 +233,12 @@ export const agentService = (() => {
             tx,
           );
         return onlineAgents.filter((agent) =>
-          isAgentAvailable(agent, userOrganizationIds, creditCosts),
+          isAgentAvailable(
+            agent,
+            userOrganizationIds,
+            creditCosts,
+            activeOrganizationId,
+          ),
         );
       });
     },
@@ -246,9 +262,16 @@ export const agentService = (() => {
         tx,
       );
       if (!agent) return null;
-      const { userOrganizationIds, creditCosts } =
+      const { userOrganizationIds, creditCosts, activeOrganizationId } =
         await getAgentAccessContext(tx);
-      if (!isAgentAvailable(agent, userOrganizationIds, creditCosts))
+      if (
+        !isAgentAvailable(
+          agent,
+          userOrganizationIds,
+          creditCosts,
+          activeOrganizationId,
+        )
+      )
         return null;
       return agent;
     },
