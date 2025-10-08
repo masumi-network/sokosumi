@@ -78,7 +78,7 @@
     "isomorphic-dompurify": "2.26.0",
     "json-canonicalize": "2.0.0",
     "lucide-react": "0.545.0",
-    "markdown-to-jsx": "7.7.14",
+    "markdown-to-jsx": "7.7.15",
     "marked": "16.4.0",
     "mdast2docx": "1.6.0",
     "nanoid": "5.1.6",

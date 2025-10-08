@@ -222,8 +222,8 @@ importers:
         specifier: 0.545.0
         version: 0.545.0(react@19.2.0)
       markdown-to-jsx:
-        specifier: 7.7.14
-        version: 7.7.14(react@19.2.0)
+        specifier: 7.7.15
+        version: 7.7.15(react@19.2.0)
       marked:
         specifier: 16.4.0
         version: 16.4.0
@@ -5854,11 +5854,14 @@ packages:
   markdown-table@3.0.4:
     resolution: {integrity: sha512-wiYz4+JrLyb/DqW2hkFJxP7Vd7JuTDm77fvbM8VfEQdmSMqcImWeeRbHwZjBjIFki/VaMK2BhFi7oUUZeM5bqw==}
 
-  markdown-to-jsx@7.7.14:
-    resolution: {integrity: sha512-OBq0NiByoHZTQk+CO0b4A6OJktyChs/L4E9SsrJ7z2FX3r4qQFcxOyytzW6GGVIL9wvjoxMdPySDxXyFIB64Qw==}
+  markdown-to-jsx@7.7.15:
+    resolution: {integrity: sha512-U5dw5oRajrPTE2oJQWAbLK8RgbCDJ264AjW3fGABq+/rZjQ0E/WGVCLKAHvpKHQFUwoWoK8ZZWVPNLR/biYMhg==}
     engines: {node: '>= 10'}
     peerDependencies:
       react: '>= 0.14.0'
+    peerDependenciesMeta:
+      react:
+        optional: true
 
   marked@16.4.0:
     resolution: {integrity: sha512-CTPAcRBq57cn3R8n3hwc2REddc28hjR7RzDXQ+lXLmMJYqn20BaI2cGw6QjgZGIgVfp2Wdfw4aMzgNteQ6qJgQ==}
@@ -13925,8 +13928,8 @@ snapshots:
 
   markdown-table@3.0.4: {}
 
-  markdown-to-jsx@7.7.14(react@19.2.0):
-    dependencies:
+  markdown-to-jsx@7.7.15(react@19.2.0):
+    optionalDependencies:
       react: 19.2.0
 
   marked@16.4.0: {}
