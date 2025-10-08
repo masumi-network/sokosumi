@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
 import { Fragment, ReactNode, useMemo, useState } from "react";
 
-import { HashValue } from "@/components/hash-value";
+import { CopyableValue } from "@/components/copyable-value";
 import { MiddleTruncate } from "@/components/middle-truncate";
 import {
   Collapsible,
@@ -76,7 +76,7 @@ export function JobMetaDetails({ job }: JobMetaDetailsProps) {
       key: "jobId",
       label: t("jobId"),
       rowClassName: "pb-1",
-      content: <MiddleTruncate text={job.id} />,
+      content: <CopyableValue value={job.agentJobId} />,
     },
     {
       key: "txId",
@@ -238,7 +238,7 @@ function HashGroupRow({
         <span className="font-bold break-all md:col-span-1">{label}</span>
         <div className="break-all md:col-span-2">
           <div className="flex items-center gap-2">
-            <HashValue value={onChainHash} />
+            <CopyableValue value={onChainHash} />
             <JobVerificationBadge direction={direction} job={job} />
           </div>
         </div>
@@ -258,7 +258,7 @@ function HashGroupRow({
           <span className="font-bold break-all md:col-span-1">{label}</span>
           <div className="flex items-center justify-between gap-2 break-all md:col-span-2">
             <div className="flex items-center gap-2">
-              <HashValue value={onChainHash ?? calculatedHash} />
+              <CopyableValue value={onChainHash ?? calculatedHash} />
               <JobVerificationBadge direction={direction} job={job} />
             </div>
             <span className="text-muted-foreground inline-flex h-4 w-4 flex-shrink-0 items-center justify-center">
@@ -278,7 +278,7 @@ function HashGroupRow({
           </span>
           <div className="break-all md:col-span-2">
             {onChainHash ? (
-              <HashValue value={onChainHash} />
+              <CopyableValue value={onChainHash} />
             ) : (
               <span className="text-destructive inline-flex items-center gap-1">
                 {tMissing}
@@ -291,7 +291,7 @@ function HashGroupRow({
             {tLabelCalculated}
           </span>
           <div className="break-all md:col-span-2">
-            <HashValue value={calculatedHash} />
+            <CopyableValue value={calculatedHash} />
           </div>
         </div>
       </CollapsibleContent>
