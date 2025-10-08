@@ -12,7 +12,6 @@ import { JobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { getAuthContext } from "@/lib/auth/utils";
 import { agentClient, anthropicClient, paymentClient } from "@/lib/clients";
 import {
-  AgentWithCreditsPrice,
   AgentWithRelations,
   computeJobStatus,
   getAgentName,
@@ -377,7 +376,7 @@ export const jobService = (() => {
    */
   async function startPaidJobInternal(
     input: StartJobInputSchemaType,
-    agentWithCreditsPrice: AgentWithCreditsPrice,
+    agent: AgentWithRelations,
   ): Promise<Job> {
     const {
       userId,
@@ -400,48 +399,55 @@ export const jobService = (() => {
       },
     });
 
-    // Validate cost not too high
-    if (agentWithCreditsPrice.creditsPrice.cents > maxAcceptedCents) {
-      Sentry.setTag("error_type", "cost_too_high");
-      Sentry.setContext("cost_validation", {
-        agentId,
-        creditsCents: agentWithCreditsPrice.creditsPrice.cents,
-        maxAcceptedCents,
-        organizationId,
+    // Get pricing and validate balance in single transaction
+    const agentWithCreditsPrice = await prisma.$transaction(async (tx) => {
+      // Get pricing for paid job
+      const agentWithPrice = await agentService.getAgentCreditsPrice(agent, tx);
+
+      // Validate cost not too high
+      if (agentWithPrice.creditsPrice.cents > maxAcceptedCents) {
+        Sentry.setTag("error_type", "cost_too_high");
+        Sentry.setContext("cost_validation", {
+          agentId,
+          creditsCents: agentWithPrice.creditsPrice.cents,
+          maxAcceptedCents,
+          organizationId,
+        });
+
+        Sentry.captureMessage(
+          `Credit cost too high: ${agentWithPrice.creditsPrice.cents} > ${maxAcceptedCents}`,
+          "warning",
+        );
+        throw new JobError(
+          JobErrorCode.COST_TOO_HIGH,
+          "Credit cost is too high",
+        );
+      }
+
+      // Add breadcrumb for credit validation
+      Sentry.addBreadcrumb({
+        category: "Job Service",
+        message: "Validating credit balance",
+        level: "info",
+        data: {
+          creditsCents: agentWithPrice.creditsPrice.cents,
+          organizationId,
+        },
       });
 
-      Sentry.captureMessage(
-        `Credit cost too high: ${agentWithCreditsPrice.creditsPrice.cents} > ${maxAcceptedCents}`,
-        "warning",
-      );
-      throw new JobError(JobErrorCode.COST_TOO_HIGH, "Credit cost is too high");
-    }
-
-    // Add breadcrumb for credit validation
-    Sentry.addBreadcrumb({
-      category: "Job Service",
-      message: "Validating credit balance",
-      level: "info",
-      data: {
-        creditsCents: agentWithCreditsPrice.creditsPrice.cents,
-        organizationId,
-      },
-    });
-
-    // Validate balance in transaction
-    if (agentWithCreditsPrice.creditsPrice.cents > 0) {
-      await prisma.$transaction(async (tx) => {
+      // Validate balance in same transaction
+      if (agentWithPrice.creditsPrice.cents > 0) {
         try {
           if (organizationId) {
             await validateOrganizationCreditsBalance(
               organizationId,
-              agentWithCreditsPrice.creditsPrice.cents,
+              agentWithPrice.creditsPrice.cents,
               tx,
             );
           } else {
             await validateUserCreditsBalance(
               userId,
-              agentWithCreditsPrice.creditsPrice.cents,
+              agentWithPrice.creditsPrice.cents,
               tx,
             );
           }
@@ -450,23 +456,25 @@ export const jobService = (() => {
           Sentry.setContext("balance_validation", {
             userId,
             organizationId,
-            creditsCents: agentWithCreditsPrice.creditsPrice.cents,
+            creditsCents: agentWithPrice.creditsPrice.cents,
             isOrganization: !!organizationId,
           });
           throw error;
         }
-      });
-    }
+      }
 
-    // Add breadcrumb for successful validation
-    Sentry.addBreadcrumb({
-      category: "Job Service",
-      message: "Credit validation successful",
-      level: "info",
-      data: {
-        creditsCents: agentWithCreditsPrice.creditsPrice.cents,
-        organizationId,
-      },
+      // Add breadcrumb for successful validation
+      Sentry.addBreadcrumb({
+        category: "Job Service",
+        message: "Credit validation successful",
+        level: "info",
+        data: {
+          creditsCents: agentWithPrice.creditsPrice.cents,
+          organizationId,
+        },
+      });
+
+      return agentWithPrice;
     });
 
     // Start job
@@ -792,12 +800,7 @@ export const jobService = (() => {
           level: "info",
         });
 
-        // Get pricing for paid job
-        const agentWithCreditsPrice = await prisma.$transaction(async (tx) => {
-          return await agentService.getAgentCreditsPrice(agent, tx);
-        });
-
-        return startPaidJobInternal(input, agentWithCreditsPrice);
+        return startPaidJobInternal(input, agent);
 
       case PricingType.UNKNOWN:
       default:
