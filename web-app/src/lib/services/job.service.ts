@@ -31,6 +31,7 @@ import {
 } from "@/lib/db/repositories";
 import { reactJobStatusEmail } from "@/lib/email/job-status";
 import { postmarkClient } from "@/lib/email/postmark";
+import { JobInputData } from "@/lib/job-input";
 import {
   JobStatusResponseSchemaType,
   PricingAmountsSchemaType,
@@ -248,6 +249,61 @@ export const jobService = (() => {
       );
     }
   };
+
+  /**
+   * Generates a job name using AI based on agent information and input data.
+   * Returns null if generation fails.
+   *
+   * @param agent - Agent with name and description
+   * @param inputData - Input data for the job
+   * @returns Generated job name or null if generation fails
+   */
+  async function generateJobNameForAgent(
+    agent: { name: string; description: string | null },
+    inputData: JobInputData,
+  ): Promise<string | null> {
+    try {
+      Sentry.addBreadcrumb({
+        category: "Job Service",
+        message: "Generating job name via AI",
+        level: "info",
+        data: { agentName: agent.name },
+      });
+
+      return await anthropicClient.generateJobName(
+        { name: agent.name, description: agent.description },
+        inputData,
+      );
+    } catch (error) {
+      Sentry.withScope((scope) => {
+        scope.setTag("error_type", "job_name_generation_failed");
+        Sentry.captureException(error, {
+          contexts: {
+            error_classification: {
+              severity: "warning",
+              domain: "job_name_generation",
+              category: "service_layer",
+            },
+          },
+        });
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Publishes job status data to Ably channels.
+   * Errors are logged but not thrown.
+   *
+   * @param job - Job to publish status for
+   */
+  async function publishJobStatusSafely(job: Job): Promise<void> {
+    try {
+      await publishJobStatusData(job);
+    } catch (err) {
+      console.error("Error publishing job status data", err);
+    }
+  }
 
   /**
    * Starts a demo job for a specified agent with the provided input data.
@@ -501,46 +557,10 @@ export const jobService = (() => {
     }
 
     // Generate job name
-    let generatedName: string | null;
-    try {
-      // Add breadcrumb for job name generation
-      Sentry.addBreadcrumb({
-        category: "Job Service",
-        message: "Generating job name via AI",
-        level: "info",
-        data: {
-          agentName: agentWithCreditsPrice.name,
-        },
-      });
-
-      generatedName = await anthropicClient.generateJobName(
-        {
-          name: agentWithCreditsPrice.name,
-          description: agentWithCreditsPrice.description,
-        },
-        inputData,
-      );
-    } catch (error) {
-      Sentry.withScope((scope) => {
-        scope.setTag("error_type", "job_name_generation_failed");
-        scope.setContext("job_name_generation", {
-          agentId,
-          agentName: agentWithCreditsPrice.name,
-          agentDescription: agentWithCreditsPrice.description,
-        });
-
-        Sentry.captureException(error, {
-          contexts: {
-            error_classification: {
-              severity: "warning",
-              domain: "job_name_generation",
-              category: "service_layer",
-            },
-          },
-        });
-      });
-      generatedName = null;
-    }
+    const generatedName = await generateJobNameForAgent(
+      agentWithCreditsPrice,
+      inputData,
+    );
 
     // Create job
     // Add breadcrumb for job creation
@@ -623,11 +643,7 @@ export const jobService = (() => {
       );
     }
 
-    try {
-      await publishJobStatusData(job);
-    } catch (err) {
-      console.error("Error publishing job status data after creating job", err);
-    }
+    await publishJobStatusSafely(job);
 
     // Add final success breadcrumb
     Sentry.addBreadcrumb({
@@ -689,34 +705,7 @@ export const jobService = (() => {
     const startJobResponse = startJobResult.data;
 
     // Generate job name
-    let generatedName: string | null;
-    try {
-      Sentry.addBreadcrumb({
-        category: "Job Service",
-        message: "Generating job name via AI",
-        level: "info",
-        data: { agentName: agent.name },
-      });
-
-      generatedName = await anthropicClient.generateJobName(
-        { name: agent.name, description: agent.description },
-        inputData,
-      );
-    } catch (error) {
-      Sentry.withScope((scope) => {
-        scope.setTag("error_type", "job_name_generation_failed");
-        Sentry.captureException(error, {
-          contexts: {
-            error_classification: {
-              severity: "warning",
-              domain: "job_name_generation",
-              category: "service_layer",
-            },
-          },
-        });
-      });
-      generatedName = null;
-    }
+    const generatedName = await generateJobNameForAgent(agent, inputData);
 
     // Create free job in database
     Sentry.addBreadcrumb({
@@ -741,14 +730,7 @@ export const jobService = (() => {
       name: generatedName,
     });
 
-    try {
-      await publishJobStatusData(job);
-    } catch (err) {
-      console.error(
-        "Error publishing job status data after creating free job",
-        err,
-      );
-    }
+    await publishJobStatusSafely(job);
 
     Sentry.addBreadcrumb({
       category: "Job Service",
