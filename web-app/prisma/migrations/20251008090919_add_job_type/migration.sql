@@ -15,7 +15,6 @@ ALTER COLUMN "submitResultTime" DROP NOT NULL,
 ALTER COLUMN "unlockTime" DROP NOT NULL,
 ALTER COLUMN "externalDisputeUnlockTime" DROP NOT NULL,
 ALTER COLUMN "sellerVkey" DROP NOT NULL,
-ALTER COLUMN "identifierFromPurchaser" DROP NOT NULL,
 ALTER COLUMN "payByTime" DROP NOT NULL;
 
 -- Backfill existing rows as PAID jobs
@@ -35,8 +34,7 @@ CHECK (
     "submitResultTime" IS NOT NULL AND
     "unlockTime" IS NOT NULL AND
     "externalDisputeUnlockTime" IS NOT NULL AND
-    "sellerVkey" IS NOT NULL AND
-    "identifierFromPurchaser" IS NOT NULL
+    "sellerVkey" IS NOT NULL
   )
 );
 

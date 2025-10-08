@@ -79,6 +79,7 @@ interface CreateJobBase {
   inputSchema: JobInputSchemaType[];
   input: string;
   name: string | null;
+  identifierFromPurchaser: string;
   agentJobStatus?: AgentJobStatus | null;
   output?: string | null;
   completedAt?: Date | null;
@@ -88,7 +89,6 @@ interface CreateJobBase {
 interface CreatePaidJobData extends CreateJobBase {
   jobType: typeof JobType.PAID;
   creditsPrice: CreditsPrice;
-  identifierFromPurchaser: string;
   payByTime: Date;
   externalDisputeUnlockTime: Date;
   submitResultTime: Date;
@@ -345,6 +345,7 @@ export const jobRepository = {
       inputSchema: data.inputSchema,
       input: data.input,
       name: data.name,
+      identifierFromPurchaser: data.identifierFromPurchaser,
       ...(data.agentJobStatus !== undefined && {
         agentJobStatus: data.agentJobStatus,
       }),
@@ -358,7 +359,6 @@ export const jobRepository = {
         return tx.job.create({
           data: {
             ...baseJobData,
-            identifierFromPurchaser: null,
             purchaseId: null,
             payByTime: null,
             externalDisputeUnlockTime: null,
@@ -373,7 +373,6 @@ export const jobRepository = {
           data: {
             ...baseJobData,
             ...(data.purchaseId && { purchaseId: data.purchaseId }),
-            identifierFromPurchaser: data.identifierFromPurchaser,
             payByTime: data.payByTime,
             externalDisputeUnlockTime: data.externalDisputeUnlockTime,
             submitResultTime: data.submitResultTime,

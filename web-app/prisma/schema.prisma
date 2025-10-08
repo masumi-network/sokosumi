@@ -496,8 +496,9 @@ model Job {
   agentId String
   agent   Agent  @relation(fields: [agentId], references: [id])
 
-  agentJobId     String
-  agentJobStatus AgentJobStatus?
+  agentJobId              String
+  agentJobStatus          AgentJobStatus?
+  identifierFromPurchaser String
 
   purchaseId        String?
   inputSchema       Json
@@ -524,7 +525,6 @@ model Job {
   unlockTime                DateTime?
   externalDisputeUnlockTime DateTime?
   sellerVkey                String?
-  identifierFromPurchaser   String?
 
   onChainStatus OnChainJobStatus?
 

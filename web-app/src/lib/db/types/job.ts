@@ -42,13 +42,13 @@ type BaseJobWithStatus = JobWithRelations & {
 
 type BaseFreeJob = {
   jobType: typeof JobType.FREE;
+  identifierFromPurchaser: string;
   blockchainIdentifier: null;
   payByTime: null;
   submitResultTime: null;
   unlockTime: null;
   externalDisputeUnlockTime: null;
   sellerVkey: null;
-  identifierFromPurchaser: null;
   purchaseId: null;
   inputHash: null;
   resultHash: null;
