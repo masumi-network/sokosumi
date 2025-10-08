@@ -7,11 +7,11 @@ import { toast } from "sonner";
 import { MiddleTruncate } from "@/components/middle-truncate";
 import { Button } from "@/components/ui/button";
 
-export interface HashValueProps {
+export interface CopyableValueProps {
   value: string | null;
 }
 
-export function HashValue({ value }: HashValueProps) {
+export function CopyableValue({ value }: CopyableValueProps) {
   const t = useTranslations("Components.HashValue");
   if (!value) return <span>{"-"}</span>;
 
@@ -35,7 +35,7 @@ export function HashValue({ value }: HashValueProps) {
         title={t("copy")}
         aria-label={t("copy")}
       >
-        <Copy className="h-4 w-4" />
+        <Copy className="size-4" />
       </Button>
     </div>
   );

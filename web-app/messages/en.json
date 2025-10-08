@@ -520,7 +520,7 @@
       "copySuccess": "Copied to clipboard",
       "copyError": "Failed to copy"
     },
-    "Utils": {  
+    "Utils": {
       "HumanReadableDate": {
         "today": "Today",
         "yesterday": "Yesterday"
