@@ -4,6 +4,7 @@ import {
   AgentJobStatus,
   Job,
   JobShare,
+  JobType,
   NextJobAction,
   NextJobActionErrorType,
   OnChainJobStatus,
@@ -136,8 +137,34 @@ function getFundsLockedJobStatus(
  * @returns The resolved JobStatus for the job.
  */
 export function computeJobStatus(job: Job): JobStatus {
-  const { onChainStatus, agentJobStatus, nextActionErrorType } = job;
+  switch (job.jobType) {
+    case JobType.FREE:
+      return computeFreeJobStatus(job);
+    case JobType.PAID:
+      return computePaidJobStatus(job);
+  }
+}
 
+function computeFreeJobStatus(job: Job): JobStatus {
+  switch (job.agentJobStatus) {
+    case AgentJobStatus.PENDING:
+    case AgentJobStatus.AWAITING_INPUT:
+      return JobStatus.INPUT_REQUIRED;
+    case AgentJobStatus.COMPLETED:
+      return JobStatus.COMPLETED;
+    case AgentJobStatus.FAILED:
+      return JobStatus.FAILED;
+    case AgentJobStatus.RUNNING:
+      return JobStatus.PROCESSING;
+    case AgentJobStatus.AWAITING_PAYMENT:
+      return JobStatus.FAILED;
+    default:
+      return job.completedAt ? JobStatus.COMPLETED : JobStatus.PROCESSING;
+  }
+}
+
+function computePaidJobStatus(job: Job): JobStatus {
+  const { onChainStatus, agentJobStatus, nextActionErrorType } = job;
   // 1. If the job has already been refunded, return the refund resolved status
   if (job.refundedCreditTransactionId) {
     return JobStatus.REFUND_RESOLVED;
@@ -208,10 +235,17 @@ export function computeJobStatus(job: Job): JobStatus {
  * @returns The job status data.
  */
 export function getJobIndicatorStatus(job: Job): JobIndicatorStatus {
+  const jobStatusSettled =
+    job.jobType === JobType.PAID
+      ? job.externalDisputeUnlockTime
+        ? new Date() > job.externalDisputeUnlockTime
+        : false
+      : job.completedAt != null;
+
   return {
     jobId: job.id,
     jobStatus: computeJobStatus(job),
-    jobStatusSettled: new Date() > job.externalDisputeUnlockTime,
+    jobStatusSettled,
   };
 }
 

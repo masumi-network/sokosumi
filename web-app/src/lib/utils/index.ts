@@ -146,6 +146,10 @@ export function isJobVerified(
   direction: "input" | "output",
   job: JobWithStatus,
 ): boolean {
+  if (!job.identifierFromPurchaser) {
+    return false;
+  }
+
   if (direction === "input") {
     if (!job.inputHash) return false;
     const inputObj = tryParseJson<Record<string, unknown>>(job.input);

@@ -11,10 +11,12 @@ import {
 import {
   CreditsPrice,
   finalizedOnChainJobStatuses,
+  FreeJobWithStatus,
   jobInclude,
   jobOrderBy,
-  JobStatus,
+  JobWithRelations,
   JobWithStatus,
+  PaidJobWithStatus,
 } from "@/lib/db/types";
 import { JobInputSchemaType } from "@/lib/job-input";
 import { JobStatusResponseSchemaType } from "@/lib/schemas";
@@ -22,6 +24,7 @@ import { generateRandomHexString } from "@/lib/utils";
 import {
   AgentJobStatus,
   Job,
+  JobType,
   NextJobAction,
   OnChainJobStatus,
   Prisma,
@@ -30,14 +33,25 @@ import {
 import { creditTransactionRepository } from "./creditTransaction.repository";
 import prisma from "./prisma";
 
-function mapJobWithStatus<T extends Job>(
-  job: T,
-): T & { status: JobStatus; jobStatusSettled: boolean } {
-  return {
+function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
+  const jobStatusSettled =
+    job.jobType === JobType.PAID
+      ? job.externalDisputeUnlockTime != null
+        ? new Date() > job.externalDisputeUnlockTime
+        : false
+      : job.completedAt != null;
+
+  const jobWithStatus = {
     ...job,
     status: computeJobStatus(job),
-    jobStatusSettled: new Date() > job.externalDisputeUnlockTime,
+    jobStatusSettled,
   };
+
+  if (job.jobType === JobType.PAID) {
+    return jobWithStatus as PaidJobWithStatus;
+  }
+
+  return jobWithStatus as FreeJobWithStatus;
 }
 
 interface CreateDemoJobData {
@@ -57,14 +71,22 @@ interface CreateDemoJobData {
   resultHash: string | null;
 }
 
-interface CreateJobData {
+interface CreateJobBase {
   agentJobId: string;
   agentId: string;
   userId: string;
   organizationId: string | null | undefined;
   inputSchema: JobInputSchemaType[];
   input: string;
-  purchaseId?: string;
+  name: string | null;
+  agentJobStatus?: AgentJobStatus | null;
+  output?: string | null;
+  completedAt?: Date | null;
+  isDemo?: boolean;
+}
+
+interface CreatePaidJobData extends CreateJobBase {
+  jobType: typeof JobType.PAID;
   creditsPrice: CreditsPrice;
   identifierFromPurchaser: string;
   payByTime: Date;
@@ -73,13 +95,14 @@ interface CreateJobData {
   unlockTime: Date;
   blockchainIdentifier: string;
   sellerVkey: string;
-  name: string | null;
-  // for demo jobs
-  agentJobStatus?: AgentJobStatus | null;
-  output?: string | null;
-  completedAt?: Date | null;
-  isDemo?: boolean;
+  purchaseId?: string;
 }
+
+interface CreateFreeJobData extends CreateJobBase {
+  jobType: typeof JobType.FREE;
+}
+
+type CreateJobData = CreatePaidJobData | CreateFreeJobData;
 
 /**
  * Repository for managing Job entities and related queries.
@@ -228,6 +251,7 @@ export const jobRepository = {
     return await tx.job.create({
       data: {
         agentJobId: data.agentJobId,
+        jobType: JobType.PAID,
         agent: {
           connect: {
             id: data.agentId,
@@ -273,10 +297,9 @@ export const jobRepository = {
     data: CreateJobData,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<Job> {
-    // Build the credit transaction data based on whether it's for a user or organization
     const creditTransactionData: Prisma.CreditTransactionCreateInput = {
-      amount: -data.creditsPrice.cents,
-      includedFee: data.creditsPrice.includedFee,
+      amount: BigInt(0),
+      includedFee: BigInt(0),
       user: {
         connect: {
           id: data.userId,
@@ -291,49 +314,75 @@ export const jobRepository = {
       }),
     };
 
-    return await tx.job.create({
-      data: {
-        agentJobId: data.agentJobId,
-        agent: {
-          connect: {
-            id: data.agentId,
-          },
+    if (data.jobType === JobType.PAID) {
+      creditTransactionData.amount = -data.creditsPrice.cents;
+      creditTransactionData.includedFee = data.creditsPrice.includedFee;
+    }
+
+    const baseJobData: Prisma.JobCreateInput = {
+      agentJobId: data.agentJobId,
+      jobType: data.jobType,
+      agent: {
+        connect: {
+          id: data.agentId,
         },
-        user: {
-          connect: {
-            id: data.userId,
-          },
-        },
-        ...(data.organizationId && {
-          organization: {
-            connect: {
-              id: data.organizationId,
-            },
-          },
-        }),
-        creditTransaction: {
-          create: creditTransactionData,
-        },
-        ...(data.purchaseId && {
-          purchaseId: data.purchaseId,
-        }),
-        inputSchema: data.inputSchema,
-        input: data.input,
-        identifierFromPurchaser: data.identifierFromPurchaser,
-        payByTime: data.payByTime,
-        externalDisputeUnlockTime: data.externalDisputeUnlockTime,
-        submitResultTime: data.submitResultTime,
-        unlockTime: data.unlockTime,
-        blockchainIdentifier: data.blockchainIdentifier,
-        sellerVkey: data.sellerVkey,
-        name: data.name,
-        // for demo job
-        agentJobStatus: data.agentJobStatus,
-        output: data.output,
-        completedAt: data.completedAt,
-        isDemo: data.isDemo,
       },
-    });
+      user: {
+        connect: {
+          id: data.userId,
+        },
+      },
+      ...(data.organizationId && {
+        organization: {
+          connect: {
+            id: data.organizationId,
+          },
+        },
+      }),
+      creditTransaction: {
+        create: creditTransactionData,
+      },
+      inputSchema: data.inputSchema,
+      input: data.input,
+      name: data.name,
+      ...(data.agentJobStatus !== undefined && {
+        agentJobStatus: data.agentJobStatus,
+      }),
+      ...(data.output !== undefined && { output: data.output }),
+      ...(data.completedAt !== undefined && { completedAt: data.completedAt }),
+      ...(data.isDemo !== undefined && { isDemo: data.isDemo }),
+    };
+
+    switch (data.jobType) {
+      case JobType.FREE:
+        return tx.job.create({
+          data: {
+            ...baseJobData,
+            identifierFromPurchaser: null,
+            purchaseId: null,
+            payByTime: null,
+            externalDisputeUnlockTime: null,
+            submitResultTime: null,
+            unlockTime: null,
+            blockchainIdentifier: null,
+            sellerVkey: null,
+          },
+        });
+      case JobType.PAID:
+        return tx.job.create({
+          data: {
+            ...baseJobData,
+            ...(data.purchaseId && { purchaseId: data.purchaseId }),
+            identifierFromPurchaser: data.identifierFromPurchaser,
+            payByTime: data.payByTime,
+            externalDisputeUnlockTime: data.externalDisputeUnlockTime,
+            submitResultTime: data.submitResultTime,
+            unlockTime: data.unlockTime,
+            blockchainIdentifier: data.blockchainIdentifier,
+            sellerVkey: data.sellerVkey,
+          },
+        });
+    }
   },
 
   async refundJob(jobId: string, tx: Prisma.TransactionClient = prisma) {

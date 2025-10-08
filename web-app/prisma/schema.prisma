@@ -120,7 +120,7 @@ model Organization {
   members            Member[]
   invitations        Invitation[]
   agents             Agent[]
-  blacklistedAgents  Agent[] @relation("AgentBlacklist")
+  blacklistedAgents  Agent[]             @relation("AgentBlacklist")
   jobs               Job[]
   creditTransactions CreditTransaction[]
   fiatTransactions   FiatTransaction[]
@@ -345,11 +345,11 @@ model Agent {
   exampleOutput         ExampleOutput[] @relation("ExampleOutputAgent")
   overrideExampleOutput ExampleOutput[] @relation("ExampleOutputAgentOverride")
 
-  userAgentRating UserAgentRating[]
-  agentLists      AgentList[]
-  jobs            Job[]
-  organizations   Organization[]
-  blacklistedOrganizations Organization[] @relation("AgentBlacklist")
+  userAgentRating          UserAgentRating[]
+  agentLists               AgentList[]
+  jobs                     Job[]
+  organizations            Organization[]
+  blacklistedOrganizations Organization[]    @relation("AgentBlacklist")
 
   tags         Tag[] @relation("AgentTag")
   overrideTags Tag[] @relation("AgentTagOverride")
@@ -518,7 +518,7 @@ model Job {
 
   jobType JobType
 
-  blockchainIdentifier      String?
+  blockchainIdentifier      String?   @unique
   payByTime                 DateTime?
   submitResultTime          DateTime?
   unlockTime                DateTime?
@@ -544,8 +544,6 @@ model Job {
   links Link[] @relation("JobLink")
 
   shares JobShare[]
-
-  @@index([blockchainIdentifier])
 }
 
 enum OnChainTransactionStatus {

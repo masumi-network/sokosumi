@@ -16,6 +16,7 @@ import {
   getAgentName,
   getAgentPricingAmounts,
   getJobIndicatorStatus,
+  isPaidJob,
   JobStatus,
   jobStatusToAgentJobStatus,
   JobWithStatus,
@@ -39,6 +40,7 @@ import {
   AgentJobStatus,
   Job,
   JobShare,
+  JobType,
   NextJobAction,
   OnChainJobStatus,
   Prisma,
@@ -604,6 +606,7 @@ export const jobService = (() => {
     });
 
     const job = await jobRepository.createJob({
+      jobType: JobType.PAID,
       agentJobId: startJobResponse.job_id,
       agentId,
       userId,
@@ -766,7 +769,7 @@ export const jobService = (() => {
    */
   const syncJob = async (job: JobWithStatus): Promise<void> => {
     const oldJobStatus = computeJobStatus(job);
-    if (!job.purchaseId) {
+    if (isPaidJob(job) && !job.purchaseId) {
       const purchaseResult =
         await paymentClient.getPurchaseByBlockchainIdentifier(
           job.blockchainIdentifier,

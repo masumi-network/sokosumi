@@ -7,9 +7,6 @@
 -- CreateEnum
 CREATE TYPE "JobType" AS ENUM ('FREE', 'PAID');
 
--- DropIndex
-DROP INDEX "public"."Job_blockchainIdentifier_key";
-
 -- AlterTable
 ALTER TABLE "Job" 
 ADD COLUMN     "jobType" "JobType",
@@ -27,9 +24,6 @@ UPDATE "Job" SET "jobType" = 'PAID' WHERE "jobType" IS NULL;
 -- Ensure jobType is required moving forward
 ALTER TABLE "Job"
 ALTER COLUMN "jobType" SET NOT NULL;
-
--- CreateIndex
-CREATE INDEX "Job_blockchainIdentifier_idx" ON "Job"("blockchainIdentifier");
 
 -- Add constraint: PAID jobs require blockchain fields
 ALTER TABLE "Job"
