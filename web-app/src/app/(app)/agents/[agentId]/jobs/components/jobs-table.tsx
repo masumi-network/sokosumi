@@ -4,7 +4,7 @@ import { ChannelProvider } from "ably/react";
 import { useParams, useSearchParams } from "next/navigation";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 
 import { DataTable } from "@/components/data-table";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
@@ -45,10 +45,6 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
     setRouterLoading(false);
   };
 
-  const columns = useMemo(
-    () => getColumns(userId, t, dateFormatter, queryParam),
-    [userId, t, dateFormatter, queryParam],
-  );
   const getRowClassName = (row: JobWithStatus) =>
     cn({
       "text-primary-foreground bg-primary hover:bg-primary active:bg-primary":
@@ -72,7 +68,7 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
           />
           <DataTable
             tableClassName="[&>div>div>div]:flex! [&>div>div>div]:md:table!"
-            columns={columns}
+            columns={getColumns(userId, t, dateFormatter, queryParam)}
             onRowClick={(row) => getOnRowClick(row)}
             data={filteredJobs}
             rowClassName={(row) => getRowClassName(row)}
