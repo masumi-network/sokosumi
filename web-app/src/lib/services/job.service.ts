@@ -12,6 +12,8 @@ import { JobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { getAuthContext } from "@/lib/auth/utils";
 import { agentClient, anthropicClient, paymentClient } from "@/lib/clients";
 import {
+  AgentWithCreditsPrice,
+  AgentWithRelations,
   computeJobStatus,
   getAgentName,
   getAgentPricingAmounts,
@@ -43,6 +45,7 @@ import {
   JobType,
   NextJobAction,
   OnChainJobStatus,
+  PricingType,
   Prisma,
   ShareAccessType,
 } from "@/prisma/generated/client";
@@ -314,21 +317,12 @@ export const jobService = (() => {
   };
 
   /**
-   * Starts a new job for a specified agent with the provided input data.
-   *
-   * This function handles the complete job creation workflow including:
-   * - Agent validation and availability checks
-   * - Credit cost validation and balance verification
-   * - External agent job initiation
-   * - Database job record creation
-   * - Purchase record creation through payment service
-   * - Job name generation via Anthropic AI
-   *
-   * @param input - Job creation parameters including agent ID, user ID, input data, and pricing constraints
-   * @returns Promise resolving to the created Job record
-   * @throws {JobError} Various job-related errors including agent not found, insufficient balance, etc.
+   * Internal helper: Starts a PAID job with full blockchain/payment flow.
    */
-  const startJob = async (input: StartJobInputSchemaType): Promise<Job> => {
+  async function startPaidJobInternal(
+    input: StartJobInputSchemaType,
+    agentWithCreditsPrice: AgentWithCreditsPrice,
+  ): Promise<Job> {
     const {
       userId,
       organizationId,
@@ -338,10 +332,10 @@ export const jobService = (() => {
       inputSchema,
     } = input;
 
-    // Add breadcrumb for job start
+    // Add breadcrumb for paid job start
     Sentry.addBreadcrumb({
       category: "Job Service",
-      message: "Starting job service operation",
+      message: "Starting paid job service operation",
       level: "info",
       data: {
         agentId,
@@ -350,79 +344,37 @@ export const jobService = (() => {
       },
     });
 
-    const agentWithCreditsPrice = await prisma.$transaction(async (tx) => {
-      // Add breadcrumb for database transaction
-      Sentry.addBreadcrumb({
-        category: "Job Service",
-        message: "Starting database transaction for job validation",
-        level: "info",
-        data: { agentId },
+    // Validate cost not too high
+    if (agentWithCreditsPrice.creditsPrice.cents > maxAcceptedCents) {
+      Sentry.setTag("error_type", "cost_too_high");
+      Sentry.setContext("cost_validation", {
+        agentId,
+        creditsCents: agentWithCreditsPrice.creditsPrice.cents,
+        maxAcceptedCents,
+        organizationId,
       });
 
-      const agent = await agentService.getAvailableAgentById(agentId, tx);
-      if (!agent) {
-        Sentry.setTag("error_type", "agent_not_found");
-        Sentry.setContext("agent_validation", {
-          agentId,
-          userId,
-          organizationId,
-        });
-
-        Sentry.captureMessage(
-          `Agent not found during job start: ${agentId}`,
-          "error",
-        );
-        throw new JobError(JobErrorCode.AGENT_NOT_FOUND, "Agent not found");
-      }
-
-      // Add breadcrumb for successful agent retrieval
-      Sentry.addBreadcrumb({
-        category: "Job Service",
-        message: "Agent retrieved successfully",
-        level: "info",
-        data: {
-          agentId,
-          agentName: agent.name,
-          blockchainIdentifier: agent.blockchainIdentifier,
-        },
-      });
-
-      const agentWithCreditsPrice = await agentService.getAgentCreditsPrice(
-        agent,
-        tx,
+      Sentry.captureMessage(
+        `Credit cost too high: ${agentWithCreditsPrice.creditsPrice.cents} > ${maxAcceptedCents}`,
+        "warning",
       );
+      throw new JobError(JobErrorCode.COST_TOO_HIGH, "Credit cost is too high");
+    }
 
-      if (agentWithCreditsPrice.creditsPrice.cents > maxAcceptedCents) {
-        Sentry.setTag("error_type", "cost_too_high");
-        Sentry.setContext("cost_validation", {
-          agentId,
-          creditsCents: agentWithCreditsPrice.creditsPrice.cents,
-          maxAcceptedCents,
-          organizationId,
-        });
+    // Add breadcrumb for credit validation
+    Sentry.addBreadcrumb({
+      category: "Job Service",
+      message: "Validating credit balance",
+      level: "info",
+      data: {
+        creditsCents: agentWithCreditsPrice.creditsPrice.cents,
+        organizationId,
+      },
+    });
 
-        Sentry.captureMessage(
-          `Credit cost too high: ${agentWithCreditsPrice.creditsPrice.cents} > ${maxAcceptedCents}`,
-          "warning",
-        );
-        throw new JobError(
-          JobErrorCode.COST_TOO_HIGH,
-          "Credit cost is too high",
-        );
-      }
-
-      // Add breadcrumb for credit validation
-      Sentry.addBreadcrumb({
-        category: "Job Service",
-        message: "Validating credit balance",
-        level: "info",
-        data: {
-          creditsCents: agentWithCreditsPrice.creditsPrice.cents,
-          organizationId,
-        },
-      });
-
-      if (agentWithCreditsPrice.creditsPrice.cents > 0) {
+    // Validate balance in transaction
+    if (agentWithCreditsPrice.creditsPrice.cents > 0) {
+      await prisma.$transaction(async (tx) => {
         try {
           if (organizationId) {
             await validateOrganizationCreditsBalance(
@@ -447,20 +399,18 @@ export const jobService = (() => {
           });
           throw error;
         }
-      }
-
-      // Add breadcrumb for successful validation
-      Sentry.addBreadcrumb({
-        category: "Job Service",
-        message: "Credit validation successful",
-        level: "info",
-        data: {
-          creditsCents: agentWithCreditsPrice.creditsPrice.cents,
-          organizationId,
-        },
       });
+    }
 
-      return agentWithCreditsPrice;
+    // Add breadcrumb for successful validation
+    Sentry.addBreadcrumb({
+      category: "Job Service",
+      message: "Credit validation successful",
+      level: "info",
+      data: {
+        creditsCents: agentWithCreditsPrice.creditsPrice.cents,
+        organizationId,
+      },
     });
 
     // Start job
@@ -478,7 +428,7 @@ export const jobService = (() => {
       },
     });
 
-    const startJobResult = await agentClient.startAgentJob(
+    const startJobResult = await agentClient.startPaidAgentJob(
       agentWithCreditsPrice,
       identifierFromPurchaser,
       inputData,
@@ -692,6 +642,193 @@ export const jobService = (() => {
     });
 
     return job;
+  }
+
+  /**
+   * Internal helper: Starts a FREE job without payment/blockchain flow.
+   */
+  async function startFreeJobInternal(
+    input: StartJobInputSchemaType,
+    agent: AgentWithRelations,
+  ): Promise<Job> {
+    const { userId, organizationId, agentId, inputData, inputSchema } = input;
+
+    // Generate identifier for the job
+    const identifierFromPurchaser = uuidv4().replace(/-/g, "").substring(0, 20);
+
+    Sentry.addBreadcrumb({
+      category: "Job Service",
+      message: "Starting free agent job via external API",
+      level: "info",
+      data: {
+        agentId,
+        agentName: agent.name,
+        identifierFromPurchaser,
+      },
+    });
+
+    // Start job with agent using free job client
+    const startJobResult = await agentClient.startFreeAgentJob(
+      agent,
+      identifierFromPurchaser,
+      inputData,
+    );
+
+    if (!startJobResult.ok) {
+      Sentry.setTag("error_type", "agent_job_start_failed");
+      Sentry.captureMessage(
+        `Free agent job start failed: ${startJobResult.error}`,
+        "error",
+      );
+      throw new JobError(
+        JobErrorCode.AGENT_JOB_START_FAILED,
+        startJobResult.error,
+      );
+    }
+
+    const startJobResponse = startJobResult.data;
+
+    // Generate job name
+    let generatedName: string | null;
+    try {
+      Sentry.addBreadcrumb({
+        category: "Job Service",
+        message: "Generating job name via AI",
+        level: "info",
+        data: { agentName: agent.name },
+      });
+
+      generatedName = await anthropicClient.generateJobName(
+        { name: agent.name, description: agent.description },
+        inputData,
+      );
+    } catch (error) {
+      Sentry.withScope((scope) => {
+        scope.setTag("error_type", "job_name_generation_failed");
+        Sentry.captureException(error, {
+          contexts: {
+            error_classification: {
+              severity: "warning",
+              domain: "job_name_generation",
+              category: "service_layer",
+            },
+          },
+        });
+      });
+      generatedName = null;
+    }
+
+    // Create free job in database
+    Sentry.addBreadcrumb({
+      category: "Job Service",
+      message: "Creating free job in database",
+      level: "info",
+      data: {
+        agentJobId: startJobResponse.job_id,
+        generatedName: generatedName,
+      },
+    });
+
+    const job = await jobRepository.createJob({
+      jobType: JobType.FREE,
+      agentJobId: startJobResponse.job_id,
+      agentId,
+      userId,
+      organizationId,
+      input: JSON.stringify(Object.fromEntries(inputData)),
+      inputSchema: inputSchema,
+      identifierFromPurchaser: startJobResponse.identifierFromPurchaser,
+      name: generatedName,
+    });
+
+    try {
+      await publishJobStatusData(job);
+    } catch (err) {
+      console.error(
+        "Error publishing job status data after creating free job",
+        err,
+      );
+    }
+
+    Sentry.addBreadcrumb({
+      category: "Job Service",
+      message: "Free job started successfully",
+      level: "info",
+      data: {
+        jobId: job.id,
+        agentJobId: startJobResponse.job_id,
+      },
+    });
+
+    return job;
+  }
+
+  /**
+   * Starts a new job for a specified agent with the provided input data.
+   *
+   * Automatically determines whether to use FREE or PAID workflow based on agent pricing.
+   *
+   * @param input - Job creation parameters
+   * @returns Promise resolving to the created Job record
+   * @throws {JobError} Various job-related errors
+   */
+  const startJob = async (input: StartJobInputSchemaType): Promise<Job> => {
+    const { userId, organizationId, agentId } = input;
+
+    Sentry.addBreadcrumb({
+      category: "Job Service",
+      message: "Starting job service operation",
+      level: "info",
+      data: { agentId, userId, organizationId },
+    });
+
+    // Get agent and determine pricing type
+    const agent = await agentService.getAvailableAgentById(agentId);
+    if (!agent) {
+      Sentry.setTag("error_type", "agent_not_found");
+      Sentry.captureMessage(
+        `Agent not found during job start: ${agentId}`,
+        "error",
+      );
+      throw new JobError(JobErrorCode.AGENT_NOT_FOUND, "Agent not found");
+    }
+
+    // Route to appropriate implementation based on pricing type
+    switch (agent.pricing.pricingType) {
+      case PricingType.FREE:
+        Sentry.addBreadcrumb({
+          category: "Job Service",
+          message: "Routing to free job flow",
+          level: "info",
+        });
+        return startFreeJobInternal(input, agent);
+
+      case PricingType.FIXED:
+        Sentry.addBreadcrumb({
+          category: "Job Service",
+          message: "Routing to paid job flow",
+          level: "info",
+        });
+
+        // Get pricing for paid job
+        const agentWithCreditsPrice = await prisma.$transaction(async (tx) => {
+          return await agentService.getAgentCreditsPrice(agent, tx);
+        });
+
+        return startPaidJobInternal(input, agentWithCreditsPrice);
+
+      case PricingType.UNKNOWN:
+      default:
+        Sentry.setTag("error_type", "unknown_pricing_type");
+        Sentry.captureMessage(
+          `Unknown pricing type for agent: ${agentId}`,
+          "error",
+        );
+        throw new JobError(
+          JobErrorCode.AGENT_PRICING_NOT_FOUND,
+          "Agent has unknown pricing type",
+        );
+    }
   };
 
   /**
