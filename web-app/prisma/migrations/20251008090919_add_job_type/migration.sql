@@ -25,6 +25,23 @@ UPDATE "Job"
 SET "jobType" = 'DEMO'
 WHERE "isDemo" = true;
 
+-- NULL out blockchain fields for existing DEMO jobs (before adding constraints)
+UPDATE "Job"
+SET 
+  "blockchainIdentifier" = NULL,
+  "payByTime" = NULL,
+  "submitResultTime" = NULL,
+  "unlockTime" = NULL,
+  "externalDisputeUnlockTime" = NULL,
+  "sellerVkey" = NULL,
+  "purchaseId" = NULL,
+  "inputHash" = NULL,
+  "resultHash" = NULL,
+  "onChainStatus" = NULL,
+  "onChainTransactionHash" = NULL,
+  "onChainTransactionStatus" = NULL
+WHERE "jobType" = 'DEMO';
+
 -- Ensure jobType is required moving forward
 ALTER TABLE "Job"
 ALTER COLUMN "jobType" SET NOT NULL;
