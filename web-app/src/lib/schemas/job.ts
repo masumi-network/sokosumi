@@ -72,6 +72,7 @@ export const jobStatusResponseSchema = z.object({
     "completed",
     "failed",
   ]),
+  message: z.string().nullish(),
   error: z.string().nullish(),
   input_data: z.array(jobInputSchema()).nullish(),
   result: z.string().nullish(),
