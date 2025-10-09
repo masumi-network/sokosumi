@@ -185,7 +185,7 @@
   --chart-3: hsla(197, 37%, 24%, 1);
   --chart-4: hsla(43, 74%, 66%, 1);
   --chart-5: hsla(27, 87%, 67%, 1);
-  --sidebar: hsla(0, 0%, 100%, 1);
+  --sidebar: hsla(0, 0%, 98%, 1);
   --sidebar-foreground: hsla(0, 0%, 9%, 1);
   --sidebar-primary: hsla(0, 0%, 9%, 1);
   --sidebar-primary-foreground: hsla(300, 0%, 98%, 1);
@@ -263,7 +263,7 @@
 .dark {
   --radius: 0.625rem;
   --background: hsla(0, 0%, 9%, 1);
-  --background-platform: hsla(0, 0%, 9%, 1);
+  --background-platform: hsla(0, 0%, 14%, 1);
   --foreground: hsla(0, 0%, 98%, 1);
   --card: hsla(0, 0%, 9%, 1);
   --card-foreground: hsla(0, 0%, 98%, 1);
@@ -297,7 +297,7 @@
   --chart-3: hsla(30, 80%, 55%, 1);
   --chart-4: hsla(280, 65%, 60%, 1);
   --chart-5: hsla(160, 60%, 45%, 1);
-  --sidebar: hsla(0, 0%, 9%, 1);
+  --sidebar: hsla(0, 0%, 14%, 1);
   --sidebar-foreground: hsla(0, 0%, 98%, 1);
   --sidebar-primary: hsla(225, 84%, 49%, 1);
   --sidebar-primary-foreground: hsla(0, 0%, 98%, 1);
