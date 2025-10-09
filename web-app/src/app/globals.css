@@ -152,11 +152,11 @@
   --radius: 0.625rem;
   --background: hsla(0, 0%, 100%, 1);
   --background-platform: hsla(0, 0%, 98%, 1);
-  --foreground: hsla(0, 0%, 4%, 1);
+  --foreground: hsla(0, 0%, 9%, 1);
   --card: hsla(300, 50%, 100%, 1);
-  --card-foreground: hsla(300, 0%, 4%, 1);
+  --card-foreground: hsla(0, 0%, 9%, 1);
   --popover: hsla(300, 50%, 100%, 1);
-  --popover-foreground: hsla(300, 0%, 4%, 1);
+  --popover-foreground: hsla(0, 0%, 9%, 1);
   --primary: hsla(264, 100%, 50%, 1);
   --primary-variant: hsla(264, 100%, 50%, 1);
   --primary-tertiary: hsla(264, 100%, 50%, 0.2);
@@ -174,7 +174,7 @@
   --muted: hsla(300, 0%, 96%, 1);
   --muted-foreground: hsla(0, 0%, 4%, 0.5);
   --accent: hsla(300, 0%, 96%, 1);
-  --accent-foreground: hsla(330, 0%, 9%, 1);
+  --accent-foreground: hsla(0, 0%, 9%, 1);
   --destructive: hsla(0, 72%, 51%, 1);
   --border: hsla(330, 0%, 90%, 1);
   --input: hsla(330, 0%, 90%, 1);
@@ -185,12 +185,12 @@
   --chart-3: hsla(197, 37%, 24%, 1);
   --chart-4: hsla(43, 74%, 66%, 1);
   --chart-5: hsla(27, 87%, 67%, 1);
-  --sidebar: hsla(300, 0%, 98%, 1);
-  --sidebar-foreground: hsla(300, 0%, 4%, 1);
-  --sidebar-primary: hsla(330, 0%, 9%, 1);
+  --sidebar: hsla(0, 0%, 100%, 1);
+  --sidebar-foreground: hsla(0, 0%, 9%, 1);
+  --sidebar-primary: hsla(0, 0%, 9%, 1);
   --sidebar-primary-foreground: hsla(300, 0%, 98%, 1);
   --sidebar-accent: hsla(300, 0%, 96%, 1);
-  --sidebar-accent-foreground: hsla(330, 0%, 9%, 1);
+  --sidebar-accent-foreground: hsla(0, 0%, 9%, 1);
   --sidebar-border: hsla(330, 0%, 90%, 1);
   --sidebar-ring: hsla(0, 0%, 63%, 1);
   /* Semantic */
@@ -262,12 +262,12 @@
 
 .dark {
   --radius: 0.625rem;
-  --background: hsla(0, 0%, 4%, 1);
+  --background: hsla(0, 0%, 9%, 1);
   --background-platform: hsla(0, 0%, 9%, 1);
   --foreground: hsla(0, 0%, 98%, 1);
-  --card: hsla(300, 0%, 4%, 1);
+  --card: hsla(0, 0%, 9%, 1);
   --card-foreground: hsla(0, 0%, 98%, 1);
-  --popover: hsla(330, 0%, 9%, 1);
+  --popover: hsla(0, 0%, 9%, 1);
   --popover-foreground: hsla(0, 0%, 98%, 1);
   --primary: hsla(264, 100%, 50%, 1);
   --primary-variant: hsla(260, 100%, 73%, 1);
@@ -297,7 +297,7 @@
   --chart-3: hsla(30, 80%, 55%, 1);
   --chart-4: hsla(280, 65%, 60%, 1);
   --chart-5: hsla(160, 60%, 45%, 1);
-  --sidebar: hsla(330, 0%, 9%, 1);
+  --sidebar: hsla(0, 0%, 9%, 1);
   --sidebar-foreground: hsla(0, 0%, 98%, 1);
   --sidebar-primary: hsla(225, 84%, 49%, 1);
   --sidebar-primary-foreground: hsla(0, 0%, 98%, 1);
