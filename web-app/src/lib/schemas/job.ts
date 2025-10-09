@@ -62,21 +62,34 @@ export const startJobResponseSchema = z.object({
 });
 export type StartJobResponseSchemaType = z.infer<typeof startJobResponseSchema>;
 
-export const jobStatusResponseSchema = z.object({
-  job_id: z.string(),
-  status: z.enum([
-    "pending",
-    "awaiting_payment",
-    "awaiting_input",
-    "running",
-    "completed",
-    "failed",
-  ]),
-  message: z.string().nullish(),
-  error: z.string().nullish(),
-  input_data: z.array(jobInputSchema()).nullish(),
-  result: z.string().nullish(),
-});
+export const jobStatusResponseSchema = z
+  .object({
+    job_id: z.string(),
+    status: z.enum([
+      "pending",
+      "awaiting_payment",
+      "awaiting_input",
+      "running",
+      "completed",
+      "failed",
+    ]),
+    message: z.string().nullish(),
+    error: z.string().nullish(),
+    input_data: z.array(jobInputSchema()).nullish(),
+    result: z.string().nullish(),
+  })
+  .refine(
+    (data) => {
+      if (data.status === "awaiting_input") {
+        return data.input_data != null && data.input_data.length > 0;
+      }
+      return true;
+    },
+    {
+      message: "input_data is required when status is awaiting_input",
+      path: ["input_data"],
+    },
+  );
 
 export type JobStatusResponseSchemaType = z.infer<
   typeof jobStatusResponseSchema
