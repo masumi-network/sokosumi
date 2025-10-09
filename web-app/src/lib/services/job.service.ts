@@ -21,6 +21,7 @@ import {
   JobStatus,
   jobStatusToAgentJobStatus,
   JobWithStatus,
+  PaidJobWithStatus,
 } from "@/lib/db";
 import {
   creditTransactionRepository,
@@ -828,7 +829,7 @@ export const jobService = (() => {
    */
   const requestRefund = async (
     jobBlockchainIdentifier: string,
-  ): Promise<JobWithStatus> => {
+  ): Promise<PaidJobWithStatus> => {
     // Add breadcrumb for refund request
     Sentry.addBreadcrumb({
       category: "Job Service",
@@ -874,6 +875,10 @@ export const jobService = (() => {
         blockchainIdentifier: jobBlockchainIdentifier,
       },
     });
+
+    if (!isPaidJob(job)) {
+      throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
+    }
 
     return job;
   };

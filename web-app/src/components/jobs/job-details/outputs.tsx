@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import Markdown from "@/components/markdown";
-import { JobStatus, JobWithStatus } from "@/lib/db";
+import { isPaidJob, JobStatus, JobWithStatus } from "@/lib/db";
 import {
   jobStatusResponseSchema,
   JobStatusResponseSchemaType,
@@ -85,7 +85,7 @@ function JobDetailsOutputsInner({
                 )}
               </div>
             </div>
-            {!job.isDemo && !readOnly && (
+            {!job.isDemo && !readOnly && isPaidJob(job) && (
               <RequestRefundButton initialJob={job} />
             )}
           </div>
@@ -93,11 +93,14 @@ function JobDetailsOutputsInner({
       ) : (
         <>
           <p className="text-base">{t("none")}</p>
-          {!job.isDemo && job.status === JobStatus.FAILED && !readOnly && (
-            <div className="flex justify-end">
-              <RequestRefundButton initialJob={job} />
-            </div>
-          )}
+          {!job.isDemo &&
+            job.status === JobStatus.FAILED &&
+            !readOnly &&
+            isPaidJob(job) && (
+              <div className="flex justify-end">
+                <RequestRefundButton initialJob={job} />
+              </div>
+            )}
         </>
       )}
     </JobDetailsOutputsLayout>

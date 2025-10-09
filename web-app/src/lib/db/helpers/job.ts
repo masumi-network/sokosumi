@@ -1,5 +1,5 @@
 import { JobIndicatorStatus } from "@/lib/ably";
-import { JobStatus, JobWithRelations } from "@/lib/db/types";
+import { JobStatus, JobWithStatus } from "@/lib/db/types";
 import {
   AgentJobStatus,
   Job,
@@ -382,17 +382,17 @@ export function transactionStatusToOnChainTransactionStatus(
   }
 }
 
-export function isPubliclyShared(job: JobWithRelations): boolean {
+export function isPubliclyShared(job: JobWithStatus): boolean {
   return job.shares.some(
     (share) => share.accessType === ShareAccessType.PUBLIC,
   );
 }
 
-export function isOrganizationShared(job: JobWithRelations): boolean {
+export function isOrganizationShared(job: JobWithStatus): boolean {
   return job.shares.some((share) => share.recipientOrganizationId !== null);
 }
 
-export function getPublicJobShare(job: JobWithRelations): JobShare | null {
+export function getPublicJobShare(job: JobWithStatus): JobShare | null {
   const found = job.shares.find(
     (share) => share.accessType === ShareAccessType.PUBLIC,
   );
@@ -400,7 +400,7 @@ export function getPublicJobShare(job: JobWithRelations): JobShare | null {
 }
 
 export function getOrganizationJobShare(
-  job: JobWithRelations,
+  job: JobWithStatus,
   organizationId: string,
 ): JobShare | null {
   const found = job.shares.find(
@@ -410,7 +410,7 @@ export function getOrganizationJobShare(
 }
 
 export function isSharedWithOrganization(
-  job: JobWithRelations,
+  job: JobWithStatus,
   organizationId: string,
 ): boolean {
   return job.shares.some(
