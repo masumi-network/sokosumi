@@ -247,12 +247,16 @@ export function getJobIndicatorStatus(job: Job): JobIndicatorStatus {
       jobStatusSettled = job.externalDisputeUnlockTime
         ? new Date() > job.externalDisputeUnlockTime
         : false;
+      break;
     case JobType.DEMO:
       jobStatusSettled = true;
+      break;
     case JobType.FREE:
       jobStatusSettled = job.completedAt != null;
+      break;
     default:
       jobStatusSettled = false;
+      break;
   }
 
   return {
