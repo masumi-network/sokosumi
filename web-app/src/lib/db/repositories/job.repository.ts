@@ -20,7 +20,6 @@ import {
 } from "@/lib/db/types";
 import { JobInputSchemaType } from "@/lib/job-input";
 import { JobStatusResponseSchemaType } from "@/lib/schemas";
-import { generateRandomHexString } from "@/lib/utils";
 import {
   AgentJobStatus,
   Job,
@@ -66,10 +65,8 @@ interface CreateDemoJobData {
   agentJobStatus: AgentJobStatus;
   output: string;
   completedAt: Date | null;
-  // Hashing and identifier (for demo parity with on-chain jobs)
+  // Identifier for demo job tracking
   identifierFromPurchaser: string;
-  inputHash: string | null;
-  resultHash: string | null;
 }
 
 interface CreateJobBase {
@@ -277,18 +274,15 @@ export const jobRepository = {
         inputSchema: data.inputSchema,
         input: data.input,
         identifierFromPurchaser: data.identifierFromPurchaser,
-        payByTime: new Date(Date.now() + 60 * 60 * 1000),
-        submitResultTime: new Date(Date.now() + 2 * 60 * 60 * 1000),
-        unlockTime: new Date(Date.now() + 3 * 60 * 60 * 1000),
-        externalDisputeUnlockTime: new Date(Date.now() + 4 * 60 * 60 * 1000),
-        blockchainIdentifier: generateRandomHexString(128),
-        sellerVkey: generateRandomHexString(),
+        payByTime: null,
+        submitResultTime: null,
+        unlockTime: null,
+        externalDisputeUnlockTime: null,
+        blockchainIdentifier: null,
+        sellerVkey: null,
         name: data.name,
         agentJobStatus: data.agentJobStatus,
         output: data.output,
-        // Persist demo hashes for verification badge parity
-        ...(data.inputHash && { inputHash: data.inputHash }),
-        ...(data.resultHash && { resultHash: data.resultHash }),
         completedAt: data.completedAt,
       },
     });
