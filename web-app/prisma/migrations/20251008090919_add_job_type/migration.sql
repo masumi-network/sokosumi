@@ -5,7 +5,7 @@
 
 */
 -- CreateEnum
-CREATE TYPE "JobType" AS ENUM ('FREE', 'PAID');
+CREATE TYPE "JobType" AS ENUM ('FREE', 'PAID', 'DEMO');
 
 -- AlterTable
 ALTER TABLE "Job" 
@@ -19,6 +19,11 @@ ALTER COLUMN "payByTime" DROP NOT NULL;
 
 -- Backfill existing rows as PAID jobs
 UPDATE "Job" SET "jobType" = 'PAID' WHERE "jobType" IS NULL;
+
+-- Migrate existing isDemo=true jobs to JobType.DEMO
+UPDATE "Job"
+SET "jobType" = 'DEMO'
+WHERE "isDemo" = true;
 
 -- Ensure jobType is required moving forward
 ALTER TABLE "Job"
@@ -44,6 +49,31 @@ ADD CONSTRAINT "free_job_no_blockchain"
 CHECK (
   "jobType" != 'FREE' OR (
     "blockchainIdentifier" IS NULL AND
+    "payByTime" IS NULL AND
+    "submitResultTime" IS NULL AND
+    "unlockTime" IS NULL AND
+    "externalDisputeUnlockTime" IS NULL AND
+    "sellerVkey" IS NULL AND
+    "purchaseId" IS NULL AND
+    "inputHash" IS NULL AND
+    "resultHash" IS NULL AND
+    "onChainStatus" IS NULL AND
+    "onChainTransactionHash" IS NULL AND
+    "onChainTransactionStatus" IS NULL
+  )
+);
+
+-- Add constraint: FREE jobs must not have blockchain fields
+ALTER TABLE "Job"
+ADD CONSTRAINT "demo_job_no_blockchain"
+CHECK (
+  "jobType" != 'DEMO' OR (
+    "blockchainIdentifier" IS NULL AND
+    "payByTime" IS NULL AND
+    "submitResultTime" IS NULL AND
+    "unlockTime" IS NULL AND
+    "externalDisputeUnlockTime" IS NULL AND
+    "sellerVkey" IS NULL AND
     "purchaseId" IS NULL AND
     "inputHash" IS NULL AND
     "resultHash" IS NULL AND

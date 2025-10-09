@@ -71,6 +71,10 @@ export const jobService = (() => {
    * Helper function to determine if agent status should be synchronized for a job.
    */
   function shouldSyncAgentStatus(job: Job): string | null {
+    // Demo jobs never sync - they are self-contained
+    if (job.jobType === JobType.DEMO) {
+      return null;
+    }
     if (job.refundedCreditTransactionId) {
       return null;
     }
@@ -85,8 +89,13 @@ export const jobService = (() => {
 
   /**
    * Helper function to determine if Masumi payment status should be synchronized for a job.
+   * Only PAID jobs require Masumi payment synchronization.
    */
   function shouldSyncMasumiStatus(job: Job): string | null {
+    // Free and demo jobs never sync Masumi payment status
+    if (job.jobType === JobType.FREE || job.jobType === JobType.DEMO) {
+      return null;
+    }
     if (job.refundedCreditTransactionId) {
       return null;
     }
@@ -173,7 +182,10 @@ export const jobService = (() => {
     job: JobWithStatus,
     jobStatus: JobStatus,
   ) {
-    if (job.isDemo || !job.user.jobStatusEmailNotificationsEnabled) {
+    if (
+      job.jobType === JobType.DEMO ||
+      !job.user.jobStatusEmailNotificationsEnabled
+    ) {
       return;
     }
 
@@ -339,6 +351,7 @@ export const jobService = (() => {
     );
 
     const job = await jobRepository.createDemoJob({
+      jobType: JobType.DEMO,
       agentJobId: uuidv4(),
       agentId,
       userId,

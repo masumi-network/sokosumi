@@ -142,6 +142,8 @@ export function computeJobStatus(job: Job): JobStatus {
       return computeFreeJobStatus(job);
     case JobType.PAID:
       return computePaidJobStatus(job);
+    case JobType.DEMO:
+      return computeDemoJobStatus(job);
   }
 }
 
@@ -161,6 +163,10 @@ function computeFreeJobStatus(job: Job): JobStatus {
     default:
       return job.completedAt ? JobStatus.COMPLETED : JobStatus.PROCESSING;
   }
+}
+
+function computeDemoJobStatus(_job: Job): JobStatus {
+  return JobStatus.COMPLETED;
 }
 
 function computePaidJobStatus(job: Job): JobStatus {
@@ -235,12 +241,19 @@ function computePaidJobStatus(job: Job): JobStatus {
  * @returns The job status data.
  */
 export function getJobIndicatorStatus(job: Job): JobIndicatorStatus {
-  const jobStatusSettled =
-    job.jobType === JobType.PAID
-      ? job.externalDisputeUnlockTime
+  let jobStatusSettled: boolean;
+  switch (job.jobType) {
+    case JobType.PAID:
+      jobStatusSettled = job.externalDisputeUnlockTime
         ? new Date() > job.externalDisputeUnlockTime
-        : false
-      : job.completedAt != null;
+        : false;
+    case JobType.DEMO:
+      jobStatusSettled = true;
+    case JobType.FREE:
+      jobStatusSettled = job.completedAt != null;
+    default:
+      jobStatusSettled = false;
+  }
 
   return {
     jobId: job.id,

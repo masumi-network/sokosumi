@@ -11,7 +11,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { siteConfig } from "@/config/site";
-import type { JobWithStatus } from "@/lib/db";
+import { isDemoJob, type JobWithStatus } from "@/lib/db";
 import { cn, isJobVerified } from "@/lib/utils";
 import { OnChainJobStatus } from "@/prisma/generated/client";
 
@@ -37,7 +37,7 @@ export function JobVerificationBadge({
     direction === "input" ? t("Input.title") : t("Output.title");
 
   const verificationState = useMemo<VerificationState>(() => {
-    if (job.isDemo) {
+    if (isDemoJob(job)) {
       return { isPending: false, isVerified: true };
     }
 

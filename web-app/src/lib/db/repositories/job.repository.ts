@@ -55,6 +55,7 @@ function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
 }
 
 interface CreateDemoJobData {
+  jobType: typeof JobType.DEMO;
   agentJobId: string;
   agentId: string;
   userId: string;
@@ -83,7 +84,6 @@ interface CreateJobBase {
   agentJobStatus?: AgentJobStatus | null;
   output?: string | null;
   completedAt?: Date | null;
-  isDemo?: boolean;
 }
 
 interface CreatePaidJobData extends CreateJobBase {
@@ -150,7 +150,7 @@ export const jobRepository = {
       AVG(EXTRACT(EPOCH FROM ("completedAt" - "startedAt"))) as avg_duration_seconds
     FROM "Job"
     WHERE "agentId" = ${agentId}
-    AND "isDemo" = false
+    AND "jobType" != 'DEMO'
     AND "completedAt" IS NOT NULL
     AND "createdAt" >= NOW() - INTERVAL '30 days'
   `;
@@ -171,7 +171,9 @@ export const jobRepository = {
     const result = await tx.job.count({
       where: {
         agentId,
-        isDemo: false,
+        jobType: {
+          not: JobType.DEMO,
+        },
       },
     });
     return result;
@@ -251,7 +253,7 @@ export const jobRepository = {
     return await tx.job.create({
       data: {
         agentJobId: data.agentJobId,
-        jobType: JobType.PAID,
+        jobType: JobType.DEMO,
         agent: {
           connect: {
             id: data.agentId,
@@ -288,7 +290,6 @@ export const jobRepository = {
         ...(data.inputHash && { inputHash: data.inputHash }),
         ...(data.resultHash && { resultHash: data.resultHash }),
         completedAt: data.completedAt,
-        isDemo: true,
       },
     });
   },
@@ -351,7 +352,6 @@ export const jobRepository = {
       }),
       ...(data.output !== undefined && { output: data.output }),
       ...(data.completedAt !== undefined && { completedAt: data.completedAt }),
-      ...(data.isDemo !== undefined && { isDemo: data.isDemo }),
     };
 
     switch (data.jobType) {
@@ -694,7 +694,7 @@ const jobsNotFinishedWhereQuery = (
     },
     // Filter out demo jobs
     {
-      isDemo: true,
+      jobType: JobType.DEMO,
     },
   ],
 });

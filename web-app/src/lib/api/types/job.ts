@@ -22,7 +22,7 @@ export type JobResponse = {
   startedAt: string; // ISO date
   completedAt: string | null; // ISO date
   resultSubmittedAt: string | null; // ISO date
-  isDemo: boolean;
+  jobType: string; // JobType enum
   price: JobCredits | null;
   refund: JobCredits | null;
   jobStatusSettled: boolean;

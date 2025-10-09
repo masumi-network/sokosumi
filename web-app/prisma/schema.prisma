@@ -480,6 +480,7 @@ enum FiatService {
 enum JobType {
   FREE
   PAID
+  DEMO
 }
 
 model Job {
@@ -537,8 +538,6 @@ model Job {
   refundedCreditTransactionId String?            @unique
 
   name String?
-
-  isDemo Boolean @default(false)
 
   blobs Blob[] @relation("JobBlob")
   links Link[] @relation("JobLink")
