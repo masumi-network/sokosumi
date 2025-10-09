@@ -62,6 +62,31 @@ export const startJobResponseSchema = z.object({
 });
 export type StartJobResponseSchemaType = z.infer<typeof startJobResponseSchema>;
 
+// Helper function to create a conditional required field validation
+function requireFieldWhenStatus<T extends Record<string, unknown>>(
+  status: string,
+  fieldName: string,
+  fieldLabel?: string,
+) {
+  return (data: T, ctx: z.RefinementCtx) => {
+    if (data.status === status) {
+      const value = data[fieldName];
+      const isEmpty =
+        value == null ||
+        (Array.isArray(value) && value.length === 0) ||
+        (typeof value === "string" && value.length === 0);
+
+      if (isEmpty) {
+        ctx.addIssue({
+          code: "custom",
+          message: `${fieldLabel ?? fieldName} is required when status is ${status}`,
+          path: [fieldName],
+        });
+      }
+    }
+  };
+}
+
 export const jobStatusResponseSchema = z
   .object({
     job_id: z.string(),
@@ -78,18 +103,10 @@ export const jobStatusResponseSchema = z
     input_data: z.array(jobInputSchema()).nullish(),
     result: z.string().nullish(),
   })
-  .refine(
-    (data) => {
-      if (data.status === "awaiting_input") {
-        return data.input_data != null && data.input_data.length > 0;
-      }
-      return true;
-    },
-    {
-      message: "input_data is required when status is awaiting_input",
-      path: ["input_data"],
-    },
-  );
+  .superRefine((data, ctx) => {
+    requireFieldWhenStatus("awaiting_input", "input_data")(data, ctx);
+    requireFieldWhenStatus("completed", "result")(data, ctx);
+  });
 
 export type JobStatusResponseSchemaType = z.infer<
   typeof jobStatusResponseSchema
