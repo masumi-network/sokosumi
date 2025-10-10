@@ -99,7 +99,8 @@
         },
         "Section2": {
           "executedJobs": "Executed Jobs",
-          "averageExecutionTime": "Average Execution Time"
+          "averageExecutionTime": "Average Execution Time",
+          "rating": "Rating"
         },
         "Section3": {
           "description": "Description",

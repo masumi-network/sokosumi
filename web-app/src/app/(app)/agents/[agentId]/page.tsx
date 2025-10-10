@@ -48,7 +48,7 @@ export default async function AgentDetailPage({
           executedJobsCount={executedJobsCount}
           averageExecutionDuration={averageExecutionDuration}
           favoriteAgents={favoriteAgents}
-          _ratingStats={ratingStats}
+          ratingStats={ratingStats}
         />
       </div>
       <AgentBottomNavigation

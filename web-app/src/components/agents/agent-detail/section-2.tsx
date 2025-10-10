@@ -1,24 +1,35 @@
-import { CircleCheck, Clock } from "lucide-react";
+import { CircleCheck, Clock, Star } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import { AgentRatingStats } from "@/lib/db/repositories/agentRating.repository";
 import { formatDuration } from "@/lib/utils";
 
 function AgentDetailSection2({
   executedJobsCount,
   averageExecutionDuration,
+  ratingStats,
 }: {
   executedJobsCount: number;
   averageExecutionDuration: number;
+  ratingStats?: AgentRatingStats;
 }) {
+  console.log("ratingStats", ratingStats);
   const t = useTranslations("Components.Agents.AgentDetail.Section2");
   const formatter = useFormatter();
   const tDuration = useTranslations("Library.Duration.Long");
 
   const formattedDuration = formatDuration(averageExecutionDuration, tDuration);
 
+  const hasRating = ratingStats && ratingStats.totalRatings > 0;
+  const gridCols = hasRating
+    ? averageExecutionDuration > 0
+      ? "grid-cols-3"
+      : "grid-cols-2"
+    : "grid-cols-2";
+
   return (
-    <div className="grid grid-cols-2 gap-4">
+    <div className={`grid gap-4 ${gridCols}`}>
       <div className="flex flex-col gap-0.5">
         <div className="flex items-center gap-1.5">
           <CircleCheck size={16} />
@@ -39,6 +50,17 @@ function AgentDetailSection2({
             </span>
           </div>
           <p className="text-base">{formattedDuration}</p>
+        </div>
+      )}
+      {hasRating && (
+        <div className="flex flex-col gap-0.5">
+          <div className="flex items-center gap-1.5">
+            <Star size={16} />
+            <span className="text-upper text-xs">{t("rating")}</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <p className="text-base">{ratingStats.averageRating.toFixed(1)}</p>
+          </div>
         </div>
       )}
     </div>

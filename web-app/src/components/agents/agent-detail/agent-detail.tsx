@@ -20,7 +20,7 @@ interface AgentDetailProps {
   executedJobsCount: number;
   averageExecutionDuration: number;
   favoriteAgents?: AgentWithRelations[] | undefined;
-  _ratingStats?: AgentRatingStats | undefined;
+  ratingStats?: AgentRatingStats | undefined;
   showBackButton?: boolean | undefined;
   showCloseButton?: boolean | undefined;
   onClose?: (() => void) | undefined;
@@ -33,7 +33,7 @@ export function AgentDetail({
   executedJobsCount,
   averageExecutionDuration,
   favoriteAgents,
-  _ratingStats,
+  ratingStats,
   showBackButton,
   showCloseButton,
   onClose,
@@ -58,6 +58,7 @@ export function AgentDetail({
         <AgentDetailSection2
           executedJobsCount={executedJobsCount}
           averageExecutionDuration={averageExecutionDuration}
+          ratingStats={ratingStats}
         />
       </CardSection>
       <CardSection className={cardClassName}>
