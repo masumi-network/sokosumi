@@ -10,6 +10,7 @@ import {
   AgentModal,
 } from "@/components/agents";
 import { AgentActionButtons } from "@/components/agents/agent-action-buttons";
+import { AgentRatingCTA } from "@/components/agents/agent-rating-cta";
 import { CreateJobModalTrigger } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -19,6 +20,7 @@ import {
   convertCentsToCredits,
   getAgentName,
 } from "@/lib/db";
+import { AgentRatingStats } from "@/lib/db/repositories/agentRating.repository";
 
 export function HeaderSkeleton() {
   const t = useTranslations("App.Agents.Jobs.Header");
@@ -63,6 +65,12 @@ interface HeaderProps {
   executedJobsCount: number;
   averageExecutionDuration: number;
   favoriteAgents: AgentWithRelations[];
+  ratingStats: AgentRatingStats;
+  canRate: boolean;
+  existingRating: {
+    rating: number;
+    comment: string | null;
+  } | null;
   disabled?: boolean;
 }
 
@@ -71,6 +79,9 @@ export default function Header({
   executedJobsCount,
   averageExecutionDuration,
   favoriteAgents,
+  ratingStats,
+  canRate,
+  existingRating,
   disabled,
 }: HeaderProps) {
   const t = useTranslations("App.Agents.Jobs.Header");
@@ -118,6 +129,13 @@ export default function Header({
           >
             {t("details")}
           </Button>
+          {canRate && (
+            <AgentRatingCTA
+              agentId={agent.id}
+              ratingStats={ratingStats}
+              existingRating={existingRating}
+            />
+          )}
           <AgentBookmarkButton
             agentId={agent.id}
             isFavorite={isFavorite}

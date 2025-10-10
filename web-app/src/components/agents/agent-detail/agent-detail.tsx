@@ -4,6 +4,7 @@ import {
   getAgentExampleOutput,
   getAgentLegal,
 } from "@/lib/db";
+import { AgentRatingStats } from "@/lib/db/repositories/agentRating.repository";
 import { cn } from "@/lib/utils";
 
 import { CardSection } from "./card-section";
@@ -19,6 +20,7 @@ interface AgentDetailProps {
   executedJobsCount: number;
   averageExecutionDuration: number;
   favoriteAgents?: AgentWithRelations[] | undefined;
+  _ratingStats?: AgentRatingStats | undefined;
   showBackButton?: boolean | undefined;
   showCloseButton?: boolean | undefined;
   onClose?: (() => void) | undefined;
@@ -31,6 +33,7 @@ export function AgentDetail({
   executedJobsCount,
   averageExecutionDuration,
   favoriteAgents,
+  _ratingStats,
   showBackButton,
   showCloseButton,
   onClose,

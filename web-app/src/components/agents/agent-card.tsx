@@ -18,6 +18,7 @@ import {
   getAgentTags,
   getShortAgentAuthorName,
 } from "@/lib/db";
+import { AgentRatingStats } from "@/lib/db/repositories/agentRating.repository";
 import { cn } from "@/lib/utils";
 
 import {
@@ -28,6 +29,7 @@ import {
 import { AgentBookmarkButton } from "./agent-bookmark-button";
 import { AgentDetailLink } from "./agent-detail-link";
 import { AgentHireButton } from "./agent-hire-button";
+import { AgentRatingDisplay } from "./agent-rating-display";
 import AgentSummary from "./agent-summary";
 import { AgentVerifiedBadge } from "./agent-verified-badge";
 
@@ -305,6 +307,7 @@ interface AgentCardProps {
   agent: AgentWithCreditsPrice;
   showHireButton?: boolean | undefined;
   favoriteAgents?: AgentWithRelations[] | undefined;
+  ratingStats?: AgentRatingStats | undefined;
   className?: string | undefined;
 }
 
@@ -312,6 +315,7 @@ function AgentCard({
   agent,
   showHireButton = false,
   favoriteAgents,
+  ratingStats,
   className,
   size,
 }: AgentCardProps & VariantProps<typeof agentCardVariants>) {
@@ -413,6 +417,14 @@ function AgentCard({
               <p className={agentCardAuthorVariants({ size })}>
                 {getShortAgentAuthorName(agent)}
               </p>
+              {ratingStats && (
+                <AgentRatingDisplay
+                  averageRating={ratingStats.averageRating}
+                  totalRatings={ratingStats.totalRatings}
+                  roundedRating={ratingStats.roundedRating}
+                  size="sm"
+                />
+              )}
             </div>
 
             {/* Pricing and Buttons */}

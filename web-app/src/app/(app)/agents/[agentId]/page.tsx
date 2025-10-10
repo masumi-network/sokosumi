@@ -28,10 +28,12 @@ export default async function AgentDetailPage({
   }
 
   const favoriteAgents = await agentService.getFavoriteAgents();
-  const [executedJobsCount, averageExecutionDuration] = await Promise.all([
-    jobRepository.getExecutedJobsCountByAgentId(agentId),
-    jobRepository.getAverageExecutionDurationByAgentId(agentId),
-  ]);
+  const [executedJobsCount, averageExecutionDuration, ratingStats] =
+    await Promise.all([
+      jobRepository.getExecutedJobsCountByAgentId(agentId),
+      jobRepository.getAverageExecutionDurationByAgentId(agentId),
+      agentService.getAgentRatingStats(agentId),
+    ]);
 
   return (
     <CreateJobModalContextProvider
@@ -46,6 +48,7 @@ export default async function AgentDetailPage({
           executedJobsCount={executedJobsCount}
           averageExecutionDuration={averageExecutionDuration}
           favoriteAgents={favoriteAgents}
+          _ratingStats={ratingStats}
         />
       </div>
       <AgentBottomNavigation

@@ -7,6 +7,7 @@ import {
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
 import DefaultLoading from "@/components/default-loading";
+import { getAuthContext } from "@/lib/auth/utils";
 import { getAgentDescription, getAgentLegal, getAgentName } from "@/lib/db";
 import { agentRepository, jobRepository } from "@/lib/db/repositories";
 import { agentService } from "@/lib/services";
@@ -59,11 +60,29 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
 
   const agentWithCreditsPrice = await agentService.getAgentCreditsPrice(agent);
   const favoriteAgents = await agentService.getFavoriteAgents();
-  const [executedJobsCount, averageExecutionDuration] = await Promise.all([
-    jobRepository.getExecutedJobsCountByAgentId(agentId),
-    jobRepository.getAverageExecutionDurationByAgentId(agentId),
-  ]);
+  const [executedJobsCount, averageExecutionDuration, ratingStats] =
+    await Promise.all([
+      jobRepository.getExecutedJobsCountByAgentId(agentId),
+      jobRepository.getAverageExecutionDurationByAgentId(agentId),
+      agentService.getAgentRatingStats(agentId),
+    ]);
   const availableAgent = await agentService.getAvailableAgentById(agentId);
+
+  // Fetch rating data for the current user
+  const authContext = await getAuthContext();
+
+  let canRate = false;
+  let existingRating = null;
+
+  if (authContext?.userId) {
+    canRate = await agentService.canUserRateAgent(authContext.userId, agentId);
+    if (canRate) {
+      existingRating = await agentService.getUserRatingForAgent(
+        authContext.userId,
+        agentId,
+      );
+    }
+  }
 
   return (
     <CreateJobModalContextProvider
@@ -76,6 +95,9 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
           executedJobsCount={executedJobsCount}
           averageExecutionDuration={averageExecutionDuration}
           favoriteAgents={favoriteAgents}
+          ratingStats={ratingStats}
+          canRate={canRate}
+          existingRating={existingRating}
           disabled={!availableAgent}
         />
         <div className="mt-6 flex flex-1 flex-col justify-center gap-4 lg:flex-row lg:overflow-hidden">
