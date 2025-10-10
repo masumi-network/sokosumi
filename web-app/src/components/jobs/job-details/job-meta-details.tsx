@@ -271,7 +271,7 @@ function HashGroupRow({
           </div>
         </AccordionTrigger>
         <AccordionContent className="px-0">
-          <div className="grid grid-cols-2 items-center gap-4 text-sm md:grid-cols-3">
+          <div className="grid grid-cols-2 items-center gap-5 text-sm md:grid-cols-3">
             <span className="font-bold break-all md:col-span-1">
               {tLabelOnChain}
             </span>
