@@ -591,6 +591,39 @@ export const jobRepository = {
     });
     return jobs.map(mapJobWithStatus);
   },
+
+  /**
+   * Check if user has completed a job with the agent
+   * @param userId - The unique identifier of the user
+   * @param agentId - The unique identifier of the agent
+   * @returns Promise containing true if user has completed a job with the agent, false otherwise
+   */
+  async hasUserCompletedJobWithAgent(
+    userId: string,
+    agentId: string,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<boolean> {
+    const jobCount = await tx.job.count({
+      where: {
+        userId,
+        agentId,
+        agentJobStatus: {
+          in: ["COMPLETED", "FAILED"],
+        },
+        // Check for finalized on-chain statuses
+        OR: [
+          { onChainStatus: "RESULT_SUBMITTED" },
+          { onChainStatus: "FUNDS_WITHDRAWN" },
+          { onChainStatus: "REFUND_WITHDRAWN" },
+          { onChainStatus: "DISPUTED_WITHDRAWN" },
+          { onChainStatus: "FUNDS_OR_DATUM_INVALID" },
+          { onChainStatus: "DISPUTED" },
+        ],
+      },
+    });
+
+    return jobCount > 0;
+  },
 };
 
 /**

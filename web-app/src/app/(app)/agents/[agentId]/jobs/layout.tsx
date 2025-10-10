@@ -9,7 +9,11 @@ import {
 import DefaultLoading from "@/components/default-loading";
 import { getAuthContext } from "@/lib/auth/utils";
 import { getAgentDescription, getAgentLegal, getAgentName } from "@/lib/db";
-import { agentRepository, jobRepository } from "@/lib/db/repositories";
+import {
+  agentRatingRepository,
+  agentRepository,
+  jobRepository,
+} from "@/lib/db/repositories";
 import { agentService } from "@/lib/services";
 
 import Footer from "./components/footer";
@@ -58,31 +62,31 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
     return notFound();
   }
 
-  const agentWithCreditsPrice = await agentService.getAgentCreditsPrice(agent);
-  const favoriteAgents = await agentService.getFavoriteAgents();
-  const [executedJobsCount, averageExecutionDuration, ratingStats] =
-    await Promise.all([
-      jobRepository.getExecutedJobsCountByAgentId(agentId),
-      jobRepository.getAverageExecutionDurationByAgentId(agentId),
-      agentService.getAgentRatingStats(agentId),
-    ]);
-  const availableAgent = await agentService.getAvailableAgentById(agentId);
-
-  // Fetch rating data for the current user
   const authContext = await getAuthContext();
 
-  let canRate = false;
-  let existingRating = null;
-
-  if (authContext?.userId) {
-    canRate = await agentService.canUserRateAgent(authContext.userId, agentId);
-    if (canRate) {
-      existingRating = await agentService.getUserRatingForAgent(
-        authContext.userId,
-        agentId,
-      );
-    }
-  }
+  const [
+    agentWithCreditsPrice,
+    favoriteAgents,
+    availableAgent,
+    ratingStats,
+    executedJobsCount,
+    averageExecutionDuration,
+    canRate,
+    existingRating,
+  ] = await Promise.all([
+    agentService.getAgentCreditsPrice(agent),
+    agentService.getFavoriteAgents(),
+    agentService.getAvailableAgentById(agentId),
+    agentService.getAgentRatingStats(agentId),
+    jobRepository.getExecutedJobsCountByAgentId(agentId),
+    jobRepository.getAverageExecutionDurationByAgentId(agentId),
+    authContext?.userId
+      ? agentService.canUserRateAgent(authContext.userId, agentId)
+      : Promise.resolve(false),
+    authContext?.userId
+      ? agentRatingRepository.getUserRatingForAgent(authContext.userId, agentId)
+      : Promise.resolve(null),
+  ]);
 
   return (
     <CreateJobModalContextProvider

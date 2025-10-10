@@ -490,10 +490,7 @@ export const agentService = (() => {
      * Check if user can rate an agent
      */
     async canUserRateAgent(userId: string, agentId: string): Promise<boolean> {
-      return await agentRatingRepository.hasUserCompletedJobWithAgent(
-        userId,
-        agentId,
-      );
+      return await jobRepository.hasUserCompletedJobWithAgent(userId, agentId);
     },
 
     /**

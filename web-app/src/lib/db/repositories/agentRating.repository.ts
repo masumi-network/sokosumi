@@ -136,34 +136,4 @@ export const agentRatingRepository = {
       roundedRating,
     };
   },
-
-  /**
-   * Check if user has any finalized jobs with the agent
-   */
-  async hasUserCompletedJobWithAgent(
-    userId: string,
-    agentId: string,
-    tx: Prisma.TransactionClient = prisma,
-  ): Promise<boolean> {
-    const jobCount = await tx.job.count({
-      where: {
-        userId,
-        agentId,
-        agentJobStatus: {
-          in: ["COMPLETED", "FAILED"],
-        },
-        // Check for finalized on-chain statuses
-        OR: [
-          { onChainStatus: "RESULT_SUBMITTED" },
-          { onChainStatus: "FUNDS_WITHDRAWN" },
-          { onChainStatus: "REFUND_WITHDRAWN" },
-          { onChainStatus: "DISPUTED_WITHDRAWN" },
-          { onChainStatus: "FUNDS_OR_DATUM_INVALID" },
-          { onChainStatus: "DISPUTED" },
-        ],
-      },
-    });
-
-    return jobCount > 0;
-  },
 };
