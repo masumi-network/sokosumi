@@ -69,3 +69,9 @@ export type JobWithStatus = JobWithRelations & {
   status: JobStatus;
   jobStatusSettled: boolean;
 };
+
+export enum JobScheduleType {
+  NOW = "NOW",
+  ONE_TIME = "ONE_TIME",
+  CRON = "CRON",
+}

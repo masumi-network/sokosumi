@@ -1,0 +1,204 @@
+import "server-only";
+
+import * as Sentry from "@sentry/nextjs";
+import cronParser from "cron-parser";
+import pLimit from "p-limit";
+
+import { getEnvSecrets } from "@/config/env.secrets";
+import publishJobStatusData from "@/lib/ably/publish";
+import { jobScheduleRepository } from "@/lib/db/repositories/job-schedule.repository";
+import prisma from "@/lib/db/repositories/prisma";
+import { JobScheduleType } from "@/lib/db/types/job";
+import { startJobInputSchema, StartJobInputSchemaType } from "@/lib/schemas";
+import { jobService, lockService } from "@/lib/services";
+import {
+  computeNextRun,
+  ComputeNextRunInput,
+} from "@/lib/services/job-schedule.cron";
+import { JobSchedule, Prisma } from "@/prisma/generated/client";
+
+export type { ComputeNextRunInput };
+
+export const jobScheduleService = {
+  computeNextRun,
+
+  async executeDueSchedules(
+    limit = 50,
+    tx: Prisma.TransactionClient | null = null,
+  ) {
+    const client = tx ?? prisma;
+    const due = await jobScheduleRepository.findDue(limit, client);
+    const limiter = pLimit(3);
+
+    console.log("due", due);
+
+    await Promise.all(
+      due.map((schedule) => limiter(() => processSchedule(schedule, client))),
+    );
+  },
+};
+
+async function processSchedule(
+  schedule: JobSchedule,
+  tx: Prisma.TransactionClient,
+) {
+  const lockKey = `job-schedule-${schedule.id}`;
+  let lock;
+  try {
+    lock = await lockService.acquireLock(lockKey, getEnvSecrets().INSTANCE_ID);
+  } catch (error) {
+    // Already processing elsewhere
+    console.error("Failed to acquire lock", error);
+    return;
+  }
+
+  try {
+    // Determine schedule type
+    const now = new Date();
+    const isOneTime = schedule.scheduleType === JobScheduleType.ONE_TIME;
+    const isCron = schedule.scheduleType === JobScheduleType.CRON;
+
+    // ONE_TIME: no extra timing validation needed here; findDue already filtered by nextRunAt <= now
+
+    // Validate CRON alignment before starting
+    if (isCron) {
+      if (!schedule.cron || !schedule.timezone) {
+        await jobScheduleRepository.setPaused(
+          schedule.id,
+          "INVALID_CRON_CONFIG",
+          tx,
+        );
+        return;
+      }
+
+      const toleranceMs = 3_600_000; // 1h window
+      let lastOccurrence: Date | null = null;
+      try {
+        const interval = cronParser.parse(schedule.cron, {
+          tz: schedule.timezone,
+          currentDate: now,
+        });
+        lastOccurrence = interval.prev().toDate();
+      } catch {
+        await jobScheduleRepository.setPaused(schedule.id, "INVALID_CRON", tx);
+        return;
+      }
+
+      const nextRunAt = schedule.nextRunAt ?? lastOccurrence;
+      const isAligned =
+        Math.abs(nextRunAt.getTime() - lastOccurrence.getTime()) <= toleranceMs;
+      if (!isAligned) {
+        const next = computeNextRun({
+          cron: schedule.cron,
+          timezone: schedule.timezone,
+          from: now,
+        });
+        if (!next) {
+          await jobScheduleRepository.setPaused(
+            schedule.id,
+            "INVALID_CRON",
+            tx,
+          );
+          return;
+        }
+        await jobScheduleRepository.setNextRun(schedule.id, next, tx);
+        return;
+      }
+    }
+
+    // Only after passing validation we mark the attempt and start the job
+    await jobScheduleRepository.markRunAttempt(schedule.id, tx);
+
+    const inputSchema =
+      schedule.inputSchema as unknown as StartJobInputSchemaType["inputSchema"];
+    const inputRecord = JSON.parse(
+      schedule.input,
+    ) as StartJobInputSchemaType["inputData"];
+    const inputData = new Map<string, unknown>(Object.entries(inputRecord));
+
+    // Validation
+    const inputDataForService = {
+      userId: schedule.userId,
+      organizationId: schedule.organizationId,
+      agentId: schedule.agentId,
+      maxAcceptedCents: schedule.maxAcceptedCents,
+      inputSchema,
+      inputData,
+    } as StartJobInputSchemaType;
+
+    const parsedResult = startJobInputSchema.safeParse(inputDataForService);
+
+    if (!parsedResult.success) {
+      Sentry.captureMessage("Job start validation failed", "warning");
+
+      throw new Error("Bad Input");
+    }
+
+    const parsed = parsedResult.data;
+
+    const result = await jobService.startJob(parsed);
+
+    console.log("result", result);
+
+    if (!result) {
+      // Defensive: if startJob throws, code below handles
+    }
+
+    // Success → compute next run or deactivate if one-time
+    if (isOneTime) {
+      await jobScheduleRepository.setNextRun(schedule.id, null, tx);
+      return;
+    }
+    if (isCron) {
+      // Enforce ends conditions
+      const endOnUtc = schedule.endOnUtc;
+      const endAfterOccurrences = schedule.endAfterOccurrences;
+      const occurrenceCount = schedule.occurrenceCount;
+
+      const next = computeNextRun({
+        cron: schedule.cron!,
+        timezone: schedule.timezone,
+        from: now,
+      });
+      if (!next) {
+        await jobScheduleRepository.setPaused(schedule.id, "INVALID_CRON", tx);
+        return;
+      }
+
+      // After this run, occurrenceCount has been incremented in markRunAttempt
+      const updatedOccurrenceCount = occurrenceCount + 1;
+      if (
+        endAfterOccurrences &&
+        updatedOccurrenceCount >= endAfterOccurrences
+      ) {
+        await jobScheduleRepository.setNextRun(schedule.id, null, tx);
+        return;
+      }
+      if (endOnUtc && next > endOnUtc) {
+        await jobScheduleRepository.setNextRun(schedule.id, null, tx);
+        return;
+      }
+      await jobScheduleRepository.setNextRun(schedule.id, next, tx);
+    }
+
+    try {
+      await publishJobStatusData(result);
+    } catch (err) {
+      console.error("Error publishing job status data", err);
+    }
+  } catch (error) {
+    console.error("Error processing schedule", error);
+
+    Sentry.captureException(error, { tags: { feature: "job-schedule" } });
+
+    const message = error instanceof Error ? error.message : String(error);
+
+    await jobScheduleRepository.setPaused(schedule.id, message, tx);
+    // TODO: send notification/email
+  } finally {
+    try {
+      const { lockRepository } = await import("@/lib/db/repositories");
+      await lockRepository.unlockByKey(lock.key);
+    } catch {}
+  }
+}

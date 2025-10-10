@@ -1362,6 +1362,51 @@
           },
           "Input": {
             "title": "Input"
+          },
+          "Scheduler": {
+            "title": "Schedule job",
+            "description": "Choose when to run this job.",
+            "modeCards": {
+              "now": {
+                "title": "Run now",
+                "description": "Execute the job immediately."
+              },
+              "recurring": {
+                "title": "Schedule",
+                "description": "Plan a one-time or recurring schedule."
+              }
+            },
+            "option": {
+              "oneTime": "One-time",
+              "daily": "Daily",
+              "dailyWithTime": "Daily ({time})",
+              "weekly": "Weekly",
+              "weeklyWithWeekdayTime": "Weekly ({weekday}, {time})",
+              "monthly": "Monthly",
+              "monthlyWithDayTime": "Monthly (Day {day}, {time})",
+              "custom": "Custom"
+            },
+            "schedulesTitle": "Schedules",
+            "pickDateTime": "Pick date & time",
+              "timeOfDay": "Time of day",
+              "pickTime": "Pick a time",
+            "repeatEvery": "Repeat every",
+            "repeatOn": "Repeat on",
+            "ends": "Ends",
+            "never": "Never",
+            "on": "On",
+            "after": "After",
+            "occurrences": "occurrences",
+            "pickDate": "Pick a date",
+            "preview": "Preview",
+            "noPreview": "No upcoming runs",
+            "unit": {
+              "day": "day",
+              "week": "week",
+              "month": "month"
+            },
+            "save": "Save",
+            "cancel": "Cancel"
           }
         }
       }

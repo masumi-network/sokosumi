@@ -30,6 +30,7 @@ model User {
   creditTransactions CreditTransaction[]
   fiatTransactions   FiatTransaction[]
   jobs               Job[]
+  jobSchedules       JobSchedule[]
   blobs              Blob[]              @relation("UserBlob")
   links              Link[]              @relation("UserLink")
 
@@ -122,6 +123,7 @@ model Organization {
   agents             Agent[]
   blacklistedAgents  Agent[] @relation("AgentBlacklist")
   jobs               Job[]
+  jobSchedules       JobSchedule[]
   creditTransactions CreditTransaction[]
   fiatTransactions   FiatTransaction[]
 
@@ -348,6 +350,7 @@ model Agent {
   userAgentRating UserAgentRating[]
   agentLists      AgentList[]
   jobs            Job[]
+  jobSchedules    JobSchedule[]
   organizations   Organization[]
   blacklistedOrganizations Organization[] @relation("AgentBlacklist")
 
@@ -708,6 +711,49 @@ model JobShare {
   @@unique([jobId, recipientOrganizationId])
   @@index([recipientOrganizationId])
   @@map("share")
+}
+
+model JobSchedule {
+  id               String   @id @default(cuid())
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  // Ownership
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId   String?
+  organization     Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  agentId          String
+  agent            Agent    @relation(fields: [agentId], references: [id])
+
+  // Execution configuration
+  scheduleType     ScheduleType
+  cron             String?
+  oneTimeAtUtc     DateTime?
+  timezone         String   // IANA timezone identifier used for display and next run calculation
+  endOnUtc         DateTime?
+  endAfterOccurrences Int?
+  occurrenceCount  Int      @default(0)
+
+  // Job payload snapshot
+  inputSchema      Json
+  input            String
+  maxAcceptedCents BigInt
+
+  // State
+  isActive         Boolean  @default(true)
+  lastRunAt        DateTime?
+  nextRunAt        DateTime?
+  pauseReason      String?
+
+  @@index([isActive, nextRunAt])
+  @@index([agentId])
+  @@map("jobSchedule")
+}
+
+enum ScheduleType {
+  ONE_TIME
+  CRON
 }
 
 enum ShareAccessType {
