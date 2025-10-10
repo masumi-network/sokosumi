@@ -14,7 +14,6 @@ function AgentDetailSection2({
   averageExecutionDuration: number;
   ratingStats?: AgentRatingStats;
 }) {
-  console.log("ratingStats", ratingStats);
   const t = useTranslations("Components.Agents.AgentDetail.Section2");
   const formatter = useFormatter();
   const tDuration = useTranslations("Library.Duration.Long");
@@ -60,6 +59,24 @@ function AgentDetailSection2({
           </div>
           <div className="flex items-center gap-1">
             <p className="text-base">{ratingStats.averageRating.toFixed(1)}</p>
+            <div className="flex items-center">
+              {[...Array(5)].map((_, index) => (
+                <Star
+                  key={index}
+                  size={12}
+                  className={
+                    index < ratingStats.roundedRating
+                      ? "fill-yellow-400 text-yellow-400"
+                      : "text-muted-foreground"
+                  }
+                />
+              ))}
+            </div>
+            <span className="text-muted-foreground text-xs">
+              {"("}
+              {formatter.number(ratingStats.totalRatings)}
+              {")"}
+            </span>
           </div>
         </div>
       )}

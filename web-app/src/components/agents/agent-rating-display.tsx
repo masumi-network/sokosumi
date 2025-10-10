@@ -50,6 +50,11 @@ export function AgentRatingDisplay({
 
   return (
     <div className={cn("flex items-center gap-1", className)}>
+      {/* Rating number */}
+      <span className={cn("font-medium", sizeClasses[size])}>
+        {averageRating.toFixed(1)}
+      </span>
+
       {/* Stars */}
       <div className="flex items-center gap-0.5">
         {Array.from({ length: 5 }, (_, index) => (
@@ -66,14 +71,11 @@ export function AgentRatingDisplay({
         ))}
       </div>
 
-      {/* Rating text */}
-      <span className={cn("text-muted-foreground", sizeClasses[size])}>
-        {t("averageRating", { average: averageRating.toFixed(1) })}
-      </span>
-
       {/* Total count */}
       <span className={cn("text-muted-foreground", sizeClasses[size])}>
-        {t("totalRatings", { count: totalRatings })}
+        {"("}
+        {totalRatings}
+        {")"}
       </span>
     </div>
   );
