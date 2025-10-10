@@ -1,25 +1,18 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  ChevronDown,
-  ChevronUp,
-  Globe,
-  Loader2,
-  Lock,
-  Users,
-} from "lucide-react";
+import { Globe, Loader2, Lock, Users } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { ReactNode, useState } from "react";
 import { useForm, UseFormReturn } from "react-hook-form";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
@@ -56,7 +49,6 @@ interface JobNameContentProps {
   sharedPublicly: boolean;
   sharedWithOrganization: boolean;
   readOnly: boolean;
-  isOpen: boolean;
   handleSubmit: (data: JobDetailsNameFormSchemaType) => Promise<void>;
   handleCancel: () => void;
   handleEdit: () => void;
@@ -71,7 +63,6 @@ function JobNameContent({
   sharedPublicly,
   sharedWithOrganization,
   readOnly,
-  isOpen,
   handleSubmit,
   handleCancel,
   handleEdit,
@@ -109,7 +100,7 @@ function JobNameContent({
             disabled={form.formState.isSubmitting}
           >
             {form.formState.isSubmitting && (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className="mr-2 size-4 animate-spin" />
             )}
             {t("save")}
           </Button>
@@ -128,18 +119,23 @@ function JobNameContent({
   }
 
   return (
-    <CollapsibleTrigger asChild>
+    <AccordionTrigger className="w-full items-center px-0 py-0">
       <div className="flex w-full cursor-default items-center gap-2">
         <div className="flex min-w-0 flex-1 items-center gap-2">
           <p className="truncate">{name ?? t("noName")}</p>
           <Tooltip>
-            <TooltipTrigger onClick={handleShareIndicatorClick}>
+            <TooltipTrigger
+              onClick={(event) => {
+                event.stopPropagation();
+                handleShareIndicatorClick();
+              }}
+            >
               {sharedPublicly ? (
-                <Globe className="h-4 w-4" />
+                <Globe className="size-4" />
               ) : sharedWithOrganization ? (
-                <Users className="h-4 w-4" />
+                <Users className="size-4" />
               ) : (
-                <Lock className="h-4 w-4" />
+                <Lock className="size-4" />
               )}
             </TooltipTrigger>
             <TooltipContent>
@@ -152,20 +148,19 @@ function JobNameContent({
           </Tooltip>
         </div>
         {!readOnly && (
-          <Button variant="outline" size="sm" onClick={handleEdit}>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={(event) => {
+              event.stopPropagation();
+              handleEdit();
+            }}
+          >
             {t("edit")}
           </Button>
         )}
-
-        <span className="text-muted-foreground ml-auto inline-flex h-4 w-4 cursor-pointer items-center justify-center">
-          {isOpen ? (
-            <ChevronUp className="h-4 w-4" />
-          ) : (
-            <ChevronDown className="h-4 w-4" />
-          )}
-        </span>
       </div>
-    </CollapsibleTrigger>
+    </AccordionTrigger>
   );
 }
 
@@ -181,7 +176,7 @@ function JobNameWrapper({
   Component,
 }: JobNameWrapperProps) {
   return (
-    <div className="flex items-center justify-between gap-2">
+    <div className="inline w-full max-w-full items-center justify-between gap-2">
       {children}
       {!readOnly && Component}
     </div>
@@ -213,7 +208,6 @@ export default function JobDetailsName({
 
   const router = useAsyncRouter();
   const [editing, setEditing] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
 
   const form = useForm<JobDetailsNameFormSchemaType>({
     resolver: zodResolver(
@@ -228,7 +222,6 @@ export default function JobDetailsName({
 
   const handleEdit = () => {
     setEditing(true);
-    setIsOpen(false);
   };
 
   const handleCancel = () => {
@@ -283,7 +276,6 @@ export default function JobDetailsName({
     sharedPublicly,
     sharedWithOrganization,
     readOnly,
-    isOpen,
     handleSubmit,
     handleCancel,
     handleEdit,
@@ -293,22 +285,20 @@ export default function JobDetailsName({
 
   return (
     <div className="bg-muted/50 flex items-center justify-between gap-2 rounded-xl p-4">
-      <Collapsible className="w-full" open={isOpen} onOpenChange={setIsOpen}>
-        {isCollapsible ? (
-          <>
-            <JobNameWrapper readOnly={readOnly} Component={Component}>
-              <JobNameContent {...contentProps} />
-            </JobNameWrapper>
-            <CollapsibleContent>
-              <JobMetaDetails job={job} />
-            </CollapsibleContent>
-          </>
-        ) : (
+      {isCollapsible ? (
+        <AccordionItem value="meta" className="w-full border-0">
           <JobNameWrapper readOnly={readOnly} Component={Component}>
             <JobNameContent {...contentProps} />
           </JobNameWrapper>
-        )}
-      </Collapsible>
+          <AccordionContent className="px-0">
+            <JobMetaDetails job={job} />
+          </AccordionContent>
+        </AccordionItem>
+      ) : (
+        <JobNameWrapper readOnly={readOnly} Component={Component}>
+          <JobNameContent {...contentProps} />
+        </JobNameWrapper>
+      )}
     </div>
   );
 }
