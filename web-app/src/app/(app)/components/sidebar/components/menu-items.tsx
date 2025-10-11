@@ -39,7 +39,7 @@ export default async function MenuItems() {
                     {hasIndicator ? (
                       <span
                         aria-hidden
-                        className="bg-primary size-2 shrink-0 rounded-full"
+                        className="bg-primary-iris size-2 shrink-0 rounded-full"
                       />
                     ) : null}
                   </Link>
