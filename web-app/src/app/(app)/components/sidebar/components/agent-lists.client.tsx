@@ -1,7 +1,7 @@
 "use client";
 
 import { ChannelProvider } from "ably/react";
-import { ChevronDown, History, Pin, SquareTerminal } from "lucide-react";
+import { ChevronDown, History, Pin, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -130,7 +130,7 @@ export default function AgentListsClient({
                                           }}
                                         />
                                       ) : (
-                                        <SquareTerminal
+                                        <Sparkles
                                           className={cn("size-4", {
                                             "text-muted-foreground":
                                               !isAvailable &&
@@ -157,7 +157,7 @@ export default function AgentListsClient({
                                             className={cn("size-4", {
                                               "text-primary-foreground":
                                                 agentId === agent.id,
-                                              "text-primary":
+                                              "text-primary-iris":
                                                 agentId !== agent.id,
                                             })}
                                           />

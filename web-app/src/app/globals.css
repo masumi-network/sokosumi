@@ -53,6 +53,8 @@
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
 
+  --color-primary-iris: var(--primary-iris);
+
   --animate-accordion-down: accordion-down 0.2s ease-out;
   --animate-accordion-up: accordion-up 0.2s ease-out;
 
@@ -193,6 +195,10 @@
   --sidebar-accent-foreground: hsla(330, 0%, 9%, 1);
   --sidebar-border: hsla(330, 0%, 90%, 1);
   --sidebar-ring: hsla(0, 0%, 63%, 1);
+  
+  /* New Colors */
+  --primary-iris: hsla(300, 100%, 50%, 1);
+
   /* Semantic */
   --semantic-destructive: hsla(0, 72%, 51%, 1);
   --semantic-destructive-variant: hsla(0, 74%, 42%, 1);
@@ -305,6 +311,9 @@
   --sidebar-accent-foreground: hsla(0, 0%, 98%, 1);
   --sidebar-border: hsla(300, 50%, 100%, 0.1);
   --sidebar-ring: hsla(300, 0%, 45%, 1);
+
+  /* New Colors */
+  --primary-iris: hsla(300, 100%, 50%, 1);
 
   /* Semantic */
   --semantic-destructive: hsla(0, 70%, 35%, 1);
