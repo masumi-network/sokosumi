@@ -10,6 +10,7 @@ import {
 } from "@/lib/db/helpers";
 import {
   CreditsPrice,
+  DemoJobWithStatus,
   finalizedOnChainJobStatuses,
   FreeJobWithStatus,
   jobInclude,
@@ -40,17 +41,24 @@ function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
         : false
       : job.completedAt != null;
 
-  const jobWithStatus = {
+  const baseJobWithStatus = {
     ...job,
     status: computeJobStatus(job),
     jobStatusSettled,
   };
 
-  if (job.jobType === JobType.PAID) {
-    return jobWithStatus as PaidJobWithStatus;
+  switch (job.jobType) {
+    case JobType.PAID:
+      return baseJobWithStatus as PaidJobWithStatus;
+    case JobType.FREE:
+      return baseJobWithStatus as FreeJobWithStatus;
+    case JobType.DEMO:
+      return baseJobWithStatus as DemoJobWithStatus;
+    default: {
+      const _exhaustive: never = job.jobType;
+      throw new Error(`Unhandled job type: ${_exhaustive}`);
+    }
   }
-
-  return jobWithStatus as FreeJobWithStatus;
 }
 
 interface CreateDemoJobData {
