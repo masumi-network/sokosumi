@@ -7,9 +7,12 @@ import { nextCookies } from "better-auth/next-js";
 import { apiKey, organization } from "better-auth/plugins";
 import { localization } from "better-auth-localization";
 import { getTranslations } from "next-intl/server";
+import pTimeout from "p-timeout";
+import validator from "validator";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
+import { uploadData } from "@/lib/blob";
 import { prisma, userRepository } from "@/lib/db/repositories";
 import { reactChangeEmailVerificationEmail } from "@/lib/email/change-email";
 import { reactInviteUserEmail } from "@/lib/email/invitation";
@@ -302,13 +305,63 @@ export const auth = betterAuth({
   ],
 });
 
-// check image is longer than 256 characters
-function mapProfileToUser(profile: { name: string; picture: string }) {
-  if (profile.picture && profile.picture.length > 256) {
+async function mapProfileToUser(profile: { name: string; picture: string }) {
+  try {
+    return pTimeout(mapProfileToUserInner(profile), {
+      milliseconds: getEnvSecrets().BETTER_AUTH_PROFILE_PICTURE_TIMEOUT,
+    });
+  } catch (error) {
+    console.error(
+      `Failed to map profile to user: ${JSON.stringify(profile)}`,
+      error,
+    );
     return {
       name: profile.name,
       image: undefined,
     };
+  }
+}
+
+// Due to Cookie size limit (4KB) and JWT encryption
+// we can NOT store big profile image (which is stored on cookie)
+async function mapProfileToUserInner(profile: {
+  name: string;
+  picture: string;
+}) {
+  if (profile.picture && profile.picture.length > 512) {
+    // we will upload profile picture to vercel blob
+    // and retrieve small length of url
+    const profilePicture = profile.picture;
+
+    const dataUriRegex =
+      /^data:image\/(png|jpg|jpeg|gif|webp|bmp|svg\+xml);base64,/;
+    if (dataUriRegex.test(profilePicture)) {
+      // if profile picture is base64 format
+      const buffer = Buffer.from(
+        profilePicture.replace(/^data:image\/\w+;base64,/, ""),
+        "base64",
+      );
+      const uploaded = await uploadData(profile.name, profile.name, buffer);
+      return {
+        name: profile.name,
+        image: uploaded.url,
+      };
+    } else if (validator.isURL(profile.picture)) {
+      // if profile picture is long url
+      // fetch and upload to vercel blob
+      const res = await fetch(profile.picture);
+      const blob = await res.blob();
+      const uploaded = await uploadData(profile.name, profile.name, blob);
+      return {
+        name: profile.name,
+        image: uploaded.url,
+      };
+    } else {
+      return {
+        name: profile.name,
+        image: undefined,
+      };
+    }
   }
   return {
     name: profile.name,

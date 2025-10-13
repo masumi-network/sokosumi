@@ -122,6 +122,7 @@ const envSecretsSchema = z.object({
     .string()
     .transform((val: string) => (val.trim() === "" ? [] : val.split(",")))
     .default([]),
+  BETTER_AUTH_PROFILE_PICTURE_TIMEOUT: z.coerce.number().default(1000 * 10), // 10 seconds
 
   // ably keys
   ABLY_AGENT_JOBS_SUBSCRIBE_ONLY_KEY: z.string().min(1),

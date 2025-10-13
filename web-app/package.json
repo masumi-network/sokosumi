@@ -119,6 +119,7 @@
     "unified": "11.0.5",
     "use-debounce": "10.0.6",
     "uuid": "13.0.0",
+    "validator": "^13.15.15",
     "vaul": "1.1.2",
     "zod": "4.1.12"
   },
@@ -131,6 +132,7 @@
     "@types/react-dom": "19.2.1",
     "@types/react-file-icon": "1.0.4",
     "@types/react-window": "2.0.0",
+    "@types/validator": "^13.15.3",
     "eslint-config-next": "15.5.4",
     "jsdom": "27.0.0",
     "next-openapi-gen": "0.7.9",

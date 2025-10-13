@@ -16,3 +16,15 @@ export async function uploadFile(
   );
   return blob;
 }
+
+export async function uploadData(
+  userId: string,
+  name: string,
+  data: Buffer | Blob,
+): Promise<PutBlobResult> {
+  const blob = await put(`${userId}/${name}`, data, {
+    access: "public",
+    addRandomSuffix: true,
+  });
+  return blob;
+}

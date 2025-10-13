@@ -344,6 +344,9 @@ importers:
       uuid:
         specifier: 13.0.0
         version: 13.0.0
+      validator:
+        specifier: ^13.15.15
+        version: 13.15.15
       vaul:
         specifier: 1.1.2
         version: 1.1.2(@types/react-dom@19.2.1(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
@@ -375,6 +378,9 @@ importers:
       '@types/react-window':
         specifier: 2.0.0
         version: 2.0.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      '@types/validator':
+        specifier: ^13.15.3
+        version: 13.15.3
       eslint-config-next:
         specifier: 15.5.4
         version: 15.5.4(eslint@9.37.0(jiti@2.6.1))(typescript@5.9.3)
@@ -3240,6 +3246,9 @@ packages:
 
   '@types/unist@3.0.3':
     resolution: {integrity: sha512-ko/gIFJRv177XgZsZcBwnqJN5x/Gien8qNOn0D5bQU/zAzVf9Zt3BlcUiLqhV9y4ARk0GbT3tnUiPNgnTXzc/Q==}
+
+  '@types/validator@13.15.3':
+    resolution: {integrity: sha512-7bcUmDyS6PN3EuD9SlGGOxM77F8WLVsrwkxyWxKnxzmXoequ6c7741QBrANq6htVRGOITJ7z72mTP6Z4XyuG+Q==}
 
   '@types/whatwg-mimetype@3.0.2':
     resolution: {integrity: sha512-c2AKvDT8ToxLIOUlN51gTiHXflsfIFisS4pO7pDPoKouJCESkhZnEy623gwP9laCy5lnLDAw1vAzu2vM2YLOrA==}
@@ -10870,6 +10879,8 @@ snapshots:
     optional: true
 
   '@types/unist@3.0.3': {}
+
+  '@types/validator@13.15.3': {}
 
   '@types/whatwg-mimetype@3.0.2': {}
 
