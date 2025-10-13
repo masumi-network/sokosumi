@@ -91,7 +91,6 @@ export const agentClient = (() => {
 
     async startFreeAgentJob(
       agent: Agent,
-      identifierFromPurchaser: string,
       inputData: JobInputData,
     ): Promise<Result<StartFreeJobResponseSchemaType, string>> {
       try {
@@ -102,11 +101,9 @@ export const agentClient = (() => {
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            identifier_from_purchaser: identifierFromPurchaser,
             input_data: Object.fromEntries(inputData),
           }),
         });
-
         if (!startJobResponse.ok) {
           return Err("Failed to start free agent job");
         }

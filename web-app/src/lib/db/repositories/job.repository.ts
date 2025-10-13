@@ -65,8 +65,7 @@ interface CreateDemoJobData {
   agentJobStatus: AgentJobStatus;
   output: string;
   completedAt: Date | null;
-  // Identifier for demo job tracking
-  identifierFromPurchaser: string;
+  identifierFromPurchaser: null;
 }
 
 interface CreateJobBase {
@@ -77,7 +76,6 @@ interface CreateJobBase {
   inputSchema: JobInputSchemaType[];
   input: string;
   name: string | null;
-  identifierFromPurchaser: string;
   agentJobStatus?: AgentJobStatus | null;
   output?: string | null;
   completedAt?: Date | null;
@@ -85,6 +83,7 @@ interface CreateJobBase {
 
 interface CreatePaidJobData extends CreateJobBase {
   jobType: typeof JobType.PAID;
+  identifierFromPurchaser: string;
   creditsPrice: CreditsPrice;
   payByTime: Date;
   externalDisputeUnlockTime: Date;
@@ -340,7 +339,6 @@ export const jobRepository = {
       inputSchema: data.inputSchema,
       input: data.input,
       name: data.name,
-      identifierFromPurchaser: data.identifierFromPurchaser,
       ...(data.agentJobStatus !== undefined && {
         agentJobStatus: data.agentJobStatus,
       }),
@@ -360,6 +358,7 @@ export const jobRepository = {
             unlockTime: null,
             blockchainIdentifier: null,
             sellerVkey: null,
+            identifierFromPurchaser: null,
           },
         });
       case JobType.PAID:
@@ -373,6 +372,7 @@ export const jobRepository = {
             unlockTime: data.unlockTime,
             blockchainIdentifier: data.blockchainIdentifier,
             sellerVkey: data.sellerVkey,
+            identifierFromPurchaser: data.identifierFromPurchaser,
           },
         });
     }

@@ -683,9 +683,6 @@ export const jobService = (() => {
   ): Promise<Job> {
     const { userId, organizationId, agentId, inputData, inputSchema } = input;
 
-    // Generate identifier for the job
-    const identifierFromPurchaser = uuidv4().replace(/-/g, "").substring(0, 20);
-
     Sentry.addBreadcrumb({
       category: "Job Service",
       message: "Starting free agent job via external API",
@@ -693,14 +690,12 @@ export const jobService = (() => {
       data: {
         agentId,
         agentName: agent.name,
-        identifierFromPurchaser,
       },
     });
 
     // Start job with agent using free job client
     const startJobResult = await agentClient.startFreeAgentJob(
       agent,
-      identifierFromPurchaser,
       inputData,
     );
 
@@ -740,7 +735,6 @@ export const jobService = (() => {
       organizationId,
       input: JSON.stringify(Object.fromEntries(inputData)),
       inputSchema: inputSchema,
-      identifierFromPurchaser: startJobResponse.identifierFromPurchaser,
       name: generatedName,
     });
 
