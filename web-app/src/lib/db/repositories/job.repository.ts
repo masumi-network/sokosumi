@@ -271,7 +271,6 @@ export const jobRepository = {
         },
         inputSchema: data.inputSchema,
         input: data.input,
-        identifierFromPurchaser: data.identifierFromPurchaser,
         payByTime: null,
         submitResultTime: null,
         unlockTime: null,
