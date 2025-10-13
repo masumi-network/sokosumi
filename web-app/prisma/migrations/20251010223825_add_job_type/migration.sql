@@ -16,6 +16,7 @@ ALTER COLUMN "unlockTime" DROP NOT NULL,
 ALTER COLUMN "externalDisputeUnlockTime" DROP NOT NULL,
 ALTER COLUMN "sellerVkey" DROP NOT NULL,
 ALTER COLUMN "payByTime" DROP NOT NULL;
+ALTER COLUMN "identifierFromPurchaser" DROP NOT NULL;
 
 -- Backfill existing rows as PAID jobs
 UPDATE "Job" SET "jobType" = 'PAID' WHERE "jobType" IS NULL;
@@ -40,6 +41,7 @@ SET
   "onChainStatus" = NULL,
   "onChainTransactionHash" = NULL,
   "onChainTransactionStatus" = NULL
+  "identifierFromPurchaser" = NULL
 WHERE "jobType" = 'DEMO';
 
 -- Ensure jobType is required moving forward
@@ -57,6 +59,7 @@ CHECK (
     "unlockTime" IS NOT NULL AND
     "externalDisputeUnlockTime" IS NOT NULL AND
     "sellerVkey" IS NOT NULL
+    "identifierFromPurchaser" IS NOT NULL
   )
 );
 
@@ -76,7 +79,8 @@ CHECK (
     "resultHash" IS NULL AND
     "onChainStatus" IS NULL AND
     "onChainTransactionHash" IS NULL AND
-    "onChainTransactionStatus" IS NULL
+    "onChainTransactionStatus" IS NULL AND
+    "identifierFromPurchaser" IS NOT NULL
   )
 );
 
@@ -96,6 +100,7 @@ CHECK (
     "resultHash" IS NULL AND
     "onChainStatus" IS NULL AND
     "onChainTransactionHash" IS NULL AND
-    "onChainTransactionStatus" IS NULL
+    "onChainTransactionStatus" IS NULL AND
+    "identifierFromPurchaser" IS NOT NULL
   )
 );
