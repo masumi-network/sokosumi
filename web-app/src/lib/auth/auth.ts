@@ -12,7 +12,7 @@ import validator from "validator";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
-import { uploadData } from "@/lib/blob";
+import { uploadAvatar } from "@/lib/blob";
 import { prisma, userRepository } from "@/lib/db/repositories";
 import { reactChangeEmailVerificationEmail } from "@/lib/email/change-email";
 import { reactInviteUserEmail } from "@/lib/email/invitation";
@@ -341,7 +341,7 @@ async function mapProfileToUserInner(profile: {
         profilePicture.replace(/^data:image\/\w+;base64,/, ""),
         "base64",
       );
-      const uploaded = await uploadData(profile.name, profile.name, buffer);
+      const uploaded = await uploadAvatar(profile.name, buffer);
       return {
         name: profile.name,
         image: uploaded.url,
@@ -351,7 +351,7 @@ async function mapProfileToUserInner(profile: {
       // fetch and upload to vercel blob
       const res = await fetch(profile.picture);
       const blob = await res.blob();
-      const uploaded = await uploadData(profile.name, profile.name, blob);
+      const uploaded = await uploadAvatar(profile.name, blob);
       return {
         name: profile.name,
         image: uploaded.url,

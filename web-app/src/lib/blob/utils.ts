@@ -2,6 +2,8 @@ import "server-only";
 
 import { put, PutBlobResult } from "@vercel/blob";
 
+import { getEnvSecrets } from "@/config/env.secrets";
+
 export async function uploadFile(
   userId: string,
   inputFile: File,
@@ -17,14 +19,17 @@ export async function uploadFile(
   return blob;
 }
 
-export async function uploadData(
-  userId: string,
+export async function uploadAvatar(
   name: string,
   data: Buffer | Blob,
 ): Promise<PutBlobResult> {
-  const blob = await put(`${userId}/${name}`, data, {
-    access: "public",
-    addRandomSuffix: true,
-  });
+  const blob = await put(
+    `${getEnvSecrets().VERCEL_AVATARS_UPLOAD_DIR}/${name.replace(/ /g, "_")}`,
+    data,
+    {
+      access: "public",
+      addRandomSuffix: true,
+    },
+  );
   return blob;
 }
