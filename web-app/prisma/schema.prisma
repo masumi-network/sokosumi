@@ -545,6 +545,8 @@ model Job {
   links Link[] @relation("JobLink")
 
   shares JobShare[]
+
+  @@index([jobType])
 }
 
 enum OnChainTransactionStatus {

@@ -48,6 +48,9 @@ WHERE "jobType" = 'DEMO';
 ALTER TABLE "Job"
 ALTER COLUMN "jobType" SET NOT NULL;
 
+-- Create index
+CREATE INDEX "Job_jobType_idx" ON "Job"("jobType");
+
 -- Add constraint: PAID jobs require blockchain fields
 ALTER TABLE "Job"
 ADD CONSTRAINT "paid_job_blockchain_required"
