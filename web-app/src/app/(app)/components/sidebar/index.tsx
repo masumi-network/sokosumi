@@ -13,7 +13,7 @@ import { Session } from "@/lib/auth/auth";
 
 import AgentLists from "./components/agent-lists";
 import CustomTrigger from "./components/custom-trigger";
-import GalleryButton from "./components/gallery-button";
+import MenuItems from "./components/menu-items";
 
 interface SidebarProps {
   session: Session;
@@ -37,13 +37,11 @@ export default function Sidebar({ session }: SidebarProps) {
           <CustomTrigger />
         </div>
       </SidebarHeader>
-      <SidebarContent className="min-h-0 w-full flex-1">
+      <SidebarContent className="min-h-0 w-full flex-1 pt-4">
+        <MenuItems />
         <AgentLists userId={session.user.id} />
       </SidebarContent>
       <SidebarFooter className="shrink-0 px-0">
-        <SheetClose asChild>
-          <GalleryButton />
-        </SheetClose>
         <div className="flex flex-1 gap-2 p-4 pt-0 md:hidden">
           <UserCredits session={session} />
         </div>

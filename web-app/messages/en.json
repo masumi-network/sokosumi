@@ -979,9 +979,14 @@
     },
     "Sidebar": {
       "Content": {
+        "MenuItems": {
+          "exploreAgents": "Explore Agents",
+          "filesAndOutputs": "Files and Outputs",
+          "taskManager": "Task Manager"
+        },
         "AgentLists": {
-          "pinnedTitle": "Your Pinned Agents",
-          "hiredTitle": "Your Hired Agents",
+          "pinnedTitle": "Pinned Agents",
+          "hiredTitle": "Recently Used Agents",
           "noAgents": "No {type} agents yet",
           "pinnedType": "pinned",
           "hiredType": "hired",
@@ -1000,11 +1005,6 @@
             "refundResolved": "Refunded",
             "outputPending": "Output Missing"
           }
-        }
-      },
-      "Footer": {
-        "AgentButton": {
-          "title": "Explore Agents"
         }
       }
     },

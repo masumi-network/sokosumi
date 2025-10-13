@@ -330,6 +330,7 @@ model Agent {
 
   image         String
   overrideImage String?
+  icon          String?
 
   metadataVersion Int @default(1)
 
