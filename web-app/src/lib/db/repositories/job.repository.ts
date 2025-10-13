@@ -65,7 +65,6 @@ interface CreateDemoJobData {
   agentJobStatus: AgentJobStatus;
   output: string;
   completedAt: Date | null;
-  identifierFromPurchaser: null;
 }
 
 interface CreateJobBase {

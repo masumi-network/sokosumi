@@ -341,9 +341,6 @@ export const jobService = (() => {
     const output = JSON.stringify(jobStatusResponse);
     const agentJobStatus = jobStatusToAgentJobStatus(jobStatusResponse.status);
 
-    // Generate identifier for demo job tracking
-    const identifierFromPurchaser = uuidv4().replace(/-/g, "").substring(0, 20);
-
     const job = await jobRepository.createDemoJob({
       jobType: JobType.DEMO,
       agentJobId: uuidv4(),
@@ -355,7 +352,6 @@ export const jobService = (() => {
       name: "Demo Job",
       agentJobStatus,
       output,
-      identifierFromPurchaser,
       completedAt:
         agentJobStatus === AgentJobStatus.COMPLETED ? new Date() : null,
     });
