@@ -63,20 +63,6 @@ async function getMenuItems(t: SidebarTranslator): Promise<MenuItemConfig[]> {
       label: t("exploreAgents"),
       Icon: Search,
     },
-    // TODO: Uncomment these when we have the functionality
-    // {
-    //   key: "files-and-outputs",
-    //   href: "/",
-    //   label: t("filesAndOutputs"),
-    //   Icon: File,
-    // },
-    // {
-    //   key: "task-manager",
-    //   href: "/",
-    //   label: t("taskManager"),
-    //   Icon: SquareCheckBig,
-    //   hasIndicator: true,
-    // },
   ];
 
   return items;
