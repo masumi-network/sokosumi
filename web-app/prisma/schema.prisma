@@ -534,8 +534,8 @@ model Job {
   onChainTransactionHash   String?
   onChainTransactionStatus OnChainTransactionStatus?
 
-  creditTransaction           CreditTransaction  @relation("CreditTransactionJob", fields: [creditTransactionId], references: [id])
-  creditTransactionId         String             @unique
+  creditTransaction           CreditTransaction? @relation("CreditTransactionJob", fields: [creditTransactionId], references: [id])
+  creditTransactionId         String?            @unique
   refundedCreditTransaction   CreditTransaction? @relation("RefundedCreditTransactionJob", fields: [refundedCreditTransactionId], references: [id])
   refundedCreditTransactionId String?            @unique
 

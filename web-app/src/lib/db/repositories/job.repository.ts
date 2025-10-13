@@ -227,24 +227,6 @@ export const jobRepository = {
     data: CreateDemoJobData,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<Job> {
-    // Build the credit transaction data based on whether it's for a user or organization
-    const creditTransactionData: Prisma.CreditTransactionCreateInput = {
-      amount: BigInt(0),
-      includedFee: BigInt(0),
-      user: {
-        connect: {
-          id: data.userId,
-        },
-      },
-      ...(data.organizationId && {
-        organization: {
-          connect: {
-            id: data.organizationId,
-          },
-        },
-      }),
-    };
-
     return await tx.job.create({
       data: {
         agentJobId: data.agentJobId,
@@ -266,9 +248,6 @@ export const jobRepository = {
             },
           },
         }),
-        creditTransaction: {
-          create: creditTransactionData,
-        },
         inputSchema: data.inputSchema,
         input: data.input,
         payByTime: null,
@@ -289,28 +268,6 @@ export const jobRepository = {
     data: CreateJobData,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<Job> {
-    const creditTransactionData: Prisma.CreditTransactionCreateInput = {
-      amount: BigInt(0),
-      includedFee: BigInt(0),
-      user: {
-        connect: {
-          id: data.userId,
-        },
-      },
-      ...(data.organizationId && {
-        organization: {
-          connect: {
-            id: data.organizationId,
-          },
-        },
-      }),
-    };
-
-    if (data.jobType === JobType.PAID) {
-      creditTransactionData.amount = -data.creditsPrice.cents;
-      creditTransactionData.includedFee = data.creditsPrice.includedFee;
-    }
-
     const baseJobData: Prisma.JobCreateInput = {
       agentJobId: data.agentJobId,
       jobType: data.jobType,
@@ -331,9 +288,6 @@ export const jobRepository = {
           },
         },
       }),
-      creditTransaction: {
-        create: creditTransactionData,
-      },
       inputSchema: data.inputSchema,
       input: data.input,
       name: data.name,
@@ -363,6 +317,24 @@ export const jobRepository = {
         return tx.job.create({
           data: {
             ...baseJobData,
+            creditTransaction: {
+              create: {
+                amount: -data.creditsPrice.cents,
+                includedFee: data.creditsPrice.includedFee,
+                user: {
+                  connect: {
+                    id: data.userId,
+                  },
+                },
+                ...(data.organizationId && {
+                  organization: {
+                    connect: {
+                      id: data.organizationId,
+                    },
+                  },
+                }),
+              },
+            },
             ...(data.purchaseId && { purchaseId: data.purchaseId }),
             payByTime: data.payByTime,
             externalDisputeUnlockTime: data.externalDisputeUnlockTime,
@@ -373,6 +345,10 @@ export const jobRepository = {
             identifierFromPurchaser: data.identifierFromPurchaser,
           },
         });
+      default: {
+        const _exhaustive: never = data;
+        throw new Error(`Unsupported job type: ${_exhaustive}`);
+      }
     }
   },
 

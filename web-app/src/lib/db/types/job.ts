@@ -1,5 +1,6 @@
 import {
   AgentJobStatus,
+  CreditTransaction,
   JobType,
   OnChainJobStatus,
   Prisma,
@@ -42,6 +43,8 @@ type BaseJobWithStatus = JobWithRelations & {
 
 type BaseFreeJob = {
   jobType: typeof JobType.FREE;
+  creditTransaction: null;
+  creditTransactionId: null;
   identifierFromPurchaser: null;
   blockchainIdentifier: null;
   payByTime: null;
@@ -59,6 +62,8 @@ type BaseFreeJob = {
 
 type BaseDemoJob = {
   jobType: typeof JobType.DEMO;
+  creditTransaction: null;
+  creditTransactionId: null;
   identifierFromPurchaser: null;
   blockchainIdentifier: null;
   payByTime: null;
@@ -76,6 +81,8 @@ type BaseDemoJob = {
 
 type BasePaidJob = {
   jobType: typeof JobType.PAID;
+  creditTransaction: CreditTransaction;
+  creditTransactionId: string;
   blockchainIdentifier: string;
   payByTime: Date;
   submitResultTime: Date;

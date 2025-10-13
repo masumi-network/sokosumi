@@ -16,7 +16,8 @@ ALTER COLUMN "unlockTime" DROP NOT NULL,
 ALTER COLUMN "externalDisputeUnlockTime" DROP NOT NULL,
 ALTER COLUMN "sellerVkey" DROP NOT NULL,
 ALTER COLUMN "payByTime" DROP NOT NULL,
-ALTER COLUMN "identifierFromPurchaser" DROP NOT NULL;
+ALTER COLUMN "identifierFromPurchaser" DROP NOT NULL,
+ALTER COLUMN "creditTransactionId" DROP NOT NULL;
 
 -- Backfill existing rows as PAID jobs
 UPDATE "Job" SET "jobType" = 'PAID' WHERE "jobType" IS NULL;
@@ -41,7 +42,8 @@ SET
   "onChainStatus" = NULL,
   "onChainTransactionHash" = NULL,
   "onChainTransactionStatus" = NULL,
-  "identifierFromPurchaser" = NULL
+  "identifierFromPurchaser" = NULL,
+  "creditTransactionId" = NULL
 WHERE "jobType" = 'DEMO';
 
 -- Ensure jobType is required moving forward
@@ -50,6 +52,14 @@ ALTER COLUMN "jobType" SET NOT NULL;
 
 -- Create index
 CREATE INDEX "Job_jobType_idx" ON "Job"("jobType");
+
+-- DropForeignKey
+ALTER TABLE "public"."Job" DROP CONSTRAINT "Job_creditTransactionId_fkey";
+
+-- AddForeignKey
+ALTER TABLE "Job" 
+ADD CONSTRAINT "Job_creditTransactionId_fkey" 
+FOREIGN KEY ("creditTransactionId") REFERENCES "CreditTransaction"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- Add constraint: PAID jobs require blockchain fields
 ALTER TABLE "Job"
@@ -62,7 +72,8 @@ CHECK (
     "unlockTime" IS NOT NULL AND
     "externalDisputeUnlockTime" IS NOT NULL AND
     "sellerVkey" IS NOT NULL AND
-    "identifierFromPurchaser" IS NOT NULL
+    "identifierFromPurchaser" IS NOT NULL AND
+    "creditTransactionId" IS NOT NULL
   )
 );
 
@@ -83,7 +94,8 @@ CHECK (
     "onChainStatus" IS NULL AND
     "onChainTransactionHash" IS NULL AND
     "onChainTransactionStatus" IS NULL AND
-    "identifierFromPurchaser" IS NULL
+    "identifierFromPurchaser" IS NULL AND
+    "creditTransactionId" IS NULL
   )
 );
 
@@ -104,6 +116,7 @@ CHECK (
     "onChainStatus" IS NULL AND
     "onChainTransactionHash" IS NULL AND
     "onChainTransactionStatus" IS NULL AND
-    "identifierFromPurchaser" IS NULL
+    "identifierFromPurchaser" IS NULL AND
+    "creditTransactionId" IS NULL
   )
 );

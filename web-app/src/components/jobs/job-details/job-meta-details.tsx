@@ -122,12 +122,18 @@ export function JobMetaDetails({ job }: JobMetaDetailsProps) {
         ? formatDateTimeMedium(formatter.dateTime, job.completedAt)
         : "-",
     },
-    {
-      key: "credits",
-      label: t("credits"),
-      rowClassName: "",
-      content: Math.abs(convertCentsToCredits(job.creditTransaction.amount)),
-    },
+    ...(job.creditTransaction
+      ? [
+          {
+            key: "credits",
+            label: t("credits"),
+            rowClassName: "",
+            content: Math.abs(
+              convertCentsToCredits(job.creditTransaction.amount),
+            ),
+          },
+        ]
+      : []),
   ] as const;
 
   return (
