@@ -24,6 +24,7 @@
   --color-primary-quinary: var(--primary-quinary);
   --color-primary-foreground: var(--primary-foreground);
   --color-primary-muted-foreground: var(--primary-muted-foreground);
+  --color-primary-iris: var(--primary-iris);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-tertiary: var(--tertiary);
@@ -164,6 +165,7 @@
   --primary-quinary: hsla(264, 100%, 50%, 0.05);
   --primary-foreground: hsla(0, 0%, 98%, 1);
   --primary-muted-foreground: hsla(0, 0%, 98%, 0.6);
+  --primary-iris: hsla(300, 100%, 50%, 1);
   --secondary: hsla(0, 0%, 4%, 0.95);
   --secondary-foreground: hsla(0, 0%, 98%, 1);
   --tertiary: hsla(0, 0%, 4%, 0.2);
@@ -193,6 +195,7 @@
   --sidebar-accent-foreground: hsla(330, 0%, 9%, 1);
   --sidebar-border: hsla(330, 0%, 90%, 1);
   --sidebar-ring: hsla(0, 0%, 63%, 1);
+
   /* Semantic */
   --semantic-destructive: hsla(0, 72%, 51%, 1);
   --semantic-destructive-variant: hsla(0, 74%, 42%, 1);
@@ -276,6 +279,7 @@
   --primary-quinary: hsla(260, 100%, 73%, 0.1);
   --primary-foreground: hsla(0, 0%, 98%, 1);
   --primary-muted-foreground: hsla(0, 0%, 98%, 0.6);
+  --primary-iris: hsla(300, 100%, 50%, 1);
   --secondary: hsla(0, 0%, 100%, 0.95);
   --secondary-foreground: hsla(0, 0%, 4%, 1);
   --tertiary: hsla(0, 0%, 100%, 0.3);
