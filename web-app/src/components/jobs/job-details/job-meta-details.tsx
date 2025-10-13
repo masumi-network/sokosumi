@@ -1,17 +1,18 @@
 "use client";
 
-import { ChevronDown, ChevronUp, LinkIcon } from "lucide-react";
+import { LinkIcon } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
-import { Fragment, ReactNode, useMemo, useState } from "react";
+import { Fragment, ReactNode, useMemo } from "react";
 
 import { CopyableValue } from "@/components/copyable-value";
 import { MiddleTruncate } from "@/components/middle-truncate";
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Separator } from "@/components/ui/separator";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { convertCentsToCredits, JobWithStatus } from "@/lib/db";
@@ -224,7 +225,6 @@ function HashGroupRow({
     tLabelCalculated,
     tMissing,
   } = props;
-  const [isOpen, setIsOpen] = useState(false);
   const bothPresent = Boolean(onChainHash) && Boolean(calculatedHash);
   const areEqual = bothPresent && onChainHash === calculatedHash;
 
@@ -248,54 +248,53 @@ function HashGroupRow({
   }
 
   return (
-    <Collapsible className="w-full" open={isOpen} onOpenChange={setIsOpen}>
-      <CollapsibleTrigger asChild>
-        <div
-          className={cn(
-            `grid h-9 grid-cols-2 items-center gap-4 md:grid-cols-3`,
-            rowClassName,
-          )}
-        >
-          <span className="font-bold break-all md:col-span-1">{label}</span>
-          <div className="flex items-center justify-between gap-2 break-all md:col-span-2">
-            <div className="flex items-center gap-2">
-              <CopyableValue value={onChainHash ?? calculatedHash} />
+    <Accordion type="single" collapsible className="w-full">
+      <AccordionItem value={`${direction}-hash`} className="w-full border-0">
+        <AccordionTrigger className="items-center px-0 py-0">
+          <div
+            className={cn(
+              "grid h-9 w-full grid-cols-2 items-center gap-4 md:grid-cols-3",
+              rowClassName,
+            )}
+          >
+            <span className="font-bold break-all md:col-span-1">{label}</span>
+            <div className="flex items-center gap-1">
+              <div className="pl-4 md:pl-2.5">
+                <CopyableValue
+                  value={onChainHash ?? calculatedHash}
+                  renderButtonAsChild
+                  shouldStopPropagation
+                />
+              </div>
               <JobVerificationBadge direction={direction} job={job} />
             </div>
-            <span className="text-muted-foreground inline-flex h-4 w-4 flex-shrink-0 items-center justify-center">
-              {isOpen ? (
-                <ChevronUp className="size-4" />
-              ) : (
-                <ChevronDown className="size-4" />
-              )}
+          </div>
+        </AccordionTrigger>
+        <AccordionContent className="px-0">
+          <div className="grid grid-cols-2 items-center gap-5 text-sm md:grid-cols-3">
+            <span className="font-bold break-all md:col-span-1">
+              {tLabelOnChain}
             </span>
+            <div className="break-all md:col-span-2">
+              {onChainHash ? (
+                <CopyableValue value={onChainHash} />
+              ) : (
+                <span className="text-destructive inline-flex items-center gap-1">
+                  {tMissing}
+                </span>
+              )}
+            </div>
           </div>
-        </div>
-      </CollapsibleTrigger>
-      <CollapsibleContent>
-        <div className="grid grid-cols-2 items-center gap-4 text-sm md:grid-cols-3">
-          <span className="font-bold break-all md:col-span-1">
-            {tLabelOnChain}
-          </span>
-          <div className="break-all md:col-span-2">
-            {onChainHash ? (
-              <CopyableValue value={onChainHash} />
-            ) : (
-              <span className="text-destructive inline-flex items-center gap-1">
-                {tMissing}
-              </span>
-            )}
+          <div className="grid grid-cols-2 items-center gap-4 text-sm md:grid-cols-3">
+            <span className="font-bold break-all md:col-span-1">
+              {tLabelCalculated}
+            </span>
+            <div className="break-all md:col-span-2">
+              <CopyableValue value={calculatedHash} />
+            </div>
           </div>
-        </div>
-        <div className="grid grid-cols-2 items-center gap-4 text-sm md:grid-cols-3">
-          <span className="font-bold break-all md:col-span-1">
-            {tLabelCalculated}
-          </span>
-          <div className="break-all md:col-span-2">
-            <CopyableValue value={calculatedHash} />
-          </div>
-        </div>
-      </CollapsibleContent>
-    </Collapsible>
+        </AccordionContent>
+      </AccordionItem>
+    </Accordion>
   );
 }
