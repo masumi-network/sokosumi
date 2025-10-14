@@ -120,7 +120,7 @@ model Organization {
   members            Member[]
   invitations        Invitation[]
   agents             Agent[]
-  blacklistedAgents  Agent[] @relation("AgentBlacklist")
+  blacklistedAgents  Agent[]             @relation("AgentBlacklist")
   jobs               Job[]
   creditTransactions CreditTransaction[]
   fiatTransactions   FiatTransaction[]
@@ -346,11 +346,11 @@ model Agent {
   exampleOutput         ExampleOutput[] @relation("ExampleOutputAgent")
   overrideExampleOutput ExampleOutput[] @relation("ExampleOutputAgentOverride")
 
-  userAgentRating UserAgentRating[]
-  agentLists      AgentList[]
-  jobs            Job[]
-  organizations   Organization[]
-  blacklistedOrganizations Organization[] @relation("AgentBlacklist")
+  userAgentRating          UserAgentRating[]
+  agentLists               AgentList[]
+  jobs                     Job[]
+  organizations            Organization[]
+  blacklistedOrganizations Organization[]    @relation("AgentBlacklist")
 
   tags         Tag[] @relation("AgentTag")
   overrideTags Tag[] @relation("AgentTagOverride")
@@ -478,6 +478,12 @@ enum FiatService {
   STRIPE
 }
 
+enum JobType {
+  FREE
+  PAID
+  DEMO
+}
+
 model Job {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
@@ -495,15 +501,16 @@ model Job {
   agentJobId     String
   agentJobStatus AgentJobStatus?
 
-  purchaseId        String?
+  purchaseId String?
+
   inputSchema       Json
   input             String
   inputHash         String? // On-Chain hash of the input data
   output            String?
   resultHash        String? // On-Chain hash of the result data
   startedAt         DateTime  @default(now())
-  completedAt       DateTime? // when the job was completed on the agent side
-  resultSubmittedAt DateTime? // when the job on-chain status was `RESULT_SUBMITTED`
+  completedAt       DateTime?
+  resultSubmittedAt DateTime?
 
   nextAction          NextJobAction           @default(NONE)
   nextActionErrorType NextJobActionErrorType?
@@ -512,34 +519,34 @@ model Job {
   errorNote    String?
   errorNoteKey String?
 
-  blockchainIdentifier      String   @unique
-  payByTime                 DateTime
-  submitResultTime          DateTime
-  unlockTime                DateTime
-  externalDisputeUnlockTime DateTime
-  sellerVkey                String
-  identifierFromPurchaser   String
+  jobType JobType
+
+  blockchainIdentifier      String?   @unique
+  identifierFromPurchaser   String?
+  payByTime                 DateTime?
+  submitResultTime          DateTime?
+  unlockTime                DateTime?
+  externalDisputeUnlockTime DateTime?
+  sellerVkey                String?
 
   onChainStatus OnChainJobStatus?
 
   onChainTransactionHash   String?
   onChainTransactionStatus OnChainTransactionStatus?
 
-  creditTransaction           CreditTransaction  @relation("CreditTransactionJob", fields: [creditTransactionId], references: [id])
-  creditTransactionId         String             @unique
+  creditTransaction           CreditTransaction? @relation("CreditTransactionJob", fields: [creditTransactionId], references: [id])
+  creditTransactionId         String?            @unique
   refundedCreditTransaction   CreditTransaction? @relation("RefundedCreditTransactionJob", fields: [refundedCreditTransactionId], references: [id])
   refundedCreditTransactionId String?            @unique
 
-  name String? // user-defined job name
-
-  // is demo job?
-  isDemo Boolean @default(false)
+  name String?
 
   blobs Blob[] @relation("JobBlob")
   links Link[] @relation("JobLink")
 
-  // JobShares
   shares JobShare[]
+
+  @@index([jobType])
 }
 
 enum OnChainTransactionStatus {

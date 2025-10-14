@@ -51,12 +51,11 @@ export function JobMetaDetails({ job }: JobMetaDetailsProps) {
     const inputData = inputObj ? toJobInputData(inputObj) : null;
     const outputObj = tryParseJson<JobStatusResponseSchemaType>(job.output);
 
-    const calcInput = inputData
-      ? getInputHash(inputData, job.identifierFromPurchaser)
-      : null;
-    const calcOutput = outputObj
-      ? getResultHash(outputObj, job.identifierFromPurchaser)
-      : null;
+    const identifier = job.identifierFromPurchaser;
+    const calcInput =
+      identifier && inputData ? getInputHash(inputData, identifier) : null;
+    const calcOutput =
+      identifier && outputObj ? getResultHash(outputObj, identifier) : null;
 
     return {
       onChainInputHash: job.inputHash ?? null,
@@ -123,12 +122,18 @@ export function JobMetaDetails({ job }: JobMetaDetailsProps) {
         ? formatDateTimeMedium(formatter.dateTime, job.completedAt)
         : "-",
     },
-    {
-      key: "credits",
-      label: t("credits"),
-      rowClassName: "",
-      content: Math.abs(convertCentsToCredits(job.creditTransaction.amount)),
-    },
+    ...(job.creditTransaction
+      ? [
+          {
+            key: "credits",
+            label: t("credits"),
+            rowClassName: "",
+            content: Math.abs(
+              convertCentsToCredits(job.creditTransaction.amount),
+            ),
+          },
+        ]
+      : []),
   ] as const;
 
   return (

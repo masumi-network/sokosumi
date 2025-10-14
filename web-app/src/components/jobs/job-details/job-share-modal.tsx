@@ -27,7 +27,7 @@ import {
 import {
   getOrganizationJobShare,
   getPublicJobShare,
-  JobWithRelations,
+  JobWithStatus,
 } from "@/lib/db";
 import { cn } from "@/lib/utils";
 import { JobShare, ShareAccessType } from "@/prisma/generated/client";
@@ -35,7 +35,7 @@ import { JobShare, ShareAccessType } from "@/prisma/generated/client";
 interface JobShareModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  job: JobWithRelations;
+  job: JobWithStatus;
   activeOrganizationId?: string | null;
 }
 

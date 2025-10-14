@@ -5,21 +5,22 @@ import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { JobStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
+import { JobType } from "@/prisma/generated/client";
 
 interface JobStatusBadgeProps {
   status: JobStatus;
-  isDemo?: boolean;
+  jobType?: JobType;
   className?: string;
 }
 
 export function JobStatusBadge({
   status,
-  isDemo = false,
+  jobType,
   className,
 }: JobStatusBadgeProps) {
   const t = useTranslations("Components.Jobs.StatusBadge");
 
-  if (isDemo) {
+  if (jobType === JobType.DEMO) {
     return (
       <Badge
         variant="default"

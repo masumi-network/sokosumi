@@ -36,11 +36,11 @@ import {
   JobErrorCode,
   requestRefundJobByBlockchainIdentifier,
 } from "@/lib/actions";
-import { JobStatus, JobWithStatus } from "@/lib/db";
+import { JobStatus, PaidJobWithStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 interface RequestRefundButtonProps {
-  initialJob: JobWithStatus;
+  initialJob: PaidJobWithStatus;
   className?: string;
 }
 
@@ -141,7 +141,7 @@ function RefundErrorButton({
  * @returns An object with `title` and `description` for the tooltip.
  */
 function makeTitleAndDescription(
-  job: JobWithStatus,
+  job: PaidJobWithStatus,
   t: IntlTranslation<"Components.Jobs.JobDetails.Output.Refund">,
   formatter: IntlDateFormatter,
 ) {
@@ -197,7 +197,7 @@ function makeTitleAndDescription(
  * @param job - The job object containing status and relevant timestamps.
  * @returns True if refund is currently enabled, false otherwise.
  */
-function isRefundEnabled(job: JobWithStatus): boolean {
+function isRefundEnabled(job: PaidJobWithStatus): boolean {
   const now = new Date();
   switch (job.status) {
     case JobStatus.FAILED:
@@ -241,7 +241,7 @@ export default function RequestRefundButton({
   // Handle complex interactive states (default case)
   const { title, description } = makeTitleAndDescription(job, t, formatter);
 
-  const handleRefundRequest = async (job: JobWithStatus) => {
+  const handleRefundRequest = async (job: PaidJobWithStatus) => {
     setIsLoading(true);
     setError(null);
 

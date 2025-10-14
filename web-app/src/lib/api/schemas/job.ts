@@ -1,7 +1,11 @@
 import * as z from "zod";
 
 import { JobStatus } from "@/lib/db/types";
-import { AgentJobStatus, OnChainJobStatus } from "@/prisma/generated/client";
+import {
+  AgentJobStatus,
+  JobType,
+  OnChainJobStatus,
+} from "@/prisma/generated/client";
 
 // Schema for creating a new job
 export const createJobRequestSchema = z.object({
@@ -45,7 +49,7 @@ export const jobResponseSchema = z.object({
   startedAt: z.iso.datetime(),
   completedAt: z.iso.datetime().nullable(),
   resultSubmittedAt: z.iso.datetime().nullable(),
-  isDemo: z.boolean(),
+  jobType: z.enum(JobType),
   price: jobCreditsSchema.nullable(),
   refund: jobCreditsSchema.nullable(),
   // Computed fields

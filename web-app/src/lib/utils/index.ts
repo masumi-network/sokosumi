@@ -146,6 +146,10 @@ export function isJobVerified(
   direction: "input" | "output",
   job: JobWithStatus,
 ): boolean {
+  if (!job.identifierFromPurchaser) {
+    return false;
+  }
+
   if (direction === "input") {
     if (!job.inputHash) return false;
     const inputObj = tryParseJson<Record<string, unknown>>(job.input);
@@ -209,7 +213,6 @@ export const createHash = (input: string) => {
   return crypto.createHash("sha256").update(input, "utf-8").digest("hex");
 };
 
-export * from "./crypto";
 export * from "./datetime";
 export * from "./duration";
 export * from "./email";
