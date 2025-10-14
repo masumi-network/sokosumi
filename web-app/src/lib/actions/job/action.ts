@@ -5,7 +5,7 @@ import * as Sentry from "@sentry/nextjs";
 import { ActionError, CommonErrorCode } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { OrganizationErrorCode } from "@/lib/actions/errors/error-codes/organization";
-import { JobWithStatus } from "@/lib/db";
+import { PaidJobWithStatus } from "@/lib/db";
 import {
   jobRepository,
   jobShareRepository,
@@ -288,7 +288,7 @@ interface RequestRefundJobByBlockchainIdentifierParameters
 
 export const requestRefundJobByBlockchainIdentifier = withAuthContext<
   RequestRefundJobByBlockchainIdentifierParameters,
-  Result<{ job: JobWithStatus }, ActionError>
+  Result<{ job: PaidJobWithStatus }, ActionError>
 >(async ({ blockchainIdentifier, authContext }) => {
   const { userId } = authContext;
   const foundJob =

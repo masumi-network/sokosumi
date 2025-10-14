@@ -11,8 +11,10 @@ import {
 import {
   jobStatusResponseSchema,
   JobStatusResponseSchemaType,
-  startJobResponseSchema,
-  StartJobResponseSchemaType,
+  startFreeJobResponseSchema,
+  StartFreeJobResponseSchemaType,
+  startPaidJobResponseSchema,
+  StartPaidJobResponseSchemaType,
 } from "@/lib/schemas";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import { safeAddPathComponent } from "@/lib/utils/url";
@@ -50,11 +52,11 @@ export const agentClient = (() => {
   }
 
   return {
-    async startAgentJob(
+    async startPaidAgentJob(
       agent: Agent,
       identifierFromPurchaser: string,
       inputData: JobInputData,
-    ): Promise<Result<StartJobResponseSchemaType, string>> {
+    ): Promise<Result<StartPaidJobResponseSchemaType, string>> {
       try {
         const startJobUrl = getAgentUrlWithPathComponent(agent, "start_job");
         const startJobResponse = await fetch(startJobUrl, {
@@ -72,10 +74,44 @@ export const agentClient = (() => {
           return Err("Failed to start agent job");
         }
         const responseJson = await startJobResponse.json();
-        const parsedResult = startJobResponseSchema.safeParse(responseJson);
+        const parsedResult = startPaidJobResponseSchema.safeParse(responseJson);
         if (!parsedResult.success) {
           return Err(
             `Failed to parse start job response: ${JSON.stringify(
+              parsedResult.error,
+            )}`,
+          );
+        }
+
+        return Ok(parsedResult.data);
+      } catch (err) {
+        return Err(String(err));
+      }
+    },
+
+    async startFreeAgentJob(
+      agent: Agent,
+      inputData: JobInputData,
+    ): Promise<Result<StartFreeJobResponseSchemaType, string>> {
+      try {
+        const startJobUrl = getAgentUrlWithPathComponent(agent, "start_job");
+        const startJobResponse = await fetch(startJobUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            input_data: Object.fromEntries(inputData),
+          }),
+        });
+        if (!startJobResponse.ok) {
+          return Err("Failed to start free agent job");
+        }
+        const responseJson = await startJobResponse.json();
+        const parsedResult = startFreeJobResponseSchema.safeParse(responseJson);
+        if (!parsedResult.success) {
+          return Err(
+            `Failed to parse start free job response: ${JSON.stringify(
               parsedResult.error,
             )}`,
           );

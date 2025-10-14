@@ -40,10 +40,20 @@ export type JobDetailsNameFormSchemaType = z.infer<
   ReturnType<typeof jobDetailsNameFormSchema>
 >;
 
-// this isn't for user's use, only for internal use
-export const startJobResponseSchema = z.object({
+// Base response for FREE jobs
+export const startFreeJobResponseSchema = z.object({
   status: z.enum(["success", "error"]),
   job_id: z.string().min(1),
+});
+
+export type StartFreeJobResponseSchemaType = z.infer<
+  typeof startFreeJobResponseSchema
+>;
+
+// Response for PAID jobs
+export const startPaidJobResponseSchema = startFreeJobResponseSchema.extend({
+  identifierFromPurchaser: z.string().min(1),
+  input_hash: z.string().min(1),
   blockchainIdentifier: z.string().min(1),
   payByTime: z.coerce.number().int(),
   submitResultTime: z.coerce.number().int(),
@@ -51,16 +61,21 @@ export const startJobResponseSchema = z.object({
   externalDisputeUnlockTime: z.coerce.number().int(),
   agentIdentifier: z.string().min(1),
   sellerVKey: z.string().min(1),
-  identifierFromPurchaser: z.string().min(1),
   amounts: z.array(
     z.object({
       unit: z.string(),
       amount: z.coerce.bigint().positive(),
     }),
   ),
-  input_hash: z.string().min(1),
 });
-export type StartJobResponseSchemaType = z.infer<typeof startJobResponseSchema>;
+
+export type StartPaidJobResponseSchemaType = z.infer<
+  typeof startPaidJobResponseSchema
+>;
+
+// Keep original for backwards compatibility (uses paid schema)
+export const startJobResponseSchema = startPaidJobResponseSchema;
+export type StartJobResponseSchemaType = StartPaidJobResponseSchemaType;
 
 // Helper function to create a conditional required field validation
 function requireFieldWhenStatus<T extends Record<string, unknown>>(

@@ -9,7 +9,8 @@ import { MiddleTruncate } from "@/components/middle-truncate";
 import { HighlightedText } from "@/components/ui/highlighted-text";
 import useAgentJobStatus from "@/hooks/use-agent-job-status";
 import { JobIndicatorStatus } from "@/lib/ably";
-import { JobWithStatus } from "@/lib/db";
+import { isDemoJob, JobWithStatus } from "@/lib/db";
+import { JobType } from "@/prisma/generated/client";
 
 const columnHelper = createColumnHelper<JobWithStatus>();
 
@@ -70,10 +71,10 @@ export function getJobColumns(
         // For owned jobs, show the status badge as normal
         return (
           <div className="p-2">
-            {row.original.isDemo ? (
+            {isDemoJob(row.original) ? (
               <JobStatusBadge
                 status={row.original.status}
-                isDemo={row.original.isDemo}
+                jobType={row.original.jobType}
               />
             ) : (
               <RealTimeJobStatusBadge
@@ -85,7 +86,7 @@ export function getJobColumns(
                   jobStatus: row.original.status,
                   jobStatusSettled: row.original.jobStatusSettled,
                 }}
-                isDemo={row.original.isDemo}
+                jobType={row.original.jobType}
               />
             )}
           </div>
@@ -190,14 +191,14 @@ function RealTimeJobStatusBadge({
   userId,
   jobId,
   initialJobIndicatorStatus,
-  isDemo = false,
+  jobType,
   className,
 }: {
   agentId: string;
   userId: string;
   jobId: string;
   initialJobIndicatorStatus: JobIndicatorStatus;
-  isDemo?: boolean;
+  jobType?: JobType;
   className?: string;
 }) {
   const realTimeJobStatus = useAgentJobStatus(
@@ -213,7 +214,7 @@ function RealTimeJobStatusBadge({
       status={
         realTimeJobStatus?.jobStatus ?? initialJobIndicatorStatus.jobStatus
       }
-      isDemo={isDemo}
+      jobType={jobType}
       className={className}
     />
   );

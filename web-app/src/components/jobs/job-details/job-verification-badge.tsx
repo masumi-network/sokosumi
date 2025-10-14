@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCheck, Loader2, X } from "lucide-react";
+import { AlertCircle, CheckCheck, Loader2, X } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
@@ -11,13 +11,14 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { siteConfig } from "@/config/site";
-import type { JobWithStatus } from "@/lib/db";
+import { isDemoJob, isFreeJob, type JobWithStatus } from "@/lib/db";
 import { cn, isJobVerified } from "@/lib/utils";
 import { OnChainJobStatus } from "@/prisma/generated/client";
 
 interface VerificationState {
   isPending: boolean;
   isVerified: boolean;
+  isNotApplicable: boolean;
 }
 
 interface JobVerificationBadgeProps {
@@ -37,12 +38,14 @@ export function JobVerificationBadge({
     direction === "input" ? t("Input.title") : t("Output.title");
 
   const verificationState = useMemo<VerificationState>(() => {
-    if (job.isDemo) {
-      return { isPending: false, isVerified: true };
+    // For FREE and DEMO jobs without identifier, verification is not applicable
+    if (!job.identifierFromPurchaser && (isDemoJob(job) || isFreeJob(job))) {
+      return { isPending: false, isVerified: false, isNotApplicable: true };
     }
 
+    // For jobs without identifier but not FREE/DEMO, show as unverified
     if (!job.identifierFromPurchaser) {
-      return { isPending: false, isVerified: false };
+      return { isPending: false, isVerified: false, isNotApplicable: false };
     }
 
     switch (direction) {
@@ -52,30 +55,48 @@ export function JobVerificationBadge({
         const isFundsLocked =
           job.onChainStatus === OnChainJobStatus.FUNDS_LOCKED;
         if (isFundsLocked) {
-          return { isPending: true, isVerified: false };
+          return { isPending: true, isVerified: false, isNotApplicable: false };
         } else {
-          return { isPending: false, isVerified: isJobVerified("output", job) };
+          return {
+            isPending: false,
+            isVerified: isJobVerified("output", job),
+            isNotApplicable: false,
+          };
         }
       case "input":
-        return { isPending: false, isVerified: isJobVerified("input", job) };
+        return {
+          isPending: false,
+          isVerified: isJobVerified("input", job),
+          isNotApplicable: false,
+        };
       default:
-        return { isPending: false, isVerified: false };
+        return { isPending: false, isVerified: false, isNotApplicable: false };
     }
   }, [direction, job]);
 
-  const { isPending, isVerified } = verificationState;
+  const { isPending, isVerified, isNotApplicable } = verificationState;
 
-  const Icon = isPending ? Loader2 : isVerified ? CheckCheck : X;
+  const Icon = isPending
+    ? Loader2
+    : isNotApplicable
+      ? AlertCircle
+      : isVerified
+        ? CheckCheck
+        : X;
   const colorClass = isPending
     ? "text-primary"
-    : isVerified
-      ? "text-semantic-success"
-      : "text-semantic-destructive";
+    : isNotApplicable
+      ? "text-muted-foreground"
+      : isVerified
+        ? "text-semantic-success"
+        : "text-semantic-destructive";
   const label = isPending
     ? t("VerificationBadge.pending", { direction: directionText })
-    : isVerified
-      ? t("VerificationBadge.verified", { direction: directionText })
-      : t("VerificationBadge.unverified", { direction: directionText });
+    : isNotApplicable
+      ? t("VerificationBadge.notApplicable", { direction: directionText })
+      : isVerified
+        ? t("VerificationBadge.verified", { direction: directionText })
+        : t("VerificationBadge.unverified", { direction: directionText });
 
   return (
     <span className="inline-flex items-center pl-4">
