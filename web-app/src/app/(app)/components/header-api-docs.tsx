@@ -6,8 +6,8 @@ import { Session } from "@/lib/auth/auth";
 import { cn } from "@/lib/utils";
 
 interface HeaderProps {
-  session: Session | null | undefined;
-  className?: string | undefined;
+  session?: Session | null;
+  className?: string;
 }
 
 export default function HeaderApiDocs({ className }: HeaderProps) {
