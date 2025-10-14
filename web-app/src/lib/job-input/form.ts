@@ -29,7 +29,7 @@ export function filterOutNullValues(
 ): JobInputData {
   return new Map(
     Object.entries(values).filter(
-      ([, value]) => value !== null && value !== undefined,
+      ([_, value]) => value !== null && value !== undefined,
     ) as [
       string,
       (
