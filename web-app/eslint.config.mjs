@@ -22,10 +22,17 @@ const eslintConfig = [
       "*.config.mjs",
       "*.config.js",
       "jest.setup.js",
+      "**/__tests__/**",
     ],
   },
   ...compat.config({
-    extends: ["next/core-web-vitals", "next/typescript", "prettier"],
+    extends: [
+      "next",
+      "next/core-web-vitals",
+      "next/typescript",
+      "prettier",
+      "plugin:@next/next/recommended",
+    ],
     plugins: [
       "simple-import-sort",
       "import",
