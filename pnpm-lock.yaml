@@ -8,9 +8,6 @@ importers:
 
   .:
     devDependencies:
-      '@eslint/eslintrc':
-        specifier: 3.3.1
-        version: 3.3.1
       '@noble/hashes':
         specifier: 2.0.1
         version: 2.0.1
@@ -35,24 +32,6 @@ importers:
       '@types/jest':
         specifier: 30.0.0
         version: 30.0.0
-      eslint:
-        specifier: 9.37.0
-        version: 9.37.0(jiti@2.6.1)
-      eslint-config-prettier:
-        specifier: 10.1.8
-        version: 10.1.8(eslint@9.37.0(jiti@2.6.1))
-      eslint-plugin-no-relative-import-paths:
-        specifier: 1.6.1
-        version: 1.6.1
-      eslint-plugin-prettier:
-        specifier: 5.5.4
-        version: 5.5.4(@types/eslint@9.6.1)(eslint-config-prettier@10.1.8(eslint@9.37.0(jiti@2.6.1)))(eslint@9.37.0(jiti@2.6.1))(prettier@3.6.2)
-      eslint-plugin-simple-import-sort:
-        specifier: 12.1.1
-        version: 12.1.1(eslint@9.37.0(jiti@2.6.1))
-      eslint-plugin-unused-imports:
-        specifier: 4.2.0
-        version: 4.2.0(@typescript-eslint/eslint-plugin@8.46.1(@typescript-eslint/parser@8.46.1(eslint@9.37.0(jiti@2.6.1))(typescript@5.9.3))(eslint@9.37.0(jiti@2.6.1))(typescript@5.9.3))(eslint@9.37.0(jiti@2.6.1))
       husky:
         specifier: 9.1.7
         version: 9.1.7
@@ -65,12 +44,6 @@ importers:
       postcss:
         specifier: 8.5.6
         version: 8.5.6
-      prettier:
-        specifier: 3.6.2
-        version: 3.6.2
-      prettier-plugin-tailwindcss:
-        specifier: 0.6.14
-        version: 0.6.14(prettier@3.6.2)
       tailwindcss:
         specifier: 4.1.14
         version: 4.1.14
@@ -351,6 +324,9 @@ importers:
         specifier: 4.1.12
         version: 4.1.12
     devDependencies:
+      '@eslint/eslintrc':
+        specifier: 3.3.1
+        version: 3.3.1
       '@hey-api/openapi-ts':
         specifier: 0.85.2
         version: 0.85.2(typescript@5.9.3)
@@ -375,15 +351,42 @@ importers:
       '@types/react-window':
         specifier: 2.0.0
         version: 2.0.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
+      eslint:
+        specifier: 9.37.0
+        version: 9.37.0(jiti@2.6.1)
       eslint-config-next:
         specifier: 15.5.5
         version: 15.5.5(eslint@9.37.0(jiti@2.6.1))(typescript@5.9.3)
+      eslint-config-prettier:
+        specifier: 10.1.8
+        version: 10.1.8(eslint@9.37.0(jiti@2.6.1))
+      eslint-plugin-import:
+        specifier: 2.32.0
+        version: 2.32.0(@typescript-eslint/parser@8.46.1(eslint@9.37.0(jiti@2.6.1))(typescript@5.9.3))(eslint-import-resolver-typescript@3.10.1)(eslint@9.37.0(jiti@2.6.1))
+      eslint-plugin-no-relative-import-paths:
+        specifier: 1.6.1
+        version: 1.6.1
+      eslint-plugin-prettier:
+        specifier: 5.5.4
+        version: 5.5.4(@types/eslint@9.6.1)(eslint-config-prettier@10.1.8(eslint@9.37.0(jiti@2.6.1)))(eslint@9.37.0(jiti@2.6.1))(prettier@3.6.2)
+      eslint-plugin-simple-import-sort:
+        specifier: 12.1.1
+        version: 12.1.1(eslint@9.37.0(jiti@2.6.1))
+      eslint-plugin-unused-imports:
+        specifier: 4.2.0
+        version: 4.2.0(@typescript-eslint/eslint-plugin@8.46.1(@typescript-eslint/parser@8.46.1(eslint@9.37.0(jiti@2.6.1))(typescript@5.9.3))(eslint@9.37.0(jiti@2.6.1))(typescript@5.9.3))(eslint@9.37.0(jiti@2.6.1))
       jsdom:
         specifier: 27.0.0
         version: 27.0.0(postcss@8.5.6)
       next-openapi-gen:
         specifier: 0.7.9
         version: 0.7.9
+      prettier:
+        specifier: 3.6.2
+        version: 3.6.2
+      prettier-plugin-tailwindcss:
+        specifier: 0.6.14
+        version: 0.6.14(prettier@3.6.2)
       prisma:
         specifier: 6.17.1
         version: 6.17.1(typescript@5.9.3)

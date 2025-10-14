@@ -1,4 +1,3 @@
-/* eslint-disable prettier/prettier */
 import "server-only";
 
 import prisma from "@/lib/db/repositories/prisma";
@@ -30,4 +29,3 @@ export const linkRepository = {
     return tx.link.findMany({ where: { jobId } });
   },
 };
-

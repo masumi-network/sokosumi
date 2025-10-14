@@ -8,6 +8,22 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
+  {
+    ignores: [
+      "node_modules/**",
+      ".next/**",
+      "out/**",
+      "build/**",
+      "next-env.d.ts",
+      "prisma/generated/**",
+      "src/components/ui/**",
+      "src/lib/clients/generated/**",
+      "public/js/**/*.js",
+      "*.config.mjs",
+      "*.config.js",
+      "jest.setup.js",
+    ],
+  },
   ...compat.config({
     extends: ["next/core-web-vitals", "next/typescript", "prettier"],
     plugins: [
@@ -16,15 +32,6 @@ const eslintConfig = [
       "prettier",
       "unused-imports",
       "no-relative-import-paths",
-    ],
-    ignorePatterns: [
-      "**/dist/**",
-      "**/build/**",
-      "**/coverage/**",
-      "src/components/ui/**",
-      "src/lib/clients/generated/**",
-      "public/js/**/*.js",
-      "*.config.mjs",
     ],
     rules: {
       "simple-import-sort/imports": "error",
