@@ -46,7 +46,7 @@ export function JobVerificationBadge({
     }
 
     switch (direction) {
-      case "output":
+      case "output": {
         // Direction: output → pending only when on-chain state is FUNDS_LOCKED
         // Otherwise, try to verify the hash
         const isFundsLocked =
@@ -56,6 +56,7 @@ export function JobVerificationBadge({
         } else {
           return { isPending: false, isVerified: isJobVerified("output", job) };
         }
+      }
       case "input":
         return { isPending: false, isVerified: isJobVerified("input", job) };
       default:
