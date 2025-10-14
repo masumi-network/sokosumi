@@ -311,6 +311,7 @@ async function mapProfileToUser(profile: { name: string; picture: string }) {
       milliseconds: getEnvSecrets().BETTER_AUTH_PROFILE_PICTURE_TIMEOUT,
     });
   } catch (error) {
+    Sentry.captureException(error);
     console.error(
       `Failed to map profile to user: ${JSON.stringify(profile)}`,
       error,
