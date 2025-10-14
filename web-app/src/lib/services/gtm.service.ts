@@ -41,10 +41,13 @@ export async function callAfterAgentHiredWebHook(email: string) {
  * This function must be called in `signUpEmail` action.
  * @param email - The email of the user
  * @param name - The name of the user
+ * @param socialLogin - Whether the user signed up using social login
+ * @param marketingOptIn - Whether the user opted in to marketing
  */
 export async function callMarketingOptInWebHook(
   email: string,
   name: string,
+  socialLogin: boolean = false,
   marketingOptIn: boolean = false,
 ) {
   const webhookUrl = getEnvSecrets().MARKETING_OPT_IN_WEB_HOOK;
@@ -55,7 +58,7 @@ export async function callMarketingOptInWebHook(
   try {
     const res = await fetch(webhookUrl, {
       method: "POST",
-      body: JSON.stringify({ email, name, marketingOptIn }),
+      body: JSON.stringify({ email, name, socialLogin, marketingOptIn }),
     });
     if (!res.ok) {
       throw new Error("Response is not okay from marketing opt in webhook");
