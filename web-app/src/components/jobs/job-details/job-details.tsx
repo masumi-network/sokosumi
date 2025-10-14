@@ -109,7 +109,7 @@ function JobDetailsHeader({
   activeOrganizationId?: string | null;
 }) {
   const formatter = useFormatter();
-  const { createdAt, status, isDemo } = job;
+  const { createdAt, status, jobType } = job;
 
   return (
     <div className="flex flex-col gap-2">
@@ -125,7 +125,7 @@ function JobDetailsHeader({
             timeStyle: "short",
           })}
         </p>
-        <JobStatusBadge status={status} isDemo={isDemo} />
+        <JobStatusBadge status={status} jobType={jobType} />
       </div>
     </div>
   );

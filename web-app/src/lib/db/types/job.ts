@@ -1,5 +1,7 @@
 import {
   AgentJobStatus,
+  CreditTransaction,
+  JobType,
   OnChainJobStatus,
   Prisma,
 } from "@/prisma/generated/client";
@@ -31,6 +33,70 @@ export const jobOrderBy = {
 export type JobWithRelations = Prisma.JobGetPayload<{
   include: typeof jobInclude;
 }>;
+
+type Override<TType, TWith> = Omit<TType, keyof TWith> & TWith;
+
+type BaseJobWithStatus = JobWithRelations & {
+  status: JobStatus;
+  jobStatusSettled: boolean;
+};
+
+type BaseFreeJob = {
+  jobType: typeof JobType.FREE;
+  creditTransaction: null;
+  creditTransactionId: null;
+  identifierFromPurchaser: null;
+  blockchainIdentifier: null;
+  payByTime: null;
+  submitResultTime: null;
+  unlockTime: null;
+  externalDisputeUnlockTime: null;
+  sellerVkey: null;
+  purchaseId: null;
+  inputHash: null;
+  resultHash: null;
+  onChainStatus: null;
+  onChainTransactionHash: null;
+  onChainTransactionStatus: null;
+};
+
+type BaseDemoJob = {
+  jobType: typeof JobType.DEMO;
+  creditTransaction: null;
+  creditTransactionId: null;
+  identifierFromPurchaser: null;
+  blockchainIdentifier: null;
+  payByTime: null;
+  submitResultTime: null;
+  unlockTime: null;
+  externalDisputeUnlockTime: null;
+  sellerVkey: null;
+  purchaseId: null;
+  inputHash: null;
+  resultHash: null;
+  onChainStatus: null;
+  onChainTransactionHash: null;
+  onChainTransactionStatus: null;
+};
+
+type BasePaidJob = {
+  jobType: typeof JobType.PAID;
+  creditTransaction: CreditTransaction;
+  creditTransactionId: string;
+  blockchainIdentifier: string;
+  payByTime: Date;
+  submitResultTime: Date;
+  unlockTime: Date;
+  externalDisputeUnlockTime: Date;
+  sellerVkey: string;
+  identifierFromPurchaser: string;
+};
+
+export type FreeJobWithStatus = Override<BaseJobWithStatus, BaseFreeJob>;
+
+export type DemoJobWithStatus = Override<BaseJobWithStatus, BaseDemoJob>;
+
+export type PaidJobWithStatus = Override<BaseJobWithStatus, BasePaidJob>;
 
 export enum JobErrorNoteKeys {
   StatusMismatch = "Job.StatusMismatch",
@@ -65,7 +131,19 @@ export const finalizedAgentJobStatuses: AgentJobStatus[] = [
   AgentJobStatus.FAILED,
 ];
 
-export type JobWithStatus = JobWithRelations & {
-  status: JobStatus;
-  jobStatusSettled: boolean;
-};
+export type JobWithStatus =
+  | FreeJobWithStatus
+  | PaidJobWithStatus
+  | DemoJobWithStatus;
+
+export function isFreeJob(job: JobWithStatus): job is FreeJobWithStatus {
+  return job.jobType === JobType.FREE;
+}
+
+export function isPaidJob(job: JobWithStatus): job is PaidJobWithStatus {
+  return job.jobType === JobType.PAID;
+}
+
+export function isDemoJob(job: JobWithStatus): job is DemoJobWithStatus {
+  return job.jobType === JobType.DEMO;
+}

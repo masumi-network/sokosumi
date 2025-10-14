@@ -1,9 +1,10 @@
 import { JobIndicatorStatus } from "@/lib/ably";
-import { JobStatus, JobWithRelations } from "@/lib/db/types";
+import { JobStatus, JobWithStatus } from "@/lib/db/types";
 import {
   AgentJobStatus,
   Job,
   JobShare,
+  JobType,
   NextJobAction,
   NextJobActionErrorType,
   OnChainJobStatus,
@@ -136,8 +137,40 @@ function getFundsLockedJobStatus(
  * @returns The resolved JobStatus for the job.
  */
 export function computeJobStatus(job: Job): JobStatus {
-  const { onChainStatus, agentJobStatus, nextActionErrorType } = job;
+  switch (job.jobType) {
+    case JobType.FREE:
+      return computeFreeJobStatus(job);
+    case JobType.PAID:
+      return computePaidJobStatus(job);
+    case JobType.DEMO:
+      return computeDemoJobStatus(job);
+  }
+}
 
+function computeFreeJobStatus(job: Job): JobStatus {
+  switch (job.agentJobStatus) {
+    case AgentJobStatus.PENDING:
+    case AgentJobStatus.AWAITING_INPUT:
+      return JobStatus.INPUT_REQUIRED;
+    case AgentJobStatus.COMPLETED:
+      return JobStatus.COMPLETED;
+    case AgentJobStatus.FAILED:
+      return JobStatus.FAILED;
+    case AgentJobStatus.RUNNING:
+      return JobStatus.PROCESSING;
+    case AgentJobStatus.AWAITING_PAYMENT:
+      return JobStatus.FAILED;
+    default:
+      return job.completedAt ? JobStatus.COMPLETED : JobStatus.PROCESSING;
+  }
+}
+
+function computeDemoJobStatus(_job: Job): JobStatus {
+  return JobStatus.COMPLETED;
+}
+
+function computePaidJobStatus(job: Job): JobStatus {
+  const { onChainStatus, agentJobStatus, nextActionErrorType } = job;
   // 1. If the job has already been refunded, return the refund resolved status
   if (job.refundedCreditTransactionId) {
     return JobStatus.REFUND_RESOLVED;
@@ -208,10 +241,28 @@ export function computeJobStatus(job: Job): JobStatus {
  * @returns The job status data.
  */
 export function getJobIndicatorStatus(job: Job): JobIndicatorStatus {
+  let jobStatusSettled: boolean;
+  switch (job.jobType) {
+    case JobType.PAID:
+      jobStatusSettled = job.externalDisputeUnlockTime
+        ? new Date() > job.externalDisputeUnlockTime
+        : false;
+      break;
+    case JobType.DEMO:
+      jobStatusSettled = true;
+      break;
+    case JobType.FREE:
+      jobStatusSettled = job.completedAt != null;
+      break;
+    default:
+      jobStatusSettled = false;
+      break;
+  }
+
   return {
     jobId: job.id,
     jobStatus: computeJobStatus(job),
-    jobStatusSettled: new Date() > job.externalDisputeUnlockTime,
+    jobStatusSettled,
   };
 }
 
@@ -348,17 +399,17 @@ export function transactionStatusToOnChainTransactionStatus(
   }
 }
 
-export function isPubliclyShared(job: JobWithRelations): boolean {
+export function isPubliclyShared(job: JobWithStatus): boolean {
   return job.shares.some(
     (share) => share.accessType === ShareAccessType.PUBLIC,
   );
 }
 
-export function isOrganizationShared(job: JobWithRelations): boolean {
+export function isOrganizationShared(job: JobWithStatus): boolean {
   return job.shares.some((share) => share.recipientOrganizationId !== null);
 }
 
-export function getPublicJobShare(job: JobWithRelations): JobShare | null {
+export function getPublicJobShare(job: JobWithStatus): JobShare | null {
   const found = job.shares.find(
     (share) => share.accessType === ShareAccessType.PUBLIC,
   );
@@ -366,7 +417,7 @@ export function getPublicJobShare(job: JobWithRelations): JobShare | null {
 }
 
 export function getOrganizationJobShare(
-  job: JobWithRelations,
+  job: JobWithStatus,
   organizationId: string,
 ): JobShare | null {
   const found = job.shares.find(
@@ -376,7 +427,7 @@ export function getOrganizationJobShare(
 }
 
 export function isSharedWithOrganization(
-  job: JobWithRelations,
+  job: JobWithStatus,
   organizationId: string,
 ): boolean {
   return job.shares.some(
