@@ -128,7 +128,7 @@
     "@types/jsdom": "27.0.0",
     "@types/node": "22.18.8",
     "@types/react": "19.2.2",
-    "@types/react-dom": "19.2.1",
+    "@types/react-dom": "19.2.2",
     "@types/react-file-icon": "1.0.4",
     "@types/react-window": "2.0.0",
     "eslint-config-next": "15.5.4",
