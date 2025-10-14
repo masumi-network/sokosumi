@@ -90,7 +90,7 @@
     "p-limit": "7.1.1",
     "p-timeout": "7.0.1",
     "postmark": "4.0.5",
-    "puppeteer-core": "24.23.0",
+    "puppeteer-core": "24.24.1",
     "radix-ui": "1.4.3",
     "react": "19.2.0",
     "react-day-picker": "9.11.1",
@@ -126,7 +126,7 @@
     "@hey-api/openapi-ts": "0.85.2",
     "@types/humanize-duration": "3.27.4",
     "@types/jsdom": "27.0.0",
-    "@types/node": "22.18.8",
+    "@types/node": "22.18.10",
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.2",
     "@types/react-file-icon": "1.0.4",
@@ -135,6 +135,6 @@
     "jsdom": "27.0.0",
     "next-openapi-gen": "0.7.9",
     "prisma": "6.17.1",
-    "puppeteer": "24.23.0"
+    "puppeteer": "24.24.1"
   }
 }
