@@ -11,6 +11,7 @@
     "start": "next start",
     "lint": "next lint --max-warnings=0",
     "lint:report": "next lint --output-file=lint-report.json --format json",
+    "test": "jest",
     "test:ci": "jest --ci",
     "prepare": "prisma generate --no-hints && pnpm run generate:api-docs",
     "prisma:generate": "prisma generate --no-hints",
