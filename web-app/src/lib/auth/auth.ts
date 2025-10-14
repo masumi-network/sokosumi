@@ -1,5 +1,6 @@
 import "server-only";
 
+import * as Sentry from "@sentry/nextjs";
 import { betterAuth, User } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware } from "better-auth/api";
@@ -350,7 +351,12 @@ async function mapProfileToUserInner(profile: {
     } else if (validator.isURL(profile.picture)) {
       // if profile picture is long url
       // fetch and upload to vercel blob
-      const res = await fetch(profile.picture);
+      const res = await fetch(profile.picture, {
+        signal: AbortSignal.timeout(5000), // 5 seconds
+      });
+      if (!res.headers.get("content-type")?.startsWith("image/")) {
+        throw new Error("Invalid content type, expected image/");
+      }
       const blob = await res.blob();
       const uploaded = await uploadAvatar(profile.name, blob);
       return {
