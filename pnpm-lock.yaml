@@ -354,15 +354,12 @@ importers:
       '@types/react-window':
         specifier: 2.0.0
         version: 2.0.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
-<<<<<<< HEAD
       '@types/validator':
         specifier: 13.15.3
         version: 13.15.3
-=======
       eslint:
         specifier: 9.37.0
         version: 9.37.0(jiti@2.6.1)
->>>>>>> 6d4d54c1 (chore(build): resolve build warnings and improve dev workflow (#1658))
       eslint-config-next:
         specifier: 15.5.5
         version: 15.5.5(eslint@9.37.0(jiti@2.6.1))(typescript@5.9.3)
@@ -15209,7 +15206,7 @@ snapshots:
     dependencies:
       debug: 4.4.3
       module-details-from-path: 1.0.4
-      resolve: 1.22.8
+      resolve: 1.22.10
     transitivePeerDependencies:
       - supports-color
 
