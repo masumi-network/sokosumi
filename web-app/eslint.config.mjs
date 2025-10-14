@@ -25,15 +25,7 @@ const eslintConfig = [
     ],
   },
   ...compat.config({
-    extends: [
-      "eslint:recommended",
-      "plugin:react/recommended",
-      "plugin:@next/next/recommended",
-      "prettier",
-      "next",
-      "next/core-web-vitals",
-      "next/typescript",
-    ],
+    extends: ["next/core-web-vitals", "next/typescript", "prettier"],
     plugins: [
       "simple-import-sort",
       "import",

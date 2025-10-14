@@ -4,6 +4,11 @@ import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
 const nextConfig: NextConfig = {
+  eslint: {
+    // Use ESLint CLI instead of next lint (which is deprecated in Next.js 16)
+    // Run lint separately via `pnpm lint` in CI/CD pipeline
+    ignoreDuringBuilds: true,
+  },
   images: {
     remotePatterns: [
       {
