@@ -6,14 +6,11 @@ import { Session } from "@/lib/auth/auth";
 import { cn } from "@/lib/utils";
 
 interface HeaderProps {
-  session: Session | null;
+  session: Session | null | undefined;
   className?: string | undefined;
 }
 
-export default function HeaderApiDocs({
-  session: _session,
-  className,
-}: HeaderProps) {
+export default function HeaderApiDocs({ className }: HeaderProps) {
   return (
     <header
       className={cn(

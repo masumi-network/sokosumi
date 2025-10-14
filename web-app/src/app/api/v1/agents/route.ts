@@ -19,7 +19,7 @@ import { agentService } from "@/lib/services";
  */
 export async function GET(request: NextRequest) {
   try {
-    const _apiKey = await validateApiKey(request.headers);
+    await validateApiKey(request.headers);
 
     // Get all available agents with credits pricing
     const agents = await agentService.getAvailableAgentsWithCreditsPrice();

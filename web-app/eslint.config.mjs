@@ -1,10 +1,9 @@
 import { FlatCompat } from "@eslint/eslintrc";
+import js from "@eslint/js";
 
 const compat = new FlatCompat({
   baseDirectory: import.meta.dirname,
-  recommendedConfig: {
-    extends: ["eslint:recommended", "plugin:react/recommended"],
-  },
+  recommendedConfig: js.configs.recommended,
 });
 
 const eslintConfig = [
@@ -27,11 +26,13 @@ const eslintConfig = [
   },
   ...compat.config({
     extends: [
+      "eslint:recommended",
+      "plugin:react/recommended",
+      "plugin:@next/next/recommended",
+      "prettier",
       "next",
       "next/core-web-vitals",
       "next/typescript",
-      "prettier",
-      "plugin:@next/next/recommended",
     ],
     plugins: [
       "simple-import-sort",
