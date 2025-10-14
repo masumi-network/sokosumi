@@ -64,7 +64,7 @@ export const auth = betterAuth({
       },
     },
   },
-  trustedOrigins: (_) => {
+  trustedOrigins: () => {
     const origins = [getEnvSecrets().BETTER_AUTH_TRUSTED_ORIGIN];
     const vercelBranchUrl = getEnvSecrets().VERCEL_BRANCH_URL;
     if (vercelBranchUrl) {

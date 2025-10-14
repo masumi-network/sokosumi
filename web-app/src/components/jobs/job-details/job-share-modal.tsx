@@ -395,7 +395,7 @@ export default function JobShareModal({
                       setOrganizationJobShare(null);
                       setLink(null);
                       toast.success(t("Success.share"));
-                    } catch (_error) {
+                    } catch {
                       toast.error(t("Error.share"));
                     }
                   }

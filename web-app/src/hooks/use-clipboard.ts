@@ -36,7 +36,7 @@ export function useClipboard(): UseClipboardReturn {
           setCopied(false);
           timeoutRef.current = null;
         }, COPY_SUCCESS_TIMEOUT);
-      } catch (_error) {
+      } catch {
         toast.error(t("Messages.copyError"));
       }
     },

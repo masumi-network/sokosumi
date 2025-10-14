@@ -28,7 +28,7 @@ export async function setupDomContext(): Promise<() => void> {
   try {
     const { Window } = await import("happy-dom");
     createdWindow = new Window() as unknown as Window & { close?: () => void };
-  } catch (_) {
+  } catch {
     const { JSDOM } = await import("jsdom");
     const dom = new JSDOM("<!doctype html><html><body></body></html>");
     createdWindow = dom.window as unknown as Window & { close?: () => void };

@@ -19,5 +19,5 @@ onlyBuiltDependencies:
   - prisma
 
 publicHoistPattern:
-  - "*eslint*"
-  - "*prettier*"
+  - "import-in-the-middle"
+  - "require-in-the-middle"

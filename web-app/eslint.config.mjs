@@ -1,13 +1,29 @@
 import { FlatCompat } from "@eslint/eslintrc";
+import js from "@eslint/js";
 
 const compat = new FlatCompat({
   baseDirectory: import.meta.dirname,
-  recommendedConfig: {
-    extends: ["eslint:recommended", "plugin:react/recommended"],
-  },
+  recommendedConfig: js.configs.recommended,
 });
 
 const eslintConfig = [
+  {
+    ignores: [
+      "node_modules/**",
+      ".next/**",
+      "out/**",
+      "build/**",
+      "next-env.d.ts",
+      "prisma/generated/**",
+      "src/components/ui/**",
+      "src/lib/clients/generated/**",
+      "public/js/**/*.js",
+      "*.config.mjs",
+      "*.config.js",
+      "jest.setup.js",
+      "**/__tests__/**",
+    ],
+  },
   ...compat.config({
     extends: ["next/core-web-vitals", "next/typescript", "prettier"],
     plugins: [
@@ -16,15 +32,6 @@ const eslintConfig = [
       "prettier",
       "unused-imports",
       "no-relative-import-paths",
-    ],
-    ignorePatterns: [
-      "**/dist/**",
-      "**/build/**",
-      "**/coverage/**",
-      "src/components/ui/**",
-      "src/lib/clients/generated/**",
-      "public/js/**/*.js",
-      "*.config.mjs",
     ],
     rules: {
       "simple-import-sort/imports": "error",

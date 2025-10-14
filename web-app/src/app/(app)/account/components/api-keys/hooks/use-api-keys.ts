@@ -44,7 +44,7 @@ export function useApiKeys(): UseApiKeysReturn {
           setError(errorMessage);
           toast.error(errorMessage);
         }
-      } catch (_error) {
+      } catch {
         const errorMessage = t("Messages.loadError");
         setError(errorMessage);
         toast.error(errorMessage);
@@ -96,7 +96,7 @@ export function useApiKeys(): UseApiKeysReturn {
             },
           };
         }
-      } catch (_error) {
+      } catch {
         const errorMessage = t("Messages.createError");
         toast.error(errorMessage);
         return {
@@ -131,7 +131,7 @@ export function useApiKeys(): UseApiKeysReturn {
           toast.error(result.error?.message ?? t("Messages.updateError"));
           return false;
         }
-      } catch (_error) {
+      } catch {
         toast.error(t("Messages.updateError"));
         return false;
       }
@@ -158,7 +158,7 @@ export function useApiKeys(): UseApiKeysReturn {
           toast.error(result.error?.message ?? t("Messages.deleteError"));
           return false;
         }
-      } catch (_error) {
+      } catch {
         toast.error(t("Messages.deleteError"));
         return false;
       }
