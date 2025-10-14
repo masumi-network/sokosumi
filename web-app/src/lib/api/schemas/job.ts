@@ -49,7 +49,7 @@ export const jobResponseSchema = z.object({
   startedAt: z.iso.datetime(),
   completedAt: z.iso.datetime().nullable(),
   resultSubmittedAt: z.iso.datetime().nullable(),
-  jobType: z.nativeEnum(JobType),
+  jobType: z.enum(JobType),
   price: jobCreditsSchema.nullable(),
   refund: jobCreditsSchema.nullable(),
   // Computed fields

@@ -672,7 +672,7 @@ const jobsNotFinishedWhereQuery = (
     {
       jobType: JobType.DEMO,
     },
-    // Filter in free jobs with are not completed on agentJobStatus
+    // Filter out free jobs that are completed or failed on agentJobStatus
     {
       jobType: JobType.FREE,
       agentJobStatus: {
