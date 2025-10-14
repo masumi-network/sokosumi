@@ -345,7 +345,7 @@ importers:
         specifier: 13.0.0
         version: 13.0.0
       validator:
-        specifier: ^13.15.15
+        specifier: 13.15.15
         version: 13.15.15
       vaul:
         specifier: 1.1.2
@@ -379,7 +379,7 @@ importers:
         specifier: 2.0.0
         version: 2.0.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@types/validator':
-        specifier: ^13.15.3
+        specifier: 13.15.3
         version: 13.15.3
       eslint-config-next:
         specifier: 15.5.5
