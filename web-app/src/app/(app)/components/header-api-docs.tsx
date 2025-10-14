@@ -2,11 +2,9 @@ import Link from "next/link";
 
 import { BreadcrumbNavigation } from "@/components/breadcrumb-navigation";
 import { SokosumiLogo, ThemedLogo } from "@/components/masumi-logos";
-import { Session } from "@/lib/auth/auth";
 import { cn } from "@/lib/utils";
 
 interface HeaderProps {
-  session?: Session | null;
   className?: string;
 }
 
