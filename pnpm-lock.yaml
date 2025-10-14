@@ -168,8 +168,8 @@ importers:
         specifier: 1.2.5
         version: 1.2.5(better-auth@1.3.27(next@15.5.4(@babel/core@7.28.4)(@opentelemetry/api@1.9.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react@19.2.0))
       better-auth-localization:
-        specifier: 2.1.8
-        version: 2.1.8(better-auth@1.3.27(next@15.5.4(@babel/core@7.28.4)(@opentelemetry/api@1.9.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react@19.2.0))
+        specifier: 2.1.9
+        version: 2.1.9(better-auth@1.3.27(next@15.5.4(@babel/core@7.28.4)(@opentelemetry/api@1.9.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react@19.2.0))
       class-variance-authority:
         specifier: 0.7.1
         version: 0.7.1
@@ -3784,8 +3784,8 @@ packages:
     peerDependencies:
       better-auth: ^1.0.3
 
-  better-auth-localization@2.1.8:
-    resolution: {integrity: sha512-cNjW0LsJtaKTKDJgvbtNf3XbJmi0Wf5htBrAN6BI30eb9e/dvIIt8l/0Y4ezT/f6Bmv0Ww6NoFaZt+zqaDzP0w==}
+  better-auth-localization@2.1.9:
+    resolution: {integrity: sha512-eYKu7FgoseyORb5Zq3xQfTWSYOXsH0AD8TQ/LjzWJ1xfL2nnMYE//mWI0El45Xc7uGqyB71m0s6FaSTKUWYKjw==}
     peerDependencies:
       better-auth: ^1.3.4
 
@@ -11446,7 +11446,7 @@ snapshots:
       mailchecker: 6.0.18
       validator: 13.15.15
 
-  better-auth-localization@2.1.8(better-auth@1.3.27(next@15.5.4(@babel/core@7.28.4)(@opentelemetry/api@1.9.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)):
+  better-auth-localization@2.1.9(better-auth@1.3.27(next@15.5.4(@babel/core@7.28.4)(@opentelemetry/api@1.9.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)):
     dependencies:
       better-auth: 1.3.27(next@15.5.4(@babel/core@7.28.4)(@opentelemetry/api@1.9.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
 
