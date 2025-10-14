@@ -306,7 +306,9 @@ export const jobService = (() => {
           );
         }
       }
-    } catch {}
+    } catch {
+      // Ignore errors
+    }
 
     return job;
   };
@@ -811,9 +813,13 @@ export const jobService = (() => {
             if (typeof output === "string") {
               sourceImportService
                 .enqueueFromMarkdown(job.userId, job.id, output)
-                .catch(() => {});
+                .catch(() => {
+                  // Ignore errors
+                });
             }
-          } catch {}
+          } catch {
+            // Ignore errors
+          }
         }
         const jobStatus = computeJobStatus(job);
         switch (jobStatus) {
