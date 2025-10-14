@@ -4,6 +4,11 @@ import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
 
 const nextConfig: NextConfig = {
+  eslint: {
+    // Use ESLint CLI instead of next lint (which is deprecated in Next.js 16)
+    // Run lint separately via `pnpm lint` in CI/CD pipeline
+    ignoreDuringBuilds: true,
+  },
   images: {
     remotePatterns: [
       {
@@ -26,6 +31,15 @@ const nextConfig: NextConfig = {
     },
   },
   serverExternalPackages: ["ably", "@sparticuz/chromium", "puppeteer-core"],
+  webpack: (config) => {
+    // Suppress webpack cache serialization warnings for large strings
+    // These are typically from Prisma client or other generated code and don't impact functionality
+    config.infrastructureLogging = {
+      ...config.infrastructureLogging,
+      level: "error",
+    };
+    return config;
+  },
 };
 
 const withNextIntl = createNextIntlPlugin();

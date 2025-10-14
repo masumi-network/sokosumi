@@ -36,7 +36,7 @@ export default async function OnboardingPage() {
           <p className="text-gray-600">{t("description")}</p>
         </div>
 
-        <OnboardingForm userId={session.user.id} />
+        <OnboardingForm />
       </div>
     </div>
   );

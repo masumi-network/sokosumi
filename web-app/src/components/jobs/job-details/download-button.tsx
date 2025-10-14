@@ -113,7 +113,7 @@ export default function DownloadButton({
       );
       triggerFileDownload(url, `${FILE_NAME}.md`);
       URL.revokeObjectURL(url);
-    } catch (_err) {
+    } catch {
       toast.error(t("exportMarkdownError"));
     } finally {
       toast.dismiss(id);
@@ -140,7 +140,7 @@ export default function DownloadButton({
       const url = URL.createObjectURL(blob);
       triggerFileDownload(url, `${FILE_NAME}.pdf`);
       URL.revokeObjectURL(url);
-    } catch (_err) {
+    } catch {
       toast.error(t("exportPdfError"));
     } finally {
       toast.dismiss(id);
@@ -180,7 +180,7 @@ export default function DownloadButton({
       const url = URL.createObjectURL(blob);
       triggerFileDownload(url, `${FILE_NAME}.docx`);
       URL.revokeObjectURL(url);
-    } catch (_err) {
+    } catch {
       toast.error(t("exportDocxError"));
     } finally {
       toast.dismiss(id);

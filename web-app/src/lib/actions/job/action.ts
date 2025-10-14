@@ -490,7 +490,7 @@ export const removeJobShare = withAuthContext<
 export const getActiveOrganization = withAuthContext<
   AuthenticatedRequest,
   Result<{ id: string; name: string } | null, ActionError>
->(async ({ authContext: _authContext }) => {
+>(async () => {
   try {
     const organization = await userService.getActiveOrganization();
     if (!organization) {
@@ -509,7 +509,7 @@ export const getActiveOrganization = withAuthContext<
 export const getActiveOrganizationId = withAuthContext<
   AuthenticatedRequest,
   Result<string | null, ActionError>
->(async ({ authContext: _authContext }) => {
+>(async () => {
   try {
     const organizationId = await userService.getActiveOrganizationId();
     return Ok(organizationId);

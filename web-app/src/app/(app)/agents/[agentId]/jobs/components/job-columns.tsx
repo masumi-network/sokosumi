@@ -128,7 +128,7 @@ function JobNameCell({
 
   return (
     <div className="p-2">
-      {!!name ? (
+      {name ? (
         <HighlightedText
           text={name}
           query={highlightQuery}

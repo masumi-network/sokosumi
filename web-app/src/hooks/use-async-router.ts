@@ -25,7 +25,7 @@ export function useAsyncRouter() {
 
   const asyncRouter = useMemo(() => {
     const push = (path: string) => {
-      return new Promise((resolve, _reject) => {
+      return new Promise((resolve) => {
         setResolve(() => resolve);
         startTransition(() => {
           router.push(path);

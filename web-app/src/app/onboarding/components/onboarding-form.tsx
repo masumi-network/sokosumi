@@ -23,10 +23,6 @@ import { Label } from "@/components/ui/label";
 import { completeOnboarding, skipOnboarding } from "@/lib/actions/onboarding";
 import { onboardingFormSchema, OnboardingFormSchemaType } from "@/lib/schemas";
 
-interface OnboardingFormProps {
-  userId: string;
-}
-
 // Validation utilities
 const emailSchema = z.email();
 const isValidEmail = (email: string): boolean => {
@@ -43,9 +39,7 @@ const normalizeEmails = (emails: string[]): string[] => {
 const deduplicateEmails = (emails: string[]): string[] =>
   Array.from(new Set(emails));
 
-export default function OnboardingForm({
-  userId: _userId,
-}: OnboardingFormProps) {
+export default function OnboardingForm() {
   const t = useTranslations("Onboarding.Form");
   const router = useRouter();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -133,7 +127,7 @@ export default function OnboardingForm({
       } else {
         toast.error(result.error.message ?? t("Toast.failedToComplete"));
       }
-    } catch (_error) {
+    } catch {
       toast.error(t("Toast.unexpectedError"));
     } finally {
       setIsSubmitting(false);
@@ -151,7 +145,7 @@ export default function OnboardingForm({
       } else {
         toast.error(result.error.message ?? t("Toast.failedToSkip"));
       }
-    } catch (_error) {
+    } catch {
       toast.error(t("Toast.unexpectedError"));
     } finally {
       setIsSkipping(false);
