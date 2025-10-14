@@ -23,8 +23,9 @@ export async function uploadAvatar(
   name: string,
   data: Buffer | Blob,
 ): Promise<PutBlobResult> {
+  const sanitizedName = name.replace(/[^a-zA-Z0-9_-]/g, "_").substring(0, 50);
   const blob = await put(
-    `${getEnvSecrets().VERCEL_AVATARS_UPLOAD_DIR}/${name.replace(/ /g, "_")}`,
+    `${getEnvSecrets().VERCEL_AVATARS_UPLOAD_DIR}/${sanitizedName}`,
     data,
     {
       access: "public",
