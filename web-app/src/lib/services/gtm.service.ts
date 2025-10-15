@@ -68,8 +68,9 @@ async function callMarketingOptInWebHook(
 }
 
 /**
- * Calls the marketing opt in webhook
- * This function must be called in `signUpEmail` action.
+ * Calls the marketing opt in webhook when a user signs up or updates their email.
+ * Should be used when a user signs up or updates their email.
+ *
  * @param userId - The id of the user
  * @param email - The email of the user
  * @param name - The name of the user
