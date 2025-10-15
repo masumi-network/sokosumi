@@ -16,6 +16,7 @@ import { reactInviteUserEmail } from "@/lib/email/invitation";
 import { postmarkClient } from "@/lib/email/postmark";
 import { reactResetPasswordEmail } from "@/lib/email/reset-password";
 import { reactVerificationEmail } from "@/lib/email/verification";
+import { signUpContextBodySchema } from "@/lib/schemas/auth";
 import { callMarketingOptInWebHook, stripeService } from "@/lib/services";
 
 export type Session = typeof auth.$Infer.Session;
@@ -109,9 +110,24 @@ export const auth = betterAuth({
             true,
             true,
           );
-          // call marketing opt in webhook
-          callMarketingOptInWebHook(newUser.email, newUser.name, true);
+          // call marketing opt in webhook with socialLogin=true and marketingOptIn=true
+          callMarketingOptInWebHook(newUser.email, newUser.name, true, true);
         }
+      } else if (ctx.path === "/sign-up/email") {
+        // handle email signup
+        const { success, data } = signUpContextBodySchema.safeParse(ctx.body);
+        if (!success) {
+          throw new APIError("BAD_REQUEST", {
+            code: "INVALID_BODY",
+          });
+        }
+
+        callMarketingOptInWebHook(
+          data.email,
+          data.name,
+          false,
+          data.marketingOptIn,
+        );
       } else if (ctx.path.startsWith("/sign-in")) {
         const user = ctx.context.newSession?.user;
         if (user && !user.termsAccepted) {
@@ -206,10 +222,12 @@ export const auth = betterAuth({
       termsAccepted: {
         type: "boolean",
         required: true,
+        defaultValue: false,
       },
       marketingOptIn: {
         type: "boolean",
-        required: false,
+        required: true,
+        defaultValue: false,
       },
       jobStatusEmailNotificationsEnabled: {
         type: "boolean",
