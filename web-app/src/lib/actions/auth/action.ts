@@ -16,7 +16,6 @@ import {
   signUpFormSchema,
   SignUpFormSchemaType,
 } from "@/lib/schemas";
-import { callMarketingOptInWebHook } from "@/lib/services";
 import { utmService } from "@/lib/services/utm.service";
 import { Err, Ok, Result } from "@/lib/ts-res";
 
@@ -85,6 +84,7 @@ export async function signUpEmail(
         name: parsed.name,
         password: parsed.password,
         callbackURL: "/",
+        marketingOptIn: parsed.marketingOptIn,
         termsAccepted: parsed.termsAccepted,
         onboardingCompleted: false,
       },
@@ -105,9 +105,6 @@ export async function signUpEmail(
     } catch (error) {
       console.error("Failed to create utm attribution", error);
     }
-
-    // call marketing opt in webhook
-    callMarketingOptInWebHook(parsed.email, parsed.name, parsed.marketingOptIn);
 
     return Ok(user);
   } catch (error) {
