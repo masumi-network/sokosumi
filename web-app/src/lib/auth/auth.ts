@@ -16,6 +16,7 @@ import { reactInviteUserEmail } from "@/lib/email/invitation";
 import { postmarkClient } from "@/lib/email/postmark";
 import { reactResetPasswordEmail } from "@/lib/email/reset-password";
 import { reactVerificationEmail } from "@/lib/email/verification";
+import { marketingOptInUserSchema } from "@/lib/schemas";
 import {
   callMarketingOptInWebHookEmail,
   callMarketingOptInWebHookSocialProvider,
@@ -78,22 +79,37 @@ export const auth = betterAuth({
       create: {
         after: async (user) => {
           await stripeService.createStripeCustomerForUser(user.id);
-          callMarketingOptInWebHookEmail(
-            user.id,
-            user.email,
-            user.name,
-            user.marketingOptIn as boolean,
-          );
+
+          // Validate user data before calling webhook
+          const { success, data, error } =
+            marketingOptInUserSchema.safeParse(user);
+          if (success) {
+            callMarketingOptInWebHookEmail(
+              data.id,
+              data.email,
+              data.name,
+              data.marketingOptIn,
+            );
+          } else {
+            console.error("Invalid user data for marketing webhook:", error);
+          }
         },
       },
       update: {
         after: async (user) => {
-          callMarketingOptInWebHookEmail(
-            user.id,
-            user.email,
-            user.name,
-            user.marketingOptIn as boolean,
-          );
+          // Validate user data before calling webhook
+          const { success, data, error } =
+            marketingOptInUserSchema.safeParse(user);
+          if (success) {
+            callMarketingOptInWebHookEmail(
+              data.id,
+              data.email,
+              data.name,
+              data.marketingOptIn,
+            );
+          } else {
+            console.error("Invalid user data for marketing webhook:", error);
+          }
         },
       },
     },

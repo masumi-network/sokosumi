@@ -71,7 +71,6 @@ export const marketingOptInUserSchema = z.object({
   email: emailSchema(),
   name: nameSchema(),
   marketingOptIn: z.boolean(),
-  termsAccepted: z.boolean(),
 });
 
 export type MarketingOptInUserSchemaType = z.infer<
