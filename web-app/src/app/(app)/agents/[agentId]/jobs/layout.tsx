@@ -59,10 +59,8 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
 
   const agentWithCreditsPrice = await agentService.getAgentCreditsPrice(agent);
   const favoriteAgents = await agentService.getFavoriteAgents();
-  const [executedJobsCount, averageExecutionDuration] = await Promise.all([
-    jobRepository.getExecutedJobsCountByAgentId(agentId),
-    jobRepository.getAverageExecutionDurationByAgentId(agentId),
-  ]);
+  const averageExecutionDuration =
+    await jobRepository.getAverageExecutionDurationByAgentId(agentId);
   const availableAgent = await agentService.getAvailableAgentById(agentId);
 
   return (
@@ -73,8 +71,6 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
       <div className="flex w-full flex-col lg:h-[calc(100svh-96px)]">
         <Header
           agent={agentWithCreditsPrice}
-          executedJobsCount={executedJobsCount}
-          averageExecutionDuration={averageExecutionDuration}
           favoriteAgents={favoriteAgents}
           disabled={!availableAgent}
         />
