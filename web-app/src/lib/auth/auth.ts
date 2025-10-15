@@ -90,6 +90,7 @@ export const auth = betterAuth({
       update: {
         after: async (user) => {
           // Validate user data before calling webhook
+          // Fires on any user update to keep marketing system synchronized
           const { success, data, error } =
             marketingOptInUserSchema.safeParse(user);
           if (success) {
