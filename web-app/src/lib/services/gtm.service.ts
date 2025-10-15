@@ -1,6 +1,7 @@
 import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
+import { SocialProvider } from "better-auth/social-providers";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 
@@ -37,35 +38,19 @@ export async function callAfterAgentHiredWebHook(email: string) {
 }
 
 /**
- * Calls the marketing opt in webhook
- * This function must be called in `signUpEmail` action.
- * @param email - The email of the user
- * @param name - The name of the user
- * @param socialLogin - Whether the user signed up using social login
- * @param marketingOptIn - Whether the user opted in to marketing
+ * Base function to call the marketing opt in webhook
  */
-export async function callMarketingOptInWebHook(
-  email: string,
-  name: string,
-  socialSignup: boolean = false,
-  marketingOptIn: boolean = false,
+async function callMarketingOptInWebHook(
+  userId: string,
+  payload: Record<string, unknown>,
 ) {
-  console.log(
-    "callMarketingOptInWebHook",
-    email,
-    name,
-    socialSignup,
-    marketingOptIn,
-  );
   const webhookUrl = getEnvSecrets().MARKETING_OPT_IN_WEB_HOOK;
-  if (!webhookUrl) {
-    return;
-  }
+  if (!webhookUrl) return;
 
   try {
     const res = await fetch(webhookUrl, {
       method: "POST",
-      body: JSON.stringify({ email, name, socialSignup, marketingOptIn }),
+      body: JSON.stringify({ userId, ...payload }),
     });
     if (!res.ok) {
       throw new Error("Response is not okay from marketing opt in webhook");
@@ -74,12 +59,44 @@ export async function callMarketingOptInWebHook(
     Sentry.captureMessage("Failed to call marketing opt in webhook", {
       level: "warning",
       user: {
-        email,
-        name,
+        userId,
       },
       extra: {
         error: String(error),
       },
     });
   }
+}
+
+/**
+ * Calls the marketing opt in webhook
+ * This function must be called in `signUpEmail` action.
+ * @param userId - The id of the user
+ * @param email - The email of the user
+ * @param name - The name of the user
+ * @param marketingOptIn - Whether the user opted in to marketing
+ */
+export async function callMarketingOptInWebHookEmail(
+  userId: string,
+  email: string,
+  name: string,
+  marketingOptIn: boolean,
+) {
+  return callMarketingOptInWebHook(userId, { email, name, marketingOptIn });
+}
+
+/**
+ * Calls the marketing opt in webhook when a user signs up or links an account with a social provider.
+ * Should be used when a user authenticates through OAuth/social login.
+ *
+ * @param userId - The unique identifier for the user
+ * @param socialProvider - The social provider used for authentication (e.g., "google", "microsoft")
+ *
+ * Attempts to POST to the marketing opt-in webhook with user and provider data. Errors are logged using Sentry.
+ */
+export async function callMarketingOptInWebHookSocialProvider(
+  userId: string,
+  socialProvider: SocialProvider,
+) {
+  return callMarketingOptInWebHook(userId, { socialProvider });
 }
