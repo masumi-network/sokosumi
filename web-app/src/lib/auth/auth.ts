@@ -79,12 +79,11 @@ export const auth = betterAuth({
       create: {
         after: async (user) => {
           await stripeService.createStripeCustomerForUser(user.id);
-
           callMarketingOptInWebHookEmail(
             user.id,
             user.email,
             user.name,
-            Boolean(user.marketingOptIn),
+            user.marketingOptIn as boolean,
           );
         },
       },
@@ -94,7 +93,7 @@ export const auth = betterAuth({
             user.id,
             user.email,
             user.name,
-            Boolean(user.marketingOptIn),
+            user.marketingOptIn as boolean,
           );
         },
       },
