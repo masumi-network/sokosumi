@@ -31,7 +31,7 @@ export default async function MenuItems() {
         <SidebarMenu>
           {items.map(({ key, href, label, Icon, hasIndicator }) => (
             <SidebarMenuItem key={key}>
-              <SidebarMenuButton asChild className="px-4 py-5">
+              <SidebarMenuButton asChild className="px-4 py-3">
                 <SheetClose asChild>
                   <Link href={href} className="flex w-full items-center gap-2">
                     <Icon className="size-4" aria-hidden />
