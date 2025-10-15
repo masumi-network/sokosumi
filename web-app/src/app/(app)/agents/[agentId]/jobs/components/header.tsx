@@ -2,13 +2,8 @@
 
 import { ArrowLeft, Bookmark, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
 
-import {
-  AgentBookmarkButton,
-  AgentDetail,
-  AgentModal,
-} from "@/components/agents";
+import { AgentBookmarkButton } from "@/components/agents";
 import { AgentActionButtons } from "@/components/agents/agent-action-buttons";
 import { CreateJobModalTrigger } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";
@@ -68,24 +63,15 @@ interface HeaderProps {
 
 export default function Header({
   agent,
-  executedJobsCount,
-  averageExecutionDuration,
+  executedJobsCount: _executedJobsCount,
+  averageExecutionDuration: _averageExecutionDuration,
   favoriteAgents,
   disabled,
 }: HeaderProps) {
   const t = useTranslations("App.Agents.Jobs.Header");
-  const [detailOpen, setDetailOpen] = useState(false);
   const isFavorite = favoriteAgents.some(
     (favoriteAgent) => favoriteAgent.id === agent.id,
   );
-
-  const handleDetailsClick = () => {
-    setDetailOpen(true);
-  };
-
-  const handleDetailClose = () => {
-    setDetailOpen(false);
-  };
 
   return (
     <div className="flex flex-col items-center gap-4 pt-14 md:pt-0 lg:flex-row lg:gap-6 xl:gap-8">
@@ -96,28 +82,12 @@ export default function Header({
           showShareButton={false}
           showCloseButton={false}
         />
-        <Button
-          className="text-sm leading-tight font-medium"
-          variant="ghost"
-          disabled={disabled}
-          onClick={handleDetailsClick}
-        >
-          {t("details")}
-        </Button>
       </div>
       <div className="flex w-full flex-row items-center justify-between gap-4 md:w-auto md:justify-center">
         <h1 className="text-2xl leading-none font-light tracking-tighter text-nowrap md:text-3xl">
           {getAgentName(agent)}
         </h1>
         <div className="hidden gap-2 md:flex">
-          <Button
-            className="text-sm leading-tight font-medium"
-            variant="ghost"
-            disabled={disabled}
-            onClick={handleDetailsClick}
-          >
-            {t("details")}
-          </Button>
           <AgentBookmarkButton
             agentId={agent.id}
             isFavorite={isFavorite}
@@ -133,19 +103,6 @@ export default function Header({
         </div>
         <CreateJobModalTrigger agentId={agent.id} disabled={disabled} />
       </div>
-      {/* Agent Modal */}
-      <AgentModal open={detailOpen}>
-        <AgentDetail
-          agent={agent}
-          executedJobsCount={executedJobsCount}
-          averageExecutionDuration={averageExecutionDuration}
-          favoriteAgents={favoriteAgents}
-          showBackButton={false}
-          showCloseButton
-          onClose={handleDetailClose}
-          cardClassName="agent-modal-card p-3 md:p-6"
-        />
-      </AgentModal>
     </div>
   );
 }

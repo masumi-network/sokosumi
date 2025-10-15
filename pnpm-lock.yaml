@@ -327,6 +327,9 @@ importers:
       '@eslint/eslintrc':
         specifier: 3.3.1
         version: 3.3.1
+      '@eslint/js':
+        specifier: 9.37.0
+        version: 9.37.0
       '@hey-api/openapi-ts':
         specifier: 0.85.2
         version: 0.85.2(typescript@5.9.3)

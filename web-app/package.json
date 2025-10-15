@@ -124,6 +124,7 @@
     "zod": "4.1.12"
   },
   "devDependencies": {
+    "@eslint/js": "9.37.0",
     "@eslint/eslintrc": "3.3.1",
     "@hey-api/openapi-ts": "0.85.2",
     "@types/humanize-duration": "3.27.4",
