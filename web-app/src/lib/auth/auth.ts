@@ -66,14 +66,6 @@ export const auth = betterAuth({
           );
         },
       },
-      update: {
-        after: async (account) => {
-          callMarketingOptInWebHookSocialProvider(
-            account.userId,
-            account.providerId,
-          );
-        },
-      },
     },
     user: {
       create: {
