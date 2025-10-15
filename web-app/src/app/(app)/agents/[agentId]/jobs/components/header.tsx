@@ -55,16 +55,12 @@ export function HeaderSkeleton() {
 
 interface HeaderProps {
   agent: AgentWithCreditsPrice;
-  executedJobsCount: number;
-  averageExecutionDuration: number;
   favoriteAgents: AgentWithRelations[];
   disabled?: boolean;
 }
 
 export default function Header({
   agent,
-  executedJobsCount: _executedJobsCount,
-  averageExecutionDuration: _averageExecutionDuration,
   favoriteAgents,
   disabled,
 }: HeaderProps) {
