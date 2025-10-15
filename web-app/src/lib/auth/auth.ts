@@ -1,6 +1,6 @@
 import "server-only";
 
-import { betterAuth, User } from "better-auth";
+import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
@@ -10,13 +10,18 @@ import { getTranslations } from "next-intl/server";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
-import { prisma, userRepository } from "@/lib/db/repositories";
+import { prisma } from "@/lib/db/repositories";
 import { reactChangeEmailVerificationEmail } from "@/lib/email/change-email";
 import { reactInviteUserEmail } from "@/lib/email/invitation";
 import { postmarkClient } from "@/lib/email/postmark";
 import { reactResetPasswordEmail } from "@/lib/email/reset-password";
 import { reactVerificationEmail } from "@/lib/email/verification";
-import { callMarketingOptInWebHook, stripeService } from "@/lib/services";
+import { marketingOptInUserSchema } from "@/lib/schemas";
+import {
+  callMarketingOptInWebHookEmail,
+  callMarketingOptInWebHookSocialProvider,
+  stripeService,
+} from "@/lib/services";
 
 export type Session = typeof auth.$Infer.Session;
 export type SessionUser = typeof auth.$Infer.Session.user;
@@ -52,10 +57,52 @@ export const auth = betterAuth({
     },
   },
   databaseHooks: {
+    account: {
+      create: {
+        after: async (account) => {
+          callMarketingOptInWebHookSocialProvider(
+            account.userId,
+            account.providerId,
+          );
+        },
+      },
+    },
     user: {
       create: {
-        after: async (user: User) => {
+        after: async (user) => {
           await stripeService.createStripeCustomerForUser(user.id);
+
+          // Validate user data before calling webhook
+          const { success, data, error } =
+            marketingOptInUserSchema.safeParse(user);
+          if (success) {
+            callMarketingOptInWebHookEmail(
+              data.id,
+              data.email,
+              data.name,
+              data.marketingOptIn,
+            );
+          } else {
+            console.error("Invalid user data for marketing webhook:", error);
+          }
+        },
+      },
+      update: {
+        after: async (user) => {
+          // Validate user data before calling webhook
+          // Fires on any user update to keep marketing system synchronized
+          const { success, data, error } =
+            marketingOptInUserSchema.safeParse(user);
+          if (success) {
+            callMarketingOptInWebHookEmail(
+              data.id,
+              data.email,
+              data.name,
+              data.marketingOptIn,
+            );
+          } else {
+            console.error("Invalid user data for marketing webhook:", error);
+          }
         },
       },
     },
@@ -98,21 +145,7 @@ export const auth = betterAuth({
       }
     }),
     after: createAuthMiddleware(async (ctx) => {
-      if (ctx.path.startsWith("/callback")) {
-        // if user signs in using social account
-        const newUser = ctx.context.newSession?.user as SessionUser | undefined;
-        if (newUser && !newUser.termsAccepted && !newUser.marketingOptIn) {
-          // if this is sign up (when termsAccepted and marketingOptIn are false)
-          // set TERMS_ACCEPTED, MARKETING_OPT_IN to true
-          await userRepository.updateUserTermsAcceptedAndMarketingOptIn(
-            newUser.id,
-            true,
-            true,
-          );
-          // call marketing opt in webhook
-          callMarketingOptInWebHook(newUser.email, newUser.name, true);
-        }
-      } else if (ctx.path.startsWith("/sign-in")) {
+      if (ctx.path.startsWith("/sign-in")) {
         const user = ctx.context.newSession?.user;
         if (user && !user.termsAccepted) {
           throw new APIError("BAD_REQUEST", {
@@ -123,7 +156,6 @@ export const auth = betterAuth({
 
       // Sync user email with Stripe after email change verification
       if (ctx.path === "/verify-email" && ctx.context.newSession?.user) {
-        console.log("syncing user email with Stripe");
         const user = ctx.context.newSession?.user;
         if (user.stripeCustomerId && user.email) {
           // Fire and forget - don't wait for sync to complete
@@ -206,10 +238,12 @@ export const auth = betterAuth({
       termsAccepted: {
         type: "boolean",
         required: true,
+        defaultValue: true,
       },
       marketingOptIn: {
         type: "boolean",
-        required: false,
+        required: true,
+        defaultValue: true,
       },
       jobStatusEmailNotificationsEnabled: {
         type: "boolean",
