@@ -435,6 +435,15 @@ describe("isJobVerified", () => {
   }
 
   describe("input verification", () => {
+    it("should return false when identifierFromPurchaser is null", () => {
+      const job = createMockJob({
+        identifierFromPurchaser: null,
+        input: JSON.stringify({ field1: "value1" }),
+        inputHash: "somehash",
+      });
+      expect(isJobVerified("input", job)).toBe(false);
+    });
+
     it("should return false when input hash is missing", () => {
       const job = createMockJob({
         input: JSON.stringify({ field1: "value1" }),
@@ -492,6 +501,15 @@ describe("isJobVerified", () => {
   });
 
   describe("output verification", () => {
+    it("should return false when identifierFromPurchaser is null", () => {
+      const job = createMockJob({
+        identifierFromPurchaser: null,
+        output: JSON.stringify({ status: "completed" }),
+        resultHash: "somehash",
+      });
+      expect(isJobVerified("output", job)).toBe(false);
+    });
+
     it("should return false when output hash is missing", () => {
       const job = createMockJob({
         output: JSON.stringify({ status: "completed" }),

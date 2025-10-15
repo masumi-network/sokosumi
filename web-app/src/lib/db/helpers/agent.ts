@@ -26,6 +26,13 @@ export function getAgentResolvedImage(agent: Agent): string {
   return ipfsUrlResolver(agent.overrideImage ?? agent.image);
 }
 
+export function getAgentResolvedIcon(agent: Agent): string | null {
+  if (!agent.icon) {
+    return null;
+  }
+  return ipfsUrlResolver(agent.icon);
+}
+
 export function getAgentTags(agent: AgentWithTags): string[] {
   return agent.overrideTags.length > 0
     ? agent.overrideTags.map((tag) => tag.name)

@@ -5,13 +5,13 @@ import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
 import useModal from "@/hooks/use-modal";
-import { JobWithRelations } from "@/lib/db";
+import { JobWithStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 import JobShareModal from "./job-share-modal";
 
 interface JobShareButtonProps {
-  job: JobWithRelations;
+  job: JobWithStatus;
   className?: string;
   activeOrganizationId?: string | null;
 }

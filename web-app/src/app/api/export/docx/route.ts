@@ -87,7 +87,7 @@ const defaultStyles = {
 
 function dataUrlToBuffer(dataUrl: string | undefined) {
   if (!dataUrl || !dataUrl.startsWith("data:")) return undefined;
-  const [_meta, base64] = dataUrl.split(",");
+  const [_, base64] = dataUrl.split(",");
   if (!base64) return undefined;
   return Buffer.from(base64, "base64");
 }

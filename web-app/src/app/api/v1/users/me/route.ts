@@ -142,7 +142,7 @@ export async function PATCH(request: NextRequest) {
  */
 export async function DELETE(request: NextRequest) {
   try {
-    const _apiKey = await validateApiKey(request.headers);
+    await validateApiKey(request.headers);
 
     const body = await request.json();
     const validatedData = deleteUserSchema().parse(body);

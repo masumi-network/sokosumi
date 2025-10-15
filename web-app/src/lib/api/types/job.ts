@@ -1,5 +1,7 @@
 // Explicit TypeScript types for jobs endpoints (for next-openapi-gen typescript mode)
 
+import { JobType } from "@/prisma/generated/client";
+
 export type JobCredits = {
   credits: number;
   includedFee: number;
@@ -22,7 +24,7 @@ export type JobResponse = {
   startedAt: string; // ISO date
   completedAt: string | null; // ISO date
   resultSubmittedAt: string | null; // ISO date
-  isDemo: boolean;
+  jobType: JobType;
   price: JobCredits | null;
   refund: JobCredits | null;
   jobStatusSettled: boolean;

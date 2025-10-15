@@ -304,7 +304,8 @@
         "VerificationBadge": {
           "verified": "{direction} hash is verified. Click here to learn more",
           "unverified": "{direction} hash is unverified. Click here to learn more",
-          "pending": "{direction} hash verification is pending. Click here to learn more"
+          "pending": "{direction} hash verification is pending. Click here to learn more",
+          "notApplicable": "{direction} hash verification is not available for free jobs. Click here to learn more"
         },
         "Input": {
           "title": "Input",
@@ -979,9 +980,14 @@
     },
     "Sidebar": {
       "Content": {
+        "MenuItems": {
+          "exploreAgents": "Explore Agents",
+          "filesAndOutputs": "Files and Outputs",
+          "taskManager": "Task Manager"
+        },
         "AgentLists": {
-          "pinnedTitle": "Your Pinned Agents",
-          "hiredTitle": "Your Hired Agents",
+          "pinnedTitle": "Pinned Agents",
+          "hiredTitle": "Recently Used Agents",
           "noAgents": "No {type} agents yet",
           "pinnedType": "pinned",
           "hiredType": "hired",
@@ -1000,11 +1006,6 @@
             "refundResolved": "Refunded",
             "outputPending": "Output Missing"
           }
-        }
-      },
-      "Footer": {
-        "AgentButton": {
-          "title": "Explore Agents"
         }
       }
     },

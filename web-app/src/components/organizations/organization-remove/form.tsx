@@ -36,7 +36,7 @@ export default function OrganizationRemoveForm({
   const t = useTranslations("Components.Organizations.RemoveModal");
   const router = useRouter();
 
-  const onSubmit = async (_values: RemoveOrganizationSchemaType) => {
+  const onSubmit = async () => {
     const result = await authClient.organization.delete({
       organizationId: organization.id,
     });

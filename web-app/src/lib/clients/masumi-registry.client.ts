@@ -33,6 +33,7 @@ export const registryClient = (() => {
           cursorId: lastIdentifier,
           filter: {
             status: ["Online", "Offline", "Deregistered", "Invalid"],
+            paymentTypes: ["Web3CardanoV1", "None"],
           },
         },
       });

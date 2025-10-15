@@ -5,7 +5,7 @@ import * as Sentry from "@sentry/nextjs";
 import { ActionError, CommonErrorCode } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { OrganizationErrorCode } from "@/lib/actions/errors/error-codes/organization";
-import { JobWithStatus } from "@/lib/db";
+import { PaidJobWithStatus } from "@/lib/db";
 import {
   jobRepository,
   jobShareRepository,
@@ -288,7 +288,7 @@ interface RequestRefundJobByBlockchainIdentifierParameters
 
 export const requestRefundJobByBlockchainIdentifier = withAuthContext<
   RequestRefundJobByBlockchainIdentifierParameters,
-  Result<{ job: JobWithStatus }, ActionError>
+  Result<{ job: PaidJobWithStatus }, ActionError>
 >(async ({ blockchainIdentifier, authContext }) => {
   const { userId } = authContext;
   const foundJob =
@@ -490,7 +490,7 @@ export const removeJobShare = withAuthContext<
 export const getActiveOrganization = withAuthContext<
   AuthenticatedRequest,
   Result<{ id: string; name: string } | null, ActionError>
->(async ({ authContext: _authContext }) => {
+>(async () => {
   try {
     const organization = await userService.getActiveOrganization();
     if (!organization) {
@@ -509,7 +509,7 @@ export const getActiveOrganization = withAuthContext<
 export const getActiveOrganizationId = withAuthContext<
   AuthenticatedRequest,
   Result<string | null, ActionError>
->(async ({ authContext: _authContext }) => {
+>(async () => {
   try {
     const organizationId = await userService.getActiveOrganizationId();
     return Ok(organizationId);

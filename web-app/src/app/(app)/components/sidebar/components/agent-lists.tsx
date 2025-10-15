@@ -103,6 +103,7 @@ async function AgentListsContent({ userId }: { userId: string }) {
       agents: favoriteAgentsWithAvailability,
       initialJobIndicatorStatuses: favoriteAgentsJobIndicatorStatuses,
       noAgentsType: t("pinnedType"),
+      iconKey: "pin",
     },
     {
       groupKey: "hired-agents",
@@ -110,6 +111,7 @@ async function AgentListsContent({ userId }: { userId: string }) {
       agents: hiredAgentsWithAvailability,
       initialJobIndicatorStatuses: hiredAgentsJobIndicatorStatuses,
       noAgentsType: t("hiredType"),
+      iconKey: "history",
     },
   ];
 
