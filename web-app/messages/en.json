@@ -103,10 +103,6 @@
       },
       "AgentBadgeCloud": {
         "new": "New"
-      },
-      "AgentModal": {
-        "error": "Failed to fetch agent detail",
-        "backToAgents": "Back To Agents Gallery"
       }
     },
     "UserAvatar": {
@@ -1343,7 +1339,6 @@
         "newJob": "New Job",
         "Header": {
           "newJob": "New Job",
-          "details": "Details",
           "price": "{price, plural, =0 {Free} =1 {1 credit} other {# credits}}"
         },
         "Footer": {
