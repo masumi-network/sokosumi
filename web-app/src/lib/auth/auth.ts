@@ -11,7 +11,7 @@ import { getTranslations } from "next-intl/server";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
-import { prisma, userRepository } from "@/lib/db/repositories";
+import { prisma } from "@/lib/db/repositories";
 import { reactChangeEmailVerificationEmail } from "@/lib/email/change-email";
 import { reactInviteUserEmail } from "@/lib/email/invitation";
 import { postmarkClient } from "@/lib/email/postmark";
@@ -137,18 +137,7 @@ export const auth = betterAuth({
       }
     }),
     after: createAuthMiddleware(async (ctx) => {
-      if (ctx.path.startsWith("/callback")) {
-        // if user signs in using social account
-        const user = ctx.context.newSession?.user as SessionUser | undefined;
-        if (user && !user.termsAccepted && !user.marketingOptIn) {
-          // if this is sign up (when termsAccepted and marketingOptIn are false)
-          // set TERMS_ACCEPTED, MARKETING_OPT_IN to true
-          await prisma.$transaction(async (tx) => {
-            await userRepository.updateTermsAccepted(user.id, true, tx);
-            await userRepository.updateMarketingOptIn(user.id, true, tx);
-          });
-        }
-      } else if (ctx.path.startsWith("/sign-in")) {
+      if (ctx.path.startsWith("/sign-in")) {
         const user = ctx.context.newSession?.user;
         if (user && !user.termsAccepted) {
           throw new APIError("BAD_REQUEST", {
@@ -241,12 +230,12 @@ export const auth = betterAuth({
       termsAccepted: {
         type: "boolean",
         required: true,
-        defaultValue: false,
+        defaultValue: true,
       },
       marketingOptIn: {
         type: "boolean",
         required: true,
-        defaultValue: false,
+        defaultValue: true,
       },
       jobStatusEmailNotificationsEnabled: {
         type: "boolean",
