@@ -41,11 +41,15 @@ export default function MenuItems() {
       <SidebarGroupContent className="mt-2">
         <SidebarMenu>
           {items.map(({ key, href, label, Icon, hasIndicator }) => {
-            const isActive = href === "/agents" ? pathname === "/agents" : pathname === href;
+            const isActive = pathname === href;
 
             return (
               <SidebarMenuItem key={key}>
-                <SidebarMenuButton asChild isActive={isActive} className="px-4 py-5">
+                <SidebarMenuButton
+                  asChild
+                  isActive={isActive}
+                  className="px-4 py-5"
+                >
                   <SheetClose asChild>
                     <Link
                       href={href}
@@ -71,4 +75,3 @@ export default function MenuItems() {
     </SidebarGroup>
   );
 }
-
