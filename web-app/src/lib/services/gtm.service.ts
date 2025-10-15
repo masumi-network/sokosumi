@@ -1,7 +1,6 @@
 import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
-import { SocialProvider } from "better-auth/social-providers";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 
@@ -90,13 +89,13 @@ export async function callMarketingOptInWebHookEmail(
  * Should be used when a user authenticates through OAuth/social login.
  *
  * @param userId - The unique identifier for the user
- * @param socialProvider - The social provider used for authentication (e.g., "google", "microsoft")
+ * @param providerId - The provider id used for authentication (e.g., "credential", "google", "microsoft")
  *
  * Attempts to POST to the marketing opt-in webhook with user and provider data. Errors are logged using Sentry.
  */
 export async function callMarketingOptInWebHookSocialProvider(
   userId: string,
-  socialProvider: SocialProvider,
+  providerId: string,
 ) {
-  return callMarketingOptInWebHook(userId, { socialProvider });
+  return callMarketingOptInWebHook(userId, { providerId });
 }

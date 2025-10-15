@@ -5,7 +5,6 @@ import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { apiKey, organization } from "better-auth/plugins";
-import { SocialProvider } from "better-auth/social-providers";
 import { localization } from "better-auth-localization";
 import { getTranslations } from "next-intl/server";
 
@@ -62,7 +61,7 @@ export const auth = betterAuth({
         after: async (account) => {
           callMarketingOptInWebHookSocialProvider(
             account.userId,
-            account.providerId as SocialProvider,
+            account.providerId,
           );
         },
       },
@@ -70,7 +69,7 @@ export const auth = betterAuth({
         after: async (account) => {
           callMarketingOptInWebHookSocialProvider(
             account.userId,
-            account.providerId as SocialProvider,
+            account.providerId,
           );
         },
       },
