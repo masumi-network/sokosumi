@@ -66,14 +66,14 @@ export type ResetPasswordFormSchemaType = z.infer<
   ReturnType<typeof resetPasswordFormSchema>
 >;
 
-export const signUpContextBodySchema = z.object({
+export const marketingOptInUserSchema = z.object({
+  id: z.string(),
   email: emailSchema(),
   name: nameSchema(),
   marketingOptIn: z.boolean(),
   termsAccepted: z.boolean(),
-  onboardingCompleted: z.boolean(),
 });
 
-export type SignUpContextBodySchemaType = z.infer<
-  typeof signUpContextBodySchema
+export type MarketingOptInUserSchemaType = z.infer<
+  typeof marketingOptInUserSchema
 >;
