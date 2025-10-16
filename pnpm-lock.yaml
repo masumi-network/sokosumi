@@ -57,8 +57,8 @@ importers:
   web-app:
     dependencies:
       '@anthropic-ai/sdk':
-        specifier: 0.65.0
-        version: 0.65.0(zod@4.1.12)
+        specifier: 0.66.0
+        version: 0.66.0(zod@4.1.12)
       '@better-auth/utils':
         specifier: 0.3.0
         version: 0.3.0
@@ -415,8 +415,8 @@ packages:
   '@antfu/utils@9.3.0':
     resolution: {integrity: sha512-9hFT4RauhcUzqOE4f1+frMKLZrgNog5b06I7VmZQV1BkvwvqrbC8EBZf3L1eEL2AKb6rNKjER0sEvJiSP1FXEA==}
 
-  '@anthropic-ai/sdk@0.65.0':
-    resolution: {integrity: sha512-zIdPOcrCVEI8t3Di40nH4z9EoeyGZfXbYSvWdDLsB/KkaSYMnEgC7gmcgWu83g2NTn1ZTpbMvpdttWDGGIk6zw==}
+  '@anthropic-ai/sdk@0.66.0':
+    resolution: {integrity: sha512-GBSSby0P4BW/sOdvsTXaHJDPnGEL5tuB4TtsU4SXG7+dVULQ9MkKgNznCALDCgSV5yhrtQlctvEdMqePVIXTiw==}
     hasBin: true
     peerDependencies:
       zod: ^3.25.0 || ^4.0.0
@@ -7770,7 +7770,7 @@ snapshots:
 
   '@antfu/utils@9.3.0': {}
 
-  '@anthropic-ai/sdk@0.65.0(zod@4.1.12)':
+  '@anthropic-ai/sdk@0.66.0(zod@4.1.12)':
     dependencies:
       json-schema-to-ts: 3.1.1
     optionalDependencies:
