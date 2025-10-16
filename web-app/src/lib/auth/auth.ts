@@ -371,17 +371,37 @@ async function mapProfileToUserInner(profile: {
   name: string;
   picture: string;
 }): Promise<Partial<User>> {
-  if (profile.picture && profile.picture.length > 512) {
-    // we will upload profile picture to vercel blob
-    // and retrieve small length of url
-    const profilePicture = profile.picture;
+  const profilePicture = profile.picture;
+
+  if (!profilePicture) {
+    return {
+      name: profile.name,
+      image: undefined,
+      profilePictureHash: null,
+    };
+  }
+
+  // 1. Check if it's a valid URL (pass through directly)
+  if (validator.isURL(profilePicture, { require_protocol: true })) {
+    // OAuth provider URLs are short and don't cause cookie issues
+    // Just pass them through without uploading
+    return {
+      name: profile.name,
+      image: profilePicture,
+      profilePictureHash: null,
+    };
+  }
+
+  // 2. Check if it's a data URI (base64 encoded image)
+  const dataUriRegex =
+    /^data:image\/(png|jpg|jpeg|gif|webp|bmp|svg\+xml);base64,/;
+  if (dataUriRegex.test(profilePicture)) {
     const profilePictureHash = crypto
       .createHash("sha256")
       .update(profilePicture)
       .digest("hex");
 
-    // First try to find profile picture image
-    // that was uploaded before using its hash
+    // Check if we've already uploaded this exact image
     const foundImage =
       await userRepository.findProfilePictureImageByHash(profilePictureHash);
     if (foundImage) {
@@ -392,47 +412,22 @@ async function mapProfileToUserInner(profile: {
       };
     }
 
-    const dataUriRegex =
-      /^data:image\/(png|jpg|jpeg|gif|webp|bmp|svg\+xml);base64,/;
-    if (dataUriRegex.test(profilePicture)) {
-      // if profile picture is base64 format
-      const buffer = Buffer.from(
-        profilePicture.replace(/^data:image\/\w+;base64,/, ""),
-        "base64",
-      );
-      const uploaded = await uploadAvatar(profile.name, buffer);
-      return {
-        name: profile.name,
-        image: uploaded.url,
-        profilePictureHash,
-      };
-    } else if (validator.isURL(profilePicture)) {
-      // if profile picture is long url
-      // fetch and upload to vercel blob
-      const res = await fetch(profilePicture, {
-        signal: AbortSignal.timeout(5000), // 5 seconds
-      });
-      if (!res.headers.get("content-type")?.startsWith("image/")) {
-        throw new Error("Invalid content type, expected image/");
-      }
-      const blob = await res.blob();
-      const uploaded = await uploadAvatar(profile.name, blob);
-      return {
-        name: profile.name,
-        image: uploaded.url,
-        profilePictureHash,
-      };
-    } else {
-      return {
-        name: profile.name,
-        image: undefined,
-        profilePictureHash: null,
-      };
-    }
+    // Upload new base64 image
+    const buffer = Buffer.from(
+      profilePicture.replace(dataUriRegex, ""),
+      "base64",
+    );
+    const uploaded = await uploadAvatar(buffer);
+    return {
+      name: profile.name,
+      image: uploaded.url,
+      profilePictureHash,
+    };
   }
+
   return {
     name: profile.name,
-    image: profile.picture,
+    image: undefined,
     profilePictureHash: null,
   };
 }
