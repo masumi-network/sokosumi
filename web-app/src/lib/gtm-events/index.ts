@@ -15,6 +15,12 @@ export const fireGTMEvent = {
     });
   },
 
+  ssoAuth() {
+    fireEvent({
+      event: "sso_login_or_sign_up",
+    });
+  },
+
   signUp() {
     fireEvent({
       event: "sign_up",

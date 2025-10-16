@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { track } from "@vercel/analytics";
 import {
   CalendarClock,
   Clock,
@@ -100,6 +101,15 @@ export default function JobInputsFormClient({
   const handleSubmit: SubmitHandler<JobInputsFormSchemaType> = async (
     values,
   ) => {
+    fireGTMEvent.agentHired(
+      getAgentName(agent),
+      convertCentsToCredits(creditsPrice.cents),
+    );
+    track("agentHired", {
+      agentName: getAgentName(agent),
+      credits: convertCentsToCredits(creditsPrice.cents),
+    });
+
     setLoading(true);
 
     let result:
@@ -220,12 +230,7 @@ export default function JobInputsFormClient({
 
     setLoading(false);
     if (result.ok) {
-      // send GTM event of agent_hired
-      fireGTMEvent.agentHired(
-        getAgentName(agent),
-        convertCentsToCredits(creditsPrice.cents),
-      );
-      // If scheduled, just close modal and toast success; otherwise navigate to job
+      // close modal
       handleClose();
       if (scheduleSelection && scheduleSelection.mode !== JobScheduleType.NOW) {
         toast.success("Schedule created");
