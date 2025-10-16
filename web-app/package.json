@@ -33,7 +33,7 @@
     "generate:api-docs": "next-openapi-gen generate"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "0.65.0",
+    "@anthropic-ai/sdk": "0.66.0",
     "@better-auth/utils": "0.3.0",
     "@hey-api/client-fetch": "0.13.1",
     "@hey-api/client-next": "0.5.1",
@@ -50,7 +50,7 @@
     "@prisma/client": "6.17.1",
     "@radix-ui/react-slot": "1.2.3",
     "@react-email/components": "0.5.6",
-    "@sentry/nextjs": "10.19.0",
+    "@sentry/nextjs": "10.20.0",
     "@sparticuz/chromium": "141.0.0",
     "@tanstack/react-table": "8.21.3",
     "@types/unist": "3.0.3",
@@ -73,7 +73,7 @@
     "encoding": "0.1.13",
     "fake-indexeddb": "6.2.3",
     "gravatar-url": "4.0.1",
-    "happy-dom": "20.0.1",
+    "happy-dom": "20.0.2",
     "humanize-duration": "3.33.1",
     "input-otp": "1.4.2",
     "isomorphic-dompurify": "2.29.0",
@@ -124,6 +124,7 @@
     "zod": "4.1.12"
   },
   "devDependencies": {
+    "@eslint/js": "9.37.0",
     "@eslint/eslintrc": "3.3.1",
     "@hey-api/openapi-ts": "0.85.2",
     "@types/humanize-duration": "3.27.4",

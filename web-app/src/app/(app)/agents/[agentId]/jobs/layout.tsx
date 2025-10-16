@@ -69,7 +69,6 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
     favoriteAgents,
     availableAgent,
     ratingStats,
-    executedJobsCount,
     averageExecutionDuration,
     canRate,
     existingRating,
@@ -78,7 +77,6 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
     agentService.getFavoriteAgents(),
     agentService.getAvailableAgentById(agentId),
     agentService.getAgentRatingStats(agentId),
-    jobRepository.getExecutedJobsCountByAgentId(agentId),
     jobRepository.getAverageExecutionDurationByAgentId(agentId),
     authContext?.userId
       ? agentService.canUserRateAgent(authContext.userId, agentId)
@@ -96,8 +94,6 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
       <div className="flex w-full flex-col lg:h-[calc(100svh-96px)]">
         <Header
           agent={agentWithCreditsPrice}
-          executedJobsCount={executedJobsCount}
-          averageExecutionDuration={averageExecutionDuration}
           favoriteAgents={favoriteAgents}
           ratingStats={ratingStats}
           canRate={canRate}

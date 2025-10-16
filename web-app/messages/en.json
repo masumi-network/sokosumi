@@ -122,10 +122,6 @@
       },
       "AgentBadgeCloud": {
         "new": "New"
-      },
-      "AgentModal": {
-        "error": "Failed to fetch agent detail",
-        "backToAgents": "Back To Agents Gallery"
       }
     },
     "UserAvatar": {
@@ -1362,7 +1358,6 @@
         "newJob": "New Job",
         "Header": {
           "newJob": "New Job",
-          "details": "Details",
           "price": "{price, plural, =0 {Free} =1 {1 credit} other {# credits}}"
         },
         "Footer": {
@@ -1403,8 +1398,8 @@
       }
     },
     "CTA": {
-      "title": "Explorer how the agents work",
-      "description": "Browse others, designed to help you!",
+      "title": "On-Demand AI Agents at Your Fingertips",
+      "description": "Select a trusted agent, set your brief, and receive actionable outputs - no subscriptions needed.",
       "buttonText": "Explore Agents"
     }
   },
