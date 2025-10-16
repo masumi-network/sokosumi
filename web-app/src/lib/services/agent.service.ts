@@ -464,26 +464,30 @@ export const agentService = (() => {
         throw new Error("Rating must be an integer between 0 and 5");
       }
 
-      // Check if user has completed any jobs with this agent
-      const hasCompletedJob =
-        await agentRatingRepository.hasUserCompletedJobWithAgent(
+      await prisma.$transaction(async (tx) => {
+        // Check if user has completed any jobs with this agent
+        const hasCompletedJob =
+          await jobRepository.hasUserCompletedJobWithAgent(
+            authContext.userId,
+            agentId,
+            tx,
+          );
+
+        if (!hasCompletedJob) {
+          throw new Error(
+            "User must complete at least one job with this agent before rating",
+          );
+        }
+
+        // Upsert the rating
+        await agentRatingRepository.upsertRating(
           authContext.userId,
           agentId,
+          rating,
+          comment,
+          tx,
         );
-
-      if (!hasCompletedJob) {
-        throw new Error(
-          "User must complete at least one job with this agent before rating",
-        );
-      }
-
-      // Upsert the rating
-      await agentRatingRepository.upsertRating(
-        authContext.userId,
-        agentId,
-        rating,
-        comment,
-      );
+      });
     },
 
     /**
