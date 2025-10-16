@@ -80,7 +80,10 @@ export default function JobInputsFormClient({
       getAgentName(agent),
       convertCentsToCredits(creditsPrice.cents),
     );
-    track("agentHired");
+    track("agentHired", {
+      agentName: getAgentName(agent),
+      credits: convertCentsToCredits(creditsPrice.cents),
+    });
 
     setLoading(true);
 
