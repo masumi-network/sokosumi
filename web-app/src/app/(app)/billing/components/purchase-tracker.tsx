@@ -16,10 +16,8 @@ export default function PurchaseTracker({
     const { session_id, isWelcomePromotion } = checkoutSession;
 
     if (isWelcomePromotion) {
-      console.log("Welcome promotion");
       fireGTMEvent.freeCreditPurchase(session_id);
     } else {
-      console.log("Paid purchase");
       fireGTMEvent.purchase(checkoutSession);
     }
   }, [checkoutSession]);

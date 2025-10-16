@@ -55,6 +55,9 @@ export default function SignUpForm({ prefilledEmail }: SignUpFormProps) {
   }, [form.formState.isDirty]);
 
   const handleSubmit = async (values: SignUpFormSchemaType) => {
+    fireGTMEvent.signUp();
+    track("signUp");
+
     const result = await signUpEmail({
       email: values.email,
       name: values.name,
@@ -65,10 +68,6 @@ export default function SignUpForm({ prefilledEmail }: SignUpFormProps) {
     });
 
     if (result.ok) {
-      // when user creates a new account
-      fireGTMEvent.signUp();
-      track("signUp");
-      // show toast and redirect to login page
       toast.success(t("success"));
       router.push("/login");
     } else {
