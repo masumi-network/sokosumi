@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { track } from "@vercel/analytics";
 import { Command, CornerDownLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -75,6 +76,15 @@ export default function JobInputsFormClient({
   const handleSubmit: SubmitHandler<JobInputsFormSchemaType> = async (
     values,
   ) => {
+    fireGTMEvent.agentHired(
+      getAgentName(agent),
+      convertCentsToCredits(creditsPrice.cents),
+    );
+    track("agentHired", {
+      agentName: getAgentName(agent),
+      credits: convertCentsToCredits(creditsPrice.cents),
+    });
+
     setLoading(true);
 
     let result;
@@ -104,11 +114,6 @@ export default function JobInputsFormClient({
 
     setLoading(false);
     if (result.ok) {
-      // send GTM event of agent_hired
-      fireGTMEvent.agentHired(
-        getAgentName(agent),
-        convertCentsToCredits(creditsPrice.cents),
-      );
       // close modal
       handleClose();
       await router.push(`/agents/${agentId}/jobs/${result.data.jobId}`);

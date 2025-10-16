@@ -1,5 +1,6 @@
 "use client";
 
+import { track } from "@vercel/analytics";
 import { useTranslations } from "next-intl";
 import { ComponentProps } from "react";
 import {
@@ -9,6 +10,7 @@ import {
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth/auth.client";
+import { fireGTMEvent } from "@/lib/gtm-events";
 import { SocialProviderId } from "@/lib/schemas";
 
 const socialButtons: Array<{
@@ -32,6 +34,9 @@ export default function SocialButtons() {
   const t = useTranslations("Auth.SocialButtons");
 
   const handleClick = async (key: SocialProviderId) => {
+    fireGTMEvent.ssoAuth();
+    track("ssoAuth");
+
     const result = await authClient.signIn.social({
       provider: key,
     });
