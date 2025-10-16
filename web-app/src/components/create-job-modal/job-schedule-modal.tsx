@@ -19,6 +19,7 @@ interface JobScheduleModalProps {
   selection?: ScheduleSelection | null;
   onSave: (selection: ScheduleSelection) => void;
   onCancel: () => void;
+  disableOutsideClose?: boolean;
 }
 
 export function JobScheduleModal({
@@ -31,12 +32,7 @@ export function JobScheduleModal({
 }: JobScheduleModalProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="w-svw max-w-lg! border-none bg-transparent p-0 focus:ring-0 focus:outline-none md:w-[80vw] [&>button]:hidden"
-        onEscapeKeyDown={(e) => e.preventDefault()}
-        onPointerDown={(e) => e.preventDefault()}
-        onInteractOutside={(e) => e.preventDefault()}
-      >
+      <DialogContent className="w-svw max-w-lg! border-none bg-transparent p-0 focus:ring-0 focus:outline-none md:w-[80vw] [&>button]:hidden">
         <DialogTitle className="hidden" />
         <DialogDescription className="hidden" />
         <ScrollArea className="max-h-svh md:max-h-[90svh]">

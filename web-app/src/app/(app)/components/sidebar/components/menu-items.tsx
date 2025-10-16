@@ -1,6 +1,6 @@
 "use client";
 
-import { Search } from "lucide-react";
+import { CalendarClock, Search } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -33,6 +33,12 @@ export default function MenuItems() {
       href: "/agents",
       label: t("exploreAgents"),
       Icon: Search,
+    },
+    {
+      key: "scheduled-agents",
+      href: "/schedules",
+      label: t("scheduledAgents"),
+      Icon: CalendarClock,
     },
   ];
 

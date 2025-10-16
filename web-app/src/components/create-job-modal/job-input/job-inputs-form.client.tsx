@@ -1,9 +1,15 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { CalendarClock, Command, CornerDownLeft, Loader2 } from "lucide-react";
+import {
+  CalendarClock,
+  Clock,
+  Command,
+  CornerDownLeft,
+  Loader2,
+} from "lucide-react";
 import Link from "next/link";
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import React from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -65,6 +71,7 @@ export default function JobInputsFormClient({
   const { input_data } = jobInputsDataSchema;
   const t = useTranslations("Library.JobInput.Form");
   const tDuration = useTranslations("Library.Duration.Short");
+  const formatter = useFormatter();
   const session = useSession();
 
   const form = useForm<JobInputsFormSchemaType>({
@@ -223,7 +230,7 @@ export default function JobInputsFormClient({
       if (scheduleSelection && scheduleSelection.mode !== JobScheduleType.NOW) {
         toast.success("Schedule created");
         setScheduleSelection(null);
-        await router.push(`/agents/${agentId}/schedules`); ///${result.data.scheduleId}
+        await router.push(`/schedules`); ///${result.data.scheduleId}
       } else {
         await router.push(`/agents/${agentId}/jobs/${result.data.jobId}`);
       }
@@ -267,6 +274,45 @@ export default function JobInputsFormClient({
   const formattedDuration = formatDuration(averageExecutionDuration, tDuration);
   const isDemo = !!demoValues;
 
+  // Derived: is scheduled and next run label
+  const isScheduled = React.useMemo(() => {
+    return (
+      !!scheduleSelection && scheduleSelection.mode !== JobScheduleType.NOW
+    );
+  }, [scheduleSelection]);
+
+  const nextRunAt: Date | null = React.useMemo(() => {
+    if (!scheduleSelection) return null;
+    if (scheduleSelection.mode === JobScheduleType.ONE_TIME) {
+      if (!scheduleSelection.oneTimeLocalIso) return null;
+      const parsed = new Date(scheduleSelection.oneTimeLocalIso);
+      return Number.isNaN(parsed.getTime()) ? null : parsed;
+    }
+    if (scheduleSelection.mode === JobScheduleType.CRON) {
+      if (!scheduleSelection.cron) return null;
+      return (
+        computeNextRun({
+          cron: scheduleSelection.cron,
+          timezone: scheduleSelection.timezone,
+        }) ?? null
+      );
+    }
+    return null;
+  }, [scheduleSelection]);
+
+  const nextRunLabel = React.useMemo(() => {
+    if (!nextRunAt || !scheduleSelection) return null;
+    try {
+      return formatter.dateTime(nextRunAt, {
+        dateStyle: "medium",
+        timeStyle: "short",
+        timeZone: scheduleSelection.timezone,
+      });
+    } catch {
+      return nextRunAt.toLocaleString();
+    }
+  }, [nextRunAt, scheduleSelection, formatter]);
+
   return (
     <Form {...form}>
       <form ref={formRef} onSubmit={enterPreventedHandleSubmit}>
@@ -282,6 +328,12 @@ export default function JobInputsFormClient({
               disabled={isDemo}
             />
           ))}
+          {isScheduled && nextRunLabel && (
+            <div className="text-muted-foreground inline-flex items-center gap-1 text-sm">
+              <Clock className="size-4" />
+              {nextRunLabel}
+            </div>
+          )}
           <div className="flex items-end justify-between gap-2">
             <Button
               type="reset"
@@ -312,9 +364,9 @@ export default function JobInputsFormClient({
                 >
                   <div className="flex items-center gap-1">
                     {(loading || form.formState.isSubmitting) && (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="size-4 animate-spin" />
                     )}
-                    {t("submit")}
+                    {isScheduled ? t("schedule") : t("submit")}
                   </div>
                   {!isDemo && averageExecutionDuration > 0 && (
                     <span>{`(~${formattedDuration})`}</span>
@@ -346,7 +398,6 @@ export default function JobInputsFormClient({
         onSave={(sel: ScheduleSelection) => {
           setScheduleSelection(sel);
           setScheduleOpen(false);
-          console.log("sel", sel);
         }}
         onCancel={() => setScheduleOpen(false)}
       />

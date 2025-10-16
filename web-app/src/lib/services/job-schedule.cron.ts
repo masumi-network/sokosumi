@@ -1,4 +1,4 @@
-import cronParser from "cron-parser";
+import { CronExpressionParser as cronParser } from "cron-parser";
 
 export interface ComputeNextRunInput {
   cron: string;

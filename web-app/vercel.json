@@ -24,7 +24,7 @@
     ,
     {
       "path": "/api/sync/job-schedules",
-      "schedule": "* * * * *"
+      "schedule": "*/5 * * * *"
     }
   ]
 }

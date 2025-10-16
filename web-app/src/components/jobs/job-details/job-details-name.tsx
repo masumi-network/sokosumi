@@ -150,6 +150,7 @@ function JobNameContent({
         </div>
         {!readOnly && (
           <Button
+            asChild
             variant="outline"
             size="sm"
             onClick={(event) => {
@@ -157,7 +158,7 @@ function JobNameContent({
               handleEdit();
             }}
           >
-            {t("edit")}
+            <span>{t("edit")}</span>
           </Button>
         )}
       </div>

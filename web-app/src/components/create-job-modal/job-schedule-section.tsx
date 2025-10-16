@@ -1,9 +1,10 @@
 "use client";
 
-import cronParser from "cron-parser";
+import { CronExpressionParser as cronParser } from "cron-parser";
 import { PlayCircle, RefreshCw } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { z } from "zod";
 
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
@@ -141,6 +142,127 @@ export interface ScheduleSelection {
   endAfterOccurrences?: number;
 }
 
+type ValidationErrors = {
+  oneTimeLocalIso?: string;
+  timeOfDay?: string;
+  repeatEveryCount?: string;
+  repeatWeekdays?: string;
+  endOnDate?: string;
+  endAfterOccurrences?: string;
+};
+
+const scheduleFormSchema = z
+  .object({
+    modeSelection: z.enum(["now", "recurring"]),
+    scheduleOption: z.enum([
+      "one-time",
+      "daily",
+      "weekly",
+      "monthly",
+      "custom",
+    ]),
+    oneTimeLocalIso: z.string().optional(),
+    timeOfDay: z.string().optional(),
+    repeatEveryCount: z.number().int().min(1).optional(),
+    repeatEveryUnit: z.enum(["day", "week", "month"]).optional(),
+    repeatWeekdays: z.array(z.enum(DOW)).optional(),
+    endsMode: z.enum(["never", "on", "after"]).optional(),
+    endOnDate: z.date().optional(),
+    endAfterOccurrences: z.number().int().min(1).optional(),
+  })
+  .superRefine((data, ctx) => {
+    const now = new Date();
+
+    function parseLocalIso(v?: string) {
+      if (!v) return null;
+      const d = new Date(v);
+      return Number.isNaN(d.getTime()) ? null : d;
+    }
+
+    // One-time & presets must be future
+    if (
+      data.modeSelection === "recurring" &&
+      data.scheduleOption !== "custom"
+    ) {
+      const dt = parseLocalIso(data.oneTimeLocalIso);
+      if (!dt)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["oneTimeLocalIso"],
+          message: "errors.required",
+        });
+      else if (dt <= now)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["oneTimeLocalIso"],
+          message: "errors.futureDateTime",
+        });
+    }
+
+    // Custom builder rules
+    if (
+      data.modeSelection === "recurring" &&
+      data.scheduleOption === "custom"
+    ) {
+      if (
+        !data.timeOfDay ||
+        !/^([01]?\d|2[0-3]):([0-5]\d)$/.test(data.timeOfDay)
+      )
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["timeOfDay"],
+          message: "errors.invalidTime",
+        });
+
+      if (!data.repeatEveryCount || data.repeatEveryCount < 1)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["repeatEveryCount"],
+          message: "errors.positiveInteger",
+        });
+
+      if (
+        data.repeatEveryUnit === "week" &&
+        (!data.repeatWeekdays || data.repeatWeekdays.length === 0)
+      )
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["repeatWeekdays"],
+          message: "errors.selectAtLeastOneWeekday",
+        });
+
+      if (
+        data.endsMode === "after" &&
+        (!data.endAfterOccurrences || data.endAfterOccurrences < 1)
+      )
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["endAfterOccurrences"],
+          message: "errors.positiveInteger",
+        });
+
+      if (data.endsMode === "on" && data.endOnDate) {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const end = new Date(data.endOnDate);
+        end.setHours(0, 0, 0, 0);
+        if (end < today)
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            path: ["endOnDate"],
+            message: "errors.endDateInPast",
+          });
+      }
+
+      if (data.endsMode === "on" && !data.endOnDate)
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["endOnDate"],
+          message: "errors.required",
+        });
+    }
+  });
+
 function getDefaultTime(): string {
   const now = new Date();
   const hh = String(now.getHours()).padStart(2, "0");
@@ -176,7 +298,7 @@ export function JobScheduleSection(props: Props) {
     Intl.DateTimeFormat().resolvedOptions().timeZone,
   );
   const [oneTimeLocalIso, setOneTimeLocalIso] = useState<string>(() =>
-    formatDateTimeLocalInput(new Date()),
+    formatDateTimeLocalInput(new Date(Date.now() + 5 * 60 * 1000)),
   );
   // Note: We derive cron expression from builder fields; no separate cron state needed
   // Recurrence builder state (for CRON UI)
@@ -189,6 +311,55 @@ export function JobScheduleSection(props: Props) {
   const [endOnDate, setEndOnDate] = useState<Date | undefined>(undefined);
   const [endAfterOccurrences, setEndAfterOccurrences] = useState<number>(13);
   const [timeOfDay, setTimeOfDay] = useState<string>(getDefaultTime());
+
+  const [errors, setErrors] = useState<ValidationErrors>({});
+  const [isValid, setIsValid] = useState<boolean>(true);
+
+  const startOfToday = useMemo(() => {
+    const d = new Date();
+    d.setHours(0, 0, 0, 0);
+    return d;
+  }, []);
+
+  useEffect(() => {
+    const formData = {
+      modeSelection,
+      scheduleOption,
+      oneTimeLocalIso,
+      timeOfDay,
+      repeatEveryCount,
+      repeatEveryUnit,
+      repeatWeekdays,
+      endsMode,
+      endOnDate,
+      endAfterOccurrences,
+    };
+
+    const result = scheduleFormSchema.safeParse(formData);
+    if (result.success) {
+      setErrors({});
+      setIsValid(true);
+    } else {
+      const fieldErrors: ValidationErrors = {};
+      for (const issue of result.error.issues) {
+        const key = issue.path[0] as keyof ValidationErrors | undefined;
+        if (key && !fieldErrors[key]) fieldErrors[key] = issue.message;
+      }
+      setErrors(fieldErrors);
+      setIsValid(false);
+    }
+  }, [
+    modeSelection,
+    scheduleOption,
+    oneTimeLocalIso,
+    timeOfDay,
+    repeatEveryUnit,
+    repeatEveryCount,
+    repeatWeekdays,
+    endsMode,
+    endOnDate,
+    endAfterOccurrences,
+  ]);
 
   const presetDisplayLabels = useMemo(() => {
     const base = {
@@ -425,6 +596,7 @@ export function JobScheduleSection(props: Props) {
   // buildCronFromSelections is defined above with useCallback
 
   function handleSave() {
+    if (!isValid) return;
     if (mode === JobScheduleType.CRON) {
       const cronExpression = getSelectedCron();
       if (!cronExpression) {
@@ -570,7 +742,14 @@ export function JobScheduleSection(props: Props) {
                   type="datetime-local"
                   value={oneTimeLocalIso}
                   onChange={(e) => setOneTimeLocalIso(e.target.value)}
+                  aria-invalid={!!errors.oneTimeLocalIso}
+                  min={formatDateTimeLocalInput(new Date())}
                 />
+                {errors.oneTimeLocalIso ? (
+                  <p className="text-destructive mt-1 text-xs">
+                    {t(errors.oneTimeLocalIso)}
+                  </p>
+                ) : null}
               </div>
             </div>
           )}
@@ -614,7 +793,13 @@ export function JobScheduleSection(props: Props) {
                     setRepeatEveryCount(Math.max(1, Number(e.target.value)))
                   }
                   className="w-24"
+                  aria-invalid={!!errors.repeatEveryCount}
                 />
+                {errors.repeatEveryCount ? (
+                  <p className="text-destructive mt-1 text-xs">
+                    {t(errors.repeatEveryCount)}
+                  </p>
+                ) : null}
                 <Select
                   value={repeatEveryUnit}
                   onValueChange={(v) =>
@@ -640,7 +825,13 @@ export function JobScheduleSection(props: Props) {
                 value={timeOfDay}
                 onChange={(e) => setTimeOfDay(e.target.value)}
                 className="w-full"
+                aria-invalid={!!errors.timeOfDay}
               />
+              {errors.timeOfDay ? (
+                <p className="text-destructive mt-1 text-xs">
+                  {t(errors.timeOfDay)}
+                </p>
+              ) : null}
             </div>
           </div>
 
@@ -686,6 +877,11 @@ export function JobScheduleSection(props: Props) {
                   </ToggleGroupItem>
                 ))}
               </ToggleGroup>
+              {errors.repeatWeekdays ? (
+                <p className="text-destructive mt-1 text-xs">
+                  {t(errors.repeatWeekdays)}
+                </p>
+              ) : null}
             </div>
           )}
 
@@ -712,6 +908,7 @@ export function JobScheduleSection(props: Props) {
                       <Button
                         variant="outline"
                         className="w-full justify-start"
+                        aria-invalid={!!errors.endOnDate}
                       >
                         {endOnDate
                           ? endOnDate.toLocaleDateString()
@@ -723,11 +920,16 @@ export function JobScheduleSection(props: Props) {
                         mode="single"
                         selected={endOnDate}
                         onSelect={(d) => setEndOnDate(d ?? undefined)}
-                        initialFocus
+                        disabled={{ before: startOfToday }}
                       />
                     </PopoverContent>
                   </Popover>
                 </div>
+                {errors.endOnDate ? (
+                  <p className="text-destructive mt-1 text-xs">
+                    {t(errors.endOnDate)}
+                  </p>
+                ) : null}
               </div>
               <div className="flex items-center gap-3">
                 <RadioGroupItem id="ends-after" value="after" />
@@ -743,10 +945,16 @@ export function JobScheduleSection(props: Props) {
                     setEndAfterOccurrences(Math.max(1, Number(e.target.value)))
                   }
                   className="w-full"
+                  aria-invalid={!!errors.endAfterOccurrences}
                 />
                 <span className="text-muted-foreground text-sm">
                   {t("occurrences")}
                 </span>
+                {errors.endAfterOccurrences ? (
+                  <p className="text-destructive mt-1 text-xs">
+                    {t(errors.endAfterOccurrences)}
+                  </p>
+                ) : null}
               </div>
             </RadioGroup>
           </div>
@@ -809,7 +1017,12 @@ export function JobScheduleSection(props: Props) {
         >
           {t("cancel")}
         </Button>
-        <Button type="button" onClick={handleSave}>
+        <Button
+          type="button"
+          onClick={handleSave}
+          disabled={!isValid}
+          aria-invalid={!isValid}
+        >
           {t("save")}
         </Button>
       </div>

@@ -10,11 +10,11 @@ import { jobScheduleRepository } from "@/lib/db/repositories/job-schedule.reposi
 import prisma from "@/lib/db/repositories/prisma";
 import { JobScheduleType } from "@/lib/db/types/job";
 import { startJobInputSchema, StartJobInputSchemaType } from "@/lib/schemas";
-import { jobService, lockService } from "@/lib/services";
 import {
   computeNextRun,
   ComputeNextRunInput,
 } from "@/lib/services/job-schedule.cron";
+import { lockService } from "@/lib/services/lock.service";
 import { JobSchedule, Prisma } from "@/prisma/generated/client";
 
 export type { ComputeNextRunInput };
@@ -27,14 +27,30 @@ export const jobScheduleService = {
     tx: Prisma.TransactionClient | null = null,
   ) {
     const client = tx ?? prisma;
+    const startedAt = Date.now();
     const due = await jobScheduleRepository.findDue(limit, client);
     const limiter = pLimit(3);
 
-    console.log("due", due);
+    let processed = 0;
+    let paused = 0;
 
     await Promise.all(
-      due.map((schedule) => limiter(() => processSchedule(schedule, client))),
+      due.map((schedule) =>
+        limiter(async () => {
+          const before = schedule.pauseReason;
+          await processSchedule(schedule, client);
+          const after = await jobScheduleRepository.getById(
+            schedule.id,
+            client,
+          );
+          processed += 1;
+          if (!before && after?.pauseReason) paused += 1;
+        }),
+      ),
     );
+
+    const durationMs = Date.now() - startedAt;
+    return { dueFound: due.length, processed, paused, durationMs };
   },
 };
 
@@ -71,7 +87,7 @@ async function processSchedule(
         return;
       }
 
-      const toleranceMs = 3_600_000; // 1h window
+      const toleranceMs = getEnvSecrets().JOB_SCHEDULE_ALIGNMENT_TOLERANCE_MS;
       let lastOccurrence: Date | null = null;
       try {
         const interval = cronParser.parse(schedule.cron, {
@@ -87,6 +103,7 @@ async function processSchedule(
       const nextRunAt = schedule.nextRunAt ?? lastOccurrence;
       const isAligned =
         Math.abs(nextRunAt.getTime() - lastOccurrence.getTime()) <= toleranceMs;
+
       if (!isAligned) {
         const next = computeNextRun({
           cron: schedule.cron,
@@ -136,13 +153,9 @@ async function processSchedule(
 
     const parsed = parsedResult.data;
 
+    // Import jobService here to avoid circular dependency and fix unit tests
+    const { jobService } = await import("@/lib/services/job.service");
     const result = await jobService.startJob(parsed);
-
-    console.log("result", result);
-
-    if (!result) {
-      // Defensive: if startJob throws, code below handles
-    }
 
     // Success → compute next run or deactivate if one-time
     if (isOneTime) {
@@ -194,10 +207,11 @@ async function processSchedule(
     const message = error instanceof Error ? error.message : String(error);
 
     await jobScheduleRepository.setPaused(schedule.id, message, tx);
-    // TODO: send notification/email
   } finally {
     try {
-      const { lockRepository } = await import("@/lib/db/repositories");
+      const { lockRepository } = await import(
+        "@/lib/db/repositories/lock.repository"
+      );
       await lockRepository.unlockByKey(lock.key);
     } catch {}
   }

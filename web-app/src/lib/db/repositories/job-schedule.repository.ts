@@ -6,6 +6,10 @@ import { InputJsonValue } from "@/prisma/generated/client/runtime/library";
 
 import prisma from "./prisma";
 
+export type ScheduleListItem = Prisma.JobScheduleGetPayload<{
+  include: { agent: true };
+}>;
+
 export const jobScheduleRepository = {
   async create(
     data: CreateJobScheduleInputSchemaType,
@@ -92,6 +96,27 @@ export const jobScheduleRepository = {
     });
   },
 
+  async getScheduleJobsByContext(
+    userId: string,
+    organizationId: string | null,
+    tx: Prisma.TransactionClient = prisma,
+  ) {
+    const organizationFilter: Prisma.JobScheduleWhereInput[] = organizationId
+      ? [{ organizationId }, { organizationId: null }]
+      : [{ organizationId: null }];
+
+    return await tx.jobSchedule.findMany({
+      where: {
+        userId,
+        AND: organizationFilter,
+      },
+      orderBy: { updatedAt: "desc" },
+      include: {
+        agent: true,
+      },
+    });
+  },
+
   async markRunAttempt(id: string, tx: Prisma.TransactionClient = prisma) {
     return await tx.jobSchedule.update({
       where: { id },
@@ -112,7 +137,11 @@ export const jobScheduleRepository = {
   ) {
     return await tx.jobSchedule.update({
       where: { id },
-      data: { nextRunAt, isActive: nextRunAt ? true : false },
+      data: {
+        nextRunAt,
+        isActive: nextRunAt ? true : false,
+        pauseReason: null,
+      },
     });
   },
 

@@ -1,13 +1,27 @@
 import { computeNextRun } from "@/lib/services/job-schedule.cron";
 
+// No-op server-only in Jest
+jest.mock("server-only", () => ({}));
+
 jest.mock("p-limit", () => ({
   __esModule: true,
   default: () => () => Promise.resolve(),
+}));
+jest.mock("@/lib/db/repositories/job-schedule.repository", () => ({
+  __esModule: true,
+  jobScheduleRepository: {
+    findDue: async () => [],
+    getById: async () => ({ pauseReason: null }),
+  },
 }));
 jest.mock("@sentry/nextjs", () => ({
   __esModule: true,
   captureException: jest.fn(),
   captureMessage: jest.fn(),
+}));
+jest.mock("@/config/env.secrets", () => ({
+  __esModule: true,
+  getEnvSecrets: () => ({ INSTANCE_ID: "test-instance" }),
 }));
 // No additional mocks needed when importing the pure cron module
 
@@ -67,5 +81,39 @@ describe("computeNextRun", () => {
       from,
     });
     expect(next).toBeNull();
+  });
+
+  it("handles DST spring-forward gap (Europe/London)", () => {
+    // UK DST starts last Sunday in March; 2025-03-30 jumps 01:00 -> 02:00
+    const gapFrom = new Date("2025-03-30T00:30:00.000Z");
+    const next = computeNextRun({
+      cron: "0 1 * * *", // 01:00 local time (non-existent on DST start)
+      timezone: "Europe/London",
+      from: gapFrom,
+    });
+    // Expect next run to be 02:00 local (01:00 skipped), which is 01:00Z
+    // 2025-03-30 Europe/London 02:00 == 01:00Z
+    expect(next?.toISOString()).toBe("2025-03-30T01:00:00.000Z");
+  });
+
+  it("returns null for invalid timezone", () => {
+    const next = computeNextRun({
+      cron: "0 10 * * *",
+      timezone: "Invalid/Timezone",
+      from,
+    });
+    expect(next).toBeNull();
+  });
+});
+
+// Basic smoke test for executeDueSchedules return shape
+describe("jobScheduleService.executeDueSchedules", () => {
+  it("returns metrics object", async () => {
+    const mod = await import("@/lib/services/job-schedule.service");
+    const result = await mod.jobScheduleService.executeDueSchedules(0);
+    expect(result).toHaveProperty("dueFound");
+    expect(result).toHaveProperty("processed");
+    expect(result).toHaveProperty("paused");
+    expect(result).toHaveProperty("durationMs");
   });
 });

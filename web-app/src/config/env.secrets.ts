@@ -115,6 +115,11 @@ const envSecretsSchema = z.object({
     .number()
     .min(1000)
     .default(1000 * 25), // 25 seconds
+  // Job schedule alignment tolerance for cron alignment (ms)
+  JOB_SCHEDULE_ALIGNMENT_TOLERANCE_MS: z.coerce
+    .number()
+    .min(60_000)
+    .default(600_000), // 10 minutes
   INSTANCE_ID: z.string().min(1).default(uuidv4()),
   REGISTRY_API_URL: z.url().default("https://registry.masumi.network/api/v1"),
   REGISTRY_API_KEY: z.string().min(1),

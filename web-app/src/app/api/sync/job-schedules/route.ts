@@ -35,16 +35,18 @@ async function jobSchedulesSync(): Promise<Response> {
   after(async () => {
     try {
       const timingStart = Date.now();
-      await pTimeout(jobScheduleService.executeDueSchedules(), {
+      const result = await pTimeout(jobScheduleService.executeDueSchedules(), {
         milliseconds:
           getEnvSecrets().LOCK_TIMEOUT - getEnvSecrets().LOCK_TIMEOUT_BUFFER,
       });
       const timingEnd = Date.now();
-      console.info(
-        "Job schedules sync took",
-        (timingEnd - timingStart) / 1000,
-        "seconds",
-      );
+      console.info("Job schedules sync", {
+        seconds: (timingEnd - timingStart) / 1000,
+        dueFound: result.dueFound,
+        processed: result.processed,
+        paused: result.paused,
+        durationMs: result.durationMs,
+      });
     } catch (error) {
       console.error("Error in job schedules sync operation:", error);
     } finally {

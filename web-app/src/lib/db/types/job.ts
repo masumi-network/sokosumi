@@ -4,6 +4,7 @@ import {
   JobType,
   OnChainJobStatus,
   Prisma,
+  ScheduleType,
 } from "@/prisma/generated/client";
 
 export const jobInclude = {
@@ -135,6 +136,15 @@ export enum JobScheduleType {
   NOW = "NOW",
   ONE_TIME = "ONE_TIME",
   CRON = "CRON",
+}
+
+// Helper to map Prisma ScheduleType to UI JobScheduleType
+export function mapPrismaToUiScheduleType(
+  value: ScheduleType,
+): JobScheduleType {
+  return value === ScheduleType.ONE_TIME
+    ? JobScheduleType.ONE_TIME
+    : JobScheduleType.CRON;
 }
 
 export type JobWithStatus =
