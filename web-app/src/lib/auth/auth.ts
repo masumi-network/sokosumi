@@ -7,6 +7,7 @@ import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { apiKey, organization } from "better-auth/plugins";
 import { localization } from "better-auth-localization";
+import crypto from "crypto";
 import { getTranslations } from "next-intl/server";
 import pTimeout from "p-timeout";
 import validator from "validator";
@@ -14,7 +15,7 @@ import validator from "validator";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { uploadAvatar } from "@/lib/blob";
-import { prisma } from "@/lib/db/repositories";
+import { prisma, userRepository } from "@/lib/db/repositories";
 import { reactChangeEmailVerificationEmail } from "@/lib/email/change-email";
 import { reactInviteUserEmail } from "@/lib/email/invitation";
 import { postmarkClient } from "@/lib/email/postmark";
@@ -26,6 +27,7 @@ import {
   callMarketingOptInWebHookSocialProvider,
   stripeService,
 } from "@/lib/services";
+import { User } from "@/prisma/generated/client";
 
 export type Session = typeof auth.$Infer.Session;
 export type SessionUser = typeof auth.$Infer.Session.user;
@@ -264,6 +266,11 @@ export const auth = betterAuth({
         required: true,
         defaultValue: false,
       },
+      profilePictureHash: {
+        type: "string",
+        required: false,
+        defaultValue: null,
+      },
     },
   },
   rateLimit: {
@@ -363,11 +370,27 @@ async function mapProfileToUser(profile: { name: string; picture: string }) {
 async function mapProfileToUserInner(profile: {
   name: string;
   picture: string;
-}) {
+}): Promise<Partial<User>> {
   if (profile.picture && profile.picture.length > 512) {
     // we will upload profile picture to vercel blob
     // and retrieve small length of url
     const profilePicture = profile.picture;
+    const profilePictureHash = crypto
+      .createHash("sha256")
+      .update(profilePicture)
+      .digest("hex");
+
+    // First try to find profile picture image
+    // that was uploaded before using its hash
+    const foundImage =
+      await userRepository.findProfilePictureImageByHash(profilePictureHash);
+    if (foundImage) {
+      return {
+        name: profile.name,
+        image: foundImage,
+        profilePictureHash,
+      };
+    }
 
     const dataUriRegex =
       /^data:image\/(png|jpg|jpeg|gif|webp|bmp|svg\+xml);base64,/;
@@ -381,11 +404,12 @@ async function mapProfileToUserInner(profile: {
       return {
         name: profile.name,
         image: uploaded.url,
+        profilePictureHash,
       };
-    } else if (validator.isURL(profile.picture)) {
+    } else if (validator.isURL(profilePicture)) {
       // if profile picture is long url
       // fetch and upload to vercel blob
-      const res = await fetch(profile.picture, {
+      const res = await fetch(profilePicture, {
         signal: AbortSignal.timeout(5000), // 5 seconds
       });
       if (!res.headers.get("content-type")?.startsWith("image/")) {
@@ -396,16 +420,19 @@ async function mapProfileToUserInner(profile: {
       return {
         name: profile.name,
         image: uploaded.url,
+        profilePictureHash,
       };
     } else {
       return {
         name: profile.name,
         image: undefined,
+        profilePictureHash: null,
       };
     }
   }
   return {
     name: profile.name,
     image: profile.picture,
+    profilePictureHash: null,
   };
 }
