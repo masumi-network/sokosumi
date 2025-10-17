@@ -15,16 +15,16 @@ datasource db {
 }
 
 model User {
-  id                 String    @id @default(uuid())
-  name               String
-  email              String
-  emailVerified      Boolean
-  image              String?
-  profilePictureHash String? // Hash of social profile picture. (when this is too long for Cookie)
-  createdAt          DateTime
-  updatedAt          DateTime
-  sessions           Session[]
-  accounts           Account[]
+  id            String    @id @default(uuid())
+  name          String
+  email         String
+  emailVerified Boolean
+  image         String?
+  imageHash     String? // Hash of image. (when this is too long for Cookie. e.g. base64)
+  createdAt     DateTime
+  updatedAt     DateTime
+  sessions      Session[]
+  accounts      Account[]
 
   userAgentRatings   UserAgentRating[]
   agentLists         AgentList[]

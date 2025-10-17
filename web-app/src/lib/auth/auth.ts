@@ -266,7 +266,7 @@ export const auth = betterAuth({
         required: true,
         defaultValue: false,
       },
-      profilePictureHash: {
+      imageHash: {
         type: "string",
         required: false,
         defaultValue: null,
@@ -377,7 +377,7 @@ async function mapProfileToUserInner(profile: {
     return {
       name: profile.name,
       image: undefined,
-      profilePictureHash: null,
+      imageHash: null,
     };
   }
 
@@ -394,7 +394,7 @@ async function mapProfileToUserInner(profile: {
     return {
       name: profile.name,
       image: profilePicture,
-      profilePictureHash: null,
+      imageHash: null,
     };
   }
 
@@ -402,19 +402,18 @@ async function mapProfileToUserInner(profile: {
   const dataUriRegex =
     /^data:image\/(png|jpg|jpeg|gif|webp|bmp|svg\+xml);base64,/;
   if (dataUriRegex.test(profilePicture)) {
-    const profilePictureHash = crypto
+    const imageHash = crypto
       .createHash("sha256")
       .update(profilePicture)
       .digest("hex");
 
     // Check if we've already uploaded this exact image
-    const foundImage =
-      await userRepository.findProfilePictureImageByHash(profilePictureHash);
+    const foundImage = await userRepository.findImageByHash(imageHash);
     if (foundImage) {
       return {
         name: profile.name,
         image: foundImage,
-        profilePictureHash,
+        imageHash,
       };
     }
 
@@ -427,13 +426,13 @@ async function mapProfileToUserInner(profile: {
     return {
       name: profile.name,
       image: uploaded.url,
-      profilePictureHash,
+      imageHash,
     };
   }
 
   return {
     name: profile.name,
     image: undefined,
-    profilePictureHash: null,
+    imageHash: null,
   };
 }
