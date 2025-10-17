@@ -55,7 +55,7 @@ export default function SignInForm({
   }, [form.formState.isDirty]);
 
   const handleSubmit = async (values: SignInFormSchemaType) => {
-    track("Sign in", { provider: "credential" });
+    track("Sign In", { provider: "credential" });
 
     const result = await authClient.signIn.email({
       email: values.email,
