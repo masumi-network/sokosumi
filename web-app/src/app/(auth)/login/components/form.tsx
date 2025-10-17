@@ -55,6 +55,9 @@ export default function SignInForm({
   }, [form.formState.isDirty]);
 
   const handleSubmit = async (values: SignInFormSchemaType) => {
+    fireGTMEvent.login();
+    track("login");
+
     const result = await authClient.signIn.email({
       email: values.email,
       password: values.currentPassword,
@@ -97,8 +100,6 @@ export default function SignInForm({
       }
     }
 
-    fireGTMEvent.login();
-    track("login");
     toast.success(t("success"));
 
     // Redirect to the original URL if provided, otherwise go to /agents
