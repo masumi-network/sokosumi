@@ -133,9 +133,9 @@ const envSecretsSchema = z.object({
   AGENT_HIRED_WEBHOOK: z.url().optional(),
 
   // marketing opt in webhook
-  USER_CREATED_WEB_HOOK: z.url().optional(),
-  USER_UPDATED_WEB_HOOK: z.url().optional(),
-  ACCOUNT_CREATED_WEB_HOOK: z.url().optional(),
+  USER_CREATED_WEBHOOK: z.url().optional(),
+  USER_UPDATED_WEBHOOK: z.url().optional(),
+  ACCOUNT_CREATED_WEBHOOK: z.url().optional(),
 });
 
 let envSecrets: z.infer<typeof envSecretsSchema>;
