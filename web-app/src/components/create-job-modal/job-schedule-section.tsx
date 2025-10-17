@@ -25,10 +25,14 @@ import {
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { JobScheduleType } from "@/lib/db/types/job";
+import {
+  computeNextOccurrence,
+  DOW,
+  Dow,
+  parseCron,
+} from "@/lib/schedules/cron";
 import { cn } from "@/lib/utils";
 
-const DOW = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"] as const;
-type Dow = (typeof DOW)[number];
 type ScheduleOption = "one-time" | "daily" | "weekly" | "monthly" | "custom";
 
 function pad2(n: number): string {
@@ -45,91 +49,33 @@ function parseDateTimeLocalInput(value: string | undefined): Date | null {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-function getDaysInMonth(year: number, monthIndex: number): number {
-  return new Date(year, monthIndex + 1, 0).getDate();
-}
-
-function getUpcomingDateForWeekday(
-  weekday: Dow,
-  hour: number,
-  minute: number,
-): Date {
-  const targetIndex = DOW.indexOf(weekday);
-  const now = new Date();
-  const base = new Date(now);
-  base.setHours(hour, minute, 0, 0);
-  const baseDay = base.getDay();
-  const diff = (targetIndex - baseDay + 7) % 7;
-  base.setDate(base.getDate() + diff);
-  if (base <= now) base.setDate(base.getDate() + 7);
-  return base;
-}
-
 function derivePresetFromCron(cron: string): {
   option: Exclude<ScheduleOption, "one-time" | "custom">;
   iso: string;
 } | null {
-  const trimmed = cron.trim();
-
-  const dailyMatch = /^([0-5]?\d) ([01]?\d|2[0-3]) \* \* \*$/.exec(trimmed);
-  if (dailyMatch) {
-    const minute = Number(dailyMatch[1]);
-    const hour = Number(dailyMatch[2]);
-    const now = new Date();
-    const base = new Date(now);
-    base.setHours(hour, minute, 0, 0);
-    if (base <= now) base.setDate(base.getDate() + 1);
-    return { option: "daily", iso: formatDateTimeLocalInput(base) };
-  }
-
-  const weeklyMatch = /^([0-5]?\d) ([01]?\d|2[0-3]) \* \* ([A-Z]{3})$/.exec(
-    trimmed,
-  );
-  if (weeklyMatch) {
-    const minute = Number(weeklyMatch[1]);
-    const hour = Number(weeklyMatch[2]);
-    const day = weeklyMatch[3] as Dow;
-    if (!DOW.includes(day)) return null;
-    const base = getUpcomingDateForWeekday(day, hour, minute);
-    return { option: "weekly", iso: formatDateTimeLocalInput(base) };
-  }
-
-  const monthlyMatch =
-    /^([0-5]?\d) ([01]?\d|2[0-3]) ([0-2]?\d|3[01]) \* \*$/.exec(trimmed);
-  if (monthlyMatch) {
-    const minute = Number(monthlyMatch[1]);
-    const hour = Number(monthlyMatch[2]);
-    const dayOfMonth = Number(monthlyMatch[3]);
-    const now = new Date();
-    const base = new Date(
-      now.getFullYear(),
-      now.getMonth(),
-      dayOfMonth,
-      hour,
-      minute,
-      0,
-      0,
-    );
-    if (base <= now) {
-      const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-      const daysInNextMonth = getDaysInMonth(
-        nextMonth.getFullYear(),
-        nextMonth.getMonth(),
-      );
-      const safeDay = Math.min(dayOfMonth, daysInNextMonth);
-      base.setFullYear(nextMonth.getFullYear());
-      base.setMonth(nextMonth.getMonth());
-      base.setDate(safeDay);
-      base.setHours(hour, minute, 0, 0);
-    } else {
-      const daysInMonth = getDaysInMonth(base.getFullYear(), base.getMonth());
-      const safeDay = Math.min(dayOfMonth, daysInMonth);
-      base.setDate(safeDay);
+  const parsed = parseCron(cron);
+  const now = new Date();
+  switch (parsed.kind) {
+    case "dailyAtTime": {
+      const next = computeNextOccurrence(parsed, now);
+      if (!next) return null;
+      return { option: "daily", iso: formatDateTimeLocalInput(next) };
     }
-    return { option: "monthly", iso: formatDateTimeLocalInput(base) };
+    case "weeklyAtTime": {
+      // Only accept weekly when exactly one DOW, to match original behavior
+      if (parsed.dows.length !== 1) return null;
+      const next = computeNextOccurrence(parsed, now);
+      if (!next) return null;
+      return { option: "weekly", iso: formatDateTimeLocalInput(next) };
+    }
+    case "monthlyOnDay": {
+      const next = computeNextOccurrence(parsed, now);
+      if (!next) return null;
+      return { option: "monthly", iso: formatDateTimeLocalInput(next) };
+    }
+    default:
+      return null;
   }
-
-  return null;
 }
 
 export interface ScheduleSelection {
@@ -592,8 +538,6 @@ export function JobScheduleSection(props: Props) {
     endAfterOccurrences,
     getSelectedCron,
   ]);
-
-  // buildCronFromSelections is defined above with useCallback
 
   function handleSave() {
     if (!isValid) return;

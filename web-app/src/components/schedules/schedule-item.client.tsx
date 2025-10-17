@@ -70,7 +70,7 @@ interface Props {
 export function ScheduleItem({ schedule, title }: Props) {
   const t = useTranslations("App");
   const tScheduler = useTranslations("App.Agents.Jobs.CreateJob.Scheduler");
-  const fmt = useFormatter();
+  const formatter = useFormatter();
   const [isEditOpen, setEditOpen] = useState(false);
   const [optimisticActive, setOptimisticActive] = useOptimistic(
     schedule.isActive,
@@ -158,7 +158,7 @@ export function ScheduleItem({ schedule, title }: Props) {
     try {
       const date = new Date(d);
       if (Number.isNaN(date.getTime())) return "—";
-      return fmt.dateTime(date, {
+      return formatter.dateTime(date, {
         dateStyle: "medium",
         timeStyle: "short",
         hour12: false,

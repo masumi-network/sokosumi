@@ -1,4 +1,8 @@
-import { computeScheduleTitleInfo, formatScheduleTitle, type ScheduleTitleInfo } from "@/components/schedules/format";
+import {
+  computeScheduleTitleInfo,
+  formatScheduleTitle,
+  type ScheduleTitleInfo,
+} from "@/components/schedules/format";
 
 describe("computeScheduleTitleInfo", () => {
   const timezone = "UTC";
@@ -68,19 +72,29 @@ describe("formatScheduleTitle", () => {
 
   it("formats dailyWithTime with values", () => {
     const { t, calls } = createSpyT();
-    const info: ScheduleTitleInfo = { key: "dailyWithTime", values: { time: "10:05" } };
+    const info: ScheduleTitleInfo = {
+      key: "dailyWithTime",
+      values: { time: "10:05" },
+    };
     const title = formatScheduleTitle(info, t);
     expect(title).toBe("option.dailyWithTime");
-    expect(calls[0]).toEqual({ key: "option.dailyWithTime", values: { time: "10:05" } });
+    expect(calls[0]).toEqual({
+      key: "option.dailyWithTime",
+      values: { time: "10:05" },
+    });
   });
 
   it("formats weeklyWithWeekdayTime with values", () => {
     const { t, calls } = createSpyT();
-    const info: ScheduleTitleInfo = { key: "weeklyWithWeekdayTime", values: { weekday: "Monday", time: "09:00" } };
+    const info: ScheduleTitleInfo = {
+      key: "weeklyWithWeekdayTime",
+      values: { weekday: "Monday", time: "09:00" },
+    };
     const title = formatScheduleTitle(info, t);
     expect(title).toBe("option.weeklyWithWeekdayTime");
-    expect(calls[0]).toEqual({ key: "option.weeklyWithWeekdayTime", values: { weekday: "Monday", time: "09:00" } });
+    expect(calls[0]).toEqual({
+      key: "option.weeklyWithWeekdayTime",
+      values: { weekday: "Monday", time: "09:00" },
+    });
   });
 });
-
-

@@ -1,3 +1,5 @@
+import { formatTime, parseCron } from "@/lib/schedules/cron";
+
 export type ScheduleTitleInfo =
   | { key: "oneTime" }
   | { key: "custom" }
@@ -22,110 +24,52 @@ export function computeScheduleTitleInfo(
 ): ScheduleTitleInfo {
   if (s.scheduleType === "ONE_TIME") return { key: "oneTime" };
 
-  const cron = (s.cron ?? "").trim();
+  const parsed = parseCron(s.cron ?? "");
 
-  // daily exact time: m h * * *
-  let m = /^([0-5]?\d) ([01]?\d|2[0-3]) \* \* \*$/.exec(cron);
-  if (m) {
-    const hour = Number(m[2]);
-    const minute = Number(m[1]);
-    const base = new Date();
-    base.setHours(hour, minute, 0, 0);
-    const time = new Intl.DateTimeFormat(undefined, {
-      hour: "numeric",
-      minute: "2-digit",
-      timeZone: s.timezone,
-    }).format(base);
-    return { key: "dailyWithTime", values: { time } };
+  switch (parsed.kind) {
+    case "dailyAtTime": {
+      const time = formatTime(parsed.hour, parsed.minute, s.timezone);
+      return { key: "dailyWithTime", values: { time } };
+    }
+    case "weeklyAtTime": {
+      const time = formatTime(parsed.hour, parsed.minute, s.timezone);
+      if (parsed.dows.length === 1) {
+        // Keep parity: compute weekday label from a base date at that time
+        const base = new Date();
+        base.setHours(parsed.hour, parsed.minute, 0, 0);
+        const weekday = new Intl.DateTimeFormat(undefined, {
+          weekday: "long",
+          timeZone: s.timezone,
+        }).format(base);
+        return { key: "weeklyWithWeekdayTime", values: { weekday, time } };
+      }
+      const weekdays = parsed.dows.join(",");
+      return { key: "weeklyListWithTime", values: { weekdays, time } };
+    }
+    case "monthlyOnDay": {
+      const time = formatTime(parsed.hour, parsed.minute, s.timezone);
+      return {
+        key: "monthlyWithDayTime",
+        values: { day: parsed.dayOfMonth, time },
+      };
+    }
+    case "dailyEveryN": {
+      const time = formatTime(parsed.hour, parsed.minute, s.timezone);
+      return {
+        key: "dailyEveryNWithTime",
+        values: { n: parsed.everyNDays, time },
+      };
+    }
+    case "monthlyEveryN": {
+      const time = formatTime(parsed.hour, parsed.minute, s.timezone);
+      return {
+        key: "monthlyEveryNWithDayTime",
+        values: { n: parsed.everyNMonths, day: parsed.dayOfMonth, time },
+      };
+    }
+    default:
+      return { key: "custom" };
   }
-
-  // weekly single weekday: m h * * DOW
-  m = /^([0-5]?\d) ([01]?\d|2[0-3]) \* \* ([A-Z]{3})$/.exec(cron);
-  if (m) {
-    const hour = Number(m[2]);
-    const minute = Number(m[1]);
-    const base = new Date();
-    base.setHours(hour, minute, 0, 0);
-    const time = new Intl.DateTimeFormat(undefined, {
-      hour: "numeric",
-      minute: "2-digit",
-      timeZone: s.timezone,
-    }).format(base);
-    const weekday = new Intl.DateTimeFormat(undefined, {
-      weekday: "long",
-      timeZone: s.timezone,
-    }).format(base);
-    return { key: "weeklyWithWeekdayTime", values: { weekday, time } };
-  }
-
-  // monthly fixed DOM: m h D * *
-  m = /^([0-5]?\d) ([01]?\d|2[0-3]) ([0-2]?\d|3[01]) \* \*$/.exec(cron);
-  if (m) {
-    const hour = Number(m[2]);
-    const minute = Number(m[1]);
-    const day = Number(m[3]);
-    const base = new Date();
-    base.setHours(hour, minute, 0, 0);
-    const time = new Intl.DateTimeFormat(undefined, {
-      hour: "numeric",
-      minute: "2-digit",
-      timeZone: s.timezone,
-    }).format(base);
-    return { key: "monthlyWithDayTime", values: { day, time } };
-  }
-
-  // daily every N days: m h */N * *
-  m = /^([0-5]?\d) ([01]?\d|2[0-3]) \*\/([1-9]\d*) \* \*$/.exec(cron);
-  if (m) {
-    const hour = Number(m[2]);
-    const minute = Number(m[1]);
-    const n = Number(m[3]);
-    const base = new Date();
-    base.setHours(hour, minute, 0, 0);
-    const time = new Intl.DateTimeFormat(undefined, {
-      hour: "numeric",
-      minute: "2-digit",
-      timeZone: s.timezone,
-    }).format(base);
-    return { key: "dailyEveryNWithTime", values: { n, time } };
-  }
-
-  // weekly multi DOW list: m h * * MON,TUE
-  m = /^([0-5]?\d) ([01]?\d|2[0-3]) \* \* ([A-Z]{3}(?:,[A-Z]{3})+)$/.exec(cron);
-  if (m) {
-    const hour = Number(m[2]);
-    const minute = Number(m[1]);
-    const base = new Date();
-    base.setHours(hour, minute, 0, 0);
-    const time = new Intl.DateTimeFormat(undefined, {
-      hour: "numeric",
-      minute: "2-digit",
-      timeZone: s.timezone,
-    }).format(base);
-    const weekdays = m[3];
-    return { key: "weeklyListWithTime", values: { weekdays, time } };
-  }
-
-  // monthly every N months on day D: m h D */N *
-  m = /^([0-5]?\d) ([01]?\d|2[0-3]) ([0-2]?\d|3[01]) \*\/([1-9]\d*) \*$/.exec(
-    cron,
-  );
-  if (m) {
-    const hour = Number(m[2]);
-    const minute = Number(m[1]);
-    const day = Number(m[3]);
-    const n = Number(m[4]);
-    const base = new Date();
-    base.setHours(hour, minute, 0, 0);
-    const time = new Intl.DateTimeFormat(undefined, {
-      hour: "numeric",
-      minute: "2-digit",
-      timeZone: s.timezone,
-    }).format(base);
-    return { key: "monthlyEveryNWithDayTime", values: { n, day, time } };
-  }
-
-  return { key: "custom" };
 }
 
 export type TranslateFn = (
