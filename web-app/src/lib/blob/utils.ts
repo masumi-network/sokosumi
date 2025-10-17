@@ -21,10 +21,12 @@ export async function uploadFile(
 
 export async function uploadAvatar(
   data: Buffer | Blob,
+  contentType?: string,
 ): Promise<PutBlobResult> {
   const blob = await put(`${getEnvSecrets().VERCEL_AVATARS_UPLOAD_DIR}`, data, {
     access: "public",
     addRandomSuffix: true,
+    contentType,
   });
   return blob;
 }

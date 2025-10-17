@@ -382,7 +382,7 @@ async function mapProfileToUserInner(profile: {
   }
 
   // 1. Check if it's a valid URL (pass through directly)
-  if (z.url().safeParse(profilePicture).success) {
+  if (z.httpUrl().safeParse(profilePicture).success) {
     // OAuth provider URLs are short and don't cause cookie issues
     // Just pass them through without uploading
     return {
@@ -395,7 +395,9 @@ async function mapProfileToUserInner(profile: {
   // 2. Check if it's a data URI (base64 encoded image)
   const dataUriRegex =
     /^data:image\/(png|jpg|jpeg|gif|webp|bmp|svg\+xml);base64,/;
-  if (dataUriRegex.test(profilePicture)) {
+  const dataUriMatch = profilePicture.match(dataUriRegex);
+
+  if (dataUriMatch) {
     const imageHash = crypto
       .createHash("sha256")
       .update(profilePicture)
@@ -411,12 +413,17 @@ async function mapProfileToUserInner(profile: {
       };
     }
 
-    // Upload new base64 image
-    const buffer = Buffer.from(
+    // Extract MIME type from data URI (e.g., "image/jpeg")
+    const mimeType = `image/${dataUriMatch[1]}`;
+
+    // Extract the base64 encoded image data
+    const imageData = Buffer.from(
       profilePicture.replace(dataUriRegex, ""),
       "base64",
     );
-    const uploaded = await uploadAvatar(buffer);
+
+    // Upload the image to Vercel Blob Storage
+    const uploaded = await uploadAvatar(imageData, mimeType);
     return {
       name: profile.name,
       image: uploaded.url,
