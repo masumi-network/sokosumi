@@ -135,4 +135,32 @@ export const userRepository = {
       data: { onboardingCompleted },
     });
   },
+
+  /**
+   * Finds image by its hash that is stored in the user record.
+   *
+   * @param imageHash - The hash of the image.
+   * @param tx - (Optional) The Prisma transaction client to use. Defaults to the main Prisma client.
+   * @returns The image if found, null otherwise.
+   */
+  findImageByHash: async (
+    imageHash: string,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<string | null> => {
+    const found = await tx.user.findFirst({
+      where: {
+        imageHash,
+        image: {
+          not: null,
+        },
+      },
+      select: {
+        image: true,
+      },
+    });
+    if (!found) {
+      return null;
+    }
+    return found.image;
+  },
 };

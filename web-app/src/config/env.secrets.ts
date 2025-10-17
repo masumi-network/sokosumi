@@ -76,6 +76,7 @@ const envSecretsSchema = z.object({
     )
     .pipe(z.url())
     .optional(),
+  VERCEL_IMAGES_UPLOAD_DIR: z.string().default("images"),
 
   CRON_SECRET: z.string().optional(),
 
@@ -122,6 +123,7 @@ const envSecretsSchema = z.object({
     .string()
     .transform((val: string) => (val.trim() === "" ? [] : val.split(",")))
     .default([]),
+  BETTER_AUTH_PROFILE_PICTURE_TIMEOUT: z.coerce.number().default(1000 * 10), // 10 seconds
 
   // ably keys
   ABLY_AGENT_JOBS_SUBSCRIBE_ONLY_KEY: z.string().min(1),
