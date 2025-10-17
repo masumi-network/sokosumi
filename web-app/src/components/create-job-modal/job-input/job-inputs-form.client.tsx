@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { track } from "@vercel/analytics";
 import { Command, CornerDownLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -108,6 +109,11 @@ export default function JobInputsFormClient({
         getAgentName(agent),
         convertCentsToCredits(creditsPrice.cents),
       );
+      track("Agent hired", {
+        agentId: agentId,
+        credits: convertCentsToCredits(creditsPrice.cents),
+        jobId: result.data.jobId,
+      });
       // close modal
       handleClose();
       await router.push(`/agents/${agentId}/jobs/${result.data.jobId}`);
