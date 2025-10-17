@@ -1,16 +1,21 @@
 import "server-only";
 
+import * as Sentry from "@sentry/nextjs";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware } from "better-auth/api";
 import { nextCookies } from "better-auth/next-js";
 import { apiKey, organization } from "better-auth/plugins";
 import { localization } from "better-auth-localization";
+import crypto from "crypto";
 import { getTranslations } from "next-intl/server";
+import pTimeout from "p-timeout";
+import * as z from "zod";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
-import { prisma } from "@/lib/db/repositories";
+import { uploadImage } from "@/lib/blob/utils";
+import { prisma, userRepository } from "@/lib/db/repositories";
 import { reactChangeEmailVerificationEmail } from "@/lib/email/change-email";
 import { reactInviteUserEmail } from "@/lib/email/invitation";
 import { postmarkClient } from "@/lib/email/postmark";
@@ -22,6 +27,7 @@ import {
   callMarketingOptInWebHookSocialProvider,
   stripeService,
 } from "@/lib/services";
+import { User } from "@/prisma/generated/client";
 
 export type Session = typeof auth.$Infer.Session;
 export type SessionUser = typeof auth.$Infer.Session.user;
@@ -260,6 +266,11 @@ export const auth = betterAuth({
         required: true,
         defaultValue: false,
       },
+      imageHash: {
+        type: "string",
+        required: false,
+        defaultValue: null,
+      },
     },
   },
   rateLimit: {
@@ -336,16 +347,93 @@ export const auth = betterAuth({
   ],
 });
 
-// check image is longer than 256 characters
-function mapProfileToUser(profile: { name: string; picture: string }) {
-  if (profile.picture && profile.picture.length > 256) {
+async function mapProfileToUser(profile: { name: string; picture: string }) {
+  try {
+    return pTimeout(mapProfileToUserInner(profile), {
+      milliseconds: getEnvSecrets().BETTER_AUTH_PROFILE_PICTURE_TIMEOUT,
+    });
+  } catch (error) {
+    Sentry.captureException(error);
+    console.error(
+      `Failed to map profile to user: ${JSON.stringify(profile)}`,
+      error,
+    );
     return {
       name: profile.name,
       image: undefined,
     };
   }
+}
+
+// Due to Cookie size limit (4KB) and JWT encryption
+// we can NOT store big profile image (which is stored on cookie)
+async function mapProfileToUserInner(profile: {
+  name: string;
+  picture: string;
+}): Promise<Partial<User>> {
+  const profilePicture = profile.picture;
+
+  if (!profilePicture) {
+    return {
+      name: profile.name,
+      image: undefined,
+      imageHash: null,
+    };
+  }
+
+  // 1. Check if it's a valid URL (pass through directly)
+  if (z.httpUrl().safeParse(profilePicture).success) {
+    // OAuth provider URLs are short and don't cause cookie issues
+    // Just pass them through without uploading
+    return {
+      name: profile.name,
+      image: profilePicture,
+      imageHash: null,
+    };
+  }
+
+  // 2. Check if it's a data URI (base64 encoded image)
+  const dataUriRegex =
+    /^data:image\/(png|jpg|jpeg|gif|webp|bmp|svg\+xml);base64,/;
+  const dataUriMatch = profilePicture.match(dataUriRegex);
+
+  if (dataUriMatch) {
+    const imageHash = crypto
+      .createHash("sha256")
+      .update(profilePicture)
+      .digest("hex");
+
+    // Check if we've already uploaded this exact image
+    const foundImage = await userRepository.findImageByHash(imageHash);
+    if (foundImage) {
+      return {
+        name: profile.name,
+        image: foundImage,
+        imageHash,
+      };
+    }
+
+    // Extract MIME type from data URI (e.g., "image/jpeg")
+    const mimeType = `image/${dataUriMatch[1]}`;
+
+    // Extract the base64 encoded image data
+    const imageData = Buffer.from(
+      profilePicture.replace(dataUriRegex, ""),
+      "base64",
+    );
+
+    // Upload the image to Vercel Blob Storage
+    const uploaded = await uploadImage(imageData, mimeType);
+    return {
+      name: profile.name,
+      image: uploaded.url,
+      imageHash,
+    };
+  }
+
   return {
     name: profile.name,
-    image: profile.picture,
+    image: undefined,
+    imageHash: null,
   };
 }

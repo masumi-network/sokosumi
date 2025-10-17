@@ -1,4 +1,5 @@
 import { CheckoutSessionData } from "@/lib/clients";
+import { SocialProviderId } from "@/lib/schemas/auth";
 
 import { fireEvent } from "./utils";
 
@@ -15,9 +16,10 @@ export const fireGTMEvent = {
     });
   },
 
-  ssoAuth() {
+  ssoAuth(provider: SocialProviderId) {
     fireEvent({
       event: "sso_login_or_sign_up",
+      provider: provider,
     });
   },
 

@@ -34,8 +34,7 @@ export default function SocialButtons() {
   const t = useTranslations("Auth.SocialButtons");
 
   const handleClick = async (key: SocialProviderId) => {
-    fireGTMEvent.ssoAuth();
-    track("ssoAuth");
+    track("ssoAuth", { provider: key });
 
     const result = await authClient.signIn.social({
       provider: key,
@@ -43,6 +42,8 @@ export default function SocialButtons() {
     if (result.error) {
       const errorMessage = result.error.message ?? t("error");
       toast.error(errorMessage);
+    } else {
+      fireGTMEvent.ssoAuth(key);
     }
   };
 

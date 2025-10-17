@@ -101,10 +101,6 @@ export default function JobInputsFormClient({
   const handleSubmit: SubmitHandler<JobInputsFormSchemaType> = async (
     values,
   ) => {
-    fireGTMEvent.agentHired(
-      getAgentName(agent),
-      convertCentsToCredits(creditsPrice.cents),
-    );
     track("agentHired", {
       agentName: getAgentName(agent),
       credits: convertCentsToCredits(creditsPrice.cents),
@@ -230,6 +226,10 @@ export default function JobInputsFormClient({
 
     setLoading(false);
     if (result.ok) {
+      fireGTMEvent.agentHired(
+        getAgentName(agent),
+        convertCentsToCredits(creditsPrice.cents),
+      );
       // close modal
       handleClose();
       if (scheduleSelection && scheduleSelection.mode !== JobScheduleType.NOW) {
