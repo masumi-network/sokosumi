@@ -24,7 +24,11 @@ CREATE TABLE "jobSchedule" (
     "nextRunAt" TIMESTAMP(3),
     "pauseReason" TEXT,
 
-    CONSTRAINT "jobSchedule_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "jobSchedule_pkey" PRIMARY KEY ("id"),
+    CONSTRAINT "jobSchedule_schedule_fields_check" CHECK (
+        ("scheduleType" = 'CRON' AND "cron" IS NOT NULL AND "oneTimeAtUtc" IS NULL) OR
+        ("scheduleType" = 'ONE_TIME' AND "oneTimeAtUtc" IS NOT NULL AND "cron" IS NULL)
+    )
 );
 
 -- CreateIndex
