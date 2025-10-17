@@ -101,7 +101,7 @@ export default function JobInputsFormClient({
   const handleSubmit: SubmitHandler<JobInputsFormSchemaType> = async (
     values,
   ) => {
-    track("agentHired", {
+    track("Agent hired", {
       agentName: getAgentName(agent),
       credits: convertCentsToCredits(creditsPrice.cents),
     });

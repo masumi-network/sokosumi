@@ -34,7 +34,7 @@ export default function SocialButtons() {
   const t = useTranslations("Auth.SocialButtons");
 
   const handleClick = async (key: SocialProviderId) => {
-    track("ssoAuth", { provider: key });
+    track("Sign In", { provider: key });
 
     const result = await authClient.signIn.social({
       provider: key,
