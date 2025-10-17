@@ -101,11 +101,6 @@ export default function JobInputsFormClient({
   const handleSubmit: SubmitHandler<JobInputsFormSchemaType> = async (
     values,
   ) => {
-    track("Agent hired", {
-      agentName: getAgentName(agent),
-      credits: convertCentsToCredits(creditsPrice.cents),
-    });
-
     setLoading(true);
 
     let result:
@@ -230,6 +225,11 @@ export default function JobInputsFormClient({
         getAgentName(agent),
         convertCentsToCredits(creditsPrice.cents),
       );
+      track("Agent hired", {
+        agentId: agentId,
+        credits: convertCentsToCredits(creditsPrice.cents),
+        jobId: result.data.jobId,
+      });
       // close modal
       handleClose();
       if (scheduleSelection && scheduleSelection.mode !== JobScheduleType.NOW) {

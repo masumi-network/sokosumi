@@ -21,11 +21,7 @@ import {
   startJobInputSchema,
   StartJobInputSchemaType,
 } from "@/lib/schemas";
-import {
-  callAfterAgentHiredWebHook,
-  jobService,
-  userService,
-} from "@/lib/services";
+import { callAgentHiredWebHook, jobService, userService } from "@/lib/services";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import {
   AuthenticatedRequest,
@@ -168,7 +164,7 @@ export const startJob = withAuthContext<
       });
 
       // call after agent hired webhook
-      callAfterAgentHiredWebHook(user.email);
+      callAgentHiredWebHook(userId, user.email);
 
       return Ok({ jobId: job.id });
     } catch (error) {
