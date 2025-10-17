@@ -55,7 +55,7 @@ export default function SignUpForm({ prefilledEmail }: SignUpFormProps) {
   }, [form.formState.isDirty]);
 
   const handleSubmit = async (values: SignUpFormSchemaType) => {
-    track("signUp");
+    track("Sign Up", { provider: "credential" });
 
     const result = await signUpEmail({
       email: values.email,
