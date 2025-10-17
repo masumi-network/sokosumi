@@ -10,7 +10,7 @@ import { localization } from "better-auth-localization";
 import crypto from "crypto";
 import { getTranslations } from "next-intl/server";
 import pTimeout from "p-timeout";
-import validator from "validator";
+import * as z from "zod";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -382,7 +382,13 @@ async function mapProfileToUserInner(profile: {
   }
 
   // 1. Check if it's a valid URL (pass through directly)
-  if (validator.isURL(profilePicture, { require_protocol: true })) {
+  if (
+    z
+      .url({
+        protocol: /^https?$/,
+      })
+      .safeParse(profilePicture).success
+  ) {
     // OAuth provider URLs are short and don't cause cookie issues
     // Just pass them through without uploading
     return {
