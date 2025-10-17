@@ -21,13 +21,13 @@ async function callWebHook(
   let webhookUrl: string | undefined;
   switch (webhookType) {
     case "userCreated":
-      webhookUrl = getEnvSecrets().USER_CREATED_WEB_HOOK;
+      webhookUrl = getEnvSecrets().USER_CREATED_WEBHOOK;
       break;
     case "userUpdated":
-      webhookUrl = getEnvSecrets().USER_UPDATED_WEB_HOOK;
+      webhookUrl = getEnvSecrets().USER_UPDATED_WEBHOOK;
       break;
     case "accountCreated":
-      webhookUrl = getEnvSecrets().ACCOUNT_CREATED_WEB_HOOK;
+      webhookUrl = getEnvSecrets().ACCOUNT_CREATED_WEBHOOK;
       break;
     case "agentHired":
       webhookUrl = getEnvSecrets().AGENT_HIRED_WEBHOOK;
