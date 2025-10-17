@@ -76,7 +76,7 @@ const envSecretsSchema = z.object({
     )
     .pipe(z.url())
     .optional(),
-  VERCEL_AVATARS_UPLOAD_DIR: z.string().default("avatars"),
+  VERCEL_IMAGES_UPLOAD_DIR: z.string().default("images"),
 
   CRON_SECRET: z.string().optional(),
 

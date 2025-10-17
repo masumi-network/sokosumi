@@ -19,14 +19,17 @@ export async function uploadFile(
   return blob;
 }
 
-export async function uploadAvatar(
+export async function uploadImage(
   data: Buffer | Blob,
   contentType?: string,
 ): Promise<PutBlobResult> {
-  const blob = await put(`${getEnvSecrets().VERCEL_AVATARS_UPLOAD_DIR}`, data, {
-    access: "public",
-    addRandomSuffix: true,
-    contentType,
-  });
+  const blob = await put(
+    `${getEnvSecrets().VERCEL_IMAGES_UPLOAD_DIR}/${crypto.randomUUID()}`,
+    data,
+    {
+      access: "public",
+      contentType,
+    },
+  );
   return blob;
 }

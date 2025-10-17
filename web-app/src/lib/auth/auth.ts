@@ -14,7 +14,7 @@ import * as z from "zod";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
-import { uploadAvatar } from "@/lib/blob";
+import { uploadImage } from "@/lib/blob/utils";
 import { prisma, userRepository } from "@/lib/db/repositories";
 import { reactChangeEmailVerificationEmail } from "@/lib/email/change-email";
 import { reactInviteUserEmail } from "@/lib/email/invitation";
@@ -423,7 +423,7 @@ async function mapProfileToUserInner(profile: {
     );
 
     // Upload the image to Vercel Blob Storage
-    const uploaded = await uploadAvatar(imageData, mimeType);
+    const uploaded = await uploadImage(imageData, mimeType);
     return {
       name: profile.name,
       image: uploaded.url,
