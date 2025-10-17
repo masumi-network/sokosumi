@@ -1,12 +1,11 @@
 "use server";
 
 import * as Sentry from "@sentry/nextjs";
-import { track } from "@vercel/analytics/server";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { OrganizationErrorCode } from "@/lib/actions/errors/error-codes/organization";
-import { convertCentsToCredits, PaidJobWithStatus } from "@/lib/db";
+import { PaidJobWithStatus } from "@/lib/db";
 import {
   jobRepository,
   jobShareRepository,
@@ -166,11 +165,6 @@ export const startJob = withAuthContext<
 
       // call after agent hired webhook
       callAgentHiredWebHook(userId, user.email);
-      await track("Agent hired", {
-        agentId: input.agentId,
-        credits: convertCentsToCredits(input.maxAcceptedCents),
-        jobId: job.id,
-      });
 
       return Ok({ jobId: job.id });
     } catch (error) {
