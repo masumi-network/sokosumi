@@ -116,6 +116,11 @@ const envSecretsSchema = z.object({
     .number()
     .min(1000)
     .default(1000 * 25), // 25 seconds
+  // Job schedule alignment tolerance for cron alignment (ms)
+  JOB_SCHEDULE_ALIGNMENT_TOLERANCE_MS: z.coerce
+    .number()
+    .min(60_000)
+    .default(600_000), // 10 minutes
   INSTANCE_ID: z.string().min(1).default(uuidv4()),
   REGISTRY_API_URL: z.url().default("https://registry.masumi.network/api/v1"),
   REGISTRY_API_KEY: z.string().min(1),
@@ -130,10 +135,12 @@ const envSecretsSchema = z.object({
   ABLY_AGENT_JOBS_PUBLISH_ONLY_KEY: z.string().min(1),
 
   // after agent hired webhook
-  AFTER_AGENT_HIRED_WEB_HOOK: z.url().optional(),
+  AGENT_HIRED_WEBHOOK: z.url().optional(),
 
   // marketing opt in webhook
-  MARKETING_OPT_IN_WEB_HOOK: z.url().optional(),
+  USER_CREATED_WEB_HOOK: z.url().optional(),
+  USER_UPDATED_WEB_HOOK: z.url().optional(),
+  ACCOUNT_CREATED_WEB_HOOK: z.url().optional(),
 });
 
 let envSecrets: z.infer<typeof envSecretsSchema>;

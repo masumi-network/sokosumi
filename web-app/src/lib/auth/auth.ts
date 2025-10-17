@@ -23,8 +23,9 @@ import { reactResetPasswordEmail } from "@/lib/email/reset-password";
 import { reactVerificationEmail } from "@/lib/email/verification";
 import { marketingOptInUserSchema } from "@/lib/schemas";
 import {
-  callMarketingOptInWebHookEmail,
-  callMarketingOptInWebHookSocialProvider,
+  callAccountCreatedWebHook,
+  callUserCreatedWebHook,
+  callUserUpdatedWebHook,
   stripeService,
 } from "@/lib/services";
 import { User } from "@/prisma/generated/client";
@@ -66,10 +67,7 @@ export const auth = betterAuth({
     account: {
       create: {
         after: async (account) => {
-          callMarketingOptInWebHookSocialProvider(
-            account.userId,
-            account.providerId,
-          );
+          callAccountCreatedWebHook(account.userId, account.providerId);
         },
       },
     },
@@ -82,14 +80,14 @@ export const auth = betterAuth({
           const { success, data, error } =
             marketingOptInUserSchema.safeParse(user);
           if (success) {
-            callMarketingOptInWebHookEmail(
+            callUserCreatedWebHook(
               data.id,
               data.email,
               data.name,
               data.marketingOptIn,
             );
           } else {
-            console.error("Invalid user data for marketing webhook:", error);
+            console.error("Invalid user data for user created webhook:", error);
           }
         },
       },
@@ -100,14 +98,14 @@ export const auth = betterAuth({
           const { success, data, error } =
             marketingOptInUserSchema.safeParse(user);
           if (success) {
-            callMarketingOptInWebHookEmail(
+            callUserUpdatedWebHook(
               data.id,
               data.email,
               data.name,
               data.marketingOptIn,
             );
           } else {
-            console.error("Invalid user data for marketing webhook:", error);
+            console.error("Invalid user data for user updated webhook:", error);
           }
         },
       },
