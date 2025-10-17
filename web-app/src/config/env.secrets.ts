@@ -129,11 +129,11 @@ const envSecretsSchema = z.object({
   ABLY_AGENT_JOBS_SUBSCRIBE_ONLY_KEY: z.string().min(1),
   ABLY_AGENT_JOBS_PUBLISH_ONLY_KEY: z.string().min(1),
 
-  // after agent hired webhook
-  AFTER_AGENT_HIRED_WEB_HOOK: z.url().optional(),
-
-  // marketing opt in webhook
-  MARKETING_OPT_IN_WEB_HOOK: z.url().optional(),
+  // analytics webhooks
+  AGENT_HIRED_WEBHOOK: z.url().optional(),
+  USER_CREATED_WEBHOOK: z.url().optional(),
+  USER_UPDATED_WEBHOOK: z.url().optional(),
+  ACCOUNT_CREATED_WEBHOOK: z.url().optional(),
 });
 
 let envSecrets: z.infer<typeof envSecretsSchema>;
