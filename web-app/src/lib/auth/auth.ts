@@ -382,13 +382,7 @@ async function mapProfileToUserInner(profile: {
   }
 
   // 1. Check if it's a valid URL (pass through directly)
-  if (
-    z
-      .url({
-        protocol: /^https?$/,
-      })
-      .safeParse(profilePicture).success
-  ) {
+  if (z.url().safeParse(profilePicture).success) {
     // OAuth provider URLs are short and don't cause cookie issues
     // Just pass them through without uploading
     return {
