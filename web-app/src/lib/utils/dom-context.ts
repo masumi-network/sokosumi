@@ -21,17 +21,19 @@ export async function setupDomContext(): Promise<() => void> {
     return () => {};
   }
 
-  // Try to use happy-dom (ESM). If Jest can't transpile ESM from node_modules,
-  // fall back to jsdom to keep tests working.
+  // Use happy-dom (ESM) to create an isolated DOM implementation.
   let createdWindow: (Window & { close?: () => void }) | null = null;
 
+  // Avoid SWC transforming dynamic import so Jest doesn't require() ESM
   try {
-    const { Window } = await import("happy-dom");
+    const { Window } = (await importDynamic("happy-dom")) as {
+      Window: new () => unknown;
+    };
     createdWindow = new Window() as unknown as Window & { close?: () => void };
-  } catch {
-    const { JSDOM } = await import("jsdom");
-    const dom = new JSDOM("<!doctype html><html><body></body></html>");
-    createdWindow = dom.window as unknown as Window & { close?: () => void };
+  } catch (error) {
+    throw new Error(
+      `Failed to initialize DOM context using happy-dom. Ensure ESM imports are supported in the test environment. Original error: ${String(error)}`,
+    );
   }
 
   // Store original global values
@@ -84,3 +86,17 @@ export async function setupDomContext(): Promise<() => void> {
     }
   };
 }
+
+/**
+ * Dynamically imports a module at runtime using a given specifier.
+ * This utility provides dynamic import capability where top-level `import()` is not available.
+ *
+ * @param {string} specifier - The module specifier or path to import.
+ * @returns {Promise<unknown>} A promise resolving to the imported module.
+ *
+ * @example
+ * const module = await importDynamic('@some/module');
+ */
+const importDynamic = new Function("specifier", "return import(specifier)") as (
+  specifier: string,
+) => Promise<unknown>;
