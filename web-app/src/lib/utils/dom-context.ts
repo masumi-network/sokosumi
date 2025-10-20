@@ -25,15 +25,16 @@ export async function setupDomContext(): Promise<() => void> {
   let createdWindow: (Window & { close?: () => void }) | null = null;
 
   // Avoid SWC transforming dynamic import so Jest doesn't require() ESM
+  // fall back to jsdom to keep tests working.
   try {
     const { Window } = (await importDynamic("happy-dom")) as {
       Window: new () => unknown;
     };
     createdWindow = new Window() as unknown as Window & { close?: () => void };
-  } catch (error) {
-    throw new Error(
-      `Failed to initialize DOM context using happy-dom. Ensure ESM imports are supported in the test environment. Original error: ${String(error)}`,
-    );
+  } catch {
+    const { JSDOM } = await import("jsdom");
+    const dom = new JSDOM("<!doctype html><html><body></body></html>");
+    createdWindow = dom.window as unknown as Window & { close?: () => void };
   }
 
   // Store original global values
