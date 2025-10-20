@@ -534,7 +534,7 @@ export const jobRepository = {
     jobId: string,
     name: string | null,
     tx: Prisma.TransactionClient = prisma,
-  ) {
+  ): Promise<Job> {
     return await tx.job.update({
       where: { id: jobId },
       data: { name },

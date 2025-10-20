@@ -6,6 +6,8 @@ import {
   Prisma,
 } from "@/prisma/generated/client";
 
+import { jobShareInclude } from "./job-share";
+
 export const jobInclude = {
   agent: true,
   user: true,
@@ -14,15 +16,7 @@ export const jobInclude = {
   blobs: true,
   links: true,
   shares: {
-    include: {
-      creator: {
-        select: {
-          id: true,
-          name: true,
-          image: true,
-        },
-      },
-    },
+    include: jobShareInclude,
   },
 } as const;
 

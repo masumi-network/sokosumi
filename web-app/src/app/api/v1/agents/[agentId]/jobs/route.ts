@@ -9,9 +9,10 @@ import {
   validateApiKey,
 } from "@/lib/api";
 import { convertCreditsToCents } from "@/lib/db";
-import { jobRepository } from "@/lib/db/repositories";
+import { jobRepository, jobShareRepository } from "@/lib/db/repositories";
 import { jobInputsDataSchema } from "@/lib/job-input";
 import { agentService } from "@/lib/services";
+import { ShareAccessType } from "@/prisma/generated/client";
 
 interface RouteParams {
   params: Promise<{
@@ -78,6 +79,8 @@ export async function POST(
   try {
     const apiKey = await validateApiKey(request.headers);
     const { agentId } = await params;
+    const userId = apiKey.userId;
+    const activeOrganizationId = apiKey.metadata?.organizationId ?? null;
 
     // Parse request body
     const body = await request.json();
@@ -112,8 +115,8 @@ export async function POST(
         inputData: inputDataMap,
       },
       authContext: {
-        userId: apiKey.userId,
-        organizationId: apiKey.metadata?.organizationId ?? null,
+        userId: userId,
+        organizationId: activeOrganizationId,
       },
     });
 
@@ -151,6 +154,25 @@ export async function POST(
         return createApiSuccessResponse(formatJobResponse(updatedJob), {
           status: 201,
         });
+      }
+    }
+
+    // Share the job is share is requested
+    const jobShareRequest = validatedData.jobShareRequest;
+    if (jobShareRequest) {
+      const recipientOrganizationId = jobShareRequest.shareWithOrganization
+        ? activeOrganizationId
+        : null;
+      // Silently ignore errors if share fails
+      try {
+        await jobShareRepository.createJobShare(
+          createdJob.id,
+          userId,
+          recipientOrganizationId,
+          jobShareRequest.accessType ?? ShareAccessType.PUBLIC,
+        );
+      } catch (error) {
+        console.error("Failed to share job", error);
       }
     }
 
