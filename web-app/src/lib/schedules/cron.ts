@@ -1,4 +1,5 @@
 // Centralized cron parsing and helpers for schedules
+import { CronExpressionParser as cronParser } from "cron-parser";
 
 export const DOW = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"] as const;
 
@@ -47,76 +48,77 @@ export type ParsedCron =
   | MonthlyEveryN
   | { kind: "unknown" };
 
-function isValidDow(v: string): v is Dow {
-  return (DOW as readonly string[]).includes(v);
-}
-
 export function parseCron(cron: string): ParsedCron {
   const trimmed = (cron ?? "").trim();
   if (!trimmed) return { kind: "unknown" };
+  try {
+    const exp = cronParser.parse(trimmed);
+    const fields = exp.fields.serialize();
 
-  // daily exact time: m h * * *
-  let m = /^([0-5]?\d) ([01]?\d|2[0-3]) \* \* \*$/.exec(trimmed);
-  if (m) {
-    return {
-      kind: "dailyAtTime",
-      hour: Number(m[2]),
-      minute: Number(m[1]),
-    };
+    const minute = getSingleNumeric(fields.minute.values);
+    const hour = getSingleNumeric(fields.hour.values);
+    if (minute == null || hour == null) return { kind: "unknown" };
+
+    const dom = fields.dayOfMonth;
+    const mon = fields.month;
+    const dow = fields.dayOfWeek;
+
+    // daily exact time: m h * * *
+    if (dom.wildcard && mon.wildcard && dow.wildcard) {
+      return { kind: "dailyAtTime", hour, minute };
+    }
+
+    // weekly at time with DOW list: m h * * MON(,TUE)*
+    if (dom.wildcard && mon.wildcard && !dow.wildcard) {
+      const values = dow.values;
+      if (
+        Array.isArray(values) &&
+        values.length > 0 &&
+        values.every((v) => typeof v === "number")
+      ) {
+        const dows = (values as number[]).map(
+          (n) => DOW[((n % 7) + 7) % 7] as Dow,
+        );
+        if (dows.length > 0)
+          return { kind: "weeklyAtTime", hour, minute, dows };
+      }
+    }
+
+    // monthly fixed DOM: m h D * *
+    if (!dom.wildcard && mon.wildcard && dow.wildcard) {
+      const day = getSingleNumeric(dom.values);
+      if (day != null) {
+        return { kind: "monthlyOnDay", hour, minute, dayOfMonth: day };
+      }
+    }
+
+    // daily every N days: m h */N * *
+    if (!dom.wildcard && mon.wildcard && dow.wildcard) {
+      const everyNDays = inferStepFromRange(dom.values, 1);
+      if (everyNDays != null && everyNDays > 0) {
+        return { kind: "dailyEveryN", hour, minute, everyNDays };
+      }
+    }
+
+    // monthly every N months on day D: m h D */N *
+    if (dow.wildcard) {
+      const day = getSingleNumeric(dom.values);
+      const everyNMonths = inferStepFromRange(mon.values, 1);
+      if (day != null && everyNMonths != null && everyNMonths > 0) {
+        return {
+          kind: "monthlyEveryN",
+          hour,
+          minute,
+          dayOfMonth: day,
+          everyNMonths,
+        };
+      }
+    }
+
+    return { kind: "unknown" };
+  } catch {
+    return { kind: "unknown" };
   }
-
-  // weekly single or multi DOW list: m h * * MON(,TUE)*
-  m = /^([0-5]?\d) ([01]?\d|2[0-3]) \* \* ([A-Z]{3}(?:,[A-Z]{3})*)$/.exec(
-    trimmed,
-  );
-  if (m) {
-    const hour = Number(m[2]);
-    const minute = Number(m[1]);
-    const dows = m[3]
-      .split(",")
-      .filter(Boolean)
-      .map((s) => s.toUpperCase())
-      .filter(isValidDow) as Dow[];
-    if (dows.length > 0) return { kind: "weeklyAtTime", hour, minute, dows };
-  }
-
-  // monthly fixed DOM: m h D * *
-  m = /^([0-5]?\d) ([01]?\d|2[0-3]) ([0-2]?\d|3[01]) \* \*$/.exec(trimmed);
-  if (m) {
-    return {
-      kind: "monthlyOnDay",
-      hour: Number(m[2]),
-      minute: Number(m[1]),
-      dayOfMonth: Number(m[3]),
-    };
-  }
-
-  // daily every N days: m h */N * *
-  m = /^([0-5]?\d) ([01]?\d|2[0-3]) \*\/([1-9]\d*) \* \*$/.exec(trimmed);
-  if (m) {
-    return {
-      kind: "dailyEveryN",
-      hour: Number(m[2]),
-      minute: Number(m[1]),
-      everyNDays: Number(m[3]),
-    };
-  }
-
-  // monthly every N months on day D: m h D */N *
-  m = /^([0-5]?\d) ([01]?\d|2[0-3]) ([0-2]?\d|3[01]) \*\/([1-9]\d*) \*$/.exec(
-    trimmed,
-  );
-  if (m) {
-    return {
-      kind: "monthlyEveryN",
-      hour: Number(m[2]),
-      minute: Number(m[1]),
-      dayOfMonth: Number(m[3]),
-      everyNMonths: Number(m[4]),
-    };
-  }
-
-  return { kind: "unknown" };
 }
 
 export function formatTime(
@@ -212,4 +214,26 @@ export function computeNextOccurrence(
     default:
       return null; // not supported here; use cron library if needed
   }
+}
+
+function getSingleNumeric(values: (number | string)[]): number | null {
+  return values.length === 1 && typeof values[0] === "number"
+    ? (values[0] as number)
+    : null;
+}
+
+function inferStepFromRange(
+  values: (number | string)[],
+  requiredStart: number,
+): number | null {
+  const nums = values.filter((v): v is number => typeof v === "number");
+  if (nums.length !== values.length) return null;
+  if (nums.length < 2) return null;
+  if (nums[0] !== requiredStart) return null;
+  const step = nums[1] - nums[0];
+  if (!Number.isFinite(step) || step <= 0) return null;
+  for (let i = 1; i < nums.length; i++) {
+    if (nums[i] - nums[i - 1] !== step) return null;
+  }
+  return step;
 }
