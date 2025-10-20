@@ -24,17 +24,30 @@ export async function setupDomContext(): Promise<() => void> {
   // Use happy-dom (ESM) to create an isolated DOM implementation.
   let createdWindow: (Window & { close?: () => void }) | null = null;
 
-  // Avoid SWC transforming dynamic import so Jest doesn't require() ESM
-  // fall back to jsdom to keep tests working.
+  // Prefer literal dynamic import in production so bundlers handle ESM correctly.
+  // In Jest, SWC may transform `import()` to `require()`, so we fall back to
+  // an eval-based dynamic import that avoids transformation. Only if both
+  // happy-dom imports fail do we fall back to jsdom (tests only).
   try {
-    const { Window } = (await importDynamic("happy-dom")) as {
-      Window: new () => unknown;
+    const { Window } = await import("happy-dom");
+    createdWindow = new Window() as unknown as Window & {
+      close?: () => void;
     };
-    createdWindow = new Window() as unknown as Window & { close?: () => void };
   } catch {
-    const { JSDOM } = await import("jsdom");
-    const dom = new JSDOM("<!doctype html><html><body></body></html>");
-    createdWindow = dom.window as unknown as Window & { close?: () => void };
+    try {
+      const { Window } = (await importDynamic("happy-dom")) as {
+        Window: new () => unknown;
+      };
+      createdWindow = new Window() as unknown as Window & {
+        close?: () => void;
+      };
+    } catch {
+      const { JSDOM } = await import("jsdom");
+      const dom = new JSDOM("<!doctype html><html><body></body></html>");
+      createdWindow = dom.window as unknown as Window & {
+        close?: () => void;
+      };
+    }
   }
 
   // Store original global values
