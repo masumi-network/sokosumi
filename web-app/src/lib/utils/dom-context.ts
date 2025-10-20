@@ -1,3 +1,5 @@
+import type { Window as HappyDomWindow } from "happy-dom";
+
 /**
  * Creates an isolated DOM context for server-side HTML processing.
  * Uses happy-dom for lightweight DOM implementation.
@@ -7,7 +9,7 @@
  *
  * @example
  * ```typescript
- * const cleanup = await setupDomContext();
+ * const cleanup = await setupDomContext(providedWindow);
  * try {
  *   // Your DOM-dependent code here
  * } finally {
@@ -15,39 +17,17 @@
  * }
  * ```
  */
-export async function setupDomContext(): Promise<() => void> {
+export async function setupDomContext(
+  provided?: Window | HappyDomWindow,
+): Promise<() => void> {
   // Check if we're already in a browser environment
   if (typeof document !== "undefined") {
     return () => {};
   }
 
-  // Use happy-dom (ESM) to create an isolated DOM implementation.
-  let createdWindow: (Window & { close?: () => void }) | null = null;
-
-  // Prefer literal dynamic import in production so bundlers handle ESM correctly.
-  // In Jest, SWC may transform `import()` to `require()`, so we fall back to
-  // an eval-based dynamic import that avoids transformation. Only if both
-  // happy-dom imports fail do we fall back to jsdom (tests only).
-  try {
-    const { Window } = await import("happy-dom");
-    createdWindow = new Window() as unknown as Window & {
-      close?: () => void;
-    };
-  } catch {
-    try {
-      const { Window } = (await importDynamic("happy-dom")) as {
-        Window: new () => unknown;
-      };
-      createdWindow = new Window() as unknown as Window & {
-        close?: () => void;
-      };
-    } catch {
-      const { JSDOM } = await import("jsdom");
-      const dom = new JSDOM("<!doctype html><html><body></body></html>");
-      createdWindow = dom.window as unknown as Window & {
-        close?: () => void;
-      };
-    }
+  const win = provided ?? (globalThis as { window?: Window }).window;
+  if (!win) {
+    throw new Error("setupDomContext: no window provided");
   }
 
   // Store original global values
@@ -59,22 +39,16 @@ export async function setupDomContext(): Promise<() => void> {
   };
 
   // Set up globals for libraries that require DOM APIs
-  (global as Record<string, unknown>).window =
-    createdWindow as unknown as Window;
-  (global as Record<string, unknown>).document = (
-    createdWindow as unknown as Window
-  ).document;
+  (global as Record<string, unknown>).window = win as Window;
+  (global as Record<string, unknown>).document = (win as Window).document;
   (global as Record<string, unknown>).HTMLElement = (
-    createdWindow as unknown as Window & { HTMLElement: typeof HTMLElement }
+    win as unknown as Window & { HTMLElement: typeof HTMLElement }
   ).HTMLElement;
   (global as Record<string, unknown>).SVGElement = (
-    createdWindow as unknown as Window & { SVGElement: typeof SVGElement }
+    win as unknown as Window & { SVGElement: typeof SVGElement }
   ).SVGElement;
 
   return () => {
-    // Close happy-dom window
-    createdWindow?.close();
-
     // Restore original globals
     if (originalGlobals.window !== undefined) {
       (global as Record<string, unknown>).window = originalGlobals.window;
@@ -100,17 +74,3 @@ export async function setupDomContext(): Promise<() => void> {
     }
   };
 }
-
-/**
- * Dynamically imports a module at runtime using a given specifier.
- * This utility provides dynamic import capability where top-level `import()` is not available.
- *
- * @param {string} specifier - The module specifier or path to import.
- * @returns {Promise<unknown>} A promise resolving to the imported module.
- *
- * @example
- * const module = await importDynamic('@some/module');
- */
-const importDynamic = new Function("specifier", "return import(specifier)") as (
-  specifier: string,
-) => Promise<unknown>;

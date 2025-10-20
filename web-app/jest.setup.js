@@ -1,7 +1,4 @@
-// Only import jest-dom in jsdom environment
-if (typeof window !== "undefined") {
-  require("@testing-library/jest-dom");
-}
+
 
 // Silence the ReactDOMTestUtils.act() deprecation warning
 // Only override console.error if we're in a browser-like environment

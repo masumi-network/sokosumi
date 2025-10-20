@@ -15,6 +15,7 @@ import {
   Paragraph,
   TextRun,
 } from "docx";
+import { Window as HappyDomWindow } from "happy-dom";
 import { EmptyNode, IPlugin, toDocx } from "mdast2docx";
 import { NextRequest, NextResponse } from "next/server";
 import remarkFrontmatter from "remark-frontmatter";
@@ -129,8 +130,9 @@ function createHeaderElements(
 }
 
 export async function POST(request: NextRequest) {
-  // Set up DOM context for server-side HTML processing
-  const cleanup = await setupDomContext();
+  // Set up DOM context for server-side HTML processing (inject if needed)
+  const domWindow = new HappyDomWindow();
+  const cleanup = await setupDomContext(domWindow);
 
   try {
     const json = (await request.json()) as GenerateDocxRequest;
