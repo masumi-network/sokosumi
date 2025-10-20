@@ -22,13 +22,9 @@ export type { ComputeNextRunInput };
 export const jobScheduleService = {
   computeNextRun,
 
-  async executeDueSchedules(
-    limit = 50,
-    tx: Prisma.TransactionClient | null = null,
-  ) {
-    const client = tx ?? prisma;
+  async executeDueSchedules(limit = 50, tx: Prisma.TransactionClient = prisma) {
     const startedAt = Date.now();
-    const due = await jobScheduleRepository.findDue(limit, client);
+    const due = await jobScheduleRepository.findDue(limit, tx);
     const limiter = pLimit(3);
 
     let processed = 0;
@@ -38,11 +34,8 @@ export const jobScheduleService = {
       due.map((schedule) =>
         limiter(async () => {
           const before = schedule.pauseReason;
-          await processSchedule(schedule, client);
-          const after = await jobScheduleRepository.getById(
-            schedule.id,
-            client,
-          );
+          await processSchedule(schedule, tx);
+          const after = await jobScheduleRepository.getById(schedule.id, tx);
           processed += 1;
           if (!before && after?.pauseReason) paused += 1;
         }),

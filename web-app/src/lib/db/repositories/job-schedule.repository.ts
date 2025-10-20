@@ -73,42 +73,15 @@ export const jobScheduleRepository = {
     });
   },
 
-  async getScheduleJobsByAgentIdAndContext(
-    agentId: string,
-    userId: string,
-    organizationId: string | null,
-    tx: Prisma.TransactionClient = prisma,
-  ) {
-    const organizationFilter: Prisma.JobScheduleWhereInput[] = organizationId
-      ? [{ organizationId }, { organizationId: null }]
-      : [{ organizationId: null }];
-
-    return await tx.jobSchedule.findMany({
-      where: {
-        agentId,
-        userId,
-        OR: organizationFilter,
-      },
-      orderBy: { createdAt: "desc" },
-      include: {
-        agent: true,
-      },
-    });
-  },
-
   async getScheduleJobsByContext(
     userId: string,
     organizationId: string | null,
     tx: Prisma.TransactionClient = prisma,
   ) {
-    const organizationFilter: Prisma.JobScheduleWhereInput[] = organizationId
-      ? [{ organizationId }, { organizationId: null }]
-      : [{ organizationId: null }];
-
     return await tx.jobSchedule.findMany({
       where: {
         userId,
-        AND: organizationFilter,
+        organizationId: organizationId ?? null,
       },
       orderBy: { updatedAt: "desc" },
       include: {
@@ -122,10 +95,7 @@ export const jobScheduleRepository = {
       where: { id },
       data: {
         lastRunAt: new Date(),
-        // increment requires field to exist; cast to allow increment syntax
-        ...({
-          occurrenceCount: { increment: 1 },
-        } as unknown as Prisma.JobScheduleUpdateInput),
+        occurrenceCount: { increment: 1 },
       },
     });
   },
