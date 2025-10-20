@@ -111,7 +111,7 @@ export const jobScheduleRepository = {
     });
   },
 
-  async setPaused(
+  async setActive(
     id: string,
     reason: string | null,
     tx: Prisma.TransactionClient = prisma,

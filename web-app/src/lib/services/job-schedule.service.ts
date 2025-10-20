@@ -67,7 +67,7 @@ async function processSchedule(schedule: JobSchedule) {
     // Validate CRON alignment before starting
     if (isCron) {
       if (!schedule.cron || !schedule.timezone) {
-        await jobScheduleRepository.setPaused(
+        await jobScheduleRepository.setActive(
           schedule.id,
           "INVALID_CRON_CONFIG",
         );
@@ -83,7 +83,7 @@ async function processSchedule(schedule: JobSchedule) {
         });
         lastOccurrence = interval.prev().toDate();
       } catch {
-        await jobScheduleRepository.setPaused(schedule.id, "INVALID_CRON");
+        await jobScheduleRepository.setActive(schedule.id, "INVALID_CRON");
         return;
       }
 
@@ -98,7 +98,7 @@ async function processSchedule(schedule: JobSchedule) {
           from: now,
         });
         if (!next) {
-          await jobScheduleRepository.setPaused(schedule.id, "INVALID_CRON");
+          await jobScheduleRepository.setActive(schedule.id, "INVALID_CRON");
           return;
         }
         await jobScheduleRepository.setNextRun(schedule.id, next);
@@ -155,7 +155,7 @@ async function processSchedule(schedule: JobSchedule) {
         from: now,
       });
       if (!next) {
-        await jobScheduleRepository.setPaused(schedule.id, "INVALID_CRON");
+        await jobScheduleRepository.setActive(schedule.id, "INVALID_CRON");
         return;
       }
 
@@ -187,7 +187,7 @@ async function processSchedule(schedule: JobSchedule) {
 
     const message = error instanceof Error ? error.message : String(error);
 
-    await jobScheduleRepository.setPaused(schedule.id, message);
+    await jobScheduleRepository.setActive(schedule.id, message);
   } finally {
     try {
       await lockRepository.unlockByKey(lock.key);
