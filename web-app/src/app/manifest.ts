@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Sōkosumi",
-    short_name: "Sōkosumi",
+    name: "Sokosumi",
+    short_name: "Sokosumi",
     description:
       "Hire yourself an agent to finish the most time consuming tasks",
     start_url: "https://app.sokosumi.com",
