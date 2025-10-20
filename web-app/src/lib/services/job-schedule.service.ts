@@ -11,11 +11,8 @@ import { lockRepository } from "@/lib/db/repositories/lock.repository";
 import { JobScheduleType } from "@/lib/db/types/job";
 import { startJobInputSchema, StartJobInputSchemaType } from "@/lib/schemas";
 import { jobService } from "@/lib/services/job.service";
-import {
-  computeNextRun,
-  ComputeNextRunInput,
-} from "@/lib/services/job-schedule.cron";
 import { lockService } from "@/lib/services/lock.service";
+import { computeNextRun, ComputeNextRunInput } from "@/lib/utils/cron";
 import { JobSchedule } from "@/prisma/generated/client";
 
 export type { ComputeNextRunInput };
@@ -23,9 +20,9 @@ export type { ComputeNextRunInput };
 export const jobScheduleService = {
   computeNextRun,
 
-  async executeDueSchedules(limit = 50) {
+  async executeDueSchedules() {
     const startedAt = Date.now();
-    const due = await jobScheduleRepository.findDue(limit);
+    const due = await jobScheduleRepository.findDue();
     const limiter = pLimit(3);
 
     let processed = 0;

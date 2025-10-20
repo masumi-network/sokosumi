@@ -32,7 +32,7 @@ jest.mock("@/lib/ably/publish", () => ({
 }));
 // No additional mocks needed when importing the pure cron module
 
-import { computeNextRun } from "@/lib/services/job-schedule.cron";
+import { computeNextRun } from "@/lib/utils/cron";
 import { jobScheduleService } from "@/lib/services/job-schedule.service";
 
 describe("computeNextRun", () => {
@@ -119,7 +119,7 @@ describe("computeNextRun", () => {
 // Basic smoke test for executeDueSchedules return shape
 describe("jobScheduleService.executeDueSchedules", () => {
   it("returns metrics object", async () => {
-    const result = await jobScheduleService.executeDueSchedules(0);
+    const result = await jobScheduleService.executeDueSchedules();
     expect(result).toHaveProperty("dueFound");
     expect(result).toHaveProperty("processed");
     expect(result).toHaveProperty("paused");

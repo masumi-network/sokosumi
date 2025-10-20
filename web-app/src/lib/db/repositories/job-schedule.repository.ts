@@ -59,14 +59,13 @@ export const jobScheduleRepository = {
     return await tx.jobSchedule.findUnique({ where: { id } });
   },
 
-  async findDue(limit: number = 50, tx: Prisma.TransactionClient = prisma) {
+  async findDue(tx: Prisma.TransactionClient = prisma) {
     return await tx.jobSchedule.findMany({
       where: {
         isActive: true,
         nextRunAt: { lte: new Date() },
       },
       orderBy: { nextRunAt: "asc" },
-      take: limit,
     });
   },
 

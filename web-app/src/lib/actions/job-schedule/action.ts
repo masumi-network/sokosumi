@@ -8,8 +8,8 @@ import { handleInputDataFileUploads } from "@/lib/actions/job/utils";
 import { jobScheduleRepository } from "@/lib/db/repositories";
 import { JobScheduleType } from "@/lib/db/types/job";
 import { CreateJobScheduleInputSchemaType } from "@/lib/schemas/job";
-import { computeNextRun } from "@/lib/services/job-schedule.cron";
 import { Result } from "@/lib/ts-res";
+import { computeNextRun } from "@/lib/utils/cron";
 import {
   AuthenticatedRequest,
   withAuthContext,

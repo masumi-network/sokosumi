@@ -46,8 +46,8 @@ import {
   jobInputsFormSchema,
   JobInputsFormSchemaType,
 } from "@/lib/job-input";
-import { computeNextRun } from "@/lib/services/job-schedule.cron";
 import { cn, formatDuration, getOSFromUserAgent } from "@/lib/utils";
+import { computeNextRun } from "@/lib/utils/cron";
 
 import JobInput from "./job-input";
 
