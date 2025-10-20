@@ -1,5 +1,3 @@
-import { computeNextRun } from "@/lib/services/job-schedule.cron";
-
 // No-op server-only in Jest
 jest.mock("server-only", () => ({}));
 
@@ -23,7 +21,19 @@ jest.mock("@/config/env.secrets", () => ({
   __esModule: true,
   getEnvSecrets: () => ({ INSTANCE_ID: "test-instance" }),
 }));
+// Avoid importing heavy/ESM-only dependencies from job.service and Ably publish
+jest.mock("@/lib/services/job.service", () => ({
+  __esModule: true,
+  jobService: { startJob: jest.fn().mockResolvedValue({}) },
+}));
+jest.mock("@/lib/ably/publish", () => ({
+  __esModule: true,
+  default: jest.fn().mockResolvedValue(undefined),
+}));
 // No additional mocks needed when importing the pure cron module
+
+import { computeNextRun } from "@/lib/services/job-schedule.cron";
+import { jobScheduleService } from "@/lib/services/job-schedule.service";
 
 describe("computeNextRun", () => {
   // Fixed reference time to make tests deterministic
@@ -109,8 +119,7 @@ describe("computeNextRun", () => {
 // Basic smoke test for executeDueSchedules return shape
 describe("jobScheduleService.executeDueSchedules", () => {
   it("returns metrics object", async () => {
-    const mod = await import("@/lib/services/job-schedule.service");
-    const result = await mod.jobScheduleService.executeDueSchedules(0);
+    const result = await jobScheduleService.executeDueSchedules(0);
     expect(result).toHaveProperty("dueFound");
     expect(result).toHaveProperty("processed");
     expect(result).toHaveProperty("paused");

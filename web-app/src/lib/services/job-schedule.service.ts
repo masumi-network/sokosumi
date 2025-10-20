@@ -7,8 +7,10 @@ import pLimit from "p-limit";
 import { getEnvSecrets } from "@/config/env.secrets";
 import publishJobStatusData from "@/lib/ably/publish";
 import { jobScheduleRepository } from "@/lib/db/repositories/job-schedule.repository";
+import { lockRepository } from "@/lib/db/repositories/lock.repository";
 import { JobScheduleType } from "@/lib/db/types/job";
 import { startJobInputSchema, StartJobInputSchemaType } from "@/lib/schemas";
+import { jobService } from "@/lib/services/job.service";
 import {
   computeNextRun,
   ComputeNextRunInput,
@@ -137,8 +139,6 @@ async function processSchedule(schedule: JobSchedule) {
 
     const parsed = parsedResult.data;
 
-    // Import jobService here to avoid circular dependency and fix unit tests
-    const { jobService } = await import("@/lib/services/job.service");
     const result = await jobService.startJob(parsed);
 
     // Success → compute next run or deactivate if one-time
@@ -193,9 +193,6 @@ async function processSchedule(schedule: JobSchedule) {
     await jobScheduleRepository.setPaused(schedule.id, message);
   } finally {
     try {
-      const { lockRepository } = await import(
-        "@/lib/db/repositories/lock.repository"
-      );
       await lockRepository.unlockByKey(lock.key);
     } catch {}
   }
