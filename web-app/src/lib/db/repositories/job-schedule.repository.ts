@@ -32,17 +32,14 @@ export const jobScheduleRepository = {
       nextRunAt: data.nextRunAt,
       lastRunAt: data.lastRunAt,
     };
-    const maybeEndOnUtc = (data as unknown as { endOnUtc?: string | null })
-      .endOnUtc;
+    const maybeEndOnUtc = data.endOnUtc;
     if (maybeEndOnUtc !== undefined) payloadObj.endOnUtc = maybeEndOnUtc;
-    const maybeEndAfter = (
-      data as unknown as { endAfterOccurrences?: number | null }
-    ).endAfterOccurrences;
+    const maybeEndAfter = data.endAfterOccurrences;
     if (maybeEndAfter !== undefined)
       payloadObj.endAfterOccurrences = maybeEndAfter;
 
     return await tx.jobSchedule.create({
-      data: payloadObj as unknown as Prisma.JobScheduleCreateInput,
+      data: payloadObj as Prisma.JobScheduleCreateInput,
     });
   },
 

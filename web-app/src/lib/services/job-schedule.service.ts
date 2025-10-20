@@ -7,7 +7,6 @@ import pLimit from "p-limit";
 import { getEnvSecrets } from "@/config/env.secrets";
 import publishJobStatusData from "@/lib/ably/publish";
 import { jobScheduleRepository } from "@/lib/db/repositories/job-schedule.repository";
-import prisma from "@/lib/db/repositories/prisma";
 import { JobScheduleType } from "@/lib/db/types/job";
 import { startJobInputSchema, StartJobInputSchemaType } from "@/lib/schemas";
 import {
@@ -15,16 +14,16 @@ import {
   ComputeNextRunInput,
 } from "@/lib/services/job-schedule.cron";
 import { lockService } from "@/lib/services/lock.service";
-import { JobSchedule, Prisma } from "@/prisma/generated/client";
+import { JobSchedule } from "@/prisma/generated/client";
 
 export type { ComputeNextRunInput };
 
 export const jobScheduleService = {
   computeNextRun,
 
-  async executeDueSchedules(limit = 50, tx: Prisma.TransactionClient = prisma) {
+  async executeDueSchedules(limit = 50) {
     const startedAt = Date.now();
-    const due = await jobScheduleRepository.findDue(limit, tx);
+    const due = await jobScheduleRepository.findDue(limit);
     const limiter = pLimit(3);
 
     let processed = 0;
@@ -34,8 +33,8 @@ export const jobScheduleService = {
       due.map((schedule) =>
         limiter(async () => {
           const before = schedule.pauseReason;
-          await processSchedule(schedule, tx);
-          const after = await jobScheduleRepository.getById(schedule.id, tx);
+          await processSchedule(schedule);
+          const after = await jobScheduleRepository.getById(schedule.id);
           processed += 1;
           if (!before && after?.pauseReason) paused += 1;
         }),
@@ -47,10 +46,7 @@ export const jobScheduleService = {
   },
 };
 
-async function processSchedule(
-  schedule: JobSchedule,
-  tx: Prisma.TransactionClient,
-) {
+async function processSchedule(schedule: JobSchedule) {
   const lockKey = `job-schedule-${schedule.id}`;
   let lock;
   try {
@@ -75,7 +71,6 @@ async function processSchedule(
         await jobScheduleRepository.setPaused(
           schedule.id,
           "INVALID_CRON_CONFIG",
-          tx,
         );
         return;
       }
@@ -89,7 +84,7 @@ async function processSchedule(
         });
         lastOccurrence = interval.prev().toDate();
       } catch {
-        await jobScheduleRepository.setPaused(schedule.id, "INVALID_CRON", tx);
+        await jobScheduleRepository.setPaused(schedule.id, "INVALID_CRON");
         return;
       }
 
@@ -104,23 +99,19 @@ async function processSchedule(
           from: now,
         });
         if (!next) {
-          await jobScheduleRepository.setPaused(
-            schedule.id,
-            "INVALID_CRON",
-            tx,
-          );
+          await jobScheduleRepository.setPaused(schedule.id, "INVALID_CRON");
           return;
         }
-        await jobScheduleRepository.setNextRun(schedule.id, next, tx);
+        await jobScheduleRepository.setNextRun(schedule.id, next);
         return;
       }
     }
 
     // Only after passing validation we mark the attempt and start the job
-    await jobScheduleRepository.markRunAttempt(schedule.id, tx);
+    await jobScheduleRepository.markRunAttempt(schedule.id);
 
     const inputSchema =
-      schedule.inputSchema as unknown as StartJobInputSchemaType["inputSchema"];
+      schedule.inputSchema as StartJobInputSchemaType["inputSchema"];
     const inputRecord = JSON.parse(
       schedule.input,
     ) as StartJobInputSchemaType["inputData"];
@@ -152,7 +143,7 @@ async function processSchedule(
 
     // Success → compute next run or deactivate if one-time
     if (isOneTime) {
-      await jobScheduleRepository.setNextRun(schedule.id, null, tx);
+      await jobScheduleRepository.setNextRun(schedule.id, null);
       return;
     }
     if (isCron) {
@@ -167,7 +158,7 @@ async function processSchedule(
         from: now,
       });
       if (!next) {
-        await jobScheduleRepository.setPaused(schedule.id, "INVALID_CRON", tx);
+        await jobScheduleRepository.setPaused(schedule.id, "INVALID_CRON");
         return;
       }
 
@@ -177,14 +168,14 @@ async function processSchedule(
         endAfterOccurrences &&
         updatedOccurrenceCount >= endAfterOccurrences
       ) {
-        await jobScheduleRepository.setNextRun(schedule.id, null, tx);
+        await jobScheduleRepository.setNextRun(schedule.id, null);
         return;
       }
       if (endOnUtc && next > endOnUtc) {
-        await jobScheduleRepository.setNextRun(schedule.id, null, tx);
+        await jobScheduleRepository.setNextRun(schedule.id, null);
         return;
       }
-      await jobScheduleRepository.setNextRun(schedule.id, next, tx);
+      await jobScheduleRepository.setNextRun(schedule.id, next);
     }
 
     try {
@@ -199,7 +190,7 @@ async function processSchedule(
 
     const message = error instanceof Error ? error.message : String(error);
 
-    await jobScheduleRepository.setPaused(schedule.id, message, tx);
+    await jobScheduleRepository.setPaused(schedule.id, message);
   } finally {
     try {
       const { lockRepository } = await import(
