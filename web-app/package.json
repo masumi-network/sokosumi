@@ -129,7 +129,7 @@
     "@hey-api/openapi-ts": "0.86.0",
     "@types/jsdom": "27.0.0",
     "@types/humanize-duration": "3.27.4",
-    "@types/node": "22.18.11",
+    "@types/node": "22.18.12",
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.2",
     "@types/react-file-icon": "1.0.4",
