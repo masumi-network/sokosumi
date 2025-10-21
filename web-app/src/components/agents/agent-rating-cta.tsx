@@ -46,11 +46,11 @@ export function AgentRatingCTA({
     <div className={className}>
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogTrigger asChild>
-          <Button variant="outline" size="sm" className="gap-2">
-            <Star className="size-4" />
-            {existingRating
-              ? t("alreadyRated", { rating: existingRating.rating })
-              : t("submitRating")}
+          <Button variant="secondary" size="icon" className={className}>
+            <Star
+              fill={existingRating ? "currentColor" : "none"}
+              className="size-4"
+            />
           </Button>
         </DialogTrigger>
         <DialogContent className="max-w-md">
