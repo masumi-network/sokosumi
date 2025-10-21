@@ -389,6 +389,7 @@ export const jobService = (() => {
       maxAcceptedCents,
       inputData,
       inputSchema,
+      jobScheduleId,
     } = input;
 
     // Add breadcrumb for paid job start
@@ -606,6 +607,7 @@ export const jobService = (() => {
       blockchainIdentifier: startJobResponse.blockchainIdentifier,
       sellerVkey: startJobResponse.sellerVKey,
       name: generatedName,
+      jobScheduleId,
     });
 
     // Add breadcrumb for purchase creation
@@ -679,7 +681,14 @@ export const jobService = (() => {
     input: StartJobInputSchemaType,
     agent: AgentWithRelations,
   ): Promise<Job> {
-    const { userId, organizationId, agentId, inputData, inputSchema } = input;
+    const {
+      userId,
+      organizationId,
+      agentId,
+      inputData,
+      inputSchema,
+      jobScheduleId,
+    } = input;
 
     Sentry.addBreadcrumb({
       category: "Job Service",
@@ -734,6 +743,7 @@ export const jobService = (() => {
       input: JSON.stringify(Object.fromEntries(inputData)),
       inputSchema: inputSchema,
       name: generatedName,
+      jobScheduleId,
     });
 
     await publishJobStatusSafely(job);

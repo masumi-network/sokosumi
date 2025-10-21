@@ -22,6 +22,7 @@ export const startJobInputSchema = z.object({
       z.undefined(),
     ]),
   ),
+  jobScheduleId: z.string().nullish(),
 });
 
 export type StartJobInputSchemaType = z.infer<typeof startJobInputSchema>;

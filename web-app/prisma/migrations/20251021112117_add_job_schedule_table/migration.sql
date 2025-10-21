@@ -45,3 +45,12 @@ ALTER TABLE "jobSchedule" ADD CONSTRAINT "jobSchedule_organizationId_fkey" FOREI
 
 -- AddForeignKey
 ALTER TABLE "jobSchedule" ADD CONSTRAINT "jobSchedule_agentId_fkey" FOREIGN KEY ("agentId") REFERENCES "Agent"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AlterTable
+ALTER TABLE "Job" ADD COLUMN "jobScheduleId" TEXT;
+
+-- CreateIndex
+CREATE INDEX "Job_jobScheduleId_idx" ON "Job"("jobScheduleId");
+
+-- AddForeignKey
+ALTER TABLE "Job" ADD CONSTRAINT "Job_jobScheduleId_fkey" FOREIGN KEY ("jobScheduleId") REFERENCES "jobSchedule"("id") ON DELETE SET NULL ON UPDATE CASCADE;

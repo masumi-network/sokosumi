@@ -550,7 +550,12 @@ model Job {
 
   shares JobShare[]
 
+  // Optional link to the schedule that initiated this job
+  jobScheduleId String?
+  jobSchedule   JobSchedule? @relation(fields: [jobScheduleId], references: [id], onDelete: SetNull)
+
   @@index([jobType])
+  @@index([jobScheduleId])
 }
 
 enum OnChainTransactionStatus {
@@ -754,6 +759,9 @@ model JobSchedule {
   lastRunAt        DateTime?
   nextRunAt        DateTime?
   pauseReason      String?
+
+  // Back-relation to jobs initiated by this schedule
+  jobs Job[]
 
   @@index([isActive, nextRunAt])
   @@index([agentId])

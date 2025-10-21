@@ -132,6 +132,7 @@ async function processSchedule(schedule: JobSchedule) {
       maxAcceptedCents: schedule.maxAcceptedCents,
       inputSchema,
       inputData,
+      jobScheduleId: schedule.id,
     } as StartJobInputSchemaType;
 
     const parsedResult = startJobInputSchema.safeParse(inputDataForService);
