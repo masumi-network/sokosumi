@@ -37,7 +37,6 @@ export async function AgentDetailRatingSection({
         <AgentRatingDisplay
           averageRating={ratingStats.averageRating}
           totalRatings={ratingStats.totalRatings}
-          roundedRating={ratingStats.roundedRating}
           size="lg"
           className="mt-2"
         />

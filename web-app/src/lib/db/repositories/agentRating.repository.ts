@@ -7,7 +7,6 @@ import prisma from "./prisma";
 export interface AgentRatingStats {
   totalRatings: number;
   averageRating: number;
-  roundedRating: number; // Mathematical rounding: 3.5→4, 3.4→3
 }
 
 export interface UserAgentRatingWithUser {
@@ -127,13 +126,9 @@ export const agentRatingRepository = {
     const totalRatings = result._count.rating;
     const averageRating = result._avg.rating ?? 0;
 
-    // Mathematical rounding: 3.5→4, 3.4→3
-    const roundedRating = Math.round(averageRating);
-
     return {
       totalRatings,
       averageRating,
-      roundedRating,
     };
   },
 };

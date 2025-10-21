@@ -421,7 +421,6 @@ function AgentCard({
                 <AgentRatingDisplay
                   averageRating={ratingStats.averageRating}
                   totalRatings={ratingStats.totalRatings}
-                  roundedRating={ratingStats.roundedRating}
                   size="sm"
                 />
               )}

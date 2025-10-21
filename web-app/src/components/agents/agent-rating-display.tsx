@@ -1,14 +1,13 @@
 "use client";
 
-import { Star } from "lucide-react";
 import { useTranslations } from "next-intl";
 
+import { StarRating } from "@/components/agents/star-rating";
 import { cn } from "@/lib/utils";
 
 interface AgentRatingDisplayProps {
   averageRating: number;
   totalRatings: number;
-  roundedRating: number;
   size?: "sm" | "md" | "lg";
   className?: string;
 }
@@ -16,7 +15,6 @@ interface AgentRatingDisplayProps {
 export function AgentRatingDisplay({
   averageRating,
   totalRatings,
-  roundedRating,
   size = "md",
   className,
 }: AgentRatingDisplayProps) {
@@ -26,12 +24,6 @@ export function AgentRatingDisplay({
     sm: "text-xs",
     md: "text-sm",
     lg: "text-base",
-  };
-
-  const starSizeClasses = {
-    sm: "size-3",
-    md: "size-4",
-    lg: "size-5",
   };
 
   if (totalRatings === 0) {
@@ -48,6 +40,30 @@ export function AgentRatingDisplay({
     );
   }
 
+  // Calculate star fills based on average rating
+  const fullStars = Math.floor(averageRating);
+  const partialFillPercent = (averageRating % 1) * 100;
+  const hasPartialStar = partialFillPercent > 0;
+  const emptyStars = 5 - fullStars - (hasPartialStar ? 1 : 0);
+
+  // Create array of star fill percentages
+  const starFills: number[] = [];
+
+  // Add full stars
+  for (let i = 0; i < fullStars; i++) {
+    starFills.push(100);
+  }
+
+  // Add partial star if needed
+  if (hasPartialStar) {
+    starFills.push(partialFillPercent);
+  }
+
+  // Add empty stars
+  for (let i = 0; i < emptyStars; i++) {
+    starFills.push(0);
+  }
+
   return (
     <div className={cn("flex items-center gap-1", className)}>
       {/* Rating number */}
@@ -57,17 +73,8 @@ export function AgentRatingDisplay({
 
       {/* Stars */}
       <div className="flex items-center gap-0.5">
-        {Array.from({ length: 5 }, (_, index) => (
-          <Star
-            key={index}
-            className={cn(
-              "fill-current",
-              index < roundedRating
-                ? "text-yellow-400"
-                : "text-muted-foreground",
-              starSizeClasses[size],
-            )}
-          />
+        {starFills.map((fillPercentage, index) => (
+          <StarRating key={index} fillPercentage={fillPercentage} size={size} />
         ))}
       </div>
 

@@ -1,6 +1,7 @@
 import { CircleCheck, Clock, Star } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 
+import { StarRating } from "@/components/agents/star-rating";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AgentRatingStats } from "@/lib/db/repositories/agentRating.repository";
 import { formatDuration } from "@/lib/utils";
@@ -59,18 +60,40 @@ function AgentDetailSection2({
           </div>
           <div className="flex items-center gap-1">
             <p className="text-base">{ratingStats.averageRating.toFixed(1)}</p>
-            <div className="flex items-center">
-              {[...Array(5)].map((_, index) => (
-                <Star
-                  key={index}
-                  size={12}
-                  className={
-                    index < ratingStats.roundedRating
-                      ? "fill-yellow-400 text-yellow-400"
-                      : "text-muted-foreground"
-                  }
-                />
-              ))}
+            <div className="flex items-center gap-0.5">
+              {(() => {
+                // Calculate star fills based on average rating
+                const fullStars = Math.floor(ratingStats.averageRating);
+                const partialFillPercent =
+                  (ratingStats.averageRating % 1) * 100;
+                const hasPartialStar = partialFillPercent > 0;
+                const emptyStars = 5 - fullStars - (hasPartialStar ? 1 : 0);
+
+                const starFills: number[] = [];
+
+                // Add full stars
+                for (let i = 0; i < fullStars; i++) {
+                  starFills.push(100);
+                }
+
+                // Add partial star if needed
+                if (hasPartialStar) {
+                  starFills.push(partialFillPercent);
+                }
+
+                // Add empty stars
+                for (let i = 0; i < emptyStars; i++) {
+                  starFills.push(0);
+                }
+
+                return starFills.map((fillPercentage, index) => (
+                  <StarRating
+                    key={index}
+                    fillPercentage={fillPercentage}
+                    size="sm"
+                  />
+                ));
+              })()}
             </div>
             <span className="text-muted-foreground text-xs">
               {"("}
