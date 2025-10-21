@@ -381,9 +381,6 @@ importers:
       eslint-plugin-unused-imports:
         specifier: 4.3.0
         version: 4.3.0(@typescript-eslint/eslint-plugin@8.46.1(@typescript-eslint/parser@8.46.1(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3))(eslint@9.38.0(jiti@2.6.1))(typescript@5.9.3))(eslint@9.38.0(jiti@2.6.1))
-      jsdom:
-        specifier: 27.0.1
-        version: 27.0.1(postcss@8.5.6)
       next-openapi-gen:
         specifier: 0.7.9
         version: 0.7.9
