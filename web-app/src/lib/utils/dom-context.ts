@@ -1,5 +1,3 @@
-import type { Window as HappyDomWindow } from "happy-dom";
-
 /**
  * Creates an isolated DOM context for server-side HTML processing.
  * Uses happy-dom for lightweight DOM implementation.
@@ -9,7 +7,7 @@ import type { Window as HappyDomWindow } from "happy-dom";
  *
  * @example
  * ```typescript
- * const cleanup = await setupDomContext(providedWindow);
+ * const cleanup = await setupDomContext();
  * try {
  *   // Your DOM-dependent code here
  * } finally {
@@ -17,16 +15,15 @@ import type { Window as HappyDomWindow } from "happy-dom";
  * }
  * ```
  */
-export async function setupDomContext(
-  provided?: Window | HappyDomWindow,
-): Promise<() => void> {
+export async function setupDomContext(): Promise<() => void> {
   // Check if we're already in a browser environment
   if (typeof document !== "undefined") {
     return () => {};
   }
 
-  const win = provided ?? (globalThis as { window?: Window }).window;
-  if (!win) {
+  const { Window } = await import("happy-dom");
+  const window = new Window();
+  if (!window) {
     throw new Error("setupDomContext: no window provided");
   }
 
@@ -39,14 +36,10 @@ export async function setupDomContext(
   };
 
   // Set up globals for libraries that require DOM APIs
-  (global as Record<string, unknown>).window = win as Window;
-  (global as Record<string, unknown>).document = (win as Window).document;
-  (global as Record<string, unknown>).HTMLElement = (
-    win as unknown as Window & { HTMLElement: typeof HTMLElement }
-  ).HTMLElement;
-  (global as Record<string, unknown>).SVGElement = (
-    win as unknown as Window & { SVGElement: typeof SVGElement }
-  ).SVGElement;
+  (global as Record<string, unknown>).window = window;
+  (global as Record<string, unknown>).document = window.document;
+  (global as Record<string, unknown>).HTMLElement = window.HTMLElement;
+  (global as Record<string, unknown>).SVGElement = window.SVGElement;
 
   return () => {
     // Restore original globals

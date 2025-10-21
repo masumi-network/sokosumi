@@ -51,21 +51,6 @@ describe("DOM Context Setup", () => {
       expect((global as Record<string, unknown>).document).toBe(beforeDoc);
       cleanup();
     });
-
-    it("sets globals from provided window when no document", async () => {
-      const originalDoc = (global as Record<string, unknown>).document;
-      const win = (global as Record<string, unknown>).window as Window;
-
-      // simulate server: remove document
-      delete (global as Record<string, unknown>).document;
-      const cleanup = await setupDomContext(win);
-
-      expect((global as Record<string, unknown>).document).toBe(win.document);
-
-      // Cleanup
-      cleanup();
-      (global as Record<string, unknown>).document = originalDoc;
-    });
   });
 
   describe("DOM functionality", () => {
