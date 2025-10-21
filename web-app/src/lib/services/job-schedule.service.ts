@@ -31,11 +31,10 @@ export const jobScheduleService = {
     await Promise.all(
       due.map((schedule) =>
         limiter(async () => {
-          const before = schedule.pauseReason;
           await processSchedule(schedule);
           const after = await jobScheduleRepository.getById(schedule.id);
           processed += 1;
-          if (!before && after?.pauseReason) paused += 1;
+          if (!after?.isActive) paused += 1;
         }),
       ),
     );
