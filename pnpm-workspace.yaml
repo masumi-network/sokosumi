@@ -8,6 +8,7 @@ ignoredBuiltDependencies:
   - "@swc/core"
   - "@tailwindcss/oxide"
   - "@vercel/speed-insights"
+  - better-sqlite3
   - esbuild
   - puppeteer
   - puppeteer-core
@@ -19,5 +20,5 @@ onlyBuiltDependencies:
   - prisma
 
 publicHoistPattern:
-  - "import-in-the-middle"
-  - "require-in-the-middle"
+  - import-in-the-middle
+  - require-in-the-middle
