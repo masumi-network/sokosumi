@@ -24,6 +24,7 @@ interface AgentRatingCTAProps {
     comment: string | null;
   } | null;
   className?: string;
+  disabled?: boolean;
 }
 
 export function AgentRatingCTA({
@@ -31,6 +32,7 @@ export function AgentRatingCTA({
   ratingStats: _ratingStats,
   existingRating,
   className,
+  disabled,
 }: AgentRatingCTAProps) {
   const t = useTranslations("Components.Agents.Rating");
   const [isOpen, setIsOpen] = useState(false);
@@ -46,7 +48,12 @@ export function AgentRatingCTA({
     <div className={className}>
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogTrigger asChild>
-          <Button variant="secondary" size="icon" className={className}>
+          <Button
+            variant="secondary"
+            size="icon"
+            className={className}
+            disabled={disabled}
+          >
             <Star
               fill={existingRating ? "currentColor" : "none"}
               className="size-4"

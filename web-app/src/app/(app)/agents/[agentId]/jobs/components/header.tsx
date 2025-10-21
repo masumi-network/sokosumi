@@ -100,6 +100,7 @@ export default function Header({
               agentId={agent.id}
               ratingStats={ratingStats}
               existingRating={existingRating}
+              disabled={disabled}
             />
           )}
           <AgentBookmarkButton
