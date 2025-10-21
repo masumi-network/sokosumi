@@ -631,17 +631,23 @@ export const jobRepository = {
       where: {
         userId,
         agentId,
-        agentJobStatus: {
-          in: ["COMPLETED", "FAILED"],
-        },
-        // Check for finalized on-chain statuses
-        OR: [
-          { onChainStatus: "RESULT_SUBMITTED" },
-          { onChainStatus: "FUNDS_WITHDRAWN" },
-          { onChainStatus: "REFUND_WITHDRAWN" },
-          { onChainStatus: "DISPUTED_WITHDRAWN" },
-          { onChainStatus: "FUNDS_OR_DATUM_INVALID" },
-          { onChainStatus: "DISPUTED" },
+        AND: [
+          {
+            agentJobStatus: {
+              in: ["COMPLETED", "FAILED"],
+            },
+          },
+          {
+            // Check for finalized on-chain statuses
+            OR: [
+              { onChainStatus: "RESULT_SUBMITTED" },
+              { onChainStatus: "FUNDS_WITHDRAWN" },
+              { onChainStatus: "REFUND_WITHDRAWN" },
+              { onChainStatus: "DISPUTED_WITHDRAWN" },
+              { onChainStatus: "FUNDS_OR_DATUM_INVALID" },
+              { onChainStatus: "DISPUTED" },
+            ],
+          },
         ],
       },
     });
