@@ -19,7 +19,11 @@ try {
 if (typeof window !== "undefined" && typeof console !== "undefined") {
   const originalError = console.error;
   console.error = (...args) => {
-    if (args[0] && args[0].includes && args[0].includes("ReactDOMTestUtils.act")) {
+    if (
+      args[0] &&
+      args[0].includes &&
+      args[0].includes("ReactDOMTestUtils.act")
+    ) {
       return;
     }
     originalError.call(console, ...args);

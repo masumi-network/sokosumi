@@ -129,7 +129,7 @@ function createHeaderElements(
 }
 
 export async function POST(request: NextRequest) {
-  // Set up DOM context for server-side HTML processing
+  // Set up DOM context for server-side HTML processing (inject if needed)
   const cleanup = await setupDomContext();
 
   try {
