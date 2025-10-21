@@ -109,7 +109,7 @@ sokosumi/
 
 ## Testing Guidelines
 
-- **Framework**: Jest with happy-dom and Testing Library
+- **Framework**: Jest with jsdom and Testing Library
 - **Test Files**: Name as `*.test.ts(x)` and colocate under nearest `__tests__/`
 - **Coverage**: Cover both success and failure paths when touching `src/lib`
 - **Mocking**: Use `__mocks__` or Prisma factories for external services

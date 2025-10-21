@@ -1,6 +1,6 @@
 /**
  * Creates an isolated DOM context for server-side HTML processing.
- * Uses happy-dom for lightweight DOM implementation.
+ * Uses JSDOM for DOM implementation.
  * Returns a cleanup function to restore the original state.
  *
  * @returns A cleanup function that restores the original global state
@@ -21,8 +21,8 @@ export async function setupDomContext(): Promise<() => void> {
     return () => {};
   }
 
-  const { Window } = await import("happy-dom");
-  const window = new Window();
+  const { JSDOM } = await import("jsdom");
+  const window = new JSDOM().window;
   if (!window) {
     throw new Error("setupDomContext: no window provided");
   }
