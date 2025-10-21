@@ -10,6 +10,7 @@ export interface AgentRatingError {
   code:
     | "UNAUTHORIZED"
     | "INVALID_RATING"
+    | "INVALID_INPUT"
     | "NOT_ELIGIBLE"
     | "AGENT_NOT_FOUND"
     | "UNKNOWN";
@@ -36,6 +37,14 @@ export async function createAgentRating(
       return Err({
         code: "INVALID_RATING",
         message: "Rating must be an integer between 1 and 5",
+      });
+    }
+
+    // Validate comment length
+    if (comment && comment.length > 1000) {
+      return Err({
+        code: "INVALID_INPUT",
+        message: "Comment must be 1000 characters or less",
       });
     }
 

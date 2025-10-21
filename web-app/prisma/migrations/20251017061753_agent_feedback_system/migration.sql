@@ -30,6 +30,11 @@ ALTER TABLE "UserAgentRating"
 ADD CONSTRAINT "UserAgentRating_rating_check" 
 CHECK (rating >= 1 AND rating <= 5);
 
+-- Add CHECK constraint for comment length (max 1000 characters)
+ALTER TABLE "UserAgentRating" 
+ADD CONSTRAINT "UserAgentRating_comment_length_check" 
+CHECK (comment IS NULL OR length(comment) <= 1000);
+
 -- Add indexes for rating queries performance
 CREATE INDEX "UserAgentRating_agentId_idx" ON "UserAgentRating"("agentId");
 CREATE INDEX "UserAgentRating_createdAt_idx" ON "UserAgentRating"("createdAt" DESC);

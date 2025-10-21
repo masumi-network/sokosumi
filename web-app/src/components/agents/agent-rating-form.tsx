@@ -59,6 +59,8 @@ export function AgentRatingForm({
     }
   };
 
+  const commentMaxLength = 1000;
+
   return (
     <div className={cn("space-y-4", className)}>
       <div>
@@ -98,7 +100,13 @@ export function AgentRatingForm({
           placeholder={t("commentPlaceholder")}
           className="min-h-[80px]"
           disabled={isSubmitting}
+          maxLength={commentMaxLength}
         />
+        {comment.length > 0 && (
+          <p className="text-muted-foreground mt-1 text-right text-xs">
+            {`${comment.length}/${commentMaxLength}`}
+          </p>
+        )}
       </div>
 
       <Button

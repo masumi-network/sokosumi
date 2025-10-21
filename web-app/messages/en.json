@@ -72,6 +72,7 @@
         "updateRating": "Update rating",
         "commentLabel": "Comment (optional)",
         "commentPlaceholder": "Share your experience...",
+        "commentTooLong": "Comment must be 1000 characters or less",
         "submitButton": "Submit rating",
         "submitting": "Submitting...",
         "successMessage": "Thank you for your feedback!",
