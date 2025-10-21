@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AgentRatingStats } from "@/lib/db/repositories/agentRating.repository";
 import { formatDuration } from "@/lib/utils";
 
-function AgentDetailSection2({
+function AgentDetailStats({
   executedJobsCount,
   averageExecutionDuration,
   ratingStats,
@@ -15,7 +15,7 @@ function AgentDetailSection2({
   averageExecutionDuration: number;
   ratingStats?: AgentRatingStats;
 }) {
-  const t = useTranslations("Components.Agents.AgentDetail.Section2");
+  const t = useTranslations("Components.Agents.AgentDetail.Stats");
   const formatter = useFormatter();
   const tDuration = useTranslations("Library.Duration.Long");
 
@@ -72,7 +72,7 @@ function AgentDetailSection2({
   );
 }
 
-function AgentDetailSection2Skeleton() {
+function AgentDetailStatsSkeleton() {
   return (
     <div className="flex flex-col gap-0.5">
       <div className="flex items-center gap-1.5">
@@ -84,4 +84,4 @@ function AgentDetailSection2Skeleton() {
   );
 }
 
-export { AgentDetailSection2, AgentDetailSection2Skeleton };
+export { AgentDetailStats, AgentDetailStatsSkeleton };

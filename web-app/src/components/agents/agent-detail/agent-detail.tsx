@@ -11,16 +11,16 @@ import {
 import { cn } from "@/lib/utils";
 
 import { CardSection } from "./card-section";
-import { AgentDetailSection1, AgentDetailSection1Skeleton } from "./section-1";
-import { AgentDetailSection2, AgentDetailSection2Skeleton } from "./section-2";
-import { AgentDetailSection3, AgentDetailSection3Skeleton } from "./section-3";
-import { AgentDetailSection4, AgentDetailSection4Skeleton } from "./section-4";
-import { AgentDetailSection5, AgentDetailSection5Skeleton } from "./section-5";
-import { AgentDetailSection6, AgentDetailSection6Skeleton } from "./section-6";
+import { AgentDetailHeader, AgentDetailHeaderSkeleton } from "./header";
+import { AgentDetailStats, AgentDetailStatsSkeleton } from "./stats";
+import { AgentDetailOverview, AgentDetailOverviewSkeleton } from "./overview";
 import {
-  AgentDetailRatingSection,
-  AgentDetailRatingSectionSkeleton,
-} from "./section-rating";
+  AgentDetailExamples,
+  AgentDetailExamplesSkeleton,
+} from "./examples/examples";
+import { AgentDetailLegal, AgentDetailLegalSkeleton } from "./legal";
+import { AgentDetailRisk, AgentDetailRiskSkeleton } from "./risk";
+import { AgentDetailReviews, AgentDetailReviewsSkeleton } from "./reviews";
 
 interface AgentDetailProps {
   agent: AgentWithCreditsPrice;
@@ -67,7 +67,7 @@ export function AgentDetail({
   return (
     <div className={cn("flex w-full max-w-3xl flex-col gap-1.5", className)}>
       <CardSection className={cardClassName}>
-        <AgentDetailSection1
+        <AgentDetailHeader
           agent={agent}
           favoriteAgents={favoriteAgents}
           showBackButton={showBackButton}
@@ -76,31 +76,31 @@ export function AgentDetail({
         />
       </CardSection>
       <CardSection className={cardClassName}>
-        <AgentDetailSection2
+        <AgentDetailStats
           executedJobsCount={executedJobsCount}
           averageExecutionDuration={averageExecutionDuration}
           ratingStats={ratingStats}
         />
       </CardSection>
       <CardSection className={cardClassName}>
-        <AgentDetailSection3 agent={agent} />
+        <AgentDetailOverview agent={agent} />
       </CardSection>
       {exampleOutputs.length > 0 && (
         <CardSection className={cardClassName}>
-          <AgentDetailSection4 exampleOutputs={exampleOutputs} />
+          <AgentDetailExamples exampleOutputs={exampleOutputs} />
         </CardSection>
       )}
       {legal && (
         <CardSection className={cardClassName}>
-          <AgentDetailSection5 legal={legal} />
+          <AgentDetailLegal legal={legal} />
         </CardSection>
       )}
       <CardSection className={cardClassName}>
-        <AgentDetailSection6 agent={agent} />
+        <AgentDetailRisk agent={agent} />
       </CardSection>
       {(ratingStats.totalRatings > 0 || canRate) && (
         <CardSection className={cardClassName}>
-          <AgentDetailRatingSection
+          <AgentDetailReviews
             agentId={agent.id}
             ratingStats={ratingStats}
             distribution={ratingDistribution ?? {}}
@@ -122,25 +122,25 @@ export function AgentDetailSkeleton({
   return (
     <div className={cn("flex w-full max-w-3xl flex-col gap-1.5", className)}>
       <CardSection>
-        <AgentDetailSection1Skeleton />
+        <AgentDetailHeaderSkeleton />
       </CardSection>
       <CardSection>
-        <AgentDetailSection2Skeleton />
+        <AgentDetailStatsSkeleton />
       </CardSection>
       <CardSection>
-        <AgentDetailSection3Skeleton />
+        <AgentDetailOverviewSkeleton />
       </CardSection>
       <CardSection>
-        <AgentDetailSection4Skeleton />
+        <AgentDetailExamplesSkeleton />
       </CardSection>
       <CardSection>
-        <AgentDetailSection5Skeleton />
+        <AgentDetailLegalSkeleton />
       </CardSection>
       <CardSection>
-        <AgentDetailSection6Skeleton />
+        <AgentDetailRiskSkeleton />
       </CardSection>
       <CardSection>
-        <AgentDetailRatingSectionSkeleton />
+        <AgentDetailReviewsSkeleton />
       </CardSection>
     </div>
   );

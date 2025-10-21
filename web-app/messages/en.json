@@ -79,13 +79,15 @@
         "selectRating": "Please select a rating",
         "eligibilityMessage": "Complete a job to rate this agent",
         "star": "{count} star",
-        "percentage": "{percentage}%",
-        "beFirstToReview": "Be the first to write a review!",
-        "signInToReview": "Sign in to write a review",
-        "signIn": "Sign in",
+        "percentage": "{percentage}%"
+      },
+      "Reviews": {
         "customerReviews": "Customer Reviews",
         "viewAllReviews": "View all reviews",
-        "noReviewsYet": "No reviews yet"
+        "noReviewsYet": "No reviews yet",
+        "beFirstToReview": "Be the first to write a review!",
+        "signInToReview": "Sign in to write a review",
+        "signIn": "Sign in"
       },
       "agentsNotAvailable": "No agents available",
       "agentsNotFound": "No Agents found",
@@ -101,29 +103,29 @@
         "showMore": "Show More"
       },
       "AgentDetail": {
-        "Section1": {
+        "Header": {
           "pricing": "{credits, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
         },
-        "Section2": {
+        "Stats": {
           "executedJobs": "Executed Jobs",
           "averageExecutionTime": "Average Execution Time",
           "rating": "Rating"
         },
-        "Section3": {
+        "Overview": {
           "description": "Description",
           "tags": "At a Glance"
         },
-        "Section4": {
+        "Examples": {
           "title": "Example Outputs",
           "download": "Download"
         },
-        "Section5": {
+        "Legal": {
           "title": "From the developer",
           "privacyPolicy": "Privacy Policy",
           "terms": "Terms",
           "other": "Other"
         },
-        "Section6": {
+        "Risk": {
           "title": "EU AI Act Risk Classification"
         }
       },

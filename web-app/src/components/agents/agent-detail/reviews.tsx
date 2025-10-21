@@ -11,7 +11,7 @@ import {
   UserAgentRatingWithUser,
 } from "@/lib/db/repositories/agentRating.repository";
 
-interface AgentDetailRatingSectionProps {
+interface AgentDetailReviewsProps {
   agentId: string;
   ratingStats: AgentRatingStats;
   distribution: Record<number, number>;
@@ -23,15 +23,16 @@ interface AgentDetailRatingSectionProps {
   } | null;
 }
 
-export async function AgentDetailRatingSection({
+export async function AgentDetailReviews({
   agentId,
   ratingStats,
   distribution,
   ratingsWithComments,
   canRate,
   existingRating,
-}: AgentDetailRatingSectionProps) {
-  const t = await getTranslations("Components.Agents.Rating");
+}: AgentDetailReviewsProps) {
+  const t = await getTranslations("Components.Agents.Reviews");
+  const tRating = await getTranslations("Components.Agents.Rating");
 
   const hasRatings = ratingStats.totalRatings > 0;
 
@@ -112,7 +113,7 @@ export async function AgentDetailRatingSection({
   );
 }
 
-export function AgentDetailRatingSectionSkeleton() {
+export function AgentDetailReviewsSkeleton() {
   return (
     <div className="space-y-6">
       <div>
