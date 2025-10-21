@@ -97,13 +97,7 @@ function StarIcon({ fillPercentage, size = "md" }: StarIconProps) {
   };
 
   return (
-    <svg
-      viewBox="0 0 24 24"
-      className={sizeMap[size]}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1"
-    >
+    <svg viewBox="0 0 24 24" className={sizeMap[size]} fill="none">
       <defs>
         <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
           <stop
