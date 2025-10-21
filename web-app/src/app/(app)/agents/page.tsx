@@ -2,7 +2,7 @@ import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { AgentsNotAvailable } from "@/components/agents";
-import { tagRepository } from "@/lib/db/repositories";
+import { agentRatingRepository, tagRepository } from "@/lib/db/repositories";
 import { agentService } from "@/lib/services";
 import { Tag } from "@/prisma/generated/client";
 
@@ -31,6 +31,11 @@ export default async function GalleryPage() {
 
   const favoriteAgents = await agentService.getFavoriteAgents();
 
+  // Fetch rating stats for all agents
+  const agentIds = agentsWithPrice.map((agent) => agent.id);
+  const ratingStatsMap =
+    await agentRatingRepository.getAgentsRatingStats(agentIds);
+
   return (
     <div className="w-full">
       <div className="space-y-12">
@@ -39,6 +44,7 @@ export default async function GalleryPage() {
         <FilteredAgents
           agents={agentsWithPrice}
           favoriteAgents={favoriteAgents}
+          ratingStatsMap={ratingStatsMap}
         />
       </div>
     </div>

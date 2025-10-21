@@ -4,7 +4,6 @@ export * from "./agent-card";
 export * from "./agent-detail";
 export * from "./agent-detail-link";
 export * from "./agent-hire-button";
-export * from "./agent-rating-display";
 export * from "./agent-verified-badge";
 export * from "./agents";
 export * from "./star-rating";

@@ -29,9 +29,9 @@ import {
 import { AgentBookmarkButton } from "./agent-bookmark-button";
 import { AgentDetailLink } from "./agent-detail-link";
 import { AgentHireButton } from "./agent-hire-button";
-import { AgentRatingDisplay } from "./agent-rating-display";
 import AgentSummary from "./agent-summary";
 import { AgentVerifiedBadge } from "./agent-verified-badge";
+import { StarRating } from "./star-rating";
 
 const agentCardVariants = cva("flex rounded-lg border-none p-1 shadow-none", {
   variants: {
@@ -407,7 +407,16 @@ function AgentCard({
                 <h3 className={agentCardNameVariants({ size })}>
                   {getAgentName(agent)}
                 </h3>
-                <AgentVerifiedBadge />
+                {ratingStats && ratingStats.totalRatings > 0 ? (
+                  <StarRating
+                    averageRating={ratingStats.averageRating}
+                    totalRatings={ratingStats.totalRatings}
+                    size="sm"
+                    showRatingNumber={false}
+                  />
+                ) : (
+                  <AgentVerifiedBadge />
+                )}
               </div>
               {summary && (
                 <div className={agentCardSummaryContainerVariants({ size })}>
@@ -417,13 +426,6 @@ function AgentCard({
               <p className={agentCardAuthorVariants({ size })}>
                 {getShortAgentAuthorName(agent)}
               </p>
-              {ratingStats && (
-                <AgentRatingDisplay
-                  averageRating={ratingStats.averageRating}
-                  totalRatings={ratingStats.totalRatings}
-                  size="sm"
-                />
-              )}
             </div>
 
             {/* Pricing and Buttons */}

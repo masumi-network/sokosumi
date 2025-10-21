@@ -62,6 +62,7 @@ function AgentDetailSection2({
             <StarRating
               averageRating={ratingStats.averageRating}
               totalRatings={ratingStats.totalRatings}
+              showRatingNumber={true}
               size="md"
             />
           </div>

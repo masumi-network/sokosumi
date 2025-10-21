@@ -1,10 +1,13 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { cn } from "@/lib/utils";
 
 interface StarRatingProps {
   averageRating: number;
   totalRatings?: number; // If provided, shows full display; if not, shows only stars
+  showRatingNumber?: boolean; // If false, hides the rating number (e.g., "3.7")
   size?: "sm" | "md" | "lg";
   className?: string;
 }
@@ -12,9 +15,34 @@ interface StarRatingProps {
 export function StarRating({
   averageRating,
   totalRatings,
+  showRatingNumber = true,
   size = "md",
   className,
 }: StarRatingProps) {
+  const t = useTranslations("Components.Agents.Rating");
+
+  const textSizeClasses = {
+    xs: "text-xs",
+    sm: "text-sm",
+    md: "text-base",
+    lg: "text-lg",
+  };
+
+  // Handle no ratings case
+  if (totalRatings === 0) {
+    return (
+      <div
+        className={cn(
+          "text-muted-foreground flex items-center gap-1",
+          textSizeClasses[size],
+          className,
+        )}
+      >
+        <span>{t("noRatings")}</span>
+      </div>
+    );
+  }
+
   // Calculate star fills based on average rating
   const fullStars = Math.floor(averageRating);
   const partialFillPercent = (averageRating % 1) * 100;
@@ -38,12 +66,6 @@ export function StarRating({
     starFills.push(0);
   }
 
-  const textSizeClasses = {
-    sm: "text-xs",
-    md: "text-sm",
-    lg: "text-base",
-  };
-
   // If totalRatings is not provided, show only stars
   if (totalRatings === undefined) {
     return (
@@ -58,10 +80,12 @@ export function StarRating({
   // Full rating display with text and count
   return (
     <div className={cn("flex items-center gap-1", className)}>
-      {/* Rating number */}
-      <span className={cn("font-medium", textSizeClasses[size])}>
-        {averageRating.toFixed(1)}
-      </span>
+      {/* Rating number - only show if showRatingNumber is true */}
+      {showRatingNumber && (
+        <span className={cn("font-medium", textSizeClasses[size])}>
+          {averageRating.toFixed(1)}
+        </span>
+      )}
 
       {/* Stars */}
       <div className="flex items-center gap-0.5">

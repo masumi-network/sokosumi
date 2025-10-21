@@ -111,6 +111,47 @@ export const agentRatingRepository = {
   },
 
   /**
+   * Get aggregate rating statistics for multiple agents
+   */
+  async getAgentsRatingStats(
+    agentIds: string[],
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<Record<string, AgentRatingStats>> {
+    if (agentIds.length === 0) {
+      return {};
+    }
+
+    const results = await tx.userAgentRating.groupBy({
+      by: ["agentId"],
+      where: {
+        agentId: { in: agentIds },
+      },
+      _count: { rating: true },
+      _avg: { rating: true },
+    });
+
+    const ratingStatsMap: Record<string, AgentRatingStats> = {};
+
+    // Initialize all agents with zero ratings
+    agentIds.forEach((agentId) => {
+      ratingStatsMap[agentId] = {
+        totalRatings: 0,
+        averageRating: 0,
+      };
+    });
+
+    // Update with actual data
+    results.forEach((result) => {
+      ratingStatsMap[result.agentId] = {
+        totalRatings: result._count.rating,
+        averageRating: result._avg.rating ?? 0,
+      };
+    });
+
+    return ratingStatsMap;
+  },
+
+  /**
    * Get aggregate rating statistics for an agent
    */
   async getAgentRatingStats(

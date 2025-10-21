@@ -1,7 +1,7 @@
 import { getTranslations } from "next-intl/server";
 
-import { AgentRatingDisplay } from "@/components/agents/agent-rating-display";
 import { AgentRatingForm } from "@/components/agents/agent-rating-form";
+import { StarRating } from "@/components/agents/star-rating";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getAuthContext } from "@/lib/auth/utils";
 import { AgentRatingStats } from "@/lib/db/repositories/agentRating.repository";
@@ -34,7 +34,7 @@ export async function AgentDetailRatingSection({
     <div className="space-y-4">
       <div>
         <h3 className="text-lg font-medium">{t("title")}</h3>
-        <AgentRatingDisplay
+        <StarRating
           averageRating={ratingStats.averageRating}
           totalRatings={ratingStats.totalRatings}
           size="lg"
