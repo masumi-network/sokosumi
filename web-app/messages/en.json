@@ -69,6 +69,7 @@
         "totalRatings": "{count} ratings",
         "submitRating": "Rate this agent",
         "ratingLabel": "Your rating",
+        "updateRating": "Update rating",
         "commentLabel": "Comment (optional)",
         "commentPlaceholder": "Share your experience...",
         "submitButton": "Submit rating",
