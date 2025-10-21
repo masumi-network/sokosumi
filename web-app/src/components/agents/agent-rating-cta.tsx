@@ -1,6 +1,7 @@
 "use client";
 
 import { Star } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -34,14 +35,14 @@ export function AgentRatingCTA({
   className,
   disabled,
 }: AgentRatingCTAProps) {
+  const router = useRouter();
   const t = useTranslations("Components.Agents.Rating");
   const [isOpen, setIsOpen] = useState(false);
 
   const handleSuccess = () => {
     setIsOpen(false);
     toast.success(t("successMessage"));
-    // Refresh the page to update rating stats
-    window.location.reload();
+    router.refresh();
   };
 
   return (

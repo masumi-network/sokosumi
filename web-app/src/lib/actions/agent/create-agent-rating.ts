@@ -74,7 +74,7 @@ export async function createAgentRating(
     await agentService.submitAgentRating(agentId, rating, comment ?? null);
 
     // Revalidate relevant paths
-    revalidatePath(`/agents/${agentId}`);
+    revalidatePath(`/agents/${agentId}`, "layout");
     revalidatePath("/agents");
 
     return Ok(undefined);
