@@ -25,6 +25,7 @@ export interface UserAgentRatingWithUser {
 export const agentRatingRepository = {
   /**
    * Create or update a user's rating for an agent (atomic upsert)
+   * @param rating - Integer rating from 1 to 5 (inclusive)
    */
   async upsertRating(
     userId: string,

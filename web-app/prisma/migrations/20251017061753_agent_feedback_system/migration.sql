@@ -25,7 +25,7 @@ CREATE UNIQUE INDEX "UserAgentRating_userId_agentId_key" ON "UserAgentRating"("u
 -- DropTable
 DROP TABLE "AgentRating";
 
--- Add CHECK constraint for rating (0-5)
+-- Add CHECK constraint for rating (1-5)
 ALTER TABLE "UserAgentRating" 
 ADD CONSTRAINT "UserAgentRating_rating_check" 
-CHECK (rating >= 0 AND rating <= 5);
+CHECK (rating >= 1 AND rating <= 5);

@@ -460,8 +460,8 @@ export const agentService = (() => {
       }
 
       // Validate rating
-      if (rating < 0 || rating > 5 || !Number.isInteger(rating)) {
-        throw new Error("Rating must be an integer between 0 and 5");
+      if (rating < 1 || rating > 5 || !Number.isInteger(rating)) {
+        throw new Error("Rating must be an integer between 1 and 5");
       }
 
       await prisma.$transaction(async (tx) => {

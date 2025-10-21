@@ -32,10 +32,10 @@ export async function createAgentRating(
     }
 
     // Validate rating
-    if (!Number.isInteger(rating) || rating < 0 || rating > 5) {
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
       return Err({
         code: "INVALID_RATING",
-        message: "Rating must be an integer between 0 and 5",
+        message: "Rating must be an integer between 1 and 5",
       });
     }
 
