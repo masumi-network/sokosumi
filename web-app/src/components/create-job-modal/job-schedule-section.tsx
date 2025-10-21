@@ -24,7 +24,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { JobScheduleType } from "@/lib/db/types/job";
+import {
+  JobScheduleEndsMode,
+  JobScheduleSelectionType,
+  JobScheduleType,
+} from "@/lib/db/types/job";
 import {
   computeNextOccurrence,
   DOW,
@@ -76,16 +80,6 @@ function derivePresetFromCron(cron: string): {
     default:
       return null;
   }
-}
-
-export interface ScheduleSelection {
-  mode: JobScheduleType;
-  timezone: string;
-  oneTimeLocalIso?: string;
-  cron?: string;
-  endsMode?: "never" | "on" | "after";
-  endOnLocalDate?: string; // YYYY-MM-DD (no time)
-  endAfterOccurrences?: number;
 }
 
 type ValidationErrors = {
@@ -227,8 +221,8 @@ function parseTimeOrNow(
 
 interface Props {
   timezoneOptions: string[];
-  initialSelection?: ScheduleSelection | null;
-  onSave: (selection: ScheduleSelection) => void;
+  initialSelection?: JobScheduleSelectionType | null;
+  onSave: (selection: JobScheduleSelectionType) => void;
   onCancel: () => void;
 }
 
@@ -253,7 +247,9 @@ export function JobScheduleSection(props: Props) {
     "day" | "week" | "month"
   >("day");
   const [repeatWeekdays, setRepeatWeekdays] = useState<Dow[]>(["MON"]);
-  const [endsMode, setEndsMode] = useState<"never" | "on" | "after">("never");
+  const [endsMode, setEndsMode] = useState<JobScheduleEndsMode>(
+    JobScheduleEndsMode.NEVER,
+  );
   const [endOnDate, setEndOnDate] = useState<Date | undefined>(undefined);
   const [endAfterOccurrences, setEndAfterOccurrences] = useState<number>(13);
   const [timeOfDay, setTimeOfDay] = useState<string>(getDefaultTime());
@@ -512,13 +508,16 @@ export function JobScheduleSection(props: Props) {
       const interval = cronParser.parse(cron, options);
       const maxCount = Math.max(
         1,
-        Math.min(3, endsMode === "after" ? endAfterOccurrences : 3),
+        Math.min(
+          3,
+          endsMode === JobScheduleEndsMode.AFTER ? endAfterOccurrences : 3,
+        ),
       );
       const results: string[] = [];
       let safety = 20;
       while (results.length < maxCount && safety > 0) {
         const nextDate = interval.next().toDate();
-        if (endsMode === "on" && endOnDate) {
+        if (endsMode === JobScheduleEndsMode.ON && endOnDate) {
           if (nextDate > endOnDate) break;
         }
         results.push(
@@ -552,11 +551,13 @@ export function JobScheduleSection(props: Props) {
           cron: fallback,
           endsMode,
           endOnLocalDate:
-            endsMode === "on" && endOnDate
+            endsMode === JobScheduleEndsMode.ON && endOnDate
               ? `${endOnDate.getFullYear()}-${String(endOnDate.getMonth() + 1).padStart(2, "0")}-${String(endOnDate.getDate()).padStart(2, "0")}`
               : undefined,
           endAfterOccurrences:
-            endsMode === "after" ? Math.max(1, endAfterOccurrences) : undefined,
+            endsMode === JobScheduleEndsMode.AFTER
+              ? Math.max(1, endAfterOccurrences)
+              : undefined,
         });
         return;
       }
@@ -569,11 +570,11 @@ export function JobScheduleSection(props: Props) {
           ? {
               endsMode,
               endOnLocalDate:
-                endsMode === "on" && endOnDate
+                endsMode === JobScheduleEndsMode.ON && endOnDate
                   ? `${endOnDate.getFullYear()}-${String(endOnDate.getMonth() + 1).padStart(2, "0")}-${String(endOnDate.getDate()).padStart(2, "0")}`
                   : undefined,
               endAfterOccurrences:
-                endsMode === "after"
+                endsMode === JobScheduleEndsMode.AFTER
                   ? Math.max(1, endAfterOccurrences)
                   : undefined,
             }
@@ -834,15 +835,18 @@ export function JobScheduleSection(props: Props) {
             <Label className="text-base">{t("ends")}</Label>
             <RadioGroup
               value={endsMode}
-              onValueChange={(v) => setEndsMode(v as "never" | "on" | "after")}
+              onValueChange={(v) => setEndsMode(v as JobScheduleEndsMode)}
               className="space-y-3"
             >
               <div className="flex items-center gap-3">
-                <RadioGroupItem id="ends-never" value="never" />
+                <RadioGroupItem
+                  id="ends-never"
+                  value={JobScheduleEndsMode.NEVER}
+                />
                 <Label htmlFor="ends-never">{t("never")}</Label>
               </div>
               <div className="flex items-center gap-3">
-                <RadioGroupItem id="ends-on" value="on" />
+                <RadioGroupItem id="ends-on" value={JobScheduleEndsMode.ON} />
                 <Label htmlFor="ends-on" className="mr-2 min-w-10">
                   {t("on")}
                 </Label>
@@ -876,7 +880,10 @@ export function JobScheduleSection(props: Props) {
                 ) : null}
               </div>
               <div className="flex items-center gap-3">
-                <RadioGroupItem id="ends-after" value="after" />
+                <RadioGroupItem
+                  id="ends-after"
+                  value={JobScheduleEndsMode.AFTER}
+                />
                 <Label htmlFor="ends-after" className="mr-2 min-w-10">
                   {t("after")}
                 </Label>

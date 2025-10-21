@@ -1,9 +1,6 @@
 "use client";
 
-import {
-  JobScheduleSection,
-  type ScheduleSelection,
-} from "@/components/create-job-modal/job-schedule-section";
+import { JobScheduleSection } from "@/components/create-job-modal/job-schedule-section";
 import {
   Dialog,
   DialogContent,
@@ -11,13 +8,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { JobScheduleSelectionType } from "@/lib/db/types/job";
 
 interface JobScheduleModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   timezoneOptions: string[];
-  selection?: ScheduleSelection | null;
-  onSave: (selection: ScheduleSelection) => void;
+  selection?: JobScheduleSelectionType | null;
+  onSave: (selection: JobScheduleSelectionType) => void;
   onCancel: () => void;
   disableOutsideClose?: boolean;
 }

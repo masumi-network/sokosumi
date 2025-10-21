@@ -17,7 +17,6 @@ import { toast } from "sonner";
 
 import { useCreateJobModalContext } from "@/components/create-job-modal";
 import { JobScheduleModal } from "@/components/create-job-modal/job-schedule-modal";
-import { type ScheduleSelection } from "@/components/create-job-modal/job-schedule-section";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { useAsyncRouter } from "@/hooks/use-async-router";
@@ -37,7 +36,7 @@ import {
   convertCentsToCredits,
   getAgentName,
 } from "@/lib/db";
-import { JobScheduleType } from "@/lib/db/types/job";
+import { JobScheduleSelectionType, JobScheduleType } from "@/lib/db/types/job";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import {
   defaultValues,
@@ -89,7 +88,7 @@ export default function JobInputsFormClient({
 
   const [scheduleOpen, setScheduleOpen] = React.useState(false);
   const [scheduleSelection, setScheduleSelection] =
-    React.useState<ScheduleSelection | null>(null);
+    React.useState<JobScheduleSelectionType | null>(null);
   const timezoneOptions =
     typeof (Intl as unknown as { supportedValuesOf?: (k: string) => string[] })
       .supportedValuesOf === "function"
@@ -132,82 +131,15 @@ export default function JobInputsFormClient({
         return;
       }
 
-      const transformedInputData = filterOutNullValues(values);
-      if (scheduleSelection.mode === JobScheduleType.ONE_TIME) {
-        const nextRunAtUtc = new Date(
-          scheduleSelection.oneTimeLocalIso!,
-        ).toISOString();
-        const scheduleRes = await createSchedule({
-          input: {
-            userId: session.data.user.id,
-            organizationId: session.data.session.activeOrganizationId ?? null,
-            agentId: agentId,
-            scheduleType: JobScheduleType.ONE_TIME,
-            timezone: scheduleSelection.timezone,
-            inputSchema: input_data,
-            inputData: transformedInputData,
-            maxAcceptedCents: creditsPrice.cents,
-            oneTimeAtUtc: nextRunAtUtc,
-            nextRunAt: nextRunAtUtc,
-            isActive: true,
-            pauseReason: null,
-            lastRunAt: null,
-          },
-        });
-        result = scheduleRes.ok
-          ? {
-              ok: true,
-              data: { jobId: "", scheduleId: scheduleRes.data.scheduleId },
-            }
-          : {
-              ok: false,
-              error: { code: CommonErrorCode.INTERNAL_SERVER_ERROR },
-            };
-      } else {
-        const cron = scheduleSelection.cron!;
-        const initialNext = computeNextRun({
-          cron,
-          timezone: scheduleSelection.timezone,
-        });
-        const endOnUtcIso =
-          scheduleSelection.endsMode === "on" &&
-          scheduleSelection.endOnLocalDate
-            ? new Date(
-                `${scheduleSelection.endOnLocalDate}T23:59:59.999`,
-              ).toISOString()
-            : undefined;
-        const scheduleRes = await createSchedule({
-          input: {
-            userId: session.data.user.id,
-            organizationId: session.data.session.activeOrganizationId ?? null,
-            agentId: agentId,
-            scheduleType: JobScheduleType.CRON,
-            timezone: scheduleSelection.timezone,
-            inputSchema: input_data,
-            inputData: transformedInputData,
-            maxAcceptedCents: creditsPrice.cents,
-            cron,
-            nextRunAt: initialNext?.toISOString() ?? new Date().toISOString(),
-            endOnUtc: endOnUtcIso,
-            endAfterOccurrences:
-              scheduleSelection.endsMode === "after"
-                ? scheduleSelection.endAfterOccurrences
-                : undefined,
-            isActive: true,
-            pauseReason: null,
-            lastRunAt: null,
-          },
-        });
-        result = scheduleRes.ok
-          ? {
-              ok: true,
-              data: { jobId: "", scheduleId: scheduleRes.data.scheduleId },
-            }
-          : {
-              ok: false,
-              error: { code: CommonErrorCode.INTERNAL_SERVER_ERROR },
-            };
-      }
+      result = await createSchedule({
+        input: {
+          agentId: agentId,
+          inputSchema: input_data,
+          inputData: transformedInputData,
+          maxAcceptedCents: creditsPrice.cents,
+        },
+        scheduleSelection: scheduleSelection,
+      });
     } else {
       result = await startJob({
         input: {
@@ -400,7 +332,7 @@ export default function JobInputsFormClient({
         onOpenChange={setScheduleOpen}
         selection={scheduleSelection}
         timezoneOptions={timezoneOptions}
-        onSave={(sel: ScheduleSelection) => {
+        onSave={(sel: JobScheduleSelectionType) => {
           setScheduleSelection(sel);
           setScheduleOpen(false);
         }}

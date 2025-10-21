@@ -6,8 +6,11 @@ import { revalidatePath } from "next/cache";
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes";
 import { handleInputDataFileUploads } from "@/lib/actions/job/utils";
 import { jobScheduleRepository } from "@/lib/db/repositories";
-import { JobScheduleType } from "@/lib/db/types/job";
-import { CreateJobScheduleInputSchemaType } from "@/lib/schemas/job";
+import { JobScheduleEndsMode, JobScheduleType } from "@/lib/db/types/job";
+import {
+  CreateJobScheduleInputSchemaType,
+  StartJobInputSchemaType,
+} from "@/lib/schemas/job";
 import { Result } from "@/lib/ts-res";
 import { computeNextRun } from "@/lib/utils/cron";
 import {
@@ -16,45 +19,73 @@ import {
 } from "@/middleware/auth-middleware";
 import { Prisma } from "@/prisma/generated/client";
 
+interface StartJobScheduleParameters extends AuthenticatedRequest {
+  input: Omit<StartJobInputSchemaType, "userId" | "organizationId">;
+}
+interface ScheduleSelectionPayload {
+  mode: JobScheduleType;
+  timezone: string;
+  oneTimeLocalIso?: string;
+  cron?: string;
+  endsMode?: JobScheduleEndsMode;
+  endOnLocalDate?: string; // YYYY-MM-DD
+  endAfterOccurrences?: number;
+}
+
 interface CreateScheduleInput extends AuthenticatedRequest {
-  input: CreateJobScheduleInputSchemaType;
+  input: StartJobScheduleParameters["input"];
+  scheduleSelection: ScheduleSelectionPayload;
 }
 
 export const createSchedule = withAuthContext<
   CreateScheduleInput,
-  Result<{ scheduleId: string }, { code: string; message: string }>
->(async ({ input, authContext }) => {
+  Result<
+    { jobId: string; scheduleId: string },
+    { code: string; message: string }
+  >
+>(async ({ input, scheduleSelection, authContext }) => {
   try {
     // Upload any Files in the input map to blob storage and replace with URLs
     if (input.inputData) {
       await handleInputDataFileUploads(authContext.userId, input.inputData);
     }
 
-    // Derive nextRunAt on the server and validate inputs
+    // Derive schedule fields from selection and validate
+    let scheduleType: JobScheduleType | null = null;
+    let cron: string | null = null;
+    let oneTimeAtUtc: string | undefined;
+    let endOnUtc: string | undefined;
+    let endAfterOccurrences: number | undefined;
     let nextRunAtIso: string | undefined;
-    if (input.scheduleType === JobScheduleType.ONE_TIME) {
-      if (!input.oneTimeAtUtc) {
+
+    if (scheduleSelection.mode === JobScheduleType.ONE_TIME) {
+      scheduleType = JobScheduleType.ONE_TIME;
+      if (!scheduleSelection.oneTimeLocalIso) {
         return {
           ok: false,
           error: {
             code: CommonErrorCode.BAD_INPUT,
-            message: "oneTimeAtUtc required",
+            message: "oneTimeLocalIso required",
           },
         };
       }
-      const parsed = new Date(input.oneTimeAtUtc);
+      // NOTE: This treats the provided local ISO as local time and converts using the runtime timezone,
+      // matching previous client behavior. We rely on timezone only for CRON calculations.
+      const parsed = new Date(scheduleSelection.oneTimeLocalIso);
       if (Number.isNaN(parsed.getTime())) {
         return {
           ok: false,
           error: {
             code: CommonErrorCode.BAD_INPUT,
-            message: "Invalid oneTimeAtUtc",
+            message: "Invalid oneTimeLocalIso",
           },
         };
       }
-      nextRunAtIso = parsed.toISOString();
-    } else if (input.scheduleType === JobScheduleType.CRON) {
-      if (!input.cron || !input.timezone) {
+      oneTimeAtUtc = parsed.toISOString();
+      nextRunAtIso = oneTimeAtUtc;
+    } else if (scheduleSelection.mode === JobScheduleType.CRON) {
+      scheduleType = JobScheduleType.CRON;
+      if (!scheduleSelection.cron || !scheduleSelection.timezone) {
         return {
           ok: false,
           error: {
@@ -63,9 +94,10 @@ export const createSchedule = withAuthContext<
           },
         };
       }
+      cron = scheduleSelection.cron;
       const next = computeNextRun({
-        cron: input.cron,
-        timezone: input.timezone,
+        cron,
+        timezone: scheduleSelection.timezone,
       });
       if (!next) {
         return {
@@ -77,12 +109,23 @@ export const createSchedule = withAuthContext<
         };
       }
       nextRunAtIso = next.toISOString();
+
+      if (
+        scheduleSelection.endsMode === JobScheduleEndsMode.ON &&
+        scheduleSelection.endOnLocalDate
+      ) {
+        const e = new Date(`${scheduleSelection.endOnLocalDate}T23:59:59.999`);
+        endOnUtc = e.toISOString();
+      }
+      if (scheduleSelection.endsMode === JobScheduleEndsMode.AFTER) {
+        endAfterOccurrences = scheduleSelection.endAfterOccurrences;
+      }
     } else {
       return {
         ok: false,
         error: {
           code: CommonErrorCode.BAD_INPUT,
-          message: "Unsupported scheduleType",
+          message: "Unsupported schedule mode",
         },
       };
     }
@@ -93,23 +136,15 @@ export const createSchedule = withAuthContext<
         organizationId: authContext.organizationId,
       }),
       agentId: input.agentId,
-      scheduleType: input.scheduleType,
-      cron:
-        input.scheduleType === JobScheduleType.CRON
-          ? (input.cron ?? null)
-          : null,
-      oneTimeAtUtc:
-        input.scheduleType === JobScheduleType.ONE_TIME
-          ? new Date(input.oneTimeAtUtc as string).toISOString()
-          : undefined,
-      timezone: input.timezone,
+      scheduleType: scheduleType!,
+      cron,
+      oneTimeAtUtc,
+      timezone: scheduleSelection.timezone,
       inputSchema: input.inputSchema,
       inputData: input.inputData,
       maxAcceptedCents: input.maxAcceptedCents,
-      endOnUtc: input.endOnUtc
-        ? new Date(input.endOnUtc).toISOString()
-        : undefined,
-      endAfterOccurrences: input.endAfterOccurrences ?? undefined,
+      endOnUtc,
+      endAfterOccurrences,
       // Server-controlled defaults
       isActive: true,
       pauseReason: null,
@@ -118,7 +153,7 @@ export const createSchedule = withAuthContext<
     };
 
     const schedule = await jobScheduleRepository.create(data);
-    return { ok: true, data: { scheduleId: schedule.id } };
+    return { ok: true, data: { jobId: "", scheduleId: schedule.id } };
   } catch (error) {
     console.error("Failed to create schedule", error);
     Sentry.captureException(error, { tags: { action: "createSchedule" } });

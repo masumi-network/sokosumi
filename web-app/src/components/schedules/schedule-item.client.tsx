@@ -4,7 +4,6 @@ import { Clock, ClockFading, Pause, PencilLine, Trash2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { startTransition, useMemo, useOptimistic, useState } from "react";
 
-import type { ScheduleSelection } from "@/components/create-job-modal/job-schedule-section";
 import { JobScheduleSection } from "@/components/create-job-modal/job-schedule-section";
 import JobDetailsInputs from "@/components/jobs/job-details/inputs";
 import {
@@ -43,7 +42,11 @@ import {
   toggleSchedule,
   updateSchedule,
 } from "@/lib/actions/job-schedule";
-import { JobScheduleType } from "@/lib/db/types/job";
+import {
+  JobScheduleEndsMode,
+  JobScheduleSelectionType,
+  JobScheduleType,
+} from "@/lib/db/types/job";
 import { JsonValue } from "@/prisma/generated/client/runtime/library";
 
 interface ScheduleRecord {
@@ -83,7 +86,7 @@ export function ScheduleItem({ schedule, title }: Props) {
     await toggleSchedule({ scheduleId: schedule.id, isActive: next });
   }
 
-  const initialSelection = useMemo<ScheduleSelection>(() => {
+  const initialSelection = useMemo<JobScheduleSelectionType>(() => {
     if (schedule.scheduleType === JobScheduleType.ONE_TIME) {
       return {
         mode: JobScheduleType.ONE_TIME,
@@ -99,10 +102,10 @@ export function ScheduleItem({ schedule, title }: Props) {
       cron: schedule.cron ?? undefined,
       // ends mapping is best-effort for preview/editing
       endsMode: schedule.endOnUtc
-        ? "on"
+        ? JobScheduleEndsMode.ON
         : schedule.endAfterOccurrences
-          ? "after"
-          : "never",
+          ? JobScheduleEndsMode.AFTER
+          : JobScheduleEndsMode.NEVER,
       endOnLocalDate: schedule.endOnUtc
         ? new Date(schedule.endOnUtc).toISOString().slice(0, 10)
         : undefined,
@@ -110,7 +113,7 @@ export function ScheduleItem({ schedule, title }: Props) {
     };
   }, [schedule]);
 
-  async function handleSave(selection: ScheduleSelection) {
+  async function handleSave(selection: JobScheduleSelectionType) {
     if (selection.mode === JobScheduleType.ONE_TIME) {
       await updateSchedule({
         scheduleId: schedule.id,
@@ -124,11 +127,7 @@ export function ScheduleItem({ schedule, title }: Props) {
         },
       });
     } else if (selection.mode === JobScheduleType.CRON) {
-      const endsMode = selection.endsMode as
-        | "never"
-        | "on"
-        | "after"
-        | undefined;
+      const endsMode = selection.endsMode as JobScheduleEndsMode | undefined;
       const endOnUtc =
         endsMode === "on" && selection.endOnLocalDate
           ? `${selection.endOnLocalDate}T23:59:59.999`
