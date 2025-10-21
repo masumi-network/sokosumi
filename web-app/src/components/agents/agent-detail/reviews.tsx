@@ -2,14 +2,14 @@ import { getTranslations } from "next-intl/server";
 
 import { AgentRatingForm } from "@/components/agents/agent-rating-form";
 import { RatingDistribution } from "@/components/agents/rating-distribution";
-import { RatingListItem } from "@/components/agents/rating-list-item";
 import { StarRating } from "@/components/agents/star-rating";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   AgentRatingStats,
   UserAgentRatingWithUser,
 } from "@/lib/db/repositories/agentRating.repository";
+
+import { ReviewsList } from "./reviews-list";
 
 interface AgentDetailReviewsProps {
   agentId: string;
@@ -79,16 +79,7 @@ export async function AgentDetailReviews({
 
           {/* Right: Customer Reviews */}
           <div>
-            <div className="space-y-4">
-              {ratingsWithComments.slice(0, 5).map((rating) => (
-                <RatingListItem key={rating.id} rating={rating} />
-              ))}
-              {ratingsWithComments.length > 5 && (
-                <Button variant="outline" className="mt-4 w-full">
-                  {t("viewAllReviews")}
-                </Button>
-              )}
-            </div>
+            <ReviewsList ratingsWithComments={ratingsWithComments} />
           </div>
         </div>
       ) : (

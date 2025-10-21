@@ -6,5 +6,6 @@ export * from "./header";
 export * from "./legal";
 export * from "./overview";
 export * from "./reviews";
+export * from "./reviews-list";
 export * from "./risk";
 export * from "./stats";
