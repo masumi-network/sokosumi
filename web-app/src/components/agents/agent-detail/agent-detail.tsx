@@ -11,16 +11,16 @@ import {
 import { cn } from "@/lib/utils";
 
 import { CardSection } from "./card-section";
-import { AgentDetailHeader, AgentDetailHeaderSkeleton } from "./header";
-import { AgentDetailStats, AgentDetailStatsSkeleton } from "./stats";
-import { AgentDetailOverview, AgentDetailOverviewSkeleton } from "./overview";
 import {
   AgentDetailExamples,
   AgentDetailExamplesSkeleton,
 } from "./examples/examples";
+import { AgentDetailHeader, AgentDetailHeaderSkeleton } from "./header";
 import { AgentDetailLegal, AgentDetailLegalSkeleton } from "./legal";
-import { AgentDetailRisk, AgentDetailRiskSkeleton } from "./risk";
+import { AgentDetailOverview, AgentDetailOverviewSkeleton } from "./overview";
 import { AgentDetailReviews, AgentDetailReviewsSkeleton } from "./reviews";
+import { AgentDetailRisk, AgentDetailRiskSkeleton } from "./risk";
+import { AgentDetailStats, AgentDetailStatsSkeleton } from "./stats";
 
 interface AgentDetailProps {
   agent: AgentWithCreditsPrice;

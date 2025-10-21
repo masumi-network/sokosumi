@@ -32,7 +32,6 @@ export async function AgentDetailReviews({
   existingRating,
 }: AgentDetailReviewsProps) {
   const t = await getTranslations("Components.Agents.Reviews");
-  const tRating = await getTranslations("Components.Agents.Rating");
 
   const hasRatings = ratingStats.totalRatings > 0;
 
