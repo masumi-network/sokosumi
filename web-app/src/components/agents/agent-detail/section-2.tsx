@@ -60,41 +60,7 @@ function AgentDetailSection2({
           </div>
           <div className="flex items-center gap-1">
             <p className="text-base">{ratingStats.averageRating.toFixed(1)}</p>
-            <div className="flex items-center gap-0.5">
-              {(() => {
-                // Calculate star fills based on average rating
-                const fullStars = Math.floor(ratingStats.averageRating);
-                const partialFillPercent =
-                  (ratingStats.averageRating % 1) * 100;
-                const hasPartialStar = partialFillPercent > 0;
-                const emptyStars = 5 - fullStars - (hasPartialStar ? 1 : 0);
-
-                const starFills: number[] = [];
-
-                // Add full stars
-                for (let i = 0; i < fullStars; i++) {
-                  starFills.push(100);
-                }
-
-                // Add partial star if needed
-                if (hasPartialStar) {
-                  starFills.push(partialFillPercent);
-                }
-
-                // Add empty stars
-                for (let i = 0; i < emptyStars; i++) {
-                  starFills.push(0);
-                }
-
-                return starFills.map((fillPercentage, index) => (
-                  <StarRating
-                    key={index}
-                    fillPercentage={fillPercentage}
-                    size="sm"
-                  />
-                ));
-              })()}
-            </div>
+            <StarRating averageRating={ratingStats.averageRating} size="sm" />
             <span className="text-muted-foreground text-xs">
               {"("}
               {formatter.number(ratingStats.totalRatings)}

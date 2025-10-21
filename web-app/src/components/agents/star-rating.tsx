@@ -2,17 +2,91 @@
 
 import { cn } from "@/lib/utils";
 
-interface StarProps {
-  fillPercentage: number; // 0-100
+interface StarRatingProps {
+  averageRating: number;
+  totalRatings?: number; // If provided, shows full display; if not, shows only stars
   size?: "sm" | "md" | "lg";
   className?: string;
 }
 
 export function StarRating({
-  fillPercentage,
+  averageRating,
+  totalRatings,
   size = "md",
   className,
-}: StarProps) {
+}: StarRatingProps) {
+  // Calculate star fills based on average rating
+  const fullStars = Math.floor(averageRating);
+  const partialFillPercent = (averageRating % 1) * 100;
+  const hasPartialStar = partialFillPercent > 0;
+  const emptyStars = 5 - fullStars - (hasPartialStar ? 1 : 0);
+
+  const starFills: number[] = [];
+
+  // Add full stars
+  for (let i = 0; i < fullStars; i++) {
+    starFills.push(100);
+  }
+
+  // Add partial star if needed
+  if (hasPartialStar) {
+    starFills.push(partialFillPercent);
+  }
+
+  // Add empty stars
+  for (let i = 0; i < emptyStars; i++) {
+    starFills.push(0);
+  }
+
+  const textSizeClasses = {
+    sm: "text-xs",
+    md: "text-sm",
+    lg: "text-base",
+  };
+
+  // If totalRatings is not provided, show only stars
+  if (totalRatings === undefined) {
+    return (
+      <div className={cn("flex items-center gap-0.5", className)}>
+        {starFills.map((fillPercentage, index) => (
+          <StarIcon key={index} fillPercentage={fillPercentage} size={size} />
+        ))}
+      </div>
+    );
+  }
+
+  // Full rating display with text and count
+  return (
+    <div className={cn("flex items-center gap-1", className)}>
+      {/* Rating number */}
+      <span className={cn("font-medium", textSizeClasses[size])}>
+        {averageRating.toFixed(1)}
+      </span>
+
+      {/* Stars */}
+      <div className="flex items-center gap-0.5">
+        {starFills.map((fillPercentage, index) => (
+          <StarIcon key={index} fillPercentage={fillPercentage} size={size} />
+        ))}
+      </div>
+
+      {/* Total count */}
+      <span className={cn("text-muted-foreground", textSizeClasses[size])}>
+        {"("}
+        {totalRatings}
+        {")"}
+      </span>
+    </div>
+  );
+}
+
+// Internal component for individual star icons
+interface StarIconProps {
+  fillPercentage: number; // 0-100
+  size?: "sm" | "md" | "lg";
+}
+
+function StarIcon({ fillPercentage, size = "md" }: StarIconProps) {
   // Generate unique gradient ID to avoid conflicts
   const gradientId = `star-gradient-${Math.random().toString(36).substr(2, 9)}`;
 
@@ -25,7 +99,7 @@ export function StarRating({
   return (
     <svg
       viewBox="0 0 24 24"
-      className={cn(sizeMap[size], className)}
+      className={sizeMap[size]}
       fill="none"
       stroke="currentColor"
       strokeWidth="1"
