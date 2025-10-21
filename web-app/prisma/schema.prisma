@@ -266,6 +266,9 @@ model UserAgentRating {
   agent     Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
   @@unique([userId, agentId])
+  @@index([agentId])
+  @@index([createdAt(sort: Desc)])
+  @@index([agentId, createdAt(sort: Desc)])
 }
 
 model Agent {
