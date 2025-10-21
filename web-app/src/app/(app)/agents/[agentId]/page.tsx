@@ -73,7 +73,6 @@ export default async function AgentDetailPage({
           ratingsWithComments={ratingsWithComments}
           canRate={canRate}
           existingRating={existingRating}
-          authContext={authContext}
         />
       </div>
       <AgentBottomNavigation

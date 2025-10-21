@@ -27,7 +27,7 @@ interface AgentDetailProps {
   executedJobsCount: number;
   averageExecutionDuration: number;
   favoriteAgents?: AgentWithRelations[] | undefined;
-  ratingStats?: AgentRatingStats | undefined;
+  ratingStats: AgentRatingStats;
   ratingDistribution?: Record<number, number> | undefined;
   ratingsWithComments?: UserAgentRatingWithUser[] | undefined;
   canRate?: boolean | undefined;
@@ -35,12 +35,6 @@ interface AgentDetailProps {
     | {
         rating: number;
         comment: string | null;
-      }
-    | null
-    | undefined;
-  authContext?:
-    | {
-        userId: string | null;
       }
     | null
     | undefined;
@@ -61,7 +55,6 @@ export function AgentDetail({
   ratingsWithComments,
   canRate,
   existingRating,
-  authContext,
   showBackButton,
   showCloseButton,
   onClose,
@@ -105,16 +98,15 @@ export function AgentDetail({
       <CardSection className={cardClassName}>
         <AgentDetailSection6 agent={agent} />
       </CardSection>
-      {ratingStats && ratingDistribution && ratingsWithComments && (
+      {(ratingStats.totalRatings > 0 || canRate) && (
         <CardSection className={cardClassName}>
           <AgentDetailRatingSection
             agentId={agent.id}
             ratingStats={ratingStats}
-            distribution={ratingDistribution}
-            ratingsWithComments={ratingsWithComments}
+            distribution={ratingDistribution ?? {}}
+            ratingsWithComments={ratingsWithComments ?? []}
             canRate={canRate ?? false}
             existingRating={existingRating ?? null}
-            authContext={authContext ?? null}
           />
         </CardSection>
       )}

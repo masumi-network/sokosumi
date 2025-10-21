@@ -79,6 +79,7 @@
         "eligibilityMessage": "Complete a job to rate this agent",
         "star": "{count} star",
         "percentage": "{percentage}%",
+        "beFirstToReview": "Be the first to write a review!",
         "signInToReview": "Sign in to write a review",
         "signIn": "Sign in",
         "customerReviews": "Customer Reviews",

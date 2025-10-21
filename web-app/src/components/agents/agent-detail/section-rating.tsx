@@ -21,9 +21,6 @@ interface AgentDetailRatingSectionProps {
     rating: number;
     comment: string | null;
   } | null;
-  authContext: {
-    userId: string | null;
-  } | null;
 }
 
 export async function AgentDetailRatingSection({
@@ -33,7 +30,6 @@ export async function AgentDetailRatingSection({
   ratingsWithComments,
   canRate,
   existingRating,
-  authContext,
 }: AgentDetailRatingSectionProps) {
   const t = await getTranslations("Components.Agents.Rating");
 
@@ -44,13 +40,11 @@ export async function AgentDetailRatingSection({
       {/* Header */}
       <div>
         <h3 className="mb-4 text-lg font-medium">{t("customerReviews")}</h3>
-        {!hasRatings && (
-          <p className="text-muted-foreground">{t("noRatings")}</p>
-        )}
       </div>
 
-      {/* Amazon-style Layout */}
-      {hasRatings && (
+      {/* Layout based on ratings existence */}
+      {hasRatings ? (
+        /* Two-panel layout when ratings exist */
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Left: Overall Rating, Distribution, and Rating Form */}
           <div className="space-y-6">
@@ -73,48 +67,45 @@ export async function AgentDetailRatingSection({
 
             {/* Write/Update Review */}
             <div>
-              {canRate ? (
+              {canRate && (
                 <AgentRatingForm
                   agentId={agentId}
                   existingRating={existingRating?.rating ?? null}
                   existingComment={existingRating?.comment ?? null}
                 />
-              ) : (
-                <div className="py-8 text-center">
-                  <p className="text-muted-foreground mb-4 text-sm">
-                    {authContext?.userId
-                      ? t("eligibilityMessage")
-                      : t("signInToReview")}
-                  </p>
-                  {!authContext?.userId && (
-                    <Button variant="outline" className="w-full">
-                      {t("signIn")}
-                    </Button>
-                  )}
-                </div>
               )}
             </div>
           </div>
 
           {/* Right: Customer Reviews */}
           <div>
-            {ratingsWithComments.length > 0 ? (
-              <div className="space-y-4">
-                {ratingsWithComments.slice(0, 5).map((rating) => (
-                  <RatingListItem key={rating.id} rating={rating} />
-                ))}
-                {ratingsWithComments.length > 5 && (
-                  <Button variant="outline" className="mt-4 w-full">
-                    {t("viewAllReviews")}
-                  </Button>
-                )}
-              </div>
-            ) : (
-              <p className="text-muted-foreground text-sm">
-                {t("noReviewsYet")}
-              </p>
-            )}
+            <div className="space-y-4">
+              {ratingsWithComments.slice(0, 5).map((rating) => (
+                <RatingListItem key={rating.id} rating={rating} />
+              ))}
+              {ratingsWithComments.length > 5 && (
+                <Button variant="outline" className="mt-4 w-full">
+                  {t("viewAllReviews")}
+                </Button>
+              )}
+            </div>
           </div>
+        </div>
+      ) : (
+        /* Single layout when no ratings exist */
+        <div>
+          {canRate && (
+            <div className="mx-auto max-w-md">
+              <p className="text-muted-foreground mb-4 text-center text-sm">
+                {t("beFirstToReview")}
+              </p>
+              <AgentRatingForm
+                agentId={agentId}
+                existingRating={existingRating?.rating ?? null}
+                existingComment={existingRating?.comment ?? null}
+              />
+            </div>
+          )}
         </div>
       )}
     </div>
