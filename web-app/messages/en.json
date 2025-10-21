@@ -76,7 +76,6 @@
         "successMessage": "Thank you for your feedback!",
         "errorMessage": "Failed to submit rating",
         "selectRating": "Please select a rating",
-        "alreadyRated": "You rated this {rating} stars",
         "updateRating": "Update rating",
         "eligibilityMessage": "Complete a job to rate this agent"
       },
