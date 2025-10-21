@@ -76,8 +76,14 @@
         "successMessage": "Thank you for your feedback!",
         "errorMessage": "Failed to submit rating",
         "selectRating": "Please select a rating",
-        "updateRating": "Update rating",
-        "eligibilityMessage": "Complete a job to rate this agent"
+        "eligibilityMessage": "Complete a job to rate this agent",
+        "star": "{count} star",
+        "percentage": "{percentage}%",
+        "signInToReview": "Sign in to write a review",
+        "signIn": "Sign in",
+        "customerReviews": "Customer Reviews",
+        "viewAllReviews": "View all reviews",
+        "noReviewsYet": "No reviews yet"
       },
       "agentsNotAvailable": "No agents available",
       "agentsNotFound": "No Agents found",

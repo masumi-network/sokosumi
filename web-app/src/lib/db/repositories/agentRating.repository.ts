@@ -72,16 +72,50 @@ export const agentRatingRepository = {
   },
 
   /**
+   * Get rating distribution (count per star rating)
+   */
+  async getRatingDistribution(
+    agentId: string,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<Record<number, number>> {
+    const ratings = await tx.userAgentRating.groupBy({
+      by: ["rating"],
+      where: { agentId },
+      _count: { rating: true },
+    });
+
+    // Initialize all star ratings to 0
+    const distribution: Record<number, number> = {
+      1: 0,
+      2: 0,
+      3: 0,
+      4: 0,
+      5: 0,
+    };
+
+    // Populate with actual counts
+    ratings.forEach((r) => {
+      distribution[r.rating] = r._count.rating;
+    });
+
+    return distribution;
+  },
+
+  /**
    * Get paginated ratings for an agent with user information
    */
   async getRatingsByAgentId(
     agentId: string,
     limit: number = 10,
     offset: number = 0,
+    commentsOnly: boolean = false,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<UserAgentRatingWithUser[]> {
     const ratings = await tx.userAgentRating.findMany({
-      where: { agentId },
+      where: {
+        agentId,
+        ...(commentsOnly ? { comment: { not: null } } : {}),
+      },
       include: {
         user: {
           select: {
@@ -91,7 +125,7 @@ export const agentRatingRepository = {
           },
         },
       },
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: "desc" }, // Latest first
       take: limit,
       skip: offset,
     });

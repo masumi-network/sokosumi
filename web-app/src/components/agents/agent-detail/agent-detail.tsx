@@ -4,7 +4,10 @@ import {
   getAgentExampleOutput,
   getAgentLegal,
 } from "@/lib/db";
-import { AgentRatingStats } from "@/lib/db/repositories/agentRating.repository";
+import {
+  AgentRatingStats,
+  UserAgentRatingWithUser,
+} from "@/lib/db/repositories/agentRating.repository";
 import { cn } from "@/lib/utils";
 
 import { CardSection } from "./card-section";
@@ -14,6 +17,10 @@ import { AgentDetailSection3, AgentDetailSection3Skeleton } from "./section-3";
 import { AgentDetailSection4, AgentDetailSection4Skeleton } from "./section-4";
 import { AgentDetailSection5, AgentDetailSection5Skeleton } from "./section-5";
 import { AgentDetailSection6, AgentDetailSection6Skeleton } from "./section-6";
+import {
+  AgentDetailRatingSection,
+  AgentDetailRatingSectionSkeleton,
+} from "./section-rating";
 
 interface AgentDetailProps {
   agent: AgentWithCreditsPrice;
@@ -21,6 +28,22 @@ interface AgentDetailProps {
   averageExecutionDuration: number;
   favoriteAgents?: AgentWithRelations[] | undefined;
   ratingStats?: AgentRatingStats | undefined;
+  ratingDistribution?: Record<number, number> | undefined;
+  ratingsWithComments?: UserAgentRatingWithUser[] | undefined;
+  canRate?: boolean | undefined;
+  existingRating?:
+    | {
+        rating: number;
+        comment: string | null;
+      }
+    | null
+    | undefined;
+  authContext?:
+    | {
+        userId: string | null;
+      }
+    | null
+    | undefined;
   showBackButton?: boolean | undefined;
   showCloseButton?: boolean | undefined;
   onClose?: (() => void) | undefined;
@@ -34,6 +57,11 @@ export function AgentDetail({
   averageExecutionDuration,
   favoriteAgents,
   ratingStats,
+  ratingDistribution,
+  ratingsWithComments,
+  canRate,
+  existingRating,
+  authContext,
   showBackButton,
   showCloseButton,
   onClose,
@@ -77,6 +105,19 @@ export function AgentDetail({
       <CardSection className={cardClassName}>
         <AgentDetailSection6 agent={agent} />
       </CardSection>
+      {ratingStats && ratingDistribution && ratingsWithComments && (
+        <CardSection className={cardClassName}>
+          <AgentDetailRatingSection
+            agentId={agent.id}
+            ratingStats={ratingStats}
+            distribution={ratingDistribution}
+            ratingsWithComments={ratingsWithComments}
+            canRate={canRate ?? false}
+            existingRating={existingRating ?? null}
+            authContext={authContext ?? null}
+          />
+        </CardSection>
+      )}
     </div>
   );
 }
@@ -105,6 +146,9 @@ export function AgentDetailSkeleton({
       </CardSection>
       <CardSection>
         <AgentDetailSection6Skeleton />
+      </CardSection>
+      <CardSection>
+        <AgentDetailRatingSectionSkeleton />
       </CardSection>
     </div>
   );
