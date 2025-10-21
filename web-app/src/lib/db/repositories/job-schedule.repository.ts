@@ -1,7 +1,7 @@
 import "server-only";
 
 import { CreateJobScheduleInputSchemaType } from "@/lib/schemas";
-import { Prisma } from "@/prisma/generated/client";
+import { Prisma, ScheduleType } from "@/prisma/generated/client";
 import { InputJsonValue } from "@/prisma/generated/client/runtime/library";
 
 import prisma from "./prisma";
@@ -15,14 +15,27 @@ export const jobScheduleRepository = {
     data: CreateJobScheduleInputSchemaType,
     tx: Prisma.TransactionClient = prisma,
   ) {
-    const payloadObj: Record<string, unknown> = {
-      userId: data.userId,
-      organizationId: data.organizationId,
-      agentId: data.agentId,
+    const payloadObj: Prisma.JobScheduleCreateInput = {
+      user: {
+        connect: {
+          id: data.userId,
+        },
+      },
+      organization: data.organizationId
+        ? {
+            connect: {
+              id: data.organizationId,
+            },
+          }
+        : undefined,
+      agent: {
+        connect: {
+          id: data.agentId,
+        },
+      },
       inputSchema: data.inputSchema as InputJsonValue,
       input: JSON.stringify(Object.fromEntries(data.inputData)),
-      scheduleType:
-        data.scheduleType as Prisma.JobScheduleCreateInput["scheduleType"],
+      scheduleType: data.scheduleType as ScheduleType,
       timezone: data.timezone,
       maxAcceptedCents: data.maxAcceptedCents,
       cron: data.cron,
@@ -39,7 +52,7 @@ export const jobScheduleRepository = {
       payloadObj.endAfterOccurrences = maybeEndAfter;
 
     return await tx.jobSchedule.create({
-      data: payloadObj as Prisma.JobScheduleCreateInput,
+      data: payloadObj,
     });
   },
 
@@ -113,12 +126,13 @@ export const jobScheduleRepository = {
 
   async setActive(
     id: string,
-    reason: string | null,
+    isActive: boolean,
+    pauseReason?: string,
     tx: Prisma.TransactionClient = prisma,
   ) {
     return await tx.jobSchedule.update({
       where: { id },
-      data: { isActive: false, pauseReason: reason },
+      data: { isActive, pauseReason },
     });
   },
 };

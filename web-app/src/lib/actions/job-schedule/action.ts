@@ -152,7 +152,7 @@ export const toggleSchedule = withAuthContext<
         error: { code: CommonErrorCode.UNAUTHORIZED, message: "Unauthorized" },
       };
     }
-    await jobScheduleRepository.update(scheduleId, { isActive });
+    await jobScheduleRepository.setActive(scheduleId, isActive);
     revalidatePath("/schedules");
     return { ok: true, data: undefined };
   } catch (error) {
