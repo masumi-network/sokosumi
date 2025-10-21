@@ -62,7 +62,7 @@ function AgentDetailSection2({
             <StarRating
               averageRating={ratingStats.averageRating}
               totalRatings={ratingStats.totalRatings}
-              size="sm"
+              size="lg"
             />
           </div>
         </div>
