@@ -1,5 +1,6 @@
 "use client";
 
+import { useId } from "react";
 import { useTranslations } from "next-intl";
 
 import { cn } from "@/lib/utils";
@@ -111,8 +112,9 @@ interface StarIconProps {
 }
 
 function StarIcon({ fillPercentage, size = "md" }: StarIconProps) {
-  // Generate unique gradient ID to avoid conflicts
-  const gradientId = `star-gradient-${Math.random().toString(36).substring(2, 11)}`;
+  // Generate stable unique gradient ID (prevents hydration mismatches)
+  const uniqueId = useId();
+  const gradientId = `star-gradient-${uniqueId}`;
 
   const sizeMap = {
     sm: "size-3", // 12px
