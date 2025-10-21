@@ -88,7 +88,7 @@ interface StarIconProps {
 
 function StarIcon({ fillPercentage, size = "md" }: StarIconProps) {
   // Generate unique gradient ID to avoid conflicts
-  const gradientId = `star-gradient-${Math.random().toString(36).substr(2, 9)}`;
+  const gradientId = `star-gradient-${Math.random().toString(36).substring(2, 11)}`;
 
   const sizeMap = {
     sm: "size-3", // 12px
