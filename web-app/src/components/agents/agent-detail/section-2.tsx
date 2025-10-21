@@ -59,13 +59,11 @@ function AgentDetailSection2({
             <span className="text-upper text-xs">{t("rating")}</span>
           </div>
           <div className="flex items-center gap-1">
-            <p className="text-base">{ratingStats.averageRating.toFixed(1)}</p>
-            <StarRating averageRating={ratingStats.averageRating} size="sm" />
-            <span className="text-muted-foreground text-xs">
-              {"("}
-              {formatter.number(ratingStats.totalRatings)}
-              {")"}
-            </span>
+            <StarRating
+              averageRating={ratingStats.averageRating}
+              totalRatings={ratingStats.totalRatings}
+              size="sm"
+            />
           </div>
         </div>
       )}
