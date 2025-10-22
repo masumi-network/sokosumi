@@ -35,13 +35,8 @@ export function ReviewsList({ ratingsWithComments }: ReviewsListProps) {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex-1 space-y-4">
-        {currentPageRatings.map((rating) => (
-          <RatingListItem key={rating.id} rating={rating} />
-        ))}
-      </div>
       {totalPages > 1 && (
-        <div className="mt-auto shrink-0">
+        <div className="mb-4 shrink-0">
           <Pagination>
             <PaginationContent className="p-2">
               <PaginationItem>
@@ -87,6 +82,11 @@ export function ReviewsList({ ratingsWithComments }: ReviewsListProps) {
           </Pagination>
         </div>
       )}
+      <div className="flex-1 space-y-4">
+        {currentPageRatings.map((rating) => (
+          <RatingListItem key={rating.id} rating={rating} />
+        ))}
+      </div>
     </div>
   );
 }

@@ -37,17 +37,19 @@ export async function AgentDetailReviews({
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h3 className="mb-4 text-lg font-medium">{t("customerReviews")}</h3>
-      </div>
-
       {/* Layout based on ratings existence */}
       {hasRatings ? (
         /* Two-panel layout when ratings exist */
-        <div className="grid gap-6 lg:grid-cols-2">
+        <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
           {/* Left: Overall Rating, Distribution, and Rating Form */}
           <div className="space-y-6">
+            {/* Header */}
+            <div>
+              <h3 className="mb-4 text-lg font-medium">
+                {t("customerReviews")}
+              </h3>
+            </div>
+
             {/* Overall Rating */}
             <div>
               <StarRating
