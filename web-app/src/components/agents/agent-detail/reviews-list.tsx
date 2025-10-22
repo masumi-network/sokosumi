@@ -1,11 +1,24 @@
 "use client";
 
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+} from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 import { RatingListItem } from "@/components/agents/rating-list-item";
-import { Button } from "@/components/ui/button";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+} from "@/components/ui/pagination";
 import { UserAgentRatingWithUser } from "@/lib/db/repositories/agentRating.repository";
+
+const PAGE_SIZE = 10;
 
 interface ReviewsListProps {
   ratingsWithComments: UserAgentRatingWithUser[];
@@ -13,26 +26,61 @@ interface ReviewsListProps {
 
 export function ReviewsList({ ratingsWithComments }: ReviewsListProps) {
   const t = useTranslations("Components.Agents.Reviews");
-  const [showAllReviews, setShowAllReviews] = useState(false);
-
-  const displayedReviews = showAllReviews
-    ? ratingsWithComments
-    : ratingsWithComments.slice(0, 5);
+  const [currentPage, setCurrentPage] = useState(1);
+  const totalPages = Math.ceil(ratingsWithComments.length / PAGE_SIZE);
+  const currentPageRatings = ratingsWithComments.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  );
 
   return (
     <div className="space-y-4">
-      {displayedReviews.map((rating) => (
+      <Pagination>
+        <PaginationContent className="bg-muted rounded-lg p-2">
+          <PaginationItem>
+            <PaginationLink
+              onClick={() => setCurrentPage(1)}
+              isActive={currentPage > 1}
+            >
+              <ChevronsLeft />
+            </PaginationLink>
+          </PaginationItem>
+          <PaginationItem>
+            <PaginationLink
+              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+              isActive={currentPage > 1}
+            >
+              <ChevronLeft />
+            </PaginationLink>
+          </PaginationItem>
+          <div className="mx-1">
+            <p className="text-sm">
+              {t("Pagination.page", { page: currentPage, totalPages })}
+            </p>
+          </div>
+          <PaginationItem>
+            <PaginationLink
+              onClick={() =>
+                setCurrentPage(Math.min(totalPages, currentPage + 1))
+              }
+              isActive={currentPage < totalPages}
+            >
+              <ChevronRight />
+            </PaginationLink>
+          </PaginationItem>
+          <PaginationItem>
+            <PaginationLink
+              onClick={() => setCurrentPage(totalPages)}
+              isActive={currentPage < totalPages}
+            >
+              <ChevronsRight />
+            </PaginationLink>
+          </PaginationItem>
+        </PaginationContent>
+      </Pagination>
+      {currentPageRatings.map((rating) => (
         <RatingListItem key={rating.id} rating={rating} />
       ))}
-      {ratingsWithComments.length > 5 && (
-        <Button
-          variant="outline"
-          className="mt-4 w-full"
-          onClick={() => setShowAllReviews(!showAllReviews)}
-        >
-          {showAllReviews ? t("showLess") : t("viewAllReviews")}
-        </Button>
-      )}
     </div>
   );
 }
