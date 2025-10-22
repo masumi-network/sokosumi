@@ -5,6 +5,7 @@
 
 import { v4 as uuidv4 } from "uuid";
 
+import { jobShareInclude } from "@/lib/db/types";
 import { Prisma, ShareAccessType } from "@/prisma/generated/client";
 
 import prisma from "./prisma";
@@ -44,6 +45,7 @@ export const jobShareRepository = {
         token: uuidv4(),
         accessType: shareAccessType,
       },
+      include: jobShareInclude,
     });
   },
 

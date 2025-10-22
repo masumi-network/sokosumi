@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { CommonErrorCode, JobErrorCode, startJob } from "@/lib/actions";
+import {
+  CommonErrorCode,
+  JobErrorCode,
+  shareJob,
+  startJob,
+} from "@/lib/actions";
 import {
   createApiSuccessResponse,
   createJobRequestSchema,
@@ -9,7 +14,7 @@ import {
   validateApiKey,
 } from "@/lib/api";
 import { convertCreditsToCents } from "@/lib/db";
-import { jobRepository, jobShareRepository } from "@/lib/db/repositories";
+import { jobRepository } from "@/lib/db/repositories";
 import { jobInputsDataSchema } from "@/lib/job-input";
 import { agentService } from "@/lib/services";
 import { ShareAccessType } from "@/prisma/generated/client";
@@ -164,15 +169,14 @@ export async function POST(
         ? activeOrganizationId
         : null;
       // Silently ignore errors if share fails
-      try {
-        await jobShareRepository.createJobShare(
-          createdJob.id,
-          userId,
-          recipientOrganizationId,
-          jobShareRequest.accessType ?? ShareAccessType.PUBLIC,
-        );
-      } catch (error) {
-        console.error("Failed to share job", error);
+      const shareResult = await shareJob({
+        jobId: createdJob.id,
+        recipientOrganizationId,
+        shareAccessType: jobShareRequest.accessType ?? ShareAccessType.PUBLIC,
+        authContext: { userId, organizationId: activeOrganizationId },
+      });
+      if (!shareResult.ok) {
+        console.error("Failed to share job", shareResult.error);
       }
     }
 

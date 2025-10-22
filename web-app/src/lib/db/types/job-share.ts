@@ -8,6 +8,14 @@ export const jobShareInclude = {
       image: true,
     },
   },
+  recipientOrganization: {
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      logo: true,
+    },
+  },
 } as const;
 
 export type JobShareWithRelations = Prisma.JobShareGetPayload<{

@@ -5,7 +5,7 @@ import * as Sentry from "@sentry/nextjs";
 import { ActionError, CommonErrorCode } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { OrganizationErrorCode } from "@/lib/actions/errors/error-codes/organization";
-import { PaidJobWithStatus } from "@/lib/db";
+import { JobShareWithRelations, PaidJobWithStatus } from "@/lib/db";
 import {
   jobRepository,
   jobShareRepository,
@@ -316,7 +316,7 @@ interface ShareJobParameters extends AuthenticatedRequest {
 
 export const shareJob = withAuthContext<
   ShareJobParameters,
-  Result<JobShare, ActionError>
+  Result<JobShareWithRelations, ActionError>
 >(async ({ jobId, recipientOrganizationId, shareAccessType, authContext }) => {
   const { userId } = authContext;
   try {

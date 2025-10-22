@@ -15,6 +15,16 @@ export function formatJobShareResponse(
     updatedAt: dateToISO(jobShare.updatedAt),
     url: getJobShareUrl(jobShare),
     creator: jobShare.creator,
+    accessType: jobShare.accessType,
+    allowSearchIndexing: jobShare.allowSearchIndexing,
+    recipientOrganization: jobShare.recipientOrganization
+      ? {
+          id: jobShare.recipientOrganization.id,
+          name: jobShare.recipientOrganization.name,
+          slug: jobShare.recipientOrganization.slug,
+          logo: jobShare.recipientOrganization.logo,
+        }
+      : null,
   };
 
   // Validate the formatted response
