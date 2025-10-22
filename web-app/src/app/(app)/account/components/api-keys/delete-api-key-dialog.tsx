@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import React, { useEffect, useMemo } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
 import {
@@ -103,7 +103,10 @@ export function DeleteApiKeyDialog({
     }
   };
 
-  const confirmName = form.watch("confirmName");
+  const confirmName = useWatch({
+    control: form.control,
+    name: "confirmName",
+  });
   const canDelete = useMemo(() => {
     return confirmName === apiKey?.name;
   }, [confirmName, apiKey]);

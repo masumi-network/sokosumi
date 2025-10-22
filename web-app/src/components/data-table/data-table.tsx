@@ -1,4 +1,5 @@
 "use client";
+"use no memo";
 
 import {
   ColumnDef,
@@ -79,6 +80,9 @@ export default function DataTable<TData, TValue>({
   );
   const [sorting, setSorting] = React.useState<SortingState>(defaultSort ?? []);
 
+  // TanStack Table's useReactTable returns functions that can't be memoized.
+  // The "use no memo" directive above tells React Compiler to skip this component.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
     columns,

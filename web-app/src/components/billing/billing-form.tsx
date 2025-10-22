@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Building2, Loader2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
 
@@ -90,9 +90,15 @@ export default function BillingForm({ price, organization }: BillingFormProps) {
     fireGTMEvent.viewBilling();
   }, []);
 
-  const { watch, setValue } = form;
-  const credits = watch("credits");
-  const coupon = watch("coupon");
+  const { setValue } = form;
+  const credits = useWatch({
+    control: form.control,
+    name: "credits",
+  });
+  const coupon = useWatch({
+    control: form.control,
+    name: "coupon",
+  });
 
   const handleFieldChange = useCallback(
     (field: "credits" | "coupon", value: number | string | undefined) => {
