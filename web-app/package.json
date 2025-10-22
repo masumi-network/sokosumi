@@ -50,7 +50,7 @@
     "@prisma/client": "6.17.1",
     "@radix-ui/react-slot": "1.2.3",
     "@react-email/components": "0.5.7",
-    "@sentry/nextjs": "10.20.0",
+    "@sentry/nextjs": "10.21.0",
     "@sparticuz/chromium": "141.0.0",
     "@tanstack/react-table": "8.21.3",
     "@types/unist": "3.0.3",
