@@ -7,6 +7,7 @@
     "web-app"
   ],
   "scripts": {
+    "prepare": "husky || true",
     "dev": "pnpm -r dev",
     "sokosumi-web:dev": "pnpm --filter sokosumi-web dev",
     "build": "pnpm -r build",
@@ -22,7 +23,8 @@
     "test:ci": "pnpm -r test:ci",
     "sokosumi-web:test:ci": "pnpm --filter sokosumi-web test:ci",
     "sokosumi-web:prisma:migrate:deploy": "pnpm --filter sokosumi-web prisma:migrate:deploy",
-    "sokosumi-web:prisma:migrate:dev": "pnpm --filter sokosumi-web prisma:migrate:dev"
+    "sokosumi-web:prisma:migrate:dev": "pnpm --filter sokosumi-web prisma:migrate:dev",
+    
   },
   "devDependencies": {
     "@noble/hashes": "2.0.1",
