@@ -1,9 +1,10 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { UseFormReturn, useWatch } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import {
@@ -21,28 +22,40 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth/auth.client";
-import { RemoveOrganizationSchemaType } from "@/lib/schemas/organization";
+import {
+  removeOrganizationSchema,
+  RemoveOrganizationSchemaType,
+} from "@/lib/schemas/organization";
 import { Organization } from "@/prisma/generated/client";
 
 interface OrganizationRemoveFormProps {
   organization: Organization;
-  form: UseFormReturn<RemoveOrganizationSchemaType>;
+  setIsLoading: (isLoading: boolean) => void;
+  handleOpenChange: (open: boolean) => void;
 }
 
 export default function OrganizationRemoveForm({
   organization,
-  form,
+  setIsLoading,
+  handleOpenChange,
 }: OrganizationRemoveFormProps) {
   const t = useTranslations("Components.Organizations.RemoveModal");
   const router = useRouter();
 
-  const confirmName = useWatch({
-    control: form.control,
-    name: "confirmName",
-    defaultValue: "",
+  const form = useForm<RemoveOrganizationSchemaType>({
+    resolver: zodResolver(
+      removeOrganizationSchema(
+        organization.name,
+        useTranslations("Components.Organizations.RemoveModal.Schema"),
+      ),
+    ),
+    defaultValues: {
+      confirmName: "",
+    },
   });
 
-  const onSubmit = async () => {
+  const onSubmit = async (_: RemoveOrganizationSchemaType) => {
+    setIsLoading(true);
     const result = await authClient.organization.delete({
       organizationId: organization.id,
     });
@@ -65,9 +78,11 @@ export default function OrganizationRemoveForm({
       router.push("/organizations");
       router.refresh();
     }
+    setIsLoading(false);
+    handleOpenChange(false);
   };
 
-  const canDelete = confirmName === organization.name;
+  const canDelete = form.formState.isValid;
 
   return (
     <Form {...form}>
