@@ -23,8 +23,9 @@ const readWindowSize = () => {
 };
 
 export default function useWindowSize(): WindowSize | undefined {
+  // Lazy initialization to get initial window size
   const [windowSize, setWindowSize] = useState<WindowSize | undefined>(
-    undefined,
+    readWindowSize,
   );
 
   const handleSize = useCallback(() => {
@@ -33,11 +34,10 @@ export default function useWindowSize(): WindowSize | undefined {
     if (newWindowSize) {
       setWindowSize({ ...newWindowSize });
     }
-  }, [setWindowSize]);
+  }, []);
 
   useEffect(() => {
     window.addEventListener("resize", handleSize);
-    handleSize();
 
     return () => {
       window.removeEventListener("resize", handleSize);
