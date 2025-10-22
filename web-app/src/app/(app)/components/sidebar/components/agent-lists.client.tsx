@@ -2,6 +2,7 @@
 
 import { ChannelProvider } from "ably/react";
 import { ChevronDown, History, Pin, Sparkles } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -114,20 +115,19 @@ export default function AgentListsClient({
                                   <Link href={`/agents/${agent.id}/jobs`}>
                                     <div className="group/agent-menu flex w-full items-center gap-2">
                                       {resolvedIcon ? (
-                                        // eslint-disable-next-line @next/next/no-img-element
-                                        <img
+                                        <Image
                                           src={resolvedIcon}
-                                          alt=""
-                                          aria-hidden
-                                          className={cn("size-4", {
-                                            "opacity-60":
-                                              !isAvailable &&
-                                              agentId !== agent.id,
-                                          })}
-                                          style={{
-                                            width: "16px",
-                                            height: "16px",
-                                          }}
+                                          alt={getAgentName(agent)}
+                                          width={16}
+                                          height={16}
+                                          className={cn(
+                                            "size-4 object-contain",
+                                            {
+                                              "opacity-60":
+                                                !isAvailable &&
+                                                agentId !== agent.id,
+                                            },
+                                          )}
                                         />
                                       ) : (
                                         <Sparkles

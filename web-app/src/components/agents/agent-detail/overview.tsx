@@ -9,8 +9,8 @@ import {
   getAgentTags,
 } from "@/lib/db";
 
-function AgentDetailSection3({ agent }: { agent: AgentWithRelations }) {
-  const t = useTranslations("Components.Agents.AgentDetail.Section3");
+function AgentDetailOverview({ agent }: { agent: AgentWithRelations }) {
+  const t = useTranslations("Components.Agents.AgentDetail.Overview");
   const agentDescription = getAgentDescription(agent);
   const tags = getAgentTags(agent);
 
@@ -32,7 +32,7 @@ function AgentDetailSection3({ agent }: { agent: AgentWithRelations }) {
   );
 }
 
-function AgentDetailSection3Skeleton() {
+function AgentDetailOverviewSkeleton() {
   return (
     <div>
       <Skeleton className="h-4 w-12" />
@@ -47,4 +47,4 @@ function AgentDetailSection3Skeleton() {
   );
 }
 
-export { AgentDetailSection3, AgentDetailSection3Skeleton };
+export { AgentDetailOverview, AgentDetailOverviewSkeleton };

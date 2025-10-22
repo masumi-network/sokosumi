@@ -11,6 +11,7 @@ import {
 import {
   CreditsPrice,
   DemoJobWithStatus,
+  finalizedAgentJobStatuses,
   finalizedOnChainJobStatuses,
   FreeJobWithStatus,
   jobInclude,
@@ -615,6 +616,31 @@ export const jobRepository = {
     });
     return jobs.map(mapJobWithStatus);
   },
+
+  /**
+   * Check if user has finished job with the agent
+   * @param userId - The unique identifier of the user
+   * @param agentId - The unique identifier of the agent
+   * @returns Promise containing true if user has finished job with the agent, false otherwise
+   */
+  async doesUserHaveFinishedJobWithAgent(
+    userId: string,
+    agentId: string,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<boolean> {
+    const jobCount = await tx.job.count({
+      where: {
+        userId,
+        agentId,
+        jobType: {
+          not: JobType.DEMO,
+        },
+        ...jobsFinishedWhereQuery(),
+      },
+    });
+
+    return jobCount > 0;
+  },
 };
 
 /**
@@ -676,8 +702,39 @@ const jobsNotFinishedWhereQuery = (
       jobType: JobType.FREE,
       agentJobStatus: {
         not: null,
-        in: [AgentJobStatus.COMPLETED, AgentJobStatus.FAILED],
+        in: finalizedAgentJobStatuses,
       },
+    },
+  ],
+});
+
+/**
+ * Creates a Prisma where query to filter for jobs that are finished.
+ * @returns Prisma where query object for filtering finished jobs
+ *
+ * A job is considered "finished" if it meets any of the following criteria:
+ * - AgentJobStatus is either Completed or Failed
+ * - OnChainStatus is not FUNDS_LOCKED or REFUND_REQUESTED
+ *   or is null for FREE jobs
+ */
+const jobsFinishedWhereQuery = (): Prisma.JobWhereInput => ({
+  AND: [
+    {
+      agentJobStatus: {
+        in: finalizedAgentJobStatuses,
+      },
+      // Check for finalized on-chain statuses
+      OR: [
+        { onChainStatus: null, jobType: JobType.FREE },
+        {
+          onChainStatus: {
+            notIn: [
+              OnChainJobStatus.FUNDS_LOCKED,
+              OnChainJobStatus.REFUND_REQUESTED,
+            ],
+          },
+        },
+      ],
     },
   ],
 });

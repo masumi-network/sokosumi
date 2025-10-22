@@ -195,12 +195,6 @@ async function syncAllEntries() {
               legalOther: entry.otherLegal ?? "",
               legalTerms: entry.termsAndCondition ?? "",
               legalPrivacyPolicy: entry.privacyPolicy ?? "",
-              rating: {
-                create: {
-                  totalStars: 0,
-                  totalRatings: 0,
-                },
-              },
               paymentType: convertPaymentType(entry.paymentType),
               pricing: {
                 create: {
