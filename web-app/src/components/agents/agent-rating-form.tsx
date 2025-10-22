@@ -79,7 +79,7 @@ export function AgentRatingForm({
               <Star
                 className={cn(
                   "size-6 fill-current transition-colors",
-                  index < rating ? "text-yellow-400" : "text-muted-foreground",
+                  index < rating ? "text-foreground" : "text-input",
                 )}
               />
             </button>

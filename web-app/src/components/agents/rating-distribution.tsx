@@ -30,7 +30,7 @@ export function RatingDistribution({
             <span className="w-12 text-sm">{t("star", { count: star })}</span>
             <div className="bg-muted relative h-5 flex-1 overflow-hidden rounded">
               <div
-                className="bg-primary h-full transition-all"
+                className="bg-foreground h-full transition-all"
                 style={{ width: `${percentage}%` }}
               />
             </div>

@@ -126,13 +126,10 @@ function StarIcon({ fillPercentage, size = "md" }: StarIconProps) {
     <svg viewBox="0 0 24 24" className={sizeMap[size]} fill="none">
       <defs>
         <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset={`${fillPercentage}%`} stopColor="rgb(250, 250, 250)" />
           <stop
             offset={`${fillPercentage}%`}
-            stopColor="rgb(250 204 21)" // yellow-400
-          />
-          <stop
-            offset={`${fillPercentage}%`}
-            stopColor="rgb(163 163 163)" // muted-foreground
+            stopColor="rgba(255, 255, 255, 0.15)"
           />
         </linearGradient>
       </defs>
