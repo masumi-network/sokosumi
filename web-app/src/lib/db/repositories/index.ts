@@ -1,5 +1,6 @@
 export * from "./agent.repository";
 export * from "./agentList.repository";
+export * from "./agentRating.repository";
 export * from "./blob.repository";
 export * from "./creditCost.repository";
 export * from "./creditTransaction.repository";

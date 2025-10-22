@@ -62,6 +62,38 @@
         "high": "High Risk",
         "unacceptable": "Unacceptable Risk"
       },
+      "Rating": {
+        "title": "Ratings",
+        "noRatings": "No ratings yet",
+        "averageRating": "{average} out of 5 stars",
+        "totalRatings": "{count} ratings",
+        "submitRating": "Rate this agent",
+        "ratingLabel": "Your rating",
+        "updateRating": "Update rating",
+        "commentLabel": "Comment (optional)",
+        "commentPlaceholder": "Share your experience...",
+        "commentTooLong": "Comment must be 1000 characters or less",
+        "submitButton": "Submit rating",
+        "submitting": "Submitting...",
+        "successMessage": "Thank you for your feedback!",
+        "errorMessage": "Failed to submit rating",
+        "selectRating": "Please select a rating",
+        "eligibilityMessage": "Complete a job to rate this agent",
+        "star": "{count} star",
+        "percentage": "{percentage}%"
+      },
+      "Reviews": {
+        "customerReviews": "Customer Reviews",
+        "noReviewsYet": "No reviews yet",
+        "beFirstToReview": "Be the first to write a review!",
+        "signInToReview": "Sign in to write a review",
+        "signIn": "Sign in",
+        "readMore": "Read more",
+        "showLess": "Show less",
+        "Pagination": {
+          "page": "Page {page} of {totalPages}"
+        }
+      },
       "agentsNotAvailable": "No agents available",
       "agentsNotFound": "No Agents found",
       "hire": "Hire Agent",
@@ -76,28 +108,29 @@
         "showMore": "Show More"
       },
       "AgentDetail": {
-        "Section1": {
+        "Header": {
           "pricing": "{credits, plural, =0 {For Free} =1 {1 credit} other {# credits}}"
         },
-        "Section2": {
+        "Stats": {
           "executedJobs": "Executed Jobs",
-          "averageExecutionTime": "Average Execution Time"
+          "averageExecutionTime": "Average Execution Time",
+          "rating": "Rating"
         },
-        "Section3": {
+        "Overview": {
           "description": "Description",
           "tags": "At a Glance"
         },
-        "Section4": {
+        "Examples": {
           "title": "Example Outputs",
           "download": "Download"
         },
-        "Section5": {
+        "Legal": {
           "title": "From the developer",
           "privacyPolicy": "Privacy Policy",
           "terms": "Terms",
           "other": "Other"
         },
-        "Section6": {
+        "Risk": {
           "title": "EU AI Act Risk Classification"
         }
       },

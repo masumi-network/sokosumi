@@ -13,6 +13,7 @@ import {
   AgentWithRelations,
   getAgentTags,
 } from "@/lib/db";
+import type { AgentRatingStats } from "@/lib/db/repositories/agentRating.repository";
 
 import { GalleryFilterState } from "./use-gallery-filter";
 
@@ -46,6 +47,7 @@ const filterAgents = (
 interface FilteredAgentsProps {
   agents: AgentWithCreditsPrice[];
   favoriteAgents?: AgentWithRelations[] | undefined;
+  ratingStatsMap: Record<string, AgentRatingStats>;
 }
 
 export default function FilteredAgents(props: FilteredAgentsProps) {
@@ -56,7 +58,11 @@ export default function FilteredAgents(props: FilteredAgentsProps) {
   );
 }
 
-function FilteredAgentsInner({ agents, favoriteAgents }: FilteredAgentsProps) {
+function FilteredAgentsInner({
+  agents,
+  favoriteAgents,
+  ratingStatsMap,
+}: FilteredAgentsProps) {
   const searchParams = useSearchParams();
 
   const filteredAgents = useMemo(() => {
@@ -76,5 +82,11 @@ function FilteredAgentsInner({ agents, favoriteAgents }: FilteredAgentsProps) {
     return <AgentsNotFound />;
   }
 
-  return <Agents agents={filteredAgents} favoriteAgents={favoriteAgents} />;
+  return (
+    <Agents
+      agents={filteredAgents}
+      favoriteAgents={favoriteAgents}
+      ratingStatsMap={ratingStatsMap}
+    />
+  );
 }
