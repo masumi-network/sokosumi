@@ -1,0 +1,40 @@
+#!/usr/bin/env sh
+
+# Get the repository root directory
+REPO_ROOT=$(git rev-parse --show-toplevel)
+
+echo "📦 [web-app] Running pre-push checks..."
+
+cd "$REPO_ROOT/web-app" || {
+  echo "❌ [web-app] Failed to change to web-app directory"
+  exit 1
+}
+
+echo "🔍 [web-app] Checking dependencies..."
+pnpm install --frozen-lockfile --prefer-offline > /dev/null 2>&1 || {
+  echo "⚠️  [web-app] Dependencies out of sync. Running pnpm install..."
+  pnpm install || {
+    echo "❌ [web-app] Failed to install dependencies"
+    exit 1
+  }
+}
+
+echo "🔍 [web-app] Running linter..."
+pnpm lint || {
+  echo "❌ [web-app] Lint failed. Please fix linting errors before pushing."
+  exit 1
+}
+
+echo "✅ [web-app] Lint passed"
+
+echo "🧪 [web-app] Running tests..."
+pnpm test || {
+  echo "❌ [web-app] Tests failed. Please fix failing tests before pushing."
+  exit 1
+}
+
+echo "✅ [web-app] Tests passed"
+cd "$REPO_ROOT"
+
+echo "✅ All checks passed. Proceeding with push..."
+
