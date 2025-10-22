@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { Dispatch, SetStateAction } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
@@ -30,14 +31,14 @@ import { Organization } from "@/prisma/generated/client";
 
 interface OrganizationRemoveFormProps {
   organization: Organization;
-  setIsLoading: (isLoading: boolean) => void;
-  handleOpenChange: (open: boolean) => void;
+  setIsLoading: Dispatch<SetStateAction<boolean>>;
+  onOpenChange: Dispatch<SetStateAction<boolean>>;
 }
 
 export default function OrganizationRemoveForm({
   organization,
   setIsLoading,
-  handleOpenChange,
+  onOpenChange,
 }: OrganizationRemoveFormProps) {
   const t = useTranslations("Components.Organizations.RemoveModal");
   const router = useRouter();
@@ -77,9 +78,9 @@ export default function OrganizationRemoveForm({
       toast.success(t("success"));
       router.push("/organizations");
       router.refresh();
+      onOpenChange(false);
     }
     setIsLoading(false);
-    handleOpenChange(false);
   };
 
   const canDelete = form.formState.isValid;

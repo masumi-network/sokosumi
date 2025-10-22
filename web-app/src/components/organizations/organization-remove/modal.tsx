@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { Dispatch, SetStateAction, useState } from "react";
 
 import {
   AlertDialog,
@@ -16,7 +16,7 @@ import OrganizationRemoveForm from "./form";
 
 interface OrganizationRemoveModalProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange: Dispatch<SetStateAction<boolean>>;
   organization: Organization;
 }
 
@@ -49,7 +49,7 @@ export default function OrganizationRemoveModal({
         <OrganizationRemoveForm
           organization={organization}
           setIsLoading={setIsLoading}
-          handleOpenChange={handleOpenChange}
+          onOpenChange={onOpenChange}
         />
       </AlertDialogContent>
     </AlertDialog>
