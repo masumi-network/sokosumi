@@ -57,10 +57,12 @@ export default function JobShareModal({
 
   // Need to refresh after modal is closed
   const needRefresh = useRef(false);
+  // Track the last jobId to detect changes
+  const lastJobIdRef = useRef(jobId);
 
   const publicJobShare = getPublicJobShare(job);
 
-  // Derive share state from job data
+  // Derive share state from job data - these will be reset via handleOnOpenChange
   const [jobShare, setJobShare] = useState<JobShare | null>(publicJobShare);
   const [organizationJobShare, setOrganizationJobShare] =
     useState<JobShare | null>(
@@ -71,24 +73,6 @@ export default function JobShareModal({
       ? new URL(`/share/jobs/${publicJobShare.token}`, window.location.origin)
       : null,
   );
-
-  // Reset state when modal opens or job changes
-  useEffect(() => {
-    if (open) {
-      setJobShare(publicJobShare);
-      setLink(
-        publicJobShare
-          ? new URL(
-              `/share/jobs/${publicJobShare.token}`,
-              window.location.origin,
-            )
-          : null,
-      );
-      if (organization) {
-        setOrganizationJobShare(getOrganizationJobShare(job, organization.id));
-      }
-    }
-  }, [open, jobId]);
 
   // Fetch organization data only if activeOrganizationId is provided
   useEffect(() => {
@@ -126,6 +110,32 @@ export default function JobShareModal({
     if (isLoading) {
       return;
     }
+
+    // When opening the modal, reset state to match current job data
+    if (open) {
+      // Reset to current job state or detect if job changed
+      const jobChanged = lastJobIdRef.current !== jobId;
+      if (jobChanged) {
+        lastJobIdRef.current = jobId;
+      }
+
+      // Reset share state to current job data
+      const currentPublicJobShare = getPublicJobShare(job);
+      setJobShare(currentPublicJobShare);
+      setLink(
+        currentPublicJobShare
+          ? new URL(
+              `/share/jobs/${currentPublicJobShare.token}`,
+              window.location.origin,
+            )
+          : null,
+      );
+
+      if (organization) {
+        setOrganizationJobShare(getOrganizationJobShare(job, organization.id));
+      }
+    }
+
     // when close JobShareModal
     // refresh router to show updated job-share indicator
     if (!open && needRefresh.current) {
