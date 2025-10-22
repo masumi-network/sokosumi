@@ -50,10 +50,6 @@ export default function JobShareModal({
 
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const [jobShare, setJobShare] = useState<JobShare | null>(null);
-  const [organizationJobShare, setOrganizationJobShare] =
-    useState<JobShare | null>(null);
-  const [link, setLink] = useState<URL | null>(null);
   const [organization, setOrganization] = useState<{
     id: string;
     name: string;
@@ -63,6 +59,36 @@ export default function JobShareModal({
   const needRefresh = useRef(false);
 
   const publicJobShare = getPublicJobShare(job);
+
+  // Derive share state from job data
+  const [jobShare, setJobShare] = useState<JobShare | null>(publicJobShare);
+  const [organizationJobShare, setOrganizationJobShare] =
+    useState<JobShare | null>(
+      organization ? getOrganizationJobShare(job, organization.id) : null,
+    );
+  const [link, setLink] = useState<URL | null>(
+    publicJobShare
+      ? new URL(`/share/jobs/${publicJobShare.token}`, window.location.origin)
+      : null,
+  );
+
+  // Reset state when modal opens or job changes
+  useEffect(() => {
+    if (open) {
+      setJobShare(publicJobShare);
+      setLink(
+        publicJobShare
+          ? new URL(
+              `/share/jobs/${publicJobShare.token}`,
+              window.location.origin,
+            )
+          : null,
+      );
+      if (organization) {
+        setOrganizationJobShare(getOrganizationJobShare(job, organization.id));
+      }
+    }
+  }, [open, jobId]);
 
   // Fetch organization data only if activeOrganizationId is provided
   useEffect(() => {
@@ -76,8 +102,14 @@ export default function JobShareModal({
     const fetchOrganization = async () => {
       try {
         const result = await getActiveOrganization({});
-        if (mounted && result.ok) {
+        if (mounted && result.ok && result.data) {
           setOrganization(result.data);
+          // Update organization job share after organization is fetched
+          if (open) {
+            setOrganizationJobShare(
+              getOrganizationJobShare(job, result.data.id),
+            );
+          }
         }
       } catch (error) {
         console.error("Failed to fetch organization:", error);
@@ -88,24 +120,7 @@ export default function JobShareModal({
     return () => {
       mounted = false;
     };
-  }, [open, activeOrganizationId]);
-
-  useEffect(() => {
-    if (publicJobShare) {
-      setJobShare(publicJobShare);
-      setLink(
-        new URL(`/share/jobs/${publicJobShare.token}`, window.location.origin),
-      );
-    } else {
-      setJobShare(null);
-      setLink(null);
-    }
-
-    if (organization) {
-      const orgJobShare = getOrganizationJobShare(job, organization.id);
-      setOrganizationJobShare(orgJobShare);
-    }
-  }, [jobId, publicJobShare, organization, job, setJobShare, setLink]);
+  }, [open, activeOrganizationId, job]);
 
   const handleOnOpenChange = (open: boolean) => {
     if (isLoading) {
