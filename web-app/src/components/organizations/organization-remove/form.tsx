@@ -3,7 +3,7 @@
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { UseFormReturn } from "react-hook-form";
+import { UseFormReturn, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
 import {
@@ -36,6 +36,12 @@ export default function OrganizationRemoveForm({
   const t = useTranslations("Components.Organizations.RemoveModal");
   const router = useRouter();
 
+  const confirmName = useWatch({
+    control: form.control,
+    name: "confirmName",
+    defaultValue: "",
+  });
+
   const onSubmit = async () => {
     const result = await authClient.organization.delete({
       organizationId: organization.id,
@@ -61,7 +67,7 @@ export default function OrganizationRemoveForm({
     }
   };
 
-  const canDelete = form.formState.isValid;
+  const canDelete = confirmName === organization.name;
 
   return (
     <Form {...form}>
