@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,7 @@ export default function InvitationActions({
   const t = useTranslations("AcceptInvitation.InvitationCard.Actions");
 
   const { id, email, organization } = invitation;
-  const { id: organizationId, slug: organizationSlug } = organization;
+  const { slug: organizationSlug } = organization;
 
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -34,24 +34,28 @@ export default function InvitationActions({
     null,
   );
 
-  const [loginSearchParamsString, setLoginSearchParamsString] = useState<
-    string | null
-  >(null);
-  const [registerSearchParamsString, setRegisterSearchParamsString] = useState<
-    string | null
-  >(null);
-
-  useEffect(() => {
+  // Lazy initialization to build search params on mount
+  // Since email/organizationId/id represent a specific invitation,
+  // changes to these props would typically cause a remount (navigation)
+  const [loginSearchParamsString] = useState<string | null>(() => {
+    if (typeof location === "undefined") {
+      return null;
+    }
     const currentUrl = location.pathname + location.search;
     const loginSearchParams = new URLSearchParams();
     loginSearchParams.set("returnUrl", currentUrl);
     loginSearchParams.set("email", email);
-    setLoginSearchParamsString(loginSearchParams.toString());
+    return loginSearchParams.toString();
+  });
 
+  const [registerSearchParamsString] = useState<string | null>(() => {
+    if (typeof location === "undefined") {
+      return null;
+    }
     const registerSearchParams = new URLSearchParams();
     registerSearchParams.set("email", email);
-    setRegisterSearchParamsString(registerSearchParams.toString());
-  }, [email, organizationId, id]);
+    return registerSearchParams.toString();
+  });
 
   const handleAccept = async () => {
     if (loading) {
