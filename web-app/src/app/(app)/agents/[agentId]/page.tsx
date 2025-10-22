@@ -7,7 +7,8 @@ import {
   CreateJobModal,
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
-import { jobRepository } from "@/lib/db/repositories";
+import { getAuthContext } from "@/lib/auth/utils";
+import { agentRatingRepository, jobRepository } from "@/lib/db/repositories";
 import { agentService } from "@/lib/services";
 
 export default async function AgentDetailPage({
@@ -28,10 +29,31 @@ export default async function AgentDetailPage({
   }
 
   const favoriteAgents = await agentService.getFavoriteAgents();
-  const [executedJobsCount, averageExecutionDuration] = await Promise.all([
+  const authContext = await getAuthContext();
+
+  const [
+    executedJobsCount,
+    averageExecutionDuration,
+    ratingStats,
+    distribution,
+    ratingsWithComments,
+  ] = await Promise.all([
     jobRepository.getExecutedJobsCountByAgentId(agentId),
     jobRepository.getAverageExecutionDurationByAgentId(agentId),
+    agentService.getAgentRatingStats(agentId),
+    agentRatingRepository.getRatingDistribution(agentId),
+    agentRatingRepository.getRatingsByAgentId(agentId, 10, 0, true),
   ]);
+
+  // Check if user can rate this agent and get existing rating
+  const canRate = authContext?.userId
+    ? await agentService.canUserRateAgent(authContext.userId, agentId)
+    : false;
+
+  const existingRating =
+    authContext?.userId && canRate
+      ? await agentService.getUserRatingForAgent(authContext.userId, agentId)
+      : null;
 
   return (
     <CreateJobModalContextProvider
@@ -46,6 +68,11 @@ export default async function AgentDetailPage({
           executedJobsCount={executedJobsCount}
           averageExecutionDuration={averageExecutionDuration}
           favoriteAgents={favoriteAgents}
+          ratingStats={ratingStats}
+          ratingDistribution={distribution}
+          ratingsWithComments={ratingsWithComments}
+          canRate={canRate}
+          existingRating={existingRating}
         />
       </div>
       <AgentBottomNavigation

@@ -8,12 +8,12 @@ import { ExampleOutput } from "@/prisma/generated/client";
 
 import ExampleDetailThumbnail from "./example-detail-thumbnail";
 
-function AgentDetailSection4({
+function AgentDetailExamples({
   exampleOutputs,
 }: {
   exampleOutputs: ExampleOutput[];
 }) {
-  const t = useTranslations("Components.Agents.AgentDetail.Section4");
+  const t = useTranslations("Components.Agents.AgentDetail.Examples");
 
   return (
     <div className="w-full">
@@ -32,7 +32,7 @@ function AgentDetailSection4({
   );
 }
 
-function AgentDetailSection4Skeleton() {
+function AgentDetailExamplesSkeleton() {
   return (
     <div className="w-full">
       <Skeleton className="mb-2 h-4 w-12" />
@@ -48,4 +48,4 @@ function AgentDetailSection4Skeleton() {
   );
 }
 
-export { AgentDetailSection4, AgentDetailSection4Skeleton };
+export { AgentDetailExamples, AgentDetailExamplesSkeleton };

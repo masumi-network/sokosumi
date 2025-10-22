@@ -7,8 +7,13 @@ import {
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
 import DefaultLoading from "@/components/default-loading";
+import { getAuthContext } from "@/lib/auth/utils";
 import { getAgentDescription, getAgentLegal, getAgentName } from "@/lib/db";
-import { agentRepository, jobRepository } from "@/lib/db/repositories";
+import {
+  agentRatingRepository,
+  agentRepository,
+  jobRepository,
+} from "@/lib/db/repositories";
 import { agentService } from "@/lib/services";
 
 import Footer from "./components/footer";
@@ -57,16 +62,28 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
     return notFound();
   }
 
+  const authContext = await getAuthContext();
+
   const [
-    averageExecutionDuration,
+    agentWithCreditsPrice,
     favoriteAgents,
     availableAgent,
-    agentWithCreditsPrice,
+    ratingStats,
+    averageExecutionDuration,
+    canRate,
+    existingRating,
   ] = await Promise.all([
-    jobRepository.getAverageExecutionDurationByAgentId(agentId),
+    agentService.getAgentCreditsPrice(agent),
     agentService.getFavoriteAgents(),
     agentService.getAvailableAgentById(agentId),
-    agentService.getAgentCreditsPrice(agent),
+    agentService.getAgentRatingStats(agentId),
+    jobRepository.getAverageExecutionDurationByAgentId(agentId),
+    authContext?.userId
+      ? agentService.canUserRateAgent(authContext.userId, agentId)
+      : Promise.resolve(false),
+    authContext?.userId
+      ? agentRatingRepository.getUserRatingForAgent(authContext.userId, agentId)
+      : Promise.resolve(null),
   ]);
 
   return (
@@ -78,6 +95,9 @@ async function JobLayoutInner({ right, params, children }: JobLayoutProps) {
         <Header
           agent={agentWithCreditsPrice}
           favoriteAgents={favoriteAgents}
+          ratingStats={ratingStats}
+          canRate={canRate}
+          existingRating={existingRating}
           disabled={!availableAgent}
         />
         <div className="mt-6 flex flex-1 flex-col justify-center gap-4 lg:flex-row lg:overflow-hidden">

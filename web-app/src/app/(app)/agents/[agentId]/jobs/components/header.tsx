@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 
 import { AgentBookmarkButton } from "@/components/agents";
 import { AgentActionButtons } from "@/components/agents/agent-action-buttons";
+import { AgentRatingCTA } from "@/components/agents/agent-rating-cta";
 import { CreateJobModalTrigger } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,6 +15,7 @@ import {
   convertCentsToCredits,
   getAgentName,
 } from "@/lib/db";
+import type { AgentRatingStats } from "@/lib/db/repositories/agentRating.repository";
 
 export function HeaderSkeleton() {
   const t = useTranslations("App.Agents.Jobs.Header");
@@ -56,12 +58,21 @@ export function HeaderSkeleton() {
 interface HeaderProps {
   agent: AgentWithCreditsPrice;
   favoriteAgents: AgentWithRelations[];
+  ratingStats: AgentRatingStats;
+  canRate: boolean;
+  existingRating: {
+    rating: number;
+    comment: string | null;
+  } | null;
   disabled?: boolean;
 }
 
 export default function Header({
   agent,
   favoriteAgents,
+  ratingStats,
+  canRate,
+  existingRating,
   disabled,
 }: HeaderProps) {
   const t = useTranslations("App.Agents.Jobs.Header");
@@ -84,6 +95,14 @@ export default function Header({
           {getAgentName(agent)}
         </h1>
         <div className="hidden gap-2 md:flex">
+          {canRate && (
+            <AgentRatingCTA
+              agentId={agent.id}
+              ratingStats={ratingStats}
+              existingRating={existingRating}
+              disabled={disabled}
+            />
+          )}
           <AgentBookmarkButton
             agentId={agent.id}
             isFavorite={isFavorite}

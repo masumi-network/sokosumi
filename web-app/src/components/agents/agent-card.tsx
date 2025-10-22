@@ -18,6 +18,7 @@ import {
   getAgentTags,
   getShortAgentAuthorName,
 } from "@/lib/db";
+import type { AgentRatingStats } from "@/lib/db/repositories/agentRating.repository";
 import { cn } from "@/lib/utils";
 
 import {
@@ -30,6 +31,7 @@ import { AgentDetailLink } from "./agent-detail-link";
 import { AgentHireButton } from "./agent-hire-button";
 import AgentSummary from "./agent-summary";
 import { AgentVerifiedBadge } from "./agent-verified-badge";
+import { StarRating } from "./star-rating";
 
 const agentCardVariants = cva("flex rounded-lg border-none p-1 shadow-none", {
   variants: {
@@ -305,6 +307,7 @@ interface AgentCardProps {
   agent: AgentWithCreditsPrice;
   showHireButton?: boolean | undefined;
   favoriteAgents?: AgentWithRelations[] | undefined;
+  ratingStats?: AgentRatingStats | undefined;
   className?: string | undefined;
 }
 
@@ -312,6 +315,7 @@ function AgentCard({
   agent,
   showHireButton = false,
   favoriteAgents,
+  ratingStats,
   className,
   size,
 }: AgentCardProps & VariantProps<typeof agentCardVariants>) {
@@ -403,7 +407,16 @@ function AgentCard({
                 <h3 className={agentCardNameVariants({ size })}>
                   {getAgentName(agent)}
                 </h3>
-                <AgentVerifiedBadge />
+                {ratingStats && ratingStats.totalRatings > 0 ? (
+                  <StarRating
+                    averageRating={ratingStats.averageRating}
+                    totalRatings={ratingStats.totalRatings}
+                    size="sm"
+                    showRatingNumber={false}
+                  />
+                ) : (
+                  <AgentVerifiedBadge />
+                )}
               </div>
               {summary && (
                 <div className={agentCardSummaryContainerVariants({ size })}>
