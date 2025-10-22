@@ -198,10 +198,6 @@ export default function JobDetailsName({
   const { name } = job;
   const sharedPublicly = isPubliclyShared(job);
   const sharedWithOrganization = isOrganizationShared(job);
-  console.log({
-    sharedPublicly,
-    sharedWithOrganization,
-  });
 
   const { showModal, Component } = useModal(({ open, onOpenChange }) => (
     <JobShareModal
