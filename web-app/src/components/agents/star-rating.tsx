@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useTheme } from "next-themes";
 import { useId } from "react";
 
 import { cn } from "@/lib/utils";
@@ -115,6 +116,14 @@ function StarIcon({ fillPercentage, size = "md" }: StarIconProps) {
   // Generate stable unique gradient ID (prevents hydration mismatches)
   const uniqueId = useId();
   const gradientId = `star-gradient-${uniqueId}`;
+  const { resolvedTheme } = useTheme();
+
+  // Theme-aware colors
+  const isDark = resolvedTheme === "dark";
+  const filledColor = isDark ? "rgb(250, 250, 250)" : "rgb(10, 10, 10)";
+  const emptyColor = isDark
+    ? "rgba(255, 255, 255, 0.15)"
+    : "rgb(230, 230, 230)";
 
   const sizeMap = {
     sm: "size-3", // 12px
@@ -126,11 +135,8 @@ function StarIcon({ fillPercentage, size = "md" }: StarIconProps) {
     <svg viewBox="0 0 24 24" className={sizeMap[size]} fill="none">
       <defs>
         <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset={`${fillPercentage}%`} stopColor="rgb(250, 250, 250)" />
-          <stop
-            offset={`${fillPercentage}%`}
-            stopColor="rgba(255, 255, 255, 0.15)"
-          />
+          <stop offset={`${fillPercentage}%`} stopColor={filledColor} />
+          <stop offset={`${fillPercentage}%`} stopColor={emptyColor} />
         </linearGradient>
       </defs>
       <path
