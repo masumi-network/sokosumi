@@ -2,7 +2,7 @@
 import { Check, Copy, Globe, Lock, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -60,6 +60,13 @@ export default function JobShareModal({
   // Track the last jobId to detect changes
   const lastJobIdRef = useRef(jobId);
 
+  // Detect client-side rendering without setState in useEffect
+  const isClient = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+
   const publicJobShare = getPublicJobShare(job);
 
   // Derive share state from job data - these will be reset via handleOnOpenChange
@@ -68,11 +75,12 @@ export default function JobShareModal({
     useState<JobShare | null>(
       organization ? getOrganizationJobShare(job, organization.id) : null,
     );
-  const [link, setLink] = useState<URL | null>(
-    publicJobShare
-      ? new URL(`/share/jobs/${publicJobShare.token}`, window.location.origin)
-      : null,
-  );
+
+  // Compute link on client only - derived from jobShare state
+  const link =
+    isClient && jobShare
+      ? new URL(`/share/jobs/${jobShare.token}`, window.location.origin)
+      : null;
 
   // Fetch organization data only if activeOrganizationId is provided
   useEffect(() => {
@@ -122,14 +130,6 @@ export default function JobShareModal({
       // Reset share state to current job data
       const currentPublicJobShare = getPublicJobShare(job);
       setJobShare(currentPublicJobShare);
-      setLink(
-        currentPublicJobShare
-          ? new URL(
-              `/share/jobs/${currentPublicJobShare.token}`,
-              window.location.origin,
-            )
-          : null,
-      );
 
       if (organization) {
         setOrganizationJobShare(getOrganizationJobShare(job, organization.id));
@@ -154,9 +154,6 @@ export default function JobShareModal({
     if (result.ok) {
       needRefresh.current = true;
       setJobShare(result.data);
-      setLink(
-        new URL(`/share/jobs/${result.data.token}`, window.location.origin),
-      );
       toast.success(t("Success.share"));
     } else {
       switch (result.error.code) {
@@ -418,7 +415,6 @@ export default function JobShareModal({
                       needRefresh.current = true;
                       setJobShare(null);
                       setOrganizationJobShare(null);
-                      setLink(null);
                       toast.success(t("Success.share"));
                     } catch {
                       toast.error(t("Error.share"));
