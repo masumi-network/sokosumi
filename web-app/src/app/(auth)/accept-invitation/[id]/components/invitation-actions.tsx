@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -34,28 +34,31 @@ export default function InvitationActions({
     null,
   );
 
-  // Lazy initialization to build search params on mount
-  // Since email/organizationId/id represent a specific invitation,
-  // changes to these props would typically cause a remount (navigation)
-  const [loginSearchParamsString] = useState<string | null>(() => {
-    if (typeof location === "undefined") {
-      return null;
-    }
-    const currentUrl = location.pathname + location.search;
-    const loginSearchParams = new URLSearchParams();
-    loginSearchParams.set("returnUrl", currentUrl);
-    loginSearchParams.set("email", email);
-    return loginSearchParams.toString();
-  });
+  // Detect client-side rendering without setState in useEffect
+  const isClient = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
-  const [registerSearchParamsString] = useState<string | null>(() => {
-    if (typeof location === "undefined") {
-      return null;
-    }
-    const registerSearchParams = new URLSearchParams();
-    registerSearchParams.set("email", email);
-    return registerSearchParams.toString();
-  });
+  // Compute search params on client only
+  const loginSearchParamsString = isClient
+    ? (() => {
+        const currentUrl = location.pathname + location.search;
+        const loginSearchParams = new URLSearchParams();
+        loginSearchParams.set("returnUrl", currentUrl);
+        loginSearchParams.set("email", email);
+        return loginSearchParams.toString();
+      })()
+    : null;
+
+  const registerSearchParamsString = isClient
+    ? (() => {
+        const registerSearchParams = new URLSearchParams();
+        registerSearchParams.set("email", email);
+        return registerSearchParams.toString();
+      })()
+    : null;
 
   const handleAccept = async () => {
     if (loading) {
