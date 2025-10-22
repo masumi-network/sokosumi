@@ -2,6 +2,7 @@
 
 import { ArrowLeft, X } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useSyncExternalStore } from "react";
 
 import { AgentBookmarkButton } from "@/components/agents/agent-bookmark-button";
 import { ShareButton } from "@/components/share-button";
@@ -32,11 +33,19 @@ function AgentActionButtons({
 }: AgentActionButtonsProps) {
   const router = useRouter();
   const { isMobile } = useSidebar();
-  // Derive URL directly from agent - no state needed
-  const url =
-    typeof window !== "undefined"
-      ? new URL(`${window.location.origin}/agents/${agent.id}`)
-      : undefined;
+
+  // Detect client-side rendering without setState in useEffect
+  const isClient = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+
+  // Compute URL only on client to avoid hydration mismatch
+  const url = isClient
+    ? new URL(`${window.location.origin}/agents/${agent.id}`)
+    : undefined;
+
   const isFavorite = favoriteAgents?.some(
     (favoriteAgent) => favoriteAgent.id === agent.id,
   );
