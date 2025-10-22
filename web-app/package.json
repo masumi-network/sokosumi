@@ -75,7 +75,7 @@
     "gravatar-url": "4.0.1",
     "humanize-duration": "3.33.1",
     "input-otp": "1.4.2",
-    "isomorphic-dompurify": "2.29.0",
+    "isomorphic-dompurify": "2.30.1",
     "json-canonicalize": "2.0.0",
     "lucide-react": "0.546.0",
     "markdown-to-jsx": "7.7.16",
