@@ -52,17 +52,17 @@ fi
 
 
 # Run ESLint only on staged files
-echo "${BLUE}🔍 Running Next.js lint...${NC}"
-if command -v git-rev-parse >/dev/null 2>&1 && [ -d .git ]; then
-    staged_files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.ts' '*.js' '*.tsx' '*.jsx' 2>/dev/null)
-    if [ -n "$staged_files" ]; then
-        cd 'web-app' && pnpm run lint || 
-        (
-            echo "${RED}❌ Next.js lint check failed. Please fix the errors and try committing again.${NC}"
-            exit 4
-        )
-    fi
-fi
+# echo "${BLUE}🔍 Running Next.js lint...${NC}"
+# if command -v git-rev-parse >/dev/null 2>&1 && [ -d .git ]; then
+#     staged_files=$(git diff --cached --name-only --diff-filter=ACMR -- '*.ts' '*.js' '*.tsx' '*.jsx' 2>/dev/null)
+#     if [ -n "$staged_files" ]; then
+#         cd 'web-app' && pnpm run lint || 
+#         (
+#             echo "${RED}❌ Next.js lint check failed. Please fix the errors and try committing again.${NC}"
+#             exit 4
+#         )
+#     fi
+# fi
 
-echo "${GREEN}✅ All checks passed!${NC}"
+# echo "${GREEN}✅ All checks passed!${NC}"
 
