@@ -11,7 +11,6 @@ import {
 import {
   CreditsPrice,
   DemoJobWithStatus,
-  finalizedAgentJobStatuses,
   finalizedOnChainJobStatuses,
   FreeJobWithStatus,
   jobInclude,
@@ -632,7 +631,24 @@ export const jobRepository = {
       where: {
         userId,
         agentId,
-        ...jobsCompletedWhereQuery(),
+        AND: [
+          {
+            agentJobStatus: {
+              in: ["COMPLETED", "FAILED"],
+            },
+          },
+          {
+            // Check for finalized on-chain statuses
+            OR: [
+              { onChainStatus: "RESULT_SUBMITTED" },
+              { onChainStatus: "FUNDS_WITHDRAWN" },
+              { onChainStatus: "REFUND_WITHDRAWN" },
+              { onChainStatus: "DISPUTED_WITHDRAWN" },
+              { onChainStatus: "FUNDS_OR_DATUM_INVALID" },
+              { onChainStatus: "DISPUTED" },
+            ],
+          },
+        ],
       },
     });
 
@@ -699,24 +715,7 @@ const jobsNotFinishedWhereQuery = (
     {
       jobType: JobType.FREE,
       agentJobStatus: {
-        in: finalizedAgentJobStatuses,
-      },
-    },
-  ],
-});
-
-/**
- * Creates a Prisma where query to filter for jobs that are completed.
- * @returns Prisma where query object for filtering completed jobs
- *
- * A job is considered "completed" if it meets any of the following criteria:
- * - AgentJobStatus is either Completed or Failed
- */
-const jobsCompletedWhereQuery = (): Prisma.JobWhereInput => ({
-  AND: [
-    {
-      agentJobStatus: {
-        in: finalizedAgentJobStatuses,
+        in: [AgentJobStatus.COMPLETED, AgentJobStatus.FAILED],
       },
     },
   ],
