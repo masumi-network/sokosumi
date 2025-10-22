@@ -697,14 +697,15 @@ const jobsNotFinishedWhereQuery = (
     {
       onChainStatus: { not: OnChainJobStatus.DISPUTED },
       externalDisputeUnlockTime: {
-        not: null,
         lt: cutoffTime,
       },
     },
     // Filter out jobs that have no on-chain status and have a payByTime that is less than the cutoff time
     {
       onChainStatus: null,
-      payByTime: { not: null, lt: cutoffTime },
+      payByTime: {
+        lt: cutoffTime,
+      },
     },
     // Filter out demo jobs
     {
@@ -714,7 +715,6 @@ const jobsNotFinishedWhereQuery = (
     {
       jobType: JobType.FREE,
       agentJobStatus: {
-        not: null,
         in: [AgentJobStatus.COMPLETED, AgentJobStatus.FAILED],
       },
     },
