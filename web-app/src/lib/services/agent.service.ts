@@ -465,17 +465,17 @@ export const agentService = (() => {
       }
 
       await prisma.$transaction(async (tx) => {
-        // Check if user has completed any jobs with this agent
-        const hasCompletedJob =
-          await jobRepository.hasUserCompletedJobWithAgent(
+        // Check if user has finished any jobs with this agent
+        const hasFinishedJob =
+          await jobRepository.doesUserHaveFinishedJobWithAgent(
             authContext.userId,
             agentId,
             tx,
           );
 
-        if (!hasCompletedJob) {
+        if (!hasFinishedJob) {
           throw new Error(
-            "User must complete at least one job with this agent before rating",
+            "User must finish at least one job with this agent before rating",
           );
         }
 
@@ -494,7 +494,10 @@ export const agentService = (() => {
      * Check if user can rate an agent
      */
     async canUserRateAgent(userId: string, agentId: string): Promise<boolean> {
-      return await jobRepository.hasUserCompletedJobWithAgent(userId, agentId);
+      return await jobRepository.doesUserHaveFinishedJobWithAgent(
+        userId,
+        agentId,
+      );
     },
 
     /**
