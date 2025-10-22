@@ -5,7 +5,7 @@ import {
   getAgentLegal,
 } from "@/lib/db";
 import {
-  AgentRatingStats,
+  type AgentRatingStats,
   UserAgentRatingWithUser,
 } from "@/lib/db/repositories/agentRating.repository";
 import { cn } from "@/lib/utils";

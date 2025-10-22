@@ -13,7 +13,7 @@ import {
   AgentWithRelations,
   getAgentTags,
 } from "@/lib/db";
-import { AgentRatingStats } from "@/lib/db/repositories/agentRating.repository";
+import type { AgentRatingStats } from "@/lib/db/repositories/agentRating.repository";
 
 import { GalleryFilterState } from "./use-gallery-filter";
 

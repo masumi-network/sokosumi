@@ -3,7 +3,7 @@ import { useFormatter, useTranslations } from "next-intl";
 
 import { StarRating } from "@/components/agents/star-rating";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AgentRatingStats } from "@/lib/db/repositories/agentRating.repository";
+import type { AgentRatingStats } from "@/lib/db/repositories/agentRating.repository";
 import { formatDuration } from "@/lib/utils";
 
 function AgentDetailStats({

@@ -15,7 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { AgentRatingStats } from "@/lib/db/repositories/agentRating.repository";
+import type { AgentRatingStats } from "@/lib/db/repositories/agentRating.repository";
 
 interface AgentRatingCTAProps {
   agentId: string;

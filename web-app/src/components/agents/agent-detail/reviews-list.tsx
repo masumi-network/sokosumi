@@ -35,52 +35,54 @@ export function ReviewsList({ ratingsWithComments }: ReviewsListProps) {
 
   return (
     <div className="space-y-4">
-      <Pagination>
-        <PaginationContent className="bg-muted rounded-lg p-2">
-          <PaginationItem>
-            <PaginationLink
-              onClick={() => setCurrentPage(1)}
-              isActive={currentPage > 1}
-            >
-              <ChevronsLeft />
-            </PaginationLink>
-          </PaginationItem>
-          <PaginationItem>
-            <PaginationLink
-              onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-              isActive={currentPage > 1}
-            >
-              <ChevronLeft />
-            </PaginationLink>
-          </PaginationItem>
-          <div className="mx-1">
-            <p className="text-sm">
-              {t("Pagination.page", { page: currentPage, totalPages })}
-            </p>
-          </div>
-          <PaginationItem>
-            <PaginationLink
-              onClick={() =>
-                setCurrentPage(Math.min(totalPages, currentPage + 1))
-              }
-              isActive={currentPage < totalPages}
-            >
-              <ChevronRight />
-            </PaginationLink>
-          </PaginationItem>
-          <PaginationItem>
-            <PaginationLink
-              onClick={() => setCurrentPage(totalPages)}
-              isActive={currentPage < totalPages}
-            >
-              <ChevronsRight />
-            </PaginationLink>
-          </PaginationItem>
-        </PaginationContent>
-      </Pagination>
       {currentPageRatings.map((rating) => (
         <RatingListItem key={rating.id} rating={rating} />
       ))}
+      {totalPages > 1 && (
+        <Pagination>
+          <PaginationContent className="p-2">
+            <PaginationItem>
+              <PaginationLink
+                onClick={() => setCurrentPage(1)}
+                isActive={currentPage > 1}
+              >
+                <ChevronsLeft />
+              </PaginationLink>
+            </PaginationItem>
+            <PaginationItem>
+              <PaginationLink
+                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                isActive={currentPage > 1}
+              >
+                <ChevronLeft />
+              </PaginationLink>
+            </PaginationItem>
+            <div className="mx-1">
+              <p className="text-sm">
+                {t("Pagination.page", { page: currentPage, totalPages })}
+              </p>
+            </div>
+            <PaginationItem>
+              <PaginationLink
+                onClick={() =>
+                  setCurrentPage(Math.min(totalPages, currentPage + 1))
+                }
+                isActive={currentPage < totalPages}
+              >
+                <ChevronRight />
+              </PaginationLink>
+            </PaginationItem>
+            <PaginationItem>
+              <PaginationLink
+                onClick={() => setCurrentPage(totalPages)}
+                isActive={currentPage < totalPages}
+              >
+                <ChevronsRight />
+              </PaginationLink>
+            </PaginationItem>
+          </PaginationContent>
+        </Pagination>
+      )}
     </div>
   );
 }

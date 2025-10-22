@@ -1,7 +1,7 @@
 import { useTranslations } from "next-intl";
 
 import { AgentWithCreditsPrice, AgentWithRelations } from "@/lib/db";
-import { AgentRatingStats } from "@/lib/db/repositories/agentRating.repository";
+import type { AgentRatingStats } from "@/lib/db/repositories/agentRating.repository";
 import { cn } from "@/lib/utils";
 
 import { AgentCard, AgentCardSkeleton } from "./agent-card";

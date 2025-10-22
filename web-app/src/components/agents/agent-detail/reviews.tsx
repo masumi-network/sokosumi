@@ -5,7 +5,7 @@ import { RatingDistribution } from "@/components/agents/rating-distribution";
 import { StarRating } from "@/components/agents/star-rating";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  AgentRatingStats,
+  type AgentRatingStats,
   UserAgentRatingWithUser,
 } from "@/lib/db/repositories/agentRating.repository";
 
