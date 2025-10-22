@@ -1,32 +1,29 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState, useTransition } from "react";
+import { useEffect, useMemo, useRef, useTransition } from "react";
 
 export function useAsyncRouter() {
   const router = useRouter();
   const [isPending, startTransition] = useTransition();
 
-  const [resolve, setResolve] = useState<(() => void) | null>(null);
-  const [isTriggered, setIsTriggered] = useState(false);
+  const resolveRef = useRef<(() => void) | null>(null);
+  const wasTransitionStartedRef = useRef(false);
 
   useEffect(() => {
-    if (isTriggered && !isPending) {
-      if (resolve) {
-        resolve();
-        setIsTriggered(false);
-        setResolve(null);
-      }
+    // When transition completes and we have a pending resolve, call it
+    if (wasTransitionStartedRef.current && !isPending && resolveRef.current) {
+      resolveRef.current();
+      resolveRef.current = null;
+      wasTransitionStartedRef.current = false;
     }
-    if (isPending) {
-      setIsTriggered(true);
-    }
-  }, [isTriggered, isPending, resolve]);
+  }, [isPending]);
 
   const asyncRouter = useMemo(() => {
     const push = (path: string) => {
-      return new Promise((resolve) => {
-        setResolve(() => resolve);
+      return new Promise<void>((resolve) => {
+        resolveRef.current = resolve;
+        wasTransitionStartedRef.current = true;
         startTransition(() => {
           router.push(path);
         });
