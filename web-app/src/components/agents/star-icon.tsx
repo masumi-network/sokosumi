@@ -1,6 +1,5 @@
 "use client";
 
-import { useTheme } from "next-themes";
 import { useId } from "react";
 
 import { cn } from "@/lib/utils";
@@ -19,14 +18,6 @@ export function StarIcon({
   // Generate stable unique gradient ID (prevents hydration mismatches)
   const uniqueId = useId();
   const gradientId = `star-gradient-${uniqueId}`;
-  const { resolvedTheme } = useTheme();
-
-  // Theme-aware colors
-  const isDark = resolvedTheme === "dark";
-  const filledColor = isDark ? "rgb(250, 250, 250)" : "rgb(10, 10, 10)";
-  const emptyColor = isDark
-    ? "rgba(255, 255, 255, 0.15)"
-    : "rgb(230, 230, 230)";
 
   const sizeMap = {
     xs: "size-2", // 8px
@@ -43,8 +34,14 @@ export function StarIcon({
     >
       <defs>
         <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset={`${fillPercentage}%`} stopColor={filledColor} />
-          <stop offset={`${fillPercentage}%`} stopColor={emptyColor} />
+          <stop
+            offset={`${fillPercentage}%`}
+            style={{ stopColor: "var(--foreground)" }}
+          />
+          <stop
+            offset={`${fillPercentage}%`}
+            style={{ stopColor: "var(--tertiary)" }}
+          />
         </linearGradient>
       </defs>
       <path
