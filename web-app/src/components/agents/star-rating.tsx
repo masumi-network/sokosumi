@@ -9,7 +9,7 @@ interface StarRatingProps {
   averageRating: number;
   totalRatings?: number; // If provided, shows full display; if not, shows only stars
   showRatingNumber?: boolean; // If false, hides the rating number (e.g., "3.7")
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg";
   className?: string;
 }
 
@@ -27,6 +27,13 @@ export function StarRating({
     sm: "text-sm",
     md: "text-base",
     lg: "text-lg",
+  };
+
+  const gapClasses = {
+    xs: "gap-0.5",
+    sm: "gap-0.5",
+    md: "gap-1",
+    lg: "gap-1",
   };
 
   // Handle no ratings case
@@ -70,7 +77,7 @@ export function StarRating({
   // If totalRatings is not provided, show only stars
   if (totalRatings === undefined) {
     return (
-      <div className={cn("flex items-center gap-0.5", className)}>
+      <div className={cn("flex items-center", gapClasses[size], className)}>
         {starFills.map((fillPercentage, index) => (
           <StarIcon key={index} fillPercentage={fillPercentage} size={size} />
         ))}
@@ -89,7 +96,7 @@ export function StarRating({
       )}
 
       {/* Stars */}
-      <div className="flex items-center gap-0.5">
+      <div className={cn("flex items-center", gapClasses[size])}>
         {starFills.map((fillPercentage, index) => (
           <StarIcon key={index} fillPercentage={fillPercentage} size={size} />
         ))}

@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 
 interface StarIconProps {
   fillPercentage: number; // 0-100
-  size?: "sm" | "md" | "lg";
+  size?: "xs" | "sm" | "md" | "lg";
   className?: string;
 }
 
@@ -29,6 +29,7 @@ export function StarIcon({
     : "rgb(230, 230, 230)";
 
   const sizeMap = {
+    xs: "size-2", // 8px
     sm: "size-3", // 12px
     md: "size-4", // 16px
     lg: "size-5", // 20px
