@@ -3,7 +3,7 @@
 import { CookieIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -31,14 +31,15 @@ export default function CookieConsent({
 }: CookieConsentProps) {
   const t = useTranslations("Components.CookieConsent");
 
-  const [visible, setVisible] = useState(false);
-
-  useEffect(() => {
-    const consent = getCookie(COOKIE_NAME);
-    if (!consent) {
-      setVisible(true);
+  // Lazy initialization to check cookie consent on mount
+  const [visible, setVisible] = useState(() => {
+    // Only check on client-side
+    if (typeof document === "undefined") {
+      return false;
     }
-  }, []);
+    const consent = getCookie(COOKIE_NAME);
+    return !consent;
+  });
 
   const handleAccept = () => {
     setCookie(COOKIE_NAME, "accepted", COOKIE_MAX_AGE);
@@ -57,8 +58,8 @@ export default function CookieConsent({
   return (
     <div
       className={cn(
-        "fixed right-0 bottom-0 left-0 z-[999999] p-2 transition-all duration-700 sm:max-w-md sm:p-4",
-        visible ? "translate-y-0 opacity-100" : "translate-y-[100%] opacity-0",
+        "fixed right-0 bottom-0 left-0 z-999999 p-2 transition-all duration-700 sm:max-w-md sm:p-4",
+        visible ? "translate-y-0 opacity-100" : "translate-y-full opacity-0",
       )}
     >
       <div className="bg-background space-y-2 rounded-lg border p-4">
