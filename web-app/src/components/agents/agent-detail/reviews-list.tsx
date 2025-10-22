@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/pagination";
 import { UserAgentRatingWithUser } from "@/lib/db/repositories/agentRating.repository";
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 5;
 
 interface ReviewsListProps {
   ratingsWithComments: UserAgentRatingWithUser[];
@@ -34,54 +34,58 @@ export function ReviewsList({ ratingsWithComments }: ReviewsListProps) {
   );
 
   return (
-    <div className="space-y-4">
-      {currentPageRatings.map((rating) => (
-        <RatingListItem key={rating.id} rating={rating} />
-      ))}
+    <div className="flex h-full flex-col">
+      <div className="flex-1 space-y-4">
+        {currentPageRatings.map((rating) => (
+          <RatingListItem key={rating.id} rating={rating} />
+        ))}
+      </div>
       {totalPages > 1 && (
-        <Pagination>
-          <PaginationContent className="p-2">
-            <PaginationItem>
-              <PaginationLink
-                onClick={() => setCurrentPage(1)}
-                isActive={currentPage > 1}
-              >
-                <ChevronsLeft />
-              </PaginationLink>
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationLink
-                onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
-                isActive={currentPage > 1}
-              >
-                <ChevronLeft />
-              </PaginationLink>
-            </PaginationItem>
-            <div className="mx-1">
-              <p className="text-sm">
-                {t("Pagination.page", { page: currentPage, totalPages })}
-              </p>
-            </div>
-            <PaginationItem>
-              <PaginationLink
-                onClick={() =>
-                  setCurrentPage(Math.min(totalPages, currentPage + 1))
-                }
-                isActive={currentPage < totalPages}
-              >
-                <ChevronRight />
-              </PaginationLink>
-            </PaginationItem>
-            <PaginationItem>
-              <PaginationLink
-                onClick={() => setCurrentPage(totalPages)}
-                isActive={currentPage < totalPages}
-              >
-                <ChevronsRight />
-              </PaginationLink>
-            </PaginationItem>
-          </PaginationContent>
-        </Pagination>
+        <div className="mt-auto shrink-0">
+          <Pagination>
+            <PaginationContent className="p-2">
+              <PaginationItem>
+                <PaginationLink
+                  onClick={() => setCurrentPage(1)}
+                  isActive={currentPage > 1}
+                >
+                  <ChevronsLeft />
+                </PaginationLink>
+              </PaginationItem>
+              <PaginationItem>
+                <PaginationLink
+                  onClick={() => setCurrentPage(Math.max(1, currentPage - 1))}
+                  isActive={currentPage > 1}
+                >
+                  <ChevronLeft />
+                </PaginationLink>
+              </PaginationItem>
+              <div className="mx-1">
+                <p className="text-sm">
+                  {t("Pagination.page", { page: currentPage, totalPages })}
+                </p>
+              </div>
+              <PaginationItem>
+                <PaginationLink
+                  onClick={() =>
+                    setCurrentPage(Math.min(totalPages, currentPage + 1))
+                  }
+                  isActive={currentPage < totalPages}
+                >
+                  <ChevronRight />
+                </PaginationLink>
+              </PaginationItem>
+              <PaginationItem>
+                <PaginationLink
+                  onClick={() => setCurrentPage(totalPages)}
+                  isActive={currentPage < totalPages}
+                >
+                  <ChevronsRight />
+                </PaginationLink>
+              </PaginationItem>
+            </PaginationContent>
+          </Pagination>
+        </div>
       )}
     </div>
   );

@@ -88,6 +88,8 @@
         "beFirstToReview": "Be the first to write a review!",
         "signInToReview": "Sign in to write a review",
         "signIn": "Sign in",
+        "readMore": "Read more",
+        "showLess": "Show less",
         "Pagination": {
           "page": "Page {page} of {totalPages}"
         }
