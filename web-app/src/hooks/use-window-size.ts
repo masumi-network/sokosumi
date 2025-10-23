@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 interface WindowSize {
   innerWidth: number;
@@ -9,11 +9,7 @@ interface WindowSize {
   outerHeight: number;
 }
 
-const readWindowSize = () => {
-  if (typeof window === "undefined") {
-    return undefined;
-  }
-
+const readWindowSize = (): WindowSize => {
   return {
     innerWidth: window.innerWidth,
     outerWidth: window.outerWidth,
@@ -23,26 +19,15 @@ const readWindowSize = () => {
 };
 
 export default function useWindowSize(): WindowSize | undefined {
-  const [windowSize, setWindowSize] = useState<WindowSize | undefined>(
-    undefined,
+  return useSyncExternalStore(
+    // Subscribe function
+    (callback) => {
+      window.addEventListener("resize", callback);
+      return () => window.removeEventListener("resize", callback);
+    },
+    // Client snapshot
+    () => readWindowSize(),
+    // Server snapshot
+    () => undefined,
   );
-
-  const handleSize = useCallback(() => {
-    const newWindowSize = readWindowSize();
-
-    if (newWindowSize) {
-      setWindowSize({ ...newWindowSize });
-    }
-  }, [setWindowSize]);
-
-  useEffect(() => {
-    window.addEventListener("resize", handleSize);
-    handleSize();
-
-    return () => {
-      window.removeEventListener("resize", handleSize);
-    };
-  }, [handleSize]);
-
-  return windowSize;
 }

@@ -10,7 +10,8 @@ import {
   Loader2,
 } from "lucide-react";
 import Link from "next/link";
-import { useFormatter, useTranslations } from "next-intl";
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import React from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -19,7 +20,6 @@ import { useCreateJobModalContext } from "@/components/create-job-modal";
 import { JobScheduleModal } from "@/components/create-job-modal/job-schedule-modal";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
-import { useAsyncRouter } from "@/hooks/use-async-router";
 import usePreventEnterSubmit from "@/hooks/use-prevent-enter-submit";
 import {
   CommonErrorCode,
@@ -79,7 +79,7 @@ export default function JobInputsFormClient({
     defaultValues: demoValues ? demoValues.input : defaultValues(input_data),
     mode: "onChange",
   });
-  const router = useAsyncRouter();
+  const router = useRouter();
 
   const { os, isMobile } = getOSFromUserAgent();
 
@@ -164,13 +164,7 @@ export default function JobInputsFormClient({
       });
       // close modal
       handleClose();
-      if (scheduleSelection && scheduleSelection.mode !== JobScheduleType.NOW) {
-        toast.success("Schedule created");
-        setScheduleSelection(null);
-        await router.push(`/schedules`); ///${result.data.scheduleId}
-      } else {
-        await router.push(`/agents/${agentId}/jobs/${result.data.jobId}`);
-      }
+      router.push(`/agents/${agentId}/jobs/${result.data.jobId}`);
     } else {
       console.log("result", result);
       console.log("scheduleSelection", scheduleSelection);
@@ -179,7 +173,7 @@ export default function JobInputsFormClient({
           toast.error(t("Error.unauthenticated"), {
             action: {
               label: t("Error.unauthenticatedAction"),
-              onClick: async () => await router.push(`/login`),
+              onClick: () => router.push(`/login`),
             },
           });
           break;
@@ -190,7 +184,7 @@ export default function JobInputsFormClient({
           toast.error(t("Error.insufficientBalance"), {
             action: {
               label: t("Error.insufficientBalanceAction"),
-              onClick: async () => await router.push(`/billing`),
+              onClick: () => router.push(`/billing`),
             },
           });
           break;

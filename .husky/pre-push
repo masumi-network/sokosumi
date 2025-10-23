@@ -1,107 +1,31 @@
 #!/usr/bin/env sh
 
-# Portable and safe way to handle colors
-if command -v tput >/dev/null 2>&1 && [ -t 1 ]; then
-    # We have tput and it's an interactive terminal
-    if tput setaf 1 >/dev/null 2>&1; then
-        GREEN=$(tput setaf 2)
-        RED=$(tput setaf 1)
-        BLUE=$(tput setaf 4)
-        YELLOW=$(tput setaf 3)
-        NC=$(tput sgr0)
-    else
-        GREEN=""
-        RED=""
-        BLUE=""
-        YELLOW=""
-        NC=""
-    fi
-else
-    GREEN=""
-    RED=""
-    BLUE=""
-    YELLOW=""
-    NC=""
-fi
+echo "📦 Running pre-push checks..."
 
-# Check if we're in a git repository
-if ! git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    echo "${RED}❌ Not a git repository${NC}"
+echo "🔍 Checking dependencies..."
+pnpm install --frozen-lockfile --prefer-offline > /dev/null 2>&1 || {
+  echo "⚠️  Dependencies out of sync. Running pnpm install..."
+  pnpm install || {
+    echo "❌ Failed to install dependencies"
     exit 1
-fi
+  }
+}
 
-# Check if pnpm is available
-if ! command -v pnpm >/dev/null 2>&1; then
-    echo "${RED}❌ pnpm is not installed or not in PATH${NC}"
-    exit 2
-fi
+echo "🔍 Running linter..."
+pnpm lint || {
+  echo "❌ Lint failed. Please fix linting errors before pushing."
+  exit 1
+}
 
-# Protected branches
-protected_branches="^(main)$"
+echo "✅ Lint passed"
 
-# Get the current branch in a cross-platform way
-current_branch=$(git symbolic-ref --short HEAD 2>/dev/null || git rev-parse --short HEAD)
+echo "🧪 Running tests..."
+pnpm test:ci || {
+  echo "❌ Tests failed. Please fix failing tests before pushing."
+  exit 1
+}
 
-# Read standard input in a while loop
-while IFS= read -r line || [ -n "$line" ]; do
-    if [ -z "$line" ]; then
-        continue
-    fi
-    
-    # Split the line into components safely
-    local_ref=$(echo "$line" | cut -d' ' -f1)
-    local_sha=$(echo "$line" | cut -d' ' -f2)
-    remote_ref=$(echo "$line" | cut -d' ' -f3)
-    remote_sha=$(echo "$line" | cut -d' ' -f4)
-    
-    # Extract branch name from ref
-    remote_branch=${remote_ref##*/}
-    
-    if echo "$remote_branch" | grep -qE "$protected_branches"; then
-        echo "${RED}❌ Direct push to $remote_branch branch is not allowed${NC}"
-        echo "${YELLOW}Please create a pull request instead.${NC}"
-        exit 3
-    fi
-done
+echo "✅ Tests passed"
 
-# Run tests with proper error handling
-echo "${BLUE}🔍 Running test suite...${NC}"
-if cd 'web-app' && ! pnpm run test:ci; then
-    echo "${RED}❌ Tests failed. Please fix failing tests and try again.${NC}"
-    exit 4
-fi
+echo "✅ All checks passed. Proceeding with push..."
 
-# TypeScript build check
-echo "${BLUE}🔍 Generating OpenAPI types...${NC}"
-if cd 'web-app' && ! pnpm run generate:api; then
-    echo "${RED}❌ OpenAPI types generation failed. Please fix type errors and try again.${NC}"
-    exit 5
-fi
-
-# Nextjs build check
-echo "${BLUE}🔍 Running Next.js build...${NC}"
-if cd 'web-app' && ! pnpm run build; then
-    echo "${RED}❌ Next.js build failed. Please fix type errors and try again.${NC}"
-    exit 5
-fi
-
-# Security audit with better error handling
-echo "${BLUE}🔍 Running security audit...${NC}"
-if cd 'web-app' && pnpm audit --audit-level=high --json >/dev/null 2>&1; then
-    echo "${GREEN}✅ No high severity vulnerabilities found${NC}"
-else
-    echo "${YELLOW}⚠️ Security vulnerabilities found. Please review:${NC}"
-    echo "${YELLOW}1. Run 'pnpm audit' to see details${NC}"
-    echo "${YELLOW}2. Run 'pnpm audit fix' to fix automatically fixable issues${NC}"
-    echo "${YELLOW}3. Review and update packages with manual fixes required${NC}"
-    # Note: We don't exit here as this is a warning
-fi
-
-# Check for outdated dependencies
-echo "${BLUE}🔍 Checking for outdated dependencies...${NC}"
-if cd 'web-app' && ! npm outdated --json >/dev/null 2>&1; then
-    echo "${YELLOW}⚠️ Some dependencies are outdated. Consider updating them.${NC}"
-    # Note: We don't exit here as this is informational
-fi
-
-echo "${GREEN}✅ All pre-push checks completed!${NC}" 

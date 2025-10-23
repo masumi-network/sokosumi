@@ -3,7 +3,7 @@
 import { CookieIcon } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -31,34 +31,38 @@ export default function CookieConsent({
 }: CookieConsentProps) {
   const t = useTranslations("Components.CookieConsent");
 
-  const [visible, setVisible] = useState(false);
+  // Detect client-side rendering without setState in useEffect
+  const isClient = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
-  useEffect(() => {
-    const consent = getCookie(COOKIE_NAME);
-    if (!consent) {
-      setVisible(true);
-    }
-  }, []);
+  // Check if banner should be visible (only on client after mount)
+  const visible = isClient && !getCookie(COOKIE_NAME);
+  const [hideBanner, setHideBanner] = useState(false);
 
   const handleAccept = () => {
     setCookie(COOKIE_NAME, "accepted", COOKIE_MAX_AGE);
     // TODO: Initialize analytics or tracking here (only if accepted)
-    setVisible(false);
+    setHideBanner(true);
     onAccept?.();
   };
 
   const handleReject = () => {
     setCookie(COOKIE_NAME, "rejected", COOKIE_MAX_AGE);
     // Optional: disable tracking or clear cookies here
-    setVisible(false);
+    setHideBanner(true);
     onReject?.();
   };
+
+  const showBanner = visible && !hideBanner;
 
   return (
     <div
       className={cn(
-        "fixed right-0 bottom-0 left-0 z-[999999] p-2 transition-all duration-700 sm:max-w-md sm:p-4",
-        visible ? "translate-y-0 opacity-100" : "translate-y-[100%] opacity-0",
+        "fixed right-0 bottom-0 left-0 z-999999 p-2 transition-all duration-700 sm:max-w-md sm:p-4",
+        showBanner ? "translate-y-0 opacity-100" : "translate-y-full opacity-0",
       )}
     >
       <div className="bg-background space-y-2 rounded-lg border p-4">
