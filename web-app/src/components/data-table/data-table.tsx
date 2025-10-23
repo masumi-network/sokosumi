@@ -1,4 +1,5 @@
 "use client";
+"use no memo";
 
 import {
   ColumnDef,
@@ -16,7 +17,6 @@ import {
 } from "@tanstack/react-table";
 import { useTranslations } from "next-intl";
 import * as React from "react";
-import { useMemo } from "react";
 
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -79,6 +79,9 @@ export default function DataTable<TData, TValue>({
   );
   const [sorting, setSorting] = React.useState<SortingState>(defaultSort ?? []);
 
+  // TanStack Table's useReactTable returns functions that can't be memoized.
+  // The "use no memo" directive above tells React Compiler to skip this component.
+  // eslint-disable-next-line react-hooks/incompatible-library
   const table = useReactTable({
     data,
     columns,
@@ -108,69 +111,56 @@ export default function DataTable<TData, TValue>({
 
   const rowModel = table.getRowModel();
 
-  const visibleLeafColumnsCount = useMemo(
-    () => table.getVisibleLeafColumns().length,
-    [table],
-  );
+  const visibleLeafColumnsCount = table.getVisibleLeafColumns().length;
 
-  const renderedRows = useMemo(() => {
-    let lastGroupKey: string | null = null;
-    const colSpan = visibleLeafColumnsCount;
+  let lastGroupKey: string | null = null;
+  const colSpan = visibleLeafColumnsCount;
 
-    return rowModel.rows.map((row) => {
-      const onClick = onRowClick?.(row.original);
-      const currentKey = getGroupKey?.(row.original) ?? null;
-      const needsHeader = currentKey !== null && currentKey !== lastGroupKey;
-      if (currentKey !== null) lastGroupKey = currentKey;
+  const renderedRows = rowModel.rows.map((row) => {
+    const onClick = onRowClick?.(row.original);
+    const currentKey = getGroupKey?.(row.original) ?? null;
+    const needsHeader = currentKey !== null && currentKey !== lastGroupKey;
+    if (currentKey !== null) lastGroupKey = currentKey;
 
-      return (
-        <React.Fragment key={row.id}>
-          {needsHeader ? (
-            <TableRow className="border-b-0">
-              <TableCell
-                aria-label={`Group header for ${currentKey}`}
-                colSpan={colSpan}
-                className="text-muted-foreground p-2 text-xs font-medium tracking-wide uppercase"
-              >
-                {renderGroupHeader
-                  ? renderGroupHeader(currentKey as string)
-                  : (currentKey as string)}
-              </TableCell>
-            </TableRow>
-          ) : null}
-          <TableRow
-            data-state={row.getIsSelected() && "selected"}
-            className={cn(
-              rowClassName?.(row.original),
-              onClick != undefined && "cursor-pointer",
-              disableHover && "hover:bg-transparent",
-            )}
-            onClick={onClick}
-          >
-            {row.getVisibleCells().map((cell) => (
-              <TableCell
-                key={cell.id}
-                className="p-2"
-                style={{
-                  width: cell.column.getSize(),
-                }}
-              >
-                {flexRender(cell.column.columnDef.cell, cell.getContext())}
-              </TableCell>
-            ))}
+    return (
+      <React.Fragment key={row.id}>
+        {needsHeader ? (
+          <TableRow className="border-b-0">
+            <TableCell
+              aria-label={`Group header for ${currentKey}`}
+              colSpan={colSpan}
+              className="text-muted-foreground p-2 text-xs font-medium tracking-wide uppercase"
+            >
+              {renderGroupHeader
+                ? renderGroupHeader(currentKey as string)
+                : (currentKey as string)}
+            </TableCell>
           </TableRow>
-        </React.Fragment>
-      );
-    });
-  }, [
-    rowModel.rows,
-    onRowClick,
-    getGroupKey,
-    renderGroupHeader,
-    rowClassName,
-    disableHover,
-    visibleLeafColumnsCount,
-  ]);
+        ) : null}
+        <TableRow
+          data-state={row.getIsSelected() && "selected"}
+          className={cn(
+            rowClassName?.(row.original),
+            onClick != undefined && "cursor-pointer",
+            disableHover && "hover:bg-transparent",
+          )}
+          onClick={onClick}
+        >
+          {row.getVisibleCells().map((cell) => (
+            <TableCell
+              key={cell.id}
+              className="p-2"
+              style={{
+                width: cell.column.getSize(),
+              }}
+            >
+              {flexRender(cell.column.columnDef.cell, cell.getContext())}
+            </TableCell>
+          ))}
+        </TableRow>
+      </React.Fragment>
+    );
+  });
 
   const tableElements = (
     <div
@@ -209,7 +199,10 @@ export default function DataTable<TData, TValue>({
                 </TableRow>
               ))}
             </TableHeader>
-            <TableBody className={cn(tableBodyClassName)}>
+            <TableBody
+              className={cn(tableBodyClassName)}
+              key={`table-body-${rowModel.rows?.length ?? 0}`}
+            >
               {rowModel.rows?.length ? (
                 renderedRows
               ) : (

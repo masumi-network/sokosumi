@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { track } from "@vercel/analytics";
 import { Command, CornerDownLeft, Loader2 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import React from "react";
 import { SubmitHandler, useForm } from "react-hook-form";
@@ -12,7 +13,6 @@ import { toast } from "sonner";
 import { useCreateJobModalContext } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
-import { useAsyncRouter } from "@/hooks/use-async-router";
 import usePreventEnterSubmit from "@/hooks/use-prevent-enter-submit";
 import {
   CommonErrorCode,
@@ -66,7 +66,7 @@ export default function JobInputsFormClient({
     defaultValues: demoValues ? demoValues.input : defaultValues(input_data),
     mode: "onChange",
   });
-  const router = useAsyncRouter();
+  const router = useRouter();
 
   const { os, isMobile } = getOSFromUserAgent();
 
@@ -116,14 +116,14 @@ export default function JobInputsFormClient({
       });
       // close modal
       handleClose();
-      await router.push(`/agents/${agentId}/jobs/${result.data.jobId}`);
+      router.push(`/agents/${agentId}/jobs/${result.data.jobId}`);
     } else {
       switch (result.error.code) {
         case CommonErrorCode.UNAUTHENTICATED:
           toast.error(t("Error.unauthenticated"), {
             action: {
               label: t("Error.unauthenticatedAction"),
-              onClick: async () => await router.push(`/login`),
+              onClick: () => router.push(`/login`),
             },
           });
           break;
@@ -134,7 +134,7 @@ export default function JobInputsFormClient({
           toast.error(t("Error.insufficientBalance"), {
             action: {
               label: t("Error.insufficientBalanceAction"),
-              onClick: async () => await router.push(`/billing`),
+              onClick: () => router.push(`/billing`),
             },
           });
           break;

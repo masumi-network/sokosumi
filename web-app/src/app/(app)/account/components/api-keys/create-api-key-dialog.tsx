@@ -4,7 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -61,6 +61,13 @@ export function CreateApiKeyDialog({
   const form = useForm<CreateApiKeyFormData>({
     resolver: zodResolver(schema),
     defaultValues: DEFAULT_CREATE_FORM_VALUES,
+  });
+
+  // Watch scope field to conditionally render organization selector
+  // Using useWatch instead of form.watch() for React Compiler compatibility
+  const scopeValue = useWatch({
+    control: form.control,
+    name: "scope",
   });
 
   /**
@@ -196,7 +203,7 @@ export function CreateApiKeyDialog({
                   )}
                 />
 
-                {form.watch("scope") === "organization" && (
+                {scopeValue === "organization" && (
                   <FormField
                     control={form.control}
                     name="organizationId"

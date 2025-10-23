@@ -1,9 +1,7 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { Dispatch, SetStateAction, useState } from "react";
 
 import {
   AlertDialog,
@@ -12,17 +10,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import {
-  removeOrganizationSchema,
-  RemoveOrganizationSchemaType,
-} from "@/lib/schemas";
 import { Organization } from "@/prisma/generated/client";
 
 import OrganizationRemoveForm from "./form";
 
 interface OrganizationRemoveModalProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange: Dispatch<SetStateAction<boolean>>;
   organization: Organization;
 }
 
@@ -32,28 +26,10 @@ export default function OrganizationRemoveModal({
   organization,
 }: OrganizationRemoveModalProps) {
   const t = useTranslations("Components.Organizations.RemoveModal");
-
-  const form = useForm<RemoveOrganizationSchemaType>({
-    resolver: zodResolver(
-      removeOrganizationSchema(
-        useTranslations("Components.Organizations.RemoveModal.Schema"),
-      ),
-    ),
-    defaultValues: {
-      name: "",
-      confirmName: "",
-    },
-  });
-
-  useEffect(() => {
-    if (!open || !organization) {
-      return;
-    }
-    form.setValue("name", organization.name);
-  }, [open, form, organization]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleOpenChange = (open: boolean) => {
-    if (form.formState.isSubmitting) {
+    if (isLoading) {
       return;
     }
     onOpenChange(open);
@@ -70,7 +46,11 @@ export default function OrganizationRemoveModal({
             {t("description", { organization: organization.name })}
           </AlertDialogDescription>
         </AlertDialogHeader>
-        <OrganizationRemoveForm organization={organization} form={form} />
+        <OrganizationRemoveForm
+          organization={organization}
+          setIsLoading={setIsLoading}
+          onOpenChange={onOpenChange}
+        />
       </AlertDialogContent>
     </AlertDialog>
   );

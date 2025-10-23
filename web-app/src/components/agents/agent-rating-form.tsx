@@ -1,10 +1,10 @@
 "use client";
 
-import { Star } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { StarIcon } from "@/components/agents/star-icon";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { createAgentRating } from "@/lib/actions/agent/create-agent-rating";
@@ -73,14 +73,13 @@ export function AgentRatingForm({
               key={index}
               type="button"
               onClick={() => setRating(index + 1)}
-              className="hover:bg-muted rounded p-1 transition-colors"
+              className="hover:bg-muted rounded transition-colors"
               disabled={isSubmitting}
             >
-              <Star
-                className={cn(
-                  "size-6 fill-current transition-colors",
-                  index < rating ? "text-yellow-400" : "text-muted-foreground",
-                )}
+              <StarIcon
+                fillPercentage={index < rating ? 100 : 0}
+                size="lg"
+                className="transition-colors"
               />
             </button>
           ))}

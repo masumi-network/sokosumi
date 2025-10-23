@@ -4,7 +4,7 @@
 
 ## App-Specific Architecture
 
-**Framework**: Next.js 15 App Router with React 19 Server Components
+**Framework**: Next.js 16 App Router with React 19.2 Server Components
 **Location**: `web-app/` directory within the pnpm workspace
 **Key Directories**:
 

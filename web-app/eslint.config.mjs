@@ -1,48 +1,40 @@
-import { FlatCompat } from "@eslint/eslintrc";
-import js from "@eslint/js";
+import { defineConfig, globalIgnores } from "eslint/config";
+import nextVitals from "eslint-config-next/core-web-vitals";
+import nextTs from "eslint-config-next/typescript";
+import eslintNextPlugin from "eslint-config-next";
+import prettier from "eslint-config-prettier/flat";
+import simpleImportSort from "eslint-plugin-simple-import-sort";
+import noRelativeImportPaths from "eslint-plugin-no-relative-import-paths";
+import unusedImports from "eslint-plugin-unused-imports";
+import importPlugin from "eslint-plugin-import";
 
-const compat = new FlatCompat({
-  baseDirectory: import.meta.dirname,
-  recommendedConfig: js.configs.recommended,
-});
-
-const eslintConfig = [
+const eslintConfig = defineConfig([
+  ...nextVitals,
+  ...nextTs,
+  prettier,
   {
-    ignores: [
-      "node_modules/**",
-      ".next/**",
-      "out/**",
-      "build/**",
-      "next-env.d.ts",
-      "prisma/generated/**",
-      "src/components/ui/**",
-      "src/lib/clients/generated/**",
-      "public/js/**/*.js",
-      "*.config.mjs",
-      "*.config.js",
-      "jest.setup.js",
-      "**/__tests__/**",
-    ],
-  },
-  ...compat.config({
-    extends: ["next/core-web-vitals", "next/typescript", "prettier"],
-    plugins: [
-      "simple-import-sort",
-      "import",
-      "prettier",
-      "unused-imports",
-      "no-relative-import-paths",
-    ],
+    plugins: {
+      next: eslintNextPlugin,
+    },
+    settings: {
+      next: {
+        rootDir: "web-app/",
+      },
+    },
+    plugins: {
+      "simple-import-sort": simpleImportSort,
+      "no-relative-import-paths": noRelativeImportPaths,
+      "unused-imports": unusedImports,
+      import: importPlugin,
+    },
     rules: {
       "simple-import-sort/imports": "error",
       "simple-import-sort/exports": "error",
-      "prettier/prettier": "error",
+      "unused-imports/no-unused-imports": "error",
       "import/first": "error",
       "import/newline-after-import": "error",
       "import/no-duplicates": "error",
-      "react/jsx-no-literals": "error",
-      "unused-imports/no-unused-imports": "error",
-      "@typescript-eslint/prefer-nullish-coalescing": "error",
+      "@next/next/no-html-link-for-pages": ["error", "src/app"],
       "@typescript-eslint/no-unused-vars": [
         "warn",
         {
@@ -66,13 +58,24 @@ const eslintConfig = [
         { allowSameFolder: true },
       ],
     },
-    parserOptions: {
-      sourceType: "module",
-      ecmaVersion: "latest",
-      project: "./tsconfig.json",
-      tsconfigRootDir: import.meta.dirname,
-    },
-  }),
-];
+  },
+  // Override default ignores of eslint-config-next.
+  globalIgnores([
+    // Default ignores of eslint-config-next:
+    ".next/**",
+    "out/**",
+    "build/**",
+    "next-env.d.ts",
+    // Project specific ignores:
+    "prisma/generated/**",
+    "src/lib/clients/generated/**",
+    "src/components/ui/**",
+    "public/js/**/*.js",
+    "*.config.mjs",
+    "*.config.js",
+    "jest.setup.js",
+    "**/__tests__/**",
+  ]),
+]);
 
 export default eslintConfig;

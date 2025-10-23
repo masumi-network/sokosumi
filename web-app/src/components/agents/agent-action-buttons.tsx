@@ -2,7 +2,7 @@
 
 import { ArrowLeft, X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 import { AgentBookmarkButton } from "@/components/agents/agent-bookmark-button";
 import { ShareButton } from "@/components/share-button";
@@ -33,14 +33,22 @@ function AgentActionButtons({
 }: AgentActionButtonsProps) {
   const router = useRouter();
   const { isMobile } = useSidebar();
-  const [url, setUrl] = useState<URL | undefined>(undefined);
+
+  // Detect client-side rendering without setState in useEffect
+  const isClient = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
+
+  // Compute URL only on client to avoid hydration mismatch
+  const url = isClient
+    ? new URL(`${window.location.origin}/agents/${agent.id}`)
+    : undefined;
+
   const isFavorite = favoriteAgents?.some(
     (favoriteAgent) => favoriteAgent.id === agent.id,
   );
-
-  useEffect(() => {
-    setUrl(new URL(`${window.location.origin}/agents/${agent.id}`));
-  }, [agent]);
 
   const onBack = () => {
     // Check if we're inside of jobs/<id> and if it's mobile, redirect to /agents
