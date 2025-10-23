@@ -2,7 +2,6 @@ import "dotenv/config";
 
 import path from "node:path";
 
-import { PrismaPg } from "@prisma/adapter-pg";
 import type { PrismaConfig } from "prisma/config";
 import { env } from "prisma/config";
 
@@ -16,6 +15,8 @@ export default {
     seed: "tsx ./prisma/seed.ts",
   },
   engine: "js",
-  adapter: () =>
-    Promise.resolve(new PrismaPg({ connectionString: env("DATABASE_URL") })),
+  adapter: async () => {
+    const { PrismaPg } = await import("@prisma/adapter-pg");
+    return new PrismaPg({ connectionString: env("DATABASE_URL") });
+  },
 } satisfies PrismaConfig;
