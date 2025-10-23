@@ -48,6 +48,8 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
     router.push("/login");
   }
 
+  const { isSubmitting } = form.formState;
+
   return (
     <AuthForm
       form={form}
@@ -55,7 +57,7 @@ export default function ResetPasswordForm({ token }: ResetPasswordFormProps) {
       namespace="Auth.Pages.ResetPassword.Form"
       onSubmit={handleSubmit}
     >
-      <SubmitButton form={form} label={t("submit")} />
+      <SubmitButton isSubmitting={isSubmitting} label={t("submit")} />
     </AuthForm>
   );
 }
