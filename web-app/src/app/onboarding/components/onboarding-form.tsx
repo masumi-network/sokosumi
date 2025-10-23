@@ -80,7 +80,8 @@ export default function OnboardingForm() {
   );
   const hasValidEmails = validEmails.length > 0;
   const hasOrgName = watchedData.organizationName.trim().length > 0;
-  const hasFormErrors = Object.keys(form.formState.errors).length > 0;
+  const { errors } = form.formState;
+  const hasFormErrors = Object.keys(errors).length > 0;
 
   // Button state logic
   const canSubmit = hasOrgName && hasValidEmails && !hasFormErrors;

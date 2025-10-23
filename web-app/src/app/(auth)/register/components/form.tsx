@@ -96,6 +96,8 @@ export default function SignUpForm({ prefilledEmail }: SignUpFormProps) {
         : item,
     );
 
+  const { isSubmitting } = form.formState;
+
   return (
     <AuthForm
       form={form}
@@ -105,10 +107,10 @@ export default function SignUpForm({ prefilledEmail }: SignUpFormProps) {
     >
       <div className="flex flex-col gap-4">
         <SubmitButton
-          form={form}
+          isSubmitting={isSubmitting}
           label={t("submit")}
           className="w-full"
-          disabled={!termsAccepted}
+          disabled={!termsAccepted || isSubmitting}
         />
         <div className="flex flex-col items-center gap-2 sm:flex-row">
           <span className="text-muted-foreground text-sm">

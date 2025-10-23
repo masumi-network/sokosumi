@@ -70,6 +70,8 @@ export function CreateApiKeyDialog({
     name: "scope",
   });
 
+  const { isSubmitting } = form.formState;
+
   /**
    * Handle form submission to create API key
    */
@@ -247,12 +249,12 @@ export function CreateApiKeyDialog({
                     type="button"
                     variant="outline"
                     onClick={() => handleOpenChange(false)}
-                    disabled={form.formState.isSubmitting}
+                    disabled={isSubmitting}
                   >
                     {t("CreateDialog.cancelButton")}
                   </Button>
-                  <Button type="submit" disabled={form.formState.isSubmitting}>
-                    {form.formState.isSubmitting && (
+                  <Button type="submit" disabled={isSubmitting}>
+                    {isSubmitting && (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     )}
                     {t("CreateDialog.createButton")}

@@ -69,6 +69,8 @@ function JobNameContent({
   handleShareIndicatorClick,
   t,
 }: JobNameContentProps) {
+  const { isSubmitting } = form.formState;
+
   if (editing) {
     return (
       <Form {...form}>
@@ -94,21 +96,15 @@ function JobNameContent({
               </FormItem>
             )}
           />
-          <Button
-            size="sm"
-            type="submit"
-            disabled={form.formState.isSubmitting}
-          >
-            {form.formState.isSubmitting && (
-              <Loader2 className="mr-2 size-4 animate-spin" />
-            )}
+          <Button size="sm" type="submit" disabled={isSubmitting}>
+            {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
             {t("save")}
           </Button>
           <Button
             variant="outline"
             size="sm"
             type="reset"
-            disabled={form.formState.isSubmitting}
+            disabled={isSubmitting}
             onClick={handleCancel}
           >
             {t("cancel")}
