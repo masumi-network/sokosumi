@@ -148,7 +148,6 @@ export const createSchedule = withAuthContext<
       // Server-controlled defaults
       isActive: true,
       pauseReason: null,
-      lastRunAt: null,
       nextRunAt: nextRunAtIso,
     };
 

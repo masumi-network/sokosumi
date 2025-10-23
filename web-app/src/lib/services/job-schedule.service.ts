@@ -114,9 +114,6 @@ async function processSchedule(schedule: JobSchedule) {
       }
     }
 
-    // Only after passing validation we mark the attempt and start the job
-    await jobScheduleRepository.markRunAttempt(schedule.id);
-
     const inputSchema =
       schedule.inputSchema as StartJobInputSchemaType["inputSchema"];
     const inputRecord = JSON.parse(
@@ -156,7 +153,6 @@ async function processSchedule(schedule: JobSchedule) {
       // Enforce ends conditions
       const endOnUtc = schedule.endOnUtc;
       const endAfterOccurrences = schedule.endAfterOccurrences;
-      const occurrenceCount = schedule.occurrenceCount;
 
       const next = computeNextRun({
         cron: schedule.cron!,
@@ -172,12 +168,9 @@ async function processSchedule(schedule: JobSchedule) {
         return;
       }
 
-      // After this run, occurrenceCount has been incremented in markRunAttempt
-      const updatedOccurrenceCount = occurrenceCount + 1;
-      if (
-        endAfterOccurrences &&
-        updatedOccurrenceCount >= endAfterOccurrences
-      ) {
+      // After starting a job, count how many jobs have been created for this schedule
+      const jobsCount = await jobScheduleRepository.countJobs(schedule.id);
+      if (endAfterOccurrences && jobsCount >= endAfterOccurrences) {
         await jobScheduleRepository.setNextRun(schedule.id, null);
         return;
       }

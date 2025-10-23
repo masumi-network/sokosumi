@@ -7,7 +7,14 @@ import { InputJsonValue } from "@/prisma/generated/client/runtime/library";
 import prisma from "./prisma";
 
 export type ScheduleListItem = Prisma.JobScheduleGetPayload<{
-  include: { agent: true };
+  include: {
+    agent: true;
+    jobs: {
+      orderBy: { createdAt: "desc" };
+      take: 1;
+      select: { createdAt: true };
+    };
+  };
 }>;
 
 export const jobScheduleRepository = {
@@ -43,7 +50,6 @@ export const jobScheduleRepository = {
       isActive: data.isActive,
       pauseReason: data.pauseReason,
       nextRunAt: data.nextRunAt,
-      lastRunAt: data.lastRunAt,
     };
     const maybeEndOnUtc = data.endOnUtc;
     if (maybeEndOnUtc !== undefined) payloadObj.endOnUtc = maybeEndOnUtc;
@@ -95,18 +101,17 @@ export const jobScheduleRepository = {
       orderBy: { updatedAt: "desc" },
       include: {
         agent: true,
+        jobs: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { createdAt: true },
+        },
       },
     });
   },
 
-  async markRunAttempt(id: string, tx: Prisma.TransactionClient = prisma) {
-    return await tx.jobSchedule.update({
-      where: { id },
-      data: {
-        lastRunAt: new Date(),
-        occurrenceCount: { increment: 1 },
-      },
-    });
+  async countJobs(id: string, tx: Prisma.TransactionClient = prisma) {
+    return await tx.job.count({ where: { jobScheduleId: id } });
   },
 
   async setNextRun(
