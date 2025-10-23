@@ -1,6 +1,7 @@
 "use server";
 
 import * as Sentry from "@sentry/nextjs";
+import { revalidatePath } from "next/cache";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
@@ -165,7 +166,7 @@ export const startJob = withAuthContext<
 
       // call after agent hired webhook
       callAgentHiredWebHook(userId, user.email);
-
+      revalidatePath(`/agents/${input.agentId}/jobs/${job.id}`, "layout");
       return Ok({ jobId: job.id });
     } catch (error) {
       // Enhanced error handling with Sentry

@@ -117,9 +117,6 @@ export default function JobInputsFormClient({
       // close modal
       handleClose();
       router.push(`/agents/${agentId}/jobs/${result.data.jobId}`);
-      setTimeout(() => {
-        router.refresh();
-      }, 100);
     } else {
       switch (result.error.code) {
         case CommonErrorCode.UNAUTHENTICATED:
