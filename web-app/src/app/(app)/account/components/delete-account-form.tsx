@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
@@ -32,13 +33,12 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useAsyncRouter } from "@/hooks/use-async-router";
 import { deleteUser } from "@/lib/auth/auth.client";
 import { DeleteAccountFormType, deleteAccountSchema } from "@/lib/schemas";
 
 export function DeleteAccountForm() {
   const t = useTranslations("App.Account.Delete");
-  const router = useAsyncRouter();
+  const router = useRouter();
 
   const form = useForm<DeleteAccountFormType>({
     resolver: zodResolver(
@@ -56,11 +56,10 @@ export function DeleteAccountForm() {
 
     if (deleteUserResult.error) {
       toast.error(t("error"));
-      return;
+    } else {
+      toast.success(t("success"));
+      router.push("/");
     }
-
-    toast.success(t("success"));
-    await router.push("/");
   };
 
   return (
