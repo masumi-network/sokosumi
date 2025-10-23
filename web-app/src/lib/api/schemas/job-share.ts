@@ -1,10 +1,5 @@
 import * as z from "zod";
 
-export const jobShareRequestSchema = z.object({
-  shareWithOrganization: z.boolean().optional(),
-  allowSearchIndexing: z.boolean().optional(),
-});
-
 export const jobShareCreatorSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -26,5 +21,16 @@ export const jobShareResponseSchema = z.object({
   recipientOrganization: jobShareRecipientOrganizationSchema.nullable(),
 });
 
+export const jobShareRequestSchema = z.object({
+  shareWithOrganization: z.boolean().optional(),
+  allowSearchIndexing: z.boolean().optional(),
+});
+
+export const jobShareRemoveRequestSchema = z.object({
+  removeAll: z.boolean().optional(),
+  removeOrganizationShare: z.boolean().optional(),
+});
+
 export type JobShareRequest = z.infer<typeof jobShareRequestSchema>;
 export type JobShareResponse = z.infer<typeof jobShareResponseSchema>;
+export type JobShareRemoveRequest = z.infer<typeof jobShareRemoveRequestSchema>;
