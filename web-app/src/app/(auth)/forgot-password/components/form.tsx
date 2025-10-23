@@ -48,6 +48,8 @@ export default function ForgotPasswordForm({
     router.push("/login");
   }
 
+  const { isSubmitting } = form.formState;
+
   return (
     <AuthForm
       form={form}
@@ -55,7 +57,7 @@ export default function ForgotPasswordForm({
       namespace="Auth.Pages.ForgotPassword.Form"
       onSubmit={handleSubmit}
     >
-      <SubmitButton form={form} label={t("reset_password")} />
+      <SubmitButton isSubmitting={isSubmitting} label={t("reset_password")} />
     </AuthForm>
   );
 }
