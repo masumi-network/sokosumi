@@ -20,6 +20,10 @@ updates:
         patterns:
           - "prisma"
           - "@prisma/client"
+          - "@prisma/adapter-pg"
+          - "@types/pg"
+          - "pg"
+          - "pg-pool"
       radix:
         patterns:
           - "@radix-ui/**"
