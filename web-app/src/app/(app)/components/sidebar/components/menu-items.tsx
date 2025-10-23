@@ -37,7 +37,7 @@ export default function MenuItems() {
   ];
 
   return (
-    <SidebarGroup className="w-72 md:w-64">
+    <SidebarGroup className="w-full">
       <SidebarGroupContent className="mt-2">
         <SidebarMenu>
           {items.map(({ key, href, label, Icon, hasIndicator }) => {

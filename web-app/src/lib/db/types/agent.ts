@@ -14,7 +14,6 @@ export const agentPricingInclude = {
 } as const;
 
 export const agentRatingInclude = {
-  rating: true,
   userAgentRating: true,
 } as const;
 
