@@ -119,8 +119,8 @@ export default function DataTable<TData, TValue>({
   const renderedRows = rowModel.rows.map((row) => {
     const onClick = onRowClick?.(row.original);
     const currentKey = getGroupKey?.(row.original) ?? null;
-    const needsHeader = currentKey !== null && currentKey !== lastGroupKey;
-    if (currentKey !== null) lastGroupKey = currentKey;
+    const needsHeader = !!currentKey && currentKey !== lastGroupKey;
+    if (!!currentKey) lastGroupKey = currentKey;
 
     return (
       <React.Fragment key={row.id}>
@@ -131,9 +131,7 @@ export default function DataTable<TData, TValue>({
               colSpan={colSpan}
               className="text-muted-foreground p-2 text-xs font-medium tracking-wide uppercase"
             >
-              {renderGroupHeader
-                ? renderGroupHeader(currentKey as string)
-                : (currentKey as string)}
+              {renderGroupHeader ? renderGroupHeader(currentKey) : currentKey}
             </TableCell>
           </TableRow>
         ) : null}
