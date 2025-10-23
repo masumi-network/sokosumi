@@ -15,12 +15,10 @@ CREATE TABLE "jobSchedule" (
     "timezone" TEXT NOT NULL,
     "endOnUtc" TIMESTAMP(3),
     "endAfterOccurrences" INTEGER,
-    "occurrenceCount" INTEGER NOT NULL DEFAULT 0,
     "inputSchema" JSONB NOT NULL,
     "input" TEXT NOT NULL,
     "maxAcceptedCents" BIGINT NOT NULL,
     "isActive" BOOLEAN NOT NULL DEFAULT true,
-    "lastRunAt" TIMESTAMP(3),
     "nextRunAt" TIMESTAMP(3),
     "pauseReason" TEXT,
 

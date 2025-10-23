@@ -98,6 +98,8 @@ export default async function SchedulesPage() {
                         tScheduler as TranslateFn,
                       );
 
+                      const latestJobCreatedAt =
+                        s.jobs?.pop()?.createdAt ?? null;
                       return (
                         <ScheduleItem
                           key={s.id}
@@ -110,7 +112,7 @@ export default async function SchedulesPage() {
                             endOnUtc: s.endOnUtc ?? null,
                             endAfterOccurrences: s.endAfterOccurrences ?? null,
                             isActive: s.isActive,
-                            lastRunAt: s.lastRunAt ?? null,
+                            lastRunAt: latestJobCreatedAt,
                             nextRunAt: s.nextRunAt ?? null,
                             input: s.input ?? null,
                             inputSchema: s.inputSchema ?? null,

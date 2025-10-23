@@ -164,7 +164,11 @@ export default function JobInputsFormClient({
       });
       // close modal
       handleClose();
-      router.push(`/agents/${agentId}/jobs/${result.data.jobId}`);
+      if (result.data?.scheduleId) {
+        router.push(`/schedules`);
+      } else {
+        router.push(`/agents/${agentId}/jobs/${result.data.jobId}`);
+      }
     } else {
       console.log("result", result);
       console.log("scheduleSelection", scheduleSelection);

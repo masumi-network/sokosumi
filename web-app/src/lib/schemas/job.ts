@@ -156,7 +156,6 @@ export const createJobScheduleInputSchema = z.object({
   endAfterOccurrences: z.number().int().positive().nullish(),
   isActive: z.boolean().default(true),
   pauseReason: z.string().nullish(),
-  lastRunAt: z.string().nullish(),
   nextRunAt: z.string().nullish(),
 });
 

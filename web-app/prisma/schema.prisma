@@ -342,12 +342,12 @@ model Agent {
   exampleOutput         ExampleOutput[] @relation("ExampleOutputAgent")
   overrideExampleOutput ExampleOutput[] @relation("ExampleOutputAgentOverride")
 
-  userAgentRating UserAgentRating[]
-  agentLists      AgentList[]
-  jobs            Job[]
-  jobSchedules    JobSchedule[]
-  organizations   Organization[]
-  blacklistedOrganizations Organization[] @relation("AgentBlacklist")
+  userAgentRating          UserAgentRating[]
+  agentLists               AgentList[]
+  jobs                     Job[]
+  jobSchedules             JobSchedule[]
+  organizations            Organization[]
+  blacklistedOrganizations Organization[]    @relation("AgentBlacklist")
 
   tags         Tag[] @relation("AgentTag")
   overrideTags Tag[] @relation("AgentTagOverride")
@@ -721,26 +721,25 @@ model JobShare {
 }
 
 model JobSchedule {
-  id               String   @id @default(cuid())
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Ownership
-  userId           String
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organizationId   String?
-  organization     Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  agentId          String
-  agent            Agent    @relation(fields: [agentId], references: [id])
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  agentId        String
+  agent          Agent         @relation(fields: [agentId], references: [id])
 
   // Execution configuration
-  scheduleType     ScheduleType
-  cron             String?
-  oneTimeAtUtc     DateTime?
-  timezone         String   // IANA timezone identifier used for display and next run calculation
-  endOnUtc         DateTime?
+  scheduleType        ScheduleType
+  cron                String?
+  oneTimeAtUtc        DateTime?
+  timezone            String // IANA timezone identifier used for display and next run calculation
+  endOnUtc            DateTime?
   endAfterOccurrences Int?
-  occurrenceCount  Int      @default(0)
 
   // Job payload snapshot
   inputSchema      Json
@@ -748,10 +747,9 @@ model JobSchedule {
   maxAcceptedCents BigInt
 
   // State
-  isActive         Boolean  @default(true)
-  lastRunAt        DateTime?
-  nextRunAt        DateTime?
-  pauseReason      String?
+  isActive    Boolean   @default(true)
+  nextRunAt   DateTime?
+  pauseReason String?
 
   // Back-relation to jobs initiated by this schedule
   jobs Job[]
