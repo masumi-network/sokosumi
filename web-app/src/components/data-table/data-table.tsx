@@ -199,7 +199,10 @@ export default function DataTable<TData, TValue>({
                 </TableRow>
               ))}
             </TableHeader>
-            <TableBody className={cn(tableBodyClassName)}>
+            <TableBody
+              className={cn(tableBodyClassName)}
+              key={`table-body-${rowModel.rows?.length ?? 0}`}
+            >
               {rowModel.rows?.length ? (
                 renderedRows
               ) : (
