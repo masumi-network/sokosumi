@@ -111,6 +111,8 @@ export function DeleteApiKeyDialog({
     return confirmName === apiKey?.name;
   }, [confirmName, apiKey]);
 
+  const { isSubmitting } = form.formState;
+
   return (
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogContent>
@@ -143,15 +145,15 @@ export function DeleteApiKeyDialog({
               />
 
               <AlertDialogFooter>
-                <AlertDialogCancel disabled={form.formState.isSubmitting}>
+                <AlertDialogCancel disabled={isSubmitting}>
                   {t("DeleteDialog.cancelButton")}
                 </AlertDialogCancel>
                 <Button
                   type="submit"
                   variant="destructive"
-                  disabled={form.formState.isSubmitting || !canDelete}
+                  disabled={isSubmitting || !canDelete}
                 >
-                  {form.formState.isSubmitting && (
+                  {isSubmitting && (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   )}
                   {t("DeleteDialog.deleteButton")}
