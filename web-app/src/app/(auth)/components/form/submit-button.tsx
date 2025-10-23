@@ -2,24 +2,22 @@
 
 import { Loader2 } from "lucide-react";
 import { ComponentProps } from "react";
-import { FieldValues } from "react-hook-form";
 
 import { Button } from "@/components/ui/button";
 
 type ButtonProps = ComponentProps<typeof Button>;
 
-interface SubmitButtonProps<T extends FieldValues>
-  extends Omit<ButtonProps, "form"> {
+interface SubmitButtonProps extends Omit<ButtonProps, "form"> {
   isSubmitting: boolean;
   label: string;
 }
 
-export function SubmitButton<T extends FieldValues>({
+export function SubmitButton({
   isSubmitting,
   label,
   className,
   ...props
-}: SubmitButtonProps<T>) {
+}: SubmitButtonProps) {
   return (
     <Button
       type="submit"
