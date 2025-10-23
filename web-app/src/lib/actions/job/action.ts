@@ -311,84 +311,93 @@ export const requestRefundJobByBlockchainIdentifier = withAuthContext<
 interface ShareJobParameters extends AuthenticatedRequest {
   jobId: string;
   recipientOrganizationId: string | null;
+  allowSearchIndexing?: boolean;
 }
 
 export const shareJob = withAuthContext<
   ShareJobParameters,
   Result<JobShareWithRelations, ActionError>
->(async ({ jobId, recipientOrganizationId, authContext }) => {
-  const { userId } = authContext;
-  try {
-    return await prisma.$transaction(async (tx) => {
-      const job = await jobRepository.getJobById(jobId, tx);
-      if (!job) {
-        return Err({
-          message: "Job not found",
-          code: JobErrorCode.JOB_NOT_FOUND,
-        });
-      }
-
-      // must be job owner to share
-      if (userId !== job.userId) {
-        return Err({
-          message: "Unauthorized",
-          code: CommonErrorCode.UNAUTHORIZED,
-        });
-      }
-
-      // Validate organization membership if sharing with an organization
-      if (recipientOrganizationId) {
-        // Check if organization exists
-        const organization =
-          await organizationRepository.getOrganizationWithRelationsById(
-            recipientOrganizationId,
-            tx,
-          );
-        if (!organization) {
+>(
+  async ({
+    jobId,
+    recipientOrganizationId,
+    allowSearchIndexing,
+    authContext,
+  }) => {
+    const { userId } = authContext;
+    try {
+      return await prisma.$transaction(async (tx) => {
+        const job = await jobRepository.getJobById(jobId, tx);
+        if (!job) {
           return Err({
-            message: "Organization not found",
-            code: OrganizationErrorCode.ORGANIZATION_NOT_FOUND,
+            message: "Job not found",
+            code: JobErrorCode.JOB_NOT_FOUND,
           });
         }
 
-        // Check if user is a member of the organization
-        const membership =
-          await memberRepository.getMemberByUserIdAndOrganizationId(
-            userId,
-            recipientOrganizationId,
-            tx,
-          );
-        if (!membership) {
+        // must be job owner to share
+        if (userId !== job.userId) {
           return Err({
-            message:
-              "You must be a member of the organization to share jobs with it",
-            code: OrganizationErrorCode.NOT_ORGANIZATION_MEMBER,
+            message: "Unauthorized",
+            code: CommonErrorCode.UNAUTHORIZED,
           });
         }
-      }
-      // Remove existing share with the same organization
-      await jobShareRepository.deleteJobSharesByJobIdAndRecipientOrganizationId(
-        jobId,
-        recipientOrganizationId,
-        tx,
-      );
 
-      const jobShare = await jobShareRepository.createJobShare(
-        jobId,
-        userId,
-        recipientOrganizationId,
-        tx,
-      );
-      return Ok(jobShare);
-    });
-  } catch (error) {
-    console.error("Failed to share job", error);
-    return Err({
-      message: "Internal server error",
-      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-    });
-  }
-});
+        // Validate organization membership if sharing with an organization
+        if (recipientOrganizationId) {
+          // Check if organization exists
+          const organization =
+            await organizationRepository.getOrganizationWithRelationsById(
+              recipientOrganizationId,
+              tx,
+            );
+          if (!organization) {
+            return Err({
+              message: "Organization not found",
+              code: OrganizationErrorCode.ORGANIZATION_NOT_FOUND,
+            });
+          }
+
+          // Check if user is a member of the organization
+          const membership =
+            await memberRepository.getMemberByUserIdAndOrganizationId(
+              userId,
+              recipientOrganizationId,
+              tx,
+            );
+          if (!membership) {
+            return Err({
+              message:
+                "You must be a member of the organization to share jobs with it",
+              code: OrganizationErrorCode.NOT_ORGANIZATION_MEMBER,
+            });
+          }
+        }
+        // Remove existing share with the same organization
+        await jobShareRepository.deleteJobSharesByJobIdAndRecipientOrganizationId(
+          jobId,
+          recipientOrganizationId,
+          tx,
+        );
+
+        const jobShare = await jobShareRepository.createJobShare(
+          jobId,
+          userId,
+          recipientOrganizationId,
+          allowSearchIndexing ?? true,
+          tx,
+        );
+        return Ok(jobShare);
+      });
+    } catch (error) {
+      console.error("Failed to share job", error);
+      return Err({
+        message: "Internal server error",
+        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+      });
+    }
+  },
+);
 
 interface UpdateAllowSearchIndexingParameters extends AuthenticatedRequest {
   jobShareId: string;

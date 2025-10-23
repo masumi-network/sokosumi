@@ -32,6 +32,7 @@ export const jobShareRepository = {
     jobId: string,
     userId: string,
     recipientOrganizationId: string | null,
+    allowSearchIndexing: boolean,
     tx: Prisma.TransactionClient = prisma,
   ) {
     return await tx.jobShare.create({
@@ -45,6 +46,7 @@ export const jobShareRepository = {
         accessType: recipientOrganizationId
           ? ShareAccessType.RESTRICTED
           : ShareAccessType.PUBLIC,
+        allowSearchIndexing,
       },
       include: jobShareInclude,
     });

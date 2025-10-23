@@ -169,6 +169,7 @@ export async function POST(
       const shareResult = await shareJob({
         jobId: createdJob.id,
         recipientOrganizationId,
+        allowSearchIndexing: jobShareRequest.allowSearchIndexing,
         authContext: { userId, organizationId: activeOrganizationId },
       });
       if (!shareResult.ok) {
