@@ -202,6 +202,7 @@ export default function JobInputsFormClient({
     form.reset();
   };
 
+  const { isSubmitting, isValid } = form.formState;
   const formattedDuration = formatDuration(averageExecutionDuration, tDuration);
   const isDemo = !!demoValues;
 
@@ -248,7 +249,7 @@ export default function JobInputsFormClient({
     <Form {...form}>
       <form ref={formRef} onSubmit={enterPreventedHandleSubmit}>
         <fieldset
-          disabled={loading || form.formState.isSubmitting}
+          disabled={loading || isSubmitting}
           className={cn("flex flex-1 flex-col gap-6", className)}
         >
           {input_data.map((jobInputSchema) => (
@@ -286,16 +287,12 @@ export default function JobInputsFormClient({
                 </div>
                 <Button
                   type="submit"
-                  disabled={
-                    loading ||
-                    form.formState.isSubmitting ||
-                    !form.formState.isValid
-                  }
+                  disabled={loading || isSubmitting || !isValid}
                   className="items-center justify-between gap-1"
                 >
                   <div className="flex items-center gap-1">
-                    {(loading || form.formState.isSubmitting) && (
-                      <Loader2 className="size-4 animate-spin" />
+                    {(loading || isSubmitting) && (
+                      <Loader2 className="h-4 w-4 animate-spin" />
                     )}
                     {isScheduled ? t("schedule") : t("submit")}
                   </div>

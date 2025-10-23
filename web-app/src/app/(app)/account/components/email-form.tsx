@@ -57,14 +57,13 @@ export function EmailForm() {
     }
   };
 
+  const { isSubmitting } = form.formState;
+
   return (
     <Card className="flex h-full flex-col">
       <Form {...form}>
         <form onSubmit={form.handleSubmit(handleSubmit)}>
-          <fieldset
-            className="space-y-6"
-            disabled={form.formState.isSubmitting}
-          >
+          <fieldset className="space-y-6" disabled={isSubmitting}>
             <CardHeader>
               <CardTitle>{t("title")}</CardTitle>
               <CardDescription>{t("description")}</CardDescription>
@@ -85,12 +84,8 @@ export function EmailForm() {
               />
             </CardContent>
             <CardFooter>
-              <Button
-                type="submit"
-                disabled={form.formState.isSubmitting}
-                className="w-full"
-              >
-                {form.formState.isSubmitting && (
+              <Button type="submit" disabled={isSubmitting} className="w-full">
+                {isSubmitting && (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 )}
                 {t("submit")}

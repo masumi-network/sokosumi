@@ -62,6 +62,8 @@ export function DeleteAccountForm() {
     }
   };
 
+  const { isSubmitting } = form.formState;
+
   return (
     <Card className="border-destructive">
       <CardHeader>
@@ -80,10 +82,7 @@ export function DeleteAccountForm() {
             </DialogHeader>
             <Form {...form}>
               <form onSubmit={form.handleSubmit(handleSubmit)}>
-                <fieldset
-                  className="space-y-4"
-                  disabled={form.formState.isSubmitting}
-                >
+                <fieldset className="space-y-4" disabled={isSubmitting}>
                   <FormField
                     control={form.control}
                     name="currentPassword"
@@ -101,9 +100,9 @@ export function DeleteAccountForm() {
                     <Button
                       type="submit"
                       variant="destructive"
-                      disabled={form.formState.isSubmitting}
+                      disabled={isSubmitting}
                     >
-                      {form.formState.isSubmitting && (
+                      {isSubmitting && (
                         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                       )}
                       {t("confirm")}

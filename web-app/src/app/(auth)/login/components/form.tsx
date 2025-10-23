@@ -137,6 +137,8 @@ export default function SignInForm({
     [email],
   );
 
+  const { isSubmitting } = form.formState;
+
   return (
     <AuthForm
       form={form}
@@ -145,7 +147,11 @@ export default function SignInForm({
       onSubmit={handleSubmit}
     >
       <div className="flex flex-col gap-4">
-        <SubmitButton form={form} label={t("submit")} className="w-full" />
+        <SubmitButton
+          isSubmitting={isSubmitting}
+          label={t("submit")}
+          className="w-full"
+        />
         <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-between">
           <div className="flex flex-row items-center gap-2">
             <span className="text-muted-foreground text-sm">
