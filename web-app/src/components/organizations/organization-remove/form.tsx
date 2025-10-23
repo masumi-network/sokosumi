@@ -1,9 +1,11 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { UseFormReturn } from "react-hook-form";
+import { Dispatch, SetStateAction } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import {
@@ -21,22 +23,40 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { authClient } from "@/lib/auth/auth.client";
-import { RemoveOrganizationSchemaType } from "@/lib/schemas/organization";
+import {
+  removeOrganizationSchema,
+  RemoveOrganizationSchemaType,
+} from "@/lib/schemas/organization";
 import { Organization } from "@/prisma/generated/client";
 
 interface OrganizationRemoveFormProps {
   organization: Organization;
-  form: UseFormReturn<RemoveOrganizationSchemaType>;
+  setIsLoading: Dispatch<SetStateAction<boolean>>;
+  onOpenChange: Dispatch<SetStateAction<boolean>>;
 }
 
 export default function OrganizationRemoveForm({
   organization,
-  form,
+  setIsLoading,
+  onOpenChange,
 }: OrganizationRemoveFormProps) {
   const t = useTranslations("Components.Organizations.RemoveModal");
   const router = useRouter();
 
-  const onSubmit = async () => {
+  const form = useForm<RemoveOrganizationSchemaType>({
+    resolver: zodResolver(
+      removeOrganizationSchema(
+        organization.name,
+        useTranslations("Components.Organizations.RemoveModal.Schema"),
+      ),
+    ),
+    defaultValues: {
+      confirmName: "",
+    },
+  });
+
+  const onSubmit = async (_: RemoveOrganizationSchemaType) => {
+    setIsLoading(true);
     const result = await authClient.organization.delete({
       organizationId: organization.id,
     });
@@ -58,7 +78,9 @@ export default function OrganizationRemoveForm({
       toast.success(t("success"));
       router.push("/organizations");
       router.refresh();
+      onOpenChange(false);
     }
+    setIsLoading(false);
   };
 
   const canDelete = form.formState.isValid;

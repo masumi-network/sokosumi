@@ -3,8 +3,8 @@ import { useTranslations } from "next-intl";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AgentLegal } from "@/lib/db";
 
-function AgentDetailSection5({ legal }: { legal: AgentLegal }) {
-  const t = useTranslations("Components.Agents.AgentDetail.Section5");
+function AgentDetailLegal({ legal }: { legal: AgentLegal }) {
+  const t = useTranslations("Components.Agents.AgentDetail.Legal");
 
   return (
     <div className="flex flex-col gap-2">
@@ -42,7 +42,7 @@ function AgentDetailSection5({ legal }: { legal: AgentLegal }) {
   );
 }
 
-function AgentDetailSection5Skeleton() {
+function AgentDetailLegalSkeleton() {
   return (
     <div>
       <Skeleton className="mb-2 h-4 w-12" />
@@ -55,4 +55,4 @@ function AgentDetailSection5Skeleton() {
   );
 }
 
-export { AgentDetailSection5, AgentDetailSection5Skeleton };
+export { AgentDetailLegal, AgentDetailLegalSkeleton };

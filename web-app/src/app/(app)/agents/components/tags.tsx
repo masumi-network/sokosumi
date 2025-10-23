@@ -2,7 +2,7 @@
 
 import { CirclePlus } from "lucide-react";
 import { useTranslations } from "next-intl";
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import { List, RowComponentProps } from "react-window";
 
 import { Badge } from "@/components/ui/badge";
@@ -32,9 +32,16 @@ export default function Tags({
   const [tags, setTags] = useState<string[]>(appliedTags);
   const [open, setOpen] = useState(false);
 
-  useEffect(() => {
-    if (open) setTags(appliedTags);
-  }, [open, appliedTags, setTags]);
+  const handleOpenChange = useCallback(
+    (newOpen: boolean) => {
+      setOpen(newOpen);
+      // Reset tags to applied tags when opening the dropdown
+      if (newOpen) {
+        setTags(appliedTags);
+      }
+    },
+    [appliedTags],
+  );
 
   const handleCheckTag = useCallback(
     (tag: string, checked: boolean) => {
@@ -60,7 +67,7 @@ export default function Tags({
   }, [tags, validTags, handleCheckTag]);
 
   return (
-    <DropdownMenu open={open} onOpenChange={setOpen}>
+    <DropdownMenu open={open} onOpenChange={handleOpenChange}>
       <DropdownMenuTrigger asChild>
         <Button
           variant="outline"
@@ -84,7 +91,7 @@ export default function Tags({
           variant="primary"
           onClick={() => {
             onApplyTags(tags);
-            setOpen(false);
+            handleOpenChange(false);
           }}
         >
           {t("applyTags")}

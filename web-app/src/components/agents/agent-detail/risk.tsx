@@ -4,8 +4,8 @@ import { RiskClassificationBadge } from "@/components/agents/risk-classification
 import { Skeleton } from "@/components/ui/skeleton";
 import { AgentWithRelations } from "@/lib/db";
 
-function AgentDetailSection6({ agent }: { agent: AgentWithRelations }) {
-  const t = useTranslations("Components.Agents.AgentDetail.Section6");
+function AgentDetailRisk({ agent }: { agent: AgentWithRelations }) {
+  const t = useTranslations("Components.Agents.AgentDetail.Risk");
 
   return (
     <div>
@@ -15,7 +15,7 @@ function AgentDetailSection6({ agent }: { agent: AgentWithRelations }) {
   );
 }
 
-function AgentDetailSection6Skeleton() {
+function AgentDetailRiskSkeleton() {
   return (
     <div>
       <Skeleton className="mb-2 h-4 w-40" />
@@ -24,4 +24,4 @@ function AgentDetailSection6Skeleton() {
   );
 }
 
-export { AgentDetailSection6, AgentDetailSection6Skeleton };
+export { AgentDetailRisk, AgentDetailRiskSkeleton };

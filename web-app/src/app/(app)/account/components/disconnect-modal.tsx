@@ -49,7 +49,8 @@ export default function DisconnectModal({
       providerId,
     });
     if (result.error) {
-      const errorMessage = result.error.message ?? t("error", { providerId });
+      const errorMessage =
+        result.error.message ?? t("error", { provider: providerId });
       toast.error(errorMessage);
       setLoading(false);
     } else {
@@ -65,10 +66,10 @@ export default function DisconnectModal({
       <DialogContent className="w-[80vw] max-w-md!">
         <DialogHeader>
           <DialogTitle className="text-center text-lg font-medium">
-            {t("title", { providerId })}
+            {t("title", { provider: providerId })}
           </DialogTitle>
           <DialogDescription className="text-muted-foreground text-center text-base">
-            {t("description", { providerId })}
+            {t("description", { provider: providerId })}
           </DialogDescription>
         </DialogHeader>
         <DialogFooter className="flex w-full items-center justify-around! gap-1.5">

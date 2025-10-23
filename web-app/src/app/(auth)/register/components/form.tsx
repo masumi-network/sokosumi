@@ -6,7 +6,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useRef } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/auth/components/form";
@@ -85,7 +85,10 @@ export default function SignUpForm({ prefilledEmail }: SignUpFormProps) {
     }
   };
 
-  const termsAccepted = form.watch("termsAccepted");
+  const termsAccepted = useWatch({
+    control: form.control,
+    name: "termsAccepted",
+  });
   const formData: FormData<SignUpFormSchemaType, "Auth.Pages.SignUp.Form"> =
     signUpFormData.map((item) =>
       item.name === "email" && prefilledEmail

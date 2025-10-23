@@ -7,6 +7,7 @@ import {
   type LucideIcon,
   RefreshCw,
 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -29,7 +30,6 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useAsyncRouter } from "@/hooks/use-async-router";
 import {
   ActionError,
   CommonErrorCode,
@@ -214,7 +214,7 @@ export default function RequestRefundButton({
   className,
 }: RequestRefundButtonProps) {
   const t = useTranslations("Components.Jobs.JobDetails.Output.Refund");
-  const router = useAsyncRouter();
+  const router = useRouter();
 
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<ActionError | null>();
@@ -256,8 +256,8 @@ export default function RequestRefundButton({
           toast.error(t("Errors.unauthenticated"), {
             action: {
               label: t("Errors.unauthenticatedAction"),
-              onClick: async () => {
-                await router.push(`/login`);
+              onClick: () => {
+                router.push(`/login`);
               },
             },
           });

@@ -255,25 +255,20 @@ model ExampleOutput {
 }
 
 model UserAgentRating {
-  id          String   @id @default(cuid())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  stars       Int
-  title       String?
-  description String?
-  userId      String
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  agentId     String
-  agent       Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
-}
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  rating    Int
+  comment   String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agentId   String
+  agent     Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
-model AgentRating {
-  id           String   @id @default(cuid())
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  totalStars   BigInt
-  totalRatings BigInt
-  agent        Agent?
+  @@unique([userId, agentId])
+  @@index([agentId])
+  @@index([createdAt(sort: Desc)])
+  @@index([agentId, createdAt(sort: Desc)])
 }
 
 model Agent {
@@ -282,9 +277,6 @@ model Agent {
   updatedAt DateTime @updatedAt
 
   blockchainIdentifier String @unique
-
-  rating   AgentRating @relation(fields: [ratingId], references: [id])
-  ratingId String      @unique
 
   name         String
   overrideName String?

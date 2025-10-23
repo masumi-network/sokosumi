@@ -2,6 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Globe, Loader2, Lock, Users } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { ReactNode, useState } from "react";
 import { useForm, UseFormReturn } from "react-hook-form";
@@ -26,7 +27,6 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { useAsyncRouter } from "@/hooks/use-async-router";
 import useModal from "@/hooks/use-modal";
 import { CommonErrorCode, JobErrorCode, updateJobName } from "@/lib/actions";
 import {
@@ -125,6 +125,7 @@ function JobNameContent({
           <p className="truncate">{name ?? t("noName")}</p>
           <Tooltip>
             <TooltipTrigger
+              asChild
               onClick={(event) => {
                 event.stopPropagation();
                 handleShareIndicatorClick();
@@ -149,6 +150,7 @@ function JobNameContent({
         </div>
         {!readOnly && (
           <Button
+            asChild
             variant="outline"
             size="sm"
             onClick={(event) => {
@@ -156,7 +158,7 @@ function JobNameContent({
               handleEdit();
             }}
           >
-            {t("edit")}
+            <span>{t("edit")}</span>
           </Button>
         )}
       </div>
@@ -206,7 +208,7 @@ export default function JobDetailsName({
     />
   ));
 
-  const router = useAsyncRouter();
+  const router = useRouter();
   const [editing, setEditing] = useState(false);
 
   const form = useForm<JobDetailsNameFormSchemaType>({
@@ -248,8 +250,8 @@ export default function JobDetailsName({
           toast.error(t("Errors.unauthenticated"), {
             action: {
               label: t("Errors.unauthenticatedAction"),
-              onClick: async () => {
-                await router.push(`/login`);
+              onClick: () => {
+                router.push(`/login`);
               },
             },
           });

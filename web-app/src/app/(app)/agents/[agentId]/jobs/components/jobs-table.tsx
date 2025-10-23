@@ -1,14 +1,13 @@
 "use client";
 
 import { ChannelProvider } from "ably/react";
-import { useParams, useSearchParams } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
 import { useState } from "react";
 
 import { DataTable } from "@/components/data-table";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
-import { useAsyncRouter } from "@/hooks/use-async-router";
 import { makeAgentJobsChannel } from "@/lib/ably";
 import { JobWithStatus } from "@/lib/db";
 import { cn, getDateGroupKey, getDateGroupLabel } from "@/lib/utils";
@@ -29,7 +28,7 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
   const params = useParams<{ agentId: string; jobId?: string | undefined }>();
   const searchParams = useSearchParams();
 
-  const asyncRouter = useAsyncRouter();
+  const router = useRouter();
   const [routerLoading, setRouterLoading] = useState(false);
 
   // Managed by JobsSearch
@@ -41,7 +40,7 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
     const qs = searchParams?.toString();
     const base = `/agents/${row.agentId}/jobs/${row.id}`;
     const href = qs ? `${base}?${qs}` : base;
-    await asyncRouter.push(href);
+    router.push(href);
     setRouterLoading(false);
   };
 

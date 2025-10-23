@@ -21,7 +21,7 @@ import {
 } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
-interface AgentDetailSection1Props {
+interface AgentDetailHeaderProps {
   agent: AgentWithCreditsPrice;
   favoriteAgents: AgentWithRelations[] | undefined;
   showBackButton?: boolean | undefined;
@@ -29,14 +29,14 @@ interface AgentDetailSection1Props {
   onClose?: (() => void) | undefined;
 }
 
-function AgentDetailSection1({
+function AgentDetailHeader({
   agent,
   favoriteAgents,
   showBackButton,
   showCloseButton,
   onClose,
-}: AgentDetailSection1Props) {
-  const t = useTranslations("Components.Agents.AgentDetail.Section1");
+}: AgentDetailHeaderProps) {
+  const t = useTranslations("Components.Agents.AgentDetail.Header");
   const agentDemoData = getAgentDemoData(agent);
 
   return (
@@ -108,7 +108,7 @@ function AgentDetailSection1({
   );
 }
 
-function AgentDetailSection1Skeleton() {
+function AgentDetailHeaderSkeleton() {
   return (
     <div className="flex flex-col gap-6">
       <AgentActionButtonsSkeleton />
@@ -137,4 +137,4 @@ function AgentDetailSection1Skeleton() {
   );
 }
 
-export { AgentDetailSection1, AgentDetailSection1Skeleton };
+export { AgentDetailHeader, AgentDetailHeaderSkeleton };

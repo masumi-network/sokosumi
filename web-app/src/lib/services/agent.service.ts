@@ -17,6 +17,7 @@ import {
 } from "@/lib/db";
 import {
   agentListRepository,
+  agentRatingRepository,
   agentRepository,
   creditCostRepository,
   jobRepository,
@@ -443,6 +444,89 @@ export const agentService = (() => {
           includedFee: updatedTotalFee,
         },
       };
+    },
+
+    /**
+     * Submit a rating for an agent (create or update)
+     */
+    async submitAgentRating(
+      agentId: string,
+      rating: number,
+      comment: string | null = null,
+    ): Promise<void> {
+      const authContext = await getAuthContext();
+      if (!authContext?.userId) {
+        throw new Error("User not found");
+      }
+
+      // Validate rating
+      if (rating < 1 || rating > 5 || !Number.isInteger(rating)) {
+        throw new Error("Rating must be an integer between 1 and 5");
+      }
+
+      await prisma.$transaction(async (tx) => {
+        // Check if user has finished any jobs with this agent
+        const hasFinishedJob =
+          await jobRepository.doesUserHaveFinishedJobWithAgent(
+            authContext.userId,
+            agentId,
+            tx,
+          );
+
+        if (!hasFinishedJob) {
+          throw new Error(
+            "User must finish at least one job with this agent before rating",
+          );
+        }
+
+        // Upsert the rating
+        await agentRatingRepository.upsertRating(
+          authContext.userId,
+          agentId,
+          rating,
+          comment,
+          tx,
+        );
+      });
+    },
+
+    /**
+     * Check if user can rate an agent
+     */
+    async canUserRateAgent(userId: string, agentId: string): Promise<boolean> {
+      return await jobRepository.doesUserHaveFinishedJobWithAgent(
+        userId,
+        agentId,
+      );
+    },
+
+    /**
+     * Get user's existing rating for an agent
+     */
+    async getUserRatingForAgent(userId: string, agentId: string) {
+      return await agentRatingRepository.getUserRatingForAgent(userId, agentId);
+    },
+
+    /**
+     * Get paginated ratings for an agent
+     */
+    async getAgentRatings(
+      agentId: string,
+      limit: number = 10,
+      offset: number = 0,
+    ) {
+      return await agentRatingRepository.getRatingsByAgentId(
+        agentId,
+        limit,
+        offset,
+      );
+    },
+
+    /**
+     * Get aggregate rating statistics for an agent
+     */
+    async getAgentRatingStats(agentId: string) {
+      return await agentRatingRepository.getAgentRatingStats(agentId);
     },
   };
 })();
