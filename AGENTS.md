@@ -4,7 +4,7 @@
 
 ## Tech Stack & Architecture
 
-**Core Stack**: Next.js 15 (App Router), React 19, TypeScript, pnpm workspace
+**Core Stack**: Next.js 16 (App Router), React 19.2, TypeScript, pnpm workspace
 **Architecture**: Three-layer pattern with repositories (`src/lib/db/repositories/`) wrapping Prisma/Postgres, services (`src/lib/services/`) coordinating domain flows, and actions (`src/lib/actions/`) exposing typed server mutations
 **Styling**: Tailwind CSS + shadcn/ui + Radix UI primitives
 **Auth**: Better Auth with organization-aware sessions

@@ -1,35 +1,52 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { UseFormReturn } from "react-hook-form";
+import { Dispatch, SetStateAction } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { authClient } from "@/lib/auth/auth.client";
 import { MemberRole } from "@/lib/db";
-import { inviteFormData, InviteFormSchemaType } from "@/lib/schemas";
+import {
+  inviteFormData,
+  inviteFormSchema,
+  InviteFormSchemaType,
+} from "@/lib/schemas";
 
 import { FormFields } from "./form-fields";
 
 interface OrganizationMemberInviteFormProps {
   organizationId: string;
-  form: UseFormReturn<InviteFormSchemaType>;
-  onOpenChange: (open: boolean) => void;
+  setIsLoading: Dispatch<SetStateAction<boolean>>;
+  onOpenChange: Dispatch<SetStateAction<boolean>>;
 }
 
 export default function OrganizationMemberInviteForm({
   organizationId,
-  form,
+  setIsLoading,
   onOpenChange,
 }: OrganizationMemberInviteFormProps) {
   const t = useTranslations("Components.Organizations.InviteMemberModal.Form");
-
   const router = useRouter();
 
+  const form = useForm<InviteFormSchemaType>({
+    resolver: zodResolver(
+      inviteFormSchema(
+        useTranslations("Components.Organizations.InviteMemberModal.Schema"),
+      ),
+    ),
+    defaultValues: {
+      email: "",
+    },
+  });
+
   const onSubmit = async (values: InviteFormSchemaType) => {
+    setIsLoading(true);
     const result = await authClient.organization.inviteMember({
       email: values.email,
       organizationId,
@@ -55,6 +72,7 @@ export default function OrganizationMemberInviteForm({
       onOpenChange(false);
       router.refresh();
     }
+    setIsLoading(false);
   };
 
   const isLoading = form.formState.isSubmitting;

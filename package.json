@@ -2,12 +2,12 @@
   "name": "sokosumi",
   "private": true,
   "type": "module",
-  "packageManager": "pnpm@10.18.3",
+  "packageManager": "pnpm@10.19.0",
   "workspaces": [
     "web-app"
   ],
   "scripts": {
-    "prepare": "husky",
+    "prepare": "husky || true",
     "dev": "pnpm -r dev",
     "sokosumi-web:dev": "pnpm --filter sokosumi-web dev",
     "build": "pnpm -r build",
@@ -34,7 +34,6 @@
     "@testing-library/jest-dom": "6.9.1",
     "@testing-library/react": "16.3.0",
     "@types/jest": "30.0.0",
-    "husky": "9.1.7",
     "jest": "30.2.0",
     "jest-environment-jsdom": "30.2.0",
     "postcss": "8.5.6",

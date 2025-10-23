@@ -1,9 +1,7 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { Dispatch, SetStateAction, useState } from "react";
 
 import {
   Dialog,
@@ -11,17 +9,13 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  organizationInformationFormSchema,
-  OrganizationInformationFormSchemaType,
-} from "@/lib/schemas";
 import { Organization } from "@/prisma/generated/client";
 
 import OrganizationInformationForm from "./form";
 
 interface OrganizationInformationModalProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange: Dispatch<SetStateAction<boolean>>;
   organization: Organization | null;
 }
 
@@ -31,29 +25,10 @@ export default function OrganizationInformationModal({
   organization,
 }: OrganizationInformationModalProps) {
   const t = useTranslations("Components.Organizations.InformationModal.Title");
-
-  const form = useForm<OrganizationInformationFormSchemaType>({
-    resolver: zodResolver(
-      organizationInformationFormSchema(
-        useTranslations("Components.Organizations.InformationModal.Schema"),
-      ),
-    ),
-    defaultValues: {
-      name: "",
-    },
-  });
-
-  useEffect(() => {
-    if (!open || !organization) {
-      return;
-    }
-
-    const { name } = organization;
-    form.setValue("name", name);
-  }, [organization, form, open]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleOpenChange = (open: boolean) => {
-    if (form.formState.isSubmitting) {
+    if (isLoading) {
       return;
     }
     onOpenChange(open);
@@ -70,7 +45,7 @@ export default function OrganizationInformationModal({
         <DialogDescription className="hidden" />
         <OrganizationInformationForm
           organization={organization}
-          form={form}
+          setIsLoading={setIsLoading}
           onOpenChange={onOpenChange}
         />
       </DialogContent>

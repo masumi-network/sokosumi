@@ -112,7 +112,10 @@ function JobDetailsHeader({
   const { createdAt, status, jobType } = job;
 
   return (
-    <div className="flex flex-col gap-2">
+    <div
+      className="flex flex-col gap-2"
+      key={`${job.id}-${status}-details-header`}
+    >
       <JobDetailsName
         job={job}
         readOnly={readOnly}
@@ -125,7 +128,11 @@ function JobDetailsHeader({
             timeStyle: "short",
           })}
         </p>
-        <JobStatusBadge status={status} jobType={jobType} />
+        <JobStatusBadge
+          key={`${job.id}-${status}-details-badge`}
+          status={status}
+          jobType={jobType}
+        />
       </div>
     </div>
   );

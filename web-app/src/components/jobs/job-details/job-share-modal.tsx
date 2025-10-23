@@ -2,7 +2,7 @@
 import { Check, Copy, Globe, Lock, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -51,10 +51,6 @@ export default function JobShareModal({
 
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
-  const [jobShare, setJobShare] = useState<JobShare | null>(null);
-  const [organizationJobShare, setOrganizationJobShare] =
-    useState<JobShare | null>(null);
-  const [link, setLink] = useState<URL | null>(null);
   const [organization, setOrganization] = useState<{
     id: string;
     name: string;
@@ -62,8 +58,30 @@ export default function JobShareModal({
 
   // Need to refresh after modal is closed
   const needRefresh = useRef(false);
+  // Track the last jobId to detect changes
+  const lastJobIdRef = useRef(jobId);
+
+  // Detect client-side rendering without setState in useEffect
+  const isClient = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   const publicJobShare = getPublicJobShare(job);
+
+  // Derive share state from job data - these will be reset via handleOnOpenChange
+  const [jobShare, setJobShare] = useState<JobShare | null>(publicJobShare);
+  const [organizationJobShare, setOrganizationJobShare] =
+    useState<JobShare | null>(
+      organization ? getOrganizationJobShare(job, organization.id) : null,
+    );
+
+  // Compute link on client only - derived from jobShare state
+  const link =
+    isClient && jobShare
+      ? new URL(`/share/jobs/${jobShare.token}`, window.location.origin)
+      : null;
 
   // Fetch organization data only if activeOrganizationId is provided
   useEffect(() => {
@@ -77,8 +95,14 @@ export default function JobShareModal({
     const fetchOrganization = async () => {
       try {
         const result = await getActiveOrganization({});
-        if (mounted && result.ok) {
+        if (mounted && result.ok && result.data) {
           setOrganization(result.data);
+          // Update organization job share after organization is fetched
+          if (open) {
+            setOrganizationJobShare(
+              getOrganizationJobShare(job, result.data.id),
+            );
+          }
         }
       } catch (error) {
         console.error("Failed to fetch organization:", error);
@@ -89,29 +113,30 @@ export default function JobShareModal({
     return () => {
       mounted = false;
     };
-  }, [open, activeOrganizationId]);
-
-  useEffect(() => {
-    if (publicJobShare) {
-      setJobShare(publicJobShare);
-      setLink(
-        new URL(`/share/jobs/${publicJobShare.token}`, window.location.origin),
-      );
-    } else {
-      setJobShare(null);
-      setLink(null);
-    }
-
-    if (organization) {
-      const orgJobShare = getOrganizationJobShare(job, organization.id);
-      setOrganizationJobShare(orgJobShare);
-    }
-  }, [jobId, publicJobShare, organization, job, setJobShare, setLink]);
+  }, [open, activeOrganizationId, job]);
 
   const handleOnOpenChange = (open: boolean) => {
     if (isLoading) {
       return;
     }
+
+    // When opening the modal, reset state to match current job data
+    if (open) {
+      // Reset to current job state or detect if job changed
+      const jobChanged = lastJobIdRef.current !== jobId;
+      if (jobChanged) {
+        lastJobIdRef.current = jobId;
+      }
+
+      // Reset share state to current job data
+      const currentPublicJobShare = getPublicJobShare(job);
+      setJobShare(currentPublicJobShare);
+
+      if (organization) {
+        setOrganizationJobShare(getOrganizationJobShare(job, organization.id));
+      }
+    }
+
     // when close JobShareModal
     // refresh router to show updated job-share indicator
     if (!open && needRefresh.current) {
@@ -130,9 +155,6 @@ export default function JobShareModal({
     if (result.ok) {
       needRefresh.current = true;
       setJobShare(result.data);
-      setLink(
-        new URL(`/share/jobs/${result.data.token}`, window.location.origin),
-      );
       toast.success(t("Success.share"));
     } else {
       switch (result.error.code) {
@@ -289,7 +311,6 @@ export default function JobShareModal({
       needRefresh.current = true;
       setJobShare(null);
       setOrganizationJobShare(null);
-      setLink(null);
       toast.success(t("Success.share"));
     } else {
       switch (result.error.code) {
