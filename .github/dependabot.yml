@@ -29,6 +29,7 @@ updates:
           - "@radix-ui/**"
       tailwind:
         patterns:
+          - tailwindcss
           - "tailwind-merge"
           - "tailwindcss-animate"
           - "tw-animate-css"
