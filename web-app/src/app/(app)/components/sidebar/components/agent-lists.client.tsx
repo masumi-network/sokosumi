@@ -1,8 +1,7 @@
 "use client";
 
 import { ChannelProvider } from "ably/react";
-import { ChevronDown, History, Pin, Sparkles } from "lucide-react";
-import Image from "next/image";
+import { ChevronDown, History, Pin } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
