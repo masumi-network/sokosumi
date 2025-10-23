@@ -6,7 +6,7 @@ import { track } from "@vercel/analytics";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/auth/components/form";
@@ -121,7 +121,10 @@ export default function SignInForm({
     window.location.href = redirectUrl;
   };
 
-  const email = form.watch("email");
+  const email = useWatch({
+    control: form.control,
+    name: "email",
+  });
   const formData: FormData<SignInFormSchemaType, "Auth.Pages.SignIn.Form"> =
     signInFormData.map((item) =>
       item.name === "email" && prefilledEmail

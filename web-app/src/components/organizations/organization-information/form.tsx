@@ -1,16 +1,21 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { UseFormReturn } from "react-hook-form";
+import { Dispatch, SetStateAction } from "react";
+import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Form } from "@/components/ui/form";
 import { generateOrganizationSlug } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
-import { OrganizationInformationFormSchemaType } from "@/lib/schemas";
+import {
+  organizationInformationFormSchema,
+  OrganizationInformationFormSchemaType,
+} from "@/lib/schemas";
 import { Organization } from "@/prisma/generated/client";
 
 import { organizationInformationFormData } from "./data";
@@ -18,19 +23,31 @@ import { FormFields } from "./form-fields";
 
 interface OrganizationInformationFormProps {
   organization: Organization | null;
-  form: UseFormReturn<OrganizationInformationFormSchemaType>;
-  onOpenChange: (open: boolean) => void;
+  setIsLoading: Dispatch<SetStateAction<boolean>>;
+  onOpenChange: Dispatch<SetStateAction<boolean>>;
 }
 
 export default function OrganizationInformationForm({
   organization,
-  form,
+  setIsLoading,
   onOpenChange,
 }: OrganizationInformationFormProps) {
   const t = useTranslations("Components.Organizations.InformationModal.Form");
   const router = useRouter();
 
+  const form = useForm<OrganizationInformationFormSchemaType>({
+    resolver: zodResolver(
+      organizationInformationFormSchema(
+        useTranslations("Components.Organizations.InformationModal.Schema"),
+      ),
+    ),
+    defaultValues: {
+      name: "",
+    },
+  });
+
   const onSubmit = async (values: OrganizationInformationFormSchemaType) => {
+    setIsLoading(true);
     let result;
     const isCreating = !organization;
     if (isCreating) {
@@ -73,9 +90,10 @@ export default function OrganizationInformationForm({
       }
     } else {
       toast.success(isCreating ? t("Success.create") : t("Success.edit"));
-      onOpenChange(false);
       router.refresh();
+      onOpenChange(false);
     }
+    setIsLoading(false);
   };
 
   const isCreating = !organization;

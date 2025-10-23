@@ -2,9 +2,10 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Building2, Loader2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 import * as z from "zod";
 
@@ -26,7 +27,6 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useAsyncRouter } from "@/hooks/use-async-router";
 import {
   BillingErrorCode,
   claimFreeCreditsWithCoupon,
@@ -72,7 +72,7 @@ interface BillingFormProps {
 export default function BillingForm({ price, organization }: BillingFormProps) {
   const t = useTranslations("App.Billing");
   const formatter = useFormatter();
-  const router = useAsyncRouter();
+  const router = useRouter();
 
   const [clearedField, setClearedField] = useState<"credits" | "coupon" | null>(
     null,
@@ -90,9 +90,15 @@ export default function BillingForm({ price, organization }: BillingFormProps) {
     fireGTMEvent.viewBilling();
   }, []);
 
-  const { watch, setValue } = form;
-  const credits = watch("credits");
-  const coupon = watch("coupon");
+  const { setValue } = form;
+  const credits = useWatch({
+    control: form.control,
+    name: "credits",
+  });
+  const coupon = useWatch({
+    control: form.control,
+    name: "coupon",
+  });
 
   const handleFieldChange = useCallback(
     (field: "credits" | "coupon", value: number | string | undefined) => {
@@ -154,8 +160,8 @@ export default function BillingForm({ price, organization }: BillingFormProps) {
             toast.error(t("Errors.unauthenticated"), {
               action: {
                 label: t("Errors.unauthenticatedAction"),
-                onClick: async () => {
-                  await router.push(`/login`);
+                onClick: () => {
+                  router.push(`/login`);
                 },
               },
             });

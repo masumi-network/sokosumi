@@ -19,7 +19,7 @@ const EXCLUDED_PATHS = [
   "/apple-touch-icon",
 ];
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   const isApiV1Path = pathname.startsWith("/api/v1");

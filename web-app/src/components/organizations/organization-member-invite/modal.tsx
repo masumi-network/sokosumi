@@ -1,9 +1,7 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
 import { useTranslations } from "next-intl";
-import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { Dispatch, SetStateAction, useState } from "react";
 
 import {
   Dialog,
@@ -11,13 +9,12 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { inviteFormSchema, InviteFormSchemaType } from "@/lib/schemas";
 
 import OrganizationMemberInviteForm from "./form";
 
 interface OrganizationInformationEditModalProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange: Dispatch<SetStateAction<boolean>>;
   organizationId: string;
 }
 
@@ -27,24 +24,7 @@ export default function OrganizationMemberInviteModal({
   organizationId,
 }: OrganizationInformationEditModalProps) {
   const t = useTranslations("Components.Organizations.InviteMemberModal");
-
-  const form = useForm<InviteFormSchemaType>({
-    resolver: zodResolver(
-      inviteFormSchema(
-        useTranslations("Components.Organizations.InviteMemberModal.Schema"),
-      ),
-    ),
-    defaultValues: {
-      email: "",
-    },
-  });
-  const isLoading = form.formState.isSubmitting;
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-  }, [organizationId, form, open]);
+  const [isLoading, setIsLoading] = useState(false);
 
   const handleOpenChange = (open: boolean) => {
     if (isLoading) {
@@ -60,7 +40,7 @@ export default function OrganizationMemberInviteModal({
         <DialogDescription className="hidden" />
         <OrganizationMemberInviteForm
           organizationId={organizationId}
-          form={form}
+          setIsLoading={setIsLoading}
           onOpenChange={onOpenChange}
         />
       </DialogContent>

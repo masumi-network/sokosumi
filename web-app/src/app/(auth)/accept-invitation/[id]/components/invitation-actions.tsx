@@ -5,7 +5,7 @@ import { Loader2 } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -26,7 +26,7 @@ export default function InvitationActions({
   const t = useTranslations("AcceptInvitation.InvitationCard.Actions");
 
   const { id, email, organization } = invitation;
-  const { id: organizationId, slug: organizationSlug } = organization;
+  const { slug: organizationSlug } = organization;
 
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -34,24 +34,31 @@ export default function InvitationActions({
     null,
   );
 
-  const [loginSearchParamsString, setLoginSearchParamsString] = useState<
-    string | null
-  >(null);
-  const [registerSearchParamsString, setRegisterSearchParamsString] = useState<
-    string | null
-  >(null);
+  // Detect client-side rendering without setState in useEffect
+  const isClient = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
-  useEffect(() => {
-    const currentUrl = location.pathname + location.search;
-    const loginSearchParams = new URLSearchParams();
-    loginSearchParams.set("returnUrl", currentUrl);
-    loginSearchParams.set("email", email);
-    setLoginSearchParamsString(loginSearchParams.toString());
+  // Compute search params on client only
+  const loginSearchParamsString = isClient
+    ? (() => {
+        const currentUrl = location.pathname + location.search;
+        const loginSearchParams = new URLSearchParams();
+        loginSearchParams.set("returnUrl", currentUrl);
+        loginSearchParams.set("email", email);
+        return loginSearchParams.toString();
+      })()
+    : null;
 
-    const registerSearchParams = new URLSearchParams();
-    registerSearchParams.set("email", email);
-    setRegisterSearchParamsString(registerSearchParams.toString());
-  }, [email, organizationId, id]);
+  const registerSearchParamsString = isClient
+    ? (() => {
+        const registerSearchParams = new URLSearchParams();
+        registerSearchParams.set("email", email);
+        return registerSearchParams.toString();
+      })()
+    : null;
 
   const handleAccept = async () => {
     if (loading) {
