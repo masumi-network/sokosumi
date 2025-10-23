@@ -47,7 +47,8 @@
     "@m2d/mdast": "0.2.4",
     "@m2d/table": "0.1.1",
     "@next/third-parties": "16.0.0",
-    "@prisma/client": "6.17.1",
+    "@prisma/adapter-pg": "6.18.0",
+    "@prisma/client": "6.18.0",
     "@radix-ui/react-slot": "1.2.3",
     "@react-email/components": "0.5.7",
     "@sentry/nextjs": "10.21.0",
@@ -89,6 +90,8 @@
     "nuqs": "2.7.2",
     "p-limit": "7.2.0",
     "p-timeout": "7.0.1",
+    "pg": "8.16.3",
+    "pg-pool": "3.10.1",
     "postmark": "4.0.5",
     "puppeteer-core": "24.24.1",
     "radix-ui": "1.4.3",
@@ -128,6 +131,7 @@
     "@types/humanize-duration": "3.27.4",
     "@types/jsdom": "27.0.0",
     "@types/node": "22.18.12",
+    "@types/pg": "^8.15.5",
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.2",
     "@types/react-file-icon": "1.0.4",
@@ -143,7 +147,7 @@
     "next-openapi-gen": "0.7.9",
     "prettier": "3.6.2",
     "prettier-plugin-tailwindcss": "0.7.1",
-    "prisma": "6.17.1",
+    "prisma": "6.18.0",
     "puppeteer": "24.24.1"
   }
 }

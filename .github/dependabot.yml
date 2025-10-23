@@ -20,11 +20,16 @@ updates:
         patterns:
           - "prisma"
           - "@prisma/client"
+          - "@prisma/adapter-pg"
+          - "@types/pg"
+          - "pg"
+          - "pg-pool"
       radix:
         patterns:
           - "@radix-ui/**"
       tailwind:
         patterns:
+          - tailwindcss
           - "tailwind-merge"
           - "tailwindcss-animate"
           - "tw-animate-css"

@@ -206,6 +206,8 @@ export default function BillingForm({ price, organization }: BillingFormProps) {
     [handleFieldChange],
   );
 
+  const { isSubmitting } = form.formState;
+
   const FieldClearedIndicator = ({
     show,
     message,
@@ -246,7 +248,7 @@ export default function BillingForm({ price, organization }: BillingFormProps) {
                   type="button"
                   variant="outline"
                   onClick={() => handleQuickAmount(amount)}
-                  disabled={form.formState.isSubmitting}
+                  disabled={isSubmitting}
                 >
                   {t("creditAmount", { count: amount })}
                 </Button>
@@ -264,7 +266,7 @@ export default function BillingForm({ price, organization }: BillingFormProps) {
                       placeholder={t("creditsPlaceholder")}
                       min="1"
                       max="10000"
-                      disabled={form.formState.isSubmitting}
+                      disabled={isSubmitting}
                       {...field}
                       onChange={(e) => {
                         const { value } = e.target;
@@ -298,7 +300,7 @@ export default function BillingForm({ price, organization }: BillingFormProps) {
                     <Input
                       type="text"
                       placeholder={t("couponPlaceholder")}
-                      disabled={form.formState.isSubmitting}
+                      disabled={isSubmitting}
                       autoComplete="off"
                       {...field}
                       value={field.value ?? ""}
@@ -321,14 +323,12 @@ export default function BillingForm({ price, organization }: BillingFormProps) {
             <Button
               type="submit"
               disabled={
-                form.formState.isSubmitting ||
+                isSubmitting ||
                 ((!credits || credits <= 0) &&
                   (!coupon || coupon.trim().length === 0))
               }
             >
-              {form.formState.isSubmitting && (
-                <Loader2 className="mr-2 size-4 animate-spin" />
-              )}
+              {isSubmitting && <Loader2 className="mr-2 size-4 animate-spin" />}
               {organization ? t("topUpButtonOrganization") : t("topUpButton")}
             </Button>
             <p className="text-muted-foreground text-sm">

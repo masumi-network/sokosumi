@@ -112,6 +112,8 @@ export default function OrganizationInvoiceEmail({
     setIsEditing(false);
   };
 
+  const { isSubmitting } = form.formState;
+
   return (
     <Card>
       <CardHeader>
@@ -135,7 +137,7 @@ export default function OrganizationInvoiceEmail({
                       <Input
                         type="email"
                         placeholder={t("placeholder")}
-                        disabled={!isEditing || form.formState.isSubmitting}
+                        disabled={!isEditing || isSubmitting}
                         {...field}
                         value={field.value ?? ""}
                       />
@@ -151,11 +153,8 @@ export default function OrganizationInvoiceEmail({
                         )
                       ) : (
                         <>
-                          <Button
-                            type="submit"
-                            disabled={form.formState.isSubmitting}
-                          >
-                            {form.formState.isSubmitting && (
+                          <Button type="submit" disabled={isSubmitting}>
+                            {isSubmitting && (
                               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                             )}
                             {t("save")}
@@ -164,7 +163,7 @@ export default function OrganizationInvoiceEmail({
                             type="button"
                             variant="outline"
                             onClick={handleCancel}
-                            disabled={form.formState.isSubmitting}
+                            disabled={isSubmitting}
                           >
                             {t("cancel")}
                           </Button>
