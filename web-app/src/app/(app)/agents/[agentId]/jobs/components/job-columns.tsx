@@ -61,6 +61,7 @@ export function getJobColumns(
           return (
             <div className="p-2">
               <JobSharedBadge
+                key={`${row.original.id}-${orgShare.creator.id}`}
                 creatorName={orgShare.creator.name}
                 creatorImage={orgShare.creator.image}
               />
@@ -73,11 +74,13 @@ export function getJobColumns(
           <div className="p-2">
             {isDemoJob(row.original) ? (
               <JobStatusBadge
+                key={`${row.original.id}-${row.original.status}-column-badge`}
                 status={row.original.status}
                 jobType={row.original.jobType}
               />
             ) : (
               <RealTimeJobStatusBadge
+                key={`${row.original.id}-${row.original.status}-column-real-time-badge`}
                 agentId={row.original.agentId}
                 userId={userId}
                 jobId={row.original.id}
@@ -211,6 +214,7 @@ function RealTimeJobStatusBadge({
 
   return (
     <JobStatusBadge
+      key={`${jobId}-${realTimeJobStatus?.jobStatus ?? initialJobIndicatorStatus.jobStatus}-real-time-badge`}
       status={
         realTimeJobStatus?.jobStatus ?? initialJobIndicatorStatus.jobStatus
       }
