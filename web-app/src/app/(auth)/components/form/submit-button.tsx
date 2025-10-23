@@ -20,17 +20,17 @@ export function SubmitButton<T extends FieldValues>({
   className,
   ...props
 }: SubmitButtonProps<T>) {
+  const { isSubmitting } = form.formState;
+
   return (
     <Button
       type="submit"
       variant="primary"
       className={className}
-      disabled={form.formState.isSubmitting}
+      disabled={isSubmitting}
       {...props}
     >
-      {form.formState.isSubmitting && (
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-      )}
+      {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
       {label}
     </Button>
   );
