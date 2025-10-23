@@ -6,7 +6,7 @@ Sokosumi is a modern, secure, and user-focused marketplace platform. This monore
 
 ```
 sokosumi/
-├── web-app/         # Next.js 15 web application (TypeScript, Tailwind, Shadcn UI)
+├── web-app/         # Next.js 16 web application (TypeScript, Tailwind, Shadcn UI)
 ├── package.json     # Monorepo root config
 ├── pnpm-workspace.yaml # Monorepo workspace config
 └── ...              # Other config and shared files
