@@ -27,7 +27,7 @@ import {
   AuthenticatedRequest,
   withAuthContext,
 } from "@/middleware/auth-middleware";
-import { JobShare, ShareAccessType } from "@/prisma/generated/client";
+import { JobShare } from "@/prisma/generated/client";
 
 import {
   handleInputDataFileUploads,
@@ -311,13 +311,12 @@ export const requestRefundJobByBlockchainIdentifier = withAuthContext<
 interface ShareJobParameters extends AuthenticatedRequest {
   jobId: string;
   recipientOrganizationId: string | null;
-  shareAccessType: ShareAccessType;
 }
 
 export const shareJob = withAuthContext<
   ShareJobParameters,
   Result<JobShareWithRelations, ActionError>
->(async ({ jobId, recipientOrganizationId, shareAccessType, authContext }) => {
+>(async ({ jobId, recipientOrganizationId, authContext }) => {
   const { userId } = authContext;
   try {
     return await prisma.$transaction(async (tx) => {
@@ -367,8 +366,8 @@ export const shareJob = withAuthContext<
           });
         }
       }
-      // Remove existing share with the same organization and access type to avoid duplicates
-      await jobShareRepository.deleteJobShare(
+      // Remove existing share with the same organization
+      await jobShareRepository.deleteJobSharesByJobIdAndRecipientOrganizationId(
         jobId,
         recipientOrganizationId,
         tx,
@@ -378,7 +377,6 @@ export const shareJob = withAuthContext<
         jobId,
         userId,
         recipientOrganizationId,
-        shareAccessType,
         tx,
       );
       return Ok(jobShare);
@@ -438,12 +436,67 @@ export const updateAllowSearchIndexing = withAuthContext<
   }
 });
 
+/**
+ * Remove shares per job
+ * Remove both public and organization shares
+ *
+ * @param jobId - The id of the job to remove shares for
+ * @param authContext - The authentication context
+ * @returns A result indicating success or failure
+ */
+interface RemoveSharesPerJobParameters extends AuthenticatedRequest {
+  jobId: string;
+}
+export const removeSharesPerJob = withAuthContext<
+  RemoveSharesPerJobParameters,
+  Result<void, ActionError>
+>(async ({ jobId, authContext }) => {
+  const { userId } = authContext;
+
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const job = await jobRepository.getJobById(jobId, tx);
+      if (!job) {
+        return Err({
+          message: "Job not found",
+          code: JobErrorCode.JOB_NOT_FOUND,
+        });
+      }
+
+      // must be job owner to remove shares
+      if (userId !== job.userId) {
+        return Err({
+          message: "Unauthorized",
+          code: CommonErrorCode.UNAUTHORIZED,
+        });
+      }
+
+      await jobShareRepository.deleteJobSharesByJobId(jobId, tx);
+      return Ok();
+    });
+  } catch (error) {
+    console.error("Failed to remove shares per job", error);
+    return Err({
+      message: "Internal server error",
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+    });
+  }
+});
+
+/**
+ * Remove job shares by job id and recipient organization id
+ *
+ * @param jobId - The id of the job to remove shares for
+ * @param recipientOrganizationId - The id of the organization to remove shares for, if null, remove public shares
+ * @param authContext - The authentication context
+ * @returns A result indicating success or failure
+ */
 interface RemoveJobShareParameters extends AuthenticatedRequest {
   jobId: string;
   recipientOrganizationId: string | null;
 }
 
-export const removeJobShare = withAuthContext<
+export const removeJobShares = withAuthContext<
   RemoveJobShareParameters,
   Result<void, ActionError>
 >(async ({ jobId, recipientOrganizationId, authContext }) => {
@@ -467,7 +520,7 @@ export const removeJobShare = withAuthContext<
         });
       }
 
-      await jobShareRepository.deleteJobShare(
+      await jobShareRepository.deleteJobSharesByJobIdAndRecipientOrganizationId(
         jobId,
         recipientOrganizationId,
         tx,

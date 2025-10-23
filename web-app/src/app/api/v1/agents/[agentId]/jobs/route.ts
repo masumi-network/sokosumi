@@ -17,7 +17,6 @@ import { convertCreditsToCents } from "@/lib/db";
 import { jobRepository } from "@/lib/db/repositories";
 import { jobInputsDataSchema } from "@/lib/job-input";
 import { agentService } from "@/lib/services";
-import { ShareAccessType } from "@/prisma/generated/client";
 
 interface RouteParams {
   params: Promise<{
@@ -172,7 +171,6 @@ export async function POST(
       const shareResult = await shareJob({
         jobId: createdJob.id,
         recipientOrganizationId,
-        shareAccessType: jobShareRequest.accessType ?? ShareAccessType.PUBLIC,
         authContext: { userId, organizationId: activeOrganizationId },
       });
       if (!shareResult.ok) {

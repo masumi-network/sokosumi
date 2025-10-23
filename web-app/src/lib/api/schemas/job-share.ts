@@ -1,9 +1,6 @@
 import * as z from "zod";
 
-import { ShareAccessType } from "@/prisma/generated/client";
-
 export const jobShareRequestSchema = z.object({
-  accessType: z.enum(ShareAccessType),
   shareWithOrganization: z.boolean().optional(),
   allowSearchIndexing: z.boolean().optional(),
 });

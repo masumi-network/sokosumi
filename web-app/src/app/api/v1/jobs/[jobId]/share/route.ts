@@ -9,7 +9,6 @@ import {
 } from "@/lib/api";
 import { formatJobShareResponse } from "@/lib/api/formatters/job-share";
 import { jobRepository } from "@/lib/db/repositories";
-import { ShareAccessType } from "@/prisma/generated/client";
 
 interface RouteParams {
   params: Promise<{
@@ -63,7 +62,6 @@ export async function POST(
     const result = await shareJob({
       jobId: job.id,
       recipientOrganizationId,
-      shareAccessType: validatedData.accessType ?? ShareAccessType.PUBLIC,
       authContext: { userId, organizationId: activeOrganizationId },
     });
     if (!result.ok) {

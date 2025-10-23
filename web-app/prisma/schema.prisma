@@ -706,7 +706,6 @@ model JobShare {
   // SEO Control
   allowSearchIndexing Boolean @default(true)
 
-  @@unique([jobId, recipientOrganizationId])
   @@index([recipientOrganizationId])
   @@map("share")
 }
