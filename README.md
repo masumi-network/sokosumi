@@ -12,7 +12,7 @@ sokosumi/
 └── ...              # Other config and shared files
 ```
 
-- **web-app/**: Main user-facing web application (Next.js, React 19, Tailwind CSS, Shadcn UI, next-intl, Prisma, etc.)
+- **web-app/**: Main user-facing web application (Next.js 16, React 19.2, Tailwind CSS, Shadcn UI, next-intl, Prisma, etc.)
 
 ## Getting Started
 
