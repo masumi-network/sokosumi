@@ -26,7 +26,7 @@ export const jobShareResponseSchema = z.object({
   updatedAt: z.iso.datetime(),
   url: z.url(),
   creator: jobShareCreatorSchema,
-  recipientOrganization: jobShareRecipientOrganizationSchema,
+  recipientOrganization: jobShareRecipientOrganizationSchema.nullable(),
 });
 
 export type JobShareRequest = z.infer<typeof jobShareRequestSchema>;
