@@ -19,13 +19,12 @@ export function BaseForm<T extends FieldValues>({
   children,
   className,
 }: BaseFormProps<T>) {
+  const { isSubmitting } = form.formState;
+
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className={cn(className)}>
-        <fieldset
-          disabled={form.formState.isSubmitting}
-          className="flex flex-col gap-3"
-        >
+        <fieldset disabled={isSubmitting} className="flex flex-col gap-3">
           {children}
         </fieldset>
       </form>

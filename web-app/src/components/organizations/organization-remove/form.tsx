@@ -83,15 +83,12 @@ export default function OrganizationRemoveForm({
     setIsLoading(false);
   };
 
-  const canDelete = form.formState.isValid;
+  const { isSubmitting, isValid } = form.formState;
 
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)}>
-        <fieldset
-          disabled={form.formState.isSubmitting}
-          className="flex flex-col gap-4"
-        >
+        <fieldset disabled={isSubmitting} className="flex flex-col gap-4">
           <FormField
             control={form.control}
             name="confirmName"
@@ -109,15 +106,15 @@ export default function OrganizationRemoveForm({
             )}
           />
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={form.formState.isSubmitting}>
+            <AlertDialogCancel disabled={isSubmitting}>
               {t("cancel")}
             </AlertDialogCancel>
             <Button
               type="submit"
               variant="destructive"
-              disabled={form.formState.isSubmitting || !canDelete}
+              disabled={isSubmitting || !isValid}
             >
-              {form.formState.isSubmitting && (
+              {isSubmitting && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
               {t("confirm")}
