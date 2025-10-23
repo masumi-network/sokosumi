@@ -141,7 +141,7 @@ export async function POST(
     }
 
     // Get the created job and return it
-    const createdJob = await jobRepository.getJobById(result.data.jobId);
+    let createdJob = await jobRepository.getJobById(result.data.jobId);
     if (!createdJob) {
       throw new Error("JOB_NOT_FOUND");
     }
@@ -155,9 +155,7 @@ export async function POST(
       // Refetch the job with updated name
       const updatedJob = await jobRepository.getJobById(result.data.jobId);
       if (updatedJob) {
-        return createApiSuccessResponse(formatJobResponse(updatedJob), {
-          status: 201,
-        });
+        createdJob = updatedJob;
       }
     }
 
@@ -175,6 +173,11 @@ export async function POST(
       });
       if (!shareResult.ok) {
         console.error("Failed to share job", shareResult.error);
+      }
+      // Refetch the job with updated name
+      const sharedJob = await jobRepository.getJobById(result.data.jobId);
+      if (sharedJob) {
+        createdJob = sharedJob;
       }
     }
 
