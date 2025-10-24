@@ -361,7 +361,7 @@ interface ShareJobOrganizationParameters extends AuthenticatedRequest {
   share: boolean;
 }
 
-export const setJobIsOrganizationShared = withAuthContext<
+const setJobIsOrganizationShared = withAuthContext<
   ShareJobOrganizationParameters,
   Result<boolean, ActionError>
 >(async ({ jobId, share, authContext }) => {
@@ -438,12 +438,12 @@ export const shareWithOrganization = withAuthContext<
   return await setJobIsOrganizationShared({ jobId, share: true, authContext });
 });
 
-interface UnshareWithOrganizationParameters extends AuthenticatedRequest {
+interface UnshareJobWithOrganizationParameters extends AuthenticatedRequest {
   jobId: string;
 }
 
-export const unshareWithOrganization = withAuthContext<
-  UnshareWithOrganizationParameters,
+export const unshareJobWithOrganization = withAuthContext<
+  UnshareJobWithOrganizationParameters,
   Result<boolean, ActionError>
 >(async ({ jobId, authContext }) => {
   return await setJobIsOrganizationShared({ jobId, share: false, authContext });
@@ -506,12 +506,12 @@ export const updateAllowSearchIndexing = withAuthContext<
  * @param authContext - The authentication context
  * @returns A result indicating success or failure
  */
-interface RemoveJobPublicShareParameters extends AuthenticatedRequest {
+interface UnshareJobPubliclyParameters extends AuthenticatedRequest {
   jobId: string;
 }
 
-export const removeJobPublicShare = withAuthContext<
-  RemoveJobPublicShareParameters,
+export const unshareJobPublicly = withAuthContext<
+  UnshareJobPubliclyParameters,
   Result<void, ActionError>
 >(async ({ jobId, authContext }) => {
   const { userId } = authContext;
@@ -554,8 +554,8 @@ export const unshareJob = withAuthContext<
   UnshareJobParameters,
   Result<void, ActionError>
 >(async ({ jobId, authContext }) => {
-  await removeJobPublicShare({ jobId, authContext });
-  await setJobIsOrganizationShared({ jobId, share: false, authContext });
+  await unshareJobPublicly({ jobId, authContext });
+  await unshareJobWithOrganization({ jobId, authContext });
   return Ok();
 });
 

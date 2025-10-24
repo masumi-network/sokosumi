@@ -23,7 +23,7 @@ import {
   shareJobPublicly,
   shareWithOrganization,
   unshareJob,
-  unshareWithOrganization,
+  unshareJobWithOrganization,
   updateAllowSearchIndexing,
 } from "@/lib/actions";
 import { JobWithStatus } from "@/lib/db";
@@ -260,7 +260,7 @@ export default function JobShareModal({
     if (!organization) return;
 
     setIsLoading(true);
-    const result = await unshareWithOrganization({
+    const result = await unshareJobWithOrganization({
       jobId: job.id,
     });
     if (result.ok) {
