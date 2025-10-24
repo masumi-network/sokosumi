@@ -397,13 +397,16 @@ export function transactionStatusToOnChainTransactionStatus(
   }
 }
 
-export function isPubliclyShared(job: JobWithStatus): boolean {
+export function isSharedPublicly(job: JobWithStatus): boolean {
   return job.share !== null && job.share.isPublic === true;
 }
 
 export function isSharedWithOrganization(
   job: JobWithStatus,
-  organizationId: string,
+  organizationId?: string | null,
 ): boolean {
+  if (!organizationId) {
+    return false;
+  }
   return job.share !== null && job.share.organizationId === organizationId;
 }
