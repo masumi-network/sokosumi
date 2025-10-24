@@ -41,15 +41,15 @@ export async function POST(
   { params }: RouteParams,
 ): Promise<NextResponse> {
   try {
-    const apiKey = await validateApiKey(request.headers);
+    const { userId, metadata } = await validateApiKey(request.headers);
     const { jobId } = await params;
 
     if (!jobId) {
       throw new Error("INVALID_INPUT");
     }
 
-    const userId = apiKey.userId;
-    const activeOrganizationId = apiKey.metadata?.organizationId ?? null;
+    const activeOrganizationId: string | null =
+      metadata?.organizationId ?? null;
 
     // Parse request body
     const body = await request.json();
@@ -58,7 +58,7 @@ export async function POST(
     // Get the job with authorization check
     const job = await jobRepository.getJobByIdWithAuthCheck(
       jobId,
-      apiKey.userId,
+      userId,
       activeOrganizationId,
     );
 
@@ -110,15 +110,15 @@ export async function DELETE(
   { params }: RouteParams,
 ): Promise<NextResponse> {
   try {
-    const apiKey = await validateApiKey(request.headers);
+    const { userId, metadata } = await validateApiKey(request.headers);
     const { jobId } = await params;
 
     if (!jobId) {
       throw new Error("INVALID_INPUT");
     }
 
-    const userId = apiKey.userId;
-    const activeOrganizationId = apiKey.metadata?.organizationId ?? null;
+    const activeOrganizationId: string | null =
+      metadata?.organizationId ?? null;
 
     // Parse request body
     const body = await request.json();
@@ -127,7 +127,7 @@ export async function DELETE(
     // Get the job with authorization check
     const job = await jobRepository.getJobByIdWithAuthCheck(
       jobId,
-      apiKey.userId,
+      userId,
       activeOrganizationId,
     );
 

@@ -29,7 +29,7 @@ export async function GET(
   { params }: RouteParams,
 ): Promise<NextResponse> {
   try {
-    const apiKey = await validateApiKey(request.headers);
+    const { userId, metadata } = await validateApiKey(request.headers);
     const { jobId } = await params;
 
     if (!jobId) {
@@ -37,12 +37,13 @@ export async function GET(
     }
 
     // Get organization context from API key
-    const activeOrganizationId = apiKey.metadata?.organizationId ?? null;
+    const activeOrganizationId: string | null =
+      metadata?.organizationId ?? null;
 
     // Get the job with authorization check
     const job = await jobRepository.getJobByIdWithAuthCheck(
       jobId,
-      apiKey.userId,
+      userId,
       activeOrganizationId,
     );
 
