@@ -23,7 +23,7 @@ CREATE TABLE "jobShare" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "jobId" TEXT NOT NULL,
     "organizationId" TEXT,
-    "token" TEXT NOT NULL,
+    "token" TEXT,
     "allowSearchIndexing" BOOLEAN NOT NULL DEFAULT true,
 
     CONSTRAINT "jobShare_pkey" PRIMARY KEY ("id")

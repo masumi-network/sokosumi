@@ -12,7 +12,7 @@ import prisma from "./prisma";
 
 export const jobPublicShareRepository = {
   async hasShareByJobId(jobId: string, tx: Prisma.TransactionClient = prisma) {
-    const share = await tx.jobPublicShare.findUnique({
+    const share = await tx.jobShare.findUnique({
       where: { jobId },
       select: { id: true },
     });
@@ -20,14 +20,14 @@ export const jobPublicShareRepository = {
   },
 
   async getShareById(id: string, tx: Prisma.TransactionClient = prisma) {
-    return await tx.jobPublicShare.findUnique({
+    return await tx.jobShare.findUnique({
       where: { id },
       include: jobPublicShareInclude,
     });
   },
 
   async getShareByToken(token: string, tx: Prisma.TransactionClient = prisma) {
-    return await tx.jobPublicShare.findUnique({
+    return await tx.jobShare.findUnique({
       where: {
         token,
       },
@@ -36,7 +36,7 @@ export const jobPublicShareRepository = {
   },
 
   async getShareByJobId(jobId: string, tx: Prisma.TransactionClient = prisma) {
-    return await tx.jobPublicShare.findUnique({
+    return await tx.jobShare.findUnique({
       where: { jobId },
       include: jobPublicShareInclude,
     });
@@ -44,19 +44,59 @@ export const jobPublicShareRepository = {
 
   async upsertShare(
     jobId: string,
+    sharePublic: boolean,
+    organizationId: string | null,
     allowSearchIndexing: boolean,
     tx: Prisma.TransactionClient = prisma,
   ) {
-    return await tx.jobPublicShare.upsert({
+    return await tx.jobShare.upsert({
       where: { jobId },
-      create: { jobId, allowSearchIndexing, token: uuidv4() },
-      update: { allowSearchIndexing },
+      create: {
+        jobId,
+        allowSearchIndexing,
+        token: sharePublic ? uuidv4() : null,
+        organizationId,
+      },
+      update: {
+        allowSearchIndexing,
+        organization: organizationId
+          ? { connect: { id: organizationId } }
+          : { disconnect: true },
+      },
+      include: jobPublicShareInclude,
+    });
+  },
+
+  async setShareOrganizationById(
+    id: string,
+    organizationId: string | null,
+    tx: Prisma.TransactionClient = prisma,
+  ) {
+    return await tx.jobShare.update({
+      where: { id },
+      data: {
+        organization: organizationId
+          ? { connect: { id: organizationId } }
+          : { disconnect: true },
+      },
+      include: jobPublicShareInclude,
+    });
+  },
+
+  async setSharePublicById(
+    id: string,
+    sharePublic: boolean,
+    tx: Prisma.TransactionClient = prisma,
+  ) {
+    return await tx.jobShare.update({
+      where: { id },
+      data: { token: sharePublic ? uuidv4() : null },
       include: jobPublicShareInclude,
     });
   },
 
   async deleteShareById(id: string, tx: Prisma.TransactionClient = prisma) {
-    return await tx.jobPublicShare.delete({
+    return await tx.jobShare.delete({
       where: { id },
     });
   },
@@ -65,7 +105,7 @@ export const jobPublicShareRepository = {
     jobId: string,
     tx: Prisma.TransactionClient = prisma,
   ) {
-    return await tx.jobPublicShare.deleteMany({
+    return await tx.jobShare.deleteMany({
       where: { jobId },
     });
   },
@@ -75,7 +115,7 @@ export const jobPublicShareRepository = {
     allowSearchIndexing: boolean,
     tx: Prisma.TransactionClient = prisma,
   ) {
-    return await tx.jobPublicShare.update({
+    return await tx.jobShare.update({
       where: { id },
       data: { allowSearchIndexing },
       include: jobPublicShareInclude,
