@@ -87,7 +87,6 @@ export async function POST(
     if (!authContext) {
       throw new Error("UNAUTHORIZED");
     }
-    const { userId, organizationId } = authContext;
     const { agentId } = await params;
 
     // Parse request body

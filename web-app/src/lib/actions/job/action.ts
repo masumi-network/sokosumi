@@ -348,7 +348,6 @@ export const shareJobPublicly = withAuthContext<
 
     const publicShare = await jobPublicShareRepository.upsertShare(
       jobId,
-      userId,
       allowSearchIndexing ?? true,
       tx,
     );
@@ -472,8 +471,8 @@ export const updateAllowSearchIndexing = withAuthContext<
         });
       }
 
-      // must be job share user to remove share
-      if (userId !== publicShare.userId) {
+      // must be job owner to update allow search indexing
+      if (userId !== publicShare.job.userId) {
         return Err({
           message: "Unauthorized",
           code: CommonErrorCode.UNAUTHORIZED,

@@ -2,7 +2,7 @@ import * as z from "zod";
 
 export const jobPublicShareResponseSchema = z.object({
   id: z.string(),
-  userId: z.string(),
+  jobId: z.string(),
   url: z.url(),
   allowSearchIndexing: z.boolean(),
   createdAt: z.iso.datetime(),

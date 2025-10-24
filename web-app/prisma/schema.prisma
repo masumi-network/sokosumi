@@ -53,9 +53,6 @@ model User {
 
   apikeys Apikey[]
 
-  // JobShare
-  jobPublicShares JobPublicShare[]
-
   // Onboarding
   onboardingCompleted Boolean @default(false)
 
@@ -688,11 +685,6 @@ model JobPublicShare {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Who created this share
-  userId String
-  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  // Job which is being shared
   jobId String @unique
   job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
 

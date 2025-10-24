@@ -5,6 +5,7 @@
 
 import { v4 as uuidv4 } from "uuid";
 
+import { jobPublicShareInclude } from "@/lib/db/types";
 import { Prisma } from "@/prisma/generated/client";
 
 import prisma from "./prisma";
@@ -21,6 +22,7 @@ export const jobPublicShareRepository = {
   async getShareById(id: string, tx: Prisma.TransactionClient = prisma) {
     return await tx.jobPublicShare.findUnique({
       where: { id },
+      include: jobPublicShareInclude,
     });
   },
 
@@ -29,34 +31,27 @@ export const jobPublicShareRepository = {
       where: {
         token,
       },
+      include: jobPublicShareInclude,
     });
   },
 
   async getShareByJobId(jobId: string, tx: Prisma.TransactionClient = prisma) {
     return await tx.jobPublicShare.findUnique({
       where: { jobId },
-    });
-  },
-
-  async getSharesByUserId(
-    userId: string,
-    tx: Prisma.TransactionClient = prisma,
-  ) {
-    return await tx.jobPublicShare.findMany({
-      where: { userId },
+      include: jobPublicShareInclude,
     });
   },
 
   async upsertShare(
     jobId: string,
-    userId: string,
     allowSearchIndexing: boolean,
     tx: Prisma.TransactionClient = prisma,
   ) {
     return await tx.jobPublicShare.upsert({
       where: { jobId },
-      create: { jobId, userId, allowSearchIndexing, token: uuidv4() },
+      create: { jobId, allowSearchIndexing, token: uuidv4() },
       update: { allowSearchIndexing },
+      include: jobPublicShareInclude,
     });
   },
 
@@ -75,15 +70,6 @@ export const jobPublicShareRepository = {
     });
   },
 
-  async deleteSharesByUserId(
-    userId: string,
-    tx: Prisma.TransactionClient = prisma,
-  ) {
-    return await tx.jobPublicShare.deleteMany({
-      where: { userId },
-    });
-  },
-
   async setShareAllowSearchIndexingById(
     id: string,
     allowSearchIndexing: boolean,
@@ -92,6 +78,7 @@ export const jobPublicShareRepository = {
     return await tx.jobPublicShare.update({
       where: { id },
       data: { allowSearchIndexing },
+      include: jobPublicShareInclude,
     });
   },
 };
