@@ -1,19 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import {
+  deleteJobShare,
   JobErrorCode,
-  OrganizationErrorCode,
   shareJobPublicly,
-  unshareJobPublicly,
+  shareJobWithOrganization,
 } from "@/lib/actions";
 import {
   createApiSuccessResponse,
   handleApiError,
-  sharePostRequestSchema,
+  jobShareRequestSchema,
 } from "@/lib/api";
-import { formatJobPublicShareResponse } from "@/lib/api/formatters/job-share";
+import { formatJobShareResponse } from "@/lib/api/formatters/job-share";
 import { getAuthContext } from "@/lib/auth/utils";
 import { jobShareRepository } from "@/lib/db/repositories";
+import { JobShare } from "@/prisma/generated/client";
 
 interface RouteParams {
   params: Promise<{
@@ -38,25 +39,37 @@ export async function PUT(
 
     // Parse request body
     const body = await request.json();
-    const requestData = sharePostRequestSchema.parse(body);
+    const requestData = jobShareRequestSchema.parse(body);
 
-    // Share the job publicly
-    const result = await shareJobPublicly({ jobId, authContext });
+    const { allowSearchIndexing } = requestData;
 
-    // Handle errors
-    if (!result.ok) {
-      switch (result.error.code) {
-        case OrganizationErrorCode.ORGANIZATION_NOT_FOUND:
-          throw new Error("ORGANIZATION_NOT_FOUND");
-        case OrganizationErrorCode.NOT_ORGANIZATION_MEMBER:
-          throw new Error("UNAUTHORIZED");
-        default:
-          throw new Error(result.error.message ?? "Unknown error");
+    let share: JobShare | null = null;
+    if (requestData.scope.includes("public")) {
+      const result = await shareJobPublicly({
+        jobId,
+        allowSearchIndexing,
+        authContext,
+      });
+      if (!result.ok) {
+        throw new Error(result.error.message ?? "Unknown error");
       }
+      share = result.data;
     }
-
+    if (requestData.scope.includes("organization")) {
+      const result = await shareJobWithOrganization({
+        jobId,
+        authContext,
+      });
+      if (!result.ok) {
+        throw new Error(result.error.message ?? "Unknown error");
+      }
+      share = result.data;
+    }
+    if (!share) {
+      throw new Error("NO_SHARE_CREATED");
+    }
     // Format and return the job share
-    return createApiSuccessResponse(formatJobPublicShareResponse(result.data));
+    return createApiSuccessResponse(formatJobShareResponse(share));
   } catch (error) {
     return handleApiError(error, "create job share", {
       path: request.nextUrl.pathname,
@@ -83,7 +96,7 @@ export async function GET(
     if (!share) {
       throw new Error("JOB_SHARE_NOT_FOUND");
     }
-    return createApiSuccessResponse(formatJobPublicShareResponse(share));
+    return createApiSuccessResponse(formatJobShareResponse(share));
   } catch (error) {
     return handleApiError(error, "get job share", {
       path: request.nextUrl.pathname,
@@ -106,7 +119,7 @@ export async function DELETE(
       throw new Error("INVALID_INPUT");
     }
 
-    const result = await unshareJobPublicly({ jobId, authContext });
+    const result = await deleteJobShare({ jobId, authContext });
     if (!result.ok) {
       switch (result.error.code) {
         case JobErrorCode.JOB_NOT_FOUND:

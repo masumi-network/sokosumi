@@ -313,14 +313,14 @@ export const requestRefundJobByBlockchainIdentifier = withAuthContext<
 
 // Share Features
 
-interface ShareJobPubliclyParameters extends AuthenticatedRequest {
+interface ShareJobInPublicParameters extends AuthenticatedRequest {
   jobId: string;
   sharePublic: boolean;
   allowSearchIndexing?: boolean;
 }
 
 const shareJobInPublic = withAuthContext<
-  ShareJobPubliclyParameters,
+  ShareJobInPublicParameters,
   Result<JobShare, ActionError>
 >(async ({ jobId, sharePublic, allowSearchIndexing, authContext }) => {
   const { userId } = authContext;
@@ -369,16 +369,17 @@ const shareJobInPublic = withAuthContext<
 
 interface ShareJobPubliclyParameters extends AuthenticatedRequest {
   jobId: string;
+  allowSearchIndexing?: boolean;
 }
 
 export const shareJobPublicly = withAuthContext<
   ShareJobPubliclyParameters,
   Result<JobShare, ActionError>
->(async ({ jobId, authContext }) => {
+>(async ({ jobId, allowSearchIndexing, authContext }) => {
   return await shareJobInPublic({
     jobId,
     sharePublic: true,
-    allowSearchIndexing: true,
+    allowSearchIndexing: allowSearchIndexing ?? true,
     authContext,
   });
 });
@@ -386,10 +387,11 @@ export const shareJobPublicly = withAuthContext<
 export const unshareJobPublicly = withAuthContext<
   ShareJobPubliclyParameters,
   Result<JobShare, ActionError>
->(async ({ jobId, authContext }) => {
+>(async ({ jobId, allowSearchIndexing, authContext }) => {
   return await shareJobInPublic({
     jobId,
     sharePublic: false,
+    allowSearchIndexing: allowSearchIndexing ?? true,
     authContext,
   });
 });
