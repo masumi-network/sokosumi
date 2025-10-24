@@ -1,6 +1,7 @@
 "use client";
 
 import { Sparkles } from "lucide-react";
+import Image from "next/image";
 
 import { getAgentResolvedIcon } from "@/lib/db/helpers";
 import { cn } from "@/lib/utils";
@@ -17,11 +18,12 @@ export function AgentIcon({ agent, className, isMuted }: AgentIconProps) {
 
   if (resolvedIcon) {
     return (
-      // eslint-disable-next-line @next/next/no-img-element
-      <img
+      <Image
         src={resolvedIcon}
         alt=""
         aria-hidden
+        width={16}
+        height={16}
         className={cn("size-4", className, isMuted && "opacity-60")}
       />
     );
