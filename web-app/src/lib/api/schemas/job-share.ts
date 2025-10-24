@@ -14,6 +14,7 @@ export const jobShareRecipientOrganizationSchema = z.object({
 });
 
 export const jobShareResponseSchema = z.object({
+  id: z.string(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
   url: z.url(),
@@ -21,15 +22,24 @@ export const jobShareResponseSchema = z.object({
   recipientOrganization: jobShareRecipientOrganizationSchema.nullable(),
 });
 
-export const jobShareRequestSchema = z.object({
-  shareWithOrganization: z.boolean().optional(),
-  allowSearchIndexing: z.boolean().optional(),
-});
+export const jobShareRequestSchema = z
+  .object({
+    scopes: z.array(z.enum(["organization", "public"])),
+    allowSearchIndexing: z.boolean().optional(),
+  })
+  .refine((data) => data.scopes.length > 0, {
+    message: "At least one scope is required",
+    path: ["scopes"],
+  });
 
-export const jobShareRemoveRequestSchema = z.object({
-  removeAll: z.boolean().optional(),
-  removeOrganizationShare: z.boolean().optional(),
-});
+export const jobShareRemoveRequestSchema = z
+  .object({
+    scopes: z.array(z.enum(["organization", "public"])),
+  })
+  .refine((data) => data.scopes.length > 0, {
+    message: "At least one scope is required",
+    path: ["scopes"],
+  });
 
 export type JobShareRequest = z.infer<typeof jobShareRequestSchema>;
 export type JobShareResponse = z.infer<typeof jobShareResponseSchema>;

@@ -11,20 +11,13 @@ export function formatJobShareResponse(
   jobShare: JobShareWithRelations,
 ): JobShareResponse {
   const formatted = {
+    id: jobShare.id,
     createdAt: dateToISO(jobShare.createdAt),
     updatedAt: dateToISO(jobShare.updatedAt),
     url: getJobShareUrl(jobShare),
     creator: jobShare.creator,
-    accessType: jobShare.accessType,
     allowSearchIndexing: jobShare.allowSearchIndexing,
-    recipientOrganization: jobShare.recipientOrganization
-      ? {
-          id: jobShare.recipientOrganization.id,
-          name: jobShare.recipientOrganization.name,
-          slug: jobShare.recipientOrganization.slug,
-          logo: jobShare.recipientOrganization.logo,
-        }
-      : null,
+    recipientOrganization: jobShare.recipientOrganization,
   };
 
   // Validate the formatted response

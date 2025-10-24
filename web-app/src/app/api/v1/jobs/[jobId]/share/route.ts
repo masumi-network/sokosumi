@@ -13,11 +13,9 @@ import {
   handleApiError,
   jobShareRemoveRequestSchema,
   jobShareRequestSchema,
-  validateApiKey,
 } from "@/lib/api";
 import { formatJobShareResponse } from "@/lib/api/formatters/job-share";
-import { AuthContext } from "@/lib/auth/utils";
-import { jobRepository } from "@/lib/db/repositories";
+import { getAuthContext } from "@/lib/auth/utils";
 import { Result } from "@/lib/ts-res";
 
 interface RouteParams {
@@ -41,39 +39,41 @@ export async function POST(
   { params }: RouteParams,
 ): Promise<NextResponse> {
   try {
-    const { userId, metadata } = await validateApiKey(request.headers);
-    const { jobId } = await params;
+    const authContext = await getAuthContext();
+    if (!authContext) {
+      throw new Error("UNAUTHORIZED");
+    }
 
+    const { jobId } = await params;
     if (!jobId) {
       throw new Error("INVALID_INPUT");
     }
 
-    const activeOrganizationId: string | null =
-      metadata?.organizationId ?? null;
-
     // Parse request body
     const body = await request.json();
-    const validatedData = jobShareRequestSchema.parse(body);
+    const requestData = jobShareRequestSchema.parse(body);
 
-    // Get the job with authorization check
-    const job = await jobRepository.getJobByIdWithAuthCheck(
-      jobId,
-      userId,
-      activeOrganizationId,
-    );
-
-    if (!job) {
-      throw new Error("JOB_NOT_FOUND");
+    let recipientOrganizationId: string | null = null;
+    for (const scope of requestData.scopes) {
+      switch (scope) {
+        case "organization":
+          recipientOrganizationId = authContext.organizationId;
+          if (!recipientOrganizationId) {
+            throw new Error("ORGANIZATION_NOT_FOUND");
+          }
+          break;
+        case "public":
+          break;
+        default:
+          throw new Error("INVALID_INPUT");
+      }
     }
 
-    const recipientOrganizationId = validatedData.shareWithOrganization
-      ? activeOrganizationId
-      : null;
     const result = await shareJob({
-      jobId: job.id,
+      jobId,
       recipientOrganizationId,
-      allowSearchIndexing: validatedData.allowSearchIndexing,
-      authContext: { userId, organizationId: activeOrganizationId },
+      allowSearchIndexing: requestData.allowSearchIndexing,
+      authContext,
     });
     if (!result.ok) {
       switch (result.error.code) {
@@ -110,45 +110,27 @@ export async function DELETE(
   { params }: RouteParams,
 ): Promise<NextResponse> {
   try {
-    const { userId, metadata } = await validateApiKey(request.headers);
-    const { jobId } = await params;
+    const authContext = await getAuthContext();
+    if (!authContext) {
+      throw new Error("UNAUTHORIZED");
+    }
 
+    const { jobId } = await params;
     if (!jobId) {
       throw new Error("INVALID_INPUT");
     }
 
-    const activeOrganizationId: string | null =
-      metadata?.organizationId ?? null;
-
     // Parse request body
     const body = await request.json();
-    const validatedData = jobShareRemoveRequestSchema.parse(body);
+    const requestData = jobShareRemoveRequestSchema.parse(body);
 
-    // Get the job with authorization check
-    const job = await jobRepository.getJobByIdWithAuthCheck(
-      jobId,
-      userId,
-      activeOrganizationId,
-    );
-
-    if (!job) {
-      throw new Error("JOB_NOT_FOUND");
-    }
-
-    const authContext: AuthContext = {
-      userId,
-      organizationId: activeOrganizationId,
-    };
     let result: Result<void, ActionError>;
-    if (validatedData.removeAll) {
+    if (requestData.scopes.length === 2) {
       result = await removeSharesPerJob({ jobId, authContext });
     } else {
-      const recipientOrganizationId = validatedData.removeOrganizationShare
-        ? activeOrganizationId
-        : null;
       result = await removeJobShares({
         jobId,
-        recipientOrganizationId,
+        recipientOrganizationId: authContext.organizationId,
         authContext,
       });
     }
