@@ -13,29 +13,33 @@ ALTER TABLE "public"."share" DROP CONSTRAINT "share_jobId_fkey";
 -- DropForeignKey
 ALTER TABLE "public"."share" DROP CONSTRAINT "share_recipientOrganizationId_fkey";
 
--- AlterTable
-ALTER TABLE "Job" ADD COLUMN     "isOrganizationShared" BOOLEAN NOT NULL DEFAULT false;
-
 -- DropTable
 DROP TABLE "public"."share";
 
 -- CreateTable
-CREATE TABLE "jobPublicShare" (
+CREATE TABLE "jobShare" (
     "id" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "jobId" TEXT NOT NULL,
+    "organizationId" TEXT,
     "token" TEXT NOT NULL,
     "allowSearchIndexing" BOOLEAN NOT NULL DEFAULT true,
 
-    CONSTRAINT "jobPublicShare_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "jobShare_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
-CREATE UNIQUE INDEX "jobPublicShare_jobId_key" ON "jobPublicShare"("jobId");
+CREATE UNIQUE INDEX "jobShare_jobId_key" ON "jobShare"("jobId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "jobPublicShare_token_key" ON "jobPublicShare"("token");
+CREATE UNIQUE INDEX "jobShare_token_key" ON "jobShare"("token");
+
+-- CreateIndex
+CREATE INDEX "jobShare_organizationId_idx" ON "jobShare"("organizationId");
 
 -- AddForeignKey
-ALTER TABLE "jobPublicShare" ADD CONSTRAINT "jobPublicShare_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "Job"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "jobShare" ADD CONSTRAINT "jobShare_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "Job"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "jobShare" ADD CONSTRAINT "jobShare_organizationId_fkey" FOREIGN KEY ("organizationId") REFERENCES "organization"("id") ON DELETE CASCADE ON UPDATE CASCADE;

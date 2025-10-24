@@ -123,6 +123,7 @@ model Organization {
   jobs               Job[]
   creditTransactions CreditTransaction[]
   fiatTransactions   FiatTransaction[]
+  jobShares          JobShare[]
 
   stripeCustomerId String?
   invoiceEmail     String?
@@ -534,10 +535,7 @@ model Job {
   links Link[] @relation("JobLink")
 
   // Public Share
-  publicShare JobPublicShare?
-
-  // Organization Shares
-  isOrganizationShared Boolean @default(false)
+  share JobShare?
 
   @@index([jobType])
 }
@@ -680,7 +678,7 @@ enum BlobStatus {
   FAILED
 }
 
-model JobPublicShare {
+model JobShare {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -688,13 +686,17 @@ model JobPublicShare {
   jobId String @unique
   job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
   // Security & Access
   token String @unique
 
   // SEO Control
   allowSearchIndexing Boolean @default(true)
 
-  @@map("jobPublicShare")
+  @@index([organizationId])
+  @@map("jobShare")
 }
 
 enum ShareAccessType {
