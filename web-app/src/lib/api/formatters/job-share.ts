@@ -12,12 +12,12 @@ export function formatJobShareResponse(
 ): JobShareResponse {
   const formatted = {
     id: jobShare.id,
+    user: jobShare.user,
+    url: getJobShareUrl(jobShare),
+    recipientOrganization: jobShare.recipientOrganization,
+    allowSearchIndexing: jobShare.allowSearchIndexing,
     createdAt: dateToISO(jobShare.createdAt),
     updatedAt: dateToISO(jobShare.updatedAt),
-    url: getJobShareUrl(jobShare),
-    creator: jobShare.creator,
-    allowSearchIndexing: jobShare.allowSearchIndexing,
-    recipientOrganization: jobShare.recipientOrganization,
   };
 
   // Validate the formatted response

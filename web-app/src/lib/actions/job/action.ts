@@ -420,8 +420,8 @@ export const updateAllowSearchIndexing = withAuthContext<
         });
       }
 
-      // must be job share creator to remove share
-      if (userId !== jobShare.creatorId) {
+      // must be job share user to remove share
+      if (userId !== jobShare.userId) {
         return Err({
           message: "Unauthorized",
           code: CommonErrorCode.UNAUTHORIZED,

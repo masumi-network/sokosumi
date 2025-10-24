@@ -1,7 +1,7 @@
 import { Prisma } from "@/prisma/generated/client";
 
 export const jobShareInclude = {
-  creator: {
+  user: {
     select: {
       id: true,
       name: true,

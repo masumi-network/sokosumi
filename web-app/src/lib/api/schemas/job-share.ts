@@ -1,6 +1,6 @@
 import * as z from "zod";
 
-export const jobShareCreatorSchema = z.object({
+export const jobShareUserSchema = z.object({
   id: z.string(),
   name: z.string(),
   image: z.string().nullable(),
@@ -18,7 +18,7 @@ export const jobShareResponseSchema = z.object({
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
   url: z.url(),
-  creator: jobShareCreatorSchema,
+  user: jobShareUserSchema,
   recipientOrganization: jobShareRecipientOrganizationSchema.nullable(),
 });
 

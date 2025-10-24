@@ -1,8 +1,6 @@
 // Explicit TypeScript types for job shares endpoints (for next-openapi-gen typescript mode)
 
-export type JobShareAccessType = "PUBLIC" | "RESTRICTED";
-
-export type JobShareCreator = {
+export type JobShareUser = {
   id: string;
   name: string;
   image: string | null;
@@ -19,7 +17,7 @@ export type JobShareResponse = {
   createdAt: string; // ISO date
   updated: string; // ISO date
   url: string;
-  creator: JobShareCreator;
+  user: JobShareUser;
   recipientOrganization: JobShareRecipientOrganization | null;
 };
 

@@ -54,7 +54,7 @@ model User {
   apikeys Apikey[]
 
   // JobShare
-  jobShares JobShare[] @relation("JobShareCreator")
+  jobShares JobShare[] @relation("JobShareUser")
 
   // Onboarding
   onboardingCompleted Boolean @default(false)
@@ -687,8 +687,8 @@ model JobShare {
   updatedAt DateTime @updatedAt
 
   // Who created this share
-  creatorId String
-  creator   User   @relation("JobShareCreator", fields: [creatorId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation("JobShareUser", fields: [userId], references: [id], onDelete: Cascade)
 
   // Job which is being shared
   jobId String
@@ -707,6 +707,7 @@ model JobShare {
   // SEO Control
   allowSearchIndexing Boolean @default(true)
 
+  @@unique([jobId, userId])
   @@index([recipientOrganizationId])
   @@map("share")
 }
