@@ -586,17 +586,12 @@ export const jobRepository = {
 
   async getJobsSharedWithOrganization(
     where: Prisma.JobWhereInput,
-    organizationId: string,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<JobWithStatus[]> {
     const jobs = await tx.job.findMany({
       where: {
         ...where,
-        shares: {
-          some: {
-            recipientOrganizationId: organizationId,
-          },
-        },
+        isOrganizationShared: true,
       },
       include: jobInclude,
       orderBy: jobOrderBy,
