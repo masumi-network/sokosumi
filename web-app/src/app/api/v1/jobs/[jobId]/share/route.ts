@@ -89,7 +89,7 @@ export async function POST(
     // Format and return the job share
     return createApiSuccessResponse(formatJobShareResponse(result.data));
   } catch (error) {
-    return handleApiError(error, "retrieve job", {
+    return handleApiError(error, "create job share", {
       path: request.nextUrl.pathname,
     });
   }
