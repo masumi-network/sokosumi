@@ -5,12 +5,12 @@
 
 import { v4 as uuidv4 } from "uuid";
 
-import { jobPublicShareInclude } from "@/lib/db/types";
+import { jobShareInclude } from "@/lib/db/types";
 import { Prisma } from "@/prisma/generated/client";
 
 import prisma from "./prisma";
 
-export const jobPublicShareRepository = {
+export const jobShareRepository = {
   async hasShareByJobId(jobId: string, tx: Prisma.TransactionClient = prisma) {
     const share = await tx.jobShare.findUnique({
       where: { jobId },
@@ -22,7 +22,7 @@ export const jobPublicShareRepository = {
   async getShareById(id: string, tx: Prisma.TransactionClient = prisma) {
     return await tx.jobShare.findUnique({
       where: { id },
-      include: jobPublicShareInclude,
+      include: jobShareInclude,
     });
   },
 
@@ -31,14 +31,14 @@ export const jobPublicShareRepository = {
       where: {
         token,
       },
-      include: jobPublicShareInclude,
+      include: jobShareInclude,
     });
   },
 
   async getShareByJobId(jobId: string, tx: Prisma.TransactionClient = prisma) {
     return await tx.jobShare.findUnique({
       where: { jobId },
-      include: jobPublicShareInclude,
+      include: jobShareInclude,
     });
   },
 
@@ -63,7 +63,7 @@ export const jobPublicShareRepository = {
           ? { connect: { id: organizationId } }
           : { disconnect: true },
       },
-      include: jobPublicShareInclude,
+      include: jobShareInclude,
     });
   },
 
@@ -79,7 +79,7 @@ export const jobPublicShareRepository = {
           ? { connect: { id: organizationId } }
           : { disconnect: true },
       },
-      include: jobPublicShareInclude,
+      include: jobShareInclude,
     });
   },
 
@@ -91,7 +91,7 @@ export const jobPublicShareRepository = {
     return await tx.jobShare.update({
       where: { id },
       data: { token: sharePublic ? uuidv4() : null },
-      include: jobPublicShareInclude,
+      include: jobShareInclude,
     });
   },
 
@@ -118,7 +118,7 @@ export const jobPublicShareRepository = {
     return await tx.jobShare.update({
       where: { id },
       data: { allowSearchIndexing },
-      include: jobPublicShareInclude,
+      include: jobShareInclude,
     });
   },
 };
