@@ -11,8 +11,8 @@ import {
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { PaidJobWithStatus } from "@/lib/db";
 import {
-  jobPublicShareRepository,
   jobRepository,
+  jobShareRepository,
   memberRepository,
   prisma,
   userRepository,
@@ -30,7 +30,7 @@ import {
   AuthenticatedRequest,
   withAuthContext,
 } from "@/middleware/auth-middleware";
-import { JobPublicShare } from "@/prisma/generated/client";
+import { JobShare } from "@/prisma/generated/client";
 
 import {
   handleInputDataFileUploads,
@@ -311,15 +311,18 @@ export const requestRefundJobByBlockchainIdentifier = withAuthContext<
   return Ok({ job });
 });
 
+// Share Features
+
 interface ShareJobPubliclyParameters extends AuthenticatedRequest {
   jobId: string;
+  sharePublic: boolean;
   allowSearchIndexing?: boolean;
 }
 
-export const shareJobPublicly = withAuthContext<
+const shareJobInPublic = withAuthContext<
   ShareJobPubliclyParameters,
-  Result<JobPublicShare, ActionError>
->(async ({ jobId, allowSearchIndexing, authContext }) => {
+  Result<JobShare, ActionError>
+>(async ({ jobId, sharePublic, allowSearchIndexing, authContext }) => {
   const { userId } = authContext;
   return await prisma.$transaction(async (tx) => {
     const job = await jobRepository.getJobById(jobId, tx);
@@ -339,31 +342,60 @@ export const shareJobPublicly = withAuthContext<
     }
 
     // check if job is already shared publicly
-    if (job.publicShare !== null) {
+    if (job.share?.token) {
       return Err({
         message: "Job already shared publicly",
         code: JobErrorCode.JOB_ALREADY_SHARED_PUBLICLY,
       });
     }
 
-    const publicShare = await jobPublicShareRepository.upsertShare(
+    const share = await jobShareRepository.upsertShare(
       jobId,
+      sharePublic,
+      null,
       allowSearchIndexing ?? true,
       tx,
     );
-    return Ok(publicShare);
+    return Ok(share);
   });
 });
 
-interface ShareJobOrganizationParameters extends AuthenticatedRequest {
+interface ShareJobPubliclyParameters extends AuthenticatedRequest {
   jobId: string;
-  share: boolean;
 }
 
-const setJobIsOrganizationShared = withAuthContext<
-  ShareJobOrganizationParameters,
-  Result<boolean, ActionError>
->(async ({ jobId, share, authContext }) => {
+export const shareJobPublicly = withAuthContext<
+  ShareJobPubliclyParameters,
+  Result<JobShare, ActionError>
+>(async ({ jobId, authContext }) => {
+  return await shareJobInPublic({
+    jobId,
+    sharePublic: true,
+    allowSearchIndexing: true,
+    authContext,
+  });
+});
+
+export const unshareJobPublicly = withAuthContext<
+  ShareJobPubliclyParameters,
+  Result<JobShare, ActionError>
+>(async ({ jobId, authContext }) => {
+  return await shareJobInPublic({
+    jobId,
+    sharePublic: false,
+    authContext,
+  });
+});
+
+interface ShareJobInOrganizationParameters extends AuthenticatedRequest {
+  jobId: string;
+  shareOrganization: boolean;
+}
+
+const shareJobInOrganization = withAuthContext<
+  ShareJobInOrganizationParameters,
+  Result<JobShare, ActionError>
+>(async ({ jobId, shareOrganization, authContext }) => {
   const { userId, organizationId } = authContext;
   if (!organizationId) {
     return Err({
@@ -388,20 +420,21 @@ const setJobIsOrganizationShared = withAuthContext<
       });
     }
 
-    // check if job is already shared with organization
-    if (job.isOrganizationShared) {
+    if (organizationId !== job.organizationId) {
       return Err({
-        message: "Job already shared with organization",
-        code: JobErrorCode.JOB_ALREADY_SHARED_ORGANIZATION,
-      });
-    }
-
-    if (job.organizationId !== organizationId) {
-      return Err({
-        message: "You must be in the same organization to share jobs with it",
+        message: "Unauthorized",
         code: CommonErrorCode.UNAUTHORIZED,
       });
     }
+
+    // check if job is already shared with organization
+    if (job.share?.organizationId) {
+      return Err({
+        message: "Job already shared with organization",
+        code: JobErrorCode.JOB_ALREADY_SHARED_IN_ORGANIZATION,
+      });
+    }
+
     // Check if user is a member of the organization
     const membership =
       await memberRepository.getMemberByUserIdAndOrganizationId(
@@ -417,12 +450,14 @@ const setJobIsOrganizationShared = withAuthContext<
       });
     }
 
-    const updatedJob = await jobRepository.setJobIsOrganizationSharedById(
+    const share = await jobShareRepository.upsertShare(
       jobId,
-      share,
+      false,
+      shareOrganization ? organizationId : null,
+      true,
       tx,
     );
-    return Ok(updatedJob.isOrganizationShared);
+    return Ok(share);
   });
 });
 
@@ -432,20 +467,24 @@ interface ShareJobWithOrganizationParameters extends AuthenticatedRequest {
 
 export const shareJobWithOrganization = withAuthContext<
   ShareJobWithOrganizationParameters,
-  Result<boolean, ActionError>
+  Result<JobShare, ActionError>
 >(async ({ jobId, authContext }) => {
-  return await setJobIsOrganizationShared({ jobId, share: true, authContext });
+  return await shareJobInOrganization({
+    jobId,
+    shareOrganization: true,
+    authContext,
+  });
 });
 
-interface UnshareJobWithOrganizationParameters extends AuthenticatedRequest {
-  jobId: string;
-}
-
 export const unshareJobWithOrganization = withAuthContext<
-  UnshareJobWithOrganizationParameters,
-  Result<boolean, ActionError>
+  ShareJobWithOrganizationParameters,
+  Result<JobShare, ActionError>
 >(async ({ jobId, authContext }) => {
-  return await setJobIsOrganizationShared({ jobId, share: false, authContext });
+  return await shareJobInOrganization({
+    jobId,
+    shareOrganization: false,
+    authContext,
+  });
 });
 
 interface UpdateAllowSearchIndexingParameters extends AuthenticatedRequest {
@@ -455,24 +494,20 @@ interface UpdateAllowSearchIndexingParameters extends AuthenticatedRequest {
 
 export const updateAllowSearchIndexing = withAuthContext<
   UpdateAllowSearchIndexingParameters,
-  Result<JobPublicShare, ActionError>
+  Result<JobShare, ActionError>
 >(async ({ jobShareId, allowSearchIndexing, authContext }) => {
   const { userId } = authContext;
   try {
     return await prisma.$transaction(async (tx) => {
-      const publicShare = await jobPublicShareRepository.getShareById(
-        jobShareId,
-        tx,
-      );
-      if (!publicShare) {
+      const share = await jobShareRepository.getShareById(jobShareId, tx);
+      if (!share) {
         return Err({
-          message: "Job public share not found",
-          code: JobErrorCode.JOB_PUBLIC_SHARE_NOT_FOUND,
+          message: "Job share not found",
+          code: JobErrorCode.JOB_SHARE_NOT_FOUND,
         });
       }
-
       // must be job owner to update allow search indexing
-      if (userId !== publicShare.job.userId) {
+      if (userId !== share.job.userId) {
         return Err({
           message: "Unauthorized",
           code: CommonErrorCode.UNAUTHORIZED,
@@ -480,13 +515,13 @@ export const updateAllowSearchIndexing = withAuthContext<
       }
 
       // update allow search indexing
-      const updated =
-        await jobPublicShareRepository.setShareAllowSearchIndexingById(
-          publicShare.id,
+      const updatedShare =
+        await jobShareRepository.setShareAllowSearchIndexingById(
+          share.id,
           allowSearchIndexing,
           tx,
         );
-      return Ok(updated);
+      return Ok(updatedShare);
     });
   } catch (error) {
     console.error("Failed to update allow search indexing", error);
@@ -505,12 +540,12 @@ export const updateAllowSearchIndexing = withAuthContext<
  * @param authContext - The authentication context
  * @returns A result indicating success or failure
  */
-interface UnshareJobPubliclyParameters extends AuthenticatedRequest {
+interface DeleteJobShareParameters extends AuthenticatedRequest {
   jobId: string;
 }
 
-export const unshareJobPublicly = withAuthContext<
-  UnshareJobPubliclyParameters,
+export const deleteJobShare = withAuthContext<
+  DeleteJobShareParameters,
   Result<void, ActionError>
 >(async ({ jobId, authContext }) => {
   const { userId } = authContext;
@@ -533,7 +568,7 @@ export const unshareJobPublicly = withAuthContext<
         });
       }
 
-      await jobPublicShareRepository.deleteShareByJobId(jobId, tx);
+      await jobShareRepository.deleteShareByJobId(jobId, tx);
       return Ok();
     });
   } catch (error) {
@@ -543,19 +578,6 @@ export const unshareJobPublicly = withAuthContext<
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,
     });
   }
-});
-
-interface UnshareJobParameters extends AuthenticatedRequest {
-  jobId: string;
-}
-
-export const unshareJob = withAuthContext<
-  UnshareJobParameters,
-  Result<void, ActionError>
->(async ({ jobId, authContext }) => {
-  await unshareJobPublicly({ jobId, authContext });
-  await unshareJobWithOrganization({ jobId, authContext });
-  return Ok();
 });
 
 export const getActiveOrganization = withAuthContext<
