@@ -346,7 +346,7 @@ export const shareJobPublicly = withAuthContext<
       });
     }
 
-    const publicShare = await jobPublicShareRepository.createShare(
+    const publicShare = await jobPublicShareRepository.upsertShare(
       jobId,
       userId,
       allowSearchIndexing ?? true,
@@ -427,12 +427,12 @@ const setJobIsOrganizationShared = withAuthContext<
   });
 });
 
-interface ShareWithOrganizationParameters extends AuthenticatedRequest {
+interface ShareJobWithOrganizationParameters extends AuthenticatedRequest {
   jobId: string;
 }
 
-export const shareWithOrganization = withAuthContext<
-  ShareWithOrganizationParameters,
+export const shareJobWithOrganization = withAuthContext<
+  ShareJobWithOrganizationParameters,
   Result<boolean, ActionError>
 >(async ({ jobId, authContext }) => {
   return await setJobIsOrganizationShared({ jobId, share: true, authContext });

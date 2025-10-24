@@ -1,6 +1,6 @@
 import * as z from "zod";
 
-export const jobShareResponseSchema = z.object({
+export const jobPublicShareResponseSchema = z.object({
   id: z.string(),
   userId: z.string(),
   url: z.url(),
@@ -9,25 +9,19 @@ export const jobShareResponseSchema = z.object({
   updatedAt: z.iso.datetime(),
 });
 
-export const jobShareRequestSchema = z
-  .object({
-    scopes: z.array(z.enum(["organization", "public"])),
-    allowSearchIndexing: z.boolean().optional(),
-  })
-  .refine((data) => data.scopes.length > 0, {
-    message: "At least one scope is required",
-    path: ["scopes"],
-  });
+export const jobOrganizationShareResponseSchema = z.object({
+  jobId: z.string(),
+  organizationId: z.string(),
+});
 
-export const jobShareRemoveRequestSchema = z
-  .object({
-    scopes: z.array(z.enum(["organization", "public"])),
-  })
-  .refine((data) => data.scopes.length > 0, {
-    message: "At least one scope is required",
-    path: ["scopes"],
-  });
+export const sharePostRequestSchema = z.object({
+  allowSearchIndexing: z.boolean().default(true),
+});
 
-export type JobShareRequest = z.infer<typeof jobShareRequestSchema>;
-export type JobShareResponse = z.infer<typeof jobShareResponseSchema>;
-export type JobShareRemoveRequest = z.infer<typeof jobShareRemoveRequestSchema>;
+export type SharePostRequest = z.infer<typeof sharePostRequestSchema>;
+export type JobPublicShareResponse = z.infer<
+  typeof jobPublicShareResponseSchema
+>;
+export type JobOrganizationShareResponse = z.infer<
+  typeof jobOrganizationShareResponseSchema
+>;

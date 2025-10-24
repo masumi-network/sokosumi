@@ -21,7 +21,7 @@ import {
   getActiveOrganization,
   JobErrorCode,
   shareJobPublicly,
-  shareWithOrganization,
+  shareJobWithOrganization,
   unshareJob,
   unshareJobWithOrganization,
   updateAllowSearchIndexing,
@@ -178,7 +178,7 @@ export default function JobShareModal({
     if (!organization) return;
 
     setIsLoading(true);
-    const result = await shareWithOrganization({
+    const result = await shareJobWithOrganization({
       jobId: job.id,
     });
     if (result.ok) {

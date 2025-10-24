@@ -10,6 +10,14 @@ import { Prisma } from "@/prisma/generated/client";
 import prisma from "./prisma";
 
 export const jobPublicShareRepository = {
+  async hasShareByJobId(jobId: string, tx: Prisma.TransactionClient = prisma) {
+    const share = await tx.jobPublicShare.findUnique({
+      where: { jobId },
+      select: { id: true },
+    });
+    return share !== null;
+  },
+
   async getShareById(id: string, tx: Prisma.TransactionClient = prisma) {
     return await tx.jobPublicShare.findUnique({
       where: { id },
@@ -39,14 +47,16 @@ export const jobPublicShareRepository = {
     });
   },
 
-  async createShare(
+  async upsertShare(
     jobId: string,
     userId: string,
     allowSearchIndexing: boolean,
     tx: Prisma.TransactionClient = prisma,
   ) {
-    return await tx.jobPublicShare.create({
-      data: { jobId, userId, allowSearchIndexing, token: uuidv4() },
+    return await tx.jobPublicShare.upsert({
+      where: { jobId },
+      create: { jobId, userId, allowSearchIndexing, token: uuidv4() },
+      update: { allowSearchIndexing },
     });
   },
 
