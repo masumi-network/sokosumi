@@ -52,18 +52,15 @@ export function getJobColumns(
       cell: ({ row }) => {
         const job = row.original;
         const isSharedJob = job.userId !== userId;
-        const orgShare = job.shares?.find(
-          (share) => share.recipientOrganizationId && share.creator,
-        );
-
+        const share = job.share;
         // If it's a shared job, show the sharing indicator instead of status
-        if (isSharedJob && orgShare) {
+        if (isSharedJob && share) {
           return (
             <div className="p-2">
               <JobSharedBadge
-                key={`${row.original.id}-${orgShare.creator.id}`}
-                creatorName={orgShare.creator.name}
-                creatorImage={orgShare.creator.image}
+                key={`${row.original.id}-${share.id}`}
+                creatorName={job.user.name}
+                creatorImage={job.user.image}
               />
             </div>
           );
