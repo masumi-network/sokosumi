@@ -13,7 +13,7 @@ import {
 } from "@/lib/api";
 import { formatJobPublicShareResponse } from "@/lib/api/formatters/job-share";
 import { getAuthContext } from "@/lib/auth/utils";
-import { jobPublicShareRepository } from "@/lib/db/repositories";
+import { jobShareRepository } from "@/lib/db/repositories";
 
 interface RouteParams {
   params: Promise<{
@@ -40,15 +40,8 @@ export async function PUT(
     const body = await request.json();
     const requestData = sharePostRequestSchema.parse(body);
 
-    // Check if the job is already shared publicly
-    const hasShare = await jobPublicShareRepository.hasShareByJobId(jobId);
-
     // Share the job publicly
-    const result = await shareJobPublicly({
-      jobId,
-      allowSearchIndexing: requestData.allowSearchIndexing,
-      authContext,
-    });
+    const result = await shareJobPublicly({ jobId, authContext });
 
     // Handle errors
     if (!result.ok) {
@@ -63,9 +56,7 @@ export async function PUT(
     }
 
     // Format and return the job share
-    return createApiSuccessResponse(formatJobPublicShareResponse(result.data), {
-      status: hasShare ? 200 : 201,
-    });
+    return createApiSuccessResponse(formatJobPublicShareResponse(result.data));
   } catch (error) {
     return handleApiError(error, "create job share", {
       path: request.nextUrl.pathname,
@@ -88,13 +79,13 @@ export async function GET(
       throw new Error("INVALID_INPUT");
     }
 
-    const publicShare = await jobPublicShareRepository.getShareByJobId(jobId);
-    if (!publicShare) {
-      throw new Error("JOB_PUBLIC_SHARE_NOT_FOUND");
+    const share = await jobShareRepository.getShareByJobId(jobId);
+    if (!share) {
+      throw new Error("JOB_SHARE_NOT_FOUND");
     }
-    return createApiSuccessResponse(formatJobPublicShareResponse(publicShare));
+    return createApiSuccessResponse(formatJobPublicShareResponse(share));
   } catch (error) {
-    return handleApiError(error, "get job public share", {
+    return handleApiError(error, "get job share", {
       path: request.nextUrl.pathname,
     });
   }
