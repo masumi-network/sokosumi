@@ -81,10 +81,10 @@ export async function POST(
   { params }: RouteParams,
 ): Promise<NextResponse> {
   try {
-    const apiKey = await validateApiKey(request.headers);
+    const { userId, metadata } = await validateApiKey(request.headers);
     const { agentId } = await params;
-    const userId = apiKey.userId;
-    const activeOrganizationId = apiKey.metadata?.organizationId ?? null;
+    const activeOrganizationId: string | null =
+      metadata?.organizationId ?? null;
 
     // Parse request body
     const body = await request.json();
