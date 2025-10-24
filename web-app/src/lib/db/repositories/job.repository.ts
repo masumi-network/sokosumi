@@ -585,30 +585,23 @@ export const jobRepository = {
   },
 
   async getJobsSharedWithOrganization(
-    where: Prisma.JobWhereInput,
+    userId: string,
+    agentId: string,
+    organizationId: string,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<JobWithStatus[]> {
     const jobs = await tx.job.findMany({
       where: {
-        ...where,
-        isOrganizationShared: true,
+        userId: { not: userId },
+        agentId,
+        share: {
+          organizationId,
+        },
       },
       include: jobInclude,
       orderBy: jobOrderBy,
     });
     return jobs.map(mapJobWithStatus);
-  },
-
-  async setJobIsOrganizationSharedById(
-    jobId: string,
-    isOrganizationShared: boolean,
-    tx: Prisma.TransactionClient = prisma,
-  ) {
-    return await tx.job.update({
-      where: { id: jobId },
-      data: { isOrganizationShared },
-      include: jobInclude,
-    });
   },
 
   /**
