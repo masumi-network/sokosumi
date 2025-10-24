@@ -1,8 +1,20 @@
-import { formatDistance } from "date-fns";
+import { formatRelative, FormatRelativeToken } from "date-fns";
+import { enUS } from "date-fns/locale";
+
+const formatRelativeLocale: Record<FormatRelativeToken, string> = {
+  lastWeek: "'Last' eeee",
+  yesterday: "'Yesterday'",
+  today: "'Today'",
+  tomorrow: "'Tomorrow'",
+  nextWeek: "'Next' eeee",
+  other: "PP",
+};
 
 export function getDateGroupKey(dateInput: Date | number): string | null {
-  // TODO:
-  // Add locale function
-  // https://github.com/date-fns/date-fns/blob/dd66398305c2b015fba3c1b3d31ccff42ee8d4cf/src/locale/types.ts#L73
-  return formatDistance(new Date(), new Date(dateInput));
+  return formatRelative(new Date(dateInput), new Date(), {
+    locale: {
+      ...enUS,
+      formatRelative: (token) => formatRelativeLocale[token],
+    },
+  });
 }
