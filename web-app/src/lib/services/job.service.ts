@@ -25,8 +25,8 @@ import {
 } from "@/lib/db";
 import {
   creditTransactionRepository,
+  jobPublicShareRepository,
   jobRepository,
-  jobShareRepository,
   prisma,
 } from "@/lib/db/repositories";
 import { reactJobStatusEmail } from "@/lib/email/job-status";
@@ -41,13 +41,12 @@ import { Err } from "@/lib/ts-res";
 import {
   AgentJobStatus,
   Job,
-  JobShare,
+  JobPublicShare,
   JobType,
   NextJobAction,
   OnChainJobStatus,
   PricingType,
   Prisma,
-  ShareAccessType,
 } from "@/prisma/generated/client";
 
 import { agentService } from "./agent.service";
@@ -1030,18 +1029,10 @@ export const jobService = (() => {
    */
   const getPubliclySharedJob = async (
     token: string,
-  ): Promise<{ job: JobWithStatus; share: JobShare } | null> => {
-    const share = await jobShareRepository.getJobShareByToken(token);
+  ): Promise<{ job: JobWithStatus; share: JobPublicShare } | null> => {
+    const share = await jobPublicShareRepository.getShareByToken(token);
     if (!share) {
       return null;
-    }
-
-    // must have Public Access
-    switch (share.accessType) {
-      case ShareAccessType.PUBLIC:
-        break;
-      case ShareAccessType.RESTRICTED:
-        return null;
     }
 
     const job = await jobRepository.getJobById(share.jobId);
