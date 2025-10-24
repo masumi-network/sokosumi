@@ -599,6 +599,17 @@ export const jobRepository = {
     return jobs.map(mapJobWithStatus);
   },
 
+  async setJobIsOrganizationSharedById(
+    jobId: string,
+    isOrganizationShared: boolean,
+    tx: Prisma.TransactionClient = prisma,
+  ) {
+    return await tx.job.update({
+      where: { id: jobId },
+      data: { isOrganizationShared },
+    });
+  },
+
   /**
    * Check if user has finished job with the agent
    * @param userId - The unique identifier of the user
