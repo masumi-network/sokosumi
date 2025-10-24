@@ -1005,7 +1005,8 @@
       "inputPreview": "Input Preview",
       "confirmDeleteTitle": "Delete Schedule",
       "confirmDeleteDescription": "This cannot be undone. This will delete the schedule permanently.",
-      "pausedReason": "Paused Reason"
+      "pausedReason": "Paused Reason",
+      "loading": "Loading schedules..."
     },
     "Error": {
       "title": "Something went wrong",
@@ -1133,6 +1134,7 @@
       "loadError": "Failed to load MCP connection information. Please try again.",
       "copyError": "Failed to copy URL to clipboard",
       "retry": "Retry",
+      "loading": "Loading MCP connection information...",
       "Instructions": {
         "title": "How to connect Claude to Sokosumi",
         "step1": "Open Claude and click on \"Settings\"",
@@ -1424,19 +1426,19 @@
               "oneTime": "One-time",
               "daily": "Daily",
               "dailyWithTime": "Daily ({time})",
-            "dailyEveryNWithTime": "Every {n} days ({time})",
+              "dailyEveryNWithTime": "Every {n} days ({time})",
               "weekly": "Weekly",
               "weeklyWithWeekdayTime": "Weekly ({weekday}, {time})",
-            "weeklyListWithTime": "Weekly ({weekdays}, {time})",
+              "weeklyListWithTime": "Weekly ({weekdays}, {time})",
               "monthly": "Monthly",
               "monthlyWithDayTime": "Monthly (Day {day}, {time})",
-            "monthlyEveryNWithDayTime": "Every {n} months (Day {day}, {time})",
+              "monthlyEveryNWithDayTime": "Every {n} months (Day {day}, {time})",
               "custom": "Custom"
             },
             "schedulesTitle": "Scheduled Agents",
             "pickDateTime": "Pick date & time",
-              "timeOfDay": "Time of day",
-              "pickTime": "Pick a time",
+            "timeOfDay": "Time of day",
+            "pickTime": "Pick a time",
             "repeatEvery": "Repeat every",
             "repeatOn": "Repeat on",
             "ends": "Ends",

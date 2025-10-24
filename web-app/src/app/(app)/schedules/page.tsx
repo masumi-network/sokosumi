@@ -39,7 +39,7 @@ export default async function SchedulesPage() {
         <h1 className="text-2xl font-light">{t("title")}</h1>
         <p className="text-muted-foreground">{t("description")}</p>
       </div>
-      <Suspense fallback={<div>{"Loading..."}</div>}>
+      <Suspense fallback={<div>{t("loading")}</div>}>
         <div className="mt-4 space-y-6">
           {schedules.length === 0 ? (
             <div className="flex flex-col items-center justify-center space-y-3 py-16 text-center">

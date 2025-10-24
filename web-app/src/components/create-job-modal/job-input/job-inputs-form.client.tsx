@@ -90,11 +90,8 @@ export default function JobInputsFormClient({
   const [scheduleSelection, setScheduleSelection] =
     React.useState<JobScheduleSelectionType | null>(null);
   const timezoneOptions =
-    typeof (Intl as unknown as { supportedValuesOf?: (k: string) => string[] })
-      .supportedValuesOf === "function"
-      ? (
-          Intl as unknown as { supportedValuesOf: (k: string) => string[] }
-        ).supportedValuesOf("timeZone")
+    typeof Intl.supportedValuesOf === "function"
+      ? Intl.supportedValuesOf("timeZone")
       : [Intl.DateTimeFormat().resolvedOptions().timeZone];
 
   const handleSubmit: SubmitHandler<JobInputsFormSchemaType> = async (

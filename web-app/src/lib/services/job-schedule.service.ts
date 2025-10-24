@@ -1,7 +1,6 @@
 import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
-import cronParser from "cron-parser";
 import pLimit from "p-limit";
 
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -18,8 +17,6 @@ import { JobSchedule } from "@/prisma/generated/client";
 export type { ComputeNextRunInput };
 
 export const jobScheduleService = {
-  computeNextRun,
-
   async executeDueSchedules() {
     const startedAt = Date.now();
     const due = await jobScheduleRepository.findDue();
@@ -63,7 +60,7 @@ async function processSchedule(schedule: JobSchedule) {
 
     // ONE_TIME: no extra timing validation needed here; findDue already filtered by nextRunAt <= now
 
-    // Validate CRON alignment before starting
+    // Validate CRON before starting
     if (isCron) {
       if (!schedule.cron || !schedule.timezone) {
         await jobScheduleRepository.setActive(
@@ -71,45 +68,6 @@ async function processSchedule(schedule: JobSchedule) {
           false,
           "INVALID_CRON_CONFIG",
         );
-        return;
-      }
-
-      const toleranceMs = getEnvSecrets().JOB_SCHEDULE_ALIGNMENT_TOLERANCE_MS;
-      let lastOccurrence: Date | null = null;
-      try {
-        const interval = cronParser.parse(schedule.cron, {
-          tz: schedule.timezone,
-          currentDate: now,
-        });
-        lastOccurrence = interval.prev().toDate();
-      } catch {
-        await jobScheduleRepository.setActive(
-          schedule.id,
-          false,
-          "INVALID_CRON",
-        );
-        return;
-      }
-
-      const nextRunAt = schedule.nextRunAt ?? lastOccurrence;
-      const isAligned =
-        Math.abs(nextRunAt.getTime() - lastOccurrence.getTime()) <= toleranceMs;
-
-      if (!isAligned) {
-        const next = computeNextRun({
-          cron: schedule.cron,
-          timezone: schedule.timezone,
-          from: now,
-        });
-        if (!next) {
-          await jobScheduleRepository.setActive(
-            schedule.id,
-            false,
-            "INVALID_CRON",
-          );
-          return;
-        }
-        await jobScheduleRepository.setNextRun(schedule.id, next);
         return;
       }
     }
