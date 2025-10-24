@@ -61,10 +61,10 @@ importers:
         version: 0.3.0
       '@hey-api/client-fetch':
         specifier: 0.13.1
-        version: 0.13.1(@hey-api/openapi-ts@0.86.2(typescript@5.9.3))
+        version: 0.13.1(@hey-api/openapi-ts@0.86.3(typescript@5.9.3))
       '@hey-api/client-next':
         specifier: 0.5.1
-        version: 0.5.1(@hey-api/openapi-ts@0.86.2(typescript@5.9.3))
+        version: 0.5.1(@hey-api/openapi-ts@0.86.3(typescript@5.9.3))
       '@hookform/resolvers':
         specifier: 5.2.2
         version: 5.2.2(react-hook-form@7.65.0(react@19.2.0))
@@ -331,8 +331,8 @@ importers:
         specifier: 3.3.1
         version: 3.3.1
       '@hey-api/openapi-ts':
-        specifier: 0.86.2
-        version: 0.86.2(typescript@5.9.3)
+        specifier: 0.86.3
+        version: 0.86.3(typescript@5.9.3)
       '@types/humanize-duration':
         specifier: 3.27.4
         version: 3.27.4
@@ -950,8 +950,8 @@ packages:
     resolution: {integrity: sha512-inPeksRLq+j3ArnuGOzQPQE//YrhezQG0+9Y9yizScBN2qatJ78fIByhEgKdNAbtguDCn4RPxmEhcrePwHxs4A==}
     engines: {node: '>= 16'}
 
-  '@hey-api/openapi-ts@0.86.2':
-    resolution: {integrity: sha512-xVVORQpoa4eqKd/3WXcMd4aCgTIotSh9S9CpfqNTuI4lu2RUlb5F7OvlPBkksf4z02ji62bJ/1JkWtp7FW2xKg==}
+  '@hey-api/openapi-ts@0.86.3':
+    resolution: {integrity: sha512-hl8JYx1vSVGvPSqNSohUGfTFQu01Ib1uCmV0HUsk/ZYxHBaiKgOJNzUYOkID35lUcSh3bGcuj308s+p/+/qhVA==}
     engines: {node: '>=20.19.0'}
     hasBin: true
     peerDependencies:
@@ -3787,6 +3787,10 @@ packages:
     resolution: {integrity: sha512-zoKGUdu6vb2jd3YOq0nnhEDQVbPcHhco3UImJrv5dSkvxTc2pl2WjOPsjZXDwPDSl5eghIMuY3R6J9NDKF3KcQ==}
     hasBin: true
 
+  baseline-browser-mapping@2.8.20:
+    resolution: {integrity: sha512-JMWsdF+O8Orq3EMukbUN1QfbLK9mX2CkUmQBcW2T0s8OmdAUL5LLM/6wFwSrqXzlXB13yhyK9gTKS1rIizOduQ==}
+    hasBin: true
+
   basic-ftp@5.0.5:
     resolution: {integrity: sha512-4Bcg1P8xhUuqcii/S0Z9wiHIrQVPMermM1any+MX5GeGD7faD3/msQUDGLol9wOcz4/jbg/WJnGqoJF6LiBdtg==}
     engines: {node: '>=10.0.0'}
@@ -4045,10 +4049,6 @@ packages:
   combined-stream@1.0.8:
     resolution: {integrity: sha512-FQN4MRfuJeHf7cBbBMJFXhKSDq+2kAArBlmRBvcvFE5BB1HZKXtSFASDhdlz9zOYwxh8lDdnvmMOe/+5cdoEdg==}
     engines: {node: '>= 0.8'}
-
-  commander@13.0.0:
-    resolution: {integrity: sha512-oPYleIY8wmTVzkvQq10AEok6YcTC4sRUBl8F9gVuwchGVUCTbl/vhLTaQqutuuySYOsu8YTgV+OxKc/8Yvx+mQ==}
-    engines: {node: '>=18'}
 
   commander@14.0.1:
     resolution: {integrity: sha512-2JkV3gUZUVrbNA+1sjBOYLsMZ5cEEl8GTFP2a4AVz5hvasAMCQ1D2l2le/cX+pV4N6ZU17zjUahLpIXRrnWL8A==}
@@ -4486,8 +4486,8 @@ packages:
   electron-to-chromium@1.5.238:
     resolution: {integrity: sha512-khBdc+w/Gv+cS8e/Pbnaw/FXcBUeKrRVik9IxfXtgREOWyJhR4tj43n3amkVogJ/yeQUqzkrZcFhtIxIdqmmcQ==}
 
-  electron-to-chromium@1.5.239:
-    resolution: {integrity: sha512-1y5w0Zsq39MSPmEjHjbizvhYoTaulVtivpxkp5q5kaPmQtsK6/2nvAzGRxNMS9DoYySp9PkW0MAQDwU1m764mg==}
+  electron-to-chromium@1.5.240:
+    resolution: {integrity: sha512-OBwbZjWgrCOH+g6uJsA2/7Twpas2OlepS9uvByJjR2datRDuKGYeD+nP8lBBks2qnB7bGJNHDUx7c/YLaT3QMQ==}
 
   embla-carousel-react@8.6.0:
     resolution: {integrity: sha512-0/PjqU7geVmo6F734pmPqpyHqiM99olvyecY7zdweCw+6tKEXnrE90pBiBbMMU8s5tICemzpQ3hi5EpxzGW+JA==}
@@ -6256,8 +6256,8 @@ packages:
     resolution: {integrity: sha512-VXJjc87FScF88uafS3JllDgvAm+c/Slfz06lorj2uAY34rlUu0Nt+v8wreiImcrgAjjIHp1rXpTDlLOGw29WwQ==}
     engines: {node: '>=18'}
 
-  open@10.1.2:
-    resolution: {integrity: sha512-cxN6aIDPz6rm8hbebcP7vrQNhvRcveZoJU72Y7vskh4oIm+BZwBECnx5nTmrlres1Qapvx27Qo1Auukpf8PKXw==}
+  open@10.2.0:
+    resolution: {integrity: sha512-YgBpdJHPyQ2UE5x+hlSXcnejzAvD0b22U2OuAP+8OnlJT+PjWPxtgmGqKKc+RgTM63U9gN0YzrYc71R2WT/hTA==}
     engines: {node: '>=18'}
 
   optionator@0.9.4:
@@ -7675,6 +7675,10 @@ packages:
       utf-8-validate:
         optional: true
 
+  wsl-utils@0.1.0:
+    resolution: {integrity: sha512-h3Fbisa2nKGPxCpm89Hk33lBLsnaGBvctQopaBSOW/uIs6FTe1ATyAnKFJrzVs9vpGdsTe73WF3V4lIsk4Gacw==}
+    engines: {node: '>=18'}
+
   xml-js@1.6.11:
     resolution: {integrity: sha512-7rVi2KMfwfWFl+GpPg6m80IVMWXLRjO+PxTq7V2CDhoGak0wzYzFgUY2m4XJ47OGdXd8eLE8EmwfAmdjw7lC1g==}
     hasBin: true
@@ -8245,13 +8249,13 @@ snapshots:
 
   '@hexagon/base64@1.1.28': {}
 
-  '@hey-api/client-fetch@0.13.1(@hey-api/openapi-ts@0.86.2(typescript@5.9.3))':
+  '@hey-api/client-fetch@0.13.1(@hey-api/openapi-ts@0.86.3(typescript@5.9.3))':
     dependencies:
-      '@hey-api/openapi-ts': 0.86.2(typescript@5.9.3)
+      '@hey-api/openapi-ts': 0.86.3(typescript@5.9.3)
 
-  '@hey-api/client-next@0.5.1(@hey-api/openapi-ts@0.86.2(typescript@5.9.3))':
+  '@hey-api/client-next@0.5.1(@hey-api/openapi-ts@0.86.3(typescript@5.9.3))':
     dependencies:
-      '@hey-api/openapi-ts': 0.86.2(typescript@5.9.3)
+      '@hey-api/openapi-ts': 0.86.3(typescript@5.9.3)
 
   '@hey-api/codegen-core@0.3.1(typescript@5.9.3)':
     dependencies:
@@ -8264,16 +8268,16 @@ snapshots:
       js-yaml: 4.1.0
       lodash: 4.17.21
 
-  '@hey-api/openapi-ts@0.86.2(typescript@5.9.3)':
+  '@hey-api/openapi-ts@0.86.3(typescript@5.9.3)':
     dependencies:
       '@hey-api/codegen-core': 0.3.1(typescript@5.9.3)
       '@hey-api/json-schema-ref-parser': 1.2.1
       ansi-colors: 4.1.3
       c12: 3.3.1
       color-support: 1.1.3
-      commander: 13.0.0
+      commander: 14.0.1
       handlebars: 4.7.8
-      open: 10.1.2
+      open: 10.2.0
       semver: 7.7.2
       typescript: 5.9.3
     transitivePeerDependencies:
@@ -11427,6 +11431,8 @@ snapshots:
 
   baseline-browser-mapping@2.8.19: {}
 
+  baseline-browser-mapping@2.8.20: {}
+
   basic-ftp@5.0.5: {}
 
   better-auth-harmony@1.2.5(better-auth@1.3.29(next@16.0.0(@babel/core@7.28.4)(@opentelemetry/api@1.9.0)(babel-plugin-react-compiler@1.0.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0))(react-dom@19.2.0(react@19.2.0))(react@19.2.0)):
@@ -11505,9 +11511,9 @@ snapshots:
 
   browserslist@4.27.0:
     dependencies:
-      baseline-browser-mapping: 2.8.19
+      baseline-browser-mapping: 2.8.20
       caniuse-lite: 1.0.30001751
-      electron-to-chromium: 1.5.239
+      electron-to-chromium: 1.5.240
       node-releases: 2.0.26
       update-browserslist-db: 1.1.4(browserslist@4.27.0)
 
@@ -11709,8 +11715,6 @@ snapshots:
   combined-stream@1.0.8:
     dependencies:
       delayed-stream: 1.0.0
-
-  commander@13.0.0: {}
 
   commander@14.0.1: {}
 
@@ -12147,7 +12151,7 @@ snapshots:
 
   electron-to-chromium@1.5.238: {}
 
-  electron-to-chromium@1.5.239: {}
+  electron-to-chromium@1.5.240: {}
 
   embla-carousel-react@8.6.0(react@19.2.0):
     dependencies:
@@ -14491,12 +14495,12 @@ snapshots:
     dependencies:
       mimic-function: 5.0.1
 
-  open@10.1.2:
+  open@10.2.0:
     dependencies:
       default-browser: 5.2.1
       define-lazy-prop: 3.0.0
       is-inside-container: 1.0.0
-      is-wsl: 3.1.0
+      wsl-utils: 0.1.0
 
   optionator@0.9.4:
     dependencies:
@@ -16142,6 +16146,10 @@ snapshots:
       signal-exit: 4.1.0
 
   ws@8.18.3: {}
+
+  wsl-utils@0.1.0:
+    dependencies:
+      is-wsl: 3.1.0
 
   xml-js@1.6.11:
     dependencies:
