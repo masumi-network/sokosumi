@@ -3,7 +3,7 @@
 import { Sparkles } from "lucide-react";
 import Image from "next/image";
 
-import { getAgentResolvedIcon } from "@/lib/db/helpers";
+import { getAgentName, getAgentResolvedIcon } from "@/lib/db/helpers";
 import { cn } from "@/lib/utils";
 import type { Agent } from "@/prisma/generated/client";
 
@@ -20,7 +20,7 @@ export function AgentIcon({ agent, className, isMuted }: AgentIconProps) {
     return (
       <Image
         src={resolvedIcon}
-        alt=""
+        alt={`${getAgentName(agent)} icon`}
         aria-hidden
         width={16}
         height={16}
