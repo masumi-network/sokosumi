@@ -2,22 +2,22 @@ import "server-only";
 
 import { JobShareResponse, jobShareResponseSchema } from "@/lib/api/schemas";
 import { dateToISO } from "@/lib/api/utils";
-import { getJobPublicShareUrl, JobShareWithRelations } from "@/lib/db";
+import { getJobPublicShareUrl } from "@/lib/db";
+import { JobPublicShare } from "@/prisma/generated/client";
 
 /**
  * Formats job data for API response
  */
 export function formatJobShareResponse(
-  jobShare: JobShareWithRelations,
+  publicShare: JobPublicShare,
 ): JobShareResponse {
   const formatted = {
-    id: jobShare.id,
-    user: jobShare.user,
-    url: getJobPublicShareUrl(jobShare),
-    recipientOrganization: jobShare.recipientOrganization,
-    allowSearchIndexing: jobShare.allowSearchIndexing,
-    createdAt: dateToISO(jobShare.createdAt),
-    updatedAt: dateToISO(jobShare.updatedAt),
+    id: publicShare.id,
+    userId: publicShare.userId,
+    url: getJobPublicShareUrl(publicShare),
+    allowSearchIndexing: publicShare.allowSearchIndexing,
+    createdAt: dateToISO(publicShare.createdAt),
+    updatedAt: dateToISO(publicShare.updatedAt),
   };
 
   // Validate the formatted response

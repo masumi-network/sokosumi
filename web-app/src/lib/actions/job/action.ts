@@ -427,6 +427,28 @@ export const setJobIsOrganizationShared = withAuthContext<
   });
 });
 
+interface ShareWithOrganizationParameters extends AuthenticatedRequest {
+  jobId: string;
+}
+
+export const shareWithOrganization = withAuthContext<
+  ShareWithOrganizationParameters,
+  Result<boolean, ActionError>
+>(async ({ jobId, authContext }) => {
+  return await setJobIsOrganizationShared({ jobId, share: true, authContext });
+});
+
+interface UnshareWithOrganizationParameters extends AuthenticatedRequest {
+  jobId: string;
+}
+
+export const unshareWithOrganization = withAuthContext<
+  UnshareWithOrganizationParameters,
+  Result<boolean, ActionError>
+>(async ({ jobId, authContext }) => {
+  return await setJobIsOrganizationShared({ jobId, share: false, authContext });
+});
+
 interface UpdateAllowSearchIndexingParameters extends AuthenticatedRequest {
   jobShareId: string;
   allowSearchIndexing: boolean;
@@ -469,53 +491,6 @@ export const updateAllowSearchIndexing = withAuthContext<
     });
   } catch (error) {
     console.error("Failed to update allow search indexing", error);
-    return Err({
-      message: "Internal server error",
-      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
-    });
-  }
-});
-
-/**
- * Remove shares per job
- * Remove both public and organization shares
- *
- * @param jobId - The id of the job to remove shares for
- * @param authContext - The authentication context
- * @returns A result indicating success or failure
- */
-interface RemoveSharesPerJobParameters extends AuthenticatedRequest {
-  jobId: string;
-}
-export const removeJobPublicSharePerJob = withAuthContext<
-  RemoveSharesPerJobParameters,
-  Result<void, ActionError>
->(async ({ jobId, authContext }) => {
-  const { userId } = authContext;
-
-  try {
-    return await prisma.$transaction(async (tx) => {
-      const job = await jobRepository.getJobById(jobId, tx);
-      if (!job) {
-        return Err({
-          message: "Job not found",
-          code: JobErrorCode.JOB_NOT_FOUND,
-        });
-      }
-
-      // must be job owner to remove shares
-      if (userId !== job.userId) {
-        return Err({
-          message: "Unauthorized",
-          code: CommonErrorCode.UNAUTHORIZED,
-        });
-      }
-
-      await jobPublicShareRepository.deleteShareByJobId(jobId, tx);
-      return Ok();
-    });
-  } catch (error) {
-    console.error("Failed to remove shares per job", error);
     return Err({
       message: "Internal server error",
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,
@@ -569,6 +544,19 @@ export const removeJobPublicShare = withAuthContext<
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,
     });
   }
+});
+
+interface UnshareJobParameters extends AuthenticatedRequest {
+  jobId: string;
+}
+
+export const unshareJob = withAuthContext<
+  UnshareJobParameters,
+  Result<void, ActionError>
+>(async ({ jobId, authContext }) => {
+  await removeJobPublicShare({ jobId, authContext });
+  await setJobIsOrganizationShared({ jobId, share: false, authContext });
+  return Ok();
 });
 
 export const getActiveOrganization = withAuthContext<

@@ -3,7 +3,6 @@ import { JobStatus, JobWithStatus } from "@/lib/db/types";
 import {
   AgentJobStatus,
   Job,
-  JobShare,
   JobType,
   NextJobAction,
   NextJobActionErrorType,
@@ -404,23 +403,4 @@ export function isPubliclyShared(job: JobWithStatus): boolean {
 
 export function isOrganizationShared(job: JobWithStatus): boolean {
   return job.isOrganizationShared;
-}
-
-export function getOrganizationJobShare(
-  job: JobWithStatus,
-  organizationId: string,
-): JobShare | null {
-  const found = job.shares.find(
-    (share) => share.recipientOrganizationId === organizationId,
-  );
-  return found ?? null;
-}
-
-export function isSharedWithOrganization(
-  job: JobWithStatus,
-  organizationId: string,
-): boolean {
-  return job.shares.some(
-    (share) => share.recipientOrganizationId === organizationId,
-  );
 }

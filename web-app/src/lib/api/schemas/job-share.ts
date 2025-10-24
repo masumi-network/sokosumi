@@ -1,25 +1,12 @@
 import * as z from "zod";
 
-export const jobShareUserSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  image: z.string().nullable(),
-});
-
-export const jobShareRecipientOrganizationSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  slug: z.string(),
-  logo: z.string().nullable(),
-});
-
 export const jobShareResponseSchema = z.object({
   id: z.string(),
+  userId: z.string(),
+  url: z.url(),
+  allowSearchIndexing: z.boolean(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
-  url: z.url(),
-  user: jobShareUserSchema,
-  recipientOrganization: jobShareRecipientOrganizationSchema.nullable(),
 });
 
 export const jobShareRequestSchema = z
