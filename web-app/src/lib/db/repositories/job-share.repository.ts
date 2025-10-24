@@ -62,6 +62,7 @@ export const jobShareRepository = {
         organization: organizationId
           ? { connect: { id: organizationId } }
           : { disconnect: true },
+        token: sharePublic ? uuidv4() : null,
       },
       include: jobShareInclude,
     });
