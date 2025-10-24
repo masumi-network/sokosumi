@@ -5,7 +5,7 @@ import { dateToISO } from "@/lib/api/utils";
 import { convertCentsToCredits } from "@/lib/db";
 import { JobWithStatus } from "@/lib/db/types";
 
-import { formatJobShareResponse } from "./job-share";
+import { formatJobPublicShareResponse } from "./job-share";
 
 /**
  * Formats job data for API response
@@ -52,7 +52,10 @@ export function formatJobResponse(job: JobWithStatus): JobResponse {
         }
       : null,
     jobStatusSettled: job.jobStatusSettled,
-    shares: job.shares.map(formatJobShareResponse),
+    publicShare: job.publicShare
+      ? formatJobPublicShareResponse(job.publicShare)
+      : null,
+    isOrganizationShared: job.isOrganizationShared,
   };
 
   // Validate the formatted response

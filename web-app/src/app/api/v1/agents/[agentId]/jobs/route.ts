@@ -3,7 +3,8 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   CommonErrorCode,
   JobErrorCode,
-  shareJob,
+  shareJobPublicly,
+  shareJobWithOrganization,
   startJob,
 } from "@/lib/actions";
 import {
@@ -13,6 +14,7 @@ import {
   handleApiError,
   validateApiKey,
 } from "@/lib/api";
+import { getAuthContext } from "@/lib/auth/utils";
 import { convertCreditsToCents } from "@/lib/db";
 import { jobRepository } from "@/lib/db/repositories";
 import { jobInputsDataSchema } from "@/lib/job-input";
@@ -81,10 +83,12 @@ export async function POST(
   { params }: RouteParams,
 ): Promise<NextResponse> {
   try {
-    const { userId, metadata } = await validateApiKey(request.headers);
+    const authContext = await getAuthContext();
+    if (!authContext) {
+      throw new Error("UNAUTHORIZED");
+    }
+    const { userId, organizationId } = authContext;
     const { agentId } = await params;
-    const activeOrganizationId: string | null =
-      metadata?.organizationId ?? null;
 
     // Parse request body
     const body = await request.json();
@@ -118,10 +122,7 @@ export async function POST(
         inputSchema: validatedInputSchema.input_data,
         inputData: inputDataMap,
       },
-      authContext: {
-        userId: userId,
-        organizationId: activeOrganizationId,
-      },
+      authContext,
     });
 
     if (!result.ok) {
@@ -159,23 +160,33 @@ export async function POST(
       }
     }
 
-    // Share the job is share is requested
-    const jobShareRequest = validatedData.jobShareRequest;
-    if (jobShareRequest) {
-      const recipientOrganizationId = jobShareRequest.shareWithOrganization
-        ? activeOrganizationId
-        : null;
-      // Silently ignore errors if share fails
-      const shareResult = await shareJob({
+    // Share the job publicly if requested
+    if (validatedData.sharePublic) {
+      const publicShareResult = await shareJobPublicly({
         jobId: createdJob.id,
-        recipientOrganizationId,
-        allowSearchIndexing: jobShareRequest.allowSearchIndexing,
-        authContext: { userId, organizationId: activeOrganizationId },
+        allowSearchIndexing: true,
+        authContext,
       });
-      if (!shareResult.ok) {
-        console.error("Failed to share job", shareResult.error);
+      if (!publicShareResult.ok) {
+        console.error("Failed to share job", publicShareResult.error);
       }
-      // Refetch the job with updated name
+      // Refetch the job
+      const sharedJob = await jobRepository.getJobById(result.data.jobId);
+      if (sharedJob) {
+        createdJob = sharedJob;
+      }
+    }
+
+    // Share the job with organization if requested
+    if (validatedData.shareOrganization) {
+      const organizationShareResult = await shareJobWithOrganization({
+        jobId: createdJob.id,
+        authContext,
+      });
+      if (!organizationShareResult.ok) {
+        console.error("Failed to share job", organizationShareResult.error);
+      }
+      // Refetch the job
       const sharedJob = await jobRepository.getJobById(result.data.jobId);
       if (sharedJob) {
         createdJob = sharedJob;
