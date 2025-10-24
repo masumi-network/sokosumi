@@ -324,40 +324,47 @@ const shareJobInPublic = withAuthContext<
   Result<JobShare, ActionError>
 >(async ({ jobId, sharePublic, allowSearchIndexing, authContext }) => {
   const { userId } = authContext;
-  return await prisma.$transaction(async (tx) => {
-    const job = await jobRepository.getJobById(jobId, tx);
-    if (!job) {
-      return Err({
-        message: "Job not found",
-        code: JobErrorCode.JOB_NOT_FOUND,
-      });
-    }
+  try {
+    return await prisma.$transaction(async (tx) => {
+      const job = await jobRepository.getJobById(jobId, tx);
+      if (!job) {
+        return Err({
+          message: "Job not found",
+          code: JobErrorCode.JOB_NOT_FOUND,
+        });
+      }
 
-    // must be job owner to share public
-    if (userId !== job.userId) {
-      return Err({
-        message: "Unauthorized",
-        code: CommonErrorCode.UNAUTHORIZED,
-      });
-    }
+      // must be job owner to share public
+      if (userId !== job.userId) {
+        return Err({
+          message: "Unauthorized",
+          code: CommonErrorCode.UNAUTHORIZED,
+        });
+      }
 
-    // check if job is already shared publicly
-    if (job.share?.token) {
-      return Err({
-        message: "Job already shared publicly",
-        code: JobErrorCode.JOB_ALREADY_SHARED_PUBLICLY,
-      });
-    }
+      // check if job is already shared publicly
+      if (job.share?.token) {
+        return Err({
+          message: "Job already shared publicly",
+          code: JobErrorCode.JOB_ALREADY_SHARED_PUBLICLY,
+        });
+      }
 
-    const share = await jobShareRepository.upsertShare(
-      jobId,
-      sharePublic,
-      null,
-      allowSearchIndexing ?? true,
-      tx,
-    );
-    return Ok(share);
-  });
+      const share = await jobShareRepository.upsertPublicShare(
+        jobId,
+        sharePublic,
+        allowSearchIndexing,
+        tx,
+      );
+      return Ok(share);
+    });
+  } catch (error) {
+    console.error("Failed to share job in public", error);
+    return Err({
+      message: "Internal server error",
+      code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+    });
+  }
 });
 
 interface ShareJobPubliclyParameters extends AuthenticatedRequest {
@@ -450,11 +457,9 @@ const shareJobInOrganization = withAuthContext<
       });
     }
 
-    const share = await jobShareRepository.upsertShare(
+    const share = await jobShareRepository.upsertOrganizationShare(
       jobId,
-      false,
       shareOrganization ? organizationId : null,
-      true,
       tx,
     );
     return Ok(share);

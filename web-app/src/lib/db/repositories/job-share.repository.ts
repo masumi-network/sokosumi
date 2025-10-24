@@ -3,8 +3,6 @@
  * Provides methods for creating, retrieving, and updating JobShare records.
  */
 
-import { v4 as uuidv4 } from "uuid";
-
 import { jobShareInclude } from "@/lib/db/types";
 import { Prisma } from "@/prisma/generated/client";
 
@@ -42,56 +40,45 @@ export const jobShareRepository = {
     });
   },
 
-  async upsertShare(
+  async upsertOrganizationShare(
     jobId: string,
-    sharePublic: boolean,
     organizationId: string | null,
-    allowSearchIndexing: boolean,
     tx: Prisma.TransactionClient = prisma,
   ) {
     return await tx.jobShare.upsert({
       where: { jobId },
       create: {
-        jobId,
+        job: { connect: { id: jobId } },
+        ...(organizationId && {
+          organization: { connect: { id: organizationId } },
+        }),
+      },
+      update: {
+        organization: organizationId
+          ? { connect: { id: organizationId } }
+          : { disconnect: true },
+      },
+      include: jobShareInclude,
+    });
+  },
+
+  async upsertPublicShare(
+    jobId: string,
+    sharePublic: boolean,
+    allowSearchIndexing: boolean = true,
+    tx: Prisma.TransactionClient = prisma,
+  ) {
+    return await tx.jobShare.upsert({
+      where: { jobId },
+      create: {
+        job: { connect: { id: jobId } },
         allowSearchIndexing,
-        token: sharePublic ? uuidv4() : null,
-        organizationId,
+        isPublic: sharePublic,
       },
       update: {
         allowSearchIndexing,
-        organization: organizationId
-          ? { connect: { id: organizationId } }
-          : { disconnect: true },
-        token: sharePublic ? uuidv4() : null,
+        isPublic: sharePublic,
       },
-      include: jobShareInclude,
-    });
-  },
-
-  async setShareOrganizationById(
-    id: string,
-    organizationId: string | null,
-    tx: Prisma.TransactionClient = prisma,
-  ) {
-    return await tx.jobShare.update({
-      where: { id },
-      data: {
-        organization: organizationId
-          ? { connect: { id: organizationId } }
-          : { disconnect: true },
-      },
-      include: jobShareInclude,
-    });
-  },
-
-  async setSharePublicById(
-    id: string,
-    sharePublic: boolean,
-    tx: Prisma.TransactionClient = prisma,
-  ) {
-    return await tx.jobShare.update({
-      where: { id },
-      data: { token: sharePublic ? uuidv4() : null },
       include: jobShareInclude,
     });
   },
