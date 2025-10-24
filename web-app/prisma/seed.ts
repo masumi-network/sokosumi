@@ -1,11 +1,13 @@
 /* eslint-disable no-restricted-properties */
+import { PrismaPg } from "@prisma/adapter-pg";
+
 import { usdmUnit } from "@/lib/utils";
 import { PrismaClient } from "@/prisma/generated/client";
 
 type Network = "Mainnet" | "Preprod" | "Preview";
 
-const prisma = new PrismaClient();
-
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL });
+const prisma = new PrismaClient({ adapter });
 const seedDatabase = process.env.SEED_DATABASE === "true";
 
 const seedUSDMCreditCost = async () => {
