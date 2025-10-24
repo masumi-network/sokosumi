@@ -2,7 +2,7 @@
 
 import { ChannelProvider } from "ably/react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
-import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
 import { useState } from "react";
 
@@ -10,7 +10,7 @@ import { DataTable } from "@/components/data-table";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 import { makeAgentJobsChannel } from "@/lib/ably";
 import { JobWithStatus } from "@/lib/db";
-import { cn, getDateGroupKey, getDateGroupLabel } from "@/lib/utils";
+import { cn, getDateGroupKey } from "@/lib/utils";
 
 import { getJobColumns } from "./job-columns";
 import { JobsSearch } from "./jobs-search";
@@ -22,8 +22,6 @@ interface JobsTableProps {
 
 export default function JobsTable({ jobs, userId }: JobsTableProps) {
   const t = useTranslations("Components.Jobs.JobsTable");
-  const tDatetime = useTranslations("Components.Utils.HumanReadableDate");
-  const locale = useLocale();
   const dateFormatter = useFormatter();
   const params = useParams<{ agentId: string; jobId?: string | undefined }>();
   const searchParams = useSearchParams();
@@ -82,8 +80,7 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
               return row.startedAt ? getDateGroupKey(row.startedAt) : null;
             }}
             renderGroupHeader={(groupKey) => {
-              const label = getDateGroupLabel(groupKey, tDatetime, { locale });
-              return <div className="px-2 py-1">{label}</div>;
+              return <div className="px-2 py-1">{groupKey}</div>;
             }}
           />
         </div>
