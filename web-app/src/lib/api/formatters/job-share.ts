@@ -6,17 +6,17 @@ import {
 } from "@/lib/api/schemas";
 import { dateToISO } from "@/lib/api/utils";
 import { getJobPublicShareUrl } from "@/lib/db";
-import { JobPublicShare } from "@/prisma/generated/client";
+import { JobShare } from "@/prisma/generated/client";
 
 /**
  * Formats job data for API response
  */
 export function formatJobPublicShareResponse(
-  publicShare: JobPublicShare,
+  publicShare: JobShare,
 ): JobPublicShareResponse {
   return jobPublicShareResponseSchema.parse({
     id: publicShare.id,
-    userId: publicShare.userId,
+    jobId: publicShare.jobId,
     url: getJobPublicShareUrl(publicShare),
     allowSearchIndexing: publicShare.allowSearchIndexing,
     createdAt: dateToISO(publicShare.createdAt),

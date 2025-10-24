@@ -1,9 +1,10 @@
 import { Prisma } from "@/prisma/generated/client";
 
-export const jobPublicShareInclude = {
+export const jobShareInclude = {
   job: true,
+  organization: true,
 } as const;
 
-export type JobPublicShareWithRelations = Prisma.JobPublicShareGetPayload<{
-  include: typeof jobPublicShareInclude;
+export type JobShareWithRelations = Prisma.JobShareGetPayload<{
+  include: typeof jobShareInclude;
 }>;
