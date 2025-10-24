@@ -54,7 +54,7 @@ model User {
   apikeys Apikey[]
 
   // JobShare
-  jobShares JobShare[] @relation("JobShareUser")
+  jobPublicShares JobPublicShare[]
 
   // Onboarding
   onboardingCompleted Boolean @default(false)
@@ -129,8 +129,6 @@ model Organization {
 
   stripeCustomerId String?
   invoiceEmail     String?
-
-  jobSharesReceived JobShare[]
 
   @@unique([slug])
   @@unique([stripeCustomerId])
@@ -538,7 +536,11 @@ model Job {
   blobs Blob[] @relation("JobBlob")
   links Link[] @relation("JobLink")
 
-  shares JobShare[]
+  // Public Share
+  publicShare JobPublicShare?
+
+  // Organization Shares
+  isOrganizationShared Boolean @default(false)
 
   @@index([jobType])
 }
@@ -681,35 +683,26 @@ enum BlobStatus {
   FAILED
 }
 
-model JobShare {
+model JobPublicShare {
   id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   // Who created this share
   userId String
-  user   User   @relation("JobShareUser", fields: [userId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   // Job which is being shared
-  jobId String
+  jobId String @unique
   job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
   // Security & Access
   token String @unique
 
-  // Access Control
-  accessType ShareAccessType
-
-  // Recipient Organization
-  recipientOrganizationId String?
-  recipientOrganization   Organization? @relation(fields: [recipientOrganizationId], references: [id], onDelete: SetNull)
-
   // SEO Control
   allowSearchIndexing Boolean @default(true)
 
-  @@unique([jobId, userId])
-  @@index([recipientOrganizationId])
-  @@map("share")
+  @@map("jobPublicShare")
 }
 
 enum ShareAccessType {
