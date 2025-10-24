@@ -7,7 +7,7 @@ import {
   OnChainJobStatus,
 } from "@/prisma/generated/client";
 
-import { jobPublicShareResponseSchema } from "./job-share";
+import { jobShareResponseSchema } from "./job-share";
 
 // Schema for creating a new job
 export const createJobRequestSchema = z.object({
@@ -56,8 +56,7 @@ export const jobResponseSchema = z.object({
   jobType: z.enum(JobType),
   price: jobCreditsSchema.nullable(),
   refund: jobCreditsSchema.nullable(),
-  publicShare: jobPublicShareResponseSchema.nullable(),
-  isOrganizationShared: z.boolean(),
+  share: jobShareResponseSchema.nullable(),
   // Computed fields
   jobStatusSettled: z.boolean(),
 });

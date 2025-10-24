@@ -18,17 +18,17 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   CommonErrorCode,
+  deleteJobShare,
   getActiveOrganization,
   JobErrorCode,
   shareJobPublicly,
   shareJobWithOrganization,
-  unshareJob,
   unshareJobWithOrganization,
   updateAllowSearchIndexing,
 } from "@/lib/actions";
 import { JobWithStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
-import { JobPublicShare } from "@/prisma/generated/client";
+import { JobShare } from "@/prisma/generated/client";
 
 interface JobShareModalProps {
   open: boolean;
@@ -66,17 +66,12 @@ export default function JobShareModal({
   );
 
   // Derive share state from job data - these will be reset via handleOnOpenChange
-  const [publicJobShare, setPublicJobShare] = useState<JobPublicShare | null>(
-    job.publicShare,
-  );
-  const [organizationJobShare, setOrganizationJobShare] = useState<boolean>(
-    job.isOrganizationShared,
-  );
+  const [jobShare, setJobShare] = useState<JobShare | null>(job.share ?? null);
 
   // Compute link on client only - derived from jobShare state
   const link =
-    isClient && publicJobShare
-      ? new URL(`/share/jobs/${publicJobShare.token}`, window.location.origin)
+    isClient && jobShare
+      ? new URL(`/share/jobs/${jobShare.token}`, window.location.origin)
       : null;
 
   // Fetch organization data only if activeOrganizationId is provided
@@ -95,7 +90,7 @@ export default function JobShareModal({
           setOrganization(result.data);
           // Update organization job share after organization is fetched
           if (open) {
-            setOrganizationJobShare(job.isOrganizationShared);
+            setJobShare(job.share);
           }
         }
       } catch (error) {
@@ -123,11 +118,7 @@ export default function JobShareModal({
       }
 
       // Reset share state to current job data
-      setPublicJobShare(job.publicShare);
-
-      if (organization) {
-        setOrganizationJobShare(job.isOrganizationShared);
-      }
+      setJobShare(job.share);
     }
 
     // when close JobShareModal
@@ -146,7 +137,7 @@ export default function JobShareModal({
     });
     if (result.ok) {
       needRefresh.current = true;
-      setPublicJobShare(result.data);
+      setJobShare(result.data);
       toast.success(t("Success.share"));
     } else {
       switch (result.error.code) {
@@ -183,7 +174,7 @@ export default function JobShareModal({
     });
     if (result.ok) {
       needRefresh.current = true;
-      setOrganizationJobShare(true);
+      setJobShare(result.data);
       toast.success(t("Success.share"));
     } else {
       switch (result.error.code) {
@@ -215,17 +206,17 @@ export default function JobShareModal({
     v: boolean | "indeterminate",
   ) => {
     const checked = v === true;
-    if (!publicJobShare) {
+    if (!jobShare) {
       return;
     }
 
     setIsLoading(true);
     const result = await updateAllowSearchIndexing({
-      jobShareId: publicJobShare.id,
+      jobShareId: jobShare.id,
       allowSearchIndexing: checked,
     });
     if (result.ok) {
-      setPublicJobShare(result.data);
+      setJobShare(result.data);
       toast.success(t("Success.share"));
     } else {
       switch (result.error.code) {
@@ -245,7 +236,7 @@ export default function JobShareModal({
         case JobErrorCode.JOB_NOT_FOUND:
           toast.error(t("Errors.jobNotFound"));
           break;
-        case JobErrorCode.JOB_PUBLIC_SHARE_NOT_FOUND:
+        case JobErrorCode.JOB_SHARE_NOT_FOUND:
           toast.error(t("Errors.jobShareNotFound"));
           break;
         default:
@@ -265,7 +256,7 @@ export default function JobShareModal({
     });
     if (result.ok) {
       needRefresh.current = true;
-      setOrganizationJobShare(false);
+      setJobShare(null);
       toast.success(t("Success.share"));
     } else {
       switch (result.error.code) {
@@ -294,13 +285,12 @@ export default function JobShareModal({
   };
 
   const handleRemoveSharesPerJob = async () => {
-    const result = await unshareJob({
+    const result = await deleteJobShare({
       jobId: job.id,
     });
     if (result.ok) {
       needRefresh.current = true;
-      setPublicJobShare(null);
-      setOrganizationJobShare(false);
+      setJobShare(null);
       toast.success(t("Success.share"));
     } else {
       switch (result.error.code) {
@@ -364,9 +354,7 @@ export default function JobShareModal({
                     {t("publicAccessDescription")}
                   </p>
                 </div>
-                {publicJobShare && (
-                  <Check className="text-semantic-success size-4" />
-                )}
+                {jobShare && <Check className="text-semantic-success size-4" />}
               </div>
               {activeOrganizationId && organization ? (
                 <div
@@ -377,7 +365,7 @@ export default function JobShareModal({
                     },
                   )}
                   onClick={
-                    organizationJobShare
+                    jobShare?.organizationId
                       ? handleRemoveOrganizationShare
                       : handleShareWithOrganization
                   }
@@ -391,7 +379,7 @@ export default function JobShareModal({
                       })}
                     </p>
                   </div>
-                  {organizationJobShare && (
+                  {jobShare?.organizationId && (
                     <Check className="text-semantic-success size-4" />
                   )}
                 </div>
@@ -420,7 +408,7 @@ export default function JobShareModal({
                     {t("privateAccessDescription")}
                   </p>
                 </div>
-                {!publicJobShare && !organizationJobShare && (
+                {!jobShare?.isPublic && !jobShare?.organizationId && (
                   <Check className="text-semantic-success size-4" />
                 )}
               </div>
@@ -440,7 +428,7 @@ export default function JobShareModal({
                 </Button>
               </div>
             )}
-            {publicJobShare && (
+            {jobShare && jobShare?.isPublic && (
               <div className="flex items-center gap-2">
                 <Checkbox
                   id="allow-search-indexing"
@@ -448,7 +436,7 @@ export default function JobShareModal({
                   className={cn({
                     "pointer-events-none animate-pulse opacity-60": isLoading,
                   })}
-                  checked={publicJobShare.allowSearchIndexing}
+                  checked={jobShare.allowSearchIndexing}
                   onCheckedChange={(v) => handleAllowSearchIndexingChange(v)}
                 />
                 <Label htmlFor="allow-search-indexing">
