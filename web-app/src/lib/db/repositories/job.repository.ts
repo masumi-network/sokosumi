@@ -607,6 +607,7 @@ export const jobRepository = {
     return await tx.job.update({
       where: { id: jobId },
       data: { isOrganizationShared },
+      include: jobInclude,
     });
   },
 

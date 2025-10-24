@@ -6,18 +6,15 @@ import {
   Prisma,
 } from "@/prisma/generated/client";
 
-import { jobShareInclude } from "./job-share";
-
 export const jobInclude = {
   agent: true,
   user: true,
+  organization: true,
   creditTransaction: true,
   refundedCreditTransaction: true,
   blobs: true,
   links: true,
-  shares: {
-    include: jobShareInclude,
-  },
+  publicShare: true,
 } as const;
 
 export const jobOrderBy = {

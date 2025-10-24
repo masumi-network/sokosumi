@@ -9,17 +9,14 @@ import { Prisma } from "@/prisma/generated/client";
 
 import prisma from "./prisma";
 
-export const jobShareRepository = {
-  async getJobShareById(id: string, tx: Prisma.TransactionClient = prisma) {
+export const jobPublicShareRepository = {
+  async getShareById(id: string, tx: Prisma.TransactionClient = prisma) {
     return await tx.jobPublicShare.findUnique({
       where: { id },
     });
   },
 
-  async getJobShareByToken(
-    token: string,
-    tx: Prisma.TransactionClient = prisma,
-  ) {
+  async getShareByToken(token: string, tx: Prisma.TransactionClient = prisma) {
     return await tx.jobPublicShare.findUnique({
       where: {
         token,
@@ -27,16 +24,13 @@ export const jobShareRepository = {
     });
   },
 
-  async getJobShareByJobId(
-    jobId: string,
-    tx: Prisma.TransactionClient = prisma,
-  ) {
+  async getShareByJobId(jobId: string, tx: Prisma.TransactionClient = prisma) {
     return await tx.jobPublicShare.findUnique({
       where: { jobId },
     });
   },
 
-  async getJobPublicSharesByUserId(
+  async getSharesByUserId(
     userId: string,
     tx: Prisma.TransactionClient = prisma,
   ) {
@@ -45,7 +39,7 @@ export const jobShareRepository = {
     });
   },
 
-  async createJobPublicShare(
+  async createShare(
     jobId: string,
     userId: string,
     allowSearchIndexing: boolean,
@@ -56,16 +50,13 @@ export const jobShareRepository = {
     });
   },
 
-  async deleteJobPublicShareById(
-    id: string,
-    tx: Prisma.TransactionClient = prisma,
-  ) {
+  async deleteShareById(id: string, tx: Prisma.TransactionClient = prisma) {
     return await tx.jobPublicShare.delete({
       where: { id },
     });
   },
 
-  async deleteJobPublicSharesByJobId(
+  async deleteShareByJobId(
     jobId: string,
     tx: Prisma.TransactionClient = prisma,
   ) {
@@ -74,7 +65,7 @@ export const jobShareRepository = {
     });
   },
 
-  async deleteJobPublicSharesByUserId(
+  async deleteSharesByUserId(
     userId: string,
     tx: Prisma.TransactionClient = prisma,
   ) {
@@ -83,7 +74,7 @@ export const jobShareRepository = {
     });
   },
 
-  async setJobPublicShareAllowSearchIndexingById(
+  async setShareAllowSearchIndexingById(
     id: string,
     allowSearchIndexing: boolean,
     tx: Prisma.TransactionClient = prisma,

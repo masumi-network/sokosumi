@@ -3,15 +3,17 @@
 import * as Sentry from "@sentry/nextjs";
 import { revalidatePath } from "next/cache";
 
-import { ActionError, CommonErrorCode } from "@/lib/actions";
-import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
-import { OrganizationErrorCode } from "@/lib/actions/errors/error-codes/organization";
-import { JobShareWithRelations, PaidJobWithStatus } from "@/lib/db";
 import {
+  ActionError,
+  CommonErrorCode,
+  OrganizationErrorCode,
+} from "@/lib/actions";
+import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
+import { PaidJobWithStatus } from "@/lib/db";
+import {
+  jobPublicShareRepository,
   jobRepository,
-  jobShareRepository,
   memberRepository,
-  organizationRepository,
   prisma,
   userRepository,
 } from "@/lib/db/repositories";
@@ -28,7 +30,7 @@ import {
   AuthenticatedRequest,
   withAuthContext,
 } from "@/middleware/auth-middleware";
-import { JobShare } from "@/prisma/generated/client";
+import { JobPublicShare } from "@/prisma/generated/client";
 
 import {
   handleInputDataFileUploads,
@@ -309,96 +311,121 @@ export const requestRefundJobByBlockchainIdentifier = withAuthContext<
   return Ok({ job });
 });
 
-interface ShareJobParameters extends AuthenticatedRequest {
+interface ShareJobPubliclyParameters extends AuthenticatedRequest {
   jobId: string;
-  recipientOrganizationId: string | null;
   allowSearchIndexing?: boolean;
 }
 
-export const shareJob = withAuthContext<
-  ShareJobParameters,
-  Result<JobShareWithRelations, ActionError>
->(
-  async ({
-    jobId,
-    recipientOrganizationId,
-    allowSearchIndexing,
-    authContext,
-  }) => {
-    const { userId } = authContext;
-    try {
-      return await prisma.$transaction(async (tx) => {
-        const job = await jobRepository.getJobById(jobId, tx);
-        if (!job) {
-          return Err({
-            message: "Job not found",
-            code: JobErrorCode.JOB_NOT_FOUND,
-          });
-        }
-
-        // must be job owner to share
-        if (userId !== job.userId) {
-          return Err({
-            message: "Unauthorized",
-            code: CommonErrorCode.UNAUTHORIZED,
-          });
-        }
-
-        // Validate organization membership if sharing with an organization
-        if (recipientOrganizationId) {
-          // Check if organization exists
-          const organization =
-            await organizationRepository.getOrganizationWithRelationsById(
-              recipientOrganizationId,
-              tx,
-            );
-          if (!organization) {
-            return Err({
-              message: "Organization not found",
-              code: OrganizationErrorCode.ORGANIZATION_NOT_FOUND,
-            });
-          }
-
-          // Check if user is a member of the organization
-          const membership =
-            await memberRepository.getMemberByUserIdAndOrganizationId(
-              userId,
-              recipientOrganizationId,
-              tx,
-            );
-          if (!membership) {
-            return Err({
-              message:
-                "You must be a member of the organization to share jobs with it",
-              code: OrganizationErrorCode.NOT_ORGANIZATION_MEMBER,
-            });
-          }
-        }
-        // Remove existing share with the same organization
-        await jobShareRepository.deleteJobSharesByJobIdAndRecipientOrganizationId(
-          jobId,
-          recipientOrganizationId,
-          tx,
-        );
-
-        const jobShare = await jobShareRepository.createJobShare(
-          jobId,
-          userId,
-          recipientOrganizationId,
-          allowSearchIndexing ?? true,
-          tx,
-        );
-        return Ok(jobShare);
-      });
-    } catch (error) {
-      console.error("Failed to share job", error);
+export const shareJobPublicly = withAuthContext<
+  ShareJobPubliclyParameters,
+  Result<JobPublicShare, ActionError>
+>(async ({ jobId, allowSearchIndexing, authContext }) => {
+  const { userId } = authContext;
+  return await prisma.$transaction(async (tx) => {
+    const job = await jobRepository.getJobById(jobId, tx);
+    if (!job) {
       return Err({
-        message: "Internal server error",
-        code: CommonErrorCode.INTERNAL_SERVER_ERROR,
+        message: "Job not found",
+        code: JobErrorCode.JOB_NOT_FOUND,
       });
     }
-  },
-);
+
+    // must be job owner to share public
+    if (userId !== job.userId) {
+      return Err({
+        message: "Unauthorized",
+        code: CommonErrorCode.UNAUTHORIZED,
+      });
+    }
+
+    // check if job is already shared publicly
+    if (job.publicShare !== null) {
+      return Err({
+        message: "Job already shared publicly",
+        code: JobErrorCode.JOB_ALREADY_SHARED_PUBLICLY,
+      });
+    }
+
+    const publicShare = await jobPublicShareRepository.createShare(
+      jobId,
+      userId,
+      allowSearchIndexing ?? true,
+      tx,
+    );
+    return Ok(publicShare);
+  });
+});
+
+interface ShareJobOrganizationParameters extends AuthenticatedRequest {
+  jobId: string;
+  share: boolean;
+}
+
+export const setJobIsOrganizationShared = withAuthContext<
+  ShareJobOrganizationParameters,
+  Result<boolean, ActionError>
+>(async ({ jobId, share, authContext }) => {
+  const { userId, organizationId } = authContext;
+  if (!organizationId) {
+    return Err({
+      message: "Unauthorized",
+      code: CommonErrorCode.UNAUTHORIZED,
+    });
+  }
+  return await prisma.$transaction(async (tx) => {
+    const job = await jobRepository.getJobById(jobId, tx);
+    if (!job) {
+      return Err({
+        message: "Job not found",
+        code: JobErrorCode.JOB_NOT_FOUND,
+      });
+    }
+
+    // must be job owner to share public
+    if (userId !== job.userId) {
+      return Err({
+        message: "Unauthorized",
+        code: CommonErrorCode.UNAUTHORIZED,
+      });
+    }
+
+    // check if job is already shared with organization
+    if (job.isOrganizationShared) {
+      return Err({
+        message: "Job already shared with organization",
+        code: JobErrorCode.JOB_ALREADY_SHARED_ORGANIZATION,
+      });
+    }
+
+    if (job.organizationId !== organizationId) {
+      return Err({
+        message: "You must be in the same organization to share jobs with it",
+        code: CommonErrorCode.UNAUTHORIZED,
+      });
+    }
+    // Check if user is a member of the organization
+    const membership =
+      await memberRepository.getMemberByUserIdAndOrganizationId(
+        userId,
+        organizationId,
+        tx,
+      );
+    if (!membership) {
+      return Err({
+        message:
+          "You must be a member of the organization to share jobs with it",
+        code: OrganizationErrorCode.NOT_ORGANIZATION_MEMBER,
+      });
+    }
+
+    const updatedJob = await jobRepository.setJobIsOrganizationSharedById(
+      jobId,
+      share,
+      tx,
+    );
+    return Ok(updatedJob.isOrganizationShared);
+  });
+});
 
 interface UpdateAllowSearchIndexingParameters extends AuthenticatedRequest {
   jobShareId: string;
@@ -407,21 +434,24 @@ interface UpdateAllowSearchIndexingParameters extends AuthenticatedRequest {
 
 export const updateAllowSearchIndexing = withAuthContext<
   UpdateAllowSearchIndexingParameters,
-  Result<JobShare, ActionError>
+  Result<JobPublicShare, ActionError>
 >(async ({ jobShareId, allowSearchIndexing, authContext }) => {
   const { userId } = authContext;
   try {
     return await prisma.$transaction(async (tx) => {
-      const jobShare = await jobShareRepository.getJobShareById(jobShareId, tx);
-      if (!jobShare) {
+      const publicShare = await jobPublicShareRepository.getShareById(
+        jobShareId,
+        tx,
+      );
+      if (!publicShare) {
         return Err({
-          message: "Job Share not found",
-          code: JobErrorCode.JOB_SHARE_NOT_FOUND,
+          message: "Job public share not found",
+          code: JobErrorCode.JOB_PUBLIC_SHARE_NOT_FOUND,
         });
       }
 
       // must be job share user to remove share
-      if (userId !== jobShare.userId) {
+      if (userId !== publicShare.userId) {
         return Err({
           message: "Unauthorized",
           code: CommonErrorCode.UNAUTHORIZED,
@@ -430,8 +460,8 @@ export const updateAllowSearchIndexing = withAuthContext<
 
       // update allow search indexing
       const updated =
-        await jobShareRepository.updateJobShareAllowSearchIndexing(
-          jobShareId,
+        await jobPublicShareRepository.setShareAllowSearchIndexingById(
+          publicShare.id,
           allowSearchIndexing,
           tx,
         );
@@ -457,7 +487,7 @@ export const updateAllowSearchIndexing = withAuthContext<
 interface RemoveSharesPerJobParameters extends AuthenticatedRequest {
   jobId: string;
 }
-export const removeSharesPerJob = withAuthContext<
+export const removeJobPublicSharePerJob = withAuthContext<
   RemoveSharesPerJobParameters,
   Result<void, ActionError>
 >(async ({ jobId, authContext }) => {
@@ -481,7 +511,7 @@ export const removeSharesPerJob = withAuthContext<
         });
       }
 
-      await jobShareRepository.deleteJobSharesByJobId(jobId, tx);
+      await jobPublicShareRepository.deleteShareByJobId(jobId, tx);
       return Ok();
     });
   } catch (error) {
@@ -501,15 +531,14 @@ export const removeSharesPerJob = withAuthContext<
  * @param authContext - The authentication context
  * @returns A result indicating success or failure
  */
-interface RemoveJobShareParameters extends AuthenticatedRequest {
+interface RemoveJobPublicShareParameters extends AuthenticatedRequest {
   jobId: string;
-  recipientOrganizationId: string | null;
 }
 
-export const removeJobShares = withAuthContext<
-  RemoveJobShareParameters,
+export const removeJobPublicShare = withAuthContext<
+  RemoveJobPublicShareParameters,
   Result<void, ActionError>
->(async ({ jobId, recipientOrganizationId, authContext }) => {
+>(async ({ jobId, authContext }) => {
   const { userId } = authContext;
 
   try {
@@ -530,15 +559,11 @@ export const removeJobShares = withAuthContext<
         });
       }
 
-      await jobShareRepository.deleteJobSharesByJobIdAndRecipientOrganizationId(
-        jobId,
-        recipientOrganizationId,
-        tx,
-      );
+      await jobPublicShareRepository.deleteShareByJobId(jobId, tx);
       return Ok();
     });
   } catch (error) {
-    console.error("Failed to remove job share", error);
+    console.error("Failed to remove job public share", error);
     return Err({
       message: "Internal server error",
       code: CommonErrorCode.INTERNAL_SERVER_ERROR,
