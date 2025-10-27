@@ -1,6 +1,6 @@
 import { useChannel } from "ably/react";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import {
   JobIndicatorStatus,
@@ -17,10 +17,16 @@ export default function useAgentJobStatus(
 ) {
   const pathname = usePathname();
   const router = useRouter();
-  // No need for local state - we can use the prop directly and update via Ably
   const [jobStatusData, setJobStatusData] = useState<JobIndicatorStatus | null>(
     initialJobIndicatorStatus,
   );
+
+  // Effect is necessary: Syncs local state when server data changes
+  // This handles cases like navigation between jobs or server-side data refreshes
+  // The real-time updates come via Ably below, but initial data must sync with props
+  useEffect(() => {
+    setJobStatusData(initialJobIndicatorStatus);
+  }, [initialJobIndicatorStatus]);
 
   useChannel(makeAgentJobsChannel(agentId, userId), (message) => {
     const parsedResult = jobIndicatorStatusSchema.safeParse(message.data);
