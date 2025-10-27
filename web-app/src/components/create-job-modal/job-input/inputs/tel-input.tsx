@@ -13,7 +13,7 @@ export function TelInput({
   return (
     <Input
       id={id}
-      placeholder={data?.placeholder}
+      placeholder={data?.placeholder ?? undefined}
       type="tel"
       {...field}
       value={typeof field.value === "string" ? field.value : ""}

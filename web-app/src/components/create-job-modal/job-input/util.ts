@@ -36,7 +36,7 @@ export const transformJobInputSchemaValidations = <
   T extends JobInputSchemaType,
 >(
   jobInputSchema: T extends {
-    validations?: ValidationSchemaType[];
+    validations?: ValidationSchemaType[] | null | undefined;
   }
     ? T
     : never,

@@ -16,7 +16,7 @@ export function NumberInput({
   return (
     <Input
       id={id}
-      placeholder={data?.placeholder}
+      placeholder={data?.placeholder ?? undefined}
       type="number"
       {...field}
       value={Number(field.value).toString()}

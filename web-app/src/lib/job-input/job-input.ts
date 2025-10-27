@@ -32,6 +32,7 @@ export type JobInputsDataSchemaType = z.infer<
 export const jobInputSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) =>
   jobInputNoneSchema(t)
     .or(jobInputStringSchema(t))
+    .or(jobInputTextSchema(t))
     .or(jobInputTextareaSchema(t))
     .or(jobInputNumberSchema(t))
     .or(jobInputBooleanSchema(t))
@@ -73,9 +74,9 @@ export const jobInputNoneSchema = (
     }),
     data: z
       .object({
-        description: z.string().min(1).optional(),
+        description: z.string().min(1).nullish(),
       })
-      .optional(),
+      .nullish(),
   });
 
 export type JobInputNoneSchemaType = z.infer<
@@ -99,10 +100,10 @@ export const jobInputStringSchema = (
     }),
     data: z
       .object({
-        placeholder: z.string().optional(),
-        description: z.string().optional(),
+        placeholder: z.string().nullish(),
+        description: z.string().nullish(),
       })
-      .optional(),
+      .nullish(),
     validations: z
       .array(
         optionalValidationSchema(t)
@@ -112,11 +113,48 @@ export const jobInputStringSchema = (
           .or(formatUrlValidationSchema(t))
           .or(formatEmailValidationSchema(t)),
       )
-      .optional(),
+      .nullish(),
   });
 
 export type JobInputStringSchemaType = z.infer<
   ReturnType<typeof jobInputStringSchema>
+>;
+
+export const jobInputTextSchema = (
+  t?: IntlTranslation<JobInputSchemaIntlPath>,
+) =>
+  z.object({
+    id: z.string().min(1, {
+      error: t?.("Id.required"),
+    }),
+    type: z.enum([ValidJobInputTypes.TEXT], {
+      error: t?.("Type.enum", {
+        options: Object.values(ValidJobInputTypes).join(", "),
+      }),
+    }),
+    name: z.string().min(1, {
+      error: t?.("Name.required"),
+    }),
+    data: z
+      .object({
+        placeholder: z.string().nullish(),
+        description: z.string().nullish(),
+      })
+      .nullish(),
+    validations: z
+      .array(
+        optionalValidationSchema(t)
+          .or(minValidationSchema(t))
+          .or(maxValidationSchema(t))
+          .or(formatNonEmptyValidationSchema(t))
+          .or(formatUrlValidationSchema(t))
+          .or(formatEmailValidationSchema(t)),
+      )
+      .nullish(),
+  });
+
+export type JobInputTextSchemaType = z.infer<
+  ReturnType<typeof jobInputTextSchema>
 >;
 
 export const jobInputTextareaSchema = (
@@ -136,10 +174,10 @@ export const jobInputTextareaSchema = (
     }),
     data: z
       .object({
-        placeholder: z.string().optional(),
-        description: z.string().optional(),
+        placeholder: z.string().nullish(),
+        description: z.string().nullish(),
       })
-      .optional(),
+      .nullish(),
     validations: z
       .array(
         optionalValidationSchema(t)
@@ -147,7 +185,7 @@ export const jobInputTextareaSchema = (
           .or(maxValidationSchema(t))
           .or(formatNonEmptyValidationSchema(t)),
       )
-      .optional(),
+      .nullish(),
   });
 
 export type JobInputTextareaSchemaType = z.infer<
@@ -171,10 +209,10 @@ export const jobInputNumberSchema = (
     }),
     data: z
       .object({
-        placeholder: z.string().optional(),
-        description: z.string().optional(),
+        placeholder: z.string().nullish(),
+        description: z.string().nullish(),
       })
-      .optional(),
+      .nullish(),
     validations: z
       .array(
         optionalValidationSchema(t)
@@ -182,7 +220,7 @@ export const jobInputNumberSchema = (
           .or(maxValidationSchema(t))
           .or(formatIntegerValidationSchema(t)),
       )
-      .optional(),
+      .nullish(),
   });
 
 export type JobInputNumberSchemaType = z.infer<
@@ -206,11 +244,11 @@ export const jobInputBooleanSchema = (
     }),
     data: z
       .object({
-        placeholder: z.string().optional(),
-        description: z.string().optional(),
+        placeholder: z.string().nullish(),
+        description: z.string().nullish(),
       })
-      .optional(),
-    validations: z.array(optionalValidationSchema(t)).optional(),
+      .nullish(),
+    validations: z.array(optionalValidationSchema(t)).nullish(),
   });
 
 export type JobInputBooleanSchemaType = z.infer<
@@ -234,10 +272,10 @@ export const jobInputEmailSchema = (
     }),
     data: z
       .object({
-        placeholder: z.string().optional(),
-        description: z.string().optional(),
+        placeholder: z.string().nullish(),
+        description: z.string().nullish(),
       })
-      .optional(),
+      .nullish(),
     validations: z
       .array(
         optionalValidationSchema(t)
@@ -246,7 +284,7 @@ export const jobInputEmailSchema = (
           .or(formatNonEmptyValidationSchema(t))
           .or(formatEmailValidationSchema(t)),
       )
-      .optional(),
+      .nullish(),
   });
 
 export type JobInputEmailSchemaType = z.infer<
@@ -270,10 +308,10 @@ export const jobInputPasswordSchema = (
     }),
     data: z
       .object({
-        placeholder: z.string().optional(),
-        description: z.string().optional(),
+        placeholder: z.string().nullish(),
+        description: z.string().nullish(),
       })
-      .optional(),
+      .nullish(),
     validations: z
       .array(
         optionalValidationSchema(t)
@@ -281,7 +319,7 @@ export const jobInputPasswordSchema = (
           .or(maxValidationSchema(t))
           .or(formatNonEmptyValidationSchema(t)),
       )
-      .optional(),
+      .nullish(),
   });
 
 export type JobInputPasswordSchemaType = z.infer<
@@ -305,10 +343,10 @@ export const jobInputTelSchema = (
     }),
     data: z
       .object({
-        placeholder: z.string().optional(),
-        description: z.string().optional(),
+        placeholder: z.string().nullish(),
+        description: z.string().nullish(),
       })
-      .optional(),
+      .nullish(),
     validations: z
       .array(
         optionalValidationSchema(t)
@@ -316,7 +354,7 @@ export const jobInputTelSchema = (
           .or(maxValidationSchema(t))
           .or(formatTelPatternValidationSchema(t)),
       )
-      .optional(),
+      .nullish(),
   });
 
 export type JobInputTelSchemaType = z.infer<
@@ -340,10 +378,10 @@ export const jobInputUrlSchema = (
     }),
     data: z
       .object({
-        placeholder: z.string().optional(),
-        description: z.string().optional(),
+        placeholder: z.string().nullish(),
+        description: z.string().nullish(),
       })
-      .optional(),
+      .nullish(),
     validations: z
       .array(
         optionalValidationSchema(t)
@@ -352,7 +390,7 @@ export const jobInputUrlSchema = (
           .or(formatNonEmptyValidationSchema(t))
           .or(formatUrlValidationSchema(t)),
       )
-      .optional(),
+      .nullish(),
   });
 
 export type JobInputUrlSchemaType = z.infer<
@@ -376,17 +414,17 @@ export const jobInputDateSchema = (
     }),
     data: z
       .object({
-        placeholder: z.string().optional(),
-        description: z.string().optional(),
+        placeholder: z.string().nullish(),
+        description: z.string().nullish(),
       })
-      .optional(),
+      .nullish(),
     validations: z
       .array(
         optionalValidationSchema(t)
           .or(minValidationSchema(t))
           .or(maxValidationSchema(t)),
       )
-      .optional(),
+      .nullish(),
   });
 
 export type JobInputDateSchemaType = z.infer<
@@ -410,17 +448,17 @@ export const jobInputDatetimeSchema = (
     }),
     data: z
       .object({
-        placeholder: z.string().optional(),
-        description: z.string().optional(),
+        placeholder: z.string().nullish(),
+        description: z.string().nullish(),
       })
-      .optional(),
+      .nullish(),
     validations: z
       .array(
         optionalValidationSchema(t)
           .or(minValidationSchema(t))
           .or(maxValidationSchema(t)),
       )
-      .optional(),
+      .nullish(),
   });
 
 export type JobInputDatetimeSchemaType = z.infer<
@@ -444,17 +482,17 @@ export const jobInputTimeSchema = (
     }),
     data: z
       .object({
-        placeholder: z.string().optional(),
-        description: z.string().optional(),
+        placeholder: z.string().nullish(),
+        description: z.string().nullish(),
       })
-      .optional(),
+      .nullish(),
     validations: z
       .array(
         optionalValidationSchema(t)
           .or(minValidationSchema(t))
           .or(maxValidationSchema(t)),
       )
-      .optional(),
+      .nullish(),
   });
 
 export type JobInputTimeSchemaType = z.infer<
@@ -474,17 +512,17 @@ export const jobInputMonthSchema = (
     name: z.string().min(1, { error: t?.("Name.required") }),
     data: z
       .object({
-        placeholder: z.string().optional(),
-        description: z.string().optional(),
+        placeholder: z.string().nullish(),
+        description: z.string().nullish(),
       })
-      .optional(),
+      .nullish(),
     validations: z
       .array(
         optionalValidationSchema(t)
           .or(minValidationSchema(t))
           .or(maxValidationSchema(t)),
       )
-      .optional(),
+      .nullish(),
   });
 
 export type JobInputMonthSchemaType = z.infer<
@@ -504,17 +542,17 @@ export const jobInputWeekSchema = (
     name: z.string().min(1, { error: t?.("Name.required") }),
     data: z
       .object({
-        placeholder: z.string().optional(),
-        description: z.string().optional(),
+        placeholder: z.string().nullish(),
+        description: z.string().nullish(),
       })
-      .optional(),
+      .nullish(),
     validations: z
       .array(
         optionalValidationSchema(t)
           .or(minValidationSchema(t))
           .or(maxValidationSchema(t)),
       )
-      .optional(),
+      .nullish(),
   });
 
 export type JobInputWeekSchemaType = z.infer<
@@ -538,11 +576,11 @@ export const jobInputColorSchema = (
     }),
     data: z
       .object({
-        default: z.string().optional(),
-        description: z.string().optional(),
+        default: z.string().nullish(),
+        description: z.string().nullish(),
       })
-      .optional(),
-    validations: z.array(optionalValidationSchema(t)).optional(),
+      .nullish(),
+    validations: z.array(optionalValidationSchema(t)).nullish(),
   });
 
 export type JobInputColorSchemaType = z.infer<
@@ -566,18 +604,18 @@ export const jobInputRangeSchema = (
     }),
     data: z
       .object({
-        description: z.string().optional(),
-        step: z.coerce.number().min(0).optional(),
-        default: z.coerce.number().optional(),
+        description: z.string().nullish(),
+        step: z.coerce.number().min(0).nullish(),
+        default: z.coerce.number().nullish(),
       })
-      .optional(),
+      .nullish(),
     validations: z
       .array(
         optionalValidationSchema(t)
           .or(minValidationSchema(t))
           .or(maxValidationSchema(t)),
       )
-      .optional(),
+      .nullish(),
   });
 
 export type JobInputRangeSchemaType = z.infer<
@@ -600,8 +638,8 @@ export const jobInputFileSchema = (
       error: t?.("Name.required"),
     }),
     data: z.object({
-      description: z.string().optional(),
-      outputFormat: z.string().optional(),
+      description: z.string().nullish(),
+      outputFormat: z.string().nullish(),
     }),
     validations: z
       .array(
@@ -645,11 +683,11 @@ export const jobInputHiddenSchema = (
     name: z.string().min(1, { error: t?.("Name.required") }),
     data: z
       .object({
-        value: z.string().optional(),
-        description: z.string().optional(),
+        value: z.string().nullish(),
+        description: z.string().nullish(),
       })
-      .optional(),
-    validations: z.array(optionalValidationSchema(t)).optional(),
+      .nullish(),
+    validations: z.array(optionalValidationSchema(t)).nullish(),
   });
 
 export type JobInputHiddenSchemaType = z.infer<
@@ -669,10 +707,10 @@ export const jobInputSearchSchema = (
     name: z.string().min(1, { error: t?.("Name.required") }),
     data: z
       .object({
-        placeholder: z.string().optional(),
-        description: z.string().optional(),
+        placeholder: z.string().nullish(),
+        description: z.string().nullish(),
       })
-      .optional(),
+      .nullish(),
     validations: z
       .array(
         optionalValidationSchema(t)
@@ -680,7 +718,7 @@ export const jobInputSearchSchema = (
           .or(maxValidationSchema(t))
           .or(formatNonEmptyValidationSchema(t)),
       )
-      .optional(),
+      .nullish(),
   });
 
 export type JobInputSearchSchemaType = z.infer<
@@ -703,11 +741,11 @@ export const jobInputCheckboxSchema = (
       error: t?.("Name.required"),
     }),
     data: z.object({
-      label: z.string().optional(),
-      description: z.string().optional(),
-      default: z.boolean().optional(),
+      label: z.string().nullish(),
+      description: z.string().nullish(),
+      default: z.boolean().nullish(),
     }),
-    validations: z.array(optionalValidationSchema(t)).optional(),
+    validations: z.array(optionalValidationSchema(t)).nullish(),
   });
 
 export type JobInputCheckboxSchemaType = z.infer<
@@ -740,7 +778,7 @@ export const jobInputRadioGroupSchema = (
         .refine((items) => new Set(items).size === items.length, {
           error: t?.("Data.Values.unique"),
         }),
-      description: z.string().optional(),
+      description: z.string().nullish(),
     }),
     validations: z
       .array(
@@ -748,7 +786,7 @@ export const jobInputRadioGroupSchema = (
           .or(minValidationSchema(t))
           .or(maxValidationSchema(t)),
       )
-      .optional(),
+      .nullish(),
   });
 
 export type JobInputRadioGroupSchemaType = z.infer<
@@ -781,8 +819,8 @@ export const jobInputOptionSchema = (
         .refine((items) => new Set(items).size === items.length, {
           error: t?.("Data.Values.unique"),
         }),
-      placeholder: z.string().optional(),
-      description: z.string().optional(),
+      placeholder: z.string().nullish(),
+      description: z.string().nullish(),
     }),
     validations: z
       .array(
@@ -790,7 +828,7 @@ export const jobInputOptionSchema = (
           .or(minValidationSchema(t))
           .or(maxValidationSchema(t)),
       )
-      .optional(),
+      .nullish(),
   });
 
 export type JobInputOptionSchemaType = z.infer<
@@ -823,8 +861,8 @@ export const jobInputMultiselectSchema = (
         .refine((items) => new Set(items).size === items.length, {
           error: t?.("Data.Values.unique"),
         }),
-      placeholder: z.string().optional(),
-      description: z.string().optional(),
+      placeholder: z.string().nullish(),
+      description: z.string().nullish(),
     }),
     validations: z
       .array(
@@ -832,7 +870,7 @@ export const jobInputMultiselectSchema = (
           .or(minValidationSchema(t))
           .or(maxValidationSchema(t)),
       )
-      .optional(),
+      .nullish(),
   });
 
 export type JobInputMultiselectSchemaType = z.infer<
