@@ -32,6 +32,7 @@ export type JobInputsDataSchemaType = z.infer<
 export const jobInputSchema = (t?: IntlTranslation<JobInputSchemaIntlPath>) =>
   jobInputNoneSchema(t)
     .or(jobInputStringSchema(t))
+    .or(jobInputTextSchema(t))
     .or(jobInputTextareaSchema(t))
     .or(jobInputNumberSchema(t))
     .or(jobInputBooleanSchema(t))
@@ -117,6 +118,43 @@ export const jobInputStringSchema = (
 
 export type JobInputStringSchemaType = z.infer<
   ReturnType<typeof jobInputStringSchema>
+>;
+
+export const jobInputTextSchema = (
+  t?: IntlTranslation<JobInputSchemaIntlPath>,
+) =>
+  z.object({
+    id: z.string().min(1, {
+      error: t?.("Id.required"),
+    }),
+    type: z.enum([ValidJobInputTypes.TEXT], {
+      error: t?.("Type.enum", {
+        options: Object.values(ValidJobInputTypes).join(", "),
+      }),
+    }),
+    name: z.string().min(1, {
+      error: t?.("Name.required"),
+    }),
+    data: z
+      .object({
+        placeholder: z.string().optional(),
+        description: z.string().optional(),
+      })
+      .optional(),
+    validations: z
+      .array(
+        optionalValidationSchema(t)
+          .or(minValidationSchema(t))
+          .or(maxValidationSchema(t))
+          .or(formatNonEmptyValidationSchema(t))
+          .or(formatUrlValidationSchema(t))
+          .or(formatEmailValidationSchema(t)),
+      )
+      .optional(),
+  });
+
+export type JobInputTextSchemaType = z.infer<
+  ReturnType<typeof jobInputTextSchema>
 >;
 
 export const jobInputTextareaSchema = (

@@ -30,6 +30,7 @@ import {
   UrlInput,
   WeekInput,
 } from "./index";
+import { TextInput } from "./text-input";
 
 interface InputFieldProps {
   id: string;
@@ -47,6 +48,15 @@ export function InputField({
   const { type } = jobInputSchema;
 
   switch (type) {
+    case ValidJobInputTypes.TEXT:
+      return (
+        <TextInput
+          id={id}
+          field={field}
+          jobInputSchema={jobInputSchema}
+          form={form}
+        />
+      );
     case ValidJobInputTypes.STRING:
       return (
         <StringInput
