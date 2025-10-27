@@ -16,6 +16,7 @@ export { RangeInput } from "./range-input";
 export { SearchInput } from "./search-input";
 export { StringInput } from "./string-input";
 export { TelInput } from "./tel-input";
+export { TextInput } from "./text-input";
 export { TextareaInput } from "./textarea-input";
 export { TimeInput } from "./time-input";
 export type { JobInputComponentProps } from "./types";

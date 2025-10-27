@@ -13,7 +13,7 @@ export function UrlInput({
   return (
     <Input
       id={id}
-      placeholder={data?.placeholder}
+      placeholder={data?.placeholder ?? undefined}
       type="url"
       {...field}
       value={typeof field.value === "string" ? field.value : ""}

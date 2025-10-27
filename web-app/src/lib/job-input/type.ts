@@ -1,6 +1,7 @@
 export enum ValidJobInputTypes {
   NONE = "none",
   STRING = "string",
+  TEXT = "text",
   TEXTAREA = "textarea",
   NUMBER = "number",
   BOOLEAN = "boolean",

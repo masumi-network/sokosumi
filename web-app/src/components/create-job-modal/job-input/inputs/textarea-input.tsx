@@ -19,7 +19,7 @@ export function TextareaInput({
   return (
     <Textarea
       id={id}
-      placeholder={data?.placeholder}
+      placeholder={data?.placeholder ?? undefined}
       {...field}
       value={typeof field.value === "string" ? field.value : ""}
     />

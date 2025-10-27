@@ -15,7 +15,7 @@ export function SearchInput({
   return (
     <Input
       id={id}
-      placeholder={data?.placeholder}
+      placeholder={data?.placeholder ?? undefined}
       type="search"
       {...field}
       value={typeof field.value === "string" ? field.value : ""}

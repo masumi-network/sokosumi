@@ -13,7 +13,7 @@ export function EmailInput({
   return (
     <Input
       id={id}
-      placeholder={data?.placeholder}
+      placeholder={data?.placeholder ?? undefined}
       type="email"
       {...field}
       value={typeof field.value === "string" ? field.value : ""}
