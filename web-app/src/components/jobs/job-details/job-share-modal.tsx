@@ -354,7 +354,9 @@ export default function JobShareModal({
                     {t("publicAccessDescription")}
                   </p>
                 </div>
-                {jobShare && <Check className="text-semantic-success size-4" />}
+                {jobShare?.isPublic && (
+                  <Check className="text-semantic-success size-4" />
+                )}
               </div>
               {activeOrganizationId && organization ? (
                 <div
@@ -413,7 +415,7 @@ export default function JobShareModal({
                 )}
               </div>
             </div>
-            {link && (
+            {link && jobShare?.isPublic && (
               <div className="flex w-full items-center gap-2 rounded-md border p-2">
                 <a
                   href={link.toString()}
@@ -428,7 +430,7 @@ export default function JobShareModal({
                 </Button>
               </div>
             )}
-            {jobShare && jobShare?.isPublic && (
+            {jobShare?.isPublic && (
               <div className="flex items-center gap-2">
                 <Checkbox
                   id="allow-search-indexing"
