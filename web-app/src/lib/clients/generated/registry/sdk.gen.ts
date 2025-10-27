@@ -30,6 +30,7 @@ export const getHealth = <ThrowOnError extends boolean = false>(options?: Option
 
 /**
  * REQUIRES API KEY Authentication (+user)
+ *
  * Get payment information for a registry entry
  */
 export const getPaymentInformation = <ThrowOnError extends boolean = false>(options: Options<GetPaymentInformationData, ThrowOnError>) => {
@@ -47,6 +48,7 @@ export const getPaymentInformation = <ThrowOnError extends boolean = false>(opti
 
 /**
  * REQUIRES API KEY Authentication (+user)
+ *
  * Query the registry for available and online (health-checked) entries. Registry filter, allows pagination, filtering by payment type and capability and optional date filters (to force update any entries checked before the specified date. Warning: this might take a bit of time as response is not cached). If no filter is set, only online entries are returned.
  */
 export const postRegistryEntry = <ThrowOnError extends boolean = false>(options?: Options<PostRegistryEntryData, ThrowOnError>) => {
@@ -68,6 +70,7 @@ export const postRegistryEntry = <ThrowOnError extends boolean = false>(options?
 
 /**
  * REQUIRES API KEY Authentication (+admin)
+ *
  * Updates a registry source
  */
 export const deleteRegistrySource = <ThrowOnError extends boolean = false>(options?: Options<DeleteRegistrySourceData, ThrowOnError>) => {
@@ -89,6 +92,7 @@ export const deleteRegistrySource = <ThrowOnError extends boolean = false>(optio
 
 /**
  * REQUIRES API KEY Authentication (+admin)
+ *
  * Gets all registry sources
  */
 export const getRegistrySource = <ThrowOnError extends boolean = false>(options?: Options<GetRegistrySourceData, ThrowOnError>) => {
@@ -106,6 +110,7 @@ export const getRegistrySource = <ThrowOnError extends boolean = false>(options?
 
 /**
  * REQUIRES API KEY Authentication (+admin)
+ *
  * Updates a registry source
  */
 export const patchRegistrySource = <ThrowOnError extends boolean = false>(options?: Options<PatchRegistrySourceData, ThrowOnError>) => {
@@ -127,6 +132,7 @@ export const patchRegistrySource = <ThrowOnError extends boolean = false>(option
 
 /**
  * REQUIRES API KEY Authentication (+admin)
+ *
  * Creates a new registry source
  */
 export const postRegistrySource = <ThrowOnError extends boolean = false>(options?: Options<PostRegistrySourceData, ThrowOnError>) => {
@@ -148,6 +154,7 @@ export const postRegistrySource = <ThrowOnError extends boolean = false>(options
 
 /**
  * REQUIRES API KEY Authentication (+user)
+ *
  * Gets all capabilities that are currently online
  */
 export const getCapability = <ThrowOnError extends boolean = false>(options?: Options<GetCapabilityData, ThrowOnError>) => {
@@ -165,6 +172,7 @@ export const getCapability = <ThrowOnError extends boolean = false>(options?: Op
 
 /**
  * REQUIRES API KEY Authentication (+user)
+ *
  * Gets the status of an API key
  */
 export const getApiKeyStatus = <ThrowOnError extends boolean = false>(options?: Options<GetApiKeyStatusData, ThrowOnError>) => {
@@ -182,6 +190,7 @@ export const getApiKeyStatus = <ThrowOnError extends boolean = false>(options?: 
 
 /**
  * REQUIRES API KEY Authentication (+admin)
+ *
  * Removes a API key
  */
 export const deleteApiKey = <ThrowOnError extends boolean = false>(options?: Options<DeleteApiKeyData, ThrowOnError>) => {
@@ -203,6 +212,7 @@ export const deleteApiKey = <ThrowOnError extends boolean = false>(options?: Opt
 
 /**
  * REQUIRES API KEY Authentication (+admin)
+ *
  * Gets registry sources, can be paginated
  */
 export const getApiKey = <ThrowOnError extends boolean = false>(options?: Options<GetApiKeyData, ThrowOnError>) => {
@@ -220,6 +230,7 @@ export const getApiKey = <ThrowOnError extends boolean = false>(options?: Option
 
 /**
  * REQUIRES API KEY Authentication (+admin)
+ *
  * Updates a API key
  */
 export const patchApiKey = <ThrowOnError extends boolean = false>(options?: Options<PatchApiKeyData, ThrowOnError>) => {
@@ -241,6 +252,7 @@ export const patchApiKey = <ThrowOnError extends boolean = false>(options?: Opti
 
 /**
  * REQUIRES API KEY Authentication (+admin)
+ *
  * Create a new API key
  */
 export const postApiKey = <ThrowOnError extends boolean = false>(options?: Options<PostApiKeyData, ThrowOnError>) => {
