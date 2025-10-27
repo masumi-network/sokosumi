@@ -170,10 +170,8 @@ export const agentRepository = {
             { userId },
             // Jobs shared with user's organization
             {
-              shares: {
-                some: {
-                  recipientOrganizationId: normalizedOrganizationId,
-                },
+              share: {
+                organizationId: normalizedOrganizationId,
               },
             },
           ],
@@ -188,6 +186,13 @@ export const agentRepository = {
       },
       include: {
         jobs: {
+          include: {
+            share: {
+              include: {
+                organization: true,
+              },
+            },
+          },
           where: jobWhereCondition,
           orderBy: {
             startedAt: "desc",
