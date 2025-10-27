@@ -25,8 +25,13 @@ export function JobsSearch({ jobs, onFilteredChange }: JobsSearchProps) {
     defaultValue: "",
   });
 
-  // Initialize from URL param, then manage independently for input responsiveness
   const [searchValue, setSearchValue] = useState<string>(queryParam);
+
+  // Effect is necessary: Syncs local state when URL changes (browser navigation)
+  // Handles browser back/forward and direct URL changes
+  useEffect(() => {
+    setSearchValue(queryParam);
+  }, [queryParam]);
 
   const debouncedSetQuery = useDebouncedCallback(
     (next: string) => setQueryParam(next),
