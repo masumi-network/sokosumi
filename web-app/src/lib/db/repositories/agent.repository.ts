@@ -186,13 +186,6 @@ export const agentRepository = {
       },
       include: {
         jobs: {
-          include: {
-            share: {
-              include: {
-                organization: true,
-              },
-            },
-          },
           where: jobWhereCondition,
           orderBy: {
             startedAt: "desc",
