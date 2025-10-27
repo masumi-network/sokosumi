@@ -26,11 +26,11 @@ import {
   StringInput,
   TelInput,
   TextareaInput,
+  TextInput,
   TimeInput,
   UrlInput,
   WeekInput,
 } from "./index";
-import { TextInput } from "./text-input";
 
 interface InputFieldProps {
   id: string;
