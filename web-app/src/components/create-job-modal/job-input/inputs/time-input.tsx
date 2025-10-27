@@ -14,7 +14,7 @@ export function TimeInput({
     <Input
       id={id}
       type="time"
-      placeholder={data?.placeholder}
+      placeholder={data?.placeholder ?? undefined}
       {...field}
       value={typeof field.value === "string" ? field.value : ""}
     />

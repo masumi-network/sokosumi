@@ -14,7 +14,7 @@ export function WeekInput({
     <Input
       id={id}
       type="week"
-      placeholder={data?.placeholder}
+      placeholder={data?.placeholder ?? undefined}
       {...field}
       value={typeof field.value === "string" ? field.value : ""}
     />

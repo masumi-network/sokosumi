@@ -13,7 +13,7 @@ export function TextInput({
   return (
     <Input
       id={id}
-      placeholder={data?.placeholder}
+      placeholder={data?.placeholder ?? undefined}
       type="text"
       {...field}
       value={typeof field.value === "string" ? field.value : ""}

@@ -14,7 +14,7 @@ export function MonthInput({
     <Input
       id={id}
       type="month"
-      placeholder={data?.placeholder}
+      placeholder={data?.placeholder ?? undefined}
       {...field}
       value={typeof field.value === "string" ? field.value : ""}
     />
