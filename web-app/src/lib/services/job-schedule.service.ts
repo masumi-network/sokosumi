@@ -11,10 +11,8 @@ import { JobScheduleType } from "@/lib/db/types/job";
 import { startJobInputSchema, StartJobInputSchemaType } from "@/lib/schemas";
 import { jobService } from "@/lib/services/job.service";
 import { lockService } from "@/lib/services/lock.service";
-import { computeNextRun, ComputeNextRunInput } from "@/lib/utils/cron";
+import { computeNextRun } from "@/lib/utils/cron";
 import { JobSchedule } from "@/prisma/generated/client";
-
-export type { ComputeNextRunInput };
 
 export const jobScheduleService = {
   async executeDueSchedules() {
