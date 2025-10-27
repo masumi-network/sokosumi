@@ -7,6 +7,8 @@ export function useIsMobile() {
     undefined,
   );
 
+  // Effect is necessary: Subscribes to external system (media query)
+  // Sets up and tears down event listener for window resize
   React.useEffect(() => {
     const mql = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT - 1}px)`);
     const onChange = () => {

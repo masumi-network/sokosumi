@@ -39,7 +39,8 @@ export function useMcpApiKey(
 
   const t = useTranslations("App.MCP");
 
-  // Check for existing MCP key when dialog opens
+  // Effect is necessary: Fetches data from external system (API) when dialog opens
+  // Resets state and fetches fresh data based on organization context
   useEffect(() => {
     if (open) {
       // Reset states when dialog opens

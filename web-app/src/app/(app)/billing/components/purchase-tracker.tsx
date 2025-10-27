@@ -12,6 +12,8 @@ interface PurchaseTrackerProps {
 export default function PurchaseTracker({
   checkoutSession,
 }: PurchaseTrackerProps) {
+  // Effect is necessary: Analytics tracking when component is displayed
+  // Fires once on mount to track purchase conversion
   useEffect(() => {
     const { session_id, isWelcomePromotion } = checkoutSession;
 

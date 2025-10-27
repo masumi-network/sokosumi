@@ -86,6 +86,8 @@ export default function BillingForm({ price, organization }: BillingFormProps) {
     },
   });
 
+  // Effect is necessary: Analytics tracking when component is displayed
+  // Fires once on mount to track page view
   useEffect(() => {
     fireGTMEvent.viewBilling();
   }, []);

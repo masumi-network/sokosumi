@@ -3,7 +3,7 @@
 import { Search, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 
 import { Input } from "@/components/ui/input";
@@ -25,11 +25,8 @@ export function JobsSearch({ jobs, onFilteredChange }: JobsSearchProps) {
     defaultValue: "",
   });
 
+  // Initialize from URL param, then manage independently for input responsiveness
   const [searchValue, setSearchValue] = useState<string>(queryParam);
-
-  useEffect(() => {
-    setSearchValue(queryParam);
-  }, [queryParam]);
 
   const debouncedSetQuery = useDebouncedCallback(
     (next: string) => setQueryParam(next),
@@ -44,9 +41,18 @@ export function JobsSearch({ jobs, onFilteredChange }: JobsSearchProps) {
     return jobs.filter((j) => matcher(j, q));
   }, [jobs, searchValue, matcher]);
 
-  useEffect(() => {
-    onFilteredChange?.(filteredJobs, searchValue);
-  }, [filteredJobs, searchValue, onFilteredChange]);
+  // Call callback during render instead of in Effect
+  const lastCallbackRef = useRef<
+    { filtered: JobWithStatus[]; query: string } | undefined
+  >(undefined);
+  if (
+    onFilteredChange &&
+    (lastCallbackRef.current?.filtered !== filteredJobs ||
+      lastCallbackRef.current?.query !== searchValue)
+  ) {
+    lastCallbackRef.current = { filtered: filteredJobs, query: searchValue };
+    onFilteredChange(filteredJobs, searchValue);
+  }
 
   function handleInputChange(next: string) {
     // Limit input length to prevent performance issues

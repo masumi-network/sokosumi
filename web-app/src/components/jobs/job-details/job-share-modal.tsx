@@ -82,7 +82,8 @@ export default function JobShareModal({
       ? new URL(`/share/jobs/${jobShare.token}`, window.location.origin)
       : null;
 
-  // Fetch organization data only if activeOrganizationId is provided
+  // Effect is necessary: Fetches organization data from external system (API)
+  // Only runs when dialog opens and activeOrganizationId is present
   useEffect(() => {
     let mounted = true;
 
