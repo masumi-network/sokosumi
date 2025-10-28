@@ -698,8 +698,7 @@ model JobShare {
   organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   // Security & Access
-  token    String  @unique @default(uuid())
-  isPublic Boolean @default(false)
+  token String? @unique
 
   // SEO Control
   allowSearchIndexing Boolean @default(true)

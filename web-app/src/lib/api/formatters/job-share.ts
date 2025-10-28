@@ -13,7 +13,7 @@ export function formatJobShareResponse(share: JobShare): JobShareResponse {
     id: share.id,
     jobId: share.jobId,
     organizationId: share.organizationId,
-    url: share.isPublic ? getJobShareUrl(share) : null,
+    url: getJobShareUrl(share),
     allowSearchIndexing: share.allowSearchIndexing,
     createdAt: dateToISO(share.createdAt),
     updatedAt: dateToISO(share.updatedAt),

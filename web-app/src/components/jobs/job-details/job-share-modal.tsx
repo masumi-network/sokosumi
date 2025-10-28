@@ -23,6 +23,7 @@ import {
   JobErrorCode,
   shareJobPublicly,
   shareJobWithOrganization,
+  unshareJobPublicly,
   unshareJobWithOrganization,
   updateAllowSearchIndexing,
 } from "@/lib/actions";
@@ -131,11 +132,13 @@ export default function JobShareModal({
     onOpenChange(open);
   };
 
-  const handleShareJob = async () => {
+  const handleTogglePublicShare = async () => {
     setIsLoading(true);
-    const result = await shareJobPublicly({
-      jobId: job.id,
-    });
+    const isCurrentlyPublic = jobShare && jobShare.token !== null;
+    const result = isCurrentlyPublic
+      ? await unshareJobPublicly({ jobId: job.id })
+      : await shareJobPublicly({ jobId: job.id });
+
     if (result.ok) {
       needRefresh.current = true;
       setJobShare(result.data);
@@ -166,13 +169,15 @@ export default function JobShareModal({
     setIsLoading(false);
   };
 
-  const handleShareWithOrganization = async () => {
+  const handleToggleOrganizationShare = async () => {
     if (!organization) return;
 
     setIsLoading(true);
-    const result = await shareJobWithOrganization({
-      jobId: job.id,
-    });
+    const isCurrentlySharedWithOrg = jobShare && jobShare.organizationId;
+    const result = isCurrentlySharedWithOrg
+      ? await unshareJobWithOrganization({ jobId: job.id })
+      : await shareJobWithOrganization({ jobId: job.id });
+
     if (result.ok) {
       needRefresh.current = true;
       setJobShare(result.data);
@@ -248,43 +253,6 @@ export default function JobShareModal({
     setIsLoading(false);
   };
 
-  const handleRemoveOrganizationShare = async () => {
-    if (!organization) return;
-
-    setIsLoading(true);
-    const result = await unshareJobWithOrganization({
-      jobId: job.id,
-    });
-    if (result.ok) {
-      needRefresh.current = true;
-      setJobShare(null);
-      toast.success(t("Success.share"));
-    } else {
-      switch (result.error.code) {
-        case CommonErrorCode.UNAUTHENTICATED:
-          toast.error(t("Errors.unauthenticated"), {
-            action: {
-              label: t("Errors.unauthenticatedAction"),
-              onClick: () => {
-                router.push(`/login`);
-              },
-            },
-          });
-          break;
-        case CommonErrorCode.UNAUTHORIZED:
-          toast.error(t("Errors.unauthorized"));
-          break;
-        case JobErrorCode.JOB_NOT_FOUND:
-          toast.error(t("Errors.jobNotFound"));
-          break;
-        default:
-          toast.error(t("Error.share"));
-          break;
-      }
-    }
-    setIsLoading(false);
-  };
-
   const handleRemoveSharesPerJob = async () => {
     const result = await deleteJobShare({
       jobId: job.id,
@@ -346,7 +314,7 @@ export default function JobShareModal({
                     "pointer-events-none animate-pulse opacity-60": isLoading,
                   },
                 )}
-                onClick={handleShareJob}
+                onClick={handleTogglePublicShare}
               >
                 <Globe />
                 <div className="flex-1">
@@ -355,7 +323,7 @@ export default function JobShareModal({
                     {t("publicAccessDescription")}
                   </p>
                 </div>
-                {jobShare?.isPublic && (
+                {jobShare && jobShare.token !== null && (
                   <Check className="text-semantic-success size-4" />
                 )}
               </div>
@@ -370,11 +338,7 @@ export default function JobShareModal({
                             isLoading,
                         },
                       )}
-                      onClick={
-                        jobShare?.organizationId
-                          ? handleRemoveOrganizationShare
-                          : handleShareWithOrganization
-                      }
+                      onClick={handleToggleOrganizationShare}
                     >
                       <Users />
                       <div className="flex-1">
@@ -418,12 +382,13 @@ export default function JobShareModal({
                     {t("privateAccessDescription")}
                   </p>
                 </div>
-                {!jobShare?.isPublic && !jobShare?.organizationId && (
+                {(!jobShare ||
+                  (!jobShare.token && !jobShare.organizationId)) && (
                   <Check className="text-semantic-success size-4" />
                 )}
               </div>
             </div>
-            {link && jobShare?.isPublic && (
+            {link && jobShare?.token !== null && (
               <div className="flex w-full items-center gap-2 rounded-md border p-2">
                 <a
                   href={link.toString()}
@@ -438,7 +403,7 @@ export default function JobShareModal({
                 </Button>
               </div>
             )}
-            {jobShare?.isPublic && (
+            {jobShare && jobShare.token !== null && (
               <div className="flex items-center gap-2">
                 <Checkbox
                   id="allow-search-indexing"

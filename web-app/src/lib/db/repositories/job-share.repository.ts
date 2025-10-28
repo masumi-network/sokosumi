@@ -3,6 +3,8 @@
  * Provides methods for creating, retrieving, and updating JobShare records.
  */
 
+import { v4 as uuidv4 } from "uuid";
+
 import { jobShareInclude } from "@/lib/db/types";
 import { Prisma } from "@/prisma/generated/client";
 
@@ -73,11 +75,11 @@ export const jobShareRepository = {
       create: {
         job: { connect: { id: jobId } },
         allowSearchIndexing,
-        isPublic: sharePublic,
+        token: sharePublic ? uuidv4() : null,
       },
       update: {
         allowSearchIndexing,
-        isPublic: sharePublic,
+        token: sharePublic ? uuidv4() : null,
       },
       include: jobShareInclude,
     });

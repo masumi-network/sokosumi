@@ -398,7 +398,7 @@ export function transactionStatusToOnChainTransactionStatus(
 }
 
 export function isSharedPublicly(job: JobWithStatus): boolean {
-  return job.share !== null && job.share.isPublic === true;
+  return job.share !== null && job.share.token !== null;
 }
 
 export function isSharedWithOrganization(
