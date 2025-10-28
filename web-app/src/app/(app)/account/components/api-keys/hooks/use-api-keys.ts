@@ -166,7 +166,8 @@ export function useApiKeys(): UseApiKeysReturn {
     [t, refresh],
   );
 
-  // Load API keys on mount
+  // Effect is necessary: Initial data load when component mounts
+  // This is synchronizing with external system (API) on mount
   useEffect(() => {
     refresh(true);
   }, [refresh]);

@@ -27,6 +27,8 @@ export function JobsSearch({ jobs, onFilteredChange }: JobsSearchProps) {
 
   const [searchValue, setSearchValue] = useState<string>(queryParam);
 
+  // Effect is necessary: Syncs local state when URL changes (browser navigation)
+  // Handles browser back/forward and direct URL changes
   useEffect(() => {
     setSearchValue(queryParam);
   }, [queryParam]);
@@ -44,6 +46,8 @@ export function JobsSearch({ jobs, onFilteredChange }: JobsSearchProps) {
     return jobs.filter((j) => matcher(j, q));
   }, [jobs, searchValue, matcher]);
 
+  // Effect is necessary: Notifying parent component of filtered results
+  // This is a side effect - communicating state changes to parent
   useEffect(() => {
     onFilteredChange?.(filteredJobs, searchValue);
   }, [filteredJobs, searchValue, onFilteredChange]);

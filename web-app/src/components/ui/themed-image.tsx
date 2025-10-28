@@ -2,7 +2,7 @@
 
 import { useTheme } from 'next-themes';
 import Image from 'next/image';
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 
 interface ThemedImageProps {
   srcLight: string;
@@ -15,13 +15,15 @@ interface ThemedImageProps {
 
 export function ThemedImage({ srcLight, srcDark, alt, width, height, style }: ThemedImageProps) {
   const { theme } = useTheme();
-  const [mounted, setMounted] = useState(false);
+  
+  // Use useSyncExternalStore to detect client-side rendering without useEffect
+  const isClient = useSyncExternalStore(
+    () => () => {}, // subscribe (no-op)
+    () => true,      // getSnapshot (client)
+    () => false,     // getServerSnapshot (server)
+  );
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!mounted) return null;
+  if (!isClient) return null;
 
   const imageSrc = theme === 'dark' ? srcDark : srcLight;
   

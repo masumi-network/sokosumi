@@ -9,6 +9,8 @@ export default function useAgentInputSchema(agentId: string) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
+  // Effect is necessary: Synchronizes with external system (API)
+  // Fetches data when agentId changes and cleans up on unmount
   useEffect(() => {
     if (agentId) {
       const fetchAgentInputSchema = async () => {

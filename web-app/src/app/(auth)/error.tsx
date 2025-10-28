@@ -22,6 +22,8 @@ export default function Error({
 }) {
   const t = useTranslations("Auth.Error");
 
+  // Effect is necessary: Error logging when component is displayed
+  // Logs error to console (or error reporting service) when error occurs
   useEffect(() => {
     // Log the error to an error reporting service
     console.error(error);
