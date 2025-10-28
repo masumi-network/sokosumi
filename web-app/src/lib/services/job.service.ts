@@ -219,6 +219,11 @@ export const jobService = (() => {
         return;
       }
 
+      const t = await getTranslations({
+        locale: "en",
+        namespace: "Library.Email.JobFailureNotification",
+      });
+
       // Prepare data for email template
       const htmlBody = await reactJobFailureNotificationEmail({
         jobId: job.id,
@@ -236,7 +241,7 @@ export const jobService = (() => {
         From: POSTMARK_FROM_EMAIL,
         To: uniqueRecipients.join(","),
         Tag: "job-failure-notification",
-        Subject: `Job Failure Notification - ${job.id}`,
+        Subject: t("subject", { jobId: job.id }),
         HtmlBody: htmlBody,
         MessageStream: "outbound",
       });

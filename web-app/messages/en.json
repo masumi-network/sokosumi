@@ -1595,6 +1595,21 @@
           "refund_resolved": "refunded",
           "dispute_resolved": "dispute resolved"
         }
+      },
+      "JobFailureNotification": {
+        "subject": "Job Failure Notification - {jobId}",
+        "preview": "Job {jobId} has failed",
+        "title": "Job Failure Notification",
+        "description": "A job has failed. Here are the technical details:",
+        "jobId": "Job ID:",
+        "onChainStatus": "On-Chain Status:",
+        "agentStatus": "Agent Status:",
+        "inputHash": "Input Hash:",
+        "resultHash": "Result Hash:",
+        "inputSchema": "Input Schema:",
+        "input": "Input:",
+        "output": "Output:",
+        "footer": "This is an automated notification from Sōkosumi."
       }
     },
     "JobInput": {

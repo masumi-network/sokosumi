@@ -11,6 +11,7 @@ import {
   Tailwind,
   Text,
 } from "@react-email/components";
+import { getTranslations } from "next-intl/server";
 
 interface JobFailureNotificationEmailProps {
   jobId: string;
@@ -23,7 +24,7 @@ interface JobFailureNotificationEmailProps {
   inputSchema: string;
 }
 
-export const JobFailureNotificationEmail = ({
+export const JobFailureNotificationEmail = async ({
   jobId,
   onChainStatus,
   agentStatus,
@@ -33,6 +34,11 @@ export const JobFailureNotificationEmail = ({
   resultHash,
   inputSchema,
 }: JobFailureNotificationEmailProps) => {
+  const t = await getTranslations({
+    locale: "en",
+    namespace: "Library.Email.JobFailureNotification",
+  });
+
   // Helper function to format JSON strings
   const formatJson = (value: string | null) => {
     if (!value) return "null";
@@ -47,23 +53,23 @@ export const JobFailureNotificationEmail = ({
   return (
     <Html>
       <Head />
-      <Preview>Job Failure Notification - {jobId}</Preview>
+      <Preview>{t("preview", { jobId })}</Preview>
       <Tailwind>
         <Body className="mx-auto my-auto bg-white px-2 font-sans">
           <Container className="mx-auto my-[40px] max-w-[600px] rounded border border-solid border-[#eaeaea] p-[20px]">
             <Heading className="mx-0 my-[30px] p-0 text-center text-[24px] font-normal text-black">
-              Job Failure Notification
+              {t("title")}
             </Heading>
 
             <Text className="text-[14px] leading-[24px] text-black">
-              A job has failed. Here are the technical details:
+              {t("description")}
             </Text>
 
             <Hr className="mx-0 my-[20px] w-full border border-solid border-[#eaeaea]" />
 
             <Section className="mb-[20px]">
               <Text className="mb-[8px] text-[12px] leading-[20px] font-semibold text-black">
-                Job ID:
+                {t("jobId")}
               </Text>
               <Text className="font-mono text-[12px] leading-[20px] text-[#666666]">
                 {jobId}
@@ -72,7 +78,7 @@ export const JobFailureNotificationEmail = ({
 
             <Section className="mb-[20px]">
               <Text className="mb-[8px] text-[12px] leading-[20px] font-semibold text-black">
-                On-Chain Status:
+                {t("onChainStatus")}
               </Text>
               <Text className="font-mono text-[12px] leading-[20px] text-[#666666]">
                 {onChainStatus || "null"}
@@ -81,7 +87,7 @@ export const JobFailureNotificationEmail = ({
 
             <Section className="mb-[20px]">
               <Text className="mb-[8px] text-[12px] leading-[20px] font-semibold text-black">
-                Agent Status:
+                {t("agentStatus")}
               </Text>
               <Text className="font-mono text-[12px] leading-[20px] text-[#666666]">
                 {agentStatus || "null"}
@@ -90,7 +96,7 @@ export const JobFailureNotificationEmail = ({
 
             <Section className="mb-[20px]">
               <Text className="mb-[8px] text-[12px] leading-[20px] font-semibold text-black">
-                Input Hash:
+                {t("inputHash")}
               </Text>
               <Text className="font-mono text-[12px] leading-[20px] break-all text-[#666666]">
                 {inputHash || "null"}
@@ -99,7 +105,7 @@ export const JobFailureNotificationEmail = ({
 
             <Section className="mb-[20px]">
               <Text className="mb-[8px] text-[12px] leading-[20px] font-semibold text-black">
-                Result Hash:
+                {t("resultHash")}
               </Text>
               <Text className="font-mono text-[12px] leading-[20px] break-all text-[#666666]">
                 {resultHash || "null"}
@@ -108,7 +114,7 @@ export const JobFailureNotificationEmail = ({
 
             <Section className="mb-[20px]">
               <Text className="mb-[8px] text-[12px] leading-[20px] font-semibold text-black">
-                Input Schema:
+                {t("inputSchema")}
               </Text>
               <Container className="rounded bg-[#f4f4f4] p-[12px]">
                 <Text className="font-mono text-[11px] leading-[18px] break-all whitespace-pre-wrap text-[#333333]">
@@ -119,7 +125,7 @@ export const JobFailureNotificationEmail = ({
 
             <Section className="mb-[20px]">
               <Text className="mb-[8px] text-[12px] leading-[20px] font-semibold text-black">
-                Input:
+                {t("input")}
               </Text>
               <Container className="rounded bg-[#f4f4f4] p-[12px]">
                 <Text className="font-mono text-[11px] leading-[18px] break-all whitespace-pre-wrap text-[#333333]">
@@ -130,7 +136,7 @@ export const JobFailureNotificationEmail = ({
 
             <Section className="mb-[20px]">
               <Text className="mb-[8px] text-[12px] leading-[20px] font-semibold text-black">
-                Output:
+                {t("output")}
               </Text>
               <Container className="rounded bg-[#f4f4f4] p-[12px]">
                 <Text className="font-mono text-[11px] leading-[18px] break-all whitespace-pre-wrap text-[#333333]">
@@ -142,7 +148,7 @@ export const JobFailureNotificationEmail = ({
             <Hr className="mx-0 my-[26px] w-full border border-solid border-[#eaeaea]" />
 
             <Text className="text-[12px] leading-[24px] text-[#666666]">
-              This is an automated notification from Sōkosumi.
+              {t("footer")}
             </Text>
           </Container>
         </Body>
