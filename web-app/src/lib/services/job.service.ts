@@ -223,20 +223,32 @@ export const jobService = (() => {
       // Extract notification data for webhook
       const notificationData = extractJobFailureNotificationData(job);
 
-      fetch(`https://hooks.zapier.com/hooks/catch/11627944/uimj0wi/`, {
-        method: "POST",
-        body: JSON.stringify(notificationData),
-      }).catch((error) => {
-        Sentry.captureException(error, {
-          contexts: {
-            error_classification: {
-              severity: "error",
-              domain: "job_failure_notification",
-              category: "service_layer",
+      // Send webhook notification
+      const { JOB_FAILURE_WEBHOOK_URL } = getEnvSecrets();
+      if (JOB_FAILURE_WEBHOOK_URL) {
+        try {
+          await fetch(JOB_FAILURE_WEBHOOK_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
             },
-          },
-        });
-      });
+            body: JSON.stringify(notificationData),
+          });
+        } catch (webhookError) {
+          Sentry.captureException(webhookError, {
+            contexts: {
+              error_classification: {
+                severity: "error",
+                domain: "job_failure_notification",
+                category: "webhook",
+              },
+            },
+            extra: {
+              jobId: job.id,
+            },
+          });
+        }
+      }
 
       // Send email notification
       const { JOB_FAILURE_NOTIFICATION_EMAILS } = getEnvSecrets();
@@ -265,7 +277,13 @@ export const jobService = (() => {
       }
 
       if (toRecipients.length === 0) {
-        console.warn("No recipients configured for job failure notification");
+        Sentry.captureMessage(
+          "No recipients configured for job failure notification",
+          {
+            level: "warning",
+            extra: { jobId: job.id },
+          },
+        );
         return;
       }
 
@@ -274,7 +292,7 @@ export const jobService = (() => {
         await reactJobFailureNotificationEmail(notificationData);
 
       // Send email with appropriate To and Bcc recipients
-      postmarkClient.sendEmail({
+      await postmarkClient.sendEmail({
         From: POSTMARK_FROM_EMAIL,
         To: toRecipients.join(","),
         ...(bccRecipients && { Bcc: bccRecipients.join(",") }),
