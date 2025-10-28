@@ -428,14 +428,6 @@ const shareJobInOrganization = withAuthContext<
       });
     }
 
-    // check if job is already shared with organization
-    if (job.share?.organizationId) {
-      return Err({
-        message: "Job already shared with organization",
-        code: JobErrorCode.JOB_ALREADY_SHARED_IN_ORGANIZATION,
-      });
-    }
-
     // Check if user is a member of the organization
     const membership =
       await memberRepository.getMemberByUserIdAndOrganizationId(
