@@ -139,7 +139,7 @@
     "@types/jest": "30.0.0",
     "@types/jsdom": "27.0.0",
     "@types/node": "22.18.12",
-    "@types/pg": "^8.15.5",
+    "@types/pg": "^8.15.6",
     "@types/react": "19.2.2",
     "@types/react-dom": "19.2.2",
     "@types/react-file-icon": "1.0.4",
