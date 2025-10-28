@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Job" ALTER COLUMN "inputSchema" SET DATA TYPE TEXT;

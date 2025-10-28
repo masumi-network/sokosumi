@@ -247,11 +247,11 @@ export const jobService = (() => {
         jobId: job.id,
         onChainStatus: job.onChainStatus,
         agentStatus: job.agentJobStatus,
-        input: JSON.stringify(job.input),
-        output: JSON.stringify(job.output),
+        input: job.input,
+        output: job.output,
         inputHash: job.inputHash,
         resultHash: job.resultHash,
-        inputSchema: JSON.stringify(job.inputSchema),
+        inputSchema: job.inputSchema,
       });
 
       // Send email with appropriate To and Bcc recipients
@@ -986,6 +986,7 @@ export const jobService = (() => {
       },
     );
 
+    await dispatchJobFailureNotification(job);
     // if job status changed, publish to job status to channel
     if (newJobStatus !== oldJobStatus) {
       console.log(

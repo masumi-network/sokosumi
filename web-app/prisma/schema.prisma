@@ -500,7 +500,7 @@ model Job {
 
   purchaseId String?
 
-  inputSchema       Json
+  inputSchema       String
   input             String
   inputHash         String? // On-Chain hash of the input data
   output            String?
