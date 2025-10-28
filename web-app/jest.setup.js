@@ -13,6 +13,17 @@ if (typeof window !== "undefined") {
   require("@testing-library/jest-dom");
 }
 
+// Polyfill TextEncoder/TextDecoder for libraries expecting Node globals
+try {
+  const { TextEncoder, TextDecoder } = require("util");
+  if (typeof global.TextEncoder === "undefined") {
+    global.TextEncoder = TextEncoder;
+  }
+  if (typeof global.TextDecoder === "undefined") {
+    global.TextDecoder = TextDecoder;
+  }
+} catch {}
+
 // Silence the ReactDOMTestUtils.act() deprecation warning
 // Only override console.error if we're in a browser-like environment
 if (typeof window !== "undefined" && typeof console !== "undefined") {

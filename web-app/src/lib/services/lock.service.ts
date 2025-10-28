@@ -1,5 +1,6 @@
 import { getEnvSecrets } from "@/config/env.secrets";
-import { lockRepository, prisma } from "@/lib/db/repositories";
+import { lockRepository } from "@/lib/db/repositories/lock.repository";
+import prisma from "@/lib/db/repositories/prisma";
 import { Lock } from "@/prisma/generated/client";
 
 /**

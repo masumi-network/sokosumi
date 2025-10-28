@@ -32,6 +32,7 @@ model User {
   creditTransactions CreditTransaction[]
   fiatTransactions   FiatTransaction[]
   jobs               Job[]
+  jobSchedules       JobSchedule[]
   blobs              Blob[]              @relation("UserBlob")
   links              Link[]              @relation("UserLink")
 
@@ -121,6 +122,7 @@ model Organization {
   agents             Agent[]
   blacklistedAgents  Agent[]             @relation("AgentBlacklist")
   jobs               Job[]
+  jobSchedules       JobSchedule[]
   creditTransactions CreditTransaction[]
   fiatTransactions   FiatTransaction[]
   jobShares          JobShare[]
@@ -339,6 +341,7 @@ model Agent {
   userAgentRating          UserAgentRating[]
   agentLists               AgentList[]
   jobs                     Job[]
+  jobSchedules             JobSchedule[]
   organizations            Organization[]
   blacklistedOrganizations Organization[]    @relation("AgentBlacklist")
 
@@ -537,7 +540,12 @@ model Job {
   // Public Share
   share JobShare?
 
+  // Optional link to the schedule that initiated this job
+  jobScheduleId String?
+  jobSchedule   JobSchedule? @relation(fields: [jobScheduleId], references: [id], onDelete: SetNull)
+
   @@index([jobType])
+  @@index([jobScheduleId])
 }
 
 enum OnChainTransactionStatus {
@@ -698,6 +706,50 @@ model JobShare {
 
   @@index([organizationId])
   @@map("jobShare")
+}
+
+model JobSchedule {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Ownership
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  agentId        String
+  agent          Agent         @relation(fields: [agentId], references: [id])
+
+  // Execution configuration
+  scheduleType        ScheduleType
+  cron                String?
+  oneTimeAtUtc        DateTime?
+  timezone            String // IANA timezone identifier used for display and next run calculation
+  endOnUtc            DateTime?
+  endAfterOccurrences Int?
+
+  // Job payload snapshot
+  inputSchema      Json
+  input            String
+  maxAcceptedCents BigInt
+
+  // State
+  isActive    Boolean   @default(true)
+  nextRunAt   DateTime?
+  pauseReason String?
+
+  // Back-relation to jobs initiated by this schedule
+  jobs Job[]
+
+  @@index([isActive, nextRunAt])
+  @@index([agentId])
+  @@map("jobSchedule")
+}
+
+enum ScheduleType {
+  ONE_TIME
+  CRON
 }
 
 enum ShareAccessType {
