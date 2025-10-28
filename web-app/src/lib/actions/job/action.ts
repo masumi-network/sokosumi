@@ -180,7 +180,6 @@ export const startJob = withAuthContext<
           case JobErrorCode.COST_TOO_HIGH:
             sentryLevel = "warning";
             break;
-          case JobErrorCode.PRICING_SCHEMA_MISMATCH:
           case JobErrorCode.AGENT_NOT_FOUND:
           case JobErrorCode.AGENT_PRICING_NOT_FOUND:
           case JobErrorCode.INPUT_HASH_MISMATCH:
