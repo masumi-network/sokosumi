@@ -359,41 +359,48 @@ export default function JobShareModal({
                   <Check className="text-semantic-success size-4" />
                 )}
               </div>
-              {activeOrganizationId && organization ? (
-                <div
-                  className={cn(
-                    "hover:bg-muted/50 flex cursor-pointer items-center gap-2 p-4 transition-all",
-                    {
-                      "pointer-events-none animate-pulse opacity-60": isLoading,
-                    },
+              {activeOrganizationId && (
+                <>
+                  {organization ? (
+                    <div
+                      className={cn(
+                        "hover:bg-muted/50 flex cursor-pointer items-center gap-2 p-4 transition-all",
+                        {
+                          "pointer-events-none animate-pulse opacity-60":
+                            isLoading,
+                        },
+                      )}
+                      onClick={
+                        jobShare?.organizationId
+                          ? handleRemoveOrganizationShare
+                          : handleShareWithOrganization
+                      }
+                    >
+                      <Users />
+                      <div className="flex-1">
+                        <p className="text-sm">
+                          {t("organizationAccessTitle")}
+                        </p>
+                        <p className="text-muted-foreground text-xs">
+                          {t("organizationAccessDescription", {
+                            organizationName: organization.name,
+                          })}
+                        </p>
+                      </div>
+                      {jobShare?.organizationId && (
+                        <Check className="text-semantic-success size-4" />
+                      )}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 p-4">
+                      <Skeleton className="size-6 rounded-full" />
+                      <div className="flex-1 space-y-2">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-3 w-48" />
+                      </div>
+                    </div>
                   )}
-                  onClick={
-                    jobShare?.organizationId
-                      ? handleRemoveOrganizationShare
-                      : handleShareWithOrganization
-                  }
-                >
-                  <Users />
-                  <div className="flex-1">
-                    <p className="text-sm">{t("organizationAccessTitle")}</p>
-                    <p className="text-muted-foreground text-xs">
-                      {t("organizationAccessDescription", {
-                        organizationName: organization.name,
-                      })}
-                    </p>
-                  </div>
-                  {jobShare?.organizationId && (
-                    <Check className="text-semantic-success size-4" />
-                  )}
-                </div>
-              ) : (
-                <div className="flex items-center gap-2 p-4">
-                  <Skeleton className="size-6 rounded-full" />
-                  <div className="flex-1 space-y-2">
-                    <Skeleton className="h-4 w-32" />
-                    <Skeleton className="h-3 w-48" />
-                  </div>
-                </div>
+                </>
               )}
               <div
                 className={cn(
