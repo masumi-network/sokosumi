@@ -253,7 +253,7 @@ export default function JobShareModal({
     setIsLoading(false);
   };
 
-  const handleRemoveSharesPerJob = async () => {
+  const handleRemoveSharePerJob = async () => {
     const result = await deleteJobShare({
       jobId: job.id,
     });
@@ -373,7 +373,7 @@ export default function JobShareModal({
                     "pointer-events-none animate-pulse opacity-60": isLoading,
                   },
                 )}
-                onClick={handleRemoveSharesPerJob}
+                onClick={handleRemoveSharePerJob}
               >
                 <Lock />
                 <div className="flex-1">
