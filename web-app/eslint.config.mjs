@@ -7,11 +7,13 @@ import simpleImportSort from "eslint-plugin-simple-import-sort";
 import noRelativeImportPaths from "eslint-plugin-no-relative-import-paths";
 import unusedImports from "eslint-plugin-unused-imports";
 import importPlugin from "eslint-plugin-import";
+import i18next from "eslint-plugin-i18next";
 
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
   prettier,
+  i18next.configs["flat/recommended"],
   {
     plugins: {
       next: eslintNextPlugin,
