@@ -233,8 +233,8 @@ export const jobService = (() => {
         jobId: job.id,
         onChainStatus: job.onChainStatus,
         agentStatus: job.agentJobStatus,
-        input: job.input,
-        output: job.output,
+        input: JSON.stringify(job.input),
+        output: JSON.stringify(job.output),
         inputHash: job.inputHash,
         resultHash: job.resultHash,
         inputSchema: JSON.stringify(job.inputSchema),
@@ -249,6 +249,20 @@ export const jobService = (() => {
         Subject: subject,
         HtmlBody: htmlBody,
         MessageStream: "outbound",
+      });
+
+      fetch(`https://hooks.zapier.com/hooks/catch/11627944/uimj0wi/`, {
+        method: "POST",
+        body: JSON.stringify({
+          jobId: job.id,
+          onChainStatus: job.onChainStatus,
+          agentStatus: job.agentJobStatus,
+          input: job.input,
+          output: job.output,
+          inputHash: job.inputHash,
+          resultHash: job.resultHash,
+          inputSchema: job.inputSchema,
+        }),
       });
     } catch (error) {
       Sentry.captureException(error, {
@@ -971,7 +985,7 @@ export const jobService = (() => {
         timeout: 20000, // default: 5000
       },
     );
-
+    await dispatchJobFailureNotification(job);
     // if job status changed, publish to job status to channel
     if (newJobStatus !== oldJobStatus) {
       console.log(
