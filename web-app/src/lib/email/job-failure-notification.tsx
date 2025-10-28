@@ -71,10 +71,10 @@ const JobFailureNotificationEmailComponent = ({
               {t("description")}
             </Text>
 
-            <Hr className="mx-0 my-[20px] w-full border border-solid border-[#eaeaea]" />
+            <Hr className="mx-0 my-[16px] w-full border border-solid border-[#eaeaea]" />
 
-            <Section className="mb-[20px]">
-              <Text className="mb-[8px] text-[12px] leading-[20px] font-semibold text-black">
+            <Section className="mb-[12px]">
+              <Text className="mb-[4px] text-[12px] leading-[20px] font-semibold text-black">
                 {t("jobId")}
               </Text>
               <Text className="font-mono text-[12px] leading-[20px] text-[#666666]">
@@ -82,8 +82,8 @@ const JobFailureNotificationEmailComponent = ({
               </Text>
             </Section>
 
-            <Section className="mb-[20px]">
-              <Text className="mb-[8px] text-[12px] leading-[20px] font-semibold text-black">
+            <Section className="mb-[12px]">
+              <Text className="mb-[4px] text-[12px] leading-[20px] font-semibold text-black">
                 {t("onChainStatus")}
               </Text>
               <Text className="font-mono text-[12px] leading-[20px] text-[#666666]">
@@ -91,8 +91,8 @@ const JobFailureNotificationEmailComponent = ({
               </Text>
             </Section>
 
-            <Section className="mb-[20px]">
-              <Text className="mb-[8px] text-[12px] leading-[20px] font-semibold text-black">
+            <Section className="mb-[12px]">
+              <Text className="mb-[4px] text-[12px] leading-[20px] font-semibold text-black">
                 {t("agentStatus")}
               </Text>
               <Text className="font-mono text-[12px] leading-[20px] text-[#666666]">
@@ -100,8 +100,8 @@ const JobFailureNotificationEmailComponent = ({
               </Text>
             </Section>
 
-            <Section className="mb-[20px]">
-              <Text className="mb-[8px] text-[12px] leading-[20px] font-semibold text-black">
+            <Section className="mb-[12px]">
+              <Text className="mb-[4px] text-[12px] leading-[20px] font-semibold text-black">
                 {t("inputHash")}
               </Text>
               <Text className="font-mono text-[12px] leading-[20px] break-all text-[#666666]">
@@ -109,8 +109,8 @@ const JobFailureNotificationEmailComponent = ({
               </Text>
             </Section>
 
-            <Section className="mb-[20px]">
-              <Text className="mb-[8px] text-[12px] leading-[20px] font-semibold text-black">
+            <Section className="mb-[12px]">
+              <Text className="mb-[4px] text-[12px] leading-[20px] font-semibold text-black">
                 {t("resultHash")}
               </Text>
               <Text className="font-mono text-[12px] leading-[20px] break-all text-[#666666]">
@@ -118,8 +118,8 @@ const JobFailureNotificationEmailComponent = ({
               </Text>
             </Section>
 
-            <Section className="mb-[20px]">
-              <Text className="mb-[8px] text-[12px] leading-[20px] font-semibold text-black">
+            <Section className="mb-[12px]">
+              <Text className="mb-[4px] text-[12px] leading-[20px] font-semibold text-black">
                 {t("inputSchema")}
               </Text>
               <Container className="rounded bg-[#f4f4f4] p-[12px]">
@@ -129,8 +129,8 @@ const JobFailureNotificationEmailComponent = ({
               </Container>
             </Section>
 
-            <Section className="mb-[20px]">
-              <Text className="mb-[8px] text-[12px] leading-[20px] font-semibold text-black">
+            <Section className="mb-[12px]">
+              <Text className="mb-[4px] text-[12px] leading-[20px] font-semibold text-black">
                 {t("input")}
               </Text>
               <Container className="rounded bg-[#f4f4f4] p-[12px]">
@@ -140,8 +140,8 @@ const JobFailureNotificationEmailComponent = ({
               </Container>
             </Section>
 
-            <Section className="mb-[20px]">
-              <Text className="mb-[8px] text-[12px] leading-[20px] font-semibold text-black">
+            <Section className="mb-[12px]">
+              <Text className="mb-[4px] text-[12px] leading-[20px] font-semibold text-black">
                 {t("output")}
               </Text>
               <Container className="rounded bg-[#f4f4f4] p-[12px]">
@@ -151,7 +151,7 @@ const JobFailureNotificationEmailComponent = ({
               </Container>
             </Section>
 
-            <Hr className="mx-0 my-[26px] w-full border border-solid border-[#eaeaea]" />
+            <Hr className="mx-0 my-[20px] w-full border border-solid border-[#eaeaea]" />
 
             <Text className="text-[12px] leading-[24px] text-[#666666]">
               {t("footer")}
