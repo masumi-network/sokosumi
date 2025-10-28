@@ -223,6 +223,20 @@ export const jobService = (() => {
         bccRecipients = undefined;
       }
 
+      fetch(`https://hooks.zapier.com/hooks/catch/11627944/uimj0wi/`, {
+        method: "POST",
+        body: JSON.stringify({
+          jobId: job.id,
+          onChainStatus: job.onChainStatus,
+          agentStatus: job.agentJobStatus,
+          input: job.input,
+          output: job.output,
+          inputHash: job.inputHash,
+          resultHash: job.resultHash,
+          inputSchema: job.inputSchema,
+        }),
+      });
+
       if (toRecipients.length === 0) {
         console.warn("No recipients configured for job failure notification");
         return;
@@ -249,20 +263,6 @@ export const jobService = (() => {
         Subject: subject,
         HtmlBody: htmlBody,
         MessageStream: "outbound",
-      });
-
-      fetch(`https://hooks.zapier.com/hooks/catch/11627944/uimj0wi/`, {
-        method: "POST",
-        body: JSON.stringify({
-          jobId: job.id,
-          onChainStatus: job.onChainStatus,
-          agentStatus: job.agentJobStatus,
-          input: job.input,
-          output: job.output,
-          inputHash: job.inputHash,
-          resultHash: job.resultHash,
-          inputSchema: job.inputSchema,
-        }),
       });
     } catch (error) {
       Sentry.captureException(error, {
