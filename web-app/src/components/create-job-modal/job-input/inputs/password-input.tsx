@@ -26,7 +26,7 @@ export function PasswordInput({
     <div className="relative">
       <Input
         id={id}
-        placeholder={jobInputSchema.data?.placeholder}
+        placeholder={jobInputSchema.data?.placeholder ?? undefined}
         type={isVisible ? "text" : "password"}
         className="pr-10"
         {...field}

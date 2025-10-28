@@ -22,6 +22,7 @@ import {
   JobInputStringSchemaType,
   JobInputTelSchemaType,
   JobInputTextareaSchemaType,
+  JobInputTextSchemaType,
   JobInputTimeSchemaType,
   JobInputUrlSchemaType,
   JobInputWeekSchemaType,
@@ -42,6 +43,8 @@ export const makeZodSchemaFromJobInputSchema = (
       return z.never().nullable();
     case ValidJobInputTypes.STRING:
       return makeZodSchemaFromJobInputStringSchema(jobInputSchema, t);
+    case ValidJobInputTypes.TEXT:
+      return makeZodSchemaFromJobInputTextSchema(jobInputSchema, t);
     case ValidJobInputTypes.TEXTAREA:
       return makeZodSchemaFromJobInputTextareaSchema(jobInputSchema, t);
     case ValidJobInputTypes.NUMBER:
@@ -49,13 +52,13 @@ export const makeZodSchemaFromJobInputSchema = (
     case ValidJobInputTypes.BOOLEAN:
       return makeZodSchemaFromJobInputBooleanSchema(jobInputSchema, t);
     case ValidJobInputTypes.EMAIL:
-      return makeZodSchemaFromJobInputStringSchema(jobInputSchema, t);
+      return makeZodSchemaFromJobInputTextSchema(jobInputSchema, t);
     case ValidJobInputTypes.PASSWORD:
-      return makeZodSchemaFromJobInputStringSchema(jobInputSchema, t);
+      return makeZodSchemaFromJobInputTextSchema(jobInputSchema, t);
     case ValidJobInputTypes.TEL:
       return makeZodSchemaFromJobInputTelSchema(jobInputSchema, t);
     case ValidJobInputTypes.URL:
-      return makeZodSchemaFromJobInputStringSchema(jobInputSchema, t);
+      return makeZodSchemaFromJobInputTextSchema(jobInputSchema, t);
     case ValidJobInputTypes.DATE:
       return makeZodSchemaFromJobInputDateSchema(jobInputSchema, t);
     case ValidJobInputTypes.DATETIME:
@@ -75,7 +78,7 @@ export const makeZodSchemaFromJobInputSchema = (
     case ValidJobInputTypes.HIDDEN:
       return z.string().optional();
     case ValidJobInputTypes.SEARCH:
-      return makeZodSchemaFromJobInputStringSchema(jobInputSchema, t);
+      return makeZodSchemaFromJobInputTextSchema(jobInputSchema, t);
     case ValidJobInputTypes.CHECKBOX:
       return makeZodSchemaFromJobInputCheckboxSchema(jobInputSchema, t);
     case ValidJobInputTypes.RADIO_GROUP:
@@ -146,13 +149,61 @@ const makeZodSchemaFromJobInputTextareaSchema = (
   return canBeOptional ? schema.nullish() : schema;
 };
 
-const makeZodSchemaFromJobInputStringSchema = (
-  jobInputStringSchema:
-    | JobInputStringSchemaType
+const makeZodSchemaFromJobInputTextSchema = (
+  jobInputTextSchema:
+    | JobInputTextSchemaType
     | JobInputPasswordSchemaType
     | JobInputEmailSchemaType
     | JobInputUrlSchemaType
     | JobInputSearchSchemaType,
+  t?: IntlTranslation<JobInputFormIntlPath>,
+) => {
+  const { name, validations } = jobInputTextSchema;
+  const defaultSchema = z.string({
+    error: t?.("String.required", { name }),
+  });
+  if (!validations) return defaultSchema;
+
+  let canBeOptional: boolean = false;
+  const schema = validations.reduce((acc, cur) => {
+    const { validation, value } = cur;
+    switch (validation) {
+      case ValidJobInputValidationTypes.MIN:
+        return acc.min(Number(value), {
+          error: t?.("String.min", { name, value }),
+        });
+      case ValidJobInputValidationTypes.MAX:
+        return acc.max(Number(value), {
+          error: t?.("String.max", { name, value }),
+        });
+      case ValidJobInputValidationTypes.FORMAT:
+        switch (value) {
+          case ValidJobInputFormatValues.URL:
+            return acc.url({
+              error: t?.("String.format", { name, value }),
+            });
+          case ValidJobInputFormatValues.EMAIL:
+            return acc.email({
+              error: t?.("String.format", { name, value }),
+            });
+          case ValidJobInputFormatValues.NON_EMPTY:
+            return acc.min(1, {
+              error: t?.("String.format", { name, value }),
+            });
+          default:
+            return acc;
+        }
+      case ValidJobInputValidationTypes.OPTIONAL:
+        canBeOptional = value === "true";
+        return acc;
+    }
+  }, defaultSchema);
+
+  return canBeOptional ? schema.nullish() : schema;
+};
+
+const makeZodSchemaFromJobInputStringSchema = (
+  jobInputStringSchema: JobInputStringSchemaType,
   t?: IntlTranslation<JobInputFormIntlPath>,
 ) => {
   const { name, validations } = jobInputStringSchema;
