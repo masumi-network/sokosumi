@@ -84,6 +84,7 @@ interface CreateJobBase {
   inputSchema: JobInputSchemaType[];
   input: string;
   name: string | null;
+  jobScheduleId?: string | null | undefined;
   agentJobStatus?: AgentJobStatus | null;
   output?: string | null;
   completedAt?: Date | null;
@@ -300,6 +301,9 @@ export const jobRepository = {
       inputSchema: data.inputSchema,
       input: data.input,
       name: data.name,
+      ...(data.jobScheduleId && {
+        jobSchedule: { connect: { id: data.jobScheduleId } },
+      }),
       ...(data.agentJobStatus !== undefined && {
         agentJobStatus: data.agentJobStatus,
       }),
