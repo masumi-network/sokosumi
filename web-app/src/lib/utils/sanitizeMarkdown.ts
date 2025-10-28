@@ -1,4 +1,4 @@
-import DOMPurify from "isomorphic-dompurify";
+import sanitizeHtml from "sanitize-html";
 
 // Handles markdown replacements for custom rules
 export function handleMarkdownReplaces(markdown: string): string {
@@ -8,8 +8,8 @@ export function handleMarkdownReplaces(markdown: string): string {
 
 export function sanitizeMarkdown(markdown: string): string {
   const replacedMarkdown = handleMarkdownReplaces(markdown);
-  return DOMPurify.sanitize(replacedMarkdown, {
-    ALLOWED_TAGS: [
+  return sanitizeHtml(replacedMarkdown, {
+    allowedTags: [
       "b",
       "i",
       "em",
@@ -30,21 +30,20 @@ export function sanitizeMarkdown(markdown: string): string {
       "mark",
       "span",
     ],
-    ALLOWED_ATTR: [
-      "href",
-      "src",
-      "controls",
-      "autoplay",
-      "loop",
-      "muted",
-      "width",
-      "height",
-      "allow",
-      "allowfullscreen",
-      "frameborder",
-      "alt",
-      "title",
-      "class",
-    ],
+    allowedAttributes: {
+      a: ["href"],
+      img: ["src", "alt", "title", "width", "height"],
+      video: [
+        "src",
+        "controls",
+        "autoplay",
+        "loop",
+        "muted",
+        "width",
+        "height",
+      ],
+      source: ["src"],
+      "*": ["class"],
+    },
   });
 }
