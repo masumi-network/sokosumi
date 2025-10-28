@@ -538,7 +538,7 @@ export const deleteJobShare = withAuthContext<
   DeleteJobShareParameters,
   Result<void, ActionError>
 >(async ({ jobId, authContext }) => {
-  const { userId } = authContext;
+  const { userId, organizationId } = authContext;
 
   try {
     return await prisma.$transaction(async (tx) => {
@@ -556,6 +556,16 @@ export const deleteJobShare = withAuthContext<
           message: "Unauthorized",
           code: CommonErrorCode.UNAUTHORIZED,
         });
+      }
+
+      // If job belongs to an organization, require matching active organization
+      if (job.organizationId) {
+        if (!organizationId || organizationId !== job.organizationId) {
+          return Err({
+            message: "Unauthorized",
+            code: CommonErrorCode.UNAUTHORIZED,
+          });
+        }
       }
 
       await jobShareRepository.deleteShareByJobId(jobId, tx);

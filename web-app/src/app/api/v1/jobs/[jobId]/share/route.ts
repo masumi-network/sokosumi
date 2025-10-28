@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
 import {
+  CommonErrorCode,
   deleteJobShare,
   JobErrorCode,
   shareJobPublicly,
@@ -40,6 +41,14 @@ export async function PUT(
     // Parse request body
     const body = await request.json();
     const requestData = jobShareRequestSchema.parse(body);
+
+    // Guard: personal API key cannot share to organization scope
+    if (
+      requestData.scope.includes("organization") &&
+      !authContext.organizationId
+    ) {
+      throw new Error("UNAUTHORIZED");
+    }
 
     const { allowSearchIndexing } = requestData;
 
@@ -101,6 +110,13 @@ export async function GET(
       throw new Error("UNAUTHORIZED");
     }
 
+    if (
+      share.job.organizationId &&
+      share.job.organizationId !== authContext.organizationId
+    ) {
+      throw new Error("UNAUTHORIZED");
+    }
+
     return createApiSuccessResponse(formatJobShareResponse(share));
   } catch (error) {
     return handleApiError(error, "get job share", {
@@ -129,6 +145,8 @@ export async function DELETE(
       switch (result.error.code) {
         case JobErrorCode.JOB_NOT_FOUND:
           throw new Error("JOB_NOT_FOUND");
+        case CommonErrorCode.UNAUTHORIZED:
+          throw new Error("UNAUTHORIZED");
         default:
           throw new Error(result.error.message ?? "Unknown error");
       }
