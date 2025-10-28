@@ -200,21 +200,30 @@ export const jobService = (() => {
     try {
       const { JOB_FAILURE_NOTIFICATION_EMAILS } = getEnvSecrets();
 
-      // Build recipient list: stakeholders + agent author contact email
-      const recipients: string[] = [...JOB_FAILURE_NOTIFICATION_EMAILS];
-
-      // Add agent's authorContactEmail if it exists and is not null
-      const authorContactEmail = job.agent.authorContactEmail;
-      if (authorContactEmail && authorContactEmail.trim() !== "") {
-        recipients.push(authorContactEmail.trim());
-      }
-
-      // Remove duplicates and filter out empty strings
-      const uniqueRecipients = Array.from(
-        new Set(recipients.filter((email) => email.trim() !== "")),
+      // Get stakeholder emails from environment
+      const stakeholderEmails = JOB_FAILURE_NOTIFICATION_EMAILS.filter(
+        (email) => email.trim() !== "",
       );
 
-      if (uniqueRecipients.length === 0) {
+      // Get agent's author contact email
+      const authorContactEmail = job.agent.authorContactEmail?.trim();
+
+      // Determine To and Bcc based on authorContactEmail presence
+      let toRecipients: string[];
+      let bccRecipients: string[] | undefined;
+
+      if (authorContactEmail) {
+        // If author email exists: author as To, stakeholders as Bcc
+        toRecipients = [authorContactEmail];
+        bccRecipients =
+          stakeholderEmails.length > 0 ? stakeholderEmails : undefined;
+      } else {
+        // If no author email: stakeholders as To
+        toRecipients = stakeholderEmails;
+        bccRecipients = undefined;
+      }
+
+      if (toRecipients.length === 0) {
         console.warn("No recipients configured for job failure notification");
         return;
       }
@@ -231,10 +240,11 @@ export const jobService = (() => {
         inputSchema: JSON.stringify(job.inputSchema),
       });
 
-      // Send email to all recipients
+      // Send email with appropriate To and Bcc recipients
       await postmarkClient.sendEmail({
         From: POSTMARK_FROM_EMAIL,
-        To: uniqueRecipients.join(","),
+        To: toRecipients.join(","),
+        ...(bccRecipients && { Bcc: bccRecipients.join(",") }),
         Tag: "job-failure-notification",
         Subject: subject,
         HtmlBody: htmlBody,
