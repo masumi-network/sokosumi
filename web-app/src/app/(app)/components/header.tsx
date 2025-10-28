@@ -21,7 +21,8 @@ export default function Header({ session, className }: HeaderProps) {
         className,
       )}
     >
-      <div className="flex w-full items-center justify-between gap-2 p-2 md:w-auto">
+      <div className="flex w-full items-center gap-2 p-2 pl-0 md:w-auto md:pl-2">
+        <CustomTrigger when="invisible" />
         <Link href="/" className="md:hidden">
           <ThemedLogo
             LogoComponent={SokosumiLogo}
@@ -30,7 +31,6 @@ export default function Header({ session, className }: HeaderProps) {
             height={16}
           />
         </Link>
-        <CustomTrigger when="invisible" />
       </div>
 
       <div className="hidden flex-1 flex-row gap-2 sm:flex">
