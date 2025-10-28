@@ -14,6 +14,7 @@ export function formatJobShareResponse(share: JobShare): JobShareResponse {
     jobId: share.jobId,
     organizationId: share.organizationId,
     url: getJobShareUrl(share),
+    isPublic: share.isPublic,
     allowSearchIndexing: share.allowSearchIndexing,
     createdAt: dateToISO(share.createdAt),
     updatedAt: dateToISO(share.updatedAt),

@@ -5,6 +5,7 @@ export const jobShareResponseSchema = z.object({
   jobId: z.string(),
   organizationId: z.string().nullable(),
   url: z.url().nullable(),
+  isPublic: z.boolean(),
   allowSearchIndexing: z.boolean(),
   createdAt: z.iso.datetime(),
   updatedAt: z.iso.datetime(),
