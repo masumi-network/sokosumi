@@ -15,7 +15,6 @@ import {
   AgentWithRelations,
   computeJobStatus,
   getAgentName,
-  getAgentPricingAmounts,
   getJobIndicatorStatus,
   isPaidJob,
   JobStatus,
@@ -34,7 +33,6 @@ import { postmarkClient } from "@/lib/email/postmark";
 import { JobInputData } from "@/lib/job-input";
 import {
   JobStatusResponseSchemaType,
-  PricingAmountsSchemaType,
   StartJobInputSchemaType,
 } from "@/lib/schemas";
 import { Err } from "@/lib/ts-res";
@@ -104,51 +102,6 @@ export const jobService = (() => {
     return job.purchaseId;
   }
 
-  /**
-   * Validates that the agent's pricing schema matches the job's pricing schema.
-   *
-   * - Compares the pricing amounts (unit and amount) between the agent and the job.
-   * - Throws a JobError with code PRICING_SCHEMA_MISMATCH if:
-   *   - The number of pricing units differs.
-   *   - Any unit in the job's pricing is missing from the agent's pricing.
-   *   - The amount for any unit does not match between agent and job.
-   *
-   * @param agentPricing - The pricing amounts defined by the agent.
-   * @param jobPricing - The pricing amounts specified for the job.
-   * @throws {JobError} If the pricing schemas do not match.
-   */
-  function tryValidatePricing(
-    agentPricing: PricingAmountsSchemaType,
-    jobPricing: PricingAmountsSchemaType,
-  ): void {
-    const agentPricingMap = new Map(
-      agentPricing.map((amount) => [amount.unit, amount.amount]),
-    );
-    const jobPricingMap = new Map(
-      jobPricing.map((amount) => [amount.unit, amount.amount]),
-    );
-    if (agentPricingMap.size !== jobPricingMap.size) {
-      throw new JobError(
-        JobErrorCode.PRICING_SCHEMA_MISMATCH,
-        "Pricing schemas have different lengths",
-      );
-    }
-    // verify that the pricing schemas are identical
-    for (const [unit, amount] of jobPricingMap) {
-      if (!agentPricingMap.has(unit)) {
-        throw new JobError(
-          JobErrorCode.PRICING_SCHEMA_MISMATCH,
-          `Agent pricing not found for unit ${unit}`,
-        );
-      }
-      if (agentPricingMap.get(unit) !== amount) {
-        throw new JobError(
-          JobErrorCode.PRICING_SCHEMA_MISMATCH,
-          `Agent pricing for unit ${unit} is incorrect`,
-        );
-      }
-    }
-  }
   /**
    * Validates that a user has sufficient credit balance (in cents) to cover a specified amount.
    *
@@ -531,43 +484,6 @@ export const jobService = (() => {
         blockchainIdentifier: startJobResponse.blockchainIdentifier,
       },
     });
-
-    // Check if amounts are correct
-    const jobPricingAmounts: PricingAmountsSchemaType =
-      startJobResponse.amounts.map((amount) => ({
-        unit: amount.unit,
-        amount: amount.amount,
-      }));
-
-    // Add breadcrumb for pricing validation
-    const agentPricingAmounts = getAgentPricingAmounts(agentWithCreditsPrice);
-    if (!agentPricingAmounts) {
-      throw new JobError(
-        JobErrorCode.AGENT_PRICING_NOT_FOUND,
-        "Agent pricing not found",
-      );
-    }
-    try {
-      Sentry.addBreadcrumb({
-        category: "Job Service",
-        message: "Validating pricing schema",
-        level: "info",
-        data: {
-          agentAmountsCount: agentPricingAmounts.length,
-          jobAmountsCount: jobPricingAmounts.length,
-        },
-      });
-      tryValidatePricing(agentPricingAmounts, jobPricingAmounts);
-    } catch (error) {
-      Sentry.setTag("error_type", "pricing_schema_mismatch");
-      Sentry.setContext("pricing_validation", {
-        agentId,
-        agentAmounts: agentPricingAmounts,
-        jobAmounts: jobPricingAmounts,
-        agentJobId: startJobResponse.job_id,
-      });
-      throw error;
-    }
 
     // Generate job name
     const generatedName = await generateJobNameForAgent(
