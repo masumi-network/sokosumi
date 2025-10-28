@@ -258,7 +258,7 @@ export const jobRepository = {
             },
           },
         }),
-        inputSchema: data.inputSchema,
+        inputSchema: JSON.stringify(data.inputSchema),
         input: data.input,
         payByTime: null,
         submitResultTime: null,
@@ -298,7 +298,7 @@ export const jobRepository = {
           },
         },
       }),
-      inputSchema: data.inputSchema,
+      inputSchema: JSON.stringify(data.inputSchema),
       input: data.input,
       name: data.name,
       ...(data.jobScheduleId && {
