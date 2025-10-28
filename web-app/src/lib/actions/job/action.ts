@@ -342,14 +342,6 @@ const shareJobInPublic = withAuthContext<
         });
       }
 
-      // check if job is already shared publicly
-      if (job.share?.isPublic) {
-        return Err({
-          message: "Job already shared publicly",
-          code: JobErrorCode.JOB_ALREADY_SHARED_PUBLICLY,
-        });
-      }
-
       const share = await jobShareRepository.upsertPublicShare(
         jobId,
         sharePublic,
