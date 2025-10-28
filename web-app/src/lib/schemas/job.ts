@@ -1,5 +1,6 @@
 import * as z from "zod";
 
+import { JobScheduleType } from "@/lib/db/types/job";
 import { jobInputSchema } from "@/lib/job-input";
 
 export const startJobInputSchema = z.object({
@@ -21,6 +22,7 @@ export const startJobInputSchema = z.object({
       z.undefined(),
     ]),
   ),
+  jobScheduleId: z.string().nullish(),
 });
 
 export type StartJobInputSchemaType = z.infer<typeof startJobInputSchema>;
@@ -125,4 +127,38 @@ export const jobStatusResponseSchema = z
 
 export type JobStatusResponseSchemaType = z.infer<
   typeof jobStatusResponseSchema
+>;
+
+export const createJobScheduleInputSchema = z.object({
+  agentId: z.string(),
+  userId: z.string(),
+  organizationId: z.string().nullish(),
+  scheduleType: z.nativeEnum(JobScheduleType),
+  cron: z.string().nullish(),
+  oneTimeAtUtc: z.string().nullish(),
+  timezone: z.string(),
+  inputSchema: z.array(jobInputSchema()),
+  inputData: z.map(
+    z.string(),
+    z.union([
+      z.number(),
+      z.string(),
+      z.array(z.string()),
+      z.boolean(),
+      z.array(z.number()),
+      z.instanceof(File),
+      z.array(z.instanceof(File)),
+      z.undefined(),
+    ]),
+  ),
+  maxAcceptedCents: z.bigint(),
+  endOnUtc: z.string().nullish(),
+  endAfterOccurrences: z.number().int().positive().nullish(),
+  isActive: z.boolean().default(true),
+  pauseReason: z.string().nullish(),
+  nextRunAt: z.string().nullish(),
+});
+
+export type CreateJobScheduleInputSchemaType = z.infer<
+  typeof createJobScheduleInputSchema
 >;
