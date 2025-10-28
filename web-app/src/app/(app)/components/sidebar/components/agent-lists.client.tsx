@@ -1,13 +1,13 @@
 "use client";
 
 import { ChannelProvider } from "ably/react";
-import { ChevronDown, History, Pin, Sparkles } from "lucide-react";
-import Image from "next/image";
+import { ChevronDown, History, Pin } from "lucide-react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 import type { ComponentType, SVGProps } from "react";
 
+import AgentIcon from "@/components/agents/agent-icon";
 import {
   Collapsible,
   CollapsibleContent,
@@ -25,7 +25,6 @@ import {
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 import { JobIndicatorStatus, makeAgentJobsChannel } from "@/lib/ably";
 import { AgentWithAvailability, getAgentName } from "@/lib/db";
-import { getAgentResolvedIcon } from "@/lib/db/helpers";
 import { cn } from "@/lib/utils";
 
 import AgentJobStatusIndicator from "./agent-job-status-indicator";
@@ -96,7 +95,6 @@ export default function AgentListsClient({
                           const { agent, isAvailable } = agentWithAvailability;
                           const initialJobIndicatorStatus =
                             initialJobIndicatorStatuses[index];
-                          const resolvedIcon = getAgentResolvedIcon(agent);
 
                           return (
                             <SidebarMenuItem key={agent.id}>
@@ -114,30 +112,12 @@ export default function AgentListsClient({
                                 <SheetClose asChild>
                                   <Link href={`/agents/${agent.id}/jobs`}>
                                     <div className="group/agent-menu flex w-full items-center gap-2">
-                                      {resolvedIcon ? (
-                                        <Image
-                                          src={resolvedIcon}
-                                          alt={getAgentName(agent)}
-                                          width={16}
-                                          height={16}
-                                          className={cn(
-                                            "size-4 object-contain",
-                                            {
-                                              "opacity-60":
-                                                !isAvailable &&
-                                                agentId !== agent.id,
-                                            },
-                                          )}
-                                        />
-                                      ) : (
-                                        <Sparkles
-                                          className={cn("size-4", {
-                                            "text-muted-foreground":
-                                              !isAvailable &&
-                                              agentId !== agent.id,
-                                          })}
-                                        />
-                                      )}
+                                      <AgentIcon
+                                        agent={agent}
+                                        isMuted={
+                                          !isAvailable && agentId !== agent.id
+                                        }
+                                      />
                                       <span className="flex-1 truncate">
                                         {getAgentName(agent)}
                                       </span>

@@ -21,7 +21,7 @@ export default async function McpPage() {
           <p className="text-muted-foreground">{t("description")}</p>
         </div>
 
-        <Suspense fallback={<div>{"Loading..."}</div>}>
+        <Suspense fallback={<div>{t("loading")}</div>}>
           <McpPageContent
             activeOrganizationId={session.session.activeOrganizationId ?? null}
           />

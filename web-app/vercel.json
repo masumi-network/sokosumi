@@ -20,6 +20,10 @@
     {
       "path": "/api/sync/source-import",
       "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/sync/job-schedules",
+      "schedule": "* * * * *"
     }
   ]
 }
