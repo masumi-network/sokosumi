@@ -13,7 +13,7 @@ import {
 } from "@react-email/components";
 import { getTranslations } from "next-intl/server";
 
-interface JobFailureNotificationEmailProps {
+export interface JobFailureNotificationEmailProps {
   jobId: string;
   onChainStatus: string | null;
   agentStatus: string | null;
@@ -24,7 +24,17 @@ interface JobFailureNotificationEmailProps {
   inputSchema: string;
 }
 
-export const JobFailureNotificationEmail = async ({
+interface JobFailureNotificationEmailComponentProps
+  extends JobFailureNotificationEmailProps {
+  t: Awaited<ReturnType<typeof getTranslations>>;
+}
+
+export interface JobFailureNotificationEmail {
+  subject: string;
+  htmlBody: string;
+}
+
+const JobFailureNotificationEmailComponent = ({
   jobId,
   onChainStatus,
   agentStatus,
@@ -33,12 +43,8 @@ export const JobFailureNotificationEmail = async ({
   inputHash,
   resultHash,
   inputSchema,
-}: JobFailureNotificationEmailProps) => {
-  const t = await getTranslations({
-    locale: "en",
-    namespace: "Library.Email.JobFailureNotification",
-  });
-
+  t,
+}: JobFailureNotificationEmailComponentProps) => {
   // Helper function to format JSON strings
   const formatJson = (value: string | null) => {
     if (!value) return "null";
@@ -159,6 +165,18 @@ export const JobFailureNotificationEmail = async ({
 
 export async function reactJobFailureNotificationEmail(
   props: JobFailureNotificationEmailProps,
-) {
-  return await render(<JobFailureNotificationEmail {...props} />);
+): Promise<JobFailureNotificationEmail> {
+  const t = await getTranslations({
+    locale: "en",
+    namespace: "Library.Email.JobFailureNotification",
+  });
+
+  const htmlBody = await render(
+    <JobFailureNotificationEmailComponent {...props} t={t} />,
+  );
+
+  return {
+    subject: t("subject", { jobId: props.jobId }),
+    htmlBody,
+  };
 }

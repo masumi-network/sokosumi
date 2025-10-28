@@ -219,13 +219,8 @@ export const jobService = (() => {
         return;
       }
 
-      const t = await getTranslations({
-        locale: "en",
-        namespace: "Library.Email.JobFailureNotification",
-      });
-
-      // Prepare data for email template
-      const htmlBody = await reactJobFailureNotificationEmail({
+      // Generate email content (subject and body)
+      const { subject, htmlBody } = await reactJobFailureNotificationEmail({
         jobId: job.id,
         onChainStatus: job.onChainStatus,
         agentStatus: job.agentJobStatus,
@@ -241,7 +236,7 @@ export const jobService = (() => {
         From: POSTMARK_FROM_EMAIL,
         To: uniqueRecipients.join(","),
         Tag: "job-failure-notification",
-        Subject: t("subject", { jobId: job.id }),
+        Subject: subject,
         HtmlBody: htmlBody,
         MessageStream: "outbound",
       });
