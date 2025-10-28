@@ -241,7 +241,7 @@ export const jobService = (() => {
       });
 
       // Send email with appropriate To and Bcc recipients
-      await postmarkClient.sendEmail({
+      postmarkClient.sendEmail({
         From: POSTMARK_FROM_EMAIL,
         To: toRecipients.join(","),
         ...(bccRecipients && { Bcc: bccRecipients.join(",") }),
