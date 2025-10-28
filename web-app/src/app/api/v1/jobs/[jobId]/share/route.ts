@@ -96,6 +96,11 @@ export async function GET(
     if (!share) {
       throw new Error("JOB_SHARE_NOT_FOUND");
     }
+
+    if (share.job.userId !== authContext.userId) {
+      throw new Error("UNAUTHORIZED");
+    }
+
     return createApiSuccessResponse(formatJobShareResponse(share));
   } catch (error) {
     return handleApiError(error, "get job share", {
