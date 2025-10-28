@@ -56,7 +56,10 @@ export async function GET(
     const jobs = await jobRepository.getJobs({
       agentId,
       userId: apiKey.userId,
-      organizationId: activeOrganizationId,
+      ...(activeOrganizationId && {
+        organizationId: activeOrganizationId,
+        share: { organizationId: activeOrganizationId },
+      }),
     });
 
     // Format all jobs
