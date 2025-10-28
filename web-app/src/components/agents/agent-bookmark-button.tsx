@@ -2,7 +2,7 @@
 
 import { Bookmark } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -24,12 +24,9 @@ export function AgentBookmarkButton({
   disabled,
 }: AgentBookmarkButtonProps) {
   const t = useTranslations("Components.Agents.AgentCard");
+  // Use prop directly as initial state; updates come from user interaction
   const [isBookmarked, setIsBookmarked] = useState<boolean>(isFavorite);
   const [isLoading, setIsLoading] = useState(false);
-
-  useEffect(() => {
-    setIsBookmarked(isFavorite);
-  }, [isFavorite]);
 
   const handleBookmarkToggle = async () => {
     setIsLoading(true);

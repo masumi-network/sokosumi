@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import {
@@ -22,12 +22,9 @@ export function JobStatusEmailPreferences({
   initialEnabled,
 }: JobStatusEmailPreferencesProps) {
   const t = useTranslations("App.Account.Notifications");
+  // Use prop directly as initial state; updates come from user interaction
   const [enabled, setEnabled] = useState(initialEnabled);
   const [isSaving, setIsSaving] = useState(false);
-
-  useEffect(() => {
-    setEnabled(initialEnabled);
-  }, [initialEnabled]);
 
   const handleToggle = (nextValue: boolean) => {
     if (isSaving) {

@@ -54,7 +54,8 @@ export function useClipboard(): UseClipboardReturn {
     }
   }, []);
 
-  // Cleanup timeout on unmount
+  // Effect is necessary: Cleanup to prevent memory leaks
+  // Clears timeout when component unmounts to avoid setState on unmounted component
   useEffect(() => {
     return () => {
       if (timeoutRef.current) {

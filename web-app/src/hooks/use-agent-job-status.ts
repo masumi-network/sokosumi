@@ -21,7 +21,9 @@ export default function useAgentJobStatus(
     initialJobIndicatorStatus,
   );
 
-  // Sync state when initialJobIndicatorStatus changes
+  // Effect is necessary: Syncs local state when server data changes
+  // This handles cases like navigation between jobs or server-side data refreshes
+  // The real-time updates come via Ably below, but initial data must sync with props
   useEffect(() => {
     setJobStatusData(initialJobIndicatorStatus);
   }, [initialJobIndicatorStatus]);
