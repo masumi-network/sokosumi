@@ -28,6 +28,7 @@ import {
   jobShareRepository,
   prisma,
 } from "@/lib/db/repositories";
+import { reactJobFailureNotificationEmail } from "@/lib/email/job-failure-notification";
 import { reactJobStatusEmail } from "@/lib/email/job-status";
 import { postmarkClient } from "@/lib/email/postmark";
 import { JobInputData } from "@/lib/job-input";
@@ -61,6 +62,11 @@ const finalJobStatuses = new Set<JobStatus>([
   JobStatus.PAYMENT_FAILED,
   JobStatus.REFUND_RESOLVED,
   JobStatus.DISPUTE_RESOLVED,
+]);
+
+const failedJobStatuses = new Set<JobStatus>([
+  JobStatus.FAILED,
+  JobStatus.PAYMENT_FAILED,
 ]);
 
 export const jobService = (() => {
@@ -180,6 +186,73 @@ export const jobService = (() => {
           jobId: job.id,
           jobStatus,
           userId: job.userId,
+        },
+      });
+    }
+  }
+
+  async function dispatchJobFailureNotification(job: JobWithStatus) {
+    // Skip demo jobs
+    if (job.jobType === JobType.DEMO) {
+      return;
+    }
+
+    try {
+      const { JOB_FAILURE_NOTIFICATION_EMAILS } = getEnvSecrets();
+
+      // Build recipient list: stakeholders + agent author contact email
+      const recipients: string[] = [...JOB_FAILURE_NOTIFICATION_EMAILS];
+
+      // Add agent's authorContactEmail if it exists and is not null
+      const authorContactEmail = job.agent.authorContactEmail;
+      if (authorContactEmail && authorContactEmail.trim() !== "") {
+        recipients.push(authorContactEmail.trim());
+      }
+
+      // Remove duplicates and filter out empty strings
+      const uniqueRecipients = Array.from(
+        new Set(recipients.filter((email) => email.trim() !== "")),
+      );
+
+      if (uniqueRecipients.length === 0) {
+        console.warn("No recipients configured for job failure notification");
+        return;
+      }
+
+      // Prepare data for email template
+      const htmlBody = await reactJobFailureNotificationEmail({
+        jobId: job.id,
+        onChainStatus: job.onChainStatus,
+        agentStatus: job.agentJobStatus,
+        input: job.input,
+        output: job.output,
+        inputHash: job.inputHash,
+        resultHash: job.resultHash,
+        inputSchema: JSON.stringify(job.inputSchema),
+      });
+
+      // Send email to all recipients
+      await postmarkClient.sendEmail({
+        From: POSTMARK_FROM_EMAIL,
+        To: uniqueRecipients.join(","),
+        Tag: "job-failure-notification",
+        Subject: `Job Failure Notification - ${job.id}`,
+        HtmlBody: htmlBody,
+        MessageStream: "outbound",
+      });
+    } catch (error) {
+      Sentry.captureException(error, {
+        contexts: {
+          error_classification: {
+            severity: "error",
+            domain: "job_failure_notification",
+            category: "service_layer",
+          },
+        },
+        extra: {
+          jobId: job.id,
+          userId: job.userId,
+          agentId: job.agentId,
         },
       });
     }
@@ -897,6 +970,11 @@ export const jobService = (() => {
 
       if (finalJobStatuses.has(newJobStatus)) {
         await dispatchFinalStatusNotification(job, newJobStatus);
+      }
+
+      // Send failure notification for FAILED or PAYMENT_FAILED statuses
+      if (failedJobStatuses.has(newJobStatus)) {
+        await dispatchJobFailureNotification(job);
       }
 
       try {

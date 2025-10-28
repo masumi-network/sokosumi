@@ -134,6 +134,12 @@ const envSecretsSchema = z.object({
   USER_CREATED_WEBHOOK: z.url().optional(),
   USER_UPDATED_WEBHOOK: z.url().optional(),
   ACCOUNT_CREATED_WEBHOOK: z.url().optional(),
+
+  // Job failure notifications
+  JOB_FAILURE_NOTIFICATION_EMAILS: z
+    .string()
+    .transform((val: string) => (val.trim() === "" ? [] : val.split(",")))
+    .default([]),
 });
 
 let envSecrets: z.infer<typeof envSecretsSchema>;
