@@ -34,11 +34,16 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     const activeOrganizationId = apiKey.metadata?.organizationId;
 
     const jobs = await jobRepository.getJobs({
-      userId: apiKey.userId,
-      ...(activeOrganizationId && {
-        organizationId: activeOrganizationId,
-        share: { organizationId: activeOrganizationId },
-      }),
+      OR: [
+        {
+          ...(activeOrganizationId && {
+            share: { organizationId: activeOrganizationId },
+          }),
+        },
+        {
+          userId: apiKey.userId,
+        },
+      ],
       ...(agentIdFilter ? { agentId: agentIdFilter } : {}),
     });
 
