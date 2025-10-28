@@ -28,7 +28,10 @@ import {
   jobShareRepository,
   prisma,
 } from "@/lib/db/repositories";
-import { reactJobFailureNotificationEmail } from "@/lib/email/job-failure-notification";
+import {
+  JobFailureNotificationEmailProps,
+  reactJobFailureNotificationEmail,
+} from "@/lib/email/job-failure-notification";
 import { reactJobStatusEmail } from "@/lib/email/job-status";
 import { postmarkClient } from "@/lib/email/postmark";
 import { JobInputData } from "@/lib/job-input";
@@ -191,6 +194,25 @@ export const jobService = (() => {
     }
   }
 
+  /**
+   * Extracts job failure notification data from a job.
+   * This data structure is used for both webhook notifications and email notifications.
+   */
+  function extractJobFailureNotificationData(
+    job: JobWithStatus,
+  ): JobFailureNotificationEmailProps {
+    return {
+      jobId: job.id,
+      onChainStatus: job.onChainStatus,
+      agentStatus: job.agentJobStatus,
+      input: job.input,
+      output: job.output,
+      inputHash: job.inputHash,
+      resultHash: job.resultHash,
+      inputSchema: job.inputSchema,
+    };
+  }
+
   async function dispatchJobFailureNotification(job: JobWithStatus) {
     // Skip demo jobs
     if (job.jobType === JobType.DEMO) {
@@ -223,18 +245,12 @@ export const jobService = (() => {
         bccRecipients = undefined;
       }
 
+      // Extract notification data once for both webhook and email
+      const notificationData = extractJobFailureNotificationData(job);
+
       fetch(`https://hooks.zapier.com/hooks/catch/11627944/uimj0wi/`, {
         method: "POST",
-        body: JSON.stringify({
-          jobId: job.id,
-          onChainStatus: job.onChainStatus,
-          agentStatus: job.agentJobStatus,
-          input: job.input,
-          output: job.output,
-          inputHash: job.inputHash,
-          resultHash: job.resultHash,
-          inputSchema: job.inputSchema,
-        }),
+        body: JSON.stringify(notificationData),
       });
 
       if (toRecipients.length === 0) {
@@ -243,16 +259,8 @@ export const jobService = (() => {
       }
 
       // Generate email content (subject and body)
-      const { subject, htmlBody } = await reactJobFailureNotificationEmail({
-        jobId: job.id,
-        onChainStatus: job.onChainStatus,
-        agentStatus: job.agentJobStatus,
-        input: job.input,
-        output: job.output,
-        inputHash: job.inputHash,
-        resultHash: job.resultHash,
-        inputSchema: job.inputSchema,
-      });
+      const { subject, htmlBody } =
+        await reactJobFailureNotificationEmail(notificationData);
 
       // Send email with appropriate To and Bcc recipients
       postmarkClient.sendEmail({
