@@ -71,89 +71,89 @@ const JobFailureNotificationEmailComponent = ({
               {t("description")}
             </Text>
 
-            <Hr className="mx-0 my-[16px] w-full border border-solid border-[#eaeaea]" />
+            <Hr className="mx-0 my-4 w-full border border-solid border-[#eaeaea]" />
 
-            <Section className="mb-[12px]">
-              <Text className="mb-[4px] text-[12px] leading-[20px] font-semibold text-black">
+            <Section className="my-2">
+              <Text className="my-1 text-base font-semibold text-black">
                 {t("jobId")}
               </Text>
-              <Text className="font-mono text-[12px] leading-[20px] text-[#666666]">
+              <Text className="font-mono text-base text-[#666666]">
                 {jobId}
               </Text>
             </Section>
 
-            <Section className="mb-[12px]">
-              <Text className="mb-[4px] text-[12px] leading-[20px] font-semibold text-black">
+            <Section className="my-2">
+              <Text className="my-1 text-base font-semibold text-black">
                 {t("onChainStatus")}
               </Text>
-              <Text className="font-mono text-[12px] leading-[20px] text-[#666666]">
+              <Text className="font-mono text-base text-[#666666]">
                 {onChainStatus || "null"}
               </Text>
             </Section>
 
-            <Section className="mb-[12px]">
-              <Text className="mb-[4px] text-[12px] leading-[20px] font-semibold text-black">
+            <Section className="my-2">
+              <Text className="my-1 text-base font-semibold text-black">
                 {t("agentStatus")}
               </Text>
-              <Text className="font-mono text-[12px] leading-[20px] text-[#666666]">
+              <Text className="font-mono text-base text-[#666666]">
                 {agentStatus || "null"}
               </Text>
             </Section>
 
-            <Section className="mb-[12px]">
-              <Text className="mb-[4px] text-[12px] leading-[20px] font-semibold text-black">
+            <Section className="my-2">
+              <Text className="my-1 text-base font-semibold text-black">
                 {t("inputHash")}
               </Text>
-              <Text className="font-mono text-[12px] leading-[20px] break-all text-[#666666]">
+              <Text className="font-mono text-base break-all text-[#666666]">
                 {inputHash || "null"}
               </Text>
             </Section>
 
             <Section className="mb-[12px]">
-              <Text className="mb-[4px] text-[12px] leading-[20px] font-semibold text-black">
+              <Text className="my-1 text-base font-semibold text-black">
                 {t("resultHash")}
               </Text>
-              <Text className="font-mono text-[12px] leading-[20px] break-all text-[#666666]">
+              <Text className="font-mono text-base break-all text-[#666666]">
                 {resultHash || "null"}
               </Text>
             </Section>
 
-            <Section className="mb-[12px]">
-              <Text className="mb-[4px] text-[12px] leading-[20px] font-semibold text-black">
+            <Section className="my-2">
+              <Text className="my-1 text-base font-semibold text-black">
                 {t("inputSchema")}
               </Text>
-              <Container className="rounded bg-[#f4f4f4] p-[12px]">
-                <Text className="font-mono text-[11px] leading-[18px] break-all whitespace-pre-wrap text-[#333333]">
+              <Container className="rounded bg-[#f4f4f4] p-2">
+                <Text className="font-mono text-sm break-all whitespace-pre-wrap text-[#333333]">
                   {formatJson(inputSchema)}
                 </Text>
               </Container>
             </Section>
 
-            <Section className="mb-[12px]">
-              <Text className="mb-[4px] text-[12px] leading-[20px] font-semibold text-black">
+            <Section className="my-2">
+              <Text className="my-1 text-base font-semibold text-black">
                 {t("input")}
               </Text>
-              <Container className="rounded bg-[#f4f4f4] p-[12px]">
-                <Text className="font-mono text-[11px] leading-[18px] break-all whitespace-pre-wrap text-[#333333]">
+              <Container className="rounded bg-[#f4f4f4] p-2">
+                <Text className="font-mono text-sm break-all whitespace-pre-wrap text-[#333333]">
                   {formatJson(input)}
                 </Text>
               </Container>
             </Section>
 
-            <Section className="mb-[12px]">
-              <Text className="mb-[4px] text-[12px] leading-[20px] font-semibold text-black">
+            <Section className="my-2">
+              <Text className="my-1 text-base font-semibold text-black">
                 {t("output")}
               </Text>
-              <Container className="rounded bg-[#f4f4f4] p-[12px]">
-                <Text className="font-mono text-[11px] leading-[18px] break-all whitespace-pre-wrap text-[#333333]">
+              <Container className="rounded bg-[#f4f4f4] p-2">
+                <Text className="font-mono text-sm break-all whitespace-pre-wrap text-[#333333]">
                   {formatJson(output)}
                 </Text>
               </Container>
             </Section>
 
-            <Hr className="mx-0 my-[20px] w-full border border-solid border-[#eaeaea]" />
+            <Hr className="mx-0 my-4 w-full border border-solid border-[#eaeaea]" />
 
-            <Text className="text-[12px] leading-[24px] text-[#666666]">
+            <Text className="text-sm leading-[24px] text-[#666666]">
               {t("footer")}
             </Text>
           </Container>
