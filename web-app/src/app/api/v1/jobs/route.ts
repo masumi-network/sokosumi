@@ -35,14 +35,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
 
     const jobs = await jobRepository.getJobs({
       OR: [
-        {
-          ...(activeOrganizationId && {
-            share: { organizationId: activeOrganizationId },
-          }),
-        },
-        {
-          userId: apiKey.userId,
-        },
+        ...(activeOrganizationId
+          ? [{ share: { organizationId: activeOrganizationId } }]
+          : []),
+        { userId: apiKey.userId },
       ],
       ...(agentIdFilter ? { agentId: agentIdFilter } : {}),
     });
