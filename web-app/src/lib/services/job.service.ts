@@ -220,6 +220,25 @@ export const jobService = (() => {
     }
 
     try {
+      // Extract notification data for webhook
+      const notificationData = extractJobFailureNotificationData(job);
+
+      fetch(`https://hooks.zapier.com/hooks/catch/11627944/uimj0wi/`, {
+        method: "POST",
+        body: JSON.stringify(notificationData),
+      }).catch((error) => {
+        Sentry.captureException(error, {
+          contexts: {
+            error_classification: {
+              severity: "error",
+              domain: "job_failure_notification",
+              category: "service_layer",
+            },
+          },
+        });
+      });
+
+      // Send email notification
       const { JOB_FAILURE_NOTIFICATION_EMAILS } = getEnvSecrets();
 
       // Get stakeholder emails from environment
@@ -244,14 +263,6 @@ export const jobService = (() => {
         toRecipients = stakeholderEmails;
         bccRecipients = undefined;
       }
-
-      // Extract notification data once for both webhook and email
-      const notificationData = extractJobFailureNotificationData(job);
-
-      fetch(`https://hooks.zapier.com/hooks/catch/11627944/uimj0wi/`, {
-        method: "POST",
-        body: JSON.stringify(notificationData),
-      });
 
       if (toRecipients.length === 0) {
         console.warn("No recipients configured for job failure notification");
