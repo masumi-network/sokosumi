@@ -63,12 +63,6 @@ export const startPaidJobResponseSchema = startFreeJobResponseSchema.extend({
   externalDisputeUnlockTime: z.coerce.number().int(),
   agentIdentifier: z.string().min(1),
   sellerVKey: z.string().min(1),
-  amounts: z.array(
-    z.object({
-      unit: z.string(),
-      amount: z.coerce.bigint().positive(),
-    }),
-  ),
 });
 
 export type StartPaidJobResponseSchemaType = z.infer<
