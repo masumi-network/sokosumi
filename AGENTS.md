@@ -30,7 +30,7 @@ sokosumi/
 │       ├── prisma/            # Database schema and migrations
 │       └── messages/          # Translation catalogs
 ├── packages/                  # Shared packages (future)
-├── tooling/                   # Build tools and configurations (future)
+├── configs/                   # Build tools and configurations (future)
 └── docs/                      # Documentation (future)
 ```
 

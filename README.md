@@ -9,7 +9,7 @@ sokosumi/
 ├── apps/
 │   └── web/         # Next.js 16 web application (TypeScript, Tailwind, Shadcn UI)
 ├── packages/        # Shared packages (future)
-├── tooling/         # Build tools and configurations (future)
+├── configs/         # Build tools and configurations (future)
 ├── docs/            # Documentation (future)
 ├── package.json     # Monorepo root config
 ├── pnpm-workspace.yaml # Monorepo workspace config
