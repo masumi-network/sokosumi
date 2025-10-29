@@ -233,25 +233,20 @@ export const jobService = (() => {
           },
           body: JSON.stringify(notificationData),
         });
-        fetch(request)
-          .catch((webhookError) => {
-            console.error("Error sending job failure webhook", webhookError);
-            Sentry.captureException(webhookError, {
-              contexts: {
-                error_classification: {
-                  severity: "error",
-                  domain: "job_failure_notification",
-                  category: "webhook",
-                },
+        fetch(request).catch((webhookError) => {
+          Sentry.captureException(webhookError, {
+            contexts: {
+              error_classification: {
+                severity: "error",
+                domain: "job_failure_notification",
+                category: "webhook",
               },
-              extra: {
-                jobId: job.id,
-              },
-            });
-          })
-          .then((res) => {
-            console.log("job failure webhook response", res);
+            },
+            extra: {
+              jobId: job.id,
+            },
           });
+        });
       }
 
       // Send email notification
