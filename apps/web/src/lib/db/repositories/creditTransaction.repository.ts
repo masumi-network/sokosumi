@@ -1,8 +1,7 @@
 import "server-only";
 
-import { CreditTransaction, Prisma } from "@/prisma/generated/client";
-
-import prisma from "./prisma";
+import { CreditTransaction, Prisma } from "@sokosumi/database";
+import prisma from "@sokosumi/database/client";
 
 /**
  * Credit Transaction Repository Interface

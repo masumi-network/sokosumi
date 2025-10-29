@@ -1,5 +1,6 @@
 "use client";
 
+import { AgentListType } from "@sokosumi/database";
 import { Bookmark } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -8,7 +9,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { toggleAgentInAgentList } from "@/lib/actions";
 import { cn } from "@/lib/utils";
-import { AgentListType } from "@/prisma/generated/client";
 
 interface AgentBookmarkButtonProps {
   agentId: string;

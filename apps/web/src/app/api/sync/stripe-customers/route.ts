@@ -1,3 +1,4 @@
+import { Lock } from "@sokosumi/database";
 import { after, NextResponse } from "next/server";
 import pLimit from "p-limit";
 import pTimeout from "p-timeout";
@@ -10,7 +11,6 @@ import {
   userRepository,
 } from "@/lib/db/repositories";
 import { lockService, stripeService } from "@/lib/services";
-import { Lock } from "@/prisma/generated/client";
 
 const LOCK_KEY = "stripe-customers-sync";
 

@@ -1,10 +1,10 @@
 "use client";
 
+import { BlobStatus } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { BlobStatus } from "@/prisma/generated/client";
 
 export interface BlobStatusBadgeProps {
   status?: BlobStatus;

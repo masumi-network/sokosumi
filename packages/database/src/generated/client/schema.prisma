@@ -1,0 +1,757 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider   = "prisma-client-js"
+  output     = "../src/generated/client"
+  engineType = "client"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(uuid())
+  name          String
+  email         String
+  emailVerified Boolean
+  image         String?
+  imageHash     String? // Hash of image. (when this is too long for Cookie. e.g. base64)
+  createdAt     DateTime
+  updatedAt     DateTime
+  sessions      Session[]
+  accounts      Account[]
+
+  userAgentRatings   UserAgentRating[]
+  agentLists         AgentList[]
+  creditTransactions CreditTransaction[]
+  fiatTransactions   FiatTransaction[]
+  jobs               Job[]
+  jobSchedules       JobSchedule[]
+  blobs              Blob[]              @relation("UserBlob")
+  links              Link[]              @relation("UserLink")
+
+  stripeCustomerId String?
+
+  members     Member[]
+  invitations Invitation[]
+
+  marketingOptIn Boolean @default(false)
+
+  // terms
+  termsAccepted Boolean @default(false)
+
+  // Notifications
+  jobStatusNotificationsOptIn Boolean @default(true)
+
+  // UTM Attribution
+  utmAttribution UTMAttribution?
+
+  apikeys Apikey[]
+
+  // Onboarding
+  onboardingCompleted Boolean @default(false)
+
+  @@unique([email])
+  @@unique([stripeCustomerId])
+  @@map("user")
+}
+
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime
+  updatedAt DateTime
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  activeOrganizationId String?
+
+  @@unique([token])
+  @@map("session")
+}
+
+model Account {
+  id                    String    @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime
+  updatedAt             DateTime
+
+  @@map("account")
+}
+
+model Verification {
+  id         String    @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime?
+  updatedAt  DateTime?
+
+  @@map("verification")
+}
+
+model Organization {
+  id        String   @id @default(cuid())
+  name      String
+  slug      String
+  logo      String?
+  metadata  String?
+  createdAt DateTime @default(now())
+
+  members            Member[]
+  invitations        Invitation[]
+  agents             Agent[]
+  blacklistedAgents  Agent[]             @relation("AgentBlacklist")
+  jobs               Job[]
+  jobSchedules       JobSchedule[]
+  creditTransactions CreditTransaction[]
+  fiatTransactions   FiatTransaction[]
+  jobShares          JobShare[]
+
+  stripeCustomerId String?
+  invoiceEmail     String?
+
+  @@unique([slug])
+  @@unique([stripeCustomerId])
+  @@map("organization")
+}
+
+model Member {
+  id             String       @id @default(cuid())
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role           String       @default("member")
+  createdAt      DateTime     @default(now())
+
+  @@unique([userId, organizationId])
+  @@map("member")
+}
+
+model Invitation {
+  id             String       @id @default(cuid())
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  email          String
+  role           String?
+  status         String
+  expiresAt      DateTime
+  inviterId      String
+  inviter        User         @relation(fields: [inviterId], references: [id], onDelete: Cascade)
+
+  @@map("invitation")
+}
+
+model UTMAttribution {
+  id String @id @default(cuid())
+
+  // User
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // UTM parameters
+  utmSource   String
+  utmMedium   String?
+  utmCampaign String?
+  utmTerm     String?
+  utmContent  String?
+
+  // Referral
+  referrer    String?
+  landingPage String?
+
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  capturedAt  DateTime // when the UTM attribution was captured
+  convertedAt DateTime // when the User actually signed up
+
+  @@index([utmSource, utmMedium, utmCampaign])
+  @@index([capturedAt])
+  @@index([convertedAt])
+  @@map("utmAttribution")
+}
+
+model RateLimit {
+  id          String  @id
+  key         String?
+  count       Int?
+  lastRequest BigInt?
+
+  @@map("rateLimit")
+}
+
+model UnitValue {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  unit      String
+  amount    BigInt
+
+  agentFixedPricing   AgentFixedPricing? @relation(fields: [agentFixedPricingId], references: [id])
+  agentFixedPricingId String?
+  paymentRequestId    String?
+  purchaseRequestId   String?
+}
+
+model AgentPricing {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  pricingType         PricingType
+  fixedPricing        AgentFixedPricing? @relation(fields: [agentFixedPricingId], references: [id])
+  agentFixedPricingId String?            @unique
+  agent               Agent?
+}
+
+enum PricingType {
+  FIXED
+  FREE
+  UNKNOWN
+}
+
+model AgentFixedPricing {
+  id           String        @id @default(cuid())
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  agentPricing AgentPricing?
+  amounts      UnitValue[]
+}
+
+model ExampleOutput {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  name      String
+  mimeType  String
+  url       String
+
+  agent           Agent?  @relation("ExampleOutputAgent", fields: [agentId], references: [id])
+  agentId         String?
+  agentOverride   Agent?  @relation("ExampleOutputAgentOverride", fields: [agentIdOverride], references: [id])
+  agentIdOverride String?
+}
+
+model UserAgentRating {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  rating    Int
+  comment   String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  agentId   String
+  agent     Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, agentId])
+  @@index([agentId])
+  @@index([createdAt(sort: Desc)])
+  @@index([agentId, createdAt(sort: Desc)])
+}
+
+model Agent {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  blockchainIdentifier String @unique
+
+  name         String
+  overrideName String?
+
+  description         String?
+  overrideDescription String?
+
+  apiBaseUrl         String
+  overrideApiBaseUrl String?
+
+  capabilityName         String
+  overrideCapabilityName String?
+
+  capabilityVersion         String
+  overrideCapabilityVersion String?
+
+  authorName         String
+  overrideAuthorName String?
+
+  authorImage         String?
+  overrideAuthorImage String?
+
+  authorContactEmail         String?
+  overrideAuthorContactEmail String?
+
+  authorContactOther         String?
+  overrideAuthorContactOther String?
+
+  authorOrganization         String?
+  overrideAuthorOrganization String?
+
+  legalPrivacyPolicy         String?
+  overrideLegalPrivacyPolicy String?
+
+  legalTerms         String?
+  overrideLegalTerms String?
+
+  legalOther         String?
+  overrideLegalOther String?
+
+  lastUptimeCheck  DateTime
+  uptimeCount      Int
+  uptimeCheckCount Int
+
+  image         String
+  overrideImage String?
+  icon          String?
+
+  metadataVersion Int @default(1)
+
+  paymentType PaymentType  @default(WEB3_CARDANO_V1)
+  pricing     AgentPricing @relation(fields: [pricingId], references: [id])
+  pricingId   String       @unique
+
+  status AgentStatus @default(ONLINE)
+
+  isShown            Boolean
+  riskClassification RiskClassification @default(MINIMAL)
+
+  exampleOutput         ExampleOutput[] @relation("ExampleOutputAgent")
+  overrideExampleOutput ExampleOutput[] @relation("ExampleOutputAgentOverride")
+
+  userAgentRating          UserAgentRating[]
+  agentLists               AgentList[]
+  jobs                     Job[]
+  jobSchedules             JobSchedule[]
+  organizations            Organization[]
+  blacklistedOrganizations Organization[]    @relation("AgentBlacklist")
+
+  tags         Tag[] @relation("AgentTag")
+  overrideTags Tag[] @relation("AgentTagOverride")
+
+  // Demo Input and Output
+  demoInput  String?
+  demoOutput String?
+
+  // Summary
+  summary String?
+}
+
+enum PaymentType {
+  WEB3_CARDANO_V1
+  NONE
+  UNKNOWN
+}
+
+enum RiskClassification {
+  MINIMAL // Freely allowed, no obligations (GREEN)
+  LIMITED // Allowed with transparency obligations (YELLOW)
+  HIGH // Allowed but heavily regulated (ORANGE/AMBER)
+  UNACCEPTABLE // Not allowed (RED)
+}
+
+model Lock {
+  id        String    @id @default(cuid())
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  key       String    @unique
+  isLocked  Boolean   @default(false)
+  lockedAt  DateTime?
+  lockedBy  String?
+}
+
+model Tag {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  name      String   @unique
+
+  agents         Agent[] @relation("AgentTag")
+  agentsOverride Agent[] @relation("AgentTagOverride")
+}
+
+enum AgentStatus {
+  ONLINE
+  OFFLINE
+  DEREGISTERED
+  INVALID
+}
+
+model AgentList {
+  id     String        @id @default(cuid())
+  user   User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId String
+  type   AgentListType
+  agents Agent[]
+
+  @@unique([userId, type])
+}
+
+enum AgentListType {
+  FAVORITE
+}
+
+model CreditTransaction {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  amount      BigInt // positive is always a credit topup and negative is always a credit spend; 1_000_000_000_000 = 1 credit (10^12) with NEXT_PUBLIC_CREDITS_BASE = 12
+  includedFee BigInt @default(0)
+
+  note         String?
+  noteKey      String?
+  errorNote    String?
+  errorNoteKey String?
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  fiatTransaction FiatTransaction?
+
+  job         Job? @relation("CreditTransactionJob")
+  refundedJob Job? @relation("RefundedCreditTransactionJob")
+
+  @@index([userId, organizationId])
+}
+
+model FiatTransaction {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  amount           BigInt // Base Unit: 100 = 1 USD, 10000 = 100 USD if currency is USD
+  currency         String
+  cents            BigInt
+  servicePaymentId String?               @unique
+  service          FiatService           @default(STRIPE)
+  status           FiatTransactionStatus @default(PENDING)
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  creditTransaction   CreditTransaction? @relation(fields: [creditTransactionId], references: [id], onDelete: Cascade)
+  creditTransactionId String?            @unique
+
+  @@index([userId, organizationId])
+}
+
+enum FiatTransactionStatus {
+  PENDING
+  SUCCEEDED
+  FAILED
+}
+
+enum FiatService {
+  STRIPE
+}
+
+enum JobType {
+  FREE
+  PAID
+  DEMO
+}
+
+model Job {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  agentId String
+  agent   Agent  @relation(fields: [agentId], references: [id])
+
+  agentJobId     String
+  agentJobStatus AgentJobStatus?
+
+  purchaseId String?
+
+  inputSchema       String
+  input             String
+  inputHash         String? // On-Chain hash of the input data
+  output            String?
+  resultHash        String? // On-Chain hash of the result data
+  startedAt         DateTime  @default(now())
+  completedAt       DateTime?
+  resultSubmittedAt DateTime?
+
+  nextAction          NextJobAction           @default(NONE)
+  nextActionErrorType NextJobActionErrorType?
+  nextActionErrorNote String?
+
+  errorNote    String?
+  errorNoteKey String?
+
+  jobType JobType
+
+  blockchainIdentifier      String?   @unique
+  identifierFromPurchaser   String?
+  payByTime                 DateTime?
+  submitResultTime          DateTime?
+  unlockTime                DateTime?
+  externalDisputeUnlockTime DateTime?
+  sellerVkey                String?
+
+  onChainStatus OnChainJobStatus?
+
+  onChainTransactionHash   String?
+  onChainTransactionStatus OnChainTransactionStatus?
+
+  creditTransaction           CreditTransaction? @relation("CreditTransactionJob", fields: [creditTransactionId], references: [id])
+  creditTransactionId         String?            @unique
+  refundedCreditTransaction   CreditTransaction? @relation("RefundedCreditTransactionJob", fields: [refundedCreditTransactionId], references: [id])
+  refundedCreditTransactionId String?            @unique
+
+  name String?
+
+  blobs Blob[] @relation("JobBlob")
+  links Link[] @relation("JobLink")
+
+  // Public Share
+  share JobShare?
+
+  // Optional link to the schedule that initiated this job
+  jobScheduleId String?
+  jobSchedule   JobSchedule? @relation(fields: [jobScheduleId], references: [id], onDelete: SetNull)
+
+  @@index([jobType])
+  @@index([jobScheduleId])
+}
+
+enum OnChainTransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum NextJobActionErrorType {
+  NETWORK_ERROR
+  INSUFFICIENT_FUNDS
+  UNKNOWN
+}
+
+enum NextJobAction {
+  NONE
+  IGNORE
+  WAITING_FOR_MANUAL_ACTION
+  WAITING_FOR_EXTERNAL_ACTION
+  FUNDS_LOCKING_REQUESTED
+  FUNDS_LOCKING_INITIATED
+  SET_REFUND_REQUESTED_REQUESTED
+  SET_REFUND_REQUESTED_INITIATED
+  UNSET_REFUND_REQUESTED_REQUESTED
+  UNSET_REFUND_REQUESTED_INITIATED
+  WITHDRAW_REFUND_REQUESTED
+  WITHDRAW_REFUND_INITIATED
+}
+
+enum OnChainJobStatus {
+  FUNDS_LOCKED
+  FUNDS_OR_DATUM_INVALID
+  FUNDS_WITHDRAWN
+
+  RESULT_SUBMITTED
+
+  REFUND_REQUESTED
+  REFUND_WITHDRAWN
+
+  DISPUTED
+  DISPUTED_WITHDRAWN
+}
+
+enum AgentJobStatus {
+  PENDING
+  AWAITING_PAYMENT
+  AWAITING_INPUT
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model CreditCost {
+  id           String   @id @default(cuid())
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  unit         String   @unique
+  centsPerUnit BigInt
+}
+
+model Apikey {
+  id                  String    @id
+  name                String?
+  start               String?
+  prefix              String?
+  key                 String
+  userId              String
+  user                User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refillInterval      Int?
+  refillAmount        Int?
+  lastRefillAt        DateTime?
+  enabled             Boolean?
+  rateLimitEnabled    Boolean?
+  rateLimitTimeWindow Int?
+  rateLimitMax        Int?
+  requestCount        Int?
+  remaining           Int?
+  lastRequest         DateTime?
+  expiresAt           DateTime?
+  createdAt           DateTime
+  updatedAt           DateTime
+  permissions         String?
+  metadata            String?
+
+  @@map("apikey")
+}
+
+model Blob {
+  id        String     @id @default(uuid())
+  userId    String
+  jobId     String
+  fileUrl   String?
+  fileName  String?
+  mime      String?
+  size      BigInt?
+  origin    BlobOrigin @default(INPUT)
+  sourceUrl String?
+  status    BlobStatus @default(READY)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  user User @relation("UserBlob", fields: [userId], references: [id], onDelete: Cascade)
+  job  Job  @relation("JobBlob", fields: [jobId], references: [id], onDelete: Cascade)
+
+  // Performance indexes
+  @@index([status, origin, createdAt]) // For getPendingOutputBlobs query
+  @@index([jobId, origin]) // For fetching blobs by job with origin filter
+  @@index([jobId, sourceUrl]) // For deduplication checks
+  @@index([userId, status]) // For user-specific blob queries
+  @@map("blob")
+}
+
+model Link {
+  id        String   @id @default(uuid())
+  userId    String
+  jobId     String
+  url       String
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation("UserLink", fields: [userId], references: [id], onDelete: Cascade)
+  job  Job  @relation("JobLink", fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, url])
+  @@index([jobId]) // For fetching all links for a job
+  @@map("link")
+}
+
+enum BlobOrigin {
+  INPUT
+  OUTPUT
+}
+
+enum BlobStatus {
+  PENDING
+  READY
+  FAILED
+}
+
+model JobShare {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  jobId String @unique
+  job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Security & Access
+  token String? @unique
+
+  // SEO Control
+  allowSearchIndexing Boolean @default(true)
+
+  @@index([organizationId])
+  @@map("jobShare")
+}
+
+model JobSchedule {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Ownership
+  userId         String
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  agentId        String
+  agent          Agent         @relation(fields: [agentId], references: [id])
+
+  // Execution configuration
+  scheduleType        ScheduleType
+  cron                String?
+  oneTimeAtUtc        DateTime?
+  timezone            String // IANA timezone identifier used for display and next run calculation
+  endOnUtc            DateTime?
+  endAfterOccurrences Int?
+
+  // Job payload snapshot
+  inputSchema      Json
+  input            String
+  maxAcceptedCents BigInt
+
+  // State
+  isActive    Boolean   @default(true)
+  nextRunAt   DateTime?
+  pauseReason String?
+
+  // Back-relation to jobs initiated by this schedule
+  jobs Job[]
+
+  @@index([isActive, nextRunAt])
+  @@index([agentId])
+  @@map("jobSchedule")
+}
+
+enum ScheduleType {
+  ONE_TIME
+  CRON
+}
+
+enum ShareAccessType {
+  PUBLIC // Anyone can access
+  RESTRICTED // Only the recipient can access
+}

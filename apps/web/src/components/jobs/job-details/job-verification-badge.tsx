@@ -1,5 +1,6 @@
 "use client";
 
+import { OnChainJobStatus } from "@sokosumi/database";
 import { AlertCircle, CheckCheck, Loader2, X } from "lucide-react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
@@ -13,7 +14,6 @@ import {
 import { siteConfig } from "@/config/site";
 import { isDemoJob, isFreeJob, type JobWithStatus } from "@/lib/db";
 import { cn, isJobVerified } from "@/lib/utils";
-import { OnChainJobStatus } from "@/prisma/generated/client";
 
 interface VerificationState {
   isPending: boolean;

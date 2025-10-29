@@ -1,8 +1,7 @@
 import "server-only";
 
-import { Prisma } from "@/prisma/generated/client";
-
-import prisma from "./prisma";
+import { Prisma } from "@sokosumi/database";
+import prisma from "@sokosumi/database/client";
 
 export interface AgentRatingStats {
   totalRatings: number;

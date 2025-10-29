@@ -1,10 +1,10 @@
+import { Tag } from "@sokosumi/database";
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { AgentsNotAvailable } from "@/components/agents";
 import { agentRatingRepository, tagRepository } from "@/lib/db/repositories";
 import { agentService } from "@/lib/services";
-import { Tag } from "@/prisma/generated/client";
 
 import FilterSection from "./components/filter-section";
 import FilteredAgents from "./components/filtered-agents";

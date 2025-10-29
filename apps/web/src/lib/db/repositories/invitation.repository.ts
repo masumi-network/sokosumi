@@ -1,13 +1,13 @@
 import "server-only";
 
+import { Prisma } from "@sokosumi/database";
+import prisma from "@sokosumi/database/client";
+
 import {
   invitationInclude,
   InvitationStatus,
   InvitationWithRelations,
 } from "@/lib/db/types";
-import { Prisma } from "@/prisma/generated/client";
-
-import prisma from "./prisma";
 
 /**
  * Repository for managing invitation records in the database.

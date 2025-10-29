@@ -1,4 +1,6 @@
 "use client";
+import type { Blob } from "@sokosumi/database";
+import { JsonValue } from "@sokosumi/database/runtime/library";
 import { useTranslations } from "next-intl";
 import * as z from "zod";
 
@@ -6,8 +8,6 @@ import DefaultErrorBoundary from "@/components/default-error-boundary";
 import { FileChip } from "@/components/ui/file-chip";
 import { jobInputSchema, ValidJobInputTypes } from "@/lib/job-input";
 import { isUrlArray, isUrlString } from "@/lib/utils/file";
-import type { Blob } from "@/prisma/generated/client";
-import { JsonValue } from "@/prisma/generated/client/runtime/library";
 
 interface JobDetailsInputsProps {
   rawInput: string | null;

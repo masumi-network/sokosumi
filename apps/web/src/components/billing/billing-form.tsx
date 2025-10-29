@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Organization } from "@sokosumi/database";
 import { Building2, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
@@ -35,7 +36,6 @@ import {
 } from "@/lib/actions";
 import { Price } from "@/lib/clients/stripe.client";
 import { fireGTMEvent } from "@/lib/gtm-events";
-import { Organization } from "@/prisma/generated/client";
 
 const billingFormSchema = (t: IntlTranslation<"App.Billing">) =>
   z

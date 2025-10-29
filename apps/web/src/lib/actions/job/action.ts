@@ -1,6 +1,8 @@
 "use server";
 
 import * as Sentry from "@sentry/nextjs";
+import { JobShare } from "@sokosumi/database";
+import prisma from "@sokosumi/database/client";
 import { revalidatePath } from "next/cache";
 
 import {
@@ -14,7 +16,6 @@ import {
   jobRepository,
   jobShareRepository,
   memberRepository,
-  prisma,
   userRepository,
 } from "@/lib/db/repositories";
 import {
@@ -30,7 +31,6 @@ import {
   AuthenticatedRequest,
   withAuthContext,
 } from "@/middleware/auth-middleware";
-import { JobShare } from "@/prisma/generated/client";
 
 import {
   handleInputDataFileUploads,

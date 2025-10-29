@@ -4,9 +4,8 @@ import {
   FiatTransaction,
   FiatTransactionStatus,
   Prisma,
-} from "@/prisma/generated/client";
-
-import prisma from "./prisma";
+} from "@sokosumi/database";
+import prisma from "@sokosumi/database/client";
 
 /**
  * Fiat Transaction Repository Interface

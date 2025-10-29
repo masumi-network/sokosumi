@@ -1,10 +1,10 @@
-import prisma from "@/lib/db/repositories/prisma";
 import {
   Blob,
   BlobOrigin,
   BlobStatus,
   Prisma,
-} from "@/prisma/generated/client";
+} from "@sokosumi/database";
+import prisma from "@sokosumi/database/client";
 
 /**
  * Repository for managing Blob entities and related queries.

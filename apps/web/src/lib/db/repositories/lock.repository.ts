@@ -1,8 +1,7 @@
 import "server-only";
 
-import { Lock, Prisma } from "@/prisma/generated/client";
-
-import prisma from "./prisma";
+import { Lock, Prisma } from "@sokosumi/database";
+import prisma from "@sokosumi/database/client";
 
 /**
  * Repository for distributed lock management using the Lock model.

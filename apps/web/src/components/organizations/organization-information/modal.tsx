@@ -1,5 +1,6 @@
 "use client";
 
+import { Organization } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 import { Dispatch, SetStateAction, useState } from "react";
 
@@ -9,7 +10,6 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Organization } from "@/prisma/generated/client";
 
 import OrganizationInformationForm from "./form";
 

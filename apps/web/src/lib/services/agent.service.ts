@@ -1,5 +1,13 @@
 import "server-only";
 
+import {
+  AgentListType,
+  AgentStatus,
+  CreditCost,
+  PricingType,
+  Prisma,
+} from "@sokosumi/database";
+import prisma from "@sokosumi/database/client";
 import { Decimal } from "decimal.js";
 
 import { getEnvPublicConfig } from "@/config/env.public";
@@ -23,16 +31,8 @@ import {
   jobRepository,
   mapAgentWithIsNew,
   memberRepository,
-  prisma,
 } from "@/lib/db/repositories";
 import { pricingAmountsSchema } from "@/lib/schemas";
-import {
-  AgentListType,
-  AgentStatus,
-  CreditCost,
-  PricingType,
-  Prisma,
-} from "@/prisma/generated/client";
 
 export const agentService = (() => {
   /**

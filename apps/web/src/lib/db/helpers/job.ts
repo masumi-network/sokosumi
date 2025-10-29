@@ -1,5 +1,3 @@
-import { JobIndicatorStatus } from "@/lib/ably";
-import { JobStatus, JobWithStatus } from "@/lib/db/types";
 import {
   AgentJobStatus,
   Job,
@@ -8,7 +6,10 @@ import {
   NextJobActionErrorType,
   OnChainJobStatus,
   OnChainTransactionStatus,
-} from "@/prisma/generated/client";
+} from "@sokosumi/database";
+
+import { JobIndicatorStatus } from "@/lib/ably";
+import { JobStatus, JobWithStatus } from "@/lib/db/types";
 
 const TEN_MINUTES_TIMESTAMP = 1000 * 60 * 10; // 10min
 

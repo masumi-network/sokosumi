@@ -1,11 +1,11 @@
 "use client";
 
+import { JobType } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { JobStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
-import { JobType } from "@/prisma/generated/client";
 
 interface JobStatusBadgeProps {
   status: JobStatus;

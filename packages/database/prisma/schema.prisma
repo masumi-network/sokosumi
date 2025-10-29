@@ -6,7 +6,7 @@
 
 generator client {
   provider   = "prisma-client-js"
-  output     = "generated/client"
+  output     = "../src/generated/client"
   engineType = "client"
 }
 

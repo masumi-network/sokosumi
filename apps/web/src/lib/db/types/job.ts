@@ -5,7 +5,7 @@ import {
   OnChainJobStatus,
   Prisma,
   ScheduleType,
-} from "@/prisma/generated/client";
+} from "@sokosumi/database";
 
 export const jobInclude = {
   agent: true,

@@ -1,3 +1,4 @@
+import { Lock } from "@sokosumi/database";
 import { after, NextResponse } from "next/server";
 import pTimeout from "p-timeout";
 
@@ -7,7 +8,6 @@ import { anthropicClient } from "@/lib/clients";
 import { getAgentDescription } from "@/lib/db";
 import { agentRepository, lockRepository } from "@/lib/db/repositories";
 import { lockService } from "@/lib/services";
-import { Lock } from "@/prisma/generated/client";
 
 const LOCK_KEY = "agents-summary-sync";
 

@@ -1,6 +1,7 @@
 import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
+import { JobSchedule } from "@sokosumi/database";
 import pLimit from "p-limit";
 
 import { getEnvSecrets } from "@/config/env.secrets";
@@ -12,7 +13,6 @@ import { startJobInputSchema, StartJobInputSchemaType } from "@/lib/schemas";
 import { jobService } from "@/lib/services/job.service";
 import { lockService } from "@/lib/services/lock.service";
 import { computeNextRun } from "@/lib/utils/cron";
-import { JobSchedule } from "@/prisma/generated/client";
 
 export const jobScheduleService = {
   async executeDueSchedules() {

@@ -1,7 +1,7 @@
 import "server-only";
 
-import prisma from "@/lib/db/repositories/prisma";
-import { Link, Prisma } from "@/prisma/generated/client";
+import { Link, Prisma } from "@sokosumi/database";
+import prisma from "@sokosumi/database/client";
 
 export const linkRepository = {
   async upsertLink(

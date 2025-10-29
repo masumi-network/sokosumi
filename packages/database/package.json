@@ -1,0 +1,38 @@
+{
+  "name": "@sokosumi/database",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./client": "./src/client.ts",
+    "./runtime/library": "./src/generated/client/runtime/library.js"
+  },
+  "scripts": {
+    "prisma:generate": "prisma generate --no-hints",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:migrate:reset": "prisma migrate reset",
+    "prisma:seed": "prisma db seed",
+    "prisma:studio": "prisma studio"
+  },
+  "prisma": {
+    "seed": "tsx ./prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "6.18.0",
+    "@prisma/client": "6.18.0",
+    "pg": "8.16.3",
+    "pg-pool": "3.10.1",
+    "server-only": "0.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.18.13",
+    "@types/pg": "^8.15.6",
+    "dotenv": "17.2.3",
+    "prisma": "6.18.0",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3"
+  }
+}

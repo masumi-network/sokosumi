@@ -1,10 +1,10 @@
 import "server-only";
 
-import { CreateJobScheduleInputSchemaType } from "@/lib/schemas";
-import { Prisma, ScheduleType } from "@/prisma/generated/client";
-import { InputJsonValue } from "@/prisma/generated/client/runtime/library";
+import { Prisma, ScheduleType } from "@sokosumi/database";
+import prisma from "@sokosumi/database/client";
+import { InputJsonValue } from "@sokosumi/database/runtime/library";
 
-import prisma from "./prisma";
+import { CreateJobScheduleInputSchemaType } from "@/lib/schemas";
 
 export type ScheduleListItem = Prisma.JobScheduleGetPayload<{
   include: {

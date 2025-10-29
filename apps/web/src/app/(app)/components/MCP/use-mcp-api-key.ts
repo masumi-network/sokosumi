@@ -1,12 +1,12 @@
 "use client";
 
+import { Apikey } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { getEnvPublicConfig } from "@/config/env.public";
 import { authClient } from "@/lib/auth/auth.client";
-import { Apikey } from "@/prisma/generated/client";
 
 interface UseMcpApiKeyReturn {
   mcpUrl: string | null;

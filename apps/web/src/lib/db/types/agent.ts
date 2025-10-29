@@ -1,6 +1,7 @@
+import { Agent, Prisma } from "@sokosumi/database";
+
 import { JobInputsFormSchemaType } from "@/lib/job-input";
 import { JobStatusResponseSchemaType } from "@/lib/schemas";
-import { Agent, Prisma } from "@/prisma/generated/client";
 
 export type AgentWithAvailability = {
   agent: Agent;

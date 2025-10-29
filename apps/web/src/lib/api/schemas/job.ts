@@ -1,11 +1,11 @@
-import * as z from "zod";
-
-import { JobStatus } from "@/lib/db/types";
 import {
   AgentJobStatus,
   JobType,
   OnChainJobStatus,
-} from "@/prisma/generated/client";
+} from "@sokosumi/database";
+import * as z from "zod";
+
+import { JobStatus } from "@/lib/db/types";
 
 import { jobShareResponseSchema } from "./job-share";
 

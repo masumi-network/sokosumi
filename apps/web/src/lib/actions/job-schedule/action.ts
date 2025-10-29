@@ -1,6 +1,7 @@
 "use server";
 
 import * as Sentry from "@sentry/nextjs";
+import { Prisma } from "@sokosumi/database";
 import { revalidatePath } from "next/cache";
 
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes";
@@ -17,7 +18,6 @@ import {
   AuthenticatedRequest,
   withAuthContext,
 } from "@/middleware/auth-middleware";
-import { Prisma } from "@/prisma/generated/client";
 
 interface StartJobScheduleParameters extends AuthenticatedRequest {
   input: Omit<StartJobInputSchemaType, "userId" | "organizationId">;

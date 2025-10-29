@@ -27,15 +27,6 @@ const nextConfig: NextConfig = {
     },
   },
   serverExternalPackages: ["ably", "@sparticuz/chromium", "puppeteer-core"],
-  webpack: (config) => {
-    // Suppress webpack cache serialization warnings for large strings
-    // These are typically from Prisma client or other generated code and don't impact functionality
-    config.infrastructureLogging = {
-      ...config.infrastructureLogging,
-      level: "error",
-    };
-    return config;
-  },
 };
 
 const withNextIntl = createNextIntlPlugin();

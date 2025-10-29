@@ -1,3 +1,4 @@
+import { Lock } from "@sokosumi/database";
 import { after, NextResponse } from "next/server";
 import pTimeout from "p-timeout";
 
@@ -5,7 +6,6 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import { authenticateCronSecret } from "@/lib/auth/utils";
 import { lockRepository } from "@/lib/db/repositories";
 import { jobScheduleService, lockService } from "@/lib/services";
-import { Lock } from "@/prisma/generated/client";
 
 const LOCK_KEY = "job-schedules-sync";
 

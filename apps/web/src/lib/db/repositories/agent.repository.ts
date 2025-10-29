@@ -1,5 +1,8 @@
 import "server-only";
 
+import { Agent, AgentStatus, Prisma } from "@sokosumi/database";
+import prisma from "@sokosumi/database/client";
+
 import { getEnvPublicConfig } from "@/config/env.public";
 import {
   agentInclude,
@@ -11,9 +14,6 @@ import {
   AgentWithPricing,
   AgentWithRelations,
 } from "@/lib/db/types";
-import { Agent, AgentStatus, Prisma } from "@/prisma/generated/client";
-
-import prisma from "./prisma";
 
 /**
  * Repository for managing Agent entities and related queries.

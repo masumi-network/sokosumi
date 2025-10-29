@@ -1,3 +1,4 @@
+import { Blob, BlobStatus, Link } from "@sokosumi/database";
 import { FileIcon } from "lucide-react";
 
 import { Favicon } from "@/components/ui/favicon";
@@ -5,7 +6,6 @@ import { FileChip } from "@/components/ui/file-chip";
 import { getBlobFileName, getBlobUrl } from "@/lib/db";
 import { cn } from "@/lib/utils";
 import { buildFaviconCandidates, getHostname } from "@/lib/utils/url";
-import { Blob, BlobStatus, Link } from "@/prisma/generated/client";
 
 import { BlobStatusBadge } from "./blob-status-badge";
 

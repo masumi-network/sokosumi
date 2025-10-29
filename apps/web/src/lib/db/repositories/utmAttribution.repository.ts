@@ -1,9 +1,9 @@
 import "server-only";
 
-import { UTMData } from "@/lib/utils/utm";
-import { Prisma, UTMAttribution } from "@/prisma/generated/client";
+import { Prisma, UTMAttribution } from "@sokosumi/database";
+import prisma from "@sokosumi/database/client";
 
-import prisma from "./prisma";
+import { UTMData } from "@/lib/utils/utm";
 
 /**
  * Repository for UTM attribution-related database operations.

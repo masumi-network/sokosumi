@@ -1,6 +1,7 @@
 import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
+import prisma from "@sokosumi/database/client";
 import { headers } from "next/headers";
 import Stripe from "stripe";
 
@@ -12,7 +13,6 @@ import { convertCreditsToCents } from "@/lib/db";
 import {
   fiatTransactionRepository,
   organizationRepository,
-  prisma,
   userRepository,
 } from "@/lib/db/repositories";
 import {

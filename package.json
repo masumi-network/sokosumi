@@ -20,7 +20,11 @@
     "test:ci": "pnpm -r test:ci",
     "sokosumi-web:test:ci": "pnpm --filter web test:ci",
     "sokosumi-web:prisma:migrate:deploy": "pnpm --filter web prisma:migrate:deploy",
-    "sokosumi-web:prisma:migrate:dev": "pnpm --filter web prisma:migrate:dev"
+    "sokosumi-web:prisma:migrate:dev": "pnpm --filter web prisma:migrate:dev",
+    "prisma:generate": "pnpm --filter @sokosumi/database prisma:generate",
+    "prisma:migrate:dev": "pnpm --filter @sokosumi/database prisma:migrate:dev",
+    "prisma:migrate:deploy": "pnpm --filter @sokosumi/database prisma:migrate:deploy",
+    "prisma:studio": "pnpm --filter @sokosumi/database prisma:studio"
   },
   "devDependencies": {
     "husky": "9.1.7"

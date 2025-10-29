@@ -1,5 +1,6 @@
 "use client";
 
+import { JsonValue } from "@sokosumi/database/runtime/library";
 import { Clock, ClockFading, Pause, PencilLine, Trash2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { startTransition, useMemo, useOptimistic, useState } from "react";
@@ -47,7 +48,6 @@ import {
   JobScheduleSelectionType,
   JobScheduleType,
 } from "@/lib/db/types/job";
-import { JsonValue } from "@/prisma/generated/client/runtime/library";
 
 interface ScheduleRecord {
   id: string;

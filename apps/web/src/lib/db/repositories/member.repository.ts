@@ -1,5 +1,8 @@
 import "server-only";
 
+import { Member, Prisma } from "@sokosumi/database";
+import prisma from "@sokosumi/database/client";
+
 import {
   memberOrderBy,
   memberOrganizationInclude,
@@ -9,9 +12,6 @@ import {
   MemberWithOrganization,
   MemberWithUser,
 } from "@/lib/db/types";
-import { Member, Prisma } from "@/prisma/generated/client";
-
-import prisma from "./prisma";
 
 /**
  * Repository for managing Member entities and related queries.

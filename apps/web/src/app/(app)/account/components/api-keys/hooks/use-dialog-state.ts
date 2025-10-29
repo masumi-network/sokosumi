@@ -1,10 +1,10 @@
 "use client";
 
+import { Apikey } from "@sokosumi/database";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { DialogState } from "@/app/account/components/api-keys/types";
 import { DIALOG_CLEANUP_TIMEOUT } from "@/app/account/components/api-keys/utils";
-import { Apikey } from "@/prisma/generated/client";
 
 /**
  * Custom hook for managing dialog states

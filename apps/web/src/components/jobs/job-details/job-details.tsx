@@ -1,3 +1,4 @@
+import { AgentJobStatus, BlobOrigin } from "@sokosumi/database";
 import { useFormatter, useTranslations } from "next-intl";
 
 import AccordionItemWrapper from "@/components/accordion-wrapper";
@@ -6,7 +7,6 @@ import { Accordion } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { JobStatus, JobWithStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
-import { AgentJobStatus, BlobOrigin } from "@/prisma/generated/client";
 
 import JobDetailsInputs from "./inputs";
 import JobDetailsName from "./job-details-name";

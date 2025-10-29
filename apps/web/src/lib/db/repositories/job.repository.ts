@@ -1,5 +1,15 @@
 import "server-only";
 
+import {
+  AgentJobStatus,
+  Job,
+  JobType,
+  NextJobAction,
+  OnChainJobStatus,
+  Prisma,
+} from "@sokosumi/database";
+import prisma from "@sokosumi/database/client";
+
 // Purchase type is declared globally in types/hey-api.d.ts
 import {
   computeJobStatus,
@@ -22,17 +32,8 @@ import {
 } from "@/lib/db/types";
 import { JobInputSchemaType } from "@/lib/job-input";
 import { JobStatusResponseSchemaType } from "@/lib/schemas";
-import {
-  AgentJobStatus,
-  Job,
-  JobType,
-  NextJobAction,
-  OnChainJobStatus,
-  Prisma,
-} from "@/prisma/generated/client";
 
 import { creditTransactionRepository } from "./creditTransaction.repository";
-import prisma from "./prisma";
 
 function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
   const jobStatusSettled =

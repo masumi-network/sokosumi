@@ -1,5 +1,6 @@
+import { Invitation } from "@sokosumi/database";
+
 import { MemberWithUser } from "@/lib/db";
-import { Invitation } from "@/prisma/generated/client";
 
 export interface MemberRowData {
   name?: string | undefined;

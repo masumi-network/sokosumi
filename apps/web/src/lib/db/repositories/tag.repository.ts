@@ -1,8 +1,7 @@
 import "server-only";
 
-import { Prisma, Tag } from "@/prisma/generated/client";
-
-import prisma from "./prisma";
+import { Prisma, Tag } from "@sokosumi/database";
+import prisma from "@sokosumi/database/client";
 
 /**
  * Repository for tag-related database operations.

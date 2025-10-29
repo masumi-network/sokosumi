@@ -1,7 +1,8 @@
 import "server-only";
 
+import { Job } from "@sokosumi/database";
+
 import { getJobIndicatorStatus } from "@/lib/db";
-import { Job } from "@/prisma/generated/client";
 
 import { getRestClient } from "./client";
 import { getAgentJobsChannelName, makeAgentJobsChannel } from "./utils";

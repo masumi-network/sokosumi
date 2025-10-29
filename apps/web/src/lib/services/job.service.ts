@@ -1,6 +1,17 @@
 import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
+import {
+  AgentJobStatus,
+  Job,
+  JobShare,
+  JobType,
+  NextJobAction,
+  OnChainJobStatus,
+  PricingType,
+  Prisma,
+} from "@sokosumi/database";
+import prisma from "@sokosumi/database/client";
 import { getTranslations } from "next-intl/server";
 import { v4 as uuidv4 } from "uuid";
 
@@ -26,7 +37,6 @@ import {
   creditTransactionRepository,
   jobRepository,
   jobShareRepository,
-  prisma,
 } from "@/lib/db/repositories";
 import {
   JobFailureNotificationEmailProps,
@@ -40,16 +50,6 @@ import {
   StartJobInputSchemaType,
 } from "@/lib/schemas";
 import { Err } from "@/lib/ts-res";
-import {
-  AgentJobStatus,
-  Job,
-  JobShare,
-  JobType,
-  NextJobAction,
-  OnChainJobStatus,
-  PricingType,
-  Prisma,
-} from "@/prisma/generated/client";
 
 import { agentService } from "./agent.service";
 import { sourceImportService } from "./source-import.service";

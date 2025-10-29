@@ -1,3 +1,5 @@
+import { Agent, ExampleOutput, PricingType } from "@sokosumi/database";
+
 import {
   AgentDemoData,
   AgentDemoValues,
@@ -12,7 +14,6 @@ import {
   jobStatusResponseSchema,
   PricingAmountsSchemaType,
 } from "@/lib/schemas";
-import { Agent, ExampleOutput, PricingType } from "@/prisma/generated/client";
 
 export function getAgentName(agent: Agent): string {
   return agent.overrideName ?? agent.name;

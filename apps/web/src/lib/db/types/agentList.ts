@@ -1,4 +1,4 @@
-import { Prisma } from "@/prisma/generated/client";
+import { Prisma } from "@sokosumi/database";
 
 import { agentInclude } from "./agent";
 

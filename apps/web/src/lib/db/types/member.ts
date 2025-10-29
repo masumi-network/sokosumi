@@ -1,4 +1,4 @@
-import { Prisma } from "@/prisma/generated/client";
+import { Prisma } from "@sokosumi/database";
 
 export const memberOrganizationInclude = {
   organization: true,

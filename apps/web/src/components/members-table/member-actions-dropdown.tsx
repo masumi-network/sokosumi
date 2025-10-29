@@ -1,3 +1,4 @@
+import { Member } from "@sokosumi/database";
 import { Ellipsis } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useMemo } from "react";
@@ -11,7 +12,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { MemberRole, MemberWithUser } from "@/lib/db";
 import { cn } from "@/lib/utils";
-import { Member } from "@/prisma/generated/client";
 
 import {
   MemberAction,

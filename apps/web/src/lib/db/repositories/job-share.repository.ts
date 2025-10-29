@@ -3,12 +3,11 @@
  * Provides methods for creating, retrieving, and updating JobShare records.
  */
 
+import { Prisma } from "@sokosumi/database";
+import prisma from "@sokosumi/database/client";
 import { v4 as uuidv4 } from "uuid";
 
 import { jobShareInclude } from "@/lib/db/types";
-import { Prisma } from "@/prisma/generated/client";
-
-import prisma from "./prisma";
 
 export const jobShareRepository = {
   async hasShareByJobId(jobId: string, tx: Prisma.TransactionClient = prisma) {

@@ -1,9 +1,9 @@
 import "server-only";
 
+import { FiatTransaction, Organization, User } from "@sokosumi/database";
 import Stripe from "stripe";
 
 import { getEnvSecrets } from "@/config/env.secrets";
-import { FiatTransaction, Organization, User } from "@/prisma/generated/client";
 
 export interface Price {
   id: string;

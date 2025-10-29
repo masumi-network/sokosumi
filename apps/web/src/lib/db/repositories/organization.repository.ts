@@ -1,14 +1,14 @@
 import "server-only";
 
+import { Organization, Prisma } from "@sokosumi/database";
+import prisma from "@sokosumi/database/client";
+
 import {
   organizationInclude,
   organizationLimitedInfoInclude,
   OrganizationWithLimitedInfo,
   OrganizationWithRelations,
 } from "@/lib/db/types";
-import { Organization, Prisma } from "@/prisma/generated/client";
-
-import prisma from "./prisma";
 
 /**
  * Repository for managing Organization entities and related queries.

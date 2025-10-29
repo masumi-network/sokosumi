@@ -1,5 +1,6 @@
 "use server";
 
+import { AgentListType } from "@sokosumi/database";
 import { revalidatePath } from "next/cache";
 
 import { ActionError } from "@/lib/actions";
@@ -9,7 +10,6 @@ import {
   AuthenticatedRequest,
   withAuthContext,
 } from "@/middleware/auth-middleware";
-import { AgentListType } from "@/prisma/generated/client";
 
 interface ToggleAgentInAgentListParameters extends AuthenticatedRequest {
   agentId: string;

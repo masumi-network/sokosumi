@@ -1,3 +1,5 @@
+import { FiatTransactionStatus } from "@sokosumi/database";
+import prisma from "@sokosumi/database/client";
 import { after, NextResponse } from "next/server";
 import Stripe from "stripe";
 
@@ -12,11 +14,9 @@ import {
   fiatTransactionRepository,
   memberRepository,
   organizationRepository,
-  prisma,
   userRepository,
 } from "@/lib/db/repositories";
 import { stripeService } from "@/lib/services/stripe.service";
-import { FiatTransactionStatus } from "@/prisma/generated/client";
 
 export async function POST(req: Request) {
   let event: Stripe.Event;

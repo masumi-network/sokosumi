@@ -1,8 +1,7 @@
 import "server-only";
 
-import { CreditCost, Prisma } from "@/prisma/generated/client";
-
-import prisma from "./prisma";
+import { CreditCost, Prisma } from "@sokosumi/database";
+import prisma from "@sokosumi/database/client";
 
 /**
  * Credit Cost Repository Interface
