@@ -1207,9 +1207,14 @@
         "jobStatusEmailsTitle": "Job finished emails",
         "jobStatusEmailsDescription": "Get an email when a job completes, fails, or refunds.",
         "jobStatusEmailsAriaLabel": "Toggle job finished email notifications",
+        "jobStatusEmailsEnabledSuccess": "Job finished emails enabled",
+        "jobStatusEmailsDisabledSuccess": "Job finished emails disabled",
+        "marketingEmailsTitle": "Marketing emails",
+        "marketingEmailsDescription": "Get an email when we have new features, updates, and promotions.",
+        "marketingEmailsAriaLabel": "Toggle marketing email notifications",
+        "marketingEmailsEnabledSuccess": "Marketing emails enabled",
+        "marketingEmailsDisabledSuccess": "Marketing emails disabled",
         "loading": "Saving preference...",
-        "enabledSuccess": "Job finished emails enabled",
-        "disabledSuccess": "Job finished emails disabled",
         "error": "Failed to update notification preference"
       },
       "Delete": {

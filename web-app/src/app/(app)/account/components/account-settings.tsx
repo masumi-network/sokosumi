@@ -6,7 +6,7 @@ import { AccountProvider } from "@/lib/auth/types";
 import { ApiKeysSection } from "./api-keys";
 import { DeleteAccountForm } from "./delete-account-form";
 import { EmailForm } from "./email-form";
-import { JobStatusEmailPreferences } from "./job-status-email-preferences";
+import { EmailPreferences } from "./email-preferences";
 import { NameForm } from "./name-form";
 import { NewPasswordForm } from "./new-password-form";
 import { PasswordForm } from "./password-form";
@@ -14,12 +14,14 @@ import { SocialAccounts } from "./social-accounts";
 
 interface AccountSettingsProps {
   accounts: Account[];
-  jobStatusEmailNotificationsEnabled: boolean;
+  jobStatusNotificationsOptIn: boolean;
+  marketingOptIn: boolean;
 }
 
 export function AccountSettings({
   accounts,
-  jobStatusEmailNotificationsEnabled,
+  jobStatusNotificationsOptIn,
+  marketingOptIn,
 }: AccountSettingsProps) {
   const t = useTranslations("App.Account");
 
@@ -53,8 +55,9 @@ export function AccountSettings({
         </div>
 
         <div className="border-t pt-8">
-          <JobStatusEmailPreferences
-            initialEnabled={jobStatusEmailNotificationsEnabled}
+          <EmailPreferences
+            jobStatusNotificationsOptIn={jobStatusNotificationsOptIn}
+            marketingOptIn={marketingOptIn}
           />
         </div>
 

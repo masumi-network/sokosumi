@@ -19,9 +19,10 @@ export default async function Page() {
     <div className="flex items-center justify-center gap-16 md:p-8">
       <AccountSettings
         accounts={accounts}
-        jobStatusEmailNotificationsEnabled={
-          session?.user.jobStatusEmailNotificationsEnabled ?? true
+        jobStatusNotificationsOptIn={
+          session?.user.jobStatusNotificationsOptIn ?? true
         }
+        marketingOptIn={session?.user.marketingOptIn ?? false}
       />
     </div>
   );
