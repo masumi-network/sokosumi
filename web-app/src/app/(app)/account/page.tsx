@@ -22,6 +22,7 @@ export default async function Page() {
         jobStatusEmailNotificationsEnabled={
           session?.user.jobStatusEmailNotificationsEnabled ?? true
         }
+        marketingOptIn={session?.user.marketingOptIn ?? false}
       />
     </div>
   );
