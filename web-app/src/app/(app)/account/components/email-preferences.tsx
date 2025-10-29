@@ -29,88 +29,73 @@ export function EmailPreferences({
     setJobStatusEmailNotificationsEnabled,
   ] = useState(initialJobStatusEnabled);
   const [marketingOptIn, setMarketingOptIn] = useState(initialMarketingOptIn);
-  const [isSaving, setIsSaving] = useState(false);
+  const [isJobStatusSaving, setIsJobStatusSaving] = useState(false);
+  const [isMarketingSaving, setIsMarketingSaving] = useState(false);
 
-  const handleJobStatusEmailNotificationsToggle = (nextValue: boolean) => {
-    if (isSaving) {
-      return;
-    }
+  const createToggleHandler = (
+    field: "jobStatusEmailNotificationsEnabled" | "marketingOptIn",
+    currentValue: boolean,
+    setValue: (value: boolean) => void,
+    setLoading: (loading: boolean) => void,
+    enabledSuccessKey: string,
+    disabledSuccessKey: string,
+  ) => {
+    return (nextValue: boolean) => {
+      if (isJobStatusSaving || isMarketingSaving) {
+        return;
+      }
 
-    const previous = jobStatusEmailNotificationsEnabled;
-    setJobStatusEmailNotificationsEnabled(nextValue);
-    setIsSaving(true);
+      const previous = currentValue;
+      setValue(nextValue);
+      setLoading(true);
 
-    const updatePromise = authClient
-      .updateUser({
-        jobStatusEmailNotificationsEnabled: nextValue,
-      })
-      .then((result) => {
-        if (result.error) {
-          throw new Error(result.error.message ?? "update_failed");
-        }
+      const updatePromise = authClient
+        .updateUser({
+          [field]: nextValue,
+        })
+        .then((result) => {
+          if (result.error) {
+            throw new Error(result.error.message ?? "update_failed");
+          }
+        });
+
+      toast.promise(updatePromise, {
+        loading: t("loading"),
+        success: () =>
+          nextValue ? t(enabledSuccessKey) : t(disabledSuccessKey),
+        error: () => {
+          setValue(previous);
+          return t("error");
+        },
       });
 
-    toast.promise(updatePromise, {
-      loading: t("loading"),
-      success: () =>
-        nextValue
-          ? t("jobStatusEmailsEnabledSuccess")
-          : t("jobStatusEmailsDisabledSuccess"),
-      error: () => {
-        setJobStatusEmailNotificationsEnabled(previous);
-        return t("error");
-      },
-    });
-
-    updatePromise
-      .catch((error) => {
-        console.error(error);
-      })
-      .finally(() => {
-        setIsSaving(false);
-      });
+      updatePromise
+        .catch((error) => {
+          console.error(error);
+        })
+        .finally(() => {
+          setLoading(false);
+        });
+    };
   };
 
-  const handleMarketingOptInToggle = (nextValue: boolean) => {
-    if (isSaving) {
-      return;
-    }
+  const handleJobStatusEmailNotificationsToggle = createToggleHandler(
+    "jobStatusEmailNotificationsEnabled",
+    jobStatusEmailNotificationsEnabled,
+    setJobStatusEmailNotificationsEnabled,
+    setIsJobStatusSaving,
+    "jobStatusEmailsEnabledSuccess",
+    "jobStatusEmailsDisabledSuccess",
+  );
 
-    const previous = marketingOptIn;
-    setMarketingOptIn(nextValue);
-    setIsSaving(true);
-
-    const updatePromise = authClient
-      .updateUser({
-        marketingOptIn: nextValue,
-      })
-      .then((result) => {
-        if (result.error) {
-          throw new Error(result.error.message ?? "update_failed");
-        }
-      });
-
-    toast.promise(updatePromise, {
-      loading: t("loading"),
-      success: () =>
-        nextValue
-          ? t("marketingEmailsEnabledSuccess")
-          : t("marketingEmailsDisabledSuccess"),
-      error: () => {
-        setMarketingOptIn(previous);
-
-        return t("error");
-      },
-    });
-
-    updatePromise
-      .catch((error) => {
-        console.error(error);
-      })
-      .finally(() => {
-        setIsSaving(false);
-      });
-  };
+  const handleMarketingOptInToggle = createToggleHandler(
+    "marketingOptIn",
+    marketingOptIn,
+    setMarketingOptIn,
+    setIsMarketingSaving,
+    "marketingEmailsEnabledSuccess",
+    "marketingEmailsDisabledSuccess",
+  );
 
   return (
     <Card className="flex h-full flex-col">
@@ -131,7 +116,7 @@ export function EmailPreferences({
           <Switch
             checked={jobStatusEmailNotificationsEnabled}
             onCheckedChange={handleJobStatusEmailNotificationsToggle}
-            disabled={isSaving}
+            disabled={isJobStatusSaving}
             aria-label={t("jobStatusEmailsAriaLabel")}
           />
         </div>
@@ -147,7 +132,7 @@ export function EmailPreferences({
           <Switch
             checked={marketingOptIn}
             onCheckedChange={handleMarketingOptInToggle}
-            disabled={isSaving}
+            disabled={isMarketingSaving}
             aria-label={t("marketingEmailsAriaLabel")}
           />
         </div>
