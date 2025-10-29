@@ -5,69 +5,110 @@
 
 import { v4 as uuidv4 } from "uuid";
 
-import { Prisma, ShareAccessType } from "@/prisma/generated/client";
+import { jobShareInclude } from "@/lib/db/types";
+import { Prisma } from "@/prisma/generated/client";
 
 import prisma from "./prisma";
 
 export const jobShareRepository = {
-  async getJobShareById(id: string, tx: Prisma.TransactionClient = prisma) {
+  async hasShareByJobId(jobId: string, tx: Prisma.TransactionClient = prisma) {
+    const share = await tx.jobShare.findUnique({
+      where: { jobId },
+      select: { id: true },
+    });
+    return share !== null;
+  },
+
+  async getShareById(id: string, tx: Prisma.TransactionClient = prisma) {
     return await tx.jobShare.findUnique({
       where: { id },
+      include: jobShareInclude,
     });
   },
 
-  async getJobShareByToken(
-    token: string,
-    tx: Prisma.TransactionClient = prisma,
-  ) {
+  async getShareByToken(token: string, tx: Prisma.TransactionClient = prisma) {
     return await tx.jobShare.findUnique({
       where: {
         token,
       },
+      include: jobShareInclude,
     });
   },
 
-  async createJobShare(
+  async getShareByJobId(jobId: string, tx: Prisma.TransactionClient = prisma) {
+    return await tx.jobShare.findUnique({
+      where: { jobId },
+      include: jobShareInclude,
+    });
+  },
+
+  async upsertOrganizationShare(
     jobId: string,
-    userId: string,
-    recipientOrganizationId: string | null,
-    shareAccessType: ShareAccessType,
+    organizationId: string | null,
     tx: Prisma.TransactionClient = prisma,
   ) {
-    return await tx.jobShare.create({
-      data: {
+    return await tx.jobShare.upsert({
+      where: { jobId },
+      create: {
         job: { connect: { id: jobId } },
-        creator: { connect: { id: userId } },
-        ...(recipientOrganizationId && {
-          recipientOrganization: { connect: { id: recipientOrganizationId } },
+        ...(organizationId && {
+          organization: { connect: { id: organizationId } },
         }),
-        token: uuidv4(),
-        accessType: shareAccessType,
       },
+      update: {
+        organization: organizationId
+          ? { connect: { id: organizationId } }
+          : { disconnect: true },
+      },
+      include: jobShareInclude,
     });
   },
 
-  async deleteJobShare(
+  async upsertPublicShare(
     jobId: string,
-    recipientOrganizationId: string | null,
+    sharePublic: boolean,
+    allowSearchIndexing: boolean = true,
+    tx: Prisma.TransactionClient = prisma,
+  ) {
+    return await tx.jobShare.upsert({
+      where: { jobId },
+      create: {
+        job: { connect: { id: jobId } },
+        allowSearchIndexing,
+        token: sharePublic ? uuidv4() : null,
+      },
+      update: {
+        allowSearchIndexing,
+        token: sharePublic ? uuidv4() : null,
+      },
+      include: jobShareInclude,
+    });
+  },
+
+  async deleteShareById(id: string, tx: Prisma.TransactionClient = prisma) {
+    return await tx.jobShare.delete({
+      where: { id },
+    });
+  },
+
+  async deleteShareByJobId(
+    jobId: string,
     tx: Prisma.TransactionClient = prisma,
   ) {
     return await tx.jobShare.deleteMany({
-      where: {
-        jobId,
-        recipientOrganizationId,
-      },
+      where: { jobId },
     });
   },
 
-  async updateJobShareAllowSearchIndexing(
-    jobShareId: string,
+  async setShareAllowSearchIndexingById(
+    id: string,
     allowSearchIndexing: boolean,
     tx: Prisma.TransactionClient = prisma,
   ) {
     return await tx.jobShare.update({
-      where: { id: jobShareId },
+      where: { id },
       data: { allowSearchIndexing },
+      include: jobShareInclude,
     });
   },
 };

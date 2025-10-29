@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { CommonErrorCode, JobErrorCode, startJob } from "@/lib/actions";
+import {
+  CommonErrorCode,
+  JobErrorCode,
+  shareJobPublicly,
+  shareJobWithOrganization,
+  startJob,
+} from "@/lib/actions";
 import {
   createApiSuccessResponse,
   createJobRequestSchema,
@@ -8,6 +14,7 @@ import {
   handleApiError,
   validateApiKey,
 } from "@/lib/api";
+import { getAuthContext } from "@/lib/auth/utils";
 import { convertCreditsToCents } from "@/lib/db";
 import { jobRepository } from "@/lib/db/repositories";
 import { jobInputsDataSchema } from "@/lib/job-input";
@@ -48,8 +55,12 @@ export async function GET(
 
     const jobs = await jobRepository.getJobs({
       agentId,
-      userId: apiKey.userId,
-      organizationId: activeOrganizationId,
+      OR: [
+        ...(activeOrganizationId
+          ? [{ share: { organizationId: activeOrganizationId } }]
+          : []),
+        { userId: apiKey.userId },
+      ],
     });
 
     // Format all jobs
@@ -76,7 +87,10 @@ export async function POST(
   { params }: RouteParams,
 ): Promise<NextResponse> {
   try {
-    const apiKey = await validateApiKey(request.headers);
+    const authContext = await getAuthContext();
+    if (!authContext) {
+      throw new Error("UNAUTHORIZED");
+    }
     const { agentId } = await params;
 
     // Parse request body
@@ -111,10 +125,7 @@ export async function POST(
         inputSchema: validatedInputSchema.input_data,
         inputData: inputDataMap,
       },
-      authContext: {
-        userId: apiKey.userId,
-        organizationId: apiKey.metadata?.organizationId ?? null,
-      },
+      authContext,
     });
 
     if (!result.ok) {
@@ -134,7 +145,7 @@ export async function POST(
     }
 
     // Get the created job and return it
-    const createdJob = await jobRepository.getJobById(result.data.jobId);
+    let createdJob = await jobRepository.getJobById(result.data.jobId);
     if (!createdJob) {
       throw new Error("JOB_NOT_FOUND");
     }
@@ -148,9 +159,40 @@ export async function POST(
       // Refetch the job with updated name
       const updatedJob = await jobRepository.getJobById(result.data.jobId);
       if (updatedJob) {
-        return createApiSuccessResponse(formatJobResponse(updatedJob), {
-          status: 201,
-        });
+        createdJob = updatedJob;
+      }
+    }
+
+    // Share the job publicly if requested
+    if (validatedData.sharePublic) {
+      const publicShareResult = await shareJobPublicly({
+        jobId: createdJob.id,
+        allowSearchIndexing: true,
+        authContext,
+      });
+      if (!publicShareResult.ok) {
+        console.error("Failed to share job", publicShareResult.error);
+      }
+      // Refetch the job
+      const sharedJob = await jobRepository.getJobById(result.data.jobId);
+      if (sharedJob) {
+        createdJob = sharedJob;
+      }
+    }
+
+    // Share the job with organization if requested
+    if (validatedData.shareOrganization) {
+      const organizationShareResult = await shareJobWithOrganization({
+        jobId: createdJob.id,
+        authContext,
+      });
+      if (!organizationShareResult.ok) {
+        console.error("Failed to share job", organizationShareResult.error);
+      }
+      // Refetch the job
+      const sharedJob = await jobRepository.getJobById(result.data.jobId);
+      if (sharedJob) {
+        createdJob = sharedJob;
       }
     }
 

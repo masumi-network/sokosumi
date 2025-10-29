@@ -7,6 +7,8 @@ import {
   OnChainJobStatus,
 } from "@/prisma/generated/client";
 
+import { jobShareResponseSchema } from "./job-share";
+
 // Schema for creating a new job
 export const createJobRequestSchema = z.object({
   maxAcceptedCredits: z.number().positive(),
@@ -23,6 +25,8 @@ export const createJobRequestSchema = z.object({
       .optional(),
   ),
   name: z.string().min(1).max(80).optional(),
+  sharePublic: z.boolean().default(false),
+  shareOrganization: z.boolean().default(false),
 });
 
 // Schema for credit information in responses
@@ -52,6 +56,7 @@ export const jobResponseSchema = z.object({
   jobType: z.enum(JobType),
   price: jobCreditsSchema.nullable(),
   refund: jobCreditsSchema.nullable(),
+  share: jobShareResponseSchema.nullable(),
   // Computed fields
   jobStatusSettled: z.boolean(),
 });
@@ -64,6 +69,6 @@ export const jobsListResponseSchema = z.object({
 
 // Type exports for use in API routes and formatters
 export type CreateJobRequest = z.infer<typeof createJobRequestSchema>;
-export type JobCreditsResponse = z.infer<typeof jobCreditsSchema>;
+export type JobCredits = z.infer<typeof jobCreditsSchema>;
 export type JobResponse = z.infer<typeof jobResponseSchema>;
 export type JobsListResponse = z.infer<typeof jobsListResponseSchema>;
