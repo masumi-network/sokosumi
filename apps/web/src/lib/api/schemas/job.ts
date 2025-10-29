@@ -56,7 +56,7 @@ export const jobResponseSchema = z.object({
   jobType: z.enum(JobType),
   price: jobCreditsSchema.nullable(),
   refund: jobCreditsSchema.nullable(),
-  share: jobShareResponseSchema.nullable().optional(),
+  share: jobShareResponseSchema.nullable(),
   // Computed fields
   jobStatusSettled: z.boolean(),
 });

@@ -52,7 +52,7 @@ export function formatJobResponse(job: JobWithStatus): JobResponse {
         }
       : null,
     jobStatusSettled: job.jobStatusSettled,
-    share: job.share ? formatJobShareResponse(job.share) : undefined,
+    share: job.share ? formatJobShareResponse(job.share) : null,
   };
 
   // Validate the formatted response
