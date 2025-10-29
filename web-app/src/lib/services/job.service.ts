@@ -226,27 +226,32 @@ export const jobService = (() => {
       // Send webhook notification
       const { JOB_FAILURE_WEBHOOK_URL } = getEnvSecrets();
       if (JOB_FAILURE_WEBHOOK_URL) {
-        fetch(JOB_FAILURE_WEBHOOK_URL, {
+        const request = new Request(JOB_FAILURE_WEBHOOK_URL, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
           body: JSON.stringify(notificationData),
-        }).catch((webhookError) => {
-          console.error("Error sending job failure webhook", webhookError);
-          Sentry.captureException(webhookError, {
-            contexts: {
-              error_classification: {
-                severity: "error",
-                domain: "job_failure_notification",
-                category: "webhook",
-              },
-            },
-            extra: {
-              jobId: job.id,
-            },
-          });
         });
+        fetch(request)
+          .catch((webhookError) => {
+            console.error("Error sending job failure webhook", webhookError);
+            Sentry.captureException(webhookError, {
+              contexts: {
+                error_classification: {
+                  severity: "error",
+                  domain: "job_failure_notification",
+                  category: "webhook",
+                },
+              },
+              extra: {
+                jobId: job.id,
+              },
+            });
+          })
+          .then((res) => {
+            console.log("job failure webhook response", res);
+          });
       }
 
       // Send email notification
@@ -1029,7 +1034,7 @@ export const jobService = (() => {
         timeout: 20000, // default: 5000
       },
     );
-    await dispatchJobFailureNotification(job);
+
     // if job status changed, publish to job status to channel
     if (newJobStatus !== oldJobStatus) {
       console.log(
