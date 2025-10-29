@@ -19,16 +19,16 @@ interface EmailPreferencesProps {
   marketingOptIn: boolean;
 }
 
-export function EmailPreferences(initialValue: EmailPreferencesProps) {
+export function EmailPreferences({
+  jobStatusEmailNotificationsEnabled: initialJobStatusEnabled,
+  marketingOptIn: initialMarketingOptIn,
+}: EmailPreferencesProps) {
   const t = useTranslations("App.Account.Notifications");
-  // Use prop directly as initial state; updates come from user interaction
   const [
     jobStatusEmailNotificationsEnabled,
     setJobStatusEmailNotificationsEnabled,
-  ] = useState(initialValue.jobStatusEmailNotificationsEnabled);
-  const [marketingOptIn, setMarketingOptIn] = useState(
-    initialValue.marketingOptIn,
-  );
+  ] = useState(initialJobStatusEnabled);
+  const [marketingOptIn, setMarketingOptIn] = useState(initialMarketingOptIn);
   const [isSaving, setIsSaving] = useState(false);
 
   const handleJobStatusEmailNotificationsToggle = (nextValue: boolean) => {
