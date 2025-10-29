@@ -10,21 +10,12 @@ import {
 export const jobInclude = {
   agent: true,
   user: true,
+  organization: true,
   creditTransaction: true,
   refundedCreditTransaction: true,
   blobs: true,
   links: true,
-  shares: {
-    include: {
-      creator: {
-        select: {
-          id: true,
-          name: true,
-          image: true,
-        },
-      },
-    },
-  },
+  share: true,
 } as const;
 
 export const jobOrderBy = {

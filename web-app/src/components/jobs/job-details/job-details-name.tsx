@@ -30,8 +30,8 @@ import {
 import useModal from "@/hooks/use-modal";
 import { CommonErrorCode, JobErrorCode, updateJobName } from "@/lib/actions";
 import {
-  isOrganizationShared,
-  isPubliclyShared,
+  isSharedPublicly,
+  isSharedWithOrganization,
   JobWithStatus,
 } from "@/lib/db";
 import {
@@ -192,8 +192,11 @@ export default function JobDetailsName({
 }) {
   const t = useTranslations("Components.Jobs.JobDetails.Header.JobName");
   const { name } = job;
-  const sharedPublicly = isPubliclyShared(job);
-  const sharedWithOrganization = isOrganizationShared(job);
+  const sharedPublicly = isSharedPublicly(job);
+  const sharedWithOrganization = isSharedWithOrganization(
+    job,
+    activeOrganizationId,
+  );
 
   const { showModal, Component } = useModal(({ open, onOpenChange }) => (
     <JobShareModal

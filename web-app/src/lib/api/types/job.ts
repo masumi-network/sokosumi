@@ -1,6 +1,8 @@
 // Explicit TypeScript types for jobs endpoints (for next-openapi-gen typescript mode)
 
-import { JobType } from "@/prisma/generated/client";
+import { JobShareRequestBody, JobShareResponse } from "./job-share";
+
+export type JobType = "FREE" | "PAID" | "DEMO";
 
 export type JobCredits = {
   credits: number;
@@ -27,6 +29,8 @@ export type JobResponse = {
   jobType: JobType;
   price: JobCredits | null;
   refund: JobCredits | null;
+  shares: JobShareResponse[];
+  // computed fields
   jobStatusSettled: boolean;
 };
 
@@ -46,6 +50,7 @@ export type CreateJobBody = {
   maxAcceptedCredits: number;
   inputData?: Record<string, number | string | boolean | number[] | undefined>;
   name?: string;
+  jobShareRequest?: JobShareRequestBody;
 };
 
 export type JobParams = {

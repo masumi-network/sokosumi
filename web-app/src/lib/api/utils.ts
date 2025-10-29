@@ -104,6 +104,11 @@ export function handleApiError(
         error: HttpErrors.NOT_FOUND,
         code: "JOB_NOT_FOUND",
       },
+      ORGANIZATION_NOT_FOUND: {
+        status: 404,
+        error: HttpErrors.NOT_FOUND,
+        code: "ORGANIZATION_NOT_FOUND",
+      },
       INVALID_INPUT: {
         status: 400,
         error: HttpErrors.BAD_REQUEST,
