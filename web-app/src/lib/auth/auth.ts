@@ -249,7 +249,7 @@ export const auth = betterAuth({
         required: true,
         defaultValue: true,
       },
-      jobStatusEmailNotificationsEnabled: {
+      jobStatusNotificationsOptIn: {
         type: "boolean",
         required: false,
         defaultValue: true,
