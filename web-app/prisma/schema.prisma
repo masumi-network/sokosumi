@@ -54,9 +54,6 @@ model User {
 
   apikeys Apikey[]
 
-  // JobShare
-  jobShares JobShare[] @relation("JobShareCreator")
-
   // Onboarding
   onboardingCompleted Boolean @default(false)
 
@@ -128,11 +125,10 @@ model Organization {
   jobSchedules       JobSchedule[]
   creditTransactions CreditTransaction[]
   fiatTransactions   FiatTransaction[]
+  jobShares          JobShare[]
 
   stripeCustomerId String?
   invoiceEmail     String?
-
-  jobSharesReceived JobShare[]
 
   @@unique([slug])
   @@unique([stripeCustomerId])
@@ -541,7 +537,8 @@ model Job {
   blobs Blob[] @relation("JobBlob")
   links Link[] @relation("JobLink")
 
-  shares JobShare[]
+  // Public Share
+  share JobShare?
 
   // Optional link to the schedule that initiated this job
   jobScheduleId String?
@@ -694,30 +691,20 @@ model JobShare {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  // Who created this share
-  creatorId String
-  creator   User   @relation("JobShareCreator", fields: [creatorId], references: [id], onDelete: Cascade)
-
-  // Job which is being shared
-  jobId String
+  jobId String @unique
   job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
+  organizationId String?
+  organization   Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
   // Security & Access
-  token String @unique
-
-  // Access Control
-  accessType ShareAccessType
-
-  // Recipient Organization
-  recipientOrganizationId String?
-  recipientOrganization   Organization? @relation(fields: [recipientOrganizationId], references: [id], onDelete: SetNull)
+  token String? @unique
 
   // SEO Control
   allowSearchIndexing Boolean @default(true)
 
-  @@unique([jobId, recipientOrganizationId])
-  @@index([recipientOrganizationId])
-  @@map("share")
+  @@index([organizationId])
+  @@map("jobShare")
 }
 
 model JobSchedule {

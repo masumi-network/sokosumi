@@ -45,7 +45,6 @@ import {
   OnChainJobStatus,
   PricingType,
   Prisma,
-  ShareAccessType,
 } from "@/prisma/generated/client";
 
 import { agentService } from "./agent.service";
@@ -957,25 +956,19 @@ export const jobService = (() => {
   const getPubliclySharedJob = async (
     token: string,
   ): Promise<{ job: JobWithStatus; share: JobShare } | null> => {
-    const share = await jobShareRepository.getJobShareByToken(token);
-    if (!share) {
-      return null;
-    }
-
-    // must have Public Access
-    switch (share.accessType) {
-      case ShareAccessType.PUBLIC:
-        break;
-      case ShareAccessType.RESTRICTED:
+    return await prisma.$transaction(async (tx) => {
+      const share = await jobShareRepository.getShareByToken(token, tx);
+      if (!share) {
         return null;
-    }
+      }
 
-    const job = await jobRepository.getJobById(share.jobId);
-    if (!job) {
-      return null;
-    }
+      const job = await jobRepository.getJobById(share.jobId, tx);
+      if (!job) {
+        return null;
+      }
 
-    return { job, share };
+      return { job, share };
+    });
   };
 
   return {

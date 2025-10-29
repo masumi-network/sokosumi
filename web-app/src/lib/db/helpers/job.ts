@@ -3,13 +3,11 @@ import { JobStatus, JobWithStatus } from "@/lib/db/types";
 import {
   AgentJobStatus,
   Job,
-  JobShare,
   JobType,
   NextJobAction,
   NextJobActionErrorType,
   OnChainJobStatus,
   OnChainTransactionStatus,
-  ShareAccessType,
 } from "@/prisma/generated/client";
 
 const TEN_MINUTES_TIMESTAMP = 1000 * 60 * 10; // 10min
@@ -399,38 +397,16 @@ export function transactionStatusToOnChainTransactionStatus(
   }
 }
 
-export function isPubliclyShared(job: JobWithStatus): boolean {
-  return job.shares.some(
-    (share) => share.accessType === ShareAccessType.PUBLIC,
-  );
-}
-
-export function isOrganizationShared(job: JobWithStatus): boolean {
-  return job.shares.some((share) => share.recipientOrganizationId !== null);
-}
-
-export function getPublicJobShare(job: JobWithStatus): JobShare | null {
-  const found = job.shares.find(
-    (share) => share.accessType === ShareAccessType.PUBLIC,
-  );
-  return found ?? null;
-}
-
-export function getOrganizationJobShare(
-  job: JobWithStatus,
-  organizationId: string,
-): JobShare | null {
-  const found = job.shares.find(
-    (share) => share.recipientOrganizationId === organizationId,
-  );
-  return found ?? null;
+export function isSharedPublicly(job: JobWithStatus): boolean {
+  return job.share !== null && job.share.token !== null;
 }
 
 export function isSharedWithOrganization(
   job: JobWithStatus,
-  organizationId: string,
+  organizationId?: string | null,
 ): boolean {
-  return job.shares.some(
-    (share) => share.recipientOrganizationId === organizationId,
-  );
+  if (!organizationId) {
+    return false;
+  }
+  return job.share !== null && job.share.organizationId === organizationId;
 }

@@ -95,11 +95,10 @@ export const userService = (() => {
     let sharedJobs: JobWithStatus[] = [];
     if (activeOrganizationId) {
       sharedJobs = await jobRepository.getJobsSharedWithOrganization(
-        activeOrganizationId,
+        userId,
         agentId,
+        activeOrganizationId,
       );
-      // Filter out jobs owned by the current user to avoid duplicates
-      sharedJobs = sharedJobs.filter((job) => job.userId !== userId);
     }
 
     // Combine and sort all jobs

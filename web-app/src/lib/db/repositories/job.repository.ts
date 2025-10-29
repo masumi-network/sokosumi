@@ -539,7 +539,7 @@ export const jobRepository = {
     jobId: string,
     name: string | null,
     tx: Prisma.TransactionClient = prisma,
-  ) {
+  ): Promise<Job> {
     return await tx.job.update({
       where: { id: jobId },
       data: { name },
@@ -589,33 +589,20 @@ export const jobRepository = {
   },
 
   async getJobsSharedWithOrganization(
+    userId: string,
+    agentId: string,
     organizationId: string,
-    agentId?: string,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<JobWithStatus[]> {
     const jobs = await tx.job.findMany({
       where: {
-        ...(agentId && { agentId }),
-        shares: {
-          some: {
-            recipientOrganizationId: organizationId,
-          },
+        userId: { not: userId },
+        agentId,
+        share: {
+          organizationId,
         },
       },
-      include: {
-        ...jobInclude,
-        shares: {
-          include: {
-            creator: {
-              select: {
-                id: true,
-                name: true,
-                image: true,
-              },
-            },
-          },
-        },
-      },
+      include: jobInclude,
       orderBy: jobOrderBy,
     });
     return jobs.map(mapJobWithStatus);
