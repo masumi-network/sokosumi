@@ -6,7 +6,7 @@
     },
     {
       "name": "Web Application",
-      "path": "web-app",
+      "path": "apps/web",
     },
   ],
   "settings": {
@@ -23,7 +23,7 @@
     "files.associations": {
       "*.css": "tailwindcss",
     },
-    "i18n-ally.localesPaths": ["/web-app/messages", "/web-app/src/i18n"],
+    "i18n-ally.localesPaths": ["/apps/web/messages", "/apps/web/src/i18n"],
     "i18n-ally.keystyle": "nested",
     "[typescriptreact]": {
       "editor.defaultFormatter": "esbenp.prettier-vscode",

@@ -1,5 +1,6 @@
 packages:
-  - web-app
+  - "apps/*"
+  - "packages/*"
 
 ignoredBuiltDependencies:
   - "@prisma/client"

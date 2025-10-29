@@ -6,13 +6,17 @@ Sokosumi is a modern, secure, and user-focused marketplace platform. This monore
 
 ```
 sokosumi/
-├── web-app/         # Next.js 16 web application (TypeScript, Tailwind, Shadcn UI)
+├── apps/
+│   └── web/         # Next.js 16 web application (TypeScript, Tailwind, Shadcn UI)
+├── packages/        # Shared packages (future)
+├── tooling/         # Build tools and configurations (future)
+├── docs/            # Documentation (future)
 ├── package.json     # Monorepo root config
 ├── pnpm-workspace.yaml # Monorepo workspace config
 └── ...              # Other config and shared files
 ```
 
-- **web-app/**: Main user-facing web application (Next.js 16, React 19.2, Tailwind CSS, Shadcn UI, next-intl, Prisma, etc.)
+- **apps/web/**: Main user-facing web application (Next.js 16, React 19.2, Tailwind CSS, Shadcn UI, next-intl, Prisma, etc.)
 
 ## Getting Started
 
@@ -31,14 +35,14 @@ pnpm install
 
 ### Setup Environment
 
-- Copy and configure environment variables for each package (see `web-app/.env.example` if present).
+- Copy and configure environment variables for each package (see `apps/web/.env.example` if present).
 
 ## Development
 
 ### Web App
 
 ```bash
-cd web-app
+cd apps/web
 pnpm dev
 ```
 
@@ -53,7 +57,7 @@ Other available scripts:
 ## Testing
 
 - Each package may have its own test scripts:
-  - `pnpm test` (from within `web-app/` if available)
+  - `pnpm test` (from within `apps/web/` if available)
 
 ## Deployment
 

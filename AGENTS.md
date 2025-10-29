@@ -1,6 +1,6 @@
 # Sokosumi Agent Guidelines
 
-> **Purpose**: This document provides comprehensive guidelines for AI agents working on the Sokosumi monorepo. For app-specific details, see [`web-app/AGENTS.md`](./web-app/AGENTS.md).
+> **Purpose**: This document provides comprehensive guidelines for AI agents working on the Sokosumi monorepo. For app-specific details, see [`apps/web/AGENTS.md`](./apps/web/AGENTS.md).
 
 ## Tech Stack & Architecture
 
@@ -14,20 +14,24 @@
 
 ```
 sokosumi/
-├── web-app/                    # Next.js application
-│   ├── src/app/               # App Router routes, server actions, API handlers
-│   ├── src/components/        # Shared UI components
-│   ├── src/hooks/            # Custom React hooks
-│   ├── src/contexts/         # React contexts
-│   ├── src/lib/              # Domain logic (repositories, services, actions)
-│   │   ├── db/repositories/  # Prisma/Postgres access layer
-│   │   ├── services/         # Business logic coordination
-│   │   └── actions/          # Server mutations
-│   ├── __tests__/            # Colocated tests
-│   ├── __mocks__/            # Reusable test doubles
-│   ├── public/               # Static assets
-│   ├── prisma/               # Database schema and migrations
-│   └── messages/             # Translation catalogs
+├── apps/
+│   └── web/                   # Next.js application
+│       ├── src/app/           # App Router routes, server actions, API handlers
+│       ├── src/components/    # Shared UI components
+│       ├── src/hooks/         # Custom React hooks
+│       ├── src/contexts/      # React contexts
+│       ├── src/lib/           # Domain logic (repositories, services, actions)
+│       │   ├── db/repositories/  # Prisma/Postgres access layer
+│       │   ├── services/      # Business logic coordination
+│       │   └── actions/       # Server mutations
+│       ├── __tests__/         # Colocated tests
+│       ├── __mocks__/         # Reusable test doubles
+│       ├── public/            # Static assets
+│       ├── prisma/            # Database schema and migrations
+│       └── messages/          # Translation catalogs
+├── packages/                  # Shared packages (future)
+├── tooling/                   # Build tools and configurations (future)
+└── docs/                      # Documentation (future)
 ```
 
 ## Authoritative Conventions
@@ -87,7 +91,7 @@ sokosumi/
 ### Setup
 
 1. Run `pnpm install` at repo root
-2. Copy `web-app/.env.example` to `web-app/.env`
+2. Copy `apps/web/.env.example` to `apps/web/.env`
 3. Bootstrap database: `pnpm prisma:migrate:dev`
 4. Generate Prisma clients: `pnpm prisma:generate`
 5. Generate API clients: `pnpm generate:api` (when specs change)

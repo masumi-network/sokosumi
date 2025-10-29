@@ -1,11 +1,11 @@
 # Sokosumi Web App Agent Guidelines
 
-> **Purpose**: This document provides app-specific guidelines for AI agents working on the Sokosumi web application. For comprehensive monorepo guidelines, see [`../AGENTS.md`](../AGENTS.md).
+> **Purpose**: This document provides app-specific guidelines for AI agents working on the Sokosumi web application. For comprehensive monorepo guidelines, see [`../../AGENTS.md`](../../AGENTS.md).
 
 ## App-Specific Architecture
 
 **Framework**: Next.js 16 App Router with React 19.2 Server Components
-**Location**: `web-app/` directory within the pnpm workspace
+**Location**: `apps/web/` directory within the pnpm workspace
 **Key Directories**:
 
 - `src/app/` - App Router routes, server actions, API handlers
