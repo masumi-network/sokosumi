@@ -14,6 +14,7 @@ import {
 import { getTranslations } from "next-intl/server";
 
 export interface JobFailureNotificationEmailProps {
+  network: string;
   jobId: string;
   onChainStatus: string | null;
   agentStatus: string | null;

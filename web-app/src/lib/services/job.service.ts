@@ -202,6 +202,7 @@ export const jobService = (() => {
     job: JobWithStatus,
   ): JobFailureNotificationEmailProps {
     return {
+      network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
       jobId: job.id,
       onChainStatus: job.onChainStatus,
       agentStatus: job.agentJobStatus,
@@ -226,15 +227,14 @@ export const jobService = (() => {
       // Send webhook notification
       const { JOB_FAILURE_WEBHOOK_URL } = getEnvSecrets();
       if (JOB_FAILURE_WEBHOOK_URL) {
-        try {
-          await fetch(JOB_FAILURE_WEBHOOK_URL, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(notificationData),
-          });
-        } catch (webhookError) {
+        fetch(JOB_FAILURE_WEBHOOK_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(notificationData),
+        }).catch((webhookError) => {
+          console.error("Error sending job failure webhook", webhookError);
           Sentry.captureException(webhookError, {
             contexts: {
               error_classification: {
@@ -247,7 +247,7 @@ export const jobService = (() => {
               jobId: job.id,
             },
           });
-        }
+        });
       }
 
       // Send email notification
@@ -276,31 +276,39 @@ export const jobService = (() => {
         bccRecipients = undefined;
       }
 
-      if (toRecipients.length === 0) {
-        Sentry.captureMessage(
-          "No recipients configured for job failure notification",
-          {
-            level: "warning",
-            extra: { jobId: job.id },
-          },
-        );
-        return;
-      }
+      if (toRecipients.length === 0) return;
 
       // Generate email content (subject and body)
       const { subject, htmlBody } =
         await reactJobFailureNotificationEmail(notificationData);
 
       // Send email with appropriate To and Bcc recipients
-      await postmarkClient.sendEmail({
-        From: POSTMARK_FROM_EMAIL,
-        To: toRecipients.join(","),
-        ...(bccRecipients && { Bcc: bccRecipients.join(",") }),
-        Tag: "job-failure-notification",
-        Subject: subject,
-        HtmlBody: htmlBody,
-        MessageStream: "outbound",
-      });
+      postmarkClient
+        .sendEmail({
+          From: POSTMARK_FROM_EMAIL,
+          To: toRecipients.join(","),
+          ...(bccRecipients && { Bcc: bccRecipients.join(",") }),
+          Tag: "job-failure-notification",
+          Subject: subject,
+          HtmlBody: htmlBody,
+          MessageStream: "outbound",
+        })
+        .catch((emailError) => {
+          Sentry.captureException(emailError, {
+            contexts: {
+              error_classification: {
+                severity: "error",
+                domain: "job_failure_notification",
+                category: "email",
+              },
+            },
+            extra: {
+              jobId: job.id,
+              userId: job.userId,
+              agentId: job.agentId,
+            },
+          });
+        });
     } catch (error) {
       Sentry.captureException(error, {
         contexts: {
@@ -1022,7 +1030,7 @@ export const jobService = (() => {
         timeout: 20000, // default: 5000
       },
     );
-
+    await dispatchJobFailureNotification(job);
     // if job status changed, publish to job status to channel
     if (newJobStatus !== oldJobStatus) {
       console.log(
