@@ -1,13 +1,5 @@
-import { Prisma } from "@sokosumi/database";
-
-import { agentInclude } from "./agent";
-
-export const agentListInclude = {
-  agents: {
-    include: agentInclude,
-  },
-} as const;
-
-export type AgentListWithAgents = Prisma.AgentListGetPayload<{
-  include: typeof agentListInclude;
-}>;
+// Re-export types from database package for backward compatibility
+export {
+  agentListInclude,
+  type AgentListWithAgents,
+} from "@sokosumi/database";

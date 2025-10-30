@@ -1,9 +1,8 @@
 import "server-only";
 
-import { AgentList, AgentListType, Prisma } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
-
-import { agentListInclude, AgentListWithAgents } from "@/lib/db/types";
+import type { AgentList, AgentListType, Prisma } from "../generated/prisma/client";
+import prisma from "../client";
+import { agentListInclude, AgentListWithAgents } from "../types/agentList";
 
 /**
  * Repository for managing agent lists associated with users.
@@ -102,3 +101,4 @@ export const agentListRepository = {
     });
   },
 };
+
