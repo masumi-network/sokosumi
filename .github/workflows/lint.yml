@@ -1,5 +1,5 @@
 name: Linting
-on: 
+on:
   pull_request:
 
 jobs:
@@ -33,10 +33,4 @@ jobs:
         uses: ataylorme/eslint-annotate-action@v3
         with:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          report-json: "web-app/lint-report.json"
-      
-      - name: Annotate Sync Function Code Linting Results
-        uses: ataylorme/eslint-annotate-action@v3
-        with:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          report-json: "sync-function/lint-report.json"
+          report-json: "apps/web/lint-report.json"
