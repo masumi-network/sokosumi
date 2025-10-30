@@ -42,4 +42,3 @@ export const creditCostRepository = {
     return await tx.creditCost.findMany();
   },
 };
-

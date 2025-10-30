@@ -15,4 +15,3 @@ export interface UserAgentRatingWithUser {
     image: string | null;
   };
 }
-

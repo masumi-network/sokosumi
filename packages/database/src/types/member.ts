@@ -39,4 +39,3 @@ export type MemberWithUser = Prisma.MemberGetPayload<{
 export type MemberWithRelations = Prisma.MemberGetPayload<{
   include: typeof memberInclude;
 }>;
-

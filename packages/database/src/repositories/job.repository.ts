@@ -703,4 +703,3 @@ export type {
   CreateJobData,
   CreatePaidJobData,
 };
-

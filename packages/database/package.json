@@ -2,18 +2,50 @@
   "name": "@sokosumi/database",
   "version": "0.1.0",
   "private": true,
-  "main": "./src/index.ts",
-  "types": "./src/index.ts",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
   "exports": {
-    ".": "./src/index.ts",
-    "./client": "./src/client.ts",
-    "./transaction": "./src/transaction.ts",
-    "./repositories": "./src/repositories/index.ts",
-    "./helpers": "./src/helpers/index.ts",
-    "./types/job": "./src/types/job.ts"
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.js",
+      "default": "./dist/client.js"
+    },
+    "./transaction": {
+      "types": "./dist/transaction.d.ts",
+      "import": "./dist/transaction.js",
+      "default": "./dist/transaction.js"
+    },
+    "./repositories": {
+      "types": "./dist/repositories/index.d.ts",
+      "import": "./dist/repositories/index.js",
+      "default": "./dist/repositories/index.js"
+    },
+    "./helpers": {
+      "types": "./dist/helpers/index.d.ts",
+      "import": "./dist/helpers/index.js",
+      "default": "./dist/helpers/index.js"
+    },
+    "./types/job": {
+      "types": "./dist/types/job.d.ts",
+      "import": "./dist/types/job.js",
+      "default": "./dist/types/job.js"
+    }
   },
+  "files": [
+    "dist",
+    "prisma/schema.prisma"
+  ],
   "scripts": {
-    "prepare": "prisma generate --no-hints",
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "clean": "rm -rf dist && rm tsconfig.tsbuildinfo",
+    "prepare": "pnpm run build && prisma generate --no-hints",
+    "prepublishOnly": "pnpm run build",
     "prisma:generate": "prisma generate --no-hints",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",

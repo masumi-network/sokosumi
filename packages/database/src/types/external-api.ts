@@ -67,4 +67,3 @@ export interface CreditsPrice {
   cents: bigint;
   includedFee: bigint;
 }
-

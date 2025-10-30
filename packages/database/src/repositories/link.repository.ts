@@ -29,4 +29,3 @@ export const linkRepository = {
     return tx.link.findMany({ where: { jobId } });
   },
 };
-

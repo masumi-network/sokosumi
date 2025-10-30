@@ -11,4 +11,3 @@ export interface UTMData extends UTMParams {
   landingPage?: string;
   capturedAt: string; // ISO Date string
 }
-

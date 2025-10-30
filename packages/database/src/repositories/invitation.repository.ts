@@ -74,4 +74,3 @@ export const invitationRepository = {
     return count > 0;
   },
 };
-

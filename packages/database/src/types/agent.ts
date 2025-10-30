@@ -88,4 +88,3 @@ export type AgentWithJobs = Prisma.AgentGetPayload<{
 export type AgentWithOrganizations = Prisma.AgentGetPayload<{
   include: typeof agentOrganizationsInclude;
 }>;
-

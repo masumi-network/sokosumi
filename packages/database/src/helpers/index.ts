@@ -7,13 +7,12 @@
  *
  * ### Import helpers:
  * ```typescript
- * import { 
+ * import {
  *   computeJobStatus,
  *   mapJobWithStatus,
- *   jobStatusToAgentJobStatus 
+ *   jobStatusToAgentJobStatus
  * } from '@sokosumi/database/helpers'
  * ```
  */
 
 export * from "./job";
-

@@ -33,4 +33,3 @@ export type InvitationWithInviter = Prisma.InvitationGetPayload<{
 export type InvitationWithRelations = Prisma.InvitationGetPayload<{
   include: typeof invitationInclude;
 }>;
-

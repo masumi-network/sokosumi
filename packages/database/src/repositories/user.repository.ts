@@ -166,4 +166,3 @@ export const userRepository = {
     return found.image;
   },
 };
-

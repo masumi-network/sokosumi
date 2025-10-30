@@ -139,4 +139,3 @@ export function isPaidJob(job: JobWithStatus): job is PaidJobWithStatus {
 export function isDemoJob(job: JobWithStatus): job is DemoJobWithStatus {
   return job.jobType === "DEMO";
 }
-

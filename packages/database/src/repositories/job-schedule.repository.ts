@@ -6,7 +6,7 @@ import type { Prisma } from "../generated/prisma/client";
 export const jobScheduleRepository = {
   async create(
     data: Prisma.JobScheduleCreateInput,
-    tx: Prisma.TransactionClient = prisma
+    tx: Prisma.TransactionClient = prisma,
   ) {
     return await tx.jobSchedule.create({
       data,
@@ -16,7 +16,7 @@ export const jobScheduleRepository = {
   async update(
     id: string,
     data: Prisma.JobScheduleUpdateInput,
-    tx: Prisma.TransactionClient = prisma
+    tx: Prisma.TransactionClient = prisma,
   ) {
     return await tx.jobSchedule.update({ where: { id }, data });
   },
@@ -42,7 +42,7 @@ export const jobScheduleRepository = {
   async getScheduleJobsByContext(
     userId: string,
     organizationId: string | null,
-    tx: Prisma.TransactionClient = prisma
+    tx: Prisma.TransactionClient = prisma,
   ) {
     return await tx.jobSchedule.findMany({
       where: {
@@ -68,7 +68,7 @@ export const jobScheduleRepository = {
   async setNextRun(
     id: string,
     nextRunAt: Date | null,
-    tx: Prisma.TransactionClient = prisma
+    tx: Prisma.TransactionClient = prisma,
   ) {
     return await tx.jobSchedule.update({
       where: { id },
@@ -84,7 +84,7 @@ export const jobScheduleRepository = {
     id: string,
     isActive: boolean,
     pauseReason?: string,
-    tx: Prisma.TransactionClient = prisma
+    tx: Prisma.TransactionClient = prisma,
   ) {
     return await tx.jobSchedule.update({
       where: { id },

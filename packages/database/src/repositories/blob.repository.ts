@@ -18,7 +18,7 @@ export const blobRepository = {
     fileUrl: string,
     fileName?: string,
     size?: bigint,
-    tx: Prisma.TransactionClient = prisma
+    tx: Prisma.TransactionClient = prisma,
   ): Promise<Blob> {
     return tx.blob.create({
       data: {
@@ -40,7 +40,7 @@ export const blobRepository = {
     jobId: string,
     sourceUrl: string,
     fileName?: string,
-    tx: Prisma.TransactionClient = prisma
+    tx: Prisma.TransactionClient = prisma,
   ): Promise<Blob> {
     const existing = await tx.blob.findFirst({
       where: { jobId, sourceUrl },
@@ -63,7 +63,7 @@ export const blobRepository = {
    */
   async getBlobById(
     id: string,
-    tx: Prisma.TransactionClient = prisma
+    tx: Prisma.TransactionClient = prisma,
   ): Promise<Blob | null> {
     return tx.blob.findUnique({ where: { id } });
   },
@@ -73,7 +73,7 @@ export const blobRepository = {
    */
   async getBlobsByUserId(
     userId: string,
-    tx: Prisma.TransactionClient = prisma
+    tx: Prisma.TransactionClient = prisma,
   ): Promise<Blob[]> {
     return tx.blob.findMany({ where: { userId } });
   },
@@ -83,7 +83,7 @@ export const blobRepository = {
    */
   async getBlobsByJobId(
     jobId: string,
-    tx: Prisma.TransactionClient = prisma
+    tx: Prisma.TransactionClient = prisma,
   ): Promise<Blob[]> {
     return tx.blob.findMany({ where: { jobId } });
   },
@@ -93,7 +93,7 @@ export const blobRepository = {
    */
   async getPendingOutputBlobs(
     limit?: number,
-    tx: Prisma.TransactionClient = prisma
+    tx: Prisma.TransactionClient = prisma,
   ): Promise<Blob[]> {
     return tx.blob.findMany({
       where: { status: BlobStatus.PENDING, origin: BlobOrigin.OUTPUT },
@@ -108,7 +108,7 @@ export const blobRepository = {
   async updateBlobById(
     id: string,
     data: Prisma.BlobUpdateInput,
-    tx: Prisma.TransactionClient = prisma
+    tx: Prisma.TransactionClient = prisma,
   ): Promise<Blob> {
     return tx.blob.update({ where: { id }, data });
   },
@@ -121,7 +121,7 @@ export const blobRepository = {
       size?: bigint | null;
       fileName?: string | null;
     },
-    tx: Prisma.TransactionClient = prisma
+    tx: Prisma.TransactionClient = prisma,
   ): Promise<Blob> {
     return tx.blob.update({
       where: { id },
@@ -139,7 +139,7 @@ export const blobRepository = {
 
   async markBlobFailed(
     id: string,
-    tx: Prisma.TransactionClient = prisma
+    tx: Prisma.TransactionClient = prisma,
   ): Promise<Blob> {
     return tx.blob.update({
       where: { id },
@@ -152,7 +152,7 @@ export const blobRepository = {
    */
   async deleteBlobById(
     id: string,
-    tx: Prisma.TransactionClient = prisma
+    tx: Prisma.TransactionClient = prisma,
   ): Promise<Blob> {
     return tx.blob.delete({ where: { id } });
   },

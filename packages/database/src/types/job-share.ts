@@ -8,4 +8,3 @@ export const jobShareInclude = {
 export type JobShareWithRelations = Prisma.JobShareGetPayload<{
   include: typeof jobShareInclude;
 }>;
-
