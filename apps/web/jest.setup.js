@@ -44,3 +44,15 @@ if (typeof window !== "undefined" && typeof console !== "undefined") {
 if (typeof globalThis.__dirname === "undefined") {
   globalThis.__dirname = __dirname;
 }
+
+// Mock uuid v13 ESM module
+jest.mock("uuid", () => ({
+  __esModule: true,
+  v4: () => "mock-uuid-v4",
+  v1: () => "mock-uuid-v1",
+  v3: () => "mock-uuid-v3",
+  v5: () => "mock-uuid-v5",
+  validate: () => true,
+  parse: () => new Array(16).fill(0),
+  stringify: () => "00000000-0000-0000-0000-000000000000",
+}));

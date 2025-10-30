@@ -5,7 +5,7 @@ jest.mock("p-limit", () => ({
   __esModule: true,
   default: () => () => Promise.resolve(),
 }));
-jest.mock("@/lib/db/repositories/job-schedule.repository", () => ({
+jest.mock("@sokosumi/database/repositories/job-schedule.repository", () => ({
   __esModule: true,
   jobScheduleRepository: {
     findDue: async () => [],
