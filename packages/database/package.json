@@ -13,6 +13,7 @@
     "./types/job": "./src/types/job.ts"
   },
   "scripts": {
+    "prepare": "prisma generate --no-hints",
     "prisma:generate": "prisma generate --no-hints",
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",

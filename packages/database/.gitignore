@@ -1,2 +1,5 @@
 dist
 node_modules
+
+# Generated Prisma client files (generated via prepare script)
+src/generated/
