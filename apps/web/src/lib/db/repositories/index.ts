@@ -1,7 +1,6 @@
 export * from "./agent.repository";
 export * from "./agentList.repository";
 export * from "./agentRating.repository";
-export * from "./blob.repository";
 export * from "./creditCost.repository";
 export * from "./creditTransaction.repository";
 export * from "./fiatTransaction.repository";
@@ -17,4 +16,4 @@ export * from "./tag.repository";
 export * from "./utmAttribution.repository";
 
 // Repositories migrated to database package
-export { userRepository } from "@sokosumi/database/repositories";
+export { blobRepository, userRepository } from "@sokosumi/database/repositories";

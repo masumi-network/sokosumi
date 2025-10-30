@@ -1,10 +1,8 @@
-import {
-  Blob,
-  BlobOrigin,
-  BlobStatus,
-  Prisma,
-} from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
+import "server-only";
+
+import type { Blob, Prisma } from "../generated/prisma/client";
+import { BlobOrigin, BlobStatus } from "../generated/prisma/client";
+import prisma from "../client";
 
 /**
  * Repository for managing Blob entities and related queries.
@@ -159,3 +157,4 @@ export const blobRepository = {
     return tx.blob.delete({ where: { id } });
   },
 };
+
