@@ -2,6 +2,7 @@ import type { Job } from "../generated/prisma/client";
 import {
   AgentJobStatus,
   JobType,
+  NextJobAction,
   OnChainJobStatus,
 } from "../generated/prisma/client";
 import {
@@ -39,20 +40,20 @@ function checkPaymentStatus(job: Job, now: Date): JobStatus | null {
  */
 function checkNextAction(job: Job): JobStatus | null {
   switch (job.nextAction) {
-    case "FUNDS_LOCKING_INITIATED":
-    case "FUNDS_LOCKING_REQUESTED":
+    case NextJobAction.FUNDS_LOCKING_INITIATED:
+    case NextJobAction.FUNDS_LOCKING_REQUESTED:
       return JobStatus.PAYMENT_PENDING;
-    case "SET_REFUND_REQUESTED_INITIATED":
-    case "SET_REFUND_REQUESTED_REQUESTED":
-    case "UNSET_REFUND_REQUESTED_INITIATED":
-    case "UNSET_REFUND_REQUESTED_REQUESTED":
+    case NextJobAction.SET_REFUND_REQUESTED_INITIATED:
+    case NextJobAction.SET_REFUND_REQUESTED_REQUESTED:
+    case NextJobAction.UNSET_REFUND_REQUESTED_INITIATED:
+    case NextJobAction.UNSET_REFUND_REQUESTED_REQUESTED:
       return JobStatus.REFUND_PENDING;
-    case "WITHDRAW_REFUND_REQUESTED":
-    case "WITHDRAW_REFUND_INITIATED":
-    case "WAITING_FOR_MANUAL_ACTION":
-    case "WAITING_FOR_EXTERNAL_ACTION":
-    case "NONE":
-    case "IGNORE":
+    case NextJobAction.WITHDRAW_REFUND_REQUESTED:
+    case NextJobAction.WITHDRAW_REFUND_INITIATED:
+    case NextJobAction.WAITING_FOR_MANUAL_ACTION:
+    case NextJobAction.WAITING_FOR_EXTERNAL_ACTION:
+    case NextJobAction.NONE:
+    case NextJobAction.IGNORE:
     case null:
       return null;
   }
