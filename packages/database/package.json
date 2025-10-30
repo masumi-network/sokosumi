@@ -6,7 +6,8 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
-    "./client": "./src/client.ts"
+    "./client": "./src/client.ts",
+    "./transaction": "./src/transaction.ts"
   },
   "scripts": {
     "prisma:generate": "prisma generate --no-hints",
