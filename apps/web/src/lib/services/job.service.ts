@@ -18,11 +18,7 @@ import {
   PaidJobWithStatus,
 } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
-import { isPaidJob } from "@sokosumi/database/helpers";
-import {
-  computeJobStatus,
-  jobStatusToAgentJobStatus,
-} from "@sokosumi/database/helpers";
+import { computeJobStatus, isPaidJob } from "@sokosumi/database/helpers";
 import {
   creditTransactionRepository,
   jobRepository,
@@ -52,6 +48,10 @@ import {
   StartJobInputSchemaType,
 } from "@/lib/schemas";
 import { Err } from "@/lib/ts-res";
+import {
+  jobStatusToAgentJobStatus,
+  transformPurchaseToJobUpdate,
+} from "@/lib/utils/job-transformers";
 
 import { agentService } from "./agent.service";
 import { sourceImportService } from "./source-import.service";
@@ -686,7 +686,8 @@ export const jobService = (() => {
     );
     if (createPurchaseResult.ok) {
       const purchase = createPurchaseResult.data;
-      await jobRepository.updateJobWithPurchase(job.id, purchase);
+      const purchaseData = transformPurchaseToJobUpdate(purchase);
+      await jobRepository.updateJobWithPurchase(job.id, purchaseData);
 
       // Add breadcrumb for successful purchase creation
       Sentry.addBreadcrumb({
@@ -965,10 +966,8 @@ export const jobService = (() => {
           job.blockchainIdentifier,
         );
       if (purchaseResult.ok) {
-        job = await jobRepository.updateJobWithPurchase(
-          job.id,
-          purchaseResult.data,
-        );
+        const purchaseData = transformPurchaseToJobUpdate(purchaseResult.data);
+        job = await jobRepository.updateJobWithPurchase(job.id, purchaseData);
       }
     }
     const agentJobIdToSync = shouldSyncAgentStatus(job);
@@ -986,24 +985,32 @@ export const jobService = (() => {
     const newJobStatus = await prisma.$transaction(
       async (tx) => {
         if (onChainPurchaseResult.ok) {
+          const purchaseData = transformPurchaseToJobUpdate(
+            onChainPurchaseResult.data,
+          );
           job = await jobRepository.updateJobWithPurchase(
             job.id,
-            onChainPurchaseResult.data,
+            purchaseData,
             tx,
           );
         }
         if (agentJobStatusResult.ok) {
+          const agentJobStatus = jobStatusToAgentJobStatus(
+            agentJobStatusResult.data.status,
+          );
+          const output = JSON.stringify(agentJobStatusResult.data);
           job = await jobRepository.updateJobWithAgentJobStatus(
-            job,
-            agentJobStatusResult.data,
+            job.id,
+            agentJobStatus,
+            output,
             tx,
           );
           // Fire and forget: enqueue extraction if output is present
           try {
-            const output = agentJobStatusResult.data?.result;
-            if (typeof output === "string") {
+            const outputResult = agentJobStatusResult.data?.result;
+            if (typeof outputResult === "string") {
               sourceImportService
-                .enqueueFromMarkdown(job.userId, job.id, output)
+                .enqueueFromMarkdown(job.userId, job.id, outputResult)
                 .catch(() => {
                   // Ignore errors
                 });

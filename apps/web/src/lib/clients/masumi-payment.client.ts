@@ -14,8 +14,13 @@ import { JobInputData } from "@/lib/job-input";
 import { StartJobResponseSchemaType } from "@/lib/schemas";
 import { Err, Ok, Result } from "@/lib/ts-res";
 
-// Type alias for Purchase from the generated API response
-type Purchase = GetPurchaseResponses[200]["data"]["Purchases"][0];
+// Export Purchase type and nested types for reuse in transformers
+export type Purchase = GetPurchaseResponses[200]["data"]["Purchases"][0];
+export type PurchaseOnChainState = Purchase["onChainState"];
+export type PurchaseNextAction = Purchase["NextAction"];
+export type PurchaseCurrentTransaction = Purchase["CurrentTransaction"];
+export type PurchaseRequestedAction = PurchaseNextAction["requestedAction"];
+export type PurchaseErrorType = PurchaseNextAction["errorType"];
 
 export const paymentClient = (() => {
   const client = () => {

@@ -5,20 +5,12 @@ import type {
   AgentJobStatus,
   Job,
   NextJobAction,
+  NextJobActionErrorType,
+  OnChainJobStatus,
+  OnChainTransactionStatus,
   Prisma,
 } from "../generated/prisma/client";
-import {
-  jobStatusToAgentJobStatus,
-  mapJobWithStatus,
-  nextActionToNextJobAction,
-  onChainStateToOnChainJobStatus,
-  transactionStatusToOnChainTransactionStatus,
-} from "../helpers/job";
-import type {
-  CreditsPrice,
-  JobStatusResponse,
-  Purchase,
-} from "../types/external-api";
+import { mapJobWithStatus } from "../helpers/job";
 import {
   finalizedAgentJobStatuses,
   finalizedOnChainJobStatuses,
@@ -59,7 +51,10 @@ interface CreateJobBase {
 interface CreatePaidJobData extends CreateJobBase {
   jobType: "PAID";
   identifierFromPurchaser: string;
-  creditsPrice: CreditsPrice;
+  creditsPrice: {
+    cents: bigint;
+    includedFee: bigint;
+  };
   payByTime: Date;
   externalDisputeUnlockTime: Date;
   submitResultTime: Date;
@@ -382,23 +377,25 @@ export const jobRepository = {
   },
 
   async updateJobWithAgentJobStatus(
-    job: Job,
-    jobStatusResponse: { status: JobStatusResponse; [key: string]: unknown },
+    jobId: string,
+    agentJobStatus: AgentJobStatus,
+    output: string,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<JobWithStatus> {
-    const output = JSON.stringify(jobStatusResponse);
-    const agentJobStatus = jobStatusToAgentJobStatus(jobStatusResponse.status);
+    // Fetch the current job to check if it's already completed
+    const currentJob = await tx.job.findUnique({ where: { id: jobId } });
+
     const data: Prisma.JobUpdateInput = {
       agentJobStatus,
       output,
       ...(agentJobStatus === "COMPLETED" &&
-        job.completedAt === null && {
+        currentJob?.completedAt === null && {
           completedAt: new Date(),
         }),
     };
 
     const updatedJob = await tx.job.update({
-      where: { id: job.id },
+      where: { id: jobId },
       data,
       include: jobInclude,
     });
@@ -407,42 +404,42 @@ export const jobRepository = {
 
   async updateJobWithPurchase(
     jobId: string,
-    purchase: Purchase,
+    data: {
+      purchaseId: string;
+      onChainStatus: OnChainJobStatus | null;
+      inputHash: string | null;
+      resultHash: string | null;
+      nextAction: NextJobAction;
+      nextActionErrorType: NextJobActionErrorType | null;
+      nextActionErrorNote: string | null;
+      onChainTransactionHash?: string;
+      onChainTransactionStatus?: OnChainTransactionStatus;
+      resultSubmittedAt?: Date;
+    },
     tx: Prisma.TransactionClient = prisma,
   ): Promise<JobWithStatus> {
-    const onChainStatus = onChainStateToOnChainJobStatus(purchase.onChainState);
-    let data: Prisma.JobUpdateInput = {
-      purchaseId: purchase.id,
-      onChainStatus,
-      inputHash: purchase.inputHash,
-      resultHash: purchase.resultHash,
+    const updateData: Prisma.JobUpdateInput = {
+      purchaseId: data.purchaseId,
+      onChainStatus: data.onChainStatus,
+      inputHash: data.inputHash,
+      resultHash: data.resultHash,
+      nextAction: data.nextAction,
+      nextActionErrorType: data.nextActionErrorType,
+      nextActionErrorNote: data.nextActionErrorNote,
+      ...(data.onChainTransactionHash && {
+        onChainTransactionHash: data.onChainTransactionHash,
+      }),
+      ...(data.onChainTransactionStatus && {
+        onChainTransactionStatus: data.onChainTransactionStatus,
+      }),
+      ...(data.resultSubmittedAt && {
+        resultSubmittedAt: data.resultSubmittedAt,
+      }),
     };
-    if (onChainStatus === "RESULT_SUBMITTED") {
-      data.resultSubmittedAt = new Date();
-    }
-
-    const nextAction = nextActionToNextJobAction(purchase.NextAction);
-    data = {
-      ...data,
-      nextAction: nextAction.requestedAction,
-      nextActionErrorType: nextAction.errorType,
-      nextActionErrorNote: nextAction.errorNote,
-    };
-
-    const transaction = purchase.CurrentTransaction;
-    if (transaction) {
-      data = {
-        ...data,
-        onChainTransactionHash: transaction.txHash,
-        onChainTransactionStatus: transactionStatusToOnChainTransactionStatus(
-          transaction.status,
-        ),
-      };
-    }
 
     const job = await tx.job.update({
       where: { id: jobId },
-      data,
+      data: updateData,
       include: jobInclude,
     });
     return mapJobWithStatus(job);
