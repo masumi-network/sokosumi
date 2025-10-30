@@ -1,7 +1,7 @@
 import "server-only";
 
-import { Link, Prisma } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
+import type { Link, Prisma } from "../generated/prisma/client";
+import prisma from "../client";
 
 export const linkRepository = {
   async upsertLink(
@@ -29,3 +29,4 @@ export const linkRepository = {
     return tx.link.findMany({ where: { jobId } });
   },
 };
+
