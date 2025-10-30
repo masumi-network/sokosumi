@@ -1,9 +1,10 @@
 import "server-only";
 
+import { v4 as uuidv4 } from "uuid";
+
 import prisma from "../client";
 import type { Prisma } from "../generated/prisma/client";
 import { jobShareInclude } from "../types/job-share";
-import { v4 as uuidv4 } from "uuid";
 
 /**
  * Repository for managing JobShare entities and related queries.
@@ -111,4 +112,3 @@ export const jobShareRepository = {
     });
   },
 };
-
