@@ -4,7 +4,7 @@ import { UTMAttribution } from "@sokosumi/database";
 import { ReadonlyRequestCookies } from "next/dist/server/web/spec-extension/adapters/request-cookies";
 import { cookies } from "next/headers";
 
-import { utmAttributionRepository } from "@/lib/db/repositories/utmAttribution.repository";
+import { utmAttributionRepository } from "@/lib/db/repositories";
 import { UTM_COOKIE_NAME, UTMData, utmDataSchema } from "@/lib/utils/utm";
 
 /**

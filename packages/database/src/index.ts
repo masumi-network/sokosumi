@@ -7,3 +7,6 @@ export * from "./generated/prisma/browser";
 
 // Export additional model-related types
 export * from "./generated/prisma/models";
+
+// Export shared types
+export * from "./types/utm";
