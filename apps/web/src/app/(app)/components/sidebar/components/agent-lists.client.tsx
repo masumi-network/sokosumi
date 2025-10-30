@@ -24,7 +24,7 @@ import {
 } from "@/components/ui/sidebar";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 import { JobIndicatorStatus, makeAgentJobsChannel } from "@/lib/ably";
-import { AgentWithAvailability } from "@/lib/domain/agent";
+import { AgentWithAvailability } from "@/lib/types/agent";
 import { getAgentName } from "@/lib/helpers/agent";
 import { cn } from "@/lib/utils";
 

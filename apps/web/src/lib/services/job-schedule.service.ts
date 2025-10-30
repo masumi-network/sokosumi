@@ -10,7 +10,7 @@ import pLimit from "p-limit";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import publishJobStatusData from "@/lib/ably/publish";
-import { JobScheduleType } from "@/lib/domain/job";
+import { JobScheduleType } from "@/lib/types/job";
 import { startJobInputSchema, StartJobInputSchemaType } from "@/lib/schemas";
 import { jobService } from "@/lib/services/job.service";
 import { lockService } from "@/lib/services/lock.service";

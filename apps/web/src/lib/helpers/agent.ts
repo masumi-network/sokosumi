@@ -11,9 +11,12 @@ import {
   type AgentDemoData,
   type AgentDemoValues,
   type AgentLegal,
-} from "@/lib/domain/agent";
+} from "@/lib/types/agent";
 import { ipfsUrlResolver } from "@/lib/ipfs";
-import { type JobInputsDataSchemaType, jobInputsFormSchema } from "@/lib/job-input";
+import {
+  type JobInputsDataSchemaType,
+  jobInputsFormSchema,
+} from "@/lib/job-input";
 import {
   jobStatusResponseSchema,
   type PricingAmountsSchemaType,
@@ -196,6 +199,3 @@ export function getAgentDemoData(agent: Agent): AgentDemoData | null {
     ? { demoInput: agent.demoInput, demoOutput: agent.demoOutput }
     : null;
 }
-
-
-

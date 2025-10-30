@@ -13,7 +13,7 @@ import {
 } from "@/components/schedules/format";
 import ScheduleItem from "@/components/schedules/schedule-item.client";
 import { getSession } from "@/lib/auth/utils";
-import { JobScheduleType, mapPrismaToUiScheduleType } from "@/lib/domain/job";
+import { JobScheduleType, mapPrismaToUiScheduleType } from "@/lib/types/job";
 
 export default async function SchedulesPage() {
   const session = await getSession();

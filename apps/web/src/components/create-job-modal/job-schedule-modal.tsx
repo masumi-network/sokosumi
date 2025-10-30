@@ -8,7 +8,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { JobScheduleSelectionType } from "@/lib/domain/job";
+import { JobScheduleSelectionType } from "@/lib/types/job";
 
 interface JobScheduleModalProps {
   open: boolean;
