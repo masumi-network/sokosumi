@@ -42,7 +42,6 @@
   ],
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch",
     "clean": "rm -rf dist && rm tsconfig.tsbuildinfo",
     "prepare": "prisma generate --no-hints",
     "prepublishOnly": "pnpm run build",
