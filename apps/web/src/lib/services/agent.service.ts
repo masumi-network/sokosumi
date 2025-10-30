@@ -29,7 +29,6 @@ import {
   agentRepository,
   creditCostRepository,
   jobRepository,
-  mapAgentWithIsNew,
   memberRepository,
 } from "@/lib/db/repositories";
 import { pricingAmountsSchema } from "@/lib/schemas";
@@ -175,23 +174,21 @@ export const agentService = (() => {
       if (existingList) {
         const { userOrganizationIds, creditCosts, activeOrganizationId } =
           await getAgentAccessContext(tx);
-        return existingList.agents
-          .map(mapAgentWithIsNew)
-          .filter((agent) =>
-            isAgentAvailable(
-              agent,
-              userOrganizationIds,
-              creditCosts,
-              activeOrganizationId,
-            ),
-          );
+        return existingList.agents.filter((agent) =>
+          isAgentAvailable(
+            agent,
+            userOrganizationIds,
+            creditCosts,
+            activeOrganizationId,
+          ),
+        );
       }
       const list = await agentListRepository.upsertAgentListForUserId(
         context.userId,
         type,
         tx,
       );
-      return list.agents.map(mapAgentWithIsNew);
+      return list.agents;
     });
   };
 

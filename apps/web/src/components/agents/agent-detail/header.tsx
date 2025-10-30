@@ -20,6 +20,7 @@ import {
   getFullAgentAuthorName,
 } from "@/lib/db";
 import { cn } from "@/lib/utils";
+import { isAgentNew } from "@/lib/utils/agent";
 
 interface AgentDetailHeaderProps {
   agent: AgentWithCreditsPrice;
@@ -60,7 +61,7 @@ function AgentDetailHeader({
             className="rounded-lg object-cover"
             priority
           />
-          {agent.isNew && (
+          {isAgentNew(agent) && (
             <div className="absolute top-0 left-0 p-3">
               <AgentNewBadge />
             </div>

@@ -20,6 +20,7 @@ import {
   getShortAgentAuthorName,
 } from "@/lib/db";
 import { cn } from "@/lib/utils";
+import { isAgentNew } from "@/lib/utils/agent";
 
 import {
   AgentBadgeCloud,
@@ -372,7 +373,7 @@ function AgentCard({
               {/* Badges */}
               <div className={cn(agentCardBadgesContainerVariants({ size }))}>
                 {/* New Badge */}
-                {agent.isNew && <AgentNewBadge />}
+                {isAgentNew(agent) && <AgentNewBadge />}
                 {/* Tags */}
                 <AgentBadgeCloud tags={getAgentTags(agent)} />
               </div>

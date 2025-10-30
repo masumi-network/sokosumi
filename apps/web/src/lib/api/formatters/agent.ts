@@ -17,7 +17,6 @@ export function formatAgentResponse(
     name: agent.name,
     description: agent.description,
     status: agent.status,
-    isNew: agent.isNew,
     isShown: agent.isShown,
     price: {
       credits: convertCentsToCredits(agent.creditsPrice.cents),

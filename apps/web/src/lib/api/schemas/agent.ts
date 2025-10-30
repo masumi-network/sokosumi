@@ -22,7 +22,6 @@ export const agentResponseSchema = z.object({
   name: z.string(),
   description: z.string().nullable(),
   status: z.enum(AgentStatus),
-  isNew: z.boolean(),
   isShown: z.boolean(),
   price: creditsPriceSchema,
   tags: z.array(agentTagSchema),
