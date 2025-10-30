@@ -1,13 +1,12 @@
 import "server-only";
 
-import { Prisma } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
-
+import type { Prisma } from "../generated/prisma/client";
+import prisma from "../client";
 import {
   invitationInclude,
   InvitationStatus,
   InvitationWithRelations,
-} from "@/lib/db/types";
+} from "../types/invitation";
 
 /**
  * Repository for managing invitation records in the database.
@@ -75,3 +74,4 @@ export const invitationRepository = {
     return count > 0;
   },
 };
+

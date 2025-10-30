@@ -1,7 +1,6 @@
 export * from "./agent.repository";
 export * from "./creditTransaction.repository";
 export * from "./fiatTransaction.repository";
-export * from "./invitation.repository";
 export * from "./job.repository";
 export * from "./job-schedule.repository";
 
@@ -11,6 +10,7 @@ export {
   agentRatingRepository,
   blobRepository,
   creditCostRepository,
+  invitationRepository,
   jobShareRepository,
   linkRepository,
   lockRepository,

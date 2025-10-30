@@ -2,6 +2,7 @@ export * from "./agentList.repository";
 export * from "./agentRating.repository";
 export * from "./blob.repository";
 export * from "./creditCost.repository";
+export * from "./invitation.repository";
 export * from "./job-share.repository";
 export * from "./link.repository";
 export * from "./lock.repository";
