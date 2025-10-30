@@ -9,11 +9,11 @@ export * from "./job.repository";
 export * from "./job-schedule.repository";
 export * from "./job-share.repository";
 export * from "./link.repository";
-export * from "./lock.repository";
 
 // Repositories migrated to database package
 export {
   blobRepository,
+  lockRepository,
   memberRepository,
   organizationRepository,
   tagRepository,

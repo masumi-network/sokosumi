@@ -1,7 +1,7 @@
 import "server-only";
 
-import { Lock, Prisma } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
+import type { Lock, Prisma } from "../generated/prisma/client";
+import prisma from "../client";
 
 /**
  * Repository for distributed lock management using the Lock model.
@@ -85,3 +85,4 @@ export const lockRepository = {
     });
   },
 };
+

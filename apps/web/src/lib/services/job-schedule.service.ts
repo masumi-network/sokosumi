@@ -7,7 +7,7 @@ import pLimit from "p-limit";
 import { getEnvSecrets } from "@/config/env.secrets";
 import publishJobStatusData from "@/lib/ably/publish";
 import { jobScheduleRepository } from "@/lib/db/repositories/job-schedule.repository";
-import { lockRepository } from "@/lib/db/repositories/lock.repository";
+import { lockRepository } from "@/lib/db/repositories";
 import { JobScheduleType } from "@/lib/db/types/job";
 import { startJobInputSchema, StartJobInputSchemaType } from "@/lib/schemas";
 import { jobService } from "@/lib/services/job.service";
