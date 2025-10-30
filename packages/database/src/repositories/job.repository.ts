@@ -2,13 +2,16 @@ import "server-only";
 
 import prisma from "../client";
 import type {
-  AgentJobStatus,
   Job,
   NextJobAction,
   NextJobActionErrorType,
-  OnChainJobStatus,
   OnChainTransactionStatus,
   Prisma,
+} from "../generated/prisma/client";
+import {
+  AgentJobStatus,
+  JobType,
+  OnChainJobStatus,
 } from "../generated/prisma/client";
 import { mapJobWithStatus } from "../helpers/job";
 import {
@@ -21,7 +24,7 @@ import {
 } from "../types/job";
 
 interface CreateDemoJobData {
-  jobType: "DEMO";
+  jobType: typeof JobType.DEMO;
   agentJobId: string;
   agentId: string;
   userId: string;
@@ -49,7 +52,7 @@ interface CreateJobBase {
 }
 
 interface CreatePaidJobData extends CreateJobBase {
-  jobType: "PAID";
+  jobType: typeof JobType.PAID;
   identifierFromPurchaser: string;
   creditsPrice: {
     cents: bigint;
@@ -65,7 +68,7 @@ interface CreatePaidJobData extends CreateJobBase {
 }
 
 interface CreateFreeJobData extends CreateJobBase {
-  jobType: "FREE";
+  jobType: typeof JobType.FREE;
 }
 
 type CreateJobData = CreatePaidJobData | CreateFreeJobData;
@@ -200,7 +203,7 @@ export const jobRepository = {
     return await tx.job.create({
       data: {
         agentJobId: data.agentJobId,
-        jobType: "DEMO",
+        jobType: JobType.DEMO,
         agent: {
           connect: {
             id: data.agentId,
@@ -272,7 +275,7 @@ export const jobRepository = {
     };
 
     switch (data.jobType) {
-      case "FREE":
+      case JobType.FREE:
         return tx.job.create({
           data: {
             ...baseJobData,
@@ -286,7 +289,7 @@ export const jobRepository = {
             identifierFromPurchaser: null,
           },
         });
-      case "PAID":
+      case JobType.PAID:
         return tx.job.create({
           data: {
             ...baseJobData,
@@ -388,7 +391,7 @@ export const jobRepository = {
     const data: Prisma.JobUpdateInput = {
       agentJobStatus,
       output,
-      ...(agentJobStatus === "COMPLETED" &&
+      ...(agentJobStatus === AgentJobStatus.COMPLETED &&
         currentJob?.completedAt === null && {
           completedAt: new Date(),
         }),
@@ -586,7 +589,7 @@ export const jobRepository = {
         userId,
         agentId,
         jobType: {
-          not: "DEMO",
+          not: JobType.DEMO,
         },
         ...jobsFinishedWhereQuery(),
       },
@@ -636,7 +639,7 @@ function jobsNotFinishedWhereQuery(
       },
       // Filter out jobs that are non-disputed and have a externalDisputeUnlockTime that is less than the cutoff time
       {
-        onChainStatus: { not: "DISPUTED" },
+        onChainStatus: { not: OnChainJobStatus.DISPUTED },
         externalDisputeUnlockTime: {
           not: null,
           lt: cutoffTime,
@@ -649,11 +652,11 @@ function jobsNotFinishedWhereQuery(
       },
       // Filter out demo jobs
       {
-        jobType: "DEMO",
+        jobType: JobType.DEMO,
       },
       // Filter out free jobs that are completed or failed on agentJobStatus
       {
-        jobType: "FREE",
+        jobType: JobType.FREE,
         agentJobStatus: {
           not: null,
           in: finalizedAgentJobStatuses,
@@ -681,10 +684,13 @@ function jobsFinishedWhereQuery(): Prisma.JobWhereInput {
         },
         // Check for finalized on-chain statuses
         OR: [
-          { onChainStatus: null, jobType: "FREE" },
+          { onChainStatus: null, jobType: JobType.FREE },
           {
             onChainStatus: {
-              notIn: ["FUNDS_LOCKED", "REFUND_REQUESTED"],
+              notIn: [
+                OnChainJobStatus.FUNDS_LOCKED,
+                OnChainJobStatus.REFUND_REQUESTED,
+              ],
             },
           },
         ],
