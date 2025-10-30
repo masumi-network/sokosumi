@@ -1,17 +1,16 @@
 import "server-only";
 
-import { Member, Prisma } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
-
+import type { Member, Prisma } from "../generated/prisma/client";
+import prisma from "../client";
 import {
   memberOrderBy,
   memberOrganizationInclude,
-  MemberRole,
   memberRoleOrderBy,
   memberUserInclude,
   MemberWithOrganization,
   MemberWithUser,
-} from "@/lib/db/types";
+} from "../types/member";
+import { MemberRole } from "../types/organization";
 
 /**
  * Repository for managing Member entities and related queries.
@@ -201,3 +200,4 @@ export const memberRepository = (() => {
     getPerRoleCountByOrganizationId,
   };
 })();
+

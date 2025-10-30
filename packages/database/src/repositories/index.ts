@@ -1,4 +1,5 @@
 export * from "./blob.repository";
+export * from "./member.repository";
 export * from "./organization.repository";
 export * from "./tag.repository";
 export * from "./user.repository";
