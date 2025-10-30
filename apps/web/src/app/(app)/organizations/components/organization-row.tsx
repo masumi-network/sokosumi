@@ -1,3 +1,4 @@
+import { MemberWithOrganization } from "@sokosumi/database";
 import { Building2 } from "lucide-react";
 import Link from "next/link";
 
@@ -6,7 +7,6 @@ import {
   OrganizationRoleBadge,
 } from "@/components/organizations";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MemberWithOrganization } from "@/lib/db";
 
 import OrganizationActionButtons from "./organization-action-buttons";
 

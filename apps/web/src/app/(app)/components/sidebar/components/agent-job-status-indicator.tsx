@@ -1,5 +1,6 @@
 "use client";
 
+import { JobStatus } from "@sokosumi/database";
 import { Check, Circle, Loader2, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -10,7 +11,6 @@ import {
 } from "@/components/ui/tooltip";
 import useAgentJobStatus from "@/hooks/use-agent-job-status";
 import { JobIndicatorStatus } from "@/lib/ably";
-import { JobStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 interface AgentJobStatusIndicatorProps {

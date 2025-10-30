@@ -2,12 +2,15 @@ import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
 import { JobSchedule } from "@sokosumi/database";
+import {
+  jobScheduleRepository,
+  lockRepository,
+} from "@sokosumi/database/repositories";
 import pLimit from "p-limit";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import publishJobStatusData from "@/lib/ably/publish";
-import { jobScheduleRepository,lockRepository  } from "@/lib/db/repositories";
-import { JobScheduleType } from "@/lib/db/types/job";
+import { JobScheduleType } from "@/lib/domain/job";
 import { startJobInputSchema, StartJobInputSchemaType } from "@/lib/schemas";
 import { jobService } from "@/lib/services/job.service";
 import { lockService } from "@/lib/services/lock.service";

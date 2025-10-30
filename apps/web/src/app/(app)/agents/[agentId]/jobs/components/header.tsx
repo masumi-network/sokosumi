@@ -1,6 +1,10 @@
 "use client";
 
 import type { AgentRatingStats } from "@sokosumi/database";
+import {
+  AgentWithCreditsPrice,
+  AgentWithRelations,
+} from "@sokosumi/database";
 import { ArrowLeft, Bookmark, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -10,12 +14,8 @@ import { AgentRatingCTA } from "@/components/agents/agent-rating-cta";
 import { CreateJobModalTrigger } from "@/components/create-job-modal";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  AgentWithCreditsPrice,
-  AgentWithRelations,
-  convertCentsToCredits,
-  getAgentName,
-} from "@/lib/db";
+import { getAgentName } from "@/lib/helpers/agent";
+import { convertCentsToCredits } from "@/lib/helpers/credit";
 
 export function HeaderSkeleton() {
   const t = useTranslations("App.Agents.Jobs.Header");

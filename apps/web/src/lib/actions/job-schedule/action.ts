@@ -2,12 +2,12 @@
 
 import * as Sentry from "@sentry/nextjs";
 import { Prisma, ScheduleType } from "@sokosumi/database";
+import { jobScheduleRepository } from "@sokosumi/database/repositories";
 import { revalidatePath } from "next/cache";
 
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes";
 import { handleInputDataFileUploads } from "@/lib/actions/job/utils";
-import { jobScheduleRepository } from "@/lib/db/repositories";
-import { JobScheduleEndsMode, JobScheduleType } from "@/lib/db/types/job";
+import { JobScheduleEndsMode, JobScheduleType } from "@/lib/domain/job";
 import { StartJobInputSchemaType } from "@/lib/schemas/job";
 import { Result } from "@/lib/ts-res";
 import { computeNextRun } from "@/lib/utils/cron";

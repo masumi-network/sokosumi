@@ -5,6 +5,7 @@ import {
   PricingType,
 } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
+import { lockRepository } from "@sokosumi/database/repositories";
 import { after, NextResponse } from "next/server";
 import pTimeout from "p-timeout";
 
@@ -12,7 +13,6 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import { authenticateCronSecret } from "@/lib/auth/utils";
 import { PostRegistryEntryResponse } from "@/lib/clients/generated/registry";
 import { registryClient } from "@/lib/clients/masumi-registry.client";
-import { lockRepository } from "@/lib/db/repositories";
 import { lockService } from "@/lib/services";
 
 const LOCK_KEY = "agents-sync";

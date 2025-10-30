@@ -1,12 +1,13 @@
+
 import { Lock } from "@sokosumi/database";
+import { agentRepository, lockRepository } from "@sokosumi/database/repositories";
 import { after, NextResponse } from "next/server";
 import pTimeout from "p-timeout";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { authenticateCronSecret } from "@/lib/auth/utils";
 import { anthropicClient } from "@/lib/clients";
-import { getAgentDescription } from "@/lib/db";
-import { agentRepository, lockRepository } from "@/lib/db/repositories";
+import { getAgentDescription } from "@/lib/helpers/agent";
 import { lockService } from "@/lib/services";
 
 const LOCK_KEY = "agents-summary-sync";

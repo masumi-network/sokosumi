@@ -28,7 +28,7 @@ import {
   JobScheduleEndsMode,
   JobScheduleSelectionType,
   JobScheduleType,
-} from "@/lib/db/types/job";
+} from "@/lib/domain/job";
 import {
   computeNextOccurrence,
   DOW,

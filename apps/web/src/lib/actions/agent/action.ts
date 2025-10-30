@@ -1,10 +1,10 @@
 "use server";
 
 import { AgentListType } from "@sokosumi/database";
+import { agentListRepository } from "@sokosumi/database/repositories";
 import { revalidatePath } from "next/cache";
 
 import { ActionError } from "@/lib/actions";
-import { agentListRepository } from "@/lib/db/repositories";
 import { Ok, Result } from "@/lib/ts-res";
 import {
   AuthenticatedRequest,

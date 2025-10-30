@@ -1,6 +1,4 @@
-import { Invitation } from "@sokosumi/database";
-
-import { MemberWithUser } from "@/lib/db";
+import { Invitation, MemberWithUser } from "@sokosumi/database";
 
 export interface MemberRowData {
   name?: string | undefined;

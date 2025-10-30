@@ -3,9 +3,8 @@ import {
   JobType,
   OnChainJobStatus,
 } from "@sokosumi/database";
+import { JobStatus } from "@sokosumi/database";
 import * as z from "zod";
-
-import { JobStatus } from "@/lib/db/types";
 
 import { jobShareResponseSchema } from "./job-share";
 

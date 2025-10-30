@@ -1,18 +1,22 @@
-import { Agent, ExampleOutput, PricingType } from "@sokosumi/database";
+import {
+  Agent,
+  type AgentWithExampleOutput,
+  type AgentWithPricing,
+  type AgentWithTags,
+  ExampleOutput,
+  PricingType,
+} from "@sokosumi/database";
 
 import {
-  AgentDemoData,
-  AgentDemoValues,
-  AgentLegal,
-  AgentWithExampleOutput,
-  AgentWithPricing,
-  AgentWithTags,
-} from "@/lib/db/types";
+  type AgentDemoData,
+  type AgentDemoValues,
+  type AgentLegal,
+} from "@/lib/domain/agent";
 import { ipfsUrlResolver } from "@/lib/ipfs";
-import { JobInputsDataSchemaType, jobInputsFormSchema } from "@/lib/job-input";
+import { type JobInputsDataSchemaType, jobInputsFormSchema } from "@/lib/job-input";
 import {
   jobStatusResponseSchema,
-  PricingAmountsSchemaType,
+  type PricingAmountsSchemaType,
 } from "@/lib/schemas";
 
 export function getAgentName(agent: Agent): string {
@@ -192,3 +196,6 @@ export function getAgentDemoData(agent: Agent): AgentDemoData | null {
     ? { demoInput: agent.demoInput, demoOutput: agent.demoOutput }
     : null;
 }
+
+
+

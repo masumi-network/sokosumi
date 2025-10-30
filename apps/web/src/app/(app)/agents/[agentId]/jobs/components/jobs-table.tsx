@@ -1,5 +1,6 @@
 "use client";
 
+import { JobWithStatus } from "@sokosumi/database";
 import { ChannelProvider } from "ably/react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useFormatter, useTranslations } from "next-intl";
@@ -9,7 +10,6 @@ import { useState } from "react";
 import { DataTable } from "@/components/data-table";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 import { makeAgentJobsChannel } from "@/lib/ably";
-import { JobWithStatus } from "@/lib/db";
 import { cn, getDateGroupKey } from "@/lib/utils";
 
 import { getJobColumns } from "./job-columns";

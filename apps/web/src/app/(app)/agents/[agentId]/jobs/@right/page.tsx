@@ -1,8 +1,8 @@
+import { agentRepository } from "@sokosumi/database/repositories";
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
 import { CreateJobModalTrigger } from "@/components/create-job-modal";
-import { agentRepository } from "@/lib/db/repositories";
 import { agentService, userService } from "@/lib/services";
 
 import JobDetailRedirect from "./components/job-detail-redirect";

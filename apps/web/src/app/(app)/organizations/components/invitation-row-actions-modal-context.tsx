@@ -1,5 +1,6 @@
 "use client";
 
+import { InvitationWithRelations } from "@sokosumi/database";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { ReactNode } from "react";
@@ -8,7 +9,6 @@ import { toast } from "sonner";
 import { createModalContext } from "@/components/common/modal-context";
 import { BetterAuthClientError, BetterAuthClientResult } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
-import { InvitationWithRelations } from "@/lib/db";
 
 export enum InvitationRowAction {
   ACCEPT = "ACCEPT",

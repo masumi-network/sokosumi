@@ -47,7 +47,7 @@ import {
   JobScheduleEndsMode,
   JobScheduleSelectionType,
   JobScheduleType,
-} from "@/lib/db/types/job";
+} from "@/lib/domain/job";
 
 interface ScheduleRecord {
   id: string;

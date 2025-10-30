@@ -1,8 +1,10 @@
 import "server-only";
 
+import { AgentWithCreditsPrice } from "@sokosumi/database";
+
 import { AgentResponse, agentResponseSchema } from "@/lib/api/schemas";
 import { dateToISO } from "@/lib/api/utils";
-import { AgentWithCreditsPrice, convertCentsToCredits } from "@/lib/db";
+import { convertCentsToCredits } from "@/lib/helpers/credit";
 
 /**
  * Formats agent data for API response with BigInt conversion

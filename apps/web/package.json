@@ -10,6 +10,7 @@
     "build": "pnpm --filter @sokosumi/database build && next build",
     "start": "next start",
     "lint": "eslint --max-warnings 0 .",
+    "lint:fix": "eslint --fix .",
     "lint:report": "eslint --output-file=lint-report.json --format json .",
     "test": "jest",
     "test:ci": "jest --ci",

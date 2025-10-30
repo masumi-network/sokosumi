@@ -2,11 +2,11 @@ import "server-only";
 
 import { Blob, BlobOrigin, BlobStatus } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
+import { blobRepository, linkRepository } from "@sokosumi/database/repositories";
 import pLimit from "p-limit";
 
 import { uploadFile } from "@/lib/blob";
 import { extractFileLikeLinks, extractHttpLinks } from "@/lib/data/markdown";
-import { blobRepository, linkRepository } from "@/lib/db/repositories";
 import { isHttpUrl } from "@/lib/utils/file";
 
 export const sourceImportService = (() => {

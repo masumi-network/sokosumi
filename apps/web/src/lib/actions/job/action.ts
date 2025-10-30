@@ -2,7 +2,14 @@
 
 import * as Sentry from "@sentry/nextjs";
 import { JobShare } from "@sokosumi/database";
+import { PaidJobWithStatus } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
+import {
+  jobRepository,
+  jobShareRepository,
+  memberRepository,
+  userRepository,
+} from "@sokosumi/database/repositories";
 import { revalidatePath } from "next/cache";
 
 import {
@@ -11,13 +18,6 @@ import {
   OrganizationErrorCode,
 } from "@/lib/actions";
 import { isJobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
-import { PaidJobWithStatus } from "@/lib/db";
-import {
-  jobRepository,
-  jobShareRepository,
-  memberRepository,
-  userRepository,
-} from "@/lib/db/repositories";
 import {
   jobDetailsNameFormSchema,
   JobDetailsNameFormSchemaType,

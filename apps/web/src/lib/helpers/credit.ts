@@ -5,7 +5,7 @@ import { getEnvPublicConfig } from "@/config/env.public";
 export function convertCentsToCredits(cents: bigint): number {
   if (cents > BigInt(Number.MAX_SAFE_INTEGER)) {
     // Use decimal.js
-    return new Decimal(cents)
+    return new Decimal(cents.toString())
       .div(10 ** getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BASE)
       .toNumber();
   }
@@ -20,3 +20,6 @@ export function convertCreditsToCents(credits: number): bigint {
       .toString(),
   );
 }
+
+
+

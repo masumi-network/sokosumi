@@ -11,8 +11,23 @@ import {
   PricingType,
   Prisma,
 } from "@sokosumi/database";
+import {
+  AgentWithRelations,
+  JobStatus,
+  JobWithStatus,
+  PaidJobWithStatus,
+} from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
 import { isPaidJob } from "@sokosumi/database/helpers";
+import {
+  computeJobStatus,
+  jobStatusToAgentJobStatus,
+} from "@sokosumi/database/helpers";
+import {
+  creditTransactionRepository,
+  jobRepository,
+  jobShareRepository,
+} from "@sokosumi/database/repositories";
 import { getTranslations } from "next-intl/server";
 import { v4 as uuidv4 } from "uuid";
 
@@ -24,26 +39,13 @@ import { JobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { getAuthContext } from "@/lib/auth/utils";
 import { agentClient, anthropicClient, paymentClient } from "@/lib/clients";
 import {
-  AgentWithRelations,
-  computeJobStatus,
-  getAgentName,
-  getJobIndicatorStatus,
-  JobStatus,
-  jobStatusToAgentJobStatus,
-  JobWithStatus,
-  PaidJobWithStatus,
-} from "@/lib/db";
-import {
-  creditTransactionRepository,
-  jobRepository,
-  jobShareRepository,
-} from "@/lib/db/repositories";
-import {
   JobFailureNotificationEmailProps,
   reactJobFailureNotificationEmail,
 } from "@/lib/email/job-failure-notification";
 import { reactJobStatusEmail } from "@/lib/email/job-status";
 import { postmarkClient } from "@/lib/email/postmark";
+import { getAgentName } from "@/lib/helpers/agent";
+import { getJobIndicatorStatus } from "@/lib/helpers/job";
 import { JobInputData } from "@/lib/job-input";
 import {
   JobStatusResponseSchemaType,

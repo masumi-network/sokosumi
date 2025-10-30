@@ -2,13 +2,15 @@ import {
   type AgentRatingStats,
   UserAgentRatingWithUser,
 } from "@sokosumi/database";
-
 import {
   AgentWithCreditsPrice,
   AgentWithRelations,
+} from "@sokosumi/database";
+
+import {
   getAgentExampleOutput,
   getAgentLegal,
-} from "@/lib/db";
+} from "@/lib/helpers/agent";
 import { cn } from "@/lib/utils";
 
 import { CardSection } from "./card-section";

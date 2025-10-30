@@ -1,15 +1,15 @@
 import { Lock } from "@sokosumi/database";
+import {
+  lockRepository,
+  organizationRepository,
+  userRepository,
+} from "@sokosumi/database/repositories";
 import { after, NextResponse } from "next/server";
 import pLimit from "p-limit";
 import pTimeout from "p-timeout";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { authenticateCronSecret } from "@/lib/auth/utils";
-import {
-  lockRepository,
-  organizationRepository,
-  userRepository,
-} from "@/lib/db/repositories";
 import { lockService, stripeService } from "@/lib/services";
 
 const LOCK_KEY = "stripe-customers-sync";

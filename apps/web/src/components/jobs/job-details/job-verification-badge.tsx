@@ -1,6 +1,7 @@
 "use client";
 
 import { OnChainJobStatus } from "@sokosumi/database";
+import { type JobWithStatus } from "@sokosumi/database";
 import { isDemoJob, isFreeJob } from "@sokosumi/database/helpers";
 import { AlertCircle, CheckCheck, Loader2, X } from "lucide-react";
 import Link from "next/link";
@@ -13,7 +14,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { siteConfig } from "@/config/site";
-import { type JobWithStatus } from "@/lib/db";
 import { cn, isJobVerified } from "@/lib/utils";
 
 interface VerificationState {

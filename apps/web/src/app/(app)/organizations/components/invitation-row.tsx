@@ -1,3 +1,4 @@
+import { InvitationWithRelations } from "@sokosumi/database";
 import { Building2 } from "lucide-react";
 import Link from "next/link";
 
@@ -6,7 +7,6 @@ import {
   OrganizationRoleBadge,
 } from "@/components/organizations";
 import { Skeleton } from "@/components/ui/skeleton";
-import { InvitationWithRelations } from "@/lib/db";
 
 import InvitationRowActionButtons from "./invitation-row-action-buttons";
 

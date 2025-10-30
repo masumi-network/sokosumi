@@ -1,9 +1,9 @@
 "use client";
 import { BlobOrigin } from "@sokosumi/database";
+import { JobWithStatus } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
-import { JobWithStatus } from "@/lib/db";
 
 import { SourcesGrid } from "./sources-grid";
 

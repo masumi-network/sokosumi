@@ -1,12 +1,12 @@
 "use server";
 
+import { MemberRole } from "@sokosumi/database";
+import { userRepository } from "@sokosumi/database/repositories";
 import { revalidatePath } from "next/cache";
 import { getTranslations } from "next-intl/server";
 
 import { ActionError, CommonErrorCode } from "@/lib/actions/errors";
 import { getSession } from "@/lib/auth/utils";
-import { MemberRole } from "@/lib/db";
-import { userRepository } from "@/lib/db/repositories";
 import {
   organizationService,
   stripeService,

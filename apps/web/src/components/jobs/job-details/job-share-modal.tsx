@@ -1,5 +1,6 @@
 "use client";
 import { JobShare } from "@sokosumi/database";
+import { JobWithStatus } from "@sokosumi/database";
 import { Check, Copy, Globe, Lock, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -28,7 +29,6 @@ import {
   unshareJobWithOrganization,
   updateAllowSearchIndexing,
 } from "@/lib/actions";
-import { JobWithStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 interface JobShareModalProps {

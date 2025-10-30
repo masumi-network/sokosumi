@@ -4,7 +4,7 @@ import type { Agent } from "@sokosumi/database";
 import { Sparkles } from "lucide-react";
 import Image from "next/image";
 
-import { getAgentName, getAgentResolvedIcon } from "@/lib/db/helpers";
+import { getAgentName, getAgentResolvedIcon } from "@/lib/helpers/agent";
 import { cn } from "@/lib/utils";
 
 interface AgentIconProps {

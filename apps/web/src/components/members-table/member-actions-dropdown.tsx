@@ -1,3 +1,5 @@
+
+import { MemberRole, MemberWithUser } from "@sokosumi/database";
 import { Member } from "@sokosumi/database";
 import { Ellipsis } from "lucide-react";
 import { useTranslations } from "next-intl";
@@ -10,7 +12,6 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { MemberRole, MemberWithUser } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 import {

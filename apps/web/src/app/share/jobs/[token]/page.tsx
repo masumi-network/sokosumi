@@ -4,7 +4,7 @@ import { getTranslations } from "next-intl/server";
 
 import { JobDetails } from "@/components/jobs";
 import { siteConfig } from "@/config/site";
-import { getAgentName, getAgentResolvedImage } from "@/lib/db";
+import { getAgentName, getAgentResolvedImage } from "@/lib/helpers/agent";
 import { jobService } from "@/lib/services";
 
 export async function generateMetadata({

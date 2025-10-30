@@ -1,4 +1,5 @@
-import { JobStatus, JobWithStatus } from "@/lib/db";
+
+import { JobStatus, JobWithStatus } from "@sokosumi/database";
 import { jobMatchesQuery } from "@/lib/job/job-search";
 
 describe("Job search functionality", () => {

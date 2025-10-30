@@ -1,10 +1,10 @@
 "use client";
 
 import { JobType } from "@sokosumi/database";
+import { JobStatus } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
-import { JobStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 interface JobStatusBadgeProps {

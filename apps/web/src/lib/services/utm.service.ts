@@ -1,10 +1,10 @@
 import "server-only";
 
 import { UTMAttribution } from "@sokosumi/database";
+import { utmAttributionRepository } from "@sokosumi/database/repositories";
 import { ReadonlyRequestCookies } from "next/dist/server/web/spec-extension/adapters/request-cookies";
 import { cookies } from "next/headers";
 
-import { utmAttributionRepository } from "@/lib/db/repositories";
 import { UTM_COOKIE_NAME, UTMData, utmDataSchema } from "@/lib/utils/utm";
 
 /**

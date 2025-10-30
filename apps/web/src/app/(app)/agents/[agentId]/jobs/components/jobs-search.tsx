@@ -1,5 +1,6 @@
 "use client";
 
+import { JobWithStatus } from "@sokosumi/database";
 import { Search, X } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
@@ -8,7 +9,6 @@ import { useDebouncedCallback } from "use-debounce";
 
 import { Input } from "@/components/ui/input";
 import { getEnvPublicConfig } from "@/config/env.public";
-import { JobWithStatus } from "@/lib/db";
 import { jobMatchesQuery } from "@/lib/job";
 
 const MAX_QUERY_LENGTH = 256;

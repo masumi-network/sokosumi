@@ -1,6 +1,6 @@
-import { useTranslations } from "next-intl";
 
-import { InvitationWithRelations, MemberWithOrganization } from "@/lib/db";
+import { InvitationWithRelations, MemberWithOrganization } from "@sokosumi/database";
+import { useTranslations } from "next-intl";
 
 import InvitationRow from "./invitation-row";
 import InvitationRowActionsModal from "./invitation-row-actions-modal";

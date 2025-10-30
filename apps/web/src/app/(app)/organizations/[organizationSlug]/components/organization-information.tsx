@@ -1,10 +1,11 @@
+
+import { MemberRole, OrganizationWithRelations } from "@sokosumi/database";
 import { Member } from "@sokosumi/database";
 import { Building2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { OrganizationLogo } from "@/components/organizations";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MemberRole, OrganizationWithRelations } from "@/lib/db";
 
 import OrganizationEditButton from "./organization-edit-button";
 import OrganizationRemoveButton from "./organization-remove-button";

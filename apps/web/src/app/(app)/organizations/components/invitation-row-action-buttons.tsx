@@ -1,9 +1,9 @@
 "use client";
 
+import { InvitationWithRelations } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
 import { Button } from "@/components/ui/button";
-import { InvitationWithRelations } from "@/lib/db";
 
 import {
   InvitationRowAction,

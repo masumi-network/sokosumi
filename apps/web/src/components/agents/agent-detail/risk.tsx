@@ -1,8 +1,8 @@
+import { AgentWithRelations } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
 import { RiskClassificationBadge } from "@/components/agents/risk-classification-badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AgentWithRelations } from "@/lib/db";
 
 function AgentDetailRisk({ agent }: { agent: AgentWithRelations }) {
   const t = useTranslations("Components.Agents.AgentDetail.Risk");

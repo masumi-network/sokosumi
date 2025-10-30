@@ -1,3 +1,5 @@
+
+import { JobStatus, JobWithStatus } from "@sokosumi/database";
 import { AgentJobStatus, BlobOrigin } from "@sokosumi/database";
 import { useFormatter, useTranslations } from "next-intl";
 
@@ -5,7 +7,6 @@ import AccordionItemWrapper from "@/components/accordion-wrapper";
 import { JobStatusBadge } from "@/components/jobs";
 import { Accordion } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { JobStatus, JobWithStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 import JobDetailsInputs from "./inputs";

@@ -1,6 +1,8 @@
 "use client";
 
+
 import { zodResolver } from "@hookform/resolvers/zod";
+import { MemberRole, OrganizationWithRelations } from "@sokosumi/database";
 import { Member } from "@sokosumi/database";
 import { Loader2, Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
@@ -29,7 +31,6 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { CommonErrorCode, updateOrganizationInvoiceEmail } from "@/lib/actions";
-import { MemberRole, OrganizationWithRelations } from "@/lib/db";
 
 const invoiceEmailFormSchema = z.object({
   invoiceEmail: z

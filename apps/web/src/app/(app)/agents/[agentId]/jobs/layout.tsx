@@ -1,3 +1,8 @@
+import {
+  agentRatingRepository,
+  agentRepository,
+  jobRepository,
+} from "@sokosumi/database/repositories";
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
@@ -8,12 +13,11 @@ import {
 } from "@/components/create-job-modal";
 import DefaultLoading from "@/components/default-loading";
 import { getAuthContext } from "@/lib/auth/utils";
-import { getAgentDescription, getAgentLegal, getAgentName } from "@/lib/db";
 import {
-  agentRatingRepository,
-  agentRepository,
-  jobRepository,
-} from "@/lib/db/repositories";
+  getAgentDescription,
+  getAgentLegal,
+  getAgentName,
+} from "@/lib/helpers/agent";
 import { agentService } from "@/lib/services";
 
 import Footer from "./components/footer";

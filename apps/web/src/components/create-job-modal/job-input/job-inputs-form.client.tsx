@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { AgentWithCreditsPrice } from "@sokosumi/database";
 import { track } from "@vercel/analytics";
 import {
   CalendarClock,
@@ -29,15 +30,11 @@ import {
 } from "@/lib/actions";
 import { createSchedule } from "@/lib/actions/job-schedule";
 import { useSession } from "@/lib/auth/auth.client";
-import {
-  AgentDemoValues,
-  AgentLegal,
-  AgentWithCreditsPrice,
-  convertCentsToCredits,
-  getAgentName,
-} from "@/lib/db";
-import { JobScheduleSelectionType, JobScheduleType } from "@/lib/db/types/job";
+import { AgentDemoValues, AgentLegal } from "@/lib/domain/agent";
+import { JobScheduleSelectionType, JobScheduleType } from "@/lib/domain/job";
 import { fireGTMEvent } from "@/lib/gtm-events";
+import { getAgentName } from "@/lib/helpers/agent";
+import { convertCentsToCredits } from "@/lib/helpers/credit";
 import {
   defaultValues,
   filterOutNullValues,

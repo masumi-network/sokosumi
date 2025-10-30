@@ -1,13 +1,13 @@
 "use server";
 
-import * as z from "zod";
-
-import { ActionError, CommonErrorCode } from "@/lib/actions";
+import { MemberRole } from "@sokosumi/database";
 import {
   memberRepository,
   organizationRepository,
-} from "@/lib/db/repositories";
-import { MemberRole } from "@/lib/db/types";
+} from "@sokosumi/database/repositories";
+import * as z from "zod";
+
+import { ActionError, CommonErrorCode } from "@/lib/actions";
 import {
   organizationInformationFormSchema,
   OrganizationInformationFormSchemaType,
