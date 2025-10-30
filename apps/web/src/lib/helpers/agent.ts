@@ -7,11 +7,6 @@ import {
   PricingType,
 } from "@sokosumi/database";
 
-import {
-  type AgentDemoData,
-  type AgentDemoValues,
-  type AgentLegal,
-} from "@/lib/types/agent";
 import { ipfsUrlResolver } from "@/lib/ipfs";
 import {
   type JobInputsDataSchemaType,
@@ -21,6 +16,11 @@ import {
   jobStatusResponseSchema,
   type PricingAmountsSchemaType,
 } from "@/lib/schemas";
+import {
+  type AgentDemoData,
+  type AgentDemoValues,
+  type AgentLegal,
+} from "@/lib/types/agent";
 
 export function getAgentName(agent: Agent): string {
   return agent.overrideName ?? agent.name;

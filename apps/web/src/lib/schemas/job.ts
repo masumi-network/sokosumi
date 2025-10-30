@@ -1,7 +1,7 @@
 import * as z from "zod";
 
-import { JobScheduleType } from "@/lib/types/job";
 import { jobInputSchema } from "@/lib/job-input";
+import { JobScheduleType } from "@/lib/types/job";
 
 export const startJobInputSchema = z.object({
   userId: z.string(),

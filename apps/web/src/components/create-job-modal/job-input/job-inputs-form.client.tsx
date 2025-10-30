@@ -30,8 +30,6 @@ import {
 } from "@/lib/actions";
 import { createSchedule } from "@/lib/actions/job-schedule";
 import { useSession } from "@/lib/auth/auth.client";
-import { AgentDemoValues, AgentLegal } from "@/lib/types/agent";
-import { JobScheduleSelectionType, JobScheduleType } from "@/lib/types/job";
 import { fireGTMEvent } from "@/lib/gtm-events";
 import { getAgentName } from "@/lib/helpers/agent";
 import { convertCentsToCredits } from "@/lib/helpers/credit";
@@ -42,6 +40,8 @@ import {
   jobInputsFormSchema,
   JobInputsFormSchemaType,
 } from "@/lib/job-input";
+import { AgentDemoValues, AgentLegal } from "@/lib/types/agent";
+import { JobScheduleSelectionType, JobScheduleType } from "@/lib/types/job";
 import { cn, formatDuration, getOSFromUserAgent } from "@/lib/utils";
 import { computeNextRun } from "@/lib/utils/cron";
 

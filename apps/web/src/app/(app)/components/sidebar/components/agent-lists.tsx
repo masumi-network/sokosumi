@@ -12,8 +12,8 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AgentWithAvailability } from "@/lib/types/agent";
 import { agentService, jobService } from "@/lib/services";
+import { AgentWithAvailability } from "@/lib/types/agent";
 
 import AgentListsClient from "./agent-lists.client";
 
