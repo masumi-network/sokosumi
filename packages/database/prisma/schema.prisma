@@ -5,9 +5,9 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider   = "prisma-client-js"
-  output     = "../src/generated/client"
-  engineType = "client"
+  provider   = "prisma-client" // ESM-first
+  output     = "../src/generated/prisma" // output directory for the generated client
+  engineType = "client" // No rust-engine (client-only)
 }
 
 datasource db {

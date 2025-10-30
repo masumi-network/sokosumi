@@ -1,6 +1,6 @@
 "use client";
 
-import { JsonValue } from "@sokosumi/database/runtime/library";
+import { Prisma } from "@sokosumi/database";
 import { Clock, ClockFading, Pause, PencilLine, Trash2 } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 import { startTransition, useMemo, useOptimistic, useState } from "react";
@@ -61,7 +61,7 @@ interface ScheduleRecord {
   lastRunAt: Date | null;
   nextRunAt: Date | null;
   input?: string | null;
-  inputSchema?: JsonValue | null;
+  inputSchema?: Prisma.JsonValue | null;
   pauseReason?: string | null;
 }
 
@@ -267,7 +267,9 @@ export function ScheduleItem({ schedule, title }: Props) {
             <AccordionContent>
               <JobDetailsInputs
                 rawInput={schedule.input ?? null}
-                inputSchema={(schedule.inputSchema ?? null) as JsonValue | null}
+                inputSchema={
+                  (schedule.inputSchema ?? null) as Prisma.JsonValue | null
+                }
               />
             </AccordionContent>
           </AccordionItem>

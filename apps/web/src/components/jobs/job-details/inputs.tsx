@@ -1,6 +1,5 @@
 "use client";
-import type { Blob } from "@sokosumi/database";
-import { JsonValue } from "@sokosumi/database/runtime/library";
+import type { Blob, Prisma } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 import * as z from "zod";
 
@@ -11,7 +10,7 @@ import { isUrlArray, isUrlString } from "@/lib/utils/file";
 
 interface JobDetailsInputsProps {
   rawInput: string | null;
-  inputSchema: JsonValue | null;
+  inputSchema: Prisma.JsonValue | null;
   blobs?: Blob[];
 }
 

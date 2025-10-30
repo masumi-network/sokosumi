@@ -2,7 +2,6 @@ import "server-only";
 
 import { Prisma, ScheduleType } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
-import { InputJsonValue } from "@sokosumi/database/runtime/library";
 
 import { CreateJobScheduleInputSchemaType } from "@/lib/schemas";
 
@@ -40,7 +39,7 @@ export const jobScheduleRepository = {
           id: data.agentId,
         },
       },
-      inputSchema: data.inputSchema as InputJsonValue,
+      inputSchema: data.inputSchema as Prisma.InputJsonValue,
       input: JSON.stringify(Object.fromEntries(data.inputData)),
       scheduleType: data.scheduleType as ScheduleType,
       timezone: data.timezone,
