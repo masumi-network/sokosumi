@@ -16,10 +16,10 @@
     }
   },
   "dependencies": {
-    "prettier": "^3.4.2"
+    "prettier": "^3.6.2"
   },
   "peerDependencies": {
-    "prettier-plugin-tailwindcss": "^0.6.10"
+    "prettier-plugin-tailwindcss": "^0.7.1"
   },
   "peerDependenciesMeta": {
     "prettier-plugin-tailwindcss": {
