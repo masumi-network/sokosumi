@@ -1,7 +1,12 @@
 import "server-only";
 
 import type { Member, User } from "@sokosumi/database";
-import { InvitationWithRelations, JobWithStatus, MemberWithOrganization, OrganizationWithRelations } from "@sokosumi/database";
+import {
+  InvitationWithRelations,
+  JobWithStatus,
+  MemberWithOrganization,
+  OrganizationWithRelations,
+} from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
 import {
   invitationRepository,

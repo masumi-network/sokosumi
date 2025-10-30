@@ -1,5 +1,5 @@
 import { defineConfig, globalIgnores } from "eslint/config";
-import sokosumiConfig from "@sokosumi/eslint-config/base";
+import baseConfig from "../../eslint.config.mjs";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import eslintNextPlugin from "eslint-config-next";
@@ -9,7 +9,7 @@ import noRelativeImportPaths from "eslint-plugin-no-relative-import-paths";
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
-  ...sokosumiConfig,
+  ...baseConfig,
   i18next.configs["flat/recommended"],
   {
     plugins: {

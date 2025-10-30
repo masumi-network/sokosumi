@@ -1,10 +1,7 @@
 "use client";
 
 import type { AgentRatingStats } from "@sokosumi/database";
-import {
-  AgentWithCreditsPrice,
-  AgentWithRelations,
-} from "@sokosumi/database";
+import { AgentWithCreditsPrice, AgentWithRelations } from "@sokosumi/database";
 import { ArrowLeft, Bookmark, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 

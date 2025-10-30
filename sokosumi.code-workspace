@@ -12,14 +12,6 @@
       "name": "Package: Database",
       "path": "packages/database",
     },
-    {
-      "name": "Config: ESLint",
-      "path": "configs/eslint-config",
-    },
-    {
-      "name": "Config: Prettier",
-      "path": "configs/prettier-config",
-    }
   ],
   "settings": {
     "editor.formatOnSave": true,

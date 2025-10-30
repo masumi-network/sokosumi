@@ -1,6 +1,5 @@
 "use client";
 
-
 import { AgentWithCreditsPrice, AgentWithRelations } from "@sokosumi/database";
 import { ArrowLeft } from "lucide-react";
 

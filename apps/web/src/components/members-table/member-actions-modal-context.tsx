@@ -1,6 +1,5 @@
 "use client";
 
-
 import { MemberRole, MemberWithUser } from "@sokosumi/database";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";

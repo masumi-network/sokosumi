@@ -7,7 +7,11 @@ import { useTranslations } from "next-intl";
 import AccordionItemWrapper from "@/app/agents/[agentId]/jobs/components/accordion-wrapper";
 import Markdown from "@/components/markdown";
 import { Accordion } from "@/components/ui/accordion";
-import { getAgentDescription, getAgentName, getAgentResolvedImage } from "@/lib/helpers/agent";
+import {
+  getAgentDescription,
+  getAgentName,
+  getAgentResolvedImage,
+} from "@/lib/helpers/agent";
 
 import { useCreateJobModalContext } from "./create-job-modal-context";
 import CreateJobModalHeader from "./create-job-modal-header";

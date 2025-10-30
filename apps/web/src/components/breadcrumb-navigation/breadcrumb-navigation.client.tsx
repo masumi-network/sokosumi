@@ -1,6 +1,9 @@
 "use client";
 
-import { AgentWithRelations, OrganizationWithLimitedInfo } from "@sokosumi/database";
+import {
+  AgentWithRelations,
+  OrganizationWithLimitedInfo,
+} from "@sokosumi/database";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";

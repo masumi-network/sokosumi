@@ -1,4 +1,3 @@
-
 import { JobWithStatus } from "@sokosumi/database";
 import { type ClassValue, clsx } from "clsx";
 import crypto from "crypto";

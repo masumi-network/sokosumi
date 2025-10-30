@@ -1,6 +1,5 @@
 "use client";
 
-
 import { JobStatus, PaidJobWithStatus } from "@sokosumi/database";
 import {
   ExternalLink,

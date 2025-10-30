@@ -2,7 +2,10 @@ import "server-only";
 
 import { Blob, BlobOrigin, BlobStatus } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
-import { blobRepository, linkRepository } from "@sokosumi/database/repositories";
+import {
+  blobRepository,
+  linkRepository,
+} from "@sokosumi/database/repositories";
 import pLimit from "p-limit";
 
 import { uploadFile } from "@/lib/blob";

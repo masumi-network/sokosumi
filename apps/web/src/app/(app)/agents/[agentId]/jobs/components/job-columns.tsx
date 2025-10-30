@@ -1,7 +1,6 @@
 "use client";
 
-import { JobType } from "@sokosumi/database";
-import { JobWithStatus } from "@sokosumi/database";
+import { JobType, JobWithStatus } from "@sokosumi/database";
 import { isDemoJob } from "@sokosumi/database/helpers";
 import { ColumnDef, createColumnHelper } from "@tanstack/react-table";
 import { useFormatter, useTranslations } from "next-intl";

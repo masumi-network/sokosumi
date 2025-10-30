@@ -3,19 +3,17 @@ import "server-only";
 import * as Sentry from "@sentry/nextjs";
 import {
   AgentJobStatus,
+  AgentWithRelations,
   Job,
   JobShare,
+  JobStatus,
   JobType,
+  JobWithStatus,
   NextJobAction,
   OnChainJobStatus,
+  PaidJobWithStatus,
   PricingType,
   Prisma,
-} from "@sokosumi/database";
-import {
-  AgentWithRelations,
-  JobStatus,
-  JobWithStatus,
-  PaidJobWithStatus,
 } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
 import { computeJobStatus, isPaidJob } from "@sokosumi/database/helpers";

@@ -23,6 +23,3 @@ export interface AgentDemoValues {
   input: JobInputsFormSchemaType;
   output: JobStatusResponseSchemaType;
 }
-
-
-

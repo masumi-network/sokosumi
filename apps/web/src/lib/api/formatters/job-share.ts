@@ -1,4 +1,3 @@
-
 import "server-only";
 
 import { JobShare } from "@sokosumi/database";

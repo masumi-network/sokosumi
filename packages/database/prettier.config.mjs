@@ -1,4 +1,4 @@
-import config from "@sokosumi/prettier-config";
+import config from "../../prettier.config.mjs";
 
 export default config;
 

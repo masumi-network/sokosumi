@@ -1,5 +1,8 @@
 import { JobWithStatus } from "@sokosumi/database";
-import { agentRepository, jobRepository } from "@sokosumi/database/repositories";
+import {
+  agentRepository,
+  jobRepository,
+} from "@sokosumi/database/repositories";
 import { notFound, redirect } from "next/navigation";
 
 import { JobDetails } from "@/components/jobs";

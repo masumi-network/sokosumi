@@ -1,6 +1,5 @@
 "use client";
 
-
 import { JobWithStatus } from "@sokosumi/database";
 import { LinkIcon } from "lucide-react";
 import Link from "next/link";

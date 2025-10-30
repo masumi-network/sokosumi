@@ -1,4 +1,3 @@
-
 import { JobStatus, JobWithStatus } from "@sokosumi/database";
 import { jobMatchesQuery } from "@/lib/job/job-search";
 

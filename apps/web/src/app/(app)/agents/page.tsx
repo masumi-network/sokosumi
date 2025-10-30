@@ -1,5 +1,8 @@
 import { Tag } from "@sokosumi/database";
-import { agentRatingRepository, tagRepository } from "@sokosumi/database/repositories";
+import {
+  agentRatingRepository,
+  tagRepository,
+} from "@sokosumi/database/repositories";
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 

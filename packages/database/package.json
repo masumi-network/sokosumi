@@ -64,8 +64,6 @@
     "uuid": "13.0.0"
   },
   "devDependencies": {
-    "@sokosumi/eslint-config": "workspace:*",
-    "@sokosumi/prettier-config": "workspace:*",
     "@types/node": "22.18.13",
     "@types/pg": "^8.15.6",
     "dotenv": "17.2.3",

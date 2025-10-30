@@ -1,8 +1,8 @@
 import { defineConfig, globalIgnores } from "eslint/config";
-import soksumiConfig from "@sokosumi/eslint-config";
+import baseConfig from "../../eslint.config.mjs";
 
 const eslintConfig = defineConfig([
-  ...soksumiConfig,
+  ...baseConfig,
   globalIgnores([
     "src/generated/**",
     "dist/**",

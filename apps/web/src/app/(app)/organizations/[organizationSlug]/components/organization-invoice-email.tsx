@@ -1,9 +1,11 @@
 "use client";
 
-
 import { zodResolver } from "@hookform/resolvers/zod";
-import { MemberRole, OrganizationWithRelations } from "@sokosumi/database";
-import { Member } from "@sokosumi/database";
+import {
+  Member,
+  MemberRole,
+  OrganizationWithRelations,
+} from "@sokosumi/database";
 import { Loader2, Mail } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";

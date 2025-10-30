@@ -1,9 +1,9 @@
 import {
   AgentJobStatus,
+  JobStatus,
   JobType,
   OnChainJobStatus,
 } from "@sokosumi/database";
-import { JobStatus } from "@sokosumi/database";
 import * as z from "zod";
 
 import { jobShareResponseSchema } from "./job-share";

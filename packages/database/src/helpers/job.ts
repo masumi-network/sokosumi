@@ -1,7 +1,4 @@
-import type {
-  AgentJobStatus,
-  Job,
-} from "../generated/prisma/client";
+import type { AgentJobStatus, Job } from "../generated/prisma/client";
 import {
   DemoJobWithStatus,
   FreeJobWithStatus,

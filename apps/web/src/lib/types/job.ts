@@ -30,6 +30,3 @@ export function mapPrismaToUiScheduleType(
     ? JobScheduleType.ONE_TIME
     : JobScheduleType.CRON;
 }
-
-
-

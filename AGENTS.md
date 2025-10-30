@@ -20,18 +20,23 @@ sokosumi/
 │       ├── src/components/    # Shared UI components
 │       ├── src/hooks/         # Custom React hooks
 │       ├── src/contexts/      # React contexts
-│       ├── src/lib/           # Domain logic (repositories, services, actions)
-│       │   ├── db/repositories/  # Prisma/Postgres access layer
+│       ├── src/lib/           # Domain logic (services, actions, utilities)
 │       │   ├── services/      # Business logic coordination
-│       │   └── actions/       # Server mutations
+│       │   ├── actions/       # Server mutations
+│       │   └── utils/         # Helper functions and transformers
 │       ├── __tests__/         # Colocated tests
 │       ├── __mocks__/         # Reusable test doubles
 │       ├── public/            # Static assets
-│       ├── prisma/            # Database schema and migrations
 │       └── messages/          # Translation catalogs
-├── packages/                  # Shared packages (future)
-├── configs/                   # Build tools and configurations (future)
-└── docs/                      # Documentation (future)
+├── packages/
+│   └── database/              # Shared database layer
+│       ├── src/repositories/  # Prisma/Postgres access layer
+│       ├── src/helpers/       # Database domain logic
+│       ├── src/types/         # Database type definitions
+│       └── prisma/            # Database schema and migrations
+├── docs/                      # Documentation (future)
+├── eslint.config.mjs          # Root ESLint configuration
+└── prettier.config.mjs        # Root Prettier configuration
 ```
 
 ## Authoritative Conventions

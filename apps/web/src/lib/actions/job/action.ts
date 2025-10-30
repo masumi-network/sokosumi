@@ -1,8 +1,7 @@
 "use server";
 
 import * as Sentry from "@sentry/nextjs";
-import { JobShare } from "@sokosumi/database";
-import { PaidJobWithStatus } from "@sokosumi/database";
+import { JobShare, PaidJobWithStatus } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
 import {
   jobRepository,

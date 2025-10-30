@@ -11,7 +11,12 @@ import { AgentDemoButton } from "@/components/agents/agent-demo-button";
 import { AgentHireButton } from "@/components/agents/agent-hire-button";
 import { AgentVerifiedBadge } from "@/components/agents/agent-verified-badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getAgentDemoData, getAgentName, getAgentResolvedImage, getFullAgentAuthorName } from "@/lib/helpers/agent";
+import {
+  getAgentDemoData,
+  getAgentName,
+  getAgentResolvedImage,
+  getFullAgentAuthorName,
+} from "@/lib/helpers/agent";
 import { convertCentsToCredits } from "@/lib/helpers/credit";
 import { cn } from "@/lib/utils";
 import { isAgentNew } from "@/lib/utils/agent";

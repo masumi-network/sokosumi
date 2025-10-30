@@ -3,16 +3,14 @@ import "server-only";
 import {
   AgentListType,
   AgentStatus,
-  CreditCost,
-  PricingType,
-  Prisma,
-} from "@sokosumi/database";
-import {
   AgentWithCreditsPrice,
   AgentWithJobs,
   AgentWithOrganizations,
   AgentWithPricing,
   AgentWithRelations,
+  CreditCost,
+  PricingType,
+  Prisma,
 } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
 import {
@@ -29,7 +27,10 @@ import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { getAuthContext } from "@/lib/auth/utils";
 import { getAgentPricingAmounts } from "@/lib/helpers/agent";
-import { convertCentsToCredits, convertCreditsToCents } from "@/lib/helpers/credit";
+import {
+  convertCentsToCredits,
+  convertCreditsToCents,
+} from "@/lib/helpers/credit";
 import { pricingAmountsSchema } from "@/lib/schemas";
 
 export const agentService = (() => {

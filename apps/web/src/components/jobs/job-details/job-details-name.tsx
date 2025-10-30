@@ -30,8 +30,7 @@ import {
 } from "@/components/ui/tooltip";
 import useModal from "@/hooks/use-modal";
 import { CommonErrorCode, JobErrorCode, updateJobName } from "@/lib/actions";
-import { isSharedWithOrganization } from "@/lib/helpers/job";
-import { isSharedPublicly } from "@/lib/helpers/job";
+import { isSharedPublicly, isSharedWithOrganization } from "@/lib/helpers/job";
 import {
   jobDetailsNameFormSchema,
   JobDetailsNameFormSchemaType,

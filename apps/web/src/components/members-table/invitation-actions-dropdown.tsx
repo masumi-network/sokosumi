@@ -1,5 +1,4 @@
-import { Invitation, Member } from "@sokosumi/database";
-import { MemberRole } from "@sokosumi/database";
+import { Invitation, Member, MemberRole } from "@sokosumi/database";
 import { Ellipsis, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";

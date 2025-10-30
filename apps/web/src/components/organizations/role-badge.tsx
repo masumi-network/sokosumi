@@ -1,4 +1,3 @@
-
 import { InvitationStatus, MemberRole } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 

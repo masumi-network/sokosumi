@@ -1,6 +1,9 @@
-
-import { JobStatus, JobWithStatus } from "@sokosumi/database";
-import { AgentJobStatus, BlobOrigin } from "@sokosumi/database";
+import {
+  AgentJobStatus,
+  BlobOrigin,
+  JobStatus,
+  JobWithStatus,
+} from "@sokosumi/database";
 import { useFormatter, useTranslations } from "next-intl";
 
 import AccordionItemWrapper from "@/components/accordion-wrapper";

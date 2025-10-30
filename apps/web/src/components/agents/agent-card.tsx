@@ -1,8 +1,5 @@
 import type { AgentRatingStats } from "@sokosumi/database";
-import {
-  AgentWithCreditsPrice,
-  AgentWithRelations,
-} from "@sokosumi/database";
+import { AgentWithCreditsPrice, AgentWithRelations } from "@sokosumi/database";
 import { cva, VariantProps } from "class-variance-authority";
 import Image from "next/image";
 import { useTranslations } from "next-intl";

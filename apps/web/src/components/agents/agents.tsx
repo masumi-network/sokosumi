@@ -1,8 +1,5 @@
 import type { AgentRatingStats } from "@sokosumi/database";
-import {
-  AgentWithCreditsPrice,
-  AgentWithRelations,
-} from "@sokosumi/database";
+import { AgentWithCreditsPrice, AgentWithRelations } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
 import { cn } from "@/lib/utils";

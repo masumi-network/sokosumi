@@ -1,6 +1,8 @@
-
 import { Lock } from "@sokosumi/database";
-import { agentRepository, lockRepository } from "@sokosumi/database/repositories";
+import {
+  agentRepository,
+  lockRepository,
+} from "@sokosumi/database/repositories";
 import { after, NextResponse } from "next/server";
 import pTimeout from "p-timeout";
 

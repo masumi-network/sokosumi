@@ -119,8 +119,6 @@
     "zod": "4.1.12"
   },
   "devDependencies": {
-    "@sokosumi/eslint-config": "workspace:*",
-    "@sokosumi/prettier-config": "workspace:*",
     "@eslint/eslintrc": "3.3.1",
     "@happy-dom/jest-environment": "20.0.10",
     "@hey-api/openapi-ts": "0.86.8",

@@ -1,4 +1,7 @@
-import { agentRatingRepository, jobRepository } from "@sokosumi/database/repositories";
+import {
+  agentRatingRepository,
+  jobRepository,
+} from "@sokosumi/database/repositories";
 import { notFound } from "next/navigation";
 
 import { AgentDetail, AgentDetailViewTracker } from "@/components/agents";

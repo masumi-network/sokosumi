@@ -20,6 +20,3 @@ export function convertCreditsToCents(credits: number): bigint {
       .toString(),
   );
 }
-
-
-

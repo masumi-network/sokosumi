@@ -16,4 +16,3 @@ export function isAgentNew(agent: Agent): boolean {
 
   return agent.createdAt > new Date(Date.now() - thresholdMilliseconds);
 }
-

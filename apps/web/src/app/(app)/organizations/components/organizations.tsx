@@ -1,5 +1,7 @@
-
-import { InvitationWithRelations, MemberWithOrganization } from "@sokosumi/database";
+import {
+  InvitationWithRelations,
+  MemberWithOrganization,
+} from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
 import InvitationRow from "./invitation-row";

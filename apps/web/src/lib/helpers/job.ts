@@ -48,6 +48,3 @@ export function isSharedWithOrganization(
   }
   return job.share !== null && job.share.organizationId === organizationId;
 }
-
-
-
