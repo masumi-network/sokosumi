@@ -26,10 +26,11 @@
     "format": "pnpm -r format",
     "web:format": "pnpm --filter web format",
     "database:format": "pnpm --filter @sokosumi/database format",
-    "database:prisma:generate": "pnpm --filter @sokosumi/database prisma:generate",
-    "database:prisma:migrate:dev": "pnpm --filter @sokosumi/database prisma:migrate:dev",
-    "database:prisma:migrate:deploy": "pnpm --filter @sokosumi/database prisma:migrate:deploy",
-    "database:prisma:studio": "pnpm --filter @sokosumi/database prisma:studio"
+    "prisma:generate": "pnpm --filter @sokosumi/database prisma:generate",
+    "prisma:migrate:dev": "pnpm --filter @sokosumi/database prisma:migrate:dev",
+    "prisma:migrate:deploy": "pnpm --filter @sokosumi/database prisma:migrate:deploy",
+    "prisma:migrate:reset": "pnpm --filter @sokosumi/database prisma:migrate:reset",
+    "prisma:studio": "pnpm --filter @sokosumi/database prisma:studio"
   },
   "devDependencies": {
     "eslint": "^9.38.0",
