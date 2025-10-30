@@ -1,4 +1,3 @@
-export * from "./agent.repository";
 export * from "./job.repository";
 
 // Re-export types from database package
@@ -8,6 +7,7 @@ export type { ScheduleListItem } from "@sokosumi/database";
 export {
   agentListRepository,
   agentRatingRepository,
+  agentRepository,
   blobRepository,
   creditCostRepository,
   creditTransactionRepository,
