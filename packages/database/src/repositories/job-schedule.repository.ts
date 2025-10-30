@@ -1,70 +1,22 @@
 import "server-only";
 
-import { Prisma, ScheduleType } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
-
-import { CreateJobScheduleInputSchemaType } from "@/lib/schemas";
-
-export type ScheduleListItem = Prisma.JobScheduleGetPayload<{
-  include: {
-    agent: true;
-    jobs: {
-      orderBy: { createdAt: "desc" };
-      take: 1;
-      select: { createdAt: true };
-    };
-  };
-}>;
+import type { Prisma } from "../generated/prisma/client";
+import prisma from "../client";
 
 export const jobScheduleRepository = {
   async create(
-    data: CreateJobScheduleInputSchemaType,
-    tx: Prisma.TransactionClient = prisma,
+    data: Prisma.JobScheduleCreateInput,
+    tx: Prisma.TransactionClient = prisma
   ) {
-    const payloadObj: Prisma.JobScheduleCreateInput = {
-      user: {
-        connect: {
-          id: data.userId,
-        },
-      },
-      organization: data.organizationId
-        ? {
-            connect: {
-              id: data.organizationId,
-            },
-          }
-        : undefined,
-      agent: {
-        connect: {
-          id: data.agentId,
-        },
-      },
-      inputSchema: data.inputSchema as Prisma.InputJsonValue,
-      input: JSON.stringify(Object.fromEntries(data.inputData)),
-      scheduleType: data.scheduleType as ScheduleType,
-      timezone: data.timezone,
-      maxAcceptedCents: data.maxAcceptedCents,
-      cron: data.cron,
-      oneTimeAtUtc: data.oneTimeAtUtc,
-      isActive: data.isActive,
-      pauseReason: data.pauseReason,
-      nextRunAt: data.nextRunAt,
-    };
-    const maybeEndOnUtc = data.endOnUtc;
-    if (maybeEndOnUtc !== undefined) payloadObj.endOnUtc = maybeEndOnUtc;
-    const maybeEndAfter = data.endAfterOccurrences;
-    if (maybeEndAfter !== undefined)
-      payloadObj.endAfterOccurrences = maybeEndAfter;
-
     return await tx.jobSchedule.create({
-      data: payloadObj,
+      data,
     });
   },
 
   async update(
     id: string,
     data: Prisma.JobScheduleUpdateInput,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient = prisma
   ) {
     return await tx.jobSchedule.update({ where: { id }, data });
   },
@@ -90,7 +42,7 @@ export const jobScheduleRepository = {
   async getScheduleJobsByContext(
     userId: string,
     organizationId: string | null,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient = prisma
   ) {
     return await tx.jobSchedule.findMany({
       where: {
@@ -116,7 +68,7 @@ export const jobScheduleRepository = {
   async setNextRun(
     id: string,
     nextRunAt: Date | null,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient = prisma
   ) {
     return await tx.jobSchedule.update({
       where: { id },
@@ -132,7 +84,7 @@ export const jobScheduleRepository = {
     id: string,
     isActive: boolean,
     pauseReason?: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient = prisma
   ) {
     return await tx.jobSchedule.update({
       where: { id },

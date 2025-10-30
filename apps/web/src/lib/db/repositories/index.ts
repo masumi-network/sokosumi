@@ -1,6 +1,8 @@
 export * from "./agent.repository";
 export * from "./job.repository";
-export * from "./job-schedule.repository";
+
+// Re-export types from database package
+export type { ScheduleListItem } from "@sokosumi/database";
 
 // Repositories migrated to database package
 export {
@@ -11,6 +13,7 @@ export {
   creditTransactionRepository,
   fiatTransactionRepository,
   invitationRepository,
+  jobScheduleRepository,
   jobShareRepository,
   linkRepository,
   lockRepository,
