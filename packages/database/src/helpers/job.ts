@@ -1,5 +1,9 @@
-import type { AgentJobStatus, Job } from "../generated/prisma/client";
-import { JobType } from "../generated/prisma/client";
+import type { Job } from "../generated/prisma/client";
+import {
+  AgentJobStatus,
+  JobType,
+  OnChainJobStatus,
+} from "../generated/prisma/client";
 import {
   DemoJobWithStatus,
   FreeJobWithStatus,
@@ -81,11 +85,11 @@ function getFundsLockedJobStatus(
   now: Date,
 ): JobStatus {
   switch (agentJobStatus) {
-    case "AWAITING_INPUT":
+    case AgentJobStatus.AWAITING_INPUT:
       return JobStatus.INPUT_REQUIRED;
-    case "COMPLETED":
+    case AgentJobStatus.COMPLETED:
       return JobStatus.COMPLETED;
-    case "FAILED":
+    case AgentJobStatus.FAILED:
       return JobStatus.FAILED;
     default:
       // Check for FAILED status first (highest priority)
@@ -146,16 +150,16 @@ export function computeJobStatus(job: Job): JobStatus {
 
 function computeFreeJobStatus(job: Job): JobStatus {
   switch (job.agentJobStatus) {
-    case "PENDING":
-    case "AWAITING_INPUT":
+    case AgentJobStatus.PENDING:
+    case AgentJobStatus.AWAITING_INPUT:
       return JobStatus.INPUT_REQUIRED;
-    case "COMPLETED":
+    case AgentJobStatus.COMPLETED:
       return JobStatus.COMPLETED;
-    case "FAILED":
+    case AgentJobStatus.FAILED:
       return JobStatus.FAILED;
-    case "RUNNING":
+    case AgentJobStatus.RUNNING:
       return JobStatus.PROCESSING;
-    case "AWAITING_PAYMENT":
+    case AgentJobStatus.AWAITING_PAYMENT:
       return JobStatus.FAILED;
     default:
       return job.completedAt ? JobStatus.COMPLETED : JobStatus.PROCESSING;
@@ -202,31 +206,31 @@ function computePaidJobStatus(job: Job): JobStatus {
         return JobStatus.FAILED;
       }
       return JobStatus.PAYMENT_PENDING;
-    case "FUNDS_LOCKED":
+    case OnChainJobStatus.FUNDS_LOCKED:
       return getFundsLockedJobStatus(job, agentJobStatus, now);
-    case "RESULT_SUBMITTED":
+    case OnChainJobStatus.RESULT_SUBMITTED:
       switch (agentJobStatus) {
-        case "COMPLETED":
+        case AgentJobStatus.COMPLETED:
           return JobStatus.COMPLETED;
         default:
           return JobStatus.RESULT_PENDING;
       }
-    case "FUNDS_WITHDRAWN":
+    case OnChainJobStatus.FUNDS_WITHDRAWN:
       switch (agentJobStatus) {
-        case "COMPLETED":
+        case AgentJobStatus.COMPLETED:
           return JobStatus.COMPLETED;
         default:
           return JobStatus.FAILED;
       }
-    case "FUNDS_OR_DATUM_INVALID":
+    case OnChainJobStatus.FUNDS_OR_DATUM_INVALID:
       return JobStatus.PAYMENT_FAILED;
-    case "REFUND_REQUESTED":
+    case OnChainJobStatus.REFUND_REQUESTED:
       return JobStatus.REFUND_PENDING;
-    case "REFUND_WITHDRAWN":
+    case OnChainJobStatus.REFUND_WITHDRAWN:
       return JobStatus.REFUND_RESOLVED;
-    case "DISPUTED":
+    case OnChainJobStatus.DISPUTED:
       return JobStatus.DISPUTE_PENDING;
-    case "DISPUTED_WITHDRAWN":
+    case OnChainJobStatus.DISPUTED_WITHDRAWN:
       return JobStatus.DISPUTE_RESOLVED;
   }
 }
