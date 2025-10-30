@@ -1,17 +1,17 @@
 import "server-only";
 
 import prisma from "../client";
+import {
+  AgentJobStatus,
+  JobType,
+  OnChainJobStatus,
+} from "../generated/prisma/browser";
 import type {
   Job,
   NextJobAction,
   NextJobActionErrorType,
   OnChainTransactionStatus,
   Prisma,
-} from "../generated/prisma/client";
-import {
-  AgentJobStatus,
-  JobType,
-  OnChainJobStatus,
 } from "../generated/prisma/client";
 import { mapJobWithStatus } from "../helpers/job";
 import {

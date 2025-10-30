@@ -1,10 +1,10 @@
-import type { Job } from "../generated/prisma/client";
 import {
   AgentJobStatus,
   JobType,
   NextJobAction,
   OnChainJobStatus,
-} from "../generated/prisma/client";
+} from "../generated/prisma/browser";
+import type { Job } from "../generated/prisma/client";
 import {
   DemoJobWithStatus,
   FreeJobWithStatus,
