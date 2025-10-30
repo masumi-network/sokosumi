@@ -142,7 +142,7 @@ export const jobRepository = {
       where: {
         agentId,
         jobType: {
-          not: "DEMO",
+          not: JobType.DEMO,
         },
       },
     });
