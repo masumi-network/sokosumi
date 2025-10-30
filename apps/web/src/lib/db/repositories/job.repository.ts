@@ -18,6 +18,7 @@ import {
   onChainStateToOnChainJobStatus,
   transactionStatusToOnChainTransactionStatus,
 } from "@/lib/db/helpers";
+import { creditTransactionRepository } from "@/lib/db/repositories";
 import {
   CreditsPrice,
   DemoJobWithStatus,
@@ -32,8 +33,6 @@ import {
 } from "@/lib/db/types";
 import { JobInputSchemaType } from "@/lib/job-input";
 import { JobStatusResponseSchemaType } from "@/lib/schemas";
-
-import { creditTransactionRepository } from "./creditTransaction.repository";
 
 function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
   const jobStatusSettled =

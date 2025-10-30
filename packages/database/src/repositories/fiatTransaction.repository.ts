@@ -1,11 +1,11 @@
 import "server-only";
 
-import {
+import type {
   FiatTransaction,
   FiatTransactionStatus,
   Prisma,
-} from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
+} from "../generated/prisma/client";
+import prisma from "../client";
 
 /**
  * Fiat Transaction Repository Interface
@@ -31,7 +31,7 @@ export const fiatTransactionRepository = {
     cents: bigint,
     amount: number,
     currency: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient = prisma
   ): Promise<FiatTransaction> {
     return await tx.fiatTransaction.create({
       data: {
@@ -55,7 +55,7 @@ export const fiatTransactionRepository = {
    */
   async getFiatTransactionByServicePaymentId(
     servicePaymentId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient = prisma
   ): Promise<FiatTransaction | null> {
     return await tx.fiatTransaction.findUnique({
       where: { servicePaymentId },
@@ -73,7 +73,7 @@ export const fiatTransactionRepository = {
   async setFiatTransactionServicePaymentId(
     id: string,
     servicePaymentId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient = prisma
   ): Promise<FiatTransaction> {
     return await tx.fiatTransaction.update({
       where: { id },
@@ -97,7 +97,7 @@ export const fiatTransactionRepository = {
     amount: bigint,
     currency: string,
     status: FiatTransactionStatus,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient = prisma
   ): Promise<FiatTransaction> {
     // Build credit transaction data based on whether it's for a user or organization
     const creditTransactionData = {
@@ -114,7 +114,7 @@ export const fiatTransactionRepository = {
         status,
         amount,
         currency,
-        ...(status === FiatTransactionStatus.SUCCEEDED && {
+        ...(status === "SUCCEEDED" && {
           creditTransaction: {
             create: creditTransactionData,
           },
@@ -143,7 +143,7 @@ export const fiatTransactionRepository = {
     invoiceId: string,
     amountPaid: number,
     currency: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient = prisma
   ): Promise<FiatTransaction> {
     // Create the fiat transaction with SUCCEEDED status and credit transaction in one operation
     return await tx.fiatTransaction.create({
@@ -155,7 +155,7 @@ export const fiatTransactionRepository = {
         cents,
         amount: BigInt(amountPaid),
         currency,
-        status: FiatTransactionStatus.SUCCEEDED,
+        status: "SUCCEEDED",
         servicePaymentId: invoiceId,
         // Create the credit transaction immediately since status is SUCCEEDED
         creditTransaction: {
