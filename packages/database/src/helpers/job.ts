@@ -1,4 +1,5 @@
 import type { AgentJobStatus, Job } from "../generated/prisma/client";
+import { JobType } from "../generated/prisma/client";
 import {
   DemoJobWithStatus,
   FreeJobWithStatus,
@@ -134,11 +135,11 @@ function getFundsLockedJobStatus(
  */
 export function computeJobStatus(job: Job): JobStatus {
   switch (job.jobType) {
-    case "FREE":
+    case JobType.FREE:
       return computeFreeJobStatus(job);
-    case "PAID":
+    case JobType.PAID:
       return computePaidJobStatus(job);
-    case "DEMO":
+    case JobType.DEMO:
       return computeDemoJobStatus(job);
   }
 }
@@ -232,7 +233,7 @@ function computePaidJobStatus(job: Job): JobStatus {
 
 export function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
   const jobStatusSettled =
-    job.jobType === "PAID"
+    job.jobType === JobType.PAID
       ? job.externalDisputeUnlockTime != null
         ? new Date() > job.externalDisputeUnlockTime
         : false
@@ -245,12 +246,12 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
   };
 
   switch (job.jobType) {
-    case "PAID":
-      return baseJobWithStatus as JobWithStatus;
-    case "FREE":
-      return baseJobWithStatus as JobWithStatus;
-    case "DEMO":
-      return baseJobWithStatus as JobWithStatus;
+    case JobType.PAID:
+      return baseJobWithStatus as PaidJobWithStatus;
+    case JobType.FREE:
+      return baseJobWithStatus as FreeJobWithStatus;
+    case JobType.DEMO:
+      return baseJobWithStatus as DemoJobWithStatus;
     default: {
       const _exhaustive: never = job.jobType;
       throw new Error(`Unhandled job type: ${_exhaustive}`);
@@ -259,13 +260,13 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
 }
 
 export function isFreeJob(job: JobWithStatus): job is FreeJobWithStatus {
-  return job.jobType === "FREE";
+  return job.jobType === JobType.FREE;
 }
 
 export function isPaidJob(job: JobWithStatus): job is PaidJobWithStatus {
-  return job.jobType === "PAID";
+  return job.jobType === JobType.PAID;
 }
 
 export function isDemoJob(job: JobWithStatus): job is DemoJobWithStatus {
-  return job.jobType === "DEMO";
+  return job.jobType === JobType.DEMO;
 }
