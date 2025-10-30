@@ -44,7 +44,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "clean": "rm -rf dist && rm tsconfig.tsbuildinfo",
-    "prepare": "pnpm run build && prisma generate --no-hints",
+    "prepare": "prisma generate --no-hints",
     "prepublishOnly": "pnpm run build",
     "prisma:generate": "prisma generate --no-hints",
     "prisma:migrate:dev": "prisma migrate dev",

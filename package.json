@@ -9,6 +9,7 @@
     "web:dev": "pnpm --filter web dev",
     "build": "pnpm --filter @sokosumi/database build && pnpm --filter web build",
     "web:build": "pnpm --filter web build",
+    "database:build": "pnpm --filter @sokosumi/database build",
     "start": "pnpm -r start",
     "web:start": "pnpm --filter web start",
     "lint": "pnpm -r lint",
