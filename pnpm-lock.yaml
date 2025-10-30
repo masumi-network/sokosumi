@@ -8,6 +8,9 @@ importers:
 
   .:
     devDependencies:
+      '@sokosumi/eslint-config':
+        specifier: workspace:*
+        version: link:configs/eslint-config
       eslint:
         specifier: 9.38.0
         version: 9.38.0(jiti@2.6.1)
