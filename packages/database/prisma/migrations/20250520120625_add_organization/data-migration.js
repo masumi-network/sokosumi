@@ -5,6 +5,7 @@
  * - Creates a member with that created organization and connect it to the user
  */
 import { PrismaClient } from "@/prisma/generated/client";
+
 const prisma = new PrismaClient();
 async function main() {
     // find all users without member

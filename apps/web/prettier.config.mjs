@@ -1,10 +1,3 @@
-/** @type {import('prettier').Config} */
-const config = {
-  trailingComma: "all",
-  tabWidth: 2,
-  semi: true,
-  singleQuote: false,
-  plugins: ["prettier-plugin-tailwindcss"],
-};
+import config from "@sokosumi/prettier-config/tailwind";
 
 export default config;

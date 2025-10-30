@@ -1,7 +1,7 @@
 import "server-only";
 
-import type { Lock, Prisma } from "../generated/prisma/client";
 import prisma from "../client";
+import type { Lock, Prisma } from "../generated/prisma/client";
 
 /**
  * Repository for distributed lock management using the Lock model.

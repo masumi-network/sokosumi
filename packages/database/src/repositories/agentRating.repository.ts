@@ -1,8 +1,8 @@
 import "server-only";
 
-import type { Prisma } from "../generated/prisma/client";
 import prisma from "../client";
-import {
+import type { Prisma } from "../generated/prisma/client";
+import type {
   AgentRatingStats,
   UserAgentRatingWithUser,
 } from "../types/agentRating";
@@ -17,7 +17,7 @@ export const agentRatingRepository = {
     agentId: string,
     rating: number,
     comment: string | null = null,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient = prisma
   ): Promise<void> {
     await tx.userAgentRating.upsert({
       where: {
@@ -45,7 +45,7 @@ export const agentRatingRepository = {
   async getUserRatingForAgent(
     userId: string,
     agentId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient = prisma
   ) {
     return await tx.userAgentRating.findUnique({
       where: {
@@ -62,7 +62,7 @@ export const agentRatingRepository = {
    */
   async getRatingDistribution(
     agentId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient = prisma
   ): Promise<Record<number, number>> {
     const ratings = await tx.userAgentRating.groupBy({
       by: ["rating"],
@@ -95,7 +95,7 @@ export const agentRatingRepository = {
     limit: number = 10,
     offset: number = 0,
     commentsOnly: boolean = false,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient = prisma
   ): Promise<UserAgentRatingWithUser[]> {
     const ratings = await tx.userAgentRating.findMany({
       where: {
@@ -135,7 +135,7 @@ export const agentRatingRepository = {
    */
   async getAgentsRatingStats(
     agentIds: string[],
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient = prisma
   ): Promise<Record<string, AgentRatingStats>> {
     if (agentIds.length === 0) {
       return {};
@@ -176,7 +176,7 @@ export const agentRatingRepository = {
    */
   async getAgentRatingStats(
     agentId: string,
-    tx: Prisma.TransactionClient = prisma,
+    tx: Prisma.TransactionClient = prisma
   ): Promise<AgentRatingStats> {
     const result = await tx.userAgentRating.aggregate({
       where: { agentId },
@@ -193,4 +193,3 @@ export const agentRatingRepository = {
     };
   },
 };
-

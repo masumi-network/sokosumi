@@ -1,4 +1,5 @@
 import type { Prisma } from "../generated/prisma/client";
+
 import { agentInclude } from "./agent";
 
 export const agentListInclude = {

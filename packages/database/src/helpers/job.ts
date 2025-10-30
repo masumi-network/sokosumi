@@ -5,11 +5,6 @@ import type {
   NextJobActionErrorType,
   OnChainTransactionStatus,
 } from "../generated/prisma/client";
-import {
-  JobStatus,
-  type JobWithRelations,
-  type JobWithStatus,
-} from "../types/job";
 import type {
   JobStatusResponse,
   PurchaseErrorType,
@@ -17,6 +12,11 @@ import type {
   PurchaseOnChainState,
   PurchaseRequestedAction,
 } from "../types/external-api";
+import {
+  JobStatus,
+  type JobWithRelations,
+  type JobWithStatus,
+} from "../types/job";
 
 const TEN_MINUTES_TIMESTAMP = 1000 * 60 * 10; // 10min
 
@@ -87,7 +87,7 @@ function checkNextAction(job: Job): JobStatus | null {
 function getFundsLockedJobStatus(
   job: Job,
   agentJobStatus: AgentJobStatus | null,
-  now: Date
+  now: Date,
 ): JobStatus {
   switch (agentJobStatus) {
     case "AWAITING_INPUT":
@@ -269,7 +269,7 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
 }
 
 export function onChainStateToOnChainJobStatus(
-  onChainState: PurchaseOnChainState
+  onChainState: PurchaseOnChainState,
 ) {
   switch (onChainState) {
     case null:
@@ -301,10 +301,10 @@ export function nextActionToNextJobAction(nextAction: PurchaseNextAction): {
   errorNote: string | null;
 } {
   const requestedAction = requestedActionToNextJobAction(
-    nextAction.requestedAction
+    nextAction.requestedAction,
   );
   const errorType = nextActionErrorTypeToNextJobActionErrorType(
-    nextAction.errorType
+    nextAction.errorType,
   );
   return {
     requestedAction,
@@ -314,7 +314,7 @@ export function nextActionToNextJobAction(nextAction: PurchaseNextAction): {
 }
 
 function requestedActionToNextJobAction(
-  requestedAction: PurchaseRequestedAction
+  requestedAction: PurchaseRequestedAction,
 ): NextJobAction {
   switch (requestedAction) {
     case "None":
@@ -347,7 +347,7 @@ function requestedActionToNextJobAction(
 }
 
 function nextActionErrorTypeToNextJobActionErrorType(
-  nextActionErrorType: PurchaseErrorType
+  nextActionErrorType: PurchaseErrorType,
 ): NextJobActionErrorType | null {
   switch (nextActionErrorType) {
     case null:
@@ -364,7 +364,7 @@ function nextActionErrorTypeToNextJobActionErrorType(
 }
 
 export function jobStatusToAgentJobStatus(
-  jobStatus: JobStatusResponse
+  jobStatus: JobStatusResponse,
 ): AgentJobStatus {
   switch (jobStatus) {
     case "pending":
@@ -389,7 +389,7 @@ export function transactionStatusToOnChainTransactionStatus(
     | "Pending"
     | "Confirmed"
     | "FailedViaTimeout"
-    | "RolledBack"
+    | "RolledBack",
 ): OnChainTransactionStatus {
   switch (currentTransactionStatus) {
     case "Pending":
@@ -401,7 +401,7 @@ export function transactionStatusToOnChainTransactionStatus(
       return "FAILED";
     default:
       throw new Error(
-        `Unknown transaction status: ${currentTransactionStatus}`
+        `Unknown transaction status: ${currentTransactionStatus}`,
       );
   }
 }

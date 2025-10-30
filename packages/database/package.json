@@ -17,7 +17,11 @@
     "prisma:migrate:dev": "prisma migrate dev",
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:migrate:reset": "prisma migrate reset",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "lint": "eslint --max-warnings 0 .",
+    "lint:fix": "eslint --fix .",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\""
   },
   "dependencies": {
     "@prisma/adapter-pg": "6.18.0",
@@ -28,6 +32,8 @@
     "uuid": "13.0.0"
   },
   "devDependencies": {
+    "@sokosumi/eslint-config": "workspace:*",
+    "@sokosumi/prettier-config": "workspace:*",
     "@types/node": "22.18.13",
     "@types/pg": "^8.15.6",
     "dotenv": "17.2.3",

@@ -1,4 +1,5 @@
 import { PrismaClient } from "@/prisma/generated/client";
+
 const prisma = new PrismaClient();
 async function main() {
     // Use raw SQL to update the role to 'owner' for the oldest member in each organization

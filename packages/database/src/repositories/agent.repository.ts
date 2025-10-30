@@ -1,7 +1,7 @@
 import "server-only";
 
-import type { Agent, AgentStatus, Prisma } from "../generated/prisma/client";
 import prisma from "../client";
+import type { Agent, AgentStatus, Prisma } from "../generated/prisma/client";
 import {
   agentInclude,
   agentJobsInclude,
@@ -215,4 +215,3 @@ export const agentRepository = {
     });
   },
 };
-

@@ -1,4 +1,5 @@
 import { PrismaClient } from "@/prisma/generated/client";
+
 const prisma = new PrismaClient();
 async function main() {
     // Use raw SQL to update cents based on centsPerAmount and amount

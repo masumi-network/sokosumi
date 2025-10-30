@@ -1,0 +1,10 @@
+# Generated files
+prisma/generated/
+dist/
+
+# Config files
+*.config.mjs
+*.config.js
+*.config.ts
+
+

@@ -1,7 +1,7 @@
 import "server-only";
 
-import type { Link, Prisma } from "../generated/prisma/client";
 import prisma from "../client";
+import type { Link, Prisma } from "../generated/prisma/client";
 
 export const linkRepository = {
   async upsertLink(

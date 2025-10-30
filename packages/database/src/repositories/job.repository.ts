@@ -1,21 +1,24 @@
 import "server-only";
 
+import prisma from "../client";
 import type {
   AgentJobStatus,
   Job,
   NextJobAction,
-  OnChainJobStatus,
   Prisma,
 } from "../generated/prisma/client";
-import prisma from "../client";
 import {
-  computeJobStatus,
   jobStatusToAgentJobStatus,
   mapJobWithStatus,
   nextActionToNextJobAction,
   onChainStateToOnChainJobStatus,
   transactionStatusToOnChainTransactionStatus,
 } from "../helpers/job";
+import type {
+  CreditsPrice,
+  JobStatusResponse,
+  Purchase,
+} from "../types/external-api";
 import {
   finalizedAgentJobStatuses,
   finalizedOnChainJobStatuses,
@@ -24,11 +27,6 @@ import {
   type JobWithRelations,
   type JobWithStatus,
 } from "../types/job";
-import type {
-  CreditsPrice,
-  JobStatusResponse,
-  Purchase,
-} from "../types/external-api";
 
 interface CreateDemoJobData {
   jobType: "DEMO";

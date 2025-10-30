@@ -1,7 +1,7 @@
 import "server-only";
 
-import type { Prisma, User } from "../generated/prisma/client";
 import prisma from "../client";
+import type { Prisma, User } from "../generated/prisma/client";
 
 /**
  * Repository for user-related database operations.

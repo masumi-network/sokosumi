@@ -1,7 +1,7 @@
 import "server-only";
 
-import type { Prisma, Tag } from "../generated/prisma/client";
 import prisma from "../client";
+import type { Prisma, Tag } from "../generated/prisma/client";
 
 /**
  * Repository for tag-related database operations.
@@ -27,4 +27,3 @@ export const tagRepository = {
     return tags;
   },
 };
-

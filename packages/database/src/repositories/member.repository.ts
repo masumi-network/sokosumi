@@ -1,7 +1,7 @@
 import "server-only";
 
-import type { Member, Prisma } from "../generated/prisma/client";
 import prisma from "../client";
+import type { Member, Prisma } from "../generated/prisma/client";
 import {
   memberOrderBy,
   memberOrganizationInclude,

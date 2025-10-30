@@ -1,7 +1,7 @@
 import "server-only";
 
-import type { CreditCost, Prisma } from "../generated/prisma/client";
 import prisma from "../client";
+import type { CreditCost, Prisma } from "../generated/prisma/client";
 
 /**
  * Credit Cost Repository Interface

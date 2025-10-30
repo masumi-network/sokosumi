@@ -1,7 +1,7 @@
 import "server-only";
 
-import type { Organization, Prisma } from "../generated/prisma/client";
 import prisma from "../client";
+import type { Organization, Prisma } from "../generated/prisma/client";
 import {
   organizationInclude,
   organizationLimitedInfoInclude,
@@ -179,4 +179,3 @@ export const organizationRepository = {
     });
   },
 };
-

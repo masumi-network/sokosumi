@@ -1,5 +1,6 @@
 import { jobStatusToAgentJobStatus } from "@/lib/db";
 import { AgentJobStatus, PrismaClient } from "@/prisma/generated/client";
+
 const prisma = new PrismaClient();
 async function main() {
     await prisma.$transaction(async (tx) => {
