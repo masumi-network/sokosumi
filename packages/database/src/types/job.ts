@@ -127,15 +127,3 @@ export type JobWithStatus =
   | FreeJobWithStatus
   | PaidJobWithStatus
   | DemoJobWithStatus;
-
-export function isFreeJob(job: JobWithStatus): job is FreeJobWithStatus {
-  return job.jobType === "FREE";
-}
-
-export function isPaidJob(job: JobWithStatus): job is PaidJobWithStatus {
-  return job.jobType === "PAID";
-}
-
-export function isDemoJob(job: JobWithStatus): job is DemoJobWithStatus {
-  return job.jobType === "DEMO";
-}

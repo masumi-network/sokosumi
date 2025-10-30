@@ -13,9 +13,12 @@ import type {
   PurchaseRequestedAction,
 } from "../types/external-api";
 import {
+  DemoJobWithStatus,
+  FreeJobWithStatus,
   JobStatus,
   type JobWithRelations,
   type JobWithStatus,
+  PaidJobWithStatus,
 } from "../types/job";
 
 const TEN_MINUTES_TIMESTAMP = 1000 * 60 * 10; // 10min
@@ -404,4 +407,16 @@ export function transactionStatusToOnChainTransactionStatus(
         `Unknown transaction status: ${currentTransactionStatus}`,
       );
   }
+}
+
+export function isFreeJob(job: JobWithStatus): job is FreeJobWithStatus {
+  return job.jobType === "FREE";
+}
+
+export function isPaidJob(job: JobWithStatus): job is PaidJobWithStatus {
+  return job.jobType === "PAID";
+}
+
+export function isDemoJob(job: JobWithStatus): job is DemoJobWithStatus {
+  return job.jobType === "DEMO";
 }

@@ -12,6 +12,7 @@ import {
   Prisma,
 } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
+import { isPaidJob } from "@sokosumi/database/helpers";
 import { getTranslations } from "next-intl/server";
 import { v4 as uuidv4 } from "uuid";
 
@@ -27,7 +28,6 @@ import {
   computeJobStatus,
   getAgentName,
   getJobIndicatorStatus,
-  isPaidJob,
   JobStatus,
   jobStatusToAgentJobStatus,
   JobWithStatus,
