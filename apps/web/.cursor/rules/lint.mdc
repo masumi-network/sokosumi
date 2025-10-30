@@ -1,8 +1,61 @@
 ---
-description: Syntax and Formatting
-globs: 
+description: Web App Linting and Formatting
+globs: *.tsx, *.ts
 alwaysApply: true
 ---
-- Use the "function" keyword for pure functions.
-- Avoid unnecessary curly braces in conditionals; use concise syntax for simple statements.
-- Use declarative JSX.
+
+## Web-Specific Linting Rules
+
+### Environment Variables
+
+- **Never use `process.env` directly** - this will cause a linter error
+- Always use typed config functions:
+  - `getEnvSecrets()` - for sensitive environment variables (API keys, secrets)
+  - `getEnvConfig()` - for public configuration (feature flags, URLs)
+
+**Error**: `no-restricted-properties` on `process.env`
+**Fix**: Replace `process.env.MY_VAR` with `getEnvSecrets().MY_VAR` or `getEnvConfig().MY_VAR`
+
+### Import Paths
+
+- **No relative imports** except within the same folder (enforced by `no-relative-import-paths`)
+- Use absolute imports with `@/` alias for cross-directory imports
+- Examples:
+  - ✅ `import { Button } from "@/components/ui/button"`
+  - ✅ `import { helper } from "./helper"` (same folder)
+  - ❌ `import { Button } from "../../components/ui/button"`
+
+**Error**: `no-relative-import-paths/no-relative-import-paths`
+**Fix**: Convert to absolute path using `@/` alias
+
+### Next.js Rules
+
+- Use `<Link>` component for internal navigation, never `<a>` tags in pages
+- Optimize images with Next.js `<Image>` component when possible
+- Ensure proper metadata exports in page components
+
+**Error**: `@next/next/no-html-link-for-pages`
+**Fix**: Replace `<a href="/path">` with `<Link href="/path">`
+
+### Internationalization (i18next)
+
+- All user-facing text must use translation keys via `useTranslations()` hook
+- Never hardcode user-facing strings in components
+- Translation keys are defined in `messages/en.json`
+
+**Example**:
+
+```typescript
+const t = useTranslations('common');
+return <h1>{t('title')}</h1>;
+```
+
+## Syntax Best Practices
+
+- Use the `function` keyword for pure functions
+- Avoid unnecessary curly braces in conditionals; use concise syntax for simple statements
+- Use declarative JSX
+
+## Monorepo-Wide Rules
+
+For general linting and formatting rules (import sorting, Prettier, TypeScript), see the root-level `.cursor/rules/lint.mdc` file.
