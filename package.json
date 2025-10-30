@@ -22,13 +22,13 @@
     "web:test": "pnpm --filter web test",
     "test:ci": "pnpm -r test:ci",
     "web:test:ci": "pnpm --filter web test:ci",
-    "web:prisma:migrate:deploy": "pnpm --filter web prisma:migrate:deploy",
-    "web:prisma:migrate:dev": "pnpm --filter web prisma:migrate:dev",
+    "format": "pnpm -r format",
+    "web:format": "pnpm --filter web format",
     "database:format": "pnpm --filter @sokosumi/database format",
-    "prisma:generate": "pnpm --filter @sokosumi/database prisma:generate",
-    "prisma:migrate:dev": "pnpm --filter @sokosumi/database prisma:migrate:dev",
-    "prisma:migrate:deploy": "pnpm --filter @sokosumi/database prisma:migrate:deploy",
-    "prisma:studio": "pnpm --filter @sokosumi/database prisma:studio"
+    "database:prisma:generate": "pnpm --filter @sokosumi/database prisma:generate",
+    "database:prisma:migrate:dev": "pnpm --filter @sokosumi/database prisma:migrate:dev",
+    "database:prisma:migrate:deploy": "pnpm --filter @sokosumi/database prisma:migrate:deploy",
+    "database:prisma:studio": "pnpm --filter @sokosumi/database prisma:studio"
   },
   "devDependencies": {
     "eslint": "^9.38.0",
