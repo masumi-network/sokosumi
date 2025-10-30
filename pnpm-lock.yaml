@@ -9,13 +9,13 @@ importers:
   .:
     devDependencies:
       eslint:
-        specifier: ^9.38.0
+        specifier: 9.38.0
         version: 9.38.0(jiti@2.6.1)
       husky:
         specifier: 9.1.7
         version: 9.1.7
       prettier:
-        specifier: ^3.4.2
+        specifier: 3.6.2
         version: 3.6.2
 
   apps/web:
