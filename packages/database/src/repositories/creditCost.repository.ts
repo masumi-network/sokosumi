@@ -1,7 +1,7 @@
 import "server-only";
 
-import { CreditCost, Prisma } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
+import type { CreditCost, Prisma } from "../generated/prisma/client";
+import prisma from "../client";
 
 /**
  * Credit Cost Repository Interface
@@ -42,3 +42,4 @@ export const creditCostRepository = {
     return await tx.creditCost.findMany();
   },
 };
+
