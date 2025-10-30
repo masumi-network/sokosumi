@@ -1,5 +1,10 @@
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
+# outputs 
+dist
+build
+coverage
+
 # dependencies
 node_modules
 /.pnp
@@ -23,4 +28,5 @@ yarn-error.log*
 # local env files
 .env*.local
 
+# reports
 lint-report.json
