@@ -1,25 +1,11 @@
 import "server-only";
 
-import { Prisma } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
-
-export interface AgentRatingStats {
-  totalRatings: number;
-  averageRating: number;
-}
-
-export interface UserAgentRatingWithUser {
-  id: string;
-  rating: number;
-  comment: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  user: {
-    id: string;
-    name: string;
-    image: string | null;
-  };
-}
+import type { Prisma } from "../generated/prisma/client";
+import prisma from "../client";
+import {
+  AgentRatingStats,
+  UserAgentRatingWithUser,
+} from "../types/agentRating";
 
 export const agentRatingRepository = {
   /**
@@ -207,3 +193,4 @@ export const agentRatingRepository = {
     };
   },
 };
+

@@ -11,6 +11,7 @@ export * from "./generated/prisma/models";
 // Export shared types
 export * from "./types/agent";
 export * from "./types/agentList";
+export * from "./types/agentRating";
 export * from "./types/job-share";
 export * from "./types/member";
 export * from "./types/organization";

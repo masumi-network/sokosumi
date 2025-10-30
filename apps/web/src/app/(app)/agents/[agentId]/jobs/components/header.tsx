@@ -1,5 +1,6 @@
 "use client";
 
+import type { AgentRatingStats } from "@sokosumi/database";
 import { ArrowLeft, Bookmark, Plus } from "lucide-react";
 import { useTranslations } from "next-intl";
 
@@ -15,7 +16,6 @@ import {
   convertCentsToCredits,
   getAgentName,
 } from "@/lib/db";
-import type { AgentRatingStats } from "@/lib/db/repositories/agentRating.repository";
 
 export function HeaderSkeleton() {
   const t = useTranslations("App.Agents.Jobs.Header");

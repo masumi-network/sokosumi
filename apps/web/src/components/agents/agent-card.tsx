@@ -1,3 +1,4 @@
+import type { AgentRatingStats } from "@sokosumi/database";
 import { cva, VariantProps } from "class-variance-authority";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
@@ -18,7 +19,6 @@ import {
   getAgentTags,
   getShortAgentAuthorName,
 } from "@/lib/db";
-import type { AgentRatingStats } from "@/lib/db/repositories/agentRating.repository";
 import { cn } from "@/lib/utils";
 
 import {

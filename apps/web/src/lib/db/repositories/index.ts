@@ -1,5 +1,4 @@
 export * from "./agent.repository";
-export * from "./agentRating.repository";
 export * from "./creditCost.repository";
 export * from "./creditTransaction.repository";
 export * from "./fiatTransaction.repository";
@@ -10,6 +9,7 @@ export * from "./job-schedule.repository";
 // Repositories migrated to database package
 export {
   agentListRepository,
+  agentRatingRepository,
   blobRepository,
   jobShareRepository,
   linkRepository,

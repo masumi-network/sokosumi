@@ -1,5 +1,6 @@
 "use client";
 
+import { UserAgentRatingWithUser } from "@sokosumi/database";
 import { formatDistanceToNow } from "date-fns";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -7,7 +8,6 @@ import { useState } from "react";
 import { StarRating } from "@/components/agents/star-rating";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { UserAgentRatingWithUser } from "@/lib/db/repositories/agentRating.repository";
 
 const COMMENT_TRUNCATE_LENGTH = 60;
 

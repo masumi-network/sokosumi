@@ -1,4 +1,4 @@
-import { Agent, Prisma } from "@sokosumi/database";
+import { Agent } from "@sokosumi/database";
 
 import { JobInputsFormSchemaType } from "@/lib/job-input";
 import { JobStatusResponseSchemaType } from "@/lib/schemas";

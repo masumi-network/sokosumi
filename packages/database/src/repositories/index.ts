@@ -1,4 +1,5 @@
 export * from "./agentList.repository";
+export * from "./agentRating.repository";
 export * from "./blob.repository";
 export * from "./job-share.repository";
 export * from "./link.repository";

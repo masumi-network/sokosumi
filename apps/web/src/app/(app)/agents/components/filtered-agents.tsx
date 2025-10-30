@@ -1,5 +1,6 @@
 "use client";
 
+import type { AgentRatingStats } from "@sokosumi/database";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useMemo } from "react";
 
@@ -13,7 +14,6 @@ import {
   AgentWithRelations,
   getAgentTags,
 } from "@/lib/db";
-import type { AgentRatingStats } from "@/lib/db/repositories/agentRating.repository";
 
 import { GalleryFilterState } from "./use-gallery-filter";
 

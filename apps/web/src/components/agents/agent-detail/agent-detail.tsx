@@ -1,13 +1,14 @@
 import {
+  type AgentRatingStats,
+  UserAgentRatingWithUser,
+} from "@sokosumi/database";
+
+import {
   AgentWithCreditsPrice,
   AgentWithRelations,
   getAgentExampleOutput,
   getAgentLegal,
 } from "@/lib/db";
-import {
-  type AgentRatingStats,
-  UserAgentRatingWithUser,
-} from "@/lib/db/repositories/agentRating.repository";
 import { cn } from "@/lib/utils";
 
 import { CardSection } from "./card-section";
