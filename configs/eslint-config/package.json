@@ -9,11 +9,16 @@
     ".": {
       "types": "./index.d.ts",
       "default": "./index.mjs"
+    },
+    "./base": {
+      "types": "./base.d.ts",
+      "default": "./base.mjs"
     }
   },
   "dependencies": {
     "eslint": "^9.38.0",
     "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-import": "^2.32.0",
     "eslint-plugin-simple-import-sort": "^12.1.1",
     "eslint-plugin-unused-imports": "^4.3.0",
     "typescript-eslint": "^8.24.0"

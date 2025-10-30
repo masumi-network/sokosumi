@@ -1,33 +1,22 @@
 import { defineConfig } from "eslint/config";
-import prettier from "eslint-config-prettier/flat";
-import simpleImportSort from "eslint-plugin-simple-import-sort";
-import unusedImports from "eslint-plugin-unused-imports";
-import tseslint from "typescript-eslint";
+import baseConfig from "./base.mjs";
+import importPlugin from "eslint-plugin-import";
 
+/**
+ * Full ESLint config with import plugin.
+ * Extends the base config and adds import plugin rules.
+ * Use this for library packages and applications that don't already provide the import plugin.
+ */
 const eslintConfig = defineConfig([
-  ...tseslint.configs.recommended,
-  prettier,
+  ...baseConfig,
   {
     plugins: {
-      "simple-import-sort": simpleImportSort,
-      "unused-imports": unusedImports,
+      import: importPlugin,
     },
     rules: {
-      // Import organization
-      "simple-import-sort/imports": "error",
-      "simple-import-sort/exports": "error",
-      "unused-imports/no-unused-imports": "error",
-
-      // TypeScript
-      "@typescript-eslint/no-unused-vars": [
-        "warn",
-        {
-          varsIgnorePattern: "^_",
-          argsIgnorePattern: "^_",
-          caughtErrorsIgnorePattern: "^_",
-          destructuredArrayIgnorePattern: "^_",
-        },
-      ],
+      "import/first": "error",
+      "import/newline-after-import": "error",
+      "import/no-duplicates": "error",
     },
   },
 ]);
