@@ -1,10 +1,9 @@
 import type {
-  AgentJobStatus,
   CreditTransaction,
   JobType,
-  OnChainJobStatus,
   Prisma,
 } from "../generated/prisma/client";
+import { AgentJobStatus, OnChainJobStatus } from "../generated/prisma/client";
 
 export const jobInclude = {
   agent: true,
@@ -112,15 +111,15 @@ export enum JobStatus {
 }
 
 export const finalizedOnChainJobStatuses: OnChainJobStatus[] = [
-  "DISPUTED_WITHDRAWN",
-  "FUNDS_WITHDRAWN",
-  "REFUND_WITHDRAWN",
-  "RESULT_SUBMITTED",
+  OnChainJobStatus.DISPUTED_WITHDRAWN,
+  OnChainJobStatus.FUNDS_WITHDRAWN,
+  OnChainJobStatus.REFUND_WITHDRAWN,
+  OnChainJobStatus.RESULT_SUBMITTED,
 ];
 
 export const finalizedAgentJobStatuses: AgentJobStatus[] = [
-  "COMPLETED",
-  "FAILED",
+  AgentJobStatus.COMPLETED,
+  AgentJobStatus.FAILED,
 ];
 
 export type JobWithStatus =
