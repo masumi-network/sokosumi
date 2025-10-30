@@ -7,11 +7,11 @@ export * from "./fiatTransaction.repository";
 export * from "./invitation.repository";
 export * from "./job.repository";
 export * from "./job-schedule.repository";
-export * from "./job-share.repository";
 
 // Repositories migrated to database package
 export {
   blobRepository,
+  jobShareRepository,
   linkRepository,
   lockRepository,
   memberRepository,

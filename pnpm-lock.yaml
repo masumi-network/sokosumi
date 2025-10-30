@@ -411,6 +411,9 @@ importers:
       server-only:
         specifier: 0.0.1
         version: 0.0.1
+      uuid:
+        specifier: 13.0.0
+        version: 13.0.0
     devDependencies:
       '@types/node':
         specifier: 22.18.13

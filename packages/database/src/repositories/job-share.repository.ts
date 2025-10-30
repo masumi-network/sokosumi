@@ -1,14 +1,14 @@
+import "server-only";
+
+import type { Prisma } from "../generated/prisma/client";
+import prisma from "../client";
+import { v4 as uuidv4 } from "uuid";
+import { jobShareInclude } from "../types/job-share";
+
 /**
  * Repository for managing JobShare entities and related queries.
  * Provides methods for creating, retrieving, and updating JobShare records.
  */
-
-import { Prisma } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
-import { v4 as uuidv4 } from "uuid";
-
-import { jobShareInclude } from "@/lib/db/types";
-
 export const jobShareRepository = {
   async hasShareByJobId(jobId: string, tx: Prisma.TransactionClient = prisma) {
     const share = await tx.jobShare.findUnique({
@@ -111,3 +111,4 @@ export const jobShareRepository = {
     });
   },
 };
+
