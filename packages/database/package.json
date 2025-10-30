@@ -7,7 +7,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./client": "./src/client.ts",
-    "./transaction": "./src/transaction.ts"
+    "./transaction": "./src/transaction.ts",
+    "./repositories": "./src/repositories/index.ts"
   },
   "scripts": {
     "prisma:generate": "prisma generate --no-hints",

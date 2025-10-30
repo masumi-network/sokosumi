@@ -14,5 +14,7 @@ export * from "./lock.repository";
 export * from "./member.repository";
 export * from "./organization.repository";
 export * from "./tag.repository";
-export * from "./user.repository";
 export * from "./utmAttribution.repository";
+
+// Repositories migrated to database package
+export { userRepository } from "@sokosumi/database/repositories";

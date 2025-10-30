@@ -1,5 +1,7 @@
-import { Prisma, User } from "@sokosumi/database";
-import prisma from "@sokosumi/database/client";
+import "server-only";
+
+import type { Prisma, User } from "../generated/prisma/client";
+import prisma from "../client";
 
 /**
  * Repository for user-related database operations.
@@ -164,3 +166,4 @@ export const userRepository = {
     return found.image;
   },
 };
+
