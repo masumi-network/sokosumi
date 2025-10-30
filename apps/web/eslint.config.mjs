@@ -7,9 +7,9 @@ import i18next from "eslint-plugin-i18next";
 import noRelativeImportPaths from "eslint-plugin-no-relative-import-paths";
 
 const eslintConfig = defineConfig([
-  ...sokosumiConfig,
   ...nextVitals,
   ...nextTs,
+  ...sokosumiConfig,
   i18next.configs["flat/recommended"],
   {
     plugins: {

@@ -2,7 +2,6 @@ import { defineConfig } from "eslint/config";
 import prettier from "eslint-config-prettier/flat";
 import simpleImportSort from "eslint-plugin-simple-import-sort";
 import unusedImports from "eslint-plugin-unused-imports";
-import importPlugin from "eslint-plugin-import";
 import tseslint from "typescript-eslint";
 
 const eslintConfig = defineConfig([
@@ -12,16 +11,12 @@ const eslintConfig = defineConfig([
     plugins: {
       "simple-import-sort": simpleImportSort,
       "unused-imports": unusedImports,
-      import: importPlugin,
     },
     rules: {
       // Import organization
       "simple-import-sort/imports": "error",
       "simple-import-sort/exports": "error",
       "unused-imports/no-unused-imports": "error",
-      "import/first": "error",
-      "import/newline-after-import": "error",
-      "import/no-duplicates": "error",
 
       // TypeScript
       "@typescript-eslint/no-unused-vars": [
