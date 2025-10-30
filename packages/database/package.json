@@ -8,7 +8,9 @@
     ".": "./src/index.ts",
     "./client": "./src/client.ts",
     "./transaction": "./src/transaction.ts",
-    "./repositories": "./src/repositories/index.ts"
+    "./repositories": "./src/repositories/index.ts",
+    "./helpers": "./src/helpers/index.ts",
+    "./types/job": "./src/types/job.ts"
   },
   "scripts": {
     "prisma:generate": "prisma generate --no-hints",

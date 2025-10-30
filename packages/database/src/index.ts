@@ -15,6 +15,8 @@ export * from "./types/agentRating";
 export * from "./types/invitation";
 export * from "./types/job-schedule";
 export * from "./types/job-share";
+export * from "./types/job";
 export * from "./types/member";
 export * from "./types/organization";
 export * from "./types/utm";
+export * from "./types/external-api";

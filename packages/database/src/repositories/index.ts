@@ -6,6 +6,7 @@ export * from "./creditCost.repository";
 export * from "./creditTransaction.repository";
 export * from "./fiatTransaction.repository";
 export * from "./invitation.repository";
+export * from "./job.repository";
 export * from "./job-schedule.repository";
 export * from "./job-share.repository";
 export * from "./link.repository";

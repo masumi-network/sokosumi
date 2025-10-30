@@ -1,5 +1,3 @@
-export * from "./job.repository";
-
 // Re-export types from database package
 export type { ScheduleListItem } from "@sokosumi/database";
 
@@ -13,6 +11,7 @@ export {
   creditTransactionRepository,
   fiatTransactionRepository,
   invitationRepository,
+  jobRepository,
   jobScheduleRepository,
   jobShareRepository,
   linkRepository,
