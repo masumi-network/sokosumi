@@ -9,4 +9,5 @@ export * from "./generated/prisma/browser";
 export * from "./generated/prisma/models";
 
 // Export shared types
+export * from "./types/organization";
 export * from "./types/utm";

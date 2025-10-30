@@ -11,11 +11,11 @@ export * from "./job-share.repository";
 export * from "./link.repository";
 export * from "./lock.repository";
 export * from "./member.repository";
-export * from "./organization.repository";
 
 // Repositories migrated to database package
 export {
   blobRepository,
+  organizationRepository,
   tagRepository,
   userRepository,
   utmAttributionRepository,
