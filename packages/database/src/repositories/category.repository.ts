@@ -1,8 +1,9 @@
 import "server-only";
 
+import { InputJsonValue } from "@prisma/client/runtime/client";
+
 import prisma from "../client";
 import type { Agent, Category, Prisma } from "../generated/prisma/client";
-import { InputJsonValue } from "@prisma/client/runtime/client";
 
 export const categoryRepository = {
   getCategories: async (
