@@ -3,127 +3,40 @@ import { AgentWithCreditsPrice, AgentWithRelations } from "@sokosumi/database";
 import { cva, VariantProps } from "class-variance-authority";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
+import { useTheme } from "next-themes";
 
 import ClickBlocker from "@/components/click-blocker";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import useIsClient from "@/hooks/use-is-client";
 import {
   getAgentAuthorResolvedImage,
+  getAgentCategoryStyles,
   getAgentName,
-  getAgentResolvedImage,
+  getAgentResolvedIcon,
   getAgentSummary,
-  getAgentTags,
   getShortAgentAuthorName,
 } from "@/lib/helpers/agent";
 import { convertCentsToCredits } from "@/lib/helpers/credit";
-import { cn } from "@/lib/utils";
-import { isAgentNew } from "@/lib/utils/agent";
+import { cn, generateGradientBorder } from "@/lib/utils";
 
-import {
-  AgentBadgeCloud,
-  AgentBadgeCloudSkeleton,
-  AgentNewBadge,
-} from "./agent-badge-cloud";
-import { AgentBookmarkButton } from "./agent-bookmark-button";
 import { AgentDetailLink } from "./agent-detail-link";
 import { AgentHireButton } from "./agent-hire-button";
+import AgentIcon from "./agent-icon";
 import AgentSummary from "./agent-summary";
 import { AgentVerifiedBadge } from "./agent-verified-badge";
 import { StarRating } from "./star-rating";
 
-const agentCardVariants = cva("flex rounded-lg border-none p-1 shadow-none", {
-  variants: {
-    size: {
-      xs: "hover:bg-foreground/5 w-64 flex-row items-center gap-2.5 transition-colors",
-      sm: "hover:bg-foreground/5 w-80 flex-row items-center gap-4 transition-colors",
-      md: "w-[min(100%,theme(maxWidth.5xl))] flex-col items-center gap-6 md:hover:bg-foreground/5 md:w-80 md:gap-2 md:transition-colors",
-      lg: "w-[min(100%,theme(maxWidth.5xl))] flex-col items-center gap-6 md:flex-row md:gap-2",
-    },
-  },
-  defaultVariants: {
-    size: "md",
-  },
-});
-
-const agentCardImageContainerVariants = cva(
-  "group relative shrink-0 overflow-hidden rounded-lg",
+const agentCardVariants = cva(
+  "flex h-full rounded-lg px-4 py-6 shadow-none bg-card-bg",
   {
     variants: {
       size: {
-        xs: "agent-card-image-shadow h-16 w-16",
-        sm: "agent-card-image-shadow h-24 w-24",
-        md: "md:agent-card-image-shadow aspect-[1.6] w-full",
-        lg: "aspect-[1.6] w-full md:w-1/2",
-      },
-    },
-    defaultVariants: {
-      size: "md",
-    },
-  },
-);
-
-const agentCardImageHoverVariants = cva(
-  "absolute inset-0 z-30 items-center justify-center opacity-0 transition-opacity group-hover:opacity-100",
-  {
-    variants: {
-      size: {
-        xs: "hidden",
-        sm: "hidden",
-        md: "flex md:backdrop-blur-md",
-        lg: "hidden",
-      },
-    },
-    defaultVariants: {
-      size: "md",
-    },
-  },
-);
-
-const agentCardBadgesAndAuthorContainerVariants = cva(
-  "absolute inset-0 z-20 grid-cols-2 justify-between gap-2 p-3",
-  {
-    variants: {
-      size: {
-        xs: "hidden",
-        sm: "hidden",
-        md: "grid",
-        lg: "grid",
-      },
-    },
-    defaultVariants: {
-      size: "md",
-    },
-  },
-);
-
-const agentCardBadgesContainerVariants = cva(
-  "col-span-1 flex-col justify-between gap-4",
-  {
-    variants: {
-      size: {
-        xs: "hidden",
-        sm: "hidden",
-        md: "flex transition-opacity group-hover:opacity-0",
-        lg: "flex",
-      },
-    },
-    defaultVariants: {
-      size: "md",
-    },
-  },
-);
-
-const agentCardAuthorImageContainerVariants = cva(
-  "col-span-1 items-end justify-end",
-  {
-    variants: {
-      size: {
-        xs: "hidden",
-        sm: "hidden",
-        md: "flex",
-        lg: "flex",
+        xs: "hover:bg-foreground/5 w-64 flex-row items-center gap-2.5 transition-colors",
+        sm: "hover:bg-foreground/5 w-80 flex-row items-center gap-4 transition-colors",
+        md: "w-[min(100%,theme(maxWidth.5xl))] flex-col items-start gap-6 md:hover:bg-foreground/5 md:w-80 md:gap-2 md:transition-colors",
+        lg: "w-[min(100%,theme(maxWidth.5xl))] flex-col items-start gap-6 md:flex-row md:gap-2",
       },
     },
     defaultVariants: {
@@ -137,7 +50,7 @@ const agentCardContentVariants = cva("flex w-full flex-col", {
     size: {
       xs: "min-w-0 flex-1 gap-1",
       sm: "min-w-0 flex-1 gap-2",
-      md: "flex-1 gap-8 p-0 md:gap-2 md:p-1",
+      md: "flex-1 gap-2 p-0",
       lg: "flex-1 gap-8 p-0 md:max-w-1/2 md:gap-12 md:p-12",
     },
   },
@@ -174,22 +87,8 @@ const agentCardSummaryContainerVariants = cva("text-muted-foreground text-sm", {
   },
 });
 
-const agentCardAuthorVariants = cva("text-muted-foreground truncate", {
-  variants: {
-    size: {
-      xs: "text-xs",
-      sm: "text-sm",
-      md: "hidden",
-      lg: "hidden",
-    },
-  },
-  defaultVariants: {
-    size: "md",
-  },
-});
-
 const agentCardPricingAndButtonsContainerVariants = cva(
-  "flex flex-col justify-start gap-4 lg:flex-row lg:justify-between lg:gap-0",
+  "flex flex-col justify-start gap-4 lg:flex-row lg:justify-between lg:gap-0 bg-card-bg",
   {
     variants: {
       size: {
@@ -241,7 +140,7 @@ const agentShowDetailsButtonVariants = cva("w-full md:w-auto", {
     size: {
       xs: "hidden",
       sm: "hidden",
-      md: "block md:hidden",
+      md: "block",
       lg: "block",
     },
   },
@@ -260,16 +159,6 @@ function AgentCardSkeleton({
 }: AgentCardSkeletonProps & VariantProps<typeof agentCardVariants>) {
   return (
     <Card className={cn(agentCardVariants({ size }), className)}>
-      {/* Image */}
-      <div className={cn(agentCardImageContainerVariants({ size }))}>
-        <Skeleton className="h-full w-full" />
-
-        {/* Badges */}
-        <div className={cn(agentCardBadgesContainerVariants({ size }))}>
-          <AgentBadgeCloudSkeleton />
-        </div>
-      </div>
-
       {/* Content */}
       <div className={cn(agentCardContentVariants({ size }))}>
         <div className="flex flex-col gap-1">
@@ -314,155 +203,159 @@ interface AgentCardProps {
 function AgentCard({
   agent,
   showHireButton = false,
-  favoriteAgents,
   ratingStats,
   className,
   size,
 }: AgentCardProps & VariantProps<typeof agentCardVariants>) {
   const t = useTranslations("Components.Agents.AgentCard");
-  const isFavorite = favoriteAgents?.some(
-    (favoriteAgent) => favoriteAgent.id === agent.id,
-  );
+  const { resolvedTheme } = useTheme();
+  const isClient = useIsClient();
 
-  const agentImage = getAgentResolvedImage(agent);
+  const agentIcon = getAgentResolvedIcon(agent);
   const authorImage = getAgentAuthorResolvedImage(agent);
   const summary = getAgentSummary(agent);
   const isDefault = !size || size === "md";
-  const buttonSize = size === "xs" || size === "sm" ? "sm" : "lg";
+  const buttonSize = "sm";
+  const categoryStyles = getAgentCategoryStyles(agent);
+
+  // Extract color based on new structure or legacy structure
+  let categoryColor = "text-default-foreground";
+  if (categoryStyles.light || categoryStyles.dark) {
+    // const themeStyles = currentTheme === "dark" ? categoryStyles.dark : categoryStyles.light;
+    categoryColor =
+      categoryStyles.light?.color ||
+      categoryStyles.dark?.color ||
+      categoryColor;
+  }
+
+  // Determine the current theme and generate gradient border only on client
+  const currentTheme = isClient && resolvedTheme === "dark" ? "dark" : "light";
+  const gradientBorder = isClient
+    ? generateGradientBorder(categoryStyles, currentTheme)
+    : null;
+
+  // Generate border style
+  const borderStyle =
+    isClient && gradientBorder
+      ? {
+          border: "0.2px solid transparent",
+          borderRadius: "0.65rem",
+          backgroundImage: gradientBorder
+            ? `linear-gradient(var(--card-bg), var(--card-bg)), ${gradientBorder}`
+            : `linear-gradient(var(--card-bg), var(--card-bg))`,
+          backgroundOrigin: "border-box",
+          backgroundClip: "padding-box, border-box",
+        }
+      : undefined;
+
+  const cardContent = (
+    <Card
+      className={cn(
+        agentCardVariants({ size }),
+        className,
+        "hover-bg-image-transparent",
+      )}
+      style={borderStyle}
+    >
+      {/* Header with Icon and Verified Badge */}
+      <div className="mb-4 flex min-h-10 w-full items-center justify-between">
+        {/* Icon */}
+        <div className="shrink-0" style={{ color: categoryColor }}>
+          <AgentIcon agent={agent} className="size-8" />
+        </div>
+
+        {/* Verified Badge */}
+        <AgentVerifiedBadge />
+      </div>
+
+      {/* Content */}
+      <div className={cn(agentCardContentVariants({ size }))}>
+        <div className="flex w-full flex-1 flex-col justify-between gap-3">
+          {/* Title */}
+          <h3
+            className={agentCardNameVariants({ size })}
+            style={{ color: categoryColor }}
+          >
+            {getAgentName(agent)}
+          </h3>
+
+          {/* Rating */}
+          <StarRating
+            averageRating={ratingStats?.averageRating ?? 0}
+            totalRatings={ratingStats?.totalRatings ?? 5}
+            size="sm"
+            showRatingNumber={false}
+          />
+
+          {/* Summary/Description */}
+          {summary && (
+            <div className={agentCardSummaryContainerVariants({ size })}>
+              <AgentSummary summary={summary} />
+            </div>
+          )}
+
+          {/* Credits */}
+          <div className={cn(agentCardPricingVariants({ size }))}>
+            <p className="text-foreground">
+              {t("pricing", {
+                price: convertCentsToCredits(agent.creditsPrice.cents),
+              })}
+            </p>
+          </div>
+
+          <div className="col-span-2 grid w-full grid-cols-2 items-center gap-2">
+            {/* Buttons */}
+            <div className={cn(agentCardButtonsContainerVariants({ size }))}>
+              {showHireButton ? (
+                <ClickBlocker>
+                  <AgentHireButton agentId={agent.id} className="w-full" />
+                </ClickBlocker>
+              ) : (
+                <div className={cn(agentShowDetailsButtonVariants({ size }))}>
+                  <Button
+                    variant="secondary"
+                    size={buttonSize}
+                    className="w-full cursor-pointer md:w-auto"
+                  >
+                    {t("view")}
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {/* Footer Attribution */}
+            {authorImage && (
+              <div className="flex items-center justify-end">
+                <Image
+                  src={authorImage}
+                  alt={`${getAgentName(agent)} author`}
+                  width={100}
+                  height={24}
+                  className="h-4 w-auto object-contain"
+                />
+              </div>
+            )}
+            {!authorImage && (
+              <div className="flex items-center justify-end truncate">
+                <p className="truncate text-xs uppercase">
+                  {getShortAgentAuthorName(agent)}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </Card>
+  );
 
   return (
     <>
       <AgentCardWrapper agentId={agent.id} isLink={isDefault}>
-        <Card className={cn(agentCardVariants({ size }), className)}>
-          {/* Image */}
-          <div className={cn(agentCardImageContainerVariants({ size }))}>
-            <AgentCardWrapper agentId={agent.id} isLink={size === "lg"}>
-              <Image
-                src={agentImage}
-                alt={`${getAgentName(agent)} image`}
-                width={400}
-                height={250}
-                className="h-full w-full object-cover transition-transform group-hover:scale-105"
-              />
-            </AgentCardWrapper>
-
-            {/* Hover blur and Show Details Button */}
-            <div className={cn(agentCardImageHoverVariants({ size }))}>
-              <div className="relative flex h-full w-full items-center justify-center">
-                {favoriteAgents && (
-                  <ClickBlocker className="absolute top-3 right-3">
-                    <AgentBookmarkButton
-                      agentId={agent.id}
-                      isFavorite={isFavorite ?? false}
-                    />
-                  </ClickBlocker>
-                )}
-                <Button className="hidden md:block" variant="primary">
-                  {t("view")}
-                </Button>
-              </div>
-            </div>
-
-            {/* Badges and Author */}
-            <div
-              className={cn(
-                agentCardBadgesAndAuthorContainerVariants({ size }),
-              )}
-            >
-              {/* Badges */}
-              <div className={cn(agentCardBadgesContainerVariants({ size }))}>
-                {/* New Badge */}
-                {isAgentNew(agent) && <AgentNewBadge />}
-                {/* Tags */}
-                <AgentBadgeCloud tags={getAgentTags(agent)} />
-              </div>
-
-              {/* Author Image or Name */}
-              <div
-                className={cn(agentCardAuthorImageContainerVariants({ size }))}
-              >
-                {authorImage ? (
-                  <Image
-                    src={authorImage}
-                    alt={`${getAgentName(agent)} author image`}
-                    width={400}
-                    height={100}
-                    className="h-6 w-auto object-contain object-bottom-right"
-                  />
-                ) : (
-                  <Badge variant="default" className="max-w-full">
-                    <p className="truncate text-xs">
-                      {getShortAgentAuthorName(agent)}
-                    </p>
-                  </Badge>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Content */}
-          <div className={cn(agentCardContentVariants({ size }))}>
-            <div className="flex flex-col gap-1">
-              <div className="flex items-center gap-2">
-                <h3 className={agentCardNameVariants({ size })}>
-                  {getAgentName(agent)}
-                </h3>
-                {ratingStats && ratingStats.totalRatings > 0 ? (
-                  <StarRating
-                    averageRating={ratingStats.averageRating}
-                    totalRatings={ratingStats.totalRatings}
-                    size="sm"
-                    showRatingNumber={false}
-                  />
-                ) : (
-                  <AgentVerifiedBadge />
-                )}
-              </div>
-              {summary && (
-                <div className={agentCardSummaryContainerVariants({ size })}>
-                  <AgentSummary summary={summary} />
-                </div>
-              )}
-              <p className={agentCardAuthorVariants({ size })}>
-                {getShortAgentAuthorName(agent)}
-              </p>
-            </div>
-
-            {/* Pricing and Buttons */}
-            <div
-              className={cn(
-                agentCardPricingAndButtonsContainerVariants({ size }),
-              )}
-            >
-              {/* Pricing */}
-              <div className={cn(agentCardPricingVariants({ size }))}>
-                <p>
-                  {t("pricing", {
-                    price: convertCentsToCredits(agent.creditsPrice.cents),
-                  })}
-                </p>
-              </div>
-              {/* Buttons */}
-              <div className={cn(agentCardButtonsContainerVariants({ size }))}>
-                {showHireButton ? (
-                  <ClickBlocker>
-                    <AgentHireButton agentId={agent.id} className="w-full" />
-                  </ClickBlocker>
-                ) : (
-                  <div className={cn(agentShowDetailsButtonVariants({ size }))}>
-                    <Button
-                      variant="primary"
-                      size={buttonSize}
-                      className="w-full cursor-pointer md:w-auto"
-                    >
-                      {t("view")}
-                    </Button>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </Card>
+        {isClient && gradientBorder ? (
+          <div className="">{cardContent}</div>
+        ) : (
+          cardContent
+        )}
       </AgentCardWrapper>
     </>
   );

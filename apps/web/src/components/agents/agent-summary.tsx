@@ -13,7 +13,7 @@ export default function AgentSummary({ summary }: AgentSummaryProps) {
   const t = useTranslations("Components.Agents.AgentCard");
 
   const [isExpanded, setIsExpanded] = useState(false);
-  const canBeExpanded = summary.length > 150;
+  const canBeExpanded = summary.length > 100;
 
   const handleToggleExpanded = () => {
     setIsExpanded(!isExpanded);
@@ -21,11 +21,11 @@ export default function AgentSummary({ summary }: AgentSummaryProps) {
 
   return (
     <div className="text-muted-foreground text-sm">
-      {isExpanded ? summary : summary.slice(0, 150)}
+      {isExpanded ? summary : summary.slice(0, 100)}
       {canBeExpanded && (
         <ClickBlocker className="inline-block space-x-0.5">
           <span>{!isExpanded && "..."}</span>
-          <b className="text-primary" onClick={handleToggleExpanded}>
+          <b className="text-secondary" onClick={handleToggleExpanded}>
             {isExpanded ? t("showLess") : t("showMore")}
           </b>
         </ClickBlocker>

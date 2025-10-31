@@ -60,7 +60,7 @@ export default function MenuItems() {
                     <Link
                       href={href}
                       aria-current={isActive ? "page" : undefined}
-                      className="flex w-full items-center gap-2"
+                      className="text-primary flex w-full items-center gap-2"
                     >
                       <Icon className="size-4" aria-hidden />
                       <span className="flex-1 truncate">{label}</span>

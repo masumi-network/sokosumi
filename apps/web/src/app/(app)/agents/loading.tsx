@@ -1,11 +1,17 @@
 import { AgentsSkeleton } from "@/components/agents";
 
+import { CategoryHeadingSkeleton } from "./components/filtered-agents";
+
 export default function GalleryLoading() {
   return (
     <div className="w-full">
-      <div className="space-y-12">
-        {/* Agent Cards Grid Skeleton */}
-        <AgentsSkeleton />
+      <div className="flex flex-col gap-12">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="flex flex-col gap-4">
+            <CategoryHeadingSkeleton />
+            <AgentsSkeleton />
+          </div>
+        ))}
       </div>
     </div>
   );

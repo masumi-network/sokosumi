@@ -2,26 +2,26 @@ import { parseAsArrayOf, parseAsString, useQueryState } from "nuqs";
 
 export interface GalleryFilterState {
   query: string;
-  tags: string[];
+  categories: string[];
 }
 
 export default function useGalleryFilter() {
   const [query, setQuery] = useQueryState("query", { defaultValue: "" });
-  const [tags, setTags] = useQueryState(
-    "tags",
+  const [categories, setCategories] = useQueryState(
+    "categories",
     parseAsArrayOf(parseAsString).withDefault([]),
   );
 
   const resetFilters = () => {
     setQuery("");
-    setTags([]);
+    setCategories([]);
   };
 
   return {
     query,
-    tags,
+    categories,
     setQuery,
-    setTags,
+    setCategories,
     resetFilters,
   };
 }
