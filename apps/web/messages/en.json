@@ -841,7 +841,7 @@
           "description": "Hire yourself an agent to finish the most time consuming tasks"
         },
         "Google": {
-          "title": "Authenticatewith Google",
+          "title": "Authenticate with Google",
           "description": "Redirecting you to Google...",
           "error": "Failed to initiate Google authentication. Please try again.",
           "retry": "Try Again"
