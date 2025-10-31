@@ -1,8 +1,9 @@
+import type { AgentWithCreditsPrice } from "@sokosumi/database";
+
+import { AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
 import { getAgentCategories } from "@/lib/helpers/agent";
 import type { Category } from "@/lib/types/category";
 import { isAgentNew } from "@/lib/utils/agent";
-import type { AgentWithCreditsPrice } from "@sokosumi/database";
-import { AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
 
 export interface AgentCategoryGroup {
   categorySlug: string | null;

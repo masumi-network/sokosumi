@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSidebar } from "@/components/ui/sidebar";
 import { getEnvPublicConfig } from "@/config/env.public";
-
 import type { Category } from "@/lib/types/category";
 
 import Categories from "./categories";

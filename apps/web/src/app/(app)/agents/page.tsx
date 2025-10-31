@@ -1,14 +1,14 @@
+import { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import {
   agentRatingRepository,
   categoryRepository,
 } from "@sokosumi/database/repositories";
-import { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
 
 import { AgentsNotAvailable } from "@/components/agents";
-import type { Category } from "@/lib/types/category";
-import { agentService } from "@/lib/services";
 import { AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
+import { agentService } from "@/lib/services";
+import type { Category } from "@/lib/types/category";
 
 import FilterSection from "./components/filter-section";
 import FilteredAgents from "./components/filtered-agents";

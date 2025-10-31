@@ -1,12 +1,12 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useEffect, useState } from "react";
 import type {
   AgentRatingStats,
   AgentWithCreditsPrice,
   AgentWithRelations,
 } from "@sokosumi/database";
-import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
 
 import {
   Carousel,

@@ -1,24 +1,24 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { Suspense, useMemo } from "react";
 import type {
   AgentRatingStats,
   AgentWithCreditsPrice,
   AgentWithRelations,
 } from "@sokosumi/database";
-import { useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
-import { Suspense, useMemo } from "react";
 
 import {
   Agents,
   AgentsNotAvailable,
   AgentsNotFound,
 } from "@/components/agents";
+import { Skeleton } from "@/components/ui/skeleton";
+import { AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
 import { getAgentCategories } from "@/lib/helpers/agent";
 import type { Category } from "@/lib/types/category";
-import { Skeleton } from "@/components/ui/skeleton";
 import { isAgentNew } from "@/lib/utils/agent";
-import { AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
 
 import {
   AgentCategoryGroup,
