@@ -26,7 +26,7 @@ export default function SocialSignupAutoInitiator({
   useEffect(() => {
     const initiateOAuth = async () => {
       try {
-        track("Sign Up", { provider, direct_signup_link: true });
+        track("Sign In", { provider, direct_signup_link: true });
         fireGTMEvent.ssoAuth(provider);
 
         const result = await authClient.signIn.social({
