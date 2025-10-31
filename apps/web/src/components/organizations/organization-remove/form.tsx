@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Organization } from "@sokosumi/database";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -27,7 +28,6 @@ import {
   removeOrganizationSchema,
   RemoveOrganizationSchemaType,
 } from "@/lib/schemas/organization";
-import { Organization } from "@/prisma/generated/client";
 
 interface OrganizationRemoveFormProps {
   organization: Organization;

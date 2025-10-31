@@ -25,16 +25,16 @@ import {
 } from "@/components/ui/select";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import {
-  JobScheduleEndsMode,
-  JobScheduleSelectionType,
-  JobScheduleType,
-} from "@/lib/db/types/job";
-import {
   computeNextOccurrence,
   DOW,
   Dow,
   parseCron,
 } from "@/lib/schedules/cron";
+import {
+  JobScheduleEndsMode,
+  JobScheduleSelectionType,
+  JobScheduleType,
+} from "@/lib/types/job";
 import { cn } from "@/lib/utils";
 
 type ScheduleOption = "one-time" | "daily" | "weekly" | "monthly" | "custom";

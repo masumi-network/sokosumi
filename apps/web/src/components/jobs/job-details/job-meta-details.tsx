@@ -1,5 +1,6 @@
 "use client";
 
+import { JobWithStatus } from "@sokosumi/database";
 import { LinkIcon } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
@@ -15,7 +16,7 @@ import {
 } from "@/components/ui/accordion";
 import { Separator } from "@/components/ui/separator";
 import { getEnvPublicConfig } from "@/config/env.public";
-import { convertCentsToCredits, JobWithStatus } from "@/lib/db";
+import { convertCentsToCredits } from "@/lib/helpers/credit";
 import { JobStatusResponseSchemaType } from "@/lib/schemas";
 import {
   cn,

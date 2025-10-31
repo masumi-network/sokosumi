@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { JobWithStatus } from "@sokosumi/database";
 import { Globe, Loader2, Lock, Users } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -29,11 +30,7 @@ import {
 } from "@/components/ui/tooltip";
 import useModal from "@/hooks/use-modal";
 import { CommonErrorCode, JobErrorCode, updateJobName } from "@/lib/actions";
-import {
-  isSharedPublicly,
-  isSharedWithOrganization,
-  JobWithStatus,
-} from "@/lib/db";
+import { isSharedPublicly, isSharedWithOrganization } from "@/lib/helpers/job";
 import {
   jobDetailsNameFormSchema,
   JobDetailsNameFormSchemaType,

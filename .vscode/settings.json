@@ -1,8 +1,6 @@
 {
   "editor.formatOnSave": true,
   "editor.defaultFormatter": "esbenp.prettier-vscode",
-  "prettier.prettierPath": "web-app/node_modules/prettier",
-  "prettier.configPath": "web-app/prettier.config.mjs",
   "[prisma]": {
     "editor.defaultFormatter": "Prisma.prisma"
   },
@@ -28,5 +26,3 @@
     "editor.defaultFormatter": "esbenp.prettier-vscode"
   }
 }
-
-

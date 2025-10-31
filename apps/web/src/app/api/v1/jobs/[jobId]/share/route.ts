@@ -1,3 +1,5 @@
+import { JobShare } from "@sokosumi/database";
+import { jobShareRepository } from "@sokosumi/database/repositories";
 import { NextRequest, NextResponse } from "next/server";
 
 import {
@@ -14,8 +16,6 @@ import {
 } from "@/lib/api";
 import { formatJobShareResponse } from "@/lib/api/formatters/job-share";
 import { getAuthContext } from "@/lib/auth/utils";
-import { jobShareRepository } from "@/lib/db/repositories";
-import { JobShare } from "@/prisma/generated/client";
 
 interface RouteParams {
   params: Promise<{

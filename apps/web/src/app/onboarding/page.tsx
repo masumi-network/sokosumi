@@ -19,7 +19,7 @@ export default async function OnboardingPage() {
   const session = await getSession();
 
   if (!session) {
-    redirect("/login");
+    redirect("/signin");
   }
 
   if (session.user.onboardingCompleted) {

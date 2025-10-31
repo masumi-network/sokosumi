@@ -1,13 +1,11 @@
 "use client";
 
+import { AgentWithCreditsPrice } from "@sokosumi/database";
 import { useEffect } from "react";
 
-import {
-  AgentWithCreditsPrice,
-  convertCentsToCredits,
-  getAgentName,
-} from "@/lib/db";
 import { fireGTMEvent } from "@/lib/gtm-events";
+import { getAgentName } from "@/lib/helpers/agent";
+import { convertCentsToCredits } from "@/lib/helpers/credit";
 
 interface AgentDetailViewTrackerProps {
   agent: AgentWithCreditsPrice;

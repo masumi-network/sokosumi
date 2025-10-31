@@ -1,5 +1,6 @@
 "use client";
 
+import { AgentWithCreditsPrice } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 import { useQueryState } from "nuqs";
 import { Suspense, use } from "react";
@@ -13,7 +14,6 @@ import {
 } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { CheckoutSessionData } from "@/lib/clients";
-import { AgentWithCreditsPrice } from "@/lib/db";
 
 import RandomAgentCard from "./random-agent-card";
 import SuccessCard, {

@@ -1,7 +1,8 @@
+import { Lock } from "@sokosumi/database";
+import prisma from "@sokosumi/database/client";
+import { lockRepository } from "@sokosumi/database/repositories";
+
 import { getEnvSecrets } from "@/config/env.secrets";
-import { lockRepository } from "@/lib/db/repositories/lock.repository";
-import prisma from "@/lib/db/repositories/prisma";
-import { Lock } from "@/prisma/generated/client";
 
 /**
  * Service for distributed lock management using the Lock model.

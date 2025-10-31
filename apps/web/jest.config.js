@@ -12,10 +12,9 @@ const customJestConfig = {
   passWithNoTests: true,
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
+    "^@sokosumi/database/(.*)$": "<rootDir>/../../packages/database/src/$1",
   },
-  transformIgnorePatterns: [
-    "/node_modules/(?!(uuid)/)",
-  ],
+  transformIgnorePatterns: ["/node_modules/(?!(uuid|@sokosumi)/)"],
 };
 
 // createJestConfig is exported this way to ensure that next/jest can load the Next.js config which is async

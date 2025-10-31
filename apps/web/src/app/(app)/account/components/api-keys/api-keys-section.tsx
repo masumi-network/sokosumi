@@ -1,9 +1,9 @@
 "use client";
 
+import { Apikey } from "@sokosumi/database";
 import { useCallback } from "react";
 
 import { Card, CardContent } from "@/components/ui/card";
-import { Apikey } from "@/prisma/generated/client";
 
 import { ApiKeysHeader } from "./api-keys-header";
 import { ApiKeysList } from "./api-keys-list";

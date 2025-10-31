@@ -1,10 +1,10 @@
 "use client";
 
+import { ExampleOutput } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { Skeleton } from "@/components/ui/skeleton";
-import { ExampleOutput } from "@/prisma/generated/client";
 
 import ExampleDetailThumbnail from "./example-detail-thumbnail";
 

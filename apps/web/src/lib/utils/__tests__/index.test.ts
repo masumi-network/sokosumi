@@ -1,4 +1,4 @@
-import { type JobWithStatus } from "@/lib/db";
+import { type JobWithStatus } from "@sokosumi/database";
 import { JobInputData } from "@/lib/job-input";
 import { JobStatusResponseSchemaType } from "@/lib/schemas";
 import {

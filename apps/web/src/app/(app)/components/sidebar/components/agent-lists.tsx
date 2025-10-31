@@ -1,3 +1,4 @@
+import { Agent } from "@sokosumi/database";
 import { getTranslations } from "next-intl/server";
 import { Suspense } from "react";
 
@@ -11,9 +12,8 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AgentWithAvailability } from "@/lib/db";
 import { agentService, jobService } from "@/lib/services";
-import { Agent } from "@/prisma/generated/client";
+import { AgentWithAvailability } from "@/lib/types/agent";
 
 import AgentListsClient from "./agent-lists.client";
 

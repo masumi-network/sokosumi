@@ -8,9 +8,11 @@ Sokosumi is a modern, secure, and user-focused marketplace platform. This monore
 sokosumi/
 ├── apps/
 │   └── web/         # Next.js 16 web application (TypeScript, Tailwind, Shadcn UI)
-├── packages/        # Shared packages (future)
-├── configs/         # Build tools and configurations (future)
+├── packages/
+│   └── database/    # Shared database layer with Prisma and repositories
 ├── docs/            # Documentation (future)
+├── eslint.config.mjs    # Root ESLint configuration
+├── prettier.config.mjs  # Root Prettier configuration
 ├── package.json     # Monorepo root config
 ├── pnpm-workspace.yaml # Monorepo workspace config
 └── ...              # Other config and shared files

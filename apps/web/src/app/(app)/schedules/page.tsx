@@ -1,3 +1,5 @@
+import { ScheduleListItem } from "@sokosumi/database";
+import { jobScheduleRepository } from "@sokosumi/database/repositories";
 import { CalendarClock } from "lucide-react";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
@@ -11,11 +13,7 @@ import {
 } from "@/components/schedules/format";
 import ScheduleItem from "@/components/schedules/schedule-item.client";
 import { getSession } from "@/lib/auth/utils";
-import {
-  jobScheduleRepository,
-  type ScheduleListItem,
-} from "@/lib/db/repositories";
-import { JobScheduleType, mapPrismaToUiScheduleType } from "@/lib/db/types/job";
+import { JobScheduleType, mapPrismaToUiScheduleType } from "@/lib/types/job";
 
 export default async function SchedulesPage() {
   const session = await getSession();

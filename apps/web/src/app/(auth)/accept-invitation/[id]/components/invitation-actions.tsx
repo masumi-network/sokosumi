@@ -1,5 +1,6 @@
 "use client";
 
+import { InvitationWithRelations } from "@sokosumi/database";
 import { User } from "better-auth";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -12,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { authClient } from "@/lib/auth/auth.client";
-import { InvitationWithRelations } from "@/lib/db";
 
 interface InvitationActionsProps {
   invitation: InvitationWithRelations;
@@ -180,7 +180,7 @@ export default function InvitationActions({
         <p>{t("WithoutSession.ifYouAlreadyHaveAnAccount")}</p>
         {loginSearchParamsString ? (
           <Button variant="outline" asChild className="w-full">
-            <Link href={`/login?${loginSearchParamsString}`}>
+            <Link href={`/signin?${loginSearchParamsString}`}>
               {t("WithoutSession.login")}
             </Link>
           </Button>
@@ -192,7 +192,7 @@ export default function InvitationActions({
         <p>{t("WithoutSession.ifYouDontHaveAnAccount")}</p>
         {registerSearchParamsString ? (
           <Button variant="outline" asChild className="w-full">
-            <Link href={`/register?${registerSearchParamsString}`}>
+            <Link href={`/signup?${registerSearchParamsString}`}>
               {t("WithoutSession.register")}
             </Link>
           </Button>

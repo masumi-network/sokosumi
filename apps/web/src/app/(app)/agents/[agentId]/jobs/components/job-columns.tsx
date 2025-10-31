@@ -1,5 +1,7 @@
 "use client";
 
+import { JobType, JobWithStatus } from "@sokosumi/database";
+import { isDemoJob } from "@sokosumi/database/helpers";
 import { ColumnDef, createColumnHelper } from "@tanstack/react-table";
 import { useFormatter, useTranslations } from "next-intl";
 
@@ -9,8 +11,6 @@ import { MiddleTruncate } from "@/components/middle-truncate";
 import { HighlightedText } from "@/components/ui/highlighted-text";
 import useAgentJobStatus from "@/hooks/use-agent-job-status";
 import { JobIndicatorStatus } from "@/lib/ably";
-import { isDemoJob, JobWithStatus } from "@/lib/db";
-import { JobType } from "@/prisma/generated/client";
 
 const columnHelper = createColumnHelper<JobWithStatus>();
 

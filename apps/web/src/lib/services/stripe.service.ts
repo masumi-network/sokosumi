@@ -1,6 +1,12 @@
 import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
+import prisma from "@sokosumi/database/client";
+import {
+  fiatTransactionRepository,
+  organizationRepository,
+  userRepository,
+} from "@sokosumi/database/repositories";
 import { headers } from "next/headers";
 import Stripe from "stripe";
 
@@ -8,18 +14,12 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import { UnAuthenticatedError } from "@/lib/auth/errors";
 import { getAuthContext, verifyUserId } from "@/lib/auth/utils";
 import { Price, stripeClient } from "@/lib/clients/stripe.client";
-import { convertCreditsToCents } from "@/lib/db";
-import {
-  fiatTransactionRepository,
-  organizationRepository,
-  prisma,
-  userRepository,
-} from "@/lib/db/repositories";
 import {
   CouponCurrencyError,
   CouponNotFoundError,
   CouponTypeError,
 } from "@/lib/errors/coupon-errors";
+import { convertCreditsToCents } from "@/lib/helpers/credit";
 
 export const stripeService = (() => {
   async function getStripeCustomerId(

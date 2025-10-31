@@ -1,6 +1,9 @@
 import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
+import { User } from "@sokosumi/database";
+import prisma from "@sokosumi/database/client";
+import { userRepository } from "@sokosumi/database/repositories";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { APIError, createAuthMiddleware } from "better-auth/api";
@@ -15,7 +18,6 @@ import * as z from "zod";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { uploadImage } from "@/lib/blob/utils";
-import { prisma, userRepository } from "@/lib/db/repositories";
 import { reactChangeEmailVerificationEmail } from "@/lib/email/change-email";
 import { reactInviteUserEmail } from "@/lib/email/invitation";
 import { postmarkClient } from "@/lib/email/postmark";
@@ -28,7 +30,6 @@ import {
   callUserUpdatedWebHook,
   stripeService,
 } from "@/lib/services";
-import { User } from "@/prisma/generated/client";
 
 export type Session = typeof auth.$Infer.Session;
 export type SessionUser = typeof auth.$Infer.Session.user;

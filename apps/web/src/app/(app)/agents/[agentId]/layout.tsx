@@ -1,8 +1,8 @@
+import { agentRepository } from "@sokosumi/database/repositories";
 import { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-import { getAgentDescription, getAgentName } from "@/lib/db";
-import { agentRepository } from "@/lib/db/repositories";
+import { getAgentDescription, getAgentName } from "@/lib/helpers/agent";
 
 export async function generateMetadata({
   params,

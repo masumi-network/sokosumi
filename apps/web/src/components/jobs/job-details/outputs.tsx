@@ -1,10 +1,12 @@
 "use client";
+
+import { JobStatus, JobWithStatus } from "@sokosumi/database";
+import { isPaidJob } from "@sokosumi/database/helpers";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import Markdown from "@/components/markdown";
-import { isPaidJob, JobStatus, JobWithStatus } from "@/lib/db";
 import {
   jobStatusResponseSchema,
   JobStatusResponseSchemaType,

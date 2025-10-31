@@ -1,5 +1,6 @@
 "use client";
 
+import { AgentWithCreditsPrice } from "@sokosumi/database";
 import { Suspense, use } from "react";
 
 import { AgentCard, AgentCardSkeleton } from "@/components/agents";
@@ -8,7 +9,6 @@ import {
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
 import DefaultErrorBoundary from "@/components/default-error-boundary";
-import { AgentWithCreditsPrice } from "@/lib/db";
 
 interface RandomAgentCardProps {
   randomAgentPromise: Promise<{

@@ -1,0 +1,70 @@
+---
+description: Linting and Formatting Rules
+globs:
+alwaysApply: true
+---
+
+## Import Organization
+
+- Imports are automatically sorted using `simple-import-sort` plugin
+- Import statements must come first in the file
+- Always include a newline after import statements
+- Remove all unused imports (enforced by `unused-imports` plugin)
+- No duplicate import statements
+- Use absolute imports with `@/` alias except within the same folder
+
+**Common Fix**: Run `pnpm sokosumi-web:format` to auto-fix import sorting issues.
+
+## TypeScript Linting
+
+- Unused variables, arguments, and caught errors are warnings (not errors)
+- Prefix unused identifiers with underscore `_` to suppress warnings:
+  - Variables: `const _unusedVar = getValue();`
+  - Function arguments: `function handler(_req, res) {}`
+  - Caught errors: `catch (_error) {}`
+  - Destructured arrays: `const [first, _second] = array;`
+
+## Code Formatting (Prettier)
+
+- **Indentation**: 2 spaces (never tabs)
+- **Semicolons**: Required at end of statements
+- **Quotes**: Double quotes for strings (not single quotes)
+- **Trailing Commas**: Required in all multi-line structures (objects, arrays, function parameters)
+- **Line Length**: Prettier's default (80 characters preferred)
+
+**Example**:
+
+```typescript
+const config = {
+  name: "example",
+  value: 42,
+};
+```
+
+## Common Linter Errors & Fixes
+
+### Import sorting violations
+
+**Error**: `simple-import-sort/imports`
+**Fix**: Run `pnpm sokosumi-web:format` to auto-sort imports
+
+### Unused imports
+
+**Error**: `unused-imports/no-unused-imports`
+**Fix**: Remove the import or use it in your code
+
+### Unused variables
+
+**Error**: `@typescript-eslint/no-unused-vars`
+**Fix**: Either use the variable or prefix it with underscore: `const _unused = value;`
+
+### Duplicate imports
+
+**Error**: `import/no-duplicates`
+**Fix**: Combine multiple imports from the same module into a single import statement
+
+## Syntax Best Practices
+
+- Use the `function` keyword for pure functions
+- Avoid unnecessary curly braces in conditionals; use concise syntax for simple statements
+- Use declarative JSX

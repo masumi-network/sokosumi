@@ -1,5 +1,6 @@
 "use client";
 
+import { UserAgentRatingWithUser } from "@sokosumi/database";
 import {
   ChevronLeft,
   ChevronRight,
@@ -16,7 +17,6 @@ import {
   PaginationItem,
   PaginationLink,
 } from "@/components/ui/pagination";
-import { UserAgentRatingWithUser } from "@/lib/db/repositories/agentRating.repository";
 
 const PAGE_SIZE = 5;
 

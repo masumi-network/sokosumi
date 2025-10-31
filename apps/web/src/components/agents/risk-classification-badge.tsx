@@ -1,7 +1,7 @@
+import { RiskClassification } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
-import { RiskClassification } from "@/prisma/generated/client";
 
 export const RISK_CLASSIFICATION_MAP = {
   MINIMAL: {

@@ -9,8 +9,7 @@ The web-app provides a user interface to interact with the agents. In the backgr
 
 This project is part of the Sokosumi monorepo. The main packages are:
 
-- `web-app/` — This Next.js web application
-- `sync-function/` — Backend sync/worker functions (see that package for details)
+- `apps/web` — This Next.js web application
 
 Install dependencies from the root of the monorepo:
 
@@ -21,8 +20,7 @@ pnpm install
 ## Project Structure
 
 ```
-web-app/
-├── prisma/            # Prisma as ORM
+apps/web
 ├── src/               # Main Code folder
     |── app            # App router
     |── lib            # Libraries and business logic

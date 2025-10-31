@@ -1,5 +1,9 @@
 "use client";
 
+import {
+  AgentWithRelations,
+  OrganizationWithLimitedInfo,
+} from "@sokosumi/database";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -13,11 +17,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from "@/components/ui/breadcrumb";
-import {
-  AgentWithRelations,
-  getAgentName,
-  OrganizationWithLimitedInfo,
-} from "@/lib/db";
+import { getAgentName } from "@/lib/helpers/agent";
 
 interface BreadcrumbSegment {
   label: string;

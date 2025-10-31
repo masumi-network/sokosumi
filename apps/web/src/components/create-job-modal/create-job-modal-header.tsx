@@ -1,11 +1,12 @@
 "use client";
 
+import { AgentWithRelations } from "@sokosumi/database";
 import { ChevronDown, ChevronUp } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AgentWithRelations, getAgentName } from "@/lib/db";
+import { getAgentName } from "@/lib/helpers/agent";
 
 import { useCreateJobModalContext } from "./create-job-modal-context";
 

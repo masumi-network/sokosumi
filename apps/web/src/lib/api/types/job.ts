@@ -29,7 +29,7 @@ export type JobResponse = {
   jobType: JobType;
   price: JobCredits | null;
   refund: JobCredits | null;
-  shares: JobShareResponse[];
+  share?: JobShareResponse | null;
   // computed fields
   jobStatusSettled: boolean;
 };

@@ -1,3 +1,5 @@
+import { User } from "@sokosumi/database";
+import { userRepository } from "@sokosumi/database/repositories";
 import { NextRequest } from "next/server";
 
 import {
@@ -11,8 +13,6 @@ import {
   validateApiKey,
 } from "@/lib/api";
 import { auth } from "@/lib/auth/auth";
-import { userRepository } from "@/lib/db/repositories";
-import { User } from "@/prisma/generated/client";
 
 // Helper function for updating user via Better Auth and fetching result
 async function updateUserAndFetch(

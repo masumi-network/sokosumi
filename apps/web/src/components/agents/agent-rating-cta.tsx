@@ -1,5 +1,6 @@
 "use client";
 
+import type { AgentRatingStats } from "@sokosumi/database";
 import { Star } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -15,7 +16,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import type { AgentRatingStats } from "@/lib/db/repositories/agentRating.repository";
 
 interface AgentRatingCTAProps {
   agentId: string;

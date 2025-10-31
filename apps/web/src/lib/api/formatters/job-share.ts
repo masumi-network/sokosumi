@@ -1,9 +1,10 @@
 import "server-only";
 
+import { JobShare } from "@sokosumi/database";
+
 import { JobShareResponse, jobShareResponseSchema } from "@/lib/api/schemas";
 import { dateToISO } from "@/lib/api/utils";
-import { getJobShareUrl } from "@/lib/db";
-import { JobShare } from "@/prisma/generated/client";
+import { getJobShareUrl } from "@/lib/helpers/job-share";
 
 /**
  * Formats job data for API response

@@ -1,3 +1,5 @@
+import type { AgentRatingStats } from "@sokosumi/database";
+import { AgentWithCreditsPrice, AgentWithRelations } from "@sokosumi/database";
 import { cva, VariantProps } from "class-variance-authority";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
@@ -8,18 +10,16 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  AgentWithCreditsPrice,
-  AgentWithRelations,
-  convertCentsToCredits,
   getAgentAuthorResolvedImage,
   getAgentName,
   getAgentResolvedImage,
   getAgentSummary,
   getAgentTags,
   getShortAgentAuthorName,
-} from "@/lib/db";
-import type { AgentRatingStats } from "@/lib/db/repositories/agentRating.repository";
+} from "@/lib/helpers/agent";
+import { convertCentsToCredits } from "@/lib/helpers/credit";
 import { cn } from "@/lib/utils";
+import { isAgentNew } from "@/lib/utils/agent";
 
 import {
   AgentBadgeCloud,
@@ -372,7 +372,7 @@ function AgentCard({
               {/* Badges */}
               <div className={cn(agentCardBadgesContainerVariants({ size }))}>
                 {/* New Badge */}
-                {agent.isNew && <AgentNewBadge />}
+                {isAgentNew(agent) && <AgentNewBadge />}
                 {/* Tags */}
                 <AgentBadgeCloud tags={getAgentTags(agent)} />
               </div>

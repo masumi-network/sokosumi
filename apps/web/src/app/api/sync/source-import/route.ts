@@ -1,9 +1,9 @@
+import { lockRepository } from "@sokosumi/database/repositories";
 import { after, NextResponse } from "next/server";
 import pTimeout from "p-timeout";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import { authenticateCronSecret } from "@/lib/auth/utils";
-import { lockRepository } from "@/lib/db/repositories";
 import { lockService } from "@/lib/services";
 import { sourceImportService } from "@/lib/services/source-import.service";
 

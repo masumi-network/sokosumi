@@ -1,6 +1,5 @@
+import { Apikey } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
-
-import { Apikey } from "@/prisma/generated/client";
 
 // Form types
 export interface CreateApiKeyFormData {

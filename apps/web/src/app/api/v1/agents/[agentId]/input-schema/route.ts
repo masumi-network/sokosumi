@@ -1,8 +1,8 @@
+import { agentRepository } from "@sokosumi/database/repositories";
 import { NextRequest, NextResponse } from "next/server";
 
 import { createApiSuccessResponse, handleApiError } from "@/lib/api";
 import { agentClient } from "@/lib/clients/agent.client";
-import { agentRepository } from "@/lib/db/repositories";
 import { jobInputsDataSchema } from "@/lib/job-input";
 
 interface RouteParams {

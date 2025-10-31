@@ -20,18 +20,23 @@ sokosumi/
 │       ├── src/components/    # Shared UI components
 │       ├── src/hooks/         # Custom React hooks
 │       ├── src/contexts/      # React contexts
-│       ├── src/lib/           # Domain logic (repositories, services, actions)
-│       │   ├── db/repositories/  # Prisma/Postgres access layer
+│       ├── src/lib/           # Domain logic (services, actions, utilities)
 │       │   ├── services/      # Business logic coordination
-│       │   └── actions/       # Server mutations
+│       │   ├── actions/       # Server mutations
+│       │   └── utils/         # Helper functions and transformers
 │       ├── __tests__/         # Colocated tests
 │       ├── __mocks__/         # Reusable test doubles
 │       ├── public/            # Static assets
-│       ├── prisma/            # Database schema and migrations
 │       └── messages/          # Translation catalogs
-├── packages/                  # Shared packages (future)
-├── configs/                   # Build tools and configurations (future)
-└── docs/                      # Documentation (future)
+├── packages/
+│   └── database/              # Shared database layer
+│       ├── src/repositories/  # Prisma/Postgres access layer
+│       ├── src/helpers/       # Database domain logic
+│       ├── src/types/         # Database type definitions
+│       └── prisma/            # Database schema and migrations
+├── docs/                      # Documentation (future)
+├── eslint.config.mjs          # Root ESLint configuration
+└── prettier.config.mjs        # Root Prettier configuration
 ```
 
 ## Authoritative Conventions
@@ -80,6 +85,68 @@ sokosumi/
 - **Formatting**: Run `pnpm sokosumi-web:format` after substantial edits
 - **Imports**: Relative within features, use aliases (`@/lib/*`) otherwise
 - **Components**: Default to Server Components; add `'use client'` only for browser APIs
+
+### Linting & Formatting
+
+#### ESLint Configuration
+
+The monorepo uses a comprehensive ESLint setup with the following enforced rules:
+
+**Import Organization**:
+
+- Auto-sorted imports via `simple-import-sort` plugin (run `pnpm sokosumi-web:format` to fix)
+- No unused imports (`unused-imports/no-unused-imports`)
+- Import statements must appear first with newline after
+- No duplicate imports from same module
+
+**TypeScript Rules**:
+
+- Unused variables/arguments trigger warnings (not errors)
+- Prefix unused identifiers with underscore to suppress: `const _unused = value;`
+- Applies to: variables, function arguments, caught errors, destructured arrays
+
+**Example of valid unused variable patterns**:
+
+```typescript
+function handler(_req, res) {
+  // unused req parameter
+  const [first, _second] = array; // unused destructured value
+  try {
+    doSomething();
+  } catch (_error) {
+    // unused error
+    return fallback;
+  }
+}
+```
+
+#### Prettier Configuration
+
+All code must follow these formatting rules:
+
+- **Indentation**: 2 spaces (never tabs)
+- **Semicolons**: Required
+- **Quotes**: Double quotes (not single)
+- **Trailing Commas**: Required in multi-line structures
+- **Auto-fix**: Run `pnpm sokosumi-web:format`
+
+**Example**:
+
+```typescript
+const config = {
+  name: "example",
+  items: [1, 2, 3],
+};
+```
+
+#### Common Linter Fixes
+
+| Error                               | Solution                         |
+| ----------------------------------- | -------------------------------- |
+| `simple-import-sort/imports`        | Run `pnpm sokosumi-web:format`   |
+| `unused-imports/no-unused-imports`  | Remove import or use it          |
+| `@typescript-eslint/no-unused-vars` | Use variable or prefix with `_`  |
+| `import/no-duplicates`              | Combine imports from same module |
 
 ## Environment & Tooling
 

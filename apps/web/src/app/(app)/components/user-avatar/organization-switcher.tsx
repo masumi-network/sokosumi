@@ -1,5 +1,6 @@
 "use client";
 
+import { MemberWithOrganization } from "@sokosumi/database";
 import { Check, ChevronsUpDown, User } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -21,7 +22,6 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { authClient } from "@/lib/auth/auth.client";
-import { MemberWithOrganization } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 interface OrganizationSwitcherProps {

@@ -1,38 +1,37 @@
 import "server-only";
 
-import { Decimal } from "decimal.js";
-
-import { getEnvPublicConfig } from "@/config/env.public";
-import { getEnvSecrets } from "@/config/env.secrets";
-import { getAuthContext } from "@/lib/auth/utils";
 import {
+  AgentListType,
+  AgentStatus,
   AgentWithCreditsPrice,
   AgentWithJobs,
   AgentWithOrganizations,
   AgentWithPricing,
   AgentWithRelations,
-  convertCentsToCredits,
-  convertCreditsToCents,
-  getAgentPricingAmounts,
-} from "@/lib/db";
+  CreditCost,
+  PricingType,
+  Prisma,
+} from "@sokosumi/database";
+import prisma from "@sokosumi/database/client";
 import {
   agentListRepository,
   agentRatingRepository,
   agentRepository,
   creditCostRepository,
   jobRepository,
-  mapAgentWithIsNew,
   memberRepository,
-  prisma,
-} from "@/lib/db/repositories";
-import { pricingAmountsSchema } from "@/lib/schemas";
+} from "@sokosumi/database/repositories";
+import { Decimal } from "decimal.js";
+
+import { getEnvPublicConfig } from "@/config/env.public";
+import { getEnvSecrets } from "@/config/env.secrets";
+import { getAuthContext } from "@/lib/auth/utils";
+import { getAgentPricingAmounts } from "@/lib/helpers/agent";
 import {
-  AgentListType,
-  AgentStatus,
-  CreditCost,
-  PricingType,
-  Prisma,
-} from "@/prisma/generated/client";
+  convertCentsToCredits,
+  convertCreditsToCents,
+} from "@/lib/helpers/credit";
+import { pricingAmountsSchema } from "@/lib/schemas";
 
 export const agentService = (() => {
   /**
@@ -175,23 +174,21 @@ export const agentService = (() => {
       if (existingList) {
         const { userOrganizationIds, creditCosts, activeOrganizationId } =
           await getAgentAccessContext(tx);
-        return existingList.agents
-          .map(mapAgentWithIsNew)
-          .filter((agent) =>
-            isAgentAvailable(
-              agent,
-              userOrganizationIds,
-              creditCosts,
-              activeOrganizationId,
-            ),
-          );
+        return existingList.agents.filter((agent) =>
+          isAgentAvailable(
+            agent,
+            userOrganizationIds,
+            creditCosts,
+            activeOrganizationId,
+          ),
+        );
       }
       const list = await agentListRepository.upsertAgentListForUserId(
         context.userId,
         type,
         tx,
       );
-      return list.agents.map(mapAgentWithIsNew);
+      return list.agents;
     });
   };
 
@@ -351,7 +348,7 @@ export const agentService = (() => {
         return [];
       }
       const hiredAgentsWithJobs =
-        await agentRepository.getHiredAgentsWithJobsByUserIdAndOrganization(
+        await agentRepository.getHiredAgentsWithLatestJobByUserIdAndOrganization(
           context.userId,
           context.organizationId,
         );

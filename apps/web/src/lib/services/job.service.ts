@@ -1,6 +1,27 @@
 import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
+import {
+  AgentJobStatus,
+  AgentWithRelations,
+  Job,
+  JobShare,
+  JobStatus,
+  JobType,
+  JobWithStatus,
+  NextJobAction,
+  OnChainJobStatus,
+  PaidJobWithStatus,
+  PricingType,
+  Prisma,
+} from "@sokosumi/database";
+import prisma from "@sokosumi/database/client";
+import { computeJobStatus, isPaidJob } from "@sokosumi/database/helpers";
+import {
+  creditTransactionRepository,
+  jobRepository,
+  jobShareRepository,
+} from "@sokosumi/database/repositories";
 import { getTranslations } from "next-intl/server";
 import { v4 as uuidv4 } from "uuid";
 
@@ -12,28 +33,13 @@ import { JobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { getAuthContext } from "@/lib/auth/utils";
 import { agentClient, anthropicClient, paymentClient } from "@/lib/clients";
 import {
-  AgentWithRelations,
-  computeJobStatus,
-  getAgentName,
-  getJobIndicatorStatus,
-  isPaidJob,
-  JobStatus,
-  jobStatusToAgentJobStatus,
-  JobWithStatus,
-  PaidJobWithStatus,
-} from "@/lib/db";
-import {
-  creditTransactionRepository,
-  jobRepository,
-  jobShareRepository,
-  prisma,
-} from "@/lib/db/repositories";
-import {
   JobFailureNotificationEmailProps,
   reactJobFailureNotificationEmail,
 } from "@/lib/email/job-failure-notification";
 import { reactJobStatusEmail } from "@/lib/email/job-status";
 import { postmarkClient } from "@/lib/email/postmark";
+import { getAgentName } from "@/lib/helpers/agent";
+import { getJobIndicatorStatus } from "@/lib/helpers/job";
 import { JobInputData } from "@/lib/job-input";
 import {
   JobStatusResponseSchemaType,
@@ -41,15 +47,9 @@ import {
 } from "@/lib/schemas";
 import { Err } from "@/lib/ts-res";
 import {
-  AgentJobStatus,
-  Job,
-  JobShare,
-  JobType,
-  NextJobAction,
-  OnChainJobStatus,
-  PricingType,
-  Prisma,
-} from "@/prisma/generated/client";
+  jobStatusToAgentJobStatus,
+  transformPurchaseToJobUpdate,
+} from "@/lib/utils/job-transformers";
 
 import { agentService } from "./agent.service";
 import { sourceImportService } from "./source-import.service";
@@ -684,7 +684,8 @@ export const jobService = (() => {
     );
     if (createPurchaseResult.ok) {
       const purchase = createPurchaseResult.data;
-      await jobRepository.updateJobWithPurchase(job.id, purchase);
+      const purchaseData = transformPurchaseToJobUpdate(purchase);
+      await jobRepository.updateJobWithPurchase(job.id, purchaseData);
 
       // Add breadcrumb for successful purchase creation
       Sentry.addBreadcrumb({
@@ -963,10 +964,8 @@ export const jobService = (() => {
           job.blockchainIdentifier,
         );
       if (purchaseResult.ok) {
-        job = await jobRepository.updateJobWithPurchase(
-          job.id,
-          purchaseResult.data,
-        );
+        const purchaseData = transformPurchaseToJobUpdate(purchaseResult.data);
+        job = await jobRepository.updateJobWithPurchase(job.id, purchaseData);
       }
     }
     const agentJobIdToSync = shouldSyncAgentStatus(job);
@@ -984,24 +983,32 @@ export const jobService = (() => {
     const newJobStatus = await prisma.$transaction(
       async (tx) => {
         if (onChainPurchaseResult.ok) {
+          const purchaseData = transformPurchaseToJobUpdate(
+            onChainPurchaseResult.data,
+          );
           job = await jobRepository.updateJobWithPurchase(
             job.id,
-            onChainPurchaseResult.data,
+            purchaseData,
             tx,
           );
         }
         if (agentJobStatusResult.ok) {
+          const agentJobStatus = jobStatusToAgentJobStatus(
+            agentJobStatusResult.data.status,
+          );
+          const output = JSON.stringify(agentJobStatusResult.data);
           job = await jobRepository.updateJobWithAgentJobStatus(
-            job,
-            agentJobStatusResult.data,
+            job.id,
+            agentJobStatus,
+            output,
             tx,
           );
           // Fire and forget: enqueue extraction if output is present
           try {
-            const output = agentJobStatusResult.data?.result;
-            if (typeof output === "string") {
+            const outputResult = agentJobStatusResult.data?.result;
+            if (typeof outputResult === "string") {
               sourceImportService
-                .enqueueFromMarkdown(job.userId, job.id, output)
+                .enqueueFromMarkdown(job.userId, job.id, outputResult)
                 .catch(() => {
                   // Ignore errors
                 });

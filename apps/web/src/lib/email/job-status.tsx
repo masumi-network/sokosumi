@@ -13,9 +13,8 @@ import {
   Tailwind,
   Text,
 } from "@react-email/components";
+import { JobStatus } from "@sokosumi/database";
 import { getTranslations } from "next-intl/server";
-
-import { JobStatus } from "@/lib/db";
 
 interface JobStatusEmailProps {
   recipientName: string;

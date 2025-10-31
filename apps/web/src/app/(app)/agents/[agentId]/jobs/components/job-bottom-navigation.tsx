@@ -1,16 +1,13 @@
 "use client";
 
+import { AgentWithCreditsPrice, AgentWithRelations } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
 import { AgentBookmarkButton } from "@/components/agents";
 import { CreateJobModalTrigger } from "@/components/create-job-modal";
 import { BottomNavigation } from "@/components/ui/bottom-navigation";
 import VerticalDivider from "@/components/vertical-divider";
-import {
-  AgentWithCreditsPrice,
-  AgentWithRelations,
-  convertCentsToCredits,
-} from "@/lib/db";
+import { convertCentsToCredits } from "@/lib/helpers/credit";
 
 interface JobBottomNavigationProps {
   agent: AgentWithCreditsPrice;

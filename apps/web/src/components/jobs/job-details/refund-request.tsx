@@ -1,5 +1,6 @@
 "use client";
 
+import { JobStatus, PaidJobWithStatus } from "@sokosumi/database";
 import {
   ExternalLink,
   HandCoins,
@@ -36,7 +37,6 @@ import {
   JobErrorCode,
   requestRefundJobByBlockchainIdentifier,
 } from "@/lib/actions";
-import { JobStatus, PaidJobWithStatus } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 interface RequestRefundButtonProps {

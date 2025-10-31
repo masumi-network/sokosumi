@@ -16,7 +16,6 @@ export type AgentResponse = {
   name: string;
   description: string | null;
   status: string; // AgentStatus
-  isNew: boolean;
   isShown: boolean;
   price: AgentPrice;
   tags: AgentTag[];

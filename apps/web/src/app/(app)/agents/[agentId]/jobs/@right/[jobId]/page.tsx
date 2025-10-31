@@ -1,10 +1,14 @@
+import { JobWithStatus } from "@sokosumi/database";
+import {
+  agentRepository,
+  jobRepository,
+} from "@sokosumi/database/repositories";
 import { notFound, redirect } from "next/navigation";
 
 import { JobDetails } from "@/components/jobs";
 import { Session } from "@/lib/auth/auth";
 import { getSession } from "@/lib/auth/utils";
-import { isSharedWithOrganization, JobWithStatus } from "@/lib/db";
-import { agentRepository, jobRepository } from "@/lib/db/repositories";
+import { isSharedWithOrganization } from "@/lib/helpers/job";
 
 interface JobDetailsPageParams {
   agentId: string;

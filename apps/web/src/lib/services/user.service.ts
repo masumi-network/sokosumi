@@ -1,24 +1,24 @@
 import "server-only";
 
-import { headers } from "next/headers";
-
-import { auth, type Session } from "@/lib/auth/auth";
-import { getAuthContext } from "@/lib/auth/utils";
+import type { Member, User } from "@sokosumi/database";
 import {
   InvitationWithRelations,
   JobWithStatus,
   MemberWithOrganization,
   OrganizationWithRelations,
-} from "@/lib/db";
+} from "@sokosumi/database";
+import prisma from "@sokosumi/database/client";
 import {
   invitationRepository,
   jobRepository,
   memberRepository,
   organizationRepository,
-  prisma,
   userRepository,
-} from "@/lib/db/repositories";
-import type { Member, User } from "@/prisma/generated/client";
+} from "@sokosumi/database/repositories";
+import { headers } from "next/headers";
+
+import { auth, type Session } from "@/lib/auth/auth";
+import { getAuthContext } from "@/lib/auth/utils";
 
 /**
  * Service for user-related operations.

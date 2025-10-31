@@ -1,11 +1,11 @@
 import "server-only";
 
+import { UTMAttribution } from "@sokosumi/database";
+import { utmAttributionRepository } from "@sokosumi/database/repositories";
 import { ReadonlyRequestCookies } from "next/dist/server/web/spec-extension/adapters/request-cookies";
 import { cookies } from "next/headers";
 
-import { utmAttributionRepository } from "@/lib/db/repositories/utmAttribution.repository";
 import { UTM_COOKIE_NAME, UTMData, utmDataSchema } from "@/lib/utils/utm";
-import { UTMAttribution } from "@/prisma/generated/client";
 
 /**
  * Service for handling UTM attribution logic and cookie management.

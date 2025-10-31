@@ -5,8 +5,12 @@
       "path": ".",
     },
     {
-      "name": "Web Application",
+      "name": "App: Web",
       "path": "apps/web",
+    },
+    {
+      "name": "Package: Database",
+      "path": "packages/database",
     },
   ],
   "settings": {

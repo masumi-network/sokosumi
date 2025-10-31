@@ -1,7 +1,7 @@
 import * as z from "zod";
 
-import { JobScheduleType } from "@/lib/db/types/job";
 import { jobInputSchema } from "@/lib/job-input";
+import { JobScheduleType } from "@/lib/types/job";
 
 export const startJobInputSchema = z.object({
   userId: z.string(),
@@ -98,17 +98,22 @@ function requireFieldWhenStatus<T extends Record<string, unknown>>(
   };
 }
 
+// Agent job status values - single source of truth
+export const JOB_STATUS_VALUES = [
+  "pending",
+  "awaiting_payment",
+  "awaiting_input",
+  "running",
+  "completed",
+  "failed",
+] as const;
+
+export type JobStatusValue = (typeof JOB_STATUS_VALUES)[number];
+
 export const jobStatusResponseSchema = z
   .object({
     job_id: z.string(),
-    status: z.enum([
-      "pending",
-      "awaiting_payment",
-      "awaiting_input",
-      "running",
-      "completed",
-      "failed",
-    ]),
+    status: z.enum(JOB_STATUS_VALUES),
     message: z.string().nullish(),
     error: z.string().nullish(),
     input_data: z.array(jobInputSchema()).nullish(),

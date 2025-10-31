@@ -1,8 +1,8 @@
+import { ExampleOutput } from "@sokosumi/database";
 import { Download } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ExampleOutput } from "@/prisma/generated/client";
 
 interface ExampleDetailThumbnailProps {
   exampleOutput: ExampleOutput;

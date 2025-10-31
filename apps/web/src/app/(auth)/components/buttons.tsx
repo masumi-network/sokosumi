@@ -8,7 +8,7 @@ export function SignInButton(props: React.ComponentProps<typeof Button>) {
 
   return (
     <Button {...props} asChild variant="primary">
-      <Link href="/login">{t("signIn")}</Link>
+      <Link href="/signin">{t("signIn")}</Link>
     </Button>
   );
 }
@@ -17,7 +17,7 @@ export function SignUpButton(props: React.ComponentProps<typeof Button>) {
   const t = useTranslations("Auth.Words");
   return (
     <Button {...props} asChild variant="primary">
-      <Link href="/register">{t("signUp")}</Link>
+      <Link href="/signup">{t("signUp")}</Link>
     </Button>
   );
 }

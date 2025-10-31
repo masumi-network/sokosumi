@@ -840,6 +840,18 @@
           "title": "Register",
           "description": "Hire yourself an agent to finish the most time consuming tasks"
         },
+        "Google": {
+          "title": "Authenticate with Google",
+          "description": "Redirecting you to Google...",
+          "error": "Failed to initiate Google authentication. Please try again.",
+          "retry": "Try Again"
+        },
+        "Microsoft": {
+          "title": "Authenticate with Microsoft",
+          "description": "Redirecting you to Microsoft...",
+          "error": "Failed to initiate Microsoft authentication. Please try again.",
+          "retry": "Try Again"
+        },
         "Header": {
           "title": "Register",
           "viaInvitation": "(via invitation)",

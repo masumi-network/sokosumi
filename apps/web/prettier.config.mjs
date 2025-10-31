@@ -1,9 +1,8 @@
+import baseConfig from "../../prettier.config.mjs";
+
 /** @type {import('prettier').Config} */
 const config = {
-  trailingComma: "all",
-  tabWidth: 2,
-  semi: true,
-  singleQuote: false,
+  ...baseConfig,
   plugins: ["prettier-plugin-tailwindcss"],
 };
 

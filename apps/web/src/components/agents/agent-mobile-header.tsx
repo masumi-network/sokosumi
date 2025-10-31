@@ -1,10 +1,10 @@
 "use client";
 
+import { AgentWithCreditsPrice, AgentWithRelations } from "@sokosumi/database";
 import { ArrowLeft } from "lucide-react";
 
 import { AgentActionButtons } from "@/components/agents/agent-action-buttons";
 import { Button } from "@/components/ui/button";
-import { AgentWithCreditsPrice, AgentWithRelations } from "@/lib/db";
 
 export function HeaderSkeleton() {
   return (

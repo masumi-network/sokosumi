@@ -1,6 +1,8 @@
+import {
+  agentRepository,
+  organizationRepository,
+} from "@sokosumi/database/repositories";
 import { Suspense } from "react";
-
-import { agentRepository, organizationRepository } from "@/lib/db/repositories";
 
 import BreadcrumbNavigationClient from "./breadcrumb-navigation.client";
 import BreadcrumbNavigationSkeleton from "./breadcrumb-navigation.skeleton";

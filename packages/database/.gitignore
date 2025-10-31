@@ -1,0 +1,6 @@
+dist
+node_modules
+*.tsbuildinfo
+
+# Generated Prisma client files (generated via prepare script)
+src/generated/

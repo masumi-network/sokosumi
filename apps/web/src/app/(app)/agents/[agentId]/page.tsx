@@ -1,3 +1,7 @@
+import {
+  agentRatingRepository,
+  jobRepository,
+} from "@sokosumi/database/repositories";
 import { notFound } from "next/navigation";
 
 import { AgentDetail, AgentDetailViewTracker } from "@/components/agents";
@@ -8,7 +12,6 @@ import {
   CreateJobModalContextProvider,
 } from "@/components/create-job-modal";
 import { getAuthContext } from "@/lib/auth/utils";
-import { agentRatingRepository, jobRepository } from "@/lib/db/repositories";
 import { agentService } from "@/lib/services";
 
 export default async function AgentDetailPage({
