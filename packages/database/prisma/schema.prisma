@@ -345,8 +345,9 @@ model Agent {
   organizations            Organization[]
   blacklistedOrganizations Organization[]    @relation("AgentBlacklist")
 
-  tags         Tag[] @relation("AgentTag")
-  overrideTags Tag[] @relation("AgentTagOverride")
+  tags         Tag[]      @relation("AgentTag")
+  overrideTags Tag[]      @relation("AgentTagOverride")
+  categories   Category[] @relation("AgentCategory")
 
   // Demo Input and Output
   demoInput  String?
@@ -354,6 +355,22 @@ model Agent {
 
   // Summary
   summary String?
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  name        String
+  slug        String  @unique
+  description String?
+  image       String?
+  styles      Json?
+
+  agents Agent[] @relation("AgentCategory")
+
+  @@index([name])
 }
 
 enum PaymentType {
