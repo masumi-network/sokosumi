@@ -1,8 +1,31 @@
 version: 2
 updates:
-  # Enable version updates for npm in the root directory
+  # Root directory - workspace-level dev dependencies
   - package-ecosystem: "npm"
     directory: "/"
+    schedule:
+      interval: "daily"
+      time: "06:00"
+      timezone: "Europe/Berlin"
+    groups:
+      eslint:
+        patterns:
+          - "eslint"
+          - "eslint-config-prettier"
+          - "eslint-plugin-*"
+      prettier:
+        patterns:
+          - "prettier"
+      typescript:
+        patterns:
+          - "typescript-eslint"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore(deps)"
+
+  # Web application
+  - package-ecosystem: "npm"
+    directory: "/apps/web"
     schedule:
       interval: "daily"
       time: "06:00"
@@ -13,40 +36,72 @@ updates:
           - "next"
           - "@next/third-parties"
           - "eslint-config-next"
-      hey-api:
-        patterns:
-          - "@hey-api*"
-      prisma:
-        patterns:
-          - "prisma"
-          - "@prisma/client"
-          - "@prisma/adapter-pg"
-          - "@types/pg"
-          - "pg"
-          - "pg-pool"
-      radix:
-        patterns:
-          - "@radix-ui/**"
-      tailwind:
-        patterns:
-          - tailwindcss
-          - "tailwind-merge"
-          - "tailwindcss-animate"
-          - "tw-animate-css"
-          - "prettier-plugin-tailwindcss"
-          - "@tailwindcss/postcss"
-      better-auth:
-        patterns:
-          - "better-auth"
-          - "better-auth-harmony"
-          - "@better-auth/utils"
-      eslint:
-        patterns:
-          - "eslint*"
+          - "next-openapi-gen"
       react:
         patterns:
           - "react"
           - "react-dom"
+          - "babel-plugin-react-compiler"
+      react-components:
+        patterns:
+          - "react-*"
+          - "embla-carousel-react"
+          - "vaul"
+      radix:
+        patterns:
+          - "@radix-ui/*"
+          - "radix-ui"
+      tailwind:
+        patterns:
+          - "tailwindcss"
+          - "@tailwindcss/*"
+          - "tailwind-merge"
+          - "tailwindcss-animate"
+          - "tw-animate-css"
+          - "prettier-plugin-tailwindcss"
+      better-auth:
+        patterns:
+          - "better-auth"
+          - "better-auth-harmony"
+          - "better-auth-localization"
+          - "@better-auth/utils"
+      hey-api:
+        patterns:
+          - "@hey-api/*"
+      sentry:
+        patterns:
+          - "@sentry/*"
+      vercel:
+        patterns:
+          - "@vercel/*"
+      testing:
+        patterns:
+          - "jest"
+          - "@testing-library/*"
+          - "@happy-dom/*"
+          - "@types/jest"
+      markdown:
+        patterns:
+          - "markdown-to-jsx"
+          - "marked"
+          - "remark-*"
+          - "@m2d/*"
+          - "mdast2docx"
+          - "unified"
+      forms:
+        patterns:
+          - "react-hook-form"
+          - "@hookform/resolvers"
+          - "zod"
+          - "input-otp"
+      types:
+        patterns:
+          - "@types/*"
+      build-tools:
+        patterns:
+          - "@swc/*"
+          - "postcss"
+          - "tsx"
     open-pull-requests-limit: 10
     commit-message:
       prefix: "chore(deps)"
@@ -55,3 +110,31 @@ updates:
         update-types: ["version-update:semver-major"]
       - dependency-name: "@sparticuz/chromium"
       - dependency-name: "puppeteer-core"
+
+  # Database package
+  - package-ecosystem: "npm"
+    directory: "/packages/database"
+    schedule:
+      interval: "daily"
+      time: "06:00"
+      timezone: "Europe/Berlin"
+    groups:
+      prisma:
+        patterns:
+          - "prisma"
+          - "@prisma/client"
+          - "@prisma/adapter-pg"
+      postgres:
+        patterns:
+          - "pg"
+          - "pg-pool"
+          - "@types/pg"
+      typescript:
+        patterns:
+          - "typescript"
+      types:
+        patterns:
+          - "@types/*"
+    open-pull-requests-limit: 10
+    commit-message:
+      prefix: "chore(deps)"
