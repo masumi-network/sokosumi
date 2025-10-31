@@ -348,7 +348,7 @@ export const agentService = (() => {
         return [];
       }
       const hiredAgentsWithJobs =
-        await agentRepository.getHiredAgentsWithJobsByUserIdAndOrganization(
+        await agentRepository.getHiredAgentsWithLatestJobByUserIdAndOrganization(
           context.userId,
           context.organizationId,
         );

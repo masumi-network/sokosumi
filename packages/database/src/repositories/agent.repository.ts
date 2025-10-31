@@ -130,14 +130,14 @@ export const agentRepository = {
 
   /**
    * Fetch all agents that have jobs for a specific user and organization context.
-   * Each agent includes only the latest job for that user/org.
+   * Each agent includes only the latest job for that user/org (ordered by startedAt).
    *
    * @param userId - User unique identifier
    * @param organizationId - Organization unique identifier (null for personal jobs)
    * @param tx - Optional Prisma transaction client (defaults to main Prisma client)
    * @returns Array of agents with their latest job for the user/org
    */
-  async getHiredAgentsWithJobsByUserIdAndOrganization(
+  async getHiredAgentsWithLatestJobByUserIdAndOrganization(
     userId: string,
     organizationId: string | null | undefined,
     tx: Prisma.TransactionClient = prisma,
