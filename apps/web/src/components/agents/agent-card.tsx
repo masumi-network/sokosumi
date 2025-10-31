@@ -14,7 +14,6 @@ import {
   getAgentAuthorResolvedImage,
   getAgentCategoryStyles,
   getAgentName,
-  getAgentResolvedIcon,
   getAgentSummary,
   getShortAgentAuthorName,
 } from "@/lib/helpers/agent";

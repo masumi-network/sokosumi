@@ -1,7 +1,5 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-
 import { StarIcon } from "@/components/agents/star-icon";
 import { cn } from "@/lib/utils";
 
