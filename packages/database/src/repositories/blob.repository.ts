@@ -1,5 +1,3 @@
-import "server-only";
-
 import prisma from "../client";
 import type { Blob, Prisma } from "../generated/prisma/client";
 import { BlobOrigin, BlobStatus } from "../generated/prisma/client";

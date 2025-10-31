@@ -1,5 +1,3 @@
-import "server-only";
-
 import prisma from "../client";
 import type { Prisma, UTMAttribution } from "../generated/prisma/client";
 import type { UTMData } from "../types/utm";
