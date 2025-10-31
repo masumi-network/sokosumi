@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -27,8 +28,16 @@ export default async function AuthLayout({
   children: React.ReactNode;
 }>) {
   const session = await getSession();
+
   if (session) {
-    redirect("/agents");
+    // Get pathname from middleware header
+    const headersList = await headers();
+    const pathname = headersList.get("x-pathname") || "";
+
+    // Skip redirect for callback routes - let client component handle GTM events first
+    if (!pathname.startsWith("/auth/callback/")) {
+      redirect("/agents");
+    }
   }
 
   return (
