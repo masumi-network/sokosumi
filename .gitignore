@@ -19,6 +19,8 @@ node_modules
 .DS_Store
 *.pem
 .env
+.neon
+.vercel
 
 # debug
 npm-debug.log*
