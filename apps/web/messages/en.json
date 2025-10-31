@@ -841,15 +841,15 @@
           "description": "Hire yourself an agent to finish the most time consuming tasks"
         },
         "Google": {
-          "title": "Sign up with Google",
+          "title": "Authenticatewith Google",
           "description": "Redirecting you to Google...",
-          "error": "Failed to initiate Google sign up. Please try again.",
+          "error": "Failed to initiate Google authentication. Please try again.",
           "retry": "Try Again"
         },
         "Microsoft": {
-          "title": "Sign up with Microsoft",
+          "title": "Authenticate with Microsoft",
           "description": "Redirecting you to Microsoft...",
-          "error": "Failed to initiate Microsoft sign up. Please try again.",
+          "error": "Failed to initiate Microsoft authentication. Please try again.",
           "retry": "Try Again"
         },
         "Header": {
