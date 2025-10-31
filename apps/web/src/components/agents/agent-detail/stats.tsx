@@ -1,9 +1,9 @@
+import type { AgentRatingStats } from "@sokosumi/database";
 import { CircleCheck, Clock, Star } from "lucide-react";
 import { useFormatter, useTranslations } from "next-intl";
 
 import { StarRating } from "@/components/agents/star-rating";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { AgentRatingStats } from "@/lib/db/repositories/agentRating.repository";
 import { formatDuration } from "@/lib/utils";
 
 function AgentDetailStats({

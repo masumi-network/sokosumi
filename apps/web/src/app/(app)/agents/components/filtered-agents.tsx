@@ -1,5 +1,7 @@
 "use client";
 
+import type { AgentRatingStats } from "@sokosumi/database";
+import { AgentWithCreditsPrice, AgentWithRelations } from "@sokosumi/database";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useMemo } from "react";
 
@@ -8,12 +10,7 @@ import {
   AgentsNotAvailable,
   AgentsNotFound,
 } from "@/components/agents";
-import {
-  AgentWithCreditsPrice,
-  AgentWithRelations,
-  getAgentTags,
-} from "@/lib/db";
-import type { AgentRatingStats } from "@/lib/db/repositories/agentRating.repository";
+import { getAgentTags } from "@/lib/helpers/agent";
 
 import { GalleryFilterState } from "./use-gallery-filter";
 

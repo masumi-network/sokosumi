@@ -1,8 +1,9 @@
 import "server-only";
 
+import { User } from "@sokosumi/database";
+
 import { UserResponse, userResponseSchema } from "@/lib/api/schemas";
 import { dateToISO } from "@/lib/api/utils";
-import { User } from "@/prisma/generated/client";
 
 /**
  * Formats user data for API response

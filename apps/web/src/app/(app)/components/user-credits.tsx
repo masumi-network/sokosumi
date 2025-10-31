@@ -1,11 +1,11 @@
-import { getTranslations } from "next-intl/server";
-
-import { Session } from "@/lib/auth/auth";
-import { convertCentsToCredits } from "@/lib/db";
 import {
   creditTransactionRepository,
   userRepository,
-} from "@/lib/db/repositories";
+} from "@sokosumi/database/repositories";
+import { getTranslations } from "next-intl/server";
+
+import { Session } from "@/lib/auth/auth";
+import { convertCentsToCredits } from "@/lib/helpers/credit";
 import { userService } from "@/lib/services/user.service";
 
 import BuyCreditsButton from "./buy-credits-button";

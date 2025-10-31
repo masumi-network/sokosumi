@@ -1,12 +1,12 @@
 "use client";
 
+import { Apikey } from "@sokosumi/database";
 import { ColumnDef, createColumnHelper } from "@tanstack/react-table";
 import { Eye, EyeOff, Trash2 } from "lucide-react";
 import { useTranslations } from "next-intl";
 
 import { DataTableColumnHeader } from "@/components/data-table";
 import { Button } from "@/components/ui/button";
-import { Apikey } from "@/prisma/generated/client";
 
 import { OrganizationNameDisplay } from "./organization-name-display";
 

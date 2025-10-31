@@ -1,3 +1,4 @@
+import { InvitationWithRelations } from "@sokosumi/database";
 import { User } from "better-auth";
 import { AlertCircle, CheckIcon, XIcon } from "lucide-react";
 import Link from "next/link";
@@ -13,7 +14,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { InvitationWithRelations } from "@/lib/db";
 import { PendingInvitationErrorCode } from "@/lib/services";
 
 import InvitationActions from "./invitation-actions";

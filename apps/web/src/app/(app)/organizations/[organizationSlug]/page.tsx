@@ -1,3 +1,5 @@
+import { MemberRole } from "@sokosumi/database";
+import { organizationRepository } from "@sokosumi/database/repositories";
 import { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
@@ -5,8 +7,6 @@ import { getTranslations } from "next-intl/server";
 import { MembersTable } from "@/components/members-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
 import { Invitation } from "@/lib/auth/auth";
-import { MemberRole } from "@/lib/db";
-import { organizationRepository } from "@/lib/db/repositories";
 import { organizationService, userService } from "@/lib/services";
 
 import OrganizationInformation from "./components/organization-information";

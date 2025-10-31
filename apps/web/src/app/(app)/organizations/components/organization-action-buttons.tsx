@@ -1,11 +1,11 @@
 "use client";
 
+import { Organization } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
 import { LeaveOrganizationModal } from "@/components/organizations";
 import { Button } from "@/components/ui/button";
 import useModal from "@/hooks/use-modal";
-import { Organization } from "@/prisma/generated/client";
 
 interface OrganizationActionButtonsProps {
   organization: Organization;

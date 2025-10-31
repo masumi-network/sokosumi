@@ -1,51 +1,28 @@
 import { defineConfig, globalIgnores } from "eslint/config";
+import baseConfig from "../../eslint.config.mjs";
 import nextVitals from "eslint-config-next/core-web-vitals";
 import nextTs from "eslint-config-next/typescript";
 import eslintNextPlugin from "eslint-config-next";
-import prettier from "eslint-config-prettier/flat";
-import simpleImportSort from "eslint-plugin-simple-import-sort";
-import noRelativeImportPaths from "eslint-plugin-no-relative-import-paths";
-import unusedImports from "eslint-plugin-unused-imports";
-import importPlugin from "eslint-plugin-import";
 import i18next from "eslint-plugin-i18next";
+import noRelativeImportPaths from "eslint-plugin-no-relative-import-paths";
 
 const eslintConfig = defineConfig([
   ...nextVitals,
   ...nextTs,
-  prettier,
+  ...baseConfig,
   i18next.configs["flat/recommended"],
   {
     plugins: {
       next: eslintNextPlugin,
+      "no-relative-import-paths": noRelativeImportPaths,
     },
     settings: {
       next: {
-        rootDir: "web-app/",
+        rootDir: "apps/web/",
       },
     },
-    plugins: {
-      "simple-import-sort": simpleImportSort,
-      "no-relative-import-paths": noRelativeImportPaths,
-      "unused-imports": unusedImports,
-      import: importPlugin,
-    },
     rules: {
-      "simple-import-sort/imports": "error",
-      "simple-import-sort/exports": "error",
-      "unused-imports/no-unused-imports": "error",
-      "import/first": "error",
-      "import/newline-after-import": "error",
-      "import/no-duplicates": "error",
       "@next/next/no-html-link-for-pages": ["error", "src/app"],
-      "@typescript-eslint/no-unused-vars": [
-        "warn",
-        {
-          varsIgnorePattern: "^_",
-          argsIgnorePattern: "^_",
-          caughtErrorsIgnorePattern: "^_",
-          destructuredArrayIgnorePattern: "^_",
-        },
-      ],
       "no-restricted-properties": [
         "error",
         {
@@ -55,6 +32,7 @@ const eslintConfig = defineConfig([
             "Please use our custom getEnvSecrets or getEnvConfig functions instead of process.env as it is validated on startup and type-safe.",
         },
       ],
+      // Enforce absolute imports for web app code (inherited from shared config)
       "no-relative-import-paths/no-relative-import-paths": [
         "error",
         { allowSameFolder: true },

@@ -1,5 +1,6 @@
 "use client";
 
+import { Apikey } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 import { useCallback, useEffect, useState } from "react";
 import { toast } from "sonner";
@@ -13,7 +14,6 @@ import {
 } from "@/app/account/components/api-keys/types";
 import { getToggleActionText } from "@/app/account/components/api-keys/utils";
 import { authClient } from "@/lib/auth/auth.client";
-import { Apikey } from "@/prisma/generated/client";
 
 /**
  * Custom hook for managing API keys CRUD operations

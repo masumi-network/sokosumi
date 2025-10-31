@@ -1,12 +1,16 @@
 "use client";
 
+import {
+  InvitationStatus,
+  Member,
+  MemberRole,
+  MemberWithUser,
+} from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
 import { DataTable } from "@/components/data-table";
 import { Invitation } from "@/lib/auth/auth";
-import { InvitationStatus, MemberRole, MemberWithUser } from "@/lib/db";
 import { cn } from "@/lib/utils";
-import { Member } from "@/prisma/generated/client";
 
 import InvitationActionsModal from "./invitation-actions-modal";
 import { InvitationActionsModalContextProvider } from "./invitation-actions-modal-context";

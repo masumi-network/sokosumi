@@ -1,5 +1,6 @@
 "use client";
 
+import { MemberWithOrganization } from "@sokosumi/database";
 import gravatarUrl from "gravatar-url";
 import {
   Building2,
@@ -30,7 +31,6 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import type { SessionUser } from "@/lib/auth/auth";
-import { MemberWithOrganization } from "@/lib/db";
 
 import { OrganizationSwitcher } from "./organization-switcher";
 import UserAvatarContent from "./user-avatar-content";

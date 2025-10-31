@@ -1,7 +1,7 @@
+import { agentRepository } from "@sokosumi/database/repositories";
 import { notFound } from "next/navigation";
 
 import { getSession } from "@/lib/auth/utils";
-import { agentRepository } from "@/lib/db/repositories";
 import { userService } from "@/lib/services";
 
 import JobsTable from "./components/jobs-table";

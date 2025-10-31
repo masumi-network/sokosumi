@@ -1,3 +1,4 @@
+import { AgentWithCreditsPrice, AgentWithRelations } from "@sokosumi/database";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 
@@ -11,15 +12,14 @@ import { AgentHireButton } from "@/components/agents/agent-hire-button";
 import { AgentVerifiedBadge } from "@/components/agents/agent-verified-badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
-  AgentWithCreditsPrice,
-  AgentWithRelations,
-  convertCentsToCredits,
   getAgentDemoData,
   getAgentName,
   getAgentResolvedImage,
   getFullAgentAuthorName,
-} from "@/lib/db";
+} from "@/lib/helpers/agent";
+import { convertCentsToCredits } from "@/lib/helpers/credit";
 import { cn } from "@/lib/utils";
+import { isAgentNew } from "@/lib/utils/agent";
 
 interface AgentDetailHeaderProps {
   agent: AgentWithCreditsPrice;
@@ -60,7 +60,7 @@ function AgentDetailHeader({
             className="rounded-lg object-cover"
             priority
           />
-          {agent.isNew && (
+          {isAgentNew(agent) && (
             <div className="absolute top-0 left-0 p-3">
               <AgentNewBadge />
             </div>

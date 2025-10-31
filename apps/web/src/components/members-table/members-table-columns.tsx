@@ -1,11 +1,11 @@
 "use client";
 
+import { Member } from "@sokosumi/database";
 import { ColumnDef, createColumnHelper } from "@tanstack/react-table";
 import { useTranslations } from "next-intl";
 
 import { DataTableColumnHeader } from "@/components/data-table";
 import { OrganizationRoleBadge } from "@/components/organizations";
-import { Member } from "@/prisma/generated/client";
 
 import InvitationActionsDropdown from "./invitation-actions-dropdown";
 import MemberActionsDropdown from "./member-actions-dropdown";

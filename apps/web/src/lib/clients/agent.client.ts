@@ -1,6 +1,7 @@
 import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
+import { Agent } from "@sokosumi/database";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import {
@@ -18,7 +19,6 @@ import {
 } from "@/lib/schemas";
 import { Err, Ok, Result } from "@/lib/ts-res";
 import { safeAddPathComponent } from "@/lib/utils/url";
-import { Agent } from "@/prisma/generated/client";
 
 export const agentClient = (() => {
   function getAgentUrlWithPathComponent(

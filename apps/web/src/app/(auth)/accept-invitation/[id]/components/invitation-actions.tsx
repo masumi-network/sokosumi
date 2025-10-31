@@ -1,5 +1,6 @@
 "use client";
 
+import { InvitationWithRelations } from "@sokosumi/database";
 import { User } from "better-auth";
 import { Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -12,7 +13,6 @@ import { Button } from "@/components/ui/button";
 import { CardFooter } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { authClient } from "@/lib/auth/auth.client";
-import { InvitationWithRelations } from "@/lib/db";
 
 interface InvitationActionsProps {
   invitation: InvitationWithRelations;

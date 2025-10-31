@@ -1,6 +1,5 @@
+import { JobStatus } from "@sokosumi/database";
 import * as z from "zod";
-
-import { JobStatus } from "@/lib/db";
 
 export const jobIndicatorStatusSchema = z.object({
   jobId: z.string().min(1),

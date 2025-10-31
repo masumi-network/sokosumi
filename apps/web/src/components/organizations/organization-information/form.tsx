@@ -1,6 +1,7 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { Organization } from "@sokosumi/database";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -16,7 +17,6 @@ import {
   organizationInformationFormSchema,
   OrganizationInformationFormSchemaType,
 } from "@/lib/schemas";
-import { Organization } from "@/prisma/generated/client";
 
 import { organizationInformationFormData } from "./data";
 import { FormFields } from "./form-fields";

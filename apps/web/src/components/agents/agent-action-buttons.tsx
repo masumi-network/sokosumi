@@ -1,5 +1,6 @@
 "use client";
 
+import { AgentWithRelations } from "@sokosumi/database";
 import { ArrowLeft, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSyncExternalStore } from "react";
@@ -9,7 +10,6 @@ import { ShareButton } from "@/components/share-button";
 import { Button } from "@/components/ui/button";
 import { useSidebar } from "@/components/ui/sidebar";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AgentWithRelations } from "@/lib/db";
 import { cn } from "@/lib/utils";
 
 interface AgentActionButtonsProps {

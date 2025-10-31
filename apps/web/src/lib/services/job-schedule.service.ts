@@ -1,18 +1,20 @@
 import "server-only";
 
 import * as Sentry from "@sentry/nextjs";
+import { JobSchedule } from "@sokosumi/database";
+import {
+  jobScheduleRepository,
+  lockRepository,
+} from "@sokosumi/database/repositories";
 import pLimit from "p-limit";
 
 import { getEnvSecrets } from "@/config/env.secrets";
 import publishJobStatusData from "@/lib/ably/publish";
-import { jobScheduleRepository } from "@/lib/db/repositories/job-schedule.repository";
-import { lockRepository } from "@/lib/db/repositories/lock.repository";
-import { JobScheduleType } from "@/lib/db/types/job";
 import { startJobInputSchema, StartJobInputSchemaType } from "@/lib/schemas";
 import { jobService } from "@/lib/services/job.service";
 import { lockService } from "@/lib/services/lock.service";
+import { JobScheduleType } from "@/lib/types/job";
 import { computeNextRun } from "@/lib/utils/cron";
-import { JobSchedule } from "@/prisma/generated/client";
 
 export const jobScheduleService = {
   async executeDueSchedules() {

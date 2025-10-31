@@ -1,3 +1,4 @@
+import { jobRepository } from "@sokosumi/database/repositories";
 import { NextRequest, NextResponse } from "next/server";
 
 import {
@@ -15,8 +16,7 @@ import {
   validateApiKey,
 } from "@/lib/api";
 import { getAuthContext } from "@/lib/auth/utils";
-import { convertCreditsToCents } from "@/lib/db";
-import { jobRepository } from "@/lib/db/repositories";
+import { convertCreditsToCents } from "@/lib/helpers/credit";
 import { jobInputsDataSchema } from "@/lib/job-input";
 import { agentService } from "@/lib/services";
 

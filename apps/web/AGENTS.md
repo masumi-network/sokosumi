@@ -48,6 +48,70 @@ src/app/
 - Implement responsive design with Tailwind CSS
 - Follow the established component structure pattern
 
+### Linting & Formatting
+
+The web app extends the monorepo's base linting rules with web-specific constraints. See [root AGENTS.md](../../AGENTS.md#linting--formatting) for base rules.
+
+#### Environment Variables
+
+**Critical**: Never use `process.env` directly in web app code.
+
+- **Error**: `no-restricted-properties` on `process.env`
+- **Fix**: Use typed config functions:
+  - `getEnvSecrets()` - for sensitive variables (API keys, database URLs)
+  - `getEnvConfig()` - for public configuration (feature flags, URLs)
+
+**Example**:
+
+```typescript
+// ❌ Wrong - will fail linting
+const apiKey = process.env.API_KEY;
+
+// ✅ Correct - type-safe and validated
+import { getEnvSecrets } from "@/config/env.secrets";
+const apiKey = getEnvSecrets().API_KEY;
+```
+
+#### Import Paths
+
+- **No relative imports** across directories (enforced by `no-relative-import-paths`)
+- Same-folder relative imports are allowed: `import { helper } from "./helper"`
+- Use `@/` alias for all cross-directory imports
+
+**Examples**:
+
+```typescript
+// ✅ Correct
+import { Button } from "@/components/ui/button";
+import { getUser } from "@/lib/services/user";
+import { helper } from "./helper"; // same folder
+
+// ❌ Wrong - will fail linting
+import { Button } from "../../components/ui/button";
+import { getUser } from "../services/user";
+```
+
+**Error**: `no-relative-import-paths/no-relative-import-paths`
+**Fix**: Convert to absolute path with `@/` alias
+
+#### Next.js Specific
+
+- Use Next.js `<Link>` component for internal navigation
+- Never use `<a>` tags for page navigation
+- Optimize images with `<Image>` component
+
+**Error**: `@next/next/no-html-link-for-pages`
+**Fix**: Replace `<a href="/path">Link</a>` with `<Link href="/path">Link</Link>`
+
+#### Internationalization (i18next)
+
+- All user-facing text requires translation keys
+- Use `useTranslations()` hook in components
+- Add new keys to `messages/en.json`
+
+**Error**: `i18next/no-literal-string` (when enabled)
+**Fix**: Extract string to translation key
+
 ## App-Specific Commands
 
 | Command                   | Purpose                  |

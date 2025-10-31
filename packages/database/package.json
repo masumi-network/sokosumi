@@ -1,0 +1,74 @@
+{
+  "name": "@sokosumi/database",
+  "version": "0.1.0",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "import": "./dist/client.js",
+      "default": "./dist/client.js"
+    },
+    "./transaction": {
+      "types": "./dist/transaction.d.ts",
+      "import": "./dist/transaction.js",
+      "default": "./dist/transaction.js"
+    },
+    "./repositories": {
+      "types": "./dist/repositories/index.d.ts",
+      "import": "./dist/repositories/index.js",
+      "default": "./dist/repositories/index.js"
+    },
+    "./helpers": {
+      "types": "./dist/helpers/index.d.ts",
+      "import": "./dist/helpers/index.js",
+      "default": "./dist/helpers/index.js"
+    },
+    "./types/job": {
+      "types": "./dist/types/job.d.ts",
+      "import": "./dist/types/job.js",
+      "default": "./dist/types/job.js"
+    }
+  },
+  "files": [
+    "dist",
+    "prisma/schema.prisma"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "clean": "rm -rf dist && rm tsconfig.tsbuildinfo",
+    "prepare": "prisma generate --no-hints",
+    "prepublishOnly": "pnpm run build",
+    "prisma:generate": "prisma generate --no-hints",
+    "prisma:migrate:dev": "prisma migrate dev",
+    "prisma:migrate:deploy": "prisma migrate deploy",
+    "prisma:migrate:reset": "prisma migrate reset",
+    "prisma:studio": "prisma studio",
+    "lint": "eslint --max-warnings 0 .",
+    "lint:fix": "eslint --fix .",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.ts\""
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "6.18.0",
+    "@prisma/client": "6.18.0",
+    "pg": "8.16.3",
+    "pg-pool": "3.10.1",
+    "server-only": "0.0.1",
+    "uuid": "13.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.18.13",
+    "@types/pg": "^8.15.6",
+    "dotenv": "17.2.3",
+    "prisma": "6.18.0",
+    "tsx": "4.20.6",
+    "typescript": "5.9.3"
+  }
+}

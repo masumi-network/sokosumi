@@ -1,9 +1,10 @@
 import "server-only";
 
+import { JobWithStatus } from "@sokosumi/database";
+
 import { JobResponse, jobResponseSchema } from "@/lib/api/schemas";
 import { dateToISO } from "@/lib/api/utils";
-import { convertCentsToCredits } from "@/lib/db";
-import { JobWithStatus } from "@/lib/db/types";
+import { convertCentsToCredits } from "@/lib/helpers/credit";
 
 import { formatJobShareResponse } from "./job-share";
 

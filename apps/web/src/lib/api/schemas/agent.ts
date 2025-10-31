@@ -1,7 +1,7 @@
+import { AgentStatus } from "@sokosumi/database";
 import * as z from "zod";
 
 import { jobInputsDataSchema } from "@/lib/job-input";
-import { AgentStatus } from "@/prisma/generated/client";
 
 // Schema for credit price with BigInt to string conversion
 export const creditsPriceSchema = z.object({
@@ -22,7 +22,6 @@ export const agentResponseSchema = z.object({
   name: z.string(),
   description: z.string().nullable(),
   status: z.enum(AgentStatus),
-  isNew: z.boolean(),
   isShown: z.boolean(),
   price: creditsPriceSchema,
   tags: z.array(agentTagSchema),

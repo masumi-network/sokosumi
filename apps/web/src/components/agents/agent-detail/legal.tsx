@@ -1,7 +1,7 @@
 import { useTranslations } from "next-intl";
 
 import { Skeleton } from "@/components/ui/skeleton";
-import { AgentLegal } from "@/lib/db";
+import { AgentLegal } from "@/lib/types/agent";
 
 function AgentDetailLegal({ legal }: { legal: AgentLegal }) {
   const t = useTranslations("Components.Agents.AgentDetail.Legal");

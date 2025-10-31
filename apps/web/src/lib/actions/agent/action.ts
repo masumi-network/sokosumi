@@ -1,15 +1,15 @@
 "use server";
 
+import { AgentListType } from "@sokosumi/database";
+import { agentListRepository } from "@sokosumi/database/repositories";
 import { revalidatePath } from "next/cache";
 
 import { ActionError } from "@/lib/actions";
-import { agentListRepository } from "@/lib/db/repositories";
 import { Ok, Result } from "@/lib/ts-res";
 import {
   AuthenticatedRequest,
   withAuthContext,
 } from "@/middleware/auth-middleware";
-import { AgentListType } from "@/prisma/generated/client";
 
 interface ToggleAgentInAgentListParameters extends AuthenticatedRequest {
   agentId: string;

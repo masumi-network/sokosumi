@@ -1,23 +1,20 @@
 "use server";
 
 import * as Sentry from "@sentry/nextjs";
+import { Prisma, ScheduleType } from "@sokosumi/database";
+import { jobScheduleRepository } from "@sokosumi/database/repositories";
 import { revalidatePath } from "next/cache";
 
 import { CommonErrorCode } from "@/lib/actions/errors/error-codes";
 import { handleInputDataFileUploads } from "@/lib/actions/job/utils";
-import { jobScheduleRepository } from "@/lib/db/repositories";
-import { JobScheduleEndsMode, JobScheduleType } from "@/lib/db/types/job";
-import {
-  CreateJobScheduleInputSchemaType,
-  StartJobInputSchemaType,
-} from "@/lib/schemas/job";
+import { StartJobInputSchemaType } from "@/lib/schemas/job";
 import { Result } from "@/lib/ts-res";
+import { JobScheduleEndsMode, JobScheduleType } from "@/lib/types/job";
 import { computeNextRun } from "@/lib/utils/cron";
 import {
   AuthenticatedRequest,
   withAuthContext,
 } from "@/middleware/auth-middleware";
-import { Prisma } from "@/prisma/generated/client";
 
 interface StartJobScheduleParameters extends AuthenticatedRequest {
   input: Omit<StartJobInputSchemaType, "userId" | "organizationId">;
@@ -130,28 +127,41 @@ export const createSchedule = withAuthContext<
       };
     }
 
-    const data: CreateJobScheduleInputSchemaType = {
-      userId: authContext.userId,
-      ...(authContext.organizationId && {
-        organizationId: authContext.organizationId,
-      }),
-      agentId: input.agentId,
-      scheduleType: scheduleType!,
+    // Build Prisma input directly
+    const prismaInput: Prisma.JobScheduleCreateInput = {
+      user: {
+        connect: {
+          id: authContext.userId,
+        },
+      },
+      organization: authContext.organizationId
+        ? {
+            connect: {
+              id: authContext.organizationId,
+            },
+          }
+        : undefined,
+      agent: {
+        connect: {
+          id: input.agentId,
+        },
+      },
+      inputSchema: input.inputSchema as Prisma.InputJsonValue,
+      input: JSON.stringify(Object.fromEntries(input.inputData)),
+      scheduleType: scheduleType! as ScheduleType,
+      timezone: scheduleSelection.timezone,
+      maxAcceptedCents: input.maxAcceptedCents,
       cron,
       oneTimeAtUtc,
-      timezone: scheduleSelection.timezone,
-      inputSchema: input.inputSchema,
-      inputData: input.inputData,
-      maxAcceptedCents: input.maxAcceptedCents,
-      endOnUtc,
-      endAfterOccurrences,
-      // Server-controlled defaults
       isActive: true,
       pauseReason: null,
       nextRunAt: nextRunAtIso,
     };
+    if (endOnUtc !== undefined) prismaInput.endOnUtc = endOnUtc;
+    if (endAfterOccurrences !== undefined)
+      prismaInput.endAfterOccurrences = endAfterOccurrences;
 
-    const schedule = await jobScheduleRepository.create(data);
+    const schedule = await jobScheduleRepository.create(prismaInput);
     return { ok: true, data: { jobId: "", scheduleId: schedule.id } };
   } catch (error) {
     console.error("Failed to create schedule", error);

@@ -1,13 +1,20 @@
 import "server-only";
 
+import {
+  InvitationWithRelations,
+  MemberRole,
+  MemberWithUser,
+} from "@sokosumi/database";
+import {
+  invitationRepository,
+  memberRepository,
+} from "@sokosumi/database/repositories";
 import { nanoid } from "nanoid";
 import { headers } from "next/headers";
 import slugify from "slugify";
 
 import { auth, Invitation } from "@/lib/auth/auth";
 import { getAuthContext } from "@/lib/auth/utils";
-import { InvitationWithRelations, MemberRole, MemberWithUser } from "@/lib/db";
-import { invitationRepository, memberRepository } from "@/lib/db/repositories";
 
 /**
  * Service for organization and invitations related operations.

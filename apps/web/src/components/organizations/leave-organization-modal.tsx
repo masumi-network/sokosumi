@@ -1,5 +1,6 @@
 "use client";
 
+import { Organization } from "@sokosumi/database";
 import { Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -17,7 +18,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { authClient } from "@/lib/auth/auth.client";
-import { Organization } from "@/prisma/generated/client";
 
 interface LeaveOrganizationModalProps {
   open: boolean;

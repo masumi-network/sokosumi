@@ -1,9 +1,9 @@
+import { JobWithStatus } from "@sokosumi/database";
 import { type ClassValue, clsx } from "clsx";
 import crypto from "crypto";
 import { canonicalizeEx } from "json-canonicalize";
 import { twMerge } from "tailwind-merge";
 
-import type { JobWithStatus } from "@/lib/db";
 import { JobInputData } from "@/lib/job-input";
 import { JobStatusResponseSchemaType } from "@/lib/schemas";
 

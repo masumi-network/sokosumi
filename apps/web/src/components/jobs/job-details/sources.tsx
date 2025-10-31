@@ -1,9 +1,8 @@
 "use client";
+import { BlobOrigin, JobWithStatus } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
-import { JobWithStatus } from "@/lib/db";
-import { BlobOrigin } from "@/prisma/generated/client";
 
 import { SourcesGrid } from "./sources-grid";
 

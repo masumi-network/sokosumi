@@ -1,8 +1,8 @@
+import { Organization } from "@sokosumi/database";
 import { Building2 } from "lucide-react";
 import Image from "next/image";
 
 import { ipfsUrlResolver } from "@/lib/ipfs";
-import { Organization } from "@/prisma/generated/client";
 
 interface OrganizationLogoProps {
   organization: Organization;

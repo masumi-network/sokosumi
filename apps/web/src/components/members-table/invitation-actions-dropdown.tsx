@@ -1,3 +1,4 @@
+import { Invitation, Member, MemberRole } from "@sokosumi/database";
 import { Ellipsis, Loader2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -12,9 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { authClient } from "@/lib/auth/auth.client";
-import { MemberRole } from "@/lib/db";
 import { cn } from "@/lib/utils";
-import { Invitation, Member } from "@/prisma/generated/client";
 
 import {
   InvitationAction,

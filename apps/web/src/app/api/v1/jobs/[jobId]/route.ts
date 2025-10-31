@@ -1,3 +1,4 @@
+import { jobRepository } from "@sokosumi/database/repositories";
 import { NextRequest, NextResponse } from "next/server";
 
 import {
@@ -6,7 +7,6 @@ import {
   handleApiError,
   validateApiKey,
 } from "@/lib/api";
-import { jobRepository } from "@/lib/db/repositories";
 
 interface RouteParams {
   params: Promise<{

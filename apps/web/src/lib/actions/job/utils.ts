@@ -1,7 +1,8 @@
 import "server-only";
 
+import { blobRepository } from "@sokosumi/database/repositories";
+
 import { uploadFile } from "@/lib/blob";
-import { blobRepository } from "@/lib/db/repositories";
 import { JobInputData } from "@/lib/job-input";
 
 export interface UploadedFileWithMeta {
