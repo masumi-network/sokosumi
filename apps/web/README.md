@@ -20,8 +20,7 @@ pnpm install
 ## Project Structure
 
 ```
-web-app/
-├── prisma/            # Prisma as ORM
+apps/web
 ├── src/               # Main Code folder
     |── app            # App router
     |── lib            # Libraries and business logic
