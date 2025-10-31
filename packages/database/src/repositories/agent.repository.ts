@@ -4,7 +4,6 @@ import prisma from "../client";
 import type { Agent, AgentStatus, Prisma } from "../generated/prisma/client";
 import {
   agentInclude,
-  agentJobsInclude,
   agentOrderBy,
   agentOrganizationsInclude,
   agentPricingInclude,
@@ -167,7 +166,11 @@ export const agentRepository = {
           some: jobWhereCondition,
         },
       },
-      include: agentJobsInclude,
+      include: {
+        jobs: {
+          orderBy: { startedAt: "desc" },
+        },
+      },
     });
   },
 
