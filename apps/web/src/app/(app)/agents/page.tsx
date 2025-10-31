@@ -1,9 +1,9 @@
-import { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
 import {
   agentRatingRepository,
   categoryRepository,
 } from "@sokosumi/database/repositories";
+import { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 
 import { AgentsNotAvailable } from "@/components/agents";
 import { AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";

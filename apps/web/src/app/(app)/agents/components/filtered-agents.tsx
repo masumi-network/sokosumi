@@ -1,13 +1,13 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
-import { Suspense, useMemo } from "react";
 import type {
   AgentRatingStats,
   AgentWithCreditsPrice,
   AgentWithRelations,
 } from "@sokosumi/database";
+import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { Suspense, useMemo } from "react";
 
 import {
   Agents,
