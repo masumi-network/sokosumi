@@ -2,6 +2,7 @@ import { getSessionCookie } from "better-auth/cookies";
 import { NextRequest, NextResponse } from "next/server";
 
 const EXCLUDED_PATHS = [
+  "/auth/",
   "/signin",
   "/login",
   "/signup",
