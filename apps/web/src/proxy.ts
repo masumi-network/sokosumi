@@ -24,6 +24,7 @@ const EXCLUDED_PATHS = [
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  const searchParams = request.nextUrl.search;
 
   const isApiV1Path = pathname.startsWith("/api/v1");
 
@@ -49,17 +50,17 @@ export async function proxy(request: NextRequest) {
     return response;
   }
 
-  // Skip middleware for excluded paths
-  if (EXCLUDED_PATHS.some((path) => pathname.startsWith(path))) {
-    return NextResponse.next();
-  }
-
-  // Add current URL to headers for server components
-  const searchParams = request.nextUrl.search;
+  // Create response early so we can always set pathname headers
   const response = NextResponse.next();
   response.headers.set("x-pathname", pathname);
   response.headers.set("x-search-params", searchParams);
 
+  // Skip session check for excluded paths (but still set headers above)
+  if (EXCLUDED_PATHS.some((path) => pathname.startsWith(path))) {
+    return response;
+  }
+
+  // Check session for protected routes
   const sessionCookie = getSessionCookie(request);
   if (!sessionCookie) {
     const currentUrl = pathname + searchParams;

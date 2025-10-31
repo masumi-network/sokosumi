@@ -99,7 +99,7 @@ export default function SignInForm({
       }
     }
 
-    fireGTMEvent.login();
+    fireGTMEvent.signIn("credential");
     toast.success(t("success"));
 
     // Redirect to the original URL if provided, otherwise go to /agents

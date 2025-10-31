@@ -1,4 +1,3 @@
-import "server-only";
 
 import { InputJsonValue } from "@prisma/client/runtime/client";
 

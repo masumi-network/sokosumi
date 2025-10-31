@@ -411,9 +411,6 @@ importers:
       pg-pool:
         specifier: 3.10.1
         version: 3.10.1(pg@8.16.3)
-      server-only:
-        specifier: 0.0.1
-        version: 0.0.1
       uuid:
         specifier: 13.0.0
         version: 13.0.0

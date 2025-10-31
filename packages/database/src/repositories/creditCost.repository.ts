@@ -1,4 +1,3 @@
-import "server-only";
 
 import prisma from "../client";
 import type { CreditCost, Prisma } from "../generated/prisma/client";

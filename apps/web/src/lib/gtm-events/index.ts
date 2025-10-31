@@ -16,16 +16,10 @@ export const fireGTMEvent = {
     });
   },
 
-  ssoAuth(provider: SocialProviderId) {
-    fireEvent({
-      event: "sso_login_or_sign_up",
-      provider: provider,
-    });
-  },
-
-  signUp() {
+  signUp(provider: SocialProviderId) {
     fireEvent({
       event: "sign_up",
+      provider,
     });
   },
 
@@ -47,9 +41,10 @@ export const fireGTMEvent = {
     });
   },
 
-  login() {
+  signIn(provider: SocialProviderId) {
     fireEvent({
       event: "login",
+      provider,
     });
   },
 

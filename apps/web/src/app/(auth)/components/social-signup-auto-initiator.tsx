@@ -7,7 +7,6 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { authClient } from "@/lib/auth/auth.client";
-import { fireGTMEvent } from "@/lib/gtm-events";
 import { SocialProviderId } from "@/lib/schemas";
 
 interface SocialSignupAutoInitiatorProps {
@@ -27,11 +26,11 @@ export default function SocialSignupAutoInitiator({
     const initiateOAuth = async () => {
       try {
         track("Sign In", { provider, direct_signup_link: true });
-        fireGTMEvent.ssoAuth(provider);
 
         const result = await authClient.signIn.social({
           provider,
-          callbackURL: "/",
+          callbackURL: `/auth/callback/signin?provider=${provider}`,
+          newUserCallbackURL: `/auth/callback/signup?provider=${provider}`,
         });
 
         if (result.error) {

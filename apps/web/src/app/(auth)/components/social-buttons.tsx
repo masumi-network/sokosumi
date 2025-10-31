@@ -10,7 +10,6 @@ import {
 import { toast } from "sonner";
 
 import { authClient } from "@/lib/auth/auth.client";
-import { fireGTMEvent } from "@/lib/gtm-events";
 import { SocialProviderId } from "@/lib/schemas";
 
 const socialButtons: Array<{
@@ -38,12 +37,12 @@ export default function SocialButtons() {
 
     const result = await authClient.signIn.social({
       provider: key,
+      callbackURL: `/auth/callback/signin?provider=${key}`,
+      newUserCallbackURL: `/auth/callback/signup?provider=${key}`,
     });
     if (result.error) {
       const errorMessage = result.error.message ?? t("error");
       toast.error(errorMessage);
-    } else {
-      fireGTMEvent.ssoAuth(key);
     }
   };
 
