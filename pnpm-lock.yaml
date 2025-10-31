@@ -183,8 +183,8 @@ importers:
         specifier: 16.4.1
         version: 16.4.1
       mdast2docx:
-        specifier: 1.6.0
-        version: 1.6.0(remark-math@6.0.0)(sharp@0.34.4)
+        specifier: 1.6.1
+        version: 1.6.1(remark-math@6.0.0)(sharp@0.34.4)
       nanoid:
         specifier: 5.1.6
         version: 5.1.6
@@ -1255,11 +1255,6 @@ packages:
 
   '@m2d/image@1.4.1':
     resolution: {integrity: sha512-kW5bJJoSJP/gkFOvXE4Lm4cQk/NUPeMQs7C8eltSEYXcqwaMmbmXDm/PEMbU3K3sPNw+jZMBtrgrhbgOTiX6pg==}
-    peerDependencies:
-      docx: ^9.3.0
-
-  '@m2d/list@0.0.8':
-    resolution: {integrity: sha512-5UCRxA2sd45O86ipaITMixWAThJtwdvE2xnL7kPZ6tgfH217uK3q3jm2kuFoiFDe58yf3TPj5NtWpwZ6byx/FQ==}
     peerDependencies:
       docx: ^9.3.0
 
@@ -4259,8 +4254,8 @@ packages:
     resolution: {integrity: sha512-e1U46jVP+w7Iut8Jt8ri1YsPOvFpg46k+K8TpCb0P+zjCkjkPnV7WzfDJzMHy1LnA+wj5pLT1wjO901gLXeEhA==}
     engines: {node: '>=12'}
 
-  dagre-d3-es@7.0.11:
-    resolution: {integrity: sha512-tvlJLyQf834SylNKax8Wkzco/1ias1OPw8DcUMDE7oUIoSEW25riQVuiu/0OWEFqT0cxHT3Pa9/D82Jr47IONw==}
+  dagre-d3-es@7.0.13:
+    resolution: {integrity: sha512-efEhnxpSuwpYOKRm/L5KbqoZmNNukHa/Flty4Wp62JRvgH2ojwVgPgdYyr4twpieZnyRDdIH7PY2mopX26+j2Q==}
 
   damerau-levenshtein@1.0.8:
     resolution: {integrity: sha512-sdQSFB7+llfUcQHUQO3+B8ERRj0Oa4w9POWMI/puGtuf7gFywGmkaLCElnudfTiKZV+NvHqL0ifzdrI8Ro7ESA==}
@@ -4287,8 +4282,8 @@ packages:
   date-fns@4.1.0:
     resolution: {integrity: sha512-Ukq0owbQXxa/U3EGtsdVBkR1w7KOQ5gIBqdH2hkvknzZPYvBxb/aa6E8L7tmjFtkwZBu3UXBbjIgPo/Ez4xaNg==}
 
-  dayjs@1.11.18:
-    resolution: {integrity: sha512-zFBQ7WFRvVRhKcWoUh+ZA1g2HVgUbsZm9sbddh8EC5iv93sui8DVVz1Npvz+r6meo9VKfa8NyLWBsQK1VvIKPA==}
+  dayjs@1.11.19:
+    resolution: {integrity: sha512-t5EcLVS6QPBNqM2z8fakk/NKel+Xzshgt8FFKAn+qwlD1pzZWxh0nVCrvFK7ZDb6XucZeF9z8C7CBWTRIVApAw==}
 
   debug@3.2.7:
     resolution: {integrity: sha512-CFjzYYAi4ThfiQvizrFQevTTXHtnCqWfe7x1AhgEscTz6ZbLbfoLRLPugTQyBth6f8ZERVUSyWHFD/7Wu4t1XQ==}
@@ -5839,8 +5834,8 @@ packages:
   mdast-util-to-string@4.0.0:
     resolution: {integrity: sha512-0H44vDimn51F0YwvxSJSm0eCDOJTRlmN0R1yBh4HLj9wiV1Dn0QoXGbvFAWj2hSItVTlCmBF1hqKlIyUBVFLPg==}
 
-  mdast2docx@1.6.0:
-    resolution: {integrity: sha512-eYCelupO95LUb2fzFgz8y5yrm2AbLgAGgkSMZqAMxwDHhpp8qMEZi9GsdE8FceALApKDzuVcvfoqmqwvGhNcEw==}
+  mdast2docx@1.6.1:
+    resolution: {integrity: sha512-7V81UXEtj6qyfLKS7Fjqy7Hs+tg9hMSRlATvPLRNW/u9K8NkH0Am/tJBk1KQwXuczvT3urubUqmkEiPitUEvhg==}
 
   merge-stream@2.0.0:
     resolution: {integrity: sha512-abv/qOcuPfk3URPfDzmZU1LKmuw8kT+0nIHvKrKgFrwifol/doWcdA4ZqsWQ8ENrFKkd67Mfpo/LovbIUsbt3w==}
@@ -5849,8 +5844,8 @@ packages:
     resolution: {integrity: sha512-8q7VEgMJW4J8tcfVPy8g09NcQwZdbwFEqhe/WZkoIzjn/3TGDwtOCYtXGxA3O8tPzpczCCDgv+P2P5y00ZJOOg==}
     engines: {node: '>= 8'}
 
-  mermaid@11.12.0:
-    resolution: {integrity: sha512-ZudVx73BwrMJfCFmSSJT84y6u5brEoV8DOItdHomNLz32uBjNrelm7mg95X7g+C6UoQH/W6mBLGDEDv73JdxBg==}
+  mermaid@11.12.1:
+    resolution: {integrity: sha512-UlIZrRariB11TY1RtTgUWp65tphtBv4CSq7vyS2ZZ2TgoMjs2nloq+wFqxiwcxlhHUvs7DPGgMjs2aeQxz5h9g==}
 
   micromark-core-commonmark@2.0.3:
     resolution: {integrity: sha512-RDBrHEMSxVFLg6xvnXmb1Ayr2WzLAWjeSATAoxwKYJV94TeNavgoIdA0a9ytzDSVzBy2YKFK+emCPOEibLeCrg==}
@@ -8479,11 +8474,6 @@ snapshots:
       - '@xmldom/xmldom'
       - sharp
 
-  '@m2d/list@0.0.8(docx@9.5.1)':
-    dependencies:
-      '@m2d/core': 1.7.1(docx@9.5.1)
-      docx: 9.5.1
-
   '@m2d/list@0.0.9(docx@9.5.1)':
     dependencies:
       '@m2d/core': 1.7.1(docx@9.5.1)
@@ -8504,7 +8494,7 @@ snapshots:
     dependencies:
       '@m2d/core': 1.7.1(docx@9.5.1)
       docx: 9.5.1
-      mermaid: 11.12.0
+      mermaid: 11.12.1
     transitivePeerDependencies:
       - supports-color
 
@@ -11744,7 +11734,7 @@ snapshots:
       d3-transition: 3.0.1(d3-selection@3.0.0)
       d3-zoom: 3.0.0
 
-  dagre-d3-es@7.0.11:
+  dagre-d3-es@7.0.13:
     dependencies:
       d3: 7.9.0
       lodash-es: 4.17.21
@@ -11775,7 +11765,7 @@ snapshots:
 
   date-fns@4.1.0: {}
 
-  dayjs@1.11.18: {}
+  dayjs@1.11.19: {}
 
   debug@3.2.7:
     dependencies:
@@ -13718,13 +13708,13 @@ snapshots:
     dependencies:
       '@types/mdast': 4.0.4
 
-  mdast2docx@1.6.0(remark-math@6.0.0)(sharp@0.34.4):
+  mdast2docx@1.6.1(remark-math@6.0.0)(sharp@0.34.4):
     dependencies:
       '@m2d/core': 1.7.1(docx@9.5.1)
       '@m2d/emoji': 0.1.3(docx@9.5.1)
       '@m2d/html': 1.1.11(docx@9.5.1)
       '@m2d/image': 1.4.1(docx@9.5.1)(sharp@0.34.4)
-      '@m2d/list': 0.0.8(docx@9.5.1)
+      '@m2d/list': 0.0.9(docx@9.5.1)
       '@m2d/math': 0.0.6(docx@9.5.1)(remark-math@6.0.0)
       '@m2d/mermaid': 1.2.2(docx@9.5.1)
       '@m2d/table': 0.1.1(docx@9.5.1)
@@ -13739,7 +13729,7 @@ snapshots:
 
   merge2@1.4.1: {}
 
-  mermaid@11.12.0:
+  mermaid@11.12.1:
     dependencies:
       '@braintree/sanitize-url': 7.1.1
       '@iconify/utils': 3.0.2
@@ -13750,8 +13740,8 @@ snapshots:
       cytoscape-fcose: 2.2.0(cytoscape@3.33.1)
       d3: 7.9.0
       d3-sankey: 0.12.3
-      dagre-d3-es: 7.0.11
-      dayjs: 1.11.18
+      dagre-d3-es: 7.0.13
+      dayjs: 1.11.19
       dompurify: 3.3.0
       katex: 0.16.25
       khroma: 2.1.0
