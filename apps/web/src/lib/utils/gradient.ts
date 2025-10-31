@@ -1,4 +1,4 @@
-import { CategoryStyles, CategoryStyleTheme } from "../types/category";
+import { CategoryStyles, CategoryStyleTheme } from "@/lib/types/category";
 
 function generateGradientFromTheme(
   themeStyles: CategoryStyleTheme,

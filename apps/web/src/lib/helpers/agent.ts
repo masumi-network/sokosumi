@@ -22,7 +22,7 @@ import {
   type AgentDemoValues,
   type AgentLegal,
 } from "@/lib/types/agent";
-import { CategoryStyles } from "../types/category";
+import { CategoryStyles } from "@/lib/types/category";
 
 export function getAgentName(agent: Agent): string {
   return agent.overrideName ?? agent.name;

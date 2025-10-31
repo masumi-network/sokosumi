@@ -20,8 +20,6 @@ export function StarRating({
   size = "md",
   className,
 }: StarRatingProps) {
-  const t = useTranslations("Components.Agents.Rating");
-
   const textSizeClasses = {
     xs: "text-xs",
     sm: "text-sm",

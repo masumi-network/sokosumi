@@ -211,7 +211,6 @@ function AgentCard({
   const { resolvedTheme } = useTheme();
   const isClient = useIsClient();
 
-  const agentIcon = getAgentResolvedIcon(agent);
   const authorImage = getAgentAuthorResolvedImage(agent);
   const summary = getAgentSummary(agent);
   const isDefault = !size || size === "md";
