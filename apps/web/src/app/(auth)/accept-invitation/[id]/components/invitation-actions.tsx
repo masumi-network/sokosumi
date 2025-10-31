@@ -180,7 +180,7 @@ export default function InvitationActions({
         <p>{t("WithoutSession.ifYouAlreadyHaveAnAccount")}</p>
         {loginSearchParamsString ? (
           <Button variant="outline" asChild className="w-full">
-            <Link href={`/login?${loginSearchParamsString}`}>
+            <Link href={`/signin?${loginSearchParamsString}`}>
               {t("WithoutSession.login")}
             </Link>
           </Button>
@@ -192,7 +192,7 @@ export default function InvitationActions({
         <p>{t("WithoutSession.ifYouDontHaveAnAccount")}</p>
         {registerSearchParamsString ? (
           <Button variant="outline" asChild className="w-full">
-            <Link href={`/register?${registerSearchParamsString}`}>
+            <Link href={`/signup?${registerSearchParamsString}`}>
               {t("WithoutSession.register")}
             </Link>
           </Button>

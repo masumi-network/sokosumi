@@ -2,7 +2,9 @@ import { getSessionCookie } from "better-auth/cookies";
 import { NextRequest, NextResponse } from "next/server";
 
 const EXCLUDED_PATHS = [
+  "/signin",
   "/login",
+  "/signup",
   "/register",
   "/forgot-password",
   "/reset-password",
@@ -62,7 +64,7 @@ export async function proxy(request: NextRequest) {
     const currentUrl = pathname + searchParams;
     const returnUrl = encodeURIComponent(currentUrl);
     return NextResponse.redirect(
-      new URL(`/login?returnUrl=${returnUrl}`, request.url),
+      new URL(`/signin?returnUrl=${returnUrl}`, request.url),
     );
   }
 

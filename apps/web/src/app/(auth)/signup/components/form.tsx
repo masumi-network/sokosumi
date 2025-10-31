@@ -10,7 +10,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/auth/components/form";
-import { signUpFormData } from "@/auth/register/data";
+import { signUpFormData } from "@/auth/signup/data";
 import { AuthErrorCode, signUpEmail } from "@/lib/actions";
 import { FormData } from "@/lib/form";
 import { fireGTMEvent } from "@/lib/gtm-events";

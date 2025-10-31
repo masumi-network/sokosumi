@@ -24,7 +24,7 @@ export function useUnAuthenticatedErrorHandler(error: Error): {
         (error as UnAuthenticatedError).redirectUrl ??
         window.location.pathname + window.location.search;
       const returnUrl = encodeURIComponent(redirectUrl);
-      router.push(`/login?returnUrl=${returnUrl}`);
+      router.push(`/signin?returnUrl=${returnUrl}`);
     }
   }, [isUnAuthenticatedError, error, router]);
 

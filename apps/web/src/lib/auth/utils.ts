@@ -120,7 +120,7 @@ export async function getSessionOrRedirect(): Promise<Session> {
   const searchParams = headersList.get("x-search-params") ?? "";
   const currentUrl = pathname + searchParams;
   const returnUrl = encodeURIComponent(currentUrl);
-  redirect(`/login?returnUrl=${returnUrl}`);
+  redirect(`/signin?returnUrl=${returnUrl}`);
 }
 
 /**

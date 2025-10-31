@@ -10,7 +10,7 @@ import { useForm, useWatch } from "react-hook-form";
 import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/auth/components/form";
-import { signInFormData } from "@/auth/login/data";
+import { signInFormData } from "@/auth/signin/data";
 import { AuthErrorCode } from "@/lib/actions";
 import { authClient } from "@/lib/auth/auth.client";
 import { FormData } from "@/lib/form";
@@ -158,7 +158,7 @@ export default function SignInForm({
               {t("Register.message")}
             </span>
             <Link
-              href="/register"
+              href="/signup"
               className="text-primary text-sm font-medium hover:underline"
             >
               {t("Register.link")}
