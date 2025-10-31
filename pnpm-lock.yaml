@@ -373,8 +373,8 @@ importers:
         specifier: 30.2.0
         version: 30.2.0(@types/node@22.18.13)
       next-openapi-gen:
-        specifier: 0.8.1
-        version: 0.8.1
+        specifier: 0.8.2
+        version: 0.8.2
       postcss:
         specifier: 8.5.6
         version: 8.5.6
@@ -6054,8 +6054,8 @@ packages:
       typescript:
         optional: true
 
-  next-openapi-gen@0.8.1:
-    resolution: {integrity: sha512-rgxbXuTj8+c2xBrBHh1enr6tX6+RpLU63tHu/2ebgLC4ZkCnJxUG6ij9EoddMmVxhTJy4qsL8jr3lidNBtyo7Q==}
+  next-openapi-gen@0.8.2:
+    resolution: {integrity: sha512-NBJcl/lIol2tuphwWoZWAcPkwN8ftd8L7fegGQ7sBfVICOs9wWA6EFx3VfJxP9fQxbGD88yT0759wcuz12HcZQ==}
     engines: {node: '>=18.0.0'}
     hasBin: true
 
@@ -14052,13 +14052,14 @@ snapshots:
     optionalDependencies:
       typescript: 5.9.3
 
-  next-openapi-gen@0.8.1:
+  next-openapi-gen@0.8.2:
     dependencies:
       '@babel/parser': 7.28.5
       '@babel/traverse': 7.28.5
       '@babel/types': 7.28.5
       commander: 14.0.2
       fs-extra: 11.3.2
+      js-yaml: 4.1.0
       ora: 8.2.0
     transitivePeerDependencies:
       - supports-color
