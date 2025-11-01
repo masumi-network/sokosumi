@@ -6,7 +6,7 @@ import type {
   AgentWithRelations,
 } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   Carousel,
@@ -91,6 +91,7 @@ function Agents({
 }: AgentsProps) {
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
+  const carouselRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!api) {
@@ -112,14 +113,58 @@ function Agents({
     };
   }, [api]);
 
+  useEffect(() => {
+    const carouselElement = carouselRef.current;
+    if (!carouselElement || !api) {
+      return;
+    }
+
+    const handleWheel = (event: WheelEvent) => {
+      // Only handle wheel events on desktop (md and above)
+      if (window.innerWidth < 768) {
+        return;
+      }
+
+      // Check if this is primarily horizontal scroll (deltaX is significant)
+      // and ignore if it's primarily vertical scroll
+      const absDeltaX = Math.abs(event.deltaX);
+      const absDeltaY = Math.abs(event.deltaY);
+
+      // Only handle if horizontal scroll is significant and greater than vertical
+      if (absDeltaX > 0 && absDeltaX > absDeltaY) {
+        event.preventDefault();
+        if (event.deltaX > 0) {
+          api.scrollNext();
+        } else {
+          api.scrollPrev();
+        }
+      }
+      // Otherwise, let the event pass through for normal page scrolling
+    };
+
+    carouselElement.addEventListener("wheel", handleWheel, { passive: false });
+
+    return () => {
+      carouselElement.removeEventListener("wheel", handleWheel);
+    };
+  }, [api]);
+
   return (
     <div className={cn("w-full", className)}>
-      {/* Mobile Carousel */}
-      <div className="md:hidden">
-        <Carousel setApi={setApi} className="w-full">
-          <CarouselContent>
+      <div ref={carouselRef}>
+        <Carousel
+          setApi={setApi}
+          className="w-full"
+          opts={{
+            align: "start",
+          }}
+        >
+          <CarouselContent className="">
             {agents.map((agent) => (
-              <CarouselItem key={agent.id} className="basis-full">
+              <CarouselItem
+                key={agent.id}
+                className="basis-full md:basis-auto md:pr-2"
+              >
                 <AgentCard
                   agent={agent}
                   favoriteAgents={favoriteAgents}
@@ -130,38 +175,24 @@ function Agents({
             ))}
           </CarouselContent>
         </Carousel>
-        {/* Dots Indicator */}
-        {agents.length > 1 && (
-          <div className="mt-4 flex justify-center gap-2">
-            {agents.map((_, index) => (
-              <button
-                key={index}
-                type="button"
-                aria-label={`Go to slide ${index + 1}`}
-                onClick={() => api?.scrollTo(index)}
-                className={cn(
-                  "size-2 rounded-full transition-all",
-                  current === index ? "bg-primary" : "bg-muted-foreground/30",
-                )}
-              />
-            ))}
-          </div>
-        )}
       </div>
-
-      {/* Desktop Horizontal Scroll */}
-      <div className="hidden [-ms-overflow-style:none] [scrollbar-width:none] md:flex md:gap-6 md:overflow-x-auto md:pb-4 [&::-webkit-scrollbar]:hidden">
-        {agents.map((agent) => (
-          <div key={agent.id} className="shrink-0">
-            <AgentCard
-              agent={agent}
-              favoriteAgents={favoriteAgents}
-              ratingStats={ratingStatsMap[agent.id]}
-              className={agentCardClassName}
+      {/* Dots Indicator - Mobile Only */}
+      {agents.length > 1 && (
+        <div className="mt-4 flex justify-center gap-2 md:hidden">
+          {agents.map((_, index) => (
+            <button
+              key={index}
+              type="button"
+              aria-label={`Go to slide ${index + 1}`}
+              onClick={() => api?.scrollTo(index)}
+              className={cn(
+                "size-2 rounded-full transition-all",
+                current === index ? "bg-primary" : "bg-muted-foreground/30",
+              )}
             />
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

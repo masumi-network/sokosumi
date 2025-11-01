@@ -1,20 +1,8 @@
 "use client";
 
-import { CirclePlus } from "lucide-react";
-import { useTranslations } from "next-intl";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { useIsMobile } from "@/hooks/use-mobile";
 import type { Category } from "@/lib/types/category";
 import { cn } from "@/lib/utils";
 
@@ -29,121 +17,201 @@ export default function Categories({
   onApplyCategories,
   categories: validCategories,
 }: CategoriesProps) {
-  const t = useTranslations("App.Agents.FilterSection");
-  const isMobile = useIsMobile();
-
-  const [categories, setCategories] = useState<string[]>(appliedCategories);
-  const [open, setOpen] = useState(false);
-
-  const handleOpenChange = useCallback(
-    (newOpen: boolean) => {
-      setOpen(newOpen);
-      // Reset categories to applied categories when opening the dropdown
-      if (newOpen) {
-        setCategories(appliedCategories);
-      }
-    },
-    [appliedCategories],
-  );
-
-  const handleCheckCategory = useCallback(
-    (categorySlug: string, checked: boolean) => {
-      if (checked) {
-        setCategories([...categories, categorySlug]);
-      } else {
-        setCategories(categories.filter((c) => c !== categorySlug));
-      }
-    },
-    [categories],
-  );
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+  const [hasDragged, setHasDragged] = useState(false);
 
   const handleToggleCategory = useCallback(
-    (category: string) => {
+    (category: string, e?: React.MouseEvent<HTMLButtonElement>) => {
+      if (hasDragged) {
+        e?.preventDefault();
+        return;
+      }
+
       if (appliedCategories.includes(category)) {
         onApplyCategories(appliedCategories.filter((c) => c !== category));
       } else {
         onApplyCategories([...appliedCategories, category]);
       }
     },
-    [appliedCategories, onApplyCategories],
+    [appliedCategories, onApplyCategories, hasDragged],
   );
+
+  const startDrag = useCallback((pageX: number) => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    setIsDragging(true);
+    setHasDragged(false);
+    setStartX(pageX - container.offsetLeft);
+    setScrollLeft(container.scrollLeft);
+    container.style.cursor = "grabbing";
+    container.style.userSelect = "none";
+  }, []);
+
+  const handleMouseDown = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      startDrag(e.pageX);
+    },
+    [startDrag],
+  );
+
+  const handleButtonMouseDown = useCallback(
+    (e: React.MouseEvent<HTMLButtonElement>) => {
+      e.stopPropagation();
+      startDrag(e.pageX);
+    },
+    [startDrag],
+  );
+
+  const handleButtonTouchStart = useCallback(
+    (e: React.TouchEvent<HTMLButtonElement>) => {
+      const container = scrollContainerRef.current;
+      if (!container) return;
+
+      setIsDragging(true);
+      setHasDragged(false);
+      setStartX(e.touches[0].pageX - container.offsetLeft);
+      setScrollLeft(container.scrollLeft);
+    },
+    [],
+  );
+
+  const handleMouseMove = useCallback(
+    (e: React.MouseEvent<HTMLDivElement>) => {
+      if (!isDragging) return;
+
+      const container = scrollContainerRef.current;
+      if (!container) return;
+
+      e.preventDefault();
+      const x = e.pageX - container.offsetLeft;
+      const walk = (x - startX) * 2;
+      container.scrollLeft = scrollLeft - walk;
+
+      if (Math.abs(walk) > 5) {
+        setHasDragged(true);
+      }
+    },
+    [isDragging, startX, scrollLeft],
+  );
+
+  const handleMouseUp = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    setIsDragging(false);
+    container.style.cursor = "grab";
+    container.style.userSelect = "";
+
+    setTimeout(() => {
+      setHasDragged(false);
+    }, 0);
+  }, []);
+
+  const handleMouseLeave = useCallback(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    setIsDragging(false);
+    container.style.cursor = "grab";
+    container.style.userSelect = "";
+
+    setTimeout(() => {
+      setHasDragged(false);
+    }, 0);
+  }, []);
+
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent<HTMLDivElement>) => {
+      const container = scrollContainerRef.current;
+      if (!container) return;
+
+      setIsDragging(true);
+      setHasDragged(false);
+      setStartX(e.touches[0].pageX - container.offsetLeft);
+      setScrollLeft(container.scrollLeft);
+    },
+    [],
+  );
+
+  const handleTouchMove = useCallback(
+    (e: React.TouchEvent<HTMLDivElement>) => {
+      if (!isDragging) return;
+
+      const container = scrollContainerRef.current;
+      if (!container) return;
+
+      const x = e.touches[0].pageX - container.offsetLeft;
+      const walk = (x - startX) * 2;
+      container.scrollLeft = scrollLeft - walk;
+
+      if (Math.abs(walk) > 5) {
+        setHasDragged(true);
+      }
+    },
+    [isDragging, startX, scrollLeft],
+  );
+
+  const handleTouchEnd = useCallback(() => {
+    setIsDragging(false);
+
+    setTimeout(() => {
+      setHasDragged(false);
+    }, 0);
+  }, []);
+
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    container.style.cursor = "grab";
+
+    return () => {
+      container.style.cursor = "";
+      container.style.userSelect = "";
+    };
+  }, []);
 
   if (validCategories.length === 0) {
     return null;
   }
 
-  // Mobile: inline buttons with horizontal scroll
-  if (isMobile) {
-    return (
-      <div className="overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <div className="flex gap-2">
-          {validCategories.map((category) => {
-            const isSelected = appliedCategories.includes(category.slug);
-            return (
-              <Button
-                key={category.slug}
-                variant={isSelected ? "default" : "outline"}
-                size="default"
-                onClick={() => handleToggleCategory(category.slug)}
-                className={cn(
-                  "shrink-0 text-sm",
-                  isSelected && "bg-primary text-primary-foreground",
-                )}
-              >
-                {category.name}
-              </Button>
-            );
-          })}
-        </div>
-      </div>
-    );
-  }
-
-  // Desktop: dropdown menu
   return (
-    <DropdownMenu open={open} onOpenChange={handleOpenChange}>
-      <DropdownMenuTrigger asChild>
-        <Button
-          variant="outline"
-          className="items-center gap-2 border-dashed text-base"
-        >
-          {appliedCategories.length === 0 ? (
-            <CirclePlus className="h-4 w-4" />
-          ) : (
-            <Badge>{appliedCategories.length}</Badge>
-          )}
-          {t("categories")}
-        </Button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-56">
-        <DropdownMenuLabel>{t("selectCategories")}</DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <div className="max-h-80 overflow-y-auto">
-          {validCategories.map((category) => (
-            <DropdownMenuCheckboxItem
+    <div
+      ref={scrollContainerRef}
+      className="overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseLeave}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+    >
+      <div className="flex gap-2">
+        {validCategories.map((category) => {
+          const isSelected = appliedCategories.includes(category.slug);
+          return (
+            <Button
               key={category.slug}
-              onSelect={(e) => e.preventDefault()}
-              checked={categories.includes(category.slug)}
-              onCheckedChange={(checked) =>
-                handleCheckCategory(category.slug, checked)
-              }
+              variant={isSelected ? "default" : "outline"}
+              size="default"
+              onMouseDown={handleButtonMouseDown}
+              onTouchStart={handleButtonTouchStart}
+              onClick={(e) => handleToggleCategory(category.slug, e)}
+              className={cn(
+                "shrink-0 text-sm",
+                isSelected && "bg-primary text-primary-foreground",
+              )}
             >
-              <span className="truncate">{category.name}</span>
-            </DropdownMenuCheckboxItem>
-          ))}
-        </div>
-        <DropdownMenuSeparator />
-        <Button
-          className="w-full"
-          variant="primary"
-          onClick={() => {
-            onApplyCategories(categories);
-            handleOpenChange(false);
-          }}
-        >
-          {t("applyCategories")}
-        </Button>
-      </DropdownMenuContent>
-    </DropdownMenu>
+              {category.name}
+            </Button>
+          );
+        })}
+      </div>
+    </div>
   );
 }

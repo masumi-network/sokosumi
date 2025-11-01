@@ -48,22 +48,24 @@ function FilterSectionInner({ categories }: FilterSectionProps) {
 
       <div className="flex flex-col gap-4 sm:flex-row">
         <Input
-          className="max-w-full min-w-36 md:max-w-64"
+          className="max-w-full min-w-36 shrink-0 md:max-w-64"
           placeholder={t("searchPlaceholder")}
           defaultValue={query}
           onChange={(e) => debouncedSetQuery(e.target.value)}
         />
-        <div className="flex gap-4">
-          <Categories
-            appliedCategories={appliedCategories}
-            onApplyCategories={setAppliedCategories}
-            categories={categories}
-          />
+        <div className="flex min-w-0 flex-1 gap-4">
+          <div className="min-w-0 flex-1">
+            <Categories
+              appliedCategories={appliedCategories}
+              onApplyCategories={setAppliedCategories}
+              categories={categories}
+            />
+          </div>
           {appliedCategories.length > 0 && (
             <Button
               variant="ghost"
               onClick={resetFilters}
-              className="gap-2 text-lg"
+              className="shrink-0 gap-2 text-lg"
               disabled={!query && appliedCategories.length === 0}
             >
               {!isMobile && t("reset")}
