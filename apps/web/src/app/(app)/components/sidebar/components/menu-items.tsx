@@ -44,7 +44,7 @@ export default function MenuItems() {
 
   return (
     <SidebarGroup className="w-full">
-      <SidebarGroupContent className="mt-2">
+      <SidebarGroupContent>
         <SidebarMenu>
           {items.map(({ key, href, label, Icon, hasIndicator }) => {
             const isActive = pathname === href;

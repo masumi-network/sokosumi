@@ -78,13 +78,21 @@ export default function AgentListsClient({
               className="group/collapsible"
             >
               <SidebarGroup key={groupKey} className="w-72 md:w-64">
-                <SidebarGroupLabel className="text-primary text-sm" asChild>
+                <SidebarGroupLabel
+                  className="text-primary text-sm group-data-[collapsible=icon]:hidden"
+                  asChild
+                >
                   <CollapsibleTrigger>
                     <IconComponent className="mr-2 size-4" aria-hidden />
                     {title}
                     <ChevronDown className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-180" />
                   </CollapsibleTrigger>
                 </SidebarGroupLabel>
+                <span className="text-primary preserve-aspect-ratio-[xMidYMid_meet] hidden p-2 group-data-[collapsible=icon]:block">
+                  <CollapsibleTrigger asChild>
+                    <IconComponent className="mr-2 size-4" aria-hidden />
+                  </CollapsibleTrigger>
+                </span>
                 <CollapsibleContent>
                   <SidebarGroupContent className="mt-2">
                     {agents.length > 0 ? (
