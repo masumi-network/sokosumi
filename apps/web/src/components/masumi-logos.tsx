@@ -58,7 +58,7 @@ function SokosumiIcon({ className, ...props }: IconProps) {
       width={32}
       height={32}
       aria-label="Sokosumi Icon"
-      className={cn("size-6", className)}
+      className={cn("animate-fade-in animate-rotate-once", className)}
       {...props}
     >
       <path
