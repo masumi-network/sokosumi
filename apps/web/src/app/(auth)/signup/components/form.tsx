@@ -67,7 +67,7 @@ export default function SignUpForm({ prefilledEmail }: SignUpFormProps) {
     });
 
     if (result.ok) {
-      fireGTMEvent.signUp();
+      fireGTMEvent.signUp("credential");
       toast.success(t("success"));
       router.push("/login");
     } else {
