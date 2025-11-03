@@ -98,7 +98,7 @@ export default function AgentListsClient({
                     <ChevronDown className="ml-auto transition-transform group-data-[state=open]/collapsible:rotate-180" />
                   </CollapsibleTrigger>
                 </SidebarGroupLabel>
-                <span className="text-primary preserve-aspect-ratio-[xMidYMid_meet] hidden p-2 group-data-[collapsible=icon]:block">
+                <span className="text-primary preserve-aspect-ratio-[xMidYMid_meet] hidden p-2 transition-all duration-200 group-data-[collapsible=icon]:block group-data-[collapsible=icon]:pl-3!">
                   <IconComponent className="mr-2 size-4" aria-hidden />
                 </span>
                 <CollapsibleContent>

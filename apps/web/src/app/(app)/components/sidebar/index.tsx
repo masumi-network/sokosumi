@@ -28,7 +28,7 @@ export default function Sidebar({ session }: SidebarProps) {
   return (
     <ShadcnSidebar collapsible="icon">
       <SidebarHeader className="h-[64px] border-b">
-        <div className="flex items-center justify-between gap-2 p-2 group-data-[collapsible=icon]:pt-3! group-data-[collapsible=icon]:pl-1!">
+        <div className="flex items-center justify-between gap-2 p-2 group-data-[collapsible=icon]:pt-3! group-data-[collapsible=icon]:pl-2!">
           <SheetClose asChild>
             <Link href="/">
               <span className="group-data-[collapsible=icon]:hidden">
