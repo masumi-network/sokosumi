@@ -7,10 +7,11 @@ import { ok } from "../helpers/response";
 const router = new Hono();
 
 router.get("/users/:id", async (c) => {
+  console.log("test2");
   const id = c.req.param("id");
   const user = await userRepository.getUserById(id);
   if (!user) {
-    throw notFound("User not found", { code: "USER_NOT_FOUND" });
+    notFound("User not found");
   }
 
   return ok(c, { user });

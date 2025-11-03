@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
+import { logger } from "hono/logger";
 
 import {
   type ErrorOptions,
@@ -9,9 +10,11 @@ import {
 import agentsRouter from "./routes/agents";
 
 const app = new Hono();
+app.use(logger());
 
 // Centralized error handler
 app.onError((error, c) => {
+  console.log("test");
   if (error instanceof HTTPException) {
     const status = error.status;
     const options = error.cause as ErrorOptions | undefined;
