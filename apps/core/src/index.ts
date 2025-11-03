@@ -1,7 +1,9 @@
 import { Hono } from "hono";
+import { bearerAuth } from "hono/bearer-auth";
 import { HTTPException } from "hono/http-exception";
 import { logger } from "hono/logger";
 
+import { env } from "./config/env";
 import {
   type ErrorOptions,
   type ErrorResponse,
@@ -12,7 +14,7 @@ import usersRouter from "./routes/users";
 
 const app = new Hono().basePath("/api/v1");
 app.use(logger());
-
+app.use(bearerAuth({ token: env.API_KEY }));
 // Centralized error handler
 app.onError((error, c) => {
   if (error instanceof HTTPException) {
@@ -52,6 +54,6 @@ app.route("/agents", agentsRouter);
 app.route("/users", usersRouter);
 
 export default {
-  port: 3001,
+  port: env.PORT,
   fetch: app.fetch,
 };
