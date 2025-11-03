@@ -25,11 +25,6 @@ export type SuccessResponse<T> = z.infer<typeof successResponseSchema> & {
   timestamp: string;
 };
 
-export interface ErrorResponse {
-  success: false;
-  error: { code: string; message: string; details?: unknown };
-}
-
 export const ok = <T>(c: Context, data: T) =>
   c.json<SuccessResponse<T>>({
     success: true,
