@@ -1,11 +1,7 @@
 import { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 
-import {
-  type ErrorOptions,
-  type ErrorResponse,
-  getErrorName,
-} from "./error";
+import { type ErrorOptions, type ErrorResponse, getErrorName } from "./error";
 
 /**
  * Centralized error handler for Hono app
@@ -25,6 +21,7 @@ export function errorHandler(error: Error, c: Context): Response {
         timestamp: new Date().toISOString(),
         requestId: options?.requestId || c.req.header("x-request-id"),
         path: options?.path || c.req.path,
+        method: options?.method || c.req.method,
       },
     };
 
@@ -43,4 +40,3 @@ export function errorHandler(error: Error, c: Context): Response {
     500,
   );
 }
-

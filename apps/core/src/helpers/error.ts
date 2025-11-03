@@ -13,6 +13,7 @@ export interface ErrorResponse {
     timestamp: string;
     requestId?: string;
     path?: string;
+    method?: string;
   };
 }
 
@@ -24,6 +25,7 @@ export interface ErrorOptions {
   details?: unknown[];
   requestId?: string;
   path?: string;
+  method?: string;
 }
 
 /**
