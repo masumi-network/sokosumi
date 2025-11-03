@@ -41,7 +41,14 @@ export function getAgentResolvedIcon(agent: Agent): string | null {
   if (!agent.icon) {
     return null;
   }
-  return ipfsUrlResolver(agent.icon);
+  const resolvedUrl = ipfsUrlResolver(agent.icon);
+
+  try {
+    new URL(resolvedUrl);
+    return resolvedUrl;
+  } catch (_error) {
+    return null;
+  }
 }
 
 export function getAgentTags(agent: AgentWithTags): string[] {
