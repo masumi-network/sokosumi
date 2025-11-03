@@ -1,25 +1,20 @@
 version: 2
 updates:
-  # Root directory - workspace-level dev dependencies
+  # Root directory - workspace-level tooling only
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "daily"
       time: "06:00"
       timezone: "Europe/Berlin"
-    groups:
-      eslint:
-        patterns:
-          - "eslint"
-          - "eslint-config-prettier"
-          - "eslint-plugin-*"
-      prettier:
-        patterns:
-          - "prettier"
-      typescript:
-        patterns:
-          - "typescript-eslint"
-    open-pull-requests-limit: 10
+    allow:
+      - dependency-name: "eslint"
+      - dependency-name: "eslint-config-*"
+      - dependency-name: "eslint-plugin-*"
+      - dependency-name: "husky"
+      - dependency-name: "prettier"
+      - dependency-name: "typescript-eslint"
+    open-pull-requests-limit: 5
     commit-message:
       prefix: "chore(deps)"
 
@@ -47,6 +42,10 @@ updates:
           - "react-*"
           - "embla-carousel-react"
           - "vaul"
+        exclude-patterns:
+          - "react"
+          - "react-dom"
+          - "react-hook-form"
       radix:
         patterns:
           - "@radix-ui/*"
