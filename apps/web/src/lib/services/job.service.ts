@@ -199,7 +199,11 @@ export const jobService = (() => {
   ): JobFailureNotificationEmailProps {
     return {
       network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
+      agentId: job.agentId,
+      agentBlockchainIdentifier: job.agent.blockchainIdentifier,
+      agentName: job.agent.name,
       jobId: job.id,
+      jobBlockchainIdentifier: job.blockchainIdentifier,
       onChainStatus: job.onChainStatus,
       agentStatus: job.agentJobStatus,
       input: job.input,
@@ -1034,6 +1038,7 @@ export const jobService = (() => {
       },
     );
 
+    await dispatchJobFailureNotification(job);
     // if job status changed, publish to job status to channel
     if (newJobStatus !== oldJobStatus) {
       console.log(
