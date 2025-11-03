@@ -146,6 +146,9 @@ importers:
       docx:
         specifier: 9.5.1
         version: 9.5.1
+      dompurify:
+        specifier: 3.3.0
+        version: 3.3.0
       dotenv:
         specifier: 17.2.3
         version: 17.2.3

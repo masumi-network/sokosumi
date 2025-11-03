@@ -4,6 +4,7 @@ import { cva, VariantProps } from "class-variance-authority";
 import Image from "next/image";
 import { useTranslations } from "next-intl";
 import { useTheme } from "next-themes";
+import { useMemo } from "react";
 
 import ClickBlocker from "@/components/click-blocker";
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ import {
 } from "@/lib/helpers/agent";
 import { convertCentsToCredits } from "@/lib/helpers/credit";
 import { cn, generateGradientBorder } from "@/lib/utils";
+import { getCategoryColor } from "@/lib/utils/theme";
 
 import { AgentDetailLink } from "./agent-detail-link";
 import { AgentHireButton } from "./agent-hire-button";
@@ -216,21 +218,16 @@ function AgentCard({
   const buttonSize = "sm";
   const categoryStyles = getAgentCategoryStyles(agent);
 
-  // Extract color based on new structure or legacy structure
-  let categoryColor = "text-default-foreground";
-  if (categoryStyles.light || categoryStyles.dark) {
-    // const themeStyles = currentTheme === "dark" ? categoryStyles.dark : categoryStyles.light;
-    categoryColor =
-      categoryStyles.light?.color ||
-      categoryStyles.dark?.color ||
-      categoryColor;
-  }
-
   // Determine the current theme and generate gradient border only on client
   const currentTheme = isClient && resolvedTheme === "dark" ? "dark" : "light";
-  const gradientBorder = isClient
-    ? generateGradientBorder(categoryStyles, currentTheme)
-    : null;
+  const gradientBorder = useMemo(
+    () =>
+      isClient ? generateGradientBorder(categoryStyles, currentTheme) : null,
+    [isClient, categoryStyles, currentTheme],
+  );
+
+  // Extract color based on theme-aware logic
+  const categoryColor = getCategoryColor(categoryStyles, currentTheme);
 
   // Generate border style
   const borderStyle =
@@ -329,7 +326,7 @@ function AgentCard({
                   alt={`${getAgentName(agent)} author`}
                   width={100}
                   height={24}
-                  className="h-4 w-auto object-contain"
+                  className="h-4 w-auto object-contain brightness-0 dark:brightness-100"
                 />
               </div>
             )}
@@ -347,15 +344,9 @@ function AgentCard({
   );
 
   return (
-    <>
-      <AgentCardWrapper agentId={agent.id} isLink={isDefault}>
-        {isClient && gradientBorder ? (
-          <div className="">{cardContent}</div>
-        ) : (
-          cardContent
-        )}
-      </AgentCardWrapper>
-    </>
+    <AgentCardWrapper agentId={agent.id} isLink={isDefault}>
+      {cardContent}
+    </AgentCardWrapper>
   );
 }
 

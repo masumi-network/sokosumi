@@ -6,17 +6,12 @@ import type {
   AgentWithRelations,
 } from "@sokosumi/database";
 import { useTranslations } from "next-intl";
-import { useEffect, useRef, useState } from "react";
 
-import {
-  Carousel,
-  type CarouselApi,
-  CarouselContent,
-  CarouselItem,
-} from "@/components/ui/carousel";
+import { CarouselItem } from "@/components/ui/carousel";
 import { cn } from "@/lib/utils";
 
 import { AgentCard, AgentCardSkeleton } from "./agent-card";
+import { AgentCarousel } from "./agent-carousel";
 
 function AgentsNotAvailable(): React.JSX.Element {
   const t = useTranslations("Components.Agents");
@@ -89,111 +84,26 @@ function Agents({
   className,
   agentCardClassName,
 }: AgentsProps) {
-  const [api, setApi] = useState<CarouselApi>();
-  const [current, setCurrent] = useState(0);
-  const carouselRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!api) {
-      return;
-    }
-
-    const handleSelect = () => {
-      setCurrent(api.selectedScrollSnap());
-    };
-
-    api.on("select", handleSelect);
-
-    requestAnimationFrame(() => {
-      handleSelect();
-    });
-
-    return () => {
-      api.off("select", handleSelect);
-    };
-  }, [api]);
-
-  useEffect(() => {
-    const carouselElement = carouselRef.current;
-    if (!carouselElement || !api) {
-      return;
-    }
-
-    const handleWheel = (event: WheelEvent) => {
-      // Only handle wheel events on desktop (md and above)
-      if (window.innerWidth < 768) {
-        return;
-      }
-
-      // Check if this is primarily horizontal scroll (deltaX is significant)
-      // and ignore if it's primarily vertical scroll
-      const absDeltaX = Math.abs(event.deltaX);
-      const absDeltaY = Math.abs(event.deltaY);
-
-      // Only handle if horizontal scroll is significant and greater than vertical
-      if (absDeltaX > 0 && absDeltaX > absDeltaY) {
-        event.preventDefault();
-        if (event.deltaX > 0) {
-          api.scrollNext();
-        } else {
-          api.scrollPrev();
-        }
-      }
-      // Otherwise, let the event pass through for normal page scrolling
-    };
-
-    carouselElement.addEventListener("wheel", handleWheel, { passive: false });
-
-    return () => {
-      carouselElement.removeEventListener("wheel", handleWheel);
-    };
-  }, [api]);
-
   return (
-    <div className={cn("w-full", className)}>
-      <div ref={carouselRef}>
-        <Carousel
-          setApi={setApi}
-          className="w-full"
-          opts={{
-            align: "start",
-          }}
+    <AgentCarousel
+      className={className}
+      itemCount={agents.length}
+      itemIds={agents.map((agent) => agent.id)}
+    >
+      {agents.map((agent) => (
+        <CarouselItem
+          key={agent.id}
+          className="basis-full md:basis-auto md:pr-2"
         >
-          <CarouselContent className="">
-            {agents.map((agent) => (
-              <CarouselItem
-                key={agent.id}
-                className="basis-full md:basis-auto md:pr-2"
-              >
-                <AgentCard
-                  agent={agent}
-                  favoriteAgents={favoriteAgents}
-                  ratingStats={ratingStatsMap[agent.id]}
-                  className={agentCardClassName}
-                />
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-        </Carousel>
-      </div>
-      {/* Dots Indicator - Mobile Only */}
-      {agents.length > 1 && (
-        <div className="mt-4 flex justify-center gap-2 md:hidden">
-          {agents.map((_, index) => (
-            <button
-              key={index}
-              type="button"
-              aria-label={`Go to slide ${index + 1}`}
-              onClick={() => api?.scrollTo(index)}
-              className={cn(
-                "size-2 rounded-full transition-all",
-                current === index ? "bg-primary" : "bg-muted-foreground/30",
-              )}
-            />
-          ))}
-        </div>
-      )}
-    </div>
+          <AgentCard
+            agent={agent}
+            favoriteAgents={favoriteAgents}
+            ratingStats={ratingStatsMap[agent.id]}
+            className={agentCardClassName}
+          />
+        </CarouselItem>
+      ))}
+    </AgentCarousel>
   );
 }
 

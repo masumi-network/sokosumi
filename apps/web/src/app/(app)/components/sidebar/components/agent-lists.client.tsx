@@ -21,6 +21,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
 import { JobIndicatorStatus, makeAgentJobsChannel } from "@/lib/ably";
@@ -54,9 +55,18 @@ export default function AgentListsClient({
   userId,
 }: AgentListsClientProps) {
   const t = useTranslations("App.Sidebar.Content.AgentLists");
+  const { open, isMobile, toggleSidebar } = useSidebar();
 
   // [agentId] in params
   const { agentId } = useParams();
+
+  const handleAgentClick = () => {
+    // Auto-collapse sidebar on desktop if it's expanded
+    // On mobile, SheetClose already handles closing the Sheet
+    if (!isMobile && open) {
+      toggleSidebar();
+    }
+  };
 
   return (
     <DynamicAblyProvider>
@@ -89,9 +99,7 @@ export default function AgentListsClient({
                   </CollapsibleTrigger>
                 </SidebarGroupLabel>
                 <span className="text-primary preserve-aspect-ratio-[xMidYMid_meet] hidden p-2 group-data-[collapsible=icon]:block">
-                  <CollapsibleTrigger asChild>
-                    <IconComponent className="mr-2 size-4" aria-hidden />
-                  </CollapsibleTrigger>
+                  <IconComponent className="mr-2 size-4" aria-hidden />
                 </span>
                 <CollapsibleContent>
                   <SidebarGroupContent className="mt-2">
@@ -116,7 +124,10 @@ export default function AgentListsClient({
                                 })}
                               >
                                 <SheetClose asChild>
-                                  <Link href={`/agents/${agent.id}/jobs`}>
+                                  <Link
+                                    href={`/agents/${agent.id}/jobs`}
+                                    onClick={handleAgentClick}
+                                  >
                                     <div className="group/agent-menu flex w-full items-center gap-2">
                                       <AgentIcon
                                         agent={agent}

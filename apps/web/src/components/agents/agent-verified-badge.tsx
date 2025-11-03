@@ -16,7 +16,7 @@ function AgentVerifiedBadge({ className }: AgentVerifiedBadgeProps) {
     >
       <ShieldCheck
         strokeWidth={1}
-        className="text-agent-verified-foreground h-6 w-6"
+        className="text-agent-verified-foreground size-6"
       />
     </div>
   );

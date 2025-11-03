@@ -11,17 +11,6 @@ export interface AgentCategoryGroup {
   agents: AgentWithCreditsPrice[];
 }
 
-/**
- * Groups agents by category in a specific priority order:
- * 1. Featured Agents (featured-agents slug)
- * 2. New Agents (isNew === true)
- * 3. Other Categories (all remaining category slugs)
- * 4. Others (agents with no categories)
- *
- * @param agents - Array of agents to group
- * @param categories - Array of category objects with slug and name
- * @returns Array of grouped agents with category info
- */
 export function groupAgentsByCategory(
   agents: AgentWithCreditsPrice[],
   categories: Category[],

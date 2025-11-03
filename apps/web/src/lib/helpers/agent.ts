@@ -17,6 +17,7 @@ import {
   jobStatusResponseSchema,
   type PricingAmountsSchemaType,
 } from "@/lib/schemas";
+import { categoryStylesSchema } from "@/lib/schemas/category";
 import {
   type AgentDemoData,
   type AgentDemoValues,
@@ -232,20 +233,17 @@ export function getAgentCategoryStyles(
 
   try {
     // Parse JSON string if styles is a string, otherwise use as-is
-    let parsedStyles: CategoryStyles;
+    let rawStyles: unknown;
     if (typeof firstCategory.styles === "string") {
-      parsedStyles = JSON.parse(firstCategory.styles) as CategoryStyles;
+      rawStyles = JSON.parse(firstCategory.styles);
     } else {
-      parsedStyles = firstCategory.styles as CategoryStyles;
+      rawStyles = firstCategory.styles;
     }
 
-    // Validate that parsed styles has the expected structure
-    if (
-      parsedStyles &&
-      typeof parsedStyles === "object" &&
-      (parsedStyles.light || parsedStyles.dark)
-    ) {
-      return parsedStyles;
+    // Validate with Zod schema
+    const validationResult = categoryStylesSchema.safeParse(rawStyles);
+    if (validationResult.success) {
+      return validationResult.data;
     }
 
     return DEFAULT_CATEGORY_STYLES;

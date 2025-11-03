@@ -1,3 +1,4 @@
+import DOMPurify from "dompurify";
 import Image from "next/image";
 import { CSSProperties, useEffect, useMemo, useState } from "react";
 
@@ -60,31 +61,32 @@ export function ResolverSVGIcon({
     }
 
     function sanitizeAndColorize(svg: string): string {
-      let s = svg
-        .replace(/<script[\s\S]*?<\/script>/gi, "")
-        .replace(/<style[\s\S]*?<\/style>/gi, "")
-        .replace(/\son\w+=(?:"[^"]*"|'[^']*')/gi, "");
+      const sanitized = DOMPurify.sanitize(svg, {
+        USE_PROFILES: { svg: true },
+        KEEP_CONTENT: true,
+        IN_PLACE: false,
+      });
 
-      // Replace all fill and stroke attributes throughout the SVG with currentColor
-      s = s.replace(
+      let s = sanitized.replace(
         /\s(fill|stroke)=("|')([^"']*)\2/gi,
-        (match, attr, quote, value) => {
-          // Only replace if the color is not "none"
+        (match: string, attr: string, quote: string, value: string): string => {
           if (value.trim().toLowerCase() !== "none") {
             return ` ${attr}="currentColor"`;
           }
-          return match; // leave as is if "none"
+          return match;
         },
       );
 
-      // Clean SVG tag: remove width/height, but don't add fill/stroke
-      s = s.replace(/<svg\b([^>]*)>/i, (match, attrs) => {
-        const cleaned = String(attrs).replace(
-          /\s(width|height)=("|')[^"']*\2/gi,
-          "",
-        );
-        return `<svg${cleaned} preserveAspectRatio="xMidYMid meet">`;
-      });
+      s = s.replace(
+        /<svg\b([^>]*)>/i,
+        (match: string, attrs: string): string => {
+          const cleaned = String(attrs).replace(
+            /\s(width|height)=("|')[^"']*\2/gi,
+            "",
+          );
+          return `<svg${cleaned} preserveAspectRatio="xMidYMid meet">`;
+        },
+      );
 
       return s;
     }
@@ -114,6 +116,7 @@ export function ResolverSVGIcon({
         role={alt ? "img" : undefined}
         aria-label={alt || undefined}
         aria-hidden={alt ? undefined : true}
+        style={style}
         dangerouslySetInnerHTML={{ __html: svgState.markup }}
       />
     );
@@ -129,7 +132,6 @@ export function ResolverSVGIcon({
         height={size}
         className={cn("shrink-0", className)}
         style={style}
-        unoptimized
       />
     );
   } else {
