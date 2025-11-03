@@ -45,7 +45,7 @@ export default function Sidebar({ session }: SidebarProps) {
           <CustomTrigger className="group-data-[collapsible=icon]:hidden" />
         </div>
       </SidebarHeader>
-      <SidebarContent className="min-h-0 w-full flex-1 pt-4">
+      <SidebarContent className="min-h-0 w-full flex-1">
         <MenuItems />
         <SidebarSeparator className="mx-0" />
         <AgentLists userId={session.user.id} />
