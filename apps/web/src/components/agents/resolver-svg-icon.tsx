@@ -1,6 +1,6 @@
 import DOMPurify from "dompurify";
 import Image from "next/image";
-import { CSSProperties, ReactNode, useEffect, useState } from "react";
+import { CSSProperties, useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -10,7 +10,6 @@ interface ResolverSVGIconProps {
   className?: string;
   size?: number;
   style?: CSSProperties;
-  fallback?: ReactNode;
 }
 
 export function ResolverSVGIcon({
@@ -19,7 +18,6 @@ export function ResolverSVGIcon({
   className,
   size = 24,
   style,
-  fallback = null,
 }: ResolverSVGIconProps) {
   const [svgState, setSvgState] = useState<{
     url: string;
@@ -88,7 +86,7 @@ export function ResolverSVGIcon({
     }
 
     fetchSvgOrNull(svgUrl).then((svg) => {
-      if (!isMounted) return;
+      if (!isMounted) return null;
       if (svg) {
         setSvgState({ url: svgUrl, markup: sanitizeAndColorize(svg) });
       } else {
@@ -103,23 +101,23 @@ export function ResolverSVGIcon({
     };
   }, [svgUrl]);
 
-  // Inline SVG path
-  const shouldRenderInline = svgState && svgState.url === svgUrl;
-  if (shouldRenderInline) {
-    return (
-      <span
-        className={cn("inline-block shrink-0", className)}
-        role={alt ? "img" : undefined}
-        aria-label={alt || undefined}
-        aria-hidden={alt ? undefined : true}
-        style={style}
-        dangerouslySetInnerHTML={{ __html: svgState.markup }}
-      />
-    );
-  }
-
-  // Fallback to raster/external image
   if (svgUrl) {
+    // Inline SVG path
+    const shouldRenderInline = svgState && svgState.url === svgUrl;
+    if (shouldRenderInline) {
+      return (
+        <span
+          className={cn("inline-block shrink-0", className)}
+          role={alt ? "img" : undefined}
+          aria-label={alt || undefined}
+          aria-hidden={alt ? undefined : true}
+          style={style}
+          dangerouslySetInnerHTML={{ __html: svgState.markup }}
+        />
+      );
+    }
+
+    // Fallback to raster/external image
     return (
       <Image
         src={svgUrl}
@@ -128,9 +126,10 @@ export function ResolverSVGIcon({
         height={size}
         className={cn("shrink-0", className)}
         style={style}
+        unoptimized
       />
     );
   }
 
-  return <>{fallback}</>;
+  return undefined;
 }
