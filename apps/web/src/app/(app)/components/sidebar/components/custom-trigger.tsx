@@ -14,13 +14,9 @@ import { cn } from "@/lib/utils";
  */
 interface CustomTriggerProps {
   when?: "visible" | "invisible" | "always";
-  className?: string;
 }
 
-export default function CustomTrigger({
-  when = "always",
-  className,
-}: CustomTriggerProps) {
+export default function CustomTrigger({ when = "always" }: CustomTriggerProps) {
   const { open, openMobile, isMobile, toggleSidebar } = useSidebar();
   const isVisible = isMobile ? openMobile : open;
 
@@ -32,13 +28,9 @@ export default function CustomTrigger({
       variant="ghost"
       size="icon"
       onClick={toggleSidebar}
-      className={cn(
-        "hidden",
-        {
-          flex: showTrigger,
-        },
-        className,
-      )}
+      className={cn("hidden", {
+        flex: showTrigger,
+      })}
     >
       <PanelLeft />
     </Button>
