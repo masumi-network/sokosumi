@@ -1,14 +1,9 @@
 import { Hono } from "hono";
 import { bearerAuth } from "hono/bearer-auth";
-import { HTTPException } from "hono/http-exception";
 import { logger } from "hono/logger";
 
 import { env } from "./config/env";
-import {
-  type ErrorOptions,
-  type ErrorResponse,
-  getErrorName,
-} from "./helpers/error";
+import { errorHandler } from "./helpers/error-handler";
 import agentsRouter from "./routes/agents";
 import usersRouter from "./routes/users";
 
@@ -17,38 +12,7 @@ app.use(logger());
 app.use(bearerAuth({ token: env.API_KEY }));
 
 // Centralized error handler
-app.onError((error, c) => {
-  if (error instanceof HTTPException) {
-    const status = error.status;
-    const options = error.cause as ErrorOptions | undefined;
-
-    const errorResponse: ErrorResponse = {
-      error: getErrorName(status),
-      message: error.message,
-      code: options?.code,
-      details: options?.details,
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId: options?.requestId || c.req.header("x-request-id"),
-        path: options?.path || c.req.path,
-      },
-    };
-
-    return c.json(errorResponse, status);
-  }
-
-  // Handle unexpected errors
-  return c.json(
-    {
-      error: "InternalServerError",
-      message: "An unexpected error occurred",
-      meta: {
-        timestamp: new Date().toISOString(),
-      },
-    },
-    500,
-  );
-});
+app.onError(errorHandler);
 
 // Mount agents routes at /api/v1/
 app.route("/agents", agentsRouter);
