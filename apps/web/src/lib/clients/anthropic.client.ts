@@ -23,8 +23,12 @@ export const anthropicClient = (() => {
         .map(([key, value]) => `${key} => ${JSON.stringify(value)}`)
         .join(", ");
 
-      const systemPrompt =
-        "You are an assistant that generates concise, descriptive job titles. The title should not exceed 80 characters and must be in the same language as the input data. The input data takes precedence over the agent name and description. Aim to create unique titles based on the input data. Please respond with only the title, without any additional text. Do not repeat the agent name in your response.";
+      const systemPrompt = `Generate a descriptive agent summary following these rules:
+        - Length: 90-110 characters (including spaces and punctuation)
+        - Language: Match the input
+        - Format: Single sentence, no agent name
+        - Output: Summary only, no other text
+      `;
       const userPrompt = `Agent: ${agent.name} ${agent.description ? ` - ${agent.description}` : ""}\nInput: ${inputSummary}`;
 
       try {
