@@ -8,13 +8,13 @@ import {
   getErrorName,
 } from "./helpers/error";
 import agentsRouter from "./routes/agents";
+import usersRouter from "./routes/users";
 
 const app = new Hono();
 app.use(logger());
 
 // Centralized error handler
 app.onError((error, c) => {
-  console.log("test");
   if (error instanceof HTTPException) {
     const status = error.status;
     const options = error.cause as ErrorOptions | undefined;
@@ -49,6 +49,7 @@ app.onError((error, c) => {
 
 // Mount agents routes at /api/v1/
 app.route("/api/v1", agentsRouter);
+app.route("/api/v1", usersRouter);
 
 export default {
   port: 3001,
