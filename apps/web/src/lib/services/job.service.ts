@@ -1038,7 +1038,6 @@ export const jobService = (() => {
       },
     );
 
-    await dispatchJobFailureNotification(job);
     // if job status changed, publish to job status to channel
     if (newJobStatus !== oldJobStatus) {
       console.log(
