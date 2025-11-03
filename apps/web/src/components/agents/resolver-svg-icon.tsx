@@ -1,8 +1,7 @@
 import DOMPurify from "dompurify";
 import Image from "next/image";
-import { CSSProperties, useEffect, useMemo, useState } from "react";
+import { CSSProperties, ReactNode, useEffect, useState } from "react";
 
-import { ipfsUrlResolver } from "@/lib/ipfs";
 import { cn } from "@/lib/utils";
 
 interface ResolverSVGIconProps {
@@ -11,6 +10,7 @@ interface ResolverSVGIconProps {
   className?: string;
   size?: number;
   style?: CSSProperties;
+  fallback?: ReactNode;
 }
 
 export function ResolverSVGIcon({
@@ -19,19 +19,15 @@ export function ResolverSVGIcon({
   className,
   size = 24,
   style,
+  fallback = null,
 }: ResolverSVGIconProps) {
-  const resolvedUrl = useMemo(
-    () => (svgUrl ? ipfsUrlResolver(svgUrl) : null),
-    [svgUrl],
-  );
-
   const [svgState, setSvgState] = useState<{
     url: string;
     markup: string;
   } | null>(null);
 
   useEffect(() => {
-    if (!resolvedUrl) return;
+    if (!svgUrl) return;
 
     let isMounted = true;
     const controller = new AbortController();
@@ -91,10 +87,10 @@ export function ResolverSVGIcon({
       return s;
     }
 
-    fetchSvgOrNull(resolvedUrl).then((svg) => {
+    fetchSvgOrNull(svgUrl).then((svg) => {
       if (!isMounted) return;
       if (svg) {
-        setSvgState({ url: resolvedUrl, markup: sanitizeAndColorize(svg) });
+        setSvgState({ url: svgUrl, markup: sanitizeAndColorize(svg) });
       } else {
         setSvgState(null);
       }
@@ -105,10 +101,10 @@ export function ResolverSVGIcon({
       clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [resolvedUrl]);
+  }, [svgUrl]);
 
   // Inline SVG path
-  const shouldRenderInline = svgState && svgState.url === resolvedUrl;
+  const shouldRenderInline = svgState && svgState.url === svgUrl;
   if (shouldRenderInline) {
     return (
       <span
@@ -123,10 +119,10 @@ export function ResolverSVGIcon({
   }
 
   // Fallback to raster/external image
-  if (resolvedUrl) {
+  if (svgUrl) {
     return (
       <Image
-        src={resolvedUrl}
+        src={svgUrl}
         alt={alt}
         width={size}
         height={size}
@@ -134,7 +130,7 @@ export function ResolverSVGIcon({
         style={style}
       />
     );
-  } else {
-    return null;
   }
+
+  return <>{fallback}</>;
 }

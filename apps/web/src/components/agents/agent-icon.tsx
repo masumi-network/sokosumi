@@ -17,17 +17,7 @@ interface AgentIconProps {
 export function AgentIcon({ agent, className, isMuted }: AgentIconProps) {
   const resolvedIcon = getAgentResolvedIcon(agent);
 
-  if (resolvedIcon) {
-    return (
-      <ResolverSVGIcon
-        svgUrl={resolvedIcon}
-        alt={`${getAgentName(agent)} icon`}
-        className={cn("size-4", className, isMuted && "opacity-60")}
-      />
-    );
-  }
-
-  return (
+  const fallback = (
     <span className="[&>svg]:preserve-aspect-ratio-[xMidYMid_meet] inline-flex">
       <Sparkles
         strokeWidth={1}
@@ -35,6 +25,15 @@ export function AgentIcon({ agent, className, isMuted }: AgentIconProps) {
         className={cn("size-4", className, isMuted && "text-muted-foreground")}
       />
     </span>
+  );
+
+  return (
+    <ResolverSVGIcon
+      svgUrl={resolvedIcon}
+      alt={`${getAgentName(agent)} icon`}
+      className={cn("size-4", className, isMuted && "opacity-60")}
+      fallback={fallback}
+    />
   );
 }
 
