@@ -87,7 +87,7 @@ export function ResolverSVGIcon({
 
     fetchSvgOrNull(svgUrl).then((svg) => {
       if (!isMounted) return null;
-      if (svg) {
+      if (svgUrl && svg) {
         setSvgState({ url: svgUrl, markup: sanitizeAndColorize(svg) });
       } else {
         setSvgState(null);
@@ -126,7 +126,6 @@ export function ResolverSVGIcon({
         height={size}
         className={cn("shrink-0", className)}
         style={style}
-        unoptimized
       />
     );
   }

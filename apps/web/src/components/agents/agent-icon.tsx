@@ -16,20 +16,15 @@ interface AgentIconProps {
 
 export function AgentIcon({ agent, className, isMuted }: AgentIconProps) {
   const resolvedIcon = getAgentResolvedIcon(agent);
-  let svgIcon: React.ReactNode | undefined = undefined;
 
   if (resolvedIcon) {
-    svgIcon = (
+    return (
       <ResolverSVGIcon
         svgUrl={resolvedIcon}
         alt={`${getAgentName(agent)} icon`}
         className={cn("size-4", className, isMuted && "opacity-60")}
       />
     );
-  }
-
-  if (svgIcon) {
-    return svgIcon;
   }
 
   return (
