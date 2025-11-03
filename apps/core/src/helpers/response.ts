@@ -12,8 +12,12 @@ export const successResponseSchema = z.object({
   /** The actual response data (can be any type) */
   data: z.any().optional(),
 
-  /** ISO timestamp when the response was generated */
-  timestamp: z.iso.datetime(),
+  /** Metadata about the response */
+  meta: z.object({
+    /** ISO timestamp when the response was generated */
+    timestamp: z.iso.datetime(),
+    // Room for future additions: pagination, requestId, version, etc.
+  }),
 });
 
 /**
@@ -22,14 +26,18 @@ export const successResponseSchema = z.object({
 export type SuccessResponse<T> = z.infer<typeof successResponseSchema> & {
   success: true;
   data?: T;
-  timestamp: string;
+  meta: {
+    timestamp: string;
+  };
 };
 
 export const ok = <T>(c: Context, data: T) =>
   c.json<SuccessResponse<T>>({
     success: true,
     data,
-    timestamp: new Date().toISOString(),
+    meta: {
+      timestamp: new Date().toISOString(),
+    },
   });
 
 export const empty = <T>(c: Context) => {
@@ -37,7 +45,9 @@ export const empty = <T>(c: Context) => {
   c.json<SuccessResponse<T>>({
     success: true,
     data: undefined,
-    timestamp: new Date().toISOString(),
+    meta: {
+      timestamp: new Date().toISOString(),
+    },
   });
 };
 
@@ -46,6 +56,8 @@ export const created = <T>(c: Context, data: T) => {
   return c.json<SuccessResponse<T>>({
     success: true,
     data,
-    timestamp: new Date().toISOString(),
+    meta: {
+      timestamp: new Date().toISOString(),
+    },
   });
 };
