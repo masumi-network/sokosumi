@@ -10,7 +10,7 @@ import {
 import agentsRouter from "./routes/agents";
 import usersRouter from "./routes/users";
 
-const app = new Hono();
+const app = new Hono().basePath("/api/v1");
 app.use(logger());
 
 // Centralized error handler
@@ -48,8 +48,8 @@ app.onError((error, c) => {
 });
 
 // Mount agents routes at /api/v1/
-app.route("/api/v1", agentsRouter);
-app.route("/api/v1", usersRouter);
+app.route("/agents", agentsRouter);
+app.route("/users", usersRouter);
 
 export default {
   port: 3001,

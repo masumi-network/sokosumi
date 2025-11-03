@@ -5,7 +5,7 @@ import { ok } from "../helpers/response";
 
 const router = new Hono();
 
-router.get("/agents", async (c) => {
+router.get("/", async (c) => {
   const agents =
     await agentRepository.getShownAgentsWithRelationsByStatus("ONLINE");
 

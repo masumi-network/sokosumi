@@ -6,7 +6,7 @@ import { ok } from "../helpers/response";
 
 const router = new Hono();
 
-router.get("/users/:id", async (c) => {
+router.get("/:id", async (c) => {
   const id = c.req.param("id");
   const user = await userRepository.getUserById(id);
   if (!user) {
