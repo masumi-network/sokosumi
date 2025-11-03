@@ -49,7 +49,7 @@ importers:
         version: 0.5.1(@hey-api/openapi-ts@0.86.11(typescript@5.9.3))
       '@hookform/resolvers':
         specifier: 5.2.2
-        version: 5.2.2(react-hook-form@7.65.0(react@19.2.0))
+        version: 5.2.2(react-hook-form@7.66.0(react@19.2.0))
       '@icons-pack/react-simple-icons':
         specifier: 13.8.0
         version: 13.8.0(react@19.2.0)
@@ -234,8 +234,8 @@ importers:
         specifier: 1.6.0
         version: 1.6.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       react-hook-form:
-        specifier: 7.65.0
-        version: 7.65.0(react@19.2.0)
+        specifier: 7.66.0
+        version: 7.66.0(react@19.2.0)
       react-icons:
         specifier: 5.5.0
         version: 5.5.0(react@19.2.0)
@@ -6596,8 +6596,8 @@ packages:
       react: ^19.0.0 || ^18.0.0 || ^17.0.0 || ^16.2.0
       react-dom: ^19.0.0 || ^18.0.0 || ^17.0.0 || ^16.2.0
 
-  react-hook-form@7.65.0:
-    resolution: {integrity: sha512-xtOzDz063WcXvGWaHgLNrNzlsdFgtUWcb32E6WFaGTd7kPZG3EeDusjdZfUsPwKCKVXy1ZlntifaHZ4l8pAsmw==}
+  react-hook-form@7.66.0:
+    resolution: {integrity: sha512-xXBqsWGKrY46ZqaHDo+ZUYiMUgi8suYu5kdrS20EG8KiL7VRQitEbNjm+UcrDYrNi1YLyfpmAeGjCZYXLT9YBw==}
     engines: {node: '>=18.0.0'}
     peerDependencies:
       react: ^16.8.0 || ^17 || ^18 || ^19
@@ -8096,10 +8096,10 @@ snapshots:
     transitivePeerDependencies:
       - magicast
 
-  '@hookform/resolvers@5.2.2(react-hook-form@7.65.0(react@19.2.0))':
+  '@hookform/resolvers@5.2.2(react-hook-form@7.66.0(react@19.2.0))':
     dependencies:
       '@standard-schema/utils': 0.3.0
-      react-hook-form: 7.65.0(react@19.2.0)
+      react-hook-form: 7.66.0(react@19.2.0)
 
   '@humanfs/core@0.19.1': {}
 
@@ -14622,7 +14622,7 @@ snapshots:
       react: 19.2.0
       react-dom: 19.2.0(react@19.2.0)
 
-  react-hook-form@7.65.0(react@19.2.0):
+  react-hook-form@7.66.0(react@19.2.0):
     dependencies:
       react: 19.2.0
 
