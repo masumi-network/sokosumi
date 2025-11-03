@@ -15,6 +15,7 @@ import usersRouter from "./routes/users";
 const app = new Hono().basePath("/api/v1");
 app.use(logger());
 app.use(bearerAuth({ token: env.API_KEY }));
+
 // Centralized error handler
 app.onError((error, c) => {
   if (error instanceof HTTPException) {
