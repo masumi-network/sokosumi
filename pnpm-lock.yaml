@@ -36,7 +36,7 @@ importers:
   apps/core:
     dependencies:
       '@hono/zod-openapi':
-        specifier: ^1.1.4
+        specifier: 1.1.4
         version: 1.1.4(hono@4.10.4)(zod@4.1.12)
       '@sokosumi/database':
         specifier: workspace:*
