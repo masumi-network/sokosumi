@@ -35,20 +35,23 @@ export function groupAgentsByCategory(
     ensureGroup(slug).push(agent);
   };
 
-  const regularCategorySlugs = categories
-    .map((cat) => cat.slug)
-    .filter(
-      (slug) =>
-        slug !== AGENT_CATEGORY_SLUGS.FEATURED &&
-        slug !== AGENT_CATEGORY_SLUGS.NEW &&
-        slug !== AGENT_CATEGORY_SLUGS.OTHERS,
-    );
+  const regularCategorySlugs = new Set(
+    categories
+      .map((cat) => cat.slug)
+      .filter(
+        (slug) =>
+          slug !== AGENT_CATEGORY_SLUGS.FEATURED &&
+          slug !== AGENT_CATEGORY_SLUGS.NEW &&
+          slug !== AGENT_CATEGORY_SLUGS.OTHERS,
+      ),
+  );
 
   for (const agent of agents) {
-    const agentCategories = getAgentCategories(agent);
+    // Convert to Set once per agent for O(1) lookups
+    const agentCategoriesSet = new Set(getAgentCategories(agent));
     let wasAssigned = false;
 
-    if (agentCategories.includes(AGENT_CATEGORY_SLUGS.FEATURED)) {
+    if (agentCategoriesSet.has(AGENT_CATEGORY_SLUGS.FEATURED)) {
       assignAgentToGroup(AGENT_CATEGORY_SLUGS.FEATURED, agent);
       wasAssigned = true;
     }
@@ -59,14 +62,14 @@ export function groupAgentsByCategory(
     }
 
     for (const slug of regularCategorySlugs) {
-      if (agentCategories.includes(slug)) {
+      if (agentCategoriesSet.has(slug)) {
         assignAgentToGroup(slug, agent);
         wasAssigned = true;
       }
     }
 
     // Only assign to "Others" if agent has no categories and hasn't been assigned elsewhere
-    if (!wasAssigned && agentCategories.length === 0) {
+    if (!wasAssigned && agentCategoriesSet.size === 0) {
       assignAgentToGroup(null, agent);
     }
   }
@@ -74,7 +77,7 @@ export function groupAgentsByCategory(
   const orderedSlugs: Array<string | null> = [
     AGENT_CATEGORY_SLUGS.FEATURED,
     AGENT_CATEGORY_SLUGS.NEW,
-    ...regularCategorySlugs,
+    ...Array.from(regularCategorySlugs),
     null,
   ];
 
