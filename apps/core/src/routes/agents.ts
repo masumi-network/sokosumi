@@ -1,15 +1,42 @@
+import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { agentRepository } from "@sokosumi/database/repositories";
-import { Hono } from "hono";
 
-import { ok } from "../helpers/response";
+import { ok, successResponseSchema } from "../helpers/response";
 
-const router = new Hono();
+const agentSchema = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+  })
+  .openapi("Agent");
 
-router.get("/", async (c) => {
-  const agents =
-    await agentRepository.getShownAgentsWithRelationsByStatus("ONLINE");
-
-  return ok(c, { agents: agents.map((agent) => agent.name) });
+const route = createRoute({
+  method: "get",
+  path: "/",
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: successResponseSchema(z.array(agentSchema)),
+        },
+      },
+      description: "Retrieve all agents",
+    },
+  },
 });
 
-export default router;
+const app = new OpenAPIHono();
+
+app.openapi(route, async (c) => {
+  const agents = await agentRepository.getAgentsWithRelations();
+
+  return ok(
+    c,
+    agents.map((agent) => ({
+      id: agent.id,
+      name: agent.name,
+    })),
+  );
+});
+
+export default app;

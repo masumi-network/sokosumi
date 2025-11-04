@@ -5,52 +5,52 @@ import * as z from "zod";
  * Standardized API success response schema
  * Provides consistent success structure across all API endpoints
  */
-export const successResponseSchema = z.object({
-  /** The actual response data (can be any type) */
-  data: z.any().optional(),
+export const successResponseSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>
+  z.object({
+    /** The actual response data */
+    data: dataSchema,
 
-  /** Metadata about the response */
-  meta: z.object({
-    /** ISO timestamp when the response was generated */
-    timestamp: z.iso.datetime(),
-    // Room for future additions: pagination, requestId, version, etc.
-  }),
-});
+    /** Metadata about the response */
+    meta: z.object({
+      /** ISO timestamp when the response was generated */
+      timestamp: z.iso.datetime(),
+      // Room for future additions: pagination, requestId, version, etc.
+    }),
+  });
 
 /**
  * Generic TypeScript type for API success responses
  */
-export type SuccessResponse<T> = z.infer<typeof successResponseSchema> & {
-  data?: T;
+export type SuccessResponse<T> = {
+  data: T;
   meta: {
     timestamp: string;
   };
 };
-
-export const ok = <T>(c: Context, data: T) =>
-  c.json<SuccessResponse<T>>({
-    data,
-    meta: {
-      timestamp: new Date().toISOString(),
+export const ok = <T>(c: Context, data: T) => {
+  return c.json<SuccessResponse<T>, 200>(
+    {
+      data,
+      meta: {
+        timestamp: new Date().toISOString(),
+      },
     },
-  });
+    200,
+  );
+};
 
-export const empty = <T>(c: Context) => {
-  c.status(204);
-  c.json<SuccessResponse<T>>({
-    data: undefined,
-    meta: {
-      timestamp: new Date().toISOString(),
-    },
-  });
+export const empty = (c: Context) => {
+  return c.body(null, 204);
 };
 
 export const created = <T>(c: Context, data: T) => {
-  c.status(201);
-  return c.json<SuccessResponse<T>>({
-    data,
-    meta: {
-      timestamp: new Date().toISOString(),
+  return c.json<SuccessResponse<T>, 201>(
+    {
+      data,
+      meta: {
+        timestamp: new Date().toISOString(),
+      },
     },
-  });
+    201,
+  );
 };
