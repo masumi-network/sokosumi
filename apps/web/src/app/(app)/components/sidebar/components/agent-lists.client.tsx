@@ -169,7 +169,7 @@ export default function AgentListsClient({
                         })}
                       </SidebarMenu>
                     ) : (
-                      <p className="text-muted-foreground px-4 py-2 text-sm">
+                      <p className="text-muted-foreground px-4 py-2 text-sm group-data-[collapsible=icon]:hidden">
                         {t("noAgents", { type: noAgentsType })}
                       </p>
                     )}
