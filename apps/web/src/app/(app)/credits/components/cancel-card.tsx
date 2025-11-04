@@ -20,7 +20,7 @@ interface CancelCardProps {
 }
 
 export default function CancelCard({ className }: CancelCardProps) {
-  const t = useTranslations("App.Billing.Cancel");
+  const t = useTranslations("App.Credits.Cancel");
 
   return (
     <Card className={cn("text-center", className)}>
@@ -40,7 +40,7 @@ export default function CancelCard({ className }: CancelCardProps) {
       </CardHeader>
       <CardContent>
         <Button asChild>
-          <Link href="/billing">{t("backToBilling")}</Link>
+          <Link href="/credits">{t("backToCredits")}</Link>
         </Button>
       </CardContent>
     </Card>

@@ -6,14 +6,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useUnAuthenticatedErrorHandler } from "@/hooks/use-unauthenticated-error-handler";
 
-export default function BillingError({
+export default function CreditsError({
   error,
   reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  const t = useTranslations("App.Billing.Error"); // Initialize translations hook
+  const t = useTranslations("App.Credits.Error"); // Initialize translations hook
   const { renderIfAuthenticated } = useUnAuthenticatedErrorHandler(error);
 
   return renderIfAuthenticated(

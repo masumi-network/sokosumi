@@ -13,7 +13,7 @@ interface BuyCreditsButtonProps {
 
 export default function BuyCreditsButton({
   label = "Buy",
-  path = "/billing",
+  path = "/credits",
   className,
   disabled,
 }: BuyCreditsButtonProps) {

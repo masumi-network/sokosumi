@@ -3,7 +3,7 @@
 import { getEnvSecrets } from "@/config/env.secrets";
 import {
   ActionError,
-  BillingErrorCode,
+  CreditsErrorCode,
   CommonErrorCode,
 } from "@/lib/actions/errors";
 import { stripeClient } from "@/lib/clients/stripe.client";
@@ -32,7 +32,7 @@ export const purchaseCredits = withAuthContext<
   if (!credits || credits <= 0) {
     return Err({
       message: "Invalid credits",
-      code: BillingErrorCode.INVALID_CREDITS,
+      code: CreditsErrorCode.INVALID_CREDITS,
     });
   }
 
@@ -105,7 +105,7 @@ export const claimFreeCreditsWithCoupon = withAuthContext<
     if (!promo || !promo.active) {
       return Err({
         message: "Invalid coupon",
-        code: BillingErrorCode.INVALID_COUPON,
+        code: CreditsErrorCode.INVALID_COUPON,
       });
     }
 

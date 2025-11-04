@@ -50,7 +50,7 @@ export default async function UserCredits({ session }: UserCreditsProps) {
 
   return (
     <div className="flex flex-1 flex-col-reverse gap-4 md:flex-initial md:flex-row md:items-center">
-      {credits <= 50.0 && <BuyCreditsButton label={t("buy")} path="/billing" />}
+      {credits <= 50.0 && <BuyCreditsButton label={t("buy")} path="/credits" />}
       <div className="flex items-center gap-2 md:flex-row-reverse">
         <UserAvatar session={session} />
         <div className="flex flex-col gap-0.5 md:items-end">

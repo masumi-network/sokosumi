@@ -28,7 +28,7 @@ export default function SuccessCard({
   className,
   children,
 }: SuccessCardProps) {
-  const t = useTranslations("App.Billing.Success");
+  const t = useTranslations("App.Credits.Success");
 
   return (
     <>
@@ -70,7 +70,7 @@ export function SuccessCardLoading() {
 }
 
 export function SuccessCardError() {
-  const t = useTranslations("App.Billing.Success.Error");
+  const t = useTranslations("App.Credits.Success.Error");
 
   return (
     <Card className="text-center">
