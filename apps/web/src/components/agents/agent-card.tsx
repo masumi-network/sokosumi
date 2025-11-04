@@ -266,21 +266,23 @@ function AgentCard({
       {/* Content */}
       <div className={cn(agentCardContentVariants({ size }))}>
         <div className="flex w-full flex-1 flex-col justify-between gap-3">
-          {/* Title */}
-          <h3
-            className={agentCardNameVariants({ size })}
-            style={{ color: categoryColor }}
-          >
-            {getAgentName(agent)}
-          </h3>
+          <div className="flex flex-0 flex-col gap-3">
+            {/* Title */}
+            <h3
+              className={agentCardNameVariants({ size })}
+              style={{ color: categoryColor }}
+            >
+              {getAgentName(agent)}
+            </h3>
 
-          {/* Rating */}
-          <StarRating
-            averageRating={ratingStats?.averageRating ?? 0}
-            totalRatings={ratingStats?.totalRatings ?? 5}
-            size="sm"
-            showRatingNumber={false}
-          />
+            {/* Rating */}
+            <StarRating
+              averageRating={ratingStats?.averageRating ?? 0}
+              totalRatings={ratingStats?.totalRatings ?? 5}
+              size="sm"
+              showRatingNumber={false}
+            />
+          </div>
 
           {/* Summary/Description */}
           {summary && (
@@ -289,54 +291,56 @@ function AgentCard({
             </div>
           )}
 
-          {/* Credits */}
-          <div className={cn(agentCardPricingVariants({ size }))}>
-            <p className="text-foreground">
-              {t("pricing", {
-                price: convertCentsToCredits(agent.creditsPrice.cents),
-              })}
-            </p>
-          </div>
+          <div className="flex flex-0 flex-col gap-3">
+            {/* Credits */}
+            <div className={cn(agentCardPricingVariants({ size }))}>
+              <p className="text-foreground">
+                {t("pricing", {
+                  price: convertCentsToCredits(agent.creditsPrice.cents),
+                })}
+              </p>
+            </div>
 
-          <div className="col-span-2 grid w-full grid-cols-2 items-center gap-2">
-            {/* Buttons */}
-            <div className={cn(agentCardButtonsContainerVariants({ size }))}>
-              {showHireButton ? (
-                <ClickBlocker>
-                  <AgentHireButton agentId={agent.id} className="w-full" />
-                </ClickBlocker>
-              ) : (
-                <div className={cn(agentShowDetailsButtonVariants({ size }))}>
-                  <Button
-                    variant="secondary"
-                    size={buttonSize}
-                    className="w-full cursor-pointer md:w-auto"
-                  >
-                    {t("view")}
-                  </Button>
+            <div className="col-span-2 grid w-full grid-cols-2 items-center gap-2">
+              {/* Buttons */}
+              <div className={cn(agentCardButtonsContainerVariants({ size }))}>
+                {showHireButton ? (
+                  <ClickBlocker>
+                    <AgentHireButton agentId={agent.id} className="w-full" />
+                  </ClickBlocker>
+                ) : (
+                  <div className={cn(agentShowDetailsButtonVariants({ size }))}>
+                    <Button
+                      variant="secondary"
+                      size={buttonSize}
+                      className="w-full cursor-pointer md:w-auto"
+                    >
+                      {t("view")}
+                    </Button>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer Attribution */}
+              {authorImage && (
+                <div className="flex items-center justify-end">
+                  <Image
+                    src={authorImage}
+                    alt={`${getAgentName(agent)} author`}
+                    width={100}
+                    height={24}
+                    className="h-4 w-auto object-contain brightness-0 dark:brightness-100"
+                  />
+                </div>
+              )}
+              {!authorImage && (
+                <div className="flex items-center justify-end truncate">
+                  <p className="truncate text-xs uppercase">
+                    {getShortAgentAuthorName(agent)}
+                  </p>
                 </div>
               )}
             </div>
-
-            {/* Footer Attribution */}
-            {authorImage && (
-              <div className="flex items-center justify-end">
-                <Image
-                  src={authorImage}
-                  alt={`${getAgentName(agent)} author`}
-                  width={100}
-                  height={24}
-                  className="h-4 w-auto object-contain brightness-0 dark:brightness-100"
-                />
-              </div>
-            )}
-            {!authorImage && (
-              <div className="flex items-center justify-end truncate">
-                <p className="truncate text-xs uppercase">
-                  {getShortAgentAuthorName(agent)}
-                </p>
-              </div>
-            )}
           </div>
         </div>
       </div>
