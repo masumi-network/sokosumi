@@ -30,7 +30,7 @@ import { AgentVerifiedBadge } from "./agent-verified-badge";
 import { StarRating } from "./star-rating";
 
 const agentCardVariants = cva(
-  "flex h-full rounded-lg px-4 py-6 shadow-none bg-card-bg",
+  "flex h-full rounded-lg px-4 py-6 shadow-none bg-card-background",
   {
     variants: {
       size: {
@@ -89,7 +89,7 @@ const agentCardSummaryContainerVariants = cva("text-muted-foreground text-sm", {
 });
 
 const agentCardPricingAndButtonsContainerVariants = cva(
-  "flex flex-col justify-start gap-4 lg:flex-row lg:justify-between lg:gap-0 bg-card-bg",
+  "flex flex-col justify-start gap-4 lg:flex-row lg:justify-between lg:gap-0 bg-card-background",
   {
     variants: {
       size: {
@@ -236,8 +236,8 @@ function AgentCard({
           border: "0.2px solid transparent",
           borderRadius: "0.65rem",
           backgroundImage: gradientBorder
-            ? `linear-gradient(var(--card-bg), var(--card-bg)), ${gradientBorder}`
-            : `linear-gradient(var(--card-bg), var(--card-bg))`,
+            ? `linear-gradient(var(--card-background), var(--card-background)), ${gradientBorder}`
+            : `linear-gradient(var(--card-background), var(--card-background))`,
           backgroundOrigin: "border-box",
           backgroundClip: "padding-box, border-box",
         }

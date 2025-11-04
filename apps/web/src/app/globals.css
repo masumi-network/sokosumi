@@ -15,6 +15,7 @@
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
+  --color-card-background: var(--card-background);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
@@ -129,7 +130,6 @@
   /* Custom Colors */
   --color-agent-verified-background: hsla(142, 76%, 36%, 0.05);
   --color-agent-verified-foreground: hsla(142, 72%, 29%, 1);
-  --color-card-bg: var(--card-bg);
 
   @keyframes accordion-down {
     from {
@@ -168,6 +168,7 @@
   --foreground: hsla(0, 0%, 4%, 1);
   --card: hsla(300, 50%, 100%, 1);
   --card-foreground: hsla(300, 0%, 4%, 1);
+  --card-background: hsla(0, 0%, 98%, 1);
   --popover: hsla(300, 50%, 100%, 1);
   --popover-foreground: hsla(300, 0%, 4%, 1);
   --primary: hsla(264, 100%, 50%, 1);
@@ -273,7 +274,7 @@
   --alpha-20: hsla(0, 0%, 100%, 0.8);
   --alpha-10: hsla(0, 0%, 100%, 0.9);
   --alpha-5: hsla(0, 0%, 100%, 0.95);
-  --card-bg: hsla(0, 0%, 98%, 1);
+
   --foreground-rgb: 255, 255, 255;
 }
 
@@ -284,6 +285,7 @@
   --foreground: hsla(0, 0%, 98%, 1);
   --card: hsla(300, 0%, 4%, 1);
   --card-foreground: hsla(0, 0%, 98%, 1);
+  --card-background: hsla(0, 0%, 9%, 1);
   --popover: hsla(330, 0%, 9%, 1);
   --popover-foreground: hsla(0, 0%, 98%, 1);
   --primary: hsla(270, 64%, 63%, 1);
@@ -389,7 +391,7 @@
   --alpha-20: hsla(0, 0%, 4%, 0.8);
   --alpha-10: hsla(0, 0%, 4%, 0.9);
   --alpha-5: hsla(0, 0%, 4%, 0.95);
-  --card-bg: hsla(0, 0%, 9%, 1);
+
   --foreground-rgb: 30, 30, 30;
 }
 
