@@ -35,6 +35,9 @@ importers:
 
   apps/core:
     dependencies:
+      '@hono/swagger-ui':
+        specifier: ^0.5.2
+        version: 0.5.2(hono@4.10.4)
       '@hono/zod-openapi':
         specifier: 1.1.4
         version: 1.1.4(hono@4.10.4)(zod@4.1.12)
@@ -984,6 +987,11 @@ packages:
     hasBin: true
     peerDependencies:
       typescript: '>=5.5.3'
+
+  '@hono/swagger-ui@0.5.2':
+    resolution: {integrity: sha512-7wxLKdb8h7JTdZ+K8DJNE3KXQMIpJejkBTQjrYlUWF28Z1PGOKw6kUykARe5NTfueIN37jbyG/sBYsbzXzG53A==}
+    peerDependencies:
+      hono: '*'
 
   '@hono/zod-openapi@1.1.4':
     resolution: {integrity: sha512-4BbOtd6oKg20yo6HLluVbEycBLLIfdKX5o/gUSoKZ2uBmeP4Og/VDfIX3k9pbNEX5W3fRkuPeVjGA+zaQDVY1A==}
@@ -8212,6 +8220,10 @@ snapshots:
       typescript: 5.9.3
     transitivePeerDependencies:
       - magicast
+
+  '@hono/swagger-ui@0.5.2(hono@4.10.4)':
+    dependencies:
+      hono: 4.10.4
 
   '@hono/zod-openapi@1.1.4(hono@4.10.4)(zod@4.1.12)':
     dependencies:

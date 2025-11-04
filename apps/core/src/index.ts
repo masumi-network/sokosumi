@@ -1,3 +1,4 @@
+import { swaggerUI } from "@hono/swagger-ui";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { Hono } from "hono";
 import { logger } from "hono/logger";
@@ -21,13 +22,15 @@ const api = new OpenAPIHono();
 api.route("/agents", agentsRouter);
 api.route("/users", usersRouter);
 
-api.doc("/doc", {
+api.doc("/openapi.json", {
   openapi: "3.0.0",
   info: {
     version: "1.0.0",
     title: "My API",
   },
 });
+
+api.get("/docs", swaggerUI({ url: "/api/v1/openapi.json" }));
 
 // Mount api routes at /api/v1
 app.route("/api/v1", api);
