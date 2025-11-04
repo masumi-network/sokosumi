@@ -313,8 +313,8 @@ export const stripeClient = (() => {
           },
           billing_address_collection: "required",
           tax_id_collection: { enabled: true },
-          success_url: `${origin ?? getEnvSecrets().VERCEL_URL}/billing?session_id={CHECKOUT_SESSION_ID}`,
-          cancel_url: `${origin ?? getEnvSecrets().VERCEL_URL}/billing?cancel=true`,
+          success_url: `${origin ?? getEnvSecrets().VERCEL_URL}/credits?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${origin ?? getEnvSecrets().VERCEL_URL}/credits?cancel=true`,
         },
         {
           idempotencyKey: `${stripeCustomerId}-${fiatTransaction.id}`,

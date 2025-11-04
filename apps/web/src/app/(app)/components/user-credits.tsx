@@ -53,7 +53,7 @@ export default async function UserCredits({ session }: UserCreditsProps) {
     <div className="flex flex-1 flex-col-reverse gap-4 md:flex-initial md:flex-row md:items-center">
       {credits <
         getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD && (
-        <BuyCreditsButton label={t("buy")} path="/billing" />
+        <BuyCreditsButton label={t("buy")} path="/credits" />
       )}
       <div className="flex items-center gap-2 md:flex-row-reverse">
         <UserAvatar session={session} />

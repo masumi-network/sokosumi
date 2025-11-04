@@ -13,15 +13,15 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 
 import CancelCard from "./cancel-card";
 
-export default function BillingCancelModal() {
+export default function CreditsCancelModal() {
   return (
     <Suspense>
-      <BillingCancelModalInner />
+      <CreditsCancelModalInner />
     </Suspense>
   );
 }
 
-function BillingCancelModalInner() {
+function CreditsCancelModalInner() {
   const [cancel, setCancel] = useQueryState("cancel");
 
   const handleOpenChange = (open: boolean) => {

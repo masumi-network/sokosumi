@@ -1,4 +1,4 @@
-export enum BillingErrorCode {
+export enum CreditsErrorCode {
   PROMOTION_CODE_NOT_FOUND = "PROMOTION_CODE_NOT_FOUND",
   INVALID_COUPON = "INVALID_COUPON",
   COUPON_NOT_FOUND = "COUPON_NOT_FOUND",

@@ -70,9 +70,9 @@ export const fireGTMEvent = {
     });
   },
 
-  viewBilling() {
+  viewCredits() {
     fireEvent({
-      event: "view_billing",
+      event: "view_credits",
     });
   },
 

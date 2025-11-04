@@ -11,8 +11,8 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-export default async function BillingCancelPage() {
-  const t = await getTranslations("App.Billing.Cancel");
+export default async function CreditsCancelPage() {
+  const t = await getTranslations("App.Credits.Cancel");
 
   return (
     <div className="mx-auto max-w-xl p-6">
@@ -26,7 +26,7 @@ export default async function BillingCancelPage() {
         </CardHeader>
         <CardContent>
           <Button asChild>
-            <Link href="/billing">{t("backToBilling")}</Link>
+            <Link href="/credits">{t("backToCredits")}</Link>
           </Button>
         </CardContent>
       </Card>
