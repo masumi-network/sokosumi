@@ -169,6 +169,7 @@
   --card: hsla(300, 50%, 100%, 1);
   --card-foreground: hsla(300, 0%, 4%, 1);
   --card-background: hsla(0, 0%, 98%, 1);
+  --card-background-hover: rgb(255, 255, 255, 0.5);
   --popover: hsla(300, 50%, 100%, 1);
   --popover-foreground: hsla(300, 0%, 4%, 1);
   --primary: hsla(264, 100%, 50%, 1);
@@ -274,8 +275,6 @@
   --alpha-20: hsla(0, 0%, 100%, 0.8);
   --alpha-10: hsla(0, 0%, 100%, 0.9);
   --alpha-5: hsla(0, 0%, 100%, 0.95);
-
-  --foreground-rgb: 255, 255, 255;
 }
 
 .dark {
@@ -286,6 +285,7 @@
   --card: hsla(300, 0%, 4%, 1);
   --card-foreground: hsla(0, 0%, 98%, 1);
   --card-background: hsla(0, 0%, 9%, 1);
+  --card-background-hover: rgb(30, 30, 30, 0.5);
   --popover: hsla(330, 0%, 9%, 1);
   --popover-foreground: hsla(0, 0%, 98%, 1);
   --primary: hsla(270, 64%, 63%, 1);
@@ -391,8 +391,6 @@
   --alpha-20: hsla(0, 0%, 4%, 0.8);
   --alpha-10: hsla(0, 0%, 4%, 0.9);
   --alpha-5: hsla(0, 0%, 4%, 0.95);
-
-  --foreground-rgb: 30, 30, 30;
 }
 
 @layer base {
@@ -476,7 +474,7 @@
 @utility hover-bg-image-transparent {
   &:hover {
     background-image: none !important;
-    background-color: rgba(var(--foreground-rgb), 0.5) !important;
+    background-color: var(--card-background-hover) !important;
     border-color: var(--border) !important;
   }
 }
