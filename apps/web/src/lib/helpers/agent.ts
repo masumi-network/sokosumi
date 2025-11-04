@@ -239,7 +239,6 @@ export function getAgentCategoryStyles(
   }
 
   try {
-    // Parse JSON string if styles is a string, otherwise use as-is
     let rawStyles: unknown;
     if (typeof firstCategory.styles === "string") {
       rawStyles = JSON.parse(firstCategory.styles);
@@ -247,7 +246,6 @@ export function getAgentCategoryStyles(
       rawStyles = firstCategory.styles;
     }
 
-    // Validate with Zod schema
     const validationResult = categoryStylesSchema.safeParse(rawStyles);
     if (validationResult.success) {
       return validationResult.data;

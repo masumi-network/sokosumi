@@ -1,4 +1,5 @@
 export * from "./agent.service";
+export * from "./category.service";
 export * from "./gtm.service";
 export * from "./job.service";
 export * from "./job-schedule.service";

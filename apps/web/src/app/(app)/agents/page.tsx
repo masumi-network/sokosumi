@@ -1,22 +1,12 @@
-import type { AgentWithCreditsPrice } from "@sokosumi/database";
-import {
-  agentRatingRepository,
-  categoryRepository,
-} from "@sokosumi/database/repositories";
+import { agentRatingRepository } from "@sokosumi/database/repositories";
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { AgentsNotAvailable } from "@/components/agents";
-import { AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
-import { agentService } from "@/lib/services";
-import type { Category } from "@/lib/types/category";
+import { agentService, categoryService } from "@/lib/services";
 
 import FilterSection from "./components/filter-section";
 import FilteredAgents from "./components/filtered-agents";
-
-function hasAgentsWithoutCategories(agents: AgentWithCreditsPrice[]): boolean {
-  return agents.some((agent) => agent.categories.length === 0);
-}
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.Agents.Metadata");
@@ -37,33 +27,7 @@ export default async function GalleryPage() {
 
   const t = await getTranslations("App.Agents.FilterSection");
 
-  const categories = await categoryRepository.getCategories();
-
-  // Priority map for sorting: Featured → New → Regular → Others
-  const categoryPriority: Record<string, number> = {
-    [AGENT_CATEGORY_SLUGS.FEATURED]: 0,
-    [AGENT_CATEGORY_SLUGS.NEW]: 1,
-    [AGENT_CATEGORY_SLUGS.OTHERS]: 100,
-  };
-
-  const categoryMap: Category[] = [
-    ...categories.map((category) => ({
-      slug: category.slug,
-      name: category.name,
-    })),
-    ...(hasAgentsWithoutCategories(agentsWithPrice)
-      ? [
-          {
-            slug: AGENT_CATEGORY_SLUGS.OTHERS,
-            name: t("others"),
-          },
-        ]
-      : []),
-  ].sort((a, b) => {
-    const priorityA = categoryPriority[a.slug] ?? 3;
-    const priorityB = categoryPriority[b.slug] ?? 3;
-    return priorityA - priorityB;
-  });
+  const categoryMap = await categoryService.getValidCategories(t("others"));
 
   const favoriteAgents = await agentService.getFavoriteAgents();
 

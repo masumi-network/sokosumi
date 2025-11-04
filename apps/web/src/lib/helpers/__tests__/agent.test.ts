@@ -3,7 +3,6 @@ import type { AgentWithCategories } from "@sokosumi/database";
 import { getAgentCategoryStyles } from "@/lib/helpers/agent";
 import type { CategoryStyles } from "@/lib/types/category";
 
-// Helper function to create mock agent
 function createMockAgent(
   overrides: Partial<AgentWithCategories> = {},
 ): AgentWithCategories {
@@ -60,7 +59,6 @@ function createMockAgent(
 }
 
 describe("getAgentCategoryStyles", () => {
-  // Test case 1: Valid JSON parsing - should parse valid category styles JSON
   it("should parse valid category styles JSON string", () => {
     const validStyles: CategoryStyles = {
       light: {
@@ -88,7 +86,6 @@ describe("getAgentCategoryStyles", () => {
     expect(result).toEqual(validStyles);
   });
 
-  // Test case 2: Valid object parsing - should handle styles as object
   it("should handle styles as object (not JSON string)", () => {
     const validStyles: CategoryStyles = {
       light: {
@@ -116,7 +113,6 @@ describe("getAgentCategoryStyles", () => {
     expect(result).toEqual(validStyles);
   });
 
-  // Test case 3: Invalid JSON fallback - should return default styles
   it("should return default styles when JSON is invalid", () => {
     const agent = createMockAgent({
       categories: [
@@ -143,7 +139,6 @@ describe("getAgentCategoryStyles", () => {
     });
   });
 
-  // Test case 4: Invalid structure fallback - should return default styles
   it("should return default styles when parsed structure is invalid", () => {
     const invalidStyles = {
       light: {
@@ -181,7 +176,6 @@ describe("getAgentCategoryStyles", () => {
     });
   });
 
-  // Test case 5: Missing styles fallback - should return default styles
   it("should return default styles when agent has no categories", () => {
     const agent = createMockAgent({
       categories: [],
@@ -197,7 +191,6 @@ describe("getAgentCategoryStyles", () => {
     });
   });
 
-  // Test case 6: Missing styles fallback - should return default when category has no styles
   it("should return default styles when category has no styles property", () => {
     const agent = createMockAgent({
       categories: [
@@ -224,7 +217,6 @@ describe("getAgentCategoryStyles", () => {
     });
   });
 
-  // Test case 7: Theme switching - should return styles with light theme
   it("should return styles with light theme when available", () => {
     const validStyles: CategoryStyles = {
       light: {
@@ -250,7 +242,6 @@ describe("getAgentCategoryStyles", () => {
     expect(result.light?.color).toBe("text-purple-600");
   });
 
-  // Test case 8: Theme switching - should return styles with dark theme
   it("should return styles with dark theme when available", () => {
     const validStyles: CategoryStyles = {
       dark: {
@@ -276,7 +267,6 @@ describe("getAgentCategoryStyles", () => {
     expect(result.dark?.color).toBe("text-yellow-400");
   });
 
-  // Test case 9: First category with styles - should use first category that has styles
   it("should use styles from first category that has styles property", () => {
     const firstStyles: CategoryStyles = {
       light: {
@@ -327,7 +317,6 @@ describe("getAgentCategoryStyles", () => {
     expect(result.light?.color).toBe("text-first-600");
   });
 
-  // Test case 10: Zod validation - should validate styles structure
   it("should validate styles structure using Zod schema", () => {
     const validStyles: CategoryStyles = {
       light: {
@@ -366,7 +355,6 @@ describe("getAgentCategoryStyles", () => {
     expect(result.light?.border?.gradient?.stops).toHaveLength(2);
   });
 
-  // Test case 11: Zod validation failure - should return default on validation failure
   it("should return default styles when Zod validation fails", () => {
     const invalidStyles = {
       light: {
@@ -404,7 +392,6 @@ describe("getAgentCategoryStyles", () => {
     });
   });
 
-  // Test case 12: Empty categories array - should return default styles
   it("should return default styles when categories array is empty", () => {
     const agent = createMockAgent({
       categories: [],
@@ -420,7 +407,6 @@ describe("getAgentCategoryStyles", () => {
     });
   });
 
-  // Additional test: null categories
   it("should return default styles when categories is null", () => {
     const agent = createMockAgent({
       categories: null as unknown as [],
