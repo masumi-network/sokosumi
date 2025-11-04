@@ -1,3 +1,4 @@
+import type { AgentWithCreditsPrice } from "@sokosumi/database";
 import {
   agentRatingRepository,
   categoryRepository,
@@ -12,6 +13,10 @@ import type { Category } from "@/lib/types/category";
 
 import FilterSection from "./components/filter-section";
 import FilteredAgents from "./components/filtered-agents";
+
+function hasAgentsWithoutCategories(agents: AgentWithCreditsPrice[]): boolean {
+  return agents.some((agent) => agent.categories.length === 0);
+}
 
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations("App.Agents.Metadata");
@@ -46,10 +51,14 @@ export default async function GalleryPage() {
       slug: category.slug,
       name: category.name,
     })),
-    {
-      slug: AGENT_CATEGORY_SLUGS.OTHERS,
-      name: t("others"),
-    },
+    ...(hasAgentsWithoutCategories(agentsWithPrice)
+      ? [
+          {
+            slug: AGENT_CATEGORY_SLUGS.OTHERS,
+            name: t("others"),
+          },
+        ]
+      : []),
   ].sort((a, b) => {
     const priorityA = categoryPriority[a.slug] ?? 3;
     const priorityB = categoryPriority[b.slug] ?? 3;
