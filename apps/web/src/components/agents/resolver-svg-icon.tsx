@@ -4,6 +4,9 @@ import { CSSProperties, useEffect, useState } from "react";
 
 import { cn } from "@/lib/utils";
 
+// Timeout for SVG fetch requests (5 seconds)
+const SVG_FETCH_TIMEOUT_MS = 5000;
+
 interface ResolverSVGIconProps {
   svgUrl: string | null;
   alt?: string;
@@ -29,7 +32,7 @@ export function ResolverSVGIcon({
 
     let isMounted = true;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const timeoutId = setTimeout(() => controller.abort(), SVG_FETCH_TIMEOUT_MS);
 
     async function fetchSvgOrNull(url: string): Promise<string | null> {
       try {
