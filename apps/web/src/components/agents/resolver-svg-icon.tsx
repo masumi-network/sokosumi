@@ -85,14 +85,23 @@ export function ResolverSVGIcon({
       return s;
     }
 
-    fetchSvgOrNull(svgUrl).then((svg) => {
-      if (!isMounted) return null;
-      if (svgUrl && svg) {
-        setSvgState({ url: svgUrl, markup: sanitizeAndColorize(svg) });
-      } else {
+    fetchSvgOrNull(svgUrl)
+      .then((svg) => {
+        if (!isMounted) return;
+        if (svgUrl && svg) {
+          setSvgState({ url: svgUrl, markup: sanitizeAndColorize(svg) });
+        } else {
+          setSvgState(null);
+        }
+      })
+      .catch((error) => {
+        // Silently fail for aborted requests, log others
+        if (!isMounted) return;
+        if (error.name !== "AbortError") {
+          console.warn("Failed to load SVG icon:", error);
+        }
         setSvgState(null);
-      }
-    });
+      });
 
     return () => {
       isMounted = false;
