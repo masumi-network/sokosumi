@@ -32,7 +32,10 @@ export function ResolverSVGIcon({
 
     let isMounted = true;
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), SVG_FETCH_TIMEOUT_MS);
+    const timeoutId = setTimeout(
+      () => controller.abort(),
+      SVG_FETCH_TIMEOUT_MS,
+    );
 
     async function fetchSvgOrNull(url: string): Promise<string | null> {
       try {
