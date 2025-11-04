@@ -32,9 +32,9 @@ export default async function SchedulesPage() {
   );
 
   return (
-    <div className="container mx-auto space-y-6 p-6">
+    <div className="w-full space-y-12 px-2">
       <div className="space-y-2">
-        <h1 className="text-2xl font-light">{t("title")}</h1>
+        <h1 className="text-2xl font-light md:text-3xl">{t("title")}</h1>
         <p className="text-muted-foreground">{t("description")}</p>
       </div>
       <Suspense fallback={<div>{t("loading")}</div>}>

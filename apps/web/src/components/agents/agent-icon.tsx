@@ -30,10 +30,13 @@ export function AgentIcon({ agent, className, isMuted }: AgentIconProps) {
   }
 
   return (
-    <Sparkles
-      aria-hidden
-      className={cn("size-4", className, isMuted && "text-muted-foreground")}
-    />
+    <span className="[&>svg]:preserve-aspect-ratio-[xMidYMid_meet] inline-flex">
+      <Sparkles
+        strokeWidth={1}
+        aria-hidden
+        className={cn("size-4", className, isMuted && "text-muted-foreground")}
+      />
+    </span>
   );
 }
 

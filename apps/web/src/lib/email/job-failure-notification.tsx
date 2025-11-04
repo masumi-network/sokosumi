@@ -15,7 +15,11 @@ import { getTranslations } from "next-intl/server";
 
 export interface JobFailureNotificationEmailProps {
   network: string;
+  agentId: string;
+  agentBlockchainIdentifier: string;
+  agentName: string;
   jobId: string;
+  jobBlockchainIdentifier: string | null;
   onChainStatus: string | null;
   agentStatus: string | null;
   input: string;
@@ -36,7 +40,12 @@ export interface JobFailureNotificationEmail {
 }
 
 const JobFailureNotificationEmailComponent = ({
+  network,
+  agentId,
+  agentBlockchainIdentifier,
+  agentName,
   jobId,
+  jobBlockchainIdentifier,
   onChainStatus,
   agentStatus,
   input,
@@ -76,10 +85,55 @@ const JobFailureNotificationEmailComponent = ({
 
             <Section className="my-2">
               <Text className="my-1 text-base font-semibold text-black">
+                {t("network")}
+              </Text>
+              <Text className="font-mono text-base text-[#666666]">
+                {network}
+              </Text>
+            </Section>
+
+            <Section className="my-2">
+              <Text className="my-1 text-base font-semibold text-black">
+                {t("agentName")}
+              </Text>
+              <Text className="font-mono text-base text-[#666666]">
+                {agentName}
+              </Text>
+            </Section>
+
+            <Section className="my-2">
+              <Text className="my-1 text-base font-semibold text-black">
+                {t("agentId")}
+              </Text>
+              <Text className="font-mono text-base text-[#666666]">
+                {agentId}
+              </Text>
+            </Section>
+
+            <Section className="my-2">
+              <Text className="my-1 text-base font-semibold text-black">
+                {t("agentBlockchainIdentifier")}
+              </Text>
+              <Text className="font-mono text-base break-all text-[#666666]">
+                {agentBlockchainIdentifier}
+              </Text>
+            </Section>
+
+            <Section className="my-2">
+              <Text className="my-1 text-base font-semibold text-black">
                 {t("jobId")}
               </Text>
               <Text className="font-mono text-base text-[#666666]">
                 {jobId}
+              </Text>
+            </Section>
+
+            <Section className="my-2">
+              <Text className="my-1 text-base font-semibold text-black">
+                {t("jobBlockchainIdentifier")}
+              </Text>
+              <Text className="font-mono text-base break-all text-[#666666]">
+                {jobBlockchainIdentifier || "null"}
               </Text>
             </Section>
 

@@ -4,6 +4,7 @@ import {
 } from "@sokosumi/database/repositories";
 import { getTranslations } from "next-intl/server";
 
+import { getEnvPublicConfig } from "@/config/env.public";
 import { Session } from "@/lib/auth/auth";
 import { convertCentsToCredits } from "@/lib/helpers/credit";
 import { userService } from "@/lib/services/user.service";
@@ -50,7 +51,10 @@ export default async function UserCredits({ session }: UserCreditsProps) {
 
   return (
     <div className="flex flex-1 flex-col-reverse gap-4 md:flex-initial md:flex-row md:items-center">
-      {credits <= 50.0 && <BuyCreditsButton label={t("buy")} path="/billing" />}
+      {credits <
+        getEnvPublicConfig().NEXT_PUBLIC_CREDITS_BUY_BUTTON_THRESHOLD && (
+        <BuyCreditsButton label={t("buy")} path="/billing" />
+      )}
       <div className="flex items-center gap-2 md:flex-row-reverse">
         <UserAvatar session={session} />
         <div className="flex flex-col gap-0.5 md:items-end">
