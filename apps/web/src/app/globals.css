@@ -169,7 +169,7 @@
   --card: hsla(300, 50%, 100%, 1);
   --card-foreground: hsla(300, 0%, 4%, 1);
   --card-background: hsla(0, 0%, 98%, 1);
-  --card-background-hover: rgb(255, 255, 255, 0.5);
+  --card-background-hover: hsla(0, 0%, 98%, 0.5);
   --popover: hsla(300, 50%, 100%, 1);
   --popover-foreground: hsla(300, 0%, 4%, 1);
   --primary: hsla(264, 100%, 50%, 1);
@@ -285,7 +285,7 @@
   --card: hsla(300, 0%, 4%, 1);
   --card-foreground: hsla(0, 0%, 98%, 1);
   --card-background: hsla(0, 0%, 9%, 1);
-  --card-background-hover: rgb(30, 30, 30, 0.5);
+  --card-background-hover: hsla(0, 0%, 9%, 0.5);
   --popover: hsla(330, 0%, 9%, 1);
   --popover-foreground: hsla(0, 0%, 98%, 1);
   --primary: hsla(270, 64%, 63%, 1);
