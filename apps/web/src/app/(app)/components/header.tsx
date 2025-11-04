@@ -17,13 +17,13 @@ export default function Header({ session, className }: HeaderProps) {
   return (
     <header
       className={cn(
-        "border-grid bg-background/95 fixed top-0 z-50 flex w-full justify-between gap-2 border-b md:sticky md:items-center",
+        "border-grid bg-background/95 fixed top-0 z-50 flex w-full justify-between gap-2 border-b md:sticky md:items-center md:pl-6",
         className,
       )}
     >
-      <div className="flex w-full items-center gap-2 p-2 pl-0 md:w-auto md:pl-2">
+      <div className="flex w-full items-center gap-2 p-2 pl-0 md:hidden md:w-auto">
         <CustomTrigger when="invisible" />
-        <Link href="/" className="md:hidden">
+        <Link href="/">
           <ThemedLogo
             LogoComponent={SokosumiLogo}
             priority

@@ -33,7 +33,7 @@ export function AccountSettings({
   );
 
   return (
-    <div className="w-full space-y-8 md:mx-auto md:w-auto md:max-w-5xl">
+    <div className="w-full space-y-12 px-2">
       <div className="space-y-2">
         <h1 className="text-2xl font-light tracking-tight">{t("title")}</h1>
         <p className="text-muted-foreground text-sm leading-6">
@@ -41,7 +41,7 @@ export function AccountSettings({
         </p>
       </div>
 
-      <div className="space-y-8">
+      <div className="max-w-3xl space-y-8">
         <div className="grid w-full grid-cols-1 gap-6 md:grid-cols-2">
           <NameForm />
           <EmailForm />

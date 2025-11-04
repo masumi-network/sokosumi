@@ -21,9 +21,9 @@ export default async function OrganizationsPage() {
   const invitations = await userService.getMyValidPendingInvitations();
 
   return (
-    <div className="container flex flex-col gap-8 md:p-8">
+    <div className="w-full space-y-12 px-2">
       <div className="flex w-full items-center justify-between">
-        <h1 className="text-2xl font-light">{t("title")}</h1>
+        <h1 className="text-2xl font-light md:text-3xl">{t("title")}</h1>
         <OrganizationCreateButton />
       </div>
       <Organizations members={members} invitations={invitations} />
