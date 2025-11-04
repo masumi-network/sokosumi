@@ -30,8 +30,9 @@ export default async function CreditsPage({ searchParams }: CreditsPageProps) {
   const randomAgentPromise = agentService.getRandomAvailableAgentData();
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 md:p-6">
-      <h1 className="text-2xl font-light">{t("title")}</h1>
+    <div className="w-full space-y-12 px-2">
+      <h1 className="text-2xl font-light md:text-3xl">{t("title")}</h1>
+      <p className="text-muted-foreground">{t("description")}</p>
       <CreditsForm price={price} organization={activeOrganization} />
       {checkoutSessionPromise && (
         <CreditsSuccessModal
