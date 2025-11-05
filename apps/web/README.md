@@ -35,7 +35,6 @@ apps/web
 - **TailwindCSS**: Utility-first CSS framework
 - **Jest**: Testing framework
 - **ESLint**: Code linting
-- **Husky**: Git hooks for code quality
 - **Docker**: Containerization support
 - **Conventional Commits**: Standardized commit messages
 
