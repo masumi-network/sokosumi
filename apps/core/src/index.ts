@@ -13,15 +13,7 @@ const app = new Hono();
 app.use(logger());
 
 // CORS configuration
-app.use(
-  "*",
-  cors({
-    origin: ["http://localhost:3000"], // web app URL
-    allowHeaders: ["Content-Type", "Authorization"],
-    allowMethods: ["POST", "GET", "OPTIONS"],
-    credentials: true,
-  }),
-);
+app.use("*", cors());
 
 // Centralized error handler
 app.onError(errorHandler);
