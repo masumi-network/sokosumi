@@ -15,12 +15,11 @@ export const categoryService = (() => {
       await categoryRepository.getCategoriesForAvailableAgents();
 
     return categories.map(
-      (category) =>
-        ({
-          slug: category.slug,
-          name: category.name,
-          priority: category.priority,
-        }) as Category,
+      (category): Category => ({
+        slug: category.slug,
+        name: category.name,
+        priority: category.priority,
+      }),
     );
   }
 
