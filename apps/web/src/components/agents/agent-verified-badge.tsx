@@ -1,4 +1,4 @@
-import { CheckCheck } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -10,14 +10,14 @@ function AgentVerifiedBadge({ className }: AgentVerifiedBadgeProps) {
   return (
     <div
       className={cn(
-        "bg-agent-verified-background flex items-center gap-1 rounded-full px-2 py-0.5",
+        "bg-agent-verified-background flex items-center gap-1 rounded-md p-2",
         className,
       )}
     >
-      <CheckCheck className="text-agent-verified-foreground h-4 w-4" />
-      <span className="text-agent-verified-foreground hidden text-xs uppercase md:block">
-        {"Verified"}
-      </span>
+      <ShieldCheck
+        strokeWidth={1}
+        className="text-agent-verified-foreground size-6"
+      />
     </div>
   );
 }

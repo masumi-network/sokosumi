@@ -1,8 +1,10 @@
 "use client";
 
-import type { AgentRatingStats } from "@sokosumi/database";
-import { AgentWithCreditsPrice, AgentWithRelations } from "@sokosumi/database";
-import { useSearchParams } from "next/navigation";
+import type {
+  AgentRatingStats,
+  AgentWithCreditsPrice,
+  AgentWithRelations,
+} from "@sokosumi/database";
 import { Suspense, useMemo } from "react";
 
 import {
@@ -10,41 +12,22 @@ import {
   AgentsNotAvailable,
   AgentsNotFound,
 } from "@/components/agents";
-import { getAgentTags } from "@/lib/helpers/agent";
-
-import { GalleryFilterState } from "./use-gallery-filter";
-
-const filterAgents = (
-  agents: AgentWithCreditsPrice[],
-  { query, tags }: GalleryFilterState,
-) => {
-  if (!query && tags.length === 0) {
-    return agents;
-  }
-
-  const normalizedQuery = query.toLowerCase().trim();
-
-  return agents.filter((agent) => {
-    // Query matching
-    const matchesQuery =
-      !normalizedQuery ||
-      [agent.name, agent.description ?? ""].some((text) =>
-        text.toLowerCase().includes(normalizedQuery),
-      );
-
-    // Tag matching
-    const matchesTags =
-      tags.length === 0 ||
-      tags.some((tag) => getAgentTags(agent).includes(tag));
-
-    return matchesQuery && matchesTags;
-  });
-};
+import { Skeleton } from "@/components/ui/skeleton";
+import useGalleryFilter, {
+  GalleryFilterState,
+} from "@/hooks/use-gallery-filter";
+import { filterAgents } from "@/lib/helpers/agent-filter";
+import {
+  AgentCategoryGroup,
+  groupAgentsByCategory,
+} from "@/lib/helpers/agent-grouping";
+import type { Category } from "@/lib/types/category";
 
 interface FilteredAgentsProps {
   agents: AgentWithCreditsPrice[];
   favoriteAgents?: AgentWithRelations[] | undefined;
   ratingStatsMap: Record<string, AgentRatingStats>;
+  categories: Category[];
 }
 
 export default function FilteredAgents(props: FilteredAgentsProps) {
@@ -59,17 +42,22 @@ function FilteredAgentsInner({
   agents,
   favoriteAgents,
   ratingStatsMap,
+  categories,
 }: FilteredAgentsProps) {
-  const searchParams = useSearchParams();
+  const { query, categories: selectedCategories } = useGalleryFilter();
 
   const filteredAgents = useMemo(() => {
     const criteria: GalleryFilterState = {
-      query: searchParams.get("query") ?? "",
-      tags: searchParams.get("tags")?.split(",").filter(Boolean) ?? [],
+      query,
+      categories: selectedCategories,
     };
 
     return filterAgents(agents, criteria);
-  }, [agents, searchParams]);
+  }, [agents, query, selectedCategories]);
+
+  const groupedAgents = useMemo(() => {
+    return groupAgentsByCategory(filteredAgents, categories);
+  }, [filteredAgents, categories]);
 
   if (!agents.length) {
     return <AgentsNotAvailable />;
@@ -80,10 +68,31 @@ function FilteredAgentsInner({
   }
 
   return (
-    <Agents
-      agents={filteredAgents}
-      favoriteAgents={favoriteAgents}
-      ratingStatsMap={ratingStatsMap}
-    />
+    <div className="flex flex-col gap-12">
+      {groupedAgents.map((group) => (
+        <div key={group.categorySlug} className="flex flex-col gap-4">
+          <CategoryHeading group={group} />
+          <Agents
+            agents={group.agents}
+            favoriteAgents={favoriteAgents}
+            ratingStatsMap={ratingStatsMap}
+          />
+        </div>
+      ))}
+    </div>
   );
+}
+
+interface CategoryHeadingProps {
+  group: AgentCategoryGroup;
+}
+
+function CategoryHeading({ group }: CategoryHeadingProps) {
+  return (
+    <h2 className="text-xl font-light md:text-2xl">{group.categoryName}</h2>
+  );
+}
+
+export function CategoryHeadingSkeleton() {
+  return <Skeleton className="h-6 w-32 md:h-7 md:w-40" />;
 }

@@ -1,7 +1,5 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-
 import { StarIcon } from "@/components/agents/star-icon";
 import { cn } from "@/lib/utils";
 
@@ -20,8 +18,6 @@ export function StarRating({
   size = "md",
   className,
 }: StarRatingProps) {
-  const t = useTranslations("Components.Agents.Rating");
-
   const textSizeClasses = {
     xs: "text-xs",
     sm: "text-sm",
@@ -35,21 +31,6 @@ export function StarRating({
     md: "gap-1",
     lg: "gap-1",
   };
-
-  // Handle no ratings case
-  if (totalRatings === 0) {
-    return (
-      <div
-        className={cn(
-          "text-muted-foreground flex items-center gap-1",
-          textSizeClasses[size],
-          className,
-        )}
-      >
-        <span>{t("noRatings")}</span>
-      </div>
-    );
-  }
 
   // Calculate star fills based on average rating
   const fullStars = Math.floor(averageRating);

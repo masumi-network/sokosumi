@@ -2,10 +2,12 @@
 
 import type { Agent } from "@sokosumi/database";
 import { Sparkles } from "lucide-react";
-import Image from "next/image";
+import { memo, useMemo } from "react";
 
 import { getAgentName, getAgentResolvedIcon } from "@/lib/helpers/agent";
 import { cn } from "@/lib/utils";
+
+import { ResolverSVGIcon } from "./resolver-svg-icon";
 
 interface AgentIconProps {
   agent: Agent;
@@ -13,17 +15,16 @@ interface AgentIconProps {
   isMuted?: boolean;
 }
 
-export function AgentIcon({ agent, className, isMuted }: AgentIconProps) {
-  const resolvedIcon = getAgentResolvedIcon(agent);
+function AgentIconComponent({ agent, className, isMuted }: AgentIconProps) {
+  const resolvedIcon = useMemo(() => getAgentResolvedIcon(agent), [agent]);
+
+  const agentName = useMemo(() => getAgentName(agent), [agent]);
 
   if (resolvedIcon) {
     return (
-      <Image
-        src={resolvedIcon}
-        alt={`${getAgentName(agent)} icon`}
-        aria-hidden
-        width={16}
-        height={16}
+      <ResolverSVGIcon
+        svgUrl={resolvedIcon}
+        alt={`${agentName} icon`}
         className={cn("size-4", className, isMuted && "opacity-60")}
       />
     );
@@ -39,5 +40,7 @@ export function AgentIcon({ agent, className, isMuted }: AgentIconProps) {
     </span>
   );
 }
+
+export const AgentIcon = memo(AgentIconComponent);
 
 export default AgentIcon;

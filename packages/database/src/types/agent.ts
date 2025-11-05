@@ -15,6 +15,10 @@ export const agentTagsInclude = {
   overrideTags: true,
 } as const;
 
+export const agentCategoriesInclude = {
+  categories: true,
+} as const;
+
 export const agentExampleOutputInclude = {
   exampleOutput: true,
   overrideExampleOutput: true,
@@ -33,6 +37,7 @@ export const agentInclude = {
   ...agentPricingInclude,
   ...agentExampleOutputInclude,
   ...agentTagsInclude,
+  ...agentCategoriesInclude,
   ...agentRatingInclude,
   ...agentOrganizationsInclude,
 } as const;
@@ -75,6 +80,10 @@ export type AgentWithRating = Prisma.AgentGetPayload<{
 
 export type AgentWithTags = Prisma.AgentGetPayload<{
   include: typeof agentTagsInclude;
+}>;
+
+export type AgentWithCategories = Prisma.AgentGetPayload<{
+  include: typeof agentCategoriesInclude;
 }>;
 
 export type AgentWithExampleOutput = Prisma.AgentGetPayload<{

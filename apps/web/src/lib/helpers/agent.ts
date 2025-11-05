@@ -1,5 +1,6 @@
 import {
   Agent,
+  AgentWithCategories,
   type AgentWithExampleOutput,
   type AgentWithPricing,
   type AgentWithTags,
@@ -7,6 +8,7 @@ import {
   PricingType,
 } from "@sokosumi/database";
 
+import { SPECIAL_AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
 import { ipfsUrlResolver } from "@/lib/ipfs";
 import {
   type JobInputsDataSchemaType,
@@ -16,11 +18,13 @@ import {
   jobStatusResponseSchema,
   type PricingAmountsSchemaType,
 } from "@/lib/schemas";
+import { categoryStylesSchema } from "@/lib/schemas/category";
 import {
   type AgentDemoData,
   type AgentDemoValues,
   type AgentLegal,
 } from "@/lib/types/agent";
+import { CategoryStyles } from "@/lib/types/category";
 
 export function getAgentName(agent: Agent): string {
   return agent.overrideName ?? agent.name;
@@ -38,13 +42,30 @@ export function getAgentResolvedIcon(agent: Agent): string | null {
   if (!agent.icon) {
     return null;
   }
-  return ipfsUrlResolver(agent.icon);
+  const resolvedUrl = ipfsUrlResolver(agent.icon);
+
+  try {
+    new URL(resolvedUrl);
+    return resolvedUrl;
+  } catch (_error) {
+    return null;
+  }
 }
 
 export function getAgentTags(agent: AgentWithTags): string[] {
   return agent.overrideTags.length > 0
     ? agent.overrideTags.map((tag) => tag.name)
     : agent.tags.map((tag) => tag.name);
+}
+
+export function getAgentCategorySlugs(agent: AgentWithCategories): string[] {
+  return agent.categories.map((category) => category.slug);
+}
+
+export function isAgentNew(agent: AgentWithCategories): boolean {
+  return getAgentCategorySlugs(agent).includes(
+    SPECIAL_AGENT_CATEGORY_SLUGS.NEW,
+  );
 }
 
 export function getAgentLegal(agent: Agent): AgentLegal | null {
@@ -198,4 +219,47 @@ export function getAgentDemoData(agent: Agent): AgentDemoData | null {
   return !!agent.demoInput && !!agent.demoOutput
     ? { demoInput: agent.demoInput, demoOutput: agent.demoOutput }
     : null;
+}
+
+const DEFAULT_CATEGORY_STYLES: CategoryStyles = {
+  light: {
+    color: "text-default-foreground",
+  },
+  dark: {
+    color: "text-default-foreground",
+  },
+};
+
+export function getAgentCategoryStyles(
+  agent: AgentWithCategories,
+): CategoryStyles {
+  if (!agent.categories || agent.categories.length === 0) {
+    return DEFAULT_CATEGORY_STYLES;
+  }
+
+  const firstCategory = agent.categories.filter(
+    (category) => category.styles,
+  )[0];
+
+  if (!firstCategory?.styles) {
+    return DEFAULT_CATEGORY_STYLES;
+  }
+
+  try {
+    let rawStyles: unknown;
+    if (typeof firstCategory.styles === "string") {
+      rawStyles = JSON.parse(firstCategory.styles);
+    } else {
+      rawStyles = firstCategory.styles;
+    }
+
+    const validationResult = categoryStylesSchema.safeParse(rawStyles);
+    if (validationResult.success) {
+      return validationResult.data;
+    }
+
+    return DEFAULT_CATEGORY_STYLES;
+  } catch {
+    return DEFAULT_CATEGORY_STYLES;
+  }
 }

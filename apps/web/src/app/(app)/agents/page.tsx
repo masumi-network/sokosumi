@@ -1,13 +1,9 @@
-import { Tag } from "@sokosumi/database";
-import {
-  agentRatingRepository,
-  tagRepository,
-} from "@sokosumi/database/repositories";
+import { agentRatingRepository } from "@sokosumi/database/repositories";
 import { Metadata } from "next";
 import { getTranslations } from "next-intl/server";
 
 import { AgentsNotAvailable } from "@/components/agents";
-import { agentService } from "@/lib/services";
+import { agentService, categoryService } from "@/lib/services";
 
 import FilterSection from "./components/filter-section";
 import FilteredAgents from "./components/filtered-agents";
@@ -29,8 +25,7 @@ export default async function GalleryPage() {
     return <AgentsNotAvailable />;
   }
 
-  const tags: Tag[] = await tagRepository.getTags();
-  const tagNames = tags.map((tag) => tag.name);
+  const categoryMap = await categoryService.getValidCategories();
 
   const favoriteAgents = await agentService.getFavoriteAgents();
 
@@ -41,13 +36,14 @@ export default async function GalleryPage() {
 
   return (
     <div className="w-full">
-      <div className="space-y-12">
-        <FilterSection tags={tagNames} />
+      <div className="space-y-12 px-2">
+        <FilterSection categories={categoryMap} />
         {/* Agent Cards Grid */}
         <FilteredAgents
           agents={agentsWithPrice}
           favoriteAgents={favoriteAgents}
           ratingStatsMap={ratingStatsMap}
+          categories={categoryMap}
         />
       </div>
     </div>

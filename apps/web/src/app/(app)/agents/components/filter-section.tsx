@@ -9,12 +9,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSidebar } from "@/components/ui/sidebar";
 import { getEnvPublicConfig } from "@/config/env.public";
+import useGalleryFilter from "@/hooks/use-gallery-filter";
+import type { Category } from "@/lib/types/category";
 
-import Tags from "./tags";
-import useGalleryFilter from "./use-gallery-filter";
+import Categories from "./categories";
 
 interface FilterSectionProps {
-  tags: string[];
+  categories: Category[];
 }
 
 export default function FilterSection(props: FilterSectionProps) {
@@ -25,13 +26,13 @@ export default function FilterSection(props: FilterSectionProps) {
   );
 }
 
-function FilterSectionInner({ tags }: FilterSectionProps) {
+function FilterSectionInner({ categories }: FilterSectionProps) {
   const t = useTranslations("App.Agents.FilterSection");
   const {
     query,
-    tags: appliedTags,
+    categories: appliedCategories,
     setQuery,
-    setTags: setAppliedTags,
+    setCategories: setAppliedCategories,
     resetFilters,
   } = useGalleryFilter();
 
@@ -46,24 +47,26 @@ function FilterSectionInner({ tags }: FilterSectionProps) {
       <h1 className="text-2xl font-light md:text-3xl">{t("header")}</h1>
 
       <div className="flex flex-col gap-4 sm:flex-row">
-        <div className="flex gap-4">
-          <Input
-            className="max-w-full min-w-36 md:max-w-64"
-            placeholder={t("searchPlaceholder")}
-            defaultValue={query}
-            onChange={(e) => debouncedSetQuery(e.target.value)}
-          />
-          <Tags
-            appliedTags={appliedTags}
-            onApplyTags={setAppliedTags}
-            tags={tags}
-          />
-          {!query && appliedTags.length > 0 && (
+        <Input
+          className="max-w-full min-w-36 shrink-0 md:max-w-64"
+          placeholder={t("searchPlaceholder")}
+          defaultValue={query}
+          onChange={(e) => debouncedSetQuery(e.target.value)}
+        />
+        <div className="flex min-w-0 flex-1 gap-4">
+          <div className="min-w-0 flex-1">
+            <Categories
+              appliedCategories={appliedCategories}
+              onApplyCategories={setAppliedCategories}
+              categories={categories}
+            />
+          </div>
+          {appliedCategories.length > 0 && (
             <Button
               variant="ghost"
               onClick={resetFilters}
-              className="gap-2 text-lg"
-              disabled={!query && appliedTags.length === 0}
+              className="shrink-0 gap-2 text-lg"
+              disabled={!query && appliedCategories.length === 0}
             >
               {!isMobile && t("reset")}
               <X />

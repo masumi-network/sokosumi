@@ -1,10 +1,17 @@
-import type { AgentRatingStats } from "@sokosumi/database";
-import { AgentWithCreditsPrice, AgentWithRelations } from "@sokosumi/database";
+"use client";
+
+import type {
+  AgentRatingStats,
+  AgentWithCreditsPrice,
+  AgentWithRelations,
+} from "@sokosumi/database";
 import { useTranslations } from "next-intl";
 
+import { CarouselItem } from "@/components/ui/carousel";
 import { cn } from "@/lib/utils";
 
 import { AgentCard, AgentCardSkeleton } from "./agent-card";
+import { AgentCarousel } from "./agent-carousel";
 
 function AgentsNotAvailable(): React.JSX.Element {
   const t = useTranslations("Components.Agents");
@@ -38,15 +45,26 @@ interface AgentsSkeletonProps {
 
 function AgentsSkeleton({ className }: AgentsSkeletonProps) {
   return (
-    <div
-      className={cn(
-        "flex flex-wrap justify-center gap-3 space-y-4 md:justify-between",
-        className,
-      )}
-    >
-      {Array.from({ length: 6 }).map((_, i) => (
-        <AgentCardSkeleton key={i} />
-      ))}
+    <div className={cn("w-full", className)}>
+      {/* Mobile Skeleton */}
+      <div className="md:hidden">
+        <div className="flex gap-4 overflow-x-auto pb-4">
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} className="min-h-[317px] shrink-0 basis-full">
+              <AgentCardSkeleton />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Desktop Skeleton */}
+      <div className="hidden [-ms-overflow-style:none] [scrollbar-width:none] md:flex md:gap-6 md:overflow-x-auto md:pb-4 [&::-webkit-scrollbar]:hidden">
+        {Array.from({ length: 3 }).map((_, i) => (
+          <div key={i} className="min-h-[317px] shrink-0">
+            <AgentCardSkeleton />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -67,22 +85,25 @@ function Agents({
   agentCardClassName,
 }: AgentsProps) {
   return (
-    <div
-      className={cn(
-        "flex flex-wrap justify-center gap-3 space-y-4 md:justify-between",
-        className,
-      )}
+    <AgentCarousel
+      className={className}
+      itemCount={agents.length}
+      itemIds={agents.map((agent) => agent.id)}
     >
       {agents.map((agent) => (
-        <AgentCard
+        <CarouselItem
           key={agent.id}
-          agent={agent}
-          favoriteAgents={favoriteAgents}
-          ratingStats={ratingStatsMap[agent.id]}
-          className={agentCardClassName}
-        />
+          className="basis-full md:basis-auto md:pr-2"
+        >
+          <AgentCard
+            agent={agent}
+            favoriteAgents={favoriteAgents}
+            ratingStats={ratingStatsMap[agent.id]}
+            className={agentCardClassName}
+          />
+        </CarouselItem>
       ))}
-    </div>
+    </AgentCarousel>
   );
 }
 

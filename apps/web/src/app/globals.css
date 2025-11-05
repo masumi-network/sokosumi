@@ -15,6 +15,7 @@
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
+  --color-card-background: var(--card-background);
   --color-popover: var(--popover);
   --color-popover-foreground: var(--popover-foreground);
   --color-primary: var(--primary);
@@ -147,6 +148,17 @@
       height: 0;
     }
   }
+
+  @keyframes rotate-once {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(180deg);
+    }
+  }
+
+  --animate-rotate-once: rotate-once 0.6s ease-in-out;
 }
 
 :root {
@@ -156,6 +168,8 @@
   --foreground: hsla(0, 0%, 4%, 1);
   --card: hsla(300, 50%, 100%, 1);
   --card-foreground: hsla(300, 0%, 4%, 1);
+  --card-background: hsla(0, 0%, 98%, 1);
+  --card-background-hover: hsla(0, 0%, 98%, 0.5);
   --popover: hsla(300, 50%, 100%, 1);
   --popover-foreground: hsla(300, 0%, 4%, 1);
   --primary: hsla(264, 100%, 50%, 1);
@@ -270,9 +284,11 @@
   --foreground: hsla(0, 0%, 98%, 1);
   --card: hsla(300, 0%, 4%, 1);
   --card-foreground: hsla(0, 0%, 98%, 1);
+  --card-background: hsla(0, 0%, 9%, 1);
+  --card-background-hover: hsla(0, 0%, 9%, 0.5);
   --popover: hsla(330, 0%, 9%, 1);
   --popover-foreground: hsla(0, 0%, 98%, 1);
-  --primary: hsla(264, 100%, 50%, 1);
+  --primary: hsla(270, 64%, 63%, 1);
   --primary-variant: hsla(260, 100%, 73%, 1);
   --primary-tertiary: hsla(260, 100%, 73%, 0.3);
   --primary-quaternary: hsla(260, 100%, 73%, 0.2);
@@ -453,4 +469,12 @@
 
 @utility job-details-width {
   @apply w-full lg:w-[calc(100%-max(480px,32%))];
+}
+
+@utility hover-bg-image-transparent {
+  &:hover {
+    background-image: none !important;
+    background-color: var(--card-background-hover) !important;
+    border-color: var(--border) !important;
+  }
 }

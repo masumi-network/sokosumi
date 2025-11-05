@@ -1,25 +1,25 @@
 import { InputJsonValue } from "@prisma/client/runtime/client";
 
 import prisma from "../client";
-import type { Agent, Category, Prisma } from "../generated/prisma/client";
+import type { Category, Prisma } from "../generated/prisma/client";
 
 export const categoryRepository = {
   getCategories: async (
     tx: Prisma.TransactionClient = prisma,
   ): Promise<Category[]> => {
     return tx.category.findMany({
-      orderBy: { name: "asc" },
+      orderBy: [{ priority: "asc" }, { name: "asc" }],
     });
   },
 
-  getCategoriesWithAgents: async (
+  getCategoriesForAvailableAgents: async (
     tx: Prisma.TransactionClient = prisma,
   ): Promise<Category[]> => {
     return tx.category.findMany({
       where: {
-        agents: { some: {} },
+        agents: { some: { status: "ONLINE", isShown: true } },
       },
-      orderBy: { name: "asc" },
+      orderBy: [{ priority: "asc" }, { name: "asc" }],
     });
   },
 
@@ -33,7 +33,7 @@ export const categoryRepository = {
   },
 
   create: async (
-    data: Pick<Category, "name" | "slug"> &
+    data: Pick<Category, "name" | "slug" | "priority"> &
       Partial<Pick<Category, "description" | "image" | "styles">>,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<Category> => {
@@ -44,21 +44,7 @@ export const categoryRepository = {
         description: data.description,
         image: data.image,
         styles: data.styles as InputJsonValue,
-      },
-    });
-  },
-
-  setAgentCategories: async (
-    agentId: string,
-    categoryIds: string[],
-    tx: Prisma.TransactionClient = prisma,
-  ): Promise<Agent> => {
-    return tx.agent.update({
-      where: { id: agentId },
-      data: {
-        categories: {
-          set: categoryIds.map((id) => ({ id })),
-        },
+        priority: data.priority,
       },
     });
   },

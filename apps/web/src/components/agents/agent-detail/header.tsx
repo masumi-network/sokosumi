@@ -16,10 +16,10 @@ import {
   getAgentName,
   getAgentResolvedImage,
   getFullAgentAuthorName,
+  isAgentNew,
 } from "@/lib/helpers/agent";
 import { convertCentsToCredits } from "@/lib/helpers/credit";
 import { cn } from "@/lib/utils";
-import { isAgentNew } from "@/lib/utils/agent";
 
 interface AgentDetailHeaderProps {
   agent: AgentWithCreditsPrice;

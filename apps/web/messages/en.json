@@ -1400,7 +1400,13 @@
         "reset": "Reset",
         "tags": "Tags",
         "selectTags": "Select Tags",
-        "applyTags": "Apply"
+        "applyTags": "Apply",
+        "categories": "Categories",
+        "selectCategories": "Select Categories",
+        "applyCategories": "Apply",
+        "featuredAgents": "Featured Agents",
+        "newAgents": "New Agents",
+        "others": "Others"
       },
       "Jobs": {
         "newJob": "New Job",

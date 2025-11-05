@@ -141,6 +141,7 @@ async function syncAllEntries() {
   const runningAgentsUpdates: Promise<void>[] = [];
   const runningTagsUpdates: Promise<void>[] = [];
   const limit = 20;
+
   while (true) {
     const entriesResult = await registryClient.getAgents(lastIdentifier, limit);
     if (!entriesResult.ok) {
