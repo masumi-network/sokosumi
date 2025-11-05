@@ -7,7 +7,7 @@ import {
 } from "@/lib/constants/agent-categories";
 import type { Category } from "@/lib/types/category";
 
-import { groupAgentsByCategory } from "../group-agents-by-category";
+import { groupAgentsByCategory } from "../agent-grouping";
 
 // Helper function to create mock Prisma Category for agent.categories field
 function createMockPrismaCategory(

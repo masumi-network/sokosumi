@@ -13,14 +13,15 @@ import {
   AgentsNotFound,
 } from "@/components/agents";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { Category } from "@/lib/types/category";
-
-import { filterAgents } from "./filter-agents";
+import useGalleryFilter, {
+  GalleryFilterState,
+} from "@/hooks/use-gallery-filter";
+import { filterAgents } from "@/lib/helpers/agent-filter";
 import {
   AgentCategoryGroup,
   groupAgentsByCategory,
-} from "./group-agents-by-category";
-import useGalleryFilter, { GalleryFilterState } from "./use-gallery-filter";
+} from "@/lib/helpers/agent-grouping";
+import type { Category } from "@/lib/types/category";
 
 interface FilteredAgentsProps {
   agents: AgentWithCreditsPrice[];

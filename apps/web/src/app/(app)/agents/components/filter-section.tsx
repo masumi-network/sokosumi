@@ -9,10 +9,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useSidebar } from "@/components/ui/sidebar";
 import { getEnvPublicConfig } from "@/config/env.public";
+import useGalleryFilter from "@/hooks/use-gallery-filter";
 import type { Category } from "@/lib/types/category";
 
 import Categories from "./categories";
-import useGalleryFilter from "./use-gallery-filter";
 
 interface FilterSectionProps {
   categories: Category[];

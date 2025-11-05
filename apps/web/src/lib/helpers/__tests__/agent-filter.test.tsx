@@ -1,10 +1,10 @@
 import type { AgentWithCreditsPrice } from "@sokosumi/database";
 import { AgentStatus } from "@sokosumi/database";
 
+import type { GalleryFilterState } from "@/hooks/use-gallery-filter";
 import { SPECIAL_AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
 
-import { filterAgents } from "../filter-agents";
-import type { GalleryFilterState } from "../use-gallery-filter";
+import { filterAgents } from "../agent-filter";
 
 // Helper function to create mock category
 function createMockCategory(slug: string, name: string) {
@@ -251,7 +251,9 @@ describe("filterAgents", () => {
     const agents = [
       createMockAgent({
         name: "New Agent",
-        categories: [createMockCategory(SPECIAL_AGENT_CATEGORY_SLUGS.NEW, "New")],
+        categories: [
+          createMockCategory(SPECIAL_AGENT_CATEGORY_SLUGS.NEW, "New"),
+        ],
       }),
       createMockAgent({
         name: "Old Agent",
@@ -259,7 +261,9 @@ describe("filterAgents", () => {
       }),
       createMockAgent({
         name: "Another New",
-        categories: [createMockCategory(SPECIAL_AGENT_CATEGORY_SLUGS.NEW, "New")],
+        categories: [
+          createMockCategory(SPECIAL_AGENT_CATEGORY_SLUGS.NEW, "New"),
+        ],
       }),
     ];
     const filterState: GalleryFilterState = {
@@ -278,7 +282,9 @@ describe("filterAgents", () => {
       createMockAgent({
         name: "Other Agent",
         createdAt: oldDate,
-        categories: [createMockCategory(SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT, "Others")],
+        categories: [
+          createMockCategory(SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT, "Others"),
+        ],
       }),
       createMockAgent({
         name: "Featured Agent",
@@ -295,7 +301,9 @@ describe("filterAgents", () => {
       createMockAgent({
         name: "Another Other",
         createdAt: oldDate,
-        categories: [createMockCategory(SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT, "Others")],
+        categories: [
+          createMockCategory(SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT, "Others"),
+        ],
       }),
     ];
     const filterState: GalleryFilterState = {
@@ -415,7 +423,9 @@ describe("filterAgents", () => {
       createMockAgent({
         name: "Other Agent",
         createdAt: oldDate,
-        categories: [createMockCategory(SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT, "Others")],
+        categories: [
+          createMockCategory(SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT, "Others"),
+        ],
       }),
     ];
     const filterState: GalleryFilterState = {
@@ -435,12 +445,16 @@ describe("filterAgents", () => {
       createMockAgent({
         name: "New Agent",
         createdAt: newDate,
-        categories: [createMockCategory(SPECIAL_AGENT_CATEGORY_SLUGS.NEW, "New")],
+        categories: [
+          createMockCategory(SPECIAL_AGENT_CATEGORY_SLUGS.NEW, "New"),
+        ],
       }),
       createMockAgent({
         name: "Other Agent",
         createdAt: oldDate,
-        categories: [createMockCategory(SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT, "Others")],
+        categories: [
+          createMockCategory(SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT, "Others"),
+        ],
       }),
     ];
     const filterState: GalleryFilterState = {
@@ -464,7 +478,9 @@ describe("filterAgents", () => {
       createMockAgent({
         name: "Other Agent",
         createdAt: oldDate,
-        categories: [createMockCategory(SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT, "Others")],
+        categories: [
+          createMockCategory(SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT, "Others"),
+        ],
       }),
     ];
     const filterState: GalleryFilterState = {
