@@ -1,7 +1,7 @@
 import type { AgentWithCreditsPrice } from "@sokosumi/database";
 import { AgentStatus } from "@sokosumi/database";
 
-import { AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
+import { AGENT_CATEGORY_SLUG } from "@/lib/constants/agent-categories";
 
 import { filterAgents } from "../filter-agents";
 import type { GalleryFilterState } from "../use-gallery-filter";
@@ -220,7 +220,7 @@ describe("filterAgents", () => {
       createMockAgent({
         name: "Featured Agent",
         categories: [
-          createMockCategory(AGENT_CATEGORY_SLUGS.FEATURED, "Featured"),
+          createMockCategory(AGENT_CATEGORY_SLUG.FEATURED, "Featured"),
         ],
       }),
       createMockAgent({
@@ -230,13 +230,13 @@ describe("filterAgents", () => {
       createMockAgent({
         name: "Another Featured",
         categories: [
-          createMockCategory(AGENT_CATEGORY_SLUGS.FEATURED, "Featured"),
+          createMockCategory(AGENT_CATEGORY_SLUG.FEATURED, "Featured"),
         ],
       }),
     ];
     const filterState: GalleryFilterState = {
       query: "",
-      categories: [AGENT_CATEGORY_SLUGS.FEATURED],
+      categories: [AGENT_CATEGORY_SLUG.FEATURED],
     };
     const result = filterAgents(agents, filterState);
     expect(result).toHaveLength(2);
@@ -251,7 +251,7 @@ describe("filterAgents", () => {
     const agents = [
       createMockAgent({
         name: "New Agent",
-        categories: [createMockCategory(AGENT_CATEGORY_SLUGS.NEW, "New")],
+        categories: [createMockCategory(AGENT_CATEGORY_SLUG.NEW, "New")],
       }),
       createMockAgent({
         name: "Old Agent",
@@ -259,12 +259,12 @@ describe("filterAgents", () => {
       }),
       createMockAgent({
         name: "Another New",
-        categories: [createMockCategory(AGENT_CATEGORY_SLUGS.NEW, "New")],
+        categories: [createMockCategory(AGENT_CATEGORY_SLUG.NEW, "New")],
       }),
     ];
     const filterState: GalleryFilterState = {
       query: "",
-      categories: [AGENT_CATEGORY_SLUGS.NEW],
+      categories: [AGENT_CATEGORY_SLUG.NEW],
     };
     const result = filterAgents(agents, filterState);
     expect(result).toHaveLength(2);
@@ -278,13 +278,13 @@ describe("filterAgents", () => {
       createMockAgent({
         name: "Other Agent",
         createdAt: oldDate,
-        categories: [createMockCategory(AGENT_CATEGORY_SLUGS.OTHERS, "Others")],
+        categories: [createMockCategory(AGENT_CATEGORY_SLUG.DEFAULT, "Others")],
       }),
       createMockAgent({
         name: "Featured Agent",
         createdAt: oldDate,
         categories: [
-          createMockCategory(AGENT_CATEGORY_SLUGS.FEATURED, "Featured"),
+          createMockCategory(AGENT_CATEGORY_SLUG.FEATURED, "Featured"),
         ],
       }),
       createMockAgent({
@@ -295,12 +295,12 @@ describe("filterAgents", () => {
       createMockAgent({
         name: "Another Other",
         createdAt: oldDate,
-        categories: [createMockCategory(AGENT_CATEGORY_SLUGS.OTHERS, "Others")],
+        categories: [createMockCategory(AGENT_CATEGORY_SLUG.DEFAULT, "Others")],
       }),
     ];
     const filterState: GalleryFilterState = {
       query: "",
-      categories: [AGENT_CATEGORY_SLUGS.OTHERS],
+      categories: [AGENT_CATEGORY_SLUG.DEFAULT],
     };
     const result = filterAgents(agents, filterState);
     expect(result).toHaveLength(2);
@@ -409,18 +409,18 @@ describe("filterAgents", () => {
         name: "Featured Agent",
         createdAt: oldDate,
         categories: [
-          createMockCategory(AGENT_CATEGORY_SLUGS.FEATURED, "Featured"),
+          createMockCategory(AGENT_CATEGORY_SLUG.FEATURED, "Featured"),
         ],
       }),
       createMockAgent({
         name: "Other Agent",
         createdAt: oldDate,
-        categories: [createMockCategory(AGENT_CATEGORY_SLUGS.OTHERS, "Others")],
+        categories: [createMockCategory(AGENT_CATEGORY_SLUG.DEFAULT, "Others")],
       }),
     ];
     const filterState: GalleryFilterState = {
       query: "",
-      categories: [AGENT_CATEGORY_SLUGS.OTHERS],
+      categories: [AGENT_CATEGORY_SLUG.DEFAULT],
     };
     const result = filterAgents(agents, filterState);
     expect(result).toHaveLength(1);
@@ -435,17 +435,17 @@ describe("filterAgents", () => {
       createMockAgent({
         name: "New Agent",
         createdAt: newDate,
-        categories: [createMockCategory(AGENT_CATEGORY_SLUGS.NEW, "New")],
+        categories: [createMockCategory(AGENT_CATEGORY_SLUG.NEW, "New")],
       }),
       createMockAgent({
         name: "Other Agent",
         createdAt: oldDate,
-        categories: [createMockCategory(AGENT_CATEGORY_SLUGS.OTHERS, "Others")],
+        categories: [createMockCategory(AGENT_CATEGORY_SLUG.DEFAULT, "Others")],
       }),
     ];
     const filterState: GalleryFilterState = {
       query: "",
-      categories: [AGENT_CATEGORY_SLUGS.OTHERS],
+      categories: [AGENT_CATEGORY_SLUG.DEFAULT],
     };
     const result = filterAgents(agents, filterState);
     expect(result).toHaveLength(1);
@@ -464,12 +464,12 @@ describe("filterAgents", () => {
       createMockAgent({
         name: "Other Agent",
         createdAt: oldDate,
-        categories: [createMockCategory(AGENT_CATEGORY_SLUGS.OTHERS, "Others")],
+        categories: [createMockCategory(AGENT_CATEGORY_SLUG.DEFAULT, "Others")],
       }),
     ];
     const filterState: GalleryFilterState = {
       query: "",
-      categories: [AGENT_CATEGORY_SLUGS.OTHERS],
+      categories: [AGENT_CATEGORY_SLUG.DEFAULT],
     };
     const result = filterAgents(agents, filterState);
     expect(result).toHaveLength(1);
