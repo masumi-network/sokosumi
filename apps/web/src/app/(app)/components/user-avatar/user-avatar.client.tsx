@@ -123,10 +123,10 @@ export default function UserAvatarClient({
             </DropdownMenuItem>
             <DropdownMenuItem
               className="flex cursor-pointer items-center gap-2"
-              onClick={(e) => handleClick(e, "/billing")}
+              onClick={(e) => handleClick(e, "/credits")}
             >
               <CreditCardIcon className="text-muted-foreground" />
-              {t("billing")}
+              {t("credits")}
             </DropdownMenuItem>
             <DropdownMenuItem
               className="flex cursor-pointer items-center gap-2"

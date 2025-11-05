@@ -141,7 +141,7 @@
     "UserAvatar": {
       "account": "Account",
       "organizations": "Organizations",
-      "billing": "Billing",
+      "credits": "Credits",
       "mcp": "MCP",
       "support": "Support",
       "logout": "Log out"
@@ -227,7 +227,7 @@
     "Breadcrumb": {
       "jobs": "Jobs",
       "agents": "Gallery",
-      "billing": "Billing",
+      "credits": "Credits",
       "account": "Account",
       "organizations": "Organizations",
       "api-docs": "API Documentation",
@@ -1074,9 +1074,9 @@
         "unavailable": "Credits unavailable"
       }
     },
-    "Billing": {
-      "title": "Billing",
-      "description": "Manage your billing settings and preferences",
+    "Credits": {
+      "title": "Credits",
+      "description": "Manage your credit balance and top-ups",
       "topUpTitle": "Top up your credits",
       "topUpDescription": "Choose an amount or enter a custom value",
       "costPerCredit": "{cost} per credit",
@@ -1099,7 +1099,7 @@
       "Success": {
         "title": "Payment Successful!",
         "description": "Your credit purchase was successful. Thank you!",
-        "fulfillmentNote": "Your credits will be added to your account shortly. You can check your balance on the billing page.",
+        "fulfillmentNote": "Your credits will be added to your account shortly. You can check your balance on the credits page.",
         "backToDashboard": "Browse Agents",
         "getStarted": "Get started by hiring your first agent",
         "Error": {
@@ -1111,7 +1111,7 @@
       "Cancel": {
         "title": "Payment Cancelled",
         "description": "Your payment process was cancelled. You have not been charged.",
-        "backToBilling": "Back to Billing"
+        "backToCredits": "Back to Credits"
       },
       "Errors": {
         "invalidInput": "Please enter either a credit amount or a coupon code",

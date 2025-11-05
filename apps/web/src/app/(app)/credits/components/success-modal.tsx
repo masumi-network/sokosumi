@@ -21,7 +21,7 @@ import SuccessCard, {
   SuccessCardLoading,
 } from "./success-card";
 
-interface BillingSuccessModalProps {
+interface CreditsSuccessModalProps {
   checkoutSessionPromise: Promise<CheckoutSessionData>;
   randomAgentPromise: Promise<{
     agent: AgentWithCreditsPrice;
@@ -29,15 +29,15 @@ interface BillingSuccessModalProps {
   } | null>;
 }
 
-export default function BillingSuccessModal(props: BillingSuccessModalProps) {
+export default function CreditsSuccessModal(props: CreditsSuccessModalProps) {
   return (
     <Suspense>
-      <BillingSuccessModalInner {...props} />
+      <CreditsSuccessModalInner {...props} />
     </Suspense>
   );
 }
 
-function BillingSuccessModalInner(props: BillingSuccessModalProps) {
+function CreditsSuccessModalInner(props: CreditsSuccessModalProps) {
   const [sessionId, setSessionId] = useQueryState("session_id");
 
   const handleOpenChange = (open: boolean) => {
@@ -66,8 +66,8 @@ function BillingSuccessModalInner(props: BillingSuccessModalProps) {
 function SuccessCardContentInner({
   checkoutSessionPromise,
   randomAgentPromise,
-}: BillingSuccessModalProps) {
-  const t = useTranslations("App.Billing.Success");
+}: CreditsSuccessModalProps) {
+  const t = useTranslations("App.Credits.Success");
   const checkoutSession = use(checkoutSessionPromise);
 
   return (

@@ -29,15 +29,15 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import {
-  BillingErrorCode,
   claimFreeCreditsWithCoupon,
   CommonErrorCode,
+  CreditsErrorCode,
   purchaseCredits,
 } from "@/lib/actions";
 import { Price } from "@/lib/clients/stripe.client";
 import { fireGTMEvent } from "@/lib/gtm-events";
 
-const billingFormSchema = (t: IntlTranslation<"App.Billing">) =>
+const creditsFormSchema = (t: IntlTranslation<"App.Credits">) =>
   z
     .object({
       credits: z.number().nullish(),
@@ -62,15 +62,15 @@ const billingFormSchema = (t: IntlTranslation<"App.Billing">) =>
       }
     });
 
-type BillingFormData = z.infer<ReturnType<typeof billingFormSchema>>;
+type CreditsFormData = z.infer<ReturnType<typeof creditsFormSchema>>;
 
-interface BillingFormProps {
+interface CreditsFormProps {
   price: Price;
   organization: Organization | null;
 }
 
-export default function BillingForm({ price, organization }: BillingFormProps) {
-  const t = useTranslations("App.Billing");
+export default function CreditsForm({ price, organization }: CreditsFormProps) {
+  const t = useTranslations("App.Credits");
   const formatter = useFormatter();
   const router = useRouter();
 
@@ -78,8 +78,8 @@ export default function BillingForm({ price, organization }: BillingFormProps) {
     null,
   );
 
-  const form = useForm<BillingFormData>({
-    resolver: zodResolver(billingFormSchema(t)),
+  const form = useForm<CreditsFormData>({
+    resolver: zodResolver(creditsFormSchema(t)),
     defaultValues: {
       credits: null,
       coupon: null,
@@ -89,7 +89,7 @@ export default function BillingForm({ price, organization }: BillingFormProps) {
   // Effect is necessary: Analytics tracking when component is displayed
   // Fires once on mount to track page view
   useEffect(() => {
-    fireGTMEvent.viewBilling();
+    fireGTMEvent.viewCredits();
   }, []);
 
   const { setValue } = form;
@@ -134,7 +134,7 @@ export default function BillingForm({ price, organization }: BillingFormProps) {
   );
 
   const handleSubmit = useCallback(
-    async (data: BillingFormData) => {
+    async (data: CreditsFormData) => {
       let result;
       if (data.coupon && data.coupon.trim().length > 0) {
         result = await claimFreeCreditsWithCoupon({
@@ -168,22 +168,22 @@ export default function BillingForm({ price, organization }: BillingFormProps) {
               },
             });
             break;
-          case BillingErrorCode.INVALID_CREDITS:
+          case CreditsErrorCode.INVALID_CREDITS:
             toast.error(t("Errors.invalidCredits"));
             break;
-          case BillingErrorCode.INVALID_COUPON:
+          case CreditsErrorCode.INVALID_COUPON:
             toast.error(t("Errors.invalidCoupon"));
             break;
-          case BillingErrorCode.COUPON_NOT_FOUND:
+          case CreditsErrorCode.COUPON_NOT_FOUND:
             toast.error(t("Errors.couponNotFound"));
             break;
-          case BillingErrorCode.COUPON_TYPE_ERROR:
+          case CreditsErrorCode.COUPON_TYPE_ERROR:
             toast.error(t("Errors.couponTypeError"));
             break;
-          case BillingErrorCode.COUPON_CURRENCY_ERROR:
+          case CreditsErrorCode.COUPON_CURRENCY_ERROR:
             toast.error(t("Errors.couponCurrencyError"));
             break;
-          case BillingErrorCode.PROMOTION_CODE_NOT_FOUND:
+          case CreditsErrorCode.PROMOTION_CODE_NOT_FOUND:
             toast.error(t("Errors.promotionCodeNotFound"));
             break;
           case CommonErrorCode.UNAUTHORIZED:

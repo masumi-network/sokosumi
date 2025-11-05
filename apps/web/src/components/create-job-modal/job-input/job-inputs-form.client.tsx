@@ -182,7 +182,7 @@ export default function JobInputsFormClient({
           toast.error(t("Error.insufficientBalance"), {
             action: {
               label: t("Error.insufficientBalanceAction"),
-              onClick: () => router.push(`/billing`),
+              onClick: () => router.push(`/credits`),
             },
           });
           break;
