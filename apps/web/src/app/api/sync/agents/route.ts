@@ -16,7 +16,7 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import { authenticateCronSecret } from "@/lib/auth/utils";
 import { PostRegistryEntryResponse } from "@/lib/clients/generated/registry";
 import { registryClient } from "@/lib/clients/masumi-registry.client";
-import { AGENT_CATEGORY_SLUG } from "@/lib/constants/agent-categories";
+import { SPECIAL_AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
 import { lockService } from "@/lib/services";
 
 const LOCK_KEY = "agents-sync";
@@ -148,7 +148,7 @@ async function syncAllEntries() {
 
   // Get or create the default category
   const defaultCategory = await categoryRepository.getBySlug(
-    AGENT_CATEGORY_SLUG.DEFAULT,
+    SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT,
   );
 
   while (true) {
