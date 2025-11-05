@@ -1,7 +1,8 @@
-import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import { createRoute, z } from "@hono/zod-openapi";
 import { agentRepository } from "@sokosumi/database/repositories";
 
 import { ok, successResponseSchema } from "../helpers/response";
+import { OpenAPIHonoWithAuthContext } from "../lib/hono";
 import { requireAuth } from "../middleware/auth";
 
 const agentSchema = z
@@ -26,7 +27,7 @@ const route = createRoute({
   },
 });
 
-const app = new OpenAPIHono();
+const app = new OpenAPIHonoWithAuthContext();
 
 // Add auth middleware
 app.use("*", requireAuth);

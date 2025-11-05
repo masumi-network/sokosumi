@@ -1,11 +1,11 @@
 import { userRepository } from "@sokosumi/database/repositories";
-import { Hono } from "hono";
 
 import { notFound } from "../helpers/error";
 import { ok } from "../helpers/response";
-import { AuthContext, requireAuth } from "../middleware/auth";
+import { HonoWithAuthContext } from "../lib/hono";
+import { requireAuth } from "../middleware/auth";
 
-const router = new Hono<{ Variables: { auth: AuthContext } }>();
+const router = new HonoWithAuthContext();
 
 router.use("*", requireAuth);
 

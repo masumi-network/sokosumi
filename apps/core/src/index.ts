@@ -1,11 +1,11 @@
 import { swaggerUI } from "@hono/swagger-ui";
-import { OpenAPIHono } from "@hono/zod-openapi";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 
 import { env } from "./config/env";
 import { errorHandler } from "./helpers/error-handler";
+import { OpenAPIHonoWithAuthContext } from "./lib/hono";
 import agentsRouter from "./routes/agents";
 import usersRouter from "./routes/users";
 
@@ -27,7 +27,7 @@ app.use(
 app.onError(errorHandler);
 
 // Protected API routes
-const api = new OpenAPIHono();
+const api = new OpenAPIHonoWithAuthContext();
 
 // Mount protected routes (auth middleware applied in routes)
 api.route("/agents", agentsRouter);
