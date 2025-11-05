@@ -6,7 +6,6 @@ import type {
   AgentWithRelations,
 } from "@sokosumi/database";
 import { useSearchParams } from "next/navigation";
-import { useTranslations } from "next-intl";
 import { Suspense, useMemo } from "react";
 
 import {
@@ -15,7 +14,6 @@ import {
   AgentsNotFound,
 } from "@/components/agents";
 import { Skeleton } from "@/components/ui/skeleton";
-import { AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
 import type { Category } from "@/lib/types/category";
 
 import { filterAgents } from "./filter-agents";
@@ -46,7 +44,6 @@ function FilteredAgentsInner({
   ratingStatsMap,
   categories,
 }: FilteredAgentsProps) {
-  const t = useTranslations("App.Agents.FilterSection");
   const searchParams = useSearchParams();
 
   const filteredAgents = useMemo(() => {
@@ -71,30 +68,11 @@ function FilteredAgentsInner({
     return <AgentsNotFound />;
   }
 
-  const getCategoryDisplayName = (group: AgentCategoryGroup): string => {
-    if (group.categorySlug === AGENT_CATEGORY_SLUGS.FEATURED) {
-      return t("featuredAgents");
-    }
-    if (group.categorySlug === AGENT_CATEGORY_SLUGS.NEW) {
-      return t("newAgents");
-    }
-    if (group.categorySlug === null) {
-      return t("others");
-    }
-    return group.categoryName;
-  };
-
   return (
     <div className="flex flex-col gap-12">
       {groupedAgents.map((group) => (
-        <div
-          key={group.categorySlug ?? AGENT_CATEGORY_SLUGS.OTHERS}
-          className="flex flex-col gap-4"
-        >
-          <CategoryHeading
-            group={group}
-            getCategoryDisplayName={getCategoryDisplayName}
-          />
+        <div key={group.categorySlug} className="flex flex-col gap-4">
+          <CategoryHeading group={group} />
           <Agents
             agents={group.agents}
             favoriteAgents={favoriteAgents}
@@ -108,17 +86,11 @@ function FilteredAgentsInner({
 
 interface CategoryHeadingProps {
   group: AgentCategoryGroup;
-  getCategoryDisplayName: (group: AgentCategoryGroup) => string;
 }
 
-function CategoryHeading({
-  group,
-  getCategoryDisplayName,
-}: CategoryHeadingProps) {
+function CategoryHeading({ group }: CategoryHeadingProps) {
   return (
-    <h2 className="text-xl font-light md:text-2xl">
-      {getCategoryDisplayName(group)}
-    </h2>
+    <h2 className="text-xl font-light md:text-2xl">{group.categoryName}</h2>
   );
 }
 

@@ -25,9 +25,7 @@ export default async function GalleryPage() {
     return <AgentsNotAvailable />;
   }
 
-  const t = await getTranslations("App.Agents.FilterSection");
-
-  const categoryMap = await categoryService.getValidCategories(t("others"));
+  const categoryMap = await categoryService.getCategories();
 
   const favoriteAgents = await agentService.getFavoriteAgents();
 

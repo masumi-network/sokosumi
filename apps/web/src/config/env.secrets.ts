@@ -36,6 +36,7 @@ const envSecretsSchema = z.object({
     .string()
     .transform((val: string) => val.trim().toLowerCase() === "true")
     .default(false),
+  DEFAULT_AGENT_CATEGORY_SLUG: z.string().default("others"),
 
   // Stripe
   STRIPE_PUBLISHABLE_KEY: z.string().min(1),

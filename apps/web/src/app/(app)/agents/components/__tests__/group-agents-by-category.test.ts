@@ -10,7 +10,24 @@ import {
 } from "../group-agents-by-category";
 
 // Helper function to create mock category
-function createMockCategory(slug: string, name: string) {
+function createMockCategory(
+  slug: string,
+  name: string,
+  priority: number = 0,
+): Category {
+  return {
+    slug,
+    name,
+    priority,
+  };
+}
+
+// Helper function to create mock Prisma Category for agent.categories field
+function createMockPrismaCategory(
+  slug: string,
+  name: string,
+  priority: number = 0,
+) {
   const now = new Date();
   return {
     id: `category-${Math.random().toString(36).substring(7)}`,
@@ -21,7 +38,15 @@ function createMockCategory(slug: string, name: string) {
     description: null,
     image: null,
     styles: null,
+    priority,
   };
+}
+
+// Helper function to calculate isNew based on createdAt (matching Prisma extension logic)
+function calculateIsNew(createdAt: Date): boolean {
+  const thresholdDays = 7; // Default threshold
+  const thresholdMilliseconds = 86_400_000 * thresholdDays;
+  return createdAt > new Date(Date.now() - thresholdMilliseconds);
 }
 
 // Helper function to create mock agents
@@ -31,9 +56,12 @@ function createMockAgent(
   const now = new Date();
   const oldDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
 
+  const createdAt = overrides.createdAt ?? oldDate;
+  const isNew = calculateIsNew(createdAt);
+
   return {
     id: `agent-${Math.random().toString(36).substring(7)}`,
-    createdAt: oldDate,
+    createdAt,
     updatedAt: now,
     blockchainIdentifier: `blockchain-${Math.random().toString(36).substring(7)}`,
     name: "Test Agent",
@@ -97,8 +125,9 @@ function createMockAgent(
       cents: BigInt(0),
       includedFee: BigInt(0),
     },
+    isNew,
     ...overrides,
-  };
+  } as AgentWithCreditsPrice;
 }
 
 describe("groupAgentsByCategory", () => {
@@ -107,20 +136,20 @@ describe("groupAgentsByCategory", () => {
     const agents = [
       createMockAgent({
         name: "Coding Agent",
-        categories: [createMockCategory("coding", "Coding")],
+        categories: [createMockPrismaCategory("coding", "Coding")],
       }),
       createMockAgent({
         name: "Design Agent",
-        categories: [createMockCategory("design", "Design")],
+        categories: [createMockPrismaCategory("design", "Design")],
       }),
       createMockAgent({
         name: "Another Coding",
-        categories: [createMockCategory("coding", "Coding")],
+        categories: [createMockPrismaCategory("coding", "Coding")],
       }),
     ];
     const categories: Category[] = [
-      { slug: "coding", name: "Coding" },
-      { slug: "design", name: "Design" },
+      { slug: "coding", name: "Coding", priority: 10 },
+      { slug: "design", name: "Design", priority: 20 },
     ];
     const result = groupAgentsByCategory(agents, categories);
     expect(result).toHaveLength(2);
@@ -139,35 +168,41 @@ describe("groupAgentsByCategory", () => {
         name: "Featured Agent",
         createdAt: oldDate,
         categories: [
-          createMockCategory(AGENT_CATEGORY_SLUGS.FEATURED, "Featured"),
+          createMockPrismaCategory(AGENT_CATEGORY_SLUGS.FEATURED, "Featured"),
         ],
       }),
       createMockAgent({
         name: "New Agent",
         createdAt: newDate,
-        categories: [],
+        categories: [
+          createMockPrismaCategory(AGENT_CATEGORY_SLUGS.NEW, "New"),
+        ],
       }),
       createMockAgent({
         name: "Regular Agent",
         createdAt: oldDate,
-        categories: [createMockCategory("coding", "Coding")],
+        categories: [createMockPrismaCategory("coding", "Coding")],
       }),
       createMockAgent({
         name: "Other Agent",
         createdAt: oldDate,
-        categories: [],
+        categories: [
+          createMockPrismaCategory(AGENT_CATEGORY_SLUGS.OTHERS, "Others"),
+        ],
       }),
     ];
     const categories: Category[] = [
-      { slug: "coding", name: "Coding" },
-      { slug: AGENT_CATEGORY_SLUGS.FEATURED, name: "Featured" },
+      { slug: AGENT_CATEGORY_SLUGS.FEATURED, name: "Featured", priority: 1 },
+      { slug: AGENT_CATEGORY_SLUGS.NEW, name: "New", priority: 2 },
+      { slug: "coding", name: "Coding", priority: 10 },
+      { slug: AGENT_CATEGORY_SLUGS.OTHERS, name: "Others", priority: 100 },
     ];
     const result = groupAgentsByCategory(agents, categories);
     expect(result).toHaveLength(4);
     expect(result[0].categorySlug).toBe(AGENT_CATEGORY_SLUGS.FEATURED);
     expect(result[1].categorySlug).toBe(AGENT_CATEGORY_SLUGS.NEW);
     expect(result[2].categorySlug).toBe("coding");
-    expect(result[3].categorySlug).toBe(null); // Others
+    expect(result[3].categorySlug).toBe(AGENT_CATEGORY_SLUGS.OTHERS);
   });
 
   // Test case 3: Multi-category agents - agents can appear in multiple groups
@@ -177,12 +212,14 @@ describe("groupAgentsByCategory", () => {
         name: "Featured New Agent",
         createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
         categories: [
-          createMockCategory(AGENT_CATEGORY_SLUGS.FEATURED, "Featured"),
+          createMockPrismaCategory(AGENT_CATEGORY_SLUGS.FEATURED, "Featured"),
+          createMockPrismaCategory(AGENT_CATEGORY_SLUGS.NEW, "New"),
         ],
       }),
     ];
     const categories: Category[] = [
-      { slug: AGENT_CATEGORY_SLUGS.FEATURED, name: "Featured" },
+      { slug: AGENT_CATEGORY_SLUGS.FEATURED, name: "Featured", priority: 1 },
+      { slug: AGENT_CATEGORY_SLUGS.NEW, name: "New", priority: 2 },
     ];
     const result = groupAgentsByCategory(agents, categories);
     expect(result).toHaveLength(2); // Featured and New
@@ -205,14 +242,16 @@ describe("groupAgentsByCategory", () => {
         name: "Multi Category Agent",
         createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
         categories: [
-          createMockCategory(AGENT_CATEGORY_SLUGS.FEATURED, "Featured"),
-          createMockCategory("coding", "Coding"),
+          createMockPrismaCategory(AGENT_CATEGORY_SLUGS.FEATURED, "Featured"),
+          createMockPrismaCategory(AGENT_CATEGORY_SLUGS.NEW, "New"),
+          createMockPrismaCategory("coding", "Coding"),
         ],
       }),
     ];
     const categories: Category[] = [
-      { slug: AGENT_CATEGORY_SLUGS.FEATURED, name: "Featured" },
-      { slug: "coding", name: "Coding" },
+      { slug: AGENT_CATEGORY_SLUGS.FEATURED, name: "Featured", priority: 1 },
+      { slug: AGENT_CATEGORY_SLUGS.NEW, name: "New", priority: 2 },
+      { slug: "coding", name: "Coding", priority: 10 },
     ];
     const result = groupAgentsByCategory(agents, categories);
     expect(result).toHaveLength(3); // Featured, New, and Coding
@@ -231,7 +270,9 @@ describe("groupAgentsByCategory", () => {
   // Test case 5: Empty inputs - should handle empty agent array
   it("should return empty array when no agents provided", () => {
     const agents: AgentWithCreditsPrice[] = [];
-    const categories: Category[] = [{ slug: "category-1", name: "Category 1" }];
+    const categories: Category[] = [
+      { slug: "category-1", name: "Category 1", priority: 0 },
+    ];
     const result = groupAgentsByCategory(agents, categories);
     expect(result).toEqual([]);
   });
@@ -241,38 +282,47 @@ describe("groupAgentsByCategory", () => {
     const agents = [
       createMockAgent({
         name: "Agent 1",
-        categories: [],
+        categories: [
+          createMockPrismaCategory(AGENT_CATEGORY_SLUGS.OTHERS, "Others"),
+        ],
       }),
       createMockAgent({
         name: "Agent 2",
-        categories: [],
+        categories: [
+          createMockPrismaCategory(AGENT_CATEGORY_SLUGS.OTHERS, "Others"),
+        ],
       }),
     ];
     const categories: Category[] = [];
     const result = groupAgentsByCategory(agents, categories);
-    expect(result).toHaveLength(1); // Only Others group
-    expect(result[0].categorySlug).toBe(null);
-    expect(result[0].agents).toHaveLength(2);
+    // Since categories array is empty, agents won't be grouped (no matching categories)
+    expect(result).toHaveLength(0);
   });
 
-  // Test case 7: Agents with no categories - should go to "Others"
-  it("should assign agents with no categories to Others group", () => {
+  // Test case 7: Agents with "Others" category - should be grouped under Others
+  it("should group agents with Others category", () => {
     const agents = [
       createMockAgent({
         name: "Agent 1",
-        categories: [],
+        categories: [
+          createMockPrismaCategory(AGENT_CATEGORY_SLUGS.OTHERS, "Others"),
+        ],
       }),
       createMockAgent({
         name: "Agent 2",
-        categories: [],
+        categories: [
+          createMockPrismaCategory(AGENT_CATEGORY_SLUGS.OTHERS, "Others"),
+        ],
       }),
     ];
     const categories: Category[] = [
-      { slug: "coding", name: "Coding" },
-      { slug: AGENT_CATEGORY_SLUGS.OTHERS, name: "Others" },
+      { slug: "coding", name: "Coding", priority: 10 },
+      { slug: AGENT_CATEGORY_SLUGS.OTHERS, name: "Others", priority: 100 },
     ];
     const result = groupAgentsByCategory(agents, categories);
-    const othersGroup = result.find((g) => g.categorySlug === null);
+    const othersGroup = result.find(
+      (g) => g.categorySlug === AGENT_CATEGORY_SLUGS.OTHERS,
+    );
     expect(othersGroup).toBeDefined();
     expect(othersGroup?.agents).toHaveLength(2);
   });
@@ -282,56 +332,56 @@ describe("groupAgentsByCategory", () => {
     const agents = [
       createMockAgent({
         name: "Agent 1",
-        categories: [createMockCategory("unknown-category", "Unknown")],
-      }),
-    ];
-    const categories: Category[] = [{ slug: "coding", name: "Coding" }];
-    const result = groupAgentsByCategory(agents, categories);
-    // Agent has unknown category that's not in the regularCategorySlugs list,
-    // so it won't match any regular category. Since it has categories.length > 0,
-    // it won't go to Others either (Others only includes agents with no categories).
-    // Since it's not Featured or New, it won't appear in any group.
-    expect(result).toEqual([]);
-  });
-
-  // Test case 9: Others category name - should use categoryMap or default slug
-  it("should use categoryMap for Others category name or default slug", () => {
-    const agents = [
-      createMockAgent({
-        name: "Agent 1",
-        categories: [],
-      }),
-    ];
-    const categoriesWithOthers: Category[] = [
-      { slug: AGENT_CATEGORY_SLUGS.OTHERS, name: "Others Category" },
-    ];
-    const result = groupAgentsByCategory(agents, categoriesWithOthers);
-    const othersGroup = result.find((g) => g.categorySlug === null);
-    expect(othersGroup).toBeDefined();
-    expect(othersGroup?.categoryName).toBe("Others Category");
-
-    const categoriesWithoutOthers: Category[] = [
-      { slug: "coding", name: "Coding" },
-    ];
-    const result2 = groupAgentsByCategory(agents, categoriesWithoutOthers);
-    const othersGroup2 = result2.find((g) => g.categorySlug === null);
-    expect(othersGroup2).toBeDefined();
-    expect(othersGroup2?.categoryName).toBe(AGENT_CATEGORY_SLUGS.OTHERS);
-  });
-
-  // Test case 10: Regular categories filtering - should exclude Featured, New, Others from regular categories
-  it("should filter out special slugs from regular categories", () => {
-    const agents = [
-      createMockAgent({
-        name: "Coding Agent",
-        categories: [createMockCategory("coding", "Coding")],
+        categories: [createMockPrismaCategory("unknown-category", "Unknown")],
       }),
     ];
     const categories: Category[] = [
-      { slug: AGENT_CATEGORY_SLUGS.FEATURED, name: "Featured" },
-      { slug: AGENT_CATEGORY_SLUGS.NEW, name: "New" },
-      { slug: AGENT_CATEGORY_SLUGS.OTHERS, name: "Others" },
-      { slug: "coding", name: "Coding" },
+      { slug: "coding", name: "Coding", priority: 10 },
+    ];
+    const result = groupAgentsByCategory(agents, categories);
+    // Agent has unknown category that's not in the categories list,
+    // so it won't match any category and won't appear in any group.
+    expect(result).toEqual([]);
+  });
+
+  // Test case 9: Others category name - should use categoryMap
+  it("should use categoryMap for Others category name", () => {
+    const agents = [
+      createMockAgent({
+        name: "Agent 1",
+        categories: [
+          createMockPrismaCategory(AGENT_CATEGORY_SLUGS.OTHERS, "Others"),
+        ],
+      }),
+    ];
+    const categoriesWithOthers: Category[] = [
+      {
+        slug: AGENT_CATEGORY_SLUGS.OTHERS,
+        name: "Others Category",
+        priority: 100,
+      },
+    ];
+    const result = groupAgentsByCategory(agents, categoriesWithOthers);
+    const othersGroup = result.find(
+      (g) => g.categorySlug === AGENT_CATEGORY_SLUGS.OTHERS,
+    );
+    expect(othersGroup).toBeDefined();
+    expect(othersGroup?.categoryName).toBe("Others Category");
+  });
+
+  // Test case 10: Regular categories filtering - all categories are treated equally
+  it("should handle all categories from database", () => {
+    const agents = [
+      createMockAgent({
+        name: "Coding Agent",
+        categories: [createMockPrismaCategory("coding", "Coding")],
+      }),
+    ];
+    const categories: Category[] = [
+      { slug: AGENT_CATEGORY_SLUGS.FEATURED, name: "Featured", priority: 1 },
+      { slug: AGENT_CATEGORY_SLUGS.NEW, name: "New", priority: 2 },
+      { slug: AGENT_CATEGORY_SLUGS.OTHERS, name: "Others", priority: 100 },
+      { slug: "coding", name: "Coding", priority: 10 },
     ];
     const result = groupAgentsByCategory(agents, categories);
     const codingGroup = result.find((g) => g.categorySlug === "coding");
@@ -339,16 +389,22 @@ describe("groupAgentsByCategory", () => {
     expect(codingGroup?.categorySlug).toBe("coding");
   });
 
-  // Test case 11: Edge case - agent with categories but also new should appear in both
-  it("should assign new agents with categories to both New and their category groups", () => {
+  // Test case 11: Edge case - agent with multiple categories should appear in all matching groups
+  it("should assign agents with multiple categories to all matching groups", () => {
     const agents = [
       createMockAgent({
         name: "New Coding Agent",
         createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
-        categories: [createMockCategory("coding", "Coding")],
+        categories: [
+          createMockPrismaCategory(AGENT_CATEGORY_SLUGS.NEW, "New"),
+          createMockPrismaCategory("coding", "Coding"),
+        ],
       }),
     ];
-    const categories: Category[] = [{ slug: "coding", name: "Coding" }];
+    const categories: Category[] = [
+      { slug: AGENT_CATEGORY_SLUGS.NEW, name: "New", priority: 2 },
+      { slug: "coding", name: "Coding", priority: 10 },
+    ];
     const result = groupAgentsByCategory(agents, categories);
     const newGroup = result.find(
       (g) => g.categorySlug === AGENT_CATEGORY_SLUGS.NEW,
@@ -367,12 +423,14 @@ describe("groupAgentsByCategory", () => {
         name: "Featured New Agent",
         createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
         categories: [
-          createMockCategory(AGENT_CATEGORY_SLUGS.FEATURED, "Featured"),
+          createMockPrismaCategory(AGENT_CATEGORY_SLUGS.FEATURED, "Featured"),
+          createMockPrismaCategory(AGENT_CATEGORY_SLUGS.NEW, "New"),
         ],
       }),
     ];
     const categories: Category[] = [
-      { slug: AGENT_CATEGORY_SLUGS.FEATURED, name: "Featured" },
+      { slug: AGENT_CATEGORY_SLUGS.FEATURED, name: "Featured", priority: 1 },
+      { slug: AGENT_CATEGORY_SLUGS.NEW, name: "New", priority: 2 },
     ];
     const result = groupAgentsByCategory(agents, categories);
     const featuredGroup = result.find(
@@ -385,5 +443,27 @@ describe("groupAgentsByCategory", () => {
     expect(newGroup?.agents).toHaveLength(1);
     expect(featuredGroup?.agents[0].name).toBe("Featured New Agent");
     expect(newGroup?.agents[0].name).toBe("Featured New Agent");
+  });
+
+  // Test case 13: NEW category not in categories list - should not assign to NEW
+  it("should not assign to NEW category if agent doesn't have NEW category or it doesn't exist in categories list", () => {
+    const agents = [
+      createMockAgent({
+        name: "Coding Agent",
+        createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+        categories: [createMockPrismaCategory("coding", "Coding")],
+      }),
+    ];
+    const categories: Category[] = [
+      { slug: "coding", name: "Coding", priority: 10 },
+      // NEW category not included
+    ];
+    const result = groupAgentsByCategory(agents, categories);
+    const newGroup = result.find(
+      (g) => g.categorySlug === AGENT_CATEGORY_SLUGS.NEW,
+    );
+    const codingGroup = result.find((g) => g.categorySlug === "coding");
+    expect(newGroup).toBeUndefined();
+    expect(codingGroup?.agents).toHaveLength(1);
   });
 });

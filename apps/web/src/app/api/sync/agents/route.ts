@@ -5,7 +5,10 @@ import {
   PricingType,
 } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
-import { lockRepository } from "@sokosumi/database/repositories";
+import {
+  categoryRepository,
+  lockRepository,
+} from "@sokosumi/database/repositories";
 import { after, NextResponse } from "next/server";
 import pTimeout from "p-timeout";
 
@@ -141,6 +144,12 @@ async function syncAllEntries() {
   const runningAgentsUpdates: Promise<void>[] = [];
   const runningTagsUpdates: Promise<void>[] = [];
   const limit = 20;
+
+  // Get or create the default category
+  const defaultCategory = await categoryRepository.getDefaultCategory(
+    getEnvSecrets().DEFAULT_AGENT_CATEGORY_SLUG,
+  );
+
   while (true) {
     const entriesResult = await registryClient.getAgents(lastIdentifier, limit);
     if (!entriesResult.ok) {
@@ -190,6 +199,11 @@ async function syncAllEntries() {
               tags: {
                 connect: entry.tags?.map((tag) => ({ name: tag })),
               },
+              ...(defaultCategory && {
+                categories: {
+                  connect: [{ id: defaultCategory.id }],
+                },
+              }),
               authorOrganization: entry.authorOrganization ?? "",
               isShown: getEnvSecrets().SHOW_AGENTS_BY_DEFAULT,
               status: convertStatus(entry.status),

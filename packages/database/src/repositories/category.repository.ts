@@ -1,4 +1,3 @@
-
 import { InputJsonValue } from "@prisma/client/runtime/client";
 
 import prisma from "../client";
@@ -9,7 +8,7 @@ export const categoryRepository = {
     tx: Prisma.TransactionClient = prisma,
   ): Promise<Category[]> => {
     return tx.category.findMany({
-      orderBy: { name: "asc" },
+      orderBy: [{ priority: "asc" }, { name: "asc" }],
     });
   },
 
@@ -20,7 +19,7 @@ export const categoryRepository = {
       where: {
         agents: { some: {} },
       },
-      orderBy: { name: "asc" },
+      orderBy: [{ priority: "asc" }, { name: "asc" }],
     });
   },
 
@@ -33,9 +32,20 @@ export const categoryRepository = {
     });
   },
 
+  getDefaultCategory: async (
+    defaultSlug: string,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<Category | null> => {
+    const category = await tx.category.findUnique({
+      where: { slug: defaultSlug },
+    });
+
+    return category;
+  },
+
   create: async (
     data: Pick<Category, "name" | "slug"> &
-      Partial<Pick<Category, "description" | "image" | "styles">>,
+      Partial<Pick<Category, "description" | "image" | "styles" | "priority">>,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<Category> => {
     return tx.category.create({
@@ -45,6 +55,7 @@ export const categoryRepository = {
         description: data.description,
         image: data.image,
         styles: data.styles as InputJsonValue,
+        priority: data.priority ?? 0,
       },
     });
   },

@@ -18,7 +18,15 @@ function createMockCategory(slug: string, name: string) {
     description: null,
     image: null,
     styles: null,
+    priority: 0,
   };
+}
+
+// Helper function to calculate isNew based on createdAt (matching Prisma extension logic)
+function calculateIsNew(createdAt: Date): boolean {
+  const thresholdDays = 7; // Default threshold
+  const thresholdMilliseconds = 86_400_000 * thresholdDays;
+  return createdAt > new Date(Date.now() - thresholdMilliseconds);
 }
 
 // Helper function to create mock agents
@@ -28,9 +36,12 @@ function createMockAgent(
   const now = new Date();
   const oldDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
 
+  const createdAt = overrides.createdAt ?? oldDate;
+  const isNew = calculateIsNew(createdAt);
+
   return {
     id: `agent-${Math.random().toString(36).substring(7)}`,
-    createdAt: oldDate,
+    createdAt,
     updatedAt: now,
     blockchainIdentifier: `blockchain-${Math.random().toString(36).substring(7)}`,
     name: "Test Agent",
@@ -94,6 +105,7 @@ function createMockAgent(
       cents: BigInt(0),
       includedFee: BigInt(0),
     },
+    isNew,
     ...overrides,
   };
 }
@@ -244,15 +256,20 @@ describe("filterAgents", () => {
   });
 
   // Test case 8: Category filtering - New category
-  it("should filter agents by New category (isNew === true)", () => {
-    const now = new Date();
-    const newDate = new Date(now.getTime() - 1 * 24 * 60 * 60 * 1000); // 1 day ago
-    const oldDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
-
+  it("should filter agents by New category", () => {
     const agents = [
-      createMockAgent({ name: "New Agent", createdAt: newDate }),
-      createMockAgent({ name: "Old Agent", createdAt: oldDate }),
-      createMockAgent({ name: "Another New", createdAt: newDate }),
+      createMockAgent({
+        name: "New Agent",
+        categories: [createMockCategory(AGENT_CATEGORY_SLUGS.NEW, "New")],
+      }),
+      createMockAgent({
+        name: "Old Agent",
+        categories: [createMockCategory("coding", "Coding")],
+      }),
+      createMockAgent({
+        name: "Another New",
+        categories: [createMockCategory(AGENT_CATEGORY_SLUGS.NEW, "New")],
+      }),
     ];
     const filterState: GalleryFilterState = {
       query: "",
@@ -264,13 +281,13 @@ describe("filterAgents", () => {
   });
 
   // Test case 9: Category filtering - Others category
-  it("should filter agents by Others category (no categories, not new, not featured)", () => {
+  it("should filter agents by Others category", () => {
     const oldDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
     const agents = [
       createMockAgent({
         name: "Other Agent",
         createdAt: oldDate,
-        categories: [],
+        categories: [createMockCategory(AGENT_CATEGORY_SLUGS.OTHERS, "Others")],
       }),
       createMockAgent({
         name: "Featured Agent",
@@ -287,7 +304,7 @@ describe("filterAgents", () => {
       createMockAgent({
         name: "Another Other",
         createdAt: oldDate,
-        categories: [],
+        categories: [createMockCategory(AGENT_CATEGORY_SLUGS.OTHERS, "Others")],
       }),
     ];
     const filterState: GalleryFilterState = {
@@ -393,8 +410,8 @@ describe("filterAgents", () => {
     expect(result.map((a) => a.name)).toEqual(["Alpha Agent", "Alpha Beta"]);
   });
 
-  // Test case 14: Featured agent should not appear in Others
-  it("should exclude featured agents from Others category", () => {
+  // Test case 14: Featured agent should not appear in Others (they have different categories)
+  it("should not return featured agents when filtering by Others", () => {
     const oldDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const agents = [
       createMockAgent({
@@ -407,7 +424,7 @@ describe("filterAgents", () => {
       createMockAgent({
         name: "Other Agent",
         createdAt: oldDate,
-        categories: [],
+        categories: [createMockCategory(AGENT_CATEGORY_SLUGS.OTHERS, "Others")],
       }),
     ];
     const filterState: GalleryFilterState = {
@@ -419,20 +436,20 @@ describe("filterAgents", () => {
     expect(result[0].name).toBe("Other Agent");
   });
 
-  // Test case 15: New agent should not appear in Others
-  it("should exclude new agents from Others category", () => {
+  // Test case 15: New agent should not appear in Others (they have different categories)
+  it("should not return agents with different categories when filtering by Others", () => {
     const newDate = new Date(Date.now() - 1 * 24 * 60 * 60 * 1000);
     const oldDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const agents = [
       createMockAgent({
         name: "New Agent",
         createdAt: newDate,
-        categories: [],
+        categories: [createMockCategory(AGENT_CATEGORY_SLUGS.NEW, "New")],
       }),
       createMockAgent({
         name: "Other Agent",
         createdAt: oldDate,
-        categories: [],
+        categories: [createMockCategory(AGENT_CATEGORY_SLUGS.OTHERS, "Others")],
       }),
     ];
     const filterState: GalleryFilterState = {
@@ -444,7 +461,7 @@ describe("filterAgents", () => {
     expect(result[0].name).toBe("Other Agent");
   });
 
-  // Test case 16: Agent with regular category and Others filter
+  // Test case 16: Agent with regular category should not appear when filtering by Others
   it("should not return agents with regular categories when filtering by Others", () => {
     const oldDate = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const agents = [
@@ -456,7 +473,7 @@ describe("filterAgents", () => {
       createMockAgent({
         name: "Other Agent",
         createdAt: oldDate,
-        categories: [],
+        categories: [createMockCategory(AGENT_CATEGORY_SLUGS.OTHERS, "Others")],
       }),
     ];
     const filterState: GalleryFilterState = {

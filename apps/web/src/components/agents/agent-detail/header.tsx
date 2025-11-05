@@ -19,7 +19,6 @@ import {
 } from "@/lib/helpers/agent";
 import { convertCentsToCredits } from "@/lib/helpers/credit";
 import { cn } from "@/lib/utils";
-import { isAgentNew } from "@/lib/utils/agent";
 
 interface AgentDetailHeaderProps {
   agent: AgentWithCreditsPrice;
@@ -60,7 +59,7 @@ function AgentDetailHeader({
             className="rounded-lg object-cover"
             priority
           />
-          {isAgentNew(agent) && (
+          {agent.isNew && (
             <div className="absolute top-0 left-0 p-3">
               <AgentNewBadge />
             </div>

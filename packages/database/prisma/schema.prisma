@@ -367,10 +367,12 @@ model Category {
   description String?
   image       String?
   styles      Json?
+  priority    Int     @unique @default(0)
 
   agents Agent[] @relation("AgentCategory")
 
   @@index([name])
+  @@index([priority])
 }
 
 enum PaymentType {
