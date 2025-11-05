@@ -4,7 +4,7 @@
  * - New: agents marked as new based on creation date
  * - Others: agents with no categories assigned
  */
-export const AGENT_CATEGORY_SLUG = {
+export const AGENT_CATEGORY_SLUGS = {
   FEATURED: "featured",
   NEW: "new",
   OTHERS: "others",

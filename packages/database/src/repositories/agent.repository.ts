@@ -217,28 +217,4 @@ export const agentRepository = {
       data: { summary },
     });
   },
-
-  /**
-   * Check if there are any shown, online agents without categories.
-   *
-   * @param tx - Optional Prisma transaction client (defaults to main Prisma client)
-   * @returns True if at least one agent without categories exists, false otherwise
-   */
-  async hasAgentsWithoutCategories(
-    tx: Prisma.TransactionClient = prisma,
-  ): Promise<boolean> {
-    const agent = await tx.agent.findFirst({
-      where: {
-        status: "ONLINE",
-        isShown: true,
-        categories: {
-          none: {},
-        },
-      },
-      select: {
-        id: true,
-      },
-    });
-    return agent !== null;
-  },
 };
