@@ -2,14 +2,11 @@ import { userRepository } from "@sokosumi/database/repositories";
 
 import { notFound } from "../helpers/error";
 import { ok } from "../helpers/response";
-import { HonoWithAuthContext } from "../lib/hono";
-import { requireAuth } from "../middleware/auth";
+import { OpenAPIHonoWithAuthContext } from "../lib/hono";
 
-const router = new HonoWithAuthContext();
+const app = new OpenAPIHonoWithAuthContext();
 
-router.use("*", requireAuth);
-
-router.get("/:id", async (c) => {
+app.get("/:id", async (c) => {
   const auth = c.get("auth");
   const id = c.req.param("id");
 
@@ -27,4 +24,4 @@ router.get("/:id", async (c) => {
   return ok(c, { user });
 });
 
-export default router;
+export default app;
