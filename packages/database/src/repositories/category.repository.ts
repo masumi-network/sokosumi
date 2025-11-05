@@ -12,7 +12,7 @@ export const categoryRepository = {
     });
   },
 
-  getCategoriesWithAgents: async (
+  getCategoriesForAvailableAgents: async (
     tx: Prisma.TransactionClient = prisma,
   ): Promise<Category[]> => {
     return tx.category.findMany({
@@ -33,8 +33,8 @@ export const categoryRepository = {
   },
 
   create: async (
-    data: Pick<Category, "name" | "slug"> &
-      Partial<Pick<Category, "description" | "image" | "styles" | "priority">>,
+    data: Pick<Category, "name" | "slug" | "priority"> &
+      Partial<Pick<Category, "description" | "image" | "styles">>,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<Category> => {
     return tx.category.create({
@@ -44,7 +44,7 @@ export const categoryRepository = {
         description: data.description,
         image: data.image,
         styles: data.styles as InputJsonValue,
-        priority: data.priority ?? 0,
+        priority: data.priority,
       },
     });
   },
