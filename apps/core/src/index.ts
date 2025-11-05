@@ -1,7 +1,7 @@
 import { swaggerUI } from "@hono/swagger-ui";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { Hono } from "hono";
-import { bearerAuth } from "hono/bearer-auth";
+import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 
 import { env } from "./config/env";
@@ -12,22 +12,24 @@ import usersRouter from "./routes/users";
 const app = new Hono();
 app.use(logger());
 
+// CORS configuration
+app.use(
+  "*",
+  cors({
+    origin: ["http://localhost:3000"], // web app URL
+    allowHeaders: ["Content-Type", "Authorization"],
+    allowMethods: ["POST", "GET", "OPTIONS"],
+    credentials: true,
+  }),
+);
+
 // Centralized error handler
 app.onError(errorHandler);
 
 // Protected API routes
 const api = new OpenAPIHono();
 
-// Auth Middleware
-const authMiddleware = bearerAuth({
-  token: env.API_KEY,
-});
-
-// Apply auth to API routes only (not the doc endpoint)
-api.use("/agents/*", authMiddleware);
-api.use("/users/*", authMiddleware);
-
-// Mount protected routes
+// Mount protected routes (auth middleware applied in routes)
 api.route("/agents", agentsRouter);
 api.route("/users", usersRouter);
 

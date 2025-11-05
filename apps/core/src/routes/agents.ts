@@ -2,6 +2,7 @@ import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
 import { agentRepository } from "@sokosumi/database/repositories";
 
 import { ok, successResponseSchema } from "../helpers/response";
+import { requireAuth } from "../middleware/auth";
 
 const agentSchema = z
   .object({
@@ -26,6 +27,9 @@ const route = createRoute({
 });
 
 const app = new OpenAPIHono();
+
+// Add auth middleware
+app.use("*", requireAuth);
 
 app.openapi(route, async (c) => {
   const agents = await agentRepository.getAgentsWithRelations();
