@@ -181,7 +181,7 @@ async function syncAllEntries() {
           const { pricingType, fixedPricingAmounts } = parseEntryAgentPricing(
             entry.AgentPricing,
           );
-          await prisma.agent.upsert({
+          const agent = await prisma.agent.upsert({
             where: { blockchainIdentifier: entry.agentIdentifier },
             create: {
               blockchainIdentifier: entry.agentIdentifier,
@@ -247,7 +247,22 @@ async function syncAllEntries() {
               uptimeCheckCount: entry.uptimeCheckCount,
               status: convertStatus(entry.status),
             },
+            include: {
+              categories: true,
+            },
           });
+
+          // Ensure agent has at least one category (default) to maintain data integrity
+          if (defaultCategory && agent.categories.length === 0) {
+            await prisma.agent.update({
+              where: { id: agent.id },
+              data: {
+                categories: {
+                  connect: [{ id: defaultCategory.id }],
+                },
+              },
+            });
+          }
         };
         //start them immediately
         return updateDbEntry();
