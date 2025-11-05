@@ -146,7 +146,7 @@ async function syncAllEntries() {
   const limit = 20;
 
   // Get or create the default category
-  const defaultCategory = await categoryRepository.getDefaultCategory(
+  const defaultCategory = await categoryRepository.getBySlug(
     getEnvSecrets().DEFAULT_AGENT_CATEGORY_SLUG,
   );
 

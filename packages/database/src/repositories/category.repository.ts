@@ -32,17 +32,6 @@ export const categoryRepository = {
     });
   },
 
-  getDefaultCategory: async (
-    defaultSlug: string,
-    tx: Prisma.TransactionClient = prisma,
-  ): Promise<Category | null> => {
-    const category = await tx.category.findUnique({
-      where: { slug: defaultSlug },
-    });
-
-    return category;
-  },
-
   create: async (
     data: Pick<Category, "name" | "slug"> &
       Partial<Pick<Category, "description" | "image" | "styles" | "priority">>,
