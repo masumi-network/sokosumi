@@ -329,7 +329,7 @@ function AgentCard({
                     alt={`${getAgentName(agent)} author`}
                     width={100}
                     height={24}
-                    className="h-4 w-auto object-contain brightness-0 dark:brightness-100"
+                    className="h-4 w-auto object-contain brightness-0 invert-[0.5] dark:brightness-100"
                   />
                 </div>
               )}
