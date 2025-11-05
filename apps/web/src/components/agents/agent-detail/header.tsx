@@ -11,6 +11,7 @@ import { AgentDemoButton } from "@/components/agents/agent-demo-button";
 import { AgentHireButton } from "@/components/agents/agent-hire-button";
 import { AgentVerifiedBadge } from "@/components/agents/agent-verified-badge";
 import { Skeleton } from "@/components/ui/skeleton";
+import { AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
 import {
   getAgentDemoData,
   getAgentName,
@@ -59,7 +60,9 @@ function AgentDetailHeader({
             className="rounded-lg object-cover"
             priority
           />
-          {agent.isNew && (
+          {agent.categories?.some(
+            (category) => category.slug === AGENT_CATEGORY_SLUGS.NEW,
+          ) && (
             <div className="absolute top-0 left-0 p-3">
               <AgentNewBadge />
             </div>

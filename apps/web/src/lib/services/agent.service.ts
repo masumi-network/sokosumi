@@ -8,7 +8,6 @@ import {
   AgentWithOrganizations,
   AgentWithPricing,
   AgentWithRelations,
-  Category,
   CreditCost,
   PricingType,
   Prisma,
@@ -18,7 +17,6 @@ import {
   agentListRepository,
   agentRatingRepository,
   agentRepository,
-  categoryRepository,
   creditCostRepository,
   jobRepository,
   memberRepository,
@@ -28,14 +26,12 @@ import { Decimal } from "decimal.js";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { getAuthContext } from "@/lib/auth/utils";
-import { AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
 import { getAgentPricingAmounts } from "@/lib/helpers/agent";
 import {
   convertCentsToCredits,
   convertCreditsToCents,
 } from "@/lib/helpers/credit";
 import { pricingAmountsSchema } from "@/lib/schemas";
-import { isAgentNew } from "@/lib/utils/agent";
 
 export const agentService = (() => {
   /**
@@ -299,16 +295,11 @@ export const agentService = (() => {
     > => {
       const agents = await agentService.getAvailableAgents();
 
-      const newCategory = await categoryRepository.getBySlug(
-        AGENT_CATEGORY_SLUGS.NEW,
-      );
-
       const results = await Promise.allSettled(
         agents.map(async (agent) => {
           const agentWithCreditsPrice = await agentService.getAgentCreditsPrice(
             agent,
             prisma,
-            newCategory,
           );
           return agentWithCreditsPrice;
         }),
@@ -380,39 +371,26 @@ export const agentService = (() => {
      * - Applies a fee percentage (from NEXT_PUBLIC_FEE_PERCENTAGE) to the total cost.
      * - Ensures the total fee is at least the minimum fee (MIN_FEE_CREDITS).
      * - Returns the agent object extended with a `creditsPrice` field containing the total price and included fee.
-     * - Adds the NEW category to the agent's categories array if the agent is new.
      *
      * @param agent - The agent with pricing and relations data.
      * @param tx - Optional Prisma transaction client for DB operations (defaults to main Prisma client).
-     * @param newCategory - Optional pre-fetched NEW category to avoid redundant queries in bulk operations.
-     * @returns The agent object with an added `creditsPrice` property and potentially updated categories.
+     * @returns The agent object with an added `creditsPrice` property.
      * @throws If the fee percentage is negative or if a credit cost for a unit is not found or if the agent has invalid or unknown pricing.
      */
     getAgentCreditsPrice: async (
       agent: AgentWithRelations,
       tx: Prisma.TransactionClient = prisma,
-      newCategory?: Category | null,
     ): Promise<AgentWithCreditsPrice> => {
       const amounts = getAgentPricingAmounts(agent);
       if (!amounts) {
         throw new Error("Agent has invalid or unknown pricing");
       }
 
-      const isNewAgent = isAgentNew(agent);
-
-      // Add NEW category to categories array if agent is new
-      const categories = [...agent.categories];
-      if (isNewAgent && newCategory) {
-        categories.push(newCategory);
-      }
-
       // if amounts is empty (in case of free agent)
       if (amounts.length === 0) {
         return {
           ...agent,
-          categories,
           creditsPrice: { cents: BigInt(0), includedFee: BigInt(0) },
-          isNew: isNewAgent,
         };
       }
 
@@ -461,12 +439,10 @@ export const agentService = (() => {
 
       return {
         ...agent,
-        categories,
         creditsPrice: {
           cents: totalCentsWithFee,
           includedFee: updatedTotalFee,
         },
-        isNew: isNewAgent,
       };
     },
 

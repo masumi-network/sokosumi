@@ -10,8 +10,8 @@ export const categoryService = (() => {
    *
    * @returns Promise resolving to sorted array of categories
    */
-  async function getCategories(): Promise<Category[]> {
-    const categories = await categoryRepository.getCategories();
+  async function getCategoriesWithAgents(): Promise<Category[]> {
+    const categories = await categoryRepository.getCategoriesWithAgents();
 
     return categories.map(
       (category) =>
@@ -24,6 +24,6 @@ export const categoryService = (() => {
   }
 
   return {
-    getCategories,
+    getCategoriesWithAgents,
   };
 })();

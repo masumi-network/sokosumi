@@ -42,13 +42,6 @@ function createMockPrismaCategory(
   };
 }
 
-// Helper function to calculate isNew based on createdAt (matching Prisma extension logic)
-function calculateIsNew(createdAt: Date): boolean {
-  const thresholdDays = 7; // Default threshold
-  const thresholdMilliseconds = 86_400_000 * thresholdDays;
-  return createdAt > new Date(Date.now() - thresholdMilliseconds);
-}
-
 // Helper function to create mock agents
 function createMockAgent(
   overrides: Partial<AgentWithCreditsPrice> = {},
@@ -57,7 +50,6 @@ function createMockAgent(
   const oldDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
 
   const createdAt = overrides.createdAt ?? oldDate;
-  const isNew = calculateIsNew(createdAt);
 
   return {
     id: `agent-${Math.random().toString(36).substring(7)}`,
@@ -125,7 +117,6 @@ function createMockAgent(
       cents: BigInt(0),
       includedFee: BigInt(0),
     },
-    isNew,
     ...overrides,
   } as AgentWithCreditsPrice;
 }
