@@ -294,13 +294,10 @@ export const agentService = (() => {
       AgentWithCreditsPrice[]
     > => {
       const agents = await agentService.getAvailableAgents();
-
       const results = await Promise.allSettled(
         agents.map(async (agent) => {
-          const agentWithCreditsPrice = await agentService.getAgentCreditsPrice(
-            agent,
-            prisma,
-          );
+          const agentWithCreditsPrice =
+            await agentService.getAgentCreditsPrice(agent);
           return agentWithCreditsPrice;
         }),
       );

@@ -17,7 +17,7 @@ export const categoryRepository = {
   ): Promise<Category[]> => {
     return tx.category.findMany({
       where: {
-        agents: { some: {} },
+        agents: { some: { status: "ONLINE", isShown: true } },
       },
       orderBy: [{ priority: "asc" }, { name: "asc" }],
     });
