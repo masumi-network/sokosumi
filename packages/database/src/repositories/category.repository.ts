@@ -1,7 +1,7 @@
 import { InputJsonValue } from "@prisma/client/runtime/client";
 
 import prisma from "../client";
-import type { Agent, Category, Prisma } from "../generated/prisma/client";
+import type { Category, Prisma } from "../generated/prisma/client";
 
 export const categoryRepository = {
   getCategories: async (
@@ -45,21 +45,6 @@ export const categoryRepository = {
         image: data.image,
         styles: data.styles as InputJsonValue,
         priority: data.priority ?? 0,
-      },
-    });
-  },
-
-  setAgentCategories: async (
-    agentId: string,
-    categoryIds: string[],
-    tx: Prisma.TransactionClient = prisma,
-  ): Promise<Agent> => {
-    return tx.agent.update({
-      where: { id: agentId },
-      data: {
-        categories: {
-          set: categoryIds.map((id) => ({ id })),
-        },
       },
     });
   },
