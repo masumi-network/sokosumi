@@ -18,7 +18,22 @@ function generateGradientFromTheme(
     let color = stop.color;
     if (stop.opacity !== undefined && stop.color.startsWith("#")) {
       // Convert hex to rgba if opacity is provided
-      const hex = stop.color.slice(1);
+      let hex = stop.color.slice(1);
+
+      // Expand short hex codes (#FFF -> #FFFFFF)
+      if (hex.length === 3) {
+        hex = hex
+          .split("")
+          .map((c) => c + c)
+          .join("");
+      }
+
+      // Validate hex format (must be 6 valid hex characters)
+      if (hex.length !== 6 || !/^[0-9A-Fa-f]{6}$/.test(hex)) {
+        // Invalid hex - use original color without opacity
+        return `${stop.color} ${stop.offset * 100}%`;
+      }
+
       const r = parseInt(hex.slice(0, 2), 16);
       const g = parseInt(hex.slice(2, 4), 16);
       const b = parseInt(hex.slice(4, 6), 16);
