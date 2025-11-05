@@ -4,11 +4,11 @@ import { bearerAuth } from "hono/bearer-auth";
 import { env } from "../config/env";
 import { auth } from "../lib/auth";
 
-interface InternalAuthContext {
+export interface InternalAuthContext {
   type: "internal";
 }
 
-interface UserAuthContext {
+export interface UserAuthContext {
   type: "user";
   userId: string;
   organizationId: string | null;
