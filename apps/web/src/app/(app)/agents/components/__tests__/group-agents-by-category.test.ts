@@ -165,9 +165,7 @@ describe("groupAgentsByCategory", () => {
       createMockAgent({
         name: "New Agent",
         createdAt: newDate,
-        categories: [
-          createMockPrismaCategory(AGENT_CATEGORY_SLUGS.NEW, "New"),
-        ],
+        categories: [createMockPrismaCategory(AGENT_CATEGORY_SLUGS.NEW, "New")],
       }),
       createMockAgent({
         name: "Regular Agent",

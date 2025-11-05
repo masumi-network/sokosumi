@@ -5,7 +5,6 @@ import type {
   AgentWithCreditsPrice,
   AgentWithRelations,
 } from "@sokosumi/database";
-import { useSearchParams } from "next/navigation";
 import { Suspense, useMemo } from "react";
 
 import {
@@ -21,7 +20,7 @@ import {
   AgentCategoryGroup,
   groupAgentsByCategory,
 } from "./group-agents-by-category";
-import { GalleryFilterState } from "./use-gallery-filter";
+import useGalleryFilter, { GalleryFilterState } from "./use-gallery-filter";
 
 interface FilteredAgentsProps {
   agents: AgentWithCreditsPrice[];
@@ -44,17 +43,16 @@ function FilteredAgentsInner({
   ratingStatsMap,
   categories,
 }: FilteredAgentsProps) {
-  const searchParams = useSearchParams();
+  const { query, categories: selectedCategories } = useGalleryFilter();
 
   const filteredAgents = useMemo(() => {
     const criteria: GalleryFilterState = {
-      query: searchParams.get("query") ?? "",
-      categories:
-        searchParams.get("categories")?.split(",").filter(Boolean) ?? [],
+      query,
+      categories: selectedCategories,
     };
 
     return filterAgents(agents, criteria);
-  }, [agents, searchParams]);
+  }, [agents, query, selectedCategories]);
 
   const groupedAgents = useMemo(() => {
     return groupAgentsByCategory(filteredAgents, categories);
