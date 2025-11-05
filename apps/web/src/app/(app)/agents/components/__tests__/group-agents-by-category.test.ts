@@ -4,23 +4,7 @@ import { AgentStatus } from "@sokosumi/database";
 import { AGENT_CATEGORY_SLUG } from "@/lib/constants/agent-categories";
 import type { Category } from "@/lib/types/category";
 
-import {
-  groupAgentsByCategory,
-  type AgentCategoryGroup,
-} from "../group-agents-by-category";
-
-// Helper function to create mock category
-function createMockCategory(
-  slug: string,
-  name: string,
-  priority: number = 0,
-): Category {
-  return {
-    slug,
-    name,
-    priority,
-  };
-}
+import { groupAgentsByCategory } from "../group-agents-by-category";
 
 // Helper function to create mock Prisma Category for agent.categories field
 function createMockPrismaCategory(
