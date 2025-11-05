@@ -367,7 +367,7 @@ model Category {
   description String?
   image       String?
   styles      Json?
-  priority    Int     @unique
+  priority    Int
 
   agents Agent[] @relation("AgentCategory")
 
