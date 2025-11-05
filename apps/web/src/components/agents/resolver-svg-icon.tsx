@@ -141,6 +141,7 @@ export function ResolverSVGIcon({
         height={size}
         className={cn("shrink-0", className)}
         style={style}
+        unoptimized
       />
     );
   }
