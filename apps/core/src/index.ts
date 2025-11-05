@@ -33,12 +33,10 @@ api.doc("/openapi.json", {
     title: "Sokosumi API",
   },
 });
+api.get("/doc", swaggerUI({ url: "openapi.json" }));
 
 // Mount api routes at /api/v1
 app.route("/api/v1", api);
-
-// Public documentation UI (no auth required)
-app.get("/docs/v1", swaggerUI({ url: "/api/v1/openapi.json" }));
 
 export default {
   port: env.PORT,

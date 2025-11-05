@@ -12,7 +12,6 @@ export const auth = betterAuth({
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.BETTER_AUTH_URL,
   plugins: [apiKey()],
-  // Minimal config - no social providers, no hooks
 });
 
 export type Session = typeof auth.$Infer.Session;
