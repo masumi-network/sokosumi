@@ -1,26 +1,7 @@
 version: 2
 updates:
-  # Root directory - workspace-level tooling only
   - package-ecosystem: "npm"
     directory: "/"
-    schedule:
-      interval: "daily"
-      time: "06:00"
-      timezone: "Europe/Berlin"
-    allow:
-      - dependency-name: "eslint"
-      - dependency-name: "eslint-config-*"
-      - dependency-name: "eslint-plugin-*"
-      - dependency-name: "husky"
-      - dependency-name: "prettier"
-      - dependency-name: "typescript-eslint"
-    open-pull-requests-limit: 5
-    commit-message:
-      prefix: "chore(deps)"
-
-  # Web application
-  - package-ecosystem: "npm"
-    directory: "/apps/web"
     schedule:
       interval: "daily"
       time: "06:00"
@@ -101,23 +82,6 @@ updates:
           - "@swc/*"
           - "postcss"
           - "tsx"
-    open-pull-requests-limit: 10
-    commit-message:
-      prefix: "chore(deps)"
-    ignore:
-      - dependency-name: "@types/node"
-        update-types: ["version-update:semver-major"]
-      - dependency-name: "@sparticuz/chromium"
-      - dependency-name: "puppeteer-core"
-
-  # Database package
-  - package-ecosystem: "npm"
-    directory: "/packages/database"
-    schedule:
-      interval: "daily"
-      time: "06:00"
-      timezone: "Europe/Berlin"
-    groups:
       prisma:
         patterns:
           - "prisma"
@@ -131,12 +95,11 @@ updates:
       typescript:
         patterns:
           - "typescript"
-      types:
-        patterns:
-          - "@types/*"
     open-pull-requests-limit: 10
     commit-message:
       prefix: "chore(deps)"
     ignore:
       - dependency-name: "@types/node"
         update-types: ["version-update:semver-major"]
+      - dependency-name: "@sparticuz/chromium"
+      - dependency-name: "puppeteer-core"
