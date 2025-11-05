@@ -1,6 +1,7 @@
 import { swaggerUI } from "@hono/swagger-ui";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { Hono } from "hono";
+import { bearerAuth } from "hono/bearer-auth";
 import { logger } from "hono/logger";
 import { prettyJSON } from "hono/pretty-json";
 
@@ -16,24 +17,36 @@ app.use(prettyJSON());
 // Centralized error handler
 app.onError(errorHandler);
 
-// Mount api routes
+// Protected API routes
 const api = new OpenAPIHono();
-// api.use(bearerAuth({ token: env.API_KEY }));
+
+// Auth Middleware
+const authMiddleware = bearerAuth({
+  token: env.API_KEY,
+});
+
+// Apply auth to API routes only (not the doc endpoint)
+api.use("/agents/*", authMiddleware);
+api.use("/users/*", authMiddleware);
+
+// Mount protected routes
 api.route("/agents", agentsRouter);
 api.route("/users", usersRouter);
 
+// Generate OpenAPI spec from the API routes (publicly accessible)
 api.doc("/openapi.json", {
   openapi: "3.0.0",
   info: {
     version: "1.0.0",
-    title: "My API",
+    title: "Sokosumi API",
   },
 });
 
-api.get("/docs", swaggerUI({ url: "/api/v1/openapi.json" }));
-
 // Mount api routes at /api/v1
 app.route("/api/v1", api);
+
+// Public documentation UI (no auth required)
+app.get("/docs/v1", swaggerUI({ url: "/api/v1/openapi.json" }));
 
 export default {
   port: env.PORT,
