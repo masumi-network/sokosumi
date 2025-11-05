@@ -7,5 +7,5 @@
 export const AGENT_CATEGORY_SLUG = {
   FEATURED: "featured",
   NEW: "new",
-  OTHERS: "others",
+  DEFAULT: "default",
 } as const;

@@ -148,7 +148,7 @@ async function syncAllEntries() {
 
   // Get or create the default category
   const defaultCategory = await categoryRepository.getBySlug(
-    AGENT_CATEGORY_SLUG.OTHERS,
+    AGENT_CATEGORY_SLUG.DEFAULT,
   );
 
   while (true) {

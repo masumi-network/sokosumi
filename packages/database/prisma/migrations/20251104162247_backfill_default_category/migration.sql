@@ -5,17 +5,17 @@ SELECT
   NOW(),
   NOW(),
   'Others',
-  'others',
+  'default',
   100
 WHERE NOT EXISTS (
-  SELECT 1 FROM "Category" WHERE "slug" = 'others'
+  SELECT 1 FROM "Category" WHERE "slug" = 'default'
 );
 
 -- Assign default category to all agents without categories
 INSERT INTO "_AgentCategory" ("A", "B")
 SELECT 
   "Agent"."id",
-  (SELECT "id" FROM "Category" WHERE "slug" = 'others' LIMIT 1)
+  (SELECT "id" FROM "Category" WHERE "slug" = 'default' LIMIT 1)
 FROM "Agent"
 WHERE NOT EXISTS (
   SELECT 1 FROM "_AgentCategory" WHERE "_AgentCategory"."A" = "Agent"."id"
