@@ -2,6 +2,7 @@ import "server-only";
 
 import { categoryRepository } from "@sokosumi/database/repositories";
 
+import { SYNTHETIC_DEFAULT_CATEGORY } from "@/lib/constants/agent-categories";
 import type { Category } from "@/lib/types/category";
 
 export const categoryService = (() => {
@@ -11,16 +12,22 @@ export const categoryService = (() => {
    * @returns Promise resolving to sorted array of categories
    */
   async function getValidCategories(): Promise<Category[]> {
-    const categories =
-      await categoryRepository.getCategoriesForAvailableAgents();
+    try {
+      const categories =
+        await categoryRepository.getCategoriesForAvailableAgents();
 
-    return categories.map(
-      (category): Category => ({
-        slug: category.slug,
-        name: category.name,
-        priority: category.priority,
-      }),
-    );
+      const mappedCategories = categories.map(
+        (category): Category => ({
+          slug: category.slug,
+          name: category.name,
+          priority: category.priority,
+        }),
+      );
+
+      return [...mappedCategories, SYNTHETIC_DEFAULT_CATEGORY];
+    } catch {
+      return [SYNTHETIC_DEFAULT_CATEGORY];
+    }
   }
 
   return {

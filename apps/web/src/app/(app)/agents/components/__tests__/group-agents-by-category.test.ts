@@ -1,7 +1,10 @@
 import type { AgentWithCreditsPrice } from "@sokosumi/database";
 import { AgentStatus } from "@sokosumi/database";
 
-import { SPECIAL_AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
+import {
+  SPECIAL_AGENT_CATEGORY_SLUGS,
+  SYNTHETIC_DEFAULT_CATEGORY,
+} from "@/lib/constants/agent-categories";
 import type { Category } from "@/lib/types/category";
 
 import { groupAgentsByCategory } from "../group-agents-by-category";
@@ -143,13 +146,18 @@ describe("groupAgentsByCategory", () => {
         name: "Featured Agent",
         createdAt: oldDate,
         categories: [
-          createMockPrismaCategory(SPECIAL_AGENT_CATEGORY_SLUGS.FEATURED, "Featured"),
+          createMockPrismaCategory(
+            SPECIAL_AGENT_CATEGORY_SLUGS.FEATURED,
+            "Featured",
+          ),
         ],
       }),
       createMockAgent({
         name: "New Agent",
         createdAt: newDate,
-        categories: [createMockPrismaCategory(SPECIAL_AGENT_CATEGORY_SLUGS.NEW, "New")],
+        categories: [
+          createMockPrismaCategory(SPECIAL_AGENT_CATEGORY_SLUGS.NEW, "New"),
+        ],
       }),
       createMockAgent({
         name: "Regular Agent",
@@ -160,15 +168,22 @@ describe("groupAgentsByCategory", () => {
         name: "Other Agent",
         createdAt: oldDate,
         categories: [
-          createMockPrismaCategory(SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT, "Others"),
+          createMockPrismaCategory(
+            SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT,
+            "Others",
+          ),
         ],
       }),
     ];
     const categories: Category[] = [
-      { slug: SPECIAL_AGENT_CATEGORY_SLUGS.FEATURED, name: "Featured", priority: 1 },
+      {
+        slug: SPECIAL_AGENT_CATEGORY_SLUGS.FEATURED,
+        name: "Featured",
+        priority: 1,
+      },
       { slug: SPECIAL_AGENT_CATEGORY_SLUGS.NEW, name: "New", priority: 2 },
       { slug: "coding", name: "Coding", priority: 10 },
-      { slug: SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT, name: "Others", priority: 100 },
+      { ...SYNTHETIC_DEFAULT_CATEGORY },
     ];
     const result = groupAgentsByCategory(agents, categories);
     expect(result).toHaveLength(4);
@@ -185,13 +200,20 @@ describe("groupAgentsByCategory", () => {
         name: "Featured New Agent",
         createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
         categories: [
-          createMockPrismaCategory(SPECIAL_AGENT_CATEGORY_SLUGS.FEATURED, "Featured"),
+          createMockPrismaCategory(
+            SPECIAL_AGENT_CATEGORY_SLUGS.FEATURED,
+            "Featured",
+          ),
           createMockPrismaCategory(SPECIAL_AGENT_CATEGORY_SLUGS.NEW, "New"),
         ],
       }),
     ];
     const categories: Category[] = [
-      { slug: SPECIAL_AGENT_CATEGORY_SLUGS.FEATURED, name: "Featured", priority: 1 },
+      {
+        slug: SPECIAL_AGENT_CATEGORY_SLUGS.FEATURED,
+        name: "Featured",
+        priority: 1,
+      },
       { slug: SPECIAL_AGENT_CATEGORY_SLUGS.NEW, name: "New", priority: 2 },
     ];
     const result = groupAgentsByCategory(agents, categories);
@@ -215,14 +237,21 @@ describe("groupAgentsByCategory", () => {
         name: "Multi Category Agent",
         createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
         categories: [
-          createMockPrismaCategory(SPECIAL_AGENT_CATEGORY_SLUGS.FEATURED, "Featured"),
+          createMockPrismaCategory(
+            SPECIAL_AGENT_CATEGORY_SLUGS.FEATURED,
+            "Featured",
+          ),
           createMockPrismaCategory(SPECIAL_AGENT_CATEGORY_SLUGS.NEW, "New"),
           createMockPrismaCategory("coding", "Coding"),
         ],
       }),
     ];
     const categories: Category[] = [
-      { slug: SPECIAL_AGENT_CATEGORY_SLUGS.FEATURED, name: "Featured", priority: 1 },
+      {
+        slug: SPECIAL_AGENT_CATEGORY_SLUGS.FEATURED,
+        name: "Featured",
+        priority: 1,
+      },
       { slug: SPECIAL_AGENT_CATEGORY_SLUGS.NEW, name: "New", priority: 2 },
       { slug: "coding", name: "Coding", priority: 10 },
     ];
@@ -256,20 +285,25 @@ describe("groupAgentsByCategory", () => {
       createMockAgent({
         name: "Agent 1",
         categories: [
-          createMockPrismaCategory(SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT, "Others"),
+          createMockPrismaCategory(
+            SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT,
+            "Others",
+          ),
         ],
       }),
       createMockAgent({
         name: "Agent 2",
         categories: [
-          createMockPrismaCategory(SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT, "Others"),
+          createMockPrismaCategory(
+            SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT,
+            "Others",
+          ),
         ],
       }),
     ];
     const categories: Category[] = [];
     const result = groupAgentsByCategory(agents, categories);
-    // Since categories array is empty, agents won't be grouped (no matching categories)
-    expect(result).toHaveLength(0);
+    expect(result).toEqual([]);
   });
 
   // Test case 7: Agents with "Others" category - should be grouped under Others
@@ -278,19 +312,25 @@ describe("groupAgentsByCategory", () => {
       createMockAgent({
         name: "Agent 1",
         categories: [
-          createMockPrismaCategory(SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT, "Others"),
+          createMockPrismaCategory(
+            SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT,
+            "Others",
+          ),
         ],
       }),
       createMockAgent({
         name: "Agent 2",
         categories: [
-          createMockPrismaCategory(SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT, "Others"),
+          createMockPrismaCategory(
+            SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT,
+            "Others",
+          ),
         ],
       }),
     ];
     const categories: Category[] = [
       { slug: "coding", name: "Coding", priority: 10 },
-      { slug: SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT, name: "Others", priority: 100 },
+      { ...SYNTHETIC_DEFAULT_CATEGORY },
     ];
     const result = groupAgentsByCategory(agents, categories);
     const othersGroup = result.find(
@@ -298,6 +338,27 @@ describe("groupAgentsByCategory", () => {
     );
     expect(othersGroup).toBeDefined();
     expect(othersGroup?.agents).toHaveLength(2);
+  });
+
+  it("should assign agents without categories to the synthetic Others group", () => {
+    const agents = [
+      createMockAgent({ name: "Agent 1", categories: [] }),
+      createMockAgent({ name: "Agent 2", categories: [] }),
+    ];
+
+    const categories: Category[] = [{ ...SYNTHETIC_DEFAULT_CATEGORY }];
+
+    const result = groupAgentsByCategory(agents, categories);
+    const othersGroup = result.find(
+      (g) => g.categorySlug === SYNTHETIC_DEFAULT_CATEGORY.slug,
+    );
+
+    expect(othersGroup).toBeDefined();
+    expect(othersGroup?.agents).toHaveLength(2);
+    expect(othersGroup?.agents.map((agent) => agent.name)).toEqual([
+      "Agent 1",
+      "Agent 2",
+    ]);
   });
 
   // Test case 8: Category name fallback - should use slug if category name not found
@@ -323,15 +384,17 @@ describe("groupAgentsByCategory", () => {
       createMockAgent({
         name: "Agent 1",
         categories: [
-          createMockPrismaCategory(SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT, "Others"),
+          createMockPrismaCategory(
+            SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT,
+            "Others",
+          ),
         ],
       }),
     ];
     const categoriesWithOthers: Category[] = [
       {
-        slug: SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT,
+        ...SYNTHETIC_DEFAULT_CATEGORY,
         name: "Others Category",
-        priority: 100,
       },
     ];
     const result = groupAgentsByCategory(agents, categoriesWithOthers);
@@ -351,9 +414,13 @@ describe("groupAgentsByCategory", () => {
       }),
     ];
     const categories: Category[] = [
-      { slug: SPECIAL_AGENT_CATEGORY_SLUGS.FEATURED, name: "Featured", priority: 1 },
+      {
+        slug: SPECIAL_AGENT_CATEGORY_SLUGS.FEATURED,
+        name: "Featured",
+        priority: 1,
+      },
       { slug: SPECIAL_AGENT_CATEGORY_SLUGS.NEW, name: "New", priority: 2 },
-      { slug: SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT, name: "Others", priority: 100 },
+      { ...SYNTHETIC_DEFAULT_CATEGORY },
       { slug: "coding", name: "Coding", priority: 10 },
     ];
     const result = groupAgentsByCategory(agents, categories);
@@ -396,13 +463,20 @@ describe("groupAgentsByCategory", () => {
         name: "Featured New Agent",
         createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
         categories: [
-          createMockPrismaCategory(SPECIAL_AGENT_CATEGORY_SLUGS.FEATURED, "Featured"),
+          createMockPrismaCategory(
+            SPECIAL_AGENT_CATEGORY_SLUGS.FEATURED,
+            "Featured",
+          ),
           createMockPrismaCategory(SPECIAL_AGENT_CATEGORY_SLUGS.NEW, "New"),
         ],
       }),
     ];
     const categories: Category[] = [
-      { slug: SPECIAL_AGENT_CATEGORY_SLUGS.FEATURED, name: "Featured", priority: 1 },
+      {
+        slug: SPECIAL_AGENT_CATEGORY_SLUGS.FEATURED,
+        name: "Featured",
+        priority: 1,
+      },
       { slug: SPECIAL_AGENT_CATEGORY_SLUGS.NEW, name: "New", priority: 2 },
     ];
     const result = groupAgentsByCategory(agents, categories);

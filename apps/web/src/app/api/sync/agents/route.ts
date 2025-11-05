@@ -5,10 +5,7 @@ import {
   PricingType,
 } from "@sokosumi/database";
 import prisma from "@sokosumi/database/client";
-import {
-  categoryRepository,
-  lockRepository,
-} from "@sokosumi/database/repositories";
+import { lockRepository } from "@sokosumi/database/repositories";
 import { after, NextResponse } from "next/server";
 import pTimeout from "p-timeout";
 
@@ -16,7 +13,6 @@ import { getEnvSecrets } from "@/config/env.secrets";
 import { authenticateCronSecret } from "@/lib/auth/utils";
 import { PostRegistryEntryResponse } from "@/lib/clients/generated/registry";
 import { registryClient } from "@/lib/clients/masumi-registry.client";
-import { SPECIAL_AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
 import { lockService } from "@/lib/services";
 
 const LOCK_KEY = "agents-sync";
@@ -146,11 +142,6 @@ async function syncAllEntries() {
   const runningTagsUpdates: Promise<void>[] = [];
   const limit = 20;
 
-  // Get or create the default category
-  const defaultCategory = await categoryRepository.getBySlug(
-    SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT,
-  );
-
   while (true) {
     const entriesResult = await registryClient.getAgents(lastIdentifier, limit);
     if (!entriesResult.ok) {
@@ -181,7 +172,7 @@ async function syncAllEntries() {
           const { pricingType, fixedPricingAmounts } = parseEntryAgentPricing(
             entry.AgentPricing,
           );
-          const agent = await prisma.agent.upsert({
+          await prisma.agent.upsert({
             where: { blockchainIdentifier: entry.agentIdentifier },
             create: {
               blockchainIdentifier: entry.agentIdentifier,
@@ -200,11 +191,6 @@ async function syncAllEntries() {
               tags: {
                 connect: entry.tags?.map((tag) => ({ name: tag })),
               },
-              ...(defaultCategory && {
-                categories: {
-                  connect: [{ id: defaultCategory.id }],
-                },
-              }),
               authorOrganization: entry.authorOrganization ?? "",
               isShown: getEnvSecrets().SHOW_AGENTS_BY_DEFAULT,
               status: convertStatus(entry.status),
@@ -247,22 +233,7 @@ async function syncAllEntries() {
               uptimeCheckCount: entry.uptimeCheckCount,
               status: convertStatus(entry.status),
             },
-            include: {
-              categories: true,
-            },
           });
-
-          // Ensure agent has at least one category (default) to maintain data integrity
-          if (defaultCategory && agent.categories.length === 0) {
-            await prisma.agent.update({
-              where: { id: agent.id },
-              data: {
-                categories: {
-                  connect: [{ id: defaultCategory.id }],
-                },
-              },
-            });
-          }
         };
         //start them immediately
         return updateDbEntry();
