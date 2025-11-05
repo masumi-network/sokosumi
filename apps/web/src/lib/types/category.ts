@@ -1,10 +1,10 @@
 export interface Category {
   slug: string;
-  name: string | null;
+  name: string;
   priority: number;
-  description: string | null;
-  image: string | null;
-  styles: CategoryStyles | null;
+  description?: string;
+  image?: string;
+  styles?: CategoryStyles;
 }
 
 export interface CategoryStyleTheme {
