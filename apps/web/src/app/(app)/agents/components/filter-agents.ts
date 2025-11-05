@@ -1,6 +1,6 @@
 import type { AgentWithCreditsPrice } from "@sokosumi/database";
 
-import { getAgentCategories } from "@/lib/helpers/agent";
+import { getAgentCategorySlugs } from "@/lib/helpers/agent";
 
 import { GalleryFilterState } from "./use-gallery-filter";
 
@@ -23,11 +23,11 @@ export const filterAgents = (
       );
 
     // Category matching - OR logic (agent matches if it has ANY selected category)
-    const agentCategories = getAgentCategories(agent);
+    const agentCategorySlugs = getAgentCategorySlugs(agent);
 
     const matchesCategories =
       categories.length === 0 ||
-      categories.some((slug) => agentCategories.includes(slug));
+      categories.some((slug) => agentCategorySlugs.includes(slug));
 
     return matchesQuery && matchesCategories;
   });

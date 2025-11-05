@@ -1,7 +1,7 @@
 import type { AgentWithCreditsPrice } from "@sokosumi/database";
 
 import { SPECIAL_AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
-import { getAgentCategories } from "@/lib/helpers/agent";
+import { getAgentCategorySlugs } from "@/lib/helpers/agent";
 import type { Category } from "@/lib/types/category";
 
 export interface AgentCategoryGroup {
@@ -23,10 +23,10 @@ export function groupAgentsByCategory(
 
   for (const agent of agents) {
     // Convert to Set once per agent for O(1) lookups
-    const agentCategoriesSet = new Set(getAgentCategories(agent));
+    const agentCategorySlugsSet = new Set(getAgentCategorySlugs(agent));
 
     // If agent has no categories, assign to synthetic default (Others)
-    if (agentCategoriesSet.size === 0) {
+    if (agentCategorySlugsSet.size === 0) {
       const defaultGroup = groupsBySlug.get(
         SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT,
       );
@@ -40,7 +40,7 @@ export function groupAgentsByCategory(
 
     // Assign to all matching database categories
     for (const slug of categorySlugs) {
-      if (agentCategoriesSet.has(slug)) {
+      if (agentCategorySlugsSet.has(slug)) {
         const group = groupsBySlug.get(slug);
         if (group) {
           group.push(agent);

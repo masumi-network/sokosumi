@@ -8,6 +8,7 @@ import {
   PricingType,
 } from "@sokosumi/database";
 
+import { SPECIAL_AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
 import { ipfsUrlResolver } from "@/lib/ipfs";
 import {
   type JobInputsDataSchemaType,
@@ -57,8 +58,14 @@ export function getAgentTags(agent: AgentWithTags): string[] {
     : agent.tags.map((tag) => tag.name);
 }
 
-export function getAgentCategories(agent: AgentWithCategories): string[] {
+export function getAgentCategorySlugs(agent: AgentWithCategories): string[] {
   return agent.categories.map((category) => category.slug);
+}
+
+export function isAgentNew(agent: AgentWithCategories): boolean {
+  return getAgentCategorySlugs(agent).includes(
+    SPECIAL_AGENT_CATEGORY_SLUGS.NEW,
+  );
 }
 
 export function getAgentLegal(agent: Agent): AgentLegal | null {
