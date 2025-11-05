@@ -1,5 +1,6 @@
 import type { AgentWithCreditsPrice } from "@sokosumi/database";
 
+import { SPECIAL_AGENT_CATEGORY_SLUGS } from "@/lib/constants/agent-categories";
 import { getAgentCategorySlugs } from "@/lib/helpers/agent";
 
 import { GalleryFilterState } from "./use-gallery-filter";
@@ -25,9 +26,15 @@ export const filterAgents = (
     // Category matching - OR logic (agent matches if it has ANY selected category)
     const agentCategorySlugs = getAgentCategorySlugs(agent);
 
+    // Agents without categories are treated as having the synthetic "default" category
+    const effectiveCategorySlugs =
+      agentCategorySlugs.length === 0
+        ? [SPECIAL_AGENT_CATEGORY_SLUGS.DEFAULT]
+        : agentCategorySlugs;
+
     const matchesCategories =
       categories.length === 0 ||
-      categories.some((slug) => agentCategorySlugs.includes(slug));
+      categories.some((slug) => effectiveCategorySlugs.includes(slug));
 
     return matchesQuery && matchesCategories;
   });
