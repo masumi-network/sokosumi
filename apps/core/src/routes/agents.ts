@@ -2,7 +2,7 @@ import { createRoute, z } from "@hono/zod-openapi";
 import { agentRepository } from "@sokosumi/database/repositories";
 
 import { ok, successResponseSchema } from "../helpers/response";
-import { OpenAPIHonoWithAuthContext } from "../lib/hono";
+import { OpenAPIHonoWithAuth } from "../lib/hono";
 
 const agentSchema = z
   .object({
@@ -26,7 +26,7 @@ const route = createRoute({
   },
 });
 
-const app = new OpenAPIHonoWithAuthContext();
+const app = new OpenAPIHonoWithAuth();
 
 app.openapi(route, async (c) => {
   const agents = await agentRepository.getAgentsWithRelations();

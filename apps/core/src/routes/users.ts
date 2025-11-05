@@ -2,9 +2,9 @@ import { userRepository } from "@sokosumi/database/repositories";
 
 import { notFound } from "../helpers/error";
 import { ok } from "../helpers/response";
-import { OpenAPIHonoWithAuthContext } from "../lib/hono";
+import { OpenAPIHonoWithAuth } from "../lib/hono";
 
-const app = new OpenAPIHonoWithAuthContext();
+const app = new OpenAPIHonoWithAuth();
 
 app.get("/:id", async (c) => {
   const auth = c.get("auth");

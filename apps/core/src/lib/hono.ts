@@ -11,10 +11,10 @@ import { AuthContext, requireAuth } from "../middleware/auth";
  * For mixed public/private routes, use standard Hono class instead
  *
  * @example
- * const router = new HonoWithAuthContext();
+ * const router = new HonoWithAuth();
  * // requireAuth middleware is already applied
  */
-export class HonoWithAuthContext extends Hono<{
+export class HonoWithAuth extends Hono<{
   Variables: { auth: AuthContext };
 }> {
   constructor() {
@@ -31,10 +31,10 @@ export class HonoWithAuthContext extends Hono<{
  * For mixed public/private routes, use standard OpenAPIHono class instead
  *
  * @example
- * const app = new OpenAPIHonoWithAuthContext();
+ * const app = new OpenAPIHonoWithAuth();
  * // requireAuth middleware is already applied
  */
-export class OpenAPIHonoWithAuthContext extends OpenAPIHono<{
+export class OpenAPIHonoWithAuth extends OpenAPIHono<{
   Variables: { auth: AuthContext };
 }> {
   constructor() {
