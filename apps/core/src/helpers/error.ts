@@ -68,7 +68,10 @@ function createHTTPException(
  * 400 Bad Request
  * The server cannot process the request due to client error
  */
-export const badRequest = (message: string, options?: ErrorOptions): never => {
+export const badRequest = (
+  message: string = "Bad Request",
+  options?: ErrorOptions,
+): never => {
   throw createHTTPException(400, message, options);
 };
 
@@ -77,7 +80,7 @@ export const badRequest = (message: string, options?: ErrorOptions): never => {
  * Authentication is required and has failed or has not been provided
  */
 export const unauthorized = (
-  message: string,
+  message: string = "Unauthorized",
   options?: ErrorOptions,
 ): never => {
   throw createHTTPException(401, message, options);
@@ -87,7 +90,10 @@ export const unauthorized = (
  * 403 Forbidden
  * The client does not have access rights to the content
  */
-export const forbidden = (message: string, options?: ErrorOptions): never => {
+export const forbidden = (
+  message: string = "Forbidden",
+  options?: ErrorOptions,
+): never => {
   throw createHTTPException(403, message, options);
 };
 
@@ -95,7 +101,10 @@ export const forbidden = (message: string, options?: ErrorOptions): never => {
  * 404 Not Found
  * The server cannot find the requested resource
  */
-export const notFound = (message: string, options?: ErrorOptions): never => {
+export const notFound = (
+  message: string = "Not Found",
+  options?: ErrorOptions,
+): never => {
   throw createHTTPException(404, message, options);
 };
 
@@ -103,7 +112,10 @@ export const notFound = (message: string, options?: ErrorOptions): never => {
  * 409 Conflict
  * The request conflicts with the current state of the server
  */
-export const conflict = (message: string, options?: ErrorOptions): never => {
+export const conflict = (
+  message: string = "Conflict",
+  options?: ErrorOptions,
+): never => {
   throw createHTTPException(409, message, options);
 };
 
@@ -112,7 +124,7 @@ export const conflict = (message: string, options?: ErrorOptions): never => {
  * The request was well-formed but was unable to be followed due to semantic errors
  */
 export const unprocessableEntity = (
-  message: string,
+  message: string = "Unprocessable Entity",
   options?: ErrorOptions,
 ): never => {
   throw createHTTPException(422, message, options);
@@ -123,7 +135,7 @@ export const unprocessableEntity = (
  * The user has sent too many requests in a given amount of time
  */
 export const tooManyRequests = (
-  message: string,
+  message: string = "Too Many Requests",
   options?: ErrorOptions,
 ): never => {
   throw createHTTPException(429, message, options);
@@ -134,7 +146,7 @@ export const tooManyRequests = (
  * The server encountered an unexpected condition that prevented it from fulfilling the request
  */
 export const internalServerError = (
-  message: string,
+  message: string = "Internal Server Error",
   options?: ErrorOptions,
 ): never => {
   throw createHTTPException(500, message, options);
@@ -145,7 +157,7 @@ export const internalServerError = (
  * The server is not ready to handle the request
  */
 export const serviceUnavailable = (
-  message: string,
+  message: string = "Service Unavailable",
   options?: ErrorOptions,
 ): never => {
   throw createHTTPException(503, message, options);

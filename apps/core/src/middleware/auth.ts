@@ -63,7 +63,7 @@ const sessionMiddleware: MiddlewareHandler<{
     } as UserAuthContext);
     await next();
   } else {
-    unauthorized("Authentication required");
+    unauthorized();
   }
 };
 
