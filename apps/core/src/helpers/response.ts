@@ -1,6 +1,6 @@
+import { z } from "@hono/zod-openapi";
 import { Context } from "hono";
 import { RequestIdVariables } from "hono/request-id";
-import * as z from "zod";
 
 /**
  * Standardized API success response schema
@@ -15,9 +15,8 @@ export const successResponseSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>
       /** Metadata about the response */
       meta: z.object({
         /** ISO timestamp when the response was generated */
-        timestamp: z.iso
-          .datetime()
-          .openapi({ example: "2025-01-01T12:00:00.000Z" }),
+        timestamp: z.iso.datetime(),
+        // .openapi({ example: "2025-01-01T12:00:00.000Z" }),
         // Room for future additions: pagination, requestId, version, etc.
         requestId: z
           .string()

@@ -1,5 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
 
+import { errorResponseSchema } from "@/helpers/error";
 import { successResponseSchema } from "@/helpers/response";
 
 import { agentsSchema } from "./schemas";
@@ -18,9 +19,19 @@ export const getAgentsRoute = createRoute({
     },
     401: {
       description: "Unauthorized",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
     },
     500: {
       description: "Internal Server Error",
+      content: {
+        "application/json": {
+          schema: errorResponseSchema,
+        },
+      },
     },
   },
 });

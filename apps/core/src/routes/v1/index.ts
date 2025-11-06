@@ -2,6 +2,8 @@ import { swaggerUI } from "@hono/swagger-ui";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { RequestIdVariables } from "hono/request-id";
 
+import { errorHandler } from "@/helpers/error-handler";
+
 import { env } from "../../config/env";
 import agentsRouter from "./agents";
 import usersRouter from "./users";
@@ -13,6 +15,8 @@ app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
   scheme: "bearer",
   bearerFormat: "JWT",
 });
+
+app.onError(errorHandler);
 
 // Mount Routes
 app.route("/agents", agentsRouter);
