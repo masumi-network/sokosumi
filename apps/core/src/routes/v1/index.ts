@@ -2,7 +2,7 @@ import { swaggerUI } from "@hono/swagger-ui";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import { RequestIdVariables } from "hono/request-id";
 
-import { env } from "../../../config/env";
+import { env } from "../../config/env";
 import agentsRouter from "./agents";
 import usersRouter from "./users";
 

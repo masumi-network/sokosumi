@@ -1,4 +1,4 @@
-import { OpenAPIHonoWithAuth } from "../../../../lib/hono";
+import { OpenAPIHonoWithAuth } from "../../../lib/hono";
 import idRouter from "./id";
 import meRouter from "./me";
 

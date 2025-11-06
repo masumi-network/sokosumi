@@ -5,7 +5,7 @@ import { requestId, RequestIdVariables } from "hono/request-id";
 
 import { env } from "./config/env";
 import { errorHandler } from "./helpers/error-handler";
-import apiV1 from "./routes/api/v1";
+import apiV1 from "./routes/v1";
 
 // const app = new Hono<{ Variables: RequestIdVariables }>();
 
