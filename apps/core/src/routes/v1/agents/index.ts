@@ -1,10 +1,9 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
-import { getAgentsHandler } from "./handlers";
-import { getAgentsRoute } from "./routes";
+import getAgentsEndpoint from "./get";
 
 const app = new OpenAPIHonoWithAuth();
 
-app.openapi(getAgentsRoute, getAgentsHandler);
+app.openapi(getAgentsEndpoint.route, getAgentsEndpoint.handler);
 
 export default app;
