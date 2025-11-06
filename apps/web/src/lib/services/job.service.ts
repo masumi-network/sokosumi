@@ -22,6 +22,7 @@ import {
   jobRepository,
   jobShareRepository,
 } from "@sokosumi/database/repositories";
+import { track } from "@vercel/analytics/server";
 import { getTranslations } from "next-intl/server";
 import { v4 as uuidv4 } from "uuid";
 
@@ -552,13 +553,19 @@ export const jobService = (() => {
             );
           }
         } catch (error) {
-          Sentry.setTag("error_type", "insufficient_balance");
-          Sentry.setContext("balance_validation", {
-            userId,
-            organizationId,
-            creditsCents: agentWithPrice.creditsPrice.cents,
-            isOrganization: !!organizationId,
-          });
+          try {
+            await track("Insufficient balance", {
+              userId,
+              creditsCents: agentWithPrice.creditsPrice.cents.toString(),
+              isOrganization: !!organizationId,
+              ...(organizationId ? { organizationId } : {}),
+            });
+          } catch (trackingError) {
+            console.error(
+              "Failed to track insufficient balance",
+              trackingError,
+            );
+          }
           throw error;
         }
       }
