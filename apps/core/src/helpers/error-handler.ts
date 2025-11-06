@@ -1,5 +1,6 @@
 import { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
+import { RequestIdVariables } from "hono/request-id";
 
 import { type ErrorOptions, type ErrorResponse, getErrorName } from "./error";
 
@@ -7,7 +8,10 @@ import { type ErrorOptions, type ErrorResponse, getErrorName } from "./error";
  * Centralized error handler for Hono app
  * Formats HTTPExceptions into consistent error responses
  */
-export function errorHandler(error: Error, c: Context): Response {
+export function errorHandler(
+  error: Error,
+  c: Context<{ Variables: RequestIdVariables }>,
+): Response {
   if (error instanceof HTTPException) {
     const status = error.status;
     const options = error.cause as ErrorOptions | undefined;
@@ -19,7 +23,7 @@ export function errorHandler(error: Error, c: Context): Response {
       details: options?.details,
       meta: {
         timestamp: new Date().toISOString(),
-        requestId: c.get("requestId") as string,
+        requestId: c.var.requestId ?? undefined,
         path: options?.path || c.req.path,
         method: options?.method || c.req.method,
       },
@@ -35,6 +39,9 @@ export function errorHandler(error: Error, c: Context): Response {
       message: "An unexpected error occurred",
       meta: {
         timestamp: new Date().toISOString(),
+        requestId: c.var.requestId ?? undefined,
+        path: c.req.path,
+        method: c.req.method,
       },
     },
     500,

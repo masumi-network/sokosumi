@@ -3,14 +3,14 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
-import { requestId } from "hono/request-id";
+import { requestId, RequestIdVariables } from "hono/request-id";
 
 import { env } from "./config/env";
 import { errorHandler } from "./helpers/error-handler";
 import agentsRouter from "./routes/agents";
 import usersRouter from "./routes/users";
 
-const app = new Hono();
+const app = new Hono<{ Variables: RequestIdVariables }>();
 app.use(logger());
 app.use(requestId());
 app.use("*", cors());

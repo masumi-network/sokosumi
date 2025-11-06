@@ -35,7 +35,7 @@ export const ok = <T>(c: Context, data: T) => {
       data,
       meta: {
         timestamp: new Date().toISOString(),
-        requestId: c.get("requestId") as string,
+        requestId: c.var.requestId ?? undefined,
       },
     },
     200,
@@ -52,7 +52,7 @@ export const created = <T>(c: Context, data: T) => {
       data,
       meta: {
         timestamp: new Date().toISOString(),
-        requestId: c.get("requestId") as string,
+        requestId: c.var.requestId ?? undefined,
       },
     },
     201,

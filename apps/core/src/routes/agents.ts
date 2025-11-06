@@ -30,7 +30,6 @@ const app = new OpenAPIHonoWithAuth();
 
 app.openapi(route, async (c) => {
   const agents = await agentRepository.getAgentsWithRelations();
-
   return ok(
     c,
     agents.map((agent) => ({
