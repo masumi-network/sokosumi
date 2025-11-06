@@ -1,14 +1,52 @@
+import { createRoute, z } from "@hono/zod-openapi";
 import { userRepository } from "@sokosumi/database/repositories";
 
-import { forbidden, notFound } from "../helpers/error";
-import { ok } from "../helpers/response";
+import { forbidden, notFound, unauthorized } from "../helpers/error";
+import { ok, successResponseSchema } from "../helpers/response";
 import { OpenAPIHonoWithAuth } from "../lib/hono";
 import type { UserAuthContext } from "../middleware/auth";
 
 const app = new OpenAPIHonoWithAuth();
 
-app.get("/me", async (c) => {
-  const auth = c.get("auth");
+const userSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  email: z.string(),
+});
+
+const getMeRoute = createRoute({
+  method: "get",
+  path: "/me",
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: successResponseSchema(userSchema),
+        },
+      },
+      description: "Retrieve the current user",
+    },
+    401: {
+      description: "Unauthorized",
+    },
+    403: {
+      description: "Forbidden",
+    },
+    404: {
+      description: "Not Found",
+    },
+    500: {
+      description: "Internal Server Error",
+    },
+  },
+});
+
+app.openapi(getMeRoute, async (c) => {
+  const auth = c.var.auth;
+
+  if (!auth) {
+    unauthorized("Authentication required");
+  }
 
   // Check if the user is authenticated
   if (auth.type !== "user") {
@@ -23,11 +61,43 @@ app.get("/me", async (c) => {
     notFound("User not found");
   }
 
-  return ok(c, { user });
+  return ok(c, { user: userSchema.parse(user) });
 });
 
-app.get("/:id", async (c) => {
-  const auth = c.get("auth");
+const getUserRoute = createRoute({
+  method: "get",
+  path: "/:id",
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: successResponseSchema(userSchema),
+        },
+      },
+      description: "Retrieve the current user",
+    },
+    401: {
+      description: "Unauthorized",
+    },
+    403: {
+      description: "Forbidden",
+    },
+    404: {
+      description: "Not Found",
+    },
+    500: {
+      description: "Internal Server Error",
+    },
+  },
+});
+
+app.openapi(getUserRoute, async (c) => {
+  const auth = c.var.auth;
+
+  if (!auth) {
+    unauthorized("Authentication required");
+  }
+
   const id = c.req.param("id");
 
   // Authorization: users can only access their own ID
@@ -41,7 +111,7 @@ app.get("/:id", async (c) => {
     notFound("User not found");
   }
 
-  return ok(c, { user });
+  return ok(c, { user: userSchema.parse(user) });
 });
 
 export default app;

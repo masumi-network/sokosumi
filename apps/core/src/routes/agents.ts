@@ -4,6 +4,8 @@ import { agentRepository } from "@sokosumi/database/repositories";
 import { ok, successResponseSchema } from "../helpers/response";
 import { OpenAPIHonoWithAuth } from "../lib/hono";
 
+const app = new OpenAPIHonoWithAuth();
+
 const agentSchema = z
   .object({
     id: z.string(),
@@ -11,7 +13,7 @@ const agentSchema = z
   })
   .openapi("Agent");
 
-const route = createRoute({
+const getAgentsRoute = createRoute({
   method: "get",
   path: "/",
   responses: {
@@ -23,12 +25,16 @@ const route = createRoute({
       },
       description: "Retrieve all agents",
     },
+    401: {
+      description: "Unauthorized",
+    },
+    500: {
+      description: "Internal Server Error",
+    },
   },
 });
 
-const app = new OpenAPIHonoWithAuth();
-
-app.openapi(route, async (c) => {
+app.openapi(getAgentsRoute, async (c) => {
   const agents = await agentRepository.getAgentsWithRelations();
   return ok(
     c,
