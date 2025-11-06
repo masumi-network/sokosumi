@@ -5,24 +5,24 @@ import { env } from "../config/env";
 import { unauthorized } from "../helpers/error";
 import { auth } from "../lib/auth";
 
-export interface InternalAuthContext {
+export interface InternalAuth {
   type: "internal";
 }
 
-export interface UserAuthContext {
+export interface UserAuth {
   type: "user";
   userId: string;
   organizationId: string | null;
   sessionId: string | null;
 }
 
-export type AuthContext = InternalAuthContext | UserAuthContext;
+export type AuthType = InternalAuth | UserAuth;
 
 const bearerMiddleware = bearerAuth({
   verifyToken: async (token, c) => {
     // Check 1: Static API_KEY (internal service)
     if (token === env.API_KEY) {
-      c.set("auth", { type: "internal" } as InternalAuthContext);
+      c.set("auth", { type: "internal" } as InternalAuth);
       return true;
     }
 
@@ -37,7 +37,7 @@ const bearerMiddleware = bearerAuth({
         userId: result.key.userId,
         organizationId: result.key.metadata?.organizationId ?? null,
         sessionId: null,
-      } as UserAuthContext);
+      } as UserAuth);
       return true;
     } else {
       unauthorized("Invalid token");
@@ -47,7 +47,7 @@ const bearerMiddleware = bearerAuth({
 });
 
 const sessionMiddleware: MiddlewareHandler<{
-  Variables: { auth: AuthContext };
+  Variables: { auth: AuthType };
 }> = async (c, next) => {
   const response = await auth.api.getSession({
     headers: c.req.raw.headers,
@@ -60,7 +60,7 @@ const sessionMiddleware: MiddlewareHandler<{
       userId: user.id,
       organizationId: session.activeOrganizationId ?? null,
       sessionId: session.id,
-    } as UserAuthContext);
+    } as UserAuth);
     await next();
   } else {
     unauthorized();
