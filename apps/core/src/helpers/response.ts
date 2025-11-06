@@ -15,6 +15,7 @@ export const successResponseSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>
       /** ISO timestamp when the response was generated */
       timestamp: z.iso.datetime(),
       // Room for future additions: pagination, requestId, version, etc.
+      requestId: z.string(),
     }),
   });
 
@@ -25,6 +26,7 @@ export type SuccessResponse<T> = {
   data: T;
   meta: {
     timestamp: string;
+    requestId: string;
   };
 };
 export const ok = <T>(c: Context, data: T) => {
@@ -33,6 +35,7 @@ export const ok = <T>(c: Context, data: T) => {
       data,
       meta: {
         timestamp: new Date().toISOString(),
+        requestId: c.get("requestId") as string,
       },
     },
     200,
@@ -49,6 +52,7 @@ export const created = <T>(c: Context, data: T) => {
       data,
       meta: {
         timestamp: new Date().toISOString(),
+        requestId: c.get("requestId") as string,
       },
     },
     201,

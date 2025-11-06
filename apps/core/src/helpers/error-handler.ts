@@ -19,7 +19,7 @@ export function errorHandler(error: Error, c: Context): Response {
       details: options?.details,
       meta: {
         timestamp: new Date().toISOString(),
-        requestId: options?.requestId || c.req.header("x-request-id"),
+        requestId: c.get("requestId") as string,
         path: options?.path || c.req.path,
         method: options?.method || c.req.method,
       },
