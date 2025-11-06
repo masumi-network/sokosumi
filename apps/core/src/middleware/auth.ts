@@ -46,16 +46,18 @@ const bearerMiddleware = bearerAuth({
 });
 
 export const requireAuth: MiddlewareHandler = async (c, next) => {
-  const session = await auth.api.getSession({
+  const response = await auth.api.getSession({
     headers: c.req.raw.headers,
   });
 
-  if (session?.session && session.user) {
+  if (response) {
+    const { session, user } = response;
+
     c.set("auth", {
       type: "user",
-      userId: session.user.id,
-      organizationId: session.session.activeOrganizationId ?? null,
-      sessionId: session.session.id,
+      userId: user.id,
+      organizationId: session.activeOrganizationId ?? null,
+      sessionId: session.id,
     } as UserAuthContext);
     await next();
     return;
