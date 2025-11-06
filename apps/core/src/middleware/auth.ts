@@ -39,18 +39,21 @@ const bearerMiddleware = bearerAuth({
         sessionId: null,
       } as UserAuthContext);
       return true;
+    } else {
+      unauthorized("Invalid token");
     }
-
     return false;
   },
 });
 
-export const requireAuth: MiddlewareHandler = async (c, next) => {
+const sessionMiddleware: MiddlewareHandler<{
+  Variables: { auth: AuthContext };
+}> = async (c, next) => {
   const response = await auth.api.getSession({
     headers: c.req.raw.headers,
   });
 
-  if (response) {
+  if (response?.session && response.user) {
     const { session, user } = response;
 
     c.set("auth", {
@@ -60,14 +63,16 @@ export const requireAuth: MiddlewareHandler = async (c, next) => {
       sessionId: session.id,
     } as UserAuthContext);
     await next();
-    return;
+  } else {
+    unauthorized("Authentication required");
   }
+};
 
-  await bearerMiddleware(c, async () => {
-    const authContext = c.get("auth");
-    if (!authContext) {
-      unauthorized("Authentication required");
-    }
-    await next();
-  });
+export const requireAuth: MiddlewareHandler = async (c, next) => {
+  const authHeader = c.req.header("authorization");
+  if (authHeader) {
+    await bearerMiddleware(c, next);
+  } else {
+    await sessionMiddleware(c, next);
+  }
 };
