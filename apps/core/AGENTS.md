@@ -124,6 +124,7 @@ if (auth.type === "user") {
   // User token with userId and organizationId
   const userId = auth.userId;
   const orgId = auth.organizationId;
+  const sessionId = auth.sessionId; // null for API keys, string for session cookies
 }
 ```
 
@@ -138,7 +139,14 @@ if (auth.type !== "user") {
 
 const userAuth = auth as UserAuthContext;
 const userId = userAuth.userId; // Now type-safe
+const sessionId = userAuth.sessionId;
 ```
+
+**Authentication sources**: The shared `requireAuth` middleware accepts:
+
+- Static API key (internal automation)
+- User API key issued via Better Auth
+- Better Auth session cookies (see [Better Auth Hono middleware](https://www.better-auth.com/docs/integrations/hono#middleware))
 
 ## App-Specific Commands
 
@@ -212,7 +220,8 @@ app.openapi(route, async (c) => {
 
 - `HonoWithAuth` and `OpenAPIHonoWithAuth` automatically apply auth middleware
 - Don't manually call `app.use("*", requireAuth)` when using these classes
-- Internal tokens have full access; user tokens have restricted access
+- Internal tokens have full access; user tokens and session-authenticated requests are scoped to the authenticated user
+- Session cookies must be forwarded with requests (`credentials: "include"`) and rely on the Better Auth handler configuration documented above
 
 ### Error Handling
 
@@ -232,3 +241,4 @@ app.openapi(route, async (c) => {
 - [Response Guidelines](.cursor/rules/responses.mdc) - Response helper documentation
 - [Hono Documentation](https://hono.dev/)
 - [Bun Runtime](https://bun.sh/)
+- [Better Auth Hono Integration](https://www.better-auth.com/docs/integrations/hono#middleware)

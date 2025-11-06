@@ -1,7 +1,7 @@
 import prisma from "@sokosumi/database/client";
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
-import { apiKey } from "better-auth/plugins";
+import { apiKey, organization } from "better-auth/plugins";
 
 import { env } from "../config/env";
 
@@ -11,7 +11,73 @@ export const auth = betterAuth({
   }),
   secret: env.BETTER_AUTH_SECRET,
   baseURL: env.BETTER_AUTH_URL,
-  plugins: [apiKey()],
+  rateLimit: {
+    storage: "database",
+  },
+  plugins: [
+    apiKey({
+      rateLimit: {
+        enabled: true,
+        timeWindow: 60, // 60 seconds
+        maxRequests: 100, // 100 requests per minute
+      },
+      enableMetadata: true,
+    }),
+    organization({
+      cancelPendingInvitationsOnReInvite: true,
+      schema: {
+        organization: {
+          additionalFields: {
+            stripeCustomerId: {
+              type: "string",
+              required: false,
+              defaultValue: null,
+              input: false,
+            },
+            invoiceEmail: {
+              type: "string",
+              required: false,
+              defaultValue: null,
+              input: false,
+            },
+          },
+        },
+      },
+    }),
+  ],
+  user: {
+    additionalFields: {
+      termsAccepted: {
+        type: "boolean",
+        required: true,
+        defaultValue: true,
+      },
+      marketingOptIn: {
+        type: "boolean",
+        required: true,
+        defaultValue: true,
+      },
+      jobStatusNotificationsOptIn: {
+        type: "boolean",
+        required: false,
+        defaultValue: true,
+      },
+      stripeCustomerId: {
+        type: "string",
+        required: false,
+        defaultValue: null,
+      },
+      onboardingCompleted: {
+        type: "boolean",
+        required: true,
+        defaultValue: false,
+      },
+      imageHash: {
+        type: "string",
+        required: false,
+      },
+    },
+  },
 });
 
 export type Session = typeof auth.$Infer.Session;
