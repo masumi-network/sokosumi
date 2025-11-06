@@ -8,11 +8,13 @@ import type { UserAuthContext } from "../middleware/auth";
 
 const app = new OpenAPIHonoWithAuth();
 
-const userSchema = z.object({
-  id: z.string(),
-  name: z.string(),
-  email: z.string(),
-});
+const userSchema = z
+  .object({
+    id: z.string().openapi({ example: "0Lm1hpg77w8g8QXbr3aEsFzX9aIUTybj" }),
+    name: z.string().openapi({ example: "John Doe" }),
+    email: z.string().openapi({ example: "john.doe@example.com" }),
+  })
+  .openapi("User");
 
 const getMeRoute = createRoute({
   method: "get",
@@ -64,9 +66,19 @@ app.openapi(getMeRoute, async (c) => {
   return ok(c, { user: userSchema.parse(user) });
 });
 
+const userIdSchema = z.object({
+  id: z.string().openapi({
+    param: { name: "id", in: "path" },
+    example: "0Lm1hpg77w8g8QXbr3aEsFzX9aIUTybj",
+  }),
+});
+
 const getUserRoute = createRoute({
   method: "get",
-  path: "/:id",
+  path: "/{id}",
+  request: {
+    params: userIdSchema,
+  },
   responses: {
     200: {
       content: {
@@ -74,7 +86,7 @@ const getUserRoute = createRoute({
           schema: successResponseSchema(userSchema),
         },
       },
-      description: "Retrieve the current user",
+      description: "Retrieve the user by ID",
     },
     401: {
       description: "Unauthorized",
