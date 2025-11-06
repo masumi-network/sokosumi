@@ -1,4 +1,4 @@
-import { OpenAPIHonoWithAuth } from "../../lib/hono";
+import { OpenAPIHonoWithAuth } from "../../../../lib/hono";
 import idRouter from "./id";
 import meRouter from "./me";
 
@@ -8,4 +8,3 @@ app.route("/", meRouter);
 app.route("/", idRouter);
 
 export default app;
-

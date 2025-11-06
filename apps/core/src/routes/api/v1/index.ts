@@ -1,0 +1,46 @@
+import { swaggerUI } from "@hono/swagger-ui";
+import { OpenAPIHono } from "@hono/zod-openapi";
+import { RequestIdVariables } from "hono/request-id";
+
+import { env } from "../../../config/env";
+import agentsRouter from "./agents";
+import usersRouter from "./users";
+
+const app = new OpenAPIHono<{ Variables: RequestIdVariables }>();
+
+app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
+  type: "http",
+  scheme: "bearer",
+  bearerFormat: "JWT",
+});
+
+// Mount Routes
+app.route("/agents", agentsRouter);
+app.route("/users", usersRouter);
+
+// Generate OpenAPI spec from the API routes (publicly accessible)
+app.doc("/openapi.json", {
+  openapi: "3.0.3",
+  info: {
+    version: "1.0.0",
+    title: "Sokosumi API",
+  },
+  servers: [
+    {
+      url: `http://localhost:${env.PORT}/v1`,
+      description: "Local Server",
+    },
+  ],
+  security: [{ bearerAuth: [] }],
+});
+app.get(
+  "/doc",
+  swaggerUI({
+    url: "openapi.json",
+    persistAuthorization: true,
+    withCredentials: true,
+    tryItOutEnabled: true,
+  }),
+);
+
+export default app;

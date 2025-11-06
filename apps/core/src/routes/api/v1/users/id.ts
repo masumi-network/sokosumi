@@ -1,9 +1,9 @@
 import { createRoute } from "@hono/zod-openapi";
 import { userRepository } from "@sokosumi/database/repositories";
 
-import { forbidden, notFound, unauthorized } from "../../helpers/error";
-import { ok, successResponseSchema } from "../../helpers/response";
-import { OpenAPIHonoWithAuth } from "../../lib/hono";
+import { forbidden, notFound, unauthorized } from "../../../../helpers/error";
+import { ok, successResponseSchema } from "../../../../helpers/response";
+import { OpenAPIHonoWithAuth } from "../../../../lib/hono";
 import { userIdSchema, userSchema } from "./schemas";
 
 const app = new OpenAPIHonoWithAuth();

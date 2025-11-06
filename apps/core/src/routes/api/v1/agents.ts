@@ -1,8 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { agentRepository } from "@sokosumi/database/repositories";
 
-import { ok, successResponseSchema } from "../helpers/response";
-import { OpenAPIHonoWithAuth } from "../lib/hono";
+import { ok, successResponseSchema } from "../../../helpers/response";
+import { OpenAPIHonoWithAuth } from "../../../lib/hono";
 
 const app = new OpenAPIHonoWithAuth();
 
