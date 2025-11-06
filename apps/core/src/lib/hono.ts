@@ -21,8 +21,8 @@ export class HonoWithAuth extends Hono<{
 }> {
   constructor() {
     super();
-    this.use("*", authMiddleware);
     this.use(requestId());
+    this.use(authMiddleware);
   }
 }
 
@@ -42,8 +42,8 @@ export class OpenAPIHonoWithAuth extends OpenAPIHono<{
 }> {
   constructor() {
     super();
-    this.use("*", authMiddleware);
     this.use(requestId());
+    this.use(authMiddleware);
   }
 
   routeEndpoint(endpoint: Endpoint) {
