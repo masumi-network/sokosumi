@@ -9,16 +9,19 @@ import { ContentfulStatusCode } from "hono/utils/http-status";
 export const errorResponseSchema = z
   .object({
     /** Machine-readable error identifier */
-    error: z.string(),
+    error: z.string().openapi({ example: "Unauthorized" }),
 
     /** Human-readable description of the error */
-    message: z.string(),
+    message: z.string().openapi({ example: "Authentication required" }),
 
     /** Optional application-specific error code */
-    code: z.string().optional(),
+    code: z.string().optional().openapi({ example: "UNAUTHORIZED" }),
 
     /** Optional array of additional error details */
-    details: z.array(z.unknown()).optional(),
+    details: z
+      .array(z.unknown())
+      .optional()
+      .openapi({ example: ["Authentication failed"] }),
 
     /** Metadata about the request and response */
     meta: z.object({
@@ -151,7 +154,7 @@ export const serviceUnavailable = (
 /**
  * Helper for onError handler to get error name from status code
  */
-export function getErrorName(status: number): string {
+export function getErrorName(status: ContentfulStatusCode): string {
   const errorNames: Record<number, string> = {
     400: "BadRequest",
     401: "Unauthorized",
