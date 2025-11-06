@@ -22,15 +22,11 @@ app.use("*", cors());
 // Centralized error handler
 app.onError(errorHandler);
 
-app.openAPIRegistry.registerComponent(
-  "securitySchemes",
-  "Bearer Authentication",
-  {
-    type: "http",
-    scheme: "bearer",
-    bearerFormat: "JWT",
-  },
-);
+app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
+  type: "http",
+  scheme: "bearer",
+  bearerFormat: "JWT",
+});
 
 // Mount protected routes (auth middleware applied in routes)
 app.route("/agents", agentsRouter);

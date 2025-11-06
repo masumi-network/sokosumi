@@ -52,7 +52,6 @@ const sessionMiddleware: MiddlewareHandler<{
   const response = await auth.api.getSession({
     headers: c.req.raw.headers,
   });
-
   if (response?.session && response.user) {
     const { session, user } = response;
 
