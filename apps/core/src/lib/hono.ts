@@ -2,6 +2,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { Hono } from "hono";
 import { requestId, type RequestIdVariables } from "hono/request-id";
 
+import type { Endpoint } from "../helpers/endpoint";
 import { AuthContext, requireAuth } from "../middleware/auth";
 
 /**
@@ -43,5 +44,17 @@ export class OpenAPIHonoWithAuth extends OpenAPIHono<{
     super();
     this.use("*", requireAuth);
     this.use(requestId());
+  }
+
+  routeEndpoint(endpoint: Endpoint) {
+    this.openapi(endpoint.route, endpoint.handler);
+    return this;
+  }
+
+  routeEndpoints(endpoints: Endpoint[]) {
+    endpoints.forEach((endpoint) => {
+      this.routeEndpoint(endpoint);
+    });
+    return this;
   }
 }

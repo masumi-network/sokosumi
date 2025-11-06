@@ -4,6 +4,6 @@ import getAgentsEndpoint from "./get";
 
 const app = new OpenAPIHonoWithAuth();
 
-app.openapi(getAgentsEndpoint.route, getAgentsEndpoint.handler);
+app.routeEndpoint(getAgentsEndpoint);
 
 export default app;

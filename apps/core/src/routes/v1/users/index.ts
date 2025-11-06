@@ -5,7 +5,6 @@ import getCurrentUserEndpoint from "./me/get";
 
 const app = new OpenAPIHonoWithAuth();
 
-app.openapi(getCurrentUserEndpoint.route, getCurrentUserEndpoint.handler);
-app.openapi(getUserEndpoint.route, getUserEndpoint.handler);
+app.routeEndpoints([getCurrentUserEndpoint, getUserEndpoint]);
 
 export default app;
