@@ -3,8 +3,8 @@ import { agentRepository } from "@sokosumi/database/repositories";
 import { Context } from "hono";
 
 import type { Endpoint } from "@/helpers/endpoint";
-import { errorResponseSchema } from "@/helpers/error";
-import { ok, successResponseSchema } from "@/helpers/response";
+import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { ok } from "@/helpers/response";
 
 const agentSchema = z
   .object({
@@ -20,30 +20,9 @@ const route = createRoute({
   path: "/",
   tags: ["Agents"],
   responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: successResponseSchema(agentsSchema),
-        },
-      },
-      description: "Retrieve all agents",
-    },
-    401: {
-      description: "Unauthorized",
-      content: {
-        "application/json": {
-          schema: errorResponseSchema,
-        },
-      },
-    },
-    500: {
-      description: "Internal Server Error",
-      content: {
-        "application/json": {
-          schema: errorResponseSchema,
-        },
-      },
-    },
+    200: jsonSuccessResponse(agentsSchema, "Retrieve all agents"),
+    401: jsonErrorResponse("Unauthorized"),
+    500: jsonErrorResponse("Internal Server Error"),
   },
 });
 

@@ -3,8 +3,9 @@ import { userRepository } from "@sokosumi/database/repositories";
 import { Context } from "hono";
 
 import type { Endpoint } from "@/helpers/endpoint";
-import { errorResponseSchema, forbidden, notFound } from "@/helpers/error";
-import { ok, successResponseSchema } from "@/helpers/response";
+import { forbidden, notFound } from "@/helpers/error";
+import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
+import { ok } from "@/helpers/response";
 
 const userSchema = z
   .object({
@@ -29,46 +30,11 @@ const route = createRoute({
     params: userIdSchema,
   },
   responses: {
-    200: {
-      content: {
-        "application/json": {
-          schema: successResponseSchema(userSchema),
-        },
-      },
-      description: "Retrieve the user by ID",
-    },
-    401: {
-      description: "Unauthorized",
-      content: {
-        "application/json": {
-          schema: errorResponseSchema,
-        },
-      },
-    },
-    403: {
-      description: "Forbidden",
-      content: {
-        "application/json": {
-          schema: errorResponseSchema,
-        },
-      },
-    },
-    404: {
-      description: "Not Found",
-      content: {
-        "application/json": {
-          schema: errorResponseSchema,
-        },
-      },
-    },
-    500: {
-      description: "Internal Server Error",
-      content: {
-        "application/json": {
-          schema: errorResponseSchema,
-        },
-      },
-    },
+    200: jsonSuccessResponse(userSchema, "Retrieve the user by ID"),
+    401: jsonErrorResponse("Unauthorized"),
+    403: jsonErrorResponse("Forbidden"),
+    404: jsonErrorResponse("Not Found"),
+    500: jsonErrorResponse("Internal Server Error"),
   },
 });
 
