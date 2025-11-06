@@ -12,6 +12,13 @@ export function errorHandler(
   error: Error,
   c: Context<{ Variables: RequestIdVariables }>,
 ): Response {
+  const meta = {
+    timestamp: new Date().toISOString(),
+    requestId: c.var.requestId,
+    path: c.req.path,
+    method: c.req.method,
+  };
+
   if (error instanceof HTTPException) {
     const status = error.status;
     const options = error.cause as ErrorOptions | undefined;
@@ -21,12 +28,7 @@ export function errorHandler(
       message: error.message,
       code: options?.code,
       details: options?.details,
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId: c.var.requestId ?? undefined,
-        path: options?.path || c.req.path,
-        method: options?.method || c.req.method,
-      },
+      meta,
     };
 
     return c.json(errorResponse, status);
@@ -37,12 +39,7 @@ export function errorHandler(
     {
       error: "InternalServerError",
       message: "An unexpected error occurred",
-      meta: {
-        timestamp: new Date().toISOString(),
-        requestId: c.var.requestId ?? undefined,
-        path: c.req.path,
-        method: c.req.method,
-      },
+      meta,
     },
     500,
   );

@@ -1,13 +1,13 @@
 import { userRepository } from "@sokosumi/database/repositories";
+import { Context } from "hono";
 
 import { forbidden, notFound } from "@/helpers/error";
 import { ok } from "@/helpers/response";
 import { UserAuthContext } from "@/middleware/auth";
-import type { AuthedContext } from "@/types/authed-context";
 
 import { userSchema } from "./schemas";
 
-export async function getUserHandler(c: AuthedContext) {
+export async function getUserHandler(c: Context) {
   const auth = c.var.auth;
 
   const id = c.req.param("id");
@@ -24,7 +24,7 @@ export async function getUserHandler(c: AuthedContext) {
   return ok(c, userSchema.parse(user));
 }
 
-export async function getMeHandler(c: AuthedContext) {
+export async function getMeHandler(c: Context) {
   const auth = c.var.auth;
 
   if (auth.type !== "user") {

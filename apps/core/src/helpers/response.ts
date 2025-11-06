@@ -1,4 +1,5 @@
 import { Context } from "hono";
+import { RequestIdVariables } from "hono/request-id";
 import * as z from "zod";
 
 /**
@@ -29,32 +30,38 @@ export type SuccessResponse<T> = {
     requestId: string;
   };
 };
-export const ok = <T>(c: Context, data: T) => {
+export const ok = <T>(
+  c: Context<{ Variables: RequestIdVariables }>,
+  data: T,
+) => {
   return c.json<SuccessResponse<T>, 200>(
     {
       data,
       meta: {
         timestamp: new Date().toISOString(),
-        requestId: c.var.requestId ?? undefined,
+        requestId: c.var.requestId,
       },
     },
     200,
   );
 };
 
-export const empty = (c: Context) => {
-  return c.body(null, 204);
-};
-
-export const created = <T>(c: Context, data: T) => {
+export const created = <T>(
+  c: Context<{ Variables: RequestIdVariables }>,
+  data: T,
+) => {
   return c.json<SuccessResponse<T>, 201>(
     {
       data,
       meta: {
         timestamp: new Date().toISOString(),
-        requestId: c.var.requestId ?? undefined,
+        requestId: c.var.requestId,
       },
     },
     201,
   );
+};
+
+export const empty = (c: Context) => {
+  return c.body(null, 204);
 };
