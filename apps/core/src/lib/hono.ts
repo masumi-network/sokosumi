@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import { requestId, type RequestIdVariables } from "hono/request-id";
 
 import type { Endpoint } from "../helpers/endpoint";
-import { AuthType, requireAuth } from "../middleware/auth";
+import { AuthVariables, requireAuth } from "../middleware/auth";
 
 /**
  * Type-safe Hono class with AuthContext in Variables
@@ -17,7 +17,7 @@ import { AuthType, requireAuth } from "../middleware/auth";
  * // requireAuth middleware is already applied
  */
 export class HonoWithAuth extends Hono<{
-  Variables: { auth: AuthType } & RequestIdVariables;
+  Variables: AuthVariables & RequestIdVariables;
 }> {
   constructor() {
     super();
@@ -38,7 +38,7 @@ export class HonoWithAuth extends Hono<{
  * // requireAuth middleware is already applied
  */
 export class OpenAPIHonoWithAuth extends OpenAPIHono<{
-  Variables: { auth: AuthType } & RequestIdVariables;
+  Variables: AuthVariables & RequestIdVariables;
 }> {
   constructor() {
     super();

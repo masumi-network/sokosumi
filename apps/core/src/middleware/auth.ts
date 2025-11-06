@@ -16,7 +16,7 @@ export interface UserAuth {
   sessionId: string | null;
 }
 
-export type AuthType = InternalAuth | UserAuth;
+export type AuthVariables = { auth: InternalAuth | UserAuth };
 
 const bearerMiddleware = bearerAuth({
   verifyToken: async (token, c) => {
@@ -47,7 +47,7 @@ const bearerMiddleware = bearerAuth({
 });
 
 const sessionMiddleware: MiddlewareHandler<{
-  Variables: { auth: AuthType };
+  Variables: AuthVariables;
 }> = async (c, next) => {
   const response = await auth.api.getSession({
     headers: c.req.raw.headers,
