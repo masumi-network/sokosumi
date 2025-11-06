@@ -7,18 +7,24 @@ import * as z from "zod";
  * Provides consistent success structure across all API endpoints
  */
 export const successResponseSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>
-  z.object({
-    /** The actual response data */
-    data: dataSchema,
+  z
+    .object({
+      /** The actual response data */
+      data: dataSchema,
 
-    /** Metadata about the response */
-    meta: z.object({
-      /** ISO timestamp when the response was generated */
-      timestamp: z.iso.datetime(),
-      // Room for future additions: pagination, requestId, version, etc.
-      requestId: z.string(),
-    }),
-  });
+      /** Metadata about the response */
+      meta: z.object({
+        /** ISO timestamp when the response was generated */
+        timestamp: z.iso
+          .datetime()
+          .openapi({ example: "2025-01-01T12:00:00.000Z" }),
+        // Room for future additions: pagination, requestId, version, etc.
+        requestId: z
+          .string()
+          .openapi({ example: "5091b3ea-994f-4417-8e04-2efc05dd8673" }),
+      }),
+    })
+    .openapi("SuccessResponse");
 
 /**
  * Generic TypeScript type for API success responses
@@ -30,6 +36,7 @@ export type SuccessResponse<T> = {
     requestId: string;
   };
 };
+
 export const ok = <T>(
   c: Context<{ Variables: RequestIdVariables }>,
   data: T,
