@@ -5,18 +5,23 @@ import { env } from "../config/env";
 import { unauthorized } from "../helpers/error";
 import { auth } from "../lib/auth";
 
-export interface InternalAuth {
-  type: "internal";
-}
-
-export interface UserAuth {
-  type: "user";
-  userId: string;
+export interface AuthenticatedUserContext {
+  id: string;
   organizationId: string | null;
-  sessionId: string | null;
 }
 
-export type AuthVariables = { auth: InternalAuth | UserAuth };
+export type AuthVariables = {
+  isAuthenticated: boolean;
+  user: AuthenticatedUserContext | null;
+};
+
+function setAuthContext(
+  c: Parameters<MiddlewareHandler>[0],
+  context: AuthVariables,
+) {
+  c.set("isAuthenticated", context.isAuthenticated);
+  c.set("user", context.user);
+}
 
 const bearerMiddleware: MiddlewareHandler<{
   Variables: AuthVariables;
@@ -24,7 +29,7 @@ const bearerMiddleware: MiddlewareHandler<{
   verifyToken: async (token, c) => {
     // Check 1: Static API_KEY (internal service)
     if (token === env.API_KEY) {
-      c.set("auth", { type: "internal" } as InternalAuth);
+      setAuthContext(c, { isAuthenticated: true, user: null });
       return true;
     }
 
@@ -34,16 +39,17 @@ const bearerMiddleware: MiddlewareHandler<{
     });
 
     if (result.valid && result.key) {
-      c.set("auth", {
-        type: "user",
-        userId: result.key.userId,
-        organizationId: result.key.metadata?.organizationId ?? null,
-        sessionId: null,
-      } as UserAuth);
+      setAuthContext(c, {
+        isAuthenticated: true,
+        user: {
+          id: result.key.userId,
+          organizationId: result.key.metadata?.organizationId ?? null,
+        },
+      });
       return true;
-    } else {
-      unauthorized("Invalid token");
     }
+
+    unauthorized("Invalid token");
     return false;
   },
 });
@@ -54,15 +60,18 @@ const sessionMiddleware: MiddlewareHandler<{
   const response = await auth.api.getSession({
     headers: c.req.raw.headers,
   });
+
   if (response?.session && response.user) {
     const { session, user } = response;
 
-    c.set("auth", {
-      type: "user",
-      userId: user.id,
-      organizationId: session.activeOrganizationId ?? null,
-      sessionId: session.id,
-    } as UserAuth);
+    setAuthContext(c, {
+      isAuthenticated: true,
+      user: {
+        id: user.id,
+        organizationId: session.activeOrganizationId ?? null,
+      },
+    });
+
     await next();
   } else {
     unauthorized();
@@ -73,6 +82,7 @@ export const authMiddleware: MiddlewareHandler<{
   Variables: AuthVariables;
 }> = async (c, next) => {
   const authHeader = c.req.header("authorization");
+
   if (authHeader) {
     await bearerMiddleware(c, next);
   } else {

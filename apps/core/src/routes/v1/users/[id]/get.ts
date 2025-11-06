@@ -32,20 +32,20 @@ const route = createRoute({
 });
 
 async function handler(c: Context) {
-  const auth = c.var.auth;
+  const { user } = c.var;
 
   const id = c.req.param("id");
 
-  if (auth.type === "user" && auth.userId !== id) {
+  if (user && user.id !== id) {
     forbidden("You can only access your own user data");
   }
 
-  const user = await userRepository.getUserById(id);
-  if (!user) {
+  const userRecord = await userRepository.getUserById(id);
+  if (!userRecord) {
     notFound("User not found");
   }
 
-  return ok(c, userSchema.parse(user));
+  return ok(c, userSchema.parse(userRecord));
 }
 
 const schemas = { params, response: userSchema };
