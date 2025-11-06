@@ -93,7 +93,7 @@ function AgentCarousel({
             align: "start",
           }}
         >
-          <CarouselContent>{children}</CarouselContent>
+          <CarouselContent className="pt-2">{children}</CarouselContent>
         </Carousel>
       </div>
       {/* Dots Indicator - Mobile Only */}
