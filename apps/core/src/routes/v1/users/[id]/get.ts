@@ -6,16 +6,9 @@ import type { Endpoint } from "@/helpers/endpoint";
 import { forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { userSchema } from "../schemas";
 
-const userSchema = z
-  .object({
-    id: z.string().openapi({ example: "0Lm1hpg77w8g8QXbr3aEsFzX9aIUTybj" }),
-    name: z.string().openapi({ example: "John Doe" }),
-    email: z.string().openapi({ example: "john.doe@example.com" }),
-  })
-  .openapi("User");
-
-const userIdSchema = z.object({
+const params = z.object({
   id: z.string().openapi({
     param: { name: "id", in: "path" },
     example: "0Lm1hpg77w8g8QXbr3aEsFzX9aIUTybj",
@@ -27,7 +20,7 @@ const route = createRoute({
   path: "/{id}",
   tags: ["Users"],
   request: {
-    params: userIdSchema,
+    params,
   },
   responses: {
     200: jsonSuccessResponse(userSchema, "Retrieve the user by ID"),
@@ -55,7 +48,7 @@ async function handler(c: Context) {
   return ok(c, userSchema.parse(user));
 }
 
-const schemas = { userSchema, userIdSchema };
+const schemas = { userSchema, params };
 
 const endpoint: Endpoint<typeof schemas> = {
   schemas,

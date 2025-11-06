@@ -1,4 +1,4 @@
-import { createRoute, z } from "@hono/zod-openapi";
+import { createRoute } from "@hono/zod-openapi";
 import { userRepository } from "@sokosumi/database/repositories";
 import { Context } from "hono";
 
@@ -8,13 +8,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { UserAuthContext } from "@/middleware/auth";
 
-const userSchema = z
-  .object({
-    id: z.string().openapi({ example: "0Lm1hpg77w8g8QXbr3aEsFzX9aIUTybj" }),
-    name: z.string().openapi({ example: "John Doe" }),
-    email: z.string().openapi({ example: "john.doe@example.com" }),
-  })
-  .openapi("User");
+import { userSchema } from "../schemas";
 
 const route = createRoute({
   method: "get",
