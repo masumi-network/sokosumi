@@ -1,13 +1,13 @@
 import { userRepository } from "@sokosumi/database/repositories";
-import { Context } from "hono";
 
 import { forbidden, notFound } from "@/helpers/error";
 import { ok } from "@/helpers/response";
 import { UserAuthContext } from "@/middleware/auth";
+import type { AuthedContext } from "@/types/authed-context";
 
 import { userSchema } from "./schemas";
 
-export async function getUserHandler(c: Context) {
+export async function getUserHandler(c: AuthedContext) {
   const auth = c.var.auth;
 
   const id = c.req.param("id");
@@ -24,11 +24,11 @@ export async function getUserHandler(c: Context) {
   return ok(c, userSchema.parse(user));
 }
 
-export async function getMeHandler(c: Context) {
+export async function getMeHandler(c: AuthedContext) {
   const auth = c.var.auth;
 
   if (auth.type !== "user") {
-    forbidden("Internal token has no user data");
+    forbidden("A non-user cannot access their own data");
   }
 
   const userAuth = auth as UserAuthContext;

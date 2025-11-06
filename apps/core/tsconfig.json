@@ -14,7 +14,8 @@
       "@/lib/*": ["./src/lib/*"],
       "@/config/*": ["./src/config/*"],
       "@/middleware/*": ["./src/middleware/*"],
-      "@/routes/*": ["./src/routes/*"]
+      "@/routes/*": ["./src/routes/*"],
+      "@/types/*": ["./src/types/*"]
     }
   }
 }
