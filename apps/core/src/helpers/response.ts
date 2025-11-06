@@ -29,13 +29,9 @@ export const successResponseSchema = <T extends z.ZodTypeAny>(dataSchema: T) =>
 /**
  * Generic TypeScript type for API success responses
  */
-export type SuccessResponse<T> = {
-  data: T;
-  meta: {
-    timestamp: string;
-    requestId: string;
-  };
-};
+export type SuccessResponse<T> = z.infer<
+  ReturnType<typeof successResponseSchema<z.ZodType<T>>>
+>;
 
 export const ok = <T>(
   c: Context<{ Variables: RequestIdVariables }>,
