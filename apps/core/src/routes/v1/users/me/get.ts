@@ -6,7 +6,6 @@ import type { Endpoint } from "@/helpers/endpoint";
 import { forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import type { UserAuth } from "@/middleware/auth";
 
 import { userSchema } from "../schemas";
 
@@ -30,8 +29,7 @@ async function handler(c: Context) {
     forbidden("A non-user cannot access their own data");
   }
 
-  const userAuth = auth as UserAuth;
-  const user = await userRepository.getUserById(userAuth.userId);
+  const user = await userRepository.getUserById(auth.userId);
   if (!user) {
     notFound("User not found");
   }
