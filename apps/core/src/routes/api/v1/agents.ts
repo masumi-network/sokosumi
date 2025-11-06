@@ -36,13 +36,11 @@ const getAgentsRoute = createRoute({
 
 app.openapi(getAgentsRoute, async (c) => {
   const agents = await agentRepository.getAgentsWithRelations();
-  return ok(
-    c,
-    agents.map((agent) => ({
-      id: agent.id,
-      name: agent.name,
-    })),
-  );
+  const response = agents.map((agent) => ({
+    id: agent.id,
+    name: agent.name,
+  }));
+  return ok(c, response);
 });
 
 export default app;
