@@ -1,7 +1,13 @@
 import type { RouteConfig, z } from "@hono/zod-openapi";
 import type { Context } from "hono";
 
-export interface Endpoint<Schemas = Record<string, z.ZodTypeAny>> {
+type EndpointSchemas = {
+  params?: z.ZodTypeAny;
+  query?: z.ZodTypeAny;
+  response: z.ZodTypeAny;
+};
+
+export interface Endpoint<Schemas extends EndpointSchemas = EndpointSchemas> {
   schemas: Schemas;
   route: RouteConfig;
   handler: (c: Context) => Promise<Response> | Response;

@@ -39,7 +39,7 @@ async function handler(c: Context) {
   return ok(c, userSchema.parse(user));
 }
 
-const schemas = { userSchema };
+const schemas = { response: userSchema };
 
 const endpoint: Endpoint<typeof schemas> = {
   schemas,
