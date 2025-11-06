@@ -21,6 +21,16 @@ app.onError(errorHandler);
 // Protected API routes
 const api = new OpenAPIHono();
 
+api.openAPIRegistry.registerComponent(
+  "securitySchemes",
+  "Bearer Authentication",
+  {
+    type: "http",
+    scheme: "bearer",
+    bearerFormat: "JWT",
+  },
+);
+
 // Mount protected routes (auth middleware applied in routes)
 api.route("/agents", agentsRouter);
 api.route("/users", usersRouter);
@@ -32,8 +42,17 @@ api.doc("/openapi.json", {
     version: "1.0.0",
     title: "Sokosumi API",
   },
+  security: [{ bearerAuth: [] }],
 });
-api.get("/doc", swaggerUI({ url: "openapi.json" }));
+api.get(
+  "/doc",
+  swaggerUI({
+    url: "openapi.json",
+    persistAuthorization: true,
+    withCredentials: true,
+    tryItOutEnabled: true,
+  }),
+);
 
 // Mount api routes at /api/v1
 app.route("/api/v1", api);
