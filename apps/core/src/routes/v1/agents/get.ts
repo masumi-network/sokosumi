@@ -13,7 +13,7 @@ const agentSchema = z
   })
   .openapi("Agent");
 
-const agentsSchema = z.array(agentSchema).openapi("Agents");
+const agentsSchema = z.array(agentSchema);
 
 const route = createRoute({
   method: "get",
