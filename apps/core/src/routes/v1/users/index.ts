@@ -1,10 +1,10 @@
 import { OpenAPIHonoWithAuth } from "../../../lib/hono";
-import idRouter from "./id";
-import meRouter from "./me";
+import { getMeHandler, getUserHandler } from "./handlers";
+import { getMeRoute, getUserRoute } from "./routes";
 
 const app = new OpenAPIHonoWithAuth();
 
-app.route("/", meRouter);
-app.route("/", idRouter);
+app.openapi(getMeRoute, getMeHandler);
+app.openapi(getUserRoute, getUserHandler);
 
 export default app;
