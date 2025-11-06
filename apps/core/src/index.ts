@@ -1,6 +1,5 @@
 import { swaggerUI } from "@hono/swagger-ui";
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { requestId, RequestIdVariables } from "hono/request-id";
@@ -10,7 +9,12 @@ import { errorHandler } from "./helpers/error-handler";
 import agentsRouter from "./routes/agents";
 import usersRouter from "./routes/users";
 
-const app = new Hono<{ Variables: RequestIdVariables }>();
+// const app = new Hono<{ Variables: RequestIdVariables }>();
+
+// Protected API routes
+const app = new OpenAPIHono<{ Variables: RequestIdVariables }>().basePath(
+  "/api/v1",
+);
 app.use(logger());
 app.use(requestId());
 app.use("*", cors());
@@ -18,10 +22,7 @@ app.use("*", cors());
 // Centralized error handler
 app.onError(errorHandler);
 
-// Protected API routes
-const api = new OpenAPIHono();
-
-api.openAPIRegistry.registerComponent(
+app.openAPIRegistry.registerComponent(
   "securitySchemes",
   "Bearer Authentication",
   {
@@ -32,19 +33,19 @@ api.openAPIRegistry.registerComponent(
 );
 
 // Mount protected routes (auth middleware applied in routes)
-api.route("/agents", agentsRouter);
-api.route("/users", usersRouter);
+app.route("/agents", agentsRouter);
+app.route("/users", usersRouter);
 
 // Generate OpenAPI spec from the API routes (publicly accessible)
-api.doc("/openapi.json", {
-  openapi: "3.0.0",
+app.doc("/openapi.json", {
+  openapi: "3.0.3",
   info: {
     version: "1.0.0",
     title: "Sokosumi API",
   },
   security: [{ bearerAuth: [] }],
 });
-api.get(
+app.get(
   "/doc",
   swaggerUI({
     url: "openapi.json",
@@ -55,7 +56,7 @@ api.get(
 );
 
 // Mount api routes at /api/v1
-app.route("/api/v1", api);
+// app.route("/api/v1", api);
 
 export default {
   port: env.PORT,
