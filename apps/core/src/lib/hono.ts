@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import { requestId, type RequestIdVariables } from "hono/request-id";
 
 import type { Endpoint } from "../helpers/endpoint";
-import { AuthVariables, requireAuth } from "../middleware/auth";
+import { authMiddleware, AuthVariables } from "../middleware/auth";
 
 /**
  * Type-safe Hono class with AuthContext in Variables
@@ -21,7 +21,7 @@ export class HonoWithAuth extends Hono<{
 }> {
   constructor() {
     super();
-    this.use("*", requireAuth);
+    this.use("*", authMiddleware);
     this.use(requestId());
   }
 }
@@ -42,7 +42,7 @@ export class OpenAPIHonoWithAuth extends OpenAPIHono<{
 }> {
   constructor() {
     super();
-    this.use("*", requireAuth);
+    this.use("*", authMiddleware);
     this.use(requestId());
   }
 

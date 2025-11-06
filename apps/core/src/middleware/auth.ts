@@ -18,7 +18,9 @@ export interface UserAuth {
 
 export type AuthVariables = { auth: InternalAuth | UserAuth };
 
-const bearerMiddleware = bearerAuth({
+const bearerMiddleware: MiddlewareHandler<{
+  Variables: AuthVariables;
+}> = bearerAuth({
   verifyToken: async (token, c) => {
     // Check 1: Static API_KEY (internal service)
     if (token === env.API_KEY) {
@@ -67,7 +69,9 @@ const sessionMiddleware: MiddlewareHandler<{
   }
 };
 
-export const requireAuth: MiddlewareHandler = async (c, next) => {
+export const authMiddleware: MiddlewareHandler<{
+  Variables: AuthVariables;
+}> = async (c, next) => {
   const authHeader = c.req.header("authorization");
   if (authHeader) {
     await bearerMiddleware(c, next);
