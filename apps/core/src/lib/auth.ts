@@ -24,6 +24,9 @@ export const auth = betterAuth({
       enableMetadata: true,
     }),
     organization({
+      allowUserToCreateOrganization(user) {
+        return user.emailVerified;
+      },
       cancelPendingInvitationsOnReInvite: true,
       schema: {
         organization: {
