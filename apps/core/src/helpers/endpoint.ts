@@ -5,5 +5,4 @@ export interface Endpoint<Schemas = Record<string, z.ZodTypeAny>> {
   schemas: Schemas;
   route: RouteConfig;
   handler: (c: Context) => Promise<Response> | Response;
-  tags?: string[];
 }

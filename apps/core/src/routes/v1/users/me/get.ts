@@ -85,7 +85,6 @@ const endpoint: Endpoint<typeof schemas> = {
   schemas,
   route,
   handler,
-  tags: ["Users"],
 };
 
 export default endpoint;
