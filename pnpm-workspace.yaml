@@ -19,9 +19,9 @@ ignoredBuiltDependencies:
 
 onlyBuiltDependencies:
   - prisma
-  - "@types/bun"
 
 publicHoistPattern:
+  - "@types/bun"
   - import-in-the-middle
   - require-in-the-middle
   - "@prisma/client"
