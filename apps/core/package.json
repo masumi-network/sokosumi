@@ -4,15 +4,15 @@
     "dev": "bun run --hot src/index.ts"
   },
   "dependencies": {
-    "@hono/swagger-ui": "^0.5.2",
-    "@hono/zod-openapi": "1.1.4",
     "@sokosumi/database": "workspace:*",
+    "@types/bun": "1.3.1",
+    "@hono/swagger-ui": "0.5.2",
+    "@hono/zod-openapi": "1.1.4",
     "better-auth": "1.3.34",
     "hono": "4.10.4",
     "uuid": "13.0.0"
   },
   "devDependencies": {
-    "@types/bun": "1.3.1",
     "typescript": "5.9.3"
   }
 }
