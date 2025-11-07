@@ -16,6 +16,7 @@ import JobDetailsInputs from "./inputs";
 import JobDetailsName from "./job-details-name";
 import { JobVerificationBadge } from "./job-verification-badge";
 import JobDetailsOutputs from "./outputs";
+import JobDetailsProvideInput from "./provide-input";
 import JotOutputSources from "./sources";
 
 interface JobDetailsProps {
@@ -41,6 +42,7 @@ export default function JobDetails({
   );
   const hasOutputLinks = job.links.length > 0;
   const hasSources = hasOutputBlobs || hasOutputLinks;
+  const isAwaitingInput = true; //job.status === JobStatus.INPUT_REQUIRED;
   const baseAccordion = hasCompletedOutput ? ["output"] : ["input", "output"];
   const defaultAccordionValue = hasSources
     ? [...baseAccordion, "sources"]
@@ -98,6 +100,7 @@ export default function JobDetails({
             </AccordionItemWrapper>
           ) : null}
         </Accordion>
+        {isAwaitingInput ? <JobDetailsProvideInputSection job={job} /> : null}
       </ScrollArea>
     </div>
   );
@@ -137,6 +140,24 @@ function JobDetailsHeader({
           status={status}
           jobType={jobType}
         />
+      </div>
+    </div>
+  );
+}
+
+function JobDetailsProvideInputSection({ job }: { job: JobWithStatus }) {
+  const t = useTranslations("Components.Jobs.JobDetails");
+  const { status } = job;
+  return (
+    <div
+      className="mt-1.5 flex flex-col gap-2"
+      key={`${job.id}-${status}-details-awaiting-input`}
+    >
+      <div className="bg-muted/50 flex items-center justify-between gap-2 rounded-xl p-4">
+        <div className="flex flex-1 flex-col gap-4">
+          {/* <h3 className="font-semibold">{t("AwaitingInput.title")}</h3> */}
+          <JobDetailsProvideInput job={job} />
+        </div>
       </div>
     </div>
   );
