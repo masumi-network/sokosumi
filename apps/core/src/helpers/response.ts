@@ -1,5 +1,5 @@
 import { z } from "@hono/zod-openapi";
-import { Context } from "hono";
+import type { Context } from "hono";
 
 /**
  * Standardized API success response schema

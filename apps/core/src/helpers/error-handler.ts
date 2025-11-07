@@ -1,6 +1,6 @@
-import { Context } from "hono";
+import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
-import { RequestIdVariables } from "hono/request-id";
+import type { RequestIdVariables } from "hono/request-id";
 
 import { type ErrorResponse, getErrorName } from "./error";
 
