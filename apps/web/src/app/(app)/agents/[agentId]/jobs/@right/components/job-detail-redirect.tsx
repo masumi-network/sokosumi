@@ -21,6 +21,6 @@ export default function JobDetailRedirect({
   }, [agentId, jobId, router]);
 
   return (
-    <DefaultLoading className="bg-muted/50 h-full w-full flex-1 rounded-xl border-none p-8" />
+    <DefaultLoading className="bg-muted/50 h-full w-full flex-1 rounded-xl border p-8" />
   );
 }

@@ -20,7 +20,7 @@ export default function AccordionItemWrapper({
   verificationBadge,
 }: AccordionItemWrapperProps) {
   return (
-    <AccordionItem value={value} className="bg-muted/50 rounded-xl border-none">
+    <AccordionItem value={value} className="bg-muted/50 rounded-xl border">
       <AccordionTrigger className="p-4" disabled={disabled}>
         <p className="inline-flex text-base">
           {title}

@@ -75,6 +75,7 @@ interface AgentsProps {
   ratingStatsMap: Record<string, AgentRatingStats>;
   className?: string | undefined;
   agentCardClassName?: string | undefined;
+  title?: string;
 }
 
 function Agents({
@@ -83,12 +84,14 @@ function Agents({
   ratingStatsMap,
   className,
   agentCardClassName,
+  title,
 }: AgentsProps) {
   return (
     <AgentCarousel
       className={className}
       itemCount={agents.length}
       itemIds={agents.map((agent) => agent.id)}
+      title={title}
     >
       {agents.map((agent) => (
         <CarouselItem

@@ -158,7 +158,27 @@
     }
   }
 
+  @keyframes roll-up {
+    from {
+      transform: translateY(0);
+    }
+    to {
+      transform: translateY(-0.4rem);
+    }
+  }
+
+  @keyframes roll-down {
+    from {
+      transform: translateY(-0.4rem);
+    }
+    to {
+      transform: translateY(0);
+    }
+  }
+
   --animate-rotate-once: rotate-once 0.6s ease-in-out;
+  --animate-roll-up: roll-up 0.2s ease-out forwards;
+  --animate-roll-down: roll-down 0.2s ease-out forwards;
 }
 
 :root {
@@ -476,5 +496,21 @@
     background-image: none !important;
     background-color: var(--card-background-hover) !important;
     border-color: var(--border) !important;
+  }
+}
+
+@utility agent-card-roll-up {
+  animation: var(--animate-roll-down);
+
+  &:hover {
+    animation: var(--animate-roll-up);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    animation: none;
+
+    &:hover {
+      animation: none;
+    }
   }
 }

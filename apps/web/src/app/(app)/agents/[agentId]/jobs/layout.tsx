@@ -126,7 +126,7 @@ function JobLayoutSkeleton() {
     <div className="flex flex-col lg:h-[calc(100svh-96px)]">
       <HeaderSkeleton />
       <div className="mt-6 flex flex-1">
-        <DefaultLoading className="bg-muted/50 h-full min-h-[300px] w-full flex-1 rounded-xl border-none p-8" />
+        <DefaultLoading className="bg-muted/50 h-full min-h-[300px] w-full flex-1 rounded-xl border p-8" />
       </div>
     </div>
   );

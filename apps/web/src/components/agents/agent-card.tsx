@@ -248,7 +248,7 @@ function AgentCard({
       className={cn(
         agentCardVariants({ size }),
         className,
-        "hover-bg-image-transparent",
+        "md:agent-card-roll-up",
       )}
       style={borderStyle}
     >
@@ -294,7 +294,7 @@ function AgentCard({
           <div className="flex flex-0 flex-col gap-3">
             {/* Credits */}
             <div className={cn(agentCardPricingVariants({ size }))}>
-              <p className="text-foreground">
+              <p className="text-foreground pb-3">
                 {t("pricing", {
                   price: convertCentsToCredits(agent.creditsPrice.cents),
                 })}
