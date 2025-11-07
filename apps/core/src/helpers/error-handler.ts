@@ -2,7 +2,7 @@ import { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { RequestIdVariables } from "hono/request-id";
 
-import { type ErrorOptions, type ErrorResponse, getErrorName } from "./error";
+import { type ErrorResponse, getErrorName } from "./error";
 
 /**
  * Centralized error handler for Hono app
@@ -21,13 +21,10 @@ export function errorHandler(
 
   if (error instanceof HTTPException) {
     const status = error.status;
-    const options = error.cause as ErrorOptions | undefined;
 
     const errorResponse: ErrorResponse = {
       error: getErrorName(status),
       message: error.message,
-      code: options?.code,
-      details: options?.details,
       meta,
     };
 

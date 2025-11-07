@@ -14,15 +14,6 @@ export const errorResponseSchema = z
     /** Human-readable description of the error */
     message: z.string().openapi({ example: "Authentication required" }),
 
-    /** Optional application-specific error code */
-    code: z.string().optional().openapi({ example: "UNAUTHORIZED" }),
-
-    /** Optional array of additional error details */
-    details: z
-      .array(z.unknown())
-      .optional()
-      .openapi({ example: ["Authentication failed"] }),
-
     /** Metadata about the request and response */
     meta: z.object({
       /** ISO timestamp when the error was generated */
@@ -44,35 +35,21 @@ export const errorResponseSchema = z
 export type ErrorResponse = z.infer<typeof errorResponseSchema>;
 
 /**
- * Options for error responses
- */
-export interface ErrorOptions {
-  code?: string;
-  details?: unknown[];
-}
-
-/**
  * Helper to create HTTPException with options stored in cause
  */
 function createHTTPException(
   status: ContentfulStatusCode,
   message: string,
-  options?: ErrorOptions,
 ): HTTPException {
-  const exception = new HTTPException(status, { message });
-  exception.cause = options;
-  return exception;
+  return new HTTPException(status, { message });
 }
 
 /**
  * 400 Bad Request
  * The server cannot process the request due to client error
  */
-export const badRequest = (
-  message: string = "Bad Request",
-  options?: ErrorOptions,
-): HTTPException => {
-  return createHTTPException(400, message, options);
+export const badRequest = (message: string = "Bad Request"): HTTPException => {
+  return createHTTPException(400, message);
 };
 
 /**
@@ -81,42 +58,32 @@ export const badRequest = (
  */
 export const unauthorized = (
   message: string = "Unauthorized",
-  options?: ErrorOptions,
 ): HTTPException => {
-  return createHTTPException(401, message, options);
+  return createHTTPException(401, message);
 };
 
 /**
  * 403 Forbidden
  * The client does not have access rights to the content
  */
-export const forbidden = (
-  message: string = "Forbidden",
-  options?: ErrorOptions,
-): HTTPException => {
-  return createHTTPException(403, message, options);
+export const forbidden = (message: string = "Forbidden"): HTTPException => {
+  return createHTTPException(403, message);
 };
 
 /**
  * 404 Not Found
  * The server cannot find the requested resource
  */
-export const notFound = (
-  message: string = "Not Found",
-  options?: ErrorOptions,
-): HTTPException => {
-  return createHTTPException(404, message, options);
+export const notFound = (message: string = "Not Found"): HTTPException => {
+  return createHTTPException(404, message);
 };
 
 /**
  * 409 Conflict
  * The request conflicts with the current state of the server
  */
-export const conflict = (
-  message: string = "Conflict",
-  options?: ErrorOptions,
-): HTTPException => {
-  return createHTTPException(409, message, options);
+export const conflict = (message: string = "Conflict"): HTTPException => {
+  return createHTTPException(409, message);
 };
 
 /**
@@ -125,9 +92,8 @@ export const conflict = (
  */
 export const unprocessableEntity = (
   message: string = "Unprocessable Entity",
-  options?: ErrorOptions,
 ): HTTPException => {
-  return createHTTPException(422, message, options);
+  return createHTTPException(422, message);
 };
 
 /**
@@ -136,9 +102,8 @@ export const unprocessableEntity = (
  */
 export const tooManyRequests = (
   message: string = "Too Many Requests",
-  options?: ErrorOptions,
 ): HTTPException => {
-  return createHTTPException(429, message, options);
+  return createHTTPException(429, message);
 };
 
 /**
@@ -147,9 +112,8 @@ export const tooManyRequests = (
  */
 export const internalServerError = (
   message: string = "Internal Server Error",
-  options?: ErrorOptions,
 ): HTTPException => {
-  return createHTTPException(500, message, options);
+  return createHTTPException(500, message);
 };
 
 /**
@@ -158,9 +122,8 @@ export const internalServerError = (
  */
 export const serviceUnavailable = (
   message: string = "Service Unavailable",
-  options?: ErrorOptions,
 ): HTTPException => {
-  return createHTTPException(503, message, options);
+  return createHTTPException(503, message);
 };
 
 /**
