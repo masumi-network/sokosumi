@@ -21,7 +21,6 @@ onlyBuiltDependencies:
   - prisma
 
 publicHoistPattern:
-  - "@types/bun"
   - import-in-the-middle
   - require-in-the-middle
   - "@prisma/client"
