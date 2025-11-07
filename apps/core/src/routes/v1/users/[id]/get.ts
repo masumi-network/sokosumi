@@ -36,12 +36,12 @@ export default function mount(app: OpenAPIHonoWithAuth) {
     const { id } = c.req.valid("param");
 
     if (user && user.id !== id) {
-      forbidden("You can only access your own user data");
+      throw forbidden("You can only access your own user data");
     }
 
     const userRecord = await userRepository.getUserById(id);
     if (!userRecord) {
-      notFound("User not found");
+      throw notFound("User not found");
     }
 
     return ok(c, userSchema.parse(userRecord));

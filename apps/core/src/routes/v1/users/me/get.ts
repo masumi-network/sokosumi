@@ -22,13 +22,16 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const user =
-      c.var.user ?? forbidden("A non-user cannot access their own data");
+    const user = c.var.user;
+
+    if (!user) {
+      throw forbidden("A non-user cannot access their own data");
+    }
 
     const userRecord = await userRepository.getUserById(user.id);
 
     if (!userRecord) {
-      notFound("User not found");
+      throw notFound("User not found");
     }
 
     return ok(c, userSchema.parse(userRecord));

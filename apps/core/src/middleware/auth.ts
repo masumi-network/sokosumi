@@ -49,8 +49,7 @@ const bearerMiddleware: MiddlewareHandler<{
       return true;
     }
 
-    unauthorized("Invalid token");
-    return false;
+    throw unauthorized("Invalid token");
   },
 });
 
@@ -73,9 +72,8 @@ const sessionMiddleware: MiddlewareHandler<{
     });
 
     await next();
-  } else {
-    unauthorized();
   }
+  throw unauthorized();
 };
 
 export const authMiddleware: MiddlewareHandler<{

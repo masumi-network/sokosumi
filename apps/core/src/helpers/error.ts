@@ -71,8 +71,8 @@ function createHTTPException(
 export const badRequest = (
   message: string = "Bad Request",
   options?: ErrorOptions,
-): never => {
-  throw createHTTPException(400, message, options);
+): HTTPException => {
+  return createHTTPException(400, message, options);
 };
 
 /**
@@ -82,8 +82,8 @@ export const badRequest = (
 export const unauthorized = (
   message: string = "Unauthorized",
   options?: ErrorOptions,
-): never => {
-  throw createHTTPException(401, message, options);
+): HTTPException => {
+  return createHTTPException(401, message, options);
 };
 
 /**
@@ -93,8 +93,8 @@ export const unauthorized = (
 export const forbidden = (
   message: string = "Forbidden",
   options?: ErrorOptions,
-): never => {
-  throw createHTTPException(403, message, options);
+): HTTPException => {
+  return createHTTPException(403, message, options);
 };
 
 /**
@@ -104,8 +104,8 @@ export const forbidden = (
 export const notFound = (
   message: string = "Not Found",
   options?: ErrorOptions,
-): never => {
-  throw createHTTPException(404, message, options);
+): HTTPException => {
+  return createHTTPException(404, message, options);
 };
 
 /**
@@ -115,8 +115,8 @@ export const notFound = (
 export const conflict = (
   message: string = "Conflict",
   options?: ErrorOptions,
-): never => {
-  throw createHTTPException(409, message, options);
+): HTTPException => {
+  return createHTTPException(409, message, options);
 };
 
 /**
@@ -126,8 +126,8 @@ export const conflict = (
 export const unprocessableEntity = (
   message: string = "Unprocessable Entity",
   options?: ErrorOptions,
-): never => {
-  throw createHTTPException(422, message, options);
+): HTTPException => {
+  return createHTTPException(422, message, options);
 };
 
 /**
@@ -137,8 +137,8 @@ export const unprocessableEntity = (
 export const tooManyRequests = (
   message: string = "Too Many Requests",
   options?: ErrorOptions,
-): never => {
-  throw createHTTPException(429, message, options);
+): HTTPException => {
+  return createHTTPException(429, message, options);
 };
 
 /**
@@ -148,8 +148,8 @@ export const tooManyRequests = (
 export const internalServerError = (
   message: string = "Internal Server Error",
   options?: ErrorOptions,
-): never => {
-  throw createHTTPException(500, message, options);
+): HTTPException => {
+  return createHTTPException(500, message, options);
 };
 
 /**
@@ -159,8 +159,8 @@ export const internalServerError = (
 export const serviceUnavailable = (
   message: string = "Service Unavailable",
   options?: ErrorOptions,
-): never => {
-  throw createHTTPException(503, message, options);
+): HTTPException => {
+  return createHTTPException(503, message, options);
 };
 
 /**
