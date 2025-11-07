@@ -7,9 +7,6 @@ import { env } from "./config/env";
 import { notFound } from "./helpers/error";
 import apiV1 from "./routes/v1";
 
-// const app = new Hono<{ Variables: RequestIdVariables }>();
-
-// Protected API routes
 const app = new Hono<{ Variables: RequestIdVariables }>();
 
 app.use(logger());
@@ -24,6 +21,6 @@ app.notFound(() => {
 app.route("/v1", apiV1);
 
 export default {
-  port: env.PORT,
+  port: env.PORT ?? 3000,
   fetch: app.fetch,
 };
