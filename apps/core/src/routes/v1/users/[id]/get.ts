@@ -1,11 +1,11 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { userRepository } from "@sokosumi/database/repositories";
-import { Context } from "hono";
 
-import type { Endpoint } from "@/helpers/endpoint";
 import { forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
+
 import { userSchema } from "../schemas";
 
 const params = z.object({
@@ -27,33 +27,24 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
-    500: jsonErrorResponse("Internal Server Error"),
   },
 });
 
-async function handler(c: Context) {
-  const { user } = c.var;
+export default function mount(app: OpenAPIHonoWithAuth) {
+  app.openapi(route, async (c) => {
+    console.log("id");
+    const { user } = c.var;
+    const { id } = c.req.valid("param");
+    console.log("id", id);
+    if (user && user.id !== id) {
+      forbidden("You can only access your own user data");
+    }
 
-  const id = c.req.param("id");
+    const userRecord = await userRepository.getUserById(id);
+    if (!userRecord) {
+      notFound("User not found");
+    }
 
-  if (user && user.id !== id) {
-    forbidden("You can only access your own user data");
-  }
-
-  const userRecord = await userRepository.getUserById(id);
-  if (!userRecord) {
-    notFound("User not found");
-  }
-
-  return ok(c, userSchema.parse(userRecord));
+    return ok(c, userSchema.parse(userRecord));
+  });
 }
-
-const schemas = { params, response: userSchema };
-
-const endpoint: Endpoint<typeof schemas> = {
-  schemas,
-  route,
-  handler,
-};
-
-export default endpoint;

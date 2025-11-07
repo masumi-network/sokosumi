@@ -1,6 +1,5 @@
 import { z } from "@hono/zod-openapi";
 import { Context } from "hono";
-import { RequestIdVariables } from "hono/request-id";
 
 /**
  * Standardized API success response schema
@@ -32,10 +31,7 @@ export type SuccessResponse<T> = z.infer<
   ReturnType<typeof successResponseSchema<z.ZodType<T>>>
 >;
 
-export const ok = <T>(
-  c: Context<{ Variables: RequestIdVariables }>,
-  data: T,
-) => {
+export const ok = <T>(c: Context, data: T) => {
   return c.json<SuccessResponse<T>, 200>(
     {
       data,
@@ -48,10 +44,7 @@ export const ok = <T>(
   );
 };
 
-export const created = <T>(
-  c: Context<{ Variables: RequestIdVariables }>,
-  data: T,
-) => {
+export const created = <T>(c: Context, data: T) => {
   return c.json<SuccessResponse<T>, 201>(
     {
       data,

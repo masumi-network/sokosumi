@@ -1,11 +1,10 @@
 import { createRoute } from "@hono/zod-openapi";
 import { userRepository } from "@sokosumi/database/repositories";
-import { Context } from "hono";
 
-import type { Endpoint } from "@/helpers/endpoint";
 import { forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import { userSchema } from "../schemas";
 
@@ -18,31 +17,22 @@ const route = createRoute({
     401: jsonErrorResponse("Unauthorized"),
     403: jsonErrorResponse("Forbidden"),
     404: jsonErrorResponse("Not Found"),
-    500: jsonErrorResponse("Internal Server Error"),
   },
 });
 
-async function handler(c: Context) {
-  const { user } = c.var;
+export default function mount(app: OpenAPIHonoWithAuth) {
+  app.openapi(route, async (c) => {
+    const { user } = c.var;
 
-  if (!user) {
-    forbidden("A non-user cannot access their own data");
-  }
+    if (user === null) {
+      forbidden("A non-user cannot access their own data");
+    }
 
-  const userRecord = await userRepository.getUserById(user.id);
-  if (!userRecord) {
-    notFound("User not found");
-  }
+    const userRecord = await userRepository.getUserById(user.id);
+    if (!userRecord) {
+      notFound("User not found");
+    }
 
-  return ok(c, userSchema.parse(userRecord));
+    return ok(c, userSchema.parse(userRecord));
+  });
 }
-
-const schemas = { response: userSchema };
-
-const endpoint: Endpoint<typeof schemas> = {
-  schemas,
-  route,
-  handler,
-};
-
-export default endpoint;

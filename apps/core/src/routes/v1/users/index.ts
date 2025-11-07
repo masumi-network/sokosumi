@@ -1,10 +1,11 @@
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
-import getUserEndpoint from "./[id]/get";
-import getCurrentUserEndpoint from "./me/get";
+import mountGetUser from "./[id]/get";
+import mountGetMe from "./me/get";
 
 const app = new OpenAPIHonoWithAuth();
 
-app.routeEndpoints([getCurrentUserEndpoint, getUserEndpoint]);
+mountGetMe(app);
+mountGetUser(app);
 
 export default app;
