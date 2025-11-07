@@ -161,3 +161,22 @@ export const createJobScheduleInputSchema = z.object({
 export type CreateJobScheduleInputSchemaType = z.infer<
   typeof createJobScheduleInputSchema
 >;
+
+export const provideJobInputSchema = z.object({
+  jobId: z.string(),
+  inputData: z.map(
+    z.string(),
+    z.union([
+      z.number(),
+      z.string(),
+      z.array(z.string()),
+      z.boolean(),
+      z.array(z.number()),
+      z.instanceof(File),
+      z.array(z.instanceof(File)),
+      z.undefined(),
+    ]),
+  ),
+});
+
+export type ProvideJobInputSchemaType = z.infer<typeof provideJobInputSchema>;

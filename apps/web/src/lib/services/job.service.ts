@@ -44,6 +44,7 @@ import { getJobIndicatorStatus } from "@/lib/helpers/job";
 import { JobInputData } from "@/lib/job-input";
 import {
   JobStatusResponseSchemaType,
+  ProvideJobInputSchemaType,
   StartJobInputSchemaType,
 } from "@/lib/schemas";
 import { Err } from "@/lib/ts-res";
@@ -1133,6 +1134,155 @@ export const jobService = (() => {
     });
   };
 
+  /**
+   * Provides input for a job that is awaiting input (human-in-the-loop).
+   *
+   * This function:
+   * - Validates the job exists and user owns it
+   * - Validates the job is in awaiting input state
+   * - Merges existing input with new input data
+   * - Calls the agent API to provide input
+   * - Updates the job with merged input and new status
+   *
+   * @param input - Parameters including jobId, userId, and inputData
+   * @returns Promise resolving to the updated Job record
+   * @throws {JobError} Various job-related errors
+   */
+  const provideJobInput = async (
+    input: ProvideJobInputSchemaType & { userId: string },
+  ): Promise<Job> => {
+    const { jobId, userId, inputData } = input;
+
+    Sentry.addBreadcrumb({
+      category: "Job Service",
+      message: "Providing job input",
+      level: "info",
+      data: {
+        jobId,
+        userId,
+      },
+    });
+
+    // Get the job
+    const job = await jobRepository.getJobById(jobId);
+    if (!job) {
+      throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
+    }
+
+    // Verify user owns the job
+    if (job.userId !== userId) {
+      throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
+    }
+
+    // Verify job is in awaiting input state
+    const jobStatus = computeJobStatus(job);
+    if (
+      job.agentJobStatus !== AgentJobStatus.AWAITING_INPUT &&
+      jobStatus !== JobStatus.INPUT_REQUIRED
+    ) {
+      throw new JobError(
+        JobErrorCode.JOB_NOT_FOUND,
+        "Job is not awaiting input",
+      );
+    }
+
+    // Parse existing input and merge with new input data
+    const existingInput = job.input ? JSON.parse(job.input) : {};
+    const newInputData = Object.fromEntries(inputData);
+    const mergedInput = { ...existingInput, ...newInputData };
+
+    // Add breadcrumb for agent API call
+    Sentry.addBreadcrumb({
+      category: "Job Service",
+      message: "Calling agent API to provide input",
+      level: "info",
+      data: {
+        jobId: job.id,
+        agentId: job.agentId,
+        agentJobId: job.agentJobId,
+      },
+    });
+
+    // Call agent API to provide input
+    const provideInputResult = await agentClient.provideJobInput(
+      job.agent,
+      job.agentJobId,
+      inputData,
+    );
+
+    if (!provideInputResult.ok) {
+      Sentry.setTag("error_type", "agent_provide_input_failed");
+      Sentry.setContext("agent_provide_input", {
+        jobId: job.id,
+        agentId: job.agentId,
+        agentJobId: job.agentJobId,
+        error: provideInputResult.error,
+      });
+
+      Sentry.captureMessage(
+        `Agent provide input failed: ${provideInputResult.error}`,
+        "error",
+      );
+      throw new JobError(
+        JobErrorCode.AGENT_JOB_START_FAILED,
+        provideInputResult.error,
+      );
+    }
+
+    const statusResponse = provideInputResult.data;
+
+    // Update job with merged input and new status
+    const agentJobStatus = jobStatusToAgentJobStatus(statusResponse.status);
+    const output = JSON.stringify(statusResponse);
+
+    const updatedJob = await prisma.$transaction(async (tx) => {
+      // Update job input
+      await tx.job.update({
+        where: { id: job.id },
+        data: { input: JSON.stringify(mergedInput) },
+      });
+
+      // Update job status
+      const updatedJob = await jobRepository.updateJobWithAgentJobStatus(
+        job.id,
+        agentJobStatus,
+        output,
+        tx,
+      );
+
+      return updatedJob;
+    });
+
+    // Fire and forget: enqueue extraction if output is present
+    try {
+      const outputResult = statusResponse?.result;
+      if (typeof outputResult === "string") {
+        sourceImportService
+          .enqueueFromMarkdown(userId, updatedJob.id, outputResult)
+          .catch(() => {
+            // Ignore errors
+          });
+      }
+    } catch {
+      // Ignore errors
+    }
+
+    // Publish job status update
+    await publishJobStatusSafely(updatedJob);
+
+    Sentry.addBreadcrumb({
+      category: "Job Service",
+      message: "Job input provided successfully",
+      level: "info",
+      data: {
+        jobId: updatedJob.id,
+        agentJobStatus,
+      },
+    });
+
+    return updatedJob;
+  };
+
   return {
     startJob,
     startDemoJob,
@@ -1140,5 +1290,6 @@ export const jobService = (() => {
     syncJob,
     getJobIndicatorStatuses,
     getPubliclySharedJob,
+    provideJobInput,
   };
 })();

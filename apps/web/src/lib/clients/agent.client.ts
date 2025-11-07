@@ -150,6 +150,46 @@ export const agentClient = (() => {
       }
     },
 
+    async provideJobInput(
+      agent: Agent,
+      jobId: string,
+      inputData: JobInputData,
+    ): Promise<Result<JobStatusResponseSchemaType, string>> {
+      try {
+        const provideInputUrl = getAgentUrlWithPathComponent(
+          agent,
+          "provide_input",
+        );
+        const provideInputResponse = await fetch(provideInputUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            job_id: jobId,
+            input_data: Object.fromEntries(inputData),
+          }),
+        });
+
+        if (!provideInputResponse.ok) {
+          return Err("Failed to provide job input");
+        }
+        const responseJson = await provideInputResponse.json();
+        const parsedResult = jobStatusResponseSchema.safeParse(responseJson);
+        if (!parsedResult.success) {
+          return Err(
+            `Failed to parse provide input response: ${JSON.stringify(
+              parsedResult.error,
+            )}`,
+          );
+        }
+
+        return Ok(parsedResult.data);
+      } catch (err) {
+        return Err(String(err));
+      }
+    },
+
     async fetchAgentInputSchema(
       agent: Agent,
     ): Promise<Result<JobInputsDataSchemaType, string>> {
