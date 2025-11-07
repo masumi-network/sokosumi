@@ -18,7 +18,6 @@ import useGalleryFilter, {
 } from "@/hooks/use-gallery-filter";
 import { filterAgents } from "@/lib/helpers/agent-filter";
 import {
-  AgentCategoryGroup,
   groupAgentsByCategory,
 } from "@/lib/helpers/agent-grouping";
 import type { Category } from "@/lib/types/category";
