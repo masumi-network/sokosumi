@@ -58,7 +58,7 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
       <ChannelProvider
         channelName={makeAgentJobsChannel(params.agentId, userId)}
       >
-        <div className="job-table-width bg-muted/50 flex flex-col rounded-xl">
+        <div className="job-table-width bg-muted/50 flex flex-col rounded-xl border">
           <JobsSearch
             jobs={jobs}
             onFilteredChange={(list) => setFilteredJobs(list)}

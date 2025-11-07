@@ -125,7 +125,7 @@ function JobDetailsHeader({
         readOnly={readOnly}
         activeOrganizationId={activeOrganizationId}
       />
-      <div className="bg-muted/50 flex items-center justify-between gap-2 rounded-xl p-4">
+      <div className="bg-muted/50 flex items-center justify-between gap-2 rounded-xl border p-4">
         <p>
           {formatter.dateTime(createdAt, {
             dateStyle: "full",
