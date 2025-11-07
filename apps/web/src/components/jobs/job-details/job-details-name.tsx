@@ -282,7 +282,7 @@ export default function JobDetailsName({
   };
 
   return (
-    <div className="bg-muted/50 flex items-center justify-between gap-2 rounded-xl p-4">
+    <div className="bg-muted/50 flex items-center justify-between gap-2 rounded-xl border p-4">
       {isCollapsible ? (
         <AccordionItem value="meta" className="w-full border-0">
           <JobNameWrapper readOnly={readOnly} Component={Component}>

@@ -1,7 +1,9 @@
 "use client";
 
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { Button } from "@/components/ui/button";
 import {
   Carousel,
   type CarouselApi,
@@ -14,6 +16,7 @@ interface AgentCarouselProps {
   className?: string;
   itemCount: number;
   itemIds?: string[];
+  title?: string;
 }
 
 function AgentCarousel({
@@ -21,9 +24,12 @@ function AgentCarousel({
   className,
   itemCount,
   itemIds,
+  title,
 }: AgentCarouselProps) {
   const [api, setApi] = useState<CarouselApi>();
   const [current, setCurrent] = useState(0);
+  const [canScrollNext, setCanScrollNext] = useState(false);
+  const [canScrollPrev, setCanScrollPrev] = useState(false);
   const carouselRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -33,6 +39,8 @@ function AgentCarousel({
 
     const handleSelect = () => {
       setCurrent(api.selectedScrollSnap());
+      setCanScrollNext(api.canScrollNext());
+      setCanScrollPrev(api.canScrollPrev());
     };
 
     api.on("select", handleSelect);
@@ -85,7 +93,45 @@ function AgentCarousel({
 
   return (
     <div className={cn("w-full", className)}>
-      <div ref={carouselRef}>
+      {/* Desktop Header with Title and Arrows */}
+      {title && (
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="text-xl font-light md:text-2xl">{title}</h2>
+          {itemCount > 1 && api && (canScrollNext || canScrollPrev) && (
+            <div className="hidden items-center gap-2 md:flex">
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                onClick={() => api?.scrollPrev()}
+                aria-label="Scroll to previous"
+                disabled={!canScrollPrev}
+                className={cn(
+                  "text-secondary rounded-full border bg-transparent transition-opacity duration-300",
+                  canScrollPrev ? "opacity-100" : "opacity-50",
+                )}
+              >
+                <ChevronLeft className="size-4" />
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                size="icon"
+                onClick={() => api?.scrollNext()}
+                aria-label="Scroll to next"
+                disabled={!canScrollNext}
+                className={cn(
+                  "text-secondary rounded-full border bg-transparent transition-opacity duration-300",
+                  canScrollNext ? "opacity-100" : "opacity-50",
+                )}
+              >
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
+          )}
+        </div>
+      )}
+      <div ref={carouselRef} className="relative">
         <Carousel
           setApi={setApi}
           className="w-full"

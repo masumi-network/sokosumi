@@ -70,26 +70,15 @@ function FilteredAgentsInner({
   return (
     <div className="flex flex-col gap-12">
       {groupedAgents.map((group) => (
-        <div key={group.categorySlug} className="flex flex-col gap-4">
-          <CategoryHeading group={group} />
-          <Agents
-            agents={group.agents}
-            favoriteAgents={favoriteAgents}
-            ratingStatsMap={ratingStatsMap}
-          />
-        </div>
+        <Agents
+          key={group.categorySlug}
+          agents={group.agents}
+          favoriteAgents={favoriteAgents}
+          ratingStatsMap={ratingStatsMap}
+          title={group.categoryName}
+        />
       ))}
     </div>
-  );
-}
-
-interface CategoryHeadingProps {
-  group: AgentCategoryGroup;
-}
-
-function CategoryHeading({ group }: CategoryHeadingProps) {
-  return (
-    <h2 className="text-xl font-light md:text-2xl">{group.categoryName}</h2>
   );
 }
 
