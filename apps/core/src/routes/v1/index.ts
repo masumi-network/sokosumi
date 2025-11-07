@@ -1,6 +1,6 @@
 import { swaggerUI } from "@hono/swagger-ui";
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { RequestIdVariables } from "hono/request-id";
+import type { RequestIdVariables } from "hono/request-id";
 
 import { errorHandler } from "@/helpers/error-handler";
 
