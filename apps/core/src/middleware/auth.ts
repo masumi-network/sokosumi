@@ -12,7 +12,7 @@ export interface AuthenticatedUserContext {
 
 export type AuthVariables = {
   isAuthenticated: boolean;
-  user: AuthenticatedUserContext | null;
+  user?: AuthenticatedUserContext;
 };
 
 function setAuthContext(
@@ -29,7 +29,7 @@ const bearerMiddleware: MiddlewareHandler<{
   verifyToken: async (token, c) => {
     // Check 1: Static API_KEY (internal service)
     if (token === env.API_KEY) {
-      setAuthContext(c, { isAuthenticated: true, user: null });
+      setAuthContext(c, { isAuthenticated: true, user: undefined });
       return true;
     }
 
