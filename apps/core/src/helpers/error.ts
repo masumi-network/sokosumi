@@ -1,6 +1,6 @@
 import { z } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
-import { ContentfulStatusCode } from "hono/utils/http-status";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 
 /**
  * Standardized API error response schema
