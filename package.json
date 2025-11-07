@@ -3,10 +3,6 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.20.0",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
   "scripts": {
     "dev": "pnpm -r dev",
     "web:dev": "pnpm --filter web dev",
