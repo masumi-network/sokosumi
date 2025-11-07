@@ -1,13 +1,6 @@
 {
   "compilerOptions": {
-    "strict": true,
-    "jsx": "react-jsx",
-    "jsxImportSource": "hono/jsx",
-    "module": "ESNext",
-    "moduleResolution": "bundler",
-    "target": "ESNext",
-    "esModuleInterop": true,
-    "skipLibCheck": true,
+    "types": ["bun"],
     "paths": {
       "@/*": ["./src/*"],
       "@/helpers/*": ["./src/helpers/*"],
@@ -17,5 +10,6 @@
       "@/routes/*": ["./src/routes/*"],
       "@/types/*": ["./src/types/*"]
     }
-  }
+  },
+  "exclude": ["node_modules"]
 }
