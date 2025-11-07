@@ -40,10 +40,10 @@ importers:
         version: 0.3.0
       '@hey-api/client-fetch':
         specifier: 0.13.1
-        version: 0.13.1(@hey-api/openapi-ts@0.87.0(typescript@5.9.3))
+        version: 0.13.1(@hey-api/openapi-ts@0.87.1(typescript@5.9.3))
       '@hey-api/client-next':
         specifier: 0.5.1
-        version: 0.5.1(@hey-api/openapi-ts@0.87.0(typescript@5.9.3))
+        version: 0.5.1(@hey-api/openapi-ts@0.87.1(typescript@5.9.3))
       '@hookform/resolvers':
         specifier: 5.2.2
         version: 5.2.2(react-hook-form@7.66.0(react@19.2.0))
@@ -313,8 +313,8 @@ importers:
         specifier: 20.0.10
         version: 20.0.10(@jest/environment@30.2.0)(@jest/fake-timers@30.2.0)(@jest/types@30.2.0)(jest-mock@30.2.0)(jest-util@30.2.0)
       '@hey-api/openapi-ts':
-        specifier: 0.87.0
-        version: 0.87.0(typescript@5.9.3)
+        specifier: 0.87.1
+        version: 0.87.1(typescript@5.9.3)
       '@noble/hashes':
         specifier: 2.0.1
         version: 2.0.1
@@ -951,8 +951,8 @@ packages:
     resolution: {integrity: sha512-inPeksRLq+j3ArnuGOzQPQE//YrhezQG0+9Y9yizScBN2qatJ78fIByhEgKdNAbtguDCn4RPxmEhcrePwHxs4A==}
     engines: {node: '>= 16'}
 
-  '@hey-api/openapi-ts@0.87.0':
-    resolution: {integrity: sha512-BZmiwvkXsMRlv6PTFuEoIsvIuT3nv5t5VN91pJapdXwnOVolA4u8BiwmLPR0cXtVeNdpUndgnD7DWMPjpVJ0fw==}
+  '@hey-api/openapi-ts@0.87.1':
+    resolution: {integrity: sha512-IFjwE11VPebjbCJqtTnszx22IWeabWWIOAkKKsn6AlV4i2voiUUolB/a/vSnvbwdoolnzB+jOhkYyww2odoJaQ==}
     engines: {node: '>=20.19.0'}
     hasBin: true
     peerDependencies:
@@ -7234,8 +7234,9 @@ packages:
   tiny-invariant@1.3.3:
     resolution: {integrity: sha512-+FbBPE1o9QAYvviau/qC5SE3caw21q3xkvWKBtja5vgqOWIHHJ3ioaq1VPfn/Szqctz2bU/oYeKd9/z5BL+PVg==}
 
-  tinyexec@1.0.1:
-    resolution: {integrity: sha512-5uC6DDlmeqiOwCPmK9jMSdOuZTh8bU39Ys6yidB+UTt5hfZUPGAypSgFRiEp+jbi9qH40BLDvy85jIU88wKSqw==}
+  tinyexec@1.0.2:
+    resolution: {integrity: sha512-W/KYk+NFhkmsYpuHq5JykngiOCnxeVL8v8dFnqxSD8qEEdRfXk1SDM6JzNqcERbcGYj9tMrDQBYV9cjgnunFIg==}
+    engines: {node: '>=18'}
 
   tinyglobby@0.2.15:
     resolution: {integrity: sha512-j2Zq4NyQYG5XMST4cbs02Ak8iJUdxRM0XI5QyxXuZOzKOINmWurp3smXu3y5wDcJrptwpSjgXHzIQxR0omXljQ==}
@@ -7662,7 +7663,7 @@ snapshots:
   '@antfu/install-pkg@1.1.0':
     dependencies:
       package-manager-detector: 1.5.0
-      tinyexec: 1.0.1
+      tinyexec: 1.0.2
 
   '@antfu/utils@9.3.0': {}
 
@@ -8119,13 +8120,13 @@ snapshots:
 
   '@hexagon/base64@1.1.28': {}
 
-  '@hey-api/client-fetch@0.13.1(@hey-api/openapi-ts@0.87.0(typescript@5.9.3))':
+  '@hey-api/client-fetch@0.13.1(@hey-api/openapi-ts@0.87.1(typescript@5.9.3))':
     dependencies:
-      '@hey-api/openapi-ts': 0.87.0(typescript@5.9.3)
+      '@hey-api/openapi-ts': 0.87.1(typescript@5.9.3)
 
-  '@hey-api/client-next@0.5.1(@hey-api/openapi-ts@0.87.0(typescript@5.9.3))':
+  '@hey-api/client-next@0.5.1(@hey-api/openapi-ts@0.87.1(typescript@5.9.3))':
     dependencies:
-      '@hey-api/openapi-ts': 0.87.0(typescript@5.9.3)
+      '@hey-api/openapi-ts': 0.87.1(typescript@5.9.3)
 
   '@hey-api/codegen-core@0.3.3(typescript@5.9.3)':
     dependencies:
@@ -8138,7 +8139,7 @@ snapshots:
       js-yaml: 4.1.0
       lodash: 4.17.21
 
-  '@hey-api/openapi-ts@0.87.0(typescript@5.9.3)':
+  '@hey-api/openapi-ts@0.87.1(typescript@5.9.3)':
     dependencies:
       '@hey-api/codegen-core': 0.3.3(typescript@5.9.3)
       '@hey-api/json-schema-ref-parser': 1.2.1
@@ -14298,7 +14299,7 @@ snapshots:
       consola: 3.4.2
       pathe: 2.0.3
       pkg-types: 2.3.0
-      tinyexec: 1.0.1
+      tinyexec: 1.0.2
 
   object-assign@4.1.1: {}
 
@@ -15516,7 +15517,7 @@ snapshots:
 
   tiny-invariant@1.3.3: {}
 
-  tinyexec@1.0.1: {}
+  tinyexec@1.0.2: {}
 
   tinyglobby@0.2.15:
     dependencies:
