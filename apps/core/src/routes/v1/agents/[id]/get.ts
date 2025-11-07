@@ -6,21 +6,24 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import { OpenAPIHonoWithAuth } from "@/lib/hono";
 
-const agentSchema = z
-  .object({
-    id: z.string().openapi({ example: "agent_123" }),
-    name: z.string().openapi({ example: "Research Assistant" }),
-  })
-  .openapi("Agent");
+import { agentSchema } from "../schemas";
 
-const agentsSchema = z.array(agentSchema);
+const params = z.object({
+  id: z.string().openapi({
+    param: { name: "id", in: "path" },
+    example: "cmaeygqwa000e8i0s9s7wif8i",
+  }),
+});
 
 const route = createRoute({
   method: "get",
-  path: "/",
+  path: "/{id}",
   tags: ["Agents"],
+  request: {
+    params,
+  },
   responses: {
-    200: jsonSuccessResponse(agentsSchema, "Retrieve all agents"),
+    200: jsonSuccessResponse(agentSchema, "Retrieve the agent by ID"),
     401: jsonErrorResponse("Unauthorized"),
     404: jsonErrorResponse("Not Found"),
   },
@@ -28,12 +31,13 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    const agents = await agentRepository.getAgentsWithRelations();
+    const { id } = c.req.valid("param");
 
-    if (!agents) {
-      throw notFound("No agents found");
+    const data = await agentRepository.getAgentWithRelationsById(id);
+    if (!data) {
+      throw notFound("Agent not found");
     }
 
-    return ok(c, agentsSchema.parse(agents));
+    return ok(c, agentSchema.parse(data));
   });
 }
