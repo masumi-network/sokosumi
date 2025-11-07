@@ -32,10 +32,9 @@ const route = createRoute({
 
 export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
-    console.log("id");
     const { user } = c.var;
     const { id } = c.req.valid("param");
-    console.log("id", id);
+
     if (user && user.id !== id) {
       forbidden("You can only access your own user data");
     }
