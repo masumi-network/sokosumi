@@ -2,7 +2,7 @@
   "compilerOptions": {
     // "lib": ["ESNext"],
     // "target": "ESNext",
-    "module": "Preserve",
+    "module": "es2022",
     "jsx": "react-jsx",
     "jsxImportSource": "hono/jsx",
     "allowJs": true,
