@@ -1,7 +1,7 @@
 export function getAgentJobsChannelName(): string {
-  return "job_status_update";
+  return "agent_jobs";
 }
 
 export function makeAgentJobsChannel(agentId: string, userId: string): string {
-  return `agent-jobs:${agentId}-${userId}`;
+  return `agent_jobs:agent_${agentId}-user_${userId}`;
 }

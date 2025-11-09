@@ -9,8 +9,8 @@ import { DataTableColumnHeader } from "@/components/data-table";
 import { JobSharedBadge, JobStatusBadge } from "@/components/jobs";
 import { MiddleTruncate } from "@/components/middle-truncate";
 import { HighlightedText } from "@/components/ui/highlighted-text";
-import useAgentJobStatus from "@/hooks/use-agent-job-status";
-import { JobIndicatorStatus } from "@/lib/ably";
+import useAgentJobStatusData from "@/hooks/use-agent-job-status";
+import { type JobStatusData } from "@/lib/ably";
 
 const columnHelper = createColumnHelper<JobWithStatus>();
 
@@ -81,7 +81,7 @@ export function getJobColumns(
                 agentId={row.original.agentId}
                 userId={userId}
                 jobId={row.original.id}
-                initialJobIndicatorStatus={{
+                initialJobStatusData={{
                   jobId: row.original.id,
                   jobStatus: row.original.status,
                   jobStatusSettled: row.original.jobStatusSettled,
@@ -190,31 +190,29 @@ function RealTimeJobStatusBadge({
   agentId,
   userId,
   jobId,
-  initialJobIndicatorStatus,
+  initialJobStatusData,
   jobType,
   className,
 }: {
   agentId: string;
   userId: string;
   jobId: string;
-  initialJobIndicatorStatus: JobIndicatorStatus;
+  initialJobStatusData: JobStatusData;
   jobType?: JobType;
   className?: string;
 }) {
-  const realTimeJobStatus = useAgentJobStatus(
+  const jobStatusData = useAgentJobStatusData(
     agentId,
     userId,
     jobId,
-    initialJobIndicatorStatus,
+    initialJobStatusData,
     true,
   );
 
   return (
     <JobStatusBadge
-      key={`${jobId}-${realTimeJobStatus?.jobStatus ?? initialJobIndicatorStatus.jobStatus}-real-time-badge`}
-      status={
-        realTimeJobStatus?.jobStatus ?? initialJobIndicatorStatus.jobStatus
-      }
+      key={`${jobId}-${jobStatusData?.jobStatus ?? initialJobStatusData.jobStatus}-real-time-badge`}
+      status={jobStatusData?.jobStatus ?? initialJobStatusData.jobStatus}
       jobType={jobType}
       className={className}
     />
