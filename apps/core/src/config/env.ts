@@ -8,13 +8,12 @@ interface Env {
 }
 
 function getEnv(): Env {
-  const port = parseInt(process.env.PORT || "3000", 10);
-  const databaseUrl = process.env.DATABASE_URL;
-  const apiKey = process.env.API_KEY;
-  const betterAuthSecret = process.env.BETTER_AUTH_SECRET;
-  const betterAuthUrl =
-    process.env.BETTER_AUTH_URL || `http://localhost:${port}`;
-  const nodeEnv = (process.env.NODE_ENV || "development") as Env["NODE_ENV"];
+  const port = parseInt(Bun.env.PORT || "3000", 10);
+  const databaseUrl = Bun.env.DATABASE_URL;
+  const apiKey = Bun.env.API_KEY;
+  const betterAuthSecret = Bun.env.BETTER_AUTH_SECRET;
+  const betterAuthUrl = Bun.env.BETTER_AUTH_URL || `http://localhost:${port}`;
+  const nodeEnv = (Bun.env.NODE_ENV || "development") as Env["NODE_ENV"];
 
   if (!databaseUrl) {
     throw new Error("DATABASE_URL is required");
