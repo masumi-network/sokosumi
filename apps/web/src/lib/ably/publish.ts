@@ -5,12 +5,12 @@ import { Job } from "@sokosumi/database";
 import { getJobStatusData } from "@/lib/helpers/job";
 
 import { getRestClient } from "./client";
-import { getAgentJobsChannelName, makeAgentJobsChannel } from "./utils";
+import { makeAgentJobsChannelName } from "./utils";
 
 export default async function publishJobStatusData(job: Job) {
   const client = getRestClient();
   const channel = client.channels.get(
-    makeAgentJobsChannel(job.agentId, job.userId),
+    makeAgentJobsChannelName(job.agentId, job.userId),
   );
-  await channel.publish(getAgentJobsChannelName(), getJobStatusData(job));
+  await channel.publish("job_status_data", getJobStatusData(job));
 }

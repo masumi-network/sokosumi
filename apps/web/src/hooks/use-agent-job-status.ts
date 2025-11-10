@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 import {
   type JobStatusData,
   jobStatusDataSchema,
-  makeAgentJobsChannel,
+  makeAgentJobsChannelName,
 } from "@/lib/ably";
 
 export default function useAgentJobStatusData(
@@ -28,7 +28,7 @@ export default function useAgentJobStatusData(
     setJobStatusData(initialJobStatusData);
   }, [initialJobStatusData]);
 
-  useChannel(makeAgentJobsChannel(agentId, userId), (message) => {
+  useChannel(makeAgentJobsChannelName(agentId, userId), (message) => {
     const parsedResult = jobStatusDataSchema.safeParse(message.data);
     if (parsedResult.success) {
       const jobId = parsedResult.data.jobId;

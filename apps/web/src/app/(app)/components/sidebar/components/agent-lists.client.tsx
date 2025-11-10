@@ -24,7 +24,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
-import { type JobStatusData, makeAgentJobsChannel } from "@/lib/ably";
+import { type JobStatusData, makeAgentJobsChannelName } from "@/lib/ably";
 import { getAgentName } from "@/lib/helpers/agent";
 import { AgentWithAvailability } from "@/lib/types/agent";
 import { cn } from "@/lib/utils";
@@ -140,7 +140,7 @@ export default function AgentListsClient({
                                       </span>
                                       {isAvailable && (
                                         <ChannelProvider
-                                          channelName={makeAgentJobsChannel(
+                                          channelName={makeAgentJobsChannelName(
                                             agent.id,
                                             userId,
                                           )}
