@@ -7,9 +7,11 @@ import { apiSuccessResponseSchema } from "@/lib/api/schemas";
 import { Session } from "@/lib/auth/auth";
 import { UnAuthenticatedError } from "@/lib/auth/errors";
 
+export const getJobQueryKey = (jobId: string) => ["jobs", jobId];
+
 export const getJobQueryOptions = (jobId: string, session: Session | null) =>
   queryOptions({
-    queryKey: ["jobs", jobId],
+    queryKey: getJobQueryKey(jobId),
     queryFn: async () => {
       if (!session) {
         throw new UnAuthenticatedError();

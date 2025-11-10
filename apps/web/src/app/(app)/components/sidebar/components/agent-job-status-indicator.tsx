@@ -26,12 +26,8 @@ export default function AgentJobStatusIndicator({
   initialJobStatusData,
   className,
 }: AgentJobStatusIndicatorProps) {
-  const jobStatusData = useAgentJobStatusData(
-    agentId,
-    userId,
-    null,
-    initialJobStatusData,
-  );
+  const jobStatusData =
+    useAgentJobStatusData(agentId, userId, null) ?? initialJobStatusData;
 
   if (!jobStatusData) {
     return null;

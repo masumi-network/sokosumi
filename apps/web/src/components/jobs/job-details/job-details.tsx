@@ -38,6 +38,7 @@ export default function JobDetails({
 }: JobDetailsProps) {
   const t = useTranslations("Components.Jobs.JobDetails");
   const { data: session } = useSession();
+
   const { data: job } = useQuery({
     ...getJobQueryOptions(initialJob.id, session),
     enabled: !!session,
