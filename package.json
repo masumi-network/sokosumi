@@ -2,10 +2,7 @@
   "name": "sokosumi",
   "private": true,
   "type": "module",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
+  "packageManager": "pnpm@10.21.0",
   "scripts": {
     "dev": "pnpm -r dev",
     "web:dev": "pnpm --filter web dev",
