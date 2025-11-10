@@ -341,6 +341,7 @@ export const auth = betterAuth({
       // implement dynamic localization
       // by using `getLocale` function
     }),
+    // bearer(),
     nextCookies(),
   ],
 });
