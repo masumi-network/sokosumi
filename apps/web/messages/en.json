@@ -1077,6 +1077,7 @@
     "Credits": {
       "title": "Credits",
       "description": "Manage your credit balance and top-ups",
+      "billingPortalCta": "Manage purchases in Stripe",
       "topUpTitle": "Top up your credits",
       "topUpDescription": "Choose an amount or enter a custom value",
       "costPerCredit": "{cost} per credit",

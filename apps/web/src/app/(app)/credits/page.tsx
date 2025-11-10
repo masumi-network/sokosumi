@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 
 import CreditsForm from "@/components/credits/credits-form";
@@ -31,9 +32,18 @@ export default async function CreditsPage({ searchParams }: CreditsPageProps) {
 
   return (
     <div className="w-full space-y-12 px-2">
-      <div className="space-y-2">
+      <div className="space-y-1">
         <h1 className="text-2xl font-light md:text-3xl">{t("title")}</h1>
         <p className="text-muted-foreground">{t("description")}</p>
+        <Link
+          href="https://billing.stripe.com/p/login/00w28r02bac4cNR8mDgIo00"
+          target="_blank"
+          rel="noopener noreferrer"
+          prefetch={false}
+          className="text-primary text-sm font-medium underline-offset-4 hover:underline"
+        >
+          {t("billingPortalCta")}
+        </Link>
       </div>
       <div className="max-w-3xl">
         <CreditsForm price={price} organization={activeOrganization} />
