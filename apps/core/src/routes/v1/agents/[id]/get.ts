@@ -4,7 +4,7 @@ import { agentRepository } from "@sokosumi/database/repositories";
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { OpenAPIHonoWithAuth } from "@/lib/hono";
+import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import { agentSchema } from "../schemas";
 
