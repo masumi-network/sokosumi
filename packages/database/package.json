@@ -64,7 +64,7 @@
   },
   "devDependencies": {
     "@types/node": "22.19.0",
-    "@types/pg": "^8.15.6",
+    "@types/pg": "8.15.6",
     "dotenv": "17.2.3",
     "prisma": "6.19.0",
     "tsx": "4.20.6",
