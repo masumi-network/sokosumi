@@ -37,19 +37,6 @@
       "default": "./dist/types/job.js"
     }
   },
-  "typesVersions": {
-    "*": {
-      "*": [
-        "dist/*"
-      ],
-      "repositories": [
-        "dist/repositories/index.d.ts"
-      ],
-      "repositories/*": [
-        "dist/repositories/*.d.ts"
-      ]
-    }
-  },
   "files": [
     "dist",
     "prisma/schema.prisma"
