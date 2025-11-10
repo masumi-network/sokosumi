@@ -364,7 +364,7 @@ importers:
         specifier: 2.0.0
         version: 2.0.0(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@types/sanitize-html':
-        specifier: ^2.14.0
+        specifier: 2.16.0
         version: 2.16.0
       eslint-config-next:
         specifier: 16.0.1
@@ -425,7 +425,7 @@ importers:
         specifier: 22.19.0
         version: 22.19.0
       '@types/pg':
-        specifier: ^8.15.6
+        specifier: 8.15.6
         version: 8.15.6
       dotenv:
         specifier: 17.2.3
