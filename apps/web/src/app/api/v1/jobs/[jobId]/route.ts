@@ -5,7 +5,7 @@ import superJson from "superjson";
 import {
   createApiSuccessResponse,
   handleApiError,
-  validateAuthenticity,
+  validateAuth,
 } from "@/lib/api";
 
 interface RouteParams {
@@ -29,7 +29,7 @@ export async function GET(
   { params }: RouteParams,
 ): Promise<NextResponse> {
   try {
-    const { authContext } = await validateAuthenticity(request.headers);
+    const { authContext } = await validateAuth(request.headers);
     const { jobId } = await params;
 
     if (!jobId) {
