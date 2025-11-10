@@ -4,7 +4,6 @@ import { logger } from "hono/logger";
 import type { RequestIdVariables } from "hono/request-id";
 import { requestId } from "hono/request-id";
 
-import { env } from "./config/env";
 import { notFound } from "./helpers/error";
 import apiV1 from "./routes/v1";
 
@@ -22,6 +21,6 @@ app.notFound(() => {
 app.route("/v1", apiV1);
 
 export default {
-  port: env.PORT ?? 3000,
+  port: Bun.env.PORT ?? 3000,
   fetch: app.fetch,
 };

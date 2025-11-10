@@ -4,7 +4,6 @@ import type { RequestIdVariables } from "hono/request-id";
 
 import { errorHandler } from "@/helpers/error-handler";
 
-import { env } from "../../config/env";
 import agentsRouter from "./agents";
 import usersRouter from "./users";
 
@@ -31,7 +30,7 @@ app.doc("/openapi.json", {
   },
   servers: [
     {
-      url: `http://localhost:${env.PORT}/v1`,
+      url: `http://localhost:${Bun.env.PORT}/v1`,
       description: "Local Server",
     },
   ],
