@@ -2,6 +2,7 @@
   "name": "core",
   "type": "module",
   "scripts": {
+    "prepare": "pnpm --filter @sokosumi/database build",
     "dev": "bun run --hot src/index.ts"
   },
   "dependencies": {

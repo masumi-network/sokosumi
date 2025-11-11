@@ -14,7 +14,8 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "incremental": false,
-    "preserveSymlinks": true
+    "preserveSymlinks": true,
+    "types": ["node", "pg"]
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
