@@ -1,9 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
-import { agentRepository } from "@sokosumi/database/repositories";
 
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
+import { findDummyAgentById } from "@/lib/dummy-data";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import { agentSchema } from "../schemas";
@@ -33,7 +33,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const { id } = c.req.valid("param");
 
-    const data = await agentRepository.getAgentWithRelationsById(id);
+    const data = findDummyAgentById(id);
     if (!data) {
       throw notFound("Agent not found");
     }
