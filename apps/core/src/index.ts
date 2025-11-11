@@ -20,4 +20,7 @@ app.notFound(() => {
 // Mount API v1 routes
 app.route("/v1", apiV1);
 
-export default app;
+export default {
+  port: Bun.env.PORT ?? 3000,
+  fetch: app.fetch,
+};
