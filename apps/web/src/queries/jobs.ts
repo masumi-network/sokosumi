@@ -18,7 +18,7 @@ export const getJobQueryOptions = (jobId: string, session: Session | null) =>
       }
 
       const url = new URL(
-        `/api/v1/jobs/${jobId}`,
+        `/api/internal/jobs/${jobId}`,
         getEnvPublicConfig().NEXT_PUBLIC_SOKOSUMI_URL,
       );
       const response = await fetch(url, {

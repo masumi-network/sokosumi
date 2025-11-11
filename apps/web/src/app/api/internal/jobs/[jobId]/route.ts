@@ -1,11 +1,11 @@
 import { jobRepository } from "@sokosumi/database/repositories";
 import { NextRequest, NextResponse } from "next/server";
+import superJson from "superjson";
 
 import {
   createApiSuccessResponse,
-  formatJobResponse,
   handleApiError,
-  validateApiKey,
+  validateAuth,
 } from "@/lib/api";
 
 interface RouteParams {
@@ -15,36 +15,26 @@ interface RouteParams {
 }
 
 /**
- * Get job by ID
+ * Get job by ID internally
  * @description Retrieves a specific job by ID belonging to the authenticated user
- * @pathParams JobParams
- * @response JobSuccessResponse
- * @responseSet public
- * @tag Jobs
- * @auth apikey
- * @openapi
  */
 export async function GET(
   request: NextRequest,
   { params }: RouteParams,
 ): Promise<NextResponse> {
   try {
-    const { userId, metadata } = await validateApiKey(request.headers);
+    const { authContext } = await validateAuth(request.headers);
     const { jobId } = await params;
 
     if (!jobId) {
       throw new Error("INVALID_INPUT");
     }
 
-    // Get organization context from API key
-    const activeOrganizationId: string | null =
-      metadata?.organizationId ?? null;
-
     // Get the job with authorization check
     const job = await jobRepository.getJobByIdWithAuthCheck(
       jobId,
-      userId,
-      activeOrganizationId,
+      authContext.userId,
+      authContext.organizationId,
     );
 
     if (!job) {
@@ -52,7 +42,8 @@ export async function GET(
     }
 
     // Format and return the job
-    return createApiSuccessResponse(formatJobResponse(job));
+    const stringifiedJob = superJson.stringify(job);
+    return createApiSuccessResponse(stringifiedJob);
   } catch (error) {
     return handleApiError(error, "retrieve job", {
       path: request.nextUrl.pathname,
