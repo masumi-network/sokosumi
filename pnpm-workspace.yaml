@@ -1,0 +1,33 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+
+ignoredBuiltDependencies:
+  - "@prisma/client"
+  - "@prisma/engines"
+  - "@sentry/cli"
+  - "@swc/core"
+  - "@tailwindcss/oxide"
+  - "@vercel/speed-insights"
+  - better-sqlite3
+  - esbuild
+  - puppeteer
+  - puppeteer-core
+  - sharp
+  - unrs-resolver
+  - vue-demi
+
+onlyBuiltDependencies:
+  - prisma
+
+publicHoistPattern:
+  - bun-types
+  - import-in-the-middle
+  - require-in-the-middle
+  - "@prisma/client"
+  - "@prisma/adapter-pg"
+  - pg
+  - pg-pool
+  - eslint
+  - prettier
+

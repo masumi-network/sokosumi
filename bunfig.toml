@@ -1,2 +1,0 @@
-[install]
-publicHoistPattern = [ "bun-types", "import-in-the-middle", "require-in-the-middle", "@prisma/client", "@prisma/adapter-pg", "pg", "pg-pool", "eslint", "prettier" ]
