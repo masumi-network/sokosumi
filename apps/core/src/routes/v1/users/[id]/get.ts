@@ -1,9 +1,9 @@
 import { createRoute, z } from "@hono/zod-openapi";
+import { userRepository } from "@sokosumi/database/repositories";
 
 import { forbidden, notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
-import { findDummyUserById } from "@/lib/dummy-data";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import { userSchema } from "../schemas";
@@ -39,7 +39,7 @@ export default function mount(app: OpenAPIHonoWithAuth) {
       throw forbidden("You can only access your own user data");
     }
 
-    const userRecord = findDummyUserById(id);
+    const userRecord = await userRepository.getUserById(id);
     if (!userRecord) {
       throw notFound("User not found");
     }
