@@ -2,6 +2,10 @@
   "name": "sokosumi",
   "private": true,
   "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
   "scripts": {
     "dev": "bun run -r dev",
     "web:dev": "bun run --filter web dev",
