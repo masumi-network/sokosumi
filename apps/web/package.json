@@ -6,6 +6,7 @@
   },
   "private": true,
   "scripts": {
+    "postinstall": "bun run --filter @sokosumi/database build",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
@@ -14,7 +15,7 @@
     "lint:report": "eslint --output-file=lint-report.json --format json .",
     "test": "jest",
     "test:ci": "jest --ci",
-    "prepare": "bun run --filter @sokosumi/database build && bun run generate:api-docs",
+    "prepare": "bun run generate:api-docs",
     "prisma:generate": "bun run --filter @sokosumi/database prisma:generate",
     "prisma:migrate:dev": "bun run --filter @sokosumi/database prisma:migrate:dev",
     "prisma:migrate:deploy": "bun run --filter @sokosumi/database prisma:migrate:deploy",

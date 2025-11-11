@@ -41,10 +41,9 @@
     "prisma/schema.prisma"
   ],
   "scripts": {
-    "prebuild": "bun run prisma:generate",
+    "prepare": "prisma generate --no-hints",
     "build": "tsc",
     "clean": "rm -rf dist && rm tsconfig.tsbuildinfo",
-    "prepare": "prisma generate --no-hints",
     "prepublishOnly": "bun run build",
     "prisma:generate": "prisma generate --no-hints",
     "prisma:migrate:dev": "prisma migrate dev",
