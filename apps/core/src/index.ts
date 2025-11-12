@@ -1,8 +1,7 @@
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { logger } from "hono/logger";
-import type { RequestIdVariables } from "hono/request-id";
-import { requestId } from "hono/request-id";
+import { requestId, type RequestIdVariables } from "hono/request-id";
 
 import { notFound } from "./helpers/error";
 import apiV1 from "./routes/v1";
