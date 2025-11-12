@@ -8,6 +8,8 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import { agentSchema } from "../schemas";
 
+console.log("[module-load]", import.meta.url);
+
 const params = z.object({
   id: z.string().openapi({
     param: { name: "id", in: "path" },

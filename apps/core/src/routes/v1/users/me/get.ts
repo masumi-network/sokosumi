@@ -8,6 +8,7 @@ import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 
 import { userSchema } from "../schemas";
 
+console.log("[module-load]", import.meta.url);
 const route = createRoute({
   method: "get",
   path: "/me",

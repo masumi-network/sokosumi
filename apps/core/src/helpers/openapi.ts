@@ -3,6 +3,8 @@ import { z } from "@hono/zod-openapi";
 import { errorResponseSchema } from "./error";
 import { successResponseSchema } from "./response";
 
+console.log("[module-load]", import.meta.url);
+
 export function jsonContent(schema: z.ZodTypeAny) {
   return {
     "application/json": {

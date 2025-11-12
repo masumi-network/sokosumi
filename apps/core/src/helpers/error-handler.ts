@@ -4,6 +4,8 @@ import type { RequestIdVariables } from "hono/request-id";
 
 import { type ErrorResponse, getErrorName } from "./error";
 
+console.log("[module-load]", import.meta.url);
+
 /**
  * Centralized error handler for Hono app
  * Formats HTTPExceptions into consistent error responses

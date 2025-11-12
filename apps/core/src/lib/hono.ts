@@ -4,6 +4,8 @@ import { requestId, type RequestIdVariables } from "hono/request-id";
 
 import { authMiddleware, type AuthVariables } from "../middleware/auth";
 
+console.log("[module-load]", import.meta.url);
+
 /**
  * Type-safe Hono class with AuthContext in Variables
  * Use this for routes that require authentication

@@ -4,6 +4,8 @@ import { bearerAuth } from "hono/bearer-auth";
 import { unauthorized } from "../helpers/error";
 import { auth } from "../lib/auth";
 
+console.log("[module-load]", import.meta.url);
+
 export interface AuthenticatedUserContext {
   id: string;
   organizationId: string | null;

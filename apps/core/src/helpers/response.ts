@@ -1,6 +1,7 @@
 import { z } from "@hono/zod-openapi";
 import type { Context } from "hono";
 
+console.log("[module-load]", import.meta.url);
 /**
  * Standardized API success response schema
  * Provides consistent success structure across all API endpoints

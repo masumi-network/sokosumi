@@ -2,6 +2,8 @@ import { z } from "@hono/zod-openapi";
 import { HTTPException } from "hono/http-exception";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
 
+console.log("[module-load]", import.meta.url);
+
 /**
  * Standardized API error response schema
  * Mirrors success response structure for consistency

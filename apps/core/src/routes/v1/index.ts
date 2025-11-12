@@ -7,6 +7,8 @@ import { errorHandler } from "@/helpers/error-handler";
 import agentsRouter from "./agents";
 import usersRouter from "./users";
 
+console.log("[module-load]", import.meta.url);
+
 const app = new OpenAPIHono<{ Variables: RequestIdVariables }>();
 
 app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {

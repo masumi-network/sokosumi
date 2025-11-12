@@ -1,5 +1,6 @@
 import { z } from "@hono/zod-openapi";
 
+console.log("[module-load]", import.meta.url);
 export const userSchema = z
   .object({
     id: z.string().openapi({ example: "0Lm1hpg77w8g8QXbr3aEsFzX9aIUTybj" }),
