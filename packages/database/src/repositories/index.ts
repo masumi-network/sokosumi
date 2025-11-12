@@ -22,7 +22,7 @@
  * })
  * ```
  */
-
+console.log("[module-load]", import.meta.url);
 export * from "./agent.repository";
 export * from "./agentList.repository";
 export * from "./agentRating.repository";
