@@ -1,19 +1,19 @@
 {
   "compilerOptions": {
     "target": "ESNext",
-    "module": "Preserve",
+    "module": "NodeNext",
     "strict": true,
+    "verbatimModuleSyntax": true,
     "skipLibCheck": true,
-    "types": ["node", "bun"],
+    "types": ["node"],
     "jsx": "react-jsx",
     "jsxImportSource": "hono/jsx",
     "outDir": "./dist",
-
     "paths": {
       "@/*": ["./src/*"],
+      "@/config/*": ["./src/config/*"],
       "@/helpers/*": ["./src/helpers/*"],
       "@/lib/*": ["./src/lib/*"],
-      "@/config/*": ["./src/config/*"],
       "@/middleware/*": ["./src/middleware/*"],
       "@/routes/*": ["./src/routes/*"],
       "@/types/*": ["./src/types/*"]

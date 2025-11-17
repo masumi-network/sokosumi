@@ -1,10 +1,9 @@
 import type { MiddlewareHandler } from "hono";
 import { bearerAuth } from "hono/bearer-auth";
 
-import { unauthorized } from "../helpers/error";
-import { auth } from "../lib/auth";
-
-console.log("[module-load]", import.meta.url);
+import { getEnvSecrets } from "@/config/env.js";
+import { unauthorized } from "@/helpers/error.js";
+import { auth } from "@/lib/auth.js";
 
 export interface AuthenticatedUserContext {
   id: string;
@@ -29,7 +28,7 @@ const bearerMiddleware: MiddlewareHandler<{
 }> = bearerAuth({
   verifyToken: async (token, c) => {
     // Check 1: Static API_KEY (internal service)
-    if (token === Bun.env.API_KEY) {
+    if (token === getEnvSecrets().API_KEY) {
       setAuthContext(c, { isAuthenticated: true, user: undefined });
       return true;
     }

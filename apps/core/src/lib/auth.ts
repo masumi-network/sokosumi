@@ -3,14 +3,14 @@ import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { apiKey, organization } from "better-auth/plugins";
 
-console.log("[module-load]", import.meta.url);
+import { getEnvSecrets } from "@/config/env.js";
 
 export const auth = betterAuth({
   database: prismaAdapter(prisma, {
     provider: "postgresql",
   }),
-  secret: Bun.env.BETTER_AUTH_SECRET,
-  baseURL: Bun.env.BETTER_AUTH_URL,
+  secret: getEnvSecrets().BETTER_AUTH_SECRET,
+  baseURL: getEnvSecrets().BETTER_AUTH_URL,
   rateLimit: {
     storage: "database",
   },

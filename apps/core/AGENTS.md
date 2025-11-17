@@ -4,7 +4,7 @@
 
 ## App-Specific Architecture
 
-**Framework**: Hono with Bun runtime
+**Framework**: Hono
 **Location**: `apps/core/` directory within the pnpm workspace
 **Key Directories**:
 
@@ -240,5 +240,4 @@ app.openapi(route, async (c) => {
 - [Root AGENTS.md](../../AGENTS.md) - Comprehensive monorepo guidelines
 - [Response Guidelines](.cursor/rules/responses.mdc) - Response helper documentation
 - [Hono Documentation](https://hono.dev/)
-- [Bun Runtime](https://bun.sh/)
 - [Better Auth Hono Integration](https://www.better-auth.com/docs/integrations/hono#middleware)

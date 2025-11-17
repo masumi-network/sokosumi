@@ -2,9 +2,7 @@ import { OpenAPIHono } from "@hono/zod-openapi";
 import { Hono } from "hono";
 import { requestId, type RequestIdVariables } from "hono/request-id";
 
-import { authMiddleware, type AuthVariables } from "../middleware/auth";
-
-console.log("[module-load]", import.meta.url);
+import { authMiddleware, type AuthVariables } from "../middleware/auth.js";
 
 /**
  * Type-safe Hono class with AuthContext in Variables

@@ -1,12 +1,10 @@
 import { createRoute, z } from "@hono/zod-openapi";
 import { agentRepository } from "@sokosumi/database/repositories";
 
-import { notFound } from "@/helpers/error";
-import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
-import { ok } from "@/helpers/response";
-import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-
-console.log("[module-load]", import.meta.url);
+import { notFound } from "@/helpers/error.js";
+import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi.js";
+import { ok } from "@/helpers/response.js";
+import type { OpenAPIHonoWithAuth } from "@/lib/hono.js";
 
 const agentSchema = z
   .object({
