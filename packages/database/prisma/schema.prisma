@@ -559,12 +559,35 @@ model Job {
   // Public Share
   share JobShare?
 
+  jobEvents JobEvent[]
+
   // Optional link to the schedule that initiated this job
   jobScheduleId String?
   jobSchedule   JobSchedule? @relation(fields: [jobScheduleId], references: [id], onDelete: SetNull)
 
   @@index([jobType])
   @@index([jobScheduleId])
+}
+
+model JobEvent {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  externalId String?
+
+  status AgentJobStatus
+  result String?
+
+  input       Json?
+  inputSchema Json?
+
+  jobId String
+  job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([externalId])
+  @@index([jobId])
+  @@map("jobStatus")
 }
 
 enum OnChainTransactionStatus {
@@ -609,7 +632,6 @@ enum OnChainJobStatus {
 }
 
 enum AgentJobStatus {
-  PENDING
   AWAITING_PAYMENT
   AWAITING_INPUT
   RUNNING
