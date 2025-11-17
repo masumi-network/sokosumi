@@ -27,14 +27,17 @@ const route = createRoute({
 });
 
 export default function mount(app: OpenAPIHonoWithAuth) {
-  app.openapi(route, async (c) => {
-    // const agents = await agentRepository.getAgentsWithRelations();
-
-    // if (!agents) {
-    //   throw notFound("No agents found");
-    // }
-
-    // return ok(c, agentsSchema.parse(agents));
+  app.get("/", async (c) => {
     return ok(c, { message: "Hello, world!" });
   });
+  // app.openapi(route, async (c) => {
+  //   // const agents = await agentRepository.getAgentsWithRelations();
+
+  //   // if (!agents) {
+  //   //   throw notFound("No agents found");
+  //   // }
+
+  //   // return ok(c, agentsSchema.parse(agents));
+  //   // return ok(c, { message: "Hello, world!" });
+  // });
 }
