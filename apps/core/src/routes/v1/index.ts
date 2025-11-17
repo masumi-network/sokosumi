@@ -15,7 +15,7 @@ app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
   bearerFormat: "JWT",
 });
 
-app.onError(errorHandler);
+// app.onError(errorHandler);
 
 // Mount Routes
 // app.route("/agents", agentsRouter);
