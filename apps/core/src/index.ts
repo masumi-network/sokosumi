@@ -7,29 +7,29 @@ import { requestId } from "hono/request-id";
 import { notFound } from "./helpers/error";
 import apiV1 from "./routes/v1";
 
-let appInstance: Hono<{ Variables: RequestIdVariables }> | null = null;
+const app = new Hono<{ Variables: RequestIdVariables }>();
 
-function getApp(): Hono<{ Variables: RequestIdVariables }> {
-  if (!appInstance) {
-    const app = new Hono<{ Variables: RequestIdVariables }>();
+app.use(logger());
+app.use(requestId());
+app.use("*", cors());
 
-    app.use(logger());
-    app.use(requestId());
-    app.use("*", cors());
+app.notFound(() => {
+  throw notFound();
+});
 
-    app.notFound(() => {
-      throw notFound();
-    });
+// Mount API v1 routes
+app.route("/v1", apiV1);
 
-    // Mount API v1 routes
-    app.route("/v1", apiV1);
-
-    appInstance = app;
-  }
-  return appInstance;
-}
+// export default {
+//   port: process.env.PORT ?? 3000,
+//   fetch: app.fetch,
+// };
 
 export default {
-  port: process.env.PORT ?? 3000,
-  fetch: (request: Request) => getApp().fetch(request),
+  async fetch(request: Request) {
+    const url = new URL(request.url);
+    const name = url.searchParams.get("name") || "World";
+
+    return Response.json({ message: `Hello ${name}!` });
+  },
 };
