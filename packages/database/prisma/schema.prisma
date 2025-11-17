@@ -576,10 +576,12 @@ model JobEvent {
 
   externalId String?
 
-  status AgentJobStatus
-  result String?
+  status     AgentJobStatus @default(AWAITING_PAYMENT)
+  result     String?
+  resultHash String?
 
   input       Json?
+  inputHash   String?
   inputSchema Json?
 
   jobId String
@@ -587,7 +589,7 @@ model JobEvent {
 
   @@index([externalId])
   @@index([jobId])
-  @@map("jobStatus")
+  @@map("jobEvent")
 }
 
 enum OnChainTransactionStatus {
