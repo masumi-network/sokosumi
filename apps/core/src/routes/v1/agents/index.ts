@@ -13,7 +13,7 @@ const app = new OpenAPIHonoWithAuth();
 // mountGetAgents(app);
 // mountGetAgentById(app);
 
-app.route("/agents", async (c) => {
+app.get("/", async (c) => {
   return ok(c, { message: "Hello, world!" });
 });
 // app.route("/agents/:id", mountGetAgentById);
