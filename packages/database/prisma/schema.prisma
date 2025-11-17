@@ -510,8 +510,7 @@ model Job {
   agentId String
   agent   Agent  @relation(fields: [agentId], references: [id])
 
-  agentJobId     String
-  agentJobStatus AgentJobStatus?
+  agentJobId String
 
   purchaseId String?
 
