@@ -17,8 +17,6 @@ app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
   bearerFormat: "JWT",
 });
 
-app.onError(errorHandler);
-
 // Mount Routes
 app2.get("/", (c) => {
   return c.json({ message: "This is a sample GET API endpoint." });
@@ -51,5 +49,7 @@ app.get(
     tryItOutEnabled: true,
   }),
 );
+
+app.onError(errorHandler);
 
 export default app;
