@@ -8,7 +8,8 @@ import mountGetAgentById from "./[id]/get";
 import mountGetAgents from "./get";
 import { ok } from "@/helpers/response";
 
-const app = new OpenAPIHonoWithAuth();
+// const app = new OpenAPIHonoWithAuth();
+const app = new OpenAPIHono<{ Variables: RequestIdVariables }>();
 
 // mountGetAgents(app);
 // mountGetAgentById(app);
