@@ -9,11 +9,11 @@ import usersRouter from "./users";
 
 const app = new OpenAPIHono<{ Variables: RequestIdVariables }>();
 
-app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
-  type: "http",
-  scheme: "bearer",
-  bearerFormat: "JWT",
-});
+// app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
+//   type: "http",
+//   scheme: "bearer",
+//   bearerFormat: "JWT",
+// });
 
 app.onError(errorHandler);
 
@@ -22,28 +22,28 @@ app.route("/agents", agentsRouter);
 app.route("/users", usersRouter);
 
 // Generate OpenAPI spec from the API routes (publicly accessible)
-app.doc("/openapi.json", {
-  openapi: "3.0.3",
-  info: {
-    version: "1.0.0",
-    title: "Sokosumi API",
-  },
-  servers: [
-    {
-      url: `http://localhost:${process.env.PORT ?? 3000}/v1`,
-      description: "Local Server",
-    },
-  ],
-  security: [{ bearerAuth: [] }],
-});
-app.get(
-  "/doc",
-  swaggerUI({
-    url: "openapi.json",
-    persistAuthorization: true,
-    withCredentials: true,
-    tryItOutEnabled: true,
-  }),
-);
+// app.doc("/openapi.json", {
+//   openapi: "3.0.3",
+//   info: {
+//     version: "1.0.0",
+//     title: "Sokosumi API",
+//   },
+//   servers: [
+//     {
+//       url: `http://localhost:${process.env.PORT ?? 3000}/v1`,
+//       description: "Local Server",
+//     },
+//   ],
+//   security: [{ bearerAuth: [] }],
+// });
+// app.get(
+//   "/doc",
+//   swaggerUI({
+//     url: "openapi.json",
+//     persistAuthorization: true,
+//     withCredentials: true,
+//     tryItOutEnabled: true,
+//   }),
+// );
 
 export default app;

@@ -13,12 +13,12 @@ app.use(logger());
 app.use(requestId());
 app.use("*", cors());
 
-// app.notFound(() => {
-//   throw notFound();
-// });
+app.notFound(() => {
+  throw notFound();
+});
 
-// // Mount API v1 routes
-// app.route("/v1", apiV1);
+// Mount API v1 routes
+app.route("/v1", apiV1);
 
 // export default {
 //   port: process.env.PORT ?? 3000,
