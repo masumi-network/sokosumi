@@ -1,6 +1,9 @@
 {
   "name": "core",
   "type": "module",
+  "engines": {
+    "node": ">=22.16.0 <23.0.0"
+  },
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "rm -rf dist && tsup",
