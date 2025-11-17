@@ -18,7 +18,7 @@ app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
 // app.onError(errorHandler);
 
 // Mount Routes
-// app.route("/agents", agentsRouter);
+app.route("/agents", agentsRouter);
 // app.route("/users", usersRouter);
 
 // Generate OpenAPI spec from the API routes (publicly accessible)
