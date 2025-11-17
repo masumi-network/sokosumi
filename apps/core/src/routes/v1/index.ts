@@ -6,11 +6,8 @@ import { errorHandler } from "@/helpers/error-handler";
 
 import agentsRouter from "./agents";
 import usersRouter from "./users";
-import { Hono } from "hono";
 
 const app = new OpenAPIHono<{ Variables: RequestIdVariables }>();
-
-const app2 = new Hono<{ Variables: RequestIdVariables }>();
 
 app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
   type: "http",
@@ -22,12 +19,6 @@ app.onError(errorHandler);
 
 // Mount Routes
 // app.route("/agents", agentsRouter);
-
-app2.get("/sample", (c) => {
-  return c.json({ message: "This is a sample GET API endpoint." });
-});
-
-app.route("/agents", app2);
 // app.route("/users", usersRouter);
 
 // Generate OpenAPI spec from the API routes (publicly accessible)
