@@ -30,7 +30,7 @@ app.doc("/openapi.json", {
   },
   servers: [
     {
-      url: `http://localhost:${Bun.env.PORT}/v1`,
+      url: `http://localhost:${process.env.PORT ?? 3000}/v1`,
       description: "Local Server",
     },
   ],

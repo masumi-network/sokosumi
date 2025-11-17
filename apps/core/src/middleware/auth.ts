@@ -27,7 +27,7 @@ const bearerMiddleware: MiddlewareHandler<{
 }> = bearerAuth({
   verifyToken: async (token, c) => {
     // Check 1: Static API_KEY (internal service)
-    if (token === Bun.env.API_KEY) {
+    if (token === process.env.API_KEY) {
       setAuthContext(c, { isAuthenticated: true, user: undefined });
       return true;
     }

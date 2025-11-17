@@ -21,6 +21,6 @@ app.notFound(() => {
 app.route("/v1", apiV1);
 
 export default {
-  port: Bun.env.PORT ?? 3000,
+  port: process.env.PORT ?? 3000,
   fetch: app.fetch,
 };
