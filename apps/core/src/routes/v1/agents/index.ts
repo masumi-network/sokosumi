@@ -6,6 +6,6 @@ import mountGetAgents from "./get";
 const app = new OpenAPIHonoWithAuth();
 
 mountGetAgents(app);
-mountGetAgentById(app);
+// mountGetAgentById(app);
 
 export default app;

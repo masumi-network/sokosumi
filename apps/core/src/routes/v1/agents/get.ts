@@ -6,27 +6,27 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 
-export default function mount(app: OpenAPIHonoWithAuth) {
-  const agentSchema = z
-    .object({
-      id: z.string().openapi({ example: "agent_123" }),
-      name: z.string().openapi({ example: "Research Assistant" }),
-    })
-    .openapi("Agent");
+const agentSchema = z
+  .object({
+    id: z.string().openapi({ example: "agent_123" }),
+    name: z.string().openapi({ example: "Research Assistant" }),
+  })
+  .openapi("Agent");
 
-  const agentsSchema = z.array(agentSchema);
+const agentsSchema = z.array(agentSchema);
 
-  const route = createRoute({
-    method: "get",
-    path: "/",
-    tags: ["Agents"],
-    responses: {
-      200: jsonSuccessResponse(agentsSchema, "Retrieve all agents"),
-      401: jsonErrorResponse("Unauthorized"),
-      404: jsonErrorResponse("Not Found"),
-    },
-  });
+const route = createRoute({
+  method: "get",
+  path: "/",
+  tags: ["Agents"],
+  responses: {
+    200: jsonSuccessResponse(agentsSchema, "Retrieve all agents"),
+    401: jsonErrorResponse("Unauthorized"),
+    404: jsonErrorResponse("Not Found"),
+  },
+});
 
+export default function mountGetAgents(app: OpenAPIHonoWithAuth) {
   app.openapi(route, async (c) => {
     const agents = await agentRepository.getAgentsWithRelations();
 
