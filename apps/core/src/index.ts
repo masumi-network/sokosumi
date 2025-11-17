@@ -9,16 +9,16 @@ import apiV1 from "./routes/v1";
 
 const app = new Hono<{ Variables: RequestIdVariables }>();
 
-// app.use(logger());
-// app.use(requestId());
-// app.use("*", cors());
+app.use(logger());
+app.use(requestId());
+app.use("*", cors());
 
 // app.notFound(() => {
 //   throw notFound();
 // });
 
 // // Mount API v1 routes
-app.route("/v1", apiV1);
+// app.route("/v1", apiV1);
 
 // export default {
 //   port: process.env.PORT ?? 3000,
