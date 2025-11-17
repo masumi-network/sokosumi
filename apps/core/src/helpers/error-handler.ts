@@ -2,7 +2,7 @@ import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { RequestIdVariables } from "hono/request-id";
 
-import { type ErrorResponse, getErrorName } from "./error.js";
+import { type ErrorResponse, getErrorName } from "./error";
 
 /**
  * Centralized error handler for Hono app

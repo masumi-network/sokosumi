@@ -2,11 +2,11 @@ import { swaggerUI } from "@hono/swagger-ui";
 import { OpenAPIHono } from "@hono/zod-openapi";
 import type { RequestIdVariables } from "hono/request-id";
 
-import { getEnvSecrets } from "@/config/env.js";
-import { errorHandler } from "@/helpers/error-handler.js";
+import { getEnvSecrets } from "@/config/env";
+import { errorHandler } from "@/helpers/error-handler";
 
-import agentsRouter from "./agents/index.js";
-import usersRouter from "./users/index.js";
+import agentsRouter from "./agents/index";
+import usersRouter from "./users/index";
 
 const app = new OpenAPIHono<{ Variables: RequestIdVariables }>();
 

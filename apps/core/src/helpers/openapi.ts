@@ -1,7 +1,7 @@
 import { z } from "@hono/zod-openapi";
 
-import { errorResponseSchema } from "./error.js";
-import { successResponseSchema } from "./response.js";
+import { errorResponseSchema } from "./error";
+import { successResponseSchema } from "./response";
 
 export function jsonContent(schema: z.ZodTypeAny) {
   return {

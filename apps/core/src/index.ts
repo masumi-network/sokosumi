@@ -3,9 +3,9 @@ import { cors } from "hono/cors";
 import { logger } from "hono/logger";
 import { requestId, type RequestIdVariables } from "hono/request-id";
 
-import { getEnvSecrets } from "./config/env.js";
-import { notFound } from "./helpers/error.js";
-import apiV1 from "./routes/v1/index.js";
+import { getEnvSecrets } from "./config/env";
+import { notFound } from "./helpers/error";
+import apiV1 from "./routes/v1/index";
 
 const app = new Hono<{ Variables: RequestIdVariables }>();
 
