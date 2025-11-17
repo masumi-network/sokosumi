@@ -514,15 +514,6 @@ model Job {
 
   purchaseId String?
 
-  inputSchema       String
-  input             String
-  inputHash         String? // On-Chain hash of the input data
-  output            String?
-  resultHash        String? // On-Chain hash of the result data
-  startedAt         DateTime  @default(now())
-  completedAt       DateTime?
-  resultSubmittedAt DateTime?
-
   nextAction          NextJobAction           @default(NONE)
   nextActionErrorType NextJobActionErrorType?
   nextActionErrorNote String?
@@ -540,7 +531,8 @@ model Job {
   externalDisputeUnlockTime DateTime?
   sellerVkey                String?
 
-  onChainStatus OnChainJobStatus?
+  onChainStatus     OnChainJobStatus?
+  resultSubmittedAt DateTime?
 
   onChainTransactionHash   String?
   onChainTransactionStatus OnChainTransactionStatus?

@@ -45,7 +45,10 @@ SELECT
   COALESCE(j."completedAt", j."updatedAt"),
   COALESCE(j."completedAt", j."updatedAt"),
   j."agentJobStatus",
-  j.output,
+  CASE 
+    WHEN j.output IS NULL THEN NULL
+    ELSE j.output::jsonb->>'result'
+  END,
   j."resultHash",
   j.id,
   NULL
