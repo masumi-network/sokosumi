@@ -20,7 +20,7 @@
     // "noUncheckedIndexedAccess": true,
     // "noImplicitOverride": true,
 
-    "types": ["bun"],
+    "types": ["bun", "node"],
     "paths": {
       "@/*": ["./src/*"],
       "@/helpers/*": ["./src/helpers/*"],
