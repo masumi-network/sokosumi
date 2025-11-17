@@ -1,11 +1,10 @@
-import { createRoute, OpenAPIHono, z } from "@hono/zod-openapi";
+import { createRoute, z } from "@hono/zod-openapi";
 import { agentRepository } from "@sokosumi/database/repositories";
 
 import { notFound } from "@/helpers/error";
 import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
-import { RequestIdVariables } from "hono/request-id";
 
 const agentSchema = z
   .object({
@@ -27,19 +26,14 @@ const route = createRoute({
   },
 });
 
-export default function mount(
-  app: OpenAPIHono<{ Variables: RequestIdVariables }>,
-) {
-  app.get("/", async (c) => {
-    return ok(c, { message: "Hello, world!" });
+export default function mount(app: OpenAPIHonoWithAuth) {
+  app.openapi(route, async (c) => {
+    const agents = await agentRepository.getAgentsWithRelations();
+
+    if (!agents) {
+      throw notFound("No agents found");
+    }
+
+    return ok(c, agentsSchema.parse(agents));
   });
-  // app.openapi(route, async (c) => {
-  //   // const agents = await agentRepository.getAgentsWithRelations();
-
-  //   // if (!agents) {
-  //   //   throw notFound("No agents found");
-  //   // }
-
-  //   // return ok(c, agentsSchema.parse(agents));
-  // });
 }
