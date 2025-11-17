@@ -151,6 +151,7 @@ export function computeJobStatus(job: Job): JobStatus {
 
 function computeFreeJobStatus(job: Job): JobStatus {
   switch (job.agentJobStatus) {
+    case AgentJobStatus.PENDING:
     case AgentJobStatus.AWAITING_INPUT:
       return JobStatus.INPUT_REQUIRED;
     case AgentJobStatus.COMPLETED:
