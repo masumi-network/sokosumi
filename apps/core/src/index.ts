@@ -7,17 +7,29 @@ import { requestId } from "hono/request-id";
 import { notFound } from "./helpers/error";
 import apiV1 from "./routes/v1";
 
-const app = new Hono<{ Variables: RequestIdVariables }>();
+let appInstance: Hono<{ Variables: RequestIdVariables }> | null = null;
 
-app.use(logger());
-app.use(requestId());
-app.use("*", cors());
+function getApp(): Hono<{ Variables: RequestIdVariables }> {
+  if (!appInstance) {
+    const app = new Hono<{ Variables: RequestIdVariables }>();
 
-app.notFound(() => {
-  throw notFound();
-});
+    app.use(logger());
+    app.use(requestId());
+    app.use("*", cors());
 
-// Mount API v1 routes
-app.route("/v1", apiV1);
+    app.notFound(() => {
+      throw notFound();
+    });
 
-export default app.fetch;
+    // Mount API v1 routes
+    app.route("/v1", apiV1);
+
+    appInstance = app;
+  }
+  return appInstance;
+}
+
+export default {
+  port: process.env.PORT ?? 3000,
+  fetch: (request: Request) => getApp().fetch(request),
+};
