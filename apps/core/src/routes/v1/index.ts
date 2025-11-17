@@ -9,6 +9,8 @@ import usersRouter from "./users";
 
 const app = new OpenAPIHono<{ Variables: RequestIdVariables }>();
 
+const appAgents = new OpenAPIHono<{ Variables: RequestIdVariables }>();
+
 app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
   type: "http",
   scheme: "bearer",
@@ -18,7 +20,13 @@ app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
 app.onError(errorHandler);
 
 // Mount Routes
-app.route("/agents", agentsRouter);
+// app.route("/agents", agentsRouter);
+
+appAgents.get("/sample", (c) => {
+  return c.json({ message: "This is a sample GET API endpoint." });
+});
+
+app.route("/agents", appAgents);
 // app.route("/users", usersRouter);
 
 // Generate OpenAPI spec from the API routes (publicly accessible)
