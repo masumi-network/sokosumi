@@ -21,12 +21,7 @@ export const getJobQueryOptions = (jobId: string, session: Session | null) =>
         `/api/internal/jobs/${jobId}`,
         getEnvPublicConfig().NEXT_PUBLIC_SOKOSUMI_URL,
       );
-      const response = await fetch(url, {
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${session.session.token}`,
-        },
-      });
+      const response = await fetch(url);
       if (!response.ok) {
         switch (response.status) {
           case 401:
