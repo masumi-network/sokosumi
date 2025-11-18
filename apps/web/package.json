@@ -133,7 +133,7 @@
     "@types/humanize-duration": "3.27.4",
     "@types/jest": "30.0.0",
     "@types/node": "22.19.1",
-    "@types/react": "19.2.5",
+    "@types/react": "19.2.6",
     "@types/react-dom": "19.2.3",
     "@types/react-file-icon": "1.0.4",
     "@types/react-window": "2.0.0",
