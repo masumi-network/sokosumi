@@ -17,15 +17,15 @@ app.openAPIRegistry.registerComponent("securitySchemes", "bearerAuth", {
   bearerFormat: "JWT",
 });
 
-// app.onError(errorHandler);
+app.onError(errorHandler);
 
 // Mount Routes
 app2.get("/", (c) => {
   return c.json({ message: "This is a sample GET API endpoint." });
 });
-app.route("/agents", app2);
-// app.route("/agents", agentsRouter);
-// app.route("/users", usersRouter);
+// app.route("/agents", app2);
+app.route("/agents", agentsRouter);
+app.route("/users", usersRouter);
 
 // Generate OpenAPI spec from the API routes (publicly accessible)
 app.doc("/openapi.json", {
