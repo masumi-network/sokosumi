@@ -523,13 +523,13 @@ model Job {
 
   jobType JobType
 
-  blockchainIdentifier      String?   @unique
-  identifierFromPurchaser   String?
-  payByTime                 DateTime?
-  submitResultTime          DateTime?
-  unlockTime                DateTime?
-  externalDisputeUnlockTime DateTime?
-  sellerVkey                String?
+  blockchainIdentifier      String   @unique
+  identifierFromPurchaser   String
+  payByTime                 DateTime
+  submitResultTime          DateTime
+  unlockTime                DateTime
+  externalDisputeUnlockTime DateTime
+  sellerVkey                String
 
   onChainStatus     OnChainJobStatus?
   resultSubmittedAt DateTime?
