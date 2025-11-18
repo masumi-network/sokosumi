@@ -10,7 +10,7 @@ import { JobDetails } from "@/components/jobs";
 import { Session } from "@/lib/auth/auth";
 import { getSession } from "@/lib/auth/utils";
 import { isSharedWithOrganization } from "@/lib/helpers/job";
-import { getJobQueryOptions, getQueryClient } from "@/queries";
+import { getJobQueryKey, getQueryClient } from "@/queries";
 
 interface JobDetailsPageParams {
   agentId: string;
@@ -70,7 +70,7 @@ export default async function JobDetailsPage({
 
   // set the Job in the query client
   const queryClient = getQueryClient();
-  queryClient.setQueryData(getJobQueryOptions(jobId, session).queryKey, job);
+  queryClient.setQueryData(getJobQueryKey(jobId), job);
 
   // Check if user can access this job (either owns it or it's shared with their organization)
   const canAccessJob = await checkJobAccess(job, session);

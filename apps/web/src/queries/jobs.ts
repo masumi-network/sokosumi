@@ -2,13 +2,20 @@ import { JobWithStatus } from "@sokosumi/database";
 import { queryOptions } from "@tanstack/react-query";
 import superJson from "superjson";
 
-import { getEnvPublicConfig } from "@/config/env.public";
 import { apiSuccessResponseSchema } from "@/lib/api/schemas";
 import { Session } from "@/lib/auth/auth";
 import { UnAuthenticatedError } from "@/lib/auth/errors";
 
 export const getJobQueryKey = (jobId: string) => ["jobs", jobId];
 
+/**
+ * Tanstack query options to get the job by job id.
+ * This function must be called from a client component (e.g. with `useQuery` hook from tanstack query)
+ *
+ * @param jobId - The ID of the job to fetch
+ * @param session - The session to use to fetch the job
+ * @returns The query options for the job
+ */
 export const getJobQueryOptions = (jobId: string, session: Session | null) =>
   queryOptions({
     queryKey: getJobQueryKey(jobId),
@@ -19,7 +26,7 @@ export const getJobQueryOptions = (jobId: string, session: Session | null) =>
 
       const url = new URL(
         `/api/internal/jobs/${jobId}`,
-        getEnvPublicConfig().NEXT_PUBLIC_SOKOSUMI_URL,
+        window.location.origin,
       );
       const response = await fetch(url);
       if (!response.ok) {
