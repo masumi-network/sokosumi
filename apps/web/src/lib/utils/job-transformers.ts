@@ -160,7 +160,7 @@ export function transactionStatusToOnChainTransactionStatus(
  * Transform a Purchase from external API to database update data structure.
  */
 export function transformPurchaseToJobUpdate(purchase: Purchase): {
-  purchaseId: string;
+  externalId: string;
   onChainStatus: OnChainJobStatus | null;
   inputHash: string | null;
   resultHash: string | null;
@@ -174,7 +174,7 @@ export function transformPurchaseToJobUpdate(purchase: Purchase): {
   const nextAction = nextActionToNextJobAction(purchase.NextAction);
 
   const data: {
-    purchaseId: string;
+    externalId: string;
     onChainStatus: OnChainJobStatus | null;
     inputHash: string | null;
     resultHash: string | null;
@@ -184,7 +184,7 @@ export function transformPurchaseToJobUpdate(purchase: Purchase): {
     onChainTransactionHash?: string;
     onChainTransactionStatus?: OnChainTransactionStatus;
   } = {
-    purchaseId: purchase.id,
+    externalId: purchase.id,
     onChainStatus,
     inputHash: purchase.inputHash,
     resultHash: purchase.resultHash,
