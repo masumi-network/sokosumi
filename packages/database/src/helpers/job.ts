@@ -16,8 +16,11 @@ import {
 
 const TEN_MINUTES_TIMESTAMP = 1000 * 60 * 10; // 10min
 
-function checkPaymentStatus(job: Job, now: Date): JobStatus | null {
-  if (job.purchaseId === null) {
+function checkPaymentStatus(
+  job: JobWithRelations,
+  now: Date,
+): JobStatus | null {
+  if (job.jobPurchaseId === null) {
     if (job.createdAt.getTime() < now.getTime() - TEN_MINUTES_TIMESTAMP) {
       return JobStatus.PAYMENT_FAILED;
     } else {
@@ -38,8 +41,13 @@ function checkPaymentStatus(job: Job, now: Date): JobStatus | null {
  * @param job - The job object to evaluate.
  * @returns The corresponding `JobStatus` if the next action maps to a status, otherwise `null`.
  */
-function checkNextAction(job: Job): JobStatus | null {
-  switch (job.nextAction) {
+function checkNextAction(job: JobWithRelations): JobStatus | null {
+  const purchase = job.jobPurchase;
+  if (!purchase) {
+    return JobStatus.PAYMENT_PENDING;
+  }
+
+  switch (purchase.nextAction) {
     case NextJobAction.FUNDS_LOCKING_INITIATED:
     case NextJobAction.FUNDS_LOCKING_REQUESTED:
       return JobStatus.PAYMENT_PENDING;
@@ -82,7 +90,7 @@ function checkNextAction(job: Job): JobStatus | null {
  */
 function getFundsLockedJobStatus(
   job: Job,
-  agentJobStatus: AgentJobStatus | null,
+  agentJobStatus: AgentJobStatus,
   now: Date,
 ): JobStatus {
   switch (agentJobStatus) {
@@ -138,7 +146,7 @@ function getFundsLockedJobStatus(
  * @param job - The job object containing all relevant status and metadata.
  * @returns The resolved JobStatus for the job.
  */
-export function computeJobStatus(job: Job): JobStatus {
+export function computeJobStatus(job: JobWithRelations): JobStatus {
   switch (job.jobType) {
     case JobType.FREE:
       return computeFreeJobStatus(job);
@@ -149,8 +157,11 @@ export function computeJobStatus(job: Job): JobStatus {
   }
 }
 
-function computeFreeJobStatus(job: Job): JobStatus {
-  switch (job.agentJobStatus) {
+function computeFreeJobStatus(job: JobWithRelations): JobStatus {
+  const latestJobEvent = job.jobEvents[0];
+  switch (latestJobEvent.status) {
+    case AgentJobStatus.AWAITING_PAYMENT:
+      return JobStatus.FAILED;
     case AgentJobStatus.AWAITING_INPUT:
       return JobStatus.INPUT_REQUIRED;
     case AgentJobStatus.COMPLETED:
@@ -159,26 +170,29 @@ function computeFreeJobStatus(job: Job): JobStatus {
       return JobStatus.FAILED;
     case AgentJobStatus.RUNNING:
       return JobStatus.PROCESSING;
-    case AgentJobStatus.AWAITING_PAYMENT:
-      return JobStatus.FAILED;
     default:
-      return job.completedAt ? JobStatus.COMPLETED : JobStatus.PROCESSING;
+      return JobStatus.FAILED;
   }
 }
 
-function computeDemoJobStatus(_job: Job): JobStatus {
+function computeDemoJobStatus(_job: JobWithRelations): JobStatus {
   return JobStatus.COMPLETED;
 }
 
-function computePaidJobStatus(job: Job): JobStatus {
-  const { onChainStatus, agentJobStatus, nextActionErrorType } = job;
+function computePaidJobStatus(job: JobWithRelations): JobStatus {
+  const purchase = job.jobPurchase;
+  if (!purchase) {
+    return JobStatus.PAYMENT_FAILED;
+  }
+
   // 1. If the job has already been refunded, return the refund resolved status
   if (job.refundedCreditTransactionId) {
     return JobStatus.REFUND_RESOLVED;
   }
 
+  const { onChainStatus, nextActionErrorType } = purchase;
   // 2. If the job has no on-chain status and there is an error type, it means the job is failed
-  if (job.onChainStatus === null && nextActionErrorType) {
+  if (onChainStatus === null && nextActionErrorType) {
     return JobStatus.PAYMENT_FAILED;
   }
 
@@ -196,6 +210,10 @@ function computePaidJobStatus(job: Job): JobStatus {
     return nextActionStatus;
   }
 
+  const latestJobEvent = job.jobEvents[0];
+  if (!latestJobEvent) {
+    return JobStatus.FAILED;
+  }
   // 5. If the job has a purchase, it means the job is started
   switch (onChainStatus) {
     case null:
@@ -207,16 +225,16 @@ function computePaidJobStatus(job: Job): JobStatus {
       }
       return JobStatus.PAYMENT_PENDING;
     case OnChainJobStatus.FUNDS_LOCKED:
-      return getFundsLockedJobStatus(job, agentJobStatus, now);
+      return getFundsLockedJobStatus(job, latestJobEvent.status, now);
     case OnChainJobStatus.RESULT_SUBMITTED:
-      switch (agentJobStatus) {
+      switch (latestJobEvent.status) {
         case AgentJobStatus.COMPLETED:
           return JobStatus.COMPLETED;
         default:
           return JobStatus.RESULT_PENDING;
       }
     case OnChainJobStatus.FUNDS_WITHDRAWN:
-      switch (agentJobStatus) {
+      switch (latestJobEvent.status) {
         case AgentJobStatus.COMPLETED:
           return JobStatus.COMPLETED;
         default:
@@ -236,12 +254,15 @@ function computePaidJobStatus(job: Job): JobStatus {
 }
 
 export function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
+  const completedAt = job.jobEvents.find(
+    (event) => event.status === AgentJobStatus.COMPLETED,
+  )?.createdAt;
   const jobStatusSettled =
     job.jobType === JobType.PAID
       ? job.externalDisputeUnlockTime != null
         ? new Date() > job.externalDisputeUnlockTime
         : false
-      : job.completedAt != null;
+      : completedAt != null;
 
   const baseJobWithStatus = {
     ...job,

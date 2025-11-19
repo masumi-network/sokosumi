@@ -6,6 +6,12 @@ import type {
 } from "../generated/prisma/client";
 
 export const jobInclude = {
+  jobEvents: {
+    orderBy: {
+      createdAt: "desc",
+    },
+  },
+  jobPurchase: true,
   agent: true,
   user: true,
   organization: true,
