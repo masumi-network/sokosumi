@@ -1,3 +1,4 @@
+import path from "path";
 import { defineConfig } from "tsup";
 
 export default defineConfig({
@@ -9,4 +10,15 @@ export default defineConfig({
   outDir: "dist",
   tsconfig: "tsconfig.json",
   external: ["dotenv"],
+  esbuildOptions(options) {
+    options.alias = {
+      "@": path.resolve(__dirname, "./src"),
+      "@/config": path.resolve(__dirname, "./src/config"),
+      "@/helpers": path.resolve(__dirname, "./src/helpers"),
+      "@/lib": path.resolve(__dirname, "./src/lib"),
+      "@/middleware": path.resolve(__dirname, "./src/middleware"),
+      "@/routes": path.resolve(__dirname, "./src/routes"),
+      "@/types": path.resolve(__dirname, "./src/types"),
+    };
+  },
 });
