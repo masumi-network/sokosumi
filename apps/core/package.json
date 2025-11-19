@@ -25,6 +25,7 @@
   "devDependencies": {
     "@types/node": "22.19.0",
     "dotenv": "17.2.3",
+    "esbuild-plugin-path-alias": "^1.0.7",
     "tsup": "8.5.1",
     "tsx": "4.20.6",
     "typescript": "5.9.3"
