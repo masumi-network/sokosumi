@@ -614,13 +614,17 @@ function jobsNotFinishedWhereQuery(
     OR: [
       // Filter out jobs that are finalized
       {
-        onChainStatus: {
-          notIn: finalizedOnChainJobStatuses,
+        jobPurchase: {
+          onChainStatus: {
+            notIn: finalizedOnChainJobStatuses,
+          },
         },
       },
       // Filter in jobs that have no on-chain status
       {
-        onChainStatus: null,
+        jobPurchase: {
+          onChainStatus: null,
+        },
       },
     ],
     NOT: [
@@ -632,7 +636,9 @@ function jobsNotFinishedWhereQuery(
       },
       // Filter out jobs that are non-disputed and have a externalDisputeUnlockTime that is less than the cutoff time
       {
-        onChainStatus: { not: OnChainJobStatus.DISPUTED },
+        jobPurchase: {
+          onChainStatus: { not: OnChainJobStatus.DISPUTED },
+        },
         externalDisputeUnlockTime: {
           not: null,
           lt: cutoffTime,
@@ -640,7 +646,9 @@ function jobsNotFinishedWhereQuery(
       },
       // Filter out jobs that have no on-chain status and have a payByTime that is less than the cutoff time
       {
-        onChainStatus: null,
+        jobPurchase: {
+          onChainStatus: null,
+        },
         payByTime: { not: null, lt: cutoffTime },
       },
       // Filter out demo jobs
@@ -684,13 +692,15 @@ function jobsFinishedWhereQuery(): Prisma.JobWhereInput {
         },
         // Check for finalized on-chain statuses
         OR: [
-          { onChainStatus: null, jobType: JobType.FREE },
+          { jobPurchase: { onChainStatus: null }, jobType: JobType.FREE },
           {
-            onChainStatus: {
-              notIn: [
-                OnChainJobStatus.FUNDS_LOCKED,
-                OnChainJobStatus.REFUND_REQUESTED,
-              ],
+            jobPurchase: {
+              onChainStatus: {
+                notIn: [
+                  OnChainJobStatus.FUNDS_LOCKED,
+                  OnChainJobStatus.REFUND_REQUESTED,
+                ],
+              },
             },
           },
         ],
