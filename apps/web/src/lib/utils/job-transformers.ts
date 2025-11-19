@@ -171,7 +171,6 @@ export function transformPurchaseToJobUpdate(purchase: Purchase): {
   nextActionErrorNote: string | null;
   onChainTransactionHash?: string;
   onChainTransactionStatus?: OnChainTransactionStatus;
-  resultSubmittedAt?: Date;
 } {
   const onChainStatus = onChainStateToOnChainJobStatus(purchase.onChainState);
   const nextAction = nextActionToNextJobAction(purchase.NextAction);
@@ -186,7 +185,6 @@ export function transformPurchaseToJobUpdate(purchase: Purchase): {
     nextActionErrorNote: string | null;
     onChainTransactionHash?: string;
     onChainTransactionStatus?: OnChainTransactionStatus;
-    resultSubmittedAt?: Date;
   } = {
     purchaseId: purchase.id,
     onChainStatus,
@@ -196,10 +194,6 @@ export function transformPurchaseToJobUpdate(purchase: Purchase): {
     nextActionErrorType: nextAction.errorType,
     nextActionErrorNote: nextAction.errorNote,
   };
-
-  if (onChainStatus === "RESULT_SUBMITTED") {
-    data.resultSubmittedAt = new Date();
-  }
 
   const transaction = purchase.CurrentTransaction;
   if (transaction) {

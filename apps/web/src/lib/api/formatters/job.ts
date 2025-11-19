@@ -28,9 +28,6 @@ export function formatJobResponse(job: JobWithStatus): JobResponse {
     output: job.output,
     startedAt: dateToISO(job.startedAt),
     completedAt: job.completedAt ? dateToISO(job.completedAt) : null,
-    resultSubmittedAt: job.resultSubmittedAt
-      ? dateToISO(job.resultSubmittedAt)
-      : null,
     jobType: job.jobType,
     price: job.creditTransaction
       ? {
