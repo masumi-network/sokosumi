@@ -512,15 +512,6 @@ model Job {
 
   agentJobId String
 
-  purchaseId String?
-
-  nextAction          NextJobAction           @default(NONE)
-  nextActionErrorType NextJobActionErrorType?
-  nextActionErrorNote String?
-
-  errorNote    String?
-  errorNoteKey String?
-
   jobType JobType
 
   blockchainIdentifier      String?   @unique
@@ -530,13 +521,6 @@ model Job {
   unlockTime                DateTime?
   externalDisputeUnlockTime DateTime?
   sellerVkey                String?
-
-  onChainStatus     OnChainJobStatus?
-  resultSubmittedAt DateTime?
-  resultHash        String?
-
-  onChainTransactionHash   String?
-  onChainTransactionStatus OnChainTransactionStatus?
 
   creditTransaction           CreditTransaction? @relation("CreditTransactionJob", fields: [creditTransactionId], references: [id])
   creditTransactionId         String?            @unique

@@ -25,7 +25,6 @@ export type JobResponse = {
   output: string | null;
   startedAt: string; // ISO date
   completedAt: string | null; // ISO date
-  resultSubmittedAt: string | null; // ISO date
   jobType: JobType;
   price: JobCredits | null;
   refund: JobCredits | null;

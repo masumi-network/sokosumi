@@ -415,7 +415,6 @@ export const jobRepository = {
       nextActionErrorNote: string | null;
       onChainTransactionHash?: string;
       onChainTransactionStatus?: OnChainTransactionStatus;
-      resultSubmittedAt?: Date;
     },
     tx: Prisma.TransactionClient = prisma,
   ): Promise<JobWithStatus> {
@@ -432,9 +431,6 @@ export const jobRepository = {
       }),
       ...(data.onChainTransactionStatus && {
         onChainTransactionStatus: data.onChainTransactionStatus,
-      }),
-      ...(data.resultSubmittedAt && {
-        resultSubmittedAt: data.resultSubmittedAt,
       }),
     };
 
