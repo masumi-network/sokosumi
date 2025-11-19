@@ -479,6 +479,27 @@ const handleInvoicePaidEvent = async (
       }
     }
 
+    const metadata = invoice.metadata;
+    if (metadata?.fiatTransactionId) {
+      const fiatTransaction =
+        await fiatTransactionRepository.getFiatTransactionById(
+          metadata.fiatTransactionId,
+        );
+      if (fiatTransaction) {
+        console.log(`Invoice ${invoiceId} already processed`);
+        return NextResponse.json(
+          { message: "Invoice already processed" },
+          { status: 200 },
+        );
+      } else {
+        console.log(`Fiat transaction ${metadata.fiatTransactionId} not found`);
+        return NextResponse.json(
+          { message: "Fiat transaction not found" },
+          { status: 404 },
+        );
+      }
+    }
+
     // Check if we already processed this invoice
     const existingTransaction =
       await fiatTransactionRepository.getFiatTransactionByServicePaymentId(

@@ -313,6 +313,12 @@ export const stripeClient = (() => {
           },
           invoice_creation: {
             enabled: true,
+            invoice_data: {
+              metadata: {
+                origin: "checkout_session",
+                fiatTransactionId: fiatTransaction.id,
+              },
+            },
           },
           billing_address_collection: "required",
           tax_id_collection: { enabled: true },
