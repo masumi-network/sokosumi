@@ -42,12 +42,12 @@ interface CreateJobBase {
   input: string;
   name: string | null;
   jobScheduleId?: string | null | undefined;
-  agentJobStatus?: AgentJobStatus | null;
-  result?: string | null;
+  agentJobStatus: AgentJobStatus;
 }
 
 interface CreatePaidJobData extends CreateJobBase {
   jobType: typeof JobType.PAID;
+  agentJobStatus: typeof AgentJobStatus.AWAITING_INPUT;
   identifierFromPurchaser: string;
   creditsPrice: {
     cents: bigint;
@@ -64,6 +64,7 @@ interface CreatePaidJobData extends CreateJobBase {
 
 interface CreateFreeJobData extends CreateJobBase {
   jobType: typeof JobType.FREE;
+  agentJobStatus: typeof AgentJobStatus.RUNNING;
 }
 
 type CreateJobData = CreatePaidJobData | CreateFreeJobData;
@@ -259,17 +260,17 @@ export const jobRepository = {
           },
         },
       }),
-      inputSchema: JSON.stringify(data.inputSchema),
-      input: data.input,
+      jobEvents: {
+        create: {
+          status: data.agentJobStatus,
+          inputSchema: JSON.stringify(data.inputSchema),
+          input: data.input,
+        },
+      },
       name: data.name,
       ...(data.jobScheduleId && {
         jobSchedule: { connect: { id: data.jobScheduleId } },
       }),
-      ...(data.agentJobStatus !== undefined && {
-        agentJobStatus: data.agentJobStatus,
-      }),
-      ...(data.output !== undefined && { output: data.output }),
-      ...(data.completedAt !== undefined && { completedAt: data.completedAt }),
     };
 
     switch (data.jobType) {
@@ -277,7 +278,6 @@ export const jobRepository = {
         return tx.job.create({
           data: {
             ...baseJobData,
-            purchaseId: null,
             payByTime: null,
             externalDisputeUnlockTime: null,
             submitResultTime: null,
@@ -309,7 +309,6 @@ export const jobRepository = {
                 }),
               },
             },
-            ...(data.purchaseId && { purchaseId: data.purchaseId }),
             payByTime: data.payByTime,
             externalDisputeUnlockTime: data.externalDisputeUnlockTime,
             submitResultTime: data.submitResultTime,
