@@ -8,7 +8,6 @@ export default defineConfig({
   clean: true,
   sourcemap: true,
   outDir: "dist",
-  tsconfig: "tsconfig.json",
   external: ["dotenv"],
   esbuildOptions(options) {
     options.alias = {
