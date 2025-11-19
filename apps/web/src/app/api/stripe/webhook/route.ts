@@ -479,6 +479,14 @@ const handleInvoicePaidEvent = async (
       }
     }
 
+    const metadata = invoice.metadata;
+    if (metadata?.origin === "checkout_session") {
+      return NextResponse.json(
+        { message: "Credits will be processed by the checkout session" },
+        { status: 200 },
+      );
+    }
+
     // Check if we already processed this invoice
     const existingTransaction =
       await fiatTransactionRepository.getFiatTransactionByServicePaymentId(
