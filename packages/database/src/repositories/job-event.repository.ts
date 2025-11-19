@@ -8,17 +8,6 @@ import type {
 } from "../generated/prisma/client";
 
 interface CreateJobEventData {
-  jobId: string;
-  externalId?: string | null;
-  status: AgentJobStatus;
-  inputSchema?: InputJsonValue;
-  result?: string | null;
-  input?: InputJsonValue;
-  inputHash?: string | null;
-  signature?: string | null;
-}
-
-interface UpdateJobEventData {
   externalId?: string | null;
   status: AgentJobStatus;
   inputSchema?: InputJsonValue;
@@ -36,13 +25,14 @@ export const jobEventRepository = {
   /**
    * Creates a new JobEvent record
    */
-  async createJobEvent(
+  async createJobEventForJobId(
+    jobId: string,
     data: CreateJobEventData,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<JobEvent> {
     return await tx.jobEvent.create({
       data: {
-        job: { connect: { id: data.jobId } },
+        job: { connect: { id: jobId } },
         externalId: data.externalId,
         status: data.status,
         inputSchema: data.inputSchema,
