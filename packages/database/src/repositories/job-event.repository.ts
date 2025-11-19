@@ -10,9 +10,9 @@ import type {
 interface CreateJobEventData {
   externalId?: string | null;
   status: AgentJobStatus;
-  inputSchema?: InputJsonValue;
+  inputSchema?: string | null;
   result?: string | null;
-  input?: InputJsonValue;
+  input?: string | null;
   inputHash?: string | null;
   signature?: string | null;
 }
@@ -35,9 +35,15 @@ export const jobEventRepository = {
         job: { connect: { id: jobId } },
         externalId: data.externalId,
         status: data.status,
-        inputSchema: data.inputSchema,
+        ...(data.inputSchema !== null &&
+          data.inputSchema !== undefined && {
+            inputSchema: data.inputSchema,
+          }),
         result: data.result,
-        input: data.input,
+        ...(data.input !== null &&
+          data.input !== undefined && {
+            input: data.input,
+          }),
         inputHash: data.inputHash,
         signature: data.signature,
       },
