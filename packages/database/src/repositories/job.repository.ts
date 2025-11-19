@@ -235,7 +235,7 @@ export const jobRepository = {
   async createJob(
     data: CreateJobData,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<Job> {
+  ): Promise<JobWithStatus> {
     const baseJobData: Prisma.JobCreateInput = {
       agentJobId: data.agentJobId,
       jobType: data.jobType,
@@ -271,7 +271,7 @@ export const jobRepository = {
 
     switch (data.jobType) {
       case JobType.FREE:
-        return tx.job.create({
+        const freeJob = await tx.job.create({
           data: {
             ...baseJobData,
             payByTime: null,
@@ -282,9 +282,11 @@ export const jobRepository = {
             sellerVkey: null,
             identifierFromPurchaser: null,
           },
+          include: jobInclude,
         });
+        return mapJobWithStatus(freeJob);
       case JobType.PAID:
-        return tx.job.create({
+        const paidJob = await tx.job.create({
           data: {
             ...baseJobData,
             creditTransaction: {
@@ -313,7 +315,9 @@ export const jobRepository = {
             sellerVkey: data.sellerVkey,
             identifierFromPurchaser: data.identifierFromPurchaser,
           },
+          include: jobInclude,
         });
+        return mapJobWithStatus(paidJob);
       default: {
         const _exhaustive: never = data;
         throw new Error(`Unsupported job type: ${_exhaustive}`);
