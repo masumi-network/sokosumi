@@ -39,7 +39,7 @@ importers:
   apps/core:
     dependencies:
       '@hono/node-server':
-        specifier: ^1.19.6
+        specifier: 1.19.6
         version: 1.19.6(hono@4.10.4)
       '@hono/swagger-ui':
         specifier: 0.5.2

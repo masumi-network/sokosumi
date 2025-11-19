@@ -8,7 +8,8 @@ import { getEnvSecrets } from "@/config/index.js";
 import { notFound } from "@/helpers/error.js";
 import apiV1 from "@/routes/v1/index.js";
 
-const app = new Hono<{ Variables: RequestIdVariables }>();
+// Create the Hono app
+export const app = new Hono<{ Variables: RequestIdVariables }>();
 
 app.use(logger());
 app.use(requestId());
@@ -23,14 +24,21 @@ app.get("/", (c) => c.text("Hello World!"));
 // Mount API v1 routes
 app.route("/v1", apiV1);
 
-const port = getEnvSecrets().PORT;
+// Vercel serverless function handler
+// Vercel expects the fetch handler, not the app instance
+export default app.fetch;
 
-serve(
-  {
-    fetch: app.fetch,
-    port,
-  },
-  (info) => {
-    console.log(`🚀 Server is running on http://localhost:${info.port}`);
-  },
-);
+// Local development server (only runs when not in Vercel)
+if (process.env.VERCEL !== "1") {
+  const port = getEnvSecrets().PORT;
+
+  serve(
+    {
+      fetch: app.fetch,
+      port,
+    },
+    (info: { port: number; address: string }) => {
+      console.log(`🚀 Server is running on http://localhost:${info.port}`);
+    },
+  );
+}
