@@ -115,7 +115,7 @@ export const jobRepository = {
   ): Promise<number> {
     const result = await tx.$queryRaw<[{ avg_duration_seconds: number }]>`
     SELECT 
-      AVG(EXTRACT(EPOCH FROM ("completedAt" - "startedAt"))) as avg_duration_seconds
+      AVG(EXTRACT(EPOCH FROM ("completedAt" - "createdAt"))) as avg_duration_seconds
     FROM "Job"
     WHERE "agentId" = ${agentId}
     AND "jobType" != 'DEMO'
@@ -470,7 +470,7 @@ export const jobRepository = {
         userId,
         ...jobsNotFinishedWhereQuery(),
       },
-      orderBy: { startedAt: "desc" },
+      orderBy: { createdAt: "desc" },
       include: jobInclude,
     });
     return job ? mapJobWithStatus(job) : null;
@@ -498,7 +498,7 @@ export const jobRepository = {
         organizationId: normalizedOrganizationId,
         ...jobsNotFinishedWhereQuery(),
       },
-      orderBy: { startedAt: "desc" },
+      orderBy: { createdAt: "desc" },
       include: jobInclude,
     });
   },
