@@ -1,5 +1,3 @@
-import { InputJsonValue } from "@prisma/client/runtime/client";
-
 import prisma from "../client";
 import type {
   AgentJobStatus,
@@ -35,15 +33,9 @@ export const jobEventRepository = {
         job: { connect: { id: jobId } },
         externalId: data.externalId,
         status: data.status,
-        ...(data.inputSchema !== null &&
-          data.inputSchema !== undefined && {
-            inputSchema: data.inputSchema,
-          }),
+        inputSchema: data.inputSchema,
         result: data.result,
-        ...(data.input !== null &&
-          data.input !== undefined && {
-            input: data.input,
-          }),
+        input: data.input,
         inputHash: data.inputHash,
         signature: data.signature,
       },
@@ -121,7 +113,7 @@ export const jobEventRepository = {
 
   async setInputForJobEventById(
     id: string,
-    input: InputJsonValue,
+    input: string,
     inputHash: string,
     signature?: string | null,
     tx: Prisma.TransactionClient = prisma,
