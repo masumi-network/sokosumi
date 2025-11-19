@@ -1,4 +1,3 @@
-
 import prisma from "../client";
 import {
   AgentJobStatus,
@@ -656,9 +655,12 @@ function jobsNotFinishedWhereQuery(
       // Filter out free jobs that are completed or failed on agentJobStatus
       {
         jobType: JobType.FREE,
-        agentJobStatus: {
-          not: null,
-          in: finalizedAgentJobStatuses,
+        jobEvents: {
+          some: {
+            status: {
+              in: finalizedAgentJobStatuses,
+            },
+          },
         },
       },
     ],
@@ -678,8 +680,12 @@ function jobsFinishedWhereQuery(): Prisma.JobWhereInput {
   return {
     AND: [
       {
-        agentJobStatus: {
-          in: finalizedAgentJobStatuses,
+        jobEvents: {
+          some: {
+            status: {
+              in: finalizedAgentJobStatuses,
+            },
+          },
         },
         // Check for finalized on-chain statuses
         OR: [
