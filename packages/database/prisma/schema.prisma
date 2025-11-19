@@ -533,6 +533,7 @@ model Job {
 
   onChainStatus     OnChainJobStatus?
   resultSubmittedAt DateTime?
+  resultHash        String?
 
   onChainTransactionHash   String?
   onChainTransactionStatus OnChainTransactionStatus?
@@ -552,13 +553,45 @@ model Job {
 
   jobEvents JobEvent[]
 
+  // jobPurchase   JobPurchase?
+  // jobPurchaseId String?      @unique
+
   // Optional link to the schedule that initiated this job
   jobScheduleId String?
   jobSchedule   JobSchedule? @relation(fields: [jobScheduleId], references: [id], onDelete: SetNull)
+  jobPurchase   JobPurchase?
 
   @@index([jobType])
   @@index([jobScheduleId])
 }
+
+// model JobPurchase {
+//   id        String   @id @default(cuid())
+//   createdAt DateTime @default(now())
+//   updatedAt DateTime @updatedAt
+
+//   externalId String @unique
+
+//   jobId String @unique
+//   job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+//   onChainStatus OnChainJobStatus?
+
+//   onChainTransactionHash   String?
+//   onChainTransactionStatus OnChainTransactionStatus?
+
+//   resultHash String?
+
+//   nextAction          NextJobAction           @default(NONE)
+//   nextActionErrorType NextJobActionErrorType?
+//   nextActionErrorNote String?
+
+//   errorNote    String?
+//   errorNoteKey String?
+
+//   @@index([jobId])
+//   @@map("jobPurchase")
+// }
 
 model JobEvent {
   id        String   @id @default(cuid())
@@ -567,13 +600,13 @@ model JobEvent {
 
   externalId String?
 
-  status     AgentJobStatus @default(AWAITING_PAYMENT)
-  result     String?
-  resultHash String?
-
-  input       Json?
-  inputHash   String?
+  status      AgentJobStatus @default(AWAITING_PAYMENT)
   inputSchema Json?
+  result      String?
+
+  input     Json?
+  inputHash String?
+  signature String?
 
   jobId String
   job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)

@@ -36,7 +36,6 @@ INSERT INTO "jobEvent" (
   "updatedAt",
   status,
   result,
-  "resultHash",
   "jobId",
   "externalId"
 )
@@ -49,7 +48,6 @@ SELECT
     WHEN j.output IS NULL THEN NULL
     ELSE j.output::jsonb->>'result'
   END,
-  j."resultHash",
   j.id,
   NULL
 FROM "Job" j

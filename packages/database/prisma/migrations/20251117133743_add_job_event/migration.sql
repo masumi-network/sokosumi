@@ -6,9 +6,9 @@ CREATE TABLE "jobEvent" (
     "externalId" TEXT,
     "status" "AgentJobStatus" NOT NULL DEFAULT 'AWAITING_PAYMENT',
     "result" TEXT,
-    "resultHash" TEXT,
     "input" JSONB,
     "inputHash" TEXT,
+    "signature" TEXT,
     "inputSchema" JSONB,
     "jobId" TEXT NOT NULL,
 

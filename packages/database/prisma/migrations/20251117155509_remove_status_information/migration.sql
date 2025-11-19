@@ -16,5 +16,4 @@ DROP COLUMN "input",
 DROP COLUMN "inputHash",
 DROP COLUMN "inputSchema",
 DROP COLUMN "output",
-DROP COLUMN "resultHash",
 DROP COLUMN "startedAt";
