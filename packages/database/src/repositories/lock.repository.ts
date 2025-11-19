@@ -1,5 +1,5 @@
-import prisma from "../client";
-import type { Lock, Prisma } from "../generated/prisma/client";
+import prisma from "@/client.js";
+import { Lock, Prisma } from "@/generated/prisma/client.js";
 
 /**
  * Repository for distributed lock management using the Lock model.

@@ -30,4 +30,3 @@ publicHoistPattern:
   - pg-pool
   - eslint
   - prettier
-

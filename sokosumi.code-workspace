@@ -5,6 +5,18 @@
       "path": ".",
     },
     {
+      "name": "App: Ts-config",
+      "path": "apps/ts-config",
+    },
+    {
+      "name": "App: Eslint-config",
+      "path": "apps/eslint-config",
+    },
+    {
+      "name": "App: Prettier-config",
+      "path": "apps/prettier-config",
+    },
+    {
       "name": "App: Web",
       "path": "apps/web",
     },

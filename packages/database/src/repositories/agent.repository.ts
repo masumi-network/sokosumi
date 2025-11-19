@@ -1,15 +1,15 @@
-import prisma from "../client";
-import type { Agent, AgentStatus, Prisma } from "../generated/prisma/client";
+import prisma from "@/client.js";
+import { Agent, AgentStatus, Prisma } from "@/generated/prisma/client.js";
 import {
   agentInclude,
   agentOrderBy,
   agentOrganizationsInclude,
   agentPricingInclude,
-  type AgentWithJobs,
-  type AgentWithOrganizations,
-  type AgentWithPricing,
-  type AgentWithRelations,
-} from "../types/agent";
+  AgentWithJobs,
+  AgentWithOrganizations,
+  AgentWithPricing,
+  AgentWithRelations,
+} from "@/types/index.js";
 
 /**
  * Repository for managing Agent entities and related queries.

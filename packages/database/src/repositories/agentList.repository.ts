@@ -1,10 +1,6 @@
-import prisma from "../client";
-import type {
-  AgentList,
-  AgentListType,
-  Prisma,
-} from "../generated/prisma/client";
-import { agentListInclude, type AgentListWithAgents } from "../types/agentList";
+import prisma from "@/client.js";
+import { AgentList, AgentListType, Prisma } from "@/generated/prisma/client.js";
+import { agentListInclude, AgentListWithAgents } from "@/types/index.js";
 
 /**
  * Repository for managing agent lists associated with users.

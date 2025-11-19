@@ -1,8 +1,8 @@
 import { v4 as uuidv4 } from "uuid";
 
-import prisma from "../client";
-import type { Prisma } from "../generated/prisma/client";
-import { jobShareInclude } from "../types/job-share";
+import prisma from "@/client.js";
+import { Prisma } from "@/generated/prisma/client.js";
+import { jobShareInclude } from "@/types/index.js";
 
 /**
  * Repository for managing JobShare entities and related queries.

@@ -2,8 +2,10 @@
   "name": "@sokosumi/database",
   "version": "0.1.0",
   "private": true,
-  "main": "./dist/index.js",
-  "types": "./dist/index.d.ts",
+  "type": "module",
+  "engines": {
+    "node": ">=22.16.0 <23.0.0"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -30,10 +32,10 @@
       "import": "./dist/helpers/index.js",
       "default": "./dist/helpers/index.js"
     },
-    "./types/job": {
-      "types": "./dist/types/job.d.ts",
-      "import": "./dist/types/job.js",
-      "default": "./dist/types/job.js"
+    "./types": {
+      "types": "./dist/types/index.d.ts",
+      "import": "./dist/types/index.js",
+      "default": "./dist/types/index.js"
     }
   },
   "files": [
@@ -41,8 +43,7 @@
     "prisma/schema.prisma"
   ],
   "scripts": {
-    "build": "tsc",
-    "clean": "rm -rf dist && rm tsconfig.tsbuildinfo",
+    "build": "rm -rf dist && tsup",
     "prepare": "pnpm exec prisma generate --no-hints && pnpm build",
     "prisma:generate": "pnpm exec prisma generate --no-hints",
     "prisma:migrate:dev": "pnpm exec prisma migrate dev",
@@ -57,6 +58,7 @@
   "dependencies": {
     "@prisma/adapter-pg": "6.19.0",
     "@prisma/client": "6.19.0",
+    "@sokosumi/ts-config": "workspace:*",
     "pg": "8.16.3",
     "pg-pool": "3.10.1",
     "uuid": "13.0.0"
@@ -66,6 +68,7 @@
     "@types/pg": "8.15.6",
     "dotenv": "17.2.3",
     "prisma": "6.19.0",
+    "tsup": "8.5.1",
     "tsx": "4.20.6",
     "typescript": "5.9.3"
   }

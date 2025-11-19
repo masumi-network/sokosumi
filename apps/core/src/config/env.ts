@@ -1,4 +1,4 @@
-import * as z from "zod";
+import z from "zod";
 
 /**
  * Specify your environment variables schema here.

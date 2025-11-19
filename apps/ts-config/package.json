@@ -1,0 +1,5 @@
+{
+  "name": "@sokosumi/ts-config",
+  "type": "module",
+  "private": true
+}

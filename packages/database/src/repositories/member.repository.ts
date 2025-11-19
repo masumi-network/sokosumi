@@ -1,14 +1,14 @@
-import prisma from "../client";
-import type { Member, Prisma } from "../generated/prisma/client";
+import prisma from "@/client.js";
+import { Member, Prisma } from "@/generated/prisma/client.js";
 import {
   memberOrderBy,
   memberOrganizationInclude,
+  MemberRole,
   memberRoleOrderBy,
   memberUserInclude,
   MemberWithOrganization,
   MemberWithUser,
-} from "../types/member";
-import { MemberRole } from "../types/organization";
+} from "@/types/index.js";
 
 /**
  * Repository for managing Member entities and related queries.

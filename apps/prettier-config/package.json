@@ -1,0 +1,11 @@
+{
+  "name": "@sokosumi/prettier-config",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./base": {
+      "import": "./base.js",
+      "default": "./base.js"
+    }
+  }
+}

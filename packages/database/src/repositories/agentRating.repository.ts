@@ -1,9 +1,6 @@
-import prisma from "../client";
-import type { Prisma } from "../generated/prisma/client";
-import type {
-  AgentRatingStats,
-  UserAgentRatingWithUser,
-} from "../types/agentRating";
+import prisma from "@/client.js";
+import { Prisma } from "@/generated/prisma/client.js";
+import { AgentRatingStats, UserAgentRatingWithUser } from "@/types/index.js";
 
 export const agentRatingRepository = {
   /**

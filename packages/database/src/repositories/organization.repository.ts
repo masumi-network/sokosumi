@@ -1,11 +1,11 @@
-import prisma from "../client";
-import type { Organization, Prisma } from "../generated/prisma/client";
+import prisma from "@/client.js";
+import { Organization, Prisma } from "@/generated/prisma/client.js";
 import {
   organizationInclude,
   organizationLimitedInfoInclude,
   OrganizationWithLimitedInfo,
   OrganizationWithRelations,
-} from "../types/organization";
+} from "@/types/index.js";
 
 /**
  * Repository for managing Organization entities and related queries.

@@ -1,5 +1,5 @@
-import prisma from "./client";
-import type { Prisma } from "./generated/prisma/client";
+import prisma from "@/client.js";
+import { Prisma } from "@/generated/prisma/client.js";
 
 /**
  * Transaction builder interface that provides access to Prisma transactions
@@ -46,7 +46,7 @@ export const transaction = {
 } as const;
 
 // Re-export Prisma namespace and TransactionClient type for repository signatures
-export type { Prisma };
+export { Prisma };
 
 /**
  * Prisma TransactionClient type for use in repository method signatures.

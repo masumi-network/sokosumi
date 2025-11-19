@@ -1,5 +1,6 @@
-import type { Prisma } from "../generated/prisma/client";
-import { agentInclude } from "./agent";
+import { Prisma } from "@/generated/prisma/client.js";
+
+import { agentInclude } from "./agent.js";
 
 export const agentListInclude = {
   agents: {

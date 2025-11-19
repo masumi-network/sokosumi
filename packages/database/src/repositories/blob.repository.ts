@@ -1,6 +1,10 @@
-import prisma from "../client";
-import type { Blob, Prisma } from "../generated/prisma/client";
-import { BlobOrigin, BlobStatus } from "../generated/prisma/client";
+import prisma from "@/client.js";
+import {
+  Blob,
+  BlobOrigin,
+  BlobStatus,
+  Prisma,
+} from "@/generated/prisma/client.js";
 
 /**
  * Repository for managing Blob entities and related queries.

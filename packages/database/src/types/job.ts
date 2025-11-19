@@ -1,9 +1,12 @@
-import { AgentJobStatus, OnChainJobStatus } from "../generated/prisma/browser";
-import type {
+import {
+  AgentJobStatus,
+  OnChainJobStatus,
+} from "@/generated/prisma/browser.js";
+import {
   CreditTransaction,
   JobType,
   Prisma,
-} from "../generated/prisma/client";
+} from "@/generated/prisma/client.js";
 
 export const jobInclude = {
   agent: true,
