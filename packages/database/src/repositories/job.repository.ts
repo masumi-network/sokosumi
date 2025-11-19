@@ -30,9 +30,7 @@ interface CreateDemoJobData {
   inputSchema: unknown[];
   input: string;
   name: string | null;
-  agentJobStatus: AgentJobStatus;
-  output: string;
-  completedAt: Date | null;
+  result: string;
 }
 
 interface CreateJobBase {
@@ -45,8 +43,7 @@ interface CreateJobBase {
   name: string | null;
   jobScheduleId?: string | null | undefined;
   agentJobStatus?: AgentJobStatus | null;
-  output?: string | null;
-  completedAt?: Date | null;
+  result?: string | null;
 }
 
 interface CreatePaidJobData extends CreateJobBase {
@@ -219,8 +216,14 @@ export const jobRepository = {
             },
           },
         }),
-        inputSchema: JSON.stringify(data.inputSchema),
-        input: data.input,
+        jobEvents: {
+          create: {
+            status: AgentJobStatus.COMPLETED,
+            inputSchema: JSON.stringify(data.inputSchema),
+            input: data.input,
+            result: data.result,
+          },
+        },
         payByTime: null,
         submitResultTime: null,
         unlockTime: null,
@@ -228,9 +231,6 @@ export const jobRepository = {
         blockchainIdentifier: null,
         sellerVkey: null,
         name: data.name,
-        agentJobStatus: data.agentJobStatus,
-        output: data.output,
-        completedAt: data.completedAt,
       },
     });
   },
