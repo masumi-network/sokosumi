@@ -1035,11 +1035,11 @@ export const jobService = (() => {
             await jobEventRepository.getLatestJobEventByJobId(job.id, tx);
 
           if (!latestJobEvent) {
-            return job;
+            return computeJobStatus(job);
           }
 
           if (latestJobEvent.status === agentJobStatus) {
-            return job;
+            return computeJobStatus(job);
           }
 
           await jobEventRepository.createJobEventForJobId(
