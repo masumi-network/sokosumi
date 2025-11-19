@@ -44,6 +44,7 @@ export type JobDetailsNameFormSchemaType = z.infer<
 
 // Base response for FREE jobs
 export const startFreeJobResponseSchema = z.object({
+  id: z.string().nullish(),
   status: z.enum(["success", "error"]),
   job_id: z.string().min(1),
 });
@@ -54,8 +55,9 @@ export type StartFreeJobResponseSchemaType = z.infer<
 
 // Response for PAID jobs
 export const startPaidJobResponseSchema = startFreeJobResponseSchema.extend({
-  identifierFromPurchaser: z.string().min(1),
+  id: z.string().nullish(),
   input_hash: z.string().min(1),
+  identifierFromPurchaser: z.string().min(1),
   blockchainIdentifier: z.string().min(1),
   payByTime: z.coerce.number().int(),
   submitResultTime: z.coerce.number().int(),
