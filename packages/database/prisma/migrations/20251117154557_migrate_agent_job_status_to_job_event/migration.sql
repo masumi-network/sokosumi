@@ -21,8 +21,8 @@ SELECT
   j."createdAt",
   j."createdAt",
   'AWAITING_PAYMENT',
-  j.input::jsonb,
-  j."inputSchema"::jsonb,
+  j.input,
+  j."inputSchema",
   j."inputHash",
   j.id,
   NULL
@@ -70,8 +70,8 @@ SELECT
   j."createdAt",
   j."createdAt",
   'AWAITING_PAYMENT',
-  j.input::jsonb,
-  j."inputSchema"::jsonb,
+  j.input,
+  j."inputSchema",
   j."inputHash",
   j.id,
   NULL
@@ -114,8 +114,8 @@ SELECT
   j."createdAt",
   j."createdAt",
   COALESCE(j."agentJobStatus", 'AWAITING_PAYMENT'),
-  j.input::jsonb,
-  j."inputSchema"::jsonb,
+  j.input,
+  j."inputSchema",
   j."inputHash",
   j.id,
   NULL

@@ -584,10 +584,10 @@ model JobEvent {
   externalId String?
 
   status      AgentJobStatus @default(AWAITING_PAYMENT)
-  inputSchema Json?
+  inputSchema String?
   result      String?
 
-  input     Json?
+  input     String?
   inputHash String?
   signature String?
 
