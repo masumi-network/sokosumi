@@ -148,6 +148,30 @@ export const jobPurchaseRepository = {
   },
 
   /**
+   * Updates a JobPurchase by its externalId
+   */
+  async updateJobPurchaseByExternalId(
+    externalId: string,
+    data: UpdateJobPurchaseData,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<JobPurchase> {
+    return await tx.jobPurchase.update({
+      where: { externalId },
+      data: {
+        onChainStatus: data.onChainStatus,
+        onChainTransactionHash: data.onChainTransactionHash,
+        onChainTransactionStatus: data.onChainTransactionStatus,
+        resultHash: data.resultHash,
+        nextAction: data.nextAction,
+        nextActionErrorType: data.nextActionErrorType,
+        nextActionErrorNote: data.nextActionErrorNote,
+        errorNote: data.errorNote,
+        errorNoteKey: data.errorNoteKey,
+      },
+    });
+  },
+
+  /**
    * Deletes a JobPurchase by its ID
    */
   async deleteJobPurchaseById(

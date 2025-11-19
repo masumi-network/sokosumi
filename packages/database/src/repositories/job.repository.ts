@@ -11,7 +11,6 @@ import {
   finalizedOnChainJobStatuses,
   jobInclude,
   jobOrderBy,
-  type JobWithRelations,
   type JobWithStatus,
 } from "../types/job";
 
@@ -179,11 +178,12 @@ export const jobRepository = {
   async getJobByBlockchainIdentifier(
     blockchainIdentifier: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<JobWithRelations | null> {
-    return await tx.job.findUnique({
+  ): Promise<JobWithStatus | null> {
+    const job = await tx.job.findUnique({
       where: { blockchainIdentifier },
       include: jobInclude,
     });
+    return job ? mapJobWithStatus(job) : null;
   },
 
   async createDemoJob(

@@ -940,10 +940,24 @@ export const jobService = (() => {
       );
     }
 
-    const job = await jobRepository.updateJobNextActionByBlockchainIdentifier(
-      jobBlockchainIdentifier,
-      NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
-    );
+    const job = await prisma.$transaction(async (tx) => {
+      await jobPurchaseRepository.updateJobPurchaseByExternalId(
+        jobBlockchainIdentifier,
+        {
+          nextAction: NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
+        },
+        tx,
+      );
+
+      const job = await jobRepository.getJobByBlockchainIdentifier(
+        jobBlockchainIdentifier,
+        tx,
+      );
+      if (!job) {
+        throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
+      }
+      return job;
+    });
 
     // Add breadcrumb for successful refund request
     Sentry.addBreadcrumb({
