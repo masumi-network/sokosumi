@@ -112,11 +112,10 @@ export type JobStatusValue = (typeof JOB_STATUS_VALUES)[number];
 
 export const jobStatusResponseSchema = z
   .object({
+    id: z.string().nullish(),
     job_id: z.string(),
     status: z.enum(JOB_STATUS_VALUES),
-    message: z.string().nullish(),
-    error: z.string().nullish(),
-    input_data: z.array(jobInputSchema()).nullish(),
+    input_schema: z.array(jobInputSchema()).nullish(),
     result: z.string().nullish(),
   })
   .superRefine((data, ctx) => {

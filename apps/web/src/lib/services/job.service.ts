@@ -1031,7 +1031,6 @@ export const jobService = (() => {
           const agentJobStatus = jobStatusToAgentJobStatus(
             agentJobStatusResult.data.status,
           );
-          const output = JSON.stringify(agentJobStatusResult.data);
           const latestJobEvent =
             await jobEventRepository.getLatestJobEventByJobId(job.id, tx);
 
@@ -1043,25 +1042,19 @@ export const jobService = (() => {
             return job;
           }
 
-          await jobEventRepository.createJobEvent(
+          await jobEventRepository.createJobEventForJobId(
             job.id,
             {
+              externalId: agentJobStatusResult.data.id,
               status: agentJobStatus,
-              inputSchema: agentJobStatusResult.data.inputSchema ?? null,
+              inputSchema: JSON.stringify(
+                agentJobStatusResult.data.input_schema,
+              ),
               result: agentJobStatusResult.data.result,
-              input: agentJobStatusResult.data.input,
-              inputHash: agentJobStatusResult.data.inputHash,
-              signature: agentJobStatusResult.data.signature,
             },
             tx,
           );
 
-          // job = await jobRepository.updateJobWithAgentJobStatus(
-          //   job.id,
-          //   agentJobStatus,
-          //   output,
-          //   tx,
-          // );
           // Fire and forget: enqueue extraction if output is present
           try {
             const outputResult = agentJobStatusResult.data?.result;
