@@ -19,11 +19,11 @@ interface CreateDemoJobData {
   agentJobId: string;
   agentId: string;
   userId: string;
-  organizationId: string | null | undefined;
+  organizationId?: string | null;
   inputSchema: unknown[];
   input: string;
   name: string | null;
-  result: string;
+  result?: string | null;
 }
 
 interface CreateJobBase {
@@ -189,8 +189,8 @@ export const jobRepository = {
   async createDemoJob(
     data: CreateDemoJobData,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<Job> {
-    return await tx.job.create({
+  ): Promise<JobWithStatus> {
+    const job = await tx.job.create({
       data: {
         agentJobId: data.agentJobId,
         jobType: JobType.DEMO,
@@ -227,7 +227,9 @@ export const jobRepository = {
         sellerVkey: null,
         name: data.name,
       },
+      include: jobInclude,
     });
+    return mapJobWithStatus(job);
   },
 
   async createJob(

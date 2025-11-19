@@ -436,9 +436,6 @@ export const jobService = (() => {
       throw new JobError(JobErrorCode.AGENT_NOT_FOUND, "Agent not found");
     }
 
-    const output = JSON.stringify(jobStatusResponse);
-    const agentJobStatus = jobStatusToAgentJobStatus(jobStatusResponse.status);
-
     const job = await jobRepository.createDemoJob({
       jobType: JobType.DEMO,
       agentJobId: uuidv4(),
@@ -448,23 +445,16 @@ export const jobService = (() => {
       input: JSON.stringify(Object.fromEntries(inputData)),
       inputSchema: inputSchema,
       name: "Demo Job",
-      agentJobStatus,
-      output,
-      completedAt:
-        agentJobStatus === AgentJobStatus.COMPLETED ? new Date() : null,
+      result: jobStatusResponse.result,
     });
 
     // Enqueue any sources from demo output
     try {
-      if (job.output) {
-        const parsedOutput = JSON.parse(job.output);
-        if (parsedOutput?.result && typeof parsedOutput.result === "string") {
-          await sourceImportService.enqueueFromMarkdown(
-            userId,
-            job.id,
-            parsedOutput.result,
-          );
-        }
+      const result = job.jobEvents.find(
+        (event) => event.status === AgentJobStatus.COMPLETED,
+      )?.result;
+      if (result) {
+        await sourceImportService.enqueueFromMarkdown(userId, job.id, result);
       }
     } catch {
       // Ignore errors
