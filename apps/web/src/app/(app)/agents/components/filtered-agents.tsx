@@ -17,9 +17,7 @@ import useGalleryFilter, {
   GalleryFilterState,
 } from "@/hooks/use-gallery-filter";
 import { filterAgents } from "@/lib/helpers/agent-filter";
-import {
-  groupAgentsByCategory,
-} from "@/lib/helpers/agent-grouping";
+import { groupAgentsByCategory } from "@/lib/helpers/agent-grouping";
 import type { Category } from "@/lib/types/category";
 
 interface FilteredAgentsProps {

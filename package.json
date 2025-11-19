@@ -3,10 +3,6 @@
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.22.0",
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
   "scripts": {
     "dev": "pnpm -r dev",
     "web:dev": "pnpm --filter web dev",
@@ -46,6 +42,6 @@
     "eslint-plugin-simple-import-sort": "12.1.1",
     "eslint-plugin-unused-imports": "4.3.0",
     "prettier": "3.6.2",
-    "typescript-eslint": "8.46.4"
+    "typescript-eslint": "8.47.0"
   }
 }

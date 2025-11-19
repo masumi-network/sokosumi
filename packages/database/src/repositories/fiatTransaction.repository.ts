@@ -45,6 +45,22 @@ export const fiatTransactionRepository = {
   },
 
   /**
+   * Retrieves a fiat transaction by its ID.
+   *
+   * @param id - The ID of the fiat transaction.
+   * @param tx - (Optional) The Prisma transaction client to use for database operations. Defaults to the main Prisma client.
+   * @returns The matching FiatTransaction object, or null if not found.
+   */
+  async getFiatTransactionById(
+    id: string,
+    tx: Prisma.TransactionClient = prisma,
+  ): Promise<FiatTransaction | null> {
+    return await tx.fiatTransaction.findUnique({
+      where: { id },
+    });
+  },
+
+  /**
    * Retrieves a fiat transaction by its associated service payment ID (e.g., Stripe session ID).
    *
    * @param servicePaymentId - The external service payment/session ID.
