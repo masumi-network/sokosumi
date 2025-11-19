@@ -816,6 +816,7 @@ export const jobService = (() => {
       inputSchema: inputSchema,
       name: generatedName,
       jobScheduleId,
+      agentJobStatus: AgentJobStatus.RUNNING,
     });
 
     await publishJobStatusSafely(job);
