@@ -553,45 +553,44 @@ model Job {
 
   jobEvents JobEvent[]
 
-  // jobPurchase   JobPurchase?
-  // jobPurchaseId String?      @unique
+  jobPurchase   JobPurchase?
+  jobPurchaseId String?      @unique
 
   // Optional link to the schedule that initiated this job
   jobScheduleId String?
   jobSchedule   JobSchedule? @relation(fields: [jobScheduleId], references: [id], onDelete: SetNull)
-  jobPurchase   JobPurchase?
 
   @@index([jobType])
   @@index([jobScheduleId])
 }
 
-// model JobPurchase {
-//   id        String   @id @default(cuid())
-//   createdAt DateTime @default(now())
-//   updatedAt DateTime @updatedAt
+model JobPurchase {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-//   externalId String @unique
+  externalId String @unique
 
-//   jobId String @unique
-//   job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  jobId String @unique
+  job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
 
-//   onChainStatus OnChainJobStatus?
+  onChainStatus OnChainJobStatus?
 
-//   onChainTransactionHash   String?
-//   onChainTransactionStatus OnChainTransactionStatus?
+  onChainTransactionHash   String?
+  onChainTransactionStatus OnChainTransactionStatus?
 
-//   resultHash String?
+  resultHash String?
 
-//   nextAction          NextJobAction           @default(NONE)
-//   nextActionErrorType NextJobActionErrorType?
-//   nextActionErrorNote String?
+  nextAction          NextJobAction           @default(NONE)
+  nextActionErrorType NextJobActionErrorType?
+  nextActionErrorNote String?
 
-//   errorNote    String?
-//   errorNoteKey String?
+  errorNote    String?
+  errorNoteKey String?
 
-//   @@index([jobId])
-//   @@map("jobPurchase")
-// }
+  @@index([jobId])
+  @@map("jobPurchase")
+}
 
 model JobEvent {
   id        String   @id @default(cuid())
