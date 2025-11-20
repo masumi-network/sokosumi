@@ -104,19 +104,19 @@ export const jobRepository = {
     agentId: string,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<number> {
-    const result = await tx.$queryRaw<[{ avg_duration_seconds: number }]>`
+    const result = await tx.$queryRaw<
+      [{ avg_duration_seconds: number | null }]
+    >`
     SELECT 
-      AVG(EXTRACT(EPOCH FROM (je."createdAt" - j."createdAt"))) as avg_duration_seconds
+      COALESCE(AVG(EXTRACT(EPOCH FROM (je."createdAt" - j."createdAt"))), 0) as avg_duration_seconds
     FROM "Job" j
     INNER JOIN "jobEvent" je ON je."jobId" = j.id
     WHERE j."agentId" = ${agentId}
     AND j."jobType" != 'DEMO'
-    AND je.status = 'COMPLETED'
-    AND j."createdAt" >= NOW() - INTERVAL '30 days'
+    AND je.status = 'COMPLETED'::"AgentJobStatus"
+    AND j."createdAt" >= NOW() - INTERVAL '90 days'
   `;
-
     const averageDurationSeconds = result[0]?.avg_duration_seconds ?? 0;
-    console.log("averageDurationSeconds", averageDurationSeconds);
     return averageDurationSeconds * 1000;
   },
 
