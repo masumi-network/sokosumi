@@ -20,7 +20,7 @@ function checkPaymentStatus(
   job: JobWithRelations,
   now: Date,
 ): JobStatus | null {
-  if (job.jobPurchaseId === null) {
+  if (job.jobPurchase === null) {
     if (job.createdAt.getTime() < now.getTime() - TEN_MINUTES_TIMESTAMP) {
       return JobStatus.PAYMENT_FAILED;
     } else {
