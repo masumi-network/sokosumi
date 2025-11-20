@@ -106,7 +106,7 @@ export default function JobDetails({
               job.events.some(
                 (event: JobEvent) => event.status === AgentJobStatus.COMPLETED,
               ) ? (
-                <JobVerificationBadge direction="output" job={job} />
+                <JobVerificationBadge direction="result" job={job} />
               ) : null
             }
           >

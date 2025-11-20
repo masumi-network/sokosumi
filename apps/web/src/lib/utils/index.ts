@@ -134,7 +134,7 @@ export function getMatchedHash(
  * @returns true if the computed hash matches the stored hash; otherwise false
  */
 export function isJobVerified(
-  direction: "input" | "output",
+  direction: "input" | "result",
   job: JobWithStatus,
 ): boolean {
   if (!job.identifierFromPurchaser) {

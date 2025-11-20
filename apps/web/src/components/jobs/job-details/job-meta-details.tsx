@@ -1,6 +1,6 @@
 "use client";
 
-import { JobWithStatus } from "@sokosumi/database";
+import { AgentJobStatus, JobEvent, JobWithStatus } from "@sokosumi/database";
 import { LinkIcon } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
@@ -17,7 +17,6 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { convertCentsToCredits } from "@/lib/helpers/credit";
-import { JobStatusResponseSchemaType } from "@/lib/schemas";
 import {
   cn,
   getInputHash,
@@ -48,19 +47,28 @@ export function JobMetaDetails({ job }: JobMetaDetailsProps) {
   const t = useTranslations("Components.Jobs.JobDetails.Meta");
 
   const hashVerification = useMemo<HashVerificationResult>(() => {
-    const inputObj = tryParseJson<Record<string, unknown>>(job.input);
+    const inputObj = tryParseJson<Record<string, unknown>>(
+      job.events.find(
+        (event: JobEvent) => event.status === AgentJobStatus.AWAITING_PAYMENT,
+      )?.input ?? null,
+    );
     const inputData = inputObj ? toJobInputData(inputObj) : null;
-    const outputObj = tryParseJson<JobStatusResponseSchemaType>(job.output);
+    const result = job.events.find(
+      (event: JobEvent) => event.status === AgentJobStatus.COMPLETED,
+    )?.result;
 
     const identifier = job.identifierFromPurchaser;
     const calcInput =
       identifier && inputData ? getInputHash(inputData, identifier) : null;
     const calcOutput =
-      identifier && outputObj ? getResultHash(outputObj, identifier) : null;
+      identifier && result ? getResultHash(result, identifier) : null;
 
     return {
-      onChainInputHash: job.inputHash ?? null,
-      onChainResultHash: job.resultHash ?? null,
+      onChainInputHash:
+        job.events.find(
+          (event: JobEvent) => event.status === AgentJobStatus.AWAITING_PAYMENT,
+        )?.inputHash ?? null,
+      onChainResultHash: job.purchase?.resultHash ?? null,
       calculatedInputHash: calcInput,
       calculatedResultHash: calcOutput,
     };
@@ -84,14 +92,17 @@ export function JobMetaDetails({ job }: JobMetaDetailsProps) {
       key: "txId",
       label: t("txId"),
       rowClassName: "pb-1",
-      content: job.onChainTransactionHash ? (
+      content: job.purchase?.onChainTransactionHash ? (
         <Link
-          href={buildJobTransactionUrl(job.onChainTransactionHash, isMainnet)}
+          href={buildJobTransactionUrl(
+            job.purchase.onChainTransactionHash,
+            isMainnet,
+          )}
           className={"flex items-center gap-1 text-sm md:text-base"}
           target="_blank"
         >
           <LinkIcon className="h-4 w-4" />
-          <MiddleTruncate text={job.onChainTransactionHash} />
+          <MiddleTruncate text={job.purchase.onChainTransactionHash} />
         </Link>
       ) : (
         <span>{"-"}</span>
@@ -113,14 +124,21 @@ export function JobMetaDetails({ job }: JobMetaDetailsProps) {
       key: "started",
       label: t("started"),
       rowClassName: "pb-1",
-      content: formatDateTimeMedium(formatter.dateTime, job.startedAt),
+      content: formatDateTimeMedium(formatter.dateTime, job.createdAt),
     },
     {
       key: "finished",
       label: t("finished"),
       rowClassName: "pb-1",
-      content: job.completedAt
-        ? formatDateTimeMedium(formatter.dateTime, job.completedAt)
+      content: job.events.find(
+        (event: JobEvent) => event.status === AgentJobStatus.COMPLETED,
+      )?.createdAt
+        ? formatDateTimeMedium(
+            formatter.dateTime,
+            job.events.find(
+              (event: JobEvent) => event.status === AgentJobStatus.COMPLETED,
+            )!.createdAt,
+          )
         : "-",
     },
     ...(job.creditTransaction
@@ -143,7 +161,7 @@ export function JobMetaDetails({ job }: JobMetaDetailsProps) {
         const isHashGroup =
           item.key === "inputHashGroup" || item.key === "outputHashGroup";
         if (isHashGroup) {
-          const direction = item.key === "inputHashGroup" ? "input" : "output";
+          const direction = item.key === "inputHashGroup" ? "input" : "result";
           const onChainHash =
             direction === "input" ? onChainInputHash : onChainResultHash;
           const calculatedHash =
@@ -203,7 +221,7 @@ function KeyValueRow({
 export default JobMetaDetails;
 
 interface HashGroupProps {
-  direction: "input" | "output";
+  direction: "input" | "result";
   onChainHash: string | null;
   calculatedHash: string | null;
   job: JobWithStatus;

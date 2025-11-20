@@ -23,7 +23,7 @@ interface VerificationState {
 }
 
 interface JobVerificationBadgeProps {
-  direction: "input" | "output";
+  direction: "input" | "result";
   job: JobWithStatus;
   className?: string;
 }
@@ -50,7 +50,7 @@ export function JobVerificationBadge({
     }
 
     switch (direction) {
-      case "output": {
+      case "result": {
         // Direction: output → pending only when on-chain state is FUNDS_LOCKED
         // Otherwise, try to verify the hash
         const isFundsLocked =
@@ -60,7 +60,7 @@ export function JobVerificationBadge({
         } else {
           return {
             isPending: false,
-            isVerified: isJobVerified("output", job),
+            isVerified: isJobVerified("result", job),
             isNotApplicable: false,
           };
         }
