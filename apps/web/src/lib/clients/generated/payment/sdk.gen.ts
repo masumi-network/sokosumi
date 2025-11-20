@@ -21,647 +21,425 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 /**
  * Get the status of the API server
  */
-export const getHealth = <ThrowOnError extends boolean = false>(options?: Options<GetHealthData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetHealthResponses, unknown, ThrowOnError>({
-        url: '/health/',
-        ...options
-    });
-};
+export const getHealth = <ThrowOnError extends boolean = false>(options?: Options<GetHealthData, ThrowOnError>) => (options?.client ?? client).get<GetHealthResponses, unknown, ThrowOnError>({ url: '/health/', ...options });
 
 /**
  * Get information about your current API key.
  *
  * Gets api key status
  */
-export const getApiKeyStatus = <ThrowOnError extends boolean = false>(options?: Options<GetApiKeyStatusData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiKeyStatusResponses, unknown, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/api-key-status/',
-        ...options
-    });
-};
+export const getApiKeyStatus = <ThrowOnError extends boolean = false>(options?: Options<GetApiKeyStatusData, ThrowOnError>) => (options?.client ?? client).get<GetApiKeyStatusResponses, unknown, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/api-key-status/',
+    ...options
+});
 
 /**
  * Get information about a wallet. (admin access required)
  *
  * Gets wallet status
  */
-export const getWallet = <ThrowOnError extends boolean = false>(options: Options<GetWalletData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetWalletResponses, unknown, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/wallet/',
-        ...options
-    });
-};
+export const getWallet = <ThrowOnError extends boolean = false>(options: Options<GetWalletData, ThrowOnError>) => (options.client ?? client).get<GetWalletResponses, unknown, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/wallet/',
+    ...options
+});
 
 /**
  * Update a wallet. (admin access required)
  *
  * Updates a wallet
  */
-export const patchWallet = <ThrowOnError extends boolean = false>(options?: Options<PatchWalletData, ThrowOnError>) => {
-    return (options?.client ?? client).patch<PatchWalletResponses, unknown, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/wallet/',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers
-        }
-    });
-};
+export const patchWallet = <ThrowOnError extends boolean = false>(options?: Options<PatchWalletData, ThrowOnError>) => (options?.client ?? client).patch<PatchWalletResponses, unknown, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/wallet/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
 
 /**
  * Create a new wallet. (admin access required)
  *
  * Creates a wallet, it will not be saved in the database, please ensure to remember the mnemonic
  */
-export const postWallet = <ThrowOnError extends boolean = false>(options?: Options<PostWalletData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostWalletResponses, unknown, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/wallet/',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers
-        }
-    });
-};
+export const postWallet = <ThrowOnError extends boolean = false>(options?: Options<PostWalletData, ThrowOnError>) => (options?.client ?? client).post<PostWalletResponses, unknown, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/wallet/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
 
 /**
  * Verifies the reveal data signature is valid. (read access required)
  *
  * Verifies the reveal data signature is valid.
  */
-export const postRevealData = <ThrowOnError extends boolean = false>(options?: Options<PostRevealDataData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostRevealDataResponses, unknown, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/reveal-data/',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers
-        }
-    });
-};
+export const postRevealData = <ThrowOnError extends boolean = false>(options?: Options<PostRevealDataData, ThrowOnError>) => (options?.client ?? client).post<PostRevealDataResponses, unknown, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/reveal-data/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
 
 /**
  * Delete an existing API key. (admin access required)
  *
  * Removes a API key
  */
-export const deleteApiKey = <ThrowOnError extends boolean = false>(options?: Options<DeleteApiKeyData, ThrowOnError>) => {
-    return (options?.client ?? client).delete<DeleteApiKeyResponses, DeleteApiKeyErrors, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/api-key/',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers
-        }
-    });
-};
+export const deleteApiKey = <ThrowOnError extends boolean = false>(options?: Options<DeleteApiKeyData, ThrowOnError>) => (options?.client ?? client).delete<DeleteApiKeyResponses, DeleteApiKeyErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/api-key/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
 
 /**
  * Get information about all API keys. (admin access required)
  *
  * Gets api key status
  */
-export const getApiKey = <ThrowOnError extends boolean = false>(options?: Options<GetApiKeyData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiKeyResponses, GetApiKeyErrors, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/api-key/',
-        ...options
-    });
-};
+export const getApiKey = <ThrowOnError extends boolean = false>(options?: Options<GetApiKeyData, ThrowOnError>) => (options?.client ?? client).get<GetApiKeyResponses, GetApiKeyErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/api-key/',
+    ...options
+});
 
 /**
  * Update an existing API key. (admin access required)
  *
  * Creates a API key
  */
-export const patchApiKey = <ThrowOnError extends boolean = false>(options?: Options<PatchApiKeyData, ThrowOnError>) => {
-    return (options?.client ?? client).patch<PatchApiKeyResponses, PatchApiKeyErrors, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/api-key/',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers
-        }
-    });
-};
+export const patchApiKey = <ThrowOnError extends boolean = false>(options?: Options<PatchApiKeyData, ThrowOnError>) => (options?.client ?? client).patch<PatchApiKeyResponses, PatchApiKeyErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/api-key/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
 
 /**
  * Create a new API key. (admin access required)
  *
  * Creates a API key
  */
-export const postApiKey = <ThrowOnError extends boolean = false>(options?: Options<PostApiKeyData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostApiKeyResponses, PostApiKeyErrors, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/api-key/',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers
-        }
-    });
-};
+export const postApiKey = <ThrowOnError extends boolean = false>(options?: Options<PostApiKeyData, ThrowOnError>) => (options?.client ?? client).post<PostApiKeyResponses, PostApiKeyErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/api-key/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
 
 /**
  * Get information about a payment request. (admin access required)
  *
  * Gets the payment status. It needs to be created first with a POST request.
  */
-export const getPayment = <ThrowOnError extends boolean = false>(options: Options<GetPaymentData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetPaymentResponses, GetPaymentErrors, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/payment/',
-        ...options
-    });
-};
+export const getPayment = <ThrowOnError extends boolean = false>(options: Options<GetPaymentData, ThrowOnError>) => (options.client ?? client).get<GetPaymentResponses, GetPaymentErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/payment/',
+    ...options
+});
 
 /**
  * Create a new payment request. (admin access required +PAY)
  *
  * Creates a payment request and identifier. This will check incoming payments in the background.
  */
-export const postPayment = <ThrowOnError extends boolean = false>(options?: Options<PostPaymentData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostPaymentResponses, PostPaymentErrors, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/payment/',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers
-        }
-    });
-};
+export const postPayment = <ThrowOnError extends boolean = false>(options?: Options<PostPaymentData, ThrowOnError>) => (options?.client ?? client).post<PostPaymentResponses, PostPaymentErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/payment/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
 
 /**
  * Completes a payment request. This will collect the funds after the unlock time. (admin access required +PAY)
  *
  * Submit the hash of their completed job for a payment request, which triggers the fund unlock process so the seller can collect payment after the unlock time expires. (admin access required +PAY)
  */
-export const postPaymentSubmitResult = <ThrowOnError extends boolean = false>(options?: Options<PostPaymentSubmitResultData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostPaymentSubmitResultResponses, PostPaymentSubmitResultErrors, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/payment/submit-result',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers
-        }
-    });
-};
+export const postPaymentSubmitResult = <ThrowOnError extends boolean = false>(options?: Options<PostPaymentSubmitResultData, ThrowOnError>) => (options?.client ?? client).post<PostPaymentSubmitResultResponses, PostPaymentSubmitResultErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/payment/submit-result',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
 
 /**
  * Authorizes a refund for a payment request. This will stop the right to receive a payment and initiate a refund for the other party. (admin access required +PAY)
  *
  * Authorizes a refund for a payment request. This will stop the right to receive a payment and initiate a refund for the other party.
  */
-export const postPaymentAuthorizeRefund = <ThrowOnError extends boolean = false>(options?: Options<PostPaymentAuthorizeRefundData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostPaymentAuthorizeRefundResponses, PostPaymentAuthorizeRefundErrors, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/payment/authorize-refund',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers
-        }
-    });
-};
+export const postPaymentAuthorizeRefund = <ThrowOnError extends boolean = false>(options?: Options<PostPaymentAuthorizeRefundData, ThrowOnError>) => (options?.client ?? client).post<PostPaymentAuthorizeRefundResponses, PostPaymentAuthorizeRefundErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/payment/authorize-refund',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
 
 /**
  * Get information about an existing purchase request. (READ access required)
  *
  * Gets the purchase status. It needs to be created first with a POST request.
  */
-export const getPurchase = <ThrowOnError extends boolean = false>(options: Options<GetPurchaseData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetPurchaseResponses, GetPurchaseErrors, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/purchase/',
-        ...options
-    });
-};
+export const getPurchase = <ThrowOnError extends boolean = false>(options: Options<GetPurchaseData, ThrowOnError>) => (options.client ?? client).get<GetPurchaseResponses, GetPurchaseErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/purchase/',
+    ...options
+});
 
 /**
  * Create a new purchase request and pay. (access required +PAY)
  *
  * Creates a purchase and pays the seller. This requires funds to be available.
  */
-export const postPurchase = <ThrowOnError extends boolean = false>(options?: Options<PostPurchaseData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostPurchaseResponses, PostPurchaseErrors, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/purchase/',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers
-        }
-    });
-};
+export const postPurchase = <ThrowOnError extends boolean = false>(options?: Options<PostPurchaseData, ThrowOnError>) => (options?.client ?? client).post<PostPurchaseResponses, PostPurchaseErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/purchase/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
 
 /**
  * Request a refund for a completed purchase, which will be automatically collected after the refund time period expires. (+PAY access required)
  *
  * Requests a refund for a completed purchase. This will collect the refund after the refund time.
  */
-export const postPurchaseRequestRefund = <ThrowOnError extends boolean = false>(options?: Options<PostPurchaseRequestRefundData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostPurchaseRequestRefundResponses, PostPurchaseRequestRefundErrors, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/purchase/request-refund',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers
-        }
-    });
-};
+export const postPurchaseRequestRefund = <ThrowOnError extends boolean = false>(options?: Options<PostPurchaseRequestRefundData, ThrowOnError>) => (options?.client ?? client).post<PostPurchaseRequestRefundResponses, PostPurchaseRequestRefundErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/purchase/request-refund',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
 
 /**
  * Cancel a previously requested refund for a purchase, reverting the transaction back to its normal processing state. (+PAY access required)
  *
  * Requests a refund for a completed purchase. This will collect the refund after the refund time.
  */
-export const postPurchaseCancelRefundRequest = <ThrowOnError extends boolean = false>(options?: Options<PostPurchaseCancelRefundRequestData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostPurchaseCancelRefundRequestResponses, PostPurchaseCancelRefundRequestErrors, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/purchase/cancel-refund-request',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers
-        }
-    });
-};
+export const postPurchaseCancelRefundRequest = <ThrowOnError extends boolean = false>(options?: Options<PostPurchaseCancelRefundRequestData, ThrowOnError>) => (options?.client ?? client).post<PostPurchaseCancelRefundRequestResponses, PostPurchaseCancelRefundRequestErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/purchase/cancel-refund-request',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
 
 /**
  * Resolve a payment request by its blockchain identifier. (READ access required)
  *
  * Resolves a payment request by its blockchain identifier.
  */
-export const postPaymentResolveBlockchainIdentifier = <ThrowOnError extends boolean = false>(options?: Options<PostPaymentResolveBlockchainIdentifierData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostPaymentResolveBlockchainIdentifierResponses, PostPaymentResolveBlockchainIdentifierErrors, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/payment/resolve-blockchain-identifier',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers
-        }
-    });
-};
+export const postPaymentResolveBlockchainIdentifier = <ThrowOnError extends boolean = false>(options?: Options<PostPaymentResolveBlockchainIdentifierData, ThrowOnError>) => (options?.client ?? client).post<PostPaymentResolveBlockchainIdentifierResponses, PostPaymentResolveBlockchainIdentifierErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/payment/resolve-blockchain-identifier',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
 
 /**
  * Resolve a purchase request by its blockchain identifier. (READ access required)
  *
  * Resolves a purchase request by its blockchain identifier.
  */
-export const postPurchaseResolveBlockchainIdentifier = <ThrowOnError extends boolean = false>(options?: Options<PostPurchaseResolveBlockchainIdentifierData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostPurchaseResolveBlockchainIdentifierResponses, PostPurchaseResolveBlockchainIdentifierErrors, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/purchase/resolve-blockchain-identifier',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers
-        }
-    });
-};
+export const postPurchaseResolveBlockchainIdentifier = <ThrowOnError extends boolean = false>(options?: Options<PostPurchaseResolveBlockchainIdentifierData, ThrowOnError>) => (options?.client ?? client).post<PostPurchaseResolveBlockchainIdentifierResponses, PostPurchaseResolveBlockchainIdentifierErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/purchase/resolve-blockchain-identifier',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
 
 /**
  * Fetch all agents (and their full metadata) that are registered to a specified wallet. (READ access required)
  *
  * Gets the agent metadata.
  */
-export const getRegistryWallet = <ThrowOnError extends boolean = false>(options: Options<GetRegistryWalletData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetRegistryWalletResponses, unknown, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/registry/wallet',
-        ...options
-    });
-};
+export const getRegistryWallet = <ThrowOnError extends boolean = false>(options: Options<GetRegistryWalletData, ThrowOnError>) => (options.client ?? client).get<GetRegistryWalletResponses, unknown, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/registry/wallet',
+    ...options
+});
 
 /**
  * Delete an agent registration record. (admin access required)
  *
  * Permanently deletes an agent registration record from the database. This action is irreversible and should only be used for registrations in specific failed or completed states.
  */
-export const deleteRegistry = <ThrowOnError extends boolean = false>(options?: Options<DeleteRegistryData, ThrowOnError>) => {
-    return (options?.client ?? client).delete<DeleteRegistryResponses, DeleteRegistryErrors, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/registry/',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers
-        }
-    });
-};
+export const deleteRegistry = <ThrowOnError extends boolean = false>(options?: Options<DeleteRegistryData, ThrowOnError>) => (options?.client ?? client).delete<DeleteRegistryResponses, DeleteRegistryErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/registry/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
 
 /**
  * List every agent that is recorded in the Masumi Registry. (READ access required)
  *
  * Gets the agent metadata.
  */
-export const getRegistry = <ThrowOnError extends boolean = false>(options: Options<GetRegistryData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetRegistryResponses, unknown, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/registry/',
-        ...options
-    });
-};
+export const getRegistry = <ThrowOnError extends boolean = false>(options: Options<GetRegistryData, ThrowOnError>) => (options.client ?? client).get<GetRegistryResponses, unknown, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/registry/',
+    ...options
+});
 
 /**
  * Registers an agent to the registry (+PAY access required)
  *
  * Registers an agent to the registry (Please note that while it it is put on-chain, the transaction is not yet finalized by the blockchain, as designed finality is only eventually reached. If you need certainty, please check status via the registry(GET) or if you require custom logic, the transaction directly using the txHash)
  */
-export const postRegistry = <ThrowOnError extends boolean = false>(options?: Options<PostRegistryData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostRegistryResponses, unknown, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/registry/',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers
-        }
-    });
-};
+export const postRegistry = <ThrowOnError extends boolean = false>(options?: Options<PostRegistryData, ThrowOnError>) => (options?.client ?? client).post<PostRegistryResponses, unknown, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/registry/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
 
 /**
  * Deregisters an agent from the specified registry. (admin access required +PAY)
  *
  * Deregisters a agent from the specified registry (Please note that while the command is put on-chain, the transaction is not yet finalized by the blockchain, as designed finality is only eventually reached. If you need certainty, please check status via the registry(GET) or if you require custom logic, the transaction directly using the txHash)
  */
-export const postRegistryDeregister = <ThrowOnError extends boolean = false>(options?: Options<PostRegistryDeregisterData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostRegistryDeregisterResponses, unknown, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/registry/deregister',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers
-        }
-    });
-};
+export const postRegistryDeregister = <ThrowOnError extends boolean = false>(options?: Options<PostRegistryDeregisterData, ThrowOnError>) => (options?.client ?? client).post<PostRegistryDeregisterResponses, unknown, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/registry/deregister',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
 
 /**
  * List payment sources with their public details. (READ access required)
  *
  * Gets the payment source.
  */
-export const getPaymentSource = <ThrowOnError extends boolean = false>(options?: Options<GetPaymentSourceData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetPaymentSourceResponses, unknown, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/payment-source/',
-        ...options
-    });
-};
+export const getPaymentSource = <ThrowOnError extends boolean = false>(options?: Options<GetPaymentSourceData, ThrowOnError>) => (options?.client ?? client).get<GetPaymentSourceResponses, unknown, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/payment-source/',
+    ...options
+});
 
 /**
  * Delete an existing payment source. (+ADMIN access required)
  *
  * Deletes a payment source. WARNING will also delete all associated wallets and transactions.
  */
-export const deletePaymentSourceExtended = <ThrowOnError extends boolean = false>(options?: Options<DeletePaymentSourceExtendedData, ThrowOnError>) => {
-    return (options?.client ?? client).delete<DeletePaymentSourceExtendedResponses, unknown, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/payment-source-extended/',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers
-        }
-    });
-};
+export const deletePaymentSourceExtended = <ThrowOnError extends boolean = false>(options?: Options<DeletePaymentSourceExtendedData, ThrowOnError>) => (options?.client ?? client).delete<DeletePaymentSourceExtendedResponses, unknown, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/payment-source-extended/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
 
 /**
  * List payment sources with their public details augmented with internal configuration and sync status information. (admin access required)
  *
  * Gets the payment contracts including the status.
  */
-export const getPaymentSourceExtended = <ThrowOnError extends boolean = false>(options?: Options<GetPaymentSourceExtendedData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetPaymentSourceExtendedResponses, unknown, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/payment-source-extended/',
-        ...options
-    });
-};
+export const getPaymentSourceExtended = <ThrowOnError extends boolean = false>(options?: Options<GetPaymentSourceExtendedData, ThrowOnError>) => (options?.client ?? client).get<GetPaymentSourceExtendedResponses, unknown, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/payment-source-extended/',
+    ...options
+});
 
 /**
  * Update an existing payment source. (+ADMIN access required)
  *
  * Updates a payment source.
  */
-export const patchPaymentSourceExtended = <ThrowOnError extends boolean = false>(options?: Options<PatchPaymentSourceExtendedData, ThrowOnError>) => {
-    return (options?.client ?? client).patch<PatchPaymentSourceExtendedResponses, unknown, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/payment-source-extended/',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers
-        }
-    });
-};
+export const patchPaymentSourceExtended = <ThrowOnError extends boolean = false>(options?: Options<PatchPaymentSourceExtendedData, ThrowOnError>) => (options?.client ?? client).patch<PatchPaymentSourceExtendedResponses, unknown, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/payment-source-extended/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
 
 /**
  * Create a new payment source. (+ADMIN access required)
  *
  * Creates a payment source.
  */
-export const postPaymentSourceExtended = <ThrowOnError extends boolean = false>(options?: Options<PostPaymentSourceExtendedData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostPaymentSourceExtendedResponses, unknown, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/payment-source-extended/',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers
-        }
-    });
-};
+export const postPaymentSourceExtended = <ThrowOnError extends boolean = false>(options?: Options<PostPaymentSourceExtendedData, ThrowOnError>) => (options?.client ?? client).post<PostPaymentSourceExtendedResponses, unknown, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/payment-source-extended/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
 
 /**
  * Helper endpoint that lets you ask the payment service for the current UTXOs sitting at a particular Cardano address. (READ access required)
  *
  * Gets UTXOs (internal)
  */
-export const getUtxos = <ThrowOnError extends boolean = false>(options: Options<GetUtxosData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetUtxosResponses, unknown, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/utxos/',
-        ...options
-    });
-};
+export const getUtxos = <ThrowOnError extends boolean = false>(options: Options<GetUtxosData, ThrowOnError>) => (options.client ?? client).get<GetUtxosResponses, unknown, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/utxos/',
+    ...options
+});
 
 /**
  * List Blockfrost API keys. (admin access required)
  *
  * Gets rpc api keys, currently only blockfrost is supported (internal)
  */
-export const getRpcApiKeys = <ThrowOnError extends boolean = false>(options?: Options<GetRpcApiKeysData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetRpcApiKeysResponses, unknown, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/rpc-api-keys/',
-        ...options
-    });
-};
+export const getRpcApiKeys = <ThrowOnError extends boolean = false>(options?: Options<GetRpcApiKeysData, ThrowOnError>) => (options?.client ?? client).get<GetRpcApiKeysResponses, unknown, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/rpc-api-keys/',
+    ...options
+});
