@@ -2,6 +2,9 @@ name: Linting
 on:
   pull_request:
 
+env:
+  DATABASE_URL: "postgresql://user:password@localhost:5432/sokosumi"
+
 jobs:
   eslint:
     name: ESLint
