@@ -13,6 +13,8 @@ const customJestConfig = {
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
     "^@sokosumi/database/(.*)$": "<rootDir>/../../packages/database/src/$1",
+    // Resolve Prisma generated .js imports to .ts files
+    "^(\\.{1,2}/.*)\\.js$": "$1",
   },
   transformIgnorePatterns: ["/node_modules/(?!(uuid|@sokosumi)/)"],
 };

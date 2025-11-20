@@ -2,6 +2,7 @@
   "name": "@sokosumi/database",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "exports": {
@@ -56,8 +57,8 @@
     "format:check": "prettier --check \"src/**/*.ts\""
   },
   "dependencies": {
-    "@prisma/adapter-pg": "6.19.0",
-    "@prisma/client": "6.19.0",
+    "@prisma/adapter-pg": "7.0.0",
+    "@prisma/client": "7.0.0",
     "pg": "8.16.3",
     "pg-pool": "3.10.1",
     "uuid": "13.0.0"
@@ -66,7 +67,7 @@
     "@types/node": "22.19.1",
     "@types/pg": "8.15.6",
     "dotenv": "17.2.3",
-    "prisma": "6.19.0",
+    "prisma": "7.0.0",
     "tsx": "4.20.6",
     "typescript": "5.9.3"
   }
