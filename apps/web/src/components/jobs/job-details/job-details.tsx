@@ -1,8 +1,9 @@
 import {
   AgentJobStatus,
   BlobOrigin,
-  JobStatus,
+  JobEvent,
   JobWithStatus,
+  Prisma,
 } from "@sokosumi/database";
 import { useFormatter, useTranslations } from "next-intl";
 
@@ -33,7 +34,28 @@ export default function JobDetails({
 }: JobDetailsProps) {
   const t = useTranslations("Components.Jobs.JobDetails");
 
-  const hasCompletedOutput = job.status === JobStatus.COMPLETED && !!job.output;
+  // Find the event with input data (typically AWAITING_PAYMENT event)
+  const inputEvent =
+    job.events.find(
+      (event) =>
+        event.status === AgentJobStatus.AWAITING_PAYMENT && event.input != null,
+    ) ?? job.events.find((event) => event.input != null);
+
+  // Extract input and inputSchema from the event
+  const rawInput = inputEvent?.input ?? null;
+  let inputSchema: Prisma.JsonValue | null = null;
+  if (inputEvent?.inputSchema) {
+    try {
+      inputSchema = JSON.parse(inputEvent.inputSchema);
+    } catch {
+      // If parsing fails, keep it as null
+      inputSchema = null;
+    }
+  }
+
+  const hasCompletedOutput = job.events.some(
+    (event: JobEvent) => event.status === AgentJobStatus.COMPLETED,
+  );
   // Only show Sources accordion if there are OUTPUT blobs or links
   // Note: Only output blobs are shown in the Sources section
   const hasOutputBlobs = job.blobs.some(
@@ -72,8 +94,8 @@ export default function JobDetails({
             }
           >
             <JobDetailsInputs
-              rawInput={job.input}
-              inputSchema={job.inputSchema}
+              rawInput={rawInput}
+              inputSchema={inputSchema}
               blobs={job.blobs}
             />
           </AccordionItemWrapper>
@@ -81,7 +103,9 @@ export default function JobDetails({
             value="output"
             title={t("Output.title")}
             verificationBadge={
-              job.agentJobStatus === AgentJobStatus.COMPLETED ? (
+              job.events.some(
+                (event: JobEvent) => event.status === AgentJobStatus.COMPLETED,
+              ) ? (
                 <JobVerificationBadge direction="output" job={job} />
               ) : null
             }
