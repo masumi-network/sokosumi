@@ -42,10 +42,3 @@ FROM "Job" j
 WHERE j."purchaseId" IS NOT NULL
 ORDER BY j."purchaseId", j."createdAt";
 
--- Update Job.jobPurchaseId to link to the newly created JobPurchase records
-UPDATE "Job" j
-SET "jobPurchaseId" = jp.id
-FROM "jobPurchase" jp
-WHERE j.id = jp."jobId"
-  AND j."purchaseId" IS NOT NULL;
-

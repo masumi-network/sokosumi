@@ -213,7 +213,7 @@ export const jobRepository = {
             },
           },
         }),
-        jobEvents: {
+        events: {
           create: {
             status: AgentJobStatus.COMPLETED,
             inputSchema: JSON.stringify(data.inputSchema),
@@ -258,7 +258,7 @@ export const jobRepository = {
           },
         },
       }),
-      jobEvents: {
+      events: {
         create: {
           status: data.agentJobStatus,
           inputSchema: JSON.stringify(data.inputSchema),
@@ -616,7 +616,7 @@ function jobsNotFinishedWhereQuery(
     OR: [
       // Filter out jobs that are finalized
       {
-        jobPurchase: {
+        purchase: {
           onChainStatus: {
             notIn: finalizedOnChainJobStatuses,
           },
@@ -624,7 +624,7 @@ function jobsNotFinishedWhereQuery(
       },
       // Filter in jobs that have no on-chain status
       {
-        jobPurchase: {
+        purchase: {
           onChainStatus: null,
         },
       },
@@ -638,7 +638,7 @@ function jobsNotFinishedWhereQuery(
       },
       // Filter out jobs that are non-disputed and have a externalDisputeUnlockTime that is less than the cutoff time
       {
-        jobPurchase: {
+        purchase: {
           onChainStatus: { not: OnChainJobStatus.DISPUTED },
         },
         externalDisputeUnlockTime: {
@@ -648,7 +648,7 @@ function jobsNotFinishedWhereQuery(
       },
       // Filter out jobs that have no on-chain status and have a payByTime that is less than the cutoff time
       {
-        jobPurchase: {
+        purchase: {
           onChainStatus: null,
         },
         payByTime: { not: null, lt: cutoffTime },
@@ -660,7 +660,7 @@ function jobsNotFinishedWhereQuery(
       // Filter out free jobs that are completed or failed on agentJobStatus
       {
         jobType: JobType.FREE,
-        jobEvents: {
+        events: {
           some: {
             status: {
               in: finalizedAgentJobStatuses,
@@ -685,7 +685,7 @@ function jobsFinishedWhereQuery(): Prisma.JobWhereInput {
   return {
     AND: [
       {
-        jobEvents: {
+        events: {
           some: {
             status: {
               in: finalizedAgentJobStatuses,
@@ -694,9 +694,9 @@ function jobsFinishedWhereQuery(): Prisma.JobWhereInput {
         },
         // Check for finalized on-chain statuses
         OR: [
-          { jobPurchase: { onChainStatus: null }, jobType: JobType.FREE },
+          { purchase: { onChainStatus: null }, jobType: JobType.FREE },
           {
-            jobPurchase: {
+            purchase: {
               onChainStatus: {
                 notIn: [
                   OnChainJobStatus.FUNDS_LOCKED,

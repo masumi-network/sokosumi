@@ -1,12 +1,3 @@
-/*
-  Warnings:
-
-  - A unique constraint covering the columns `[jobPurchaseId]` on the table `Job` will be added. If there are existing duplicate values, this will fail.
-
-*/
--- AlterTable
-ALTER TABLE "Job" ADD COLUMN     "jobPurchaseId" TEXT;
-
 -- CreateTable
 CREATE TABLE "jobPurchase" (
     "id" TEXT NOT NULL,
@@ -35,9 +26,6 @@ CREATE UNIQUE INDEX "jobPurchase_jobId_key" ON "jobPurchase"("jobId");
 
 -- CreateIndex
 CREATE INDEX "jobPurchase_jobId_idx" ON "jobPurchase"("jobId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Job_jobPurchaseId_key" ON "Job"("jobPurchaseId");
 
 -- AddForeignKey
 ALTER TABLE "jobPurchase" ADD CONSTRAINT "jobPurchase_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "Job"("id") ON DELETE CASCADE ON UPDATE CASCADE;

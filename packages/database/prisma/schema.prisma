@@ -533,10 +533,8 @@ model Job {
   // Public Share
   share JobShare?
 
-  jobEvents JobEvent[]
-
-  jobPurchase   JobPurchase?
-  jobPurchaseId String?      @unique
+  events   JobEvent[]
+  purchase JobPurchase?
 
   // Optional link to the schedule that initiated this job
   jobScheduleId String?
