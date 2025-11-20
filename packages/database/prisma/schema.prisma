@@ -5,14 +5,12 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider   = "prisma-client" // ESM-first
-  output     = "../src/generated/prisma" // output directory for the generated client
-  engineType = "client" // No rust-engine (client-only)
+  provider = "prisma-client" // ESM-first
+  output   = "../src/generated/prisma" // output directory for the generated client
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
 }
 
 model User {
