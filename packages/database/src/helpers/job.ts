@@ -4,7 +4,7 @@ import {
   NextJobAction,
   OnChainJobStatus,
 } from "../generated/prisma/browser";
-import type { Job } from "../generated/prisma/client";
+import type { Job, JobEvent } from "../generated/prisma/client";
 import {
   DemoJobWithStatus,
   FreeJobWithStatus,
@@ -20,7 +20,7 @@ function checkPaymentStatus(
   job: JobWithRelations,
   now: Date,
 ): JobStatus | null {
-  if (job.jobPurchase === null) {
+  if (job.purchase === null) {
     if (job.createdAt.getTime() < now.getTime() - TEN_MINUTES_TIMESTAMP) {
       return JobStatus.PAYMENT_FAILED;
     } else {
@@ -42,7 +42,7 @@ function checkPaymentStatus(
  * @returns The corresponding `JobStatus` if the next action maps to a status, otherwise `null`.
  */
 function checkNextAction(job: JobWithRelations): JobStatus | null {
-  const purchase = job.jobPurchase;
+  const purchase = job.purchase;
   if (!purchase) {
     return JobStatus.PAYMENT_PENDING;
   }
@@ -158,7 +158,7 @@ export function computeJobStatus(job: JobWithRelations): JobStatus {
 }
 
 function computeFreeJobStatus(job: JobWithRelations): JobStatus {
-  const latestJobEvent = job.jobEvents[0];
+  const latestJobEvent = job.events[0];
   switch (latestJobEvent.status) {
     case AgentJobStatus.AWAITING_PAYMENT:
       return JobStatus.FAILED;
@@ -180,7 +180,7 @@ function computeDemoJobStatus(_job: JobWithRelations): JobStatus {
 }
 
 function computePaidJobStatus(job: JobWithRelations): JobStatus {
-  const purchase = job.jobPurchase;
+  const purchase = job.purchase;
   if (!purchase) {
     return JobStatus.PAYMENT_FAILED;
   }
@@ -210,7 +210,7 @@ function computePaidJobStatus(job: JobWithRelations): JobStatus {
     return nextActionStatus;
   }
 
-  const latestJobEvent = job.jobEvents[0];
+  const latestJobEvent = job.events[0];
   if (!latestJobEvent) {
     return JobStatus.FAILED;
   }
@@ -254,9 +254,10 @@ function computePaidJobStatus(job: JobWithRelations): JobStatus {
 }
 
 export function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
-  const completedAt = job.jobEvents.find(
-    (event) => event.status === AgentJobStatus.COMPLETED,
-  )?.createdAt;
+  const completedAt =
+    job.events.find(
+      (event: JobEvent) => event.status === AgentJobStatus.COMPLETED,
+    )?.createdAt ?? null;
   const jobStatusSettled =
     job.jobType === JobType.PAID
       ? job.externalDisputeUnlockTime != null
