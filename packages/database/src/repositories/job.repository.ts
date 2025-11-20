@@ -40,7 +40,7 @@ interface CreateJobBase {
 
 interface CreatePaidJobData extends CreateJobBase {
   jobType: typeof JobType.PAID;
-  agentJobStatus: typeof AgentJobStatus.AWAITING_INPUT;
+  agentJobStatus: typeof AgentJobStatus.AWAITING_PAYMENT;
   identifierFromPurchaser: string;
   creditsPrice: {
     cents: bigint;
