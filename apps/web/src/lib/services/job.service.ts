@@ -676,7 +676,7 @@ export const jobService = (() => {
       sellerVkey: startJobResponse.sellerVKey,
       name: generatedName,
       jobScheduleId,
-      agentJobStatus: AgentJobStatus.AWAITING_INPUT,
+      agentJobStatus: AgentJobStatus.AWAITING_PAYMENT,
     });
 
     // Add breadcrumb for purchase creation
