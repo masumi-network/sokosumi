@@ -6,12 +6,7 @@ import { jsonErrorResponse, jsonSuccessResponse } from "@/helpers/openapi";
 import { ok } from "@/helpers/response";
 import type { OpenAPIHonoWithAuth } from "@/lib/hono";
 
-const agentSchema = z
-  .object({
-    id: z.string().openapi({ example: "agent_123" }),
-    name: z.string().openapi({ example: "Research Assistant" }),
-  })
-  .openapi("Agent");
+import { agentSchema } from "./schemas";
 
 const agentsSchema = z.array(agentSchema);
 
