@@ -21,253 +21,164 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 /**
  * Get the status of the API server
  */
-export const getHealth = <ThrowOnError extends boolean = false>(options?: Options<GetHealthData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetHealthResponses, unknown, ThrowOnError>({
-        url: '/health/',
-        ...options
-    });
-};
+export const getHealth = <ThrowOnError extends boolean = false>(options?: Options<GetHealthData, ThrowOnError>) => (options?.client ?? client).get<GetHealthResponses, unknown, ThrowOnError>({ url: '/health/', ...options });
 
 /**
  * REQUIRES API KEY Authentication (+user)
  *
  * Get payment information for a registry entry
  */
-export const getPaymentInformation = <ThrowOnError extends boolean = false>(options: Options<GetPaymentInformationData, ThrowOnError>) => {
-    return (options.client ?? client).get<GetPaymentInformationResponses, GetPaymentInformationErrors, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/payment-information/',
-        ...options
-    });
-};
+export const getPaymentInformation = <ThrowOnError extends boolean = false>(options: Options<GetPaymentInformationData, ThrowOnError>) => (options.client ?? client).get<GetPaymentInformationResponses, GetPaymentInformationErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/payment-information/',
+    ...options
+});
 
 /**
  * REQUIRES API KEY Authentication (+user)
  *
  * Query the registry for available and online (health-checked) entries. Registry filter, allows pagination, filtering by payment type and capability and optional date filters (to force update any entries checked before the specified date. Warning: this might take a bit of time as response is not cached). If no filter is set, only online entries are returned.
  */
-export const postRegistryEntry = <ThrowOnError extends boolean = false>(options?: Options<PostRegistryEntryData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostRegistryEntryResponses, PostRegistryEntryErrors, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/registry-entry/',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers
-        }
-    });
-};
+export const postRegistryEntry = <ThrowOnError extends boolean = false>(options?: Options<PostRegistryEntryData, ThrowOnError>) => (options?.client ?? client).post<PostRegistryEntryResponses, PostRegistryEntryErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/registry-entry/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
 
 /**
  * REQUIRES API KEY Authentication (+admin)
  *
  * Updates a registry source
  */
-export const deleteRegistrySource = <ThrowOnError extends boolean = false>(options?: Options<DeleteRegistrySourceData, ThrowOnError>) => {
-    return (options?.client ?? client).delete<DeleteRegistrySourceResponses, unknown, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/registry-source/',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers
-        }
-    });
-};
+export const deleteRegistrySource = <ThrowOnError extends boolean = false>(options?: Options<DeleteRegistrySourceData, ThrowOnError>) => (options?.client ?? client).delete<DeleteRegistrySourceResponses, unknown, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/registry-source/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
 
 /**
  * REQUIRES API KEY Authentication (+admin)
  *
  * Gets all registry sources
  */
-export const getRegistrySource = <ThrowOnError extends boolean = false>(options?: Options<GetRegistrySourceData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetRegistrySourceResponses, unknown, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/registry-source/',
-        ...options
-    });
-};
+export const getRegistrySource = <ThrowOnError extends boolean = false>(options?: Options<GetRegistrySourceData, ThrowOnError>) => (options?.client ?? client).get<GetRegistrySourceResponses, unknown, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/registry-source/',
+    ...options
+});
 
 /**
  * REQUIRES API KEY Authentication (+admin)
  *
  * Updates a registry source
  */
-export const patchRegistrySource = <ThrowOnError extends boolean = false>(options?: Options<PatchRegistrySourceData, ThrowOnError>) => {
-    return (options?.client ?? client).patch<PatchRegistrySourceResponses, unknown, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/registry-source/',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers
-        }
-    });
-};
+export const patchRegistrySource = <ThrowOnError extends boolean = false>(options?: Options<PatchRegistrySourceData, ThrowOnError>) => (options?.client ?? client).patch<PatchRegistrySourceResponses, unknown, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/registry-source/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
 
 /**
  * REQUIRES API KEY Authentication (+admin)
  *
  * Creates a new registry source
  */
-export const postRegistrySource = <ThrowOnError extends boolean = false>(options?: Options<PostRegistrySourceData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostRegistrySourceResponses, unknown, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/registry-source/',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers
-        }
-    });
-};
+export const postRegistrySource = <ThrowOnError extends boolean = false>(options?: Options<PostRegistrySourceData, ThrowOnError>) => (options?.client ?? client).post<PostRegistrySourceResponses, unknown, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/registry-source/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
 
 /**
  * REQUIRES API KEY Authentication (+user)
  *
  * Gets all capabilities that are currently online
  */
-export const getCapability = <ThrowOnError extends boolean = false>(options?: Options<GetCapabilityData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetCapabilityResponses, GetCapabilityErrors, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/capability/',
-        ...options
-    });
-};
+export const getCapability = <ThrowOnError extends boolean = false>(options?: Options<GetCapabilityData, ThrowOnError>) => (options?.client ?? client).get<GetCapabilityResponses, GetCapabilityErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/capability/',
+    ...options
+});
 
 /**
  * REQUIRES API KEY Authentication (+user)
  *
  * Gets the status of an API key
  */
-export const getApiKeyStatus = <ThrowOnError extends boolean = false>(options?: Options<GetApiKeyStatusData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiKeyStatusResponses, unknown, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/api-key-status/',
-        ...options
-    });
-};
+export const getApiKeyStatus = <ThrowOnError extends boolean = false>(options?: Options<GetApiKeyStatusData, ThrowOnError>) => (options?.client ?? client).get<GetApiKeyStatusResponses, unknown, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/api-key-status/',
+    ...options
+});
 
 /**
  * REQUIRES API KEY Authentication (+admin)
  *
  * Removes a API key
  */
-export const deleteApiKey = <ThrowOnError extends boolean = false>(options?: Options<DeleteApiKeyData, ThrowOnError>) => {
-    return (options?.client ?? client).delete<DeleteApiKeyResponses, DeleteApiKeyErrors, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/api-key/',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers
-        }
-    });
-};
+export const deleteApiKey = <ThrowOnError extends boolean = false>(options?: Options<DeleteApiKeyData, ThrowOnError>) => (options?.client ?? client).delete<DeleteApiKeyResponses, DeleteApiKeyErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/api-key/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
 
 /**
  * REQUIRES API KEY Authentication (+admin)
  *
  * Gets registry sources, can be paginated
  */
-export const getApiKey = <ThrowOnError extends boolean = false>(options?: Options<GetApiKeyData, ThrowOnError>) => {
-    return (options?.client ?? client).get<GetApiKeyResponses, GetApiKeyErrors, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/api-key/',
-        ...options
-    });
-};
+export const getApiKey = <ThrowOnError extends boolean = false>(options?: Options<GetApiKeyData, ThrowOnError>) => (options?.client ?? client).get<GetApiKeyResponses, GetApiKeyErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/api-key/',
+    ...options
+});
 
 /**
  * REQUIRES API KEY Authentication (+admin)
  *
  * Updates a API key
  */
-export const patchApiKey = <ThrowOnError extends boolean = false>(options?: Options<PatchApiKeyData, ThrowOnError>) => {
-    return (options?.client ?? client).patch<PatchApiKeyResponses, PatchApiKeyErrors, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/api-key/',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers
-        }
-    });
-};
+export const patchApiKey = <ThrowOnError extends boolean = false>(options?: Options<PatchApiKeyData, ThrowOnError>) => (options?.client ?? client).patch<PatchApiKeyResponses, PatchApiKeyErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/api-key/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
 
 /**
  * REQUIRES API KEY Authentication (+admin)
  *
  * Create a new API key
  */
-export const postApiKey = <ThrowOnError extends boolean = false>(options?: Options<PostApiKeyData, ThrowOnError>) => {
-    return (options?.client ?? client).post<PostApiKeyResponses, PostApiKeyErrors, ThrowOnError>({
-        security: [
-            {
-                name: 'token',
-                type: 'apiKey'
-            }
-        ],
-        url: '/api-key/',
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers
-        }
-    });
-};
+export const postApiKey = <ThrowOnError extends boolean = false>(options?: Options<PostApiKeyData, ThrowOnError>) => (options?.client ?? client).post<PostApiKeyResponses, PostApiKeyErrors, ThrowOnError>({
+    security: [{ name: 'token', type: 'apiKey' }],
+    url: '/api-key/',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});
