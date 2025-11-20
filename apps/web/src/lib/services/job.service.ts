@@ -5,6 +5,7 @@ import {
   AgentJobStatus,
   AgentWithRelations,
   Job,
+  JobEvent,
   JobShare,
   JobStatus,
   JobType,
@@ -87,8 +88,10 @@ export const jobService = (() => {
       return null;
     }
     if (
-      job.jobPurchase?.onChainStatus === OnChainJobStatus.RESULT_SUBMITTED &&
-      job.jobEvents[0]?.status === AgentJobStatus.COMPLETED
+      job.purchase?.onChainStatus === OnChainJobStatus.RESULT_SUBMITTED &&
+      job.events.some(
+        (event: JobEvent) => event.status === AgentJobStatus.COMPLETED,
+      )
     ) {
       return null;
     }
@@ -107,10 +110,10 @@ export const jobService = (() => {
     if (job.refundedCreditTransactionId) {
       return null;
     }
-    if (job.jobPurchaseId === null) {
+    if (job.purchase === null) {
       return null;
     }
-    return job.jobPurchaseId;
+    return job.purchase.externalId;
   }
 
   /**
@@ -200,14 +203,14 @@ export const jobService = (() => {
   function extractJobFailureNotificationData(
     job: JobWithStatus,
   ): JobFailureNotificationEmailProps {
-    const purchase = job.jobPurchase;
+    const purchase = job.purchase;
     if (!purchase) {
       throw new JobError(
         JobErrorCode.JOB_PURCHASE_NOT_FOUND,
         "Job purchase not found",
       );
     }
-    const event = job.jobEvents[0];
+    const event = job.events[0];
     if (!event) {
       throw new JobError(
         JobErrorCode.JOB_EVENT_NOT_FOUND,
@@ -461,8 +464,8 @@ export const jobService = (() => {
 
     // Enqueue any sources from demo output
     try {
-      const result = job.jobEvents.find(
-        (event) => event.status === AgentJobStatus.COMPLETED,
+      const result = job.events.find(
+        (event: JobEvent) => event.status === AgentJobStatus.COMPLETED,
       )?.result;
       if (result) {
         await sourceImportService.enqueueFromMarkdown(userId, job.id, result);
@@ -991,7 +994,7 @@ export const jobService = (() => {
    */
   const syncJob = async (job: JobWithStatus): Promise<void> => {
     const oldJobStatus = computeJobStatus(job);
-    if (isPaidJob(job) && job.jobPurchaseId === null) {
+    if (isPaidJob(job) && job.purchase === null) {
       const purchaseResult =
         await paymentClient.getPurchaseByBlockchainIdentifier(
           job.blockchainIdentifier,
