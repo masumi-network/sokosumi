@@ -1,11 +1,10 @@
-import { JobWithStatus } from "@sokosumi/database";
+import { AgentJobStatus, JobEvent, JobWithStatus } from "@sokosumi/database";
 import { type ClassValue, clsx } from "clsx";
 import crypto from "crypto";
 import { canonicalizeEx } from "json-canonicalize";
 import { twMerge } from "tailwind-merge";
 
 import { JobInputData } from "@/lib/job-input";
-import { JobStatusResponseSchemaType } from "@/lib/schemas";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -61,47 +60,42 @@ export const getInputHash = (
 };
 
 /**
- * Calculates a hash for job output data combined with a purchaser identifier.
+ * Calculates a hash for job result combined with a purchaser identifier.
  *
- * @param outputData - The job output data as key-value pairs
+ * @param result - The job result as a string
  * @param identifierFromPurchaser - Unique identifier from the purchaser
  * @returns SHA-256 hash of the combined data
  */
 export const getResultHash = (
-  outputData: JobStatusResponseSchemaType,
+  result: string,
   identifierFromPurchaser: string,
 ) => {
-  const outputValue = outputData.result;
-  if (typeof outputValue !== "string") {
-    return null;
-  }
-
   // JSON.stringify escapes \n, \r, \t, backslashes, quotes, etc.
   // Slicing to remove the quotes
-  const escaped = JSON.stringify(outputValue).slice(1, -1);
+  const escaped = JSON.stringify(result).slice(1, -1);
 
   return createHash(identifierFromPurchaser + ";" + escaped);
 };
 
 /**
- * Returns the matching hash (input or output) supporting deprecated input hash.
+ * Returns the matching hash (input or result) supporting deprecated input hash.
  *
  * For input verification:
  * - First attempts to match using the current hash format (getInputHash)
  * - Falls back to deprecated hash format (getInputHashDeprecated) for backward compatibility
  *
- * For output verification:
+ * For result verification:
  * - Uses getResultHash only (no deprecated format)
  *
- * @param mode - "input" or "output" to determine which hash function to use
- * @param data - JobInputData for input mode, JobStatusResponseSchemaType for output mode
+ * @param mode - "input" or "result" to determine which hash function to use
+ * @param data - JobInputData for input mode, string for result mode
  * @param identifierFromPurchaser - Unique identifier from the purchaser used in hash computation
  * @param hashToMatch - The hash value to verify against
  * @returns The matched hash string if verification succeeds, null if no match found
  */
 export function getMatchedHash(
-  mode: "input" | "output",
-  data: JobInputData | JobStatusResponseSchemaType,
+  mode: "input" | "result",
+  data: JobInputData | string,
   identifierFromPurchaser: string,
   hashToMatch: string,
 ): string | null {
@@ -119,10 +113,7 @@ export function getMatchedHash(
     return null;
   } else {
     // result hash
-    const resultHash = getResultHash(
-      data as JobStatusResponseSchemaType,
-      identifierFromPurchaser,
-    );
+    const resultHash = getResultHash(data as string, identifierFromPurchaser);
     return hashToMatch === resultHash ? resultHash : null;
   }
 }
@@ -151,28 +142,36 @@ export function isJobVerified(
   }
 
   if (direction === "input") {
-    if (!job.inputHash) return false;
-    const inputObj = tryParseJson<Record<string, unknown>>(job.input);
+    const inputEvent = job.events.find(
+      (event: JobEvent) => event.status === AgentJobStatus.AWAITING_PAYMENT,
+    );
+
+    if (!inputEvent?.inputHash) return false;
+    const inputObj = tryParseJson<Record<string, unknown>>(inputEvent.input);
     const inputData = inputObj ? toJobInputData(inputObj) : null;
     if (!inputData) return false;
     const matched = getMatchedHash(
       "input",
       inputData,
       job.identifierFromPurchaser,
-      job.inputHash,
+      inputEvent.inputHash,
+    );
+    return matched !== null;
+  } else {
+    const resultHash = job.purchase?.resultHash;
+    const result = job.events.find(
+      (event: JobEvent) => event.status === AgentJobStatus.COMPLETED,
+    )?.result;
+    if (!result) return false;
+    if (!resultHash) return false;
+    const matched = getMatchedHash(
+      "result",
+      result,
+      job.identifierFromPurchaser,
+      resultHash,
     );
     return matched !== null;
   }
-  if (!job.resultHash) return false;
-  const outputObj = tryParseJson<JobStatusResponseSchemaType>(job.output);
-  if (!outputObj) return false;
-  const matched = getMatchedHash(
-    "output",
-    outputObj,
-    job.identifierFromPurchaser,
-    job.resultHash,
-  );
-  return matched !== null;
 }
 
 /**
