@@ -106,15 +106,17 @@ export const jobRepository = {
   ): Promise<number> {
     const result = await tx.$queryRaw<[{ avg_duration_seconds: number }]>`
     SELECT 
-      AVG(EXTRACT(EPOCH FROM ("completedAt" - "createdAt"))) as avg_duration_seconds
-    FROM "Job"
-    WHERE "agentId" = ${agentId}
-    AND "jobType" != 'DEMO'
-    AND "completedAt" IS NOT NULL
-    AND "createdAt" >= NOW() - INTERVAL '30 days'
+      AVG(EXTRACT(EPOCH FROM (je."createdAt" - j."createdAt"))) as avg_duration_seconds
+    FROM "Job" j
+    INNER JOIN "jobEvent" je ON je."jobId" = j.id
+    WHERE j."agentId" = ${agentId}
+    AND j."jobType" != 'DEMO'
+    AND je.status = 'COMPLETED'
+    AND j."createdAt" >= NOW() - INTERVAL '30 days'
   `;
 
     const averageDurationSeconds = result[0]?.avg_duration_seconds ?? 0;
+    console.log("averageDurationSeconds", averageDurationSeconds);
     return averageDurationSeconds * 1000;
   },
 

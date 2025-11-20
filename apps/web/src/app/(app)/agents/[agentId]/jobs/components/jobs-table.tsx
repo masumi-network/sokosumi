@@ -72,12 +72,12 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
             containerClassName={cn("min-h-[300px] bg-transparent")}
             defaultSort={[
               {
-                id: "startedAt",
+                id: "createdAt",
                 desc: true,
               },
             ]}
             getGroupKey={(row) => {
-              return row.startedAt ? getDateGroupKey(row.startedAt) : null;
+              return row.createdAt ? getDateGroupKey(row.createdAt) : null;
             }}
             renderGroupHeader={(groupKey) => {
               return <div className="px-2 py-1">{groupKey}</div>;
@@ -95,11 +95,11 @@ function getColumns(
   dateFormatter: ReturnType<typeof useFormatter>,
   highlightQuery?: string,
 ) {
-  const { startedAtColumn, statusColumn, nameColumn } = getJobColumns(
+  const { createdAtColumn, statusColumn, nameColumn } = getJobColumns(
     userId,
     t,
     dateFormatter,
     highlightQuery,
   );
-  return [startedAtColumn, statusColumn, nameColumn];
+  return [createdAtColumn, statusColumn, nameColumn];
 }
