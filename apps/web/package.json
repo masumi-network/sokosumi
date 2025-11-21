@@ -27,7 +27,7 @@
     "generate:api-docs": "next-openapi-gen generate"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "0.70.0",
+    "@anthropic-ai/sdk": "0.70.1",
     "@better-auth/utils": "0.3.0",
     "@hey-api/client-fetch": "0.13.1",
     "@hey-api/client-next": "0.5.1",
@@ -76,7 +76,7 @@
     "json-canonicalize": "2.0.0",
     "lucide-react": "0.554.0",
     "markdown-to-jsx": "8.0.0",
-    "marked": "17.0.0",
+    "marked": "17.0.1",
     "mdast2docx": "1.6.1",
     "nanoid": "5.1.6",
     "next": "16.0.3",
@@ -124,7 +124,7 @@
     "@happy-dom/jest-environment": "20.0.10",
     "@hey-api/openapi-ts": "0.88.0",
     "@noble/hashes": "2.0.1",
-    "@swc/core": "1.15.2",
+    "@swc/core": "1.15.3",
     "@swc/helpers": "0.5.17",
     "@tailwindcss/postcss": "4.1.17",
     "@tailwindcss/typography": "0.5.19",
