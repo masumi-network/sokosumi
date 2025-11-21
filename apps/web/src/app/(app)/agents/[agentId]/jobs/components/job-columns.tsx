@@ -1,16 +1,19 @@
 "use client";
 
-import { JobType, JobWithStatus } from "@sokosumi/database";
+import { JobWithStatus } from "@sokosumi/database";
 import { isDemoJob } from "@sokosumi/database/helpers";
+import { useQueryClient } from "@tanstack/react-query";
 import { ColumnDef, createColumnHelper } from "@tanstack/react-table";
 import { useFormatter, useTranslations } from "next-intl";
+import { useEffect } from "react";
 
 import { DataTableColumnHeader } from "@/components/data-table";
 import { JobSharedBadge, JobStatusBadge } from "@/components/jobs";
 import { MiddleTruncate } from "@/components/middle-truncate";
 import { HighlightedText } from "@/components/ui/highlighted-text";
-import useAgentJobStatus from "@/hooks/use-agent-job-status";
-import { JobIndicatorStatus } from "@/lib/ably";
+import useAgentJobStatusData from "@/hooks/use-agent-job-status";
+import { getJobStatusData } from "@/lib/helpers/job";
+import { getJobQueryKey } from "@/queries";
 
 const columnHelper = createColumnHelper<JobWithStatus>();
 
@@ -78,15 +81,8 @@ export function getJobColumns(
             ) : (
               <RealTimeJobStatusBadge
                 key={`${row.original.id}-${row.original.status}-column-real-time-badge`}
-                agentId={row.original.agentId}
                 userId={userId}
-                jobId={row.original.id}
-                initialJobIndicatorStatus={{
-                  jobId: row.original.id,
-                  jobStatus: row.original.status,
-                  jobStatusSettled: row.original.jobStatusSettled,
-                }}
-                jobType={row.original.jobType}
+                job={row.original}
               />
             )}
           </div>
@@ -187,35 +183,30 @@ function HighlightedMiddleTruncate({
 }
 
 function RealTimeJobStatusBadge({
-  agentId,
   userId,
-  jobId,
-  initialJobIndicatorStatus,
-  jobType,
+  job,
   className,
 }: {
-  agentId: string;
   userId: string;
-  jobId: string;
-  initialJobIndicatorStatus: JobIndicatorStatus;
-  jobType?: JobType;
+  job: JobWithStatus;
   className?: string;
 }) {
-  const realTimeJobStatus = useAgentJobStatus(
-    agentId,
-    userId,
-    jobId,
-    initialJobIndicatorStatus,
-    true,
-  );
+  const queryClient = useQueryClient();
+
+  const jobStatusData =
+    useAgentJobStatusData(job.agentId, userId, job.id) ?? getJobStatusData(job);
+
+  useEffect(() => {
+    queryClient.invalidateQueries({
+      queryKey: getJobQueryKey(job.id),
+    });
+  }, [queryClient, jobStatusData, job.id]);
 
   return (
     <JobStatusBadge
-      key={`${jobId}-${realTimeJobStatus?.jobStatus ?? initialJobIndicatorStatus.jobStatus}-real-time-badge`}
-      status={
-        realTimeJobStatus?.jobStatus ?? initialJobIndicatorStatus.jobStatus
-      }
-      jobType={jobType}
+      key={`${job.id}-${jobStatusData.jobStatus}-real-time-badge`}
+      status={jobStatusData.jobStatus}
+      jobType={job.jobType}
       className={className}
     />
   );

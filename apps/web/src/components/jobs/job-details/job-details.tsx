@@ -1,11 +1,16 @@
-import { AgentJobStatus, BlobOrigin, JobWithStatus } from "@sokosumi/database";
+"use client";
+
+import { Blob, BlobOrigin, JobStatus, JobWithStatus } from "@sokosumi/database";
+import { useQuery } from "@tanstack/react-query";
 import { useFormatter, useTranslations } from "next-intl";
 
 import AccordionItemWrapper from "@/components/accordion-wrapper";
 import { JobStatusBadge } from "@/components/jobs";
 import { Accordion } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
+import { getJobQueryOptions } from "@/queries";
 
 import JobDetailsInputs from "./inputs";
 import JobDetailsName from "./job-details-name";
@@ -21,29 +26,28 @@ interface JobDetailsProps {
 }
 
 export default function JobDetails({
-  job,
+  job: initialJob,
   readOnly = false,
   className,
   activeOrganizationId,
 }: JobDetailsProps) {
   const t = useTranslations("Components.Jobs.JobDetails");
+  const { data: session } = useSession();
 
-  // Find the event with input data (typically AWAITING_PAYMENT event)
-  const inputEvent =
-    job.events.find(
-      (event) =>
-        event.status === AgentJobStatus.AWAITING_PAYMENT && event.input != null,
-    ) ?? job.events.find((event) => event.input != null);
+  const { data: job } = useQuery({
+    ...getJobQueryOptions(initialJob.id, session),
+    enabled: !!session,
+    initialData: initialJob,
+  });
 
-  // Extract input and inputSchema from the event
   const rawInput = job.input;
   const rawInputSchema = job.inputSchema;
 
-  const hasCompletedOutput = job.completedAt != null && job.result != null;
+  const hasCompletedOutput = job.status === JobStatus.COMPLETED && !!job.result;
   // Only show Sources accordion if there are OUTPUT blobs or links
   // Note: Only output blobs are shown in the Sources section
   const hasOutputBlobs = job.blobs.some(
-    (blob) => blob.origin === BlobOrigin.OUTPUT,
+    (blob: Blob) => blob.origin === BlobOrigin.OUTPUT,
   );
   const hasOutputLinks = job.links.length > 0;
   const hasSources = hasOutputBlobs || hasOutputLinks;
