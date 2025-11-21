@@ -775,7 +775,7 @@ model JobSchedule {
   endAfterOccurrences Int?
 
   // Job payload snapshot
-  inputSchema      Json
+  inputSchema      String
   input            String
   maxAcceptedCents BigInt
 

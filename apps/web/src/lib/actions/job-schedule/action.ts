@@ -146,7 +146,7 @@ export const createSchedule = withAuthContext<
           id: input.agentId,
         },
       },
-      inputSchema: input.inputSchema as Prisma.InputJsonValue,
+      inputSchema: JSON.stringify(input.inputSchema),
       input: JSON.stringify(Object.fromEntries(input.inputData)),
       scheduleType: scheduleType! as ScheduleType,
       timezone: scheduleSelection.timezone,
