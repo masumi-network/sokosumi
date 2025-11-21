@@ -256,7 +256,7 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
   );
   const completedAt = completedEvent?.createdAt ?? null;
   const result = completedEvent?.result ?? null;
-  const awaitingPaymentEvent = job.events.find((event: JobEvent) => {
+  const inputEvent = job.events.find((event: JobEvent) => {
     switch (job.jobType) {
       case JobType.FREE:
         return event.status === AgentJobStatus.RUNNING;
@@ -266,9 +266,9 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
         return event.status === AgentJobStatus.COMPLETED;
     }
   });
-  const input = awaitingPaymentEvent?.input ?? null;
-  const inputSchema = awaitingPaymentEvent?.inputSchema ?? null;
-  const inputHash = awaitingPaymentEvent?.inputHash ?? null;
+  const input = inputEvent?.input ?? null;
+  const inputSchema = inputEvent?.inputSchema ?? null;
+  const inputHash = inputEvent?.inputHash ?? null;
 
   const jobStatusSettled =
     job.jobType === JobType.PAID
