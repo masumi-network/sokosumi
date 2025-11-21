@@ -1,16 +1,21 @@
+"use client";
+
 import {
   AgentJobStatus,
   BlobOrigin,
   JobStatus,
   JobWithStatus,
 } from "@sokosumi/database";
+import { useQuery } from "@tanstack/react-query";
 import { useFormatter, useTranslations } from "next-intl";
 
 import AccordionItemWrapper from "@/components/accordion-wrapper";
 import { JobStatusBadge } from "@/components/jobs";
 import { Accordion } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
+import { getJobQueryOptions } from "@/queries";
 
 import JobDetailsInputs from "./inputs";
 import JobDetailsName from "./job-details-name";
@@ -26,12 +31,19 @@ interface JobDetailsProps {
 }
 
 export default function JobDetails({
-  job,
+  job: initialJob,
   readOnly = false,
   className,
   activeOrganizationId,
 }: JobDetailsProps) {
   const t = useTranslations("Components.Jobs.JobDetails");
+  const { data: session } = useSession();
+
+  const { data: job } = useQuery({
+    ...getJobQueryOptions(initialJob.id, session),
+    enabled: !!session,
+    initialData: initialJob,
+  });
 
   const hasCompletedOutput = job.status === JobStatus.COMPLETED && !!job.output;
   // Only show Sources accordion if there are OUTPUT blobs or links

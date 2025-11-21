@@ -5,6 +5,7 @@ import { getTranslations } from "next-intl/server";
 
 import { FooterSections } from "@/components/footer";
 import { SidebarProvider } from "@/components/ui/sidebar";
+import QueryProvider from "@/contexts/query-provider";
 import { getSessionOrRedirect } from "@/lib/auth/utils";
 import { userService } from "@/lib/services";
 
@@ -39,7 +40,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
   }
 
   return (
-    <>
+    <QueryProvider>
       <SidebarProvider
         defaultOpen={defaultOpen}
         className="flex max-w-svw overflow-clip"
@@ -53,6 +54,6 @@ export default async function AppLayout({ children }: AppLayoutProps) {
           <FooterSections className="p-4" />
         </div>
       </SidebarProvider>
-    </>
+    </QueryProvider>
   );
 }

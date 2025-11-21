@@ -9,7 +9,7 @@ import { useState } from "react";
 
 import { DataTable } from "@/components/data-table";
 import DynamicAblyProvider from "@/contexts/alby-provider.dynamic";
-import { makeAgentJobsChannel } from "@/lib/ably";
+import { makeAgentJobsChannelName } from "@/lib/ably";
 import { cn, getDateGroupKey } from "@/lib/utils";
 
 import { getJobColumns } from "./job-columns";
@@ -56,7 +56,7 @@ export default function JobsTable({ jobs, userId }: JobsTableProps) {
   return (
     <DynamicAblyProvider>
       <ChannelProvider
-        channelName={makeAgentJobsChannel(params.agentId, userId)}
+        channelName={makeAgentJobsChannelName(params.agentId, userId)}
       >
         <div className="job-table-width bg-muted/50 flex flex-col rounded-xl border">
           <JobsSearch

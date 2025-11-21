@@ -29,7 +29,7 @@ import { v4 as uuidv4 } from "uuid";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import publishJobStatusData from "@/lib/ably/publish";
-import { JobIndicatorStatus } from "@/lib/ably/schema";
+import { type JobStatusData } from "@/lib/ably/schema";
 import { JobError, JobErrorCode } from "@/lib/actions/errors/error-codes/job";
 import { getAuthContext } from "@/lib/auth/utils";
 import { agentClient, anthropicClient, paymentClient } from "@/lib/clients";
@@ -40,7 +40,7 @@ import {
 import { reactJobStatusEmail } from "@/lib/email/job-status";
 import { postmarkClient } from "@/lib/email/postmark";
 import { getAgentName } from "@/lib/helpers/agent";
-import { getJobIndicatorStatus } from "@/lib/helpers/job";
+import { getJobStatusData } from "@/lib/helpers/job";
 import { JobInputData } from "@/lib/job-input";
 import {
   JobStatusResponseSchemaType,
@@ -1081,10 +1081,10 @@ export const jobService = (() => {
    *
    * If the user session is not found, returns an empty array.
    */
-  const getJobIndicatorStatuses = async (
+  const getJobStatusesDataForAgents = async (
     agentIds: string[],
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<(JobIndicatorStatus | null)[]> => {
+  ): Promise<(JobStatusData | null)[]> => {
     const context = await getAuthContext();
     if (!context) {
       return [];
@@ -1104,7 +1104,7 @@ export const jobService = (() => {
         if (!latestJob) {
           return null;
         }
-        return getJobIndicatorStatus(latestJob);
+        return getJobStatusData(latestJob);
       }),
     );
   };
@@ -1138,7 +1138,7 @@ export const jobService = (() => {
     startDemoJob,
     requestRefund,
     syncJob,
-    getJobIndicatorStatuses,
+    getJobStatusesDataForAgents,
     getPubliclySharedJob,
   };
 })();
