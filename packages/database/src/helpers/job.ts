@@ -20,12 +20,16 @@ function checkPaymentStatus(
   job: JobWithRelations,
   now: Date,
 ): JobStatus | null {
-  if (job.purchase === null) {
+  const purchase = job.purchase;
+  if (!purchase) {
     if (job.createdAt.getTime() < now.getTime() - TEN_MINUTES_TIMESTAMP) {
       return JobStatus.PAYMENT_FAILED;
     } else {
       return JobStatus.PAYMENT_PENDING;
     }
+  }
+  if (purchase.onChainStatus === null && purchase.nextActionErrorType) {
+    return JobStatus.PAYMENT_FAILED;
   }
   return null;
 }
@@ -190,11 +194,11 @@ function computePaidJobStatus(job: JobWithRelations): JobStatus {
     return JobStatus.REFUND_RESOLVED;
   }
 
-  const { onChainStatus, nextActionErrorType } = purchase;
-  // 2. If the job has no on-chain status and there is an error type, it means the job is failed
-  if (onChainStatus === null && nextActionErrorType) {
-    return JobStatus.PAYMENT_FAILED;
-  }
+  // const { onChainStatus, nextActionErrorType } = job?.purchase;
+  // // 2. If the job has no on-chain status and there is an error type, it means the job is failed
+  // if (onChainStatus === null && nextActionErrorType) {
+  //   return JobStatus.PAYMENT_FAILED;
+  // }
 
   const now = new Date();
 
@@ -215,8 +219,9 @@ function computePaidJobStatus(job: JobWithRelations): JobStatus {
     return JobStatus.FAILED;
   }
   // 5. If the job has a purchase, it means the job is started
-  switch (onChainStatus) {
+  switch (job.purchase?.onChainStatus) {
     case null:
+    case undefined:
       if (
         job.payByTime &&
         job.payByTime.getTime() < now.getTime() - TEN_MINUTES_TIMESTAMP
