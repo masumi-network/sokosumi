@@ -1,4 +1,3 @@
-import { JobWithStatus } from "@sokosumi/database";
 import { type ClassValue, clsx } from "clsx";
 import crypto from "crypto";
 import { canonicalizeEx } from "json-canonicalize";
@@ -24,9 +23,8 @@ const calculateInputHash = (
       filterUndefined: true,
     });
     return createHash(identifierFromPurchaser + delimiter + inputString);
-  } catch (error) {
-    console.log("error", error);
-    throw error; // Re-throw the error to handle it properly
+  } catch {
+    return null;
   }
 };
 
@@ -72,9 +70,12 @@ export const getResultHash = (
 ) => {
   // JSON.stringify escapes \n, \r, \t, backslashes, quotes, etc.
   // Slicing to remove the quotes
-  const escaped = JSON.stringify(result).slice(1, -1);
-
-  return createHash(identifierFromPurchaser + ";" + escaped);
+  try {
+    const escaped = JSON.stringify(result).slice(1, -1);
+    return createHash(identifierFromPurchaser + ";" + escaped);
+  } catch {
+    return null;
+  }
 };
 
 /**
@@ -112,6 +113,18 @@ export function getMatchedHash(
   }
 }
 
+export interface InputVerificationOptions {
+  identifierFromPurchaser: string;
+  inputHash: string | null;
+  input: string | null;
+}
+
+export interface ResultVerificationOptions {
+  identifierFromPurchaser: string;
+  resultHash: string | null;
+  result: string | null;
+}
+
 /**
  * Verifies whether a job's stored input or output hash matches the hash
  * computed from the provided purchaser identifier and parsed job data.
@@ -129,34 +142,35 @@ export function getMatchedHash(
  */
 export function isJobVerified(
   direction: "input" | "result",
-  job: JobWithStatus,
+  options: InputVerificationOptions | ResultVerificationOptions,
 ): boolean {
-  const identifierFromPurchaser = job.identifierFromPurchaser;
-  if (!identifierFromPurchaser) {
-    return false;
-  }
-
-  if (direction === "input") {
-    if (!job.inputHash) return false;
-    if (!job.input) return false;
-    const matched = getMatchedHash(
-      "input",
-      job.input,
-      identifierFromPurchaser,
-      job.inputHash,
-    );
-    return matched !== null;
-  } else {
-    const resultHash = job.purchase?.resultHash;
-    if (!resultHash) return false;
-    if (!job.result) return false;
-    const matched = getMatchedHash(
-      "result",
-      job.result,
-      identifierFromPurchaser,
-      resultHash,
-    );
-    return matched !== null;
+  switch (direction) {
+    case "input": {
+      const inputOptions = options as InputVerificationOptions;
+      if (!inputOptions.inputHash) return false;
+      if (!inputOptions.input) return false;
+      const matched = getMatchedHash(
+        "input",
+        inputOptions.input,
+        inputOptions.identifierFromPurchaser,
+        inputOptions.inputHash,
+      );
+      return matched !== null;
+    }
+    case "result": {
+      const resultOptions = options as ResultVerificationOptions;
+      if (!resultOptions.resultHash) return false;
+      if (!resultOptions.result) return false;
+      const matched = getMatchedHash(
+        "result",
+        resultOptions.result,
+        resultOptions.identifierFromPurchaser,
+        resultOptions.resultHash,
+      );
+      return matched !== null;
+    }
+    default:
+      return false;
   }
 }
 
