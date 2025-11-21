@@ -187,21 +187,10 @@ function computeDemoJobStatus(_job: JobWithRelations): JobStatus {
 }
 
 function computePaidJobStatus(job: JobWithRelations): JobStatus {
-  const purchase = job.purchase;
-  if (!purchase) {
-    return JobStatus.PAYMENT_FAILED;
-  }
-
   // 1. If the job has already been refunded, return the refund resolved status
   if (job.refundedCreditTransactionId) {
     return JobStatus.REFUND_RESOLVED;
   }
-
-  // const { onChainStatus, nextActionErrorType } = job?.purchase;
-  // // 2. If the job has no on-chain status and there is an error type, it means the job is failed
-  // if (onChainStatus === null && nextActionErrorType) {
-  //   return JobStatus.PAYMENT_FAILED;
-  // }
 
   const now = new Date();
 
