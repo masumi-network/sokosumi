@@ -29,6 +29,7 @@ const envPublicConfigSchema = z.object({
     .number()
     .min(0)
     .default(30),
+  NEXT_PUBLIC_SHOW_EMERGENCY_DIALOG: z.coerce.boolean().default(false),
 });
 
 let envPublicConfig: z.infer<typeof envPublicConfigSchema>;
@@ -52,6 +53,8 @@ function validateEnv() {
     NEXT_PUBLIC_NETWORK: process.env.NEXT_PUBLIC_NETWORK,
     NEXT_PUBLIC_FEE_PERCENTAGE: process.env.NEXT_PUBLIC_FEE_PERCENTAGE,
     NEXT_PUBLIC_CREDITS_BASE: process.env.NEXT_PUBLIC_CREDITS_BASE,
+    NEXT_PUBLIC_SHOW_EMERGENCY_DIALOG:
+      process.env.NEXT_PUBLIC_SHOW_EMERGENCY_DIALOG,
   });
   if (!parsedConfig.success) {
     console.error(
