@@ -33,6 +33,7 @@ interface CreateJobBase {
   organizationId: string | null | undefined;
   inputSchema: unknown[];
   input: string;
+  inputHash: string | null;
   name: string | null;
   jobScheduleId?: string | null | undefined;
   agentJobStatus: AgentJobStatus;
@@ -263,6 +264,7 @@ export const jobRepository = {
           status: data.agentJobStatus,
           inputSchema: JSON.stringify(data.inputSchema),
           input: data.input,
+          inputHash: data.inputHash,
         },
       },
       name: data.name,
