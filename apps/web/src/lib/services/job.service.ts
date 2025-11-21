@@ -986,10 +986,10 @@ export const jobService = (() => {
         );
       if (purchaseResult.ok) {
         const purchaseData = transformPurchaseToJobUpdate(purchaseResult.data);
-        await jobPurchaseRepository.updateJobPurchaseByJobId(
-          job.id,
-          purchaseData,
-        );
+        await jobPurchaseRepository.createJobPurchase({
+          jobId: job.id,
+          ...purchaseData,
+        });
       }
     }
     const agentJobIdToSync = shouldSyncAgentStatus(job);
