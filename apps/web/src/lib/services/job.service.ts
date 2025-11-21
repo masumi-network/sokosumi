@@ -977,8 +977,9 @@ export const jobService = (() => {
    *
    * @param job - The job to synchronize with current status
    */
-  const syncJob = async (job: JobWithStatus): Promise<void> => {
-    const oldJobStatus = computeJobStatus(job);
+  const syncJob = async (initialJob: JobWithStatus): Promise<void> => {
+    const oldJobStatus = computeJobStatus(initialJob);
+    let job: JobWithStatus | null = initialJob;
     if (isPaidJob(job) && job.purchase === null) {
       const purchaseResult =
         await paymentClient.getPurchaseByBlockchainIdentifier(
@@ -991,6 +992,10 @@ export const jobService = (() => {
           ...purchaseData,
         });
       }
+      job = await jobRepository.getJobById(job.id);
+    }
+    if (!job) {
+      throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
     }
     const agentJobIdToSync = shouldSyncAgentStatus(job);
     const purchaseIdToSync = shouldSyncMasumiStatus(job);
