@@ -162,7 +162,10 @@ export function computeJobStatus(job: JobWithRelations): JobStatus {
 }
 
 function computeFreeJobStatus(job: JobWithRelations): JobStatus {
-  const latestJobEvent = job.events[0];
+  const latestJobEvent = job.events.at(0);
+  if (!latestJobEvent) {
+    return JobStatus.FAILED;
+  }
   switch (latestJobEvent.status) {
     case AgentJobStatus.AWAITING_PAYMENT:
       return JobStatus.FAILED;
@@ -214,7 +217,7 @@ function computePaidJobStatus(job: JobWithRelations): JobStatus {
     return nextActionStatus;
   }
 
-  const latestJobEvent = job.events[0];
+  const latestJobEvent = job.events.at(0);
   if (!latestJobEvent) {
     return JobStatus.FAILED;
   }

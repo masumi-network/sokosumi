@@ -22,7 +22,7 @@ export function formatJobResponse(job: JobWithStatus): JobResponse {
     userId: job.userId,
     organizationId: job.organizationId,
     agentJobId: job.agentJobId,
-    agentJobStatus: job.events[0]?.status,
+    agentJobStatus: job.events.at(0)?.status,
     onChainStatus: job.purchase?.onChainStatus,
     input: job.input,
     result: job.result,
