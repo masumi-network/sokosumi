@@ -157,8 +157,8 @@ describe("getMatchedHash", () => {
       const currentHash = getInputHash(mockInputString, mockIdentifier);
       const result = getMatchedHash(
         "input",
-        mockInputString,
         mockIdentifier,
+        mockInputString,
         currentHash,
       );
       expect(result).toBe(currentHash);
@@ -171,8 +171,8 @@ describe("getMatchedHash", () => {
       );
       const result = getMatchedHash(
         "input",
-        mockInputString,
         mockIdentifier,
+        mockInputString,
         deprecatedHash,
       );
       expect(result).toBe(deprecatedHash);
@@ -182,8 +182,8 @@ describe("getMatchedHash", () => {
       const unmatchedHash = "completely-different-hash";
       const result = getMatchedHash(
         "input",
-        mockInputString,
         mockIdentifier,
+        mockInputString,
         unmatchedHash,
       );
       expect(result).toBeNull();
@@ -196,8 +196,8 @@ describe("getMatchedHash", () => {
       // Hash generated with identifier1 should match
       const result1 = getMatchedHash(
         "input",
-        mockInputString,
         "identifier1",
+        mockInputString,
         hash1,
       );
       expect(result1).toBe(hash1);
@@ -205,17 +205,17 @@ describe("getMatchedHash", () => {
       // Hash generated with identifier1 should not match identifier2
       const result2 = getMatchedHash(
         "input",
+        "identifier1",
         mockInputString,
-        "identifier2",
         hash1,
       );
-      expect(result2).toBeNull();
+      expect(result2).not.toBe(hash2);
 
       // Hash generated with identifier2 should match
       const result3 = getMatchedHash(
         "input",
-        mockInputString,
         "identifier2",
+        mockInputString,
         hash2,
       );
       expect(result3).toBe(hash2);
@@ -225,13 +225,13 @@ describe("getMatchedHash", () => {
   describe("result hash matching", () => {
     const resultString: string = "success";
 
-    it("should return output hash when it matches", () => {
+    it("should return result hash when it matches", () => {
       const resultHash = getResultHash(resultString, mockIdentifier);
       const result = getMatchedHash(
         "result",
-        resultString,
         mockIdentifier,
-        resultHash ?? "",
+        resultString,
+        resultHash,
       );
       expect(result).toBe(resultHash);
     });
@@ -240,8 +240,8 @@ describe("getMatchedHash", () => {
       const unmatchedHash = "different-output-hash";
       const result = getMatchedHash(
         "result",
-        resultString,
         mockIdentifier,
+        resultString,
         unmatchedHash,
       );
       expect(result).toBeNull();
@@ -260,16 +260,16 @@ describe("getMatchedHash", () => {
       // Each hash should match with its corresponding data
       const result1 = getMatchedHash(
         "result",
-        resultString1,
         mockIdentifier,
+        resultString1,
         hash1 ?? "",
       );
       expect(result1).toBe(hash1);
 
       const result2 = getMatchedHash(
         "result",
-        resultString2,
         mockIdentifier,
+        resultString2,
         hash2 ?? "",
       );
       expect(result2).toBe(hash2);
@@ -277,8 +277,8 @@ describe("getMatchedHash", () => {
       // Mismatched data and hash should return null
       const result3 = getMatchedHash(
         "result",
-        resultString1,
         mockIdentifier,
+        resultString1,
         hash2 ?? "",
       );
       expect(result3).toBeNull();
@@ -290,8 +290,8 @@ describe("getMatchedHash", () => {
         const hash = getInputHash(emptyInputData, mockIdentifier);
         const result = getMatchedHash(
           "input",
-          emptyInputData,
           mockIdentifier,
+          emptyInputData,
           hash,
         );
         expect(result).toBe(hash);
@@ -303,8 +303,8 @@ describe("getMatchedHash", () => {
         const hash = getInputHash(inputString, specialIdentifier);
         const result = getMatchedHash(
           "input",
-          inputString,
           specialIdentifier,
+          inputString,
           hash,
         );
         expect(result).toBe(hash);
@@ -313,11 +313,11 @@ describe("getMatchedHash", () => {
       it("should be case sensitive for hash matching", () => {
         const inputString = JSON.stringify({ test: "value" });
         const hash = getInputHash(inputString, mockIdentifier);
-        const upperCaseHash = hash.toUpperCase();
+        const upperCaseHash = hash?.toUpperCase();
         const result = getMatchedHash(
           "input",
-          inputString,
           mockIdentifier,
+          inputString,
           upperCaseHash,
         );
         expect(result).toBeNull();

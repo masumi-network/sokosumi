@@ -96,10 +96,11 @@ export const getResultHash = (
  */
 export function getMatchedHash(
   mode: "input" | "result",
-  data: string,
   identifierFromPurchaser: string,
-  hashToMatch: string,
+  data: string,
+  hashToMatch?: string | null,
 ): string | null {
+  if (!hashToMatch) return null;
   if (mode === "input") {
     const inputHash = getInputHash(data, identifierFromPurchaser);
     if (hashToMatch === inputHash) return inputHash;
@@ -144,34 +145,43 @@ export function isJobVerified(
   direction: "input" | "result",
   options: InputVerificationOptions | ResultVerificationOptions,
 ): boolean {
-  switch (direction) {
-    case "input": {
-      const inputOptions = options as InputVerificationOptions;
-      if (!inputOptions.inputHash) return false;
-      if (!inputOptions.input) return false;
-      const matched = getMatchedHash(
-        "input",
-        inputOptions.input,
-        inputOptions.identifierFromPurchaser,
-        inputOptions.inputHash,
-      );
-      return matched !== null;
-    }
-    case "result": {
-      const resultOptions = options as ResultVerificationOptions;
-      if (!resultOptions.resultHash) return false;
-      if (!resultOptions.result) return false;
-      const matched = getMatchedHash(
-        "result",
-        resultOptions.result,
-        resultOptions.identifierFromPurchaser,
-        resultOptions.resultHash,
-      );
-      return matched !== null;
-    }
-    default:
-      return false;
+  if (direction === "input") {
+    const inputOptions = options as InputVerificationOptions;
+    return verifyHashMatch(
+      "input",
+      inputOptions.inputHash,
+      inputOptions.input,
+      inputOptions.identifierFromPurchaser,
+    );
   }
+
+  if (direction === "result") {
+    const resultOptions = options as ResultVerificationOptions;
+    return verifyHashMatch(
+      "result",
+      resultOptions.resultHash,
+      resultOptions.result,
+      resultOptions.identifierFromPurchaser,
+    );
+  }
+
+  return false;
+}
+
+function verifyHashMatch(
+  direction: "input" | "result",
+  hash: string | null,
+  data: string | null,
+  identifierFromPurchaser: string,
+) {
+  if (!hash || !data) return false;
+  const matched = getMatchedHash(
+    direction,
+    identifierFromPurchaser,
+    data,
+    hash,
+  );
+  return matched !== null;
 }
 
 /**
