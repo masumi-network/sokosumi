@@ -464,7 +464,7 @@ export const jobService = (() => {
   async function startPaidJobInternal(
     input: StartJobInputSchemaType,
     agent: AgentWithRelations,
-  ): Promise<Job> {
+  ): Promise<JobWithStatus> {
     const {
       userId,
       organizationId,
@@ -738,7 +738,7 @@ export const jobService = (() => {
   async function startFreeJobInternal(
     input: StartJobInputSchemaType,
     agent: AgentWithRelations,
-  ): Promise<Job> {
+  ): Promise<JobWithStatus> {
     const {
       userId,
       organizationId,
@@ -830,7 +830,9 @@ export const jobService = (() => {
    * @returns Promise resolving to the created Job record
    * @throws {JobError} Various job-related errors
    */
-  const startJob = async (input: StartJobInputSchemaType): Promise<Job> => {
+  const startJob = async (
+    input: StartJobInputSchemaType,
+  ): Promise<JobWithStatus> => {
     const { userId, organizationId, agentId } = input;
 
     Sentry.addBreadcrumb({

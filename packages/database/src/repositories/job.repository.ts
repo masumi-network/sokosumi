@@ -4,7 +4,7 @@ import {
   JobType,
   OnChainJobStatus,
 } from "../generated/prisma/browser";
-import type { Job, Prisma } from "../generated/prisma/client";
+import type { Prisma } from "../generated/prisma/client";
 import { mapJobWithStatus } from "../helpers/job";
 import {
   finalizedAgentJobStatuses,
@@ -409,10 +409,10 @@ export const jobRepository = {
     userId: string,
     organizationId: string | null | undefined,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<Job | null> {
+  ): Promise<JobWithStatus | null> {
     // Normalize undefined to null for organizationId to ensure correct filtering (Prisma ignores undefined)
     const normalizedOrganizationId = organizationId ?? null;
-    return await tx.job.findFirst({
+    const job = await tx.job.findFirst({
       where: {
         agentId,
         userId,
@@ -422,17 +422,20 @@ export const jobRepository = {
       orderBy: { createdAt: "desc" },
       include: jobInclude,
     });
+    return job ? mapJobWithStatus(job) : null;
   },
 
   async updateJobNameById(
     jobId: string,
     name: string | null,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<Job> {
-    return await tx.job.update({
+  ): Promise<JobWithStatus> {
+    const job = await tx.job.update({
       where: { id: jobId },
       data: { name },
+      include: jobInclude,
     });
+    return mapJobWithStatus(job);
   },
 
   /**
