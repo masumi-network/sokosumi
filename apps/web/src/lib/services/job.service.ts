@@ -1011,6 +1011,9 @@ export const jobService = (() => {
 
     const newJobStatus = await prisma.$transaction(
       async (tx) => {
+        if (!job) {
+          throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
+        }
         if (onChainPurchaseResult.ok) {
           const purchaseData = transformPurchaseToJobUpdate(
             onChainPurchaseResult.data,
@@ -1056,6 +1059,11 @@ export const jobService = (() => {
             },
             tx,
           );
+
+          job = await jobRepository.getJobById(job.id, tx);
+          if (!job) {
+            throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
+          }
 
           // Fire and forget: enqueue extraction if output is present
           try {
