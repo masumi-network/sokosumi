@@ -107,7 +107,7 @@ export function getMatchedHash(
     return null;
   } else {
     // result hash
-    const resultHash = getResultHash(data as string, identifierFromPurchaser);
+    const resultHash = getResultHash(data, identifierFromPurchaser);
     return hashToMatch === resultHash ? resultHash : null;
   }
 }
@@ -131,7 +131,8 @@ export function isJobVerified(
   direction: "input" | "result",
   job: JobWithStatus,
 ): boolean {
-  if (!job.identifierFromPurchaser) {
+  const identifierFromPurchaser = job.identifierFromPurchaser;
+  if (!identifierFromPurchaser) {
     return false;
   }
 
@@ -145,19 +146,18 @@ export function isJobVerified(
     const matched = getMatchedHash(
       "input",
       job.input,
-      job.identifierFromPurchaser,
+      identifierFromPurchaser,
       job.inputHash,
     );
     return matched !== null;
   } else {
     const resultHash = job.purchase?.resultHash;
-    const result = job.result;
-    if (!result) return false;
     if (!resultHash) return false;
+    if (!job.result) return false;
     const matched = getMatchedHash(
       "result",
-      result,
-      job.identifierFromPurchaser,
+      job.result,
+      identifierFromPurchaser,
       resultHash,
     );
     return matched !== null;
