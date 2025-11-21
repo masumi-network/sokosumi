@@ -1,13 +1,13 @@
 import "server-only";
 
-import { Job } from "@sokosumi/database";
+import { JobWithStatus } from "@sokosumi/database";
 
 import { getJobStatusData } from "@/lib/helpers/job";
 
 import { getRestClient } from "./client";
 import { makeAgentJobsChannelName } from "./utils";
 
-export default async function publishJobStatusData(job: Job) {
+export default async function publishJobStatusData(job: JobWithStatus) {
   const client = getRestClient();
   const channel = client.channels.get(
     makeAgentJobsChannelName(job.agentId, job.userId),

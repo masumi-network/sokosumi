@@ -403,7 +403,7 @@ export const jobService = (() => {
    *
    * @param job - Job to publish status for
    */
-  async function publishJobStatusSafely(job: Job): Promise<void> {
+  async function publishJobStatusSafely(job: JobWithStatus): Promise<void> {
     try {
       await publishJobStatusData(job);
     } catch (err) {
@@ -424,7 +424,7 @@ export const jobService = (() => {
   const startDemoJob = async (
     input: StartJobInputSchemaType,
     jobStatusResponse: JobStatusResponseSchemaType,
-  ): Promise<Job> => {
+  ): Promise<JobWithStatus> => {
     const { userId, agentId, inputData, inputSchema } = input;
     const activeOrganizationId = await userService.getActiveOrganizationId();
 
