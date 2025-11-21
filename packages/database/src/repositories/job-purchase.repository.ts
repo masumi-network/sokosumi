@@ -35,6 +35,45 @@ interface UpdateJobPurchaseData {
 }
 
 /**
+ * Builds a Prisma update data object by only including fields that are explicitly provided (not undefined).
+ */
+function buildUpdateData(
+  data: UpdateJobPurchaseData,
+): Prisma.JobPurchaseUpdateInput {
+  const updateData: Prisma.JobPurchaseUpdateInput = {};
+
+  if (data.onChainStatus !== undefined) {
+    updateData.onChainStatus = data.onChainStatus;
+  }
+  if (data.onChainTransactionHash !== undefined) {
+    updateData.onChainTransactionHash = data.onChainTransactionHash;
+  }
+  if (data.onChainTransactionStatus !== undefined) {
+    updateData.onChainTransactionStatus = data.onChainTransactionStatus;
+  }
+  if (data.resultHash !== undefined) {
+    updateData.resultHash = data.resultHash;
+  }
+  if (data.nextAction !== undefined) {
+    updateData.nextAction = data.nextAction;
+  }
+  if (data.nextActionErrorType !== undefined) {
+    updateData.nextActionErrorType = data.nextActionErrorType;
+  }
+  if (data.nextActionErrorNote !== undefined) {
+    updateData.nextActionErrorNote = data.nextActionErrorNote;
+  }
+  if (data.errorNote !== undefined) {
+    updateData.errorNote = data.errorNote;
+  }
+  if (data.errorNoteKey !== undefined) {
+    updateData.errorNoteKey = data.errorNoteKey;
+  }
+
+  return updateData;
+}
+
+/**
  * Repository for managing JobPurchase entities and related queries.
  * Provides methods for creating, retrieving, updating, and deleting JobPurchase records.
  */
@@ -109,17 +148,7 @@ export const jobPurchaseRepository = {
   ): Promise<JobPurchase> {
     return await tx.jobPurchase.update({
       where: { id },
-      data: {
-        onChainStatus: data.onChainStatus,
-        onChainTransactionHash: data.onChainTransactionHash,
-        onChainTransactionStatus: data.onChainTransactionStatus,
-        resultHash: data.resultHash,
-        nextAction: data.nextAction,
-        nextActionErrorType: data.nextActionErrorType,
-        nextActionErrorNote: data.nextActionErrorNote,
-        errorNote: data.errorNote,
-        errorNoteKey: data.errorNoteKey,
-      },
+      data: buildUpdateData(data),
     });
   },
 
@@ -133,17 +162,7 @@ export const jobPurchaseRepository = {
   ): Promise<JobPurchase> {
     return await tx.jobPurchase.update({
       where: { jobId },
-      data: {
-        onChainStatus: data.onChainStatus,
-        onChainTransactionHash: data.onChainTransactionHash,
-        onChainTransactionStatus: data.onChainTransactionStatus,
-        resultHash: data.resultHash,
-        nextAction: data.nextAction,
-        nextActionErrorType: data.nextActionErrorType,
-        nextActionErrorNote: data.nextActionErrorNote,
-        errorNote: data.errorNote,
-        errorNoteKey: data.errorNoteKey,
-      },
+      data: buildUpdateData(data),
     });
   },
 
@@ -157,17 +176,7 @@ export const jobPurchaseRepository = {
   ): Promise<JobPurchase> {
     return await tx.jobPurchase.update({
       where: { externalId },
-      data: {
-        onChainStatus: data.onChainStatus,
-        onChainTransactionHash: data.onChainTransactionHash,
-        onChainTransactionStatus: data.onChainTransactionStatus,
-        resultHash: data.resultHash,
-        nextAction: data.nextAction,
-        nextActionErrorType: data.nextActionErrorType,
-        nextActionErrorNote: data.nextActionErrorNote,
-        errorNote: data.errorNote,
-        errorNoteKey: data.errorNoteKey,
-      },
+      data: buildUpdateData(data),
     });
   },
 
