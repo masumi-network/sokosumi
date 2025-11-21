@@ -1,4 +1,4 @@
-import { Job, JobType, type JobWithStatus } from "@sokosumi/database";
+import { JobType, type JobWithStatus } from "@sokosumi/database";
 import { computeJobStatus } from "@sokosumi/database/helpers";
 
 import { type JobStatusData } from "@/lib/ably";
@@ -9,7 +9,7 @@ import { type JobStatusData } from "@/lib/ably";
  * @param job - The job to get the status data for.
  * @returns The job status data.
  */
-export function getJobStatusData(job: Job): JobStatusData {
+export function getJobStatusData(job: JobWithStatus): JobStatusData {
   let jobStatusSettled: boolean;
   switch (job.jobType) {
     case JobType.PAID:
