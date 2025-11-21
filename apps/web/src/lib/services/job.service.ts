@@ -1025,8 +1025,16 @@ export const jobService = (() => {
             return computeJobStatus(job);
           }
 
-          if (latestJobEvent.status === agentJobStatus) {
+          // If the latest job event is the same as the agent job status result, return the current job status
+          if (latestJobEvent.externalId === agentJobStatusResult.data.id) {
             return computeJobStatus(job);
+          } else {
+            // If the agent job status result has no external ID, check if the latest job event status is the same as the agent job status
+            if (!agentJobStatusResult.data.id) {
+              if (latestJobEvent.status === agentJobStatus) {
+                return computeJobStatus(job);
+              }
+            }
           }
 
           await jobEventRepository.createJobEventForJobId(
