@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  AgentJobStatus,
-  JobEvent,
-  JobStatus,
-  JobWithStatus,
-} from "@sokosumi/database";
+import { JobStatus, JobWithStatus } from "@sokosumi/database";
 import { isPaidJob } from "@sokosumi/database/helpers";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
@@ -57,10 +52,7 @@ function JobDetailsOutputsInner({
   const t = useTranslations("Components.Jobs.JobDetails.Output");
   const searchParams = useSearchParams();
 
-  const completedEvent = job.events.find(
-    (event: JobEvent) => event.status === AgentJobStatus.COMPLETED,
-  );
-  const result = completedEvent?.result;
+  const result = job.result;
 
   return (
     <JobDetailsOutputsLayout>

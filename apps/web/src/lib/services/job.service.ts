@@ -5,7 +5,6 @@ import {
   AgentJobStatus,
   AgentWithRelations,
   Job,
-  JobEvent,
   JobShare,
   JobStatus,
   JobType,
@@ -89,9 +88,7 @@ export const jobService = (() => {
     }
     if (
       job.purchase?.onChainStatus === OnChainJobStatus.RESULT_SUBMITTED &&
-      job.events.some(
-        (event: JobEvent) => event.status === AgentJobStatus.COMPLETED,
-      )
+      job.completedAt !== undefined
     ) {
       return null;
     }
@@ -464,10 +461,8 @@ export const jobService = (() => {
 
     // Enqueue any sources from demo output
     try {
-      const result = job.events.find(
-        (event: JobEvent) => event.status === AgentJobStatus.COMPLETED,
-      )?.result;
-      if (result) {
+      const result = job.result;
+      if (result !== null) {
         await sourceImportService.enqueueFromMarkdown(userId, job.id, result);
       }
     } catch {

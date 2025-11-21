@@ -1,6 +1,6 @@
 "use client";
 
-import { AgentJobStatus, JobEvent, JobWithStatus } from "@sokosumi/database";
+import { JobWithStatus } from "@sokosumi/database";
 import { LinkIcon } from "lucide-react";
 import Link from "next/link";
 import { useFormatter, useTranslations } from "next-intl";
@@ -58,10 +58,7 @@ export function JobMetaDetails({ job }: JobMetaDetailsProps) {
       identifier && result ? getResultHash(result, identifier) : null;
 
     return {
-      onChainInputHash:
-        job.events.find(
-          (event: JobEvent) => event.status === AgentJobStatus.AWAITING_PAYMENT,
-        )?.inputHash ?? null,
+      onChainInputHash: job.inputHash ?? null,
       onChainResultHash: job.purchase?.resultHash ?? null,
       calculatedInputHash: calcInput,
       calculatedResultHash: calcOutput,

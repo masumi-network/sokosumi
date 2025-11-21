@@ -1,4 +1,4 @@
-import { AgentJobStatus, JobEvent, JobWithStatus } from "@sokosumi/database";
+import { JobWithStatus } from "@sokosumi/database";
 import { type ClassValue, clsx } from "clsx";
 import crypto from "crypto";
 import { canonicalizeEx } from "json-canonicalize";
@@ -142,26 +142,20 @@ export function isJobVerified(
   }
 
   if (direction === "input") {
-    const inputEvent = job.events.find(
-      (event: JobEvent) => event.status === AgentJobStatus.AWAITING_PAYMENT,
-    );
-
-    if (!inputEvent?.inputHash) return false;
-    const inputObj = tryParseJson<Record<string, unknown>>(inputEvent.input);
+    if (!job.inputHash) return false;
+    const inputObj = tryParseJson<Record<string, unknown>>(job.input);
     const inputData = inputObj ? toJobInputData(inputObj) : null;
     if (!inputData) return false;
     const matched = getMatchedHash(
       "input",
       inputData,
       job.identifierFromPurchaser,
-      inputEvent.inputHash,
+      job.inputHash,
     );
     return matched !== null;
   } else {
     const resultHash = job.purchase?.resultHash;
-    const result = job.events.find(
-      (event: JobEvent) => event.status === AgentJobStatus.COMPLETED,
-    )?.result;
+    const result = job.result;
     if (!result) return false;
     if (!resultHash) return false;
     const matched = getMatchedHash(
