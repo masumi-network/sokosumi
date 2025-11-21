@@ -200,20 +200,6 @@ export const jobService = (() => {
   function extractJobFailureNotificationData(
     job: JobWithStatus,
   ): JobFailureNotificationEmailProps {
-    const purchase = job.purchase;
-    if (!purchase) {
-      throw new JobError(
-        JobErrorCode.JOB_PURCHASE_NOT_FOUND,
-        "Job purchase not found",
-      );
-    }
-    const event = job.events[0];
-    if (!event) {
-      throw new JobError(
-        JobErrorCode.JOB_EVENT_NOT_FOUND,
-        "Job event not found",
-      );
-    }
     return {
       network: getEnvPublicConfig().NEXT_PUBLIC_NETWORK,
       agentId: job.agentId,
@@ -221,10 +207,10 @@ export const jobService = (() => {
       agentName: job.agent.name,
       jobId: job.id,
       jobBlockchainIdentifier: job.blockchainIdentifier,
-      onChainStatus: purchase.onChainStatus,
-      agentStatus: event.status,
-      result: event.result,
-      resultHash: purchase.resultHash,
+      onChainStatus: job.purchase?.onChainStatus ?? "N/A",
+      agentStatus: job.status,
+      result: job.result,
+      resultHash: job.purchase?.resultHash ?? "N/A",
     };
   }
 
