@@ -36,6 +36,7 @@ type BaseJobWithStatus = JobWithRelations & {
   status: JobStatus;
   jobStatusSettled: boolean;
   input: string | null;
+  inputHash: string | null;
   inputSchema: string | null;
   completedAt: Date | null;
   result: string | null;

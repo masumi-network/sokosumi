@@ -47,15 +47,9 @@ export function JobMetaDetails({ job }: JobMetaDetailsProps) {
   const t = useTranslations("Components.Jobs.JobDetails.Meta");
 
   const hashVerification = useMemo<HashVerificationResult>(() => {
-    const inputObj = tryParseJson<Record<string, unknown>>(
-      job.events.find(
-        (event: JobEvent) => event.status === AgentJobStatus.AWAITING_PAYMENT,
-      )?.input ?? null,
-    );
+    const inputObj = tryParseJson<Record<string, unknown>>(job.input ?? null);
     const inputData = inputObj ? toJobInputData(inputObj) : null;
-    const result = job.events.find(
-      (event: JobEvent) => event.status === AgentJobStatus.COMPLETED,
-    )?.result;
+    const result = job.result;
 
     const identifier = job.identifierFromPurchaser;
     const calcInput =
@@ -130,15 +124,8 @@ export function JobMetaDetails({ job }: JobMetaDetailsProps) {
       key: "finished",
       label: t("finished"),
       rowClassName: "pb-1",
-      content: job.events.find(
-        (event: JobEvent) => event.status === AgentJobStatus.COMPLETED,
-      )?.createdAt
-        ? formatDateTimeMedium(
-            formatter.dateTime,
-            job.events.find(
-              (event: JobEvent) => event.status === AgentJobStatus.COMPLETED,
-            )!.createdAt,
-          )
+      content: job.completedAt
+        ? formatDateTimeMedium(formatter.dateTime, job.completedAt)
         : "-",
     },
     ...(job.creditTransaction

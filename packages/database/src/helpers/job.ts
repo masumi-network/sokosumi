@@ -264,6 +264,8 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
   );
   const input = awaitingPaymentEvent?.input ?? null;
   const inputSchema = awaitingPaymentEvent?.inputSchema ?? null;
+  const inputHash = awaitingPaymentEvent?.inputHash ?? null;
+
   const jobStatusSettled =
     job.jobType === JobType.PAID
       ? job.externalDisputeUnlockTime != null
@@ -278,6 +280,7 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
     completedAt: completedAt ?? null,
     result: result ?? null,
     input: input ?? null,
+    inputHash: inputHash ?? null,
     inputSchema: inputSchema ?? null,
   };
 
