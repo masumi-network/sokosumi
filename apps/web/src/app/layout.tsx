@@ -11,6 +11,7 @@ import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
+import { EmergencyDialog } from "@/components/emergency-dialog";
 import { GlobalModalsContextProvider } from "@/components/modals/global-modals-context";
 import { ApplePwaHead } from "@/components/pwa/apple-pwa-head";
 import { Toaster } from "@/components/ui/sonner";
@@ -90,6 +91,7 @@ export default async function RootLayout({
             <ThemeProvider>
               <NextIntlClientProvider messages={messages}>
                 <GlobalModalsContextProvider>
+                  <EmergencyDialog />
                   <div className="bg-background">{children}</div>
                 </GlobalModalsContextProvider>
                 {/* Toaster */}

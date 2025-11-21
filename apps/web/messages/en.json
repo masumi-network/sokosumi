@@ -48,6 +48,11 @@
       "accept": "Accept",
       "reject": "Reject"
     },
+    "EmergencyDialog": {
+      "title": "Emergency maintenance",
+      "description": "We currently encounter issues with the execution of jobs due to technical issues with one of our third party providers. Don't worry everything will be back to normal in a bit.",
+      "confirm": "OK"
+    },
     "ShareButton": {
       "linkCopied": "Link copied to clipboard",
       "copyError": "Failed to copy link"
