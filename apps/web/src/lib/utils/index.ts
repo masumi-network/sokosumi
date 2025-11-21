@@ -139,10 +139,6 @@ export function isJobVerified(
   if (direction === "input") {
     if (!job.inputHash) return false;
     if (!job.input) return false;
-    // console.log("job.input", job.input);
-    // const inputObj = tryParseJson<Record<string, unknown>>(job.input);
-    // const inputData = inputObj ? toJobInputData(inputObj) : null;
-    // if (!inputData) return false;
     const matched = getMatchedHash(
       "input",
       job.input,
