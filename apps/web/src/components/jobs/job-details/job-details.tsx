@@ -1,10 +1,4 @@
-import {
-  AgentJobStatus,
-  BlobOrigin,
-  JobEvent,
-  JobWithStatus,
-  Prisma,
-} from "@sokosumi/database";
+import { AgentJobStatus, BlobOrigin, JobWithStatus } from "@sokosumi/database";
 import { useFormatter, useTranslations } from "next-intl";
 
 import AccordionItemWrapper from "@/components/accordion-wrapper";
@@ -42,20 +36,10 @@ export default function JobDetails({
     ) ?? job.events.find((event) => event.input != null);
 
   // Extract input and inputSchema from the event
-  const rawInput = inputEvent?.input ?? null;
-  let inputSchema: Prisma.JsonValue | null = null;
-  if (inputEvent?.inputSchema) {
-    try {
-      inputSchema = JSON.parse(inputEvent.inputSchema);
-    } catch {
-      // If parsing fails, keep it as null
-      inputSchema = null;
-    }
-  }
+  const rawInput = job.input;
+  const rawInputSchema = job.inputSchema;
 
-  const hasCompletedOutput = job.events.some(
-    (event: JobEvent) => event.status === AgentJobStatus.COMPLETED,
-  );
+  const hasCompletedOutput = job.completedAt != null && job.result != null;
   // Only show Sources accordion if there are OUTPUT blobs or links
   // Note: Only output blobs are shown in the Sources section
   const hasOutputBlobs = job.blobs.some(
@@ -95,7 +79,7 @@ export default function JobDetails({
           >
             <JobDetailsInputs
               rawInput={rawInput}
-              inputSchema={inputSchema}
+              rawInputSchema={rawInputSchema}
               blobs={job.blobs}
             />
           </AccordionItemWrapper>
@@ -103,9 +87,7 @@ export default function JobDetails({
             value="output"
             title={t("Output.title")}
             verificationBadge={
-              job.events.some(
-                (event: JobEvent) => event.status === AgentJobStatus.COMPLETED,
-              ) ? (
+              job.completedAt != null ? (
                 <JobVerificationBadge direction="result" job={job} />
               ) : null
             }

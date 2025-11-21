@@ -254,10 +254,16 @@ function computePaidJobStatus(job: JobWithRelations): JobStatus {
 }
 
 export function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
-  const completedAt =
-    job.events.find(
-      (event: JobEvent) => event.status === AgentJobStatus.COMPLETED,
-    )?.createdAt ?? null;
+  const completedEvent = job.events.find(
+    (event: JobEvent) => event.status === AgentJobStatus.COMPLETED,
+  );
+  const completedAt = completedEvent?.createdAt ?? null;
+  const result = completedEvent?.result ?? null;
+  const awaitingPaymentEvent = job.events.find(
+    (event: JobEvent) => event.status === AgentJobStatus.AWAITING_PAYMENT,
+  );
+  const input = awaitingPaymentEvent?.input ?? null;
+  const inputSchema = awaitingPaymentEvent?.inputSchema ?? null;
   const jobStatusSettled =
     job.jobType === JobType.PAID
       ? job.externalDisputeUnlockTime != null
@@ -269,6 +275,10 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
     ...job,
     status: computeJobStatus(job),
     jobStatusSettled,
+    completedAt: completedAt ?? null,
+    result: result ?? null,
+    input: input ?? null,
+    inputSchema: inputSchema ?? null,
   };
 
   switch (job.jobType) {
