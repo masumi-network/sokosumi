@@ -267,9 +267,16 @@ export function mapJobWithStatus(job: JobWithRelations): JobWithStatus {
   );
   const completedAt = completedEvent?.createdAt ?? null;
   const result = completedEvent?.result ?? null;
-  const awaitingPaymentEvent = job.events.find(
-    (event: JobEvent) => event.status === AgentJobStatus.AWAITING_PAYMENT,
-  );
+  const awaitingPaymentEvent = job.events.find((event: JobEvent) => {
+    switch (job.jobType) {
+      case JobType.FREE:
+        return event.status === AgentJobStatus.RUNNING;
+      case JobType.PAID:
+        return event.status === AgentJobStatus.AWAITING_PAYMENT;
+      case JobType.DEMO:
+        return event.status === AgentJobStatus.COMPLETED;
+    }
+  });
   const input = awaitingPaymentEvent?.input ?? null;
   const inputSchema = awaitingPaymentEvent?.inputSchema ?? null;
   const inputHash = awaitingPaymentEvent?.inputHash ?? null;
