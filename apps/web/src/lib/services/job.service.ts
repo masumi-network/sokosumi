@@ -88,7 +88,7 @@ export const jobService = (() => {
     }
     if (
       job.purchase?.onChainStatus === OnChainJobStatus.RESULT_SUBMITTED &&
-      job.completedAt !== undefined
+      job.status === JobStatus.COMPLETED
     ) {
       return null;
     }
