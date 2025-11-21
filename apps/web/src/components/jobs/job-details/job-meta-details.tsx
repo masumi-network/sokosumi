@@ -17,13 +17,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { convertCentsToCredits } from "@/lib/helpers/credit";
-import {
-  cn,
-  getInputHash,
-  getResultHash,
-  toJobInputData,
-  tryParseJson,
-} from "@/lib/utils";
+import { cn, getInputHash, getResultHash } from "@/lib/utils";
 import { formatDateTimeMedium } from "@/lib/utils/format";
 import { buildJobTransactionUrl } from "@/lib/utils/url";
 
@@ -47,15 +41,11 @@ export function JobMetaDetails({ job }: JobMetaDetailsProps) {
   const t = useTranslations("Components.Jobs.JobDetails.Meta");
 
   const hashVerification = useMemo<HashVerificationResult>(() => {
-    const inputObj = tryParseJson<Record<string, unknown>>(job.input ?? null);
-    const inputData = inputObj ? toJobInputData(inputObj) : null;
-    const result = job.result;
-
     const identifier = job.identifierFromPurchaser;
     const calcInput =
-      identifier && inputData ? getInputHash(inputData, identifier) : null;
+      identifier && job.input ? getInputHash(job.input, identifier) : null;
     const calcOutput =
-      identifier && result ? getResultHash(result, identifier) : null;
+      identifier && job.result ? getResultHash(job.result, identifier) : null;
 
     return {
       onChainInputHash: job.inputHash ?? null,

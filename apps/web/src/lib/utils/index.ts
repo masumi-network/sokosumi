@@ -14,12 +14,12 @@ export const sleep = (ms: number) =>
   new Promise((resolve) => setTimeout(resolve, ms));
 
 const calculateInputHash = (
-  inputData: JobInputData,
+  input: string,
   identifierFromPurchaser: string,
   delimiter: string = ";",
 ) => {
   try {
-    const object = Object.fromEntries(inputData);
+    const object = JSON.parse(input);
     const inputString = canonicalizeEx(object, {
       filterUndefined: true,
     });
@@ -39,10 +39,10 @@ const calculateInputHash = (
  * @returns SHA-256 hash of the combined data
  */
 export const getInputHashDeprecated = (
-  inputData: JobInputData,
+  input: string,
   identifierFromPurchaser: string,
 ) => {
-  return calculateInputHash(inputData, identifierFromPurchaser, "");
+  return calculateInputHash(input, identifierFromPurchaser, "");
 };
 
 /**
@@ -53,10 +53,10 @@ export const getInputHashDeprecated = (
  * @returns SHA-256 hash of the combined data
  */
 export const getInputHash = (
-  inputData: JobInputData,
+  input: string,
   identifierFromPurchaser: string,
 ) => {
-  return calculateInputHash(inputData, identifierFromPurchaser, ";");
+  return calculateInputHash(input, identifierFromPurchaser, ";");
 };
 
 /**
@@ -95,20 +95,14 @@ export const getResultHash = (
  */
 export function getMatchedHash(
   mode: "input" | "result",
-  data: JobInputData | string,
+  data: string,
   identifierFromPurchaser: string,
   hashToMatch: string,
 ): string | null {
   if (mode === "input") {
-    const inputHash = getInputHash(
-      data as JobInputData,
-      identifierFromPurchaser,
-    );
+    const inputHash = getInputHash(data, identifierFromPurchaser);
     if (hashToMatch === inputHash) return inputHash;
-    const deprecated = getInputHashDeprecated(
-      data as JobInputData,
-      identifierFromPurchaser,
-    );
+    const deprecated = getInputHashDeprecated(data, identifierFromPurchaser);
     if (hashToMatch === deprecated) return deprecated;
     return null;
   } else {
@@ -143,12 +137,14 @@ export function isJobVerified(
 
   if (direction === "input") {
     if (!job.inputHash) return false;
-    const inputObj = tryParseJson<Record<string, unknown>>(job.input);
-    const inputData = inputObj ? toJobInputData(inputObj) : null;
-    if (!inputData) return false;
+    if (!job.input) return false;
+    // console.log("job.input", job.input);
+    // const inputObj = tryParseJson<Record<string, unknown>>(job.input);
+    // const inputData = inputObj ? toJobInputData(inputObj) : null;
+    // if (!inputData) return false;
     const matched = getMatchedHash(
       "input",
-      inputData,
+      job.input,
       job.identifierFromPurchaser,
       job.inputHash,
     );
