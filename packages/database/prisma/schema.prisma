@@ -508,26 +508,7 @@ model Job {
   agentId String
   agent   Agent  @relation(fields: [agentId], references: [id])
 
-  agentJobId     String
-  agentJobStatus AgentJobStatus?
-
-  purchaseId String?
-
-  inputSchema       String
-  input             String
-  inputHash         String? // On-Chain hash of the input data
-  output            String?
-  resultHash        String? // On-Chain hash of the result data
-  startedAt         DateTime  @default(now())
-  completedAt       DateTime?
-  resultSubmittedAt DateTime?
-
-  nextAction          NextJobAction           @default(NONE)
-  nextActionErrorType NextJobActionErrorType?
-  nextActionErrorNote String?
-
-  errorNote    String?
-  errorNoteKey String?
+  agentJobId String
 
   jobType JobType
 
@@ -538,11 +519,6 @@ model Job {
   unlockTime                DateTime?
   externalDisputeUnlockTime DateTime?
   sellerVkey                String?
-
-  onChainStatus OnChainJobStatus?
-
-  onChainTransactionHash   String?
-  onChainTransactionStatus OnChainTransactionStatus?
 
   creditTransaction           CreditTransaction? @relation("CreditTransactionJob", fields: [creditTransactionId], references: [id])
   creditTransactionId         String?            @unique
@@ -557,12 +533,66 @@ model Job {
   // Public Share
   share JobShare?
 
+  events   JobEvent[]
+  purchase JobPurchase?
+
   // Optional link to the schedule that initiated this job
   jobScheduleId String?
   jobSchedule   JobSchedule? @relation(fields: [jobScheduleId], references: [id], onDelete: SetNull)
 
   @@index([jobType])
   @@index([jobScheduleId])
+}
+
+model JobPurchase {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  externalId String @unique
+
+  jobId String @unique
+  job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  onChainStatus OnChainJobStatus?
+
+  onChainTransactionHash   String?
+  onChainTransactionStatus OnChainTransactionStatus?
+
+  resultHash String?
+
+  nextAction          NextJobAction           @default(NONE)
+  nextActionErrorType NextJobActionErrorType?
+  nextActionErrorNote String?
+
+  errorNote    String?
+  errorNoteKey String?
+
+  @@index([jobId])
+  @@map("jobPurchase")
+}
+
+model JobEvent {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  externalId String?
+
+  status      AgentJobStatus @default(AWAITING_PAYMENT)
+  inputSchema String?
+  result      String?
+
+  input     String?
+  inputHash String?
+  signature String?
+
+  jobId String
+  job   Job    @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([externalId])
+  @@index([jobId])
+  @@map("jobEvent")
 }
 
 enum OnChainTransactionStatus {
@@ -607,7 +637,6 @@ enum OnChainJobStatus {
 }
 
 enum AgentJobStatus {
-  PENDING
   AWAITING_PAYMENT
   AWAITING_INPUT
   RUNNING
@@ -746,7 +775,7 @@ model JobSchedule {
   endAfterOccurrences Int?
 
   // Job payload snapshot
-  inputSchema      Json
+  inputSchema      String
   input            String
   maxAcceptedCents BigInt
 

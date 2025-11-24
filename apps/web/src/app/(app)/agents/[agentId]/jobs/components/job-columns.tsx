@@ -24,15 +24,15 @@ export function getJobColumns(
   highlightQuery?: string,
 ) {
   return {
-    startedAtColumn: columnHelper.accessor("startedAt", {
-      id: "startedAt",
+    createdAtColumn: columnHelper.accessor("createdAt", {
+      id: "createdAt",
       minSize: 80,
       header: ({ column }) => (
         <DataTableColumnHeader column={column} title={t("Header.started")} />
       ),
       cell: ({ row }) => (
         <div className="p-2 whitespace-nowrap">
-          {dateFormatter.dateTime(new Date(row.original.startedAt), {
+          {dateFormatter.dateTime(new Date(row.original.createdAt), {
             year: "numeric",
             month: "short",
             day: "numeric",

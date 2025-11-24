@@ -72,8 +72,9 @@ async function processSchedule(schedule: JobSchedule) {
       }
     }
 
-    const inputSchema =
-      schedule.inputSchema as StartJobInputSchemaType["inputSchema"];
+    const inputSchema = JSON.parse(
+      schedule.inputSchema,
+    ) as StartJobInputSchemaType["inputSchema"];
     const inputRecord = JSON.parse(
       schedule.input,
     ) as StartJobInputSchemaType["inputData"];

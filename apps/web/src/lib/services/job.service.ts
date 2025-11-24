@@ -19,6 +19,8 @@ import prisma from "@sokosumi/database/client";
 import { computeJobStatus, isPaidJob } from "@sokosumi/database/helpers";
 import {
   creditTransactionRepository,
+  jobEventRepository,
+  jobPurchaseRepository,
   jobRepository,
   jobShareRepository,
 } from "@sokosumi/database/repositories";
@@ -76,7 +78,7 @@ export const jobService = (() => {
   /**
    * Helper function to determine if agent status should be synchronized for a job.
    */
-  function shouldSyncAgentStatus(job: Job): string | null {
+  function shouldSyncAgentStatus(job: JobWithStatus): string | null {
     // Demo jobs never sync - they are self-contained
     if (job.jobType === JobType.DEMO) {
       return null;
@@ -85,8 +87,8 @@ export const jobService = (() => {
       return null;
     }
     if (
-      job.onChainStatus === OnChainJobStatus.RESULT_SUBMITTED &&
-      job.agentJobStatus === AgentJobStatus.COMPLETED
+      job.purchase?.onChainStatus === OnChainJobStatus.RESULT_SUBMITTED &&
+      job.status === JobStatus.COMPLETED
     ) {
       return null;
     }
@@ -97,7 +99,7 @@ export const jobService = (() => {
    * Helper function to determine if Masumi payment status should be synchronized for a job.
    * Only PAID jobs require Masumi payment synchronization.
    */
-  function shouldSyncMasumiStatus(job: Job): string | null {
+  function shouldSyncMasumiStatus(job: JobWithStatus): string | null {
     // Free and demo jobs never sync Masumi payment status
     if (job.jobType === JobType.FREE || job.jobType === JobType.DEMO) {
       return null;
@@ -105,10 +107,10 @@ export const jobService = (() => {
     if (job.refundedCreditTransactionId) {
       return null;
     }
-    if (job.purchaseId === null) {
+    if (job.purchase === null) {
       return null;
     }
-    return job.purchaseId;
+    return job.purchase.externalId;
   }
 
   /**
@@ -205,13 +207,10 @@ export const jobService = (() => {
       agentName: job.agent.name,
       jobId: job.id,
       jobBlockchainIdentifier: job.blockchainIdentifier,
-      onChainStatus: job.onChainStatus,
-      agentStatus: job.agentJobStatus,
-      input: job.input,
-      output: job.output,
-      inputHash: job.inputHash,
-      resultHash: job.resultHash,
-      inputSchema: job.inputSchema,
+      onChainStatus: job.purchase?.onChainStatus ?? "N/A",
+      agentStatus: job.status,
+      result: job.result,
+      resultHash: job.purchase?.resultHash ?? "N/A",
     };
   }
 
@@ -404,7 +403,7 @@ export const jobService = (() => {
    *
    * @param job - Job to publish status for
    */
-  async function publishJobStatusSafely(job: Job): Promise<void> {
+  async function publishJobStatusSafely(job: JobWithStatus): Promise<void> {
     try {
       await publishJobStatusData(job);
     } catch (err) {
@@ -425,7 +424,7 @@ export const jobService = (() => {
   const startDemoJob = async (
     input: StartJobInputSchemaType,
     jobStatusResponse: JobStatusResponseSchemaType,
-  ): Promise<Job> => {
+  ): Promise<JobWithStatus> => {
     const { userId, agentId, inputData, inputSchema } = input;
     const activeOrganizationId = await userService.getActiveOrganizationId();
 
@@ -433,9 +432,6 @@ export const jobService = (() => {
     if (!agent) {
       throw new JobError(JobErrorCode.AGENT_NOT_FOUND, "Agent not found");
     }
-
-    const output = JSON.stringify(jobStatusResponse);
-    const agentJobStatus = jobStatusToAgentJobStatus(jobStatusResponse.status);
 
     const job = await jobRepository.createDemoJob({
       jobType: JobType.DEMO,
@@ -446,23 +442,14 @@ export const jobService = (() => {
       input: JSON.stringify(Object.fromEntries(inputData)),
       inputSchema: inputSchema,
       name: "Demo Job",
-      agentJobStatus,
-      output,
-      completedAt:
-        agentJobStatus === AgentJobStatus.COMPLETED ? new Date() : null,
+      result: jobStatusResponse.result,
     });
 
     // Enqueue any sources from demo output
     try {
-      if (job.output) {
-        const parsedOutput = JSON.parse(job.output);
-        if (parsedOutput?.result && typeof parsedOutput.result === "string") {
-          await sourceImportService.enqueueFromMarkdown(
-            userId,
-            job.id,
-            parsedOutput.result,
-          );
-        }
+      const result = job.result;
+      if (result !== null) {
+        await sourceImportService.enqueueFromMarkdown(userId, job.id, result);
       }
     } catch {
       // Ignore errors
@@ -477,7 +464,7 @@ export const jobService = (() => {
   async function startPaidJobInternal(
     input: StartJobInputSchemaType,
     agent: AgentWithRelations,
-  ): Promise<Job> {
+  ): Promise<JobWithStatus> {
     const {
       userId,
       organizationId,
@@ -660,6 +647,7 @@ export const jobService = (() => {
       userId,
       organizationId,
       input: JSON.stringify(Object.fromEntries(inputData)),
+      inputHash: startJobResponse.input_hash,
       inputSchema: inputSchema,
       creditsPrice: agentWithCreditsPrice.creditsPrice,
       identifierFromPurchaser,
@@ -673,6 +661,7 @@ export const jobService = (() => {
       sellerVkey: startJobResponse.sellerVKey,
       name: generatedName,
       jobScheduleId,
+      agentJobStatus: AgentJobStatus.AWAITING_PAYMENT,
     });
 
     // Add breadcrumb for purchase creation
@@ -696,7 +685,10 @@ export const jobService = (() => {
     if (createPurchaseResult.ok) {
       const purchase = createPurchaseResult.data;
       const purchaseData = transformPurchaseToJobUpdate(purchase);
-      await jobRepository.updateJobWithPurchase(job.id, purchaseData);
+      await jobPurchaseRepository.createJobPurchase({
+        jobId: job.id,
+        ...purchaseData,
+      });
 
       // Add breadcrumb for successful purchase creation
       Sentry.addBreadcrumb({
@@ -746,7 +738,7 @@ export const jobService = (() => {
   async function startFreeJobInternal(
     input: StartJobInputSchemaType,
     agent: AgentWithRelations,
-  ): Promise<Job> {
+  ): Promise<JobWithStatus> {
     const {
       userId,
       organizationId,
@@ -807,9 +799,11 @@ export const jobService = (() => {
       userId,
       organizationId,
       input: JSON.stringify(Object.fromEntries(inputData)),
+      inputHash: null,
       inputSchema: inputSchema,
       name: generatedName,
       jobScheduleId,
+      agentJobStatus: AgentJobStatus.RUNNING,
     });
 
     await publishJobStatusSafely(job);
@@ -836,7 +830,9 @@ export const jobService = (() => {
    * @returns Promise resolving to the created Job record
    * @throws {JobError} Various job-related errors
    */
-  const startJob = async (input: StartJobInputSchemaType): Promise<Job> => {
+  const startJob = async (
+    input: StartJobInputSchemaType,
+  ): Promise<JobWithStatus> => {
     const { userId, organizationId, agentId } = input;
 
     Sentry.addBreadcrumb({
@@ -933,10 +929,24 @@ export const jobService = (() => {
       );
     }
 
-    const job = await jobRepository.updateJobNextActionByBlockchainIdentifier(
-      jobBlockchainIdentifier,
-      NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
-    );
+    const job = await prisma.$transaction(async (tx) => {
+      await jobPurchaseRepository.updateJobPurchaseByExternalId(
+        jobBlockchainIdentifier,
+        {
+          nextAction: NextJobAction.SET_REFUND_REQUESTED_REQUESTED,
+        },
+        tx,
+      );
+
+      const job = await jobRepository.getJobByBlockchainIdentifier(
+        jobBlockchainIdentifier,
+        tx,
+      );
+      if (!job) {
+        throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
+      }
+      return job;
+    });
 
     // Add breadcrumb for successful refund request
     Sentry.addBreadcrumb({
@@ -967,17 +977,25 @@ export const jobService = (() => {
    *
    * @param job - The job to synchronize with current status
    */
-  const syncJob = async (job: JobWithStatus): Promise<void> => {
-    const oldJobStatus = computeJobStatus(job);
-    if (isPaidJob(job) && !job.purchaseId) {
+  const syncJob = async (initialJob: JobWithStatus): Promise<void> => {
+    const oldJobStatus = computeJobStatus(initialJob);
+    let job: JobWithStatus | null = initialJob;
+    if (isPaidJob(job) && job.purchase === null) {
       const purchaseResult =
         await paymentClient.getPurchaseByBlockchainIdentifier(
           job.blockchainIdentifier,
         );
       if (purchaseResult.ok) {
         const purchaseData = transformPurchaseToJobUpdate(purchaseResult.data);
-        job = await jobRepository.updateJobWithPurchase(job.id, purchaseData);
+        await jobPurchaseRepository.createJobPurchase({
+          jobId: job.id,
+          ...purchaseData,
+        });
       }
+      job = await jobRepository.getJobById(job.id);
+    }
+    if (!job) {
+      throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
     }
     const agentJobIdToSync = shouldSyncAgentStatus(job);
     const purchaseIdToSync = shouldSyncMasumiStatus(job);
@@ -993,11 +1011,14 @@ export const jobService = (() => {
 
     const newJobStatus = await prisma.$transaction(
       async (tx) => {
+        if (!job) {
+          throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
+        }
         if (onChainPurchaseResult.ok) {
           const purchaseData = transformPurchaseToJobUpdate(
             onChainPurchaseResult.data,
           );
-          job = await jobRepository.updateJobWithPurchase(
+          await jobPurchaseRepository.updateJobPurchaseByJobId(
             job.id,
             purchaseData,
             tx,
@@ -1007,13 +1028,43 @@ export const jobService = (() => {
           const agentJobStatus = jobStatusToAgentJobStatus(
             agentJobStatusResult.data.status,
           );
-          const output = JSON.stringify(agentJobStatusResult.data);
-          job = await jobRepository.updateJobWithAgentJobStatus(
+          const latestJobEvent =
+            await jobEventRepository.getLatestJobEventByJobId(job.id, tx);
+
+          if (!latestJobEvent) {
+            return computeJobStatus(job);
+          }
+
+          // If the latest job event is the same as the agent job status result, return the current job status
+          if (latestJobEvent.externalId === agentJobStatusResult.data.id) {
+            return computeJobStatus(job);
+          } else {
+            // If the agent job status result has no external ID, check if the latest job event status is the same as the agent job status
+            if (!agentJobStatusResult.data.id) {
+              if (latestJobEvent.status === agentJobStatus) {
+                return computeJobStatus(job);
+              }
+            }
+          }
+
+          await jobEventRepository.createJobEventForJobId(
             job.id,
-            agentJobStatus,
-            output,
+            {
+              externalId: agentJobStatusResult.data.id,
+              status: agentJobStatus,
+              inputSchema: JSON.stringify(
+                agentJobStatusResult.data.input_schema,
+              ),
+              result: agentJobStatusResult.data.result,
+            },
             tx,
           );
+
+          job = await jobRepository.getJobById(job.id, tx);
+          if (!job) {
+            throw new JobError(JobErrorCode.JOB_NOT_FOUND, "Job not found");
+          }
+
           // Fire and forget: enqueue extraction if output is present
           try {
             const outputResult = agentJobStatusResult.data?.result;

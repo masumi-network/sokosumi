@@ -105,7 +105,7 @@ export const userService = (() => {
     const allJobs = [...ownedJobs, ...sharedJobs];
     return allJobs.sort(
       (a, b) =>
-        new Date(b.startedAt).getTime() - new Date(a.startedAt).getTime(),
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );
   }
 

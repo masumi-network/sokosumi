@@ -1,4 +1,11 @@
-import { JobStatus, JobWithStatus } from "@sokosumi/database";
+import {
+  JobStatus,
+  JobWithStatus,
+  OnChainTransactionStatus,
+  OnChainJobStatus,
+  NextJobAction,
+  AgentJobStatus,
+} from "@sokosumi/database";
 import { jobMatchesQuery } from "@/lib/job/job-search";
 
 describe("Job search functionality", () => {
@@ -6,8 +13,10 @@ describe("Job search functionality", () => {
     id: "job-1",
     name: "Test Job",
     agentId: "agent-1",
+    createdAt: new Date(),
+    updatedAt: new Date(),
     input: JSON.stringify({ query: "hello world" }),
-    output: JSON.stringify({ result: "Hello World Response" }),
+    result: JSON.stringify({ result: "Hello World Response" }),
     links: [
       {
         title: "Example",
@@ -22,12 +31,54 @@ describe("Job search functionality", () => {
     status: JobStatus.COMPLETED,
     identifierFromPurchaser: "test-1",
     inputHash: "hash-1",
-    resultHash: "hash-1",
-    startedAt: new Date(),
+    purchase: {
+      id: "purchase-1",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      onChainStatus: OnChainJobStatus.RESULT_SUBMITTED,
+      onChainTransactionHash: "hash-1",
+      onChainTransactionStatus: OnChainTransactionStatus.COMPLETED,
+      resultHash: "hash-1",
+      externalId: "external-1",
+      jobId: "job-1",
+      nextAction: NextJobAction.NONE,
+      nextActionErrorType: null,
+      nextActionErrorNote: null,
+      errorNote: null,
+      errorNoteKey: null,
+    },
+    events: [
+      {
+        id: "event-1",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        status: AgentJobStatus.AWAITING_PAYMENT,
+        result: null,
+        input: JSON.stringify({ query: "hello world" }),
+        inputHash: "hash-1",
+        inputSchema: JSON.stringify({ query: "hello world" }),
+        jobId: "job-1",
+        externalId: "external-1",
+        signature: "signature-1",
+      },
+      {
+        id: "event-2",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        status: AgentJobStatus.COMPLETED,
+        result: JSON.stringify({ result: "Hello World Response" }),
+        input: null,
+        inputHash: null,
+        inputSchema: null,
+        jobId: "job-1",
+        externalId: "external-2",
+        signature: null,
+      },
+    ],
     completedAt: new Date(),
     userId: "user-1",
     blobs: [],
-    shares: [],
+    share: null,
   } as unknown as JobWithStatus;
 
   it("should return true when no query is provided", () => {

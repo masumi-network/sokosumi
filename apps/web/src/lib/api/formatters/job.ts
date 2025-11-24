@@ -22,15 +22,12 @@ export function formatJobResponse(job: JobWithStatus): JobResponse {
     userId: job.userId,
     organizationId: job.organizationId,
     agentJobId: job.agentJobId,
-    agentJobStatus: job.agentJobStatus,
-    onChainStatus: job.onChainStatus,
+    agentJobStatus: job.events.at(0)?.status,
+    onChainStatus: job.purchase?.onChainStatus,
     input: job.input,
-    output: job.output,
-    startedAt: dateToISO(job.startedAt),
+    result: job.result,
+    startedAt: dateToISO(job.createdAt),
     completedAt: job.completedAt ? dateToISO(job.completedAt) : null,
-    resultSubmittedAt: job.resultSubmittedAt
-      ? dateToISO(job.resultSubmittedAt)
-      : null,
     jobType: job.jobType,
     price: job.creditTransaction
       ? {

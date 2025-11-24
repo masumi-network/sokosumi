@@ -349,7 +349,7 @@ export const agentService = (() => {
         const bLatestJob = b.jobs[0];
         if (!aLatestJob) return 1;
         if (!bLatestJob) return -1;
-        return bLatestJob.startedAt.getTime() - aLatestJob.startedAt.getTime();
+        return bLatestJob.createdAt.getTime() - aLatestJob.createdAt.getTime();
       });
     },
 

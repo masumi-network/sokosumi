@@ -7,10 +7,6 @@ import { useTranslations } from "next-intl";
 
 import DefaultErrorBoundary from "@/components/default-error-boundary";
 import Markdown from "@/components/markdown";
-import {
-  jobStatusResponseSchema,
-  JobStatusResponseSchemaType,
-} from "@/lib/schemas";
 
 import CopyMarkdown from "./copy-markdown";
 import DownloadButton from "./download-button";
@@ -56,29 +52,21 @@ function JobDetailsOutputsInner({
   const t = useTranslations("Components.Jobs.JobDetails.Output");
   const searchParams = useSearchParams();
 
-  let output: JobStatusResponseSchemaType | null = null;
-  if (job.output) {
-    try {
-      const parsedOutput = JSON.parse(job.output);
-      output = jobStatusResponseSchema.parse(parsedOutput);
-    } catch {
-      return <JobDetailsOutputsError />;
-    }
-  }
+  const result = job.result;
 
   return (
     <JobDetailsOutputsLayout>
-      {output?.result ? (
+      {result ? (
         <>
           <Markdown highlightTerm={(searchParams?.get("query") ?? "").trim()}>
-            {output.result}
+            {result}
           </Markdown>
           <div className="flex justify-between gap-2">
             <div className="flex gap-4">
-              <MaximizeMarkdown markdown={output.result} />
+              <MaximizeMarkdown markdown={result} />
               <div className="flex gap-1">
-                <DownloadButton markdown={output.result} />
-                <CopyMarkdown markdown={output.result} />
+                <DownloadButton markdown={result} />
+                <CopyMarkdown markdown={result} />
                 {!readOnly && (
                   <JobShareButton
                     job={job}

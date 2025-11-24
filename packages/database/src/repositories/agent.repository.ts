@@ -167,7 +167,7 @@ export const agentRepository = {
       include: {
         jobs: {
           where: jobWhereCondition,
-          orderBy: { startedAt: "desc" },
+          orderBy: { createdAt: "desc" },
           take: 1,
         },
       },
