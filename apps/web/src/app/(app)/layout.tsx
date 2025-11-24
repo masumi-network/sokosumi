@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 
+import { EmergencyDialog } from "@/components/emergency-dialog";
 import { FooterSections } from "@/components/footer";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import QueryProvider from "@/contexts/query-provider";
@@ -49,6 +50,7 @@ export default async function AppLayout({ children }: AppLayoutProps) {
         <div className="flex min-w-0 flex-1 flex-col overflow-clip">
           <Header session={session} className="h-16 p-4" />
           <main className="relative min-h-[calc(100svh-64px)] p-4 pt-20 md:pt-4">
+            <EmergencyDialog />
             {children}
           </main>
           <FooterSections className="p-4" />
