@@ -1,4 +1,3 @@
-
 import prisma from "../client";
 import type { CreditTransaction, Prisma } from "../generated/prisma/client";
 
