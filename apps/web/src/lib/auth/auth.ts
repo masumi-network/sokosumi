@@ -18,7 +18,6 @@ import * as z from "zod";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { getEnvSecrets } from "@/config/env.secrets";
 import { uploadImage } from "@/lib/blob/utils";
-import { reactChangeEmailVerificationEmail } from "@/lib/email/change-email";
 import { reactInviteUserEmail } from "@/lib/email/invitation";
 import { postmarkClient } from "@/lib/email/postmark";
 import { reactResetPasswordEmail } from "@/lib/email/reset-password";
@@ -220,21 +219,6 @@ export const auth = betterAuth({
   user: {
     changeEmail: {
       enabled: true,
-      sendChangeEmailVerification: async ({ user, url }) => {
-        const t = await getTranslations("Library.Auth.Email.ChangeEmail");
-
-        postmarkClient.sendEmail({
-          From: fromEmail,
-          To: user.email,
-          Tag: "change-email",
-          Subject: t("subject"),
-          HtmlBody: await reactChangeEmailVerificationEmail({
-            name: user.name,
-            changeEmailLink: url,
-          }),
-          MessageStream: "authentications",
-        });
-      },
     },
     deleteUser: {
       enabled: true,

@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 import { AuthForm, SubmitButton } from "@/auth/components/form";
 import { forgotPasswordFormData } from "@/auth/forgot-password/data";
-import { forgetPassword } from "@/lib/auth/auth.client";
+import { requestPasswordReset } from "@/lib/auth/auth.client";
 import {
   forgotPasswordFormSchema,
   ForgotPasswordFormSchemaType,
@@ -34,12 +34,12 @@ export default function ForgotPasswordForm({
   });
 
   async function handleSubmit(values: ForgotPasswordFormSchemaType) {
-    const forgetPasswordResult = await forgetPassword({
+    const requestPasswordResetResult = await requestPasswordReset({
       email: values.email,
       redirectTo: "/reset-password",
     });
 
-    if (forgetPasswordResult.error) {
+    if (requestPasswordResetResult.error) {
       toast.error(t("error"));
       return;
     }
