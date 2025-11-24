@@ -22,7 +22,7 @@ export type JobResponse = {
   agentJobStatus: string | null;
   onChainStatus: string | null;
   input: string;
-  output: string | null;
+  result: string | null;
   startedAt: string; // ISO date
   completedAt: string | null; // ISO date
   jobType: JobType;
