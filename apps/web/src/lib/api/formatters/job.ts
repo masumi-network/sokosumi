@@ -12,6 +12,7 @@ import { formatJobShareResponse } from "./job-share";
  * Formats job data for API response
  */
 export function formatJobResponse(job: JobWithStatus): JobResponse {
+  console.log("job", job);
   const formatted = {
     id: job.id,
     createdAt: dateToISO(job.createdAt),
@@ -23,7 +24,7 @@ export function formatJobResponse(job: JobWithStatus): JobResponse {
     organizationId: job.organizationId,
     agentJobId: job.agentJobId,
     agentJobStatus: job.events.at(0)?.status,
-    onChainStatus: job.purchase?.onChainStatus,
+    onChainStatus: job.purchase?.onChainStatus ?? null,
     input: job.input,
     result: job.result,
     startedAt: dateToISO(job.createdAt),
