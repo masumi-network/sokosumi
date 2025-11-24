@@ -166,29 +166,21 @@ export const agentService = (() => {
       return [];
     }
     return await prisma.$transaction(async (tx) => {
-      const existingList = await agentListRepository.getAgentListByUserId(
-        context.userId,
-        type,
-        tx,
-      );
-      if (existingList) {
-        const { userOrganizationIds, creditCosts, activeOrganizationId } =
-          await getAgentAccessContext(tx);
-        return existingList.agents.filter((agent) =>
-          isAgentAvailable(
-            agent,
-            userOrganizationIds,
-            creditCosts,
-            activeOrganizationId,
-          ),
-        );
-      }
       const list = await agentListRepository.upsertAgentListForUserId(
         context.userId,
         type,
         tx,
       );
-      return list.agents;
+      const { userOrganizationIds, creditCosts, activeOrganizationId } =
+        await getAgentAccessContext(tx);
+      return list.agents.filter((agent) =>
+        isAgentAvailable(
+          agent,
+          userOrganizationIds,
+          creditCosts,
+          activeOrganizationId,
+        ),
+      );
     });
   };
 
