@@ -1,16 +1,16 @@
-import {
-  AgentJobStatus,
-  BlobOrigin,
-  JobStatus,
-  JobWithStatus,
-} from "@sokosumi/database";
+"use client";
+
+import { Blob, BlobOrigin, JobStatus, JobWithStatus } from "@sokosumi/database";
+import { useQuery } from "@tanstack/react-query";
 import { useFormatter, useTranslations } from "next-intl";
 
 import AccordionItemWrapper from "@/components/accordion-wrapper";
 import { JobStatusBadge } from "@/components/jobs";
 import { Accordion } from "@/components/ui/accordion";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { useSession } from "@/lib/auth/auth.client";
 import { cn } from "@/lib/utils";
+import { getJobQueryOptions } from "@/queries";
 
 import JobDetailsInputs from "./inputs";
 import JobDetailsName from "./job-details-name";
@@ -27,18 +27,28 @@ interface JobDetailsProps {
 }
 
 export default function JobDetails({
-  job,
+  job: initialJob,
   readOnly = false,
   className,
   activeOrganizationId,
 }: JobDetailsProps) {
   const t = useTranslations("Components.Jobs.JobDetails");
+  const { data: session } = useSession();
 
-  const hasCompletedOutput = job.status === JobStatus.COMPLETED && !!job.output;
+  const { data: job } = useQuery({
+    ...getJobQueryOptions(initialJob.id, session),
+    enabled: !!session,
+    initialData: initialJob,
+  });
+
+  const rawInput = job.input;
+  const rawInputSchema = job.inputSchema;
+
+  const hasCompletedOutput = job.status === JobStatus.COMPLETED && !!job.result;
   // Only show Sources accordion if there are OUTPUT blobs or links
   // Note: Only output blobs are shown in the Sources section
   const hasOutputBlobs = job.blobs.some(
-    (blob) => blob.origin === BlobOrigin.OUTPUT,
+    (blob: Blob) => blob.origin === BlobOrigin.OUTPUT,
   );
   const hasOutputLinks = job.links.length > 0;
   const hasSources = hasOutputBlobs || hasOutputLinks;
@@ -74,8 +84,8 @@ export default function JobDetails({
             }
           >
             <JobDetailsInputs
-              rawInput={job.input}
-              inputSchema={job.inputSchema}
+              rawInput={rawInput}
+              rawInputSchema={rawInputSchema}
               blobs={job.blobs}
             />
           </AccordionItemWrapper>
@@ -83,8 +93,8 @@ export default function JobDetails({
             value="output"
             title={t("Output.title")}
             verificationBadge={
-              job.agentJobStatus === AgentJobStatus.COMPLETED ? (
-                <JobVerificationBadge direction="output" job={job} />
+              job.completedAt != null ? (
+                <JobVerificationBadge direction="result" job={job} />
               ) : null
             }
           >

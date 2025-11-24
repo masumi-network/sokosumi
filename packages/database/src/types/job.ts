@@ -6,6 +6,12 @@ import type {
 } from "../generated/prisma/client";
 
 export const jobInclude = {
+  events: {
+    orderBy: {
+      createdAt: "desc",
+    },
+  },
+  purchase: true,
   agent: true,
   user: true,
   organization: true,
@@ -29,6 +35,11 @@ type Override<TType, TWith> = Omit<TType, keyof TWith> & TWith;
 type BaseJobWithStatus = JobWithRelations & {
   status: JobStatus;
   jobStatusSettled: boolean;
+  input: string | null;
+  inputHash: string | null;
+  inputSchema: string | null;
+  completedAt: Date | null;
+  result: string | null;
 };
 
 type BaseFreeJob = {

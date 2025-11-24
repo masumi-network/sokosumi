@@ -9,29 +9,25 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import useAgentJobStatus from "@/hooks/use-agent-job-status";
-import { JobIndicatorStatus } from "@/lib/ably";
+import useAgentJobStatusData from "@/hooks/use-agent-job-status";
+import { type JobStatusData } from "@/lib/ably";
 import { cn } from "@/lib/utils";
 
 interface AgentJobStatusIndicatorProps {
   agentId: string;
   userId: string;
-  initialJobIndicatorStatus: JobIndicatorStatus | null;
+  initialJobStatusData: JobStatusData | null;
   className?: string | undefined;
 }
 
 export default function AgentJobStatusIndicator({
   agentId,
   userId,
-  initialJobIndicatorStatus: initialJobStatusData,
+  initialJobStatusData,
   className,
 }: AgentJobStatusIndicatorProps) {
-  const jobStatusData = useAgentJobStatus(
-    agentId,
-    userId,
-    null,
-    initialJobStatusData,
-  );
+  const jobStatusData =
+    useAgentJobStatusData(agentId, userId, null) ?? initialJobStatusData;
 
   if (!jobStatusData) {
     return null;
@@ -41,25 +37,25 @@ export default function AgentJobStatusIndicator({
     <Tooltip>
       <TooltipTrigger>
         <AgentJobStatusIndicatorIcon
-          jobIndicatorStatus={jobStatusData}
+          jobStatusData={jobStatusData}
           className={className}
         />
       </TooltipTrigger>
       <TooltipContent>
-        <AgentJobStatusIndicatorContent jobIndicatorStatus={jobStatusData} />
+        <AgentJobStatusIndicatorContent jobStatusData={jobStatusData} />
       </TooltipContent>
     </Tooltip>
   );
 }
 
 function AgentJobStatusIndicatorIcon({
-  jobIndicatorStatus,
+  jobStatusData,
   className,
 }: {
-  jobIndicatorStatus: JobIndicatorStatus;
+  jobStatusData: JobStatusData;
   className?: string | undefined;
 }) {
-  const { jobStatus, jobStatusSettled } = jobIndicatorStatus;
+  const { jobStatus, jobStatusSettled } = jobStatusData;
   if (jobStatusSettled) {
     return null;
   }
@@ -86,13 +82,13 @@ function AgentJobStatusIndicatorIcon({
 }
 
 function AgentJobStatusIndicatorContent({
-  jobIndicatorStatus,
+  jobStatusData,
 }: {
-  jobIndicatorStatus: JobIndicatorStatus;
+  jobStatusData: JobStatusData;
 }) {
   const t = useTranslations("App.Sidebar.Content.AgentLists.Statuses");
 
-  const { jobStatus, jobStatusSettled } = jobIndicatorStatus;
+  const { jobStatus, jobStatusSettled } = jobStatusData;
   if (jobStatusSettled) {
     return null;
   }

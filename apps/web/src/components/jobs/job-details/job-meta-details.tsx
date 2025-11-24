@@ -17,14 +17,7 @@ import {
 import { Separator } from "@/components/ui/separator";
 import { getEnvPublicConfig } from "@/config/env.public";
 import { convertCentsToCredits } from "@/lib/helpers/credit";
-import { JobStatusResponseSchemaType } from "@/lib/schemas";
-import {
-  cn,
-  getInputHash,
-  getResultHash,
-  toJobInputData,
-  tryParseJson,
-} from "@/lib/utils";
+import { cn, getInputHash, getResultHash } from "@/lib/utils";
 import { formatDateTimeMedium } from "@/lib/utils/format";
 import { buildJobTransactionUrl } from "@/lib/utils/url";
 
@@ -48,19 +41,15 @@ export function JobMetaDetails({ job }: JobMetaDetailsProps) {
   const t = useTranslations("Components.Jobs.JobDetails.Meta");
 
   const hashVerification = useMemo<HashVerificationResult>(() => {
-    const inputObj = tryParseJson<Record<string, unknown>>(job.input);
-    const inputData = inputObj ? toJobInputData(inputObj) : null;
-    const outputObj = tryParseJson<JobStatusResponseSchemaType>(job.output);
-
     const identifier = job.identifierFromPurchaser;
     const calcInput =
-      identifier && inputData ? getInputHash(inputData, identifier) : null;
+      identifier && job.input ? getInputHash(job.input, identifier) : null;
     const calcOutput =
-      identifier && outputObj ? getResultHash(outputObj, identifier) : null;
+      identifier && job.result ? getResultHash(job.result, identifier) : null;
 
     return {
       onChainInputHash: job.inputHash ?? null,
-      onChainResultHash: job.resultHash ?? null,
+      onChainResultHash: job.purchase?.resultHash ?? null,
       calculatedInputHash: calcInput,
       calculatedResultHash: calcOutput,
     };
@@ -84,14 +73,17 @@ export function JobMetaDetails({ job }: JobMetaDetailsProps) {
       key: "txId",
       label: t("txId"),
       rowClassName: "pb-1",
-      content: job.onChainTransactionHash ? (
+      content: job.purchase?.onChainTransactionHash ? (
         <Link
-          href={buildJobTransactionUrl(job.onChainTransactionHash, isMainnet)}
+          href={buildJobTransactionUrl(
+            job.purchase.onChainTransactionHash,
+            isMainnet,
+          )}
           className={"flex items-center gap-1 text-sm md:text-base"}
           target="_blank"
         >
           <LinkIcon className="h-4 w-4" />
-          <MiddleTruncate text={job.onChainTransactionHash} />
+          <MiddleTruncate text={job.purchase.onChainTransactionHash} />
         </Link>
       ) : (
         <span>{"-"}</span>
@@ -113,7 +105,7 @@ export function JobMetaDetails({ job }: JobMetaDetailsProps) {
       key: "started",
       label: t("started"),
       rowClassName: "pb-1",
-      content: formatDateTimeMedium(formatter.dateTime, job.startedAt),
+      content: formatDateTimeMedium(formatter.dateTime, job.createdAt),
     },
     {
       key: "finished",
@@ -143,7 +135,7 @@ export function JobMetaDetails({ job }: JobMetaDetailsProps) {
         const isHashGroup =
           item.key === "inputHashGroup" || item.key === "outputHashGroup";
         if (isHashGroup) {
-          const direction = item.key === "inputHashGroup" ? "input" : "output";
+          const direction = item.key === "inputHashGroup" ? "input" : "result";
           const onChainHash =
             direction === "input" ? onChainInputHash : onChainResultHash;
           const calculatedHash =
@@ -203,7 +195,7 @@ function KeyValueRow({
 export default JobMetaDetails;
 
 interface HashGroupProps {
-  direction: "input" | "output";
+  direction: "input" | "result";
   onChainHash: string | null;
   calculatedHash: string | null;
   job: JobWithStatus;

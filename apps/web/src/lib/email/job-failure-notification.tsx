@@ -22,11 +22,8 @@ export interface JobFailureNotificationEmailProps {
   jobBlockchainIdentifier: string | null;
   onChainStatus: string | null;
   agentStatus: string | null;
-  input: string;
-  output: string | null;
-  inputHash: string | null;
+  result: string | null;
   resultHash: string | null;
-  inputSchema: string;
 }
 
 interface JobFailureNotificationEmailComponentProps
@@ -48,11 +45,8 @@ const JobFailureNotificationEmailComponent = ({
   jobBlockchainIdentifier,
   onChainStatus,
   agentStatus,
-  input,
-  output,
-  inputHash,
+  result,
   resultHash,
-  inputSchema,
   t,
 }: JobFailureNotificationEmailComponentProps) => {
   // Helper function to format JSON strings
@@ -155,15 +149,6 @@ const JobFailureNotificationEmailComponent = ({
               </Text>
             </Section>
 
-            <Section className="my-2">
-              <Text className="my-1 text-base font-semibold text-black">
-                {t("inputHash")}
-              </Text>
-              <Text className="font-mono text-base break-all text-[#666666]">
-                {inputHash || "null"}
-              </Text>
-            </Section>
-
             <Section className="mb-[12px]">
               <Text className="my-1 text-base font-semibold text-black">
                 {t("resultHash")}
@@ -175,33 +160,11 @@ const JobFailureNotificationEmailComponent = ({
 
             <Section className="my-2">
               <Text className="my-1 text-base font-semibold text-black">
-                {t("inputSchema")}
-              </Text>
-              <Container className="rounded bg-[#f4f4f4] p-2">
-                <Text className="font-mono text-sm break-all whitespace-pre-wrap text-[#333333]">
-                  {formatJson(inputSchema)}
-                </Text>
-              </Container>
-            </Section>
-
-            <Section className="my-2">
-              <Text className="my-1 text-base font-semibold text-black">
-                {t("input")}
-              </Text>
-              <Container className="rounded bg-[#f4f4f4] p-2">
-                <Text className="font-mono text-sm break-all whitespace-pre-wrap text-[#333333]">
-                  {formatJson(input)}
-                </Text>
-              </Container>
-            </Section>
-
-            <Section className="my-2">
-              <Text className="my-1 text-base font-semibold text-black">
                 {t("output")}
               </Text>
               <Container className="rounded bg-[#f4f4f4] p-2">
                 <Text className="font-mono text-sm break-all whitespace-pre-wrap text-[#333333]">
-                  {formatJson(output)}
+                  {formatJson(result)}
                 </Text>
               </Container>
             </Section>

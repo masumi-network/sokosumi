@@ -3,12 +3,14 @@ import {
   agentRepository,
   jobRepository,
 } from "@sokosumi/database/repositories";
+import { dehydrate, HydrationBoundary } from "@tanstack/react-query";
 import { notFound, redirect } from "next/navigation";
 
 import { JobDetails } from "@/components/jobs";
 import { Session } from "@/lib/auth/auth";
 import { getSession } from "@/lib/auth/utils";
 import { isSharedWithOrganization } from "@/lib/helpers/job";
+import { getJobQueryKey, getQueryClient } from "@/queries";
 
 interface JobDetailsPageParams {
   agentId: string;
@@ -49,7 +51,6 @@ export default async function JobDetailsPage({
   if (!session) {
     return notFound();
   }
-
   const { agentId, jobId } = await params;
 
   const agent = await agentRepository.getAgentWithRelationsById(agentId);
@@ -67,6 +68,10 @@ export default async function JobDetailsPage({
     notFound();
   }
 
+  // set the Job in the query client
+  const queryClient = getQueryClient();
+  queryClient.setQueryData(getJobQueryKey(jobId), job);
+
   // Check if user can access this job (either owns it or it's shared with their organization)
   const canAccessJob = await checkJobAccess(job, session);
   if (!canAccessJob) {
@@ -77,10 +82,12 @@ export default async function JobDetailsPage({
   const readOnly = job.userId !== session.user.id;
 
   return (
-    <JobDetails
-      job={job}
-      readOnly={readOnly}
-      activeOrganizationId={session.session.activeOrganizationId}
-    />
+    <HydrationBoundary state={dehydrate(queryClient)}>
+      <JobDetails
+        job={job}
+        readOnly={readOnly}
+        activeOrganizationId={session.session.activeOrganizationId}
+      />
+    </HydrationBoundary>
   );
 }

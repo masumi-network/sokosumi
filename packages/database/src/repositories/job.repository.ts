@@ -1,24 +1,16 @@
-
 import prisma from "../client";
 import {
   AgentJobStatus,
   JobType,
   OnChainJobStatus,
 } from "../generated/prisma/browser";
-import type {
-  Job,
-  NextJobAction,
-  NextJobActionErrorType,
-  OnChainTransactionStatus,
-  Prisma,
-} from "../generated/prisma/client";
+import type { Prisma } from "../generated/prisma/client";
 import { mapJobWithStatus } from "../helpers/job";
 import {
   finalizedAgentJobStatuses,
   finalizedOnChainJobStatuses,
   jobInclude,
   jobOrderBy,
-  type JobWithRelations,
   type JobWithStatus,
 } from "../types/job";
 
@@ -27,13 +19,11 @@ interface CreateDemoJobData {
   agentJobId: string;
   agentId: string;
   userId: string;
-  organizationId: string | null | undefined;
+  organizationId?: string | null;
   inputSchema: unknown[];
   input: string;
   name: string | null;
-  agentJobStatus: AgentJobStatus;
-  output: string;
-  completedAt: Date | null;
+  result?: string | null;
 }
 
 interface CreateJobBase {
@@ -43,15 +33,15 @@ interface CreateJobBase {
   organizationId: string | null | undefined;
   inputSchema: unknown[];
   input: string;
+  inputHash: string | null;
   name: string | null;
   jobScheduleId?: string | null | undefined;
-  agentJobStatus?: AgentJobStatus | null;
-  output?: string | null;
-  completedAt?: Date | null;
+  agentJobStatus: AgentJobStatus;
 }
 
 interface CreatePaidJobData extends CreateJobBase {
   jobType: typeof JobType.PAID;
+  agentJobStatus: typeof AgentJobStatus.AWAITING_PAYMENT;
   identifierFromPurchaser: string;
   creditsPrice: {
     cents: bigint;
@@ -68,6 +58,7 @@ interface CreatePaidJobData extends CreateJobBase {
 
 interface CreateFreeJobData extends CreateJobBase {
   jobType: typeof JobType.FREE;
+  agentJobStatus: typeof AgentJobStatus.RUNNING;
 }
 
 type CreateJobData = CreatePaidJobData | CreateFreeJobData;
@@ -114,16 +105,18 @@ export const jobRepository = {
     agentId: string,
     tx: Prisma.TransactionClient = prisma,
   ): Promise<number> {
-    const result = await tx.$queryRaw<[{ avg_duration_seconds: number }]>`
+    const result = await tx.$queryRaw<
+      [{ avg_duration_seconds: number | null }]
+    >`
     SELECT 
-      AVG(EXTRACT(EPOCH FROM ("completedAt" - "startedAt"))) as avg_duration_seconds
-    FROM "Job"
-    WHERE "agentId" = ${agentId}
-    AND "jobType" != 'DEMO'
-    AND "completedAt" IS NOT NULL
-    AND "createdAt" >= NOW() - INTERVAL '30 days'
+      COALESCE(AVG(EXTRACT(EPOCH FROM (je."createdAt" - j."createdAt"))), 0) as avg_duration_seconds
+    FROM "Job" j
+    INNER JOIN "jobEvent" je ON je."jobId" = j.id
+    WHERE j."agentId" = ${agentId}
+    AND j."jobType" != 'DEMO'
+    AND je.status = 'COMPLETED'::"AgentJobStatus"
+    AND j."createdAt" >= NOW() - INTERVAL '90 days'
   `;
-
     const averageDurationSeconds = result[0]?.avg_duration_seconds ?? 0;
     return averageDurationSeconds * 1000;
   },
@@ -188,18 +181,19 @@ export const jobRepository = {
   async getJobByBlockchainIdentifier(
     blockchainIdentifier: string,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<JobWithRelations | null> {
-    return await tx.job.findUnique({
+  ): Promise<JobWithStatus | null> {
+    const job = await tx.job.findUnique({
       where: { blockchainIdentifier },
       include: jobInclude,
     });
+    return job ? mapJobWithStatus(job) : null;
   },
 
   async createDemoJob(
     data: CreateDemoJobData,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<Job> {
-    return await tx.job.create({
+  ): Promise<JobWithStatus> {
+    const job = await tx.job.create({
       data: {
         agentJobId: data.agentJobId,
         jobType: JobType.DEMO,
@@ -220,8 +214,14 @@ export const jobRepository = {
             },
           },
         }),
-        inputSchema: JSON.stringify(data.inputSchema),
-        input: data.input,
+        events: {
+          create: {
+            status: AgentJobStatus.COMPLETED,
+            inputSchema: JSON.stringify(data.inputSchema),
+            input: data.input,
+            result: data.result,
+          },
+        },
         payByTime: null,
         submitResultTime: null,
         unlockTime: null,
@@ -229,17 +229,16 @@ export const jobRepository = {
         blockchainIdentifier: null,
         sellerVkey: null,
         name: data.name,
-        agentJobStatus: data.agentJobStatus,
-        output: data.output,
-        completedAt: data.completedAt,
       },
+      include: jobInclude,
     });
+    return mapJobWithStatus(job);
   },
 
   async createJob(
     data: CreateJobData,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<Job> {
+  ): Promise<JobWithStatus> {
     const baseJobData: Prisma.JobCreateInput = {
       agentJobId: data.agentJobId,
       jobType: data.jobType,
@@ -260,25 +259,25 @@ export const jobRepository = {
           },
         },
       }),
-      inputSchema: JSON.stringify(data.inputSchema),
-      input: data.input,
+      events: {
+        create: {
+          status: data.agentJobStatus,
+          inputSchema: JSON.stringify(data.inputSchema),
+          input: data.input,
+          inputHash: data.inputHash,
+        },
+      },
       name: data.name,
       ...(data.jobScheduleId && {
         jobSchedule: { connect: { id: data.jobScheduleId } },
       }),
-      ...(data.agentJobStatus !== undefined && {
-        agentJobStatus: data.agentJobStatus,
-      }),
-      ...(data.output !== undefined && { output: data.output }),
-      ...(data.completedAt !== undefined && { completedAt: data.completedAt }),
     };
 
     switch (data.jobType) {
       case JobType.FREE:
-        return tx.job.create({
+        const freeJob = await tx.job.create({
           data: {
             ...baseJobData,
-            purchaseId: null,
             payByTime: null,
             externalDisputeUnlockTime: null,
             submitResultTime: null,
@@ -287,9 +286,11 @@ export const jobRepository = {
             sellerVkey: null,
             identifierFromPurchaser: null,
           },
+          include: jobInclude,
         });
+        return mapJobWithStatus(freeJob);
       case JobType.PAID:
-        return tx.job.create({
+        const paidJob = await tx.job.create({
           data: {
             ...baseJobData,
             creditTransaction: {
@@ -310,7 +311,6 @@ export const jobRepository = {
                 }),
               },
             },
-            ...(data.purchaseId && { purchaseId: data.purchaseId }),
             payByTime: data.payByTime,
             externalDisputeUnlockTime: data.externalDisputeUnlockTime,
             submitResultTime: data.submitResultTime,
@@ -319,7 +319,9 @@ export const jobRepository = {
             sellerVkey: data.sellerVkey,
             identifierFromPurchaser: data.identifierFromPurchaser,
           },
+          include: jobInclude,
         });
+        return mapJobWithStatus(paidJob);
       default: {
         const _exhaustive: never = data;
         throw new Error(`Unsupported job type: ${_exhaustive}`);
@@ -378,88 +380,6 @@ export const jobRepository = {
     });
   },
 
-  async updateJobWithAgentJobStatus(
-    jobId: string,
-    agentJobStatus: AgentJobStatus,
-    output: string,
-    tx: Prisma.TransactionClient = prisma,
-  ): Promise<JobWithStatus> {
-    // Fetch the current job to check if it's already completed
-    const currentJob = await tx.job.findUnique({ where: { id: jobId } });
-
-    const data: Prisma.JobUpdateInput = {
-      agentJobStatus,
-      output,
-      ...(agentJobStatus === AgentJobStatus.COMPLETED &&
-        currentJob?.completedAt === null && {
-          completedAt: new Date(),
-        }),
-    };
-
-    const updatedJob = await tx.job.update({
-      where: { id: jobId },
-      data,
-      include: jobInclude,
-    });
-    return mapJobWithStatus(updatedJob);
-  },
-
-  async updateJobWithPurchase(
-    jobId: string,
-    data: {
-      purchaseId: string;
-      onChainStatus: OnChainJobStatus | null;
-      inputHash: string | null;
-      resultHash: string | null;
-      nextAction: NextJobAction;
-      nextActionErrorType: NextJobActionErrorType | null;
-      nextActionErrorNote: string | null;
-      onChainTransactionHash?: string;
-      onChainTransactionStatus?: OnChainTransactionStatus;
-      resultSubmittedAt?: Date;
-    },
-    tx: Prisma.TransactionClient = prisma,
-  ): Promise<JobWithStatus> {
-    const updateData: Prisma.JobUpdateInput = {
-      purchaseId: data.purchaseId,
-      onChainStatus: data.onChainStatus,
-      inputHash: data.inputHash,
-      resultHash: data.resultHash,
-      nextAction: data.nextAction,
-      nextActionErrorType: data.nextActionErrorType,
-      nextActionErrorNote: data.nextActionErrorNote,
-      ...(data.onChainTransactionHash && {
-        onChainTransactionHash: data.onChainTransactionHash,
-      }),
-      ...(data.onChainTransactionStatus && {
-        onChainTransactionStatus: data.onChainTransactionStatus,
-      }),
-      ...(data.resultSubmittedAt && {
-        resultSubmittedAt: data.resultSubmittedAt,
-      }),
-    };
-
-    const job = await tx.job.update({
-      where: { id: jobId },
-      data: updateData,
-      include: jobInclude,
-    });
-    return mapJobWithStatus(job);
-  },
-
-  async updateJobNextActionByBlockchainIdentifier(
-    jobBlockchainIdentifier: string,
-    nextJobAction: NextJobAction,
-    tx: Prisma.TransactionClient = prisma,
-  ): Promise<JobWithStatus> {
-    const job = await tx.job.update({
-      where: { blockchainIdentifier: jobBlockchainIdentifier },
-      data: { nextAction: nextJobAction },
-      include: jobInclude,
-    });
-    return mapJobWithStatus(job);
-  },
-
   async getNotFinishedLatestJobByAgentIdAndUserId(
     agentId: string,
     userId: string,
@@ -471,7 +391,7 @@ export const jobRepository = {
         userId,
         ...jobsNotFinishedWhereQuery(),
       },
-      orderBy: { startedAt: "desc" },
+      orderBy: { createdAt: "desc" },
       include: jobInclude,
     });
     return job ? mapJobWithStatus(job) : null;
@@ -489,30 +409,33 @@ export const jobRepository = {
     userId: string,
     organizationId: string | null | undefined,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<Job | null> {
+  ): Promise<JobWithStatus | null> {
     // Normalize undefined to null for organizationId to ensure correct filtering (Prisma ignores undefined)
     const normalizedOrganizationId = organizationId ?? null;
-    return await tx.job.findFirst({
+    const job = await tx.job.findFirst({
       where: {
         agentId,
         userId,
         organizationId: normalizedOrganizationId,
         ...jobsNotFinishedWhereQuery(),
       },
-      orderBy: { startedAt: "desc" },
+      orderBy: { createdAt: "desc" },
       include: jobInclude,
     });
+    return job ? mapJobWithStatus(job) : null;
   },
 
   async updateJobNameById(
     jobId: string,
     name: string | null,
     tx: Prisma.TransactionClient = prisma,
-  ): Promise<Job> {
-    return await tx.job.update({
+  ): Promise<JobWithStatus> {
+    const job = await tx.job.update({
       where: { id: jobId },
       data: { name },
+      include: jobInclude,
     });
+    return mapJobWithStatus(job);
   },
 
   /**
@@ -620,13 +543,17 @@ function jobsNotFinishedWhereQuery(
     OR: [
       // Filter out jobs that are finalized
       {
-        onChainStatus: {
-          notIn: finalizedOnChainJobStatuses,
+        purchase: {
+          onChainStatus: {
+            notIn: finalizedOnChainJobStatuses,
+          },
         },
       },
       // Filter in jobs that have no on-chain status
       {
-        onChainStatus: null,
+        purchase: {
+          onChainStatus: null,
+        },
       },
     ],
     NOT: [
@@ -638,7 +565,9 @@ function jobsNotFinishedWhereQuery(
       },
       // Filter out jobs that are non-disputed and have a externalDisputeUnlockTime that is less than the cutoff time
       {
-        onChainStatus: { not: OnChainJobStatus.DISPUTED },
+        purchase: {
+          onChainStatus: { not: OnChainJobStatus.DISPUTED },
+        },
         externalDisputeUnlockTime: {
           not: null,
           lt: cutoffTime,
@@ -646,7 +575,9 @@ function jobsNotFinishedWhereQuery(
       },
       // Filter out jobs that have no on-chain status and have a payByTime that is less than the cutoff time
       {
-        onChainStatus: null,
+        purchase: {
+          onChainStatus: null,
+        },
         payByTime: { not: null, lt: cutoffTime },
       },
       // Filter out demo jobs
@@ -656,9 +587,12 @@ function jobsNotFinishedWhereQuery(
       // Filter out free jobs that are completed or failed on agentJobStatus
       {
         jobType: JobType.FREE,
-        agentJobStatus: {
-          not: null,
-          in: finalizedAgentJobStatuses,
+        events: {
+          some: {
+            status: {
+              in: finalizedAgentJobStatuses,
+            },
+          },
         },
       },
     ],
@@ -678,18 +612,24 @@ function jobsFinishedWhereQuery(): Prisma.JobWhereInput {
   return {
     AND: [
       {
-        agentJobStatus: {
-          in: finalizedAgentJobStatuses,
+        events: {
+          some: {
+            status: {
+              in: finalizedAgentJobStatuses,
+            },
+          },
         },
         // Check for finalized on-chain statuses
         OR: [
-          { onChainStatus: null, jobType: JobType.FREE },
+          { purchase: { onChainStatus: null }, jobType: JobType.FREE },
           {
-            onChainStatus: {
-              notIn: [
-                OnChainJobStatus.FUNDS_LOCKED,
-                OnChainJobStatus.REFUND_REQUESTED,
-              ],
+            purchase: {
+              onChainStatus: {
+                notIn: [
+                  OnChainJobStatus.FUNDS_LOCKED,
+                  OnChainJobStatus.REFUND_REQUESTED,
+                ],
+              },
             },
           },
         ],

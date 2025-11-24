@@ -119,18 +119,16 @@ export function jobStatusToAgentJobStatus(
   jobStatus: JobStatusValue,
 ): AgentJobStatus {
   switch (jobStatus) {
-    case "pending":
-      return "PENDING";
     case "awaiting_payment":
-      return "AWAITING_PAYMENT";
+      return "AWAITING_PAYMENT" as const;
     case "awaiting_input":
-      return "AWAITING_INPUT";
+      return "AWAITING_INPUT" as const;
     case "running":
-      return "RUNNING";
+      return "RUNNING" as const;
     case "completed":
-      return "COMPLETED";
+      return "COMPLETED" as const;
     case "failed":
-      return "FAILED";
+      return "FAILED" as const;
     default:
       throw new Error(`Unknown job status: ${jobStatus}`);
   }
@@ -162,7 +160,7 @@ export function transactionStatusToOnChainTransactionStatus(
  * Transform a Purchase from external API to database update data structure.
  */
 export function transformPurchaseToJobUpdate(purchase: Purchase): {
-  purchaseId: string;
+  externalId: string;
   onChainStatus: OnChainJobStatus | null;
   inputHash: string | null;
   resultHash: string | null;
@@ -171,13 +169,12 @@ export function transformPurchaseToJobUpdate(purchase: Purchase): {
   nextActionErrorNote: string | null;
   onChainTransactionHash?: string;
   onChainTransactionStatus?: OnChainTransactionStatus;
-  resultSubmittedAt?: Date;
 } {
   const onChainStatus = onChainStateToOnChainJobStatus(purchase.onChainState);
   const nextAction = nextActionToNextJobAction(purchase.NextAction);
 
   const data: {
-    purchaseId: string;
+    externalId: string;
     onChainStatus: OnChainJobStatus | null;
     inputHash: string | null;
     resultHash: string | null;
@@ -186,9 +183,8 @@ export function transformPurchaseToJobUpdate(purchase: Purchase): {
     nextActionErrorNote: string | null;
     onChainTransactionHash?: string;
     onChainTransactionStatus?: OnChainTransactionStatus;
-    resultSubmittedAt?: Date;
   } = {
-    purchaseId: purchase.id,
+    externalId: purchase.id,
     onChainStatus,
     inputHash: purchase.inputHash,
     resultHash: purchase.resultHash,
@@ -196,10 +192,6 @@ export function transformPurchaseToJobUpdate(purchase: Purchase): {
     nextActionErrorType: nextAction.errorType,
     nextActionErrorNote: nextAction.errorNote,
   };
-
-  if (onChainStatus === "RESULT_SUBMITTED") {
-    data.resultSubmittedAt = new Date();
-  }
 
   const transaction = purchase.CurrentTransaction;
   if (transaction) {
